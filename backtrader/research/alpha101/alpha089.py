@@ -76,3 +76,36 @@ class Alpha089Native(FactorIndicator):
     def next(self):
         for data, result in zip(self.datas, self._result_lines):
             self.outputs[data].factor[0] = result[0]
+
+
+@native_alpha
+class Alpha089Build(FactorIndicator):
+    """AF48-089: construct the native Alpha101 graph via expressions."""
+
+    lines = ("factor",)
+    panel_mode = "expression"
+    alpha_id = Alpha089Native.alpha_id
+    case_id = Alpha089Native.case_id
+    lookback_h = Alpha089Native.lookback_h
+    formula_fields = Alpha089Native.formula_fields
+    required_fields = Alpha089Native.required_fields
+    formula = Alpha089Native.formula
+    operator_profile = Alpha089Native.operator_profile
+    input_policy = Alpha089Native.input_policy
+
+    @classmethod
+    def build(cls, ctx, **params):
+        alpha = 0.967285
+        one_minus_alpha = ctx.subtract(1.0, alpha)
+        low_part_a = ctx.field("low") * (alpha)
+        low_part_b = ctx.field("low") * one_minus_alpha
+        weighted_low = low_part_a + low_part_b
+        low_adv_correlation = ctx.correlation(weighted_low, ctx.field("adv10"), 6.94279)
+        low_correlation_decay = ctx.decay_linear(low_adv_correlation, 5.51607)
+        low_time_rank = ctx.ts_rank(low_correlation_decay, 3.79744)
+        neutral_vwap = ctx.indneutralize(ctx.field("vwap"), ctx.field("industry"), level="industry")
+        neutral_vwap_delta = ctx.delta(neutral_vwap, 3.48158)
+        vwap_delta_decay = ctx.decay_linear(neutral_vwap_delta, 10.1466)
+        vwap_branch_time_rank = ctx.ts_rank(vwap_delta_decay, 15.3012)
+        factor = low_time_rank - vwap_branch_time_rank
+        return factor

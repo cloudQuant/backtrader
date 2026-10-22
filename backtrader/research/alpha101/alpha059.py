@@ -68,3 +68,33 @@ class Alpha059Native(FactorIndicator):
     def next(self):
         for data, result in zip(self.datas, self._result_lines):
             self.outputs[data].factor[0] = result[0]
+
+
+@native_alpha
+class Alpha059Build(FactorIndicator):
+    """AF48-059: construct the native Alpha101 graph via expressions."""
+
+    lines = ("factor",)
+    panel_mode = "expression"
+    alpha_id = Alpha059Native.alpha_id
+    case_id = Alpha059Native.case_id
+    lookback_h = Alpha059Native.lookback_h
+    formula_fields = Alpha059Native.formula_fields
+    required_fields = Alpha059Native.required_fields
+    formula = Alpha059Native.formula
+    operator_profile = Alpha059Native.operator_profile
+    input_policy = Alpha059Native.input_policy
+
+    @classmethod
+    def build(cls, ctx, **params):
+        vwap = ctx.field("vwap")
+        weighted_first = vwap * 0.728317
+        complement = ctx.subtract(1.0, 0.728317)
+        weighted_second = vwap * complement
+        weighted_vwap = weighted_first + weighted_second
+        neutral_vwap = ctx.indneutralize(weighted_vwap, ctx.field("industry"), level="industry")
+        correlation = ctx.correlation(neutral_vwap, ctx.field("volume"), 4.25197)
+        decay = ctx.decay_linear(correlation, 16.2289)
+        time_rank = ctx.ts_rank(decay, 8.19648)
+        factor = time_rank * -1.0
+        return factor

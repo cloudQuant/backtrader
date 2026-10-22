@@ -101,6 +101,49 @@ def test_native_class_metadata_matches_the_static_formula_catalog():
         assert factor_class.required_fields == factor_class.formula_fields
 
 
+def test_build_companions_cover_all_formulas_with_native_metadata_and_expression_contract():
+    """Build registration is structural coverage, not runtime acceptance evidence."""
+    assert len(_ALPHA_IDS) == 101
+
+    for alpha_id in _ALPHA_IDS:
+        native_class = get_alpha(alpha_id)
+        build_class = get_alpha(alpha_id, mode="build")
+
+        assert ALPHA_REGISTRY[alpha_id] is native_class
+        assert get_alpha(alpha_id, mode="native") is native_class
+        assert build_class is not native_class
+        assert build_class.__bases__ == (FactorIndicator,)
+        assert build_class.lines.getlinealiases() == ("factor",)
+        assert build_class.panel_mode == "expression"
+        assert build_class.__dict__.get("panel_mode") == "expression"
+        build_declaration = build_class.__dict__.get("build")
+        assert isinstance(build_declaration, classmethod)
+        assert "__init__" not in build_class.__dict__
+        assert "next" not in build_class.__dict__
+        build_references = build_declaration.__func__.__code__.co_names
+        assert native_class.__name__ not in build_references
+        assert "__init__" not in build_references
+        assert "next" not in build_references
+
+        for field in (
+            "alpha_id",
+            "case_id",
+            "lookback_h",
+            "formula_fields",
+            "required_fields",
+            "formula",
+            "operator_profile",
+            "input_policy",
+        ):
+            assert getattr(build_class, field) == getattr(native_class, field), (
+                alpha_id,
+                field,
+            )
+
+        if "paper_signal_delay" in native_class.__dict__:
+            assert getattr(build_class, "paper_signal_delay") == native_class.paper_signal_delay
+
+
 def test_registry_is_immutable_and_rejects_invalid_ids():
     with pytest.raises(TypeError):
         ALPHA_REGISTRY[102] = Alpha101Native

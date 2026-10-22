@@ -68,3 +68,38 @@ class Alpha088Native(FactorIndicator):
     def next(self):
         for data, result in zip(self.datas, self._result_lines):
             self.outputs[data].factor[0] = result[0]
+
+
+@native_alpha
+class Alpha088Build(FactorIndicator):
+    """AF48-088: construct the native Alpha101 graph via expressions."""
+
+    lines = ("factor",)
+    panel_mode = "expression"
+    alpha_id = Alpha088Native.alpha_id
+    case_id = Alpha088Native.case_id
+    lookback_h = Alpha088Native.lookback_h
+    formula_fields = Alpha088Native.formula_fields
+    required_fields = Alpha088Native.required_fields
+    formula = Alpha088Native.formula
+    operator_profile = Alpha088Native.operator_profile
+    input_policy = Alpha088Native.input_policy
+
+    @classmethod
+    def build(cls, ctx, **params):
+        open_rank = ctx.rank(ctx.field("open"))
+        low_rank = ctx.rank(ctx.field("low"))
+        high_rank = ctx.rank(ctx.field("high"))
+        close_rank = ctx.rank(ctx.field("close"))
+        low_rank_sum = open_rank + low_rank
+        high_rank_sum = high_rank + close_rank
+        rank_spread = low_rank_sum - high_rank_sum
+        spread_decay = ctx.decay_linear(rank_spread, 8.06882)
+        ranked_spread_decay = ctx.rank(spread_decay)
+        close_time_rank = ctx.ts_rank(ctx.field("close"), 8.44728)
+        adv60_time_rank = ctx.ts_rank(ctx.field("adv60"), 20.6966)
+        correlation = ctx.correlation(close_time_rank, adv60_time_rank, 8.01266)
+        correlation_decay = ctx.decay_linear(correlation, 6.65053)
+        correlation_time_rank = ctx.ts_rank(correlation_decay, 2.61957)
+        factor = ctx.minimum(ranked_spread_decay, correlation_time_rank)
+        return factor

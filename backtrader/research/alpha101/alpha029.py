@@ -62,3 +62,42 @@ class Alpha029Native(FactorIndicator):
     def next(self):
         for data, result in zip(self.datas, self._result_lines):
             self.outputs[data].factor[0] = result[0]
+
+
+@native_alpha
+class Alpha029Build(FactorIndicator):
+    """AF48-029: construct the native Alpha029 graph through the build API."""
+
+    lines = ("factor",)
+    panel_mode = "expression"
+    alpha_id = Alpha029Native.alpha_id
+    case_id = Alpha029Native.case_id
+    lookback_h = Alpha029Native.lookback_h
+    formula_fields = Alpha029Native.formula_fields
+    required_fields = Alpha029Native.required_fields
+    formula = Alpha029Native.formula
+    operator_profile = Alpha029Native.operator_profile
+    input_policy = Alpha029Native.input_policy
+
+    @classmethod
+    def build(cls, ctx, **params):
+        close_minus_one = ctx.close - 1.0
+        delta = ctx.delta(close_minus_one, 5)
+        rank_once = ctx.rank(delta)
+        negative_rank = rank_once * -1.0
+        rank_twice = ctx.rank(negative_rank)
+        rank_thrice = ctx.rank(rank_twice)
+        local_min = ctx.ts_min(rank_thrice, 2)
+        local_sum = ctx.sum(local_min, 1)
+        logged = ctx.log(local_sum)
+        scaled = ctx.scale(logged)
+        ranked_scaled = ctx.rank(scaled)
+        ranked_again = ctx.rank(ranked_scaled)
+        product = ctx.product(ranked_again, 1)
+        rolling_min = ctx.ts_min(product, 5)
+
+        returns = ctx.returns()
+        negative_returns = returns * -1.0
+        delayed = ctx.delay(negative_returns, 6)
+        delayed_rank = ctx.ts_rank(delayed, 5)
+        return rolling_min + delayed_rank

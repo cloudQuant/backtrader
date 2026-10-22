@@ -67,3 +67,33 @@ class Alpha076Native(FactorIndicator):
     def next(self):
         for data, result in zip(self.datas, self._result_lines):
             self.outputs[data].factor[0] = result[0]
+
+
+@native_alpha
+class Alpha076Build(FactorIndicator):
+    """AF48-076: construct the native Alpha101 graph via expressions."""
+
+    lines = ("factor",)
+    panel_mode = "expression"
+    alpha_id = Alpha076Native.alpha_id
+    case_id = Alpha076Native.case_id
+    lookback_h = Alpha076Native.lookback_h
+    formula_fields = Alpha076Native.formula_fields
+    required_fields = Alpha076Native.required_fields
+    formula = Alpha076Native.formula
+    operator_profile = Alpha076Native.operator_profile
+    input_policy = Alpha076Native.input_policy
+
+    @classmethod
+    def build(cls, ctx, **params):
+        vwap_delta = ctx.delta(ctx.field("vwap"), 1.24383)
+        vwap_decay = ctx.decay_linear(vwap_delta, 11.8259)
+        first = ctx.rank(vwap_decay)
+        neutral_low = ctx.indneutralize(ctx.field("low"), ctx.field("sector"), level="sector")
+        correlation = ctx.correlation(neutral_low, ctx.field("adv81"), 8.14941)
+        correlation_rank = ctx.ts_rank(correlation, 19.569)
+        correlation_decay = ctx.decay_linear(correlation_rank, 17.1543)
+        second = ctx.ts_rank(correlation_decay, 19.383)
+        combined = ctx.maximum(first, second)
+        factor = combined * -1.0
+        return factor

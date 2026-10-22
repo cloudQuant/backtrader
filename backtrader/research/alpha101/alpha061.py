@@ -48,3 +48,30 @@ class Alpha061Native(FactorIndicator):
     def next(self):
         for data, result in zip(self.datas, self._result_lines):
             self.outputs[data].factor[0] = result[0]
+
+
+@native_alpha
+class Alpha061Build(FactorIndicator):
+    """AF48-061: construct the native Alpha101 graph via expressions."""
+
+    lines = ("factor",)
+    panel_mode = "expression"
+    alpha_id = Alpha061Native.alpha_id
+    case_id = Alpha061Native.case_id
+    lookback_h = Alpha061Native.lookback_h
+    formula_fields = Alpha061Native.formula_fields
+    required_fields = Alpha061Native.required_fields
+    formula = Alpha061Native.formula
+    operator_profile = Alpha061Native.operator_profile
+    input_policy = Alpha061Native.input_policy
+
+    @classmethod
+    def build(cls, ctx, **params):
+        vwap = ctx.field("vwap")
+        minimum = ctx.ts_min(vwap, 16.1219)
+        minimum_gap = vwap - minimum
+        minimum_rank = ctx.rank(minimum_gap)
+        correlation = ctx.correlation(vwap, ctx.field("adv180"), 17.9282)
+        correlation_rank = ctx.rank(correlation)
+        factor = ctx.less_than(minimum_rank, correlation_rank)
+        return factor

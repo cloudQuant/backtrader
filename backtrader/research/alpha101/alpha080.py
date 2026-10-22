@@ -71,3 +71,36 @@ class Alpha080Native(FactorIndicator):
     def next(self):
         for data, result in zip(self.datas, self._result_lines):
             self.outputs[data].factor[0] = result[0]
+
+
+@native_alpha
+class Alpha080Build(FactorIndicator):
+    """AF48-080: construct the native Alpha101 graph via expressions."""
+
+    lines = ("factor",)
+    panel_mode = "expression"
+    alpha_id = Alpha080Native.alpha_id
+    case_id = Alpha080Native.case_id
+    lookback_h = Alpha080Native.lookback_h
+    formula_fields = Alpha080Native.formula_fields
+    required_fields = Alpha080Native.required_fields
+    formula = Alpha080Native.formula
+    operator_profile = Alpha080Native.operator_profile
+    input_policy = Alpha080Native.input_policy
+
+    @classmethod
+    def build(cls, ctx, **params):
+        weight = 0.868128
+        open_part = ctx.field("open") * (weight)
+        high_part = ctx.field("high") * (1.0 - weight)
+        neutral_price = ctx.indneutralize(
+            (open_part + high_part), ctx.field("industry"), level="industry"
+        )
+        delta = ctx.delta(neutral_price, 4.04545)
+        signed = ctx.sign(delta)
+        base = ctx.rank(signed)
+        correlation = ctx.correlation(ctx.field("high"), ctx.field("adv10"), 5.11456)
+        exponent = ctx.ts_rank(correlation, 5.53756)
+        powered = base**exponent
+        factor = powered * (-1.0)
+        return factor

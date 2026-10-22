@@ -42,3 +42,28 @@ class Alpha033Native(FactorIndicator):
     def next(self):
         for data, result in zip(self.datas, self._result_lines):
             self.outputs[data].factor[0] = result[0]
+
+
+@native_alpha
+class Alpha033Build(FactorIndicator):
+    """AF48-033: construct the native Alpha101 graph via expressions."""
+
+    lines = ("factor",)
+    panel_mode = "expression"
+    alpha_id = Alpha033Native.alpha_id
+    case_id = Alpha033Native.case_id
+    lookback_h = Alpha033Native.lookback_h
+    formula_fields = Alpha033Native.formula_fields
+    required_fields = Alpha033Native.required_fields
+    formula = Alpha033Native.formula
+    operator_profile = Alpha033Native.operator_profile
+    input_policy = Alpha033Native.input_policy
+
+    @classmethod
+    def build(cls, ctx, **params):
+        open_close = ctx.field("open") / ctx.field("close")
+        one_minus_ratio = 1.0 - open_close
+        powered = one_minus_ratio**1.0
+        negative = -1.0 * powered
+        factor = ctx.rank(negative)
+        return factor

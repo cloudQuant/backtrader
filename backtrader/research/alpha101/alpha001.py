@@ -48,3 +48,30 @@ class Alpha001Native(FactorIndicator):
     def next(self):
         for data, result in zip(self.datas, self._result_lines):
             self.outputs[data].factor[0] = result[0]
+
+
+@native_alpha
+class Alpha001Build(FactorIndicator):
+    """AF48-001: construct the native Alpha001 graph through the build API."""
+
+    lines = ("factor",)
+    panel_mode = "expression"
+    alpha_id = Alpha001Native.alpha_id
+    case_id = Alpha001Native.case_id
+    lookback_h = Alpha001Native.lookback_h
+    formula_fields = Alpha001Native.formula_fields
+    required_fields = Alpha001Native.required_fields
+    formula = Alpha001Native.formula
+    operator_profile = Alpha001Native.operator_profile
+    input_policy = Alpha001Native.input_policy
+
+    @classmethod
+    def build(cls, ctx, **params):
+        returns = ctx.returns()
+        selected = ctx.where(
+            returns < 0.0,
+            ctx.stddev(returns, 20),
+            ctx.close,
+        )
+        powered = ctx.signed_power(selected, 2.0)
+        return ctx.rank(ctx.ts_argmax(powered, 5)) - 0.5

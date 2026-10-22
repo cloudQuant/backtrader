@@ -74,3 +74,36 @@ class Alpha093Native(FactorIndicator):
     def next(self):
         for data, result in zip(self.datas, self._result_lines):
             self.outputs[data].factor[0] = result[0]
+
+
+@native_alpha
+class Alpha093Build(FactorIndicator):
+    """AF48-093: construct the native Alpha101 graph via expressions."""
+
+    lines = ("factor",)
+    panel_mode = "expression"
+    alpha_id = Alpha093Native.alpha_id
+    case_id = Alpha093Native.case_id
+    lookback_h = Alpha093Native.lookback_h
+    formula_fields = Alpha093Native.formula_fields
+    required_fields = Alpha093Native.required_fields
+    formula = Alpha093Native.formula
+    operator_profile = Alpha093Native.operator_profile
+    input_policy = Alpha093Native.input_policy
+
+    @classmethod
+    def build(cls, ctx, **params):
+        neutral_vwap = ctx.indneutralize(ctx.field("vwap"), ctx.field("industry"), level="industry")
+        vwap_adv_correlation = ctx.correlation(neutral_vwap, ctx.field("adv81"), 17.4193)
+        correlation_decay = ctx.decay_linear(vwap_adv_correlation, 19.848)
+        numerator = ctx.ts_rank(correlation_decay, 7.54455)
+        alpha = 0.524434
+        one_minus_alpha = ctx.subtract(1.0, alpha)
+        close_part = ctx.field("close") * (alpha)
+        vwap_part = ctx.field("vwap") * one_minus_alpha
+        weighted_price = close_part + vwap_part
+        price_delta = ctx.delta(weighted_price, 2.77377)
+        price_delta_decay = ctx.decay_linear(price_delta, 16.2664)
+        denominator = ctx.rank(price_delta_decay)
+        factor = numerator / denominator
+        return factor

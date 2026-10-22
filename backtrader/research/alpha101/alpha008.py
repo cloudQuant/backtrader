@@ -41,3 +41,31 @@ class Alpha008Native(FactorIndicator):
     def next(self):
         for data, result in zip(self.datas, self._result_lines):
             self.outputs[data].factor[0] = result[0]
+
+
+@native_alpha
+class Alpha008Build(FactorIndicator):
+    """AF48-008: construct the native Alpha101 graph via expressions."""
+
+    lines = ("factor",)
+    panel_mode = "expression"
+    alpha_id = Alpha008Native.alpha_id
+    case_id = Alpha008Native.case_id
+    lookback_h = Alpha008Native.lookback_h
+    formula_fields = Alpha008Native.formula_fields
+    required_fields = Alpha008Native.required_fields
+    formula = Alpha008Native.formula
+    operator_profile = Alpha008Native.operator_profile
+    input_policy = Alpha008Native.input_policy
+
+    @classmethod
+    def build(cls, ctx, **params):
+        open_sum = ctx.sum(ctx.field("open"), 5)
+        returns = ctx.returns()
+        returns_sum = ctx.sum(returns, 5)
+        product = open_sum * returns_sum
+        prior_product = ctx.delay(product, 10)
+        difference = product - prior_product
+        ranked = ctx.rank(difference)
+        factor = ranked * -1.0
+        return factor

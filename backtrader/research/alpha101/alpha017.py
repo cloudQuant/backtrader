@@ -60,3 +60,34 @@ class Alpha017Native(FactorIndicator):
     def next(self):
         for data, result in zip(self.datas, self._result_lines):
             self.outputs[data].factor[0] = result[0]
+
+
+@native_alpha
+class Alpha017Build(FactorIndicator):
+    """AF48-017: construct the native Alpha101 graph via expressions."""
+
+    lines = ("factor",)
+    panel_mode = "expression"
+    alpha_id = Alpha017Native.alpha_id
+    case_id = Alpha017Native.case_id
+    lookback_h = Alpha017Native.lookback_h
+    formula_fields = Alpha017Native.formula_fields
+    required_fields = Alpha017Native.required_fields
+    formula = Alpha017Native.formula
+    operator_profile = Alpha017Native.operator_profile
+    input_policy = Alpha017Native.input_policy
+
+    @classmethod
+    def build(cls, ctx, **params):
+        close_ts_rank = ctx.ts_rank(ctx.field("close"), 10)
+        ranked_close_ts_rank = ctx.rank(close_ts_rank)
+        negative_close_rank = ranked_close_ts_rank * -1.0
+        close_delta1 = ctx.delta(ctx.field("close"), 1)
+        second_difference = ctx.delta(close_delta1, 1)
+        ranked_second_difference = ctx.rank(second_difference)
+        first_product = negative_close_rank * ranked_second_difference
+        volume_over_adv = ctx.field("volume") / ctx.field("adv20")
+        volume_adv_ts_rank = ctx.ts_rank(volume_over_adv, 5)
+        ranked_volume_adv_ts_rank = ctx.rank(volume_adv_ts_rank)
+        factor = first_product * ranked_volume_adv_ts_rank
+        return factor

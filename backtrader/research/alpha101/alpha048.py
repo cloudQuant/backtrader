@@ -58,3 +58,38 @@ class Alpha048Native(FactorIndicator):
     def next(self):
         for data, result in zip(self.datas, self._result_lines):
             self.outputs[data].factor[0] = result[0]
+
+
+@native_alpha
+class Alpha048Build(FactorIndicator):
+    """AF48-048: construct the native Alpha048 graph through the build API."""
+
+    lines = ("factor",)
+    panel_mode = "expression"
+    alpha_id = Alpha048Native.alpha_id
+    case_id = Alpha048Native.case_id
+    lookback_h = Alpha048Native.lookback_h
+    formula_fields = Alpha048Native.formula_fields
+    required_fields = Alpha048Native.required_fields
+    formula = Alpha048Native.formula
+    operator_profile = Alpha048Native.operator_profile
+    input_policy = Alpha048Native.input_policy
+
+    @classmethod
+    def build(cls, ctx, **params):
+        close = ctx.close
+        delta_now = ctx.delta(close, 1)
+        close_delay = ctx.delay(close, 1)
+        delta_delay = ctx.delta(close_delay, 1)
+        correlation = ctx.correlation(delta_now, delta_delay, 250)
+        corr_times_delta = correlation * delta_now
+        normalized = corr_times_delta / close
+        neutralized = ctx.indneutralize(
+            normalized,
+            ctx.subindustry,
+            level="subindustry",
+        )
+        return_ratio = delta_now / close_delay
+        square = return_ratio**2.0
+        square_sum = ctx.sum(square, 250)
+        return neutralized / square_sum

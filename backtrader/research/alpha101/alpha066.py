@@ -67,3 +67,41 @@ class Alpha066Native(FactorIndicator):
     def next(self):
         for data, result in zip(self.datas, self._result_lines):
             self.outputs[data].factor[0] = result[0]
+
+
+@native_alpha
+class Alpha066Build(FactorIndicator):
+    """AF48-066: construct the native Alpha101 graph via expressions."""
+
+    lines = ("factor",)
+    panel_mode = "expression"
+    alpha_id = Alpha066Native.alpha_id
+    case_id = Alpha066Native.case_id
+    lookback_h = Alpha066Native.lookback_h
+    formula_fields = Alpha066Native.formula_fields
+    required_fields = Alpha066Native.required_fields
+    formula = Alpha066Native.formula
+    operator_profile = Alpha066Native.operator_profile
+    input_policy = Alpha066Native.input_policy
+
+    @classmethod
+    def build(cls, ctx, **params):
+        vwap_delta = ctx.delta(ctx.field("vwap"), 3.51013)
+        vwap_decay = ctx.decay_linear(vwap_delta, 7.23052)
+        first_rank = ctx.rank(vwap_decay)
+        low = ctx.field("low")
+        open_ = ctx.field("open")
+        high = ctx.field("high")
+        weight = 0.96633
+        weighted_low = low * weight
+        weighted_low_complement = low * (1.0 - weight)
+        low_mix = weighted_low + weighted_low_complement
+        low_minus_vwap = low_mix - ctx.field("vwap")
+        high_low_midpoint = (high + low) / 2.0
+        denominator = open_ - high_low_midpoint
+        ratio = low_minus_vwap / denominator
+        ratio_decay = ctx.decay_linear(ratio, 11.4157)
+        second = ctx.ts_rank(ratio_decay, 6.72611)
+        combined = first_rank + second
+        factor = combined * -1.0
+        return factor

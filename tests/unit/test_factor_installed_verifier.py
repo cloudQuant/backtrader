@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import ast
 import csv
+import copy
 import hashlib
 import importlib.util
 import inspect
@@ -120,11 +121,16 @@ def test_main_wheel_verifier_calls_supply_required_archive_source_argument():
 def test_factor_mode_pair_is_an_opt_in_archive_profile():
     base = verifier._archive_paths("backtrader")
     paired = verifier._archive_paths("backtrader", factor_mode_pair=True)
+    build_pair = verifier._archive_paths("backtrader", alpha101_build_pair=True)
 
     assert paired[: len(base)] == base
     assert set(verifier._FACTOR_MODE_PAIR_TEST_INPUTS).issubset(paired)
     assert verifier._PAIR_SEMANTICS_HELPER in paired
     assert not set(verifier._FACTOR_MODE_PAIR_ARCHIVE_PATHS).intersection(base)
+    assert build_pair[: len(base)] == base
+    assert set(verifier._FACTOR_MODE_PAIR_ARCHIVE_PATHS).issubset(build_pair)
+    assert set(verifier._ALPHA101_BUILD_PAIR_ARCHIVE_PATHS).issubset(build_pair)
+    assert not set(verifier._ALPHA101_BUILD_PAIR_ARCHIVE_PATHS).intersection(paired)
 
     required = [
         "--backtrader-commit",
@@ -136,6 +142,11 @@ def test_factor_mode_pair_is_an_opt_in_archive_profile():
     ]
     assert verifier._parser().parse_args(required).factor_mode_pair is False
     assert verifier._parser().parse_args([*required, "--factor-mode-pair"]).factor_mode_pair is True
+    assert verifier._parser().parse_args(required).alpha101_build_pair is False
+    assert (
+        verifier._parser().parse_args([*required, "--alpha101-build-pair"]).alpha101_build_pair
+        is True
+    )
 
 
 def test_pair_profile_copies_pinned_tests_helper_and_examples_outside_source_tree(tmp_path):
@@ -165,6 +176,38 @@ def test_pair_profile_copies_pinned_tests_helper_and_examples_outside_source_tre
     assert not (external / "backtrader").exists()
 
 
+def test_alpha101_build_pair_copies_matrix_and_dependencies_from_archive(tmp_path):
+    source = tmp_path / "archive-source"
+    for relative in (
+        *verifier._TEST_INPUTS,
+        *verifier._FACTOR_MODE_PAIR_TEST_INPUTS,
+        *verifier._ALPHA101_BUILD_PAIR_TEST_INPUTS,
+    ):
+        path = source / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("from_pinned_archive = True\n", encoding="utf-8")
+    for relative in verifier._EXAMPLE_DIRS:
+        example = source / relative
+        example.mkdir(parents=True, exist_ok=True)
+        (example / "run.py").write_text("PINNED = True\n", encoding="utf-8")
+    helper = source / verifier._PAIR_SEMANTICS_HELPER
+    helper.parent.mkdir(parents=True, exist_ok=True)
+    helper.write_text("PINNED_HELPER = True\n", encoding="utf-8")
+
+    external = tmp_path / "evidence" / "external-tests"
+    verifier._copy_external_tests(source, external, factor_mode_pair=True, alpha101_build_pair=True)
+    copied_helper = verifier._copy_external_pair_helper(source, external)
+
+    for relative in (
+        *verifier._TEST_INPUTS,
+        *verifier._FACTOR_MODE_PAIR_TEST_INPUTS,
+        *verifier._ALPHA101_BUILD_PAIR_TEST_INPUTS,
+    ):
+        assert (external / relative).read_text(encoding="utf-8") == "from_pinned_archive = True\n"
+    assert copied_helper.read_text(encoding="utf-8") == "PINNED_HELPER = True\n"
+    assert not (external / "backtrader").exists()
+
+
 def test_installed_pair_profile_runs_complete_unit_files_without_name_filter():
     source = inspect.getsource(verifier._run_installed_tests)
 
@@ -173,6 +216,327 @@ def test_installed_pair_profile_runs_complete_unit_files_without_name_filter():
     assert "--junitxml" in source
     assert '"-k"' not in source
     assert "'-k'" not in source
+
+
+def test_build_pair_profile_runs_exact_t320_node_and_clears_subset_environment(
+    tmp_path, monkeypatch
+):
+    external = tmp_path / "external-tests"
+    external.mkdir()
+    install_root = tmp_path / "installed"
+    for package in ("backtrader", "fincore"):
+        package_dir = install_root / package
+        package_dir.mkdir(parents=True)
+        (package_dir / "__init__.py").write_text("INSTALLED = True\n", encoding="utf-8")
+    provenance = tmp_path / "provenance.json"
+    provenance.write_text("{}\n", encoding="utf-8")
+    evidence = tmp_path / "evidence"
+    evidence.mkdir()
+    record_path = tmp_path / "matrix-record.json"
+    record_path.write_text(json.dumps(_valid_alpha101_build_pair_record()), encoding="utf-8")
+    (external / "pytest.py").write_text(
+        """import json, os, pathlib, sys
+
+def main(args):
+    install = pathlib.Path(sys.path[0]).resolve()
+    import backtrader, fincore
+    assert pathlib.Path(backtrader.__file__).resolve().is_relative_to(install)
+    assert pathlib.Path(fincore.__file__).resolve().is_relative_to(install)
+    assert not any(arg in ("-k", "--keyword") for arg in args)
+    expected_node = "test_alpha101_native_build_pair_graph_matrix[T320]"
+    assert any(expected_node in arg for arg in args)
+    assert os.environ.get("BT_ALPHA101_NATIVE_IDS") is None
+    assert os.environ.get("BT_ALPHA101_NATIVE_BATCHES") is None
+    assert os.environ.get("BT_ALPHA101_CUSTOM_SUBSET_MODE") is None
+    baseline = pathlib.Path(args[args.index("--basetemp") + 1])
+    ids = list(range(1, 102))
+    for batch in ("promoted_20", "a", "b", "c", "d", "e"):
+        for engine in ("runnext", "runonce"):
+            path = baseline / (batch + "-" + engine) / "alpha101-native-installed-acceptance.json"
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(json.dumps({
+                "selected_batch": batch,
+                "selected_engine_mode": engine,
+                "selected_batch_alpha_ids": ids,
+                "trace_validation": {"formula_count": len(ids)},
+            }))
+    representative = baseline / "representative" / "installed-acceptance.json"
+    representative.parent.mkdir(parents=True, exist_ok=True)
+    representative.write_text("{}")
+    junit = pathlib.Path(args[args.index("--junitxml") + 1])
+    names = {
+        "test_alpha003_degenerate_recovery_missing_bar_nan_trace_and_reason_pair",
+        "test_025_close_ma_build_matches_native_and_independent_oracle",
+        "test_026_roc_build_matches_native_and_independent_oracle",
+        "test_026_kdj_build_matches_native_oracle_and_all_intermediate_lines",
+    }
+    cases = ["<testsuite>"]
+    for name in sorted(names):
+        for engine in ("runnext", "runonce"):
+            cases.append("<testcase name=%r />" % (name + "[" + engine + "]"))
+    cases.append("<testcase name=%r />" % expected_node)
+    cases.append("</testsuite>")
+    junit.write_text("".join(cases))
+    output = pathlib.Path(os.environ["BT_ALPHA101_BUILD_PAIR_EVIDENCE"])
+    output.mkdir(parents=True, exist_ok=True)
+    matrix = pathlib.Path(os.environ["FAKE_ALPHA101_MATRIX_RECORD"])
+    (output / "alpha101-build-pair-T320.json").write_bytes(matrix.read_bytes())
+    print("fake pytest bootstrap executed under isolated installed imports")
+    return 0
+""",
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("PYTHONPATH", str(tmp_path / "poison"))
+    monkeypatch.setenv("BT_ALPHA101_NATIVE_IDS", "3")
+    monkeypatch.setenv("BT_ALPHA101_NATIVE_BATCHES", "a")
+    monkeypatch.setenv("BT_ALPHA101_CUSTOM_SUBSET_MODE", "partial")
+    monkeypatch.setenv("FAKE_ALPHA101_MATRIX_RECORD", str(record_path))
+
+    report = verifier._run_installed_tests(
+        external,
+        install_root,
+        provenance,
+        evidence,
+        factor_mode_pair=True,
+        alpha101_build_pair=True,
+    )
+
+    assert "fake pytest bootstrap executed under isolated installed imports" in (
+        evidence / "installed-tests.log"
+    ).read_text(encoding="utf-8")
+    assert report["alpha101_build_pair_test_witness"]["status"] == "PASSED"
+    assert report["alpha101_build_pair_record"]["status"] == "PASS"
+
+
+def _valid_alpha101_build_pair_record():
+    alpha_ids = list(verifier._ALPHA101_IDS)
+    assets = list(verifier._ALPHA101_PAIR_ASSETS)
+
+    def panel():
+        return {
+            "cells": 320 * len(assets),
+            "finite_cells": 1000,
+            "nan_cells": 320 * len(assets) - 1000,
+            "sha256": "d" * 64,
+        }
+
+    def graph_pair(with_panel=False):
+        pair = {
+            "equal": True,
+            "node_count_left": 4,
+            "node_count_right": 4,
+            "matched_node_count": 4,
+            "node_value_cells": 4 * 320 * len(assets),
+            "node_reason_cells": 4 * 320 * len(assets),
+            "node_value_sha256": "a" * 64,
+            "node_reason_sha256": "b" * 64,
+            "result_output_cells": 320 * len(assets),
+            "result_output_sha256": "c" * 64,
+            "grid_rows": 320,
+            "assets": assets,
+        }
+        if with_panel:
+            pair["factor_panel"] = panel()
+        return pair
+
+    engine_runs = []
+    for factor_mode in ("native", "build"):
+        for engine in verifier._PAIR_ENGINE_MODES:
+            engine_runs.append(
+                {
+                    "factor_mode": factor_mode,
+                    "engine": engine,
+                    "runonce": engine == "runonce",
+                    "alpha_ids": alpha_ids,
+                    "factor_classes": {
+                        str(alpha_id): verifier._expected_alpha101_class(alpha_id, factor_mode)
+                        for alpha_id in alpha_ids
+                    },
+                    "oracle_pass_count": 101,
+                    "finite_witness_count": 101,
+                    "lifecycle_pass_count": 101,
+                    "broker": {"submit": 0, "cancel": 0},
+                    "factor_panel": {
+                        "cells": 101 * 320 * len(assets),
+                        "finite_cells": 101 * 1000,
+                        "nan_cells": 101 * (320 * len(assets) - 1000),
+                        "sha256": "e" * 64,
+                    },
+                }
+            )
+    per_alpha = {}
+    for alpha_id in alpha_ids:
+        per_alpha[str(alpha_id)] = {
+            "oracle_pass": True,
+            "finite_witness": True,
+            "lifecycle_pass": True,
+            "lookback_h": alpha_id % 100,
+            "factor_classes": {
+                factor_mode + "/" + engine: verifier._expected_alpha101_class(alpha_id, factor_mode)
+                for factor_mode in ("native", "build")
+                for engine in verifier._PAIR_ENGINE_MODES
+            },
+            "same_engine_build_pair": {
+                engine: graph_pair(with_panel=True) for engine in verifier._PAIR_ENGINE_MODES
+            },
+            "cross_engine": {
+                factor_mode: graph_pair(with_panel=True) for factor_mode in ("native", "build")
+            },
+        }
+    pairs = [
+        pair
+        for item in per_alpha.values()
+        for pair in (
+            *item["same_engine_build_pair"].values(),
+            *item["cross_engine"].values(),
+        )
+    ]
+    panels = [
+        item["cross_engine"][factor_mode]["factor_panel"]
+        for item in per_alpha.values()
+        for factor_mode in ("native", "build")
+    ]
+    return {
+        "schema_version": 1,
+        "status": "PASS",
+        "periods": 320,
+        "alpha_ids": alpha_ids,
+        "complete_registry_coverage": True,
+        "engine_runs": engine_runs,
+        "per_alpha": per_alpha,
+        "aggregate": {
+            "alpha_count": 101,
+            "engine_run_count": 4,
+            "oracle_pass_count": 404,
+            "finite_witness_count": 404,
+            "lifecycle_pass_count": 404,
+            "same_engine_graph_pair_count": 202,
+            "cross_engine_graph_pair_count": 202,
+            "node_value_cells": sum(pair["node_value_cells"] for pair in pairs),
+            "node_reason_cells": sum(pair["node_reason_cells"] for pair in pairs),
+            "result_output_cells": sum(pair["result_output_cells"] for pair in pairs),
+            "cross_engine_panel_cells": sum(panel["cells"] for panel in panels),
+            "cross_engine_panel_finite_cells": sum(panel["finite_cells"] for panel in panels),
+            "cross_engine_panel_nan_cells": sum(panel["nan_cells"] for panel in panels),
+            "all_pass": True,
+        },
+    }
+
+
+def _write_alpha101_build_pair_record(tmp_path, record):
+    evidence = tmp_path / "alpha101-build-pair"
+    evidence.mkdir(exist_ok=True)
+    path = evidence / verifier._ALPHA101_BUILD_PAIR_RECORD
+    path.write_text(json.dumps(record), encoding="utf-8")
+    return evidence
+
+
+def test_alpha101_build_pair_record_requires_full_exact_matrix(tmp_path):
+    evidence = _write_alpha101_build_pair_record(tmp_path, _valid_alpha101_build_pair_record())
+
+    summary = verifier._verify_alpha101_build_pair_record(evidence)
+
+    assert summary["periods"] == 320
+    assert summary["alpha_ids"] == list(range(1, 102))
+    assert summary["engine_runs"] == 4
+    assert summary["aggregate"]["same_engine_graph_pair_count"] == 202
+    assert summary["aggregate"]["cross_engine_graph_pair_count"] == 202
+    assert len(summary["sha256"]) == 64
+
+
+@pytest.mark.parametrize(
+    ("mutate", "message"),
+    (
+        (lambda r: r.update(periods=640), "not the T320 run"),
+        (lambda r: r.update(alpha_ids=list(range(1, 101))), "exactly Alpha001-Alpha101"),
+        (lambda r: r.update(complete_registry_coverage=False), "complete registry coverage"),
+        (lambda r: r["engine_runs"].pop(), "exactly four engine runs"),
+        (
+            lambda r: r["engine_runs"][0].update(factor_mode="other"),
+            "duplicate or unsupported mode/engine",
+        ),
+        (
+            lambda r: r["engine_runs"][0].update(runonce=True),
+            "runonce flag does not match",
+        ),
+        (
+            lambda r: r["engine_runs"][0]["factor_classes"].update({"1": "wrong.Class"}),
+            "wrong installed class for Alpha1",
+        ),
+        (
+            lambda r: r["per_alpha"].pop("101"),
+            "missing or unexpected fields",
+        ),
+        (
+            lambda r: r["per_alpha"]["1"]["same_engine_build_pair"]["runnext"].update(equal=False),
+            "graph comparison is not exact",
+        ),
+        (
+            lambda r: r["per_alpha"]["1"]["cross_engine"]["build"].update(node_reason_cells=0),
+            "node_reason_cells must be an integer >= 1",
+        ),
+        (
+            lambda r: r["per_alpha"]["1"]["cross_engine"]["native"]["factor_panel"].update(
+                sha256=None
+            ),
+            "lowercase SHA-256 digest",
+        ),
+        (lambda r: r["aggregate"].update(all_pass=False), "aggregate all_pass does not reconcile"),
+    ),
+)
+def test_alpha101_build_pair_record_rejects_incomplete_or_false_pass(tmp_path, mutate, message):
+    record = copy.deepcopy(_valid_alpha101_build_pair_record())
+    mutate(record)
+    evidence = _write_alpha101_build_pair_record(tmp_path, record)
+
+    with pytest.raises(verifier.VerificationError, match=message):
+        verifier._verify_alpha101_build_pair_record(evidence)
+
+
+@pytest.mark.parametrize("outcome", ("skipped", "failure", "error"))
+def test_alpha101_build_pair_junit_witness_rejects_nonpassing_t320(tmp_path, outcome):
+    report = tmp_path / "matrix.xml"
+    report.write_text(
+        '<testsuite><testcase name="test_alpha101_native_build_pair_graph_matrix[T320]">'
+        "<%s /></testcase></testsuite>" % outcome,
+        encoding="utf-8",
+    )
+
+    with pytest.raises(verifier.VerificationError, match="did not pass"):
+        verifier._verify_alpha101_build_pair_test_witness(report)
+
+
+def test_alpha101_build_pair_nonzero_child_exit_cannot_return_a_pass_record(tmp_path, monkeypatch):
+    external = tmp_path / "external-tests"
+    external.mkdir()
+    install_root = tmp_path / "installed"
+    install_root.mkdir()
+    provenance = tmp_path / "provenance.json"
+    provenance.write_text("{}\n", encoding="utf-8")
+    evidence = tmp_path / "evidence"
+    evidence.mkdir()
+
+    def fail_after_matrix_output(_command, *, cwd=None, env=None):
+        record_path = Path(env["BT_ALPHA101_BUILD_PAIR_EVIDENCE"])
+        record_path.mkdir(parents=True, exist_ok=True)
+        (record_path / verifier._ALPHA101_BUILD_PAIR_RECORD).write_text(
+            json.dumps(_valid_alpha101_build_pair_record()), encoding="utf-8"
+        )
+        raise verifier.VerificationError("command failed with exit 7")
+
+    monkeypatch.setattr(verifier, "_run", fail_after_matrix_output)
+    with pytest.raises(verifier.VerificationError, match="command failed with exit 7"):
+        verifier._run_installed_tests(
+            external,
+            install_root,
+            provenance,
+            evidence,
+            factor_mode_pair=True,
+            alpha101_build_pair=True,
+        )
+
+    assert not (evidence / "verification-summary.json").exists()
+    assert not (evidence / "installed-tests.log").exists()
 
 
 def _write_pair_junit(path: Path, *, omitted=(), skipped=(), failed=()):

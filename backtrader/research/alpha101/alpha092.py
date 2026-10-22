@@ -63,3 +63,37 @@ class Alpha092Native(FactorIndicator):
     def next(self):
         for data, result in zip(self.datas, self._result_lines):
             self.outputs[data].factor[0] = result[0]
+
+
+@native_alpha
+class Alpha092Build(FactorIndicator):
+    """AF48-092: construct the native Alpha101 graph via expressions."""
+
+    lines = ("factor",)
+    panel_mode = "expression"
+    alpha_id = Alpha092Native.alpha_id
+    case_id = Alpha092Native.case_id
+    lookback_h = Alpha092Native.lookback_h
+    formula_fields = Alpha092Native.formula_fields
+    required_fields = Alpha092Native.required_fields
+    formula = Alpha092Native.formula
+    operator_profile = Alpha092Native.operator_profile
+    input_policy = Alpha092Native.input_policy
+
+    @classmethod
+    def build(cls, ctx, **params):
+        high_low = ctx.field("high") + ctx.field("low")
+        midpoint = high_low / (2.0)
+        midpoint_close = midpoint + ctx.field("close")
+        low_open = ctx.field("low") + ctx.field("open")
+        condition = ctx.less_than(midpoint_close, low_open)
+        bool_decay = ctx.decay_linear(condition, 14.7221)
+        bool_rank = ctx.ts_rank(bool_decay, 18.8683)
+        low_rank = ctx.rank(ctx.field("low"))
+        adv30 = ctx.field("adv30")
+        adv_rank = ctx.rank(adv30)
+        correlation = ctx.correlation(low_rank, adv_rank, 7.58555)
+        correlation_decay = ctx.decay_linear(correlation, 6.94024)
+        correlation_rank = ctx.ts_rank(correlation_decay, 6.80584)
+        factor = ctx.minimum(bool_rank, correlation_rank)
+        return factor

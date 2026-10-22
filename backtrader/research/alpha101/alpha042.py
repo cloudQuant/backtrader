@@ -42,3 +42,29 @@ class Alpha042Native(FactorIndicator):
     def next(self):
         for data, result in zip(self.datas, self._result_lines):
             self.outputs[data].factor[0] = result[0]
+
+
+@native_alpha
+class Alpha042Build(FactorIndicator):
+    """AF48-042: construct the native Alpha101 graph via expressions."""
+
+    lines = ("factor",)
+    panel_mode = "expression"
+    alpha_id = Alpha042Native.alpha_id
+    case_id = Alpha042Native.case_id
+    lookback_h = Alpha042Native.lookback_h
+    formula_fields = Alpha042Native.formula_fields
+    required_fields = Alpha042Native.required_fields
+    formula = Alpha042Native.formula
+    operator_profile = Alpha042Native.operator_profile
+    input_policy = Alpha042Native.input_policy
+    paper_signal_delay = Alpha042Native.paper_signal_delay
+
+    @classmethod
+    def build(cls, ctx, **params):
+        difference = ctx.field("vwap") - ctx.field("close")
+        difference_rank = ctx.rank(difference)
+        total = ctx.field("vwap") + ctx.field("close")
+        total_rank = ctx.rank(total)
+        factor = difference_rank / total_rank
+        return factor

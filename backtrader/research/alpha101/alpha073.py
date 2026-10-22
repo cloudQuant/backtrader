@@ -65,3 +65,37 @@ class Alpha073Native(FactorIndicator):
     def next(self):
         for data, result in zip(self.datas, self._result_lines):
             self.outputs[data].factor[0] = result[0]
+
+
+@native_alpha
+class Alpha073Build(FactorIndicator):
+    """AF48-073: construct the native Alpha101 graph via expressions."""
+
+    lines = ("factor",)
+    panel_mode = "expression"
+    alpha_id = Alpha073Native.alpha_id
+    case_id = Alpha073Native.case_id
+    lookback_h = Alpha073Native.lookback_h
+    formula_fields = Alpha073Native.formula_fields
+    required_fields = Alpha073Native.required_fields
+    formula = Alpha073Native.formula
+    operator_profile = Alpha073Native.operator_profile
+    input_policy = Alpha073Native.input_policy
+
+    @classmethod
+    def build(cls, ctx, **params):
+        vwap_delta = ctx.delta(ctx.field("vwap"), 4.72775)
+        vwap_decay = ctx.decay_linear(vwap_delta, 2.91864)
+        first = ctx.rank(vwap_decay)
+        weight = 0.147155
+        open_part = ctx.field("open") * weight
+        low_part = ctx.field("low") * (1.0 - weight)
+        weighted_price = open_part + low_part
+        price_delta = ctx.delta(weighted_price, 2.03608)
+        normalized_delta = price_delta / weighted_price
+        negative_delta = normalized_delta * -1.0
+        second_decay = ctx.decay_linear(negative_delta, 3.33829)
+        second = ctx.ts_rank(second_decay, 16.7411)
+        combined = ctx.maximum(first, second)
+        factor = combined * -1.0
+        return factor

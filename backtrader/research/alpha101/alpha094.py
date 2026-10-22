@@ -59,3 +59,32 @@ class Alpha094Native(FactorIndicator):
     def next(self):
         for data, result in zip(self.datas, self._result_lines):
             self.outputs[data].factor[0] = result[0]
+
+
+@native_alpha
+class Alpha094Build(FactorIndicator):
+    """AF48-094: construct the native Alpha101 graph via expressions."""
+
+    lines = ("factor",)
+    panel_mode = "expression"
+    alpha_id = Alpha094Native.alpha_id
+    case_id = Alpha094Native.case_id
+    lookback_h = Alpha094Native.lookback_h
+    formula_fields = Alpha094Native.formula_fields
+    required_fields = Alpha094Native.required_fields
+    formula = Alpha094Native.formula
+    operator_profile = Alpha094Native.operator_profile
+    input_policy = Alpha094Native.input_policy
+
+    @classmethod
+    def build(cls, ctx, **params):
+        vwap_minimum = ctx.ts_min(ctx.field("vwap"), 11.5783)
+        vwap_minus_minimum = ctx.field("vwap") - vwap_minimum
+        ranked_vwap_gap = ctx.rank(vwap_minus_minimum)
+        vwap_time_rank = ctx.ts_rank(ctx.field("vwap"), 19.6462)
+        adv60_time_rank = ctx.ts_rank(ctx.field("adv60"), 4.02992)
+        correlation = ctx.correlation(vwap_time_rank, adv60_time_rank, 18.0926)
+        exponent = ctx.ts_rank(correlation, 2.70756)
+        powered = ranked_vwap_gap**exponent
+        factor = powered * (-1.0)
+        return factor

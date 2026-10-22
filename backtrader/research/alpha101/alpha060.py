@@ -70,3 +70,38 @@ class Alpha060Native(FactorIndicator):
     def next(self):
         for data, result in zip(self.datas, self._result_lines):
             self.outputs[data].factor[0] = result[0]
+
+
+@native_alpha
+class Alpha060Build(FactorIndicator):
+    """AF48-060: construct the native Alpha101 graph via expressions."""
+
+    lines = ("factor",)
+    panel_mode = "expression"
+    alpha_id = Alpha060Native.alpha_id
+    case_id = Alpha060Native.case_id
+    lookback_h = Alpha060Native.lookback_h
+    formula_fields = Alpha060Native.formula_fields
+    required_fields = Alpha060Native.required_fields
+    formula = Alpha060Native.formula
+    operator_profile = Alpha060Native.operator_profile
+    input_policy = Alpha060Native.input_policy
+
+    @classmethod
+    def build(cls, ctx, **params):
+        close_low = ctx.field("close") - ctx.field("low")
+        high_close = ctx.field("high") - ctx.field("close")
+        position_numerator = close_low - high_close
+        high_low = ctx.field("high") - ctx.field("low")
+        position = position_numerator / high_low
+        money_flow = position * ctx.field("volume")
+        money_flow_rank = ctx.rank(money_flow)
+        money_flow_scale = ctx.scale(money_flow_rank, a=1.0)
+        scaled_money_flow = 2.0 * money_flow_scale
+        argmax = ctx.ts_argmax(ctx.field("close"), 10)
+        argmax_rank = ctx.rank(argmax)
+        argmax_scale = ctx.scale(argmax_rank, a=1.0)
+        difference = scaled_money_flow - argmax_scale
+        weighted_difference = 1.0 * difference
+        factor = 0.0 - weighted_difference
+        return factor

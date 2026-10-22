@@ -56,3 +56,37 @@ class Alpha096Native(FactorIndicator):
     def next(self):
         for data, result in zip(self.datas, self._result_lines):
             self.outputs[data].factor[0] = result[0]
+
+
+@native_alpha
+class Alpha096Build(FactorIndicator):
+    """AF48-096: construct the native Alpha101 graph via expressions."""
+
+    lines = ("factor",)
+    panel_mode = "expression"
+    alpha_id = Alpha096Native.alpha_id
+    case_id = Alpha096Native.case_id
+    lookback_h = Alpha096Native.lookback_h
+    formula_fields = Alpha096Native.formula_fields
+    required_fields = Alpha096Native.required_fields
+    formula = Alpha096Native.formula
+    operator_profile = Alpha096Native.operator_profile
+    input_policy = Alpha096Native.input_policy
+
+    @classmethod
+    def build(cls, ctx, **params):
+        vwap_rank = ctx.rank(ctx.field("vwap"))
+        volume_rank = ctx.rank(ctx.field("volume"))
+        short_correlation = ctx.correlation(vwap_rank, volume_rank, 3.83878)
+        short_decay = ctx.decay_linear(short_correlation, 4.16783)
+        left = ctx.ts_rank(short_decay, 8.38151)
+        close_rank = ctx.ts_rank(ctx.field("close"), 7.45404)
+        adv60 = ctx.field("adv60")
+        adv_rank = ctx.ts_rank(adv60, 4.13242)
+        long_correlation = ctx.correlation(close_rank, adv_rank, 3.65459)
+        argmax = ctx.ts_argmax(long_correlation, 12.6556)
+        long_decay = ctx.decay_linear(argmax, 14.0365)
+        right = ctx.ts_rank(long_decay, 13.4143)
+        maximum = ctx.maximum(left, right)
+        factor = maximum * (-1.0)
+        return factor

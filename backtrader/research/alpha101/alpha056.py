@@ -47,3 +47,34 @@ class Alpha056Native(FactorIndicator):
     def next(self):
         for data, result in zip(self.datas, self._result_lines):
             self.outputs[data].factor[0] = result[0]
+
+
+@native_alpha
+class Alpha056Build(FactorIndicator):
+    """AF48-056: construct the native Alpha101 graph via expressions."""
+
+    lines = ("factor",)
+    panel_mode = "expression"
+    alpha_id = Alpha056Native.alpha_id
+    case_id = Alpha056Native.case_id
+    lookback_h = Alpha056Native.lookback_h
+    formula_fields = Alpha056Native.formula_fields
+    required_fields = Alpha056Native.required_fields
+    formula = Alpha056Native.formula
+    operator_profile = Alpha056Native.operator_profile
+    input_policy = Alpha056Native.input_policy
+
+    @classmethod
+    def build(cls, ctx, **params):
+        returns = ctx.returns()
+        long_sum = ctx.sum(returns, 10)
+        inner_sum = ctx.sum(returns, 2)
+        nested_sum = ctx.sum(inner_sum, 3)
+        ratio = long_sum / nested_sum
+        ranked_ratio = ctx.rank(ratio)
+        return_cap = returns * ctx.field("cap")
+        ranked_return_cap = ctx.rank(return_cap)
+        product = ranked_ratio * ranked_return_cap
+        times_one = product * 1.0
+        factor = 0.0 - times_one
+        return factor

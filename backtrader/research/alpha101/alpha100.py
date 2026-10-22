@@ -101,3 +101,62 @@ class Alpha100Native(FactorIndicator):
     def next(self):
         for data, result in zip(self.datas, self._result_lines):
             self.outputs[data].factor[0] = result[0]
+
+
+@native_alpha
+class Alpha100Build(FactorIndicator):
+    """AF48-100: construct the native Alpha100 graph through the build API."""
+
+    lines = ("factor",)
+    panel_mode = "expression"
+    alpha_id = Alpha100Native.alpha_id
+    case_id = Alpha100Native.case_id
+    lookback_h = Alpha100Native.lookback_h
+    formula_fields = Alpha100Native.formula_fields
+    required_fields = Alpha100Native.required_fields
+    formula = Alpha100Native.formula
+    operator_profile = Alpha100Native.operator_profile
+    input_policy = Alpha100Native.input_policy
+
+    @classmethod
+    def build(cls, ctx, **params):
+        close = ctx.close
+        low = ctx.low
+        high = ctx.high
+        close_minus_low = close - low
+        high_minus_close = high - close
+        range_numerator = close_minus_low - high_minus_close
+        high_minus_low = high - low
+        location = range_numerator / high_minus_low
+        volume_weighted = location * ctx.volume
+        ranked_weighted = ctx.rank(volume_weighted)
+        neutralized_once = ctx.indneutralize(
+            ranked_weighted,
+            ctx.subindustry,
+            level="subindustry",
+        )
+        neutralized_twice = ctx.indneutralize(
+            neutralized_once,
+            ctx.subindustry,
+            level="subindustry",
+        )
+        first_scale = ctx.scale(neutralized_twice)
+        first_scaled = first_scale * 1.5
+
+        adv20 = ctx.adv20
+        adv_rank = ctx.rank(adv20)
+        correlation = ctx.correlation(close, adv_rank, 5)
+        close_argmin = ctx.ts_argmin(close, 30)
+        argmin_rank = ctx.rank(close_argmin)
+        correlation_minus_rank = correlation - argmin_rank
+        third_neutralized = ctx.indneutralize(
+            correlation_minus_rank,
+            ctx.subindustry,
+            level="subindustry",
+        )
+        second_scale = ctx.scale(third_neutralized)
+        scaled_difference = first_scaled - second_scale
+        volume_adv = ctx.volume / adv20
+        weighted_difference = scaled_difference * volume_adv
+        times_one = weighted_difference * 1.0
+        return 0.0 - times_one

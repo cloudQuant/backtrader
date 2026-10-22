@@ -18,6 +18,10 @@ from backtrader.research.alpha101 import (
     get_alpha,
     list_alphas,
 )
+from backtrader.research.alpha101.alpha001 import Alpha001Build, Alpha001Native
+from backtrader.research.alpha101.alpha029 import Alpha029Build, Alpha029Native
+from backtrader.research.alpha101.alpha048 import Alpha048Build, Alpha048Native
+from backtrader.research.alpha101.alpha100 import Alpha100Build, Alpha100Native
 from backtrader.research.factor_indicator import FactorIndicator
 from backtrader.research.factor_strategy import FactorStrategy
 from backtrader.research.specs import FactorSpec
@@ -28,7 +32,10 @@ from tests.test_utils.alpha101_native_harness import (
     make_research_spec,
     run_native_batch,
 )
-from tests.test_utils.alpha101_trace_validation import validate_factor_trace
+from tests.test_utils.alpha101_trace_validation import (
+    compare_factor_graphs,
+    validate_factor_trace,
+)
 from tests.unit.test_factor_research_representatives import _factor_spec, _research_feed
 
 
@@ -65,7 +72,6 @@ def test_alpha003_build_matches_native_trace_values_reasons_and_lifecycle(runonc
     assert build_trace["failures"] == []
     assert native_trace["finite_witness"] and build_trace["finite_witness"]
     assert native_trace["matched_nodes"] == build_trace["matched_nodes"]
-
     native_values = actual_matrix(native, 3, assets, grid)
     build_values = actual_matrix(built, 3, assets, grid)
     assert len(native_values) == len(build_values) == len(grid)
@@ -84,6 +90,8 @@ def test_alpha003_build_matches_native_trace_values_reasons_and_lifecycle(runonc
     # Native and build graphs have the same operator topology and preserve the
     # operator's concrete failure reasons at every intermediate line.
     assert set(native_factor._nodes) == set(build_factor._nodes)
+    graph_pair = compare_factor_graphs(native_factor, build_factor, 3)
+    assert graph_pair["equal"], graph_pair["failures"]
     for key in native_factor._nodes:
         native_node = native_factor._nodes[key]
         build_node = build_factor._nodes[key]
@@ -97,6 +105,73 @@ def test_alpha003_build_matches_native_trace_values_reasons_and_lifecycle(runonc
                 assert list(native_reason) == list(build_reason), (key, native_data._name)
         else:
             assert list(native_node.lines.reason.array) == list(build_node.lines.reason.array), key
+
+
+@pytest.mark.parametrize(
+    ("alpha_id", "native_class", "build_class"),
+    (
+        (1, Alpha001Native, Alpha001Build),
+        (29, Alpha029Native, Alpha029Build),
+        (48, Alpha048Native, Alpha048Build),
+        (100, Alpha100Native, Alpha100Build),
+    ),
+    ids=("alpha001", "alpha029", "alpha048", "alpha100"),
+)
+@pytest.mark.parametrize("runonce", (False, True), ids=("runnext", "runonce"))
+def test_representative_build_companions_match_native_trace_values_and_lifecycle(
+    alpha_id, native_class, build_class, runonce
+):
+    frames = make_positive_fixture(320)
+    assets = tuple(frames)
+    grid = tuple(next(iter(frames.values())).index)
+    native = run_native_batch(frames, (alpha_id,), runonce=runonce)
+    built = run_native_batch(
+        frames,
+        (alpha_id,),
+        runonce=runonce,
+        alpha_classes={alpha_id: build_class},
+    )
+
+    native_factor = native.factor_instances["alpha%d" % alpha_id]
+    build_factor = built.factor_instances["alpha%d" % alpha_id]
+    assert get_alpha(alpha_id, mode="build") is build_class
+    assert native_factor._minperiod == build_factor._minperiod == native_class.lookback_h + 1
+    assert build_class.lookback_h == native_class.lookback_h
+    assert build_class.case_id == native_class.case_id
+    assert build_class.formula_fields == native_class.formula_fields
+    assert build_class.required_fields == native_class.required_fields
+    assert build_class.formula == native_class.formula
+    assert build_class.operator_profile == native_class.operator_profile
+    assert build_class.input_policy == native_class.input_policy
+    assert_lifecycle(native, (alpha_id,), grid)
+    assert_lifecycle(built, (alpha_id,), grid, alpha_classes={alpha_id: build_class})
+
+    native_trace = validate_factor_trace(
+        native_factor, alpha_id, frames, assets, grid, strategy=native
+    )
+    build_trace = validate_factor_trace(
+        build_factor, alpha_id, frames, assets, grid, strategy=built
+    )
+    assert native_trace["failures"] == []
+    assert build_trace["failures"] == []
+    assert native_trace["finite_witness"] and build_trace["finite_witness"]
+    assert native_trace["matched_nodes"] == build_trace["matched_nodes"]
+    graph_pair = compare_factor_graphs(native_factor, build_factor, alpha_id)
+    assert graph_pair["equal"], graph_pair["failures"]
+
+    _assert_alpha003_values_equal(
+        actual_matrix(native, alpha_id, assets, grid),
+        actual_matrix(built, alpha_id, assets, grid),
+        label="Alpha%d native/build" % alpha_id,
+    )
+    assert (
+        native._alpha101_broker_call_counts
+        == built._alpha101_broker_call_counts
+        == {
+            "submit": 0,
+            "cancel": 0,
+        }
+    )
 
 
 def _run_alpha003_mode_pair(frames, *, runonce):
@@ -362,6 +437,17 @@ class _WhereArithmeticBuild(FactorIndicator):
         return ctx.where(close > 10.0, 2.0 / close, close - 2.0) + 3.0
 
 
+class _ConstantSubtractBuild(FactorIndicator):
+    lines = ("factor",)
+    panel_mode = "expression"
+    formula_fields = ()
+    lookback_h = 0
+
+    @classmethod
+    def build(cls, ctx, **params):
+        return ctx.subtract(1.0, 0.728317)
+
+
 class _ParameterizedBuild(FactorIndicator):
     lines = ("factor",)
     params = (("scale", 2.0),)
@@ -437,8 +523,90 @@ class _DoubleInitializeBuild(FactorIndicator):
         super().__init__()
 
 
-def _run_custom_expression(factor_class, frames, *, runonce=True, factor_params=None):
-    research = make_research_spec(frames)
+class _OperatorSurfaceBuild(FactorIndicator):
+    lines = ("factor",)
+    params = (("period", 2.9),)
+    panel_mode = "expression"
+    formula_fields = ("close", "subindustry")
+
+    @staticmethod
+    def lookback_h(period=2.9, **params):
+        return math.floor(float(period))
+
+    @classmethod
+    def build(cls, ctx, period=2.9, **params):
+        close = ctx.close
+        absolute = ctx.abs(close)
+        sign = ctx.sign(close)
+        logged = ctx.log(absolute + 1.0)
+        powered = ctx.signed_power(close, 2.0)
+        minimum = ctx.minimum(absolute, powered)
+        maximum = ctx.maximum(absolute, powered)
+        delayed = ctx.delay(close, period)
+        delta = ctx.delta(close, period)
+        summed = ctx.sum(close, period)
+        product = ctx.product(close, period)
+        deviation = ctx.stddev(close, period)
+        minimum_window = ctx.ts_min(close, period)
+        maximum_window = ctx.ts_max(close, period)
+        rank = ctx.ts_rank(close, period)
+        argmin = ctx.ts_argmin(close, period)
+        argmax = ctx.ts_argmax(close, period)
+        decay = ctx.decay_linear(close, period)
+        covariance = ctx.covariance(close, close, period)
+        scaled = ctx.scale(close, a=1.5)
+        neutralized = ctx.indneutralize(
+            scaled,
+            ctx.subindustry,
+            level="subindustry",
+        )
+        ordered_less_than = ctx.less_than(0.0, close)
+        ordered_equal_to = ctx.equal_to(0.0, close)
+        logical = ctx.logical_or(close > 0.0, close < 0.0)
+        components = (
+            absolute,
+            sign,
+            logged,
+            powered,
+            minimum,
+            maximum,
+            delayed,
+            delta,
+            summed,
+            product,
+            deviation,
+            minimum_window,
+            maximum_window,
+            rank,
+            argmin,
+            argmax,
+            decay,
+            covariance,
+            scaled,
+            neutralized,
+            ordered_less_than,
+            ordered_equal_to,
+            logical,
+        )
+        result = components[0]
+        for component in components[1:]:
+            result = result + component
+        return result
+
+
+class _ClassificationBuild(FactorIndicator):
+    lines = ("factor",)
+    panel_mode = "expression"
+    formula_fields = ("close", "subindustry")
+    lookback_h = 0
+
+    @classmethod
+    def build(cls, ctx, **params):
+        return ctx.indneutralize(ctx.close, ctx.subindustry, level="subindustry")
+
+
+def _run_custom_expression(factor_class, frames, *, runonce=True, factor_params=None, groups=None):
+    research = make_research_spec(frames, groups=groups)
     cerebro = bt.Cerebro(stdstats=False, runonce=runonce)
     for asset, frame in frames.items():
         cerebro.adddata(_research_feed(frame, research, asset), name=asset)
@@ -508,6 +676,37 @@ def test_apply_builds_one_native_indicator_per_target_once_and_registers_with_ow
         ]
         for observed, close in zip(actual, frames[asset]["close"]):
             assert observed == 2.0 * close
+
+
+@pytest.mark.parametrize("runonce", (False, True), ids=("runnext", "runonce"))
+def test_constant_subtract_builds_target_marked_native_nodes_with_reasons(runonce):
+    base = make_positive_fixture(320)
+    frames = {asset: frame.iloc[:7].copy() for asset, frame in tuple(base.items())[:2]}
+    strategy = _run_custom_expression(_ConstantSubtractBuild, frames, runonce=runonce)
+    factor = strategy.factor_instances["custom"]
+
+    assert tuple(factor._nodes) == ("subtract_0", "subtract_1")
+    assert len(factor._nodes) == len(factor.target_datas) == len(frames)
+    expected = 1.0 - 0.728317
+    for target, node in zip(factor.target_datas, factor._nodes.values()):
+        assert type(node) is operators.Subtract
+        assert node._operand_args == (1.0, 0.728317)
+        assert node.lines.value._factor_research_target is target
+        assert node.lines.value._factor_research_reason_line is node.lines.reason
+        assert list(node.lines.value.array) == [expected] * len(frames[target._name])
+        assert list(node.lines.reason.array) == [float(operators.OperatorReason.READY)] * len(
+            frames[target._name]
+        )
+        registrations = [
+            child
+            for children in factor._lineiterators.values()
+            for child in children
+            if child is node
+        ]
+        assert registrations == [node]
+
+        output = factor.outputs[target].factor.array
+        assert list(output) == [expected] * len(frames[target._name])
 
 
 def test_apply_rejects_foreign_closed_and_invalid_inputs():
@@ -580,6 +779,155 @@ def test_expression_maps_auxiliary_inputs_to_target_outputs_by_identity(runonce)
         for target in factor.target_datas:
             assert float(factor.outputs[target].factor.array[index]) == pytest.approx(expected)
     assert all(data not in factor.outputs for data in strategy.datas[2:])
+
+
+@pytest.mark.parametrize("runonce", (False, True), ids=("runnext", "runonce"))
+@pytest.mark.parametrize("period", (2.9, 3.9), ids=("floor-two", "floor-three"))
+def test_research_operator_surface_preserves_floor_members_groups_and_owner(period, runonce):
+    base = make_positive_fixture(320)
+    frames = {asset: frame.iloc[:12].copy() for asset, frame in tuple(base.items())[:6]}
+    assets = tuple(frames)
+    groups = {asset: ("left" if index < 3 else "right") for index, asset in enumerate(assets)}
+    strategy = _run_custom_expression(
+        _OperatorSurfaceBuild,
+        frames,
+        runonce=runonce,
+        factor_params={"period": period},
+        groups=groups,
+    )
+    aggregate = strategy.factor_instances["custom"]
+    instances = aggregate.group_instances
+    expected_window = math.floor(period)
+    assert _OperatorSurfaceBuild.lookback_h(period=period) == expected_window
+    assert any(
+        math.isfinite(float(value))
+        for output in aggregate.outputs.values()
+        for value in output.factor.array
+    )
+    assert set(instances) == {"left", "right"}
+    for group, factor in instances.items():
+        group_assets = tuple(asset for asset in assets if groups[asset] == group)
+        assert factor._minperiod == expected_window + 1
+        assert tuple(data._name for data in factor.target_datas) == group_assets
+        node_types = tuple(type(node) for node in factor._nodes.values())
+        for expected in (
+            operators.Abs,
+            operators.Sign,
+            operators.Log,
+            operators.SignedPower,
+            operators.Minimum,
+            operators.Maximum,
+            operators.Delay,
+            operators.Delta,
+            operators.RollingSum,
+            operators.RollingProduct,
+            operators.RollingStd,
+            operators.TsMin,
+            operators.TsMax,
+            operators.TsRank,
+            operators.TsArgMin,
+            operators.TsArgMax,
+            operators.DecayLinear,
+            operators.RollingCovariance,
+            operators.CrossSectionalScale,
+            operators.IndNeutralize,
+            operators.LogicalOr,
+            operators.LessThan,
+            operators.EqualTo,
+        ):
+            assert any(issubclass(node_type, expected) for node_type in node_types), expected
+
+        rolling_nodes = [
+            node for node in factor._nodes.values() if getattr(node, "_period", None) is not None
+        ]
+        assert rolling_nodes
+        assert all(node._period == expected_window for node in rolling_nodes)
+        scale_nodes = [
+            node
+            for node in factor._nodes.values()
+            if isinstance(node, operators.CrossSectionalScale)
+        ]
+        neutralize_nodes = [
+            node for node in factor._nodes.values() if isinstance(node, operators.IndNeutralize)
+        ]
+        assert len(scale_nodes) == len(neutralize_nodes) == 1
+        scale = scale_nodes[0]
+        neutralize = neutralize_nodes[0]
+        assert scale.p.a == 1.5
+        assert all(
+            actual is expected for actual, expected in zip(scale._members, factor.formula_members)
+        )
+        assert tuple(scale._groups) == factor.research_groups
+        assert all(
+            actual is expected
+            for actual, expected in zip(neutralize._members, factor.formula_members)
+        )
+        assert all(
+            actual is expected
+            for actual, expected in zip(neutralize._groups, factor.field_lines("subindustry"))
+        )
+        assert neutralize.p.level == "subindustry"
+
+        close_lines = factor.field_lines("close")
+        ordered_less_nodes = [
+            node
+            for node in factor._nodes.values()
+            if type(node) is operators.LessThan and node._operand_args[0] == 0.0
+        ]
+        ordered_equal_nodes = [
+            node
+            for node in factor._nodes.values()
+            if type(node) is operators.EqualTo and node._operand_args[0] == 0.0
+        ]
+        assert len(ordered_less_nodes) == len(ordered_equal_nodes) == len(group_assets)
+        for index, (less_node, equal_node) in enumerate(
+            zip(ordered_less_nodes, ordered_equal_nodes)
+        ):
+            assert less_node._operand_args[1] is close_lines[index]
+            assert equal_node._operand_args[1] is close_lines[index]
+
+        nodes = tuple(factor._nodes.values())
+        assert len({id(node) for node in nodes}) == len(nodes)
+        for key, node in factor._nodes.items():
+            if not isinstance(node, operators._PanelOperator):
+                assert key.rsplit("_", 1)[-1].isdigit(), key
+            assert node._owner is factor
+            registrations = [
+                child
+                for children in factor._lineiterators.values()
+                for child in children
+                if child is node
+            ]
+            assert registrations == [node]
+
+
+@pytest.mark.parametrize("runonce", (False, True), ids=("runnext", "runonce"))
+def test_indneutralize_unknown_classification_retains_reason_and_factor_output(runonce):
+    base = make_positive_fixture(320)
+    frames = {asset: frame.iloc[:5].copy() for asset, frame in tuple(base.items())[:4]}
+    assets = tuple(frames)
+    grid = tuple(next(iter(frames.values())).index)
+    unknown_asset = assets[0]
+    unknown_time = grid[2]
+    frames[unknown_asset].loc[unknown_time, "subindustry"] = math.nan
+
+    strategy = _run_custom_expression(_ClassificationBuild, frames, runonce=runonce)
+    factor = strategy.factor_instances["custom"]
+    node = next(
+        value for value in factor._nodes.values() if isinstance(value, operators.IndNeutralize)
+    )
+    unknown_target = factor.target_datas[assets.index(unknown_asset)]
+    index = grid.index(unknown_time)
+    assert math.isnan(float(node.outputs[unknown_target].value.array[index]))
+    assert int(node.outputs[unknown_target].reason.array[index]) == int(
+        operators.OperatorReason.UNKNOWN_CLASSIFICATION
+    )
+    assert math.isnan(float(factor.outputs[unknown_target].factor.array[index]))
+    assert any(
+        math.isfinite(float(value))
+        for output in factor.outputs.values()
+        for value in output.factor.array
+    )
 
 
 @pytest.mark.parametrize("runonce", (False, True), ids=("runnext", "runonce"))
@@ -763,6 +1111,12 @@ def test_expression_declarations_and_results_fail_closed():
     expression = first.field("close")
     with pytest.raises(TypeError, match="different factor build context"):
         first.binary(operators.Add, expression, foreign.field("close"))
+    with pytest.raises(TypeError, match="different factor build context"):
+        first.indneutralize(
+            expression,
+            foreign.field("close"),
+            level="subindustry",
+        )
     with pytest.raises(TypeError, match="no line for this factor target"):
         expression._line_for(object())
     with pytest.raises(TypeError, match="factor expression"):
@@ -802,10 +1156,16 @@ def test_expression_rolling_methods_require_a_positive_non_bool_integer(method, 
     assert context.nodes == {}
 
 
-def test_alpha_registry_build_mode_is_companion_lookup_without_changing_native_registry():
+def test_alpha_registry_build_mode_is_companion_lookup_without_changing_native_registry(
+    monkeypatch,
+):
     assert get_alpha(3) is Alpha003Native is ALPHA_REGISTRY[3]
     assert get_alpha(3, mode="build") is Alpha003Build
     assert list_alphas() == tuple(range(1, 102))
+    native_four = ALPHA_REGISTRY[4]
+    module = __import__(native_four.__module__, fromlist=["*"])
+    companion_name = native_four.__name__[:-6] + "Build"
+    monkeypatch.delattr(module, companion_name, raising=False)
     with pytest.raises(NotImplementedError, match="Alpha4 build"):
         get_alpha(4, mode="build")
     with pytest.raises(ValueError, match="mode"):

@@ -63,3 +63,35 @@ class Alpha065Native(FactorIndicator):
     def next(self):
         for data, result in zip(self.datas, self._result_lines):
             self.outputs[data].factor[0] = result[0]
+
+
+@native_alpha
+class Alpha065Build(FactorIndicator):
+    """AF48-065: construct the native Alpha101 graph via expressions."""
+
+    lines = ("factor",)
+    panel_mode = "expression"
+    alpha_id = Alpha065Native.alpha_id
+    case_id = Alpha065Native.case_id
+    lookback_h = Alpha065Native.lookback_h
+    formula_fields = Alpha065Native.formula_fields
+    required_fields = Alpha065Native.required_fields
+    formula = Alpha065Native.formula
+    operator_profile = Alpha065Native.operator_profile
+    input_policy = Alpha065Native.input_policy
+
+    @classmethod
+    def build(cls, ctx, **params):
+        weight = 0.00817205
+        weighted_open = ctx.field("open") * weight
+        weighted_vwap = ctx.field("vwap") * (1.0 - weight)
+        price_mix = weighted_open + weighted_vwap
+        adv_sum = ctx.sum(ctx.field("adv60"), 8.6911)
+        correlation = ctx.correlation(price_mix, adv_sum, 6.40374)
+        left_rank = ctx.rank(correlation)
+        open_min = ctx.ts_min(ctx.field("open"), 13.635)
+        open_excess = ctx.field("open") - open_min
+        right_rank = ctx.rank(open_excess)
+        comparison = ctx.less_than(left_rank, right_rank)
+        factor = comparison * -1.0
+        return factor

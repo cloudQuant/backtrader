@@ -70,3 +70,38 @@ class Alpha062Native(FactorIndicator):
     def next(self):
         for data, result in zip(self.datas, self._result_lines):
             self.outputs[data].factor[0] = result[0]
+
+
+@native_alpha
+class Alpha062Build(FactorIndicator):
+    """AF48-062: construct the native Alpha101 graph via expressions."""
+
+    lines = ("factor",)
+    panel_mode = "expression"
+    alpha_id = Alpha062Native.alpha_id
+    case_id = Alpha062Native.case_id
+    lookback_h = Alpha062Native.lookback_h
+    formula_fields = Alpha062Native.formula_fields
+    required_fields = Alpha062Native.required_fields
+    formula = Alpha062Native.formula
+    operator_profile = Alpha062Native.operator_profile
+    input_policy = Alpha062Native.input_policy
+
+    @classmethod
+    def build(cls, ctx, **params):
+        adv20 = ctx.field("adv20")
+        adv_sum = ctx.sum(adv20, 22.4101)
+        correlation = ctx.correlation(ctx.field("vwap"), adv_sum, 9.91009)
+        ranked_correlation = ctx.rank(correlation)
+        open_rank_left = ctx.rank(ctx.field("open"))
+        open_rank_right = ctx.rank(ctx.field("open"))
+        open_rank_sum = open_rank_left + open_rank_right
+        midpoint = (ctx.field("high") + ctx.field("low")) / 2.0
+        midpoint_rank = ctx.rank(midpoint)
+        high_rank = ctx.rank(ctx.field("high"))
+        right_sum = midpoint_rank + high_rank
+        nested_bool = ctx.less_than(open_rank_sum, right_sum)
+        ranked_nested_bool = ctx.rank(nested_bool)
+        comparison = ctx.less_than(ranked_correlation, ranked_nested_bool)
+        factor = comparison * -1.0
+        return factor

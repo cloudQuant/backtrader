@@ -72,3 +72,36 @@ class Alpha039Native(FactorIndicator):
     def next(self):
         for data, result in zip(self.datas, self._result_lines):
             self.outputs[data].factor[0] = result[0]
+
+
+@native_alpha
+class Alpha039Build(FactorIndicator):
+    """AF48-039: construct the native Alpha101 graph via expressions."""
+
+    lines = ("factor",)
+    panel_mode = "expression"
+    alpha_id = Alpha039Native.alpha_id
+    case_id = Alpha039Native.case_id
+    lookback_h = Alpha039Native.lookback_h
+    formula_fields = Alpha039Native.formula_fields
+    required_fields = Alpha039Native.required_fields
+    formula = Alpha039Native.formula
+    operator_profile = Alpha039Native.operator_profile
+    input_policy = Alpha039Native.input_policy
+
+    @classmethod
+    def build(cls, ctx, **params):
+        volume_over_adv = ctx.field("volume") / ctx.field("adv20")
+        decayed_ratio = ctx.decay_linear(volume_over_adv, 9)
+        ranked_decay = ctx.rank(decayed_ratio)
+        one_minus_ranked_decay = 1.0 - ranked_decay
+        close_delta_7 = ctx.delta(ctx.field("close"), 7)
+        gated_price_change = close_delta_7 * one_minus_ranked_decay
+        ranked_gated_price_change = ctx.rank(gated_price_change)
+        negative_ranked_price_change = -1.0 * ranked_gated_price_change
+        returns = ctx.returns()
+        return_sum_250 = ctx.sum(returns, 250)
+        ranked_return_sum = ctx.rank(return_sum_250)
+        one_plus_ranked_return_sum = 1.0 + ranked_return_sum
+        factor = negative_ranked_price_change * one_plus_ranked_return_sum
+        return factor

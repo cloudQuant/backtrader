@@ -46,3 +46,31 @@ class Alpha009Native(FactorIndicator):
     def next(self):
         for data, result in zip(self.datas, self._result_lines):
             self.outputs[data].factor[0] = result[0]
+
+
+@native_alpha
+class Alpha009Build(FactorIndicator):
+    """AF48-009: construct the native Alpha101 graph via expressions."""
+
+    lines = ("factor",)
+    panel_mode = "expression"
+    alpha_id = Alpha009Native.alpha_id
+    case_id = Alpha009Native.case_id
+    lookback_h = Alpha009Native.lookback_h
+    formula_fields = Alpha009Native.formula_fields
+    required_fields = Alpha009Native.required_fields
+    formula = Alpha009Native.formula
+    operator_profile = Alpha009Native.operator_profile
+    input_policy = Alpha009Native.input_policy
+
+    @classmethod
+    def build(cls, ctx, **params):
+        change = ctx.delta(ctx.field("close"), 1)
+        floor = ctx.ts_min(change, 5)
+        ceiling = ctx.ts_max(change, 5)
+        all_positive = floor > 0.0
+        all_negative = ceiling < 0.0
+        reverse = change * -1.0
+        negative_or_mixed = ctx.where(all_negative, change, reverse)
+        factor = ctx.where(all_positive, change, negative_or_mixed)
+        return factor

@@ -62,3 +62,33 @@ class Alpha090Native(FactorIndicator):
     def next(self):
         for data, result in zip(self.datas, self._result_lines):
             self.outputs[data].factor[0] = result[0]
+
+
+@native_alpha
+class Alpha090Build(FactorIndicator):
+    """AF48-090: construct the native Alpha101 graph via expressions."""
+
+    lines = ("factor",)
+    panel_mode = "expression"
+    alpha_id = Alpha090Native.alpha_id
+    case_id = Alpha090Native.case_id
+    lookback_h = Alpha090Native.lookback_h
+    formula_fields = Alpha090Native.formula_fields
+    required_fields = Alpha090Native.required_fields
+    formula = Alpha090Native.formula
+    operator_profile = Alpha090Native.operator_profile
+    input_policy = Alpha090Native.input_policy
+
+    @classmethod
+    def build(cls, ctx, **params):
+        close_maximum = ctx.ts_max(ctx.field("close"), 4.66719)
+        close_minus_maximum = ctx.field("close") - close_maximum
+        ranked_close_gap = ctx.rank(close_minus_maximum)
+        neutral_adv40 = ctx.indneutralize(
+            ctx.field("adv40"), ctx.field("subindustry"), level="subindustry"
+        )
+        correlation = ctx.correlation(neutral_adv40, ctx.field("low"), 5.38375)
+        exponent = ctx.ts_rank(correlation, 3.21856)
+        powered = ranked_close_gap**exponent
+        factor = powered * (-1.0)
+        return factor

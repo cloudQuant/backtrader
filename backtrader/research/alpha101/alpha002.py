@@ -50,3 +50,31 @@ class Alpha002Native(FactorIndicator):
     def next(self):
         for data, result in zip(self.datas, self._result_lines):
             self.outputs[data].factor[0] = result[0]
+
+
+@native_alpha
+class Alpha002Build(FactorIndicator):
+    """AF48-002: construct the native Alpha101 graph via expressions."""
+
+    lines = ("factor",)
+    panel_mode = "expression"
+    alpha_id = Alpha002Native.alpha_id
+    case_id = Alpha002Native.case_id
+    lookback_h = Alpha002Native.lookback_h
+    formula_fields = Alpha002Native.formula_fields
+    required_fields = Alpha002Native.required_fields
+    formula = Alpha002Native.formula
+    operator_profile = Alpha002Native.operator_profile
+    input_policy = Alpha002Native.input_policy
+
+    @classmethod
+    def build(cls, ctx, **params):
+        logged_volume = ctx.log(ctx.field("volume"))
+        volume_delta = ctx.delta(logged_volume, 2)
+        ranked_volume_delta = ctx.rank(volume_delta)
+        open_gap = ctx.field("close") - ctx.field("open")
+        gap_fraction = open_gap / ctx.field("open")
+        ranked_gap = ctx.rank(gap_fraction)
+        correlation = ctx.correlation(ranked_volume_delta, ranked_gap, 6)
+        factor = correlation * -1.0
+        return factor

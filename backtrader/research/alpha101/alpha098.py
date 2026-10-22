@@ -70,3 +70,35 @@ class Alpha098Native(FactorIndicator):
     def next(self):
         for data, result in zip(self.datas, self._result_lines):
             self.outputs[data].factor[0] = result[0]
+
+
+@native_alpha
+class Alpha098Build(FactorIndicator):
+    """AF48-098: construct the native Alpha101 graph via expressions."""
+
+    lines = ("factor",)
+    panel_mode = "expression"
+    alpha_id = Alpha098Native.alpha_id
+    case_id = Alpha098Native.case_id
+    lookback_h = Alpha098Native.lookback_h
+    formula_fields = Alpha098Native.formula_fields
+    required_fields = Alpha098Native.required_fields
+    formula = Alpha098Native.formula
+    operator_profile = Alpha098Native.operator_profile
+    input_policy = Alpha098Native.input_policy
+
+    @classmethod
+    def build(cls, ctx, **params):
+        adv5_sum = ctx.sum(ctx.field("adv5"), 26.4719)
+        vwap_adv5_correlation = ctx.correlation(ctx.field("vwap"), adv5_sum, 4.58418)
+        vwap_adv5_decay = ctx.decay_linear(vwap_adv5_correlation, 7.18088)
+        first_branch = ctx.rank(vwap_adv5_decay)
+        open_rank = ctx.rank(ctx.field("open"))
+        adv15_rank = ctx.rank(ctx.field("adv15"))
+        ranked_series_correlation = ctx.correlation(open_rank, adv15_rank, 20.8187)
+        argmin = ctx.ts_argmin(ranked_series_correlation, 8.62571)
+        argmin_time_rank = ctx.ts_rank(argmin, 6.95668)
+        argmin_decay = ctx.decay_linear(argmin_time_rank, 8.07206)
+        second_branch = ctx.rank(argmin_decay)
+        factor = first_branch - second_branch
+        return factor

@@ -93,3 +93,40 @@ class Alpha097Native(FactorIndicator):
     def next(self):
         for data, result in zip(self.datas, self._result_lines):
             self.outputs[data].factor[0] = result[0]
+
+
+@native_alpha
+class Alpha097Build(FactorIndicator):
+    """AF48-097: construct the native Alpha101 graph via expressions."""
+
+    lines = ("factor",)
+    panel_mode = "expression"
+    alpha_id = Alpha097Native.alpha_id
+    case_id = Alpha097Native.case_id
+    lookback_h = Alpha097Native.lookback_h
+    formula_fields = Alpha097Native.formula_fields
+    required_fields = Alpha097Native.required_fields
+    formula = Alpha097Native.formula
+    operator_profile = Alpha097Native.operator_profile
+    input_policy = Alpha097Native.input_policy
+
+    @classmethod
+    def build(cls, ctx, **params):
+        alpha = 0.721001
+        one_minus_alpha = ctx.subtract(1.0, alpha)
+        low_part = ctx.field("low") * (alpha)
+        vwap_part = ctx.field("vwap") * one_minus_alpha
+        weighted_price = low_part + vwap_part
+        neutral_price = ctx.indneutralize(weighted_price, ctx.field("industry"), level="industry")
+        price_delta = ctx.delta(neutral_price, 3.3705)
+        price_decay = ctx.decay_linear(price_delta, 20.4523)
+        ranked_price_decay = ctx.rank(price_decay)
+        low_time_rank = ctx.ts_rank(ctx.field("low"), 7.87871)
+        adv60_time_rank = ctx.ts_rank(ctx.field("adv60"), 17.255)
+        correlation = ctx.correlation(low_time_rank, adv60_time_rank, 4.97547)
+        correlation_time_rank = ctx.ts_rank(correlation, 18.5925)
+        correlation_decay = ctx.decay_linear(correlation_time_rank, 15.7152)
+        nested_time_rank = ctx.ts_rank(correlation_decay, 6.71659)
+        difference = ranked_price_decay - nested_time_rank
+        factor = difference * (-1.0)
+        return factor

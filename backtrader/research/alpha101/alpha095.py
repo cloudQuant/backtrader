@@ -78,3 +78,34 @@ class Alpha095Native(FactorIndicator):
     def next(self):
         for data, result in zip(self.datas, self._result_lines):
             self.outputs[data].factor[0] = result[0]
+
+
+@native_alpha
+class Alpha095Build(FactorIndicator):
+    """AF48-095: construct the native Alpha101 graph via expressions."""
+
+    lines = ("factor",)
+    panel_mode = "expression"
+    alpha_id = Alpha095Native.alpha_id
+    case_id = Alpha095Native.case_id
+    lookback_h = Alpha095Native.lookback_h
+    formula_fields = Alpha095Native.formula_fields
+    required_fields = Alpha095Native.required_fields
+    formula = Alpha095Native.formula
+    operator_profile = Alpha095Native.operator_profile
+    input_policy = Alpha095Native.input_policy
+
+    @classmethod
+    def build(cls, ctx, **params):
+        open_minimum = ctx.ts_min(ctx.field("open"), 12.4105)
+        open_minus_minimum = ctx.field("open") - open_minimum
+        ranked_open_gap = ctx.rank(open_minus_minimum)
+        high_low_midpoint = (ctx.field("high") + ctx.field("low")) / (2.0)
+        midpoint_sum = ctx.sum(high_low_midpoint, 19.1351)
+        adv40_sum = ctx.sum(ctx.field("adv40"), 19.1351)
+        correlation = ctx.correlation(midpoint_sum, adv40_sum, 12.8742)
+        ranked_correlation = ctx.rank(correlation)
+        powered_rank = ranked_correlation ** (5.0)
+        time_rank = ctx.ts_rank(powered_rank, 11.7584)
+        factor = ctx.less_than(ranked_open_gap, time_rank)
+        return factor

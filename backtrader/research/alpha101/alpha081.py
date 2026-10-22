@@ -61,3 +61,38 @@ class Alpha081Native(FactorIndicator):
     def next(self):
         for data, result in zip(self.datas, self._result_lines):
             self.outputs[data].factor[0] = result[0]
+
+
+@native_alpha
+class Alpha081Build(FactorIndicator):
+    """AF48-081: construct the native Alpha101 graph via expressions."""
+
+    lines = ("factor",)
+    panel_mode = "expression"
+    alpha_id = Alpha081Native.alpha_id
+    case_id = Alpha081Native.case_id
+    lookback_h = Alpha081Native.lookback_h
+    formula_fields = Alpha081Native.formula_fields
+    required_fields = Alpha081Native.required_fields
+    formula = Alpha081Native.formula
+    operator_profile = Alpha081Native.operator_profile
+    input_policy = Alpha081Native.input_policy
+
+    @classmethod
+    def build(cls, ctx, **params):
+        adv10 = ctx.field("adv10")
+        adv_sum = ctx.sum(adv10, 49.6054)
+        first_correlation = ctx.correlation(ctx.field("vwap"), adv_sum, 8.47743)
+        first_rank = ctx.rank(first_correlation)
+        powered = first_rank ** (4.0)
+        powered_rank = ctx.rank(powered)
+        product = ctx.product(powered_rank, 14.9655)
+        logged = ctx.log(product)
+        ranked_log = ctx.rank(logged)
+        vwap_rank = ctx.rank(ctx.field("vwap"))
+        volume_rank = ctx.rank(ctx.field("volume"))
+        second_correlation = ctx.correlation(vwap_rank, volume_rank, 5.07914)
+        second_rank = ctx.rank(second_correlation)
+        comparison = ctx.less_than(ranked_log, second_rank)
+        factor = comparison * (-1.0)
+        return factor

@@ -45,3 +45,30 @@ class Alpha053Native(FactorIndicator):
     def next(self):
         for data, result in zip(self.datas, self._result_lines):
             self.outputs[data].factor[0] = result[0]
+
+
+@native_alpha
+class Alpha053Build(FactorIndicator):
+    """AF48-053: construct the native Alpha101 graph via expressions."""
+
+    lines = ("factor",)
+    panel_mode = "expression"
+    alpha_id = Alpha053Native.alpha_id
+    case_id = Alpha053Native.case_id
+    lookback_h = Alpha053Native.lookback_h
+    formula_fields = Alpha053Native.formula_fields
+    required_fields = Alpha053Native.required_fields
+    formula = Alpha053Native.formula
+    operator_profile = Alpha053Native.operator_profile
+    input_policy = Alpha053Native.input_policy
+    paper_signal_delay = Alpha053Native.paper_signal_delay
+
+    @classmethod
+    def build(cls, ctx, **params):
+        close_low = ctx.field("close") - ctx.field("low")
+        high_close = ctx.field("high") - ctx.field("close")
+        numerator = close_low - high_close
+        location = numerator / close_low
+        change = ctx.delta(location, 9)
+        factor = change * -1.0
+        return factor

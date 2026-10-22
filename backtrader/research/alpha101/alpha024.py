@@ -64,3 +64,38 @@ class Alpha024Native(FactorIndicator):
     def next(self):
         for data, result in zip(self.datas, self._result_lines):
             self.outputs[data].factor[0] = result[0]
+
+
+@native_alpha
+class Alpha024Build(FactorIndicator):
+    """AF48-024: construct the native Alpha101 graph via expressions."""
+
+    lines = ("factor",)
+    panel_mode = "expression"
+    alpha_id = Alpha024Native.alpha_id
+    case_id = Alpha024Native.case_id
+    lookback_h = Alpha024Native.lookback_h
+    formula_fields = Alpha024Native.formula_fields
+    required_fields = Alpha024Native.required_fields
+    formula = Alpha024Native.formula
+    operator_profile = Alpha024Native.operator_profile
+    input_policy = Alpha024Native.input_policy
+
+    @classmethod
+    def build(cls, ctx, **params):
+        close = ctx.field("close")
+        close_sum = ctx.sum(close, 100)
+        close_mean = close_sum / 100.0
+        mean_change = ctx.delta(close_mean, 100)
+        close_delay = ctx.delay(close, 100)
+        ratio = mean_change / close_delay
+        below_threshold = ratio < 0.05
+        at_threshold = ratio == 0.05
+        condition = ctx.logical_or(below_threshold, at_threshold)
+        close_minimum = ctx.ts_min(close, 100)
+        distance_from_minimum = close - close_minimum
+        true_branch = -1.0 * distance_from_minimum
+        close_change = ctx.delta(close, 3)
+        false_branch = -1.0 * close_change
+        factor = ctx.where(condition, true_branch, false_branch)
+        return factor

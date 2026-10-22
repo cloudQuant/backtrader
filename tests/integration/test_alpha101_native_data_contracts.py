@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import numpy as np
-import pandas as pd
 import pytest
 
 from tests.test_utils.alpha101_full_reference import formula_ids
@@ -25,26 +24,55 @@ def _mutate_future_tail(frames, grid):
     """Change future prices and volume, then rebuild the source dollar volume."""
     changed = {asset: frame.copy(deep=True) for asset, frame in frames.items()}
     tail = list(grid[_CUT_ROW:])
-    for frame in changed.values():
+    for asset_index, frame in enumerate(changed.values()):
+        price_scale = 1.17 + asset_index * 0.07
+        price_offset = 0.31 + asset_index * 0.11
         frame.loc[tail, ["open", "high", "low", "close", "vwap"]] = (
-            frame.loc[tail, ["open", "high", "low", "close", "vwap"]] * 1.17 + 0.31
+            frame.loc[tail, ["open", "high", "low", "close", "vwap"]] * price_scale + price_offset
         )
-        frame.loc[tail, "volume"] = frame.loc[tail, "volume"] * 1.23 + 73.0
+        frame.loc[tail, "volume"] = (
+            frame.loc[tail, "volume"] * (1.23 + asset_index * 0.05) + 73.0 + asset_index
+        )
         frame.loc[tail, "dollar_volume"] = frame.loc[tail, "vwap"] * frame.loc[tail, "volume"]
     return changed
 
 
-def _assert_asset_aligned_close(actual, expected, *, label):
-    """Compare by named time/asset keys; preserve every rank-to-asset mapping."""
-    aligned = actual.reindex(index=expected.index, columns=expected.columns)
-    assert aligned.index.equals(expected.index), "%s time/asset index differs" % label
-    assert aligned.columns.equals(expected.columns), "%s factor columns differ" % label
+def _panel_tensor(panel, assets, expected_times, *, label):
+    """Read a panel in observed time order, restoring only asset identity."""
+    assert tuple(panel.index.names) == ("time", "asset"), "%s panel index changed" % label
+    factor_names = tuple(panel.columns)
+    observed_times = tuple(dict.fromkeys(panel.index.get_level_values("time")))
+    assert observed_times == tuple(expected_times), "%s time order differs" % label
+
+    rows = []
+    expected_assets = set(assets)
+    for point in observed_times:
+        by_asset = panel.xs(point, level="time")
+        assert not by_asset.index.has_duplicates, "%s has duplicate asset rows at %s" % (
+            label,
+            point,
+        )
+        assert set(by_asset.index) == expected_assets, "%s asset identity set differs at %s" % (
+            label,
+            point,
+        )
+        rows.append(by_asset.reindex(list(assets)).to_numpy(dtype="float64"))
+    return np.stack(rows, axis=0), factor_names
+
+
+def _assert_panel_tensor_close(actual, expected, *, label):
+    """Compare every cell, requiring the finite/NaN mask to match exactly."""
+    assert actual.shape == expected.shape, "%s panel dimensions differ" % label
+    actual_finite = np.isfinite(actual)
+    expected_finite = np.isfinite(expected)
+    np.testing.assert_array_equal(actual_finite, expected_finite, err_msg=label + " finite mask")
+    assert not np.isinf(actual).any(), "%s contains an infinite actual value" % label
+    assert not np.isinf(expected).any(), "%s contains an infinite expected value" % label
     np.testing.assert_allclose(
-        aligned.to_numpy(dtype="float64"),
-        expected.to_numpy(dtype="float64"),
+        actual[actual_finite],
+        expected[expected_finite],
         rtol=1e-10,
         atol=1e-12,
-        equal_nan=True,
         err_msg=label,
     )
 
@@ -70,28 +98,39 @@ def test_all_alpha101_batches_are_asset_order_invariant_and_causal(batch_index, 
     perturbed = run_native_batch(perturbed_frames, batch, runonce=runonce)
 
     study = baseline.get_panel().factors
-    cutoff = grid[_CUT_ROW].to_pydatetime()
-    prefix_mask = study.index.get_level_values("time") < cutoff
-    expected_prefix = study.loc[prefix_mask]
-    reordered_prefix = reordered.get_panel().factors.loc[
-        reordered.get_panel().factors.index.get_level_values("time") < cutoff
-    ]
-    perturbed_factors = perturbed.get_panel().factors
-    perturbed_prefix = perturbed_factors.loc[
-        perturbed_factors.index.get_level_values("time") < cutoff
-    ]
+    baseline_values, factor_names = _panel_tensor(study, tuple(frames), grid, label="baseline")
+    reordered_values, reordered_names = _panel_tensor(
+        reordered.get_panel().factors, tuple(frames), grid, label="reordered"
+    )
+    perturbed_values, perturbed_names = _panel_tensor(
+        perturbed.get_panel().factors, tuple(frames), grid, label="perturbed"
+    )
+    assert reordered_names == factor_names == perturbed_names
 
-    _assert_asset_aligned_close(reordered_prefix, expected_prefix, label="asset reorder")
-    _assert_asset_aligned_close(perturbed_prefix, expected_prefix, label="future-tail perturbation")
+    # The time axis stays in the observed order. Only asset identities are
+    # restored within each time slice before comparing the complete panel.
+    _assert_panel_tensor_close(reordered_values, baseline_values, label="full asset reorder")
+    np.testing.assert_array_equal(
+        perturbed_values[:_CUT_ROW],
+        baseline_values[:_CUT_ROW],
+        err_msg="future-tail prefix",
+    )
 
     for alpha_id in batch:
         column = "alpha%d" % alpha_id
+        assert column in factor_names
+        factor_index = factor_names.index(column)
         assert np.isfinite(
-            expected_prefix[column].to_numpy(dtype="float64")
+            baseline_values[:_CUT_ROW, :, factor_index]
         ).any(), "Alpha%d has no finite prefix witness in batch %d" % (alpha_id, batch_index)
 
-    tail_time = grid[-1].to_pydatetime()
+    # Prove that the source mutation reached real formula inputs, then that
+    # the aligned panel retained the changed close input on the perturbed tail.
     asset = next(iter(frames))
+    original_tail = frames[asset].loc[grid[-1], ["open", "close", "vwap", "volume"]]
+    changed_tail = perturbed_frames[asset].loc[grid[-1], ["open", "close", "vwap", "volume"]]
+    assert not original_tail.equals(changed_tail), "future input mutation was a no-op"
+    tail_time = grid[-1].to_pydatetime()
     assert (
         perturbed.get_panel().prices_close.at[tail_time, asset]
         != baseline.get_panel().prices_close.at[tail_time, asset]

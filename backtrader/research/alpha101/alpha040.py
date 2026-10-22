@@ -56,3 +56,28 @@ class Alpha040Native(FactorIndicator):
     def next(self):
         for data, result in zip(self.datas, self._result_lines):
             self.outputs[data].factor[0] = result[0]
+
+
+@native_alpha
+class Alpha040Build(FactorIndicator):
+    """AF48-040: construct the native Alpha101 graph via expressions."""
+
+    lines = ("factor",)
+    panel_mode = "expression"
+    alpha_id = Alpha040Native.alpha_id
+    case_id = Alpha040Native.case_id
+    lookback_h = Alpha040Native.lookback_h
+    formula_fields = Alpha040Native.formula_fields
+    required_fields = Alpha040Native.required_fields
+    formula = Alpha040Native.formula
+    operator_profile = Alpha040Native.operator_profile
+    input_policy = Alpha040Native.input_policy
+
+    @classmethod
+    def build(cls, ctx, **params):
+        high_volatility = ctx.stddev(ctx.field("high"), 10)
+        ranked_high_volatility = ctx.rank(high_volatility)
+        negative_ranked_volatility = -1.0 * ranked_high_volatility
+        high_volume_correlation = ctx.correlation(ctx.field("high"), ctx.field("volume"), 10)
+        factor = negative_ranked_volatility * high_volume_correlation
+        return factor

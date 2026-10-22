@@ -56,3 +56,32 @@ class Alpha055Native(FactorIndicator):
     def next(self):
         for data, result in zip(self.datas, self._result_lines):
             self.outputs[data].factor[0] = result[0]
+
+
+@native_alpha
+class Alpha055Build(FactorIndicator):
+    """AF48-055: construct the native Alpha101 graph via expressions."""
+
+    lines = ("factor",)
+    panel_mode = "expression"
+    alpha_id = Alpha055Native.alpha_id
+    case_id = Alpha055Native.case_id
+    lookback_h = Alpha055Native.lookback_h
+    formula_fields = Alpha055Native.formula_fields
+    required_fields = Alpha055Native.required_fields
+    formula = Alpha055Native.formula
+    operator_profile = Alpha055Native.operator_profile
+    input_policy = Alpha055Native.input_policy
+
+    @classmethod
+    def build(cls, ctx, **params):
+        low_minimum = ctx.ts_min(ctx.field("low"), 12)
+        high_maximum = ctx.ts_max(ctx.field("high"), 12)
+        channel_numerator = ctx.field("close") - low_minimum
+        channel_width = high_maximum - low_minimum
+        channel_location = channel_numerator / channel_width
+        location_rank = ctx.rank(channel_location)
+        volume_rank = ctx.rank(ctx.field("volume"))
+        correlation = ctx.correlation(location_rank, volume_rank, 6)
+        factor = correlation * -1.0
+        return factor

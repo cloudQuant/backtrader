@@ -10,6 +10,8 @@ float64 inputs while preserving an independent source of expected values.
 
 from __future__ import annotations
 
+import hashlib
+import json
 import math
 import re
 from collections import defaultdict
@@ -283,6 +285,494 @@ def _array(line: Any, rows: int) -> List[float]:
 def _matrix_from_lines(lines: Sequence[Any], rows: int) -> List[List[float]]:
     columns = [_array(line, rows) for line in lines]
     return [[columns[column][row] for column in range(len(columns))] for row in range(rows)]
+
+
+def _factor_asset_names(factor: Any) -> Tuple[str, ...]:
+    targets = tuple(getattr(factor, "target_datas", ()))
+    if not targets:
+        targets = tuple(getattr(factor, "_factor_target_datas", ()))
+    runtime = getattr(factor, "_factor_runtime", {})
+    by_id = runtime.get("asset_by_data_id", {}) if isinstance(runtime, Mapping) else {}
+    names = tuple(str(by_id.get(id(target), getattr(target, "_name", ""))) for target in targets)
+    if not names or any(not name for name in names) or len(names) != len(set(names)):
+        raise AssertionError("factor graph does not have unique real target asset identities")
+    return names
+
+
+def _pair_field_aliases(
+    factor: Any, asset_names: Sequence[str]
+) -> Dict[int, Tuple[str, frozenset]]:
+    aliases: Dict[int, Tuple[str, set]] = {}
+    for name, lines in factor._field_line_cache.items():
+        if len(lines) != len(asset_names):
+            raise AssertionError("field %s has an inconsistent target count" % name)
+        for asset_index, line in enumerate(lines):
+            entry = aliases.setdefault(id(line), (str(name).lower(), set()))
+            if entry[0] != str(name).lower():
+                raise AssertionError("one input line is bound to multiple formula fields")
+            entry[1].add(asset_index)
+    return {line_id: (name, frozenset(indices)) for line_id, (name, indices) in aliases.items()}
+
+
+def _pair_line_operands(node: Any) -> Tuple[Any, ...]:
+    operands = getattr(node, "_operand_args", None)
+    if operands is None:
+        operands = tuple(getattr(node, "datas", ()))
+    return tuple(operand for operand in operands if operators._is_line_operand(operand))
+
+
+def _pair_scalar_target_index(node: Any, factor: Any, asset_names: Sequence[str]) -> int:
+    targets = tuple(getattr(factor, "target_datas", ())) or tuple(factor._factor_target_datas)
+    value_line = getattr(getattr(node, "lines", None), "value", None)
+    marker = getattr(value_line, "_factor_research_target", None)
+    if marker is not None:
+        for index, target in enumerate(targets):
+            if marker is target:
+                return index
+        raise AssertionError("scalar graph output targets an undeclared feed")
+
+    line_operands = _pair_line_operands(node)
+    if not line_operands:
+        raise AssertionError(
+            "cannot infer constant-only scalar operator target without consumer traversal"
+        )
+    candidates = []
+    for index, target in enumerate(targets):
+        relations = [operators._line_target_relation(line, target) for line in line_operands]
+        if relations and all(relation is True for relation in relations):
+            candidates.append(index)
+    if len(candidates) != 1:
+        raise AssertionError(
+            "scalar graph node %s has ambiguous target identity across %r"
+            % (type(node).__name__, tuple(asset_names[index] for index in candidates))
+        )
+    return candidates[0]
+
+
+def _line_reason(line: Any, node: Any = None) -> Any:
+    reason = getattr(line, "_factor_research_reason_line", None)
+    if reason is not None:
+        return reason
+    reason = getattr(getattr(node, "lines", None), "reason", None)
+    if reason is not None:
+        return reason
+    return None
+
+
+def _operator_type_name(node: Any) -> str:
+    node_type = type(node)
+    return "%s.%s" % (node_type.__module__, node_type.__qualname__)
+
+
+def _pair_float_token(value: float) -> bytes:
+    value = float(value)
+    if math.isnan(value):
+        return b"N;"
+    if math.isinf(value):
+        raise AssertionError("factor graph contains infinity")
+    # Numeric exactness treats the two IEEE zero signs as equal, matching the
+    # matrix comparator used by the independent trace validator.
+    return ("0;" if value == 0.0 else value.hex() + ";").encode("ascii")
+
+
+def _matrix_sha256(matrix: Sequence[Sequence[float]]) -> str:
+    digest = hashlib.sha256()
+    digest.update(("%d,%d;" % (len(matrix), len(matrix[0]) if matrix else 0)).encode("ascii"))
+    for row in matrix:
+        for value in row:
+            digest.update(_pair_float_token(value))
+    return digest.hexdigest()
+
+
+def _matrix_cell_counts(matrix: Sequence[Sequence[float]]) -> Dict[str, int]:
+    values = [float(value) for row in matrix for value in row]
+    if any(math.isinf(value) for value in values):
+        raise AssertionError("factor graph contains infinity")
+    return {
+        "cells": len(values),
+        "finite_cells": sum(math.isfinite(value) for value in values),
+        "nan_cells": sum(math.isnan(value) for value in values),
+    }
+
+
+def _factor_graph_pair_records(factor: Any, alpha_id: int) -> Dict[str, Any]:
+    if getattr(factor, "alpha_id", None) != alpha_id:
+        raise AssertionError("factor graph identity does not match Alpha%d" % alpha_id)
+    targets = tuple(getattr(factor, "target_datas", ())) or tuple(factor._factor_target_datas)
+    asset_names = _factor_asset_names(factor)
+    target_order = tuple(_factor_asset_names_for_output(factor, target) for target in targets)
+    grid = tuple(getattr(factor, "_factor_grid", None) or factor._factor_call_times)
+    call_times = tuple(factor._factor_call_times)
+    if not grid or call_times != grid:
+        raise AssertionError("factor graph grid and actual call-time identities differ")
+    rows = len(grid)
+    aliases = _pair_field_aliases(factor, asset_names)
+    node_items = tuple(getattr(factor, "_nodes", {}).values())
+    if not node_items:
+        raise AssertionError("factor graph has no registered operator nodes")
+    registered_nodes = {id(node): node for node in node_items}
+    traversed_nodes: Dict[int, Any] = {}
+    node_target_indices: Dict[int, set] = defaultdict(set)
+    active = set()
+    cache: Dict[Tuple[int, int], Tuple[Any, ...]] = {}
+
+    def line_expression(line: Any, asset_index: int) -> Tuple[Any, ...]:
+        cache_key = (id(line), asset_index)
+        if cache_key in cache:
+            return cache[cache_key]
+        alias = aliases.get(id(line))
+        if alias is not None:
+            name, bound_indices = alias
+            if asset_index not in bound_indices and len(bound_indices) != len(asset_names):
+                raise AssertionError(
+                    "Alpha%d asset %s consumes %s bound to another target"
+                    % (alpha_id, asset_names[asset_index], name)
+                )
+            expression = ("name", name)
+            cache[cache_key] = expression
+            return expression
+
+        owner = getattr(getattr(line, "_owner", None), "_owner_ref", None)
+        if owner is None:
+            raise AssertionError(
+                "Alpha%d graph input at asset %s is not a declared field or operator output"
+                % (alpha_id, asset_names[asset_index])
+            )
+        traversed_nodes[id(owner)] = owner
+        node_target_indices[id(owner)].add(asset_index)
+        marker = getattr(line, "_factor_research_target", None)
+        if marker is not None:
+            target_indices = {id(target): index for index, target in enumerate(targets)}
+            marked_index = target_indices.get(id(marker))
+            if marked_index is None:
+                raise AssertionError(
+                    "Alpha%d graph line marker targets an undeclared feed" % alpha_id
+                )
+            if marked_index != asset_index:
+                raise AssertionError(
+                    "Alpha%d operator output for asset %s is wired into asset %s"
+                    % (alpha_id, asset_names[marked_index], asset_names[asset_index])
+                )
+        owner_key = (id(owner), asset_index)
+        if owner_key in active:
+            raise AssertionError("Alpha%d graph has a cycle" % alpha_id)
+        active.add(owner_key)
+        expression = _operator_expression(owner, asset_index, line_expression)
+        active.remove(owner_key)
+        expression = _fold_constants(expression)
+        cache[cache_key] = expression
+        return expression
+
+    def static_input(value: Any, asset_index: int) -> Tuple[Any, ...]:
+        if operators._is_line_operand(value):
+            owner = getattr(getattr(value, "_owner", None), "_owner_ref", None)
+            present = getattr(owner, "_present", None)
+            if present is not None:
+                if operators._line_target_relation(value, targets[asset_index]) is not True:
+                    raise AssertionError("panel membership input is bound to another target asset")
+                return ("real_bar_presence", tuple(bool(item) for item in present))
+            return line_expression(value, asset_index)
+        if isinstance(value, (int, float)) and not isinstance(value, bool):
+            return _literal(value)
+        return ("static", type(value).__module__, type(value).__qualname__, repr(value))
+
+    def panel_expression(node: Any) -> Tuple[Tuple[Any, ...], Tuple[Any, ...]]:
+        inputs = tuple(line_expression(line, index) for index, line in enumerate(node._values))
+        if not inputs or any(value != inputs[0] for value in inputs[1:]):
+            raise AssertionError("panel operator receives structurally different asset inputs")
+        if isinstance(node, operators.CrossSectionalRank):
+            expression = ("call", "rank", (inputs[0],))
+        elif isinstance(node, operators.CrossSectionalScale):
+            expression = ("call", "scale", (inputs[0],))
+        elif isinstance(node, operators.IndNeutralize):
+            expression = ("call", "indneutralize", (inputs[0],))
+        else:
+            raise AssertionError("unmapped panel operator %s" % type(node).__name__)
+
+        members = getattr(node, "_members", (None,) * len(asset_names))
+        groups = getattr(node, "_groups", None) or (None,) * len(asset_names)
+        if len(members) != len(asset_names) or len(groups) != len(asset_names):
+            raise AssertionError(
+                "panel node membership/group inputs have inconsistent target counts"
+            )
+        target_specs = []
+        for index, asset_name in enumerate(asset_names):
+            member_ast = (
+                static_input(members[index], index) if members[index] is not None else ("none",)
+            )
+            group_ast = (
+                static_input(groups[index], index) if groups[index] is not None else ("none",)
+            )
+            target_specs.append((asset_name, member_ast, group_ast))
+        parameters = []
+        if isinstance(node, operators.CrossSectionalScale):
+            parameters.append(("a", float(node.p.a)))
+        if isinstance(node, operators.IndNeutralize):
+            parameters.append(("level", str(node.p.level).lower()))
+            parameters.append(
+                (
+                    "classification_inputs",
+                    tuple(sorted((name, group) for name, _, group in target_specs)),
+                )
+            )
+        if isinstance(node, operators.CrossSectionalRank):
+            parameters.append(
+                ("groups", tuple(sorted((name, group) for name, _, group in target_specs)))
+            )
+        parameters.append(
+            ("members", tuple(sorted((name, member) for name, member, _ in target_specs)))
+        )
+        return _fold_constants(expression), tuple(parameters)
+
+    root = tuple(
+        _fold_constants(line_expression(line, index))
+        for index, line in enumerate(factor._result_lines)
+    )
+
+    def node_record(
+        node: Any,
+    ) -> Tuple[Tuple[Any, ...], str, Tuple[str, ...], Tuple[Any, ...], list, Any]:
+        operator_type = _operator_type_name(node)
+        if isinstance(node, operators._PanelOperator):
+            expression, parameters = panel_expression(node)
+            output_names = tuple(
+                _factor_asset_names_for_output(factor, data)
+                for data in getattr(node, "_factor_target_datas", ())
+            )
+            if set(output_names) != set(asset_names) or len(output_names) != len(asset_names):
+                raise AssertionError("panel node target assets differ from the bound factor")
+            if output_names != target_order:
+                raise AssertionError(
+                    "panel node target output order differs from factor target order"
+                )
+            target_by_name = dict(zip(output_names, node._factor_target_datas))
+            target = tuple(sorted(asset_names))
+            values = _matrix_from_lines(
+                [node.outputs[target_by_name[name]].value for name in target], rows
+            )
+            reasons = _matrix_from_lines(
+                [node.outputs[target_by_name[name]].reason for name in target], rows
+            )
+            return expression, operator_type, target, parameters, values, reasons
+
+        line_operands = _pair_line_operands(node)
+        target_indices = node_target_indices.get(id(node), set())
+        if line_operands:
+            asset_index = _pair_scalar_target_index(node, factor, asset_names)
+            if target_indices and target_indices != {asset_index}:
+                raise AssertionError(
+                    "scalar operator node %s is consumed by assets inconsistent with its inputs: %r"
+                    % (
+                        type(node).__name__,
+                        tuple(asset_names[index] for index in sorted(target_indices)),
+                    )
+                )
+        else:
+            if len(target_indices) != 1:
+                raise AssertionError(
+                    "constant-only scalar operator node %s has ambiguous or missing consumer asset identity: %r"
+                    % (
+                        type(node).__name__,
+                        tuple(asset_names[index] for index in sorted(target_indices)),
+                    )
+                )
+            asset_index = next(iter(target_indices))
+        expression = _fold_constants(_operator_expression(node, asset_index, line_expression))
+        value_line = getattr(getattr(node, "lines", None), "value", None)
+        if value_line is None:
+            raise AssertionError("scalar graph node %s has no value output line" % operator_type)
+        values = [[value] for value in _array(value_line, rows)]
+        reason_line = _line_reason(value_line, node)
+        if reason_line is None:
+            raise AssertionError("scalar graph node %s has no reason output line" % operator_type)
+        reasons = [[value] for value in _array(reason_line, rows)]
+        return expression, operator_type, (asset_names[asset_index],), (), values, reasons
+
+    for owner_id, owner in traversed_nodes.items():
+        if owner_id not in registered_nodes and not _pair_line_operands(owner):
+            raise AssertionError(
+                "reachable constant-only operator node %s is absent from factor._nodes"
+                % type(owner).__name__
+            )
+    grouped: Dict[Tuple[Any, ...], List[Dict[str, Any]]] = defaultdict(list)
+    for node in node_items:
+        expression, operator_type, target, parameters, values, reasons = node_record(node)
+        signature = (expression, operator_type, target, parameters)
+        value_counts = _matrix_cell_counts(values)
+        reason_counts = None if reasons is None else _matrix_cell_counts(reasons)
+        value_digest = _matrix_sha256(values)
+        reason_digest = None if reasons is None else _matrix_sha256(reasons)
+        grouped[signature].append(
+            {
+                "values": values,
+                "reasons": reasons,
+                "value_digest": value_digest,
+                "reason_digest": reason_digest,
+                "value_counts": value_counts,
+                "reason_counts": reason_counts,
+            }
+        )
+
+    results = {}
+    if len(factor._result_lines) != len(asset_names):
+        raise AssertionError("factor result line count differs from target asset count")
+    result_by_asset = dict(zip(asset_names, factor._result_lines))
+    for asset in sorted(asset_names):
+        values = [[value] for value in _array(result_by_asset[asset], rows)]
+        results[asset] = values
+    return {
+        "assets": tuple(sorted(asset_names)),
+        "target_order": target_order,
+        "grid": grid,
+        "root": root,
+        "nodes": grouped,
+        "node_count": len(node_items),
+        "results": results,
+    }
+
+
+def _factor_asset_names_for_output(factor: Any, data: Any) -> str:
+    runtime = getattr(factor, "_factor_runtime", {})
+    by_id = runtime.get("asset_by_data_id", {}) if isinstance(runtime, Mapping) else {}
+    name = str(by_id.get(id(data), getattr(data, "_name", "")))
+    if not name:
+        raise AssertionError("panel node output has no real target asset identity")
+    return name
+
+
+def compare_factor_graphs(left_factor: Any, right_factor: Any, alpha_id: int) -> Dict[str, Any]:
+    """Compare complete native/build operator graphs by semantic node identity.
+
+    The factors must be fully executed instances of the same Alpha101 formula.
+    Nodes are matched as a multiset keyed by canonical input AST, concrete
+    operator type, and actual target asset identity. Diagnostic dictionary
+    keys and insertion order are deliberately ignored. Every node value and
+    reason array, plus the final per-asset result lines, is compared exactly
+    with matching NaN masks; missing reasons and infinities are rejected.
+    """
+    failures: List[str] = []
+    try:
+        left = _factor_graph_pair_records(left_factor, alpha_id)
+    except Exception as exc:
+        left = None
+        failures.append("left graph invalid: %s" % exc)
+    try:
+        right = _factor_graph_pair_records(right_factor, alpha_id)
+    except Exception as exc:
+        right = None
+        failures.append("right graph invalid: %s" % exc)
+    report: Dict[str, Any] = {
+        "alpha_id": alpha_id,
+        "equal": False,
+        "failures": failures,
+        "node_count_left": 0 if left is None else left["node_count"],
+        "node_count_right": 0 if right is None else right["node_count"],
+        "matched_node_count": 0,
+        "matched_nodes": [],
+        "node_value_cells": 0,
+        "node_reason_cells": 0,
+        "node_value_sha256": None,
+        "node_reason_sha256": None,
+        "result_output_cells": 0,
+        "result_output_sha256": None,
+        "grid_rows": 0,
+        "assets": [],
+        "target_order_left": [],
+        "target_order_right": [],
+    }
+    if left is None or right is None:
+        return report
+    if left["assets"] != right["assets"]:
+        failures.append(
+            "target asset identities differ: %r != %r" % (left["assets"], right["assets"])
+        )
+    else:
+        report["assets"] = list(left["assets"])
+    report["target_order_left"] = list(left["target_order"])
+    report["target_order_right"] = list(right["target_order"])
+    if left["target_order"] != right["target_order"]:
+        failures.append("declared target asset output order differs")
+    if left["grid"] != right["grid"]:
+        failures.append("factor grid identities differ")
+    else:
+        report["grid_rows"] = len(left["grid"])
+    if left["root"] != right["root"]:
+        failures.append("canonical factor result AST differs")
+
+    left_nodes, right_nodes = left["nodes"], right["nodes"]
+    signatures = sorted(set(left_nodes) | set(right_nodes), key=repr)
+    value_digest = hashlib.sha256()
+    reason_digest = hashlib.sha256()
+    for signature in signatures:
+        record_key = lambda record: (record["value_digest"], record["reason_digest"] or "")
+        left_records = sorted(left_nodes.get(signature, ()), key=record_key)
+        right_records = sorted(right_nodes.get(signature, ()), key=record_key)
+        signature_label = json.dumps(signature, default=repr, separators=(",", ":"))
+        if len(left_records) != len(right_records):
+            failures.append(
+                "node multiplicity differs for %s: %d != %d"
+                % (signature_label, len(left_records), len(right_records))
+            )
+        for duplicate_index, (left_record, right_record) in enumerate(
+            zip(left_records, right_records)
+        ):
+            label = "%s duplicate %d" % (signature_label, duplicate_index)
+            values_equal, value_error = _compare_matrices(
+                left_record["values"], right_record["values"], exact=True, label=label + " values"
+            )
+            if not values_equal:
+                failures.append(value_error)
+            left_reasons, right_reasons = left_record["reasons"], right_record["reasons"]
+            if left_reasons is None or right_reasons is None:
+                failures.append(label + " reason-line availability differs or is missing")
+            else:
+                reasons_equal, reason_error = _compare_matrices(
+                    left_reasons, right_reasons, exact=True, label=label + " reasons"
+                )
+                if not reasons_equal:
+                    failures.append(reason_error)
+                report["node_reason_cells"] += left_record["reason_counts"]["cells"]
+                reason_digest.update(left_record["reason_digest"].encode("ascii"))
+            report["matched_node_count"] += 1
+            report["node_value_cells"] += left_record["value_counts"]["cells"]
+            value_digest.update(left_record["value_digest"].encode("ascii"))
+            report["matched_nodes"].append(
+                {
+                    "ast": signature[0],
+                    "operator_type": signature[1],
+                    "target_assets": list(signature[2]),
+                    "semantic_parameters": signature[3],
+                    "duplicate_index": duplicate_index,
+                    "value_cells": left_record["value_counts"]["cells"],
+                    "reason_cells": (
+                        0
+                        if left_record["reason_counts"] is None
+                        else left_record["reason_counts"]["cells"]
+                    ),
+                    "value_sha256": left_record["value_digest"],
+                    "reason_sha256": left_record["reason_digest"],
+                }
+            )
+    report["node_value_sha256"] = value_digest.hexdigest()
+    report["node_reason_sha256"] = reason_digest.hexdigest()
+
+    output_digest = hashlib.sha256()
+    if set(left["results"]) != set(right["results"]):
+        failures.append("final result target asset identities differ")
+    else:
+        for asset in sorted(left["results"]):
+            matrix_left, matrix_right = left["results"][asset], right["results"][asset]
+            equal, error = _compare_matrices(
+                matrix_left, matrix_right, exact=True, label="result[%s]" % asset
+            )
+            if not equal:
+                failures.append(error)
+            counts = _matrix_cell_counts(matrix_left)
+            report["result_output_cells"] += counts["cells"]
+            output_digest.update(_matrix_sha256(matrix_left).encode("ascii"))
+    report["result_output_sha256"] = output_digest.hexdigest()
+    report["equal"] = not failures
+    return report
 
 
 def _field_lines(factor: Any) -> Dict[int, Tuple[str, int]]:

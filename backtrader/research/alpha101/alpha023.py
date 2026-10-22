@@ -45,3 +45,30 @@ class Alpha023Native(FactorIndicator):
     def next(self):
         for data, result in zip(self.datas, self._result_lines):
             self.outputs[data].factor[0] = result[0]
+
+
+@native_alpha
+class Alpha023Build(FactorIndicator):
+    """AF48-023: construct the native Alpha101 graph via expressions."""
+
+    lines = ("factor",)
+    panel_mode = "expression"
+    alpha_id = Alpha023Native.alpha_id
+    case_id = Alpha023Native.case_id
+    lookback_h = Alpha023Native.lookback_h
+    formula_fields = Alpha023Native.formula_fields
+    required_fields = Alpha023Native.required_fields
+    formula = Alpha023Native.formula
+    operator_profile = Alpha023Native.operator_profile
+    input_policy = Alpha023Native.input_policy
+
+    @classmethod
+    def build(cls, ctx, **params):
+        high = ctx.field("high")
+        high_sum = ctx.sum(high, 20)
+        high_mean = high_sum / 20.0
+        condition = high_mean < high
+        high_change = ctx.delta(high, 2)
+        negative_change = -1.0 * high_change
+        factor = ctx.where(condition, negative_change, 0.0)
+        return factor

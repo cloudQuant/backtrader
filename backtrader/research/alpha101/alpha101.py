@@ -40,3 +40,27 @@ class Alpha101Native(FactorIndicator):
     def next(self):
         for data, result in zip(self.datas, self._result_lines):
             self.outputs[data].factor[0] = result[0]
+
+
+@native_alpha
+class Alpha101Build(FactorIndicator):
+    """AF48-101: construct the native Alpha101 graph via expressions."""
+
+    lines = ("factor",)
+    panel_mode = "expression"
+    alpha_id = Alpha101Native.alpha_id
+    case_id = Alpha101Native.case_id
+    lookback_h = Alpha101Native.lookback_h
+    formula_fields = Alpha101Native.formula_fields
+    required_fields = Alpha101Native.required_fields
+    formula = Alpha101Native.formula
+    operator_profile = Alpha101Native.operator_profile
+    input_policy = Alpha101Native.input_policy
+
+    @classmethod
+    def build(cls, ctx, **params):
+        intraday_move = ctx.field("close") - ctx.field("open")
+        range_width = ctx.field("high") - ctx.field("low")
+        denominator = range_width + (0.001)
+        factor = intraday_move / denominator
+        return factor

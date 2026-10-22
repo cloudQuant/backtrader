@@ -64,3 +64,32 @@ class Alpha086Native(FactorIndicator):
     def next(self):
         for data, result in zip(self.datas, self._result_lines):
             self.outputs[data].factor[0] = result[0]
+
+
+@native_alpha
+class Alpha086Build(FactorIndicator):
+    """AF48-086: construct the native Alpha101 graph via expressions."""
+
+    lines = ("factor",)
+    panel_mode = "expression"
+    alpha_id = Alpha086Native.alpha_id
+    case_id = Alpha086Native.case_id
+    lookback_h = Alpha086Native.lookback_h
+    formula_fields = Alpha086Native.formula_fields
+    required_fields = Alpha086Native.required_fields
+    formula = Alpha086Native.formula
+    operator_profile = Alpha086Native.operator_profile
+    input_policy = Alpha086Native.input_policy
+
+    @classmethod
+    def build(cls, ctx, **params):
+        adv_sum = ctx.sum(ctx.field("adv20"), 14.7444)
+        correlation = ctx.correlation(ctx.field("close"), adv_sum, 6.00049)
+        time_rank = ctx.ts_rank(correlation, 20.4195)
+        open_plus_close = ctx.field("open") + ctx.field("close")
+        vwap_plus_open = ctx.field("vwap") + ctx.field("open")
+        ranked_expression_input = open_plus_close - vwap_plus_open
+        ranked_expression = ctx.rank(ranked_expression_input)
+        less_than = ctx.less_than(time_rank, ranked_expression)
+        factor = less_than * (-1.0)
+        return factor

@@ -72,3 +72,38 @@ class Alpha047Native(FactorIndicator):
     def next(self):
         for data, result in zip(self.datas, self._result_lines):
             self.outputs[data].factor[0] = result[0]
+
+
+@native_alpha
+class Alpha047Build(FactorIndicator):
+    """AF48-047: construct the native Alpha101 graph via expressions."""
+
+    lines = ("factor",)
+    panel_mode = "expression"
+    alpha_id = Alpha047Native.alpha_id
+    case_id = Alpha047Native.case_id
+    lookback_h = Alpha047Native.lookback_h
+    formula_fields = Alpha047Native.formula_fields
+    required_fields = Alpha047Native.required_fields
+    formula = Alpha047Native.formula
+    operator_profile = Alpha047Native.operator_profile
+    input_policy = Alpha047Native.input_policy
+
+    @classmethod
+    def build(cls, ctx, **params):
+        one_over_close = 1.0 / ctx.field("close")
+        reciprocal_rank = ctx.rank(one_over_close)
+        volume_weighted_rank = reciprocal_rank * ctx.field("volume")
+        adv_scaled = volume_weighted_rank / ctx.field("adv20")
+        high_close_rank_input = ctx.field("high") - ctx.field("close")
+        high_close_rank = ctx.rank(high_close_rank_input)
+        high_rank_weighted = ctx.field("high") * high_close_rank
+        high_sum5 = ctx.sum(ctx.field("high"), 5)
+        high_mean5 = high_sum5 / 5.0
+        high_component = high_rank_weighted / high_mean5
+        left = adv_scaled * high_component
+        vwap_delay5 = ctx.delay(ctx.field("vwap"), 5)
+        vwap_move = ctx.field("vwap") - vwap_delay5
+        vwap_rank = ctx.rank(vwap_move)
+        factor = left - vwap_rank
+        return factor

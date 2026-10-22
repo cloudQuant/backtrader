@@ -70,3 +70,36 @@ class Alpha082Native(FactorIndicator):
     def next(self):
         for data, result in zip(self.datas, self._result_lines):
             self.outputs[data].factor[0] = result[0]
+
+
+@native_alpha
+class Alpha082Build(FactorIndicator):
+    """AF48-082: construct the native Alpha101 graph via expressions."""
+
+    lines = ("factor",)
+    panel_mode = "expression"
+    alpha_id = Alpha082Native.alpha_id
+    case_id = Alpha082Native.case_id
+    lookback_h = Alpha082Native.lookback_h
+    formula_fields = Alpha082Native.formula_fields
+    required_fields = Alpha082Native.required_fields
+    formula = Alpha082Native.formula
+    operator_profile = Alpha082Native.operator_profile
+    input_policy = Alpha082Native.input_policy
+
+    @classmethod
+    def build(cls, ctx, **params):
+        open_delta = ctx.delta(ctx.field("open"), 1.46063)
+        open_decay = ctx.decay_linear(open_delta, 14.8717)
+        ranked_open_decay = ctx.rank(open_decay)
+        alpha = ctx.field("open") * (0.634196)
+        one_minus_alpha = ctx.subtract(1.0, 0.634196)
+        beta = ctx.field("open") * one_minus_alpha
+        weighted_open = alpha + beta
+        neutral_volume = ctx.indneutralize(ctx.field("volume"), ctx.field("sector"), level="sector")
+        correlation = ctx.correlation(neutral_volume, weighted_open, 17.4842)
+        correlation_decay = ctx.decay_linear(correlation, 6.92131)
+        correlation_time_rank = ctx.ts_rank(correlation_decay, 13.4283)
+        minimum = ctx.minimum(ranked_open_decay, correlation_time_rank)
+        factor = minimum * (-1.0)
+        return factor

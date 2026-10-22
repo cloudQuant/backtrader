@@ -77,3 +77,40 @@ class Alpha031Native(FactorIndicator):
     def next(self):
         for data, result in zip(self.datas, self._result_lines):
             self.outputs[data].factor[0] = result[0]
+
+
+@native_alpha
+class Alpha031Build(FactorIndicator):
+    """AF48-031: construct the native Alpha101 graph via expressions."""
+
+    lines = ("factor",)
+    panel_mode = "expression"
+    alpha_id = Alpha031Native.alpha_id
+    case_id = Alpha031Native.case_id
+    lookback_h = Alpha031Native.lookback_h
+    formula_fields = Alpha031Native.formula_fields
+    required_fields = Alpha031Native.required_fields
+    formula = Alpha031Native.formula
+    operator_profile = Alpha031Native.operator_profile
+    input_policy = Alpha031Native.input_policy
+
+    @classmethod
+    def build(cls, ctx, **params):
+        close = ctx.field("close")
+        close_delta_10 = ctx.delta(close, 10)
+        ranked_delta_10 = ctx.rank(close_delta_10)
+        ranked_ranked_delta_10 = ctx.rank(ranked_delta_10)
+        negative_ranked_ranked_delta = -1.0 * ranked_ranked_delta_10
+        decayed = ctx.decay_linear(negative_ranked_ranked_delta, 10)
+        ranked_decay_1 = ctx.rank(decayed)
+        ranked_decay_2 = ctx.rank(ranked_decay_1)
+        ranked_decay_3 = ctx.rank(ranked_decay_2)
+        close_delta_3 = ctx.delta(close, 3)
+        negative_close_delta_3 = -1.0 * close_delta_3
+        ranked_negative_delta = ctx.rank(negative_close_delta_3)
+        adv_low_correlation = ctx.correlation(ctx.field("adv20"), ctx.field("low"), 12)
+        scaled_correlation = ctx.scale(adv_low_correlation)
+        correlation_sign = ctx.sign(scaled_correlation)
+        first_two_terms = ranked_decay_3 + ranked_negative_delta
+        factor = first_two_terms + correlation_sign
+        return factor

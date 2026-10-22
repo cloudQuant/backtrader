@@ -65,3 +65,34 @@ class Alpha083Native(FactorIndicator):
     def next(self):
         for data, result in zip(self.datas, self._result_lines):
             self.outputs[data].factor[0] = result[0]
+
+
+@native_alpha
+class Alpha083Build(FactorIndicator):
+    """AF48-083: construct the native Alpha101 graph via expressions."""
+
+    lines = ("factor",)
+    panel_mode = "expression"
+    alpha_id = Alpha083Native.alpha_id
+    case_id = Alpha083Native.case_id
+    lookback_h = Alpha083Native.lookback_h
+    formula_fields = Alpha083Native.formula_fields
+    required_fields = Alpha083Native.required_fields
+    formula = Alpha083Native.formula
+    operator_profile = Alpha083Native.operator_profile
+    input_policy = Alpha083Native.input_policy
+
+    @classmethod
+    def build(cls, ctx, **params):
+        high_minus_low = ctx.field("high") - ctx.field("low")
+        close_mean = ctx.sum(ctx.field("close"), 5) / (5.0)
+        range_over_close_mean = high_minus_low / close_mean
+        delayed_range = ctx.delay(range_over_close_mean, 2)
+        ranked_delayed_range = ctx.rank(delayed_range)
+        ranked_volume = ctx.rank(ctx.field("volume"))
+        ranked_ranked_volume = ctx.rank(ranked_volume)
+        numerator = ranked_delayed_range * ranked_ranked_volume
+        vwap_minus_close = ctx.field("vwap") - ctx.field("close")
+        denominator = range_over_close_mean / vwap_minus_close
+        factor = numerator / denominator
+        return factor

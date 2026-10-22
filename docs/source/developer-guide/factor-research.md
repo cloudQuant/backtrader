@@ -80,13 +80,25 @@ class Alpha003Build(FactorIndicator):
         return ctx.correlation(ctx.rank(ctx.open), ctx.rank(ctx.volume), 10) * -1.0
 ```
 
-`ctx.open` 等字段必须已声明并显式绑定。表达式支持四则运算、幂、比较、`ctx.where(condition, yes, no)`，以及 `rank`、`correlation`、`sma`、`roc`、`highest`、`lowest`。条件表达式不能进入 Python 的 `if`、`and`、`or` 或 `bool()`。H仍由类显式声明或按参数计算，不自动推导。
+`ctx.open` 等字段必须已声明并显式绑定。表达式支持四则运算、幂、比较、`ctx.where(condition, yes, no)`。条件表达式不能进入 Python 的 `if`、`and`、`or` 或 `bool()`。H仍由类显式声明或按参数计算，不自动推导。
+
+| 用途 | ctx接口 |
+| --- | --- |
+| 普通指标 | `sma/roc/highest/lowest(value, period)` |
+| 逐点数学 | `abs/sign/log(value)`、`signed_power/minimum/maximum(left, right)` |
+| Alpha101滚动算子 | `delay/delta/sum/product/stddev/ts_min/ts_max/ts_rank/ts_argmin/ts_argmax/decay_linear(value, period)` |
+| 双输入滚动统计 | `correlation/covariance(left, right, period)` |
+| 截面运算 | `rank(value)`、`scale(value, a=1.0)`、`indneutralize(value, groups, level=...)` |
+| 条件与显式构图 | `logical_or/less_than/equal_to/subtract(left, right)`、`where(condition, yes, no)` |
+| 收益率 | `returns()`，依次构造close的Delay(1)、Subtract和Divide |
+
+Alpha101滚动算子沿用`alpha101-v2`的小数窗口取floor规则；普通SMA等接口仍要求正整数周期，两者的缺失值规则也不互换。分类通过同一ctx的字段表达式传入，例如`ctx.indneutralize(ctx.close, ctx.field("industry"), level="industry")`。`less_than`等显式入口可保留常量在左的比较顺序；纯常量减法用`ctx.subtract(1.0, weight)`才能保留实际节点及reason，Python的`1.0 - weight`会提前计算成一个数。
 
 每个绑定后的因子实例只调用一次build。ctx构造普通Indicator/Line依赖，由Cerebro按原有时钟推进；不同研究组和实例不共享节点。build返回后上下文关闭，不能在运行期间继续构图，也不能混用另一实例的表达式。
 
 `ctx.apply(function, *expressions)` 将无状态逐点函数适配为普通子指标，参数仅为当前各输入的float值。025/026的伴随类用它保留原生比值与KDJ逐点运算的有限值、除零及严格错误行为；SMA、ROC、Highest和Lowest仍是真实子指标。函数不接收历史数组、整个资产面板或调度权。研究四则算子的DOMAIN_ERROR/NaN语义与任意Python算式并非完全相同，迁移已有因子时应验证极端输入和错误行为。
 
-选择生产Alpha实现使用 `get_alpha(3, mode="build")`；省略mode等同于native。当前只有Alpha003提供生产build伴随类，其他ID请求build会明确报未实现。025/026在各自示例文件内提供CloseMA、ROC和KDJ.J伴随类。build/native是公式编写方式，与 `runonce=True/False` 的引擎选择相互独立。
+选择生产Alpha实现使用 `get_alpha(id, mode="build")`，1至101均提供同文件伴随类；省略mode等同于native。全量验收状态见[48开发与验收记录](../../_internal/opts/requirements/迭代48-Alpha101-build实现/开发与验收记录.md)。025/026在各自示例文件内提供CloseMA、ROC和KDJ.J伴随类。build/native是公式编写方式，与 `runonce=True/False` 的引擎选择相互独立。
 
 ## 装配研究
 

@@ -50,3 +50,29 @@ class Alpha022Native(FactorIndicator):
     def next(self):
         for data, result in zip(self.datas, self._result_lines):
             self.outputs[data].factor[0] = result[0]
+
+
+@native_alpha
+class Alpha022Build(FactorIndicator):
+    """AF48-022: construct the native Alpha101 graph via expressions."""
+
+    lines = ("factor",)
+    panel_mode = "expression"
+    alpha_id = Alpha022Native.alpha_id
+    case_id = Alpha022Native.case_id
+    lookback_h = Alpha022Native.lookback_h
+    formula_fields = Alpha022Native.formula_fields
+    required_fields = Alpha022Native.required_fields
+    formula = Alpha022Native.formula
+    operator_profile = Alpha022Native.operator_profile
+    input_policy = Alpha022Native.input_policy
+
+    @classmethod
+    def build(cls, ctx, **params):
+        correlation = ctx.correlation(ctx.field("high"), ctx.field("volume"), 5)
+        correlation_change = ctx.delta(correlation, 5)
+        close_volatility = ctx.stddev(ctx.field("close"), 20)
+        ranked_volatility = ctx.rank(close_volatility)
+        weighted = correlation_change * ranked_volatility
+        factor = -1.0 * weighted
+        return factor

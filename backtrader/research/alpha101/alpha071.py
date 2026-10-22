@@ -62,3 +62,36 @@ class Alpha071Native(FactorIndicator):
     def next(self):
         for data, result in zip(self.datas, self._result_lines):
             self.outputs[data].factor[0] = result[0]
+
+
+@native_alpha
+class Alpha071Build(FactorIndicator):
+    """AF48-071: construct the native Alpha101 graph via expressions."""
+
+    lines = ("factor",)
+    panel_mode = "expression"
+    alpha_id = Alpha071Native.alpha_id
+    case_id = Alpha071Native.case_id
+    lookback_h = Alpha071Native.lookback_h
+    formula_fields = Alpha071Native.formula_fields
+    required_fields = Alpha071Native.required_fields
+    formula = Alpha071Native.formula
+    operator_profile = Alpha071Native.operator_profile
+    input_policy = Alpha071Native.input_policy
+
+    @classmethod
+    def build(cls, ctx, **params):
+        close_rank = ctx.ts_rank(ctx.field("close"), 3.43976)
+        adv_rank = ctx.ts_rank(ctx.field("adv180"), 12.0647)
+        correlation = ctx.correlation(close_rank, adv_rank, 18.0175)
+        correlation_decay = ctx.decay_linear(correlation, 4.20501)
+        first = ctx.ts_rank(correlation_decay, 15.6948)
+        low_open = ctx.field("low") + ctx.field("open")
+        vwap_twice = ctx.field("vwap") + ctx.field("vwap")
+        spread = low_open - vwap_twice
+        spread_rank = ctx.rank(spread)
+        squared_rank = spread_rank**2.0
+        spread_decay = ctx.decay_linear(squared_rank, 16.4662)
+        second = ctx.ts_rank(spread_decay, 4.4388)
+        factor = ctx.maximum(first, second)
+        return factor

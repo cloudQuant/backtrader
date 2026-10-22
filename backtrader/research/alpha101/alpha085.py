@@ -84,3 +84,35 @@ class Alpha085Native(FactorIndicator):
     def next(self):
         for data, result in zip(self.datas, self._result_lines):
             self.outputs[data].factor[0] = result[0]
+
+
+@native_alpha
+class Alpha085Build(FactorIndicator):
+    """AF48-085: construct the native Alpha101 graph via expressions."""
+
+    lines = ("factor",)
+    panel_mode = "expression"
+    alpha_id = Alpha085Native.alpha_id
+    case_id = Alpha085Native.case_id
+    lookback_h = Alpha085Native.lookback_h
+    formula_fields = Alpha085Native.formula_fields
+    required_fields = Alpha085Native.required_fields
+    formula = Alpha085Native.formula
+    operator_profile = Alpha085Native.operator_profile
+    input_policy = Alpha085Native.input_policy
+
+    @classmethod
+    def build(cls, ctx, **params):
+        one_minus_alpha = ctx.subtract(1.0, 0.876703)
+        high_part = ctx.field("high") * (0.876703)
+        close_part = ctx.field("close") * one_minus_alpha
+        weighted_price = high_part + close_part
+        first_correlation = ctx.correlation(weighted_price, ctx.field("adv30"), 9.61331)
+        ranked_first_correlation = ctx.rank(first_correlation)
+        midpoint = (ctx.field("high") + ctx.field("low")) / (2.0)
+        midpoint_time_rank = ctx.ts_rank(midpoint, 3.70596)
+        volume_time_rank = ctx.ts_rank(ctx.field("volume"), 10.1595)
+        second_correlation = ctx.correlation(midpoint_time_rank, volume_time_rank, 7.11408)
+        ranked_second_correlation = ctx.rank(second_correlation)
+        factor = ranked_first_correlation**ranked_second_correlation
+        return factor

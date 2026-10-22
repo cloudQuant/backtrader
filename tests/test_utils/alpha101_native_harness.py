@@ -344,17 +344,20 @@ def run_native_batch(
     alpha_ids: Iterable[int],
     *,
     runonce: bool,
+    factor_mode: str = "native",
     alpha_classes: Optional[Mapping[int, Any]] = None,
     research: Optional[ResearchSpec] = None,
     groups: Optional[Mapping[str, str]] = None,
 ) -> Any:
-    """Run the selected native classes through real Cerebro and FactorStrategy."""
+    """Run selected factor classes through real Cerebro and FactorStrategy."""
 
     ids = tuple(alpha_ids)
     if not ids:
         raise ValueError("at least one Alpha101 ID is required")
+    if factor_mode not in ("native", "build"):
+        raise ValueError("factor_mode must be 'native' or 'build'")
     if alpha_classes is None:
-        classes = {alpha_id: get_alpha(alpha_id) for alpha_id in ids}
+        classes = {alpha_id: get_alpha(alpha_id, mode=factor_mode) for alpha_id in ids}
     else:
         classes = dict(alpha_classes)
         if set(classes) != set(ids):

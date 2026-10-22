@@ -70,3 +70,40 @@ class Alpha063Native(FactorIndicator):
     def next(self):
         for data, result in zip(self.datas, self._result_lines):
             self.outputs[data].factor[0] = result[0]
+
+
+@native_alpha
+class Alpha063Build(FactorIndicator):
+    """AF48-063: construct the native Alpha101 graph via expressions."""
+
+    lines = ("factor",)
+    panel_mode = "expression"
+    alpha_id = Alpha063Native.alpha_id
+    case_id = Alpha063Native.case_id
+    lookback_h = Alpha063Native.lookback_h
+    formula_fields = Alpha063Native.formula_fields
+    required_fields = Alpha063Native.required_fields
+    formula = Alpha063Native.formula
+    operator_profile = Alpha063Native.operator_profile
+    input_policy = Alpha063Native.input_policy
+
+    @classmethod
+    def build(cls, ctx, **params):
+        neutral_close = ctx.indneutralize(
+            ctx.field("close"), ctx.field("industry"), level="industry"
+        )
+        close_delta = ctx.delta(neutral_close, 2.25164)
+        left_decay = ctx.decay_linear(close_delta, 8.22237)
+        left_rank = ctx.rank(left_decay)
+        weight = 0.318108
+        weighted_vwap = ctx.field("vwap") * weight
+        weighted_open = ctx.field("open") * (1.0 - weight)
+        price_mix = weighted_vwap + weighted_open
+        adv180 = ctx.field("adv180")
+        adv_sum = ctx.sum(adv180, 37.2467)
+        correlation = ctx.correlation(price_mix, adv_sum, 13.557)
+        right_decay = ctx.decay_linear(correlation, 12.2883)
+        right_rank = ctx.rank(right_decay)
+        difference = left_rank - right_rank
+        factor = difference * -1.0
+        return factor

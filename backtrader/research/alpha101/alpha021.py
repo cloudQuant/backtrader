@@ -76,3 +76,44 @@ class Alpha021Native(FactorIndicator):
     def next(self):
         for data, result in zip(self.datas, self._result_lines):
             self.outputs[data].factor[0] = result[0]
+
+
+@native_alpha
+class Alpha021Build(FactorIndicator):
+    """AF48-021: construct the native Alpha101 graph via expressions."""
+
+    lines = ("factor",)
+    panel_mode = "expression"
+    alpha_id = Alpha021Native.alpha_id
+    case_id = Alpha021Native.case_id
+    lookback_h = Alpha021Native.lookback_h
+    formula_fields = Alpha021Native.formula_fields
+    required_fields = Alpha021Native.required_fields
+    formula = Alpha021Native.formula
+    operator_profile = Alpha021Native.operator_profile
+    input_policy = Alpha021Native.input_policy
+
+    @classmethod
+    def build(cls, ctx, **params):
+        close = ctx.field("close")
+        volume = ctx.field("volume")
+        adv20 = ctx.field("adv20")
+        ones = 1.0
+        negative_ones = -1.0
+        sum_close_8 = ctx.sum(close, 8)
+        mean_close_8 = sum_close_8 / 8.0
+        std_close_8 = ctx.stddev(close, 8)
+        first_condition_left = mean_close_8 + std_close_8
+        sum_close_2 = ctx.sum(close, 2)
+        mean_close_2 = sum_close_2 / 2.0
+        first_condition = first_condition_left < mean_close_2
+        second_condition_right = mean_close_8 - std_close_8
+        second_condition = mean_close_2 < second_condition_right
+        volume_over_adv = volume / adv20
+        volume_gate_below = ctx.less_than(ones, volume_over_adv)
+        volume_gate_equal = volume_over_adv == ones
+        volume_gate = ctx.logical_or(volume_gate_below, volume_gate_equal)
+        final_branch = ctx.where(volume_gate, ones, negative_ones)
+        second_branch = ctx.where(second_condition, ones, final_branch)
+        factor = ctx.where(first_condition, negative_ones, second_branch)
+        return factor

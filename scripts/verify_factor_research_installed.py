@@ -43,6 +43,7 @@ _FACTOR_MODE_PAIR_TEST_INPUTS = (
     "tests/unit/test_factor_build_expression.py",
     "tests/unit/test_factor_research_examples.py",
 )
+_ALPHA101_BUILD_PAIR_TEST_INPUTS = ("tests/integration/test_alpha101_native_matrix.py",)
 _PAIR_SEMANTICS_HELPER = "scripts/verify_factor_research_pair_semantics.py"
 _EXAMPLE_DIRS = (
     "examples/backtest/025_factor_single",
@@ -74,6 +75,7 @@ _FACTOR_MODE_PAIR_ARCHIVE_PATHS = (
     *_FACTOR_MODE_PAIR_TEST_INPUTS,
     _PAIR_SEMANTICS_HELPER,
 )
+_ALPHA101_BUILD_PAIR_ARCHIVE_PATHS = _ALPHA101_BUILD_PAIR_TEST_INPUTS
 _PAIR_FORMULA_TEST_CASES = {
     "Alpha003": ("test_alpha003_degenerate_recovery_missing_bar_nan_trace_and_reason_pair",),
     "CloseMA": ("test_025_close_ma_build_matches_native_and_independent_oracle",),
@@ -81,6 +83,9 @@ _PAIR_FORMULA_TEST_CASES = {
     "KDJ": ("test_026_kdj_build_matches_native_oracle_and_all_intermediate_lines",),
 }
 _PAIR_ENGINE_MODES = ("runnext", "runonce")
+_ALPHA101_IDS = tuple(range(1, 102))
+_ALPHA101_BUILD_PAIR_RECORD = "alpha101-build-pair-T320.json"
+_ALPHA101_PAIR_ASSETS = tuple("asset-%d" % index for index in range(6))
 _PAIR_MODULE_NAME = "factor_research_installed_pair_semantics"
 _ALPHA_BATCHES = {"promoted_20", "a", "b", "c", "d", "e"}
 _PACKAGE_ROOTS = ("backtrader/", "backtrader_runtime/", "fincore/")
@@ -119,11 +124,15 @@ class VerificationError(RuntimeError):
     """Raised when an installed artifact or one of its consumers fails."""
 
 
-def _archive_paths(name: str, *, factor_mode_pair: bool = False) -> Tuple[str, ...]:
+def _archive_paths(
+    name: str, *, factor_mode_pair: bool = False, alpha101_build_pair: bool = False
+) -> Tuple[str, ...]:
     try:
         paths = _ARCHIVE_PATHS[name]
     except KeyError as exc:
         raise VerificationError("no bounded archive path set for %s" % name) from exc
+    if alpha101_build_pair and name == "backtrader":
+        return (*paths, *_FACTOR_MODE_PAIR_ARCHIVE_PATHS, *_ALPHA101_BUILD_PAIR_ARCHIVE_PATHS)
     if factor_mode_pair and name == "backtrader":
         return (*paths, *_FACTOR_MODE_PAIR_ARCHIVE_PATHS)
     return paths
@@ -201,6 +210,409 @@ def _verify_pair_formula_test_witnesses(junit_xml: Path) -> Mapping[str, Any]:
     return witnesses
 
 
+def _verify_alpha101_build_pair_test_witness(junit_xml: Path) -> Mapping[str, Any]:
+    if not junit_xml.is_file():
+        raise VerificationError("Alpha101 native/build matrix pytest report is missing")
+    try:
+        root = ET.parse(junit_xml).getroot()
+    except (ET.ParseError, OSError) as exc:
+        raise VerificationError("cannot read Alpha101 native/build matrix pytest report") from exc
+    expected = "test_alpha101_native_build_pair_graph_matrix[T320]"
+    matches = [case for case in root.iter("testcase") if case.get("name") == expected]
+    if len(matches) != 1:
+        raise VerificationError("Alpha101 native/build matrix T320 witness is absent or duplicated")
+    outcomes = [child.tag for child in matches[0] if child.tag in {"failure", "error", "skipped"}]
+    if outcomes:
+        raise VerificationError(
+            "Alpha101 native/build matrix T320 did not pass: %s" % ",".join(outcomes)
+        )
+    return {"test_case": expected, "status": "PASSED"}
+
+
+def _require_record_keys(record: Any, expected: Sequence[str], label: str) -> Mapping[str, Any]:
+    if not isinstance(record, dict) or set(record) != set(expected):
+        raise VerificationError("%s has missing or unexpected fields" % label)
+    return record
+
+
+def _require_record_int(value: Any, label: str, *, minimum: int = 0) -> int:
+    if type(value) is not int or value < minimum:
+        raise VerificationError("%s must be an integer >= %d" % (label, minimum))
+    return value
+
+
+def _require_record_digest(value: Any, label: str) -> str:
+    if (
+        not isinstance(value, str)
+        or len(value) != 64
+        or any(character not in "0123456789abcdef" for character in value)
+    ):
+        raise VerificationError("%s must be a lowercase SHA-256 digest" % label)
+    return value
+
+
+def _require_alpha101_pair_panel(panel: Any, label: str) -> Mapping[str, Any]:
+    panel = _require_record_keys(panel, ("cells", "finite_cells", "nan_cells", "sha256"), label)
+    cells = _require_record_int(panel["cells"], label + ".cells", minimum=1)
+    finite = _require_record_int(panel["finite_cells"], label + ".finite_cells", minimum=1)
+    nan = _require_record_int(panel["nan_cells"], label + ".nan_cells")
+    if finite + nan != cells:
+        raise VerificationError("%s finite and NaN counts do not sum to cells" % label)
+    _require_record_digest(panel["sha256"], label + ".sha256")
+    return panel
+
+
+def _require_alpha101_graph_pair(
+    pair: Any, label: str, *, with_panel: bool = False
+) -> Mapping[str, Any]:
+    fields = (
+        "equal",
+        "node_count_left",
+        "node_count_right",
+        "matched_node_count",
+        "node_value_cells",
+        "node_reason_cells",
+        "node_value_sha256",
+        "node_reason_sha256",
+        "result_output_cells",
+        "result_output_sha256",
+        "grid_rows",
+        "assets",
+    )
+    if with_panel:
+        fields += ("factor_panel",)
+    pair = _require_record_keys(pair, fields, label)
+    if pair["equal"] is not True:
+        raise VerificationError("%s graph comparison is not exact" % label)
+    left = _require_record_int(pair["node_count_left"], label + ".node_count_left", minimum=1)
+    right = _require_record_int(pair["node_count_right"], label + ".node_count_right", minimum=1)
+    matched = _require_record_int(
+        pair["matched_node_count"], label + ".matched_node_count", minimum=1
+    )
+    if left != right or matched != left:
+        raise VerificationError("%s graph comparison did not match every node" % label)
+    _require_record_int(pair["node_value_cells"], label + ".node_value_cells", minimum=1)
+    _require_record_int(pair["node_reason_cells"], label + ".node_reason_cells", minimum=1)
+    _require_record_digest(pair["node_value_sha256"], label + ".node_value_sha256")
+    _require_record_digest(pair["node_reason_sha256"], label + ".node_reason_sha256")
+    result_cells = _require_record_int(
+        pair["result_output_cells"], label + ".result_output_cells", minimum=1
+    )
+    if result_cells != 320 * len(_ALPHA101_PAIR_ASSETS):
+        raise VerificationError("%s final result grid does not cover T320 and all assets" % label)
+    _require_record_digest(pair["result_output_sha256"], label + ".result_output_sha256")
+    if _require_record_int(pair["grid_rows"], label + ".grid_rows", minimum=1) != 320:
+        raise VerificationError("%s graph comparison used the wrong history length" % label)
+    if pair["assets"] != list(_ALPHA101_PAIR_ASSETS):
+        raise VerificationError("%s graph comparison omitted or reordered target assets" % label)
+    if with_panel:
+        panel = _require_alpha101_pair_panel(pair["factor_panel"], label + ".factor_panel")
+        if panel["cells"] != result_cells:
+            raise VerificationError("%s factor panel does not cover every grid/asset cell" % label)
+    return pair
+
+
+def _expected_alpha101_class(alpha_id: int, mode: str) -> str:
+    name = "Alpha%03d%s" % (alpha_id, mode.title())
+    return "backtrader.research.alpha101.alpha%03d.%s" % (alpha_id, name)
+
+
+def _verify_alpha101_build_pair_record(evidence: Path) -> Mapping[str, Any]:
+    """Validate every T320 matrix record field before publishing a PASS summary."""
+    path = evidence / _ALPHA101_BUILD_PAIR_RECORD
+    if not path.is_file():
+        raise VerificationError("installed Alpha101 build-pair record is missing: %s" % path)
+    try:
+        record = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        raise VerificationError("installed Alpha101 build-pair record is invalid JSON") from exc
+    record = _require_record_keys(
+        record,
+        (
+            "schema_version",
+            "status",
+            "periods",
+            "alpha_ids",
+            "complete_registry_coverage",
+            "engine_runs",
+            "per_alpha",
+            "aggregate",
+        ),
+        "Alpha101 build-pair record",
+    )
+    if type(record["schema_version"]) is not int or record["schema_version"] != 1:
+        raise VerificationError("Alpha101 build-pair record has an unsupported schema version")
+    if record["status"] != "PASS":
+        raise VerificationError("Alpha101 build-pair record status is not PASS")
+    if type(record["periods"]) is not int or record["periods"] != 320:
+        raise VerificationError("Alpha101 build-pair record is not the T320 run")
+    alpha_ids = record["alpha_ids"]
+    if (
+        not isinstance(alpha_ids, list)
+        or len(alpha_ids) != len(_ALPHA101_IDS)
+        or any(type(alpha_id) is not int for alpha_id in alpha_ids)
+        or set(alpha_ids) != set(_ALPHA101_IDS)
+    ):
+        raise VerificationError(
+            "Alpha101 build-pair record does not list exactly Alpha001-Alpha101"
+        )
+    if record["complete_registry_coverage"] is not True:
+        raise VerificationError(
+            "Alpha101 build-pair record does not prove complete registry coverage"
+        )
+
+    expected_engine_runs = {
+        (factor_mode, engine)
+        for factor_mode in ("native", "build")
+        for engine in _PAIR_ENGINE_MODES
+    }
+    runs = record["engine_runs"]
+    if not isinstance(runs, list) or len(runs) != 4:
+        raise VerificationError("Alpha101 build-pair record must contain exactly four engine runs")
+    run_by_mode = {}
+    for index, run in enumerate(runs):
+        label = "engine_runs[%d]" % index
+        run = _require_record_keys(
+            run,
+            (
+                "factor_mode",
+                "engine",
+                "runonce",
+                "alpha_ids",
+                "factor_classes",
+                "oracle_pass_count",
+                "finite_witness_count",
+                "lifecycle_pass_count",
+                "broker",
+                "factor_panel",
+            ),
+            label,
+        )
+        factor_mode, engine = run["factor_mode"], run["engine"]
+        if not isinstance(factor_mode, str) or not isinstance(engine, str):
+            raise VerificationError("%s has a non-string mode or engine" % label)
+        key = (factor_mode, engine)
+        if key not in expected_engine_runs or key in run_by_mode:
+            raise VerificationError("%s has a duplicate or unsupported mode/engine" % label)
+        if type(run["runonce"]) is not bool or run["runonce"] is not (engine == "runonce"):
+            raise VerificationError("%s runonce flag does not match its engine label" % label)
+        if run["alpha_ids"] != alpha_ids:
+            raise VerificationError("%s does not execute every Alpha101 formula" % label)
+        classes = _require_record_keys(
+            run["factor_classes"],
+            tuple(str(alpha_id) for alpha_id in _ALPHA101_IDS),
+            label + ".factor_classes",
+        )
+        for alpha_id in _ALPHA101_IDS:
+            expected_class = _expected_alpha101_class(alpha_id, factor_mode)
+            if classes[str(alpha_id)] != expected_class:
+                raise VerificationError(
+                    "%s has the wrong installed class for Alpha%d" % (label, alpha_id)
+                )
+        for field in ("oracle_pass_count", "finite_witness_count", "lifecycle_pass_count"):
+            if _require_record_int(run[field], label + "." + field) != len(_ALPHA101_IDS):
+                raise VerificationError("%s did not pass all 101 formulas" % label)
+        broker = _require_record_keys(run["broker"], ("submit", "cancel"), label + ".broker")
+        if any(
+            _require_record_int(broker[name], label + ".broker." + name) != 0 for name in broker
+        ):
+            raise VerificationError("%s placed or cancelled a broker order" % label)
+        run_by_mode[key] = {
+            **run,
+            "factor_panel": _require_alpha101_pair_panel(
+                run["factor_panel"], label + ".factor_panel"
+            ),
+        }
+    if set(run_by_mode) != expected_engine_runs:
+        raise VerificationError("Alpha101 build-pair record omitted one of four execution modes")
+
+    per_alpha = _require_record_keys(
+        record["per_alpha"], tuple(str(alpha_id) for alpha_id in _ALPHA101_IDS), "per_alpha"
+    )
+    per_alpha_graph_pairs = []
+    panel_pairs = []
+    for alpha_id in _ALPHA101_IDS:
+        alpha_key = str(alpha_id)
+        label = "per_alpha[%s]" % alpha_key
+        item = _require_record_keys(
+            per_alpha[alpha_key],
+            (
+                "oracle_pass",
+                "finite_witness",
+                "lifecycle_pass",
+                "lookback_h",
+                "factor_classes",
+                "same_engine_build_pair",
+                "cross_engine",
+            ),
+            label,
+        )
+        for field in ("oracle_pass", "finite_witness", "lifecycle_pass"):
+            if item[field] is not True:
+                raise VerificationError("%s.%s is not proven" % (label, field))
+        lookback_h = _require_record_int(item["lookback_h"], label + ".lookback_h")
+        if lookback_h >= 320:
+            raise VerificationError("%s has no post-lookback witness within T320" % label)
+        classes = _require_record_keys(
+            item["factor_classes"],
+            ("native/runnext", "native/runonce", "build/runnext", "build/runonce"),
+            label + ".factor_classes",
+        )
+        for factor_mode in ("native", "build"):
+            for engine in _PAIR_ENGINE_MODES:
+                run_key = (factor_mode, engine)
+                expected_class = _expected_alpha101_class(alpha_id, factor_mode)
+                if classes[factor_mode + "/" + engine] != expected_class:
+                    raise VerificationError("%s has the wrong %s class identity" % (label, run_key))
+                if run_by_mode[run_key]["factor_classes"][alpha_key] != expected_class:
+                    raise VerificationError("%s class identity differs from engine run" % label)
+
+        same_engine = _require_record_keys(
+            item["same_engine_build_pair"], _PAIR_ENGINE_MODES, label + ".same_engine_build_pair"
+        )
+        cross_engine = _require_record_keys(
+            item["cross_engine"], ("native", "build"), label + ".cross_engine"
+        )
+        alpha_pairs = []
+        alpha_panels = []
+        for engine in _PAIR_ENGINE_MODES:
+            pair = _require_alpha101_graph_pair(
+                same_engine[engine],
+                label + ".same_engine_build_pair." + engine,
+                with_panel=True,
+            )
+            alpha_pairs.append(pair)
+            alpha_panels.append(pair["factor_panel"])
+            per_alpha_graph_pairs.append(pair)
+        for factor_mode in ("native", "build"):
+            pair = _require_alpha101_graph_pair(
+                cross_engine[factor_mode],
+                label + ".cross_engine." + factor_mode,
+                with_panel=True,
+            )
+            alpha_pairs.append(pair)
+            alpha_panels.append(pair["factor_panel"])
+            per_alpha_graph_pairs.append(pair)
+            panel_pairs.append(pair["factor_panel"])
+        reference = alpha_pairs[0]
+        parity_fields = (
+            "node_count_left",
+            "node_count_right",
+            "matched_node_count",
+            "node_value_cells",
+            "node_reason_cells",
+            "node_value_sha256",
+            "node_reason_sha256",
+            "result_output_cells",
+            "result_output_sha256",
+            "grid_rows",
+            "assets",
+        )
+        if any(
+            any(pair[field] != reference[field] for field in parity_fields)
+            for pair in alpha_pairs[1:]
+        ):
+            raise VerificationError(
+                "%s graph pair evidence differs across engines or implementations" % label
+            )
+        panel_fields = ("cells", "finite_cells", "nan_cells", "sha256")
+        reference_panel = alpha_panels[0]
+        if any(
+            any(panel[field] != reference_panel[field] for field in panel_fields)
+            for panel in alpha_panels[1:]
+        ):
+            raise VerificationError(
+                "%s factor panels differ across engines or implementations" % label
+            )
+
+    # The per-alpha engine-pair panels must account for each full installed
+    # registry panel and agree across runnext/runonce for each implementation.
+    reference_panel = None
+    for factor_mode in ("native", "build"):
+        mode_panels = [
+            per_alpha[str(alpha_id)]["cross_engine"][factor_mode]["factor_panel"]
+            for alpha_id in _ALPHA101_IDS
+        ]
+        sums = {
+            field: sum(panel[field] for panel in mode_panels)
+            for field in ("cells", "finite_cells", "nan_cells")
+        }
+        for engine in _PAIR_ENGINE_MODES:
+            run_panel = run_by_mode[(factor_mode, engine)]["factor_panel"]
+            if any(run_panel[field] != sums[field] for field in sums):
+                raise VerificationError(
+                    "%s/%s factor-panel counts do not reconcile to per-formula panels"
+                    % (factor_mode, engine)
+                )
+        left_panel = run_by_mode[(factor_mode, "runnext")]["factor_panel"]
+        right_panel = run_by_mode[(factor_mode, "runonce")]["factor_panel"]
+        if left_panel["sha256"] != right_panel["sha256"]:
+            raise VerificationError("%s factor panel differs across the two engines" % factor_mode)
+        if reference_panel is None:
+            reference_panel = left_panel
+        elif any(
+            left_panel[field] != reference_panel[field]
+            for field in ("cells", "finite_cells", "nan_cells", "sha256")
+        ):
+            raise VerificationError("native/build aggregate factor panels are not identical")
+
+    aggregate = _require_record_keys(
+        record["aggregate"],
+        (
+            "alpha_count",
+            "engine_run_count",
+            "oracle_pass_count",
+            "finite_witness_count",
+            "lifecycle_pass_count",
+            "same_engine_graph_pair_count",
+            "cross_engine_graph_pair_count",
+            "node_value_cells",
+            "node_reason_cells",
+            "result_output_cells",
+            "cross_engine_panel_cells",
+            "cross_engine_panel_finite_cells",
+            "cross_engine_panel_nan_cells",
+            "all_pass",
+        ),
+        "aggregate",
+    )
+    expected_aggregate = {
+        "alpha_count": len(_ALPHA101_IDS),
+        "engine_run_count": 4,
+        "oracle_pass_count": 4 * len(_ALPHA101_IDS),
+        "finite_witness_count": 4 * len(_ALPHA101_IDS),
+        "lifecycle_pass_count": 4 * len(_ALPHA101_IDS),
+        "same_engine_graph_pair_count": 2 * len(_ALPHA101_IDS),
+        "cross_engine_graph_pair_count": 2 * len(_ALPHA101_IDS),
+        "node_value_cells": sum(pair["node_value_cells"] for pair in per_alpha_graph_pairs),
+        "node_reason_cells": sum(pair["node_reason_cells"] for pair in per_alpha_graph_pairs),
+        "result_output_cells": sum(pair["result_output_cells"] for pair in per_alpha_graph_pairs),
+        "cross_engine_panel_cells": sum(panel["cells"] for panel in panel_pairs),
+        "cross_engine_panel_finite_cells": sum(panel["finite_cells"] for panel in panel_pairs),
+        "cross_engine_panel_nan_cells": sum(panel["nan_cells"] for panel in panel_pairs),
+        "all_pass": True,
+    }
+    for name, expected in expected_aggregate.items():
+        actual = aggregate[name]
+        if type(expected) is int:
+            actual = _require_record_int(actual, "aggregate." + name)
+        elif type(expected) is bool and type(actual) is not bool:
+            raise VerificationError("Alpha101 build-pair aggregate %s is not boolean" % name)
+        if actual != expected:
+            raise VerificationError("Alpha101 build-pair aggregate %s does not reconcile" % name)
+    return {
+        "path": str(path.resolve()),
+        "sha256": _sha256(path),
+        "schema_version": record["schema_version"],
+        "status": record["status"],
+        "periods": record["periods"],
+        "alpha_ids": list(_ALPHA101_IDS),
+        "engine_runs": 4,
+        "engine_modes": ["native/runnext", "native/runonce", "build/runnext", "build/runonce"],
+        "aggregate": aggregate,
+    }
+
+
 def _sha256(path: Path) -> str:
     digest = hashlib.sha256()
     with path.open("rb") as source:
@@ -254,10 +666,15 @@ def _extract_archive(
     name: str,
     *,
     factor_mode_pair: bool = False,
+    alpha101_build_pair: bool = False,
 ) -> Tuple[Path, str]:
     destination.mkdir(parents=True)
     archive = destination / (name + ".tar")
-    archive_paths = _archive_paths(name, factor_mode_pair=factor_mode_pair)
+    archive_paths = _archive_paths(
+        name,
+        factor_mode_pair=factor_mode_pair,
+        alpha101_build_pair=alpha101_build_pair,
+    )
     command = ["git", "-C", str(repo), "archive", "--format=tar", commit, *archive_paths]
     print("+", " ".join(command), ">", archive, flush=True)
     with archive.open("wb") as output:
@@ -274,7 +691,7 @@ def _extract_archive(
         bundle.extractall(source)
     if name == "backtrader":
         missing_files = [relative for relative in _TEST_INPUTS if not (source / relative).is_file()]
-        if factor_mode_pair:
+        if factor_mode_pair or alpha101_build_pair:
             missing_files.extend(
                 relative
                 for relative in _FACTOR_MODE_PAIR_TEST_INPUTS
@@ -282,6 +699,12 @@ def _extract_archive(
             )
             if not (source / _PAIR_SEMANTICS_HELPER).is_file():
                 missing_files.append(_PAIR_SEMANTICS_HELPER)
+        if alpha101_build_pair:
+            missing_files.extend(
+                relative
+                for relative in _ALPHA101_BUILD_PAIR_TEST_INPUTS
+                if not (source / relative).is_file()
+            )
         missing_dirs = [relative for relative in _EXAMPLE_DIRS if not (source / relative).is_dir()]
         if missing_files or missing_dirs:
             raise VerificationError(
@@ -298,6 +721,7 @@ def _build_wheel(
     evidence: Path,
     *,
     factor_mode_pair: bool = False,
+    alpha101_build_pair: bool = False,
 ) -> Tuple[Path, Path, str]:
     source, archive_hash = _extract_archive(
         repo,
@@ -305,6 +729,7 @@ def _build_wheel(
         evidence / "archives" / name,
         name,
         factor_mode_pair=factor_mode_pair,
+        alpha101_build_pair=alpha101_build_pair,
     )
     wheel_dir = evidence / "wheels"
     wheel_dir.mkdir(exist_ok=True)
@@ -507,11 +932,17 @@ print(json.dumps({"origins": origins, "versions": versions, "module_versions": m
 
 
 def _copy_external_tests(
-    bt_source: Path, external: Path, *, factor_mode_pair: bool = False
+    bt_source: Path,
+    external: Path,
+    *,
+    factor_mode_pair: bool = False,
+    alpha101_build_pair: bool = False,
 ) -> None:
-    test_inputs = (
-        (*_TEST_INPUTS, *_FACTOR_MODE_PAIR_TEST_INPUTS) if factor_mode_pair else _TEST_INPUTS
-    )
+    test_inputs = list(_TEST_INPUTS)
+    if factor_mode_pair or alpha101_build_pair:
+        test_inputs.extend(_FACTOR_MODE_PAIR_TEST_INPUTS)
+    if alpha101_build_pair:
+        test_inputs.extend(_ALPHA101_BUILD_PAIR_TEST_INPUTS)
     for relative in test_inputs:
         source = bt_source / relative
         if not source.is_file():
@@ -521,7 +952,7 @@ def _copy_external_tests(
         shutil.copy2(source, destination)
     for package in ("tests", "tests/integration", "tests/test_utils", "tests/unit"):
         (external / package / "__init__.py").touch(exist_ok=True)
-    if factor_mode_pair:
+    if factor_mode_pair or alpha101_build_pair:
         _copy_examples(bt_source, external / "examples", preserve_backtest_layout=True)
 
 
@@ -566,12 +997,14 @@ def _run_installed_tests(
     evidence: Path,
     *,
     factor_mode_pair: bool = False,
+    alpha101_build_pair: bool = False,
 ) -> Mapping[str, Any]:
     code = r"""
 import sys
 import pathlib
 install_root, external_root, baseline, pair_junit = sys.argv[1:5]
 factor_mode_pair = sys.argv[5] == "1"
+alpha101_build_pair = sys.argv[6] == "1"
 sys.path[:0] = [install_root, external_root]
 import backtrader, fincore, pytest
 install = pathlib.Path(install_root).resolve()
@@ -590,12 +1023,19 @@ if factor_mode_pair:
         external_root + "/tests/unit/test_factor_research_examples.py",
         "--junitxml", pair_junit,
     ])
+if alpha101_build_pair:
+    test_paths.extend([
+        external_root + "/tests/integration/test_alpha101_native_matrix.py::test_alpha101_native_build_pair_graph_matrix[T320]",
+    ])
+    if "--junitxml" not in test_paths:
+        test_paths.extend(["--junitxml", pair_junit])
 raise SystemExit(pytest.main(test_paths))
 """
     env = os.environ.copy()
     env.pop("PYTHONPATH", None)
-    env.pop("BT_ALPHA101_NATIVE_BATCHES", None)
-    env.pop("BT_ALPHA101_NATIVE_IDS", None)
+    for name in tuple(env):
+        if name.startswith("BT_ALPHA101_"):
+            env.pop(name)
     env.update(
         {
             "PYTEST_DISABLE_PLUGIN_AUTOLOAD": "1",
@@ -605,6 +1045,15 @@ raise SystemExit(pytest.main(test_paths))
             "BT_FACTOR_RESEARCH_INSTALLED_ROOTS": json.dumps([str(install_root.resolve())]),
         }
     )
+    pair_evidence = evidence / "alpha101-build-pair"
+    if alpha101_build_pair:
+        pair_evidence.mkdir()
+        env.update(
+            {
+                "BT_ALPHA101_BUILD_PAIR": "1",
+                "BT_ALPHA101_BUILD_PAIR_EVIDENCE": str(pair_evidence.resolve()),
+            }
+        )
     baseline = evidence / "pytest-basetemp"
     baseline.mkdir()
     junit_xml = evidence / "factor-mode-pair-tests.xml"
@@ -619,6 +1068,7 @@ raise SystemExit(pytest.main(test_paths))
             baseline,
             junit_xml,
             "1" if factor_mode_pair else "0",
+            "1" if alpha101_build_pair else "0",
         ],
         cwd=evidence,
         env=env,
@@ -647,6 +1097,9 @@ raise SystemExit(pytest.main(test_paths))
     representative_records = list(baseline.rglob("installed-acceptance.json"))
     if len(representative_records) != 1:
         raise VerificationError("representative CSV reevaluation record is missing")
+    alpha101_build_pair_record = (
+        _verify_alpha101_build_pair_record(pair_evidence) if alpha101_build_pair else None
+    )
     return {
         "pytest_log": str((evidence / "installed-tests.log").resolve()),
         "alpha101_records": len(records),
@@ -661,6 +1114,16 @@ raise SystemExit(pytest.main(test_paths))
                 ),
             }
             if factor_mode_pair
+            else {}
+        ),
+        **(
+            {
+                "alpha101_build_pair_test_witness": _verify_alpha101_build_pair_test_witness(
+                    junit_xml
+                ),
+                "alpha101_build_pair_record": alpha101_build_pair_record,
+            }
+            if alpha101_build_pair
             else {}
         ),
     }
@@ -1577,6 +2040,14 @@ def _parser() -> argparse.ArgumentParser:
             "both engines, reports, panels, and CSV reevaluation"
         ),
     )
+    parser.add_argument(
+        "--alpha101-build-pair",
+        action="store_true",
+        help=(
+            "run the Iteration 48 build-pair profile, including --factor-mode-pair and "
+            "the complete installed Alpha101 T320 native/build graph matrix"
+        ),
+    )
     install = parser.add_mutually_exclusive_group()
     install.add_argument("--target", type=Path, help="fresh pip --target directory")
     install.add_argument("--prefix", type=Path, help="fresh pip --prefix directory")
@@ -1585,6 +2056,7 @@ def _parser() -> argparse.ArgumentParser:
 
 def main(argv: Sequence[str] | None = None) -> int:
     args = _parser().parse_args(argv)
+    factor_mode_pair = args.factor_mode_pair or args.alpha101_build_pair
     try:
         _require_base_python()
         if args.symbols != 20:
@@ -1612,7 +2084,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             bt_commit,
             "backtrader",
             evidence,
-            factor_mode_pair=args.factor_mode_pair,
+            factor_mode_pair=factor_mode_pair,
+            alpha101_build_pair=args.alpha101_build_pair,
         )
         fincore_source, fincore_wheel, fincore_archive_hash = _build_wheel(
             fincore_repo, fincore_commit, "fincore", evidence
@@ -1646,9 +2119,13 @@ def main(argv: Sequence[str] | None = None) -> int:
         provenance = {
             "schema": "iteration46-installed-alpha101-provenance-v1",
             "acceptance_profile": (
-                "iteration47-factor-mode-pair"
-                if args.factor_mode_pair
-                else "iteration46-installed-alpha101"
+                "iteration48-alpha101-build-pair"
+                if args.alpha101_build_pair
+                else (
+                    "iteration47-factor-mode-pair"
+                    if factor_mode_pair
+                    else "iteration46-installed-alpha101"
+                )
             ),
             "backtrader": {
                 "source_commit": bt_commit,
@@ -1672,10 +2149,15 @@ def main(argv: Sequence[str] | None = None) -> int:
 
         external = evidence / "external-tests"
         external.mkdir()
-        _copy_external_tests(bt_source, external, factor_mode_pair=args.factor_mode_pair)
+        _copy_external_tests(
+            bt_source,
+            external,
+            factor_mode_pair=factor_mode_pair,
+            alpha101_build_pair=args.alpha101_build_pair,
+        )
         pair_helper_path = None
         pair_helper = None
-        if args.factor_mode_pair:
+        if factor_mode_pair:
             pair_helper_path = _copy_external_pair_helper(bt_source, external)
             pair_helper = _load_pair_semantics_helper(pair_helper_path, external)
         test_report = _run_installed_tests(
@@ -1683,7 +2165,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             install_root,
             provenance_path,
             evidence,
-            factor_mode_pair=args.factor_mode_pair,
+            factor_mode_pair=factor_mode_pair,
+            alpha101_build_pair=args.alpha101_build_pair,
         )
         copied_examples = _copy_examples(bt_source, evidence / "external-examples")
         example_reports = _run_025_026(
@@ -1691,27 +2174,31 @@ def main(argv: Sequence[str] | None = None) -> int:
             install_root,
             data_dir,
             evidence,
-            factor_mode_pair=args.factor_mode_pair,
+            factor_mode_pair=factor_mode_pair,
             pair_helper=pair_helper,
             pair_helper_path=pair_helper_path,
-            external_test_root=external if args.factor_mode_pair else None,
+            external_test_root=external if factor_mode_pair else None,
         )
         example_reports["027_alpha003_panel_acceptance"] = _run_027(
             copied_examples["027_alpha003_panel_acceptance"],
             install_root,
             data_dir,
             evidence,
-            factor_mode_pair=args.factor_mode_pair,
+            factor_mode_pair=factor_mode_pair,
             pair_helper=pair_helper,
             pair_helper_path=pair_helper_path,
-            external_test_root=external if args.factor_mode_pair else None,
+            external_test_root=external if factor_mode_pair else None,
         )
         final = {
             "status": "PASS_LOCAL_INSTALLED_WHEEL_ACCEPTANCE",
             "acceptance_profile": (
-                "iteration47-factor-mode-pair"
-                if args.factor_mode_pair
-                else "iteration46-installed-alpha101"
+                "iteration48-alpha101-build-pair"
+                if args.alpha101_build_pair
+                else (
+                    "iteration47-factor-mode-pair"
+                    if factor_mode_pair
+                    else "iteration46-installed-alpha101"
+                )
             ),
             "factor_mode_pair": (
                 {
@@ -1725,7 +2212,18 @@ def main(argv: Sequence[str] | None = None) -> int:
                         "027_alpha003_panel_acceptance",
                     ],
                 }
-                if args.factor_mode_pair
+                if factor_mode_pair
+                else {"enabled": False}
+            ),
+            "alpha101_build_pair": (
+                {
+                    "enabled": True,
+                    "periods": 320,
+                    "engine_modes": list(_PAIR_ENGINE_MODES),
+                    "record": test_report["alpha101_build_pair_record"],
+                    "test_witness": test_report["alpha101_build_pair_test_witness"],
+                }
+                if args.alpha101_build_pair
                 else {"enabled": False}
             ),
             "source_commits": {"backtrader": bt_commit, "fincore": fincore_commit},

@@ -80,3 +80,35 @@ class Alpha091Native(FactorIndicator):
     def next(self):
         for data, result in zip(self.datas, self._result_lines):
             self.outputs[data].factor[0] = result[0]
+
+
+@native_alpha
+class Alpha091Build(FactorIndicator):
+    """AF48-091: construct the native Alpha101 graph via expressions."""
+
+    lines = ("factor",)
+    panel_mode = "expression"
+    alpha_id = Alpha091Native.alpha_id
+    case_id = Alpha091Native.case_id
+    lookback_h = Alpha091Native.lookback_h
+    formula_fields = Alpha091Native.formula_fields
+    required_fields = Alpha091Native.required_fields
+    formula = Alpha091Native.formula
+    operator_profile = Alpha091Native.operator_profile
+    input_policy = Alpha091Native.input_policy
+
+    @classmethod
+    def build(cls, ctx, **params):
+        neutral_close = ctx.indneutralize(
+            ctx.field("close"), ctx.field("industry"), level="industry"
+        )
+        close_volume_correlation = ctx.correlation(neutral_close, ctx.field("volume"), 9.74928)
+        first_decay = ctx.decay_linear(close_volume_correlation, 16.398)
+        second_decay = ctx.decay_linear(first_decay, 3.83219)
+        first_branch = ctx.ts_rank(second_decay, 4.8667)
+        vwap_adv_correlation = ctx.correlation(ctx.field("vwap"), ctx.field("adv30"), 4.01303)
+        vwap_adv_decay = ctx.decay_linear(vwap_adv_correlation, 2.6809)
+        second_branch = ctx.rank(vwap_adv_decay)
+        difference = first_branch - second_branch
+        factor = difference * (-1.0)
+        return factor

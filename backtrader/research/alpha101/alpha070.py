@@ -57,3 +57,32 @@ class Alpha070Native(FactorIndicator):
     def next(self):
         for data, result in zip(self.datas, self._result_lines):
             self.outputs[data].factor[0] = result[0]
+
+
+@native_alpha
+class Alpha070Build(FactorIndicator):
+    """AF48-070: construct the native Alpha101 graph via expressions."""
+
+    lines = ("factor",)
+    panel_mode = "expression"
+    alpha_id = Alpha070Native.alpha_id
+    case_id = Alpha070Native.case_id
+    lookback_h = Alpha070Native.lookback_h
+    formula_fields = Alpha070Native.formula_fields
+    required_fields = Alpha070Native.required_fields
+    formula = Alpha070Native.formula
+    operator_profile = Alpha070Native.operator_profile
+    input_policy = Alpha070Native.input_policy
+
+    @classmethod
+    def build(cls, ctx, **params):
+        vwap_delta = ctx.delta(ctx.field("vwap"), 1.29456)
+        base = ctx.rank(vwap_delta)
+        neutral_close = ctx.indneutralize(
+            ctx.field("close"), ctx.field("industry"), level="industry"
+        )
+        correlation = ctx.correlation(neutral_close, ctx.field("adv50"), 17.8256)
+        exponent = ctx.ts_rank(correlation, 17.9171)
+        powered = base**exponent
+        factor = powered * -1.0
+        return factor

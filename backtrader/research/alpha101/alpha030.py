@@ -62,3 +62,41 @@ class Alpha030Native(FactorIndicator):
     def next(self):
         for data, result in zip(self.datas, self._result_lines):
             self.outputs[data].factor[0] = result[0]
+
+
+@native_alpha
+class Alpha030Build(FactorIndicator):
+    """AF48-030: construct the native Alpha101 graph via expressions."""
+
+    lines = ("factor",)
+    panel_mode = "expression"
+    alpha_id = Alpha030Native.alpha_id
+    case_id = Alpha030Native.case_id
+    lookback_h = Alpha030Native.lookback_h
+    formula_fields = Alpha030Native.formula_fields
+    required_fields = Alpha030Native.required_fields
+    formula = Alpha030Native.formula
+    operator_profile = Alpha030Native.operator_profile
+    input_policy = Alpha030Native.input_policy
+
+    @classmethod
+    def build(cls, ctx, **params):
+        close = ctx.field("close")
+        close_delay_1 = ctx.delay(close, 1)
+        close_delay_2 = ctx.delay(close, 2)
+        close_delay_3 = ctx.delay(close, 3)
+        change_1 = close - close_delay_1
+        change_2 = close_delay_1 - close_delay_2
+        change_3 = close_delay_2 - close_delay_3
+        sign_1 = ctx.sign(change_1)
+        sign_2 = ctx.sign(change_2)
+        sign_3 = ctx.sign(change_3)
+        sign_sum_1 = sign_1 + sign_2
+        sign_sum = sign_sum_1 + sign_3
+        ranked_sign_sum = ctx.rank(sign_sum)
+        one_minus_rank = 1.0 - ranked_sign_sum
+        volume_5 = ctx.sum(ctx.field("volume"), 5)
+        volume_20 = ctx.sum(ctx.field("volume"), 20)
+        weighted = one_minus_rank * volume_5
+        factor = weighted / volume_20
+        return factor

@@ -321,11 +321,18 @@ class _ExpressionContext:
         return period
 
     def _rolling_indicator(
-        self, value: Any, period: Any, *, kind: Type[Any], line_name: str, label: str
+        self,
+        value: Any,
+        period: Any,
+        *,
+        kind: Type[Any],
+        line_name: str,
+        label: str,
+        require_positive_integer: bool = True,
     ) -> Tuple[_FactorExpression, Tuple[Any, ...]]:
         self._assert_open()
         expression = self._check_expression(value, label)
-        window = self._positive_period(period)
+        window = self._positive_period(period) if require_positive_integer else period
         nodes = []
         lines = []
         for target in self.targets:
@@ -333,8 +340,231 @@ class _ExpressionContext:
             nodes.append(node)
             line = getattr(node.lines, line_name)
             lines.append(self._mark_target(line, target, (expression,)))
-        self._store_scalar_nodes("%s%d" % (label, window), nodes)
+        if require_positive_integer:
+            period_name = str(window)
+        else:
+            try:
+                numeric_period = float(period)
+                period_name = (
+                    str(math.floor(numeric_period))
+                    if math.isfinite(numeric_period)
+                    else str(period)
+                )
+            except (TypeError, ValueError, OverflowError):
+                period_name = str(period)
+        self._store_scalar_nodes("%s%s" % (label, period_name), nodes)
         return self._new_expression(lines, label=label), tuple(nodes)
+
+    def _research_rolling(
+        self, value: Any, period: Any, *, kind: Type[Any], label: str
+    ) -> _FactorExpression:
+        result, _ = self._rolling_indicator(
+            value,
+            period,
+            kind=kind,
+            line_name="value",
+            label=label,
+            require_positive_integer=False,
+        )
+        return result
+
+    def _panel_operator(
+        self,
+        kind: Type[Any],
+        value: Any,
+        *,
+        label: str,
+        **parameters: Any,
+    ) -> _FactorExpression:
+        self._assert_open()
+        expression = self._check_expression(value, label)
+        panel_parameters = dict(parameters)
+        panel_parameters["members"] = self._factor.formula_members
+        if kind in (operators.CrossSectionalRank, operators.CrossSectionalScale):
+            panel_parameters["groups"] = self._factor.research_groups
+        node = kind.bind(
+            *self.targets,
+            values=tuple(expression._line_for(target) for target in self.targets),
+            **panel_parameters,
+        )
+        self.nodes[self._unique_name(label)] = node
+        lines = tuple(node.outputs[target].value for target in self.targets)
+        return self._new_expression(lines, label=label)
+
+    def abs(self, value: Any) -> _FactorExpression:
+        """Apply the native pointwise absolute-value operator per target."""
+        return self.unary(operators.Abs, value)
+
+    def sign(self, value: Any) -> _FactorExpression:
+        """Apply the native pointwise sign operator per target."""
+        return self.unary(operators.Sign, value)
+
+    def log(self, value: Any) -> _FactorExpression:
+        """Apply the native natural-log operator per target."""
+        return self.unary(operators.Log, value)
+
+    def signed_power(self, left: Any, right: Any) -> _FactorExpression:
+        """Apply the native signed-power operator per target."""
+        return self.binary(operators.SignedPower, left, right)
+
+    def subtract(self, left: Any, right: Any) -> _FactorExpression:
+        """Build native per-target subtraction, including constant-only inputs."""
+        result = self.binary(operators.Subtract, left, right)
+        if not isinstance(left, _FactorExpression) and not isinstance(right, _FactorExpression):
+            for target, line in zip(self.targets, result._lines):
+                self._factor._mark_target_local_line(line, target, (target,))
+        return result
+
+    def minimum(self, left: Any, right: Any) -> _FactorExpression:
+        """Apply the native pointwise minimum operator per target."""
+        return self.binary(operators.Minimum, left, right)
+
+    def maximum(self, left: Any, right: Any) -> _FactorExpression:
+        """Apply the native pointwise maximum operator per target."""
+        return self.binary(operators.Maximum, left, right)
+
+    def delay(self, value: Any, period: Any) -> _FactorExpression:
+        """Read a value on the floored research grid period earlier."""
+        return self._research_rolling(value, period, kind=operators.Delay, label="delay")
+
+    def delta(self, value: Any, period: Any) -> _FactorExpression:
+        """Subtract a floored research-grid lag from the current value."""
+        return self._research_rolling(value, period, kind=operators.Delta, label="delta")
+
+    def sum(self, value: Any, period: Any) -> _FactorExpression:
+        """Apply the native rolling sum with its alpha101-v2 window rules."""
+        return self._research_rolling(value, period, kind=operators.RollingSum, label="sum")
+
+    def product(self, value: Any, period: Any) -> _FactorExpression:
+        """Apply the native rolling product with its alpha101-v2 window rules."""
+        return self._research_rolling(value, period, kind=operators.RollingProduct, label="product")
+
+    def stddev(self, value: Any, period: Any) -> _FactorExpression:
+        """Apply the native rolling population standard deviation."""
+        return self._research_rolling(value, period, kind=operators.RollingStd, label="stddev")
+
+    def ts_min(self, value: Any, period: Any) -> _FactorExpression:
+        """Apply the native rolling minimum with its window rules."""
+        return self._research_rolling(value, period, kind=operators.TsMin, label="ts_min")
+
+    def ts_max(self, value: Any, period: Any) -> _FactorExpression:
+        """Apply the native rolling maximum with its window rules."""
+        return self._research_rolling(value, period, kind=operators.TsMax, label="ts_max")
+
+    def ts_rank(self, value: Any, period: Any) -> _FactorExpression:
+        """Apply the native rolling rank with its window rules."""
+        return self._research_rolling(value, period, kind=operators.TsRank, label="ts_rank")
+
+    def ts_argmin(self, value: Any, period: Any) -> _FactorExpression:
+        """Apply the native rolling argmin with its window rules."""
+        return self._research_rolling(value, period, kind=operators.TsArgMin, label="ts_argmin")
+
+    def ts_argmax(self, value: Any, period: Any) -> _FactorExpression:
+        """Apply the native rolling argmax with its window rules."""
+        return self._research_rolling(value, period, kind=operators.TsArgMax, label="ts_argmax")
+
+    def decay_linear(self, value: Any, period: Any) -> _FactorExpression:
+        """Apply the native linear-decay operator with its window rules."""
+        return self._research_rolling(
+            value, period, kind=operators.DecayLinear, label="decay_linear"
+        )
+
+    def covariance(self, left: Any, right: Any, period: Any) -> _FactorExpression:
+        """Apply the native rolling population covariance per target."""
+        self._assert_open()
+        left = self._check_expression(left, "covariance")
+        right = self._check_expression(right, "covariance")
+        nodes = []
+        lines = []
+        for target in self.targets:
+            left_line = left._line_for(target)
+            right_line = right._line_for(target)
+            node = operators.RollingCovariance(left_line, right_line, period=period)
+            nodes.append(node)
+            lines.append(self._mark_target(node.lines.value, target, (left, right)))
+        try:
+            numeric_period = float(period)
+            period_name = (
+                str(math.floor(numeric_period)) if math.isfinite(numeric_period) else str(period)
+            )
+        except (TypeError, ValueError, OverflowError):
+            period_name = str(period)
+        self._store_scalar_nodes("covariance%s" % period_name, nodes)
+        return self._new_expression(lines, label="covariance")
+
+    def scale(self, value: Any, a: Any = 1.0) -> _FactorExpression:
+        """Cross-sectionally scale a value using bound formula members/groups."""
+        return self._panel_operator(operators.CrossSectionalScale, value, label="scale", a=a)
+
+    def indneutralize(self, value: Any, groups: Any, *, level: str) -> _FactorExpression:
+        """Neutralize values by a target-bound classification expression."""
+        self._assert_open()
+        expression = self._check_expression(value, "indneutralize")
+        group_expression = self._check_expression(groups, "indneutralize groups")
+        node = operators.IndNeutralize.bind(
+            *self.targets,
+            values=tuple(expression._line_for(target) for target in self.targets),
+            groups=tuple(group_expression._line_for(target) for target in self.targets),
+            members=self._factor.formula_members,
+            level=level,
+        )
+        self.nodes[self._unique_name("indneutralize_%s" % level)] = node
+        return self._new_expression(
+            tuple(node.outputs[target].value for target in self.targets),
+            label="indneutralize",
+        )
+
+    def logical_or(self, left: Any, right: Any) -> _FactorExpression:
+        """Apply the native three-valued logical OR operator."""
+        return self.binary(operators.LogicalOr, left, right)
+
+    def less_than(self, left: Any, right: Any) -> _FactorExpression:
+        """Build ``left < right`` without Python's reflected-comparison reorder."""
+        return self.binary(operators.LessThan, left, right)
+
+    def equal_to(self, left: Any, right: Any) -> _FactorExpression:
+        """Build ``left == right`` with the requested operand order."""
+        return self.binary(operators.EqualTo, left, right)
+
+    def returns(self) -> _FactorExpression:
+        """Build the native simple-return graph from the declared close field."""
+        self._assert_open()
+        close = self.field("close")
+        prior_nodes = []
+        prior_lines = []
+        change_nodes = []
+        change_lines = []
+        return_nodes = []
+        return_lines = []
+        for target in self.targets:
+            close_line = close._line_for(target)
+            prior = operators.Delay(close_line, period=1)
+            prior_nodes.append(prior)
+            prior_lines.append(
+                self._factor._mark_target_local_line(prior.lines.value, target, (close_line,))
+            )
+        for target, close_line, prior in zip(self.targets, close._lines, prior_nodes):
+            change = operators.Subtract(close_line, prior.lines.value)
+            change_nodes.append(change)
+            change_lines.append(
+                self._factor._mark_target_local_line(
+                    change.lines.value, target, (close_line, prior.lines.value)
+                )
+            )
+        for target, change, prior, change_line, prior_line in zip(
+            self.targets, change_nodes, prior_nodes, change_lines, prior_lines
+        ):
+            result = operators.Divide(change.lines.value, prior.lines.value)
+            return_nodes.append(result)
+            return_lines.append(
+                self._factor._mark_target_local_line(
+                    result.lines.value, target, (change_line, prior_line)
+                )
+            )
+        self._store_scalar_nodes("returns_prior", prior_nodes)
+        self._store_scalar_nodes("returns_change", change_nodes)
+        self._store_scalar_nodes("returns", return_nodes)
+        return self._new_expression(return_lines, label="returns")
 
     def sma(self, value: Any, period: Any) -> _FactorExpression:
         """Apply Backtrader's native simple moving average per target."""

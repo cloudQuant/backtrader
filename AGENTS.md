@@ -455,8 +455,10 @@ initialization. The context keeps target-feed and instance identity, rejects
 Python boolean conversion and closes construction after build returns; the
 ordinary Cerebro lifecycle performs all calculation. `Alpha003Build` lives
 beside `Alpha003Native` and is selected by `get_alpha(3, mode="build")`.
-The native registry and default remain unchanged; other build IDs currently
-raise `NotImplementedError`. There is no string DSL or second scheduler.
+Iteration 48 supplies same-file Build companions for all 101 IDs through
+`get_alpha(id, mode="build")`. The native registry and default remain unchanged;
+missing companions still raise `NotImplementedError` rather than falling back.
+There is no string DSL or second scheduler.
 025/026 also provide CloseMA, ROC and KDJ build companions. The context's
 SMA/ROC/Highest/Lowest adapters use the existing ordinary indicators;
 `ctx.apply` constructs an ordinary pointwise Indicator for shared scalar
@@ -470,8 +472,12 @@ Iteration 47 passed full 500-asset quick output pairing (12 runs, six exact
 comparisons) and pinned-wheel acceptance at `ff486565` with fincore `fc512cdf`
 (132 tests plus actual 20-asset quick pairs and CSV reevaluation). These local
 checks reuse Anaconda base dependencies; they are not release or deployment
-evidence. The remaining 100 build formulas and their all-registry acceptance
-are tracked in Iteration 48.
+evidence. Iteration 48 adds thin research rolling, scale, neutralization,
+returns and explicit scalar-comparison/subtraction constructors. Research
+windows retain alpha101-v2 floor semantics; ordinary indicator windows remain
+positive integers. Constant-only native subtraction nodes are retained with
+`ctx.subtract`; all-registry source, downstream and installed acceptance are
+tracked separately in Iteration 48's development record.
 Iteration 46 acceptance is tracked separately in its
 development record. Usage and acceptance records are linked from
 `docs/source/developer-guide/factor-research.md` and `alpha101-native.md`; 025/026 are the standalone

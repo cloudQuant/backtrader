@@ -39,3 +39,26 @@ class Alpha041Native(FactorIndicator):
     def next(self):
         for data, result in zip(self.datas, self._result_lines):
             self.outputs[data].factor[0] = result[0]
+
+
+@native_alpha
+class Alpha041Build(FactorIndicator):
+    """AF48-041: construct the native Alpha101 graph via expressions."""
+
+    lines = ("factor",)
+    panel_mode = "expression"
+    alpha_id = Alpha041Native.alpha_id
+    case_id = Alpha041Native.case_id
+    lookback_h = Alpha041Native.lookback_h
+    formula_fields = Alpha041Native.formula_fields
+    required_fields = Alpha041Native.required_fields
+    formula = Alpha041Native.formula
+    operator_profile = Alpha041Native.operator_profile
+    input_policy = Alpha041Native.input_policy
+
+    @classmethod
+    def build(cls, ctx, **params):
+        high_low = ctx.field("high") * ctx.field("low")
+        geometric_mean = high_low**0.5
+        factor = geometric_mean - ctx.field("vwap")
+        return factor

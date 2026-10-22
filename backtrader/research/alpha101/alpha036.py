@@ -125,3 +125,55 @@ class Alpha036Native(FactorIndicator):
     def next(self):
         for data, result in zip(self.datas, self._result_lines):
             self.outputs[data].factor[0] = result[0]
+
+
+@native_alpha
+class Alpha036Build(FactorIndicator):
+    """AF48-036: construct the native Alpha101 graph via expressions."""
+
+    lines = ("factor",)
+    panel_mode = "expression"
+    alpha_id = Alpha036Native.alpha_id
+    case_id = Alpha036Native.case_id
+    lookback_h = Alpha036Native.lookback_h
+    formula_fields = Alpha036Native.formula_fields
+    required_fields = Alpha036Native.required_fields
+    formula = Alpha036Native.formula
+    operator_profile = Alpha036Native.operator_profile
+    input_policy = Alpha036Native.input_policy
+
+    @classmethod
+    def build(cls, ctx, **params):
+        close = ctx.field("close")
+        open_price = ctx.field("open")
+        volume = ctx.field("volume")
+        vwap = ctx.field("vwap")
+        close_minus_open = close - open_price
+        volume_delay_1 = ctx.delay(volume, 1)
+        first_correlation = ctx.correlation(close_minus_open, volume_delay_1, 15)
+        first_rank = ctx.rank(first_correlation)
+        first_term = 2.21 * first_rank
+        open_minus_close = open_price - close
+        second_rank = ctx.rank(open_minus_close)
+        second_term = 0.7 * second_rank
+        returns = ctx.returns()
+        negative_returns = -1.0 * returns
+        negative_returns_delay_6 = ctx.delay(negative_returns, 6)
+        delayed_return_rank = ctx.ts_rank(negative_returns_delay_6, 5)
+        third_rank = ctx.rank(delayed_return_rank)
+        third_term = 0.73 * third_rank
+        adv20_vwap_correlation = ctx.correlation(vwap, ctx.field("adv20"), 6)
+        absolute_correlation = ctx.abs(adv20_vwap_correlation)
+        fourth_rank = ctx.rank(absolute_correlation)
+        close_sum_200 = ctx.sum(close, 200)
+        close_mean_200 = close_sum_200 / 200.0
+        mean_minus_open = close_mean_200 - open_price
+        close_minus_open_again = close - open_price
+        fifth_product = mean_minus_open * close_minus_open_again
+        fifth_rank = ctx.rank(fifth_product)
+        fifth_term = 0.6 * fifth_rank
+        first_two_terms = first_term + second_term
+        first_three_terms = first_two_terms + third_term
+        first_four_terms = first_three_terms + fourth_rank
+        factor = first_four_terms + fifth_term
+        return factor

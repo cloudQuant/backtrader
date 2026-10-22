@@ -86,3 +86,40 @@ class Alpha087Native(FactorIndicator):
     def next(self):
         for data, result in zip(self.datas, self._result_lines):
             self.outputs[data].factor[0] = result[0]
+
+
+@native_alpha
+class Alpha087Build(FactorIndicator):
+    """AF48-087: construct the native Alpha101 graph via expressions."""
+
+    lines = ("factor",)
+    panel_mode = "expression"
+    alpha_id = Alpha087Native.alpha_id
+    case_id = Alpha087Native.case_id
+    lookback_h = Alpha087Native.lookback_h
+    formula_fields = Alpha087Native.formula_fields
+    required_fields = Alpha087Native.required_fields
+    formula = Alpha087Native.formula
+    operator_profile = Alpha087Native.operator_profile
+    input_policy = Alpha087Native.input_policy
+
+    @classmethod
+    def build(cls, ctx, **params):
+        alpha = 0.369701
+        one_minus_alpha = ctx.subtract(1.0, alpha)
+        close_part = ctx.field("close") * (alpha)
+        vwap_part = ctx.field("vwap") * one_minus_alpha
+        weighted_price = close_part + vwap_part
+        price_change = ctx.delta(weighted_price, 1.91233)
+        decayed_change = ctx.decay_linear(price_change, 2.65461)
+        ranked_change = ctx.rank(decayed_change)
+        neutral_adv81 = ctx.indneutralize(
+            ctx.field("adv81"), ctx.field("industry"), level="industry"
+        )
+        correlation = ctx.correlation(neutral_adv81, ctx.field("close"), 13.4132)
+        absolute_correlation = ctx.abs(correlation)
+        correlation_decay = ctx.decay_linear(absolute_correlation, 4.89768)
+        correlation_time_rank = ctx.ts_rank(correlation_decay, 14.4535)
+        maximum = ctx.maximum(ranked_change, correlation_time_rank)
+        factor = maximum * (-1.0)
+        return factor
