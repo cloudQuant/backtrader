@@ -89,6 +89,48 @@ class ComparisonError(ValueError):
     """An input directory does not satisfy the paired-output contract."""
 
 
+def _manifest_declares_empty_table(
+    manifest: Mapping[str, Any], table_name: str, expected_fields: Sequence[str]
+) -> bool:
+    tables = manifest.get("tables")
+    table_key = table_name[:-4] if table_name.endswith(".csv") else table_name
+    entry = tables.get(table_key) if isinstance(tables, Mapping) else None
+    return (
+        isinstance(entry, Mapping)
+        and type(entry.get("rows")) is int
+        and entry["rows"] == 0
+        and entry.get("columns") == list(expected_fields)
+    )
+
+
+def _empty_table_is_contractual(
+    table_name: str,
+    manifest: Mapping[str, Any],
+    factor_count: int,
+    expected_fields: Sequence[str],
+) -> bool:
+    if not _manifest_declares_empty_table(manifest, table_name, expected_fields):
+        return False
+    spec = manifest.get("spec")
+    if not isinstance(spec, Mapping):
+        return False
+    if table_name == "comparisons.csv":
+        return type(spec.get("comparisons")) is dict and spec["comparisons"] == {}
+    if table_name == "correlation.csv":
+        counts = manifest.get("counts")
+        return (
+            factor_count == 1
+            and type(spec.get("combinations")) is dict
+            and spec["combinations"] == {}
+            and isinstance(counts, Mapping)
+            and type(counts.get("factors")) is int
+            and counts["factors"] == 1
+            and type(counts.get("combinations")) is int
+            and counts["combinations"] == 0
+        )
+    return False
+
+
 def _load_json(path: Path) -> Mapping[str, Any]:
     try:
         value = json.loads(path.read_text(encoding="utf-8"))
@@ -413,9 +455,9 @@ def compare_runs(baseline_dir: Path, candidate_dir: Path) -> Dict[str, Any]:
             )
 
             metadata: Dict[str, Dict[str, Dict[str, Any]]] = {"baseline": {}, "candidate": {}}
-            for side, run_dir, evaluation_dir, factors in (
-                ("baseline", baseline_dir, baseline_eval, baseline_factors),
-                ("candidate", candidate_dir, candidate_eval, candidate_factors),
+            for side, run_dir, evaluation_dir, manifest, factors in (
+                ("baseline", baseline_dir, baseline_eval, baseline_manifest, baseline_factors),
+                ("candidate", candidate_dir, candidate_eval, candidate_manifest, candidate_factors),
             ):
                 factor_expected = tuple(FACTOR_VALUE_KEYS) + tuple(factors)
                 metadata[side]["factor_values.csv"] = _insert_table(
@@ -450,6 +492,9 @@ def compare_runs(baseline_dir: Path, candidate_dir: Path) -> Dict[str, Any]:
                         filename != "diagnostics.csv"
                         and metadata[side][filename]["row_count"] == 0
                         and metadata[side][filename]["error"] is None
+                        and not _empty_table_is_contractual(
+                            filename, manifest, len(factors), fields
+                        )
                     ):
                         metadata[side][filename]["error"] = "table has no data rows"
 

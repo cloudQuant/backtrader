@@ -78,6 +78,10 @@ def _write_run(
     reverse_correlation_pair: bool = False,
     result_fingerprint: str = "a" * 64,
     evaluation_status: str = "OK",
+    empty_tables: Sequence[str] = (),
+    spec_combinations: Mapping[str, object] | None = None,
+    spec_comparisons: Mapping[str, object] | None = None,
+    manifest_row_overrides: Mapping[str, int] | None = None,
 ) -> None:
     evaluation_id = "eval-" + root.name
     evaluation = root / "evaluation" / evaluation_id
@@ -94,16 +98,6 @@ def _write_run(
         ),
         encoding="utf-8",
     )
-    (evaluation / "manifest.json").write_text(
-        json.dumps(
-            {
-                "evaluation_id": evaluation_id,
-                "result_fingerprint": result_fingerprint,
-            }
-        ),
-        encoding="utf-8",
-    )
-
     values = factor_values or {
         "ASSET_A": {"close_ma": "1.0", "kdj_j": "3.0", "roc": "5.0"},
         "ASSET_B": {"close_ma": "2.0", "kdj_j": "4.0", "roc": "6.0"},
@@ -117,6 +111,7 @@ def _write_run(
         ),
     )
 
+    tables = {}
     for filename, (key_fields, value_fields) in _COMPARATOR.TABLE_CONTRACTS.items():
         fields = (*key_fields, *value_fields)
         row = {**_key_row(key_fields), **_value_row(value_fields)}
@@ -127,7 +122,32 @@ def _write_run(
                     row["factor_right"],
                     row["factor_left"],
                 )
-        _write_csv(evaluation / filename, fields, (row,))
+        rows = () if filename[:-4] in empty_tables else (row,)
+        _write_csv(evaluation / filename, fields, rows)
+        table_key = filename[:-4]
+        row_count = len(rows)
+        if manifest_row_overrides and table_key in manifest_row_overrides:
+            row_count = manifest_row_overrides[table_key]
+        tables[table_key] = {"columns": list(fields), "rows": row_count}
+
+    combinations = {} if spec_combinations is None else dict(spec_combinations)
+    comparisons = (
+        {"ma_vs_equal_weight": {}}
+        if spec_comparisons is None
+        else dict(spec_comparisons)
+    )
+    (evaluation / "manifest.json").write_text(
+        json.dumps(
+            {
+                "evaluation_id": evaluation_id,
+                "result_fingerprint": result_fingerprint,
+                "tables": tables,
+                "counts": {"factors": len(factor_order), "combinations": len(combinations)},
+                "spec": {"combinations": combinations, "comparisons": comparisons},
+            }
+        ),
+        encoding="utf-8",
+    )
 
 
 def _compare(tmp_path: Path, candidate_overrides: Mapping[str, object]) -> dict:
@@ -297,6 +317,167 @@ def test_empty_required_evaluation_table_fails_closed(tmp_path: Path):
     ic = result["tables"]["ic.csv"]
     assert ic["candidate"]["error"] == "table has no data rows"
     assert ic["semantic_equal"] is False
+
+
+def test_empty_labels_table_fails_closed(tmp_path: Path):
+    baseline = tmp_path / "baseline"
+    candidate = tmp_path / "candidate"
+    _write_run(baseline)
+    _write_run(candidate)
+    candidate_evaluation = next((candidate / "evaluation").iterdir())
+    label_fields = (
+        _COMPARATOR.TABLE_CONTRACTS["labels.csv"][0]
+        + _COMPARATOR.TABLE_CONTRACTS["labels.csv"][1]
+    )
+    _write_csv(candidate_evaluation / "labels.csv", label_fields, ())
+
+    result = _COMPARATOR.compare_runs(baseline, candidate)
+
+    labels = result["tables"]["labels.csv"]
+    assert labels["candidate"]["error"] == "table has no data rows"
+    assert labels["semantic_equal"] is False
+
+
+def test_manifest_declared_single_factor_empty_tables_are_accepted(tmp_path: Path):
+    options = {
+        "factor_order": ("close_ma",),
+        "empty_tables": ("correlation", "comparisons"),
+        "spec_combinations": {},
+        "spec_comparisons": {},
+    }
+    baseline = tmp_path / "baseline"
+    candidate = tmp_path / "candidate"
+    _write_run(baseline, **options)
+    _write_run(candidate, **options)
+
+    result = _COMPARATOR.compare_runs(baseline, candidate)
+
+    for name in ("correlation.csv", "comparisons.csv"):
+        table = result["tables"][name]
+        assert table["baseline"]["row_count"] == 0
+        assert table["candidate"]["row_count"] == 0
+        assert table["baseline"]["error"] is None
+        assert table["candidate"]["error"] is None
+        assert table["semantic_equal"] is True
+    assert result["strict_equal"] is True
+    assert result["status"] == "IDENTICAL"
+
+
+def test_empty_correlation_is_rejected_for_two_factor_panel(tmp_path: Path):
+    options = {
+        "factor_order": ("close_ma", "kdj_j"),
+        "empty_tables": ("correlation",),
+        "spec_combinations": {},
+    }
+    baseline = tmp_path / "baseline"
+    candidate = tmp_path / "candidate"
+    _write_run(baseline, **options)
+    _write_run(candidate, **options)
+
+    result = _COMPARATOR.compare_runs(baseline, candidate)
+
+    correlation = result["tables"]["correlation.csv"]
+    assert correlation["candidate"]["error"] == "table has no data rows"
+    assert correlation["semantic_equal"] is False
+    assert result["strict_equal"] is False
+
+
+def test_empty_comparisons_are_rejected_when_spec_still_requests_comparisons(
+    tmp_path: Path,
+):
+    baseline = tmp_path / "baseline"
+    candidate = tmp_path / "candidate"
+    _write_run(baseline)
+    _write_run(
+        candidate,
+        empty_tables=("comparisons",),
+        spec_comparisons={"ma_vs_equal_weight": {}},
+    )
+
+    result = _COMPARATOR.compare_runs(baseline, candidate)
+
+    comparisons = result["tables"]["comparisons.csv"]
+    assert comparisons["candidate"]["error"] == "table has no data rows"
+    assert comparisons["semantic_equal"] is False
+    assert result["strict_equal"] is False
+
+
+def test_one_sided_empty_table_is_rejected_when_manifest_claims_rows(tmp_path: Path):
+    options = {
+        "factor_order": ("close_ma",),
+        "empty_tables": ("correlation", "comparisons"),
+        "spec_combinations": {},
+        "spec_comparisons": {},
+    }
+    baseline = tmp_path / "baseline"
+    candidate = tmp_path / "candidate"
+    _write_run(baseline, **options)
+    _write_run(candidate, **options, manifest_row_overrides={"correlation": 1})
+
+    result = _COMPARATOR.compare_runs(baseline, candidate)
+
+    correlation = result["tables"]["correlation.csv"]
+    assert correlation["baseline"]["error"] is None
+    assert correlation["candidate"]["row_count"] == 0
+    assert correlation["candidate"]["error"] == "table has no data rows"
+    assert correlation["semantic_equal"] is False
+
+
+def test_empty_correlation_requires_spec_and_count_metadata(tmp_path: Path):
+    for missing in ("spec", "counts"):
+        case = tmp_path / missing
+        baseline = case / "baseline"
+        candidate = case / "candidate"
+        options = {
+            "factor_order": ("close_ma",),
+            "empty_tables": ("correlation", "comparisons"),
+            "spec_combinations": {},
+            "spec_comparisons": {},
+        }
+        _write_run(baseline, **options)
+        _write_run(candidate, **options)
+        manifest_path = next((candidate / "evaluation").iterdir()) / "manifest.json"
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        if missing == "spec":
+            manifest.pop("spec")
+        else:
+            manifest["counts"].pop("combinations")
+        manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+
+        result = _COMPARATOR.compare_runs(baseline, candidate)
+
+        correlation = result["tables"]["correlation.csv"]
+        assert correlation["candidate"]["error"] == "table has no data rows"
+        assert correlation["semantic_equal"] is False
+
+
+def test_empty_approved_table_still_requires_exact_csv_columns(tmp_path: Path):
+    options = {
+        "factor_order": ("close_ma",),
+        "empty_tables": ("correlation", "comparisons"),
+        "spec_combinations": {},
+        "spec_comparisons": {},
+    }
+    baseline = tmp_path / "baseline"
+    candidate = tmp_path / "candidate"
+    _write_run(baseline, **options)
+    _write_run(candidate, **options)
+    candidate_evaluation = next((candidate / "evaluation").iterdir())
+    correlation_fields = (
+        _COMPARATOR.TABLE_CONTRACTS["correlation.csv"][0]
+        + _COMPARATOR.TABLE_CONTRACTS["correlation.csv"][1]
+    )
+    _write_csv(
+        candidate_evaluation / "correlation.csv",
+        correlation_fields[:-1],
+        (),
+    )
+
+    result = _COMPARATOR.compare_runs(baseline, candidate)
+
+    correlation = result["tables"]["correlation.csv"]
+    assert correlation["candidate"]["error"] == "CSV columns differ from required schema"
+    assert correlation["semantic_equal"] is False
 
 
 def test_partial_evaluation_status_is_not_acceptable(tmp_path: Path):
