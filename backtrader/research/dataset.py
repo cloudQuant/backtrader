@@ -8,14 +8,13 @@ when a dataset is constructed, loaded, or evaluated.
 from __future__ import annotations
 
 import copy
-import sys
 from collections.abc import Mapping
 from datetime import date, datetime, timezone
 from typing import Any, Dict, Optional, Tuple
 
-from ..errors import DatasetError, DependencyError
+from ..errors import DatasetError
+from .specs import require_research_runtime
 
-_REQUIRED_PYTHON = (3, 11)
 _AVAILABILITY_COLUMNS = ("ready", "valid", "reason")
 _CLASSIFICATION_LEVELS = frozenset(("sector", "industry", "subindustry"))
 _AVAILABILITY_REASONS = frozenset(
@@ -43,27 +42,6 @@ _UNREADY_OUTPUT_REASONS = frozenset(
         "INCOMPLETE_WINDOW",
     )
 )
-
-
-def _require_runtime() -> None:
-    if sys.version_info < _REQUIRED_PYTHON:
-        raise DependencyError(
-            "factor research requires Python 3.11 or newer; found %s.%s"
-            % (sys.version_info[0], sys.version_info[1]),
-            code="DEPENDENCY_UNAVAILABLE",
-        )
-
-
-def _pandas() -> Any:
-    _require_runtime()
-    try:
-        import pandas as pd
-    except ImportError as exc:
-        raise DependencyError(
-            "factor research requires the installed pandas dependency",
-            code="DEPENDENCY_UNAVAILABLE",
-        ) from exc
-    return pd
 
 
 def _dataset_error(
@@ -254,7 +232,7 @@ class ResearchDataset(object):
         targets: Optional[Tuple[str, ...]] = None,
         metadata: Optional[Mapping] = None,
     ) -> None:
-        pd = _pandas()
+        pd = require_research_runtime()
         self._grid = self._validate_grid(grid, pd)
 
         if research_spec is not None:
@@ -979,7 +957,7 @@ class ResearchDataset(object):
 
     @property
     def availability(self) -> Any:
-        return _frame_copy(self._availability, "availability", _pandas())
+        return _frame_copy(self._availability, "availability", require_research_runtime())
 
     @property
     def prices(self) -> Dict[str, Any]:
@@ -1000,14 +978,14 @@ class ResearchDataset(object):
     @property
     def formula_inputs(self) -> Dict[str, Any]:
         return {
-            name: _frame_copy(frame, "formula_inputs.%s" % name, _pandas())
+            name: _frame_copy(frame, "formula_inputs.%s" % name, require_research_runtime())
             for name, frame in self._formula_inputs.items()
         }
 
     @property
     def classifications(self) -> Dict[str, Any]:
         return {
-            name: _frame_copy(frame, "classifications.%s" % name, _pandas())
+            name: _frame_copy(frame, "classifications.%s" % name, require_research_runtime())
             for name, frame in self._classifications.items()
         }
 
@@ -1016,7 +994,9 @@ class ResearchDataset(object):
         return (
             None
             if self._precomputed_returns is None
-            else _frame_copy(self._precomputed_returns, "precomputed_returns", _pandas())
+            else _frame_copy(
+                self._precomputed_returns, "precomputed_returns", require_research_runtime()
+            )
         )
 
     @property
@@ -1036,28 +1016,4 @@ class ResearchDataset(object):
         return evaluate_dataset(self, spec, **kwargs)
 
 
-def collect_dataset(
-    research: Any,
-    raw_factors: Any,
-    availability: Any,
-    *,
-    prices: Optional[Mapping] = None,
-    formula_inputs: Optional[Mapping] = None,
-    classifications: Optional[Mapping] = None,
-    precomputed_returns: Any = None,
-    provenance: Optional[Mapping] = None,
-) -> ResearchDataset:
-    """Named convenience wrapper used by FactorStrategy after successful run."""
-    return ResearchDataset.from_collection(
-        research=research,
-        raw_factors=raw_factors,
-        availability=availability,
-        prices=prices,
-        formula_inputs=formula_inputs,
-        classifications=classifications,
-        precomputed_returns=precomputed_returns,
-        provenance=provenance,
-    )
-
-
-__all__ = ("ResearchDataset", "collect_dataset")
+__all__ = ("ResearchDataset",)

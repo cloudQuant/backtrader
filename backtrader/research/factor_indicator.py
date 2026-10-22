@@ -116,15 +116,14 @@ class FactorIndicator(Indicator):
         asset_names = tuple(self._factor_runtime.get("asset_names", ()))
         if asset_names and len(asset_names) != len(output_datas):
             raise RuntimeError("factor asset names do not match its output lines")
-        self._factor_asset_names = asset_names
         self._factor_call_times: List[datetime] = []
         self._factor_grid: Optional[Tuple[datetime, ...]] = None
         self._factor_value_states: Dict[Tuple[datetime, int, str], Dict[str, Any]] = {}
         self._field_line_cache: Dict[str, Tuple[Any, ...]] = {}
         self._class_line_cache: Dict[str, Tuple[Any, ...]] = {}
-        self._factor_input_metadata: Dict[
-            Tuple[int, str, bool], Dict[datetime, Dict[str, Any]]
-        ] = {}
+        self._factor_input_metadata: Dict[Tuple[int, str, bool], Dict[datetime, Dict[str, Any]]] = (
+            {}
+        )
         self._formula_member_lines: Optional[Tuple[Any, ...]] = None
 
         factor_name = self._factor_runtime.get("factor_name")
@@ -253,7 +252,6 @@ class FactorIndicator(Indicator):
             "field_bindings": dict(field_bindings),
             "classification_bindings": dict(classification_bindings),
             "research": research,
-            "output_data_ids": tuple(id(data) for data in targets),
             "available_datas": input_datas,
         }
         context = None
@@ -796,13 +794,6 @@ class FactorIndicator(Indicator):
             if len(pieces) != 3 or not pieces[1] or not pieces[2]:
                 raise ResearchConfigError("feed bindings must use feed:<name>:<line>")
             feed_name, line_name = pieces[1], pieces[2]
-            if feed_name == "target":
-                try:
-                    return tuple(getattr(data, line_name) for data in self._factor_target_datas)
-                except AttributeError as exc:
-                    raise ResearchConfigError(
-                        "target feed is missing a required formula line"
-                    ) from exc
             if feed_name == "target":
                 try:
                     return tuple(getattr(data, line_name) for data in self._factor_target_datas)

@@ -1,0 +1,52 @@
+[
+  {
+    "name": "source-supplement-origin",
+    "command": [
+      "/Users/yunjinqi/opt/anaconda3/bin/python",
+      "-c",
+      "import backtrader; print(backtrader.__file__)"
+    ],
+    "exit_code": 0,
+    "elapsed_seconds": 3.461143125023227
+  },
+  {
+    "name": "source-supplement-collection",
+    "command": [
+      "/Users/yunjinqi/opt/anaconda3/bin/python",
+      "-m",
+      "pytest",
+      "-p",
+      "xdist.plugin",
+      "-p",
+      "no:cacheprovider",
+      "tests/unit/test_factor_field_metadata.py",
+      "tests/unit/test_factor_identity_binding.py",
+      "--collect-only",
+      "-q"
+    ],
+    "exit_code": 0,
+    "elapsed_seconds": 2.67464599997038
+  },
+  {
+    "name": "source-supplement-regression",
+    "command": [
+      "/Users/yunjinqi/opt/anaconda3/bin/python",
+      "-m",
+      "pytest",
+      "-p",
+      "xdist.plugin",
+      "-p",
+      "no:cacheprovider",
+      "tests/unit/test_factor_field_metadata.py",
+      "tests/unit/test_factor_identity_binding.py",
+      "-n",
+      "6",
+      "--dist=worksteal",
+      "-q",
+      "--tb=short",
+      "--junitxml=/Users/yunjinqi/Documents/new_projects/backtrader/docs/_internal/opts/requirements/\u8fed\u4ee346-Alpha101\u539f\u751f\u56e0\u5b50\u5b9e\u73b0/evidence/iteration46-native-wrapper-cleanup-20261022/source-supplement-regression.xml"
+    ],
+    "exit_code": 0,
+    "elapsed_seconds": 5.7764123330125585
+  }
+]

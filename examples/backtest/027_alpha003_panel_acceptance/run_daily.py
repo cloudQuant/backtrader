@@ -366,7 +366,7 @@ def _params(root: Path) -> Dict[str, Any]:
     indicator = get_alpha(3)
     return {
         "factor": FACTOR_NAME,
-        "formula": indicator.formula_identity.expression,
+        "formula": indicator.formula,
         "alpha_id": 3,
         "indicator": indicator.__module__ + "." + indicator.__qualname__,
         "operator_profile": indicator.operator_profile,

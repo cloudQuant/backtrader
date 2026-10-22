@@ -13,29 +13,12 @@ import tempfile
 from pathlib import Path, PurePosixPath
 from typing import Any, Dict, List, Mapping, Sequence, Tuple
 
-from ..errors import DatasetError, DependencyError
+from ..errors import DatasetError
+from .specs import require_research_runtime
 
 SCHEMA_VERSION = 1
 _MISSING = ""
 _TABLE_KINDS = frozenset(("bool", "datetime", "float", "int", "json", "text"))
-
-
-def _pandas() -> Any:
-    import sys
-
-    if sys.version_info < (3, 11):
-        raise DependencyError(
-            "factor research storage requires Python 3.11 or newer",
-            code="DEPENDENCY_UNAVAILABLE",
-        )
-    try:
-        import pandas as pd
-    except ImportError as exc:
-        raise DependencyError(
-            "factor research storage requires pandas",
-            code="DEPENDENCY_UNAVAILABLE",
-        ) from exc
-    return pd
 
 
 def _fail(message: str) -> DatasetError:
@@ -206,7 +189,7 @@ def _encode(value: Any, kind: str, pd: Any) -> str:
 
 
 def _table_bytes(frame: Any) -> Tuple[bytes, Dict[str, Any]]:
-    pd = _pandas()
+    pd = require_research_runtime()
     if not isinstance(frame, pd.DataFrame):
         raise _fail("only DataFrames can be serialized as dataset tables")
     if frame.index.has_duplicates:
@@ -292,7 +275,7 @@ def _payloads_and_descriptors(
 ) -> Tuple[Dict[str, Tuple[str, bytes]], Dict[str, Dict[str, Any]]]:
     payloads = {}
     descriptors = {}
-    pd = _pandas()
+    pd = require_research_runtime()
     for logical_name, (relative_path, frame) in sorted(_table_specs(dataset).items()):
         payload, schema = _table_bytes(frame)
         rows = len(frame)
@@ -326,7 +309,7 @@ def compute_dataset_id(dataset: Any) -> str:
 
 def save_dataset(dataset: Any, path: Any) -> Path:
     """Persist a complete dataset atomically, refusing to replace any path."""
-    _pandas()
+    require_research_runtime()
     target = Path(path).expanduser().absolute()
     if target.exists():
         raise _fail("refusing to overwrite an existing dataset path")
@@ -415,7 +398,7 @@ def _decode(value: str, kind: str, pd: Any) -> Any:
 
 
 def _read_table(root: Path, logical_name: str, descriptor: Mapping[str, Any]) -> Any:
-    pd = _pandas()
+    pd = require_research_runtime()
     if not isinstance(descriptor, Mapping) or set(descriptor) != {
         "file",
         "rows",
@@ -597,7 +580,7 @@ def _read_table(root: Path, logical_name: str, descriptor: Mapping[str, Any]) ->
 
 def load_dataset(path: Any) -> Any:
     """Load and fully validate a complete dataset; never unpickle or import code."""
-    _pandas()
+    require_research_runtime()
     from .dataset import ResearchDataset
 
     root = Path(path).expanduser().absolute()

@@ -1117,13 +1117,31 @@ def _assert_matrix(actual, expected, names, *, label):
 
 
 def _node_matrix(factor, name, asset_count):
-    node = factor._nodes.get(name)
-    if node is not None and hasattr(node, "outputs"):
-        return [list(node.outputs[data].value.array) for data in factor.datas]
-    return [
-        list(factor._nodes["%s_%d" % (name, index)].lines.value.array)
-        for index in range(asset_count)
-    ]
+    datas = tuple(factor.datas)
+    if len(datas) != asset_count:
+        raise AssertionError("factor output feeds do not match the requested asset count")
+    values_by_data = {}
+
+    def collect(instance):
+        groups = getattr(instance, "group_instances", None)
+        if groups is not None:
+            for child in groups.values():
+                collect(child)
+            return
+
+        nodes = getattr(instance, "_nodes", {})
+        node = nodes.get(name)
+        if node is not None and hasattr(node, "outputs"):
+            for data in instance.datas:
+                values_by_data[id(data)] = list(node.outputs[data].value.array)
+            return
+
+        for index, data in enumerate(instance.datas):
+            node = nodes["%s_%d" % (name, index)]
+            values_by_data[id(data)] = list(node.lines.value.array)
+
+    collect(factor)
+    return [values_by_data[id(data)] for data in datas]
 
 
 @pytest.mark.parametrize("runonce", (False, True))

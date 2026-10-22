@@ -7,8 +7,6 @@ from ..factor_indicator import FactorIndicator
 from ._metadata import (
     DEFAULT_FORMULA_UNIVERSE_POLICY,
     DEFAULT_PIT_POLICY,
-    FormulaIdentity,
-    ImplementationIdentity,
     native_alpha,
 )
 from .alpha001 import Alpha001Native
@@ -342,8 +340,6 @@ __all__ = (
     "Alpha101Native",
     "DEFAULT_FORMULA_UNIVERSE_POLICY",
     "DEFAULT_PIT_POLICY",
-    "FormulaIdentity",
-    "ImplementationIdentity",
     "get_alpha",
     "list_alphas",
     "native_alpha",

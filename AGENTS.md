@@ -433,7 +433,9 @@ subclassing `FactorIndicator` with ordinary `__init__` and `next` methods.
 `get_alpha(id)` and `list_alphas()` expose the immutable production registry.
 Small package-local helpers only construct native child indicators and retain
 their references for intermediate-value diagnostics; they do not schedule
-calculations. Metadata is frozen separately in `alpha101/_metadata.py`.
+calculations. `alpha101/_metadata.py` validates and normalizes the class
+declarations; the duplicate formula/implementation identity objects are removed.
+FactorSpec retains the immutable run configuration and source fingerprints.
 Tests exercise the production formula classes against independent scalar/matrix
 references; the duplicate diagnostic factor implementations have been removed.
 The static paper catalog is a test asset at

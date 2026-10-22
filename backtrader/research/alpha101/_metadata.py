@@ -1,7 +1,6 @@
-"""Metadata identities for native Alpha101 implementations."""
+"""Declaration validation for native Alpha101 implementations."""
 
-from dataclasses import dataclass
-from typing import Tuple, Type, TypeVar, cast
+from typing import Tuple, Type, TypeVar
 
 from ..factor_indicator import FactorIndicator
 
@@ -12,30 +11,6 @@ DEFAULT_PIT_POLICY = (
     "ResearchSpec.close_time; causal prealigned inputs; classification availability enforced"
 )
 DEFAULT_OPERATOR_PROFILE = "alpha101-v1"
-IMPLEMENTATION_VERSION = "alpha101-native-v1"
-
-
-@dataclass(frozen=True)
-class FormulaIdentity:
-    """Immutable identity for the equation and its declared data contract."""
-
-    alpha_id: int
-    expression: str
-    lookback_h: int
-    operator_profile: str
-    formula_fields: Tuple[str, ...]
-    classification_fields: Tuple[str, ...]
-    classification_levels: Tuple[str, ...]
-    formula_universe_policy: str
-    pit_policy: str
-
-
-@dataclass(frozen=True)
-class ImplementationIdentity:
-    """Immutable identity for a particular native implementation revision."""
-
-    implementation_id: str
-    version: str
 
 
 _FactorClass = TypeVar("_FactorClass", bound=Type[FactorIndicator])
@@ -51,7 +26,7 @@ def _field_tuple(value, label: str) -> Tuple[str, ...]:
 
 
 def native_alpha(cls: _FactorClass) -> _FactorClass:
-    """Bind immutable formula/implementation metadata to a native factor class."""
+    """Validate and canonicalize metadata declared on a native factor class."""
     if not isinstance(cls, type):
         raise TypeError("native_alpha decorates a factor class")
     if not issubclass(cls, FactorIndicator):
@@ -96,40 +71,11 @@ def native_alpha(cls: _FactorClass) -> _FactorClass:
     setattr(cls, "classification_levels", classification_levels)
     setattr(cls, "formula_universe_policy", formula_universe_policy)
     setattr(cls, "pit_policy", pit_policy)
-    setattr(
-        cls,
-        "formula_identity",
-        FormulaIdentity(
-            alpha_id=alpha_id,
-            expression=expression,
-            lookback_h=lookback_h,
-            operator_profile=profile,
-            formula_fields=formula_fields,
-            classification_fields=classification_fields,
-            classification_levels=classification_levels,
-            formula_universe_policy=formula_universe_policy,
-            pit_policy=pit_policy,
-        ),
-    )
-
-    implementation_id = "native:%03d:v1" % alpha_id
-    setattr(cls, "implementation_id", implementation_id)
-    setattr(cls, "implementation_version", IMPLEMENTATION_VERSION)
-    setattr(
-        cls,
-        "implementation_identity",
-        ImplementationIdentity(
-            implementation_id=implementation_id,
-            version=IMPLEMENTATION_VERSION,
-        ),
-    )
-    return cast(_FactorClass, cls)
+    return cls
 
 
 __all__ = (
     "DEFAULT_FORMULA_UNIVERSE_POLICY",
     "DEFAULT_PIT_POLICY",
-    "FormulaIdentity",
-    "ImplementationIdentity",
     "native_alpha",
 )

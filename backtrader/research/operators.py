@@ -480,10 +480,6 @@ class _OperatorIndicator(Indicator):
     def _evaluate(self) -> Tuple[float, OperatorReason]:
         raise NotImplementedError
 
-    def _set_minperiod(self, period: int) -> None:
-        self._period = period
-        self.addminperiod(period)
-
 
 class _Unary(_OperatorIndicator):
     """Base for pointwise unary operations."""
@@ -1198,29 +1194,15 @@ class IndNeutralize(_PanelOperator):
         self._write_panel(results, reasons)
 
 
-# Compact compatibility spellings used in formula implementations.
-Rank = CrossSectionalRank
-Scale = CrossSectionalScale
-RollingStdDev = RollingStd
-Corr = RollingCorrelation
-Cov = RollingCovariance
-ElementwiseMin = Minimum
-ElementwiseMax = Maximum
-
-
 __all__ = (
     "Add",
     "Abs",
-    "Corr",
-    "Cov",
     "CrossSectionalRank",
     "CrossSectionalScale",
     "DecayLinear",
     "Delay",
     "Delta",
     "Divide",
-    "ElementwiseMax",
-    "ElementwiseMin",
     "EqualTo",
     "GreaterEqual",
     "GreaterThan",
@@ -1239,16 +1221,13 @@ __all__ = (
     "OperatorInputError",
     "OperatorReason",
     "Power",
-    "Rank",
     "REASON_NAMES",
     "RollingCorrelation",
     "RollingCovariance",
     "RollingMean",
     "RollingProduct",
     "RollingStd",
-    "RollingStdDev",
     "RollingSum",
-    "Scale",
     "Sign",
     "SignedPower",
     "Sqrt",

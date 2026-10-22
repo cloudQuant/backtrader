@@ -20,7 +20,7 @@ from .factor_report import write_factor_report
 from .factor_strategy import FactorStrategy
 from .inputs import AlignedBars, AlignedPITInput, prealign_bars, prealign_pit_table
 from .specs import FactorSpec, ResearchSpec
-from .storage import load_dataset, save_dataset
+from .storage import load_dataset
 from .fincore_adapter import evaluate_dataset
 
 ConfigError = ResearchConfigError
@@ -45,6 +45,5 @@ __all__ = (
     "load_dataset",
     "prealign_bars",
     "prealign_pit_table",
-    "save_dataset",
     "write_factor_report",
 )

@@ -1,0 +1,37 @@
+{
+  "status": "PASS",
+  "baseline": "37d3fcabe81df459a3b7eb4d72df5d793ed14016",
+  "candidate_tree": "15bb4a75340c423861dc30f2dfc58e5946efef5c",
+  "source_passed": 376,
+  "source_failures": 0,
+  "source_errors": 0,
+  "source_skipped": 0,
+  "source_exact_unique_ids": true,
+  "installed_l0_passed": 3,
+  "installed_research_payload_count": 116,
+  "initial_restored_focus_passed": 95,
+  "initial_focus_not_added_to_unique_count": true,
+  "rejected_substitution": {
+    "status": "REJECTED_SUBSTITUTION",
+    "replacement": "_FeedInputLine -> LineDelay(0)",
+    "passed": 16,
+    "failed": 1,
+    "failures": [
+      {
+        "classname": "tests.unit.test_factor_research_binding_clock",
+        "name": "test_named_benchmark_binding_preserves_targets_gaps_recovery_and_feed_order[True]",
+        "message": "assert nan == 88.0 ± 8.8e-05\n  \n  comparison failed\n  Obtained: nan\n  Expected: 88.0 ± 8.8e-05"
+      }
+    ],
+    "final_source_adapter_restored": true
+  },
+  "source_path_preflight_r0": "HARNESS_ERROR_BEFORE_TEST_COLLECTION; macOS /var canonicalization fixed",
+  "dependency_probe_scope": "research package after parent import; parent pyfolio requires pandas",
+  "not_run": [
+    "full101 numerical matrix",
+    "full installed fincore matrix",
+    "pinned fincore integration",
+    "real A-stock full market",
+    "full core strategy suite"
+  ]
+}

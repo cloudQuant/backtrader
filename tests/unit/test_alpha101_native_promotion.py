@@ -1,6 +1,5 @@
 """Contracts for promotion of the twenty accepted Alpha101 recipes."""
 
-from dataclasses import FrozenInstanceError
 import math
 
 import pytest
@@ -28,8 +27,7 @@ from backtrader.research.alpha101 import (
     Alpha100Native,
     Alpha101Native,
     DEFAULT_FORMULA_UNIVERSE_POLICY,
-    FormulaIdentity,
-    ImplementationIdentity,
+    DEFAULT_PIT_POLICY,
     get_alpha,
     list_alphas,
     native_alpha,
@@ -68,11 +66,10 @@ _PROMOTED = {
 }
 
 
-def test_metadata_decorator_is_immutable_and_has_no_registry_side_effect():
+def test_metadata_decorator_canonicalizes_class_attrs_without_registry_side_effect():
     before = list_alphas()
     before_registry = tuple(ALPHA_REGISTRY.items())
 
-    @native_alpha
     class UnregisteredAlpha077(FactorIndicator):
         lines = ("factor",)
         alpha_id = 77
@@ -85,30 +82,22 @@ def test_metadata_decorator_is_immutable_and_has_no_registry_side_effect():
         def next(self):
             pass
 
+    decorated = native_alpha(UnregisteredAlpha077)
     assert list_alphas() == before
     assert tuple(ALPHA_REGISTRY.items()) == before_registry
-    assert UnregisteredAlpha077.formula_identity == FormulaIdentity(
-        alpha_id=77,
-        expression="rank(close)",
-        lookback_h=0,
-        operator_profile="alpha101-v1",
-        formula_fields=("close",),
-        classification_fields=(),
-        classification_levels=(),
-        formula_universe_policy=DEFAULT_FORMULA_UNIVERSE_POLICY,
-        pit_policy=UnregisteredAlpha077.pit_policy,
-    )
-    assert UnregisteredAlpha077.implementation_identity == ImplementationIdentity(
-        implementation_id="native:077:v1",
-        version="alpha101-native-v1",
-    )
-    assert UnregisteredAlpha077.implementation_id == "native:077:v1"
-    assert UnregisteredAlpha077.implementation_version == "alpha101-native-v1"
-    with pytest.raises(FrozenInstanceError):
-        UnregisteredAlpha077.formula_identity.lookback_h = 99
+    assert decorated is UnregisteredAlpha077
+    assert UnregisteredAlpha077.alpha_id == 77
+    assert UnregisteredAlpha077.formula == "rank(close)"
+    assert UnregisteredAlpha077.lookback_h == 0
+    assert UnregisteredAlpha077.operator_profile == "alpha101-v1"
+    assert UnregisteredAlpha077.formula_fields == ("close",)
+    assert UnregisteredAlpha077.classification_fields == ()
+    assert UnregisteredAlpha077.classification_levels == ()
+    assert UnregisteredAlpha077.formula_universe_policy == DEFAULT_FORMULA_UNIVERSE_POLICY
+    assert UnregisteredAlpha077.pit_policy == DEFAULT_PIT_POLICY
 
 
-def test_promotion_registry_and_identities_match_the_twenty_reviewed_recipes():
+def test_promotion_registry_and_declarations_match_the_twenty_reviewed_recipes():
     assert set(_PROMOTED).issubset(list_alphas())
     assert set(_PROMOTED).issubset(ALPHA_REGISTRY)
 
@@ -119,8 +108,6 @@ def test_promotion_registry_and_identities_match_the_twenty_reviewed_recipes():
             call["level"] for call in source_metadata["classification_requirements"]["calls"]
         )
         expected_classification_fields = tuple(dict.fromkeys(expected_classification_levels))
-        identity = native_class.formula_identity
-        implementation = native_class.implementation_identity
 
         assert get_alpha(alpha_id) is native_class
         assert issubclass(native_class, FactorIndicator)
@@ -134,31 +121,21 @@ def test_promotion_registry_and_identities_match_the_twenty_reviewed_recipes():
         assert native_class.__dict__["formula_fields"] == _FORMULA_FIELDS[alpha_id]
         assert "classification_fields" in native_class.__dict__
         assert "classification_levels" in native_class.__dict__
-        assert native_class.formula == identity.expression == expected_formula
-        assert native_class.lookback_h == identity.lookback_h == _HISTORY[alpha_id]
-        assert native_class.operator_profile == identity.operator_profile
-        assert native_class.formula_fields == identity.formula_fields == _FORMULA_FIELDS[alpha_id]
-        assert (
-            native_class.classification_fields
-            == identity.classification_fields
-            == expected_classification_fields
-        )
-        assert (
-            native_class.classification_levels
-            == identity.classification_levels
-            == expected_classification_levels
-        )
-        assert native_class.implementation_id == implementation.implementation_id
-        assert native_class.implementation_id == "native:%03d:v1" % alpha_id
-        assert native_class.implementation_version == implementation.version
-        assert implementation.version == "alpha101-native-v1"
+        assert native_class.formula == expected_formula
+        assert native_class.lookback_h == _HISTORY[alpha_id]
+        assert native_class.operator_profile == "alpha101-v1"
+        assert native_class.formula_fields == _FORMULA_FIELDS[alpha_id]
+        assert native_class.required_fields == _FORMULA_FIELDS[alpha_id]
+        assert native_class.classification_fields == expected_classification_fields
+        assert native_class.classification_levels == expected_classification_levels
+        assert native_class.pit_policy == DEFAULT_PIT_POLICY
 
     assert (
-        Alpha009Native.formula_identity.formula_universe_policy
+        Alpha009Native.formula_universe_policy
         == "per-target close history; output eligibility from ResearchSpec.formula_universe"
     )
     assert (
-        Alpha101Native.formula_identity.formula_universe_policy
+        Alpha101Native.formula_universe_policy
         == "per-target pointwise evaluation; output eligibility from ResearchSpec.formula_universe"
     )
 

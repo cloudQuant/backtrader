@@ -844,3 +844,8 @@ docs/_internal/opts/requirements/迭代46-Alpha101原生因子实现/evidence/it
 docs/_internal/opts/requirements/迭代46-Alpha101原生因子实现/evidence/iteration46-real-daily-alpha003-20261022/interrupted-run-state.json -text
 docs/_internal/opts/requirements/迭代46-Alpha101原生因子实现/evidence/iteration46-real-daily-alpha003-20261022/interrupted-run-summary.json -text
 docs/_internal/opts/requirements/迭代46-Alpha101原生因子实现/evidence/iteration46-real-daily-alpha003-20261022/handoff-status.json -text
+
+# Preserve raw research-cleanup receipts, including pytest's whitespace in diagnostics.
+docs/_internal/opts/requirements/迭代46-Alpha101原生因子实现/evidence/iteration46-native-wrapper-cleanup-20261022/** -text
+docs/_internal/opts/requirements/迭代46-Alpha101原生因子实现/evidence/iteration46-native-wrapper-cleanup-20261022/*.xml -whitespace
+docs/_internal/opts/requirements/迭代46-Alpha101原生因子实现/evidence/iteration46-native-wrapper-cleanup-20261022/*.txt -whitespace

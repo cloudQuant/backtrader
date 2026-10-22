@@ -612,7 +612,6 @@ class ResearchSpec:
         normalized_universe = self._normalize_bool_index(
             universe,
             study_keys,
-            default=universe_defaulted,
             pd=pd,
             field_name="universe",
         )
@@ -620,7 +619,6 @@ class ResearchSpec:
         normalized_formula = self._normalize_bool_index(
             formula_universe,
             formula_keys,
-            default=formula_defaulted,
             pd=pd,
             field_name="formula_universe",
         )
@@ -667,7 +665,6 @@ class ResearchSpec:
         value: Any,
         expected_index: Any,
         *,
-        default: bool,
         pd: Any,
         field_name: str,
     ) -> Any:
@@ -748,12 +745,6 @@ class ResearchSpec:
         return self._grid.loc[self._grid.index <= self.end].copy(deep=True)
 
     @property
-    def research_grid(self) -> Any:
-        return self._grid.loc[
-            (self._grid.index >= self.start) & (self._grid.index <= self.end)
-        ].copy(deep=True)
-
-    @property
     def grid_sha256(self) -> str:
         rows = [
             (close_time.isoformat(), open_time.isoformat())
@@ -761,25 +752,6 @@ class ResearchSpec:
         ]
         payload = json.dumps(rows, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
         return hashlib.sha256(payload).hexdigest()
-
-    def to_metadata(self) -> Dict[str, Any]:
-        return {
-            "start": self.start.isoformat(),
-            "end": self.end.isoformat(),
-            "targets": self.targets,
-            "groups": dict(self._groups),
-            "source_timezone": self.source_timezone,
-            "snapshot_id": self.snapshot_id,
-            "price_basis": self.price_basis,
-            "calendar_id": self.calendar_id,
-            "frequency": self.frequency,
-            "feed_time_kind": self.feed_time_kind,
-            "grid_sha256": self.grid_sha256,
-            "universe_defaulted": self.universe_defaulted,
-            "formula_universe_defaulted": self.formula_universe_defaulted,
-            "formula_fields": tuple(sorted(self._formula_fields)),
-            "classifications": tuple(sorted(self._classifications)),
-        }
 
 
 __all__ = (

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import math
-import re
 import sys
 from collections.abc import Mapping
 from datetime import datetime, timezone
@@ -13,7 +12,13 @@ from .. import Strategy
 from ..utils import num2date
 from ..errors import ResearchConfigError, DatasetError
 from .factor_indicator import FactorIndicator
-from .specs import FactorSpec, ResearchSpec, normalize_factor_specs, thaw
+from .specs import (
+    FactorSpec,
+    ResearchSpec,
+    normalize_factor_specs,
+    require_research_runtime,
+    thaw,
+)
 
 _FEED_ALIGNMENT = "_factor_research_alignment_v1"
 
@@ -33,64 +38,6 @@ class _FactorGroupInstances:
         for instance in self.group_instances.values():
             outputs.update(instance.outputs)
         self.outputs = {data: outputs[data] for data in self.datas}
-        self._nodes = self._merge_nodes()
-
-    def _merge_nodes(self) -> Dict[str, Any]:
-        """Present group-local formula traces in original target order."""
-        per_asset: Dict[str, Any] = {}
-        shared: Dict[str, Dict[Any, Any]] = {}
-        for instance in self.group_instances.values():
-            for name, node in getattr(instance, "_nodes", {}).items():
-                match = re.match(r"^(.*)_([0-9]+)$", name)
-                node_outputs = getattr(node, "outputs", None)
-                if match and isinstance(node_outputs, Mapping) and len(node_outputs) == 1:
-                    local_index = int(match.group(2))
-                    if local_index < len(instance.datas):
-                        data = instance.datas[local_index]
-                        global_index = self.datas.index(data)
-                        per_asset["%s_%d" % (match.group(1), global_index)] = node
-                        continue
-                if isinstance(node_outputs, Mapping):
-                    shared.setdefault(name, {}).update(node_outputs)
-                else:
-                    per_asset[name] = node
-
-        merged = dict(per_asset)
-        for name, node_outputs in shared.items():
-            merged[name] = _MergedFactorNode(self.datas, node_outputs)
-        return merged
-
-    def field_lines(self, alias: str) -> Tuple[Any, ...]:
-        by_data: Dict[int, Any] = {}
-        for instance in self.group_instances.values():
-            for data, line in zip(instance.target_datas, instance.field_lines(alias)):
-                by_data[id(data)] = line
-        return tuple(by_data[id(data)] for data in self.datas)
-
-    def classification_lines(self, alias: str) -> Tuple[Any, ...]:
-        by_data: Dict[int, Any] = {}
-        for instance in self.group_instances.values():
-            for data, line in zip(instance.target_datas, instance.classification_lines(alias)):
-                by_data[id(data)] = line
-        return tuple(by_data[id(data)] for data in self.datas)
-
-    @property
-    def formula_members(self) -> Tuple[Any, ...]:
-        by_data: Dict[int, Any] = {}
-        for instance in self.group_instances.values():
-            for data, line in zip(instance.target_datas, instance.formula_members):
-                by_data[id(data)] = line
-        return tuple(by_data[id(data)] for data in self.datas)
-
-    @property
-    def research_groups(self) -> Tuple[str, ...]:
-        by_data: Dict[int, str] = {}
-        for instance in self.group_instances.values():
-            by_data.update(
-                (id(data), group)
-                for data, group in zip(instance.target_datas, instance.research_groups)
-            )
-        return tuple(by_data[id(data)] for data in self.datas)
 
     @property
     def lifecycle_diagnostics(self) -> Dict[str, Any]:
@@ -106,14 +53,6 @@ class _FactorGroupInstances:
             and all(item["grid_matches"] for item in by_group.values()),
             "group_diagnostics": by_group,
         }
-
-
-class _MergedFactorNode:
-    """Small output-only view over same-named group-local native nodes."""
-
-    def __init__(self, datas: Sequence[Any], outputs: Mapping[Any, Any]) -> None:
-        self.datas = tuple(data for data in datas if data in outputs)
-        self.outputs = {data: outputs[data] for data in self.datas}
 
 
 class FactorStrategy(Strategy):
@@ -152,9 +91,10 @@ class FactorStrategy(Strategy):
             id(data): asset for asset, data in zip(self._research.targets, self._target_datas)
         }
 
-        self._factor_specs = normalize_factor_specs(self.p.factors)
+        self._factor_specs_by_name: Mapping[str, FactorSpec] = normalize_factor_specs(
+            self.p.factors
+        )
         self.factor_instances: Dict[str, Any] = {}
-        self._factor_specs_by_name: Dict[str, FactorSpec] = dict(self._factor_specs)
         self._factor_instances_by_name: Dict[str, Tuple[FactorIndicator, ...]] = {}
         self._factor_instance_by_data: Dict[str, Dict[int, FactorIndicator]] = {}
         for name, spec in self._factor_specs_by_name.items():
@@ -383,7 +323,7 @@ class FactorStrategy(Strategy):
             current_bar = feed_time == current and present
             row = {"time": current, "asset": asset}
             availability_at_point: List[Dict[str, Any]] = []
-            for name, indicator in self.factor_instances.items():
+            for name in self._factor_specs_by_name:
                 spec = self._factor_specs_by_name[name]
                 indicator = self._factor_instance_by_data[name][id(data)]
                 raw_value = (
@@ -574,7 +514,7 @@ class FactorStrategy(Strategy):
             raise RuntimeError("dataset is unavailable before the full grid has run")
         if self._dataset is not None and prices is None and provenance is None:
             return self._dataset
-        pd = self._pandas()
+        pd = require_research_runtime()
         factor_names = tuple(self.factor_instances)
         panel = pd.DataFrame(self._raw_rows, columns=("time", "asset") + factor_names)
         panel = panel.set_index(["time", "asset"])
@@ -671,12 +611,6 @@ class FactorStrategy(Strategy):
         from .fincore_adapter import evaluate_dataset
 
         return evaluate_dataset(self.get_dataset(), spec=spec, **kwargs)
-
-    @staticmethod
-    def _pandas() -> Any:
-        from .specs import require_research_runtime
-
-        return require_research_runtime()
 
 
 __all__ = ("FactorStrategy",)

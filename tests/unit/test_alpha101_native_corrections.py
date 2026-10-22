@@ -14,7 +14,6 @@ from tests.unit.test_factor_research_representatives import _frames, _run_subset
 def test_production_equations_and_independent_history_ledger():
     for alpha_id, factor in ALPHA_REGISTRY.items():
         assert factor.formula == formula_source(alpha_id)
-        assert factor.formula_identity.expression == formula_source(alpha_id)
         assert factor.lookback_h == history_h(alpha_id)
     path = (
         Path(__file__).resolve().parents[2]

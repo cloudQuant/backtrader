@@ -79,7 +79,6 @@ def test_research_spec_keeps_explicit_utc_grid_and_inclusive_ranges() -> None:
     assert spec.start == grid.index[1]
     assert spec.end == grid.index[3]
     assert list(spec.calculation_grid.index) == list(grid.index[:4])
-    assert list(spec.research_grid.index) == list(grid.index[1:4])
     assert len(spec.grid_sha256) == 64
 
 

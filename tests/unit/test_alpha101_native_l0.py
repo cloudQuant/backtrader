@@ -20,6 +20,29 @@ from backtrader.research.factor_strategy import FactorStrategy
 from backtrader.research.inputs import prealign_bars
 from backtrader.research.specs import FactorSpec, ResearchSpec
 
+_EXPECTED_DECLARATIONS = {
+    3: {
+        "case_id": "AF46-003",
+        "formula": "(-1 * correlation(rank(open), rank(volume), 10))",
+        "lookback_h": 9,
+        "formula_fields": ("open", "volume"),
+        "classification_levels": (),
+        "classification_fields": (),
+    },
+    9: {
+        "case_id": "AF46-009",
+        "formula": (
+            "((0 < ts_min(delta(close, 1), 5)) ? delta(close, 1) : "
+            "((ts_max(delta(close, 1), 5) < 0) ? delta(close, 1) : "
+            "(-1 * delta(close, 1))))"
+        ),
+        "lookback_h": 5,
+        "formula_fields": ("close",),
+        "classification_levels": (),
+        "classification_fields": (),
+    },
+}
+
 _OPEN_RANKS = (
     (1, 2, 3),
     (2, 3, 1),
@@ -194,7 +217,7 @@ def _run(frames, *, runonce):
     return cerebro.run()[0]
 
 
-def test_native_registry_is_read_only_and_separates_formula_from_code_identity():
+def test_native_registry_is_read_only_and_matches_independent_declarations():
     assert list_alphas() == tuple(sorted(ALPHA_REGISTRY))
     assert {3, 9}.issubset(ALPHA_REGISTRY)
     assert ALPHA_REGISTRY[3] is Alpha003Native
@@ -209,18 +232,20 @@ def test_native_registry_is_read_only_and_separates_formula_from_code_identity()
         get_alpha(102)
 
     for alpha_id, factor_class in ((3, Alpha003Native), (9, Alpha009Native)):
+        expected = _EXPECTED_DECLARATIONS[alpha_id]
         assert issubclass(factor_class, FactorIndicator)
         assert factor_class.__bases__ == (FactorIndicator,)
-        assert factor_class.alpha_id == factor_class.formula_identity.alpha_id == alpha_id
-        assert factor_class.formula == factor_class.formula_identity.expression
-        assert factor_class.lookback_h == factor_class.formula_identity.lookback_h
-        assert factor_class.operator_profile == factor_class.formula_identity.operator_profile
-        assert factor_class.implementation_identity.implementation_id == (
-            factor_class.implementation_id
-        )
-        assert factor_class.implementation_identity.version == (factor_class.implementation_version)
-        assert factor_class.implementation_version == "alpha101-native-v1"
-        assert factor_class.implementation_id == "native:%03d:v1" % alpha_id
+        assert factor_class.alpha_id == alpha_id
+        assert factor_class.case_id == expected["case_id"]
+        assert "__init__" in factor_class.__dict__
+        assert "next" in factor_class.__dict__
+        assert factor_class.formula == expected["formula"]
+        assert factor_class.lookback_h == expected["lookback_h"]
+        assert factor_class.operator_profile == "alpha101-v1"
+        assert factor_class.formula_fields == expected["formula_fields"]
+        assert factor_class.required_fields == expected["formula_fields"]
+        assert factor_class.classification_levels == expected["classification_levels"]
+        assert factor_class.classification_fields == expected["classification_fields"]
 
 
 @pytest.mark.parametrize("runonce", (False, True))

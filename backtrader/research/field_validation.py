@@ -15,6 +15,7 @@ from collections.abc import Mapping, Sequence
 from typing import Any, Iterable, NoReturn, Optional, Set, Tuple, cast
 
 from ..errors import ResearchConfigError, DatasetError
+from .specs import require_research_runtime
 
 _FEED_ALIGNMENT = "_factor_research_alignment_v1"
 _ADV_NAME = re.compile(r"adv([0-9]+)\Z")
@@ -121,7 +122,7 @@ def collect_bound_feed_tables(
     with those required fields.
     """
 
-    pd = _pandas_runtime()
+    pd = require_research_runtime()
     all_datas = tuple(datas)
     all_targets = tuple(target_datas)
     target_names = tuple(getattr(research, "targets", ()))
@@ -268,14 +269,6 @@ def collect_bound_feed_tables(
         result.attrs = {"source_metadata": metadata}
         output[binding] = result
     return output
-
-
-def _pandas_runtime() -> Any:
-    try:
-        import pandas as pd
-    except ImportError as exc:
-        raise DatasetError("factor formula input collection requires pandas") from exc
-    return pd
 
 
 def _explicit_feed_bindings(specs: Any) -> set:

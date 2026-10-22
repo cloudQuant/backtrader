@@ -1,0 +1,3 @@
+Processing /var/folders/7d/hnmknylj1w91h3cvq6mh3thm0000gn/T/backtrader-alpha101-direct-wheel-c0216prl/dist/back_trader_python-1.4.0-py3-none-any.whl
+Installing collected packages: back-trader-python
+Successfully installed back-trader-python-1.4.0
