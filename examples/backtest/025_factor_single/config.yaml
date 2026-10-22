@@ -1,28 +1,18 @@
-schema_version: iteration45-factor-example-v1
 example_id: 025_factor_single
 
 data:
-  generator_version: synthetic-ohlcv-sha256-v1
-  data_version: synthetic-ohlcv-sha256-v1-seed4510
-  seed: 4510
-  start_date: '2025-01-06'
-  asset_prefix: SYN
-  asset_count: 20
-  warmup_bars: 20
-  research_bars: 260
-  tail_bars: 21
-  calendar_id: synthetic-weekday-v1
-  frequency: 1session
-  source_timezone: UTC
-  open_time_utc: '09:30:00'
-  close_time_utc: '16:00:00'
-  group: synthetic-demo
-  snapshot_id: iteration45-synthetic-ohlcv-sha256-v1-seed4510
-  price_basis: synthetic unadjusted USD-like units; no splits or dividends
+  directory: ../../../tests/datas/a_stocks
+  max_symbols: 500
+  group: all_symbols
+  snapshot_id: a-stocks-daily-2025
+  price_basis: source prices as provided; no adjustment
+  calendar_id: source-observed-daily-v1
+  frequency: 1source_observed_session
+  source_timezone: Asia/Shanghai
+  data_version: a-stocks-daily-2025
 
 factor:
   name: close_ma
-  indicator: CloseMAFactor
   panel_line: factor
   params:
     period: 20
@@ -36,20 +26,5 @@ evaluation:
   min_assets: 10
   min_quantile_assets: 1
   preprocess: cross_section_rank
-  max_loss: 0.35
+  max_loss: 1.0  # real panel: keep every evaluable cell, no artificial loss cap
   stability_lags: [1, 5, 20]
-  segments:
-    development:
-      research_bar_start: 0
-      research_bar_end: 159
-      role: development
-    validation:
-      research_bar_start: 160
-      research_bar_end: 259
-      role: validation
-
-outputs:
-  charts_by_default: true
-  dataset_directory: dataset
-  evaluation_directory: evaluation
-  optional_evaluation_tables: [diagnostics]

@@ -1,5 +1,14 @@
-# Public synthetic example configuration; no account or external data inputs.
+example_id: 027_alpha003_panel_acceptance
 factor: alpha003
 operator_profile: alpha101-v1
-fixture: af45_003_v1
-output_dir: output
+
+data:
+  directory: ../../../tests/datas/a_stocks
+  max_symbols: 500
+  group: all_symbols
+  snapshot_id: a-stocks-daily-2025
+  price_basis: source prices as provided; no adjustment
+  calendar_id: source-observed-daily-v1
+  frequency: 1source_observed_session
+  source_timezone: Asia/Shanghai
+  data_version: a-stocks-daily-2025

@@ -386,7 +386,7 @@ dataset = run_factor_panel(
 
 - [025：单因子 FactorIndicator/FactorStrategy 示例](../../../examples/backtest/025_factor_single/README.md)及其[因子源码](../../../examples/backtest/025_factor_single/close_ma_factor_strategy.py)。
 - [026：多因子采集和离线组合示例](../../../examples/backtest/026_factor_multi/README.md)及其[因子源码](../../../examples/backtest/026_factor_multi/multi_factor_strategy.py)。
-- [027：Alpha003 的同步截面示例](../../../examples/backtest/027_alpha003_panel_acceptance/README.md)及其[指标源码](../../../examples/backtest/027_alpha003_panel_acceptance/alpha003_strategy.py)。该示例是迭代45的独立例子，不是 Alpha003Native 的实现身份或全库验收报告。
+- [027：Alpha003 的真实日线示例](../../../examples/backtest/027_alpha003_panel_acceptance/README.md)及其[入口源码](../../../examples/backtest/027_alpha003_panel_acceptance/run.py)。该示例使用生产库 `get_alpha(3)` 返回的 `Alpha003Native`，不是独立实现或全库验收报告。
 - [迭代45原生因子研究指南](factor-research.md)：统一 API、保存/复评、字段来源和 PIT 语义。
 - [迭代45设计文档](../../_internal/opts/requirements/迭代45-Indicator因子研究与多因子合成/设计文档.md)：`alpha101-v1`、字段血缘、ADV、美元成交额、VWAP 与 PIT 的共享语义。
 - [迭代45代表公式与验收材料](../../_internal/opts/requirements/迭代45-Indicator因子研究与多因子合成/Alpha101代表验收案例.md)：代表公式及其独立参考背景。

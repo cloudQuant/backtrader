@@ -154,4 +154,6 @@ formula_universe 覆盖预热历史并保留当时成员；评价 universe 只�
 
 框架可以处理多种资产，但股票市值和行业字段不适用于所有市场。负价期货、连续合约换月、乘数或资金费相关收益需要有明确定义的预计算标签。公式数值复现不等于复现论文使用的专有数据、收益或交易成本。
 
-正式例子为 `examples/backtest/025_factor_single` 和 `026_factor_multi`；两者使用相同的20资产确定性输入、260个研究 bar、20格预热和21格尾部，并固定前160/后100格分期。它们演示 API 和可复现研究，不证明因子具有投资价值。
+正式例子为 `examples/backtest/025_factor_single` 和 `026_factor_multi`；两者使用 `tests/datas/a_stocks` 的逐股真实日线，默认从 manifest 均匀抽样500只股票，可用 `--max-symbols 0` 使用全部股票，日历取源文件观测到的交易日并集。它们演示 API 和可复现研究，不证明因子具有投资价值。两个入口先完成原生采集并保存 dataset 与 `factor_values.csv`；只有评价阶段需要含研究 API 的 fincore，该 API 缺失时会跳过评价并以 `DATASET_ONLY` 正常退出。
+
+需要专业因子图表时，三个示例都支持 `--report`（`--report-language zh|en` 选择默认语言），生成自包含的 `factor_report_<factor>.html`。报告实现位于 fincore 的 `fincore.report.factor.write_factor_report(factor, prices, path, ...)`：它调用 `prepare_factor_data`、`analyze_factor`，用离线 ECharts 绘制 IC、累计收益、分位收益、换手和 IC 分布，并输出 IC、分位、收益、换手、自相关和覆盖表。HTML 内含中文/英文切换，不依赖外部 CDN。Backtrader 的 `write_factor_report(dataset, factor_name, path)` 只是把 `ResearchDataset` 的因子和开盘价传入 fincore。该功能只依赖 `fincore.report.factor`，不要求研究评价 API；远期收益按 next-open 对齐。

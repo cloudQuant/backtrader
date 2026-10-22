@@ -1,53 +1,31 @@
-# 026: Multi-factor research
+# 026: Multi-factor research on real A-share daily bars
 
-This example collects three native Backtrader factors on the same deterministic synthetic panel as 025:
+This example collects three native Backtrader factors on the same real daily panel as 025:
 
 - `close / SMA(close, 20)`;
 - `close / close[-20] - 1` using the native ROC indicator;
-- KDJ.J with a 9-bar high/low range, 3-bar simple-average K smoothing, 3-bar simple-average D smoothing, and `J = 3*K - 2*D`.
+- KDJ.J with a 9-bar high/low range, 3-bar K smoothing and 3-bar D smoothing.
 
-It ranks each base factor across the assets, then asks fincore to evaluate the fixed `equal_weight` combination and its three generated leave-one-factor-out ablations (`equal_weight::without::close_ma`, `equal_weight::without::roc`, and `equal_weight::without::kdj_j`). The configured comparison family names the three base factors and the full combination; the evaluator adds the generated ablations and evaluates them on one common eligible pool, without expanding that pool for an ablation. The output includes factor correlation, lag stability and the frozen development/validation segments. All directions are fixed at `+1` as demonstration assumptions. No positive IC or return is required, and a segment label does not make the validation period an independent out-of-sample study.
-
-For this example, each factor exposes one panel output named `factor`; for KDJ that selected output contains J. KDJ still constructs native RSV and smoothed K/D child indicators. This is the example's uniform panel convention, not a limitation on `FactorIndicator`, which can expose multiple output lines.
-
-From the repository root, run (relative output paths resolve from this example directory):
+From the repository root:
 
 ```powershell
-python examples/backtest/026_factor_multi/run.py --output-dir output/026-multi
+python examples/backtest/026_factor_multi/run.py --output-dir output/026-real
 ```
 
-The SHA-256 generator is versioned and seeded in `config.yaml`; its explicit `data_version` records the generator version and seed used for the bound feed values. It creates 20 assets, 20 warm-up bars, 260 research bars and a 21-bar price tail on the UTC `synthetic-weekday-v1` calendar. Its OHLCV output is designed to match 025 value for value. The first 15 generated bars for each asset have zero high/low range; the factor returns missing values for those KDJ windows and becomes available after complete RSV/K/D windows recover. The dedicated test also has an independent known-answer fixture for that transition.
+Like 025, the runner evenly samples **500** symbols from `tests/datas/a_stocks` by default; `--max-symbols 0` uses all 5,471, and `--data-dir` selects another panel with the same layout. The research calendar is the source-observed session union, prices are unadjusted, and missing rows are not filled.
 
-The full research-period evaluation uses the price tail and has no structural horizon loss. Each named development/validation segment excludes its final `h + 1` eligible bars for a next-open-to-open horizon `h`, because the signal, entry bar and exit bar must all belong to that segment. Those expected losses remain in coverage denominators and are marked as segment-boundary losses. The expected overall status is `PARTIAL`; the runner accepts it only when the reported boundary counts match the frozen segments, all other required outputs are present, and the loss rate remains below `max_loss`.
+The configured evaluation asks fincore for cross-sectional ranks, the fixed `equal_weight` combination, its leave-one-factor-out ablations, IC/Rank IC, quantiles, stability, correlation and common-pool comparisons. The output factor columns are `close_ma`, `kdj_j`, `roc` (the library's stable order), one row per grid time and symbol.
 
-The runner only collects, evaluates, exports and checks required result coverage;
-it has no embedded test oracle and does not require positive IC or returns. The
-KDJ known-answer and generator-equality checks live in the dedicated unit tests.
-Completed runs mark their evidence level as
-`SYNTHETIC_OFFLINE_FACTOR_RESEARCH_ONLY` and `acceptance_status` as
-`NOT_CLAIMED`; they are example results, not full iteration acceptance.
+Outputs:
 
-`diagnostics` is a predeclared optional result table, so it may be absent from
-the evaluator result without waiving any required table, row, count, or segment
-check. The versioned export still includes its fixed CSV/JSON schema entries,
-which may contain a header-only CSV and an empty JSON array. Exit codes are 0
-when all mandatory outputs pass (including a truthful `PARTIAL` result), 1 when
-required outputs are missing or the result is `UNEVALUABLE`, 2 for invalid input
-or a blocked prerequisite/dependency, and 3
-for interruption or output I/O failure.
+- `factor_values.csv`: `time`, `asset`, and the three factor columns.
+- `evaluation/`: fincore's tables and chart, when the fincore factor-research API is installed.
+- `summary.json`: status, symbol/date counts, evaluation identity and report paths.
+- `factor_report_<factor>.html`: written with `--report`, one self-contained bilingual (中文/English) report per factor with interactive ECharts charts and IC, quantile-return, turnover and coverage tables.
+- `dataset/`: written only with `--save-dataset`; a full `ResearchDataset` snapshot.
 
-The counting Broker observes submit and cancel calls throughout Cerebro and the
-runner fails if either count is nonzero. The dedicated native collection test
-checks this guard in both `runonce` and `runnext` modes without running fincore.
+Evaluation is optional. When fincore's research API is unavailable, `factor_values.csv` is still written, `EVALUATION SKIPPED` is printed, and the run exits 0 with `summary.json.status="DATASET_ONLY"`. Exit codes are 0 for written outputs, 1 for a failed or `UNEVALUABLE` evaluation, 2 for invalid or missing input, and 3 for an output I/O failure.
 
-The output folder contains the versioned raw research dataset, fincore's CSV/JSON evaluation files, requested charts, and a run manifest with source versions, dataset identity, fixed factor weights and directions, segment boundaries, result status, output hashes and Broker submit/cancel counts. The runner verifies the required signal/variant/group/horizon/segment axes, labels, common-pool comparisons and coverage artifacts; it does not treat successful computation as a performance claim. `--no-charts` disables chart rendering.
+Useful flags: `--report`, `--report-language zh|en` (default `zh`; the HTML also has a 中文/EN switch), `--no-charts`, `--periods 1 5 20`, `--runnext`, `--save-dataset`, and `--dataset <saved-dataset>` for offline re-evaluation. `--report` delegates to `fincore.report.factor.write_factor_report`, so it works even when the separate research-evaluation API is unavailable.
 
-Saved datasets can be evaluated again without constructing Cerebro or indicators. For example:
-
-```powershell
-python examples/backtest/026_factor_multi/run.py --dataset output/026-multi/dataset --periods 1 10 --output-dir output/026-multi-h1-h10 --no-charts
-```
-
-The generator and factor declarations live in this directory so the example can be copied and run independently. It does not read repository tests, neighboring examples or `examples/_support`. A copied-folder run under `BT_I43_COPY_STRICT=1` and a real installed-wheel run are separate acceptance checks; this source package does not claim those checks have passed.
-
-The generated series are synthetic pipeline fixtures. They do not establish market performance, a profitable direction, or statistical significance.
+The output is a factor research result, not a trading strategy or evidence of investment performance.

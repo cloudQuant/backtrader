@@ -23,7 +23,6 @@ ROOT = Path(__file__).resolve().parents[2]
 PROBE_TIMEOUT = 600
 # Factor reports evaluate all variants, common pools, ablations and horizons.
 # This is an execution timeout, not a performance acceptance threshold.
-FACTOR_REPORT_TIMEOUT = 1200
 INSTALL_PROBE = (
     "import importlib.util, importlib.metadata, json; "
     "spec = importlib.util.find_spec('backtrader'); "
@@ -45,7 +44,7 @@ OPTIONAL16_DRY_SCRIPTS = {
     "examples/live/000_live_certification/optional16/gateway_server.py",
     "examples/live/000_live_certification/optional16/run_matrix.py",
 }
-UNCOMMITTED_PUBLIC_CONFIGS = {
+WORKTREE_PUBLIC_CONFIGS = {
     "examples/backtest/018_sma_crossover/config.yaml",
     "examples/backtest/027_alpha003_panel_acceptance/config.yaml",
     "examples/backtest/025_factor_single/config.yaml",
@@ -71,28 +70,30 @@ COPY_CONTRACT = (
         "no remote request made",
     ),
     ("backtest/023_mixed_mode_backtest", ["run.py"], None),
-    ("backtest/025_factor_single", ["run.py", "--output-dir", "output/copy-default"], None),
+    (
+        "backtest/025_factor_single",
+        ["run.py", "--output-dir", "output/copy-default"],
+        "daily data directory not found",
+    ),
     (
         "backtest/025_factor_single",
         ["run.py", "--output-dir", "output/copy-no-charts", "--no-charts"],
-        None,
+        "daily data directory not found",
     ),
-    ("backtest/026_factor_multi", ["run.py", "--output-dir", "output/copy-default"], None),
+    (
+        "backtest/026_factor_multi",
+        ["run.py", "--output-dir", "output/copy-default"],
+        "daily data directory not found",
+    ),
     (
         "backtest/026_factor_multi",
         ["run.py", "--output-dir", "output/copy-no-charts", "--no-charts"],
-        None,
-    ),
-    ("backtest/027_alpha003_panel_acceptance", ["run.py"], None),
-    (
-        "backtest/027_alpha003_panel_acceptance",
-        ["run.py", "--config", "config.yaml"],
-        None,
+        "daily data directory not found",
     ),
     (
         "backtest/027_alpha003_panel_acceptance",
         ["run.py", "--output-dir", "output/copy-contract"],
-        None,
+        "daily data directory not found",
     ),
     (
         "backtest/019_bollinger_band_doge",
@@ -444,6 +445,17 @@ def _stage(leaf: str, destination: Path) -> None:
         basename = Path(relative).name.casefold()
         if basename == ".env" or "secret" in basename:
             pytest.fail(f"refusing to stage a private-input path: {relative}", pytrace=False)
+        source = ROOT / relative
+        if not source.is_file():
+            deleted = subprocess.run(
+                ["git", "-C", str(ROOT), "ls-files", "--deleted", "--", relative],
+                capture_output=True,
+                text=True,
+            )
+            assert deleted.stdout.strip(), (
+                f"{relative}: tracked path is missing from the worktree but not deleted"
+            )
+            continue
         target = destination / Path(relative[len(prefix) + 1 :])
         target.parent.mkdir(parents=True, exist_ok=True)
         if basename == "config.yaml":
@@ -452,7 +464,9 @@ def _stage(leaf: str, destination: Path) -> None:
                 capture_output=True,
                 text=True,
             )
-            if tracked.returncode == 0:
+            if relative in WORKTREE_PUBLIC_CONFIGS:
+                contents = source.read_bytes()
+            elif tracked.returncode == 0:
                 template = subprocess.run(
                     ["git", "-C", str(ROOT), "show", f"HEAD:{relative}"],
                     capture_output=True,
@@ -462,12 +476,12 @@ def _stage(leaf: str, destination: Path) -> None:
                 )
                 contents = template.stdout
             else:
-                assert relative in UNCOMMITTED_PUBLIC_CONFIGS, (
-                    f"{relative}: add a reviewed public config path before copy-out staging"
+                pytest.fail(
+                    f"{relative}: add a reviewed public config path before copy-out staging",
+                    pytrace=False,
                 )
-                contents = (ROOT / relative).read_bytes()
         else:
-            contents = (ROOT / relative).read_bytes()
+            contents = source.read_bytes()
         target.write_bytes(contents)
 
 
@@ -529,11 +543,7 @@ def test_copied_leaf_runs_or_fails_closed(
         text=True,
         encoding="utf-8",
         errors="replace",
-        timeout=(
-            FACTOR_REPORT_TIMEOUT
-            if leaf in {"backtest/025_factor_single", "backtest/026_factor_multi"}
-            else PROBE_TIMEOUT
-        ),
+        timeout=PROBE_TIMEOUT,
         env=_child_environment(destination),
     )
     output = (completed.stdout or "") + (completed.stderr or "")

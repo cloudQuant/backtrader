@@ -1,4 +1,4 @@
-"""Independent formula and fixture checks for the Iteration 45 examples.
+"""Independent formula and real-panel checks for the factor examples.
 
 These tests exercise source components only. Copy/install entrypoints and the
 full research evaluations remain separate acceptance work.
@@ -6,20 +6,17 @@ full research evaluations remain separate acceptance work.
 
 from __future__ import annotations
 
-import importlib.util
-import csv
 import hashlib
+import importlib.util
 import json
 import math
 import sys
 from datetime import date, datetime, time, timedelta, timezone
 from pathlib import Path
-from types import SimpleNamespace
 from typing import Any, Dict, List, Tuple
 
 import pandas as pd
 import pytest
-
 
 ROOT = Path(__file__).resolve().parents[2]
 SINGLE_RUNNER = ROOT / "examples" / "backtest" / "025_factor_single" / "run.py"
@@ -28,6 +25,7 @@ SINGLE_STRATEGY = (
 )
 MULTI_RUNNER = ROOT / "examples" / "backtest" / "026_factor_multi" / "run.py"
 MULTI_STRATEGY = ROOT / "examples" / "backtest" / "026_factor_multi" / "multi_factor_strategy.py"
+THIRD_RUNNER = ROOT / "examples" / "backtest" / "027_alpha003_panel_acceptance" / "run.py"
 
 
 def _load_module(path: Path, name: str) -> Any:
@@ -44,69 +42,104 @@ def _load_module(path: Path, name: str) -> Any:
     return module
 
 
-def _generator_config() -> Dict[str, Any]:
-    return {
-        "generator_version": "synthetic-ohlcv-sha256-v1",
-        "seed": 4510,
-        "start_date": date(2025, 1, 6),
-        "asset_prefix": "SYN",
-        "asset_count": 20,
-        "warmup_bars": 20,
-        "research_bars": 260,
-        "tail_bars": 21,
-        "source_timezone": "UTC",
-        "open_time_utc": "09:30:00",
-        "close_time_utc": "16:00:00",
-    }
-
-
-def test_single_and_multi_examples_generate_identical_ohlcv_and_grid():
-    single = _load_module(SINGLE_RUNNER, "iteration45_single_run_source")
-    multi = _load_module(MULTI_RUNNER, "iteration45_multi_run_source")
-    single_config = single._load_config()
-    multi_config = multi._load_config()
-    single_data = single_config["data"]
-    multi_data = multi_config["data"]
-    for data_config in (single_data, multi_data):
-        assert data_config["asset_count"] == 20
-        assert data_config["warmup_bars"] >= 20
-        assert data_config["research_bars"] == 260
-        assert data_config["tail_bars"] >= 21
-    assert single_config["evaluation"]["periods"] == [1, 5, 20]
-    assert multi_config["evaluation"]["periods"] == [1, 5, 20]
-    assert single_config["evaluation"]["segments"]["development"]["research_bar_end"] + 1 == 160
-    assert single_config["evaluation"]["segments"]["validation"]["research_bar_end"] + 1 == 260
-    assert multi_config["evaluation"]["segments"] == single_config["evaluation"]["segments"]
-    for name, expected_bars in (("development", 160), ("validation", 100)):
-        segment = single_config["evaluation"]["segments"][name]
-        segment_bars = segment["research_bar_end"] - segment["research_bar_start"] + 1
-        assert segment_bars == expected_bars
-        assert tuple(min(horizon + 1, segment_bars) for horizon in (1, 5, 20)) == (
-            2,
-            6,
-            21,
+def _write_daily_panel(
+    root: Path, *, symbol_count: int = 3, day_count: int = 30
+) -> Tuple[List[str], List[str]]:
+    """Write a tiny panel in the real a_stocks manifest/calendar/CSV layout."""
+    metadata = root / "_metadata"
+    metadata.mkdir(parents=True, exist_ok=True)
+    dates = pd.bdate_range("2025-01-02", periods=day_count).strftime("%Y-%m-%d").tolist()
+    symbols = ["sh%06d" % (600000 + index) for index in range(symbol_count)]
+    missing_day = day_count // 2
+    calendar_rows = []
+    for day_index, stamp in enumerate(dates):
+        rows_today = symbol_count - int(symbol_count > 1 and day_index == missing_day)
+        calendar_rows.append(
+            {
+                "trade_date": stamp,
+                "first_trade_time": stamp + " 09:30:00.000",
+                "last_trade_time": stamp + " 15:00:00.000",
+                "symbol_count": rows_today,
+                "minute_count": rows_today * 240,
+            }
         )
+    pd.DataFrame(calendar_rows).to_csv(metadata / "observed_calendar.csv", index=False)
 
-    left = single.build_synthetic_panel(single_data)
-    right = multi.build_synthetic_panel(multi_data)
+    entries = []
+    for symbol_index, symbol in enumerate(symbols):
+        rows = []
+        for day_index, stamp in enumerate(dates):
+            if symbol_index == 1 and day_index == missing_day:
+                continue
+            open_value = (
+                10.0
+                + ((day_index * (symbol_index + 2) + symbol_index) % 7) * 0.3
+                + symbol_index * 0.01
+            )
+            close_value = open_value + (day_index % 3 - 1) * 0.05
+            rows.append(
+                {
+                    "trade_date": stamp,
+                    "trade_time": stamp + " 15:00:00.000",
+                    "symbol": symbol,
+                    "open": open_value,
+                    "high": max(open_value, close_value) + 0.1,
+                    "low": min(open_value, close_value) - 0.1,
+                    "close": close_value,
+                    "volume": 1000.0
+                    + ((day_index * (symbol_index + 3) + symbol_index) % 11) * 10.0,
+                    "amount": (
+                        1000.0 + ((day_index * (symbol_index + 3) + symbol_index) % 11) * 10.0
+                    )
+                    * close_value,
+                    "minute_count": 240,
+                    "first_trade_time": stamp + " 09:30:00.000",
+                    "last_trade_time": stamp + " 15:00:00.000",
+                    "missing_or_invalid_count": 0,
+                    "invalid_day": False,
+                }
+            )
+        path = root / (symbol + ".csv")
+        pd.DataFrame(rows).to_csv(path, index=False, encoding="utf-8")
+        entries.append(
+            {
+                "symbol": symbol,
+                "file": path.name,
+                "rows": len(rows),
+                "bytes": path.stat().st_size,
+                "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+                "first_trade_date": dates[0],
+                "last_trade_date": dates[-1],
+                "invalid_daily_rows": 0,
+            }
+        )
+    manifest = {"status": "complete", "output": {"symbols": entries}}
+    (metadata / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
+    return symbols, dates
 
-    assert left["ohlcv_sha256"] == right["ohlcv_sha256"]
-    assert left["assets"] == right["assets"]
-    assert left["bar_count"] == 301
-    assert len(left["grid"]) == 301
-    assert left["research_start_position"] == 20
-    assert left["research_end_position"] == 279
-    assert str(left["grid"].index.tz) == "UTC"
-    assert (left["grid"]["open_time"].array < left["grid"].index).all()
-    pd.testing.assert_frame_equal(left["grid"], right["grid"])
-    for asset in left["assets"]:
-        pd.testing.assert_frame_equal(left["feeds"][asset], right["feeds"][asset])
-        frame = left["feeds"][asset]
-        assert frame.iloc[:15]["high"].eq(frame.iloc[:15]["low"]).all()
-        assert frame.iloc[:15]["close"].eq(frame.iloc[:15]["open"]).all()
-        assert frame.iloc[:15]["volume"].gt(0.0).all()
-    for field in ("open", "close"):
-        pd.testing.assert_frame_equal(left["prices"][field], right["prices"][field])
+
+def test_single_and_multi_examples_load_the_same_real_panel(tmp_path: Path):
+    root = tmp_path / "a_stocks"
+    symbols, _ = _write_daily_panel(root, symbol_count=4, day_count=30)
+    panels = []
+    for runner_path, module_name in (
+        (SINGLE_RUNNER, "iteration45_single_real_panel"),
+        (MULTI_RUNNER, "iteration45_multi_real_panel"),
+    ):
+        runner = _load_module(runner_path, module_name)
+        data_config = dict(runner._load_config()["data"])
+        data_config["directory"] = str(root)
+        data_config["max_symbols"] = 3
+        panel = runner.load_daily_panel(data_config)
+        assert len(panel["grid"]) == 30
+        assert panel["assets"] == tuple(symbols[:3])
+        assert panel["research_start_position"] == 0
+        assert panel["research_end_position"] == 29
+        assert str(panel["grid"].index.tz) == "UTC"
+        assert len(panel["feeds"][symbols[1]]) == 29
+        panels.append(panel)
+    for asset in panels[0]["assets"]:
+        pd.testing.assert_frame_equal(panels[0]["feeds"][asset], panels[1]["feeds"][asset])
 
 
 @pytest.mark.parametrize(
@@ -123,23 +156,60 @@ def test_single_and_multi_examples_generate_identical_ohlcv_and_grid():
 @pytest.mark.parametrize("runnext", (False, True))
 def test_native_example_collection_observes_zero_broker_writes(
     monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
     runner_path: Path,
     module_name: str,
     factor_names: Tuple[str, ...],
     runnext: bool,
 ):
+    root = tmp_path / "a_stocks"
+    _write_daily_panel(root, symbol_count=3, day_count=30)
     runner = _load_module(runner_path, module_name)
     monkeypatch.syspath_prepend(str(runner_path.parent))
     config = runner._load_config()
-    panel = runner.build_synthetic_panel(config["data"])
+    config["data"] = dict(config["data"])
+    config["data"]["directory"] = str(root)
+    config["data"]["max_symbols"] = 3
+    panel = runner.load_daily_panel(config["data"])
 
     strategy, dataset, broker = runner._run_native_collection(config, panel, runnext)
 
     assert tuple(strategy.factor_instances) == factor_names
-    assert len(dataset.grid) == panel["bar_count"]
-    assert len(dataset.raw_factors) == config["data"]["research_bars"] * len(panel["assets"])
+    assert len(dataset.grid) == 30
+    assert len(dataset.raw_factors) == 30 * len(panel["assets"])
     assert broker.submit_count == 0
     assert broker.cancel_count == 0
+
+
+def test_alpha003_real_runner_exports_factor_values(tmp_path: Path):
+    root = tmp_path / "a_stocks"
+    symbols, dates = _write_daily_panel(root, symbol_count=3, day_count=30)
+    runner = _load_module(THIRD_RUNNER, "iteration46_alpha003_real_source")
+    output = tmp_path / "output"
+    assert (
+        runner.main(
+            [
+                "--data-dir",
+                str(root),
+                "--max-symbols",
+                "3",
+                "--output-dir",
+                str(output),
+            ]
+        )
+        == 0
+    )
+    values = pd.read_csv(output / "factor_values.csv")
+    assert set(values.columns) == {"time", "asset", "alpha003"}
+    assert len(values) == len(dates) * len(symbols)
+    for _, group in values.groupby("asset", sort=False):
+        assert group["alpha003"].iloc[:9].isna().all()
+        assert group["alpha003"].iloc[9:].notna().any()
+    summary = json.loads((output / "summary.json").read_text(encoding="utf-8"))
+    assert summary["status"] == "COMPLETED"
+    assert summary["symbols"] == len(symbols)
+    assert summary["dates"] == len(dates)
+    assert "Alpha003Native" in summary["indicator"]
 
 
 def _weekday_session_times(count: int) -> Tuple[pd.DatetimeIndex, pd.DatetimeIndex]:
@@ -152,656 +222,6 @@ def _weekday_session_times(count: int) -> Tuple[pd.DatetimeIndex, pd.DatetimeInd
             closes.append(datetime.combine(day, time(16, 0), tzinfo=timezone.utc))
         day += timedelta(days=1)
     return pd.DatetimeIndex(opens), pd.DatetimeIndex(closes, name="close_time")
-
-
-def _minimal_required_result(runner: Any, multi: bool = False) -> SimpleNamespace:
-    """Build two fully covered bars with the runner's required table contract."""
-    opens, closes = _weekday_session_times(4)
-    research_times = tuple(closes[:2])
-    open_positions = {stamp: index for index, stamp in enumerate(opens)}
-    close_positions = {stamp: index for index, stamp in enumerate(closes)}
-    group = "synthetic-demo"
-    if multi:
-        base_signals = ("close_ma", "roc", "kdj_j")
-        expected_signals = {
-            **dict.fromkeys(base_signals, ("raw", "oriented", "transformed")),
-            "equal_weight": ("composite",),
-        }
-        expected_signals.update(
-            {"equal_weight::without::%s" % name: ("composite",) for name in base_signals}
-        )
-        comparison_id = "all_variants"
-    else:
-        base_signals = ()
-        expected_signals = {"close_ma": ("raw", "oriented", "transformed")}
-        comparison_id = None
-
-    ablation_signals = (
-        {"equal_weight::without::%s" % name for name in base_signals} if multi else set()
-    )
-    axes = [
-        (
-            signal,
-            variant,
-            "common:" + comparison_id if signal in ablation_signals else "own:" + signal,
-        )
-        for signal, variants in expected_signals.items()
-        for variant in variants
-    ]
-    signals = []
-    ic = []
-    ic_summary = []
-    quantile_returns = []
-    spreads = []
-    stability = []
-    coverage = []
-    for axis_index, (signal, variant, pool_id) in enumerate(axes, start=1):
-        for time_index, stamp in enumerate(research_times, start=1):
-            signals.append(
-                {
-                    "time": stamp,
-                    "asset": "SYN00",
-                    "signal": signal,
-                    "variant": variant,
-                    "pool_id": pool_id,
-                    "group": group,
-                    "value": float(axis_index + time_index),
-                }
-            )
-            quantile_returns.append(
-                {
-                    "record_type": "period",
-                    "time": stamp,
-                    "segment_id": "full",
-                    "signal": signal,
-                    "variant": variant,
-                    "pool_id": pool_id,
-                    "group": group,
-                    "horizon": 1,
-                    "quantile": 1,
-                    "mean": 0.01 * time_index,
-                    "status": "OK",
-                    "reason": None,
-                    "n_assets": 1,
-                }
-            )
-            for metric in ("pearson", "spearman"):
-                ic.append(
-                    {
-                        "time": stamp,
-                        "segment_id": "full",
-                        "signal": signal,
-                        "variant": variant,
-                        "pool_id": pool_id,
-                        "group": group,
-                        "horizon": 1,
-                        "metric": metric,
-                        "value": 0.1 * time_index,
-                        "status": "OK",
-                        "reason": None,
-                        "n_assets": 1,
-                    }
-                )
-            spreads.append(
-                {
-                    "record_type": "period",
-                    "time": stamp,
-                    "segment_id": "full",
-                    "signal": signal,
-                    "variant": variant,
-                    "pool_id": pool_id,
-                    "group": group,
-                    "horizon": 1,
-                    "lower_quantile": 1,
-                    "upper_quantile": 1,
-                    "value": 0.01 * time_index,
-                    "status": "OK",
-                    "reason": None,
-                    "n_assets": 1,
-                }
-            )
-        for metric in ("pearson", "spearman"):
-            ic_summary.append(
-                {
-                    "record_type": "summary",
-                    "time": pd.NaT,
-                    "period": "all",
-                    "segment_id": "full",
-                    "signal": signal,
-                    "variant": variant,
-                    "pool_id": pool_id,
-                    "group": group,
-                    "horizon": 1,
-                    "metric": metric,
-                    "mean": 0.15,
-                    "sample_std": 0.05,
-                    "information_ratio": 3.0,
-                    "positive_fraction": 1.0,
-                    "n_periods_total": 2,
-                    "n_periods_valid": 2,
-                    "status": "OK",
-                    "reason": None,
-                }
-            )
-        for metric, quantile in (("rank_autocorrelation", None), ("quantile_turnover", 1)):
-            stability.append(
-                {
-                    "time": research_times[-1],
-                    "segment_id": "full",
-                    "segment_role": "research",
-                    "signal": signal,
-                    "variant": variant,
-                    "pool_id": pool_id,
-                    "group": group,
-                    "metric": metric,
-                    "lag": 1,
-                    "quantile": quantile,
-                    "value": 0.25,
-                    "status": "OK",
-                    "reason": None,
-                    "n_assets": 1,
-                }
-            )
-        coverage.append(
-            {
-                "record_type": "summary",
-                "time": pd.NaT,
-                "segment_id": "full",
-                "segment_role": "research",
-                "signal": signal,
-                "variant": variant,
-                "pool_id": pool_id,
-                "group": group,
-                "horizon": 1,
-                "candidate_count": 2,
-                "pool_member_count": 2,
-                "finite_value_count": 2,
-                "label_count": 2,
-                "paired_count": 2,
-                "formation_loss_count": 0,
-                "analysis_loss_count": 0,
-                "segment_boundary_count": 0,
-                "loss_rate": 0.0,
-                "status": "OK",
-                "reason": None,
-                "period_count": 2,
-            }
-        )
-
-    labels = []
-    for stamp in research_times:
-        close_index = close_positions[stamp]
-        entry_index = close_index + 1
-        exit_index = entry_index + 1
-        labels.append(
-            {
-                "time": stamp,
-                "asset": "SYN00",
-                "horizon": 1,
-                "value": 0.01,
-                "entry_time": opens[entry_index],
-                "exit_time": opens[exit_index],
-                "entry_bar": open_positions[opens[entry_index]],
-                "exit_bar": open_positions[opens[exit_index]],
-            }
-        )
-
-    tables: Dict[str, pd.DataFrame] = {
-        "signals": pd.DataFrame(signals),
-        "labels": pd.DataFrame(labels),
-        "ic": pd.DataFrame(ic),
-        "ic_summary": pd.DataFrame(ic_summary),
-        "quantile_returns": pd.DataFrame(quantile_returns),
-        "spreads": pd.DataFrame(spreads),
-        "stability": pd.DataFrame(stability),
-        "coverage": pd.DataFrame(coverage),
-    }
-    if multi:
-        common_pool = "common:" + comparison_id
-        for name in (
-            "signals",
-            "ic",
-            "ic_summary",
-            "quantile_returns",
-            "spreads",
-            "stability",
-            "coverage",
-        ):
-            common_rows = (
-                tables[name].loc[tables[name]["pool_id"].astype(str).str.startswith("own:")].copy()
-            )
-            common_rows["pool_id"] = common_pool
-            tables[name] = pd.concat((tables[name], common_rows), ignore_index=True)
-        correlations = []
-        for left_index, left in enumerate(base_signals):
-            for right in base_signals[left_index + 1 :]:
-                for metric in ("pearson", "spearman"):
-                    correlations.append(
-                        {
-                            "record_type": "summary",
-                            "time": pd.NaT,
-                            "segment_id": "full",
-                            "segment_role": "research",
-                            "signal_left": left,
-                            "signal_right": right,
-                            "variant_left": "transformed",
-                            "variant_right": "transformed",
-                            "pool_id": "common:" + comparison_id,
-                            "group": group,
-                            "metric": metric,
-                            "value": 0.2,
-                            "status": "OK",
-                            "reason": None,
-                            "n_assets": 1,
-                            "n_periods": 2,
-                        }
-                    )
-        comparisons = []
-        comparison_variants = {
-            name: "transformed" if name in base_signals else "composite"
-            for name in expected_signals
-        }
-        comparison_names = tuple(expected_signals)
-        for left_index, left in enumerate(comparison_names):
-            for right in comparison_names[left_index + 1 :]:
-                for metric in ("pearson", "spearman"):
-                    for stamp in research_times:
-                        comparisons.append(
-                            {
-                                "record_type": "period",
-                                "period": stamp,
-                                "comparison_id": comparison_id,
-                                "left_signal": left,
-                                "right_signal": right,
-                                "variant_left": comparison_variants[left],
-                                "variant_right": comparison_variants[right],
-                                "horizon": 1,
-                                "pool_id": "common:" + comparison_id,
-                                "group": group,
-                                "segment_id": "full",
-                                "segment_role": "research",
-                                "metric": metric,
-                                "delta": 0.01,
-                                "status": "OK",
-                                "reason": None,
-                            }
-                        )
-                    comparisons.append(
-                        {
-                            "record_type": "summary",
-                            "period": "all",
-                            "comparison_id": comparison_id,
-                            "left_signal": left,
-                            "right_signal": right,
-                            "variant_left": comparison_variants[left],
-                            "variant_right": comparison_variants[right],
-                            "horizon": 1,
-                            "pool_id": "common:" + comparison_id,
-                            "group": group,
-                            "segment_id": "full",
-                            "segment_role": "research",
-                            "metric": metric,
-                            "mean_delta": 0.01,
-                            "sample_std_delta": 0.001,
-                            "positive_delta_fraction": 1.0,
-                            "paired_period_count": 2,
-                            "n_periods_total": 2,
-                            "status": "OK",
-                            "reason": None,
-                        }
-                    )
-        tables["correlation"] = pd.DataFrame(correlations)
-        tables["comparisons"] = pd.DataFrame(comparisons)
-
-    # The diagnostics attribute is deliberately absent: this is the declared
-    # optional table, while every mandatory result table above is populated.
-    return SimpleNamespace(status="PARTIAL", **tables)
-
-
-@pytest.mark.parametrize(
-    ("runner_path", "module_name", "multi"),
-    (
-        (SINGLE_RUNNER, "iteration45_single_cli_status", False),
-        (MULTI_RUNNER, "iteration45_multi_cli_status", True),
-    ),
-)
-def test_partial_status_requires_all_mandatory_rows_but_not_optional_diagnostics(
-    tmp_path: Path, runner_path: Path, module_name: str, multi: bool
-):
-    runner = _load_module(runner_path, module_name)
-    result = _minimal_required_result(runner, multi=multi)
-    if multi:
-        ablation_signals = {
-            "equal_weight::without::%s" % name for name in ("close_ma", "roc", "kdj_j")
-        }
-        for table_name in (
-            "signals",
-            "ic",
-            "ic_summary",
-            "quantile_returns",
-            "spreads",
-            "coverage",
-            "stability",
-        ):
-            rows = getattr(result, table_name)
-            ablation_rows = rows.loc[rows["signal"].isin(ablation_signals)]
-            assert not ablation_rows.empty
-            assert set(ablation_rows["pool_id"]) == {"common:all_variants"}
-        common_comparisons = result.comparisons.loc[
-            result.comparisons["pool_id"].eq("common:all_variants")
-            & result.comparisons["record_type"].eq("summary")
-        ]
-        assert len(common_comparisons) == 42
-        for signal in ablation_signals:
-            assert (
-                common_comparisons["left_signal"].eq(signal)
-                | common_comparisons["right_signal"].eq(signal)
-            ).sum() == 12
-    times = tuple(result.labels["time"].drop_duplicates())
-    assets = ("SYN00",)
-    expected_signals = (
-        {
-            **dict.fromkeys(("close_ma", "roc", "kdj_j"), ("raw", "oriented", "transformed")),
-            "equal_weight": ("composite",),
-            **{
-                "equal_weight::without::%s" % name: ("composite",)
-                for name in ("close_ma", "roc", "kdj_j")
-            },
-        }
-        if multi
-        else {"close_ma": ("raw", "oriented", "transformed")}
-    )
-    validation_kwargs = {
-        "group": "synthetic-demo",
-        "segment_bars": {"full": 2},
-        "asset_count": 1,
-        "research_times": times,
-        "target_assets": assets,
-        "grid_close_times": tuple(_weekday_session_times(4)[1]),
-        "grid_open_times": tuple(_weekday_session_times(4)[0]),
-        "quantiles": 1,
-        "stability_lags": (1,),
-        "segment_times": {"full": times},
-        "max_loss": 0.35,
-    }
-    if multi:
-        validation_kwargs.update(
-            {
-                "comparison_id": "all_variants",
-                "base_signals": ("close_ma", "roc", "kdj_j"),
-                "signal_pools": {
-                    "equal_weight::without::close_ma": ("common:all_variants",),
-                    "equal_weight::without::roc": ("common:all_variants",),
-                    "equal_weight::without::kdj_j": ("common:all_variants",),
-                },
-            }
-        )
-    mandatory = runner._validate_result(result, expected_signals, (1,), **validation_kwargs)
-    assert mandatory["passed"] is True
-    assert runner._evaluation_exit_code("PARTIAL", mandatory) == 0
-    required_diagnostic = runner._validate_result(
-        result,
-        expected_signals,
-        (1,),
-        required_optional_tables=("diagnostics",),
-        **validation_kwargs,
-    )
-    assert required_diagnostic["passed"] is False
-    assert "diagnostics" in required_diagnostic["missing_tables"]
-    assert runner._evaluation_exit_code("PARTIAL", required_diagnostic) == 1
-
-    result.ic = result.ic.iloc[:-1]
-    missing_required = runner._validate_result(result, expected_signals, (1,), **validation_kwargs)
-    assert missing_required["passed"] is False
-    assert runner._evaluation_exit_code("PARTIAL", missing_required) == 1
-    result.ic = pd.DataFrame()
-    empty_required = runner._validate_result(result, expected_signals, (1,), **validation_kwargs)
-    assert empty_required["passed"] is False
-    assert runner._evaluation_exit_code("PARTIAL", empty_required) == 1
-    assert runner._evaluation_exit_code("UNEVALUABLE", mandatory) == 1
-
-    evaluation_dir = tmp_path / module_name / "evaluation"
-    evaluation_dir.mkdir(parents=True)
-    required_tables = tuple(runner._EXPORT_REQUIRED_COLUMNS)
-    table_schemas = {}
-    table_files = {}
-    file_records = {}
-    frozen_logical_type_overrides = {
-        ("signals", "quantile"): "number",
-        ("ic_summary", "period"): "string",
-    }
-    for name in required_tables:
-        columns = list(runner._EXPORT_REQUIRED_COLUMNS[name])
-        schema_columns = [
-            {
-                "name": column,
-                "type": frozen_logical_type_overrides.get(
-                    (name, column), runner._EXPORT_LOGICAL_TYPES.get(column, "string")
-                ),
-            }
-            for column in columns
-        ]
-        table_schemas[name] = {"columns": schema_columns}
-        table_files[name] = {"csv": name + ".csv", "json": name + ".json"}
-        # The diagnostics table is intentionally empty but retains its declared schema.
-        records = [] if name == "diagnostics" else [dict.fromkeys(columns)]
-        if name == "signals":
-            records[0]["quantile"] = 1.0
-        elif name == "ic_summary" or name == "comparisons":
-            records[0]["period"] = "all"
-        csv_path = evaluation_dir / (name + ".csv")
-        with csv_path.open("w", encoding="utf-8", newline="") as target:
-            writer = csv.writer(target)
-            writer.writerow(columns)
-            for record in records:
-                writer.writerow([record[column] for column in columns])
-        json_path = evaluation_dir / (name + ".json")
-        json_path.write_text(json.dumps(records, separators=(",", ":")), encoding="utf-8")
-        for table_path, media_type in (
-            (csv_path, "text/csv; charset=utf-8"),
-            (json_path, "application/json"),
-        ):
-            payload = table_path.read_bytes()
-            file_records[table_path.name] = {
-                "sha256": hashlib.sha256(payload).hexdigest(),
-                "bytes": len(payload),
-                "rows": len(records),
-                "media_type": media_type,
-            }
-    manifest = {
-        "schema": "fincore-factor-research-result-v1",
-        "result_schema_version": 1,
-        "export_schema_version": 1,
-        "complete": True,
-        "evaluation_id": "small-fixture",
-        "status": "PARTIAL",
-        "result_table_schemas": table_schemas,
-        "tables": table_files,
-        "files": file_records,
-    }
-    manifest_path = evaluation_dir / "manifest.json"
-    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
-    exported = runner._validate_export_output(
-        evaluation_dir,
-        charts_requested=False,
-        expected_status="PARTIAL",
-        expected_evaluation_id="small-fixture",
-    )
-    assert exported["passed"] is True
-    assert exported["table_file_count"] == 22
-    assert exported["table_row_count"] == 10
-    assert exported["optional_tables"] == ["diagnostics"]
-    assert runner._evaluation_exit_code("PARTIAL", exported) == 0
-
-    # The frozen fincore schema is table-specific for these two repeated names.
-    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    quantile_schema = next(
-        item
-        for item in manifest["result_table_schemas"]["signals"]["columns"]
-        if item["name"] == "quantile"
-    )
-    ic_period_schema = next(
-        item
-        for item in manifest["result_table_schemas"]["ic_summary"]["columns"]
-        if item["name"] == "period"
-    )
-    comparison_period_schema = next(
-        item
-        for item in manifest["result_table_schemas"]["comparisons"]["columns"]
-        if item["name"] == "period"
-    )
-    assert quantile_schema["type"] == "number"
-    assert ic_period_schema["type"] == "string"
-    assert comparison_period_schema["type"] == "timestamp_or_label"
-
-    quantile_schema["type"] = "integer"
-    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
-    invalid_quantile_type = runner._validate_export_output(
-        evaluation_dir, charts_requested=False, expected_status="PARTIAL"
-    )
-    assert invalid_quantile_type["passed"] is False
-    assert invalid_quantile_type["reason"] == "evaluation_table_column_type_invalid"
-    assert (invalid_quantile_type["table"], invalid_quantile_type["column"]) == (
-        "signals",
-        "quantile",
-    )
-    quantile_schema["type"] = "number"
-
-    ic_period_schema["type"] = "timestamp_or_label"
-    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
-    invalid_ic_period_type = runner._validate_export_output(
-        evaluation_dir, charts_requested=False, expected_status="PARTIAL"
-    )
-    assert invalid_ic_period_type["passed"] is False
-    assert invalid_ic_period_type["reason"] == "evaluation_table_column_type_invalid"
-    assert (invalid_ic_period_type["table"], invalid_ic_period_type["column"]) == (
-        "ic_summary",
-        "period",
-    )
-    ic_period_schema["type"] = "string"
-
-    # Quantile is serialized as a number but must still denote an integer bucket.
-    signals_json_path = evaluation_dir / "signals.json"
-    valid_signals_json = signals_json_path.read_bytes()
-    signal_records = json.loads(valid_signals_json.decode("utf-8"))
-    signal_records[0]["quantile"] = 1.5
-    invalid_signals_json = json.dumps(signal_records, separators=(",", ":")).encode("utf-8")
-    signals_json_path.write_bytes(invalid_signals_json)
-    manifest["files"]["signals.json"]["sha256"] = hashlib.sha256(invalid_signals_json).hexdigest()
-    manifest["files"]["signals.json"]["bytes"] = len(invalid_signals_json)
-    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
-    fractional_quantile = runner._validate_export_output(
-        evaluation_dir, charts_requested=False, expected_status="PARTIAL"
-    )
-    assert fractional_quantile["passed"] is False
-    assert fractional_quantile["reason"] == "evaluation_table_value_semantic_invalid"
-    assert fractional_quantile["column"] == "quantile"
-    signals_json_path.write_bytes(valid_signals_json)
-    manifest["files"]["signals.json"]["sha256"] = hashlib.sha256(valid_signals_json).hexdigest()
-    manifest["files"]["signals.json"]["bytes"] = len(valid_signals_json)
-    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
-
-    # Charts are an optional artifact entry, never a twelfth result table.
-    chart_bytes = b"\x89PNG\r\n\x1a\nunit chart"
-    chart_path = evaluation_dir / "ic_summary.png"
-    chart_path.write_bytes(chart_bytes)
-    manifest["files"]["ic_summary.png"] = {
-        "sha256": hashlib.sha256(chart_bytes).hexdigest(),
-        "bytes": len(chart_bytes),
-        "media_type": "image/png",
-    }
-    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
-    chart_export = runner._validate_export_output(
-        evaluation_dir,
-        charts_requested=True,
-        expected_status="PARTIAL",
-        expected_evaluation_id="small-fixture",
-    )
-    assert chart_export["passed"] is True
-    assert chart_export["table_file_count"] == 22
-    assert chart_export["chart_file_count"] == 1
-    unexpected_chart = runner._validate_export_output(
-        evaluation_dir, charts_requested=False, expected_status="PARTIAL"
-    )
-    assert unexpected_chart["passed"] is False
-    assert unexpected_chart["reason"] == "evaluation_manifest_table_inventory_invalid"
-    manifest["files"]["ic_summary.png"]["sha256"] = "0" * 64
-    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
-    wrong_chart_identity = runner._validate_export_output(
-        evaluation_dir, charts_requested=True, expected_status="PARTIAL"
-    )
-    assert wrong_chart_identity["passed"] is False
-    assert wrong_chart_identity["reason"] == "evaluation_chart_manifest_mismatch"
-    del manifest["files"]["ic_summary.png"]
-    chart_path.unlink()
-    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
-
-    manifest["files"]["signals.csv"]["media_type"] = "text/csv"
-    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
-    wrong_csv_media_type = runner._validate_export_output(
-        evaluation_dir, charts_requested=False, expected_status="PARTIAL"
-    )
-    assert wrong_csv_media_type["passed"] is False
-    assert wrong_csv_media_type["reason"] == "evaluation_table_file_manifest_mismatch"
-    manifest["files"]["signals.csv"]["media_type"] = "text/csv; charset=utf-8"
-    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
-
-    required_export = runner._validate_export_output(
-        evaluation_dir,
-        charts_requested=False,
-        expected_status="PARTIAL",
-        optional_tables=(),
-    )
-    assert required_export["passed"] is True
-    assert required_export["optional_tables"] == []
-
-    (evaluation_dir / "ic.csv").write_text("required\n", encoding="utf-8")
-    broken_csv = runner._validate_export_output(
-        evaluation_dir,
-        charts_requested=False,
-        expected_status="PARTIAL",
-        expected_evaluation_id="small-fixture",
-    )
-    assert broken_csv["passed"] is False
-    assert broken_csv["reason"] == "evaluation_table_file_manifest_mismatch"
-    # A matching manifest hash still cannot make a malformed header acceptable.
-    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    payload = (evaluation_dir / "ic.csv").read_bytes()
-    manifest["files"]["ic.csv"]["sha256"] = hashlib.sha256(payload).hexdigest()
-    manifest["files"]["ic.csv"]["bytes"] = len(payload)
-    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
-    wrong_header = runner._validate_export_output(
-        evaluation_dir,
-        charts_requested=False,
-        expected_status="PARTIAL",
-        expected_evaluation_id="small-fixture",
-    )
-    assert wrong_header["passed"] is False
-    assert wrong_header["reason"] == "evaluation_csv_schema_mismatch"
-    manifest["evaluation_id"] = "different-evaluation"
-    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
-    wrong_identity = runner._validate_export_output(
-        evaluation_dir,
-        charts_requested=False,
-        expected_status="PARTIAL",
-        expected_evaluation_id="small-fixture",
-    )
-    assert wrong_identity["passed"] is False
-    assert wrong_identity["reason"] == "evaluation_manifest_status_or_id_missing"
-    assert runner._failure_result(ImportError("missing fincore")) == ("BLOCKED_DEPENDENCY", 2)
-    missing_input = RuntimeError("input prerequisite failed")
-    missing_input.code = "MISSING_INPUT"
-    assert runner._failure_result(missing_input) == ("INVALID_INPUT", 2)
-    assert runner._failure_result(OSError("output unavailable")) == ("OUTPUT_ERROR", 3)
-    assert runner._failure_result(KeyboardInterrupt()) == ("INTERRUPTED", 3)
-    assert runner._failure_result(RuntimeError("required result missing")) == ("FAILED", 1)
-
-    (evaluation_dir / "signals.csv").unlink()
-    missing_export = runner._validate_export_output(
-        evaluation_dir, charts_requested=False, expected_status="PARTIAL"
-    )
-    assert missing_export["passed"] is False
-    assert runner._evaluation_exit_code("PARTIAL", missing_export) == 1
 
 
 def _known_kdj_bars() -> pd.DataFrame:
