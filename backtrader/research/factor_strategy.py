@@ -272,8 +272,6 @@ class FactorStrategy(Strategy):
         cumulative presence counts answer each query in constant time.
         """
         lookback = spec.lookback_h
-        if lookback <= 0:
-            return True
         start = max(0, cursor - lookback)
         expected = cursor - start + 1
         for alias in _input_aliases(spec):
