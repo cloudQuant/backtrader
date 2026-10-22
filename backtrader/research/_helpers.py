@@ -22,7 +22,7 @@ def per_asset(
 def panel(
     factor: Any, name: str, operator: Any, values: Sequence[Any], **kwargs: Any
 ) -> Tuple[Any, ...]:
-    """Build one native panel operator with the factor's PIT membership defaults."""
+    """Build one native panel operator using ordinary feed-bar presence."""
     if len(values) != len(factor.datas):
         raise RuntimeError("cross-sectional operator inputs do not match the bound feeds")
     panel_kwargs = dict(kwargs)

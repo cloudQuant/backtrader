@@ -17,9 +17,6 @@ class Alpha101Native(FactorIndicator):
     lines = ("factor",)
     alpha_id = 101
     case_id = "AF46-101"
-    formula_universe_policy = (
-        "per-target pointwise evaluation; output eligibility from ResearchSpec.formula_universe"
-    )
     lookback_h = 0
     formula_fields = ("open", "high", "low", "close")
     required_fields = formula_fields

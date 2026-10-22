@@ -21,9 +21,6 @@ class Alpha009Native(FactorIndicator):
     lines = ("factor",)
     alpha_id = 9
     case_id = "AF46-009"
-    formula_universe_policy = (
-        "per-target close history; output eligibility from ResearchSpec.formula_universe"
-    )
     lookback_h = 5
     formula_fields = ("close",)
     required_fields = formula_fields
