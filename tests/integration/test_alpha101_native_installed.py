@@ -9,6 +9,7 @@ External test-tree contents (relative to the tree root):
 * ``tests/integration/test_alpha101_native_installed.py`` (this file)
 * ``tests/test_utils/alpha101_full_reference.py``
 * ``tests/test_utils/alpha101_native_harness.py``
+* ``tests/test_utils/alpha101_trace_validation.py``
 * ``tests/unit/test_factor_research_representatives.py``
 * ``tests/fixtures/research/alpha101_dependencies.json`` (the pinned public
   formula catalog copied from the source checkout)
@@ -57,6 +58,7 @@ import pytest
 
 _RUN_ENV = "BT_ALPHA101_NATIVE_INSTALLED_ACCEPTANCE"
 _PROVENANCE_ENV = "BT_ALPHA101_NATIVE_PROVENANCE_JSON"
+_INSTALLED_ROOTS_ENV = "BT_FACTOR_RESEARCH_INSTALLED_ROOTS"
 _IC_METRICS = ("pearson", "spearman")
 _BATCHES: Tuple[Tuple[str, Tuple[int, ...]], ...] = (
     (
@@ -73,9 +75,6 @@ _EVALUATION_IDS = (3, 9, 101)
 _EVALUATION_START = 260
 _EVALUATION_END = 285
 _CONSTANT_RETURN_OFFSET = 278
-_MASK_EXIT_START = 290
-_MASK_EXIT_END = 292
-_MASK_REENTRY = 302
 _HASH_RE = re.compile(r"^[0-9a-f]{64}$")
 _COMMIT_RE = re.compile(r"^(?:[0-9a-f]{40}|[0-9a-f]{64})$")
 
@@ -98,14 +97,19 @@ def _installed_origin(module: Any, *, name: str) -> str:
     assert isinstance(origin_value, str) and origin_value, "%s has no file origin" % name
     origin = Path(origin_value).resolve()
     prefix = Path(sys.prefix).resolve()
-    try:
-        relative = origin.relative_to(prefix)
-    except ValueError as exc:
-        raise AssertionError("%s did not load underneath sys.prefix: %s" % (name, origin)) from exc
-    assert any(
-        part.lower() in ("site-packages", "dist-packages") for part in relative.parts
-    ), "%s did not load from site-packages: %s" % (name, origin)
-    return str(origin)
+    roots = [prefix]
+    configured = os.environ.get(_INSTALLED_ROOTS_ENV)
+    if configured:
+        roots.extend(Path(value).expanduser().resolve() for value in json.loads(configured))
+    for root in roots:
+        if origin.is_relative_to(root):
+            if root == prefix:
+                relative = origin.relative_to(prefix)
+                assert any(
+                    part.lower() in ("site-packages", "dist-packages") for part in relative.parts
+                ), "%s did not load from site-packages: %s" % (name, origin)
+            return str(origin)
+    raise AssertionError("%s did not load underneath an approved install root: %s" % (name, origin))
 
 
 def _installed_packages() -> Tuple[Mapping[str, Any], Mapping[str, str]]:
@@ -163,9 +167,11 @@ def _installed_packages() -> Tuple[Mapping[str, Any], Mapping[str, str]]:
         ),
     }
     versions = {
-        "backtrader": importlib.metadata.version("backtrader"),
+        "backtrader": importlib.metadata.version("back-trader-python"),
         "fincore": importlib.metadata.version("fincore"),
     }
+    assert backtrader.__version__ == versions["backtrader"]
+    assert fincore.__version__ == versions["fincore"]
     return {
         "backtrader": backtrader,
         "alpha101": alpha101,
@@ -221,8 +227,9 @@ def _provenance(manifest_path_value: str, versions: Mapping[str, str]) -> Mappin
 def _load_helpers() -> Mapping[str, Any]:
     reference = importlib.import_module("tests.test_utils.alpha101_full_reference")
     harness = importlib.import_module("tests.test_utils.alpha101_native_harness")
+    trace = importlib.import_module("tests.test_utils.alpha101_trace_validation")
     fixture = importlib.import_module("tests.unit.test_factor_research_representatives")
-    return {"reference": reference, "harness": harness, "fixture": fixture}
+    return {"reference": reference, "harness": harness, "trace": trace, "fixture": fixture}
 
 
 def _sha256_sources(external_root: Path) -> Mapping[str, str]:
@@ -230,6 +237,7 @@ def _sha256_sources(external_root: Path) -> Mapping[str, str]:
         "installed_test": external_root / "tests" / "integration" / Path(__file__).name,
         "full_reference": external_root / "tests" / "test_utils" / "alpha101_full_reference.py",
         "native_harness": external_root / "tests" / "test_utils" / "alpha101_native_harness.py",
+        "trace_validator": external_root / "tests" / "test_utils" / "alpha101_trace_validation.py",
         "representative_fixture": external_root
         / "tests"
         / "unit"
@@ -256,50 +264,6 @@ def _force_constant_forward_return(frames: Mapping[str, Any], offset: int) -> No
             close = float(frame.loc[point, "close"])
             frame.loc[point, "high"] = max(open_value, close) + 0.28
             frame.loc[point, "low"] = min(open_value, close) - 0.20
-
-
-def _formula_universe(index: Sequence[Any], assets: Sequence[str]) -> list:
-    harness = importlib.import_module("tests.test_utils.alpha101_native_harness")
-    members = harness.formula_universe_matrix(index, assets)
-    excluded = assets.index("asset-5")
-    for row in members:
-        row[excluded] = False
-    temporarily_excluded = assets.index("asset-4")
-    for row in range(_MASK_EXIT_START, _MASK_EXIT_END + 1):
-        members[row][temporarily_excluded] = False
-    return members
-
-
-def _oracle_matrices(
-    frames: Mapping[str, Any],
-    members: Sequence[Sequence[bool]],
-    groups: Mapping[str, str],
-) -> Tuple[Mapping[int, Sequence[Sequence[float]]], Mapping[int, int], Mapping[str, Any]]:
-    helpers = _load_helpers()
-    reference = helpers["reference"]
-    harness = helpers["harness"]
-    grid = tuple(next(iter(frames.values())).index)
-    matrices = harness.oracle_frames(frames, grid=grid)
-    group_values = tuple(groups.values())
-    raw = reference.reference_all(
-        matrices,
-        groups=group_values,
-    )
-    expected: Dict[int, Sequence[Sequence[float]]] = {}
-    histories: Dict[int, int] = {}
-    for alpha_id in reference.formula_ids():
-        history = reference.history_h(alpha_id, matrices)
-        values = [list(row) for row in raw[alpha_id]]
-        # H defines structural warmup only.  The independent expression
-        # oracle has already applied membership at each cross-sectional
-        # operation and at the final output, so do not impose a second,
-        # blanket H-bar membership delay after re-entry.
-        for offset in range(min(history, len(values))):
-            values[offset] = [math.nan] * len(values[offset])
-        expected[alpha_id] = values
-        histories[alpha_id] = history
-        harness.assert_finite_witness(alpha_id, values, history)
-    return expected, histories, {"grid": grid, "assets": tuple(frames), "matrices": matrices}
 
 
 def _average_ranks(values: Sequence[float]) -> list:
@@ -376,6 +340,7 @@ def _ic_expectations(
 def _assert_ic_and_labels(
     result: Any,
     expected: Mapping[Tuple[str, Any, str], Tuple[str | None, float | None]],
+    factor_matrices: Mapping[int, Sequence[Sequence[float]]],
     frames: Mapping[str, Any],
     grid: Sequence[Any],
     assets: Sequence[str],
@@ -384,7 +349,7 @@ def _assert_ic_and_labels(
 
     window = tuple(range(_EVALUATION_START, _EVALUATION_END + 1))
     label_rows = result.labels
-    assert set(label_rows["horizon"]) == {1}
+    assert set(label_rows["period"]) == {"1D"}
     actual_label_keys = [(pd.Timestamp(row.time), row.asset) for row in label_rows.itertuples()]
     expected_label_keys = {
         (pd.Timestamp(grid[offset]), asset) for offset in window for asset in assets
@@ -402,24 +367,38 @@ def _assert_ic_and_labels(
         assert math.isfinite(float(row.value))
         assert abs(float(row.value) - wanted) <= 1e-12 + 1e-12 * abs(wanted)
 
-    ic = result.ic.loc[(result.ic.record_type == "period") & (result.ic.variant == "raw")]
-    actual_ic_keys = [(row.signal, pd.Timestamp(row.time), row.metric) for row in ic.itertuples()]
+    ic = result.ic
+    expected_ic_keys = {
+        (signal, timestamp)
+        for signal, timestamp, _metric in expected
+        if expected[(signal, timestamp, "pearson")][0] != "INSUFFICIENT_ASSETS"
+    }
+    actual_ic_keys = [(row.factor, pd.Timestamp(row.time)) for row in ic.itertuples()]
     assert len(actual_ic_keys) == len(set(actual_ic_keys))
-    assert set(actual_ic_keys) == set(expected)
-    assert len(ic) == len(expected)
+    assert set(actual_ic_keys) == expected_ic_keys
+    assert {factor for factor, _ in actual_ic_keys} == {
+        "alpha%d" % evaluation_id for evaluation_id in _EVALUATION_IDS
+    }
     finite_count = degenerate_count = 0
     for row in ic.itertuples():
-        reason, wanted = expected[(row.signal, pd.Timestamp(row.time), row.metric)]
+        timestamp = pd.Timestamp(row.time)
+        reason, _ = expected[(row.factor, timestamp, "pearson")]
         if reason is not None:
-            assert pd.isna(row.value) and row.status == "UNEVALUABLE"
-            assert row.reason == reason
+            assert reason in ("CONSTANT_FACTOR", "CONSTANT_RETURN")
+            assert pd.isna(row.ic) and pd.isna(row.rank_ic)
             degenerate_count += 1
             continue
-        assert row.metric in _IC_METRICS
-        assert math.isfinite(float(row.value))
-        assert pd.isna(row.reason)
-        assert wanted is not None
-        assert abs(float(row.value) - wanted) <= 1e-12 + 1e-10 * abs(wanted)
+        alpha_id = int(row.factor.removeprefix("alpha"))
+        expected_asset_count = sum(
+            math.isfinite(factor_matrices[alpha_id][grid.index(timestamp)][column])
+            for column in range(len(assets))
+        )
+        assert row.n_assets == expected_asset_count
+        for metric, actual in (("pearson", row.ic), ("spearman", row.rank_ic)):
+            _, wanted = expected[(row.factor, timestamp, metric)]
+            assert math.isfinite(float(actual))
+            assert wanted is not None
+            assert abs(float(actual) - wanted) <= 1e-12 + 1e-10 * abs(wanted)
         finite_count += 1
     assert finite_count > 0 and degenerate_count > 0
     return {
@@ -429,109 +408,57 @@ def _assert_ic_and_labels(
     }
 
 
-def _evaluation_window_dataset(
+def _evaluation_window_panel(
     collected: Any,
-    harness: Any,
-    frames: Mapping[str, Any],
-    members: Sequence[Sequence[bool]],
-    groups: Mapping[str, str],
 ) -> Any:
-    """Declare the fincore interval while retaining the full calculation grid."""
+    """Select evaluation factors while retaining the full price-label tail."""
+    from backtrader.research import FactorPanel
 
-    from backtrader.research import ResearchDataset, ResearchSpec
-
-    base = harness.make_research_spec(frames, formula_universe=members, groups=groups)
-    grid = base.grid
+    grid = collected.grid
     start = grid.index[_EVALUATION_START]
     end = grid.index[_EVALUATION_END]
     evaluation_times = grid.index[(grid.index >= start) & (grid.index <= end)]
-    formula_times = grid.index[grid.index <= end]
-
     factor_names = tuple("alpha%d" % alpha_id for alpha_id in _EVALUATION_IDS)
-    raw = collected.factors
-    raw_times = raw.index.get_level_values("time")
-    raw_window = raw.loc[raw_times.isin(evaluation_times), factor_names]
-
-    availability = collected.availability
-    availability_times = availability.index.get_level_values("time")
-    availability_factors = availability.index.get_level_values("factor")
-    availability_window = availability.loc[
-        availability_times.isin(evaluation_times) & availability_factors.isin(factor_names)
-    ]
-
-    universe = base.universe
-    universe = universe.loc[universe.index.get_level_values("time").isin(evaluation_times)]
-    formula_universe = base.formula_universe
-    formula_universe = formula_universe.loc[
-        formula_universe.index.get_level_values("time").isin(formula_times)
-    ]
-    research = ResearchSpec(
-        grid=grid,
+    times = collected.factors.index.get_level_values("time")
+    factors = collected.factors.loc[times.isin(evaluation_times), list(factor_names)]
+    universe = collected.universe.loc[evaluation_times]
+    return FactorPanel(
+        factors=factors,
+        grid=collected.grid,
+        prices_open=collected.prices_open,
+        prices_close=collected.prices_close,
+        universe=universe,
+        groups=collected.groups,
         start=start,
         end=end,
-        targets=base.targets,
-        source_timezone=base.source_timezone,
-        snapshot_id=base.snapshot_id,
-        price_basis=base.price_basis,
-        calendar_id=base.calendar_id,
-        frequency=base.frequency,
-        feed_time_kind=base.feed_time_kind,
-        groups=base.groups,
-        universe=universe,
-        formula_fields=base.formula_fields,
-        classifications=base.classifications,
-    )
-
-    provenance = collected.metadata["provenance"]
-    factor_directions = provenance.get("factor_directions")
-    assert isinstance(factor_directions, Mapping)
-    assert set(factor_names).issubset(factor_directions)
-    window_provenance = dict(provenance)
-    window_provenance["factor_directions"] = {
-        name: factor_directions[name] for name in factor_names
-    }
-    return ResearchDataset.from_collection(
-        research=research,
-        raw_factors=raw_window,
-        availability=availability_window,
-        prices=collected.prices,
-        formula_inputs=base.formula_fields,
-        classifications=base.classifications,
-        provenance=window_provenance,
+        target_order=collected.target_order,
+        factor_order=factor_names,
+        directions={name: collected.directions[name] for name in factor_names},
     )
 
 
-def _formula_reentry_oracle_summary(
-    expected: Mapping[int, Sequence[Sequence[float]]], assets: Sequence[str]
-) -> Mapping[str, Any]:
-    asset_index = assets.index("asset-4")
-    for alpha_id, matrix in expected.items():
-        assert all(
-            not math.isfinite(float(matrix[row][asset_index]))
-            for row in range(_MASK_EXIT_START, _MASK_EXIT_END + 1)
-        ), ("oracle did not exclude asset-4 during Alpha%d exit" % alpha_id)
-    first_finite = {}
-    for alpha_id, matrix in expected.items():
-        first_finite[str(alpha_id)] = next(
-            (
-                row
-                for row in range(_MASK_EXIT_END + 1, len(matrix))
-                if math.isfinite(float(matrix[row][asset_index]))
-            ),
-            None,
-        )
-    # Alpha3's outer rolling correlation consumes its recent cross-sectional
-    # rank values, so the gap's final ineligible row remains in that rolling
-    # window through row 301.  This is formula-graph propagation, not a
-    # blanket application of FactorSpec.lookback_h to every formula.
-    assert first_finite["3"] == _MASK_REENTRY == 302
-    assert first_finite["1"] == _MASK_EXIT_END + 1
-    return {
-        "temporary_exit_rows": [_MASK_EXIT_START, _MASK_EXIT_END],
-        "asset": "asset-4",
-        "first_finite_row_by_alpha": first_finite,
-        "projection": "independent expression graph membership propagation; no blanket H-bar delay",
-    }
+def _evaluation_spec(panel: Any) -> Any:
+    from fincore.factor_analysis.research import ResearchEvaluationSpec
+
+    return ResearchEvaluationSpec(
+        targets=panel.target_order,
+        start=panel.start,
+        end=panel.end,
+        snapshot_id="iteration46-alpha101-installed-v1",
+        price_basis="synthetic unadjusted independent OHLC and VWAP units",
+        calendar_id="synthetic-daily-v1",
+        frequency="1session",
+        source_timezone="UTC",
+        feed_time_kind="close_time",
+        periods=(1,),
+        label="next_open_to_open",
+        min_assets=2,
+        quantiles=1,
+        min_quantile_assets=1,
+        preprocess="none",
+        stability_lags=(1,),
+        max_loss=1.0,
+    )
 
 
 @pytest.mark.parametrize(
@@ -539,7 +466,10 @@ def _formula_reentry_oracle_summary(
     _BATCHES,
     ids=["promoted_20"] + ["batch_%s" % name for name, _ in _BATCHES[1:]],
 )
-def test_installed_alpha101_batch_and_promoted_fincore_acceptance(tmp_path, batch_name, alpha_ids):
+@pytest.mark.parametrize("runonce", (False, True), ids=("runnext", "runonce"))
+def test_installed_alpha101_batch_and_promoted_fincore_acceptance(
+    tmp_path, batch_name, alpha_ids, runonce
+):
     packages, origins = _installed_packages()
     versions = {
         "backtrader": origins["backtrader_version"],
@@ -552,6 +482,7 @@ def test_installed_alpha101_batch_and_promoted_fincore_acceptance(tmp_path, batc
     helpers = _load_helpers()
     harness = helpers["harness"]
     reference = helpers["reference"]
+    trace_validator = helpers["trace"]
     alpha101 = packages["alpha101"]
     assert tuple(harness.ALPHA_BATCHES.items()) == _BATCHES
     assert not harness.selection_is_focused(), "installed acceptance must cover the whole registry"
@@ -575,37 +506,70 @@ def test_installed_alpha101_batch_and_promoted_fincore_acceptance(tmp_path, batc
     _force_constant_forward_return(frames, _CONSTANT_RETURN_OFFSET)
     grid = tuple(next(iter(frames.values())).index)
     assets = tuple(frames)
-    members = _formula_universe(grid, assets)
     groups = dict.fromkeys(assets, "market")
-    expected, histories, oracle_context = _oracle_matrices(frames, members, groups)
-    reentry_oracle = _formula_reentry_oracle_summary(expected, assets)
-    expected_ic = (
-        _ic_expectations(expected, frames, grid, assets) if batch_name == "promoted_20" else None
-    )
+    oracle_matrices = harness.oracle_frames(frames, grid=grid)
+    histories = {
+        alpha_id: reference.history_h(alpha_id, oracle_matrices)
+        for alpha_id in reference.formula_ids()
+    }
 
     strategy = harness.run_native_batch(
         frames,
         alpha_ids,
-        runonce=False,
+        runonce=runonce,
         groups=groups,
     )
+    trace_results = {}
+    production_matrices = {}
+    expected_ic = None
     for alpha_id in alpha_ids:
         factor_class = alpha101.get_alpha(alpha_id)
-        label = "%s Alpha%d installed runnext" % (batch_name, alpha_id)
+        label = "%s Alpha%d installed %s" % (
+            batch_name,
+            alpha_id,
+            "runonce" if runonce else "runnext",
+        )
         assert factor_class.lookback_h == histories[alpha_id], label
-        actual = harness.actual_matrix(strategy, alpha_id, assets, grid)
-        harness.assert_matrix_matches(actual, expected[alpha_id], label=label)
-        harness.assert_finite_witness(alpha_id, expected[alpha_id], histories[alpha_id])
+        trace = trace_validator.validate_factor_trace(
+            strategy.factor_instances["alpha%d" % alpha_id],
+            alpha_id,
+            frames,
+            assets,
+            grid,
+            strategy=strategy,
+        )
+        assert not trace["failures"], "%s trace failed:\n%s" % (
+            label,
+            "\n".join(trace["failures"]),
+        )
+        assert trace["finite_witness"], label
+        assert trace["matched_nodes"] > 0, label
+        harness.assert_finite_witness(alpha_id, trace["expected"], histories[alpha_id])
+        trace_results[alpha_id] = trace
+        if alpha_id in _EVALUATION_IDS:
+            # The independent formula trace validates this collector output
+            # before it becomes the IC oracle input. This keeps exact
+            # production ties for rank-based IC while labels remain
+            # independently computed from fixture prices.
+            production_matrices[alpha_id] = trace["panel_actual"]
     harness.assert_lifecycle(strategy, alpha_ids, grid)
-    harness.assert_availability_matches_values(strategy, alpha_ids, grid, assets)
+    if batch_name == "promoted_20":
+        assert set(production_matrices) == set(_EVALUATION_IDS)
+        expected_ic = _ic_expectations(production_matrices, frames, grid, assets)
     batch_report = {
         batch_name: {
             "alpha_ids": list(alpha_ids),
             "formula_count": len(alpha_ids),
+            "engine_mode": "runonce" if runonce else "runnext",
+            "trace_nodes": {
+                str(alpha_id): trace_results[alpha_id]["matched_nodes"] for alpha_id in alpha_ids
+            },
             "lookback_h": {str(alpha_id): histories[alpha_id] for alpha_id in alpha_ids},
             "finite_cells": {
                 str(alpha_id): sum(
-                    math.isfinite(float(value)) for row in expected[alpha_id] for value in row
+                    math.isfinite(float(value))
+                    for row in trace_results[alpha_id]["actual"]
+                    for value in row
                 )
                 for alpha_id in alpha_ids
             },
@@ -616,84 +580,61 @@ def test_installed_alpha101_batch_and_promoted_fincore_acceptance(tmp_path, batc
     fincore_evaluation: Mapping[str, Any]
     if batch_name == "promoted_20":
         assert expected_ic is not None
-        # Keep the 320-row native collector evidence above.  The evaluator
-        # dataset declares only its 260..285 factor interval, while retaining
-        # the complete grid for warm-up and forward-label tail rows.
+        # Keep the 320-row native collector evidence above. The evaluator
+        # panel declares only its 260..285 factor interval, while retaining
+        # the complete grid and price frames for the forward-label tail.
         collected = strategy.get_panel()
-        # The mask includes a permanent excluded target and a temporary exit
-        # with an explicit eligible re-entry.  Check the lifecycle reason on
-        # the native availability pane as well as matrix NaN equality.
-        availability = collected.availability
-        exit_key = (grid[_MASK_EXIT_START].to_pydatetime(), "asset-4", "alpha3")
-        reentry_key = (grid[_MASK_REENTRY].to_pydatetime(), "asset-4", "alpha3")
-        assert availability.loc[exit_key, "reason"] == "FORMULA_INELIGIBLE"
-        assert not bool(availability.loc[exit_key, "ready"])
-        assert not bool(availability.loc[exit_key, "valid"])
-        assert math.isfinite(expected[3][_MASK_REENTRY][assets.index("asset-4")])
-        assert availability.loc[reentry_key, "reason"] == "READY"
-        assert bool(availability.loc[reentry_key, "ready"])
-        assert bool(availability.loc[reentry_key, "valid"])
-
-        dataset = _evaluation_window_dataset(collected, harness, frames, members, groups)
+        panel = _evaluation_window_panel(collected)
         evaluation_grid = tuple(grid[_EVALUATION_START : _EVALUATION_END + 1])
-        for evaluation_id in _EVALUATION_IDS:
-            actual = harness.actual_matrix(strategy, evaluation_id, assets, evaluation_grid)
-            harness.assert_matrix_matches(
-                actual,
-                expected[evaluation_id][_EVALUATION_START : _EVALUATION_END + 1],
-                label="evaluation Alpha%d" % evaluation_id,
-            )
-        harness.assert_availability_matches_values(
-            strategy, _EVALUATION_IDS, evaluation_grid, assets
+        assert tuple(panel.grid.index) == tuple(grid)
+        assert panel.start == grid[_EVALUATION_START]
+        assert panel.end == grid[_EVALUATION_END]
+        assert len(panel.factors) == len(evaluation_grid) * len(assets)
+        assert panel.factor_order == ("alpha3", "alpha9", "alpha101")
+        label_tail_end = grid[_EVALUATION_END + 2]
+        assert panel.prices_open.index[-1] >= label_tail_end
+        assert panel.prices_close.index[-1] >= label_tail_end
+
+        snapshot_path = tmp_path / "alpha101-native-panel"
+        panel.to_csv(snapshot_path)
+        from backtrader.research import FactorPanel, evaluate_frames
+
+        restored_panel = FactorPanel.from_csv(
+            snapshot_path,
+            start=panel.start,
+            end=panel.end,
+            directions=panel.directions,
+            target_order=panel.target_order,
+            factor_order=panel.factor_order,
+            groups=panel.groups,
         )
-        assert tuple(dataset.grid.index) == tuple(grid)
-        assert dataset.start == grid[_EVALUATION_START]
-        assert dataset.end == grid[_EVALUATION_END]
-        assert len(dataset.formula_universe) == (_EVALUATION_END + 1) * len(assets)
-        assert len(dataset.factors) == len(evaluation_grid) * len(assets)
-        assert set(dataset.factor_names) == {"alpha3", "alpha9", "alpha101"}
+        assert tuple(restored_panel.grid.index) == tuple(grid)
+        assert restored_panel.start == grid[_EVALUATION_START]
+        assert restored_panel.end == grid[_EVALUATION_END]
+        assert restored_panel.factor_order == ("alpha3", "alpha9", "alpha101")
+        assert panel.factors.equals(restored_panel.factors)
+        assert panel.grid.equals(restored_panel.grid)
+        assert panel.prices_open.equals(restored_panel.prices_open)
+        assert panel.prices_close.equals(restored_panel.prices_close)
+        assert panel.universe.equals(restored_panel.universe)
+        assert len(restored_panel.factors) == len(evaluation_grid) * len(assets)
 
-        snapshot_path = tmp_path / "alpha101-native-dataset"
-        dataset.save(snapshot_path)
-        from backtrader.research import load_dataset
+        borrowed = {
+            name: getattr(restored_panel, name)
+            for name in ("factors", "grid", "prices_open", "prices_close", "universe")
+        }
+        borrowed_before = {name: frame.copy(deep=True) for name, frame in borrowed.items()}
+        result = evaluate_frames(restored_panel, _evaluation_spec(restored_panel))
+        for name, frame in borrowed.items():
+            import pandas as pd
 
-        restored_dataset = load_dataset(snapshot_path)
-        assert restored_dataset.dataset_id == dataset.dataset_id
-        assert tuple(restored_dataset.grid.index) == tuple(grid)
-        assert restored_dataset.start == grid[_EVALUATION_START]
-        assert restored_dataset.end == grid[_EVALUATION_END]
-        assert set(restored_dataset.factor_names) == {"alpha3", "alpha9", "alpha101"}
-        assert dataset.factors.equals(restored_dataset.factors)
-        assert dataset.availability.equals(restored_dataset.availability)
-        assert dataset.formula_universe.equals(restored_dataset.formula_universe)
-        assert len(restored_dataset.factors) == len(evaluation_grid) * len(assets)
-        for evaluation_id in _EVALUATION_IDS:
-            restored = (
-                restored_dataset.factors["alpha%d" % evaluation_id]
-                .unstack("asset")
-                .reindex(index=evaluation_grid, columns=assets)
-            )
-            restored_values = restored.to_numpy().tolist()
-            harness.assert_matrix_matches(
-                restored_values,
-                expected[evaluation_id][_EVALUATION_START : _EVALUATION_END + 1],
-                label="snapshot Alpha%d" % evaluation_id,
-            )
-
-        result = restored_dataset.evaluate(
-            label="next_open_to_open",
-            start=grid[_EVALUATION_START],
-            end=grid[_EVALUATION_END],
-            periods=(1,),
-            min_assets=2,
-            quantiles=2,
-            min_quantile_assets=1,
-            stability_lags=(1,),
-            max_loss=1.0,
+            pd.testing.assert_frame_equal(frame, borrowed_before[name])
+        assert production_matrices is not None
+        fincore_report = _assert_ic_and_labels(
+            result, expected_ic, production_matrices, frames, grid, assets
         )
-        fincore_report = _assert_ic_and_labels(result, expected_ic, frames, grid, assets)
         assert set(result.labels["asset"]) == set(assets)
-        assert set(result.ic.loc[result.ic.variant == "raw", "signal"]) == {
+        assert set(result.ic["factor"]) == {
             "alpha%d" % evaluation_id for evaluation_id in _EVALUATION_IDS
         }
         fincore_evaluation = {
@@ -701,7 +642,8 @@ def test_installed_alpha101_batch_and_promoted_fincore_acceptance(tmp_path, batc
             "formula_ids": list(_EVALUATION_IDS),
             "evaluation_rows": [_EVALUATION_START, _EVALUATION_END],
             "constant_return_row": _CONSTANT_RETURN_OFFSET,
-            "dataset_id": restored_dataset.dataset_id,
+            "factor_panel_csv_files": sorted(path.name for path in snapshot_path.iterdir()),
+            "result_fingerprint": result.manifest["result_fingerprint"],
             "result_status": result.status,
             "metrics": list(_IC_METRICS),
             **fincore_report,
@@ -713,14 +655,16 @@ def test_installed_alpha101_batch_and_promoted_fincore_acceptance(tmp_path, batc
     acceptance_record = {
         "schema": "iteration46-installed-alpha101-acceptance-v1",
         "evidence_level": (
-            "INSTALLED_WHEEL_ALPHA101_BATCH_%s_ORACLE_MATRIX%s"
+            "INSTALLED_WHEEL_ALPHA101_BATCH_%s_TRACE_%s%s"
             % (
                 batch_name.upper(),
+                "RUNONCE" if runonce else "RUNNEXT",
                 "_AND_FINCORE_SUBSET" if batch_name == "promoted_20" else "",
             )
         ),
         "selected_batch": batch_name,
         "selected_batch_alpha_ids": list(alpha_ids),
+        "selected_engine_mode": "runonce" if runonce else "runnext",
         "python": sys.version,
         "sys_prefix": str(Path(sys.prefix).resolve()),
         "origins": {key: value for key, value in origins.items() if not key.endswith("_version")},
@@ -731,22 +675,24 @@ def test_installed_alpha101_batch_and_promoted_fincore_acceptance(tmp_path, batc
         "external_test_inputs": source_pins,
         "oracle_formula_ids": list(reference.formula_ids()),
         "matrix_batches": batch_report,
-        "formula_universe_mask": {
-            "permanently_excluded_asset": "asset-5",
-            "temporary_exit_asset": "asset-4",
-            "exit_rows": [_MASK_EXIT_START, _MASK_EXIT_END],
-            "reentry_row": _MASK_REENTRY,
-            "exit_reason": "FORMULA_INELIGIBLE",
-            "oracle_reentry": reentry_oracle,
+        "membership": {
+            "semantics": "real-bar presence on the declared grid",
+            "input_rows": len(grid),
+            "target_count": len(assets),
+        },
+        "trace_validation": {
+            "formula_count": len(trace_results),
+            "matched_native_nodes": sum(trace["matched_nodes"] for trace in trace_results.values()),
+            "finite_witnesses": sum(
+                int(trace["finite_witness"]) for trace in trace_results.values()
+            ),
         },
         "fincore_evaluation": fincore_evaluation,
         "oracle_context": {
-            "grid_rows": len(oracle_context["grid"]),
-            "asset_count": len(oracle_context["assets"]),
-            "formula_count": len(expected),
-            "lookback_h": {
-                str(alpha_id): histories[alpha_id] for alpha_id in reference.formula_ids()
-            },
+            "grid_rows": len(grid),
+            "asset_count": len(assets),
+            "formula_count": len(trace_results),
+            "lookback_h": {str(alpha_id): histories[alpha_id] for alpha_id in alpha_ids},
         },
     }
     record_path = tmp_path / "alpha101-native-installed-acceptance.json"

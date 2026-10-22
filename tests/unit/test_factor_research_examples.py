@@ -150,7 +150,7 @@ def test_single_and_multi_examples_load_the_same_real_panel(tmp_path: Path):
         (
             MULTI_RUNNER,
             "iteration45_multi_report_label",
-            ("close_ma", "roc", "kdj_j"),
+            ("close_ma", "kdj_j", "roc"),
         ),
     ),
 )
@@ -217,7 +217,7 @@ def test_factor_example_reports_follow_the_evaluation_label(
         (
             MULTI_RUNNER,
             "iteration45_multi_broker_guard_source",
-            ("close_ma", "roc", "kdj_j"),
+            ("close_ma", "kdj_j", "roc"),
         ),
     ),
 )
@@ -247,6 +247,12 @@ def test_native_example_collection_observes_zero_broker_writes(
     assert len(dataset.factors) == 30 * len(panel["assets"])
     assert broker.submit_count == 0
     assert broker.cancel_count == 0
+
+
+def test_026_multi_example_preserves_legacy_factor_order():
+    runner = _load_module(MULTI_RUNNER, "iteration45_multi_factor_order_contract")
+
+    assert tuple(runner._load_config()["factors"]) == ("close_ma", "kdj_j", "roc")
 
 
 def test_alpha003_real_runner_exports_factor_values(tmp_path: Path):

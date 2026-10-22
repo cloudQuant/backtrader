@@ -234,8 +234,11 @@ def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description=__doc__,
         epilog=(
-            "Exit codes: 0 means the outputs were written (the dataset and factor values are "
-            "still saved when the fincore research API is unavailable); 1 means the evaluation "
+            "Exit codes: 0 means factor_values.csv and summary.json were written; inspect "
+            "summary.json for evaluation and report status. A reusable CSV panel is persisted "
+            "only with --save-panel. "
+            "factor_values.csv is still written when the fincore research API is unavailable; "
+            "1 means the evaluation "
             "failed or is UNEVALUABLE; 2 means invalid or missing input; 3 means an output I/O "
             "failure."
         ),

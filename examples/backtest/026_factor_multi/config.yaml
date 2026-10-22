@@ -17,17 +17,17 @@ factors:
     params:
       period: 20
     direction: 1
-  roc:
-    panel_line: factor
-    params:
-      period: 20
-    direction: 1
   kdj_j:
     panel_line: factor
     params:
       period: 9
       period_dfast: 3
       period_dslow: 3
+    direction: 1
+  roc:
+    panel_line: factor
+    params:
+      period: 20
     direction: 1
 
 evaluation:

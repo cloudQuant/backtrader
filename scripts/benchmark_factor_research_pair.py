@@ -229,7 +229,9 @@ def _probe_modules(root: Path) -> Dict[str, Any]:
     return details
 
 
-def _probe_entrypoint(root: Path, example: str) -> Dict[str, Any]:
+def _probe_entrypoint(
+    root: Path, example: str, requested_save: bool = True
+) -> Dict[str, Any]:
     script = root / EXAMPLE_DIRS[example] / "run.py"
     command = [sys.executable, str(script), "--help"]
     completed = subprocess.run(
@@ -260,7 +262,11 @@ def _probe_entrypoint(root: Path, example: str) -> Dict[str, Any]:
         elif options["--save-dataset"]:
             save_mode = "legacy_research_dataset"
         else:
-            raise RuntimeError("%s supports neither --save-panel nor --save-dataset" % script)
+            if requested_save:
+                raise RuntimeError(
+                    "%s supports neither --save-panel nor --save-dataset" % script
+                )
+            save_mode = None
     else:
         save_mode = "factor_values_csv_only"
     return {
@@ -280,19 +286,24 @@ def _inspect_side(
     symbols: int,
     declared_revision: Optional[str],
     execution_environment: Mapping[str, Any],
+    examples: Sequence[str] = EXAMPLES,
+    requested_save: bool = True,
 ) -> Dict[str, Any]:
     if not (root / "backtrader" / "__init__.py").is_file():
         raise ValueError("%s root is not a Backtrader source checkout: %s" % (name, root))
     configs = {}
     config_hashes = {}
-    for example in EXAMPLES:
+    for example in examples:
         config_path = root / EXAMPLE_DIRS[example] / "config.yaml"
         for filename in ("run.py", "config.yaml"):
             if not (config_path.parent / filename).is_file():
                 raise FileNotFoundError("missing benchmark input: %s" % (config_path.parent / filename))
         configs[example] = _effective_config(root, example, data_dir, symbols)
         config_hashes[example] = _sha256(config_path)
-    entrypoints = {example: _probe_entrypoint(root, example) for example in EXAMPLES}
+    entrypoints = {
+        example: _probe_entrypoint(root, example, requested_save=requested_save)
+        for example in examples
+    }
     source_hashes = _source_manifest(root)
     git_status = _git_status(root)
     git_head = _git_head(root)
@@ -308,10 +319,11 @@ def _inspect_side(
         "source_manifest_sha256": _canonical_hash(source_hashes),
         "config_sha256": config_hashes,
         "effective_config_sha256": {
-            example: _canonical_hash(configs[example]) for example in EXAMPLES
+            example: _canonical_hash(configs[example]) for example in examples
         },
         "effective_configs": configs,
         "entrypoints": entrypoints,
+        "requested_save": requested_save,
         "pythonpath": str(root),
         "module_probe": _probe_modules(root),
         "execution_environment_sha256": _canonical_hash(execution_environment),
@@ -394,6 +406,7 @@ def _build_command(
     symbols: int,
     save_mode: Optional[str] = None,
     no_charts: bool = False,
+    requested_save: bool = True,
 ) -> List[str]:
     command = [
         sys.executable,
@@ -407,12 +420,13 @@ def _build_command(
         "--report",
     ]
     if example in ("025", "026"):
-        if save_mode == "legacy_research_dataset":
-            command.append("--save-dataset")
-        elif save_mode in (None, "factor_panel_csv"):
-            command.append("--save-panel")
-        else:
-            raise ValueError("unsupported saved-panel API for %s: %s" % (example, save_mode))
+        if requested_save:
+            if save_mode == "legacy_research_dataset":
+                command.append("--save-dataset")
+            elif save_mode in (None, "factor_panel_csv"):
+                command.append("--save-panel")
+            else:
+                raise ValueError("unsupported saved-panel API for %s: %s" % (example, save_mode))
         if no_charts:
             command.append("--no-charts")
     return command
@@ -523,6 +537,7 @@ def _validate_run(
     save_mode: Optional[str] = None,
     requested_symbols: Optional[int] = None,
     charts_enabled: bool = True,
+    requested_save: bool = True,
 ) -> Dict[str, Any]:
     problems = []
     evaluation = {
@@ -806,9 +821,30 @@ def _validate_run(
         )
         evaluation_results["charts"] = charts
 
-    saved_data_artifact: Dict[str, Any] = {"mode": save_mode}
+    artifact_requested = requested_save and example in ("025", "026")
+    artifact_status = (
+        "REQUESTED"
+        if artifact_requested
+        else "NOT_REQUESTED"
+        if example in ("025", "026")
+        else "NOT_APPLICABLE"
+    )
+    saved_data_artifact: Dict[str, Any] = {
+        "mode": save_mode,
+        "requested": artifact_requested,
+        "status": artifact_status,
+    }
     panel_files: List[str] = []
-    if example in ("025", "026"):
+    if example in ("025", "026") and not requested_save:
+        saved_data_artifact.update(
+            {
+                "api": None,
+                "path": None,
+                "format": "optional panel/dataset artifact not requested",
+                "files": [],
+            }
+        )
+    elif example in ("025", "026"):
         if save_mode == "legacy_research_dataset":
             saved_path = output_dir / "dataset"
             saved_files = _artifact_manifest(saved_path)
@@ -925,6 +961,7 @@ def _validate_run(
     return {
         "status": "OK" if not problems else "FAILED",
         "problems": problems,
+        "requested_save": requested_save,
         "evaluation": evaluation,
         "charts": charts,
         "sample_count": sample_count,
@@ -1042,13 +1079,24 @@ def _run_case(
     entrypoint: Mapping[str, Any],
     module_origins: Mapping[str, Any],
     charts_enabled: bool = True,
+    requested_save: bool = True,
 ) -> Dict[str, Any]:
-    save_mode = str(entrypoint["save_mode"])
+    save_mode = entrypoint.get("save_mode")
+    artifact_requested = requested_save and example in ("025", "026")
     command = _build_command(
-        root, example, output_dir, data_dir, symbols, save_mode, no_charts=not charts_enabled
+        root,
+        example,
+        output_dir,
+        data_dir,
+        symbols,
+        save_mode,
+        no_charts=not charts_enabled,
+        requested_save=requested_save,
     )
     output_contract = {
         "save_mode": save_mode,
+        "requested_save": requested_save,
+        "artifact_requested": artifact_requested,
         "evaluation_charts": "enabled" if charts_enabled and example in ("025", "026") else (
             "disabled_diagnostic" if example in ("025", "026") else "not_applicable"
         ),
@@ -1057,12 +1105,20 @@ def _run_case(
             if example in ("025", "026")
             else "not_applicable"
         ),
-        "artifact_path": "dataset" if save_mode == "legacy_research_dataset" else (
-            "panel" if save_mode == "factor_panel_csv" else "factor_values.csv"
+        "artifact_path": (
+            "dataset"
+            if artifact_requested and save_mode == "legacy_research_dataset"
+            else "panel"
+            if artifact_requested and save_mode == "factor_panel_csv"
+            else "not_requested"
+            if example in ("025", "026")
+            else "factor_values.csv"
         ),
         "contract_change_note": (
             "legacy ResearchDataset serialization and current FactorPanel CSV serialization have different schemas and identity retention by design; timing is end-to-end and does not isolate serialization"
-            if save_mode in ("legacy_research_dataset", "factor_panel_csv")
+            if artifact_requested and save_mode in ("legacy_research_dataset", "factor_panel_csv")
+            else "optional panel/dataset artifact was not requested; factor_values.csv remains required"
+            if example in ("025", "026")
             else "027 emits its existing factor_values.csv without a saved panel option"
         ),
     }
@@ -1072,6 +1128,7 @@ def _run_case(
         "kind": kind,
         "group": group,
         "requested_symbols": symbols,
+        "requested_save": requested_save,
         "output_dir": str(output_dir),
         "command": command,
         "python_executable": sys.executable,
@@ -1133,6 +1190,7 @@ def _run_case(
         save_mode=save_mode,
         requested_symbols=symbols,
         charts_enabled=charts_enabled,
+        requested_save=requested_save,
     )
     if result.get("harness_error"):
         validation["status"] = "FAILED"
@@ -1172,7 +1230,12 @@ def _median_stats(records: Sequence[Mapping[str, Any]]) -> Dict[str, Any]:
     }
 
 
-def _sample_scope(requested_symbols: int, no_charts: bool = False) -> Dict[str, Any]:
+def _sample_scope(
+    requested_symbols: int,
+    no_charts: bool = False,
+    requested_save: bool = True,
+    examples: Sequence[str] = EXAMPLES,
+) -> Dict[str, Any]:
     symbol_floor_met = requested_symbols >= FORMAL_MINIMUM_SYMBOLS
     formal = symbol_floor_met and not no_charts
     run_status = "OK" if formal else "DIAGNOSTIC_ONLY" if no_charts else "SMOKE_ONLY"
@@ -1187,6 +1250,8 @@ def _sample_scope(requested_symbols: int, no_charts: bool = False) -> Dict[str, 
         "run_status": run_status,
         "status": scope_status,
         "requested_symbols": requested_symbols,
+        "requested_save": requested_save,
+        "examples": list(examples),
         "formal_minimum_symbols": FORMAL_MINIMUM_SYMBOLS,
         "formal_sample_floor_met": symbol_floor_met,
         "formal_eligible": formal,
@@ -1201,6 +1266,16 @@ def _sample_scope(requested_symbols: int, no_charts: bool = False) -> Dict[str, 
     }
 
 
+def _selected_examples(requested: Optional[Sequence[str]]) -> Tuple[str, ...]:
+    if not requested:
+        return EXAMPLES
+    requested_set = set(requested)
+    unknown = requested_set - set(EXAMPLES)
+    if unknown:
+        raise ValueError("unsupported examples: %s" % sorted(unknown))
+    return tuple(example for example in EXAMPLES if example in requested_set)
+
+
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--baseline-root", required=True, help="frozen source checkout")
@@ -1209,6 +1284,12 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--candidate-revision", help="revision represented by a source archive")
     parser.add_argument("--data-dir", required=True, help="fixed input data directory")
     parser.add_argument("--output", required=True, help="new evidence directory")
+    parser.add_argument(
+        "--example",
+        action="append",
+        choices=EXAMPLES,
+        help="limit runs to this example; repeat to select multiple (default: all)",
+    )
     parser.add_argument(
         "--symbols",
         type=int,
@@ -1219,6 +1300,11 @@ def _parser() -> argparse.ArgumentParser:
         "--no-charts",
         action="store_true",
         help="disable 025/026 evaluation PNGs for diagnostics only; result cannot be formal",
+    )
+    parser.add_argument(
+        "--no-save-panel",
+        action="store_true",
+        help="skip optional 025/026 panel/dataset exports; factor_values.csv remains required",
     )
     parser.add_argument("--groups", type=int, default=3)
     parser.add_argument("--sample-interval", type=float, default=0.05)
@@ -1234,21 +1320,32 @@ def _parser() -> argparse.ArgumentParser:
 
 def main(argv: Optional[Sequence[str]] = None) -> int:
     args = _parser().parse_args(argv)
+    selected_examples = _selected_examples(args.example)
+    requested_save = not args.no_save_panel
     output = Path(args.output).expanduser().resolve()
     payload: Dict[str, Any] = {
         "schema_version": "factor-research-paired-benchmark-v1",
         "status": "FAILED",
         "command": list(sys.argv if argv is None else [sys.argv[0]] + list(argv)),
         "parameters": {
-            "examples": list(EXAMPLES),
+            "examples": list(selected_examples),
             "symbols": args.symbols,
             "formal_minimum_symbols": FORMAL_MINIMUM_SYMBOLS,
             "groups": args.groups,
             "warmups_per_side_example": 1,
             "report": True,
-            "save_panel_examples": ["025", "026"],
+            "requested_save": requested_save,
+            "save_panel_examples": [
+                example
+                for example in selected_examples
+                if requested_save and example in ("025", "026")
+            ],
             "charts_enabled": not args.no_charts,
-            "chart_examples": ["025", "026"],
+            "chart_examples": [
+                example
+                for example in selected_examples
+                if example in ("025", "026")
+            ],
             "no_charts_diagnostic": args.no_charts,
             "sample_interval_s": args.sample_interval,
             "python_executable": sys.executable,
@@ -1290,7 +1387,14 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         payload["execution_environment"] = execution_environment
         sides = {
             name: _inspect_side(
-                root, name, data_dir, args.symbols, revisions[name], execution_environment
+                root,
+                name,
+                data_dir,
+                args.symbols,
+                revisions[name],
+                execution_environment,
+                examples=selected_examples,
+                requested_save=requested_save,
             )
             for name, root in roots.items()
         }
@@ -1299,7 +1403,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             unsupported = [
                 "%s:%s" % (side, example)
                 for side, metadata in sides.items()
-                for example in ("025", "026")
+                for example in selected_examples
+                if example in ("025", "026")
                 if not metadata["entrypoints"][example]["options"]["--no-charts"]
             ]
             if unsupported:
@@ -1314,12 +1419,27 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             "save_api_by_side": {
                 side: {
                     example: sides[side]["entrypoints"][example]["save_mode"]
-                    for example in EXAMPLES
+                    for example in selected_examples
                 }
                 for side in sides
             },
-            "planned_025_026_difference": "baseline uses --save-dataset and retains the legacy ResearchDataset schema/identity in dataset/; candidate uses --save-panel and writes the current FactorPanel CSV schema to panel/",
-            "comparison_limit": "the saved data purpose is shared, while storage schema and identity retention intentionally differ; process wall is end-to-end and does not isolate serialization",
+            "requested_save": requested_save,
+            "planned_025_026_difference": (
+                "baseline uses --save-dataset and retains the legacy ResearchDataset schema/identity in dataset/; candidate uses --save-panel and writes the current FactorPanel CSV schema to panel/"
+                if requested_save and any(
+                    example in ("025", "026") for example in selected_examples
+                )
+                else "no optional 025/026 panel or dataset artifact is requested; factor_values.csv remains required"
+                if any(example in ("025", "026") for example in selected_examples)
+                else "027 has no optional panel/dataset artifact; factor_values.csv remains required"
+            ),
+            "comparison_limit": (
+                "the saved data purpose is shared, while storage schema and identity retention intentionally differ; process wall is end-to-end and does not isolate serialization"
+                if requested_save and any(
+                    example in ("025", "026") for example in selected_examples
+                )
+                else "no optional panel/dataset serialization is included for the selected examples; measured wall time covers the shared report/evaluation path"
+            ),
             "preserve_report_and_evaluation_outputs": True,
             "evaluation_chart_contract": "default 025/026 run exports every PNG named in fincore evaluation manifest.exports; each must be present and non-empty; --no-charts is explicit diagnostic-only mode",
         }
@@ -1334,7 +1454,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                 sides["baseline"]["effective_configs"][example],
                 sides["candidate"]["effective_configs"][example],
             )
-            for example in EXAMPLES
+            for example in selected_examples
         }
         payload["input_configuration_comparison"] = {
             "equal": not any(differences.values()),
@@ -1363,7 +1483,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                     )
 
         # Full-size warmups use fresh interpreters and the same inputs/options.
-        for example in EXAMPLES:
+        for example in selected_examples:
             for side in _alternating_order(EXAMPLES.index(example) + 1):
                 run_dir = _run_dir(output, example, "warmup", side, None)
                 record = _run_case(
@@ -1379,6 +1499,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                     entrypoint=sides[side]["entrypoints"][example],
                     module_origins=sides[side]["module_probe"]["modules"],
                     charts_enabled=not args.no_charts,
+                    requested_save=requested_save,
                 )
                 payload["runs"].append(record)
                 if record["validation"]["status"] != "OK":
@@ -1388,7 +1509,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                     )
 
         for group in range(1, args.groups + 1):
-            for example in EXAMPLES:
+            for example in selected_examples:
                 for side in _alternating_order(group):
                     run_dir = _run_dir(output, example, "measured", side, group)
                     record = _run_case(
@@ -1404,6 +1525,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                         entrypoint=sides[side]["entrypoints"][example],
                         module_origins=sides[side]["module_probe"]["modules"],
                         charts_enabled=not args.no_charts,
+                        requested_save=requested_save,
                     )
                     payload["runs"].append(record)
 
@@ -1421,7 +1543,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             raise RuntimeError("source hashes changed during benchmark")
 
         metrics = {}
-        for example in EXAMPLES:
+        for example in selected_examples:
             metrics[example] = {}
             for side in roots:
                 records = [
@@ -1449,7 +1571,12 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         ]
         if failures:
             raise RuntimeError("one or more measured runs failed validation")
-        payload["sample_scope"] = _sample_scope(args.symbols, no_charts=args.no_charts)
+        payload["sample_scope"] = _sample_scope(
+            args.symbols,
+            no_charts=args.no_charts,
+            requested_save=requested_save,
+            examples=selected_examples,
+        )
         payload["status"] = payload["sample_scope"]["run_status"]
     except Exception as exc:
         payload["error"] = "%s: %s" % (type(exc).__name__, exc)

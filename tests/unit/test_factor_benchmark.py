@@ -7,6 +7,9 @@ import os
 import sys
 from argparse import Namespace
 from pathlib import Path
+from types import SimpleNamespace
+
+import pytest
 
 from scripts import benchmark_factor_research as staged_benchmark
 from scripts import benchmark_factor_research_pair as pair_benchmark
@@ -102,6 +105,67 @@ def test_command_runs_example_entrypoint_with_fixed_inputs_and_required_outputs(
     )
     assert diagnostic_command[-2:] == ["--save-panel", "--no-charts"]
 
+    report_only_025 = pair_benchmark._build_command(
+        root, "025", output_dir, data_dir, 20, "factor_panel_csv", requested_save=False
+    )
+    report_only_026 = pair_benchmark._build_command(
+        root, "026", output_dir, data_dir, 20, "legacy_research_dataset", requested_save=False
+    )
+    for command in (report_only_025, report_only_026):
+        assert "--report" in command
+        assert "--save-panel" not in command
+        assert "--save-dataset" not in command
+
+
+def test_entrypoint_probe_allows_missing_save_api_only_for_report_only_runs(
+    tmp_path: Path, monkeypatch
+):
+    def report_only_help(*args, **kwargs):
+        return SimpleNamespace(
+            returncode=0,
+            stdout="usage: run.py --data-dir --max-symbols --report",
+            stderr="",
+        )
+
+    monkeypatch.setattr(pair_benchmark.subprocess, "run", report_only_help)
+
+    entrypoint = pair_benchmark._probe_entrypoint(tmp_path, "025", requested_save=False)
+
+    assert entrypoint["save_mode"] is None
+    with pytest.raises(RuntimeError, match="supports neither --save-panel nor --save-dataset"):
+        pair_benchmark._probe_entrypoint(tmp_path, "025", requested_save=True)
+
+
+def test_repeated_example_selection_is_canonical_and_defaults_preserve_full_profile():
+    defaults = pair_benchmark._parser().parse_args(
+        [
+            "--baseline-root", "baseline",
+            "--candidate-root", "candidate",
+            "--data-dir", "data",
+            "--output", "out",
+        ]
+    )
+    selected = pair_benchmark._parser().parse_args(
+        [
+            "--baseline-root", "baseline",
+            "--candidate-root", "candidate",
+            "--data-dir", "data",
+            "--output", "out",
+            "--example", "026",
+            "--example", "025",
+            "--example", "026",
+            "--no-save-panel",
+        ]
+    )
+
+    assert pair_benchmark._selected_examples(defaults.example) == pair_benchmark.EXAMPLES
+    assert defaults.symbols == 500
+    assert defaults.groups == 3
+    assert defaults.no_charts is False
+    assert defaults.no_save_panel is False
+    assert pair_benchmark._selected_examples(selected.example) == ("025", "026")
+    assert selected.no_save_panel is True
+
 
 def test_pair_runner_requires_exact_ok_evaluation_and_nonempty_report(tmp_path: Path):
     good_dir = tmp_path / "good"
@@ -180,6 +244,50 @@ def test_pair_runner_validates_all_026_reports_and_marks_027_evaluation_na(tmp_p
         "applicable": False,
         "status": "NOT_APPLICABLE",
     }
+
+
+def test_report_only_validation_does_not_require_optional_panel_or_dataset(tmp_path: Path):
+    for example in ("025", "026"):
+        output_dir = tmp_path / example
+        summary = _valid_summary(example, output_dir)
+        panel_dir = output_dir / "panel"
+        for path in panel_dir.iterdir():
+            path.unlink()
+        panel_dir.rmdir()
+
+        result = pair_benchmark._validate_run(
+            example,
+            summary,
+            0,
+            output_dir,
+            save_mode="factor_panel_csv",
+            requested_symbols=20,
+            requested_save=False,
+        )
+
+        assert result["status"] == "OK"
+        assert result["requested_save"] is False
+        assert result["factor_values_csv"]["exists_nonempty"] is True
+        assert result["evaluation_results"]["status"] == "OK"
+        assert result["charts"]["status"] == "OK"
+        assert all(item["exists_nonempty"] for item in result["reports"])
+        assert result["saved_panel_csvs"] == []
+        assert result["saved_data_artifact"]["requested"] is False
+        assert result["saved_data_artifact"]["status"] == "NOT_REQUESTED"
+        assert result["saved_data_artifact"]["files"] == []
+        assert not (output_dir / "dataset").exists()
+
+        requested = pair_benchmark._validate_run(
+            example,
+            summary,
+            0,
+            output_dir,
+            save_mode="factor_panel_csv",
+            requested_symbols=20,
+            requested_save=True,
+        )
+        assert requested["status"] == "FAILED"
+        assert requested["saved_data_artifact"]["requested"] is True
 
 
 def test_pair_runner_records_legacy_dataset_and_current_panel_schema(tmp_path: Path):
@@ -327,12 +435,20 @@ def test_pair_runner_rejects_empty_member_of_candidate_panel_csv_contract(tmp_pa
 def test_small_sample_scope_is_explicitly_smoke_only():
     smoke = pair_benchmark._sample_scope(20)
     formal = pair_benchmark._sample_scope(500)
+    report_only_formal = pair_benchmark._sample_scope(
+        500, requested_save=False, examples=("025", "026")
+    )
     no_charts = pair_benchmark._sample_scope(500, no_charts=True)
 
     assert smoke["run_status"] == "SMOKE_ONLY"
     assert smoke["formal_sample_floor_met"] is False
     assert formal["run_status"] == "OK"
     assert formal["formal_sample_floor_met"] is True
+    assert formal["requested_save"] is True
+    assert report_only_formal["run_status"] == "OK"
+    assert report_only_formal["formal_eligible"] is True
+    assert report_only_formal["requested_save"] is False
+    assert report_only_formal["examples"] == ["025", "026"]
     assert no_charts["run_status"] == "DIAGNOSTIC_ONLY"
     assert no_charts["formal_sample_floor_met"] is True
     assert no_charts["formal_eligible"] is False
