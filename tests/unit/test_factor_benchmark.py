@@ -99,16 +99,19 @@ def _valid_summary(example: str, output_dir: Path, charts_enabled: bool = True) 
     factors = pair_benchmark.EXPECTED_FACTORS[example]
     header = "time,asset," + ",".join(factors) + "\n"
     values = "".join(
-        "2025-01-01,%06d," % index + ",".join("1.25" for _ in factors) + "\n"
-        for index in range(20)
+        "2025-01-01,%06d," % index + ",".join("1.25" for _ in factors) + "\n" for index in range(20)
     )
     (output_dir / "factor_values.csv").write_text(header + values, encoding="utf-8")
-    reports = [_write_report(output_dir, factor) for factor in pair_benchmark.EXPECTED_FACTORS[example]]
+    reports = [
+        _write_report(output_dir, factor) for factor in pair_benchmark.EXPECTED_FACTORS[example]
+    ]
     if example in ("025", "026"):
         panel_dir = output_dir / "panel"
         panel_dir.mkdir()
         for filename in sorted(pair_benchmark.EXPECTED_PANEL_CSVS):
-            (panel_dir / filename).write_text("time,asset,value\n2025-01-01,000001,1\n", encoding="utf-8")
+            (panel_dir / filename).write_text(
+                "time,asset,value\n2025-01-01,000001,1\n", encoding="utf-8"
+            )
         evaluation_id = "synthetic-evaluation"
         evaluation_dir = output_dir / "evaluation" / evaluation_id
         evaluation_dir.mkdir(parents=True)
@@ -212,21 +215,32 @@ def test_entrypoint_probe_allows_missing_save_api_only_for_report_only_runs(
 def test_repeated_example_selection_is_canonical_and_defaults_preserve_full_profile():
     defaults = pair_benchmark._parser().parse_args(
         [
-            "--baseline-root", "baseline",
-            "--candidate-root", "candidate",
-            "--data-dir", "data",
-            "--output", "out",
+            "--baseline-root",
+            "baseline",
+            "--candidate-root",
+            "candidate",
+            "--data-dir",
+            "data",
+            "--output",
+            "out",
         ]
     )
     selected = pair_benchmark._parser().parse_args(
         [
-            "--baseline-root", "baseline",
-            "--candidate-root", "candidate",
-            "--data-dir", "data",
-            "--output", "out",
-            "--example", "026",
-            "--example", "025",
-            "--example", "026",
+            "--baseline-root",
+            "baseline",
+            "--candidate-root",
+            "candidate",
+            "--data-dir",
+            "data",
+            "--output",
+            "out",
+            "--example",
+            "026",
+            "--example",
+            "025",
+            "--example",
+            "026",
             "--no-save-panel",
         ]
     )
@@ -238,6 +252,446 @@ def test_repeated_example_selection_is_canonical_and_defaults_preserve_full_prof
     assert defaults.no_save_panel is False
     assert pair_benchmark._selected_examples(selected.example) == ("025", "026")
     assert selected.no_save_panel is True
+
+
+def test_mode_pair_cli_is_opt_in_and_requires_distinct_modes():
+    defaults = pair_benchmark._parser().parse_args(
+        [
+            "--baseline-root",
+            "baseline",
+            "--candidate-root",
+            "candidate",
+            "--data-dir",
+            "data",
+            "--output",
+            "out",
+        ]
+    )
+    paired = pair_benchmark._parser().parse_args(
+        [
+            "--baseline-root",
+            "baseline",
+            "--candidate-root",
+            "candidate",
+            "--data-dir",
+            "data",
+            "--output",
+            "out",
+            "--baseline-factor-mode",
+            "native",
+            "--candidate-factor-mode",
+            "build",
+            "--groups",
+            "1",
+        ]
+    )
+
+    assert defaults.baseline_factor_mode is None
+    assert defaults.candidate_factor_mode is None
+    assert defaults.groups == 3
+    assert pair_benchmark._resolve_factor_modes(None, None) is None
+    assert pair_benchmark._resolve_factor_modes(
+        paired.baseline_factor_mode, paired.candidate_factor_mode
+    ) == {"baseline": "native", "candidate": "build"}
+    with pytest.raises(ValueError, match="both --baseline-factor-mode"):
+        pair_benchmark._resolve_factor_modes("native", None)
+    with pytest.raises(ValueError, match="must differ"):
+        pair_benchmark._resolve_factor_modes("build", "build")
+
+
+def test_mode_pair_command_passes_actual_factor_mode_without_changing_legacy_command(
+    tmp_path: Path,
+):
+    root = tmp_path / "checkout"
+    output_dir = tmp_path / "out"
+    data_dir = tmp_path / "data"
+    native = pair_benchmark._build_command(
+        root, "025", output_dir, data_dir, 20, "factor_panel_csv", factor_mode="native"
+    )
+    build = pair_benchmark._build_command(
+        root, "025", output_dir, data_dir, 20, "factor_panel_csv", factor_mode="build"
+    )
+    legacy = pair_benchmark._build_command(root, "025", output_dir, data_dir, 20)
+
+    assert native[native.index("--factor-mode") + 1] == "native"
+    assert build[build.index("--factor-mode") + 1] == "build"
+    assert "--factor-mode" not in legacy
+
+    wrapped, capture = pair_benchmark._build_captured_command(native, root, output_dir)
+    assert wrapped[:2] == [sys.executable, "-c"]
+    assert Path(wrapped[3]).is_absolute()
+    assert wrapped[3].endswith("verify_factor_research_pair_semantics.py")
+    assert wrapped[4] == capture["helper_sha256"]
+    assert wrapped[6] == str(Path(native[1]).resolve())
+    assert wrapped[wrapped.index("--factor-mode") + 1] == "native"
+    assert capture["helper_sha256"] == pair_benchmark._sha256(Path(capture["helper_path"]))
+    assert "not uninstrumented production performance" in capture["measurement_note"]
+
+
+def test_capture_bootstrap_loads_absolute_helper_and_runs_entrypoint_main(tmp_path: Path):
+    root = tmp_path / "checkout"
+    script = root / "examples" / "run.py"
+    script.parent.mkdir(parents=True)
+    script.write_text(
+        "from pathlib import Path\n"
+        "def main(argv=None):\n"
+        "    output = Path(argv[argv.index('--output-dir') + 1])\n"
+        "    mode = argv[argv.index('--factor-mode') + 1]\n"
+        "    output.mkdir()\n"
+        "    (output / 'mode.txt').write_text(mode, encoding='utf-8')\n"
+        "    return 0\n",
+        encoding="utf-8",
+    )
+    helper = tmp_path / "current_helper.py"
+    helper.write_text(
+        "from contextlib import contextmanager\n"
+        "from pathlib import Path\n"
+        "@contextmanager\n"
+        "def capture_report_semantics(output_dir):\n"
+        "    output_dir = Path(output_dir)\n"
+        "    assert not output_dir.exists()\n"
+        "    yield\n"
+        "    (output_dir / 'report_semantics.json').write_text('{\\\"captured\\\": true}', encoding='utf-8')\n",
+        encoding="utf-8",
+    )
+    output_dir = tmp_path / "run"
+    command, _ = pair_benchmark._build_captured_command(
+        [sys.executable, str(script), "--output-dir", str(output_dir), "--factor-mode", "build"],
+        root,
+        output_dir,
+    )
+    command[3] = str(helper.resolve())
+    command[4] = pair_benchmark._sha256(helper)
+
+    completed = pair_benchmark.subprocess.run(
+        command,
+        cwd=str(root),
+        env=pair_benchmark._process_environment(root),
+        capture_output=True,
+        text=True,
+    )
+
+    assert completed.returncode == 0, completed.stderr
+    assert (output_dir / "mode.txt").read_text(encoding="utf-8") == "build"
+    assert json.loads((output_dir / "report_semantics.json").read_text(encoding="utf-8")) == {
+        "captured": True
+    }
+
+    failed_script = root / "examples" / "failed_run.py"
+    failed_script.write_text(
+        "from pathlib import Path\n"
+        "def main(argv=None):\n"
+        "    output = Path(argv[argv.index('--output-dir') + 1])\n"
+        "    output.mkdir()\n"
+        "    return 7\n",
+        encoding="utf-8",
+    )
+    failed_output = tmp_path / "failed-run"
+    failed_command, _ = pair_benchmark._build_captured_command(
+        [sys.executable, str(failed_script), "--output-dir", str(failed_output)],
+        root,
+        failed_output,
+    )
+    failed_command[3] = str(helper.resolve())
+    failed_command[4] = pair_benchmark._sha256(helper)
+    failed = pair_benchmark.subprocess.run(
+        failed_command,
+        cwd=str(root),
+        env=pair_benchmark._process_environment(root),
+        capture_output=True,
+        text=True,
+    )
+    assert failed.returncode == 7
+    assert not (failed_output / "report_semantics.json").exists()
+
+
+def _write_semantics_sidecar(output_dir: Path, example: str) -> None:
+    records = []
+    payload = {"metric": "stable"}
+    encoded = json.dumps(payload, ensure_ascii=True, sort_keys=True, separators=(",", ":"))
+    digest = pair_benchmark.hashlib.sha256(encoded.encode("utf-8")).hexdigest()
+    for factor in pair_benchmark.EXPECTED_FACTORS[example]:
+        name = "factor_report_%s.html" % factor
+        records.append(
+            {
+                "html_path": name,
+                "html_sha256": pair_benchmark._sha256(output_dir / name),
+                "semantic_payload": payload,
+                "semantic_digest": digest,
+            }
+        )
+    (output_dir / pair_benchmark.REPORT_SEMANTICS_FILENAME).write_text(
+        json.dumps({"schema_version": pair_benchmark.REPORT_SEMANTICS_SCHEMA, "reports": records}),
+        encoding="utf-8",
+    )
+
+
+def test_mode_pair_run_requires_requested_mode_and_valid_report_capture(tmp_path: Path):
+    output_dir = tmp_path / "mode-run"
+    summary = _valid_summary("025", output_dir)
+    summary["factor_mode"] = "build"
+    _write_semantics_sidecar(output_dir, "025")
+
+    valid = pair_benchmark._validate_run(
+        "025",
+        summary,
+        0,
+        output_dir,
+        save_mode="factor_panel_csv",
+        requested_symbols=20,
+        factor_mode="build",
+        require_report_semantics=True,
+    )
+    assert valid["status"] == "OK"
+    assert valid["report_semantics"]["status"] == "OK"
+
+    wrong_mode = pair_benchmark._validate_run(
+        "025",
+        summary,
+        0,
+        output_dir,
+        save_mode="factor_panel_csv",
+        requested_symbols=20,
+        factor_mode="native",
+        require_report_semantics=True,
+    )
+    assert wrong_mode["status"] == "FAILED"
+    assert any("summary factor_mode" in issue for issue in wrong_mode["problems"])
+
+    (output_dir / pair_benchmark.REPORT_SEMANTICS_FILENAME).unlink()
+    missing_capture = pair_benchmark._validate_run(
+        "025",
+        summary,
+        0,
+        output_dir,
+        save_mode="factor_panel_csv",
+        requested_symbols=20,
+        factor_mode="build",
+        require_report_semantics=True,
+    )
+    assert missing_capture["status"] == "FAILED"
+    assert any("sidecar is missing" in issue for issue in missing_capture["problems"])
+
+
+def _mode_side(root: Path, external_fincore: Path) -> dict:
+    root.mkdir(parents=True)
+    modules = {
+        "backtrader": root / "backtrader" / "__init__.py",
+        "research": root / "backtrader" / "research" / "__init__.py",
+        "fincore": external_fincore,
+    }
+    for path in modules.values():
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("# same source\n", encoding="utf-8")
+    return {
+        "root": str(root),
+        "source_revision": "a" * 40,
+        "source_hashes": {"backtrader/research/operators.py": "b" * 64},
+        "source_manifest_sha256": "c" * 64,
+        "execution_environment_sha256": "d" * 64,
+        "module_probe": {
+            "modules": {name: str(path) for name, path in modules.items()},
+            "module_source_sha256": {
+                name: pair_benchmark._sha256(path) for name, path in modules.items()
+            },
+        },
+    }
+
+
+def test_mode_pair_requires_full_identical_source_environment_and_origins(tmp_path: Path):
+    external = tmp_path / "external" / "fincore.py"
+    external.parent.mkdir()
+    external.write_text("# fincore\n", encoding="utf-8")
+    sides = {
+        "baseline": _mode_side(tmp_path / "baseline", external),
+        "candidate": _mode_side(tmp_path / "candidate", external),
+    }
+
+    valid = pair_benchmark._validate_factor_mode_pair(sides)
+    assert valid["status"] == "IDENTICAL_RUNTIME_PROVENANCE"
+    assert valid["modules"]["fincore"]["baseline"]["origin"] == (
+        "external",
+        str(external.resolve()),
+    )
+
+    for field, value, message in (
+        ("source_revision", "e" * 40, "revisions differ"),
+        (
+            "source_hashes",
+            {"backtrader/research/operators.py": "f" * 64},
+            "source file hashes differ",
+        ),
+        ("execution_environment_sha256", "e" * 64, "environments differ"),
+    ):
+        changed = {name: dict(metadata) for name, metadata in sides.items()}
+        changed["candidate"][field] = value
+        with pytest.raises(ValueError, match=message):
+            pair_benchmark._validate_factor_mode_pair(changed)
+
+    changed_origin = {name: dict(metadata) for name, metadata in sides.items()}
+    changed_origin["candidate"]["module_probe"] = dict(sides["candidate"]["module_probe"])
+    changed_origin["candidate"]["module_probe"]["module_source_sha256"] = dict(
+        sides["candidate"]["module_probe"]["module_source_sha256"]
+    )
+    changed_origin["candidate"]["module_probe"]["module_source_sha256"]["fincore"] = "f" * 64
+    with pytest.raises(ValueError, match="fincore origins or source hashes differ"):
+        pair_benchmark._validate_factor_mode_pair(changed_origin)
+
+
+def test_mode_pair_effective_configs_allow_only_factor_mode_difference():
+    sides = {
+        side: {"effective_configs": {"025": {"data": {"max_symbols": 20}}}}
+        for side in ("baseline", "candidate")
+    }
+    comparison = pair_benchmark._mode_config_comparison(
+        sides, {"baseline": "native", "candidate": "build"}, ("025",)
+    )
+    assert comparison["differences"]["025"] == [
+        {"path": "factor_mode", "baseline": "native", "candidate": "build"}
+    ]
+    sides["candidate"]["effective_configs"]["025"]["data"]["max_symbols"] = 21
+    with pytest.raises(ValueError, match="must differ only at factor_mode"):
+        pair_benchmark._mode_config_comparison(
+            sides, {"baseline": "native", "candidate": "build"}, ("025",)
+        )
+
+
+def test_mode_cost_ratio_uses_labels_in_either_cli_order():
+    stats = {
+        "baseline": {"wall_s": 4.0, "cpu_tree_s": 8.0, "peak_rss_tree_bytes": 100.0},
+        "candidate": {"wall_s": 2.0, "cpu_tree_s": 4.0, "peak_rss_tree_bytes": 50.0},
+    }
+
+    native_then_build = pair_benchmark._mode_cost_ratios(
+        stats, {"baseline": "native", "candidate": "build"}
+    )
+    build_then_native = pair_benchmark._mode_cost_ratios(
+        stats, {"baseline": "build", "candidate": "native"}
+    )
+
+    assert native_then_build == {
+        "wall_s": 0.5,
+        "cpu_tree_s": 0.5,
+        "peak_rss_tree_bytes": 0.5,
+    }
+    assert build_then_native == {
+        "wall_s": 2.0,
+        "cpu_tree_s": 2.0,
+        "peak_rss_tree_bytes": 2.0,
+    }
+
+
+def test_source_drift_detects_added_deleted_and_modified_files():
+    drift = pair_benchmark._source_drift(
+        {"kept.py": "a", "deleted.py": "b", "modified.py": "c"},
+        {"kept.py": "a", "added.py": "d", "modified.py": "e"},
+    )
+    assert drift == {
+        "added.py": [None, "d"],
+        "deleted.py": ["b", None],
+        "modified.py": ["c", "e"],
+    }
+
+
+def test_run_case_records_captured_command_and_rejects_pair_comparison_mismatch(
+    tmp_path: Path, monkeypatch
+):
+    root = tmp_path / "checkout"
+    run_dir = tmp_path / "run"
+    run_dir.mkdir()
+    captured = {}
+
+    def fake_measure(command, cwd, interval_s, environment=None):
+        captured["command"] = list(command)
+        captured["environment"] = dict(environment)
+        summary = _valid_summary("025", run_dir)
+        summary["factor_mode"] = "build"
+        (run_dir / "summary.json").write_text(json.dumps(summary), encoding="utf-8")
+        _write_semantics_sidecar(run_dir, "025")
+        return {
+            "started_at_utc": "start",
+            "ended_at_utc": "end",
+            "returncode": 0,
+            "wall_s": 1.5,
+            "cpu_tree_s": 0.7,
+            "peak_rss_tree_bytes": 123,
+            "sample_interval_s": interval_s,
+            "samples": [],
+            "stdout": "",
+            "stderr": "",
+        }
+
+    monkeypatch.setattr(pair_benchmark, "_measure_process", fake_measure)
+    record = pair_benchmark._run_case(
+        side="candidate",
+        root=root,
+        example="025",
+        output_dir=run_dir,
+        data_dir=tmp_path / "data",
+        symbols=20,
+        interval_s=0.05,
+        kind="measured",
+        group=1,
+        entrypoint={"save_mode": "factor_panel_csv"},
+        module_origins={"backtrader": str(root / "backtrader" / "__init__.py")},
+        factor_mode="build",
+        capture_reports=True,
+    )
+
+    assert record["validation"]["status"] == "OK"
+    assert record["factor_mode"] == "build"
+    assert (
+        record["entrypoint_command"][record["entrypoint_command"].index("--factor-mode") + 1]
+        == "build"
+    )
+    assert captured["command"][:2] == [sys.executable, "-c"]
+    assert Path(captured["command"][3]).is_absolute()
+    assert record["report_capture"]["helper_sha256"]
+
+    helper_path = Path(__file__).resolve()
+    outcome = {"strict_equal": True}
+    calls = {}
+
+    def compare_runs(*args, **kwargs):
+        calls["args"] = args
+        calls["kwargs"] = kwargs
+        return outcome
+
+    monkeypatch.setattr(
+        pair_benchmark,
+        "_load_pair_semantics_helper",
+        lambda: SimpleNamespace(__file__=str(helper_path), compare_runs=compare_runs),
+    )
+    baseline = {"output_dir": str(tmp_path / "native")}
+    candidate = {"output_dir": str(run_dir)}
+    paired = pair_benchmark._compare_mode_runs(
+        output=tmp_path / "result",
+        example="025",
+        kind="measured",
+        group=1,
+        baseline=baseline,
+        candidate=candidate,
+    )
+    assert paired["status"] == "OK"
+    assert calls["kwargs"] == {
+        "require_reports": True,
+        "require_mode_pair": True,
+        "require_panel_pair": True,
+    }
+    outcome["strict_equal"] = False
+    payload = {"paired_comparisons": []}
+    with pytest.raises(RuntimeError, match="mode-pair comparison failed"):
+        pair_benchmark._append_mode_comparison(
+            payload,
+            output=tmp_path / "result-failed",
+            example="027",
+            kind="warmup",
+            group=None,
+            baseline=baseline,
+            candidate=candidate,
+        )
+    assert payload["paired_comparisons"][0]["status"] == "FAILED"
+    assert payload["paired_comparisons"][0]["requirements"]["panel_pair"] is False
 
 
 def test_pair_runner_requires_exact_ok_evaluation_and_nonempty_report(tmp_path: Path):
@@ -296,9 +750,12 @@ def test_pair_runner_rejects_missing_process_exit_status(tmp_path: Path):
 def test_pair_runner_validates_all_026_reports_and_marks_027_evaluation_na(tmp_path: Path):
     multi_dir = tmp_path / "multi"
     multi = _valid_summary("026", multi_dir)
-    assert pair_benchmark._validate_run(
-        "026", multi, 0, multi_dir, save_mode="factor_panel_csv", requested_symbols=20
-    )["status"] == "OK"
+    assert (
+        pair_benchmark._validate_run(
+            "026", multi, 0, multi_dir, save_mode="factor_panel_csv", requested_symbols=20
+        )["status"]
+        == "OK"
+    )
 
     multi["reports"].pop()
     invalid_multi = pair_benchmark._validate_run(
@@ -308,15 +765,41 @@ def test_pair_runner_validates_all_026_reports_and_marks_027_evaluation_na(tmp_p
 
     alpha_dir = tmp_path / "alpha"
     alpha = _valid_summary("027", alpha_dir)
-    alpha_result = pair_benchmark._validate_run(
-        "027", alpha, 0, alpha_dir, requested_symbols=20
-    )
+    alpha_result = pair_benchmark._validate_run("027", alpha, 0, alpha_dir, requested_symbols=20)
     assert alpha_result["status"] == "OK"
     assert alpha_result["evaluation"] == {
         "requested": False,
         "applicable": False,
         "status": "NOT_APPLICABLE",
     }
+
+
+def test_mode_pair_027_requires_valid_zero_broker_counts_but_legacy_remains_compatible(
+    tmp_path: Path,
+):
+    output_dir = tmp_path / "alpha-mode"
+    summary = _valid_summary("027", output_dir)
+    legacy = pair_benchmark._validate_run("027", summary, 0, output_dir)
+    assert legacy["status"] == "OK"
+
+    summary["factor_mode"] = "native"
+    missing_broker = pair_benchmark._validate_run(
+        "027", summary, 0, output_dir, factor_mode="native"
+    )
+    assert missing_broker["status"] == "FAILED"
+    assert any("broker order counts" in issue for issue in missing_broker["problems"])
+
+    summary["broker"] = {"submit": True, "cancel": 0}
+    invalid_broker = pair_benchmark._validate_run(
+        "027", summary, 0, output_dir, factor_mode="native"
+    )
+    assert invalid_broker["status"] == "FAILED"
+    assert invalid_broker["orders"]["status"] == "INVALID"
+
+    summary["broker"] = {"submit": 0, "cancel": 0}
+    valid_broker = pair_benchmark._validate_run("027", summary, 0, output_dir, factor_mode="native")
+    assert valid_broker["status"] == "OK"
+    assert valid_broker["orders"]["status"] == "OK"
 
 
 def test_report_only_validation_does_not_require_optional_panel_or_dataset(tmp_path: Path):
@@ -455,7 +938,9 @@ def test_pair_runner_checks_manifest_declared_pngs_and_supports_diagnostic_expor
     )
     assert missing_png["status"] == "FAILED"
     assert missing_png["charts"]["status"] == "FAILED"
-    assert any("PNG set does not match manifest exports" in issue for issue in missing_png["problems"])
+    assert any(
+        "PNG set does not match manifest exports" in issue for issue in missing_png["problems"]
+    )
 
     no_chart_dir = tmp_path / "diagnostic-run"
     no_chart_summary = _valid_summary("025", no_chart_dir, charts_enabled=False)
@@ -565,9 +1050,7 @@ def test_config_difference_allowlist_is_exact_and_labeled_as_end_to_end_only():
 
     denied = pair_benchmark._classify_config_differences(profile_difference, [])
     assert denied["compatible"] is False
-    approved = pair_benchmark._classify_config_differences(
-        profile_difference, ["operator_profile"]
-    )
+    approved = pair_benchmark._classify_config_differences(profile_difference, ["operator_profile"])
     assert approved["compatible"] is True
     assert approved["allowed_differences"][0]["approved"] is True
     assert "end-to-end comparison only" in approved["allowed_differences"][0]["scope"]
@@ -581,9 +1064,7 @@ def test_config_difference_allowlist_is_exact_and_labeled_as_end_to_end_only():
             }
         ]
     }
-    rejected = pair_benchmark._classify_config_differences(
-        wrong_profile, ["operator_profile"]
-    )
+    rejected = pair_benchmark._classify_config_differences(wrong_profile, ["operator_profile"])
     assert rejected["compatible"] is False
 
 

@@ -17,10 +17,12 @@ import copy
 import csv
 import datetime as dt
 import hashlib
+import importlib.util
 import json
 import math
 import os
 import platform
+import re
 import statistics
 import subprocess
 import sys
@@ -75,6 +77,58 @@ print(json.dumps({
     'python': sys.executable,
 }))
 """
+FULL_REVISION_RE = re.compile(r"^[0-9a-f]{40}(?:[0-9a-f]{24})?$", re.IGNORECASE)
+SHA256_RE = re.compile(r"^[0-9a-f]{64}$", re.IGNORECASE)
+REPORT_SEMANTICS_FILENAME = "report_semantics.json"
+REPORT_SEMANTICS_SCHEMA = "factor-report-semantics-v1"
+REPORT_CAPTURE_NOTE = (
+    "Measured wall/CPU/RSS include in-process ReportDocument capture, semantic payload "
+    "serialization, HTML hashing, and sidecar writing; these are instrumented end-to-end "
+    "measurements, not uninstrumented production performance."
+)
+
+
+class ModePairComparisonError(RuntimeError):
+    """A strict pair comparison failed after its evidence record was written."""
+
+    def __init__(self, message: str, record: Mapping[str, Any]) -> None:
+        super().__init__(message)
+        self.record = dict(record)
+
+
+CAPTURED_ENTRYPOINT_SOURCE = r"""
+import importlib.util
+import hashlib
+import runpy
+import sys
+from pathlib import Path
+
+helper_path, expected_helper_sha256, checkout_root, entrypoint, output_dir, *entry_args = sys.argv[1:]
+actual_helper_sha256 = hashlib.sha256(Path(helper_path).read_bytes()).hexdigest()
+if actual_helper_sha256 != expected_helper_sha256:
+    raise RuntimeError("current report-semantics helper changed before load")
+spec = importlib.util.spec_from_file_location("_factor_pair_semantics_current", helper_path)
+if spec is None or spec.loader is None:
+    raise RuntimeError("cannot load current report-semantics helper: " + helper_path)
+helper = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(helper)
+root = str(Path(checkout_root).resolve())
+if root not in sys.path:
+    sys.path.insert(0, root)
+script_dir = str(Path(entrypoint).resolve().parent)
+if script_dir not in sys.path:
+    sys.path.insert(0, script_dir)
+sys.argv = [entrypoint, *entry_args]
+namespace = runpy.run_path(entrypoint, run_name="_factor_pair_entrypoint")
+main = namespace.get("main")
+if not callable(main):
+    raise RuntimeError("example entrypoint has no callable main(): " + entrypoint)
+with helper.capture_report_semantics(Path(output_dir)):
+    status = main(entry_args)
+    if status not in (None, 0):
+        raise SystemExit(status)
+raise SystemExit(0)
+"""
 
 
 def _sha256(path: Path) -> str:
@@ -96,6 +150,105 @@ def _process_environment(root: Path) -> Dict[str, str]:
 def _canonical_hash(value: Any) -> str:
     encoded = json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
     return hashlib.sha256(encoded.encode("utf-8")).hexdigest()
+
+
+def _selected_input_manifest(data_dir: Path, symbols: int) -> Dict[str, Any]:
+    """Hash the exact ordered asset subset and calendar used by this run."""
+    try:
+        from scripts.diagnose_factor_research_pipeline import _input_manifest
+    except ImportError:
+        from diagnose_factor_research_pipeline import _input_manifest
+    return _input_manifest(data_dir, symbols)
+
+
+def _load_pair_semantics_helper() -> Any:
+    """Load the comparator beside this current harness, never from a tested checkout."""
+    helper_path = Path(__file__).resolve().with_name("verify_factor_research_pair_semantics.py")
+    spec = importlib.util.spec_from_file_location("_factor_pair_semantics_current", helper_path)
+    if spec is None or spec.loader is None:
+        raise RuntimeError("cannot load current pair semantics helper: %s" % helper_path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def _resolve_factor_modes(
+    baseline: Optional[str], candidate: Optional[str]
+) -> Optional[Dict[str, str]]:
+    if baseline is None and candidate is None:
+        return None
+    if baseline is None or candidate is None:
+        raise ValueError("both --baseline-factor-mode and --candidate-factor-mode are required")
+    if baseline == candidate:
+        raise ValueError("paired factor modes must differ")
+    return {"baseline": baseline, "candidate": candidate}
+
+
+def _source_drift(
+    before: Mapping[str, str], after: Mapping[str, str]
+) -> Dict[str, List[Optional[str]]]:
+    return {
+        path: [before.get(path), after.get(path)]
+        for path in sorted(set(before) | set(after))
+        if before.get(path) != after.get(path)
+    }
+
+
+def _origin_identity(root: Path, origin: Any) -> Tuple[str, str]:
+    if not isinstance(origin, str) or not origin:
+        raise ValueError("module origin is missing")
+    path = Path(origin).resolve()
+    if _path_inside(path, root):
+        return "checkout", path.relative_to(root.resolve()).as_posix()
+    return "external", str(path)
+
+
+def _validate_factor_mode_pair(sides: Mapping[str, Mapping[str, Any]]) -> Dict[str, Any]:
+    """Require identical source/runtime provenance before attributing mode differences."""
+    baseline = sides["baseline"]
+    candidate = sides["candidate"]
+    baseline_revision = str(baseline.get("source_revision") or "")
+    candidate_revision = str(candidate.get("source_revision") or "")
+    if not FULL_REVISION_RE.fullmatch(baseline_revision) or not FULL_REVISION_RE.fullmatch(
+        candidate_revision
+    ):
+        raise ValueError("mode-pair comparison requires full 40- or 64-character source revisions")
+    if baseline_revision.lower() != candidate_revision.lower():
+        raise ValueError("mode-pair source revisions differ")
+    if baseline.get("source_hashes") != candidate.get("source_hashes"):
+        raise ValueError("mode-pair source file hashes differ")
+    if baseline.get("execution_environment_sha256") != candidate.get(
+        "execution_environment_sha256"
+    ):
+        raise ValueError("mode-pair execution environments differ")
+
+    module_identities = {}
+    for name in ("backtrader", "research", "fincore"):
+        side_identities = {}
+        for side, metadata in (("baseline", baseline), ("candidate", candidate)):
+            probe = metadata.get("module_probe", {})
+            modules = probe.get("modules", {}) if isinstance(probe, Mapping) else {}
+            hashes = probe.get("module_source_sha256", {}) if isinstance(probe, Mapping) else {}
+            origin = modules.get(name) if isinstance(modules, Mapping) else None
+            digest = hashes.get(name) if isinstance(hashes, Mapping) else None
+            if not isinstance(digest, str) or not SHA256_RE.fullmatch(digest):
+                raise ValueError(
+                    "mode-pair %s source hash is missing or invalid for %s" % (name, side)
+                )
+            side_identities[side] = {
+                "origin": _origin_identity(Path(metadata["root"]), origin),
+                "source_sha256": digest.lower(),
+            }
+        if side_identities["baseline"] != side_identities["candidate"]:
+            raise ValueError("mode-pair %s origins or source hashes differ" % name)
+        module_identities[name] = side_identities
+    return {
+        "status": "IDENTICAL_RUNTIME_PROVENANCE",
+        "source_revision": baseline_revision,
+        "source_manifest_sha256": baseline.get("source_manifest_sha256"),
+        "execution_environment_sha256": baseline.get("execution_environment_sha256"),
+        "modules": module_identities,
+    }
 
 
 def _git_head(root: Path) -> Optional[str]:
@@ -233,7 +386,10 @@ def _probe_modules(root: Path) -> Dict[str, Any]:
 
 
 def _probe_entrypoint(
-    root: Path, example: str, requested_save: bool = True
+    root: Path,
+    example: str,
+    requested_save: bool = True,
+    require_factor_mode: bool = False,
 ) -> Dict[str, Any]:
     script = root / EXAMPLE_DIRS[example] / "run.py"
     command = [sys.executable, str(script), "--help"]
@@ -253,12 +409,16 @@ def _probe_entrypoint(
         "--save-panel",
         "--save-dataset",
     )
+    if require_factor_mode:
+        option_names += ("--factor-mode",)
     options = {option: option in help_text for option in option_names}
     if completed.returncode != 0:
         raise RuntimeError("%s %s --help failed: %s" % (example, script, help_text[-2000:]))
     for required in ("--data-dir", "--max-symbols", "--report"):
         if not options[required]:
             raise RuntimeError("%s entrypoint does not support %s" % (script, required))
+    if require_factor_mode and not options["--factor-mode"]:
+        raise RuntimeError("%s entrypoint does not support --factor-mode" % script)
     if example in ("025", "026"):
         if options["--save-panel"]:
             save_mode = "factor_panel_csv"
@@ -266,9 +426,7 @@ def _probe_entrypoint(
             save_mode = "legacy_research_dataset"
         else:
             if requested_save:
-                raise RuntimeError(
-                    "%s supports neither --save-panel nor --save-dataset" % script
-                )
+                raise RuntimeError("%s supports neither --save-panel nor --save-dataset" % script)
             save_mode = None
     else:
         save_mode = "factor_values_csv_only"
@@ -291,6 +449,7 @@ def _inspect_side(
     execution_environment: Mapping[str, Any],
     examples: Sequence[str] = EXAMPLES,
     requested_save: bool = True,
+    require_factor_mode: bool = False,
 ) -> Dict[str, Any]:
     if not (root / "backtrader" / "__init__.py").is_file():
         raise ValueError("%s root is not a Backtrader source checkout: %s" % (name, root))
@@ -300,11 +459,18 @@ def _inspect_side(
         config_path = root / EXAMPLE_DIRS[example] / "config.yaml"
         for filename in ("run.py", "config.yaml"):
             if not (config_path.parent / filename).is_file():
-                raise FileNotFoundError("missing benchmark input: %s" % (config_path.parent / filename))
+                raise FileNotFoundError(
+                    "missing benchmark input: %s" % (config_path.parent / filename)
+                )
         configs[example] = _effective_config(root, example, data_dir, symbols)
         config_hashes[example] = _sha256(config_path)
     entrypoints = {
-        example: _probe_entrypoint(root, example, requested_save=requested_save)
+        example: _probe_entrypoint(
+            root,
+            example,
+            requested_save=requested_save,
+            require_factor_mode=require_factor_mode,
+        )
         for example in examples
     }
     module_probe = _probe_modules(root)
@@ -336,7 +502,8 @@ def _inspect_side(
             path: digest
             for path, digest in source_hashes.items()
             if path.startswith("requirements")
-            or path in {
+            or path
+            in {
                 "setup.py",
                 "pyproject.toml",
                 "setup.cfg",
@@ -366,6 +533,114 @@ def _config_differences(left: Any, right: Any, prefix: str = "") -> List[Dict[st
     if left != right:
         return [{"path": prefix, "baseline": left, "candidate": right}]
     return []
+
+
+def _mode_config_comparison(
+    sides: Mapping[str, Mapping[str, Any]],
+    modes: Mapping[str, str],
+    examples: Sequence[str],
+) -> Dict[str, Any]:
+    differences = {}
+    for example in examples:
+        configs = {}
+        for side in ("baseline", "candidate"):
+            configs[side] = copy.deepcopy(sides[side]["effective_configs"][example])
+            configs[side]["factor_mode"] = modes[side]
+        differences[example] = _config_differences(configs["baseline"], configs["candidate"])
+        if differences[example] != [
+            {
+                "path": "factor_mode",
+                "baseline": modes["baseline"],
+                "candidate": modes["candidate"],
+            }
+        ]:
+            raise ValueError(
+                "mode-pair effective configuration must differ only at factor_mode for %s: %s"
+                % (example, json.dumps(differences[example], ensure_ascii=False))
+            )
+    return {
+        "equal_except_factor_mode": True,
+        "expected_difference": {
+            "path": "factor_mode",
+            "baseline": modes["baseline"],
+            "candidate": modes["candidate"],
+        },
+        "differences": differences,
+    }
+
+
+def _compare_mode_runs(
+    *,
+    output: Path,
+    example: str,
+    kind: str,
+    group: Optional[int],
+    baseline: Mapping[str, Any],
+    candidate: Mapping[str, Any],
+) -> Dict[str, Any]:
+    helper = _load_pair_semantics_helper()
+    baseline_dir = Path(baseline["output_dir"])
+    candidate_dir = Path(candidate["output_dir"])
+    comparison_path = (
+        output
+        / "paired-comparisons"
+        / example
+        / ("warmup" if group is None else "group-%02d" % group)
+        / "comparison.json"
+    )
+    comparison_path.parent.mkdir(parents=True, exist_ok=True)
+    record: Dict[str, Any] = {
+        "example": example,
+        "kind": kind,
+        "group": group,
+        "baseline_run": str(baseline_dir),
+        "candidate_run": str(candidate_dir),
+        "helper_path": str(Path(helper.__file__).resolve()),
+        "helper_sha256": _sha256(Path(helper.__file__).resolve()),
+        "requirements": {
+            "reports": True,
+            "mode_pair": True,
+            "panel_pair": example in ("025", "026"),
+        },
+    }
+    try:
+        result = helper.compare_runs(
+            baseline_dir,
+            candidate_dir,
+            require_reports=True,
+            require_mode_pair=True,
+            require_panel_pair=example in ("025", "026"),
+        )
+        record["comparison"] = result
+        record["status"] = (
+            "OK" if isinstance(result, Mapping) and result.get("strict_equal") is True else "FAILED"
+        )
+        if record["status"] != "OK":
+            record["error"] = "paired output comparison did not pass strict equality"
+    except Exception as exc:
+        record["status"] = "FAILED"
+        record["error"] = "%s: %s" % (type(exc).__name__, exc)
+    serialized = json.dumps(record, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
+    comparison_path.write_text(serialized, encoding="utf-8")
+    record["comparison_path"] = str(comparison_path)
+    record["comparison_sha256"] = _sha256(comparison_path)
+    if record["status"] != "OK":
+        raise ModePairComparisonError(
+            "%s %s mode-pair comparison failed: %s"
+            % (example, kind, record.get("error", "unknown comparison failure")),
+            record,
+        )
+    return record
+
+
+def _append_mode_comparison(payload: Dict[str, Any], **kwargs: Any) -> Dict[str, Any]:
+    try:
+        record = _compare_mode_runs(**kwargs)
+    except ModePairComparisonError as exc:
+        payload["paired_comparisons"].append(exc.record)
+        raise
+    payload["paired_comparisons"].append(record)
+    return record
 
 
 def _classify_config_differences(
@@ -412,6 +687,7 @@ def _build_command(
     save_mode: Optional[str] = None,
     no_charts: bool = False,
     requested_save: bool = True,
+    factor_mode: Optional[str] = None,
 ) -> List[str]:
     command = [
         sys.executable,
@@ -424,6 +700,10 @@ def _build_command(
         str(symbols),
         "--report",
     ]
+    if factor_mode is not None:
+        if factor_mode not in ("native", "build"):
+            raise ValueError("factor_mode must be 'native' or 'build'")
+        command.extend(("--factor-mode", factor_mode))
     if example in ("025", "026"):
         if requested_save:
             if save_mode == "legacy_research_dataset":
@@ -435,6 +715,38 @@ def _build_command(
         if no_charts:
             command.append("--no-charts")
     return command
+
+
+def _build_captured_command(
+    entrypoint_command: Sequence[str], root: Path, output_dir: Path
+) -> Tuple[List[str], Dict[str, Any]]:
+    if len(entrypoint_command) < 2:
+        raise ValueError("entrypoint command is incomplete")
+    helper_path = Path(__file__).resolve().with_name("verify_factor_research_pair_semantics.py")
+    if not helper_path.is_file():
+        raise FileNotFoundError("current report semantics helper is missing: %s" % helper_path)
+    helper_sha256 = _sha256(helper_path)
+    command = [
+        sys.executable,
+        "-c",
+        CAPTURED_ENTRYPOINT_SOURCE,
+        str(helper_path),
+        helper_sha256,
+        str(root.resolve()),
+        str(Path(entrypoint_command[1]).resolve()),
+        str(output_dir.resolve()),
+        *entrypoint_command[2:],
+    ]
+    return command, {
+        "enabled": True,
+        "helper_path": str(helper_path),
+        "helper_sha256": helper_sha256,
+        "mechanism": (
+            "fresh subprocess loads the current comparator helper by absolute path, loads the "
+            "side run.py with runpy, and captures the actual ReportDocument during main()"
+        ),
+        "measurement_note": REPORT_CAPTURE_NOTE,
+    }
 
 
 def _path_inside(path: Path, parent: Path) -> bool:
@@ -500,6 +812,88 @@ def _summary_report_paths(example: str, summary: Mapping[str, Any], output_dir: 
     return paths
 
 
+def _validate_report_semantics(output_dir: Path, example: str) -> Dict[str, Any]:
+    sidecar = output_dir / REPORT_SEMANTICS_FILENAME
+    result: Dict[str, Any] = {
+        "path": str(sidecar),
+        "exists": sidecar.is_file(),
+        "status": "MISSING",
+        "reports": [],
+        "sha256": _sha256(sidecar) if sidecar.is_file() else None,
+    }
+    problems = []
+    if not sidecar.is_file() or sidecar.stat().st_size < 1:
+        problems.append("report semantics sidecar is missing or empty")
+    else:
+        try:
+            loaded = json.loads(sidecar.read_text(encoding="utf-8"))
+        except (OSError, ValueError) as exc:
+            loaded = None
+            problems.append(
+                "report semantics sidecar is invalid: %s: %s" % (type(exc).__name__, exc)
+            )
+        if (
+            not isinstance(loaded, Mapping)
+            or loaded.get("schema_version") != REPORT_SEMANTICS_SCHEMA
+        ):
+            problems.append("report semantics sidecar schema is missing or unsupported")
+        records = loaded.get("reports") if isinstance(loaded, Mapping) else None
+        if not isinstance(records, list):
+            problems.append("report semantics sidecar reports must be a list")
+            records = []
+        observed_names = set()
+        for record in records:
+            if not isinstance(record, Mapping):
+                problems.append("report semantics entry must be an object")
+                continue
+            relative = record.get("html_path")
+            path = Path(relative) if isinstance(relative, str) else Path("..")
+            if path.is_absolute() or ".." in path.parts:
+                problems.append("report semantics entry has an unsafe html_path")
+                continue
+            html_path = output_dir / path
+            observed_names.add(path.as_posix())
+            payload = record.get("semantic_payload")
+            digest = record.get("semantic_digest")
+            html_digest = record.get("html_sha256")
+            if not isinstance(payload, Mapping):
+                problems.append("report semantics entry has no object semantic_payload")
+            elif not isinstance(digest, str) or not SHA256_RE.fullmatch(digest):
+                problems.append("report semantics entry has an invalid semantic_digest")
+            else:
+                try:
+                    canonical = json.dumps(
+                        payload,
+                        ensure_ascii=True,
+                        sort_keys=True,
+                        separators=(",", ":"),
+                        allow_nan=False,
+                    )
+                except (TypeError, ValueError):
+                    problems.append("report semantics payload is not strict JSON")
+                else:
+                    if hashlib.sha256(canonical.encode("utf-8")).hexdigest() != digest.lower():
+                        problems.append("report semantics digest does not match its payload")
+            if not isinstance(html_digest, str) or not SHA256_RE.fullmatch(html_digest):
+                problems.append("report semantics entry has an invalid html_sha256")
+            elif (
+                not _path_inside(html_path, output_dir)
+                or not html_path.is_file()
+                or _sha256(html_path) != html_digest.lower()
+            ):
+                problems.append("report semantics HTML hash does not match rendered report")
+            result["reports"].append(dict(record))
+        expected_paths = {"factor_report_%s.html" % factor for factor in EXPECTED_FACTORS[example]}
+        if observed_names != expected_paths or len(observed_names) != len(records):
+            problems.append(
+                "report semantics report set differs: expected=%s actual=%s"
+                % (sorted(expected_paths), sorted(observed_names))
+            )
+    result["problems"] = problems
+    result["status"] = "OK" if not problems else "FAILED"
+    return result
+
+
 def _csv_stats(path: Path) -> Dict[str, Any]:
     """Read CSV shape and count finite numeric values without retaining all rows."""
     rows = 0
@@ -557,6 +951,8 @@ def _validate_run(
     requested_symbols: Optional[int] = None,
     charts_enabled: bool = True,
     requested_save: bool = True,
+    factor_mode: Optional[str] = None,
+    require_report_semantics: bool = False,
 ) -> Dict[str, Any]:
     problems = []
     evaluation = {
@@ -590,6 +986,10 @@ def _validate_run(
             evaluation["status"] = status
             if status != "OK":
                 problems.append("evaluation status is %s, expected OK" % status)
+        if factor_mode is not None and summary.get("factor_mode") != factor_mode:
+            problems.append(
+                "summary factor_mode is %r, expected %r" % (summary.get("factor_mode"), factor_mode)
+            )
 
     sample_count = {
         "requested": requested_symbols,
@@ -633,32 +1033,63 @@ def _validate_run(
                 )
             else:
                 orders["status"] = "OK"
-    elif summary is not None and example == "027" and isinstance(summary.get("broker"), Mapping):
+    elif (
+        summary is not None
+        and example == "027"
+        and factor_mode is None
+        and isinstance(summary.get("broker"), Mapping)
+    ):
         broker = summary["broker"]
         orders.update({"submit": broker.get("submit"), "cancel": broker.get("cancel")})
         if broker.get("submit") != 0 or broker.get("cancel") != 0:
             orders["applicable"] = True
             orders["status"] = "FAILED"
             problems.append("unexpected broker activity in 027 summary")
+    if summary is not None and example == "027" and factor_mode is not None:
+        broker = summary.get("broker")
+        if not isinstance(broker, Mapping):
+            orders["status"] = "INVALID"
+            problems.append("mode-pair 027 summary broker order counts are missing or invalid")
+        else:
+            submit = broker.get("submit")
+            cancel = broker.get("cancel")
+            if any(
+                isinstance(count, bool) or not isinstance(count, int) or count < 0
+                for count in (submit, cancel)
+            ):
+                orders["status"] = "INVALID"
+                problems.append("mode-pair 027 summary broker order counts are missing or invalid")
+            elif submit != 0 or cancel != 0:
+                orders.update({"submit": submit, "cancel": cancel, "status": "FAILED"})
+                orders["applicable"] = True
+                problems.append("unexpected broker activity in 027 mode-pair summary")
+            else:
+                orders.update({"submit": submit, "cancel": cancel, "status": "OK"})
+                orders["applicable"] = True
 
     expected_csv = output_dir / "factor_values.csv"
     csv_exists = expected_csv.is_file() and expected_csv.stat().st_size > 0
-    factor_stats = _csv_stats(expected_csv) if csv_exists else {
-        "path": str(expected_csv), "exists": False, "rows": 0, "headers": [],
-        "finite_values": {}, "error": "CSV is missing or empty",
-    }
+    factor_stats = (
+        _csv_stats(expected_csv)
+        if csv_exists
+        else {
+            "path": str(expected_csv),
+            "exists": False,
+            "rows": 0,
+            "headers": [],
+            "finite_values": {},
+            "error": "CSV is missing or empty",
+        }
+    )
     if not csv_exists or factor_stats["rows"] < 1:
         problems.append("factor_values.csv is missing or empty")
     missing_factors = [
-        factor
-        for factor in EXPECTED_FACTORS[example]
-        if factor not in factor_stats["headers"]
+        factor for factor in EXPECTED_FACTORS[example] if factor not in factor_stats["headers"]
     ]
     empty_factors = [
         factor
         for factor in EXPECTED_FACTORS[example]
-        if factor in factor_stats["headers"]
-        and factor_stats["finite_values"].get(factor, 0) < 1
+        if factor in factor_stats["headers"] and factor_stats["finite_values"].get(factor, 0) < 1
     ]
     if missing_factors:
         problems.append("factor_values.csv is missing factor columns: %s" % missing_factors)
@@ -731,17 +1162,14 @@ def _validate_run(
                 export_manifest: Optional[Mapping[str, Any]] = None
             else:
                 try:
-                    loaded_manifest = json.loads(
-                        evaluation_manifest.read_text(encoding="utf-8")
-                    )
+                    loaded_manifest = json.loads(evaluation_manifest.read_text(encoding="utf-8"))
                     export_manifest = (
                         loaded_manifest if isinstance(loaded_manifest, Mapping) else None
                     )
                 except (OSError, ValueError) as exc:
                     export_manifest = None
                     problems.append(
-                        "evaluation manifest is invalid: %s: %s"
-                        % (type(exc).__name__, exc)
+                        "evaluation manifest is invalid: %s: %s" % (type(exc).__name__, exc)
                     )
             exports = None if export_manifest is None else export_manifest.get("exports")
             if not isinstance(exports, list) or any(not isinstance(item, str) for item in exports):
@@ -796,20 +1224,32 @@ def _validate_run(
                     "OK"
                     if expected_pngs
                     and sorted(expected_pngs) == actual_pngs
-                    and all(item["exists_nonempty"] and item["inside_evaluation_dir"] for item in charts["files"])
+                    and all(
+                        item["exists_nonempty"] and item["inside_evaluation_dir"]
+                        for item in charts["files"]
+                    )
                     else "FAILED"
                 )
             else:
                 if expected_pngs or actual_pngs:
                     problems.append("no-charts diagnostic unexpectedly exported PNG charts")
-                charts["status"] = "NOT_REQUESTED" if not expected_pngs and not actual_pngs else "FAILED"
+                charts["status"] = (
+                    "NOT_REQUESTED" if not expected_pngs and not actual_pngs else "FAILED"
+                )
             for table_name in REQUIRED_EVALUATION_TABLES:
                 table_path = evaluation_dir / table_name
-                stats = _csv_stats(table_path) if table_path.is_file() else {
-                    "path": str(table_path), "exists": False, "rows": 0,
-                    "headers": [], "finite_values": {},
-                    "error": "CSV is missing",
-                }
+                stats = (
+                    _csv_stats(table_path)
+                    if table_path.is_file()
+                    else {
+                        "path": str(table_path),
+                        "exists": False,
+                        "rows": 0,
+                        "headers": [],
+                        "finite_values": {},
+                        "error": "CSV is missing",
+                    }
+                )
                 evaluation_results["tables"][table_name] = stats
                 if not stats["exists"] or stats["error"]:
                     problems.append("evaluation table is missing or unreadable: %s" % table_name)
@@ -822,18 +1262,14 @@ def _validate_run(
             }
             for table_name, columns in finite_evaluation_values.items():
                 stats = evaluation_results["tables"].get(table_name, {})
-                if not any(
-                    _finite_columns_present(stats, (column,)) for column in columns
-                ):
+                if not any(_finite_columns_present(stats, (column,)) for column in columns):
                     problems.append(
-                        "evaluation table has no finite values in %s: %s"
-                        % (columns, table_name)
+                        "evaluation table has no finite values in %s: %s" % (columns, table_name)
                     )
         evaluation_results["status"] = (
             "OK"
             if not any(
-                "evaluation" in problem or "factor_values.csv" in problem
-                for problem in problems
+                "evaluation" in problem or "factor_values.csv" in problem for problem in problems
             )
             and evaluation.get("status") == "OK"
             else "FAILED"
@@ -844,9 +1280,7 @@ def _validate_run(
     artifact_status = (
         "REQUESTED"
         if artifact_requested
-        else "NOT_REQUESTED"
-        if example in ("025", "026")
-        else "NOT_APPLICABLE"
+        else "NOT_REQUESTED" if example in ("025", "026") else "NOT_APPLICABLE"
     )
     saved_data_artifact: Dict[str, Any] = {
         "mode": save_mode,
@@ -902,9 +1336,7 @@ def _validate_run(
             if not panel_files:
                 problems.append("saved panel has no non-empty CSV files")
             panel_csv_paths = sorted(
-                item["path"]
-                for item in saved_files
-                if item["path"].lower().endswith(".csv")
+                item["path"] for item in saved_files if item["path"].lower().endswith(".csv")
             )
             nonempty_panel_csv_paths = sorted(
                 item["path"]
@@ -956,8 +1388,7 @@ def _validate_run(
     ]
     if len(reports) != len(expected_reports):
         problems.append(
-            "summary references %d reports; expected %d"
-            % (len(reports), len(expected_reports))
+            "summary references %d reports; expected %d" % (len(reports), len(expected_reports))
         )
     report_artifacts = []
     for expected in expected_reports:
@@ -975,9 +1406,16 @@ def _validate_run(
             }
         )
         if not exists or not referenced or not inside:
-            problems.append("report is missing, empty, unreferenced, or outside output: %s" % expected)
+            problems.append(
+                "report is missing, empty, unreferenced, or outside output: %s" % expected
+            )
 
-    return {
+    report_semantics = (
+        _validate_report_semantics(output_dir, example) if require_report_semantics else None
+    )
+    if report_semantics is not None:
+        problems.extend(report_semantics["problems"])
+    result = {
         "status": "OK" if not problems else "FAILED",
         "problems": problems,
         "requested_save": requested_save,
@@ -999,6 +1437,9 @@ def _validate_run(
         "saved_data_artifact": saved_data_artifact,
         "reports": report_artifacts,
     }
+    if require_report_semantics:
+        result["report_semantics"] = report_semantics
+    return result
 
 
 def _measure_process(
@@ -1016,9 +1457,9 @@ def _measure_process(
     cpu_by_pid: Dict[int, float] = {}
     samples = []
     peak_rss = 0
-    with tempfile.TemporaryFile(mode="w+t", encoding="utf-8") as stdout_file, tempfile.TemporaryFile(
+    with tempfile.TemporaryFile(
         mode="w+t", encoding="utf-8"
-    ) as stderr_file:
+    ) as stdout_file, tempfile.TemporaryFile(mode="w+t", encoding="utf-8") as stderr_file:
         started_at = dt.datetime.now(dt.timezone.utc).isoformat()
         started = time.perf_counter()
         process = subprocess.Popen(
@@ -1099,6 +1540,8 @@ def _run_case(
     module_origins: Mapping[str, Any],
     charts_enabled: bool = True,
     requested_save: bool = True,
+    factor_mode: Optional[str] = None,
+    capture_reports: bool = False,
 ) -> Dict[str, Any]:
     save_mode = entrypoint.get("save_mode")
     artifact_requested = requested_save and example in ("025", "026")
@@ -1111,36 +1554,45 @@ def _run_case(
         save_mode,
         no_charts=not charts_enabled,
         requested_save=requested_save,
+        factor_mode=factor_mode,
     )
+    entrypoint_command = command
+    report_capture = {"enabled": False}
+    if capture_reports:
+        command, report_capture = _build_captured_command(command, root, output_dir)
     output_contract = {
         "save_mode": save_mode,
         "requested_save": requested_save,
         "artifact_requested": artifact_requested,
-        "evaluation_charts": "enabled" if charts_enabled and example in ("025", "026") else (
-            "disabled_diagnostic" if example in ("025", "026") else "not_applicable"
+        "evaluation_charts": (
+            "enabled"
+            if charts_enabled and example in ("025", "026")
+            else ("disabled_diagnostic" if example in ("025", "026") else "not_applicable")
         ),
         "chart_validation_source": (
-            "fincore evaluation manifest exports"
-            if example in ("025", "026")
-            else "not_applicable"
+            "fincore evaluation manifest exports" if example in ("025", "026") else "not_applicable"
         ),
         "artifact_path": (
             "dataset"
             if artifact_requested and save_mode == "legacy_research_dataset"
-            else "panel"
-            if artifact_requested and save_mode == "factor_panel_csv"
-            else "not_requested"
-            if example in ("025", "026")
-            else "factor_values.csv"
+            else (
+                "panel"
+                if artifact_requested and save_mode == "factor_panel_csv"
+                else "not_requested" if example in ("025", "026") else "factor_values.csv"
+            )
         ),
         "contract_change_note": (
             "legacy ResearchDataset serialization and current FactorPanel CSV serialization have different schemas and identity retention by design; timing is end-to-end and does not isolate serialization"
             if artifact_requested and save_mode in ("legacy_research_dataset", "factor_panel_csv")
-            else "optional panel/dataset artifact was not requested; factor_values.csv remains required"
-            if example in ("025", "026")
-            else "027 emits its existing factor_values.csv without a saved panel option"
+            else (
+                "optional panel/dataset artifact was not requested; factor_values.csv remains required"
+                if example in ("025", "026")
+                else "027 emits its existing factor_values.csv without a saved panel option"
+            )
         ),
     }
+    if capture_reports:
+        output_contract["measurement_note"] = REPORT_CAPTURE_NOTE
     result: Dict[str, Any] = {
         "side": side,
         "example": example,
@@ -1157,6 +1609,14 @@ def _run_case(
         "module_import_binding": "run.py executes with PYTHONPATH set to this side's source root and no inherited PYTHONPATH",
         "output_contract": output_contract,
     }
+    if capture_reports:
+        result.update(
+            {
+                "entrypoint_command": entrypoint_command,
+                "factor_mode": factor_mode,
+                "report_capture": report_capture,
+            }
+        )
     try:
         measured = _measure_process(
             command, root, interval_s, environment=_process_environment(root)
@@ -1210,6 +1670,8 @@ def _run_case(
         requested_symbols=symbols,
         charts_enabled=charts_enabled,
         requested_save=requested_save,
+        factor_mode=factor_mode,
+        require_report_semantics=capture_reports,
     )
     if result.get("harness_error"):
         validation["status"] = "FAILED"
@@ -1249,6 +1711,21 @@ def _median_stats(records: Sequence[Mapping[str, Any]]) -> Dict[str, Any]:
     }
 
 
+def _mode_cost_ratios(
+    side_stats: Mapping[str, Mapping[str, Any]], modes: Mapping[str, str]
+) -> Dict[str, Optional[float]]:
+    build_side = next(side for side, mode in modes.items() if mode == "build")
+    native_side = next(side for side, mode in modes.items() if mode == "native")
+    return {
+        metric: (
+            side_stats[build_side][metric] / side_stats[native_side][metric]
+            if side_stats[native_side][metric]
+            else None
+        )
+        for metric in ("wall_s", "cpu_tree_s", "peak_rss_tree_bytes")
+    }
+
+
 def _sample_scope(
     requested_symbols: int,
     no_charts: bool = False,
@@ -1261,9 +1738,7 @@ def _sample_scope(
     scope_status = (
         "FORMAL_SCOPE_MET"
         if formal
-        else "DIAGNOSTIC_NO_CHARTS"
-        if no_charts
-        else "INSUFFICIENT_FOR_FORMAL_SAMPLE_FLOOR"
+        else "DIAGNOSTIC_NO_CHARTS" if no_charts else "INSUFFICIENT_FOR_FORMAL_SAMPLE_FLOOR"
     )
     return {
         "run_status": run_status,
@@ -1278,11 +1753,48 @@ def _sample_scope(
         "note": (
             "Harness checks passed at or above the formal symbol-count floor; performance acceptance is assessed separately."
             if formal
-            else "This no-charts run is diagnostic only and cannot be formal benchmark evidence."
-            if no_charts
-            else "All process/output checks passed, but this reduced-symbol run is not formal benchmark evidence."
+            else (
+                "This no-charts run is diagnostic only and cannot be formal benchmark evidence."
+                if no_charts
+                else "All process/output checks passed, but this reduced-symbol run is not formal benchmark evidence."
+            )
         ),
     }
+
+
+def _mode_pair_sample_scope(
+    requested_symbols: int, requested_save: bool, examples: Sequence[str]
+) -> Dict[str, Any]:
+    scope = _sample_scope(
+        requested_symbols,
+        no_charts=False,
+        requested_save=requested_save,
+        examples=examples,
+    )
+    formal_complete = (
+        requested_symbols >= FORMAL_MINIMUM_SYMBOLS
+        and tuple(examples) == EXAMPLES
+        and requested_save
+    )
+    scope["formal_eligible"] = formal_complete
+    if not formal_complete:
+        scope["run_status"] = "SMOKE_ONLY"
+        scope["status"] = (
+            "INSUFFICIENT_FOR_FORMAL_SAMPLE_FLOOR"
+            if requested_symbols < FORMAL_MINIMUM_SYMBOLS
+            else "INCOMPLETE_FORMAL_EXAMPLE_OR_OUTPUT_SCOPE"
+        )
+        scope["note"] = (
+            "This mode-pair run is reduced-scope evidence; it is not formal iteration 47 acceptance."
+        )
+    else:
+        scope["note"] = (
+            "All example, panel, report, chart, and symbol-count scope checks passed. "
+            "Mode-pair measurements are instrumented and have no performance reduction gate."
+        )
+    scope["instrumented_measurements"] = True
+    scope["performance_reduction_gate"] = None
+    return scope
 
 
 def _selected_examples(requested: Optional[Sequence[str]]) -> Tuple[str, ...]:
@@ -1301,6 +1813,16 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--candidate-root", required=True, help="candidate source checkout")
     parser.add_argument("--baseline-revision", help="revision represented by a source archive")
     parser.add_argument("--candidate-revision", help="revision represented by a source archive")
+    parser.add_argument(
+        "--baseline-factor-mode",
+        choices=("native", "build"),
+        help="factor implementation mode for the baseline side (paired mode profile)",
+    )
+    parser.add_argument(
+        "--candidate-factor-mode",
+        choices=("native", "build"),
+        help="factor implementation mode for the candidate side (paired mode profile)",
+    )
     parser.add_argument("--data-dir", required=True, help="fixed input data directory")
     parser.add_argument("--output", required=True, help="new evidence directory")
     parser.add_argument(
@@ -1361,9 +1883,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             ],
             "charts_enabled": not args.no_charts,
             "chart_examples": [
-                example
-                for example in selected_examples
-                if example in ("025", "026")
+                example for example in selected_examples if example in ("025", "026")
             ],
             "no_charts_diagnostic": args.no_charts,
             "sample_interval_s": args.sample_interval,
@@ -1372,14 +1892,44 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         },
         "runs": [],
     }
+    if args.baseline_factor_mode is not None or args.candidate_factor_mode is not None:
+        payload["paired_comparisons"] = []
+        payload["parameters"].update(
+            {
+                "baseline_factor_mode": args.baseline_factor_mode,
+                "candidate_factor_mode": args.candidate_factor_mode,
+            }
+        )
+    mode_data_dir: Optional[Path] = None
+    mode_input_before: Optional[Dict[str, Any]] = None
+    mode_roots: Optional[Dict[str, Path]] = None
+    mode_sides: Optional[Dict[str, Dict[str, Any]]] = None
+    mode_profile_requested = (
+        args.baseline_factor_mode is not None or args.candidate_factor_mode is not None
+    )
     created_output = False
     try:
+        modes = _resolve_factor_modes(args.baseline_factor_mode, args.candidate_factor_mode)
         if args.symbols < 1:
             raise ValueError("--symbols must be positive")
-        if args.groups < 3:
-            raise ValueError("--groups must be at least 3")
+        minimum_groups = 1 if modes is not None else 3
+        if args.groups < minimum_groups:
+            raise ValueError("--groups must be at least %d" % minimum_groups)
         if args.sample_interval <= 0:
             raise ValueError("--sample-interval must be positive")
+        if modes is not None:
+            payload["factor_mode_pair"] = {
+                "modes": modes,
+                "profile": "instrumented_native_build_pair",
+                "performance_reduction_gate": None,
+                "measurement_note": REPORT_CAPTURE_NOTE,
+            }
+            if args.no_charts:
+                raise ValueError("mode-pair profile requires evaluation charts")
+            if args.no_save_panel:
+                raise ValueError("mode-pair profile requires saved 025/026 panel outputs")
+            if args.allow_config_difference:
+                raise ValueError("mode-pair profile does not allow input configuration differences")
         if output.exists():
             raise FileExistsError("output directory already exists: %s" % output)
         output.mkdir(parents=True)
@@ -1388,11 +1938,17 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             "baseline": Path(args.baseline_root).expanduser().resolve(),
             "candidate": Path(args.candidate_root).expanduser().resolve(),
         }
+        mode_roots = (
+            roots
+            if args.baseline_factor_mode is not None or args.candidate_factor_mode is not None
+            else None
+        )
         revisions = {
             "baseline": args.baseline_revision,
             "candidate": args.candidate_revision,
         }
         data_dir = Path(args.data_dir).expanduser().resolve()
+        mode_data_dir = data_dir if mode_profile_requested else None
         manifest_path = data_dir / "_metadata" / "manifest.json"
         if not manifest_path.is_file():
             raise FileNotFoundError("data manifest not found: %s" % manifest_path)
@@ -1414,10 +1970,33 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                 execution_environment,
                 examples=selected_examples,
                 requested_save=requested_save,
+                require_factor_mode=modes is not None,
             )
             for name, root in roots.items()
         }
+        mode_sides = sides if mode_profile_requested else None
+        if modes is not None:
+            for side, mode in modes.items():
+                sides[side]["effective_config_mode_source"] = "explicit --%s-factor-mode" % side
+                for example in selected_examples:
+                    effective = sides[side]["effective_configs"][example]
+                    effective["factor_mode"] = mode
+                    sides[side]["effective_config_sha256"][example] = _canonical_hash(effective)
         payload["sides"] = sides
+        if modes is not None:
+            payload["factor_mode_pair"]["runtime_provenance"] = _validate_factor_mode_pair(sides)
+            for example in selected_examples:
+                if example in ("025", "026"):
+                    wrong_sides = [
+                        side
+                        for side in sides
+                        if sides[side]["entrypoints"][example]["save_mode"] != "factor_panel_csv"
+                    ]
+                    if wrong_sides:
+                        raise RuntimeError(
+                            "%s mode-pair requires --save-panel on both sides: %s"
+                            % (example, wrong_sides)
+                        )
         if args.no_charts:
             unsupported = [
                 "%s:%s" % (side, example)
@@ -1427,66 +2006,94 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                 if not metadata["entrypoints"][example]["options"]["--no-charts"]
             ]
             if unsupported:
-                raise RuntimeError("no-charts diagnostic is unsupported by entrypoints: %s" % unsupported)
-        payload["output_contract_comparison"] = {
-            "shared_outputs": [
-                "factor_values.csv",
-                "summary.json",
-                "factor_report_*.html",
-                "evaluation export files generated by each example",
-            ],
-            "save_api_by_side": {
-                side: {
-                    example: sides[side]["entrypoints"][example]["save_mode"]
-                    for example in selected_examples
-                }
-                for side in sides
-            },
-            "requested_save": requested_save,
-            "planned_025_026_difference": (
-                "baseline uses --save-dataset and retains the legacy ResearchDataset schema/identity in dataset/; candidate uses --save-panel and writes the current FactorPanel CSV schema to panel/"
-                if requested_save and any(
-                    example in ("025", "026") for example in selected_examples
+                raise RuntimeError(
+                    "no-charts diagnostic is unsupported by entrypoints: %s" % unsupported
                 )
-                else "no optional 025/026 panel or dataset artifact is requested; factor_values.csv remains required"
-                if any(example in ("025", "026") for example in selected_examples)
-                else "027 has no optional panel/dataset artifact; factor_values.csv remains required"
-            ),
-            "comparison_limit": (
-                "the saved data purpose is shared, while storage schema and identity retention intentionally differ; process wall is end-to-end and does not isolate serialization"
-                if requested_save and any(
-                    example in ("025", "026") for example in selected_examples
-                )
-                else "no optional panel/dataset serialization is included for the selected examples; measured wall time covers the shared report/evaluation path"
-            ),
-            "preserve_report_and_evaluation_outputs": True,
-            "evaluation_chart_contract": "default 025/026 run exports every PNG named in fincore evaluation manifest.exports; each must be present and non-empty; --no-charts is explicit diagnostic-only mode",
-        }
+        if modes is None:
+            payload["output_contract_comparison"] = {
+                "shared_outputs": [
+                    "factor_values.csv",
+                    "summary.json",
+                    "factor_report_*.html",
+                    "evaluation export files generated by each example",
+                ],
+                "save_api_by_side": {
+                    side: {
+                        example: sides[side]["entrypoints"][example]["save_mode"]
+                        for example in selected_examples
+                    }
+                    for side in sides
+                },
+                "requested_save": requested_save,
+                "planned_025_026_difference": (
+                    "baseline uses --save-dataset and retains the legacy ResearchDataset schema/identity in dataset/; candidate uses --save-panel and writes the current FactorPanel CSV schema to panel/"
+                    if requested_save
+                    and any(example in ("025", "026") for example in selected_examples)
+                    else (
+                        "no optional 025/026 panel or dataset artifact is requested; factor_values.csv remains required"
+                        if any(example in ("025", "026") for example in selected_examples)
+                        else "027 has no optional panel/dataset artifact; factor_values.csv remains required"
+                    )
+                ),
+                "comparison_limit": (
+                    "the saved data purpose is shared, while storage schema and identity retention intentionally differ; process wall is end-to-end and does not isolate serialization"
+                    if requested_save
+                    and any(example in ("025", "026") for example in selected_examples)
+                    else "no optional panel/dataset serialization is included for the selected examples; measured wall time covers the shared report/evaluation path"
+                ),
+                "preserve_report_and_evaluation_outputs": True,
+                "evaluation_chart_contract": "default 025/026 run exports every PNG named in fincore evaluation manifest.exports; each must be present and non-empty; --no-charts is explicit diagnostic-only mode",
+            }
+        else:
+            payload["output_contract_comparison"] = {
+                "shared_outputs": [
+                    "factor_values.csv",
+                    "summary.json",
+                    "factor_report_*.html",
+                    "report_semantics.json",
+                    "025/026 FactorPanel CSV bundles",
+                    "evaluation tables and PNG exports",
+                ],
+                "factor_mode_by_side": modes,
+                "output_api_by_side": {
+                    side: {
+                        example: sides[side]["entrypoints"][example]["save_mode"]
+                        for example in selected_examples
+                    }
+                    for side in sides
+                },
+                "reports_and_evaluation_outputs_preserved": True,
+                "comparison_limit": REPORT_CAPTURE_NOTE,
+            }
         for name, metadata in sides.items():
             if not metadata["source_revision"]:
                 raise ValueError(
-                    "%s has no git HEAD; pass --%s-revision for its source archive"
-                    % (name, name)
+                    "%s has no git HEAD; pass --%s-revision for its source archive" % (name, name)
                 )
-        differences = {
-            example: _config_differences(
-                sides["baseline"]["effective_configs"][example],
-                sides["candidate"]["effective_configs"][example],
-            )
-            for example in selected_examples
-        }
-        payload["input_configuration_comparison"] = {
-            "equal": not any(differences.values()),
-            "differences": differences,
-            **_classify_config_differences(differences, args.allow_config_difference),
-        }
-        if not payload["input_configuration_comparison"]["compatible"]:
-            raise ValueError(
-                "effective input configuration has unapproved differences: %s"
-                % json.dumps(
-                    payload["input_configuration_comparison"]["unapproved_differences"],
-                    ensure_ascii=False,
+        if modes is None:
+            differences = {
+                example: _config_differences(
+                    sides["baseline"]["effective_configs"][example],
+                    sides["candidate"]["effective_configs"][example],
                 )
+                for example in selected_examples
+            }
+            payload["input_configuration_comparison"] = {
+                "equal": not any(differences.values()),
+                "differences": differences,
+                **_classify_config_differences(differences, args.allow_config_difference),
+            }
+            if not payload["input_configuration_comparison"]["compatible"]:
+                raise ValueError(
+                    "effective input configuration has unapproved differences: %s"
+                    % json.dumps(
+                        payload["input_configuration_comparison"]["unapproved_differences"],
+                        ensure_ascii=False,
+                    )
+                )
+        else:
+            payload["input_configuration_comparison"] = _mode_config_comparison(
+                sides, modes, selected_examples
             )
         for side, metadata in sides.items():
             probe = metadata["module_probe"]
@@ -1497,40 +2104,19 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                 module_path = Path(modules[module_name])
                 if not _path_inside(module_path, roots[side]):
                     raise RuntimeError(
-                        "%s %s imported outside its checkout: %s"
-                        % (side, module_name, module_path)
+                        "%s %s imported outside its checkout: %s" % (side, module_name, module_path)
                     )
 
-        # Full-size warmups use fresh interpreters and the same inputs/options.
-        for example in selected_examples:
-            for side in _alternating_order(EXAMPLES.index(example) + 1):
-                run_dir = _run_dir(output, example, "warmup", side, None)
-                record = _run_case(
-                    side=side,
-                    root=roots[side],
-                    example=example,
-                    output_dir=run_dir,
-                    data_dir=data_dir,
-                    symbols=args.symbols,
-                    interval_s=args.sample_interval,
-                    kind="warmup",
-                    group=None,
-                    entrypoint=sides[side]["entrypoints"][example],
-                    module_origins=sides[side]["module_probe"]["modules"],
-                    charts_enabled=not args.no_charts,
-                    requested_save=requested_save,
-                )
-                payload["runs"].append(record)
-                if record["validation"]["status"] != "OK":
-                    raise RuntimeError(
-                        "%s %s warmup failed: %s"
-                        % (side, example, "; ".join(record["validation"]["problems"]))
-                    )
+        if modes is not None:
+            input_before = _selected_input_manifest(data_dir, args.symbols)
+            mode_input_before = input_before
+            payload["input"]["selected_run_input_before"] = input_before
 
-        for group in range(1, args.groups + 1):
+            # Pair each complete warmup before beginning measured groups.
             for example in selected_examples:
-                for side in _alternating_order(group):
-                    run_dir = _run_dir(output, example, "measured", side, group)
+                pair_records = {}
+                for side in _alternating_order(EXAMPLES.index(example) + 1):
+                    run_dir = _run_dir(output, example, "warmup", side, None)
                     record = _run_case(
                         side=side,
                         root=roots[side],
@@ -1539,25 +2125,144 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                         data_dir=data_dir,
                         symbols=args.symbols,
                         interval_s=args.sample_interval,
+                        kind="warmup",
+                        group=None,
+                        entrypoint=sides[side]["entrypoints"][example],
+                        module_origins=sides[side]["module_probe"]["modules"],
+                        charts_enabled=True,
+                        requested_save=True,
+                        factor_mode=modes[side],
+                        capture_reports=True,
+                    )
+                    payload["runs"].append(record)
+                    pair_records[side] = record
+                    if record["validation"]["status"] != "OK":
+                        raise RuntimeError(
+                            "%s %s warmup failed: %s"
+                            % (side, example, "; ".join(record["validation"]["problems"]))
+                        )
+                _append_mode_comparison(
+                    payload,
+                    output=output,
+                    example=example,
+                    kind="warmup",
+                    group=None,
+                    baseline=pair_records["baseline"],
+                    candidate=pair_records["candidate"],
+                )
+
+            for group in range(1, args.groups + 1):
+                for example in selected_examples:
+                    pair_records = {}
+                    for side in _alternating_order(group):
+                        run_dir = _run_dir(output, example, "measured", side, group)
+                        record = _run_case(
+                            side=side,
+                            root=roots[side],
+                            example=example,
+                            output_dir=run_dir,
+                            data_dir=data_dir,
+                            symbols=args.symbols,
+                            interval_s=args.sample_interval,
+                            kind="measured",
+                            group=group,
+                            entrypoint=sides[side]["entrypoints"][example],
+                            module_origins=sides[side]["module_probe"]["modules"],
+                            charts_enabled=True,
+                            requested_save=True,
+                            factor_mode=modes[side],
+                            capture_reports=True,
+                        )
+                        payload["runs"].append(record)
+                        pair_records[side] = record
+                    invalid = {
+                        side: record["validation"]["problems"]
+                        for side, record in pair_records.items()
+                        if record["validation"]["status"] != "OK"
+                    }
+                    if invalid:
+                        raise RuntimeError(
+                            "%s measured mode-pair output validation failed: %s"
+                            % (example, invalid)
+                        )
+                    _append_mode_comparison(
+                        payload,
+                        output=output,
+                        example=example,
                         kind="measured",
                         group=group,
+                        baseline=pair_records["baseline"],
+                        candidate=pair_records["candidate"],
+                    )
+            input_after = _selected_input_manifest(data_dir, args.symbols)
+            payload["input"]["selected_run_input_after"] = input_after
+            payload["input"]["selected_run_input_unchanged"] = input_before == input_after
+            if input_before != input_after:
+                raise RuntimeError("selected run input manifest changed during benchmark")
+        else:
+            # Legacy revision/performance mode retains its direct command path.
+            for example in selected_examples:
+                for side in _alternating_order(EXAMPLES.index(example) + 1):
+                    run_dir = _run_dir(output, example, "warmup", side, None)
+                    record = _run_case(
+                        side=side,
+                        root=roots[side],
+                        example=example,
+                        output_dir=run_dir,
+                        data_dir=data_dir,
+                        symbols=args.symbols,
+                        interval_s=args.sample_interval,
+                        kind="warmup",
+                        group=None,
                         entrypoint=sides[side]["entrypoints"][example],
                         module_origins=sides[side]["module_probe"]["modules"],
                         charts_enabled=not args.no_charts,
                         requested_save=requested_save,
                     )
                     payload["runs"].append(record)
+                    if record["validation"]["status"] != "OK":
+                        raise RuntimeError(
+                            "%s %s warmup failed: %s"
+                            % (side, example, "; ".join(record["validation"]["problems"]))
+                        )
+
+            for group in range(1, args.groups + 1):
+                for example in selected_examples:
+                    for side in _alternating_order(group):
+                        run_dir = _run_dir(output, example, "measured", side, group)
+                        record = _run_case(
+                            side=side,
+                            root=roots[side],
+                            example=example,
+                            output_dir=run_dir,
+                            data_dir=data_dir,
+                            symbols=args.symbols,
+                            interval_s=args.sample_interval,
+                            kind="measured",
+                            group=group,
+                            entrypoint=sides[side]["entrypoints"][example],
+                            module_origins=sides[side]["module_probe"]["modules"],
+                            charts_enabled=not args.no_charts,
+                            requested_save=requested_save,
+                        )
+                        payload["runs"].append(record)
 
         hashes_after = {name: _source_manifest(root) for name, root in roots.items()}
         payload["source_hashes_after"] = hashes_after
-        payload["source_hash_drift"] = {
-            name: {
-                path: [digest, hashes_after[name].get(path)]
-                for path, digest in sides[name]["source_hashes"].items()
-                if hashes_after[name].get(path) != digest
+        if modes is not None:
+            payload["source_hash_drift"] = {
+                name: _source_drift(sides[name]["source_hashes"], hashes_after[name])
+                for name in roots
             }
-            for name in roots
-        }
+        else:
+            payload["source_hash_drift"] = {
+                name: {
+                    path: [digest, hashes_after[name].get(path)]
+                    for path, digest in sides[name]["source_hashes"].items()
+                    if hashes_after[name].get(path) != digest
+                }
+                for name in roots
+            }
         if any(payload["source_hash_drift"].values()):
             raise RuntimeError("source hashes changed during benchmark")
 
@@ -1573,15 +2278,18 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                     and record["side"] == side
                 ]
                 metrics[example][side] = _median_stats(records)
-            metrics[example]["candidate_over_baseline"] = {
-                metric: (
-                    metrics[example]["candidate"][metric]
-                    / metrics[example]["baseline"][metric]
-                    if metrics[example]["baseline"][metric]
-                    else None
-                )
-                for metric in ("wall_s", "cpu_tree_s", "peak_rss_tree_bytes")
-            }
+            if modes is None:
+                metrics[example]["candidate_over_baseline"] = {
+                    metric: (
+                        metrics[example]["candidate"][metric] / metrics[example]["baseline"][metric]
+                        if metrics[example]["baseline"][metric]
+                        else None
+                    )
+                    for metric in ("wall_s", "cpu_tree_s", "peak_rss_tree_bytes")
+                }
+            else:
+                metrics[example]["factor_modes"] = modes
+                metrics[example]["build_over_native"] = _mode_cost_ratios(metrics[example], modes)
         payload["summary_stats"] = metrics
         failures = [
             record
@@ -1590,15 +2298,56 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         ]
         if failures:
             raise RuntimeError("one or more measured runs failed validation")
-        payload["sample_scope"] = _sample_scope(
-            args.symbols,
-            no_charts=args.no_charts,
-            requested_save=requested_save,
-            examples=selected_examples,
+        payload["sample_scope"] = (
+            _mode_pair_sample_scope(args.symbols, requested_save, selected_examples)
+            if modes is not None
+            else _sample_scope(
+                args.symbols,
+                no_charts=args.no_charts,
+                requested_save=requested_save,
+                examples=selected_examples,
+            )
         )
         payload["status"] = payload["sample_scope"]["run_status"]
     except Exception as exc:
         payload["error"] = "%s: %s" % (type(exc).__name__, exc)
+        if mode_profile_requested:
+            if (
+                mode_data_dir is not None
+                and mode_input_before is not None
+                and "input" in payload
+                and "selected_run_input_after" not in payload["input"]
+            ):
+                try:
+                    input_after = _selected_input_manifest(mode_data_dir, args.symbols)
+                    payload["input"]["selected_run_input_after"] = input_after
+                    payload["input"]["selected_run_input_unchanged"] = (
+                        mode_input_before == input_after
+                    )
+                except Exception as manifest_exc:
+                    payload["input"]["selected_run_input_after_error"] = "%s: %s" % (
+                        type(manifest_exc).__name__,
+                        manifest_exc,
+                    )
+            if (
+                mode_roots is not None
+                and mode_sides is not None
+                and "source_hashes_after" not in payload
+            ):
+                try:
+                    hashes_after = {
+                        name: _source_manifest(root) for name, root in mode_roots.items()
+                    }
+                    payload["source_hashes_after"] = hashes_after
+                    payload["source_hash_drift"] = {
+                        name: _source_drift(mode_sides[name]["source_hashes"], hashes_after[name])
+                        for name in mode_roots
+                    }
+                except Exception as source_exc:
+                    payload["source_hashes_after_error"] = "%s: %s" % (
+                        type(source_exc).__name__,
+                        source_exc,
+                    )
     finally:
         if created_output and output.is_dir():
             result_path = output / "benchmark.json"

@@ -116,6 +116,7 @@ def load_daily_panel(data_config: Mapping[str, Any]) -> Dict[str, Any]:
 
 def _run_factor(config: Mapping[str, Any], panel: Mapping[str, Any]) -> Tuple[Any, Any, Any]:
     import backtrader as bt
+    from backtrader.brokers import BackBroker
     from backtrader.research import (
         FactorSpec,
         FactorStrategy,
@@ -152,6 +153,23 @@ def _run_factor(config: Mapping[str, Any], panel: Mapping[str, Any]) -> Tuple[An
         field_bindings={field: "feed:target:%s" % field for field in indicator.formula_fields},
     )
     cerebro = bt.Cerebro(stdstats=False)
+
+    class CountingBroker(BackBroker):
+        def __init__(self):
+            super().__init__()
+            self.submit_count = 0
+            self.cancel_count = 0
+
+        def submit(self, order):
+            self.submit_count += 1
+            return super().submit(order)
+
+        def cancel(self, order):
+            self.cancel_count += 1
+            return super().cancel(order)
+
+    broker = CountingBroker()
+    cerebro.setbroker(broker)
     for asset in assets:
         aligned = align_to_grid(
             panel["feeds"][asset],
@@ -229,7 +247,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
 
     try:
         panel = load_daily_panel(config.get("data", {}))
-        _, collected, indicator = _run_factor(config, panel)
+        strategy, collected, indicator = _run_factor(config, panel)
         factors = collected.factors.reset_index()
         factors.to_csv(output_dir / "factor_values.csv", index=False)
         report = None
@@ -259,6 +277,10 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             "cells": len(factors),
             "finite": int(factors[FACTOR_NAME].notna().sum()),
             "output": "factor_values.csv",
+            "broker": {
+                "submit": strategy.broker.submit_count,
+                "cancel": strategy.broker.cancel_count,
+            },
             "report": None if report is None else str(report),
             "elapsed_seconds": round(time.perf_counter() - started, 2),
         }

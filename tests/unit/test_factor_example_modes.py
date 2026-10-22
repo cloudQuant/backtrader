@@ -221,6 +221,8 @@ def test_alpha003_quick_native_build_panels_match_with_cli_override(
     assert build_summary["factor_mode"] == "build"
     assert native_summary["indicator"].endswith(".Alpha003Native")
     assert build_summary["indicator"].endswith(".Alpha003Build")
+    assert native_summary["broker"] == {"submit": 0, "cancel": 0}
+    assert build_summary["broker"] == {"submit": 0, "cancel": 0}
     assert len(native_values) == len(build_values) == len(dates) * 3
     assert native_values[["time", "asset"]].equals(build_values[["time", "asset"]])
     for values in (native_values, build_values):

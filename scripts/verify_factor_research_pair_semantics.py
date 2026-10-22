@@ -6,6 +6,8 @@ from __future__ import annotations
 import argparse
 import csv
 import datetime as dt
+import hashlib
+import importlib
 import itertools
 import json
 import math
@@ -13,9 +15,9 @@ import re
 import sqlite3
 import sys
 import tempfile
+from contextlib import contextmanager
 from pathlib import Path
-from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple
-
+from typing import Any, Dict, Iterator, List, Mapping, Optional, Sequence, Tuple
 
 TABLE_CONTRACTS: Dict[str, Tuple[Tuple[str, ...], Tuple[str, ...]]] = {
     "labels.csv": (("time", "asset", "period"), ("value",)),
@@ -83,10 +85,106 @@ FACTOR_VALUE_KEYS = ("time", "asset")
 TEXT_VALUE_FIELDS = {"status", "preprocess", "group"}
 MAX_SAMPLES = 8
 SHA256_HEX_RE = re.compile(r"^[0-9a-f]{64}$", re.IGNORECASE)
+REPORT_SEMANTICS_FILENAME = "report_semantics.json"
+REPORT_SEMANTICS_SCHEMA = "factor-report-semantics-v1"
+PANEL_CSV_FILES = frozenset(
+    {
+        "factors.csv",
+        "grid.csv",
+        "groups.csv",
+        "prices_close.csv",
+        "prices_open.csv",
+        "universe.csv",
+    }
+)
 
 
 class ComparisonError(ValueError):
     """An input directory does not satisfy the paired-output contract."""
+
+
+def _canonical_json(value: Any) -> str:
+    return json.dumps(
+        value, ensure_ascii=True, sort_keys=True, separators=(",", ":"), allow_nan=False
+    )
+
+
+def _payload_digest(payload: Mapping[str, Any]) -> str:
+    return hashlib.sha256(_canonical_json(payload).encode("utf-8")).hexdigest()
+
+
+@contextmanager
+def capture_report_semantics(output_dir: Path) -> Iterator[List[Dict[str, Any]]]:
+    """Capture the actual ReportDocument passed to fincore's HTML writer.
+
+    The example owns creation of ``output_dir``. This context never creates it,
+    and publishes the sidecar only after the wrapped report run exits normally.
+    """
+
+    root = Path(output_dir).expanduser().resolve()
+    html_module = importlib.import_module("fincore.report.factor.html")
+    original_writer = html_module.write_factor_html
+    captured: List[Dict[str, Any]] = []
+    sidecar = root / REPORT_SEMANTICS_FILENAME
+
+    def wrapped_writer(document: Any, target: Any, *args: Any, **kwargs: Any) -> Any:
+        result = original_writer(document, target, *args, **kwargs)
+        html_path = Path(result).expanduser().resolve()
+        try:
+            relative_html_path = html_path.relative_to(root).as_posix()
+        except ValueError as exc:
+            raise ComparisonError(
+                "factor report is outside output directory: %s" % html_path
+            ) from exc
+        if not html_path.is_file():
+            raise ComparisonError("factor report writer did not create %s" % html_path)
+        payload = document.semantic_payload()
+        digest = document.semantic_digest
+        if not isinstance(payload, Mapping) or not isinstance(digest, str):
+            raise ComparisonError("ReportDocument semantic payload or digest has an invalid type")
+        payload_copy = json.loads(_canonical_json(payload))
+        payload_digest = _payload_digest(payload_copy)
+        if digest.lower() != payload_digest:
+            raise ComparisonError("ReportDocument semantic digest does not match its payload")
+        captured.append(
+            {
+                "html_path": relative_html_path,
+                "html_sha256": hashlib.sha256(html_path.read_bytes()).hexdigest(),
+                "semantic_payload": payload_copy,
+                "semantic_digest": digest.lower(),
+            }
+        )
+        return result
+
+    if sidecar.exists():
+        raise ComparisonError("report semantics sidecar already exists: %s" % sidecar)
+    html_module.write_factor_html = wrapped_writer
+    try:
+        yield captured
+    except BaseException:
+        raise
+    else:
+        if captured:
+            rendered = (
+                json.dumps(
+                    {"schema_version": REPORT_SEMANTICS_SCHEMA, "reports": captured},
+                    ensure_ascii=False,
+                    indent=2,
+                    sort_keys=True,
+                )
+                + "\n"
+            )
+            created = False
+            try:
+                with sidecar.open("x", encoding="utf-8") as stream:
+                    created = True
+                    stream.write(rendered)
+            except BaseException:
+                if created:
+                    sidecar.unlink(missing_ok=True)
+                raise
+    finally:
+        html_module.write_factor_html = original_writer
 
 
 def _manifest_declares_empty_table(
@@ -231,17 +329,20 @@ def _insert_table(
             return metadata
 
         counters: Dict[str, Dict[str, int]] = {
-            field: {"finite": 0, "nan": 0, "positive_infinity": 0,
-                    "negative_infinity": 0, "invalid_numeric": 0}
+            field: {
+                "finite": 0,
+                "nan": 0,
+                "positive_infinity": 0,
+                "negative_infinity": 0,
+                "invalid_numeric": 0,
+            }
             for field in numeric_fields
         }
         record_insert = (
             "INSERT OR IGNORE INTO semantic_rows "
             "(table_name, side, key_json, payload_json, orientation_json) VALUES (?, ?, ?, ?, ?)"
         )
-        order_insert = (
-            "INSERT INTO row_order (table_name, side, seq, key_json) VALUES (?, ?, ?, ?)"
-        )
+        order_insert = "INSERT INTO row_order (table_name, side, seq, key_json) VALUES (?, ?, ?, ?)"
         record_batch = []
         order_batch = []
 
@@ -267,8 +368,9 @@ def _insert_table(
                 for field, cell in payload.items():
                     if field in counters:
                         counters[field][cell[0]] = counters[field].get(cell[0], 0) + 1
-                payload_json = json.dumps(payload, ensure_ascii=True, sort_keys=True,
-                                          separators=(",", ":"))
+                payload_json = json.dumps(
+                    payload, ensure_ascii=True, sort_keys=True, separators=(",", ":")
+                )
                 orientation_json = (
                     None if orientation is None else json.dumps(orientation, separators=(",", ":"))
                 )
@@ -322,9 +424,7 @@ def _compare_payloads(
     return mismatches, samples
 
 
-def _compare_semantic_rows(
-    connection: sqlite3.Connection, table_name: str
-) -> Dict[str, Any]:
+def _compare_semantic_rows(connection: sqlite3.Connection, table_name: str) -> Dict[str, Any]:
     left_cursor = connection.execute(
         "SELECT key_json, payload_json, orientation_json FROM semantic_rows "
         "WHERE table_name = ? AND side = 'baseline' ORDER BY key_json",
@@ -384,15 +484,11 @@ def _compare_semantic_rows(
         "value_mismatch_samples": value_samples,
         "unordered_pair_orientation_mismatches": orientation_mismatches,
         "orientation_samples": orientation_samples,
-        "semantic_equal": not (
-            missing_in_candidate or extra_in_candidate or value_mismatches
-        ),
+        "semantic_equal": not (missing_in_candidate or extra_in_candidate or value_mismatches),
     }
 
 
-def _compare_row_order(
-    connection: sqlite3.Connection, table_name: str
-) -> Dict[str, Any]:
+def _compare_row_order(connection: sqlite3.Connection, table_name: str) -> Dict[str, Any]:
     left = connection.execute(
         "SELECT key_json FROM row_order WHERE table_name = ? AND side = 'baseline' ORDER BY seq",
         (table_name,),
@@ -422,9 +518,640 @@ def _compare_row_order(
     }
 
 
-def compare_runs(baseline_dir: Path, candidate_dir: Path) -> Dict[str, Any]:
+def _summary_report_paths(summary: Mapping[str, Any], run_dir: Path) -> Tuple[List[str], List[str]]:
+    if "reports" in summary:
+        raw_reports = summary.get("reports")
+        if not isinstance(raw_reports, list):
+            return [], ["summary reports must be a list"]
+    elif "report" in summary:
+        raw_report = summary.get("report")
+        raw_reports = [] if raw_report is None else [raw_report]
+    else:
+        return [], ["summary does not declare report paths"]
+
+    root = run_dir.resolve()
+    normalized: List[str] = []
+    errors: List[str] = []
+    for value in raw_reports:
+        if not isinstance(value, str) or not value:
+            errors.append("summary report path is not a non-empty string")
+            continue
+        path = Path(value).expanduser()
+        path = path.resolve() if path.is_absolute() else (root / path).resolve()
+        try:
+            normalized.append(path.relative_to(root).as_posix())
+        except ValueError:
+            errors.append("summary report path is outside run directory: %s" % value)
+    if len(set(normalized)) != len(normalized):
+        errors.append("summary contains duplicate report paths")
+    return normalized, errors
+
+
+def _read_report_semantics(run_dir: Path) -> Dict[str, Any]:
+    errors: List[str] = []
+    sidecar_path = run_dir / REPORT_SEMANTICS_FILENAME
+    try:
+        sidecar = _load_json(sidecar_path)
+    except ComparisonError as exc:
+        return {"valid": False, "errors": [str(exc)], "reports": []}
+    if sidecar.get("schema_version") != REPORT_SEMANTICS_SCHEMA:
+        errors.append("report semantics schema_version is missing or unsupported")
+    reports = sidecar.get("reports")
+    if not isinstance(reports, list):
+        errors.append("report semantics reports must be a list")
+        reports = []
+
+    normalized: List[Dict[str, Any]] = []
+    seen_paths = set()
+    root = run_dir.resolve()
+    for index, report in enumerate(reports):
+        if not isinstance(report, Mapping):
+            errors.append("report semantics item %d must be an object" % index)
+            continue
+        relative = report.get("html_path")
+        if not isinstance(relative, str) or not relative:
+            errors.append("report semantics item %d has no html_path" % index)
+            continue
+        relative_path = Path(relative)
+        if relative_path.is_absolute():
+            errors.append("report semantics html_path must be relative: %s" % relative)
+            continue
+        html_path = (root / relative_path).resolve()
+        try:
+            normalized_path = html_path.relative_to(root).as_posix()
+        except ValueError:
+            errors.append("report semantics html_path is outside run directory: %s" % relative)
+            continue
+        if normalized_path in seen_paths:
+            errors.append("report semantics contains duplicate html_path: %s" % normalized_path)
+        seen_paths.add(normalized_path)
+
+        html_digest = report.get("html_sha256")
+        if not isinstance(html_digest, str) or SHA256_HEX_RE.fullmatch(html_digest) is None:
+            errors.append("report semantics item %d has an invalid html_sha256" % index)
+        elif not html_path.is_file():
+            errors.append("captured HTML file is missing: %s" % normalized_path)
+        else:
+            actual_html_digest = hashlib.sha256(html_path.read_bytes()).hexdigest()
+            if actual_html_digest != html_digest.lower():
+                errors.append("captured HTML hash does not match: %s" % normalized_path)
+
+        payload = report.get("semantic_payload")
+        digest = report.get("semantic_digest")
+        payload_text: Optional[str] = None
+        if not isinstance(payload, Mapping):
+            errors.append("report semantics item %d has no object semantic_payload" % index)
+        else:
+            try:
+                payload_text = _canonical_json(payload)
+            except (TypeError, ValueError) as exc:
+                errors.append("report semantics item %d has invalid payload: %s" % (index, exc))
+        if not isinstance(digest, str) or SHA256_HEX_RE.fullmatch(digest) is None:
+            errors.append("report semantics item %d has an invalid semantic_digest" % index)
+        elif payload_text is not None:
+            actual_payload_digest = hashlib.sha256(payload_text.encode("utf-8")).hexdigest()
+            if actual_payload_digest != digest.lower():
+                errors.append("report semantic digest does not match payload: %s" % normalized_path)
+        normalized.append(
+            {
+                "html_path": normalized_path,
+                "html_sha256": html_digest.lower() if isinstance(html_digest, str) else None,
+                "semantic_payload": payload,
+                "semantic_payload_json": payload_text,
+                "semantic_digest": digest.lower() if isinstance(digest, str) else None,
+            }
+        )
+    return {"valid": not errors, "errors": errors, "reports": normalized}
+
+
+def _compare_reports(
+    baseline_dir: Path,
+    candidate_dir: Path,
+    baseline_summary: Mapping[str, Any],
+    candidate_summary: Mapping[str, Any],
+) -> Dict[str, Any]:
+    sides: Dict[str, Dict[str, Any]] = {}
+    for side, run_dir, summary in (
+        ("baseline", baseline_dir, baseline_summary),
+        ("candidate", candidate_dir, candidate_summary),
+    ):
+        expected_paths, path_errors = _summary_report_paths(summary, run_dir)
+        captured = _read_report_semantics(run_dir)
+        errors = [*path_errors, *captured["errors"]]
+        captured_paths = [report["html_path"] for report in captured["reports"]]
+        if not expected_paths:
+            errors.append("summary declares no report paths")
+        if len(expected_paths) != len(captured_paths):
+            errors.append("summary report count does not match captured report count")
+        if expected_paths != captured_paths:
+            errors.append("summary report paths do not match captured HTML paths")
+        sides[side] = {
+            "valid": not errors,
+            "errors": errors,
+            "reports": [
+                {
+                    "html_path": report["html_path"],
+                    "html_sha256": report["html_sha256"],
+                    "semantic_digest": report["semantic_digest"],
+                }
+                for report in captured["reports"]
+            ],
+            "semantic_payloads": [
+                report["semantic_payload_json"] for report in captured["reports"]
+            ],
+            "semantic_digests": [report["semantic_digest"] for report in captured["reports"]],
+        }
+    left = sides["baseline"]["semantic_payloads"]
+    right = sides["candidate"]["semantic_payloads"]
+    payloads_equal = (
+        sides["baseline"]["valid"]
+        and sides["candidate"]["valid"]
+        and left == right
+        and sides["baseline"]["semantic_digests"] == sides["candidate"]["semantic_digests"]
+    )
+    return {
+        "required": True,
+        "baseline": {
+            key: value for key, value in sides["baseline"].items() if key != "semantic_payloads"
+        },
+        "candidate": {
+            key: value for key, value in sides["candidate"].items() if key != "semantic_payloads"
+        },
+        "semantic_payloads_equal": payloads_equal,
+        "semantic_digests_equal": (
+            sides["baseline"]["semantic_digests"] == sides["candidate"]["semantic_digests"]
+        ),
+        "equal": bool(payloads_equal),
+    }
+
+
+def _sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as stream:
+        for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _compare_panel_pair(baseline_dir: Path, candidate_dir: Path) -> Dict[str, Any]:
+    sides: Dict[str, Dict[str, Any]] = {}
+    for side, run_dir in (("baseline", baseline_dir), ("candidate", candidate_dir)):
+        panel_dir = run_dir / "panel"
+        errors: List[str] = []
+        if not panel_dir.is_dir():
+            files: List[Path] = []
+            errors.append("panel directory is missing")
+        else:
+            entries = sorted(panel_dir.iterdir())
+            files = [path for path in entries if path.is_file()]
+            names = {path.name for path in files}
+            if names != PANEL_CSV_FILES or len(entries) != len(PANEL_CSV_FILES):
+                errors.append(
+                    "panel must contain exactly six contract CSV files; missing=%s extra=%s"
+                    % (
+                        sorted(PANEL_CSV_FILES - names),
+                        sorted(names - PANEL_CSV_FILES)
+                        + [path.name for path in entries if not path.is_file()],
+                    )
+                )
+        hashes = {path.name: _sha256_file(path) for path in files if path.name in PANEL_CSV_FILES}
+        sides[side] = {"valid": not errors, "errors": errors, "sha256": hashes}
+    equal = (
+        sides["baseline"]["valid"]
+        and sides["candidate"]["valid"]
+        and sides["baseline"]["sha256"] == sides["candidate"]["sha256"]
+    )
+    return {"required": True, **sides, "equal": bool(equal)}
+
+
+_SUMMARY_METADATA_KEYS = {
+    "factor_mode",
+    "factor_calculation",
+    "factor_classes",
+    "indicator",
+    "operator_profile",
+    "evaluation_id",
+    "run_id",
+    "output",
+    "output_dir",
+    "report",
+    "reports",
+    "elapsed_seconds",
+    "duration_seconds",
+    "runtime_seconds",
+    "generated_at",
+    "started_at",
+    "finished_at",
+    "source_fingerprint",
+    "source_hash",
+    "source_path",
+}
+
+
+def _summary_numeric_values(summary: Mapping[str, Any]) -> Dict[str, str]:
+    numeric: Dict[str, str] = {}
+
+    def walk(value: Any, prefix: str = "") -> None:
+        if isinstance(value, Mapping):
+            for key, item in value.items():
+                key_text = str(key)
+                folded = key_text.casefold()
+                if (
+                    folded in _SUMMARY_METADATA_KEYS
+                    or "source" in folded
+                    or "timestamp" in folded
+                    or "elapsed" in folded
+                    or "duration" in folded
+                    or folded.endswith(("_path", "_file"))
+                ):
+                    continue
+                walk(item, prefix + "." + key_text if prefix else key_text)
+        elif isinstance(value, (list, tuple)):
+            for index, item in enumerate(value):
+                walk(item, "%s[%d]" % (prefix, index))
+        elif type(value) is int:
+            numeric[prefix] = "int:%d" % value
+        elif type(value) is float:
+            numeric[prefix] = (
+                "float:%s" % value.hex() if math.isfinite(value) else "float:%s" % value
+            )
+
+    walk(summary)
+    return numeric
+
+
+def _mode_contract_for_summary(
+    summary: Mapping[str, Any], factor_order: Sequence[str], *, alpha003: bool
+) -> Dict[str, Any]:
+    mode = summary.get("factor_mode")
+    errors: List[str] = []
+    if mode not in ("native", "build"):
+        errors.append("factor_mode must be native or build")
+    if summary.get("status") != "COMPLETED":
+        errors.append("run status must be COMPLETED")
+    if summary.get("factor_calculation") != "RAN":
+        errors.append("factor_calculation must be RAN")
+
+    if alpha003:
+        expected = (
+            "backtrader.research.alpha101.alpha003.Alpha003Native"
+            if mode == "native"
+            else "backtrader.research.alpha101.alpha003.Alpha003Build"
+        )
+        actual = summary.get("indicator")
+        if actual != expected:
+            errors.append("indicator identity does not match factor_mode")
+        broker = summary.get("broker")
+        if not isinstance(broker, Mapping) or any(
+            type(broker.get(field)) is not int or broker.get(field) != 0
+            for field in ("submit", "cancel")
+        ):
+            errors.append("broker submit/cancel counts must both be zero")
+    else:
+        if summary.get("evaluation_status") != "OK":
+            errors.append("evaluation_status must be OK")
+        classes = summary.get("factor_classes")
+        if not isinstance(classes, Mapping):
+            classes = {}
+            errors.append("factor_classes must be an object")
+        if tuple(factor_order) == ("close_ma",):
+            module = "close_ma_factor_strategy"
+            expected_names = ("close_ma",)
+        elif tuple(factor_order) == ("close_ma", "kdj_j", "roc"):
+            module = "multi_factor_strategy"
+            expected_names = ("close_ma", "kdj_j", "roc")
+        else:
+            module = ""
+            expected_names = ()
+            errors.append("factor column order is not a supported quick example contract")
+        class_names = {
+            "close_ma": "CloseMAFactor" if mode == "native" else "CloseMAFactorBuild",
+            "kdj_j": "KDJFactor" if mode == "native" else "KDJFactorBuild",
+            "roc": "ROCFactor" if mode == "native" else "ROCFactorBuild",
+        }
+        expected_classes = {
+            factor: "%s.%s" % (module, class_names[factor]) for factor in expected_names
+        }
+        if dict(classes) != expected_classes:
+            errors.append("factor_classes identities do not match factor_mode and example")
+        if module == "multi_factor_strategy" and tuple(factor_order) != (
+            "close_ma",
+            "kdj_j",
+            "roc",
+        ):
+            errors.append("026 factor order must be close_ma,kdj_j,roc")
+        broker = summary.get("broker")
+        if not isinstance(broker, Mapping) or any(
+            type(broker.get(field)) is not int or broker.get(field) != 0
+            for field in ("submit", "cancel")
+        ):
+            errors.append("broker submit/cancel counts must both be zero")
+    return {"mode": mode, "valid": not errors, "errors": errors}
+
+
+def _compare_mode_pair(
+    baseline_summary: Mapping[str, Any],
+    candidate_summary: Mapping[str, Any],
+    factor_order: Sequence[str],
+    *,
+    alpha003: bool,
+) -> Dict[str, Any]:
+    baseline = _mode_contract_for_summary(baseline_summary, factor_order, alpha003=alpha003)
+    candidate = _mode_contract_for_summary(candidate_summary, factor_order, alpha003=alpha003)
+    modes_differ = (baseline["mode"], candidate["mode"]) in (
+        ("native", "build"),
+        ("build", "native"),
+    )
+    numeric_baseline = _summary_numeric_values(baseline_summary)
+    numeric_candidate = _summary_numeric_values(candidate_summary)
+    numeric_equal = numeric_baseline == numeric_candidate
+    return {
+        "required": True,
+        "baseline": baseline,
+        "candidate": candidate,
+        "modes_differ_native_build": modes_differ,
+        "summary_numeric_equal": numeric_equal,
+        "summary_numeric_values": {
+            "baseline": numeric_baseline,
+            "candidate": numeric_candidate,
+        },
+        "valid": baseline["valid"] and candidate["valid"] and modes_differ and numeric_equal,
+    }
+
+
+def _factor_key_dimensions(path: Path) -> Tuple[int, int, List[str]]:
+    times = set()
+    assets = set()
+    errors: List[str] = []
+    try:
+        with path.open("r", encoding="utf-8-sig", newline="") as source:
+            reader = csv.DictReader(source)
+            for row_index, row in enumerate(reader, start=2):
+                time_value = row.get("time")
+                asset_value = row.get("asset")
+                if not time_value or not asset_value:
+                    errors.append("blank time/asset key at CSV row %d" % row_index)
+                    continue
+                times.add(_normalize_key("time", time_value))
+                assets.add(asset_value)
+    except (OSError, csv.Error) as exc:
+        errors.append("cannot read factor key dimensions: %s" % exc)
+    return len(times), len(assets), errors
+
+
+def _compare_alpha003_runs(
+    baseline_dir: Path,
+    candidate_dir: Path,
+    *,
+    require_reports: bool,
+    require_mode_pair: bool,
+    require_panel_pair: bool,
+) -> Dict[str, Any]:
+    summaries = {
+        "baseline": _load_json(baseline_dir / "summary.json"),
+        "candidate": _load_json(candidate_dir / "summary.json"),
+    }
+    factors_by_side: Dict[str, List[str]] = {}
+    metadata: Dict[str, Dict[str, Any]] = {"baseline": {}, "candidate": {}}
+    key_dimensions: Dict[str, Dict[str, Any]] = {}
+    connections: List[sqlite3.Connection] = []
+    try:
+        with tempfile.TemporaryDirectory(prefix="factor-pair-alpha003-") as scratch:
+            connection = sqlite3.connect(str(Path(scratch) / "semantic.sqlite3"))
+            connections.append(connection)
+            connection.executescript(
+                "CREATE TABLE semantic_rows ("
+                "table_name TEXT NOT NULL, side TEXT NOT NULL, key_json TEXT NOT NULL, "
+                "payload_json TEXT NOT NULL, orientation_json TEXT, "
+                "PRIMARY KEY(table_name, side, key_json));"
+                "CREATE TABLE row_order ("
+                "table_name TEXT NOT NULL, side TEXT NOT NULL, seq INTEGER NOT NULL, "
+                "key_json TEXT NOT NULL, PRIMARY KEY(table_name, side, seq));"
+            )
+            for side, run_dir in (("baseline", baseline_dir), ("candidate", candidate_dir)):
+                header = _read_header(run_dir / "factor_values.csv")
+                factors = [field for field in header if field not in FACTOR_VALUE_KEYS]
+                factors_by_side[side] = factors
+                table = _insert_table(
+                    connection,
+                    run_dir / "factor_values.csv",
+                    "factor_values.csv",
+                    side,
+                    FACTOR_VALUE_KEYS,
+                    ("alpha003",),
+                    ("alpha003",),
+                    expected_fields=("time", "asset", "alpha003"),
+                )
+                if table["header"] != ["time", "asset", "alpha003"]:
+                    table["error"] = (
+                        table["error"] or "Alpha003 CSV columns/order differ from contract"
+                    )
+                counts = table["mask_counts"].get("alpha003", {})
+                infinite_count = counts.get("positive_infinity", 0) + counts.get(
+                    "negative_infinity", 0
+                )
+                if infinite_count:
+                    table["error"] = "infinite Alpha003 values are invalid: %d" % infinite_count
+                metadata[side]["factor_values.csv"] = table
+                time_count, asset_count, key_errors = _factor_key_dimensions(
+                    run_dir / "factor_values.csv"
+                )
+                key_dimensions[side] = {
+                    "times": time_count,
+                    "assets": asset_count,
+                    "errors": key_errors,
+                }
+
+            table_results: Dict[str, Dict[str, Any]] = {}
+            left_meta = metadata["baseline"]["factor_values.csv"]
+            right_meta = metadata["candidate"]["factor_values.csv"]
+            keyed = _compare_semantic_rows(connection, "factor_values.csv")
+            row_order = _compare_row_order(connection, "factor_values.csv")
+            header_equal = left_meta["header"] == right_meta["header"]
+            header_set_equal = set(left_meta["header"]) == set(right_meta["header"])
+            table_equal = (
+                keyed["semantic_equal"]
+                and left_meta["error"] is None
+                and right_meta["error"] is None
+                and header_equal
+                and not left_meta["duplicate_keys"]
+                and not right_meta["duplicate_keys"]
+            )
+            table_order_equal = header_equal and row_order["same"]
+            table_results["factor_values.csv"] = {
+                "baseline": left_meta,
+                "candidate": right_meta,
+                "rows_equal_count": left_meta["row_count"] == right_meta["row_count"],
+                "keyed": keyed,
+                "row_order": row_order,
+                "header_order_equal": header_equal,
+                "header_set_equal": header_set_equal,
+                "semantic_equal": table_equal,
+                "ordering_equal": table_order_equal,
+            }
+
+            shape: Dict[str, Dict[str, Any]] = {}
+            shape_valid_sides: Dict[str, bool] = {}
+            for side in ("baseline", "candidate"):
+                summary = summaries[side]
+                table = metadata[side]["factor_values.csv"]
+                symbols = summary.get("symbols")
+                dates = summary.get("dates")
+                cells = summary.get("cells")
+                finite = summary.get("finite")
+                counts = table["mask_counts"].get("alpha003", {})
+                actual_finite = counts.get("finite", 0)
+                expected_rows = (
+                    symbols * dates
+                    if type(symbols) is int and type(dates) is int and symbols > 0 and dates > 0
+                    else None
+                )
+                rows_match = expected_rows is not None and table["row_count"] == expected_rows
+                dimension_match = (
+                    key_dimensions[side]["times"] == dates
+                    and key_dimensions[side]["assets"] == symbols
+                )
+                valid = (
+                    summary.get("factor") == "alpha003"
+                    and summary.get("status") == "COMPLETED"
+                    and summary.get("factor_calculation") == "RAN"
+                    and type(symbols) is int
+                    and symbols > 0
+                    and type(dates) is int
+                    and dates > 0
+                    and type(cells) is int
+                    and cells == table["row_count"]
+                    and type(finite) is int
+                    and finite == actual_finite
+                    and finite > 0
+                    and rows_match
+                    and dimension_match
+                    and not table["duplicate_keys"]
+                    and table["error"] is None
+                    and not key_dimensions[side]["errors"]
+                )
+                shape_valid_sides[side] = valid
+                shape[side] = {
+                    "symbols": symbols,
+                    "dates": dates,
+                    "cells": cells,
+                    "finite": finite,
+                    "actual_rows": table["row_count"],
+                    "actual_finite": actual_finite,
+                    "key_dimensions": key_dimensions[side],
+                    "valid": valid,
+                }
+
+            shape_equal = all(
+                shape["baseline"][key] == shape["candidate"][key]
+                for key in ("symbols", "dates", "cells", "finite")
+            )
+            factor_order_equal = (
+                factors_by_side["baseline"] == factors_by_side["candidate"] == ["alpha003"]
+            )
+            output_equal = table_equal and table_order_equal and factor_order_equal
+            mode_pair = (
+                _compare_mode_pair(
+                    summaries["baseline"],
+                    summaries["candidate"],
+                    ("alpha003",),
+                    alpha003=True,
+                )
+                if require_mode_pair
+                else None
+            )
+            reports = (
+                _compare_reports(
+                    baseline_dir,
+                    candidate_dir,
+                    summaries["baseline"],
+                    summaries["candidate"],
+                )
+                if require_reports
+                else None
+            )
+            panels = (
+                {
+                    "required": True,
+                    "equal": False,
+                    "errors": ["027 Alpha003 output has no paired FactorPanel CSV contract"],
+                }
+                if require_panel_pair
+                else None
+            )
+            strict_equal = (
+                output_equal
+                and all(shape_valid_sides.values())
+                and shape_equal
+                and (mode_pair is None or mode_pair["valid"])
+                and (reports is None or reports["equal"])
+                and (panels is None or panels["equal"])
+            )
+            return {
+                "schema_version": "factor-research-pair-semantic-v1",
+                "baseline_run": str(baseline_dir),
+                "candidate_run": str(candidate_dir),
+                "factor_order": {
+                    "baseline": factors_by_side["baseline"],
+                    "candidate": factors_by_side["candidate"],
+                    "same_set": set(factors_by_side["baseline"])
+                    == set(factors_by_side["candidate"]),
+                    "same_order": factor_order_equal,
+                },
+                "summary_shape": {
+                    "baseline": {key: shape["baseline"][key] for key in ("symbols", "dates")},
+                    "candidate": {key: shape["candidate"][key] for key in ("symbols", "dates")},
+                    "details": shape,
+                    "valid": all(shape_valid_sides.values()),
+                    "equal": shape_equal,
+                    "factor_value_rows_match_symbols_x_dates": {
+                        side: (
+                            shape[side]["actual_rows"]
+                            == shape[side]["symbols"] * shape[side]["dates"]
+                            if shape[side]["valid"]
+                            else False
+                        )
+                        for side in ("baseline", "candidate")
+                    },
+                },
+                "tables": table_results,
+                "semantic_equal_ignoring_row_and_column_order": table_equal,
+                "ordering_equal": table_order_equal,
+                "mode_pair": mode_pair,
+                "report_semantics": reports,
+                "panel_pair": panels,
+                "strict_equal": strict_equal,
+                "status": "IDENTICAL" if strict_equal else "SEMANTIC_DIFFERENCES",
+            }
+    finally:
+        for connection in connections:
+            connection.close()
+
+
+def _is_alpha003_run(summary: Mapping[str, Any]) -> bool:
+    return summary.get("factor") == "alpha003" and not summary.get("evaluation_id")
+
+
+def compare_runs(
+    baseline_dir: Path,
+    candidate_dir: Path,
+    *,
+    require_reports: bool = False,
+    require_mode_pair: bool = False,
+    require_panel_pair: bool = False,
+) -> Dict[str, Any]:
     baseline_dir = baseline_dir.expanduser().resolve()
     candidate_dir = candidate_dir.expanduser().resolve()
+    baseline_summary = _load_json(baseline_dir / "summary.json")
+    candidate_summary = _load_json(candidate_dir / "summary.json")
+    if _is_alpha003_run(baseline_summary) or _is_alpha003_run(candidate_summary):
+        return _compare_alpha003_runs(
+            baseline_dir,
+            candidate_dir,
+            require_reports=require_reports,
+            require_mode_pair=require_mode_pair,
+            require_panel_pair=require_panel_pair,
+        )
     baseline_eval, baseline_summary, baseline_manifest = _evaluation_directory(baseline_dir)
     candidate_eval, candidate_summary, candidate_manifest = _evaluation_directory(candidate_dir)
     baseline_header_path = baseline_dir / "factor_values.csv"
@@ -586,15 +1313,43 @@ def compare_runs(baseline_dir: Path, candidate_dir: Path) -> Dict[str, Any]:
                 for side in ("baseline", "candidate")
             }
             factor_row_counts_valid = all(factor_rows_match_summary.values())
+            mode_pair = (
+                _compare_mode_pair(
+                    baseline_summary,
+                    candidate_summary,
+                    baseline_factors,
+                    alpha003=False,
+                )
+                if require_mode_pair
+                else None
+            )
+            fingerprint_gate_passed = fingerprints_valid and (
+                fingerprints_equal or (mode_pair is not None and mode_pair["valid"])
+            )
+            reports = (
+                _compare_reports(
+                    baseline_dir,
+                    candidate_dir,
+                    baseline_summary,
+                    candidate_summary,
+                )
+                if require_reports
+                else None
+            )
+            panels = (
+                _compare_panel_pair(baseline_dir, candidate_dir) if require_panel_pair else None
+            )
             strict_equal = (
                 semantic_equal
                 and ordering_equal
-                and fingerprints_valid
-                and fingerprints_equal
+                and fingerprint_gate_passed
                 and run_state_acceptable
                 and summary_shape_valid
                 and summary_shape_equal
                 and factor_row_counts_valid
+                and (mode_pair is None or mode_pair["valid"])
+                and (reports is None or reports["equal"])
+                and (panels is None or panels["equal"])
             )
             return {
                 "schema_version": "factor-research-pair-semantic-v1",
@@ -611,6 +1366,13 @@ def compare_runs(baseline_dir: Path, candidate_dir: Path) -> Dict[str, Any]:
                     "candidate": fingerprint_right,
                     "valid": fingerprints_valid,
                     "equal": fingerprints_equal,
+                    "difference_allowed_by_mode_pair": bool(
+                        mode_pair is not None
+                        and mode_pair["valid"]
+                        and fingerprints_valid
+                        and not fingerprints_equal
+                    ),
+                    "comparison_gate_passed": fingerprint_gate_passed,
                 },
                 "run_status": {
                     "baseline": baseline_state["run"],
@@ -631,6 +1393,9 @@ def compare_runs(baseline_dir: Path, candidate_dir: Path) -> Dict[str, Any]:
                 "tables": table_results,
                 "semantic_equal_ignoring_row_and_column_order": semantic_equal,
                 "ordering_equal": ordering_equal,
+                "mode_pair": mode_pair,
+                "report_semantics": reports,
+                "panel_pair": panels,
                 "strict_equal": strict_equal,
                 "tables_equal_ignoring_order": semantic_equal,
                 "only_observed_difference_is_ordering": (
@@ -641,6 +1406,9 @@ def compare_runs(baseline_dir: Path, candidate_dir: Path) -> Dict[str, Any]:
                     and summary_shape_valid
                     and summary_shape_equal
                     and factor_row_counts_valid
+                    and (mode_pair is None or mode_pair["valid"])
+                    and (reports is None or reports["equal"])
+                    and (panels is None or panels["equal"])
                 ),
                 "order_and_fingerprint_differ_with_equal_tables": (
                     semantic_equal
@@ -651,27 +1419,74 @@ def compare_runs(baseline_dir: Path, candidate_dir: Path) -> Dict[str, Any]:
                     and summary_shape_valid
                     and summary_shape_equal
                     and factor_row_counts_valid
+                    and (mode_pair is None or mode_pair["valid"])
+                    and (reports is None or reports["equal"])
+                    and (panels is None or panels["equal"])
                 ),
                 "status": (
                     "IDENTICAL"
                     if strict_equal
-                    else "INVALID_RUN_STATE"
-                    if not run_states_valid
-                    else "RUN_STATE_DIFFERENCES"
-                    if not run_states_equal
-                    else "INVALID_SUMMARY_SHAPE"
-                    if not summary_shape_valid or not factor_row_counts_valid
-                    else "SUMMARY_SHAPE_DIFFERENCES"
-                    if not summary_shape_equal
-                    else "INVALID_FINGERPRINT"
-                    if not fingerprints_valid
-                    else "ORDER_ONLY_DIFFERENCES"
-                    if semantic_equal and not ordering_equal and fingerprints_equal
-                    else "ORDER_AND_FINGERPRINT_DIFFERENCES"
-                    if semantic_equal and not ordering_equal and not fingerprints_equal
-                    else "FINGERPRINT_DIFFERENCE"
-                    if semantic_equal and ordering_equal and fingerprints_valid and not fingerprints_equal
-                    else "SEMANTIC_DIFFERENCES"
+                    else (
+                        "INVALID_MODE_PAIR"
+                        if mode_pair is not None
+                        and (
+                            not mode_pair["baseline"]["valid"]
+                            or not mode_pair["candidate"]["valid"]
+                        )
+                        else (
+                            "MODE_PAIR_DIFFERENCES"
+                            if mode_pair is not None and not mode_pair["valid"]
+                            else (
+                                "REPORT_SEMANTIC_DIFFERENCES"
+                                if reports is not None and not reports["equal"]
+                                else (
+                                    "PANEL_DIFFERENCES"
+                                    if panels is not None and not panels["equal"]
+                                    else (
+                                        "INVALID_RUN_STATE"
+                                        if not run_states_valid
+                                        else (
+                                            "RUN_STATE_DIFFERENCES"
+                                            if not run_states_equal
+                                            else (
+                                                "INVALID_SUMMARY_SHAPE"
+                                                if not summary_shape_valid
+                                                or not factor_row_counts_valid
+                                                else (
+                                                    "SUMMARY_SHAPE_DIFFERENCES"
+                                                    if not summary_shape_equal
+                                                    else (
+                                                        "INVALID_FINGERPRINT"
+                                                        if not fingerprints_valid
+                                                        else (
+                                                            "ORDER_ONLY_DIFFERENCES"
+                                                            if semantic_equal
+                                                            and not ordering_equal
+                                                            and fingerprints_equal
+                                                            else (
+                                                                "ORDER_AND_FINGERPRINT_DIFFERENCES"
+                                                                if semantic_equal
+                                                                and not ordering_equal
+                                                                and not fingerprints_equal
+                                                                else (
+                                                                    "FINGERPRINT_DIFFERENCE"
+                                                                    if semantic_equal
+                                                                    and ordering_equal
+                                                                    and fingerprints_valid
+                                                                    and not fingerprints_equal
+                                                                    else "SEMANTIC_DIFFERENCES"
+                                                                )
+                                                            )
+                                                        )
+                                                    )
+                                                )
+                                            )
+                                        )
+                                    )
+                                )
+                            )
+                        )
+                    )
                 ),
             }
     finally:
@@ -684,13 +1499,34 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("baseline_run", type=Path)
     parser.add_argument("candidate_run", type=Path)
     parser.add_argument("--output", type=Path, help="write the JSON result to this new file")
+    parser.add_argument(
+        "--require-reports",
+        action="store_true",
+        help="require captured full report payloads and verified HTML hashes",
+    )
+    parser.add_argument(
+        "--require-mode-pair",
+        action="store_true",
+        help="require one completed native run and one completed build run",
+    )
+    parser.add_argument(
+        "--require-panel-pair",
+        action="store_true",
+        help="require and exactly compare both six-CSV FactorPanel exports",
+    )
     return parser
 
 
 def main(argv: Optional[Sequence[str]] = None) -> int:
     args = _parser().parse_args(argv)
     try:
-        result = compare_runs(args.baseline_run, args.candidate_run)
+        result = compare_runs(
+            args.baseline_run,
+            args.candidate_run,
+            require_reports=args.require_reports,
+            require_mode_pair=args.require_mode_pair,
+            require_panel_pair=args.require_panel_pair,
+        )
     except ComparisonError as exc:
         print("COMPARISON_ERROR: %s" % exc, file=sys.stderr)
         return 2
