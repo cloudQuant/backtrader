@@ -410,7 +410,7 @@ def _valid_alpha101_build_pair_record():
             "oracle_pass_count": 404,
             "finite_witness_count": 404,
             "lifecycle_pass_count": 404,
-            "same_engine_graph_pair_count": 202,
+            "same_engine_build_pair_count": 202,
             "cross_engine_graph_pair_count": 202,
             "node_value_cells": sum(pair["node_value_cells"] for pair in pairs),
             "node_reason_cells": sum(pair["node_reason_cells"] for pair in pairs),
@@ -439,7 +439,8 @@ def test_alpha101_build_pair_record_requires_full_exact_matrix(tmp_path):
     assert summary["periods"] == 320
     assert summary["alpha_ids"] == list(range(1, 102))
     assert summary["engine_runs"] == 4
-    assert summary["aggregate"]["same_engine_graph_pair_count"] == 202
+    assert summary["aggregate"]["same_engine_build_pair_count"] == 202
+    assert "same_engine_graph_pair_count" not in summary["aggregate"]
     assert summary["aggregate"]["cross_engine_graph_pair_count"] == 202
     assert len(summary["sha256"]) == 64
 
@@ -465,6 +466,12 @@ def test_alpha101_build_pair_record_requires_full_exact_matrix(tmp_path):
         ),
         (
             lambda r: r["per_alpha"].pop("101"),
+            "missing or unexpected fields",
+        ),
+        (
+            lambda r: r["aggregate"].update(
+                {"same_engine_graph_pair_count": r["aggregate"].pop("same_engine_build_pair_count")}
+            ),
             "missing or unexpected fields",
         ),
         (
