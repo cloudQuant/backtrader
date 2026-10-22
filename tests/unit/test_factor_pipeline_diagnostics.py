@@ -15,6 +15,7 @@ from scripts.diagnose_factor_research_pipeline import (
     _load_stage_benchmark,
     _operator_profile_summary,
     _observe_research_window,
+    _install_observers,
     _parser,
     _report_profile_summary,
     _group_members,
@@ -62,6 +63,64 @@ def test_observer_labels_source_paths_relative_to_the_measured_root(tmp_path: Pa
     assert observer.source_tag(str(root / "backtrader" / "research" / "sink.py")) == (
         "backtrader/research/sink.py"
     )
+
+
+def test_observer_counts_research_pandas_copy_requests_and_restores_methods() -> None:
+    import pandas as pd
+
+    from backtrader.research import ResearchSpec
+    from backtrader.research.fincore_adapter import _canonicalize_evaluation_index
+    from backtrader.research.panel import _shallow_copy_frame
+
+    root = Path(__file__).resolve().parents[2]
+    observer = _Observer(root)
+    original_dataframe_copy = pd.DataFrame.copy
+    original_series_copy = pd.Series.copy
+    _install_observers(root, observer)
+    try:
+        timestamps = pd.date_range("2025-01-02", periods=2, freq="D", tz="UTC", name="close_time")
+        grid = pd.DataFrame({"open_time": timestamps - pd.Timedelta(hours=1)}, index=timestamps)
+        universe_index = pd.MultiIndex.from_product([timestamps, ("AAA",)], names=("time", "asset"))
+        universe = pd.Series(True, index=universe_index, name="universe")
+        research = ResearchSpec(
+            grid=grid,
+            start=timestamps[0],
+            end=timestamps[-1],
+            targets=("AAA",),
+            source_timezone="Asia/Shanghai",
+            snapshot_id="copy-test",
+            price_basis="adjusted_close",
+            calendar_id="copy-test-calendar",
+            frequency="1d",
+            groups={"AAA": "fixture"},
+            universe=universe,
+        )
+        _ = research.grid
+        _ = research.universe
+        _shallow_copy_frame(pd.DataFrame({"value": [1.0]}))
+        _canonicalize_evaluation_index(
+            pd.Series([1.0], index=pd.date_range("2025-01-02", periods=1, tz="UTC")),
+            pd,
+            copy=True,
+        )
+    finally:
+        observer.restore()
+
+    assert pd.DataFrame.copy is original_dataframe_copy
+    assert pd.Series.copy is original_series_copy
+    calls = observer.metrics["pandas_calls"]
+    assert calls["dataframe_copy_by_source_and_depth"]["deep"]["backtrader/research/specs.py"] >= 2
+    assert (
+        calls["dataframe_copy_by_source_and_depth"]["shallow"]["backtrader/research/panel.py"] >= 1
+    )
+    assert calls["series_copy_by_source_and_depth"]["deep"]["backtrader/research/specs.py"] >= 2
+    assert (
+        calls["series_copy_by_source_and_depth"]["shallow"][
+            "backtrader/research/fincore_adapter.py"
+        ]
+        >= 1
+    )
+    assert "not byte-copy or allocation counts" in calls["copy_measurement_semantics"]
 
 
 def test_runtime_window_observer_records_actual_grid_and_research_bounds(tmp_path: Path) -> None:

@@ -161,6 +161,12 @@ class _Observer:
                 "series_reindex_by_source": {},
                 "pivot_by_source": {},
                 "dataframe_to_csv_by_source": {},
+                "dataframe_copy_by_source_and_depth": {"deep": {}, "shallow": {}},
+                "series_copy_by_source_and_depth": {"deep": {}, "shallow": {}},
+                "copy_measurement_semantics": (
+                    "counts requested deep/shallow copy API calls only; pandas copy-on-write may "
+                    "defer materialization, so these are not byte-copy or allocation counts"
+                ),
             },
             "csv": {"complete_panel_writes": 0, "complete_panel_write_time_s": 0.0},
             "report": {"calls": 0, "time_s": 0.0},
@@ -343,19 +349,31 @@ def _install_observers(root: Path, observer: _Observer) -> None:
     observer.add_restorer(lambda: setattr(align_module, "align_to_grid", original_align))
 
     def pandas_wrapper(owner: Any, method: str, original: Callable[..., Any]) -> Callable[..., Any]:
-        bucket = {
-            (pd.DataFrame, "reindex"): "dataframe_reindex_by_source",
-            (pd.Series, "reindex"): "series_reindex_by_source",
-            (pd.DataFrame, "pivot"): "pivot_by_source",
-            (pd.DataFrame, "to_csv"): "dataframe_to_csv_by_source",
-        }[(owner, method)]
+        if method == "copy":
+            bucket = (
+                "dataframe_copy_by_source_and_depth"
+                if owner is pd.DataFrame
+                else "series_copy_by_source_and_depth"
+            )
+        else:
+            bucket = {
+                (pd.DataFrame, "reindex"): "dataframe_reindex_by_source",
+                (pd.Series, "reindex"): "series_reindex_by_source",
+                (pd.DataFrame, "pivot"): "pivot_by_source",
+                (pd.DataFrame, "to_csv"): "dataframe_to_csv_by_source",
+            }[(owner, method)]
 
         @wraps(original)
         def wrapped(self: Any, *args: Any, **kwargs: Any) -> Any:
             caller = sys._getframe(1).f_code.co_filename
             tag = observer.source_tag(caller)
             if tag.startswith("backtrader/research/"):
-                counts = observer.metrics["pandas_calls"][bucket]
+                if method == "copy":
+                    requested_deep = kwargs.get("deep", args[0] if args else True)
+                    mode = "deep" if bool(requested_deep) else "shallow"
+                    counts = observer.metrics["pandas_calls"][bucket][mode]
+                else:
+                    counts = observer.metrics["pandas_calls"][bucket]
                 counts[tag] = int(counts.get(tag, 0)) + 1
             return original(self, *args, **kwargs)
 
@@ -366,6 +384,8 @@ def _install_observers(root: Path, observer: _Observer) -> None:
         (pd.Series, "reindex"),
         (pd.DataFrame, "pivot"),
         (pd.DataFrame, "to_csv"),
+        (pd.DataFrame, "copy"),
+        (pd.Series, "copy"),
     ):
         _patch_method(
             observer,
