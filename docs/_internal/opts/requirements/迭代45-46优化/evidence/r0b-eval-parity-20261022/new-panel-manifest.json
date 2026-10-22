@@ -1,0 +1,334 @@
+{
+  "api_version": "1.0",
+  "capabilities": {
+    "charts_available": true,
+    "export_formats": [
+      "json",
+      "csv"
+    ]
+  },
+  "counts": {
+    "combinations": 0,
+    "diagnostics": 0,
+    "evaluable_factor_periods": 3,
+    "factors": 1,
+    "ic_observations": 643,
+    "ic_rows": 643,
+    "label_rows": 36450,
+    "panel_cells": 12150,
+    "signal_rows": 12150,
+    "study_dates": 243,
+    "targets": 50
+  },
+  "evaluation_config_schema_version": 1,
+  "evaluation_id": "f12c0cb468815548ba34fd03206b236dc160c8681aa372221b224caaf3da91d6",
+  "exports": [
+    "signals.csv",
+    "labels.csv",
+    "ic.csv",
+    "ic_summary.csv",
+    "quantile_returns.csv",
+    "turnover.csv",
+    "spreads.csv",
+    "stability.csv",
+    "correlation.csv",
+    "comparisons.csv",
+    "coverage.csv",
+    "diagnostics.csv"
+  ],
+  "inputs": {
+    "factors": "91285aae93e3e218c4a4a744901b637da255a9fb16602858a9722d9fd8ce4fa9",
+    "grid": "af126edd92406b64c5077387097d263a6be2729b847fc9d32be50781d3f54663",
+    "groups": {
+      "bj920000": "all_symbols",
+      "bj920270": "all_symbols",
+      "bj920718": "all_symbols",
+      "sh600057": "all_symbols",
+      "sh600198": "all_symbols",
+      "sh600348": "all_symbols",
+      "sh600506": "all_symbols",
+      "sh600636": "all_symbols",
+      "sh600768": "all_symbols",
+      "sh600903": "all_symbols",
+      "sh601133": "all_symbols",
+      "sh601778": "all_symbols",
+      "sh603052": "all_symbols",
+      "sh603186": "all_symbols",
+      "sh603325": "all_symbols",
+      "sh603580": "all_symbols",
+      "sh603778": "all_symbols",
+      "sh603982": "all_symbols",
+      "sh605377": "all_symbols",
+      "sh688103": "all_symbols",
+      "sh688228": "all_symbols",
+      "sh688357": "all_symbols",
+      "sh688535": "all_symbols",
+      "sh688681": "all_symbols",
+      "sz000060": "all_symbols",
+      "sz000573": "all_symbols",
+      "sz000753": "all_symbols",
+      "sz000927": "all_symbols",
+      "sz001311": "all_symbols",
+      "sz002063": "all_symbols",
+      "sz002180": "all_symbols",
+      "sz002295": "all_symbols",
+      "sz002409": "all_symbols",
+      "sz002534": "all_symbols",
+      "sz002649": "all_symbols",
+      "sz002773": "all_symbols",
+      "sz002893": "all_symbols",
+      "sz003012": "all_symbols",
+      "sz300085": "all_symbols",
+      "sz300206": "all_symbols",
+      "sz300324": "all_symbols",
+      "sz300444": "all_symbols",
+      "sz300557": "all_symbols",
+      "sz300670": "all_symbols",
+      "sz300787": "all_symbols",
+      "sz300899": "all_symbols",
+      "sz301016": "all_symbols",
+      "sz301136": "all_symbols",
+      "sz301275": "all_symbols",
+      "sz301429": "all_symbols"
+    },
+    "precomputed_returns": "none",
+    "prices": {
+      "close": "9fe0133c476e6b062ef89e4849564ae54d651292416c038952f28da2cd50bdc3",
+      "open": "5d003732493af4988642226a55f0ff8539ae4c319342e0030f17e4d5d3593431"
+    },
+    "universe": "d743e1d7de407f79c31325255f26ce006e379843328ac544858226ee1b3b4af2"
+  },
+  "label_mode": "next_open_to_open",
+  "labels": [
+    "1D",
+    "5D",
+    "20D"
+  ],
+  "result_fingerprint": "6c04e58a663e915624ebf7e6ebe3cfee6775735efc810617ec8c9fbf8f569236",
+  "result_schema_version": 1,
+  "spec": {
+    "calendar_id": "source-observed-daily-v1",
+    "combinations": {},
+    "comparisons": {},
+    "direction_overrides": {},
+    "end": "2025-12-31T07:00:00+00:00",
+    "feed_time_kind": "close_time",
+    "frequency": "1source_observed_session",
+    "label": "next_open_to_open",
+    "max_loss": 1.0,
+    "min_assets": 10,
+    "min_quantile_assets": 1,
+    "periods": [
+      1,
+      5,
+      20
+    ],
+    "precomputed_entry": "next_open",
+    "preprocess": "cross_section_rank",
+    "price_basis": "source prices as provided; no adjustment",
+    "quantiles": 5,
+    "segments": {},
+    "snapshot_id": "a-stocks-daily-2025",
+    "source_timezone": "Asia/Shanghai",
+    "stability_lags": [
+      1,
+      5,
+      20
+    ],
+    "start": "2025-01-02T07:00:00+00:00",
+    "targets": [
+      "bj920000",
+      "bj920270",
+      "bj920718",
+      "sh600057",
+      "sh600198",
+      "sh600348",
+      "sh600506",
+      "sh600636",
+      "sh600768",
+      "sh600903",
+      "sh601133",
+      "sh601778",
+      "sh603052",
+      "sh603186",
+      "sh603325",
+      "sh603580",
+      "sh603778",
+      "sh603982",
+      "sh605377",
+      "sh688103",
+      "sh688228",
+      "sh688357",
+      "sh688535",
+      "sh688681",
+      "sz000060",
+      "sz000573",
+      "sz000753",
+      "sz000927",
+      "sz001311",
+      "sz002063",
+      "sz002180",
+      "sz002295",
+      "sz002409",
+      "sz002534",
+      "sz002649",
+      "sz002773",
+      "sz002893",
+      "sz003012",
+      "sz300085",
+      "sz300206",
+      "sz300324",
+      "sz300444",
+      "sz300557",
+      "sz300670",
+      "sz300787",
+      "sz300899",
+      "sz301016",
+      "sz301136",
+      "sz301275",
+      "sz301429"
+    ]
+  },
+  "status": "OK",
+  "tables": {
+    "comparisons": {
+      "columns": [
+        "comparison",
+        "left",
+        "right",
+        "period",
+        "mean_ic",
+        "icir",
+        "mean_ic_left",
+        "mean_ic_right",
+        "icir_left",
+        "icir_right",
+        "n_dates_left",
+        "n_dates_right"
+      ],
+      "rows": 0
+    },
+    "correlation": {
+      "columns": [
+        "factor_left",
+        "factor_right",
+        "mean_correlation",
+        "std_correlation",
+        "n_dates"
+      ],
+      "rows": 0
+    },
+    "coverage": {
+      "columns": [
+        "factor",
+        "kind",
+        "direction",
+        "input_cells",
+        "finite_cells",
+        "label_cells",
+        "evaluable_cells",
+        "status"
+      ],
+      "rows": 1
+    },
+    "diagnostics": {
+      "columns": [
+        "factor",
+        "stage",
+        "severity",
+        "code",
+        "message"
+      ],
+      "rows": 0
+    },
+    "ic": {
+      "columns": [
+        "time",
+        "factor",
+        "period",
+        "ic",
+        "rank_ic",
+        "n_assets"
+      ],
+      "rows": 643
+    },
+    "ic_summary": {
+      "columns": [
+        "factor",
+        "period",
+        "mean_ic",
+        "std_ic",
+        "icir",
+        "mean_rank_ic",
+        "std_rank_ic",
+        "rank_icir",
+        "n_dates"
+      ],
+      "rows": 3
+    },
+    "labels": {
+      "columns": [
+        "time",
+        "asset",
+        "period",
+        "value"
+      ],
+      "rows": 36450
+    },
+    "quantile_returns": {
+      "columns": [
+        "time",
+        "factor",
+        "period",
+        "quantile",
+        "mean_return",
+        "n_assets"
+      ],
+      "rows": 3215
+    },
+    "signals": {
+      "columns": [
+        "time",
+        "asset",
+        "factor",
+        "direction",
+        "value",
+        "processed_value",
+        "preprocess",
+        "group"
+      ],
+      "rows": 12150
+    },
+    "spreads": {
+      "columns": [
+        "time",
+        "factor",
+        "period",
+        "spread",
+        "top_quantile",
+        "bottom_quantile"
+      ],
+      "rows": 643
+    },
+    "stability": {
+      "columns": [
+        "factor",
+        "lag",
+        "mean_rank_autocorrelation",
+        "std_rank_autocorrelation",
+        "n_dates"
+      ],
+      "rows": 3
+    },
+    "turnover": {
+      "columns": [
+        "time",
+        "factor",
+        "period",
+        "quantile",
+        "turnover"
+      ],
+      "rows": 3085
+    }
+  }
+}

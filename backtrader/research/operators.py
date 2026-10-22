@@ -890,6 +890,14 @@ class _RollingPair(_Rolling):
         return None, None, OperatorReason.INCOMPLETE_WINDOW
 
 
+_SCALE_THRESHOLD = 1.0e150
+# Correlation is bounded by 1 and exactly zero for orthogonal windows.  Values
+# within this ULP-level band are the exact bound, not a meaningful magnitude;
+# snapping them keeps cross-sectional rank ties stable across the float64
+# migration.  It is far below any economically distinguishable correlation.
+_CORRELATION_SNAP = 8.0 * 2.220446049250313e-16
+
+
 class RollingCovariance(_RollingPair):
     """Population covariance (ddof=0); a one-value window is zero.
 
@@ -908,17 +916,29 @@ class RollingCovariance(_RollingPair):
             count = len(left)
             if count == 1:
                 return 0.0
+            if min(left) == max(left) or min(right) == max(right):
+                return 0.0
             scale = max(max(abs(value) for value in left), max(abs(value) for value in right))
             if scale == 0.0:
                 return 0.0
-            scaled_left = [value / scale for value in left]
-            scaled_right = [value / scale for value in right]
-            mean_left = math.fsum(scaled_left) / count
-            mean_right = math.fsum(scaled_right) / count
+            # Only normalize when the raw squares could overflow.  For ordinary
+            # magnitudes the centered raw moment is exact for short integer
+            # windows, which keeps ranks stable across the float64 migration.
+            if scale <= _SCALE_THRESHOLD:
+                normalized_left = left
+                normalized_right = right
+                restore = 1.0
+            else:
+                normalized_left = [value / scale for value in left]
+                normalized_right = [value / scale for value in right]
+                restore = scale * scale
+            mean_left = math.fsum(normalized_left) / count
+            mean_right = math.fsum(normalized_right) / count
             covariance = math.fsum(
-                (a - mean_left) * (b - mean_right) for a, b in zip(scaled_left, scaled_right)
+                (a - mean_left) * (b - mean_right)
+                for a, b in zip(normalized_left, normalized_right)
             ) / count
-            return covariance * scale * scale
+            return covariance * restore
 
         return _guarded_result(calculate)
 
@@ -939,8 +959,17 @@ class RollingCorrelation(_RollingPair):
             right_scale = max(abs(value) for value in right)
             if left_scale == 0.0 or right_scale == 0.0:
                 raise ValueError("correlation requires non-constant inputs")
-            scaled_left = [value / left_scale for value in left]
-            scaled_right = [value / right_scale for value in right]
+            # As above: normalize only to prevent overflow in the squares.
+            scaled_left = (
+                [value / left_scale for value in left]
+                if left_scale > _SCALE_THRESHOLD
+                else left
+            )
+            scaled_right = (
+                [value / right_scale for value in right]
+                if right_scale > _SCALE_THRESHOLD
+                else right
+            )
             mean_left = math.fsum(scaled_left) / count
             mean_right = math.fsum(scaled_right) / count
             deviations_left = [value - mean_left for value in scaled_left]
@@ -955,7 +984,14 @@ class RollingCorrelation(_RollingPair):
             correlation = cross / math.sqrt(left_ss * right_ss)
             if not math.isfinite(correlation) or abs(correlation) > 1.0 + 1e-12:
                 raise ValueError("correlation result is outside its mathematical domain")
-            return min(1.0, max(-1.0, correlation))
+            # Exact constant windows were rejected above via the variance
+            # checks; here only ULP-level noise around the domain bounds is
+            # normalized so equal mathematical correlations stay equal.
+            if abs(correlation) <= _CORRELATION_SNAP:
+                return 0.0
+            if abs(correlation) >= 1.0 - _CORRELATION_SNAP:
+                return math.copysign(1.0, correlation)
+            return correlation
 
         try:
             return calculate(), OperatorReason.READY

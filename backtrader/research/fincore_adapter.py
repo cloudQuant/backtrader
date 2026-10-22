@@ -38,6 +38,7 @@ _REQUIRED_TABLES = (
     "ic",
     "ic_summary",
     "quantile_returns",
+    "turnover",
     "spreads",
     "stability",
     "correlation",
@@ -52,6 +53,7 @@ _REQUIRED_METRICS = (
     "quantile_returns",
     "spread",
     "rank_autocorrelation",
+    "quantile_turnover",
     "factor_correlation",
     "paired_comparison",
 )

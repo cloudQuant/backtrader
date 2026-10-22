@@ -404,10 +404,13 @@ def oracle_expected(
         tuple(groups[asset] for asset in frames) if isinstance(groups, Mapping) else groups
     )
     points = tuple(grid) if grid is not None else tuple(next(iter(frames.values())).index)
+    # Membership is real-bar based in the current profile; the reference still
+    # takes an explicit all-eligible matrix for its cross-sectional steps.
+    formula_universe = [[True] * len(frames) for _ in points]
     expected = reference(
         alpha_id,
         matrices,
-        points,
+        formula_universe=formula_universe,
         groups=oracle_groups,
     )
     declared_h = history_h(alpha_id, matrices)

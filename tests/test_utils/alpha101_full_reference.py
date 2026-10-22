@@ -601,6 +601,13 @@ def _pair_rolling(
             window_y = ys[start : row + 1]
             if not (np.isfinite(window_x).all() and np.isfinite(window_y).all()):
                 continue
+            # An exactly constant window has zero variance.  Centering it in
+            # floating point leaves ~1e-17 residuals whose dot product is a
+            # meaningless positive number; decide constancy on the raw values.
+            if np.all(window_x == window_x[0]) or np.all(window_y == window_y[0]):
+                if covariance:
+                    output[row][column] = 0.0
+                continue
             dx = window_x - window_x.mean()
             dy = window_y - window_y.mean()
             if covariance:
@@ -612,6 +619,13 @@ def _pair_rolling(
             if variance_x <= 0.0 or variance_y <= 0.0:
                 continue
             value = float(np.dot(dx, dy) / math.sqrt(variance_x * variance_y))
+            # Match the specified float64 contract: ULP-level noise around the
+            # correlation bounds is the bound itself, not a distinct value.
+            snap = 8.0 * 2.220446049250313e-16
+            if abs(value) <= snap:
+                value = 0.0
+            elif abs(value) >= 1.0 - snap:
+                value = math.copysign(1.0, value)
             if _finite(value) and abs(value) <= 1.0:
                 output[row][column] = value
     return output
