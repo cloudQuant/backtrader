@@ -15,6 +15,8 @@ python examples/backtest/026_factor_multi/run.py --factor-mode build --report --
 
 `--factor-mode native|build` switches all three factors together. The CLI overrides `config.yaml`'s `factor_mode`; the default is `native`. The output order remains `close_ma`, `kdj_j`, `roc`. Both modes construct ordinary indicator dependencies and use the same Cerebro lifecycle; mode selection is independent of the default runonce engine or `--runnext`. The build companions retain the native SMA/ROC/highest/lowest calculations and pointwise validity rules.
 
+The [Iteration48 acceptance record](../../../docs/_internal/opts/requirements/迭代48-Alpha101-build实现/验收结果.md) includes this entry's full native/build evaluation, report and CSV reevaluation comparisons on pinned wheels with 20 assets. The separate 500-asset comparison remains recorded in Iteration47.
+
 Like 025, the runner evenly samples **500** symbols from `tests/datas/a_stocks` by default; `--max-symbols 0` uses all 5,471, and `--data-dir` selects another panel with the same layout. The research calendar is the source-observed session union, prices are unadjusted, and missing rows are not filled.
 
 The configured evaluation asks fincore for cross-sectional ranks, the fixed `equal_weight` combination, its leave-one-factor-out ablations, IC/Rank IC, quantiles, stability, correlation and common-pool comparisons. The output factor columns are `close_ma`, `kdj_j`, `roc` (the library's stable order), one row per grid time and symbol.

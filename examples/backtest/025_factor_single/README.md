@@ -11,6 +11,8 @@ python examples/backtest/025_factor_single/run.py --factor-mode build --report -
 
 `--factor-mode native|build` selects the factor implementation before collection. The CLI overrides `config.yaml`'s `factor_mode`; the default is `native`. Both implementations use Cerebro's ordinary indicator lifecycle. This choice is independent of `--runnext`: the default engine remains runonce. The build companion constructs the same SMA and reuses the pointwise ratio rule, including invalid-input handling.
 
+The [Iteration48 acceptance record](../../../docs/_internal/opts/requirements/迭代48-Alpha101-build实现/验收结果.md) includes this entry's complete native/build output comparison and CSV reevaluation on pinned wheels with 20 assets. The separate 500-asset comparison remains recorded in Iteration47.
+
 By default the runner evenly samples **500** symbols from the manifest, which keeps an example run to about a minute while still covering the whole market. Use `--max-symbols 0` for all 5,471 symbols, or `--data-dir <dir>` to point at another panel with the same `_metadata/manifest.json` and per-symbol CSV layout.
 
 The research calendar is `_metadata/observed_calendar.csv`: the union of sessions observed in the source, not a verified exchange calendar. The source timezone is `Asia/Shanghai`; prices are used as provided, without adjustment or forward filling. Missing stock/day rows remain absent and become NaN, so the first 19 bars of each symbol have an incomplete SMA window.

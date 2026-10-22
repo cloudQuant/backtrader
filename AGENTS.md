@@ -476,8 +476,16 @@ evidence. Iteration 48 adds thin research rolling, scale, neutralization,
 returns and explicit scalar-comparison/subtraction constructors. Research
 windows retain alpha101-v2 floor semantics; ordinary indicator windows remain
 positive integers. Constant-only native subtraction nodes are retained with
-`ctx.subtract`; all-registry source, downstream and installed acceptance are
-tracked separately in Iteration 48's development record.
+`ctx.subtract`. Iteration 48 passed all 101 formulas at T320/T640/T1280 in
+native/build × runnext/runonce, including complete node values/reasons and
+output pairing. Its pinned-wheel candidate `583c2137` with fincore `4b8f31b1`
+passed 149 tests plus actual 20-asset quick pairs and CSV reevaluation.
+The separate full-101 downstream check compared 12 tables and 101 pairs of
+actual HTML report models; 14 factors remain quantile-unevaluable on its fixed
+fixture with matching verified causes, so that evaluation keeps PARTIAL while
+the parity check passes. The fincore change only fixes empty-quantile/IC report
+rendering. Exact commits, hashes and scope are in Iteration 48's acceptance
+record; these are local source/installed checks, not release or deployment.
 Iteration 46 acceptance is tracked separately in its
 development record. Usage and acceptance records are linked from
 `docs/source/developer-guide/factor-research.md` and `alpha101-native.md`; 025/026 are the standalone

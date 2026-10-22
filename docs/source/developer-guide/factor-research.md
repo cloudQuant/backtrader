@@ -2,11 +2,11 @@
 
 迭代45把因子计算留在 Backtrader，把标签、IC、多因子合成与报告放在 fincore。所有研究因子继承 `FactorIndicator`；`FactorStrategy` 负责装配和采集，作者不用为每个因子重写策略的 `next()`。
 
-重构与性能验收见[45–46优化验收结果](../../_internal/opts/requirements/迭代45-46优化/验收结果.md)。原生101式已实现；迭代47增加公式式 build 和025/026/027双模式，实际验收范围见[47开发与验收记录](../../_internal/opts/requirements/迭代47-因子build简洁模式与算子增强/开发与验收记录.md)。全101式的build伴随实现属于迭代48。
+重构与性能验收见[45–46优化验收结果](../../_internal/opts/requirements/迭代45-46优化/验收结果.md)。迭代47增加公式式 build 和025/026/027双模式；迭代48已补齐全部101式的build伴随类，并完成源码、下游和固定wheel验收，详见[48验收结果](../../_internal/opts/requirements/迭代48-Alpha101-build实现/验收结果.md)。
 
 > 迭代45-46优化（2026-10-22）后，研究链路直接产出普通 `FactorPanel`：`ResearchDataset`、`inputs.py`、`dataset.py`、`storage.py`、`field_validation.py`、PIT/as-of 表、`table:` 绑定和 `classification_bindings` 已删除。本文描述的是当前 API；历史快照文件不再保证可读。
 
-迭代47的四公式build、三个500资产示例完整配对和固定wheel验收已通过，见[47验收结果](../../_internal/opts/requirements/迭代47-因子build简洁模式与算子增强/验收结果.md)。全101 build扩展仍在迭代48单独验收。
+迭代47的四公式build、三个500资产示例完整配对和固定wheel验收已通过，见[47验收结果](../../_internal/opts/requirements/迭代47-因子build简洁模式与算子增强/验收结果.md)。48另验收全101式T320/T640/T1280四路矩阵、12张下游评价表、101对实际报告及新wheel的149项检查。固定fixture中的不可计算指标保留原因与PARTIAL状态，不把两实现一致解释为所有因子都有可用IC。
 
 ## 环境与职责
 

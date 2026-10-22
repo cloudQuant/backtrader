@@ -17,6 +17,8 @@ python examples/backtest/027_alpha003_panel_acceptance/run.py --factor-mode buil
 
 For this quick entry, `--factor-mode native|build` overrides `config.yaml`'s `factor_mode`, with `native` as the default. The engine remains runnext in both modes. The summary includes the actual mode, class, `factor_calculation="RAN"` and zero order counters. Use a new output directory for each run.
 
+The [Iteration48 acceptance record](../../../docs/_internal/opts/requirements/迭代48-Alpha101-build实现/验收结果.md) covers all 101 native/build formula pairs and this quick entry's pinned-wheel output/report comparison with 20 assets. The separate 500-asset comparison and small daily worker/resume checks remain recorded in Iteration47; they do not establish full-market throughput.
+
 Add `--report` to write the HTML report, and `--report-language zh|en` to choose its default language (the HTML also has a 中文/EN switch). The runner evenly samples **500** symbols from the manifest by default; `--max-symbols 0` uses all 5,471 symbols, and `--data-dir` selects another panel with the same `_metadata/manifest.json` and per-symbol CSV layout. The calendar is the source-observed session union, prices are unadjusted, and missing rows are not filled. Alpha003 needs a complete 10-row window of cross-sectional ranks, so suspended or newly listed symbols produce NaN windows; the missing bar itself and the following lookback points are NaN.
 
 Outputs:

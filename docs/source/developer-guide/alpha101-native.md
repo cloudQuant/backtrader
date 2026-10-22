@@ -4,11 +4,11 @@
 
 > **实现状态（2026-10-22）**：迭代46已完成；101个native类、独立数学参考、完整源码场景、已提交wheel上的6项研究场景及025/026集成验收均通过（AC46-01–06 PASS）。已安装包的 `list_alphas()` 返回1至101。详见[迭代46验收结果](../../_internal/opts/requirements/迭代46-Alpha101原生因子实现/验收结果.md)、[安装验收摘要](../../_internal/opts/requirements/迭代46-Alpha101原生因子实现/evidence/iteration46-installed-20261022/summary.json)及[025/026集成摘要](../../_internal/opts/requirements/迭代46-Alpha101原生因子实现/evidence/iteration46-examples-20261022/summary.json)。后续build前端和全101 native/build对齐分别属于迭代47和48。
 
-**当前补充（2026-10-23）**：45–46优化与47已完成本地验收，四公式build、三个500资产quick完整配对及固定wheel上的132项检查通过，详见[47验收结果](../../_internal/opts/requirements/迭代47-因子build简洁模式与算子增强/验收结果.md)。48已补齐101个build伴随类，源码、下游与安装验收分别登记在[48开发与验收记录](../../_internal/opts/requirements/迭代48-Alpha101-build实现/开发与验收记录.md)。
+**当前状态（2026-10-23）**：45–46优化、47和48均完成本地验收。47的四公式build、三个500资产quick完整配对及固定wheel上的132项检查见[47验收结果](../../_internal/opts/requirements/迭代47-因子build简洁模式与算子增强/验收结果.md)。48全部101个build伴随类通过T320/T640/T1280四路源码矩阵、下游12表及101对实际报告、新wheel149项检查，详见[48验收结果](../../_internal/opts/requirements/迭代48-Alpha101-build实现/验收结果.md)。固定fixture中的14式不可三分位原因保留；完整配对PASS不表示每式都有可用IC。
 
 本轮直接继承 `FactorIndicator` 的结构重构、模块清理与新验收范围见[重构记录](../../_internal/opts/requirements/迭代46-Alpha101原生因子实现/直接FactorIndicator重构记录.md)。原迭代46安装验收对应其记录的源码版本。
 
-后续无用封装删除、接口迁移以及保留原生 Feed 子指标的反例见[封装清理记录](../../_internal/opts/requirements/迭代46-Alpha101原生因子实现/原生研究封装清理记录.md)。本轮 376 项源码检查和 3 项安装 smoke 通过，完整 installed fincore 矩阵及真实全市场重跑未执行。
+此前无用封装删除、接口迁移以及保留原生 Feed 子指标的反例见[封装清理记录](../../_internal/opts/requirements/迭代46-Alpha101原生因子实现/原生研究封装清理记录.md)。该历史检查点为376项源码检查及3项安装smoke，未执行当时的完整installed fincore矩阵；当前源码与安装状态以上述48验收结果为准。真实全市场吞吐仍未验收。
 
 ## 查找原生因子
 
