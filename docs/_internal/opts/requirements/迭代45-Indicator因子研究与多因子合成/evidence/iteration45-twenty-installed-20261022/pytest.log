@@ -1,8 +1,0 @@
-.                                                                        [100%]
-============================== warnings summary ===============================
-::test_twenty_installed_formulas_with_real_labels_and_independent_ic
-  D:\temp\iteration45-final-consumer-20261022\Lib\site-packages\backtrader\feeds\__init__.py:69: DeprecationWarning: backtrader.feeds.quandl is deprecated (Quandl free API sunset). Consider using Nasdaq Data Link or alternative data sources.
-    from .quandl import *
-
--- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
-1 passed, 1 warning in 226.55s (0:03:46)

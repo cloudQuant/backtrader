@@ -849,3 +849,6 @@ docs/_internal/opts/requirements/迭代46-Alpha101原生因子实现/evidence/it
 docs/_internal/opts/requirements/迭代46-Alpha101原生因子实现/evidence/iteration46-native-wrapper-cleanup-20261022/** -text
 docs/_internal/opts/requirements/迭代46-Alpha101原生因子实现/evidence/iteration46-native-wrapper-cleanup-20261022/*.xml -whitespace
 docs/_internal/opts/requirements/迭代46-Alpha101原生因子实现/evidence/iteration46-native-wrapper-cleanup-20261022/*.txt -whitespace
+
+# Iteration 42 tracker inputs retain fixed hash-pinned bytes.
+docs/_internal/opts/requirements/迭代42-示例策略模拟盘贯通与四件套标准化/tracker-inputs/** -text

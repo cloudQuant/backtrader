@@ -1,8 +1,0 @@
-........................................................................ [ 58%]
-....................................................                     [100%]
-=============================== warnings summary ===============================
-../../../opt/anaconda3/lib/python3.11/site-packages/_hypothesis_pytestplugin.py:469
-  /Users/yunjinqi/opt/anaconda3/lib/python3.11/site-packages/_hypothesis_pytestplugin.py:469: UserWarning: Skipping collection of '.hypothesis' directory - this usually means you've explicitly set the `norecursedirs` pytest config option, replacing rather than extending the default ignores.
-    warnings.warn(
-
--- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html

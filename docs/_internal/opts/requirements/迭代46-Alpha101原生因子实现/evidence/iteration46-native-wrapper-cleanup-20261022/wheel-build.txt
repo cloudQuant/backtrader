@@ -1,9 +1,0 @@
-Processing /var/folders/7d/hnmknylj1w91h3cvq6mh3thm0000gn/T/backtrader-alpha101-direct-wheel-c0216prl/source
-  Preparing metadata (pyproject.toml): started
-  Preparing metadata (pyproject.toml): finished with status 'done'
-Building wheels for collected packages: back-trader-python
-  Building wheel for back-trader-python (pyproject.toml): started
-  Building wheel for back-trader-python (pyproject.toml): finished with status 'done'
-  Created wheel for back-trader-python: filename=back_trader_python-1.4.0-py3-none-any.whl size=2062314 sha256=9719aef5e4b4d28f80c9c43af9da4ea945082daa54c1bd02fac93af0199a3af2
-  Stored in directory: /private/var/folders/7d/hnmknylj1w91h3cvq6mh3thm0000gn/T/pip-ephem-wheel-cache-yzk57xf3/wheels/be/dc/30/827c99acc60d8ab8abc5fc6638458f86a4c380080dac3fba1c
-Successfully built back-trader-python

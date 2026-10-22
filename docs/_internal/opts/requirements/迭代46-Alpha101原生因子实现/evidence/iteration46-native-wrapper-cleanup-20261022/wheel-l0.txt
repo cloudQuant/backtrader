@@ -1,9 +1,0 @@
-...                                                                      [100%]
-=============================== warnings summary ===============================
-../../../../../../../../var/folders/7d/hnmknylj1w91h3cvq6mh3thm0000gn/T/backtrader-alpha101-direct-wheel-c0216prl/consumer/lib/python3.11/site-packages/backtrader/feeds/__init__.py:69
-  /var/folders/7d/hnmknylj1w91h3cvq6mh3thm0000gn/T/backtrader-alpha101-direct-wheel-c0216prl/consumer/lib/python3.11/site-packages/backtrader/feeds/__init__.py:69: DeprecationWarning: backtrader.feeds.quandl is deprecated (Quandl free API sunset). Consider using Nasdaq Data Link or alternative data sources.
-    from .quandl import *
-
--- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
-- generated xml file: /Users/yunjinqi/Documents/new_projects/backtrader/docs/_internal/opts/requirements/迭代46-Alpha101原生因子实现/evidence/iteration46-native-wrapper-cleanup-20261022/installed-l0.xml -
-3 passed, 1 warning in 2.25s

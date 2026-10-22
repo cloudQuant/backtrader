@@ -1,7 +1,0 @@
-{
-  "status": "FAILED",
-  "run_id": "01b6c36d682dbafb8ffc2a18efcdfbb7d8f433f12afb13a18f7b768531790b62",
-  "source_path": "D:\\source_code\\backtrader\\tests\\datas\\a_stocks",
-  "failure_type": "RuntimeError",
-  "failure_message": "chunk 0001 worker exited 4294967295"
-}

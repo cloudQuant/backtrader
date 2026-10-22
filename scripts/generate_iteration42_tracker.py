@@ -15,10 +15,9 @@ from typing import Any, Dict, Iterable, List, Mapping, Optional, Tuple
 SEED_SCHEMA = "iteration42-public-status-v2"
 OUTPUT_SCHEMA = "iteration42-public-tracker-v3"
 SOURCE_POLICY = "FIXED_HASH_PINNED_PUBLIC_RECORDS_ONLY"
-SEED_RELATIVE = (
-    "docs/_internal/opts/requirements/"
-    "迭代42-示例策略模拟盘贯通与四件套标准化/evidence/iteration42-public-status.json"
-)
+REQ42 = "docs/_internal/opts/requirements/迭代42-示例策略模拟盘贯通与四件套标准化/"
+TRACKER_INPUTS = REQ42 + "tracker-inputs/"
+SEED_RELATIVE = TRACKER_INPUTS + "iteration42-public-status.json"
 OUTPUT_RELATIVE = (
     "docs/_internal/opts/requirements/"
     "迭代42-示例策略模拟盘贯通与四件套标准化/evidence"
@@ -36,25 +35,24 @@ EXAMPLE_IDS = (
     "015_ctp_options_highfreq",
 )
 CURRENT_PATHS = {name: "examples/unified/" + name for name in EXAMPLE_IDS}
-REQ42 = "docs/_internal/opts/requirements/迭代42-示例策略模拟盘贯通与四件套标准化/"
 REQ43 = "docs/_internal/opts/requirements/迭代43-examples目录三类重构与config选层/"
 REFERENCE_PATHS = {
-    "audit_md": REQ42 + "evidence/acceptance-audit-2026-10-12.md",
-    "audit_json": REQ42 + "evidence/acceptance-audit-2026-10-12.json",
-    "r1_progress": REQ42 + "evidence/r1-live-run-progress-2026-10-10.md",
-    "r2_acceptance": REQ42 + "evidence/r2-acceptance-record-2026-10-10.md",
-    "r3_acceptance": REQ42 + "evidence/r3-acceptance-record-2026-10-10.md",
-    "r4_record": REQ42 + "evidence/r4-implementation-and-smoke-record-2026-10-10.md",
-    "r5_record": REQ42 + "evidence/r5-implementation-record-2026-10-10.md",
-    "r6_record": REQ42 + "evidence/r6-0141-strict-live-adapter-2026-10-10.md",
-    "r7_record": REQ42 + "evidence/r7-0142-observation-tier-2026-10-10.md",
-    "r8_record": REQ42 + "evidence/r8-015-observation-tier-2026-10-10.md",
-    "r9_checklist": REQ42 + "evidence/r9-acceptance-audit-checklist-2026-10-10.md",
-    "monday_plan": REQ42 + "evidence/monday-live-run-plan-2026-10-12.md",
+    "audit_md": TRACKER_INPUTS + "audit_md.md",
+    "audit_json": TRACKER_INPUTS + "audit_json.json",
+    "r1_progress": TRACKER_INPUTS + "r1_progress.md",
+    "r2_acceptance": TRACKER_INPUTS + "r2_acceptance.md",
+    "r3_acceptance": TRACKER_INPUTS + "r3_acceptance.md",
+    "r4_record": TRACKER_INPUTS + "r4_record.md",
+    "r5_record": TRACKER_INPUTS + "r5_record.md",
+    "r6_record": TRACKER_INPUTS + "r6_record.md",
+    "r7_record": TRACKER_INPUTS + "r7_record.md",
+    "r8_record": TRACKER_INPUTS + "r8_record.md",
+    "r9_checklist": TRACKER_INPUTS + "r9_checklist.md",
+    "monday_plan": TRACKER_INPUTS + "monday_plan.md",
     "i43_plan": REQ43 + "迭代计划.md",
-    "i43_relocation": REQ43 + "evidence/r2-unified-relocation-2026-10-11.md",
-    "i43_manifest_qa": REQ42 + "evidence/repair-i42manifeste-2026-10-12/result.json",
-    "i43_binding_review": REQ42 + "evidence/source-binding-review-2026-10-12.json",
+    "i43_relocation": TRACKER_INPUTS + "i43_relocation.md",
+    "i43_manifest_qa": TRACKER_INPUTS + "i43_manifest_qa.json",
+    "i43_binding_review": TRACKER_INPUTS + "i43_binding_review.json",
     "approval_policy": "examples/_support/strategy_candidate_approval.py",
     "approval_trust_root": "examples/_support/demo-approval-trust-root.pem",
 }

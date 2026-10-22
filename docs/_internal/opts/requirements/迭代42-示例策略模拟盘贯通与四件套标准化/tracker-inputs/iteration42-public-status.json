@@ -1,0 +1,532 @@
+{
+  "schema": "iteration42-public-status-v2",
+  "source_policy": "FIXED_HASH_PINNED_PUBLIC_RECORDS_ONLY",
+  "formal_account_pass_delta": 0,
+  "audit_snapshot": {
+    "audit_date": "2026-10-12",
+    "reviewed_head": "9ef0e00aa38da900ca8835d93b81f2c16cf782d9",
+    "branch": "dev",
+    "conclusion": "PARTIAL_NOT_COMPLETE",
+    "scope": "Fixed path/hash-pinned public sources and sanitized records only; historical raw live evidence was not revalidated.",
+    "markdown_reference_id": "audit_md",
+    "structured_reference_id": "audit_json"
+  },
+  "schedule_state": {
+    "status": "CANCELLED",
+    "cancelled_date": "2026-10-11",
+    "summary": "The user cancelled the six-step Monday live schedule; the older checklist is historical only.",
+    "reference_ids": [
+      "r9_checklist",
+      "monday_plan",
+      "i43_plan"
+    ]
+  },
+  "source_references": [
+    {
+      "id": "audit_md",
+      "path": "docs/_internal/opts/requirements/迭代42-示例策略模拟盘贯通与四件套标准化/tracker-inputs/audit_md.md",
+      "sha256": "2d3468baa907ebd5e8ac916751741b2905e32b3df085cd8f9271be7c907576f8",
+      "locator": "lines 42-53, 83-95, 119-123",
+      "claim_scope": "Public audit conclusions and source-bound blockers as of its documented review."
+    },
+    {
+      "id": "audit_json",
+      "path": "docs/_internal/opts/requirements/迭代42-示例策略模拟盘贯通与四件套标准化/tracker-inputs/audit_json.json",
+      "sha256": "a6fe36d02313071629c9799c128a96e3785d4f1e92e76f5d5706288eccbf01c9",
+      "locator": "offline_example_commands and public_input_sha256",
+      "claim_scope": "Sanitized dry/replay outcomes and public-input integrity map; not raw live evidence."
+    },
+    {
+      "id": "r1_progress",
+      "path": "docs/_internal/opts/requirements/迭代42-示例策略模拟盘贯通与四件套标准化/tracker-inputs/r1_progress.md",
+      "sha256": "94a79e9b9c579c776f16e7fd50f1e9b5588d12d59e90dcb939c24616e2e9386c",
+      "locator": "012_1 and 013_3 public progress summaries",
+      "claim_scope": "Historical sanitized progress; not current-tree capability."
+    },
+    {
+      "id": "r2_acceptance",
+      "path": "docs/_internal/opts/requirements/迭代42-示例策略模拟盘贯通与四件套标准化/tracker-inputs/r2_acceptance.md",
+      "sha256": "93f1773fa1fc7783d3b236387d7b32f83d371fab04a8179e95c45fc8cf1ddaed",
+      "locator": "012_1 earlier demo run and bounded acceptance notes",
+      "claim_scope": "Historical public provenance; later dated evidence controls the latest-known result."
+    },
+    {
+      "id": "r3_acceptance",
+      "path": "docs/_internal/opts/requirements/迭代42-示例策略模拟盘贯通与四件套标准化/tracker-inputs/r3_acceptance.md",
+      "sha256": "cd1ca39a3aa0fcdcf08e83770b2cdc9111412143c8eea3784e254c5f49361000",
+      "locator": "lines 26-33, 42-46, 82-106",
+      "claim_scope": "012 mechanical demo results with research rejection and HFT admission limits preserved."
+    },
+    {
+      "id": "r4_record",
+      "path": "docs/_internal/opts/requirements/迭代42-示例策略模拟盘贯通与四件套标准化/tracker-inputs/r4_record.md",
+      "sha256": "1e52d6a203f3813d1b64c0c995d2195c279c5e7d6db4eb05052094585fcdfce0",
+      "locator": "lines 121-130",
+      "claim_scope": "Historical 013_1 fill-round-trip record; no fresh current-tree run claim."
+    },
+    {
+      "id": "r5_record",
+      "path": "docs/_internal/opts/requirements/迭代42-示例策略模拟盘贯通与四件套标准化/tracker-inputs/r5_record.md",
+      "sha256": "3442f7ffce09afc2df7d20b27ce6a17d2ad5fc62c9faa31a26f2903bb0419405",
+      "locator": "lines 34, 50, 61, 171-177",
+      "claim_scope": "Historical 013_2 HFT boundary and 013_3 no-fill result."
+    },
+    {
+      "id": "r6_record",
+      "path": "docs/_internal/opts/requirements/迭代42-示例策略模拟盘贯通与四件套标准化/tracker-inputs/r6_record.md",
+      "sha256": "a8bd88210b7532425b7a065e9040d4390e39ca9ed57c2b7d3c4409627502015b",
+      "locator": "lines 101-107",
+      "claim_scope": "Public 014_1 blocker, not three-leg fill acceptance."
+    },
+    {
+      "id": "r7_record",
+      "path": "docs/_internal/opts/requirements/迭代42-示例策略模拟盘贯通与四件套标准化/tracker-inputs/r7_record.md",
+      "sha256": "e7252e53d307bc2a97294d3e4bf224394e8aa5390b4580619467f3c67a0144de",
+      "locator": "lines 75-83",
+      "claim_scope": "Public 014_2 observation-tier event-clock blocker."
+    },
+    {
+      "id": "r8_record",
+      "path": "docs/_internal/opts/requirements/迭代42-示例策略模拟盘贯通与四件套标准化/tracker-inputs/r8_record.md",
+      "sha256": "51be17859d45171d850931c422ed972c046d2ee6fa3edf31cb254b718a88565b",
+      "locator": "lines 58-83",
+      "claim_scope": "Tick-arrival observation and explicit zero-write/HFT bounds."
+    },
+    {
+      "id": "r9_checklist",
+      "path": "docs/_internal/opts/requirements/迭代42-示例策略模拟盘贯通与四件套标准化/tracker-inputs/r9_checklist.md",
+      "sha256": "4f298c15691757b383a9fce1bc4d084d64cfbb8ffc08a1dc82001241aecded41",
+      "locator": "historical Monday-session checklist",
+      "claim_scope": "Superseded schedule checklist only."
+    },
+    {
+      "id": "monday_plan",
+      "path": "docs/_internal/opts/requirements/迭代42-示例策略模拟盘贯通与四件套标准化/tracker-inputs/monday_plan.md",
+      "sha256": "7055d2654b6b03090b166b885a743385a267aa0dabc3286fcd91e1d70c6b08ee",
+      "locator": "historical six-step Monday plan",
+      "claim_scope": "Superseded plan; cancellation is sourced from the Iteration 43 plan."
+    },
+    {
+      "id": "i43_plan",
+      "path": "docs/_internal/opts/requirements/迭代43-examples目录三类重构与config选层/迭代计划.md",
+      "sha256": "e485588253de5e8445a15fbdc9b0ef7638aa1909b4bf107b1242d25978d6a7f0",
+      "locator": "section 1, user cancellation of the Monday schedule on 2026-10-11",
+      "claim_scope": "Public cancellation record only; no run or live acceptance claim."
+    },
+    {
+      "id": "i43_relocation",
+      "path": "docs/_internal/opts/requirements/迭代42-示例策略模拟盘贯通与四件套标准化/tracker-inputs/i43_relocation.md",
+      "sha256": "db74c591e2ea60e500ac5d166c385d7e4927fc51114d29cc4aa1c994f5d32495",
+      "locator": "012 unified relocation and root-manifest reconciliation",
+      "claim_scope": "Public path/source reconciliation; not a live retry or approval."
+    },
+    {
+      "id": "i43_manifest_qa",
+      "path": "docs/_internal/opts/requirements/迭代42-示例策略模拟盘贯通与四件套标准化/tracker-inputs/i43_manifest_qa.json",
+      "sha256": "ee40ecafcbc9d42dbdcdc571298358af201114c6e0e4a3d4b7d7ebe24d464875",
+      "locator": "head, parent_commit, evidence_level, counts, exact source scope, account_acceptance_added",
+      "claim_scope": "Root source/fake/offline QA for the canonical root manifest and two local candidate manifests; not a live/account result."
+    },
+    {
+      "id": "i43_binding_review",
+      "path": "docs/_internal/opts/requirements/迭代42-示例策略模拟盘贯通与四件套标准化/tracker-inputs/i43_binding_review.json",
+      "sha256": "eaf19d1a9760e834836f1532844c6b18fd5440a6bc0893cc66bc215d56cd1121",
+      "locator": "reviewed_commit, artifact_outer_pin_matches_public_head, artifact_inner_config_pin_matches_public_head, research_status, approval_status",
+      "claim_scope": "Independent public-source review confirms qualification inner config pin mismatch, RESEARCH_REJECTED, and NOT_APPROVED."
+    },
+    {
+      "id": "approval_policy",
+      "path": "examples/_support/strategy_candidate_approval.py",
+      "sha256": "eec569d2c6fd6babc9d94b18e4c4deb8b6462212618559a5987d8cab167a7a2b",
+      "locator": "candidate fingerprint and signed approval verification",
+      "claim_scope": "Public code boundary; tracker cannot create or amend approval."
+    },
+    {
+      "id": "approval_trust_root",
+      "path": "examples/_support/demo-approval-trust-root.pem",
+      "sha256": "42212201b7ec9159a00fbf0a0d1f2d541a88d4b81eb3330d587658391916e3e7",
+      "locator": "pinned Ed25519 demo-approval trust root",
+      "claim_scope": "Trust-root identity only; tracker does not mint or verify a signature."
+    }
+  ],
+  "examples": [
+    {
+      "id": "012_1_midfreq_cross_exchange",
+      "current_path": "examples/unified/012_1_midfreq_cross_exchange",
+      "dry_replay": {
+        "dry": "DRY",
+        "replay": "FORMULA_CHECK_PASS",
+        "reference_ids": [
+          "audit_json"
+        ]
+      },
+      "historical_best": {
+        "status": "MECHANICAL_DEMO_SMOKE_PASS",
+        "run_id": "live-20261010T085734Z-82a55b70",
+        "tier": "mechanical_demo_smoke",
+        "summary": "Four fills; FLAT_RECONCILED; remote account flat with no active or unknown orders.",
+        "reference_ids": [
+          "r1_progress",
+          "r2_acceptance",
+          "r3_acceptance",
+          "audit_md"
+        ]
+      },
+      "latest_known_attempt": {
+        "status": "MECHANICAL_DEMO_SMOKE_PASS",
+        "run_id": "live-20261010T085734Z-82a55b70",
+        "tier": "mechanical_demo_smoke",
+        "summary": "Latest accepted historical mechanical demo round trip; not evidence of current relocated-source availability.",
+        "reference_ids": [
+          "r3_acceptance",
+          "audit_md"
+        ]
+      },
+      "current_capability": {
+        "status": "SOURCE_BINDING_REPAIRED_QUALIFICATION_NOT_ACCEPTED",
+        "as_of": "2026-10-12",
+        "summary": "The canonical and two local candidate-manifest source-binding repair was accepted at dev commit b3a6b7c712e92d57b3ca714bec0a98e51574f797 after 181 source/fake/offline tests passed (0 failed, 0 skipped, 0 errors). The pinned independent review confirms qualification-v3.json still has an inner-config hash mismatch, so strict qualification is not accepted. This is manifest-level source evidence only; no live 012 invocation was reverified.",
+        "reference_ids": [
+          "audit_md",
+          "i43_relocation",
+          "i43_manifest_qa",
+          "i43_binding_review"
+        ]
+      },
+      "admission_bounds": {
+        "research_status": "RESEARCH_REJECTED",
+        "hft_status": "NOT_APPLICABLE_TO_MIDFREQ",
+        "approval_status": "NOT_APPROVED",
+        "signature_boundary": "Mechanical demo evidence does not change research status or approval; any controlled rebind must update the candidate fingerprint and pass its source-fingerprint tests, and approval still requires a valid signed receipt.",
+        "reference_ids": [
+          "r3_acceptance",
+          "approval_policy",
+          "approval_trust_root"
+        ]
+      }
+    },
+    {
+      "id": "012_2_event_driven_cross_exchange",
+      "current_path": "examples/unified/012_2_event_driven_cross_exchange",
+      "dry_replay": {
+        "dry": "DRY",
+        "replay": "FORMULA_CHECK_PASS",
+        "reference_ids": [
+          "audit_json"
+        ]
+      },
+      "historical_best": {
+        "status": "MECHANICAL_DEMO_SMOKE_PASS",
+        "run_id": "live-20261010T083916Z-f28557f7",
+        "tier": "mechanical_demo_smoke",
+        "summary": "Four orders and four fills; both legs closed and remote flat confirmed.",
+        "reference_ids": [
+          "r3_acceptance",
+          "audit_md"
+        ]
+      },
+      "latest_known_attempt": {
+        "status": "MECHANICAL_DEMO_SMOKE_PASS",
+        "run_id": "live-20261010T083916Z-f28557f7",
+        "tier": "mechanical_demo_smoke",
+        "summary": "Latest accepted historical mechanical demo result; the mechanical branch did not pass research or HFT admission.",
+        "reference_ids": [
+          "r3_acceptance",
+          "audit_md"
+        ]
+      },
+      "current_capability": {
+        "status": "SOURCE_BINDING_REPAIRED_QUALIFICATION_NOT_ACCEPTED",
+        "as_of": "2026-10-12",
+        "summary": "The canonical and two local candidate-manifest source-binding repair was accepted at dev commit b3a6b7c712e92d57b3ca714bec0a98e51574f797 after 181 source/fake/offline tests passed (0 failed, 0 skipped, 0 errors). The pinned independent review confirms qualification-v3.json still has an inner-config hash mismatch, so strict qualification is not accepted. This is manifest-level source evidence only; no live 012 invocation was reverified.",
+        "reference_ids": [
+          "audit_md",
+          "i43_relocation",
+          "i43_manifest_qa",
+          "i43_binding_review"
+        ]
+      },
+      "admission_bounds": {
+        "research_status": "RESEARCH_REJECTED",
+        "hft_status": "HFT_FAILED/NOT_ADMITTED",
+        "approval_status": "NOT_APPROVED",
+        "signature_boundary": "Mechanical execution is not strategy admission; a controlled rebind must preserve candidate-specific fingerprint checks and approval still requires a valid signed receipt.",
+        "reference_ids": [
+          "r3_acceptance",
+          "approval_policy",
+          "approval_trust_root"
+        ]
+      }
+    },
+    {
+      "id": "013_1_midfreq_cross_arbitrage",
+      "current_path": "examples/unified/013_1_midfreq_cross_arbitrage",
+      "dry_replay": {
+        "dry": "DRY",
+        "replay": "LOCAL_REPLAY_PASS",
+        "reference_ids": [
+          "audit_json"
+        ]
+      },
+      "historical_best": {
+        "status": "PASS",
+        "run_id": "live-20261011T030536Z-7e938fc7",
+        "tier": "fill_round_trip",
+        "summary": "Historical 7x24 run completed its fill round trip.",
+        "reference_ids": [
+          "r4_record",
+          "audit_md"
+        ]
+      },
+      "latest_known_attempt": {
+        "status": "PASS",
+        "run_id": "live-20261011T030536Z-7e938fc7",
+        "tier": "fill_round_trip",
+        "summary": "The audit accepts this historical pass; standard-front coverage was not separately demonstrated.",
+        "reference_ids": [
+          "r4_record",
+          "audit_md"
+        ]
+      },
+      "current_capability": {
+        "status": "PARTIAL",
+        "as_of": "2026-10-12",
+        "summary": "Historical fill-round-trip evidence is accepted, but standard-front coverage was not separately demonstrated; no fresh capability claim is made.",
+        "reference_ids": [
+          "audit_md",
+          "r4_record"
+        ]
+      },
+      "admission_bounds": {
+        "research_status": "NOT_ASSESSED_IN_THIS_TRACKER",
+        "hft_status": "NOT_APPLICABLE_TO_MIDFREQ",
+        "approval_status": "NOT_APPLICABLE",
+        "signature_boundary": "This tracker records evidence only and cannot change strategy admission or create approval.",
+        "reference_ids": [
+          "audit_md"
+        ]
+      }
+    },
+    {
+      "id": "013_2_highfreq_calendar_arbitrage",
+      "current_path": "examples/unified/013_2_highfreq_calendar_arbitrage",
+      "dry_replay": {
+        "dry": "DRY",
+        "replay": "LOCAL_REPLAY_PASS",
+        "reference_ids": [
+          "audit_json"
+        ]
+      },
+      "historical_best": {
+        "status": "PASS",
+        "run_id": "live-20261010T075431Z-3583ad31",
+        "tier": "fill_round_trip",
+        "summary": "Historical 7x24 run completed the two-leg fill round trip and ended flat.",
+        "reference_ids": [
+          "r5_record",
+          "audit_md"
+        ]
+      },
+      "latest_known_attempt": {
+        "status": "PASS",
+        "run_id": "live-20261010T075431Z-3583ad31",
+        "tier": "fill_round_trip",
+        "summary": "Accepted as a historical execution result only; earlier manual cleanup is not counted as automatic success.",
+        "reference_ids": [
+          "r5_record",
+          "audit_md"
+        ]
+      },
+      "current_capability": {
+        "status": "HISTORICAL_PASS_ONLY",
+        "as_of": "2026-10-12",
+        "summary": "Historical fill round trip is accepted, while HFT remains HFT_FAILED/NOT_ADMITTED and no latency conclusion is made.",
+        "reference_ids": [
+          "audit_md",
+          "r5_record"
+        ]
+      },
+      "admission_bounds": {
+        "research_status": "NOT_ASSESSED_IN_THIS_TRACKER",
+        "hft_status": "HFT_FAILED/NOT_ADMITTED",
+        "approval_status": "NOT_APPLICABLE",
+        "signature_boundary": "Execution evidence does not grant HFT admission; HFT status remains failed and not admitted.",
+        "reference_ids": [
+          "r5_record",
+          "audit_md"
+        ]
+      }
+    },
+    {
+      "id": "013_3_sa_midfreq_simnow",
+      "current_path": "examples/unified/013_3_sa_midfreq_simnow",
+      "dry_replay": {
+        "dry": "DRY",
+        "replay": "LOCAL_REPLAY_PASS",
+        "reference_ids": [
+          "audit_json"
+        ]
+      },
+      "historical_best": null,
+      "latest_known_attempt": {
+        "status": "FAIL",
+        "run_id": "live-20261010T084209Z-54afd472",
+        "tier": "fill_round_trip",
+        "summary": "no_fill_round_trip; zero entry/close fills and flat account.",
+        "reference_ids": [
+          "r1_progress",
+          "r5_record",
+          "audit_md"
+        ]
+      },
+      "current_capability": {
+        "status": "UNACCEPTED_FAIL",
+        "as_of": "2026-10-12",
+        "summary": "The latest public live result failed no_fill_round_trip; no successful target run is recorded.",
+        "reference_ids": [
+          "audit_md",
+          "r5_record"
+        ]
+      },
+      "admission_bounds": {
+        "research_status": "NOT_ASSESSED_IN_THIS_TRACKER",
+        "hft_status": "NOT_APPLICABLE_TO_MIDFREQ",
+        "approval_status": "NOT_APPLICABLE",
+        "signature_boundary": "This tracker does not grant strategy admission or live-write authority.",
+        "reference_ids": [
+          "audit_md"
+        ]
+      }
+    },
+    {
+      "id": "014_1_ctp_options_lowfreq",
+      "current_path": "examples/unified/014_1_ctp_options_lowfreq",
+      "dry_replay": {
+        "dry": "DRY",
+        "replay": "LOCAL_REPLAY_PASS",
+        "reference_ids": [
+          "audit_json"
+        ]
+      },
+      "historical_best": null,
+      "latest_known_attempt": {
+        "status": "BLOCKED",
+        "run_id": "live-20261009T214444Z-5a848a7f",
+        "tier": "strict_live_adapter",
+        "summary": "no_admissible_front_pair because exchange-limit data was unavailable before the three-leg arm; no three-leg fill acceptance.",
+        "reference_ids": [
+          "r6_record",
+          "audit_md"
+        ]
+      },
+      "current_capability": {
+        "status": "BLOCKED",
+        "as_of": "2026-10-12",
+        "summary": "No three-leg fill round trip is accepted; the historical attempt blocked before arming.",
+        "reference_ids": [
+          "audit_md",
+          "r6_record"
+        ]
+      },
+      "admission_bounds": {
+        "research_status": "NOT_ASSESSED_IN_THIS_TRACKER",
+        "hft_status": "NOT_APPLICABLE_TO_LOWFREQ",
+        "approval_status": "NOT_APPLICABLE",
+        "signature_boundary": "A blocked observation is not a strategy approval or permission to write.",
+        "reference_ids": [
+          "audit_md"
+        ]
+      }
+    },
+    {
+      "id": "014_2_ctp_options_midfreq",
+      "current_path": "examples/unified/014_2_ctp_options_midfreq",
+      "dry_replay": {
+        "dry": "DRY",
+        "replay": "LOCAL_REPLAY_PASS",
+        "reference_ids": [
+          "audit_json"
+        ]
+      },
+      "historical_best": null,
+      "latest_known_attempt": {
+        "status": "BLOCKED",
+        "run_id": null,
+        "tier": "observation_only_feed_sealed",
+        "summary": "Live event clock was outside the run mapping; the audit records a stale event time and no observation-tier pass.",
+        "reference_ids": [
+          "r7_record",
+          "audit_md"
+        ]
+      },
+      "current_capability": {
+        "status": "BLOCKED",
+        "as_of": "2026-10-12",
+        "summary": "The latest known observation was blocked by live_event_clock_outside_run_mapping; no new session result is inferred.",
+        "reference_ids": [
+          "audit_md",
+          "r7_record"
+        ]
+      },
+      "admission_bounds": {
+        "research_status": "NOT_ASSESSED_IN_THIS_TRACKER",
+        "hft_status": "NOT_APPLICABLE_TO_MIDFREQ",
+        "approval_status": "NOT_APPLICABLE",
+        "signature_boundary": "Observation-tier evidence does not grant strategy admission or live-write authority.",
+        "reference_ids": [
+          "audit_md"
+        ]
+      }
+    },
+    {
+      "id": "015_ctp_options_highfreq",
+      "current_path": "examples/unified/015_ctp_options_highfreq",
+      "dry_replay": {
+        "dry": "DRY",
+        "replay": "LOCAL_REPLAY_PASS",
+        "reference_ids": [
+          "audit_json"
+        ]
+      },
+      "historical_best": {
+        "status": "OBSERVATION_PASS",
+        "run_id": "live-20261009T213253Z-39d69fb7",
+        "tier": "observation_only_tick_arrival",
+        "summary": "240.3 seconds; FG/C/P tick counts 151/13/1; order_write=0 and cohort_decisions=0.",
+        "reference_ids": [
+          "r8_record",
+          "audit_md"
+        ]
+      },
+      "latest_known_attempt": {
+        "status": "OBSERVATION_PASS",
+        "run_id": "live-20261009T213253Z-39d69fb7",
+        "tier": "observation_only_tick_arrival",
+        "summary": "Tick-arrival observation only; no strategy decision, trade, or HFT latency acceptance.",
+        "reference_ids": [
+          "r8_record",
+          "audit_md"
+        ]
+      },
+      "current_capability": {
+        "status": "OBSERVATION_ONLY",
+        "as_of": "2026-10-12",
+        "summary": "Tick arrival was observed with zero order writes and zero cohort decisions; this is not a trading or HFT pass.",
+        "reference_ids": [
+          "audit_md",
+          "r8_record"
+        ]
+      },
+      "admission_bounds": {
+        "research_status": "NOT_ASSESSED_IN_THIS_TRACKER",
+        "hft_status": "HFT_FAILED/NOT_ADMITTED",
+        "approval_status": "NOT_APPLICABLE",
+        "signature_boundary": "Tick-arrival observation and zero writes do not establish strategy admission or HFT performance.",
+        "reference_ids": [
+          "r8_record",
+          "audit_md"
+        ]
+      }
+    }
+  ]
+}
