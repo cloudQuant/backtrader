@@ -7,9 +7,8 @@ from dataclasses import dataclass, field
 from types import MappingProxyType
 from typing import Any, Optional, cast
 
-from .errors import ConfigError, DatasetError
+from ..errors import ResearchConfigError, DatasetError
 from .specs import ResearchSpec, require_research_runtime
-
 
 _FEED_MARKER = "_factor_research_alignment_v1"
 
@@ -128,11 +127,11 @@ def prealign_bars(
     """
     pd = require_research_runtime()
     if not isinstance(research, ResearchSpec):
-        raise ConfigError("research must be a ResearchSpec")
+        raise ResearchConfigError("research must be a ResearchSpec")
     if not isinstance(frame, pd.DataFrame):
         raise DatasetError("bar input must be a pandas DataFrame")
     if not isinstance(asset, str) or not asset:
-        raise ConfigError("asset must be a non-empty feed name")
+        raise ResearchConfigError("asset must be a non-empty feed name")
     if not frame.columns.is_unique:
         raise DatasetError("bar input contains duplicate columns")
     if not frame.index.is_unique:
@@ -186,7 +185,7 @@ def prealign_bars(
     present.name = "present"
 
     if data_version is not None and (not isinstance(data_version, str) or not data_version.strip()):
-        raise ConfigError("data_version must be None or a non-empty string")
+        raise ResearchConfigError("data_version must be None or a non-empty string")
 
     calculation_mask = grid_index <= research.end
     calculation_aligned = aligned.loc[calculation_mask].copy(deep=True)
@@ -308,7 +307,7 @@ def prealign_pit_table(
     """
     pd = require_research_runtime()
     if not isinstance(research, ResearchSpec):
-        raise ConfigError("research must be a ResearchSpec")
+        raise ResearchConfigError("research must be a ResearchSpec")
     if not isinstance(table, pd.DataFrame):
         raise DatasetError("PIT table must be a pandas DataFrame")
     if not isinstance(table.index, pd.MultiIndex) or tuple(table.index.names) != (

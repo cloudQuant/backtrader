@@ -14,7 +14,7 @@ from datetime import datetime, timedelta
 from types import MappingProxyType
 from typing import Any, Dict, Optional, Sequence, Tuple, Type
 
-from .errors import ConfigError, DatasetError, DependencyError
+from ..errors import ResearchConfigError, DatasetError, DependencyError
 
 
 def require_research_runtime() -> Any:
@@ -55,7 +55,7 @@ def thaw(value: Any) -> Any:
 
 def _nonempty_string(value: Any, field_name: str) -> str:
     if not isinstance(value, str) or not value.strip():
-        raise ConfigError("%s must be a non-empty string" % field_name)
+        raise ResearchConfigError("%s must be a non-empty string" % field_name)
     return value
 
 
@@ -73,7 +73,7 @@ def _source_fingerprint(indicator: Type[Any]) -> Tuple[str, str, str]:
             if code is not None:
                 pieces.append(name.encode("utf-8") + b"\0" + marshal.dumps(code))
         if not pieces:
-            raise ConfigError(
+            raise ResearchConfigError(
                 "factor source cannot be fingerprinted; define it in a Python source module"
             ) from None
         source = b"\0".join(pieces)
@@ -99,15 +99,15 @@ def _source_fingerprint(indicator: Type[Any]) -> Tuple[str, str, str]:
 def _lookback(indicator: Type[Any], params: Mapping[str, Any]) -> int:
     declaration = getattr(indicator, "lookback_h", None)
     if declaration is None:
-        raise ConfigError("factor %s must declare lookback_h" % indicator.__name__)
+        raise ResearchConfigError("factor %s must declare lookback_h" % indicator.__name__)
     try:
         value = declaration(**thaw(params)) if callable(declaration) else declaration
     except (TypeError, ValueError, NotImplementedError) as exc:
-        raise ConfigError(
+        raise ResearchConfigError(
             "factor %s lookback_h declaration is invalid" % indicator.__name__
         ) from exc
     if type(value) is not int or value < 0:
-        raise ConfigError("factor lookback_h must be a non-negative integer (not bool)")
+        raise ResearchConfigError("factor lookback_h must be a non-negative integer (not bool)")
     return value
 
 
@@ -116,59 +116,59 @@ def _validate_feed_binding(alias: Any, binding: Any) -> Tuple[str, Any]:
 
     def validate_source(source: Any) -> str:
         if not isinstance(source, str):
-            raise ConfigError("direct binding source must be a qualified string")
+            raise ResearchConfigError("direct binding source must be a qualified string")
         if source.startswith("feed:"):
             parts = source.split(":")
             if len(parts) != 3 or not parts[1] or not parts[2]:
-                raise ConfigError("feed bindings must use 'feed:<name>:<line>'")
+                raise ResearchConfigError("feed bindings must use 'feed:<name>:<line>'")
             return "feed"
         if source.startswith("table:"):
             parts = source.split(":")
             if len(parts) != 2 or not parts[1]:
-                raise ConfigError("table bindings must use 'table:<name>'")
+                raise ResearchConfigError("table bindings must use 'table:<name>'")
             return "table"
-        raise ConfigError("direct binding source must use feed: or table:")
+        raise ResearchConfigError("direct binding source must use feed: or table:")
 
     if isinstance(binding, str):
         if binding.startswith("feed:"):
             parts = binding.split(":")
             if len(parts) != 3 or not parts[1] or not parts[2]:
-                raise ConfigError("feed bindings must use 'feed:<name>:<line>'")
+                raise ResearchConfigError("feed bindings must use 'feed:<name>:<line>'")
             return "feed", binding
         if binding.startswith("table:"):
             parts = binding.split(":")
             if len(parts) != 2 or not parts[1]:
-                raise ConfigError("table bindings must use 'table:<name>'")
+                raise ResearchConfigError("table bindings must use 'table:<name>'")
             return "table", binding
-        raise ConfigError("field bindings must use 'feed:<name>:<line>' or 'table:<name>'")
+        raise ResearchConfigError("field bindings must use 'feed:<name>:<line>' or 'table:<name>'")
     if not isinstance(binding, Mapping):
-        raise ConfigError("field bindings must be qualified strings or descriptors")
+        raise ResearchConfigError("field bindings must be qualified strings or descriptors")
     derive = binding.get("derive")
     if derive == "adv":
         if set(binding) != {"derive", "source", "window"}:
-            raise ConfigError("derived ADV requires derive/source/window only")
+            raise ResearchConfigError("derived ADV requires derive/source/window only")
         source = _nonempty_string(binding.get("source"), "ADV source")
         window = binding.get("window")
         if type(window) is not int or window < 1:
-            raise ConfigError("derived ADV window must be a positive non-bool integer")
+            raise ResearchConfigError("derived ADV window must be a positive non-bool integer")
         if not alias.startswith("adv") or not alias[3:].isdigit() or int(alias[3:]) != window:
-            raise ConfigError("derived ADV alias advN must match window N")
+            raise ResearchConfigError("derived ADV alias advN must match window N")
         if source != "dollar_volume":
-            raise ConfigError("derived ADV must use dollar_volume")
+            raise ResearchConfigError("derived ADV must use dollar_volume")
         return "derive_adv", MappingProxyType(dict(binding))
     if derive == "vwap_volume":
         if set(binding) != {"derive", "vwap", "volume"}:
-            raise ConfigError("derived dollar_volume requires derive/vwap/volume only")
+            raise ResearchConfigError("derived dollar_volume requires derive/vwap/volume only")
         return "derive_vwap_volume", MappingProxyType(dict(binding))
     if binding.get("kind") == "direct":
         if set(binding) != {"kind", "source"}:
-            raise ConfigError("direct binding requires kind/source only")
+            raise ResearchConfigError("direct binding requires kind/source only")
         direct_source = binding.get("source")
         if not isinstance(direct_source, str):
-            raise ConfigError("direct binding source must be a qualified string")
+            raise ResearchConfigError("direct binding source must be a qualified string")
         validate_source(direct_source)
         return "direct", MappingProxyType(dict(binding))
-    raise ConfigError("unknown field binding descriptor")
+    raise ResearchConfigError("unknown field binding descriptor")
 
 
 @dataclass(frozen=True, init=False)
@@ -206,12 +206,12 @@ class FactorSpec:
         **unsupported: Any,
     ) -> None:
         if unsupported:
-            raise ConfigError("unsupported FactorSpec fields: %s" % sorted(unsupported))
+            raise ResearchConfigError("unsupported FactorSpec fields: %s" % sorted(unsupported))
         _nonempty_string(name, "factor name")
         _nonempty_string(panel_line, "panel_line")
         _nonempty_string(operator_profile, "operator_profile")
         if type(direction) is not int or direction not in (-1, 1):
-            raise ConfigError("direction must be integer +1 or -1; bool is not accepted")
+            raise ResearchConfigError("direction must be integer +1 or -1; bool is not accepted")
         if params is None:
             params = {}
         if field_bindings is None:
@@ -219,86 +219,104 @@ class FactorSpec:
         if classification_bindings is None:
             classification_bindings = {}
         if not isinstance(params, Mapping):
-            raise ConfigError("factor params must be a mapping")
+            raise ResearchConfigError("factor params must be a mapping")
         if not isinstance(field_bindings, Mapping):
-            raise ConfigError("field_bindings must be a mapping")
+            raise ResearchConfigError("field_bindings must be a mapping")
         if not isinstance(classification_bindings, Mapping):
-            raise ConfigError("classification_bindings must be a mapping")
+            raise ResearchConfigError("classification_bindings must be a mapping")
 
         from .factor_indicator import FactorIndicator
 
         if not isinstance(indicator, type) or not issubclass(indicator, FactorIndicator):
-            raise ConfigError("research factors must be FactorIndicator subclasses")
+            raise ResearchConfigError("research factors must be FactorIndicator subclasses")
         if indicator is FactorIndicator or getattr(indicator, "_factor_bound", False):
-            raise ConfigError("FactorSpec requires an unbound concrete FactorIndicator class")
+            raise ResearchConfigError(
+                "FactorSpec requires an unbound concrete FactorIndicator class"
+            )
         if getattr(indicator, "panel_mode", None) != "next":
-            raise ConfigError("FactorSpec requires panel_mode='next'")
+            raise ResearchConfigError("FactorSpec requires panel_mode='next'")
         if any(
             name in base.__dict__ for base in indicator.__mro__ for name in ("build", "expression")
         ):
-            raise ConfigError("build/expression declarations are not supported in iteration 45")
+            raise ResearchConfigError(
+                "build/expression declarations are not supported in iteration 45"
+            )
         declared = tuple(indicator._factor_template_names())
         if panel_line not in declared:
-            raise ConfigError("panel_line must select a declared output template")
+            raise ResearchConfigError("panel_line must select a declared output template")
 
         frozen_params = _freeze(dict(params))
         declared_fields = tuple(getattr(indicator, "formula_fields", ()))
         declared_classifications = tuple(getattr(indicator, "classification_fields", ()))
         if any(not isinstance(item, str) or not item for item in declared_fields):
-            raise ConfigError("formula_fields must contain non-empty strings")
+            raise ResearchConfigError("formula_fields must contain non-empty strings")
         if len(set(declared_fields)) != len(declared_fields):
-            raise ConfigError("formula_fields must not contain duplicates")
+            raise ResearchConfigError("formula_fields must not contain duplicates")
         if any(not isinstance(item, str) or not item for item in declared_classifications):
-            raise ConfigError("classification_fields must contain non-empty strings")
+            raise ResearchConfigError("classification_fields must contain non-empty strings")
         frozen_fields: Dict[str, Any] = {}
         for alias, binding in field_bindings.items():
             _, normalized = _validate_feed_binding(alias, binding)
             frozen_fields[alias] = normalized
             if alias not in declared_fields:
-                raise ConfigError("field binding %s is not declared in formula_fields" % alias)
+                raise ResearchConfigError(
+                    "field binding %s is not declared in formula_fields" % alias
+                )
         for alias, binding in frozen_fields.items():
             if isinstance(binding, Mapping) and binding.get("derive") == "adv":
                 source = binding["source"]
                 source_binding = frozen_fields.get(source)
                 if source_binding is None:
-                    raise ConfigError("derived ADV requires an explicit dollar_volume binding")
+                    raise ResearchConfigError(
+                        "derived ADV requires an explicit dollar_volume binding"
+                    )
                 if isinstance(source_binding, Mapping) and source_binding.get("derive") not in (
                     None,
                     "vwap_volume",
                 ):
-                    raise ConfigError("derived ADV source uses an unsupported derivation")
+                    raise ResearchConfigError("derived ADV source uses an unsupported derivation")
                 if isinstance(source_binding, str) and source_binding.startswith("table:"):
-                    raise ConfigError("derived ADV source must be a dollar_volume feed line")
+                    raise ResearchConfigError(
+                        "derived ADV source must be a dollar_volume feed line"
+                    )
                 if isinstance(source_binding, Mapping) and source_binding.get("kind") == "direct":
                     selected = str(source_binding.get("source", "")).rsplit(":", 1)[-1]
                     if selected != "dollar_volume":
-                        raise ConfigError("derived ADV source binding must select dollar_volume")
+                        raise ResearchConfigError(
+                            "derived ADV source binding must select dollar_volume"
+                        )
         for alias, binding in frozen_fields.items():
             if isinstance(binding, Mapping) and binding.get("derive") == "vwap_volume":
                 if alias != "dollar_volume":
-                    raise ConfigError("vwap_volume derivation only defines dollar_volume")
+                    raise ResearchConfigError("vwap_volume derivation only defines dollar_volume")
                 if not {"vwap", "volume"}.issubset(set(declared_fields)):
-                    raise ConfigError("vwap_volume derivation requires vwap/volume formula fields")
+                    raise ResearchConfigError(
+                        "vwap_volume derivation requires vwap/volume formula fields"
+                    )
                 if "vwap" not in frozen_fields or "volume" not in frozen_fields:
-                    raise ConfigError("vwap_volume derivation requires vwap/volume bindings")
+                    raise ResearchConfigError(
+                        "vwap_volume derivation requires vwap/volume bindings"
+                    )
         frozen_classifications: Dict[str, str] = {}
         for alias, binding in classification_bindings.items():
             _nonempty_string(alias, "classification alias")
             if alias not in declared_classifications and alias not in tuple(
                 getattr(indicator, "classification_levels", ())
             ):
-                raise ConfigError("classification binding %s is not declared by factor" % alias)
+                raise ResearchConfigError(
+                    "classification binding %s is not declared by factor" % alias
+                )
             classification_source = _nonempty_string(binding, "classification binding")
             if classification_source.startswith("feed:"):
-                raise ConfigError(
+                raise ResearchConfigError(
                     "classification bindings require a named PIT table with taxonomy metadata"
                 )
             if classification_source.startswith("table:"):
                 parts = classification_source.split(":")
                 if len(parts) != 2 or not parts[1]:
-                    raise ConfigError("classification table bindings must use table:<name>")
+                    raise ResearchConfigError("classification table bindings must use table:<name>")
             elif ":" in classification_source:
-                raise ConfigError("classification bindings must use a named table")
+                raise ResearchConfigError("classification bindings must use a named table")
             # A bare non-empty name is an explicit ResearchSpec classification
             # table key. FactorStrategy resolves it against that named mapping.
             frozen_classifications[alias] = classification_source
@@ -323,7 +341,7 @@ class FactorSpec:
     @classmethod
     def from_mapping(cls, name: str, value: Mapping[str, Any]) -> "FactorSpec":
         if not isinstance(value, Mapping):
-            raise ConfigError("factor %s must be a FactorSpec or mapping" % name)
+            raise ResearchConfigError("factor %s must be a FactorSpec or mapping" % name)
         fields = set(value)
         allowed = {
             "name",
@@ -337,14 +355,14 @@ class FactorSpec:
         }
         unknown = fields - allowed
         if unknown:
-            raise ConfigError("unsupported FactorSpec fields: %s" % sorted(unknown))
+            raise ResearchConfigError("unsupported FactorSpec fields: %s" % sorted(unknown))
         if "indicator" not in value:
-            raise ConfigError("factor %s requires indicator" % name)
+            raise ResearchConfigError("factor %s requires indicator" % name)
         if "panel_line" not in value:
-            raise ConfigError("factor %s requires panel_line" % name)
+            raise ResearchConfigError("factor %s requires panel_line" % name)
         declared_name = value.get("name", name)
         if declared_name != name:
-            raise ConfigError("factor mapping key must match FactorSpec.name")
+            raise ResearchConfigError("factor mapping key must match FactorSpec.name")
         return cls(
             name=name,
             indicator=value["indicator"],
@@ -389,20 +407,22 @@ def normalize_factor_specs(
             elif isinstance(item, (tuple, list)) and len(item) == 2:
                 items.append((item[0], item[1]))
             else:
-                raise ConfigError("factors must contain FactorSpec objects or name/value pairs")
+                raise ResearchConfigError(
+                    "factors must contain FactorSpec objects or name/value pairs"
+                )
     else:
-        raise ConfigError("factors must be a non-empty mapping or sequence")
+        raise ResearchConfigError("factors must be a non-empty mapping or sequence")
     if not items:
-        raise ConfigError("at least one factor is required")
+        raise ResearchConfigError("at least one factor is required")
 
     result: Dict[str, FactorSpec] = {}
     for name, value in items:
         _nonempty_string(name, "factor mapping key")
         if name in result:
-            raise ConfigError("duplicate factor name: %s" % name)
+            raise ResearchConfigError("duplicate factor name: %s" % name)
         if isinstance(value, FactorSpec):
             if value.name != name:
-                raise ConfigError("factor mapping key must match FactorSpec.name")
+                raise ResearchConfigError("factor mapping key must match FactorSpec.name")
             result[name] = value
         else:
             result[name] = FactorSpec.from_mapping(name, value)
@@ -414,38 +434,40 @@ def _timestamp(value: Any, field_name: str, pd: Any) -> Any:
         try:
             stamp = pd.Timestamp(value)
         except (TypeError, ValueError) as exc:
-            raise ConfigError("%s must be an ISO8601 timestamp" % field_name) from exc
+            raise ResearchConfigError("%s must be an ISO8601 timestamp" % field_name) from exc
     elif isinstance(value, datetime):
         stamp = pd.Timestamp(value)
     else:
-        raise ConfigError("%s must be a timezone-aware Timestamp or ISO8601 string" % field_name)
+        raise ResearchConfigError(
+            "%s must be a timezone-aware Timestamp or ISO8601 string" % field_name
+        )
     if stamp.tzinfo is None or stamp.utcoffset() is None:
-        raise ConfigError("%s must include a timezone" % field_name)
+        raise ResearchConfigError("%s must include a timezone" % field_name)
     return stamp.tz_convert("UTC")
 
 
 def _utc_index(index: Any, field_name: str, pd: Any) -> Any:
     if not isinstance(index, pd.DatetimeIndex):
-        raise ConfigError("%s must be a DatetimeIndex" % field_name)
+        raise ResearchConfigError("%s must be a DatetimeIndex" % field_name)
     if index.tz is None:
-        raise ConfigError("%s must be timezone-aware UTC" % field_name)
+        raise ResearchConfigError("%s must be timezone-aware UTC" % field_name)
     try:
         converted = index.tz_convert("UTC")
     except (TypeError, ValueError) as exc:
-        raise ConfigError("%s must use UTC timestamps" % field_name) from exc
+        raise ResearchConfigError("%s must use UTC timestamps" % field_name) from exc
     if any(stamp.utcoffset() != timedelta(0) for stamp in index.to_pydatetime()):
-        raise ConfigError("%s must use UTC (zero offset)" % field_name)
+        raise ResearchConfigError("%s must use UTC (zero offset)" % field_name)
     return converted
 
 
 def _copy_input_table(name: str, table: Any, pd: Any, *, classification: bool) -> Any:
     if not isinstance(table, pd.DataFrame):
-        raise ConfigError("input %s must be a pandas DataFrame" % name)
+        raise ResearchConfigError("input %s must be a pandas DataFrame" % name)
     if not isinstance(table.index, pd.MultiIndex) or tuple(table.index.names) != (
         "time",
         "asset",
     ):
-        raise ConfigError("input %s index must be named (time, asset)" % name)
+        raise ResearchConfigError("input %s index must be named (time, asset)" % name)
     if not table.index.is_unique:
         raise DatasetError("input %s contains duplicate (time, asset) keys" % name)
     if classification:
@@ -514,69 +536,69 @@ class ResearchSpec:
         **unsupported: Any,
     ) -> None:
         if unsupported:
-            raise ConfigError("unsupported ResearchSpec fields: %s" % sorted(unsupported))
+            raise ResearchConfigError("unsupported ResearchSpec fields: %s" % sorted(unsupported))
         pd = require_research_runtime()
         if not isinstance(grid, pd.DataFrame):
-            raise ConfigError("grid must be a pandas DataFrame")
+            raise ResearchConfigError("grid must be a pandas DataFrame")
         grid_copy = grid.copy(deep=True)
         if (
             not isinstance(grid_copy.index, pd.DatetimeIndex)
             or grid_copy.index.name != "close_time"
         ):
-            raise ConfigError("grid index must be a DatetimeIndex named 'close_time'")
+            raise ResearchConfigError("grid index must be a DatetimeIndex named 'close_time'")
         index = _utc_index(grid_copy.index, "grid index", pd)
         if not index.is_unique or not index.is_monotonic_increasing:
-            raise ConfigError("grid close_time must be unique and strictly increasing")
+            raise ResearchConfigError("grid close_time must be unique and strictly increasing")
         grid_copy.index = index
         if "open_time" not in grid_copy.columns:
-            raise ConfigError("grid requires an open_time column")
+            raise ResearchConfigError("grid requires an open_time column")
         open_times = pd.DatetimeIndex(pd.to_datetime(grid_copy["open_time"], errors="coerce"))
         if open_times.isna().any() or open_times.tz is None:
-            raise ConfigError("grid open_time values must be timezone-aware UTC datetimes")
+            raise ResearchConfigError("grid open_time values must be timezone-aware UTC datetimes")
         open_times_utc = _utc_index(open_times, "grid open_time", pd)
         if any(open_time > close_time for open_time, close_time in zip(open_times_utc, index)):
-            raise ConfigError("grid open_time must not follow its close_time")
+            raise ResearchConfigError("grid open_time must not follow its close_time")
         grid_copy["open_time"] = open_times_utc
 
         start_utc = _timestamp(start, "start", pd)
         end_utc = _timestamp(end, "end", pd)
         if start_utc > end_utc:
-            raise ConfigError("start must not follow end")
+            raise ResearchConfigError("start must not follow end")
         if start_utc not in index or end_utc not in index:
-            raise ConfigError("start and end must be exact grid close_time endpoints")
+            raise ResearchConfigError("start and end must be exact grid close_time endpoints")
 
         if not isinstance(targets, (tuple, list)) or not targets:
-            raise ConfigError("targets must be a non-empty tuple/list of asset names")
+            raise ResearchConfigError("targets must be a non-empty tuple/list of asset names")
         normalized_targets = tuple(_nonempty_string(value, "target") for value in targets)
         if len(set(normalized_targets)) != len(normalized_targets):
-            raise ConfigError("target names must be unique")
+            raise ResearchConfigError("target names must be unique")
         source_timezone = _nonempty_string(source_timezone, "source_timezone")
         try:
             from zoneinfo import ZoneInfo
 
             ZoneInfo(source_timezone)
         except (ImportError, KeyError, ValueError) as exc:
-            raise ConfigError("source_timezone must be a valid IANA timezone") from exc
+            raise ResearchConfigError("source_timezone must be a valid IANA timezone") from exc
 
         snapshot_id = _nonempty_string(snapshot_id, "snapshot_id")
         price_basis = _nonempty_string(price_basis, "price_basis")
         if price_basis.strip().lower() in {"default", "unknown", "unspecified"}:
-            raise ConfigError("price_basis must describe an explicit price convention")
+            raise ResearchConfigError("price_basis must describe an explicit price convention")
         calendar_id = _nonempty_string(calendar_id, "calendar_id")
         frequency = _nonempty_string(frequency, "frequency")
         if feed_time_kind != "close_time":
-            raise ConfigError("feed_time_kind currently supports only 'close_time'")
+            raise ResearchConfigError("feed_time_kind currently supports only 'close_time'")
 
         if groups is None:
             normalized_groups = dict.fromkeys(normalized_targets, "default")
         elif isinstance(groups, Mapping):
             if set(groups) != set(normalized_targets):
-                raise ConfigError("groups must cover exactly all target assets")
+                raise ResearchConfigError("groups must cover exactly all target assets")
             normalized_groups = {
                 asset: _nonempty_string(groups[asset], "group") for asset in normalized_targets
             }
         else:
-            raise ConfigError("groups must be an asset-to-group mapping")
+            raise ResearchConfigError("groups must be an asset-to-group mapping")
 
         study_index = index[(index >= start_utc) & (index <= end_utc)]
         formula_index = index[index <= end_utc]
@@ -608,7 +630,7 @@ class ResearchSpec:
         if classifications is None:
             classifications = {}
         if not isinstance(formula_fields, Mapping) or not isinstance(classifications, Mapping):
-            raise ConfigError("formula_fields and classifications must be mappings")
+            raise ResearchConfigError("formula_fields and classifications must be mappings")
         normalized_fields = {
             _nonempty_string(name, "formula field name"): _copy_input_table(
                 name, table, pd, classification=False
@@ -652,13 +674,15 @@ class ResearchSpec:
         if value is None:
             return pd.Series(True, index=expected_index, dtype=bool, name=field_name)
         if not isinstance(value, pd.Series):
-            raise ConfigError("%s must be a boolean Series indexed by (time, asset)" % field_name)
+            raise ResearchConfigError(
+                "%s must be a boolean Series indexed by (time, asset)" % field_name
+            )
         result = value.copy(deep=True)
         if not isinstance(result.index, pd.MultiIndex) or tuple(result.index.names) != (
             "time",
             "asset",
         ):
-            raise ConfigError("%s index must be named (time, asset)" % field_name)
+            raise ResearchConfigError("%s index must be named (time, asset)" % field_name)
         if not result.index.is_unique:
             raise DatasetError(
                 "%s contains duplicate keys" % field_name,

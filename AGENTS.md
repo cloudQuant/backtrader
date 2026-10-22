@@ -416,6 +416,14 @@ assembles and collects outputs without manually advancing factors or placing
 orders. Ordinary Indicators remain usable as factor children. Research rejects
 the old `execution` selector and unsupported live/replay/mixed-clock inputs.
 
+Research exceptions and `FactorComputationContext` are defined only in
+`backtrader/errors.py`; there is no `research/errors.py` module. `ResearchError`
+derives from `BacktraderError`. `ResearchConfigError` retains the research
+`code`/immutable `report` contract and `ValueError` compatibility, while the
+framework's `ConfigError` remains a separate category. `backtrader.research`
+re-exports the research exceptions and keeps `ConfigError` as an alias of
+`ResearchConfigError`. New direct exception imports use `backtrader.errors`.
+
 Collection and save/load work without fincore. Evaluation lazily calls the
 separately developed fincore public research API; do not duplicate its IC,
 labels, signal-combination or reporting algorithms in Backtrader. The native

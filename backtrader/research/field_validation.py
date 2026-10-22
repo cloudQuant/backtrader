@@ -14,8 +14,7 @@ from copy import deepcopy
 from collections.abc import Mapping, Sequence
 from typing import Any, Iterable, NoReturn, Optional, Set, Tuple, cast
 
-from .errors import ConfigError, DatasetError
-
+from ..errors import ResearchConfigError, DatasetError
 
 _FEED_ALIGNMENT = "_factor_research_alignment_v1"
 _ADV_NAME = re.compile(r"adv([0-9]+)\Z")
@@ -55,7 +54,7 @@ def validate_factor_field_metadata(
         if adv_match:
             window = int(adv_match.group(1))
             if window < 1:
-                raise ConfigError("ADV field names must declare a positive window")
+                raise ResearchConfigError("ADV field names must declare a positive window")
             if isinstance(binding, Mapping) and binding.get("derive") == "adv":
                 source_alias = binding.get("source")
                 source_binding = field_bindings.get(source_alias)
@@ -127,7 +126,7 @@ def collect_bound_feed_tables(
     all_targets = tuple(target_datas)
     target_names = tuple(getattr(research, "targets", ()))
     if len(target_names) != len(all_targets):
-        raise ConfigError("target feeds must match ResearchSpec.targets order")
+        raise ResearchConfigError("target feeds must match ResearchSpec.targets order")
 
     full_grid = getattr(research, "grid", None)
     calculation_grid = getattr(research, "calculation_grid", None)
@@ -138,12 +137,12 @@ def collect_bound_feed_tables(
         grid_frame = calculation_grid
         full_grid_requested = False
     else:
-        raise ConfigError("research must expose a calculation_grid or grid DataFrame")
+        raise ResearchConfigError("research must expose a calculation_grid or grid DataFrame")
     grid = _utc_index(grid_frame.index, research, pd, "source grid")
     grid_positions = {point: index for index, point in enumerate(grid)}
     fallback = observed_feed_inputs or {}
     if not isinstance(fallback, Mapping):
-        raise ConfigError("observed_feed_inputs must be a canonical-binding mapping")
+        raise ResearchConfigError("observed_feed_inputs must be a canonical-binding mapping")
 
     bindings = _explicit_feed_bindings(specs)
     output: dict = {}
@@ -288,7 +287,9 @@ def _explicit_feed_bindings(specs: Any) -> set:
         try:
             iterable = iter(specs)
         except TypeError as exc:
-            raise ConfigError("specs must be FactorSpecs or a mapping of FactorSpecs") from exc
+            raise ResearchConfigError(
+                "specs must be FactorSpecs or a mapping of FactorSpecs"
+            ) from exc
     sources: Set[str] = set()
     for spec in iterable:
         field_bindings = getattr(spec, "field_bindings", None)
@@ -327,7 +328,7 @@ def _expand_binding_sources(
 def _parse_feed_binding(binding: str) -> Tuple[str, str]:
     parts = binding.split(":")
     if len(parts) != 3 or parts[0] != "feed" or not parts[1] or not parts[2]:
-        raise ConfigError("feed bindings must use 'feed:<name>:<line>'")
+        raise ResearchConfigError("feed bindings must use 'feed:<name>:<line>'")
     return parts[1], parts[2]
 
 
@@ -537,7 +538,7 @@ def _collect_observed_rows(
     elif isinstance(observed, Mapping):
         items = observed.items()
     else:
-        raise ConfigError("observed feed fallback values must be a DataFrame or mapping")
+        raise ResearchConfigError("observed feed fallback values must be a DataFrame or mapping")
 
     output = []
     for key, record in items:
@@ -546,14 +547,14 @@ def _collect_observed_rows(
             values = record
         else:
             if not isinstance(key, tuple) or len(key) != 2:
-                raise ConfigError("observed feed keys must be (time, asset) pairs")
+                raise ResearchConfigError("observed feed keys must be (time, asset) pairs")
             time, row_asset = key
             values = record
         point = _utc_timestamp(time, research.source_timezone, pd, binding)
         if point not in grid_positions or row_asset != asset:
             continue
         if not isinstance(values, Mapping) and not hasattr(values, "get"):
-            raise ConfigError("observed feed records must expose value/PIT fields")
+            raise ResearchConfigError("observed feed records must expose value/PIT fields")
         value = values.get("value")
         available_at = values.get("available_at")
         version = values.get("data_version")
@@ -662,17 +663,21 @@ def _validate_direct_adv(
             _missing_metadata(factor_name, alias, ("window",))
         metadata_window = record.get("window")
         if type(metadata_window) is not int or metadata_window != window:
-            raise ConfigError("direct %s metadata window must match its field name" % alias)
+            raise ResearchConfigError("direct %s metadata window must match its field name" % alias)
         if "complete_window" not in record:
             _missing_metadata(factor_name, alias, ("complete_window",))
         if record.get("complete_window") is not True:
-            raise ConfigError("direct %s metadata must declare complete_window=True" % alias)
+            raise ResearchConfigError(
+                "direct %s metadata must declare complete_window=True" % alias
+            )
         _require_text(alias, record, "source_version", factor_name=factor_name)
         if "provenance_source_lookback_grid_bars" not in record:
             _missing_metadata(factor_name, alias, ("provenance_source_lookback_grid_bars",))
         source_span = record.get("provenance_source_lookback_grid_bars")
         if type(source_span) is not int or source_span != window - 1:
-            raise ConfigError("direct %s provenance span must be window-1 grid bars" % alias)
+            raise ResearchConfigError(
+                "direct %s provenance span must be window-1 grid bars" % alias
+            )
         _require_pit_columns(
             alias,
             frame,
@@ -704,11 +709,11 @@ def _validate_dollar_volume_source(
 
     if isinstance(binding, Mapping) and binding.get("derive") == "vwap_volume":
         if set(binding) != {"derive", "vwap", "volume"}:
-            raise ConfigError("vwap_volume requires derive/vwap/volume only")
+            raise ResearchConfigError("vwap_volume requires derive/vwap/volume only")
         vwap_alias = binding.get("vwap")
         volume_alias = binding.get("volume")
         if not isinstance(vwap_alias, str) or not isinstance(volume_alias, str):
-            raise ConfigError("vwap_volume source aliases must be strings")
+            raise ResearchConfigError("vwap_volume source aliases must be strings")
         vwap_records = _records_for_binding(
             vwap_alias,
             field_bindings.get(vwap_alias),
@@ -726,7 +731,7 @@ def _validate_dollar_volume_source(
             factor_name=factor_name,
         )
         if len(vwap_records) != len(volume_records):
-            raise ConfigError("vwap_volume inputs must resolve to the same source count")
+            raise ResearchConfigError("vwap_volume inputs must resolve to the same source count")
         for (vwap, vwap_frame, vwap_kind, vwap_feed), (
             volume,
             volume_frame,
@@ -777,7 +782,7 @@ def _validate_dollar_volume_source(
                 volume_alias, volume, "adjustment", factor_name=factor_name
             )
             if volume_adjustment != adjustment:
-                raise ConfigError("vwap and volume adjustment metadata must match")
+                raise ResearchConfigError("vwap and volume adjustment metadata must match")
             _require_pit_columns(
                 vwap_alias,
                 vwap_frame,
@@ -846,7 +851,7 @@ def _records_for_binding(
 ) -> Tuple[Tuple[Mapping[str, Any], Any, str, Any], ...]:
     source = _direct_source(binding)
     if not isinstance(source, str):
-        raise ConfigError("%s requires a direct source binding" % alias)
+        raise ResearchConfigError("%s requires a direct source binding" % alias)
     if source.startswith("table:"):
         table_name = source.split(":", 1)[1]
         frame = formula_fields.get(table_name)
@@ -859,10 +864,10 @@ def _records_for_binding(
         metadata = _metadata_record(frame, alias, field_name=None, factor_name=factor_name)
         return ((metadata, frame, "table", None),)
     if not source.startswith("feed:"):
-        raise ConfigError("%s source must use a qualified feed or table binding" % alias)
+        raise ResearchConfigError("%s source must use a qualified feed or table binding" % alias)
     pieces = source.split(":")
     if len(pieces) != 3 or not pieces[1] or not pieces[2]:
-        raise ConfigError("feed binding must use 'feed:<name>:<line>'")
+        raise ResearchConfigError("feed binding must use 'feed:<name>:<line>'")
     feed_name, line_name = pieces[1], pieces[2]
     if feed_name == "target":
         feeds = target_datas
@@ -1007,7 +1012,7 @@ def _require_equal(
     else:
         compatible = type(actual) is type(expected) and actual == expected
     if not compatible:
-        raise ConfigError("%s source metadata %s is incompatible" % (alias, key))
+        raise ResearchConfigError("%s source metadata %s is incompatible" % (alias, key))
 
 
 def _require_text(
@@ -1021,7 +1026,7 @@ def _require_text(
     if not isinstance(value, str) or not value.strip():
         if key not in metadata:
             _missing_metadata(factor_name, alias, (key,))
-        raise ConfigError("%s source metadata %s must be a non-empty string" % (alias, key))
+        raise ResearchConfigError("%s source metadata %s must be a non-empty string" % (alias, key))
     return value.strip()
 
 

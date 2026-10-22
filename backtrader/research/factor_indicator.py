@@ -10,7 +10,7 @@ from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple, cast
 from .. import Indicator
 from ..indicators import SMA
 from ..utils import date2num, num2date
-from .errors import ConfigError, FactorComputationContext
+from ..errors import ResearchConfigError, FactorComputationContext
 
 
 class _OutputLines:
@@ -229,14 +229,14 @@ class FactorIndicator(Indicator):
         targets = tuple(output_datas)
         names = tuple(asset_names)
         if not targets or len(targets) != len(names) or len(set(names)) != len(names):
-            raise ConfigError("factor output targets and unique asset names are required")
+            raise ResearchConfigError("factor output targets and unique asset names are required")
         input_data_ids = {id(data) for data in datas}
         if any(id(data) not in input_data_ids for data in targets):
-            raise ConfigError("factor output targets must be native indicator inputs")
+            raise ResearchConfigError("factor output targets must be native indicator inputs")
         if not isinstance(field_bindings, Mapping) or not isinstance(
             classification_bindings, Mapping
         ):
-            raise ConfigError("factor input bindings must be mappings")
+            raise ResearchConfigError("factor input bindings must be mappings")
 
         templates = cls._factor_template_names()
         output_names = tuple(
@@ -468,10 +468,10 @@ class FactorIndicator(Indicator):
             return self._field_line_cache[alias]
         declared = tuple(getattr(self.__class__, "formula_fields", ()))
         if alias not in declared:
-            raise ConfigError("factor did not declare formula field %s" % alias)
+            raise ResearchConfigError("factor did not declare formula field %s" % alias)
         binding = self._factor_runtime.get("field_bindings", {}).get(alias)
         if binding is None:
-            raise ConfigError("factor field %s has no explicit binding" % alias)
+            raise ResearchConfigError("factor field %s has no explicit binding" % alias)
         lines = self._resolve_bound_lines(alias, binding, classification=False, stack=())
         self._bind_input_metadata_alias(alias, binding, classification=False)
         self._field_line_cache[alias] = lines
@@ -482,7 +482,7 @@ class FactorIndicator(Indicator):
         lines = self.field_lines(alias)
         index = self._factor_target_index_by_id.get(id(data))
         if index is None:
-            raise ConfigError("field access requires a factor target feed")
+            raise ResearchConfigError("field access requires a factor target feed")
         return lines[index]
 
     def classification_lines(self, alias: str) -> Tuple[Any, ...]:
@@ -492,14 +492,16 @@ class FactorIndicator(Indicator):
         declared = tuple(getattr(self.__class__, "classification_fields", ()))
         levels = tuple(getattr(self.__class__, "classification_levels", ()))
         if alias not in declared and alias not in levels:
-            raise ConfigError("factor did not declare classification field %s" % alias)
+            raise ResearchConfigError("factor did not declare classification field %s" % alias)
         binding = self._factor_runtime.get("classification_bindings", {}).get(alias)
         if binding is None:
-            raise ConfigError("classification %s has no explicit binding" % alias)
+            raise ResearchConfigError("classification %s has no explicit binding" % alias)
         if ":" not in binding:
             research = self._factor_runtime.get("research")
             if research is None or binding not in research.classifications:
-                raise ConfigError("classification binding is not a named ResearchSpec table")
+                raise ResearchConfigError(
+                    "classification binding is not a named ResearchSpec table"
+                )
             binding = "table:" + binding
         lines = self._resolve_bound_lines(alias, binding, classification=True, stack=())
         self._bind_input_metadata_alias(alias, binding, classification=True)
@@ -538,7 +540,7 @@ class FactorIndicator(Indicator):
             return
         if binding.startswith("feed:"):
             if classification:
-                raise ConfigError(
+                raise ResearchConfigError(
                     "classification bindings require a named PIT table with taxonomy metadata"
                 )
             pieces = binding.split(":")
@@ -717,7 +719,7 @@ class FactorIndicator(Indicator):
         stack: Tuple[str, ...],
     ) -> Tuple[Any, ...]:
         if alias in stack:
-            raise ConfigError("cyclic factor field binding: %s" % alias)
+            raise ResearchConfigError("cyclic factor field binding: %s" % alias)
         if isinstance(binding, Mapping):
             kind = binding.get("derive")
             if kind == "adv":
@@ -733,7 +735,9 @@ class FactorIndicator(Indicator):
                     or not isinstance(source, str)
                     or not source
                 ):
-                    raise ConfigError("derived ADV binding must match alias advN and window N")
+                    raise ResearchConfigError(
+                        "derived ADV binding must match alias advN and window N"
+                    )
                 source_lines = self._resolve_bound_lines(
                     source,
                     self._factor_runtime.get("field_bindings", {}).get(source),
@@ -750,11 +754,11 @@ class FactorIndicator(Indicator):
                 return result
             if kind == "vwap_volume":
                 if alias != "dollar_volume":
-                    raise ConfigError("vwap_volume derivation only defines dollar_volume")
+                    raise ResearchConfigError("vwap_volume derivation only defines dollar_volume")
                 vwap_alias = binding.get("vwap")
                 volume_alias = binding.get("volume")
                 if not isinstance(vwap_alias, str) or not isinstance(volume_alias, str):
-                    raise ConfigError("vwap_volume source aliases must be strings")
+                    raise ResearchConfigError("vwap_volume source aliases must be strings")
                 vwap_lines = self._resolve_bound_lines(
                     vwap_alias,
                     self._factor_runtime.get("field_bindings", {}).get(vwap_alias),
@@ -768,7 +772,7 @@ class FactorIndicator(Indicator):
                     stack=stack + (alias,),
                 )
                 if len(vwap_lines) != len(volume_lines):
-                    raise ConfigError("vwap and volume sources must align per target")
+                    raise ResearchConfigError("vwap and volume sources must align per target")
                 return tuple(
                     self._mark_target_local_line(vwap * volume, target, (vwap, volume))
                     for target, vwap, volume in zip(
@@ -778,9 +782,9 @@ class FactorIndicator(Indicator):
             if binding.get("kind") == "direct":
                 binding = binding.get("source")
             else:
-                raise ConfigError("unknown field binding descriptor")
+                raise ResearchConfigError("unknown field binding descriptor")
         if not isinstance(binding, str):
-            raise ConfigError("field %s has no explicit binding" % alias)
+            raise ResearchConfigError("field %s has no explicit binding" % alias)
         if binding.startswith("table:"):
             return self._table_lines(
                 binding.split(":", 1)[1],
@@ -790,50 +794,58 @@ class FactorIndicator(Indicator):
         if binding.startswith("feed:"):
             pieces = binding.split(":")
             if len(pieces) != 3 or not pieces[1] or not pieces[2]:
-                raise ConfigError("feed bindings must use feed:<name>:<line>")
+                raise ResearchConfigError("feed bindings must use feed:<name>:<line>")
             feed_name, line_name = pieces[1], pieces[2]
             if feed_name == "target":
                 try:
                     return tuple(getattr(data, line_name) for data in self._factor_target_datas)
                 except AttributeError as exc:
-                    raise ConfigError("target feed is missing a required formula line") from exc
+                    raise ResearchConfigError(
+                        "target feed is missing a required formula line"
+                    ) from exc
             if feed_name == "target":
                 try:
                     return tuple(getattr(data, line_name) for data in self._factor_target_datas)
                 except AttributeError as exc:
-                    raise ConfigError("target feed is missing a required formula line") from exc
+                    raise ResearchConfigError(
+                        "target feed is missing a required formula line"
+                    ) from exc
             named = {
                 getattr(data, "_name", ""): data
                 for data in self._factor_runtime.get("available_datas", self.datas)
                 if getattr(data, "_name", "") == feed_name
             }
             if feed_name not in named:
-                raise ConfigError("factor binding references an unknown named feed")
+                raise ResearchConfigError("factor binding references an unknown named feed")
             try:
                 line = getattr(named[feed_name], line_name)
             except AttributeError as exc:
-                raise ConfigError("named feed is missing a bound line") from exc
+                raise ResearchConfigError("named feed is missing a bound line") from exc
             bound_line = cast(Any, _FeedInputLine)(line).lines.value
             return (bound_line,) * len(self._factor_target_datas)
-        raise ConfigError("field %s requires an explicit feed: or table: binding" % alias)
+        raise ResearchConfigError("field %s requires an explicit feed: or table: binding" % alias)
 
     def _table_lines(
         self, name: str, *, classification: bool, expected_level: Optional[str] = None
     ) -> Tuple[Any, ...]:
         research = self._factor_runtime.get("research")
         if research is None:
-            raise ConfigError("table bindings require a ResearchSpec")
+            raise ResearchConfigError("table bindings require a ResearchSpec")
         tables = research.classifications if classification else research.formula_fields
         if name not in tables:
-            raise ConfigError("ResearchSpec has no bound input table %s" % name)
+            raise ResearchConfigError("ResearchSpec has no bound input table %s" % name)
         if classification:
             table = tables[name]
             declared_levels = tuple(getattr(self.__class__, "classification_levels", ()))
             if expected_level is None or expected_level not in declared_levels:
-                raise ConfigError("classification table requires an explicit declared level")
+                raise ResearchConfigError(
+                    "classification table requires an explicit declared level"
+                )
             table_levels = set(table["level"].dropna().tolist())
             if table_levels != {expected_level}:
-                raise ConfigError("classification table level does not match the factor binding")
+                raise ResearchConfigError(
+                    "classification table level does not match the factor binding"
+                )
         from .inputs import prealign_pit_table
 
         aligned = prealign_pit_table(tables[name], research, name, classification=classification)
@@ -849,11 +861,13 @@ class FactorIndicator(Indicator):
                 if value is None or _is_nan(value):
                     continue
                 if isinstance(value, str) and not value.strip():
-                    raise ConfigError("classification categories must be non-empty strings")
+                    raise ResearchConfigError("classification categories must be non-empty strings")
                 try:
                     known.add((type(value), value))
                 except TypeError as exc:
-                    raise ConfigError("classification categories must be hashable scalars") from exc
+                    raise ResearchConfigError(
+                        "classification categories must be hashable scalars"
+                    ) from exc
             ordered = sorted(
                 known,
                 key=lambda item: (
@@ -874,7 +888,9 @@ class FactorIndicator(Indicator):
                     for (time, asset), value in table_values.items()
                 }
             except (TypeError, ValueError, OverflowError) as exc:
-                raise ConfigError("formula input tables must expose numeric values") from exc
+                raise ResearchConfigError(
+                    "formula input tables must expose numeric values"
+                ) from exc
 
         grid = research.calculation_grid
         stamps = tuple(float(date2num(value.to_pydatetime())) for value in grid.index)
@@ -921,11 +937,11 @@ class FactorIndicator(Indicator):
         conservative reason when an implementation does not.
         """
         if data not in self.outputs or line not in self.outputs[data].keys():
-            raise ConfigError("availability must refer to an actual factor output")
+            raise ResearchConfigError("availability must refer to an actual factor output")
         if type(ready) is not bool or type(valid) is not bool or not isinstance(reason, str):
-            raise ConfigError("availability requires bool readiness and a reason string")
+            raise ResearchConfigError("availability requires bool readiness and a reason string")
         if valid and not ready:
-            raise ConfigError("a valid output must also be ready")
+            raise ResearchConfigError("a valid output must also be ready")
         point = num2date(float(data.datetime[0]), tz=timezone.utc, naive=False)
         self._factor_value_states[(point, id(data), line)] = {
             "time": point,

@@ -11,10 +11,9 @@ from typing import Any, Dict, List, Optional, Sequence, Tuple, cast
 
 from .. import Strategy
 from ..utils import num2date
-from .errors import ConfigError, DatasetError
+from ..errors import ResearchConfigError, DatasetError
 from .factor_indicator import FactorIndicator
 from .specs import FactorSpec, ResearchSpec, normalize_factor_specs, thaw
-
 
 _FEED_ALIGNMENT = "_factor_research_alignment_v1"
 
@@ -129,15 +128,15 @@ class FactorStrategy(Strategy):
     def __init__(self) -> None:
         self._research = self.p.research
         if not isinstance(self._research, ResearchSpec):
-            raise ConfigError("FactorStrategy requires research=ResearchSpec(...)")
+            raise ResearchConfigError("FactorStrategy requires research=ResearchSpec(...)")
         if not self.datas:
-            raise ConfigError("FactorStrategy requires named target data feeds")
+            raise ResearchConfigError("FactorStrategy requires named target data feeds")
 
         self._data_names = tuple(getattr(data, "_name", "") for data in self.datas)
         if any(not isinstance(name, str) or not name for name in self._data_names):
-            raise ConfigError("every FactorStrategy feed needs a non-empty Cerebro name")
+            raise ResearchConfigError("every FactorStrategy feed needs a non-empty Cerebro name")
         if len(set(self._data_names)) != len(self._data_names):
-            raise ConfigError("FactorStrategy feed names must be unique")
+            raise ResearchConfigError("FactorStrategy feed names must be unique")
         self._validate_clocks()
         target_data = dict(zip(self._data_names, self.datas))
         missing = set(self._research.targets) - set(target_data)
@@ -160,7 +159,7 @@ class FactorStrategy(Strategy):
         self._factor_instance_by_data: Dict[str, Dict[int, FactorIndicator]] = {}
         for name, spec in self._factor_specs_by_name.items():
             if spec.panel_line not in spec.indicator._factor_template_names():
-                raise ConfigError("factor %s selects an unknown panel_line" % name)
+                raise ResearchConfigError("factor %s selects an unknown panel_line" % name)
             declared_fields = tuple(getattr(spec.indicator, "formula_fields", ()))
             declared_classes = tuple(getattr(spec.indicator, "classification_fields", ()))
             missing_fields = set(declared_fields) - set(spec.field_bindings)
@@ -233,7 +232,7 @@ class FactorStrategy(Strategy):
     def _validate_clocks(self) -> None:
         cerebro = getattr(self, "env", None)
         if bool(getattr(cerebro, "_doreplay", False)) or bool(getattr(cerebro, "_dolive", False)):
-            raise ConfigError(
+            raise ResearchConfigError(
                 "FactorStrategy does not support live or replay Cerebro clocks",
                 code="UNSUPPORTED_CLOCK",
             )
@@ -241,12 +240,12 @@ class FactorStrategy(Strategy):
         for data in self.datas:
             live = getattr(data, "islive", None)
             if callable(live) and live():
-                raise ConfigError(
+                raise ResearchConfigError(
                     "FactorStrategy does not support live feed clocks",
                     code="UNSUPPORTED_CLOCK",
                 )
             if bool(getattr(data, "replaying", False)) or bool(getattr(data, "resampling", False)):
-                raise ConfigError(
+                raise ResearchConfigError(
                     "FactorStrategy does not support replay or resampled feed clocks",
                     code="UNSUPPORTED_CLOCK",
                 )
@@ -257,7 +256,7 @@ class FactorStrategy(Strategy):
                 )
             )
         if clocks and any(clock != clocks[0] for clock in clocks[1:]):
-            raise ConfigError(
+            raise ResearchConfigError(
                 "FactorStrategy requires one synchronized feed timeframe",
                 code="UNSUPPORTED_CLOCK",
             )
@@ -271,17 +270,17 @@ class FactorStrategy(Strategy):
                     if binding.get("derive") == "adv":
                         source_alias = binding.get("source")
                         if not isinstance(source_alias, str):
-                            raise ConfigError("derived ADV source alias must be a string")
+                            raise ResearchConfigError("derived ADV source alias must be a string")
                         source_value: Any = spec.field_bindings.get(source_alias, "")
                         if isinstance(source_value, Mapping):
                             if source_value.get("derive") not in ("vwap_volume", None):
-                                raise ConfigError("derived ADV source is not dollar_volume")
+                                raise ResearchConfigError("derived ADV source is not dollar_volume")
                         elif not str(source_value).endswith(":dollar_volume"):
-                            raise ConfigError("derived ADV source must bind dollar_volume")
+                            raise ResearchConfigError("derived ADV source must bind dollar_volume")
                     continue
                 source = binding.get("source", "")
             else:
-                raise ConfigError("factor field bindings must be qualified")
+                raise ResearchConfigError("factor field bindings must be qualified")
             if isinstance(source, str) and source.startswith("table:"):
                 table = source.split(":", 1)[1]
                 if table not in self._research.formula_fields:
@@ -299,7 +298,7 @@ class FactorStrategy(Strategy):
                         report={"factor": spec.name, "field": alias, "feed": parts[1]},
                     )
             else:
-                raise ConfigError("factor field binding must use a qualified feed or table")
+                raise ResearchConfigError("factor field binding must use a qualified feed or table")
         for alias, binding in spec.classification_bindings.items():
             if binding.startswith("table:"):
                 table = binding.split(":", 1)[1]
@@ -311,7 +310,7 @@ class FactorStrategy(Strategy):
                     )
                 self._validate_classification_level(spec, alias, table)
             elif binding.startswith("feed:"):
-                raise ConfigError(
+                raise ResearchConfigError(
                     "classification bindings require a named PIT table with taxonomy metadata"
                 )
             elif binding in self._research.classifications:
@@ -319,7 +318,9 @@ class FactorStrategy(Strategy):
                 # binding; it is never interpreted as a same-named feed line.
                 self._validate_classification_level(spec, alias, binding)
             else:
-                raise ConfigError("classification bindings require an explicit named PIT table")
+                raise ResearchConfigError(
+                    "classification bindings require an explicit named PIT table"
+                )
 
     def _validate_classification_level(self, spec: FactorSpec, alias: str, table_name: str) -> None:
         """Reject taxonomy-level mismatches before constructing an algorithm."""
@@ -334,7 +335,7 @@ class FactorStrategy(Strategy):
         elif alias in levels:
             expected = alias
         if expected is None:
-            raise ConfigError(
+            raise ResearchConfigError(
                 "factor %s has no unambiguous declared classification level for %s"
                 % (spec.name, alias)
             )
@@ -342,7 +343,7 @@ class FactorStrategy(Strategy):
         table = self._research.classifications[table_name]
         actual_levels = set(table["level"].dropna().tolist())
         if actual_levels != {expected}:
-            raise ConfigError(
+            raise ResearchConfigError(
                 "classification table level does not match the factor binding",
                 report={
                     "factor": spec.name,
@@ -647,7 +648,7 @@ class FactorStrategy(Strategy):
         )
         collisions = set(formula_inputs).intersection(bound_feed_tables)
         if collisions:
-            raise ConfigError(
+            raise ResearchConfigError(
                 "formula table names conflict with collected feed bindings",
                 report={"tables": tuple(sorted(collisions))},
             )

@@ -14,6 +14,8 @@
 - `ResearchDataset`：不可变快照、保存/加载及离线复评。
 - fincore：未来收益标签、方向和截面变换、固定权重组合、共同池/消融、IC/Rank IC/ICIR、分层、覆盖、换手、相关性和导出。
 
+研究异常统一定义在 `backtrader.errors`，直接导入使用 `from backtrader.errors import ResearchError, ResearchConfigError`。`ResearchError` 继承 `BacktraderError`，因此可以按研究领域或整个框架捕获异常；研究异常继续提供 `code` 和只读 `report`。`ResearchConfigError` 同时保留 `ValueError` 捕获行为，与框架通用的 `ConfigError` 分开。`backtrader.research.ConfigError` 是 `ResearchConfigError` 的同一对象别名；原 `backtrader.research.errors` 模块已移除。
+
 ## 写一个因子
 
 原生写法保留 `__init__`、`super()`、`self.p`、`self.datas` 和 `next()`。每个资产的输出是独立的 Backtrader 数值线，不能把整个截面的字典写进一条 float line。
@@ -98,7 +100,7 @@ dataset.save("research-data")
 
 输入缺格保持 NaN，不前填，也不删除后压缩时间。不同研究组分别进行公式截面计算；额外基准必须显式绑定，不自动变成输出资产。初版研究只处理同频、闭合的历史 bar，不支持 live、replay、tick 或混合频率。
 
-研究输入使用可检查原始表格的 `PandasData` 或 `prealign_bars`。CSV 数据先读为 DataFrame，再明确时间和列映射；直接传入 `GenericCSVData` 会得到 `ConfigError(code='UNSUPPORTED_SOURCE')`。这样可以在旧 Feed 加载逻辑处理数值前发现源数据中的无穷值，避免把它误当成合法的零。
+研究输入使用可检查原始表格的 `PandasData` 或 `prealign_bars`。CSV 数据先读为 DataFrame，再明确时间和列映射；直接传入 `GenericCSVData` 会得到 `ResearchConfigError(code='UNSUPPORTED_SOURCE')`。这样可以在旧 Feed 加载逻辑处理数值前发现源数据中的无穷值，避免把它误当成合法的零。
 
 ## 横截面与多个因子
 

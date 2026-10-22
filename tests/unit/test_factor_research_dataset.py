@@ -11,12 +11,12 @@ import pytest
 
 from backtrader.research.dataset import ResearchDataset
 from backtrader.research.specs import ResearchSpec
-from backtrader.research.errors import (
-    ConfigError,
+from backtrader.errors import (
     DataQualityError,
     DatasetError,
     DependencyError,
     FactorComputationError,
+    ResearchConfigError as ConfigError,
 )
 from backtrader.research import storage
 from backtrader.research.storage import load_dataset

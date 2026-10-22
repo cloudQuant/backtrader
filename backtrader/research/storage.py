@@ -13,8 +13,7 @@ import tempfile
 from pathlib import Path, PurePosixPath
 from typing import Any, Dict, List, Mapping, Sequence, Tuple
 
-from .errors import DatasetError, DependencyError
-
+from ..errors import DatasetError, DependencyError
 
 SCHEMA_VERSION = 1
 _MISSING = ""

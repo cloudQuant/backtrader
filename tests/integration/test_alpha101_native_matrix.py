@@ -15,7 +15,7 @@ import pandas as pd
 import pytest
 
 import backtrader as bt
-from backtrader.research.errors import DatasetError
+from backtrader.errors import DatasetError
 from backtrader.research.factor_indicator import FactorIndicator
 from backtrader.research.factor_strategy import FactorStrategy
 from backtrader.research.specs import FactorSpec

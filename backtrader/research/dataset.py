@@ -13,8 +13,7 @@ from collections.abc import Mapping
 from datetime import date, datetime, timezone
 from typing import Any, Dict, Optional, Tuple
 
-from .errors import DatasetError, DependencyError
-
+from ..errors import DatasetError, DependencyError
 
 _REQUIRED_PYTHON = (3, 11)
 _AVAILABILITY_COLUMNS = ("ready", "valid", "reason")

@@ -7,7 +7,7 @@ import pytest
 
 import backtrader.research.operators as alpha_operators
 from backtrader.research.alpha101._helpers import panel, per_asset
-from backtrader.research.errors import FactorComputationError
+from backtrader.errors import FactorComputationError
 from backtrader.research.factor_indicator import FactorIndicator
 from backtrader.research.operators import (
     Add,

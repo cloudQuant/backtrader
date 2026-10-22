@@ -192,14 +192,14 @@ def validate_bound_feed_source(context, feed, field_name, phase="construct"):
 
 def _raise_unsupported_source(context, feed, field_name, phase, reason) -> NoReturn:
     """Reject strict factor inputs whose pre-sanitized source is unavailable."""
-    from .errors import ConfigError
+    from ..errors import ResearchConfigError
 
     asset = None
     try:
         asset = context.asset_for(feed)
     except (AttributeError, TypeError, ValueError):
         pass
-    raise ConfigError(
+    raise ResearchConfigError(
         "strict research requires an inspectable tabular source for bound feed fields",
         code="UNSUPPORTED_SOURCE",
         report={

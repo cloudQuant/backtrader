@@ -9,7 +9,7 @@ import pandas as pd
 import pytest
 
 import backtrader as bt
-from backtrader.research.errors import ConfigError
+from backtrader.errors import ResearchConfigError as ConfigError
 from backtrader.research.factor_indicator import FactorIndicator
 from backtrader.research.factor_strategy import FactorStrategy
 from backtrader.research.inputs import prealign_bars

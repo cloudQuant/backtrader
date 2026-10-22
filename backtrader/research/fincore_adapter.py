@@ -14,14 +14,13 @@ import sys
 from collections.abc import Mapping
 from typing import Any, Dict, cast
 
-from .errors import (
-    ConfigError,
+from ..errors import (
+    ResearchConfigError,
     DataQualityError,
     DatasetError,
     DependencyError,
     FactorComputationError,
 )
-
 
 _RESEARCH_MODULE = "fincore.factor_analysis.research"
 _REQUIRED_CAPABILITIES = {
@@ -167,7 +166,7 @@ def _spec_mapping(spec: Any) -> Dict[str, Any]:
         return dict(spec)
     if dataclasses.is_dataclass(spec) and not isinstance(spec, type):
         return {field.name: getattr(spec, field.name) for field in dataclasses.fields(spec)}
-    raise ConfigError(
+    raise ResearchConfigError(
         "evaluation spec must be a mapping or immutable public spec",
         code="INVALID_CONFIG",
     )
@@ -224,7 +223,7 @@ def _normalized_spec(module: Any, dataset: Any, spec: Any) -> Any:
     values.update(supplied)
     explicit = values.get("direction_overrides") or {}
     if not isinstance(explicit, Mapping):
-        raise ConfigError(
+        raise ResearchConfigError(
             "direction_overrides must be a mapping",
             code="INVALID_CONFIG",
         )
@@ -235,7 +234,7 @@ def _normalized_spec(module: Any, dataset: Any, spec: Any) -> Any:
     try:
         return module.normalize_research_evaluation_spec(values)
     except module.ConfigError as exc:
-        raise ConfigError(
+        raise ResearchConfigError(
             str(exc),
             code=getattr(exc, "code", "INVALID_CONFIG"),
             report=getattr(exc, "report", None),
@@ -291,7 +290,7 @@ def _translate_known_error(module: Any, exc: BaseException) -> BaseException:
     if config_cls is not None and isinstance(exc, config_cls):
         return cast(
             BaseException,
-            ConfigError(
+            ResearchConfigError(
                 str(exc),
                 code=getattr(exc, "code", "INVALID_CONFIG"),
                 report=getattr(exc, "report", None),
@@ -347,7 +346,7 @@ def evaluate_dataset(dataset: Any, spec: Any = None, **kwargs: Any) -> Any:
     is no implicit precedence rule between duplicate configuration sources.
     """
     if spec is not None and kwargs:
-        raise ConfigError(
+        raise ResearchConfigError(
             "pass either spec or evaluation keyword arguments, not both",
             code="INVALID_CONFIG",
         )

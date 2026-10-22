@@ -5,15 +5,16 @@ performed when a ResearchSpec or ResearchDataset is constructed.
 """
 
 from .dataset import ResearchDataset
-from .errors import (
-    ConfigError,
+from ..errors import (
     DataQualityError,
     DatasetError,
     DependencyError,
     FactorComputationContext,
     FactorComputationError,
+    ResearchConfigError,
     ResearchError,
 )
+
 from .factor_indicator import FactorIndicator
 from .factor_strategy import FactorStrategy
 from .inputs import AlignedBars, AlignedPITInput, prealign_bars, prealign_pit_table
@@ -22,10 +23,13 @@ from .storage import load_dataset, save_dataset
 from .fincore_adapter import evaluate_dataset
 
 
+ConfigError = ResearchConfigError
+
 __all__ = (
     "AlignedBars",
     "AlignedPITInput",
     "ConfigError",
+    "ResearchConfigError",
     "DataQualityError",
     "DatasetError",
     "DependencyError",

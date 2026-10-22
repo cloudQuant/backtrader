@@ -15,7 +15,7 @@ import pytest
 
 import backtrader as bt
 from backtrader.research.alpha101 import get_alpha
-from backtrader.research.errors import DatasetError
+from backtrader.errors import DatasetError
 from backtrader.research.factor_strategy import FactorStrategy
 from backtrader.research.specs import FactorSpec
 from tests.test_utils.alpha101_full_reference import (

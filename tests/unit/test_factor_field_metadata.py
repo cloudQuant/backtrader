@@ -8,7 +8,7 @@ from typing import Any, Mapping
 import pandas as pd
 import pytest
 
-from backtrader.research.errors import ConfigError, DatasetError
+from backtrader.errors import ResearchConfigError as ConfigError, DatasetError
 from backtrader.research.field_validation import (
     collect_bound_feed_tables,
     validate_factor_field_metadata,
