@@ -852,3 +852,7 @@ docs/_internal/opts/requirements/迭代46-Alpha101原生因子实现/evidence/it
 
 # Iteration 42 tracker inputs retain fixed hash-pinned bytes.
 docs/_internal/opts/requirements/迭代42-示例策略模拟盘贯通与四件套标准化/tracker-inputs/** -text
+
+# Preserve the exact script and raw records used for the full-market diagnostic.
+scripts/profile_factor_examples.py -text
+docs/_internal/opts/requirements/迭代49-因子分析性能优化/measurements/** -text

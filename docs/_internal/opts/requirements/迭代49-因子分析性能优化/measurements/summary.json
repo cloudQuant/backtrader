@@ -1,0 +1,206 @@
+{
+  "evidence": "SINGLE_RUN_INSTRUMENTED_PUBLIC_MAIN_DIAGNOSTIC",
+  "date": "2026-10-23",
+  "backtrader_base_commit": "dd33dd1d162652cf1d1a5e5cd0ed9b3fb05f815b",
+  "fincore_snapshot_commit": "e04bd082b85374d58e304ec15d43dd134b7fe77b",
+  "fincore_original_dev_preserved": "d7f65460c4f885e979d8543ddb15cc8f3c892742",
+  "fincore_archive": {
+    "path": "D:\\temp\\iteration49-fincore-e04bd08.tar",
+    "size_bytes": 57251840,
+    "sha256": "061c40902a0bf5d6dd8ea8c9b9e889459983f72a293753adec7af0637d735a10"
+  },
+  "profiler": {
+    "path": "D:\\source_code\\backtrader\\scripts\\profile_factor_examples.py",
+    "size_bytes": 11010,
+    "sha256": "6bbc8aab3f7a523feb49eeee54bdf1e79fe2e6eedf81706fdb122b5d9d43a234"
+  },
+  "readback_verifier": {
+    "path": "D:\\source_code\\backtrader\\.codex-tmp\\verify_iteration49_full_profiles.py",
+    "size_bytes": 39476,
+    "sha256": "3699243db3541899ac17bd082dd85bd83ce147f5be776bac865f7b63ee591697"
+  },
+  "data_manifest": {
+    "path": "D:\\source_code\\backtrader\\tests\\datas\\a_stocks\\_metadata\\manifest.json",
+    "size_bytes": 1787524,
+    "sha256": "72e99dd547a86102abaf1396fd72b7c10ef7ca4f1a75698d1116f29b950d53b2"
+  },
+  "observed_calendar": {
+    "path": "D:\\source_code\\backtrader\\tests\\datas\\a_stocks\\_metadata\\observed_calendar.csv",
+    "size_bytes": 17566,
+    "sha256": "ebffd7c7a5626a43ea54f5135c86fb0c8c554255e85ee09ba9bfc5e9da324ba1"
+  },
+  "runs": [
+    {
+      "example": "025",
+      "output_root": "D:\\temp\\iteration49-full-025-20261023",
+      "phases_seconds": {
+        "read_csv_panel": 18.962885000015376,
+        "collection_total": 142.63247029998456,
+        "html_report": 59.27227610000409,
+        "evaluate_frames": 376.8600776999956,
+        "evaluation_export": 31.36955339999986,
+        "other": 6.834323299990501
+      },
+      "wall_seconds": 635.93158579999,
+      "process_cpu_seconds": 618.546875,
+      "peak_rss_bytes": 7486025728,
+      "minimum_sampled_system_available_bytes": 115417088,
+      "summary": {
+        "broker": {
+          "cancel": 0,
+          "submit": 0
+        },
+        "dates": 243,
+        "evaluation_id": "edf8c43c4a3b496a28d1f3965b7594431ff3958bd6de0d1ad2ef68ee9122b942",
+        "evaluation_status": "OK",
+        "factor_calculation": "RAN",
+        "factor_classes": {
+          "close_ma": "close_ma_factor_strategy.CloseMAFactor"
+        },
+        "factor_mode": "native",
+        "output_dir": "D:\\temp\\iteration49-full-025-20261023\\example",
+        "report": "D:\\temp\\iteration49-full-025-20261023\\example\\factor_report_close_ma.html",
+        "status": "COMPLETED",
+        "symbols": 5471
+      },
+      "input_source_manifest": {
+        "path": "D:\\temp\\iteration49-full-025-20261023\\input-source-pins.json",
+        "size_bytes": 874661,
+        "sha256": "5211138210a7b06f4ee4b3008337ca93fce014a93586341ed8a0d6b2df776dd0"
+      },
+      "input_source_pin_count": 6213
+    },
+    {
+      "example": "026",
+      "output_root": "D:\\temp\\iteration49-full-026-20261023",
+      "phases_seconds": {
+        "read_csv_panel": 19.467734000005294,
+        "collection_total": 453.9770872000081,
+        "html_report": 175.880481900007,
+        "evaluate_frames": 556.8379682000086,
+        "evaluation_export": 51.528484000009485,
+        "other": 9.844722299952991
+      },
+      "wall_seconds": 1267.5364775999915,
+      "process_cpu_seconds": 1222.015625,
+      "peak_rss_bytes": 8962060288,
+      "minimum_sampled_system_available_bytes": 179834880,
+      "summary": {
+        "broker": {
+          "cancel": 0,
+          "submit": 0
+        },
+        "dates": 243,
+        "evaluation_id": "332131a196accab211738056142ce13435380840bdeb70ca634339925f896494",
+        "evaluation_status": "OK",
+        "factor_calculation": "RAN",
+        "factor_classes": {
+          "close_ma": "multi_factor_strategy.CloseMAFactor",
+          "kdj_j": "multi_factor_strategy.KDJFactor",
+          "roc": "multi_factor_strategy.ROCFactor"
+        },
+        "factor_mode": "native",
+        "output_dir": "D:\\temp\\iteration49-full-026-20261023\\example",
+        "reports": [
+          "D:\\temp\\iteration49-full-026-20261023\\example\\factor_report_close_ma.html",
+          "D:\\temp\\iteration49-full-026-20261023\\example\\factor_report_kdj_j.html",
+          "D:\\temp\\iteration49-full-026-20261023\\example\\factor_report_roc.html"
+        ],
+        "status": "COMPLETED",
+        "symbols": 5471
+      },
+      "input_source_manifest": {
+        "path": "D:\\temp\\iteration49-full-026-20261023\\input-source-pins.json",
+        "size_bytes": 874655,
+        "sha256": "a177448c3e0732844aed75a32e5faa33f766b407a13c10f96abc939d9ada241b"
+      },
+      "input_source_pin_count": 6213
+    },
+    {
+      "example": "027",
+      "output_root": "D:\\temp\\iteration49-full-027-20261023",
+      "phases_seconds": {
+        "read_csv_panel": 20.7706787000061,
+        "collection_total": 488.8210584000044,
+        "html_report": 63.04112859998713,
+        "evaluate_frames": 0.0,
+        "evaluation_export": 0.0,
+        "other": 7.21641140000429
+      },
+      "wall_seconds": 579.8492771000019,
+      "process_cpu_seconds": 560.0,
+      "peak_rss_bytes": 3024572416,
+      "minimum_sampled_system_available_bytes": 7307968512,
+      "summary": {
+        "broker": {
+          "cancel": 0,
+          "submit": 0
+        },
+        "cells": 1329453,
+        "dates": 243,
+        "elapsed_seconds": 579.82,
+        "factor": "alpha003",
+        "factor_calculation": "RAN",
+        "factor_mode": "native",
+        "finite": 1255737,
+        "indicator": "backtrader.research.alpha101.alpha003.Alpha003Native",
+        "operator_profile": "alpha101-v2",
+        "output": "factor_values.csv",
+        "report": "D:\\temp\\iteration49-full-027-20261023\\example\\factor_report_alpha003.html",
+        "status": "COMPLETED",
+        "symbols": 5471
+      },
+      "input_source_manifest": {
+        "path": "D:\\temp\\iteration49-full-027-20261023\\input-source-pins.json",
+        "size_bytes": 874682,
+        "sha256": "eddba96ab93375efd55af4d977c862e24267e81eb7d1aafe158073c1c8c2ddcb"
+      },
+      "input_source_pin_count": 6213
+    }
+  ],
+  "archived_artifacts": [
+    {
+      "path": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\迭代49-因子分析性能优化\\measurements\\025-profile.json",
+      "size_bytes": 130733,
+      "sha256": "9c42a4b3cb67acaa827ed1920a67c9fa14cb691e18d243865dd88eabebc674ff"
+    },
+    {
+      "path": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\迭代49-因子分析性能优化\\measurements\\025-stages.jsonl",
+      "size_bytes": 1388,
+      "sha256": "e00eb52efa5aa07458eef602d836d8d0401d8c55997bbd203557f3d6b4cfea20"
+    },
+    {
+      "path": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\迭代49-因子分析性能优化\\measurements\\026-profile.json",
+      "size_bytes": 185920,
+      "sha256": "c79d05e80e50bb4abebb410a21721eb3e68b78a80ea9f8132a73e09b8b7b41d2"
+    },
+    {
+      "path": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\迭代49-因子分析性能优化\\measurements\\026-stages.jsonl",
+      "size_bytes": 1633,
+      "sha256": "b7258e5f38fa273ffa6a9b5c082170322a0a28889d3ad43fcba0d61488edf719"
+    },
+    {
+      "path": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\迭代49-因子分析性能优化\\measurements\\027-profile.json",
+      "size_bytes": 120109,
+      "sha256": "7ce081d2e7b687c0ba4ad0d338d8cea8cc95ea629067ceb4ae22e7f4bd024f12"
+    },
+    {
+      "path": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\迭代49-因子分析性能优化\\measurements\\027-stages.jsonl",
+      "size_bytes": 871,
+      "sha256": "92bdba8402748856f6c7e26c112e894a7c2dcc809eed0425ddb1546dc4dab17c"
+    },
+    {
+      "path": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\迭代49-因子分析性能优化\\measurements\\readback.json",
+      "size_bytes": 48104,
+      "sha256": "fe32718f15c0fe3f2e530d6be9e49dd9867ce64c4e2868d8858f6091fb67a29e"
+    }
+  ],
+  "limitations": [
+    "One instrumented run per example; no speedup or statistical performance acceptance.",
+    "Imports and before/after input hashes are outside wall time; input hashing warms file cache.",
+    "Nested inclusive timers must not be added; phases_seconds selects mutually exclusive main stages.",
+    "Readback validates complete outputs and common factor equality, not an independent mathematical oracle.",
+    "Current compatible source dependency; not the historical pinned-wheel acceptance environment.",
+    "Background applications caused memory pressure; CPU and RSS include sampler overhead."
+  ]
+}

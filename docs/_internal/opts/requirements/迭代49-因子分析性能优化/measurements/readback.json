@@ -1,0 +1,1401 @@
+{
+  "schema": "iteration49.full_profile_readback.v1",
+  "evidence": "PUBLIC_OUTPUT_STRUCTURE_AND_CROSS_EXAMPLE_READBACK_ONLY",
+  "status": "PASS",
+  "generated_by": "D:\\source_code\\backtrader\\.codex-tmp\\verify_iteration49_full_profiles.py",
+  "inputs": {
+    "roots_requested": [
+      "D:/temp/iteration49-full-0*-20261023"
+    ],
+    "roots_resolved": [
+      "D:\\temp\\iteration49-full-025-20261023",
+      "D:\\temp\\iteration49-full-026-20261023",
+      "D:\\temp\\iteration49-full-027-20261023"
+    ],
+    "public_data_root": "D:\\source_code\\backtrader\\tests\\datas\\a_stocks",
+    "public_manifest_asset_count": 5471,
+    "public_calendar_date_count": 243,
+    "expected_cells": 1329453,
+    "expected_fincore_revision": "e04bd082b85374d58e304ec15d43dd134b7fe77b",
+    "public_input_bindings": {
+      "manifest": {
+        "path": "D:\\source_code\\backtrader\\tests\\datas\\a_stocks\\_metadata\\manifest.json",
+        "size_bytes": 1787524,
+        "sha256": "72e99dd547a86102abaf1396fd72b7c10ef7ca4f1a75698d1116f29b950d53b2"
+      },
+      "observed_calendar": {
+        "path": "D:\\source_code\\backtrader\\tests\\datas\\a_stocks\\_metadata\\observed_calendar.csv",
+        "size_bytes": 17566,
+        "sha256": "ebffd7c7a5626a43ea54f5135c86fb0c8c554255e85ee09ba9bfc5e9da324ba1"
+      }
+    }
+  },
+  "universe_errors": [],
+  "root_errors": [],
+  "runs": [
+    {
+      "root": "D:\\temp\\iteration49-full-025-20261023",
+      "profile_path": "D:\\temp\\iteration49-full-025-20261023\\profile.json",
+      "example_dir": "D:\\temp\\iteration49-full-025-20261023\\example",
+      "example": "025",
+      "status": "PASS",
+      "errors": [],
+      "profile": {
+        "exit_code": 0,
+        "wall_seconds": 635.93158579999,
+        "process_cpu_seconds": 618.546875,
+        "preload_import_seconds": 2.3838713000004645,
+        "peak_rss_bytes": 7486025728,
+        "samples": 4861,
+        "environment": {
+          "python": "3.11.5 | packaged by Anaconda, Inc. | (main, Sep 11 2023, 13:26:23) [MSC v.1916 64 bit (AMD64)]",
+          "executable": "C:\\anaconda3\\python.exe",
+          "platform": "Windows-10-10.0.26300-SP0",
+          "cpu_logical": 32,
+          "pandas": "2.2.3",
+          "numpy": "1.26.4",
+          "backtrader": "D:\\source_code\\backtrader\\backtrader\\__init__.py",
+          "fincore": "D:\\temp\\iteration49-fincore-e04bd08\\fincore\\__init__.py",
+          "memory_before": {
+            "total": 34049220608,
+            "available": 5745934336,
+            "percent": 83.1,
+            "used": 28303286272,
+            "free": 5745934336
+          },
+          "backtrader_head": "dd33dd1d162652cf1d1a5e5cd0ed9b3fb05f815b",
+          "fincore_head": "e04bd082b85374d58e304ec15d43dd134b7fe77b"
+        },
+        "timers": {
+          "read_csv_panel": {
+            "calls": 1,
+            "inclusive_seconds": 18.962885000015376,
+            "exclusive_seconds": 18.962885000015376
+          },
+          "align_to_grid": {
+            "calls": 5471,
+            "inclusive_seconds": 25.718614501529373,
+            "exclusive_seconds": 25.718614501529373
+          },
+          "feed_preload": {
+            "calls": 5471,
+            "inclusive_seconds": 20.024705698509933,
+            "exclusive_seconds": 20.024705698509933
+          },
+          "collect_grid_points": {
+            "calls": 243,
+            "inclusive_seconds": 18.40237179992255,
+            "exclusive_seconds": 18.40237179992255
+          },
+          "engine_runonce": {
+            "calls": 1,
+            "inclusive_seconds": 73.15314979999675,
+            "exclusive_seconds": 54.750778000074206
+          },
+          "sink_finalize": {
+            "calls": 1,
+            "inclusive_seconds": 2.7864354999910574,
+            "exclusive_seconds": 2.7864354999910574
+          },
+          "strategy_stop": {
+            "calls": 1,
+            "inclusive_seconds": 3.025884500006214,
+            "exclusive_seconds": 0.23944900001515634
+          },
+          "cerebro_run": {
+            "calls": 1,
+            "inclusive_seconds": 116.68089089999557,
+            "exclusive_seconds": 20.477150901482673
+          },
+          "collection_total": {
+            "calls": 1,
+            "inclusive_seconds": 142.63247029998456,
+            "exclusive_seconds": 0.23296489845961332
+          },
+          "dataframe_to_csv": {
+            "calls": 13,
+            "inclusive_seconds": 37.50588509996305,
+            "exclusive_seconds": 37.50588509996305
+          },
+          "html_report": {
+            "calls": 1,
+            "inclusive_seconds": 59.27227610000409,
+            "exclusive_seconds": 59.27227610000409
+          },
+          "fincore_evaluate": {
+            "calls": 1,
+            "inclusive_seconds": 376.84433280001394,
+            "exclusive_seconds": 376.84433280001394
+          },
+          "evaluate_frames": {
+            "calls": 1,
+            "inclusive_seconds": 376.8600776999956,
+            "exclusive_seconds": 0.01574489998165518
+          },
+          "evaluation_charts": {
+            "calls": 1,
+            "inclusive_seconds": 0.584010099992156,
+            "exclusive_seconds": 0.584010099992156
+          },
+          "evaluation_export": {
+            "calls": 1,
+            "inclusive_seconds": 31.36955339999986,
+            "exclusive_seconds": 0.012262100033694878
+          }
+        },
+        "limitations": [
+          "Timers are nested; inclusive values must not be summed.",
+          "Sampling uses the GIL and is approximate; no statistical confidence from one run.",
+          "Source/data hashes and instrumentation imports are outside main wall time.",
+          "Output verification and process shutdown are outside main wall time."
+        ]
+      },
+      "summary": {
+        "broker": {
+          "cancel": 0,
+          "submit": 0
+        },
+        "dates": 243,
+        "evaluation_id": "edf8c43c4a3b496a28d1f3965b7594431ff3958bd6de0d1ad2ef68ee9122b942",
+        "evaluation_status": "OK",
+        "factor_calculation": "RAN",
+        "factor_classes": {
+          "close_ma": "close_ma_factor_strategy.CloseMAFactor"
+        },
+        "factor_mode": "native",
+        "output_dir": "D:\\temp\\iteration49-full-025-20261023\\example",
+        "report": "D:\\temp\\iteration49-full-025-20261023\\example\\factor_report_close_ma.html",
+        "status": "COMPLETED",
+        "symbols": 5471
+      },
+      "factor_values": {
+        "path": "D:\\temp\\iteration49-full-025-20261023\\example\\factor_values.csv",
+        "rows": 1329453,
+        "expected_rows": 1329453,
+        "factor_columns": [
+          "close_ma"
+        ],
+        "factor_counts": {
+          "close_ma": {
+            "finite": 1196833,
+            "nan": 132620,
+            "infinite": 0,
+            "invalid": 0
+          }
+        },
+        "unique_asset_count": 5471,
+        "unique_date_count": 243,
+        "duplicate_keys": 0,
+        "unknown_asset_count": 0,
+        "unexpected_date_count": 0,
+        "malformed_rows": 0,
+        "timestamp_mismatches": 0,
+        "missing_cells": 0,
+        "grid_complete": true,
+        "errors": []
+      },
+      "html_reports": [
+        {
+          "path": "D:\\temp\\iteration49-full-025-20261023\\example\\factor_report_close_ma.html",
+          "size_bytes": 1119867,
+          "exists_nonempty": true
+        }
+      ],
+      "declared_html_reports": [
+        {
+          "path": "D:\\temp\\iteration49-full-025-20261023\\example\\factor_report_close_ma.html",
+          "exists_nonempty": true,
+          "size_bytes": 1119867
+        }
+      ],
+      "evaluation": {
+        "required_for_example": true,
+        "status": "OK",
+        "directory": "D:\\temp\\iteration49-full-025-20261023\\example\\evaluation",
+        "manifest_path": "D:\\temp\\iteration49-full-025-20261023\\example\\evaluation\\edf8c43c4a3b496a28d1f3965b7594431ff3958bd6de0d1ad2ef68ee9122b942\\manifest.json",
+        "csv_files": [
+          {
+            "name": "comparisons.csv",
+            "rows": 0
+          },
+          {
+            "name": "correlation.csv",
+            "rows": 0
+          },
+          {
+            "name": "coverage.csv",
+            "rows": 1
+          },
+          {
+            "name": "diagnostics.csv",
+            "rows": 0
+          },
+          {
+            "name": "ic.csv",
+            "rows": 643
+          },
+          {
+            "name": "ic_summary.csv",
+            "rows": 3
+          },
+          {
+            "name": "labels.csv",
+            "rows": 3988359
+          },
+          {
+            "name": "quantile_returns.csv",
+            "rows": 3215
+          },
+          {
+            "name": "signals.csv",
+            "rows": 1329453
+          },
+          {
+            "name": "spreads.csv",
+            "rows": 643
+          },
+          {
+            "name": "stability.csv",
+            "rows": 3
+          },
+          {
+            "name": "turnover.csv",
+            "rows": 3085
+          }
+        ],
+        "png_files": [
+          {
+            "name": "ic_series.png",
+            "exists_nonempty": true
+          },
+          {
+            "name": "quantile_returns.png",
+            "exists_nonempty": true
+          }
+        ],
+        "tables": {
+          "comparisons": {
+            "columns": [
+              "comparison",
+              "left",
+              "right",
+              "period",
+              "mean_ic",
+              "icir",
+              "mean_ic_left",
+              "mean_ic_right",
+              "icir_left",
+              "icir_right",
+              "n_dates_left",
+              "n_dates_right"
+            ],
+            "rows": 0
+          },
+          "correlation": {
+            "columns": [
+              "factor_left",
+              "factor_right",
+              "mean_correlation",
+              "std_correlation",
+              "n_dates"
+            ],
+            "rows": 0
+          },
+          "coverage": {
+            "columns": [
+              "factor",
+              "kind",
+              "direction",
+              "input_cells",
+              "finite_cells",
+              "label_cells",
+              "evaluable_cells",
+              "status"
+            ],
+            "rows": 1
+          },
+          "diagnostics": {
+            "columns": [
+              "factor",
+              "stage",
+              "severity",
+              "code",
+              "message"
+            ],
+            "rows": 0
+          },
+          "ic": {
+            "columns": [
+              "time",
+              "factor",
+              "period",
+              "ic",
+              "rank_ic",
+              "n_assets"
+            ],
+            "rows": 643
+          },
+          "ic_summary": {
+            "columns": [
+              "factor",
+              "period",
+              "mean_ic",
+              "std_ic",
+              "icir",
+              "mean_rank_ic",
+              "std_rank_ic",
+              "rank_icir",
+              "n_dates"
+            ],
+            "rows": 3
+          },
+          "labels": {
+            "columns": [
+              "time",
+              "asset",
+              "period",
+              "value"
+            ],
+            "rows": 3988359
+          },
+          "quantile_returns": {
+            "columns": [
+              "time",
+              "factor",
+              "period",
+              "quantile",
+              "mean_return",
+              "n_assets"
+            ],
+            "rows": 3215
+          },
+          "signals": {
+            "columns": [
+              "time",
+              "asset",
+              "factor",
+              "direction",
+              "value",
+              "processed_value",
+              "preprocess",
+              "group"
+            ],
+            "rows": 1329453
+          },
+          "spreads": {
+            "columns": [
+              "time",
+              "factor",
+              "period",
+              "spread",
+              "top_quantile",
+              "bottom_quantile"
+            ],
+            "rows": 643
+          },
+          "stability": {
+            "columns": [
+              "factor",
+              "lag",
+              "mean_rank_autocorrelation",
+              "std_rank_autocorrelation",
+              "n_dates"
+            ],
+            "rows": 3
+          },
+          "turnover": {
+            "columns": [
+              "time",
+              "factor",
+              "period",
+              "quantile",
+              "turnover"
+            ],
+            "rows": 3085
+          }
+        },
+        "errors": [],
+        "manifest_status": "OK",
+        "evaluation_id": "edf8c43c4a3b496a28d1f3965b7594431ff3958bd6de0d1ad2ef68ee9122b942"
+      },
+      "file_inventory": [
+        {
+          "path": "example\\evaluation\\edf8c43c4a3b496a28d1f3965b7594431ff3958bd6de0d1ad2ef68ee9122b942\\comparisons.csv",
+          "size_bytes": 118,
+          "sha256": "1f5db3292b0a8361314ff537465cd3d8a458c8984d9f546eb2d3b03e64c9815b",
+          "data_rows": 0
+        },
+        {
+          "path": "example\\evaluation\\edf8c43c4a3b496a28d1f3965b7594431ff3958bd6de0d1ad2ef68ee9122b942\\correlation.csv",
+          "size_bytes": 67,
+          "sha256": "b88d0c42d65fa46b08f75860c7d28a0020be34000583e95eb43332dbc5a88cbb",
+          "data_rows": 0
+        },
+        {
+          "path": "example\\evaluation\\edf8c43c4a3b496a28d1f3965b7594431ff3958bd6de0d1ad2ef68ee9122b942\\coverage.csv",
+          "size_bytes": 137,
+          "sha256": "0cef37ebe6f5f6702a2f10675683531379df762e79dca51633ea69376d7612ea",
+          "data_rows": 1
+        },
+        {
+          "path": "example\\evaluation\\edf8c43c4a3b496a28d1f3965b7594431ff3958bd6de0d1ad2ef68ee9122b942\\diagnostics.csv",
+          "size_bytes": 36,
+          "sha256": "7f93a6425c41a6bf2677e4b4643158f5b07ec05e3474ce3a625f09434468d3ae",
+          "data_rows": 0
+        },
+        {
+          "path": "example\\evaluation\\edf8c43c4a3b496a28d1f3965b7594431ff3958bd6de0d1ad2ef68ee9122b942\\ic.csv",
+          "size_bytes": 55190,
+          "sha256": "39d34c66dfcd96774ea714c47cade0b5fedbe18131b7ce19c83e5ecbeef214bc",
+          "data_rows": 643
+        },
+        {
+          "path": "example\\evaluation\\edf8c43c4a3b496a28d1f3965b7594431ff3958bd6de0d1ad2ef68ee9122b942\\ic_series.png",
+          "size_bytes": 119368,
+          "sha256": "a641c0c8f2f1920d0cadc9cb48581622bac16668f6ebd61b7422bd3400dd1fa0"
+        },
+        {
+          "path": "example\\evaluation\\edf8c43c4a3b496a28d1f3965b7594431ff3958bd6de0d1ad2ef68ee9122b942\\ic_summary.csv",
+          "size_bytes": 499,
+          "sha256": "331ac98597365e19d4637255dfa0c8f71c15574e99359dcc64206c03e03af766",
+          "data_rows": 3
+        },
+        {
+          "path": "example\\evaluation\\edf8c43c4a3b496a28d1f3965b7594431ff3958bd6de0d1ad2ef68ee9122b942\\labels.csv",
+          "size_bytes": 234954349,
+          "sha256": "03d2c0a4fc71a03cf9b8d32dbadd86a74e2e9d725d286b0579b6814887f6dc22",
+          "data_rows": 3988359
+        },
+        {
+          "path": "example\\evaluation\\edf8c43c4a3b496a28d1f3965b7594431ff3958bd6de0d1ad2ef68ee9122b942\\manifest.json",
+          "size_bytes": 295067,
+          "sha256": "31a9d06773d454047d5d6e134daae1a1e0d09a9b4ad756cd1badc81f2da6c844"
+        },
+        {
+          "path": "example\\evaluation\\edf8c43c4a3b496a28d1f3965b7594431ff3958bd6de0d1ad2ef68ee9122b942\\quantile_returns.csv",
+          "size_bytes": 216821,
+          "sha256": "6277d25008cd26577646078681b75b7a69e11fe174142a6f3ca4a3b530604a64",
+          "data_rows": 3215
+        },
+        {
+          "path": "example\\evaluation\\edf8c43c4a3b496a28d1f3965b7594431ff3958bd6de0d1ad2ef68ee9122b942\\quantile_returns.png",
+          "size_bytes": 27835,
+          "sha256": "4b1bc946354daa389fc719bc230b6562ccc1efc0e454448e0e0597b0c5681b92"
+        },
+        {
+          "path": "example\\evaluation\\edf8c43c4a3b496a28d1f3965b7594431ff3958bd6de0d1ad2ef68ee9122b942\\signals.csv",
+          "size_bytes": 149502189,
+          "sha256": "156b0568a56148e57cf29f4ce40df7852f56006eefea2f61dde5c76209709f2a",
+          "data_rows": 1329453
+        },
+        {
+          "path": "example\\evaluation\\edf8c43c4a3b496a28d1f3965b7594431ff3958bd6de0d1ad2ef68ee9122b942\\spreads.csv",
+          "size_bytes": 41745,
+          "sha256": "ed421b8359ac5060717fb0d946ace6cc57aa9c8b0aa80910925b05b7bd845aeb",
+          "data_rows": 643
+        },
+        {
+          "path": "example\\evaluation\\edf8c43c4a3b496a28d1f3965b7594431ff3958bd6de0d1ad2ef68ee9122b942\\stability.csv",
+          "size_bytes": 239,
+          "sha256": "2a8a32cf8c2f21df1a774f3d27a460c5eb14176f0c130546c0552be4cd09e05a",
+          "data_rows": 3
+        },
+        {
+          "path": "example\\evaluation\\edf8c43c4a3b496a28d1f3965b7594431ff3958bd6de0d1ad2ef68ee9122b942\\turnover.csv",
+          "size_bytes": 186256,
+          "sha256": "2e99c05e5e0a163fda82e17cac31aa8cb01fe4c1685a2d8eff75653070e21685",
+          "data_rows": 3085
+        },
+        {
+          "path": "example\\factor_report_close_ma.html",
+          "size_bytes": 1119867,
+          "sha256": "0ac88f853ecbb80dbbb50675d12d0e34a8b29bf8ae289c070d182e283f18e50d",
+          "exists_nonempty": true
+        },
+        {
+          "path": "example\\factor_values.csv",
+          "size_bytes": 70490955,
+          "sha256": "d5877222db4f27e1cf70027bd6f983b65d10e29cfa46093748ee0b0d2cae45b6",
+          "data_rows": 1329453,
+          "row_count_in_factor_verification": true
+        },
+        {
+          "path": "example\\summary.json",
+          "size_bytes": 552,
+          "sha256": "fc2bfcb095c962a132a691b1adf8c790c131c6888f66c1b205a280e40dc3a2a0"
+        },
+        {
+          "path": "input-source-pins.json",
+          "size_bytes": 874661,
+          "sha256": "5211138210a7b06f4ee4b3008337ca93fce014a93586341ed8a0d6b2df776dd0"
+        },
+        {
+          "path": "profile.json",
+          "size_bytes": 130733,
+          "sha256": "9c42a4b3cb67acaa827ed1920a67c9fa14cb691e18d243865dd88eabebc674ff"
+        },
+        {
+          "path": "stages.jsonl",
+          "size_bytes": 1388,
+          "sha256": "e00eb52efa5aa07458eef602d836d8d0401d8c55997bbd203557f3d6b4cfea20"
+        }
+      ],
+      "file_inventory_totals": {
+        "files": 21,
+        "size_bytes": 458018072,
+        "by_extension": {
+          ".csv": {
+            "files": 13,
+            "size_bytes": 455448601
+          },
+          ".png": {
+            "files": 2,
+            "size_bytes": 147203
+          },
+          ".json": {
+            "files": 4,
+            "size_bytes": 1301013
+          },
+          ".html": {
+            "files": 1,
+            "size_bytes": 1119867
+          },
+          ".jsonl": {
+            "files": 1,
+            "size_bytes": 1388
+          }
+        }
+      }
+    },
+    {
+      "root": "D:\\temp\\iteration49-full-026-20261023",
+      "profile_path": "D:\\temp\\iteration49-full-026-20261023\\profile.json",
+      "example_dir": "D:\\temp\\iteration49-full-026-20261023\\example",
+      "example": "026",
+      "status": "PASS",
+      "errors": [],
+      "profile": {
+        "exit_code": 0,
+        "wall_seconds": 1267.5364775999915,
+        "process_cpu_seconds": 1222.015625,
+        "preload_import_seconds": 3.5361904999881517,
+        "peak_rss_bytes": 8962060288,
+        "samples": 9829,
+        "environment": {
+          "python": "3.11.5 | packaged by Anaconda, Inc. | (main, Sep 11 2023, 13:26:23) [MSC v.1916 64 bit (AMD64)]",
+          "executable": "C:\\anaconda3\\python.exe",
+          "platform": "Windows-10-10.0.26300-SP0",
+          "cpu_logical": 32,
+          "pandas": "2.2.3",
+          "numpy": "1.26.4",
+          "backtrader": "D:\\source_code\\backtrader\\backtrader\\__init__.py",
+          "fincore": "D:\\temp\\iteration49-fincore-e04bd08\\fincore\\__init__.py",
+          "memory_before": {
+            "total": 34049220608,
+            "available": 7439503360,
+            "percent": 78.2,
+            "used": 26609717248,
+            "free": 7439503360
+          },
+          "backtrader_head": "dd33dd1d162652cf1d1a5e5cd0ed9b3fb05f815b",
+          "fincore_head": "e04bd082b85374d58e304ec15d43dd134b7fe77b"
+        },
+        "timers": {
+          "read_csv_panel": {
+            "calls": 1,
+            "inclusive_seconds": 19.467734000005294,
+            "exclusive_seconds": 19.467734000005294
+          },
+          "align_to_grid": {
+            "calls": 5471,
+            "inclusive_seconds": 26.658165201399243,
+            "exclusive_seconds": 26.658165201399243
+          },
+          "feed_preload": {
+            "calls": 5471,
+            "inclusive_seconds": 21.027299800800392,
+            "exclusive_seconds": 21.027299800800392
+          },
+          "collect_grid_points": {
+            "calls": 243,
+            "inclusive_seconds": 34.41482320020441,
+            "exclusive_seconds": 34.41482320020441
+          },
+          "engine_runonce": {
+            "calls": 1,
+            "inclusive_seconds": 239.3815458000172,
+            "exclusive_seconds": 204.96672259981278
+          },
+          "sink_finalize": {
+            "calls": 1,
+            "inclusive_seconds": 3.0616997000179254,
+            "exclusive_seconds": 3.0616997000179254
+          },
+          "strategy_stop": {
+            "calls": 1,
+            "inclusive_seconds": 3.2900417000055313,
+            "exclusive_seconds": 0.22834199998760596
+          },
+          "cerebro_run": {
+            "calls": 1,
+            "inclusive_seconds": 427.04804230001173,
+            "exclusive_seconds": 163.3491549991886
+          },
+          "collection_total": {
+            "calls": 1,
+            "inclusive_seconds": 453.9770872000081,
+            "exclusive_seconds": 0.27087969859712757
+          },
+          "dataframe_to_csv": {
+            "calls": 13,
+            "inclusive_seconds": 59.760448899935,
+            "exclusive_seconds": 59.760448899935
+          },
+          "html_report": {
+            "calls": 3,
+            "inclusive_seconds": 175.880481900007,
+            "exclusive_seconds": 175.880481900007
+          },
+          "fincore_evaluate": {
+            "calls": 1,
+            "inclusive_seconds": 556.8208775999956,
+            "exclusive_seconds": 556.8208775999956
+          },
+          "evaluate_frames": {
+            "calls": 1,
+            "inclusive_seconds": 556.8379682000086,
+            "exclusive_seconds": 0.017090600013034418
+          },
+          "evaluation_charts": {
+            "calls": 1,
+            "inclusive_seconds": 0.7825255000207108,
+            "exclusive_seconds": 0.7825255000207108
+          },
+          "evaluation_export": {
+            "calls": 1,
+            "inclusive_seconds": 51.528484000009485,
+            "exclusive_seconds": 0.023098100064089522
+          }
+        },
+        "limitations": [
+          "Timers are nested; inclusive values must not be summed.",
+          "Sampling uses the GIL and is approximate; no statistical confidence from one run.",
+          "Source/data hashes and instrumentation imports are outside main wall time.",
+          "Output verification and process shutdown are outside main wall time."
+        ]
+      },
+      "summary": {
+        "broker": {
+          "cancel": 0,
+          "submit": 0
+        },
+        "dates": 243,
+        "evaluation_id": "332131a196accab211738056142ce13435380840bdeb70ca634339925f896494",
+        "evaluation_status": "OK",
+        "factor_calculation": "RAN",
+        "factor_classes": {
+          "close_ma": "multi_factor_strategy.CloseMAFactor",
+          "kdj_j": "multi_factor_strategy.KDJFactor",
+          "roc": "multi_factor_strategy.ROCFactor"
+        },
+        "factor_mode": "native",
+        "output_dir": "D:\\temp\\iteration49-full-026-20261023\\example",
+        "reports": [
+          "D:\\temp\\iteration49-full-026-20261023\\example\\factor_report_close_ma.html",
+          "D:\\temp\\iteration49-full-026-20261023\\example\\factor_report_kdj_j.html",
+          "D:\\temp\\iteration49-full-026-20261023\\example\\factor_report_roc.html"
+        ],
+        "status": "COMPLETED",
+        "symbols": 5471
+      },
+      "factor_values": {
+        "path": "D:\\temp\\iteration49-full-026-20261023\\example\\factor_values.csv",
+        "rows": 1329453,
+        "expected_rows": 1329453,
+        "factor_columns": [
+          "close_ma",
+          "kdj_j",
+          "roc"
+        ],
+        "factor_counts": {
+          "close_ma": {
+            "finite": 1196833,
+            "nan": 132620,
+            "infinite": 0,
+            "invalid": 0
+          },
+          "kdj_j": {
+            "finite": 1238146,
+            "nan": 91307,
+            "infinite": 0,
+            "invalid": 0
+          },
+          "roc": {
+            "finite": 1190950,
+            "nan": 138503,
+            "infinite": 0,
+            "invalid": 0
+          }
+        },
+        "unique_asset_count": 5471,
+        "unique_date_count": 243,
+        "duplicate_keys": 0,
+        "unknown_asset_count": 0,
+        "unexpected_date_count": 0,
+        "malformed_rows": 0,
+        "timestamp_mismatches": 0,
+        "missing_cells": 0,
+        "grid_complete": true,
+        "errors": []
+      },
+      "html_reports": [
+        {
+          "path": "D:\\temp\\iteration49-full-026-20261023\\example\\factor_report_close_ma.html",
+          "size_bytes": 1119864,
+          "exists_nonempty": true
+        },
+        {
+          "path": "D:\\temp\\iteration49-full-026-20261023\\example\\factor_report_kdj_j.html",
+          "size_bytes": 1121787,
+          "exists_nonempty": true
+        },
+        {
+          "path": "D:\\temp\\iteration49-full-026-20261023\\example\\factor_report_roc.html",
+          "size_bytes": 1119570,
+          "exists_nonempty": true
+        }
+      ],
+      "declared_html_reports": [
+        {
+          "path": "D:\\temp\\iteration49-full-026-20261023\\example\\factor_report_close_ma.html",
+          "exists_nonempty": true,
+          "size_bytes": 1119864
+        },
+        {
+          "path": "D:\\temp\\iteration49-full-026-20261023\\example\\factor_report_kdj_j.html",
+          "exists_nonempty": true,
+          "size_bytes": 1121787
+        },
+        {
+          "path": "D:\\temp\\iteration49-full-026-20261023\\example\\factor_report_roc.html",
+          "exists_nonempty": true,
+          "size_bytes": 1119570
+        }
+      ],
+      "evaluation": {
+        "required_for_example": true,
+        "status": "OK",
+        "directory": "D:\\temp\\iteration49-full-026-20261023\\example\\evaluation",
+        "manifest_path": "D:\\temp\\iteration49-full-026-20261023\\example\\evaluation\\332131a196accab211738056142ce13435380840bdeb70ca634339925f896494\\manifest.json",
+        "csv_files": [
+          {
+            "name": "comparisons.csv",
+            "rows": 9
+          },
+          {
+            "name": "correlation.csv",
+            "rows": 6
+          },
+          {
+            "name": "coverage.csv",
+            "rows": 4
+          },
+          {
+            "name": "diagnostics.csv",
+            "rows": 7
+          },
+          {
+            "name": "ic.csv",
+            "rows": 2587
+          },
+          {
+            "name": "ic_summary.csv",
+            "rows": 12
+          },
+          {
+            "name": "labels.csv",
+            "rows": 3988359
+          },
+          {
+            "name": "quantile_returns.csv",
+            "rows": 12935
+          },
+          {
+            "name": "signals.csv",
+            "rows": 3988359
+          },
+          {
+            "name": "spreads.csv",
+            "rows": 2587
+          },
+          {
+            "name": "stability.csv",
+            "rows": 12
+          },
+          {
+            "name": "turnover.csv",
+            "rows": 9345
+          }
+        ],
+        "png_files": [
+          {
+            "name": "ic_series.png",
+            "exists_nonempty": true
+          },
+          {
+            "name": "quantile_returns.png",
+            "exists_nonempty": true
+          }
+        ],
+        "tables": {
+          "comparisons": {
+            "columns": [
+              "comparison",
+              "left",
+              "right",
+              "period",
+              "mean_ic",
+              "icir",
+              "mean_ic_left",
+              "mean_ic_right",
+              "icir_left",
+              "icir_right",
+              "n_dates_left",
+              "n_dates_right"
+            ],
+            "rows": 9
+          },
+          "correlation": {
+            "columns": [
+              "factor_left",
+              "factor_right",
+              "mean_correlation",
+              "std_correlation",
+              "n_dates"
+            ],
+            "rows": 6
+          },
+          "coverage": {
+            "columns": [
+              "factor",
+              "kind",
+              "direction",
+              "input_cells",
+              "finite_cells",
+              "label_cells",
+              "evaluable_cells",
+              "status"
+            ],
+            "rows": 4
+          },
+          "diagnostics": {
+            "columns": [
+              "factor",
+              "stage",
+              "severity",
+              "code",
+              "message"
+            ],
+            "rows": 7
+          },
+          "ic": {
+            "columns": [
+              "time",
+              "factor",
+              "period",
+              "ic",
+              "rank_ic",
+              "n_assets"
+            ],
+            "rows": 2587
+          },
+          "ic_summary": {
+            "columns": [
+              "factor",
+              "period",
+              "mean_ic",
+              "std_ic",
+              "icir",
+              "mean_rank_ic",
+              "std_rank_ic",
+              "rank_icir",
+              "n_dates"
+            ],
+            "rows": 12
+          },
+          "labels": {
+            "columns": [
+              "time",
+              "asset",
+              "period",
+              "value"
+            ],
+            "rows": 3988359
+          },
+          "quantile_returns": {
+            "columns": [
+              "time",
+              "factor",
+              "period",
+              "quantile",
+              "mean_return",
+              "n_assets"
+            ],
+            "rows": 12935
+          },
+          "signals": {
+            "columns": [
+              "time",
+              "asset",
+              "factor",
+              "direction",
+              "value",
+              "processed_value",
+              "preprocess",
+              "group"
+            ],
+            "rows": 3988359
+          },
+          "spreads": {
+            "columns": [
+              "time",
+              "factor",
+              "period",
+              "spread",
+              "top_quantile",
+              "bottom_quantile"
+            ],
+            "rows": 2587
+          },
+          "stability": {
+            "columns": [
+              "factor",
+              "lag",
+              "mean_rank_autocorrelation",
+              "std_rank_autocorrelation",
+              "n_dates"
+            ],
+            "rows": 12
+          },
+          "turnover": {
+            "columns": [
+              "time",
+              "factor",
+              "period",
+              "quantile",
+              "turnover"
+            ],
+            "rows": 9345
+          }
+        },
+        "errors": [],
+        "manifest_status": "OK",
+        "evaluation_id": "332131a196accab211738056142ce13435380840bdeb70ca634339925f896494"
+      },
+      "file_inventory": [
+        {
+          "path": "example\\evaluation\\332131a196accab211738056142ce13435380840bdeb70ca634339925f896494\\comparisons.csv",
+          "size_bytes": 1655,
+          "sha256": "bbec6b0deaf2d95ca8ab468c7f3cfe577b4c9aee668e85e3d46a39fc44fe21a4",
+          "data_rows": 9
+        },
+        {
+          "path": "example\\evaluation\\332131a196accab211738056142ce13435380840bdeb70ca634339925f896494\\correlation.csv",
+          "size_bytes": 427,
+          "sha256": "8207c7573a6c5e60c96addf3c0c3c96aa2d1a0737cf62f1474b979980e3085b6",
+          "data_rows": 6
+        },
+        {
+          "path": "example\\evaluation\\332131a196accab211738056142ce13435380840bdeb70ca634339925f896494\\coverage.csv",
+          "size_bytes": 305,
+          "sha256": "e161da5d1c4a277395eac979545f858ea42849898e160d87461dda7fd4858eaf",
+          "data_rows": 4
+        },
+        {
+          "path": "example\\evaluation\\332131a196accab211738056142ce13435380840bdeb70ca634339925f896494\\diagnostics.csv",
+          "size_bytes": 817,
+          "sha256": "9bb381c3d6c8dbdfb21959d3d8f3522687fb4dcca863f9c0bda4a91cd7cec65c",
+          "data_rows": 7
+        },
+        {
+          "path": "example\\evaluation\\332131a196accab211738056142ce13435380840bdeb70ca634339925f896494\\ic.csv",
+          "size_bytes": 219219,
+          "sha256": "1b235985db66a1918b78c93f92c053e63d0189dd9c91e4d3166a59ee709fbbe9",
+          "data_rows": 2587
+        },
+        {
+          "path": "example\\evaluation\\332131a196accab211738056142ce13435380840bdeb70ca634339925f896494\\ic_series.png",
+          "size_bytes": 125901,
+          "sha256": "8c692f96cf3144e229bea660e4b5bac89028328833ab96a619bce0e6eb9d6d0e"
+        },
+        {
+          "path": "example\\evaluation\\332131a196accab211738056142ce13435380840bdeb70ca634339925f896494\\ic_summary.csv",
+          "size_bytes": 1756,
+          "sha256": "bed2d28dde9df0355f8fce3c86632786caf77779afde871b9cf3cea457ddf3d2",
+          "data_rows": 12
+        },
+        {
+          "path": "example\\evaluation\\332131a196accab211738056142ce13435380840bdeb70ca634339925f896494\\labels.csv",
+          "size_bytes": 234954349,
+          "sha256": "03d2c0a4fc71a03cf9b8d32dbadd86a74e2e9d725d286b0579b6814887f6dc22",
+          "data_rows": 3988359
+        },
+        {
+          "path": "example\\evaluation\\332131a196accab211738056142ce13435380840bdeb70ca634339925f896494\\manifest.json",
+          "size_bytes": 295413,
+          "sha256": "ce7feca250749430ec23f61d51ddd4a2a005a99ce7bd7ba9485c6bbb527e6bb6"
+        },
+        {
+          "path": "example\\evaluation\\332131a196accab211738056142ce13435380840bdeb70ca634339925f896494\\quantile_returns.csv",
+          "size_bytes": 858847,
+          "sha256": "aaa2bd5ff4a77e43925035fde76715fd5997a02a5de69384bbad8613b01e3c56",
+          "data_rows": 12935
+        },
+        {
+          "path": "example\\evaluation\\332131a196accab211738056142ce13435380840bdeb70ca634339925f896494\\quantile_returns.png",
+          "size_bytes": 27968,
+          "sha256": "4c57d3e1ae9aec47ffa86546c4a87cd00da06f184e3cf47e0112dc2292dd9fc5"
+        },
+        {
+          "path": "example\\evaluation\\332131a196accab211738056142ce13435380840bdeb70ca634339925f896494\\signals.csv",
+          "size_bytes": 440584346,
+          "sha256": "a902a25cd090c02f3e2fdb6dc398e7cc6183669918c28c771c6ce0e719757ba7",
+          "data_rows": 3988359
+        },
+        {
+          "path": "example\\evaluation\\332131a196accab211738056142ce13435380840bdeb70ca634339925f896494\\spreads.csv",
+          "size_bytes": 165130,
+          "sha256": "c0ebf0b5fe6653b6d4457147184bf5b4bd7a8e003d44d32c8b50604f4936e5a0",
+          "data_rows": 2587
+        },
+        {
+          "path": "example\\evaluation\\332131a196accab211738056142ce13435380840bdeb70ca634339925f896494\\stability.csv",
+          "size_bytes": 732,
+          "sha256": "97a8f06844455380c03d42824274c4437dcafafa98d9f2f487215c6d2b7cb7ca",
+          "data_rows": 12
+        },
+        {
+          "path": "example\\evaluation\\332131a196accab211738056142ce13435380840bdeb70ca634339925f896494\\turnover.csv",
+          "size_bytes": 538740,
+          "sha256": "71e5f30d670bba84aa09470392bacab699fb2cadc333ce37b73521f57d740a0d",
+          "data_rows": 9345
+        },
+        {
+          "path": "example\\factor_report_close_ma.html",
+          "size_bytes": 1119864,
+          "sha256": "15e7212b97316cda6223fdf545871394765d82cb369deed12cc5e3b47e832a3f",
+          "exists_nonempty": true
+        },
+        {
+          "path": "example\\factor_report_kdj_j.html",
+          "size_bytes": 1121787,
+          "sha256": "d4104b94b80f707e5276a48b6389716f0f3939b36b14608853c53af3a2328a82",
+          "exists_nonempty": true
+        },
+        {
+          "path": "example\\factor_report_roc.html",
+          "size_bytes": 1119570,
+          "sha256": "ad9eee66bee366d0b75f25516032927341e68bc220dbc385e0568dd775eed7b1",
+          "exists_nonempty": true
+        },
+        {
+          "path": "example\\factor_values.csv",
+          "size_bytes": 117816091,
+          "sha256": "22f424ce624fd848932fb203452c5d8286efb3a3c34845e9bd0befceed35534d",
+          "data_rows": 1329453,
+          "row_count_in_factor_verification": true
+        },
+        {
+          "path": "example\\summary.json",
+          "size_bytes": 822,
+          "sha256": "8527056f3adea78236099cf8248fef0859662d08220d26a5b998ebce92597b3e"
+        },
+        {
+          "path": "input-source-pins.json",
+          "size_bytes": 874655,
+          "sha256": "a177448c3e0732844aed75a32e5faa33f766b407a13c10f96abc939d9ada241b"
+        },
+        {
+          "path": "profile.json",
+          "size_bytes": 185920,
+          "sha256": "c79d05e80e50bb4abebb410a21721eb3e68b78a80ea9f8132a73e09b8b7b41d2"
+        },
+        {
+          "path": "stages.jsonl",
+          "size_bytes": 1633,
+          "sha256": "b7258e5f38fa273ffa6a9b5c082170322a0a28889d3ad43fcba0d61488edf719"
+        }
+      ],
+      "file_inventory_totals": {
+        "files": 23,
+        "size_bytes": 800015947,
+        "by_extension": {
+          ".csv": {
+            "files": 13,
+            "size_bytes": 795142414
+          },
+          ".png": {
+            "files": 2,
+            "size_bytes": 153869
+          },
+          ".json": {
+            "files": 4,
+            "size_bytes": 1356810
+          },
+          ".html": {
+            "files": 3,
+            "size_bytes": 3361221
+          },
+          ".jsonl": {
+            "files": 1,
+            "size_bytes": 1633
+          }
+        }
+      }
+    },
+    {
+      "root": "D:\\temp\\iteration49-full-027-20261023",
+      "profile_path": "D:\\temp\\iteration49-full-027-20261023\\profile.json",
+      "example_dir": "D:\\temp\\iteration49-full-027-20261023\\example",
+      "example": "027",
+      "status": "PASS",
+      "errors": [],
+      "profile": {
+        "exit_code": 0,
+        "wall_seconds": 579.8492771000019,
+        "process_cpu_seconds": 560.0,
+        "preload_import_seconds": 3.6206887000007555,
+        "peak_rss_bytes": 3024572416,
+        "samples": 4461,
+        "environment": {
+          "python": "3.11.5 | packaged by Anaconda, Inc. | (main, Sep 11 2023, 13:26:23) [MSC v.1916 64 bit (AMD64)]",
+          "executable": "C:\\anaconda3\\python.exe",
+          "platform": "Windows-10-10.0.26300-SP0",
+          "cpu_logical": 32,
+          "pandas": "2.2.3",
+          "numpy": "1.26.4",
+          "backtrader": "D:\\source_code\\backtrader\\backtrader\\__init__.py",
+          "fincore": "D:\\temp\\iteration49-fincore-e04bd08\\fincore\\__init__.py",
+          "memory_before": {
+            "total": 34049220608,
+            "available": 10034065408,
+            "percent": 70.5,
+            "used": 24015155200,
+            "free": 10034065408
+          },
+          "backtrader_head": "dd33dd1d162652cf1d1a5e5cd0ed9b3fb05f815b",
+          "fincore_head": "e04bd082b85374d58e304ec15d43dd134b7fe77b"
+        },
+        "timers": {
+          "read_csv_panel": {
+            "calls": 1,
+            "inclusive_seconds": 20.7706787000061,
+            "exclusive_seconds": 20.7706787000061
+          },
+          "align_to_grid": {
+            "calls": 5471,
+            "inclusive_seconds": 28.765535297978204,
+            "exclusive_seconds": 28.765535297978204
+          },
+          "feed_preload": {
+            "calls": 5471,
+            "inclusive_seconds": 21.470114198542433,
+            "exclusive_seconds": 21.470114198542433
+          },
+          "collect_grid_points": {
+            "calls": 243,
+            "inclusive_seconds": 21.83101439999882,
+            "exclusive_seconds": 21.83101439999882
+          },
+          "engine_runnext": {
+            "calls": 1,
+            "inclusive_seconds": 323.42845010000747,
+            "exclusive_seconds": 301.59743570000865
+          },
+          "sink_finalize": {
+            "calls": 1,
+            "inclusive_seconds": 2.8389141999941785,
+            "exclusive_seconds": 2.8389141999941785
+          },
+          "strategy_stop": {
+            "calls": 1,
+            "inclusive_seconds": 3.059132700000191,
+            "exclusive_seconds": 0.22021850000601262
+          },
+          "cerebro_run": {
+            "calls": 1,
+            "inclusive_seconds": 459.1997478999838,
+            "exclusive_seconds": 111.24205090143369
+          },
+          "collection_total": {
+            "calls": 1,
+            "inclusive_seconds": 488.8210584000044,
+            "exclusive_seconds": 0.8557752020424232
+          },
+          "dataframe_to_csv": {
+            "calls": 1,
+            "inclusive_seconds": 7.1471773000084795,
+            "exclusive_seconds": 7.1471773000084795
+          },
+          "html_report": {
+            "calls": 1,
+            "inclusive_seconds": 63.04112859998713,
+            "exclusive_seconds": 63.04112859998713
+          }
+        },
+        "limitations": [
+          "Timers are nested; inclusive values must not be summed.",
+          "Sampling uses the GIL and is approximate; no statistical confidence from one run.",
+          "Source/data hashes and instrumentation imports are outside main wall time.",
+          "Output verification and process shutdown are outside main wall time."
+        ]
+      },
+      "summary": {
+        "broker": {
+          "cancel": 0,
+          "submit": 0
+        },
+        "cells": 1329453,
+        "dates": 243,
+        "elapsed_seconds": 579.82,
+        "factor": "alpha003",
+        "factor_calculation": "RAN",
+        "factor_mode": "native",
+        "finite": 1255737,
+        "indicator": "backtrader.research.alpha101.alpha003.Alpha003Native",
+        "operator_profile": "alpha101-v2",
+        "output": "factor_values.csv",
+        "report": "D:\\temp\\iteration49-full-027-20261023\\example\\factor_report_alpha003.html",
+        "status": "COMPLETED",
+        "symbols": 5471
+      },
+      "factor_values": {
+        "path": "D:\\temp\\iteration49-full-027-20261023\\example\\factor_values.csv",
+        "rows": 1329453,
+        "expected_rows": 1329453,
+        "factor_columns": [
+          "alpha003"
+        ],
+        "factor_counts": {
+          "alpha003": {
+            "finite": 1255737,
+            "nan": 73716,
+            "infinite": 0,
+            "invalid": 0
+          }
+        },
+        "unique_asset_count": 5471,
+        "unique_date_count": 243,
+        "duplicate_keys": 0,
+        "unknown_asset_count": 0,
+        "unexpected_date_count": 0,
+        "malformed_rows": 0,
+        "timestamp_mismatches": 0,
+        "missing_cells": 0,
+        "grid_complete": true,
+        "errors": []
+      },
+      "html_reports": [
+        {
+          "path": "D:\\temp\\iteration49-full-027-20261023\\example\\factor_report_alpha003.html",
+          "size_bytes": 1122558,
+          "exists_nonempty": true
+        }
+      ],
+      "declared_html_reports": [
+        {
+          "path": "D:\\temp\\iteration49-full-027-20261023\\example\\factor_report_alpha003.html",
+          "exists_nonempty": true,
+          "size_bytes": 1122558
+        }
+      ],
+      "evaluation": {
+        "required_for_example": false,
+        "status": "NOT_REPORTED_BY_027",
+        "directory": "D:\\temp\\iteration49-full-027-20261023\\example\\evaluation",
+        "manifest_path": null,
+        "csv_files": [],
+        "png_files": [],
+        "tables": {},
+        "errors": []
+      },
+      "file_inventory": [
+        {
+          "path": "example\\factor_report_alpha003.html",
+          "size_bytes": 1122558,
+          "sha256": "4e1feb6df3b9da88cf2a7696fda02582ad2e0dafc78c7561ceacbc05ec23bf79",
+          "exists_nonempty": true
+        },
+        {
+          "path": "example\\factor_values.csv",
+          "size_bytes": 73177649,
+          "sha256": "ced869cc44e442d524df3aab9dff4b4bac9461e01fdfa61b2ed6948980e473a2",
+          "data_rows": 1329453,
+          "row_count_in_factor_verification": true
+        },
+        {
+          "path": "example\\summary.json",
+          "size_bytes": 520,
+          "sha256": "00bcffd2786d595b9d132a9627619c69bb89ac665e4d71d758ef0a1941850496"
+        },
+        {
+          "path": "input-source-pins.json",
+          "size_bytes": 874682,
+          "sha256": "eddba96ab93375efd55af4d977c862e24267e81eb7d1aafe158073c1c8c2ddcb"
+        },
+        {
+          "path": "profile.json",
+          "size_bytes": 120109,
+          "sha256": "7ce081d2e7b687c0ba4ad0d338d8cea8cc95ea629067ceb4ae22e7f4bd024f12"
+        },
+        {
+          "path": "stages.jsonl",
+          "size_bytes": 871,
+          "sha256": "92bdba8402748856f6c7e26c112e894a7c2dcc809eed0425ddb1546dc4dab17c"
+        }
+      ],
+      "file_inventory_totals": {
+        "files": 6,
+        "size_bytes": 75296389,
+        "by_extension": {
+          ".html": {
+            "files": 1,
+            "size_bytes": 1122558
+          },
+          ".csv": {
+            "files": 1,
+            "size_bytes": 73177649
+          },
+          ".json": {
+            "files": 3,
+            "size_bytes": 995311
+          },
+          ".jsonl": {
+            "files": 1,
+            "size_bytes": 871
+          }
+        }
+      }
+    }
+  ],
+  "cross_example_close_ma_comparisons": [
+    {
+      "left_root": "D:\\temp\\iteration49-full-025-20261023",
+      "right_root": "D:\\temp\\iteration49-full-026-20261023",
+      "method": "exact IEEE-754 float64 equality; paired NaN values compare equal",
+      "compared_cells": 1329453,
+      "equal_finite_cells": 1196833,
+      "equal_nan_cells": 132620,
+      "mismatches": 0,
+      "mismatch_examples": [],
+      "status": "PASS"
+    }
+  ],
+  "global_errors": [],
+  "validation_boundary": [
+    "Checks completed-run metadata, output file existence/size/hash, CSV structure, exact manifest universe/date grid, duplicate keys, and numeric finite/NaN/infinity counts.",
+    "Checks exact float64 close_ma equality with paired NaN equality between 025 and 026 for every manifest date/asset cell.",
+    "Does not re-run examples, inspect private config, recalculate factors, or establish an independent mathematical oracle for factor values.",
+    "Profile timing remains one instrumented run per example; it is descriptive and does not provide statistical confidence or an uninstrumented benchmark."
+  ]
+}
