@@ -28,7 +28,9 @@ from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 from .. import Indicator
 from ..linebuffer import LineBuffer
-from .factor_indicator import FactorIndicator
+from ..feeds.pandafeed import PandasData
+from ..lineseries import Lines
+from .factor_indicator import FactorIndicator, _PresenceLine
 
 
 class OperatorReason(IntEnum):
@@ -62,6 +64,13 @@ _LINEBUFFER_GETATTRIBUTE = LineBuffer.__getattribute__
 _LINEBUFFER_GETITEM = LineBuffer.__getitem__
 _LINEBUFFER_LEN = LineBuffer.__len__
 _LINEBUFFER_UNBOUNDED = LineBuffer.UnBounded
+_LINEBUFFER_GETATTR = getattr(LineBuffer, "__getattr__", None)
+_PANDASDATA_GETATTRIBUTE = PandasData.__getattribute__
+_PANDASDATA_GETATTR = getattr(PandasData, "__getattr__", None)
+_PRESENCE_LINE_GETATTRIBUTE = _PresenceLine.__getattribute__
+_PRESENCE_LINE_GETATTR = getattr(_PresenceLine, "__getattr__", None)
+_LINES_GETATTRIBUTE = Lines.__getattribute__
+_LINES_GETATTR = getattr(Lines, "__getattr__", None)
 
 
 def _associated_reason(
@@ -427,8 +436,144 @@ def _line_target_relation(source: Any, target: Any, seen: Optional[set] = None) 
     return None
 
 
+_PANEL_RELATION_MISS = object()
+
+
+def _relation_instance_dict(instance: Any) -> Optional[dict]:
+    """Read an ordinary instance dictionary without invoking dynamic lookup."""
+    try:
+        state = object.__getattribute__(instance, "__dict__")
+    except (AttributeError, TypeError):
+        return None
+    return state if type(state) is dict else None
+
+
+def _standard_presence_relation_classes() -> bool:
+    """Keep the shortcut on the standard line/feed/indicator implementations."""
+    return (
+        LineBuffer.__getattribute__ is _LINEBUFFER_GETATTRIBUTE
+        and getattr(LineBuffer, "__getattr__", None) is _LINEBUFFER_GETATTR
+        and PandasData.__getattribute__ is _PANDASDATA_GETATTRIBUTE
+        and getattr(PandasData, "__getattr__", None) is _PANDASDATA_GETATTR
+        and _PresenceLine.__getattribute__ is _PRESENCE_LINE_GETATTRIBUTE
+        and getattr(_PresenceLine, "__getattr__", None) is _PRESENCE_LINE_GETATTR
+        and Lines.__getattribute__ is _LINES_GETATTRIBUTE
+        and getattr(Lines, "__getattr__", None) is _LINES_GETATTR
+    )
+
+
+def _standard_lines_instance(instance: Any) -> bool:
+    cls = type(instance)
+    return (
+        isinstance(instance, Lines)
+        and cls.__getattribute__ is _LINES_GETATTRIBUTE
+        and getattr(cls, "__getattr__", None) is _LINES_GETATTR
+    )
+
+
+class _PresenceLineRelationPlan:
+    """Live-guarded proof for an ordinary presence line on its own feed."""
+
+    __slots__ = (
+        "source", "target", "owner", "indicator", "datas", "owner_lines",
+    )
+
+    def __init__(self, source: Any, target: Any, owner: Any, indicator: Any,
+                 datas: list, owner_lines: list) -> None:
+        self.source = source
+        self.target = target
+        self.owner = owner
+        self.indicator = indicator
+        self.datas = datas
+        self.owner_lines = owner_lines
+
+    @classmethod
+    def bind(cls, source: Any, target: Any) -> Optional["_PresenceLineRelationPlan"]:
+        """Bind only the exact native presence-line/feed ownership shape."""
+        if (not _standard_presence_relation_classes()
+                or type(source) is not LineBuffer or type(target) is not PandasData):
+            return None
+        source_state = _relation_instance_dict(source)
+        target_state = _relation_instance_dict(target)
+        if (source_state is None or target_state is None
+                or source_state.get("_factor_research_target") is not None
+                or target_state.get("_factor_research_target") is not None):
+            return None
+
+        owner = source_state.get("_owner")
+        if (type(owner) is not _PresenceLine.lines
+                or not _standard_lines_instance(owner)):
+            return None
+        owner_state = _relation_instance_dict(owner)
+        if owner_state is None:
+            return None
+        indicator = owner_state.get("_owner_ref")
+        if type(indicator) is not _PresenceLine:
+            return None
+        indicator_state = _relation_instance_dict(indicator)
+        if indicator_state is None:
+            return None
+        datas = indicator_state.get("datas")
+        owner_lines = owner_state.get("lines")
+        if (type(datas) is not list or len(datas) != 1 or datas[0] is not target
+                or type(owner_lines) is not list or not any(line is source for line in owner_lines)
+                or indicator_state.get("outputs") is not None
+                or indicator_state.get("_operand_args") is not None):
+            return None
+        return cls(source, target, owner, indicator, datas, owner_lines)
+
+    def resolve(self, source: Any, target: Any) -> Any:
+        """Return the proven relation, or ask the ordinary resolver instead."""
+        if (source is not self.source or target is not self.target
+                or type(source) is not LineBuffer or type(target) is not PandasData
+                or type(self.owner) is not _PresenceLine.lines
+                or not _standard_lines_instance(self.owner)
+                or type(self.indicator) is not _PresenceLine
+                or not _standard_presence_relation_classes()):
+            return _PANEL_RELATION_MISS
+        source_state = _relation_instance_dict(source)
+        target_state = _relation_instance_dict(target)
+        owner_state = _relation_instance_dict(self.owner)
+        indicator_state = _relation_instance_dict(self.indicator)
+        if (source_state is None or target_state is None
+                or owner_state is None or indicator_state is None):
+            return _PANEL_RELATION_MISS
+        if (source_state.get("_owner") is not self.owner
+                or source_state.get("_factor_research_target") is not None
+                or target_state.get("_factor_research_target") is not None
+                or owner_state.get("_owner_ref") is not self.indicator
+                or owner_state.get("lines") is not self.owner_lines
+                or not any(line is source for line in self.owner_lines)
+                or indicator_state.get("datas") is not self.datas
+                or type(self.datas) is not list or len(self.datas) != 1
+                or self.datas[0] is not target
+                or indicator_state.get("outputs") is not None
+                or indicator_state.get("_operand_args") is not None):
+            return _PANEL_RELATION_MISS
+        return True
+
+
+def _presence_line_relation_plan(
+    source: Any, target: Any
+) -> Optional[_PresenceLineRelationPlan]:
+    return _PresenceLineRelationPlan.bind(source, target)
+
+
+def _resolve_panel_relation(
+    source: Any, target: Any, relation_plan: Optional[_PresenceLineRelationPlan] = None
+) -> Optional[bool]:
+    if relation_plan is not None:
+        relation = relation_plan.resolve(source, target)
+        if relation is not _PANEL_RELATION_MISS:
+            return relation
+    return _line_target_relation(source, target)
+
+
 def _panel_value_array(
-    source: Any, target: Any, grid_index: int
+    source: Any,
+    target: Any,
+    grid_index: int,
+    relation_plan: Optional[_PresenceLineRelationPlan] = None,
 ) -> Tuple[Optional[Any], OperatorReason]:
     """Resolve a target-aligned panel line array for an absolute grid slot."""
     if source is None:
@@ -445,7 +590,7 @@ def _panel_value_array(
     # A shared native owner clock cannot identify one of several panel output
     # lines. Prefer retained line provenance, then use the ordinary clock for
     # lines without inspectable target provenance.
-    relation = _line_target_relation(source, target)
+    relation = _resolve_panel_relation(source, target, relation_plan)
     if relation is False:
         raise OperatorInputError("panel input line is bound to a different target feed")
     if relation is not True:
@@ -464,9 +609,16 @@ def _panel_value_array(
     return source_array, OperatorReason.READY
 
 
-def _read_panel_value_at(source: Any, target: Any, grid_index: int) -> Tuple[float, OperatorReason]:
+def _read_panel_value_at(
+    source: Any,
+    target: Any,
+    grid_index: int,
+    relation_plan: Optional[_PresenceLineRelationPlan] = None,
+) -> Tuple[float, OperatorReason]:
     """Read one panel parameter at an absolute target-grid index."""
-    source_array, readiness = _panel_value_array(source, target, grid_index)
+    source_array, readiness = _panel_value_array(
+        source, target, grid_index, relation_plan=relation_plan
+    )
     if source_array is None:
         return _NAN, readiness
     raw = float(source_array[grid_index])
@@ -478,10 +630,16 @@ def _read_panel_value_at(source: Any, target: Any, grid_index: int) -> Tuple[flo
     return raw, OperatorReason.READY
 
 
-def _read_panel_value(source: Any, target: Any) -> Tuple[float, OperatorReason]:
+def _read_panel_value(
+    source: Any,
+    target: Any,
+    relation_plan: Optional[_PresenceLineRelationPlan] = None,
+) -> Tuple[float, OperatorReason]:
     """Read a panel parameter at the target feed's populated current grid."""
     target_line = _target_clock_line(target)
-    return _read_panel_value_at(source, target, int(target_line._idx))
+    return _read_panel_value_at(
+        source, target, int(target_line._idx), relation_plan=relation_plan
+    )
 
 
 def _read_panel_window(
@@ -1181,6 +1339,13 @@ class _PanelOperator(FactorIndicator):
             if len(self._groups) != len(targets):
                 raise ValueError("groups must contain one feed category line per bound feed")
 
+        # Keep a live-guarded relation proof for the repeated standard
+        # formula-presence reads; all other inputs use the general resolver.
+        self._member_relation_plans = tuple(
+            _presence_line_relation_plan(member, target) if member is not None else None
+            for target, member in zip(targets, self._members)
+        )
+
         # A FactorIndicator has one native owner clock for all output lines.
         # Retain the target identity on each line so downstream operators can
         # validate a later target without replacing or manually advancing deps.
@@ -1214,11 +1379,15 @@ class _PanelOperator(FactorIndicator):
         values: List[float] = []
         eligible: List[bool] = []
         reasons: List[OperatorReason] = []
-        for target, source, member in zip(self._factor_target_datas, self._values, self._members):
+        for index, (target, source, member) in enumerate(
+            zip(self._factor_target_datas, self._values, self._members)
+        ):
             if member is None:
                 is_member = True
             else:
-                member_value, member_reason = _read_panel_value(member, target)
+                member_value, member_reason = _read_panel_value(
+                    member, target, self._member_relation_plans[index]
+                )
                 if member_reason is not OperatorReason.READY:
                     raise OperatorInputError("formula-universe membership is unknown")
                 if member_value not in (0.0, 1.0):
