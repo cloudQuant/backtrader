@@ -212,6 +212,7 @@ def test_single_and_multi_examples_load_the_same_real_panel(tmp_path: Path):
     ),
 )
 @pytest.mark.parametrize("label", ("next_open_to_open", "close_to_close"))
+@pytest.mark.parametrize("asset_batch_size", (0, 256))
 def test_factor_example_reports_follow_the_evaluation_label(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
@@ -219,6 +220,7 @@ def test_factor_example_reports_follow_the_evaluation_label(
     module_name: str,
     factor_names: Tuple[str, ...],
     label: str,
+    asset_batch_size: int,
 ):
     from backtrader.errors import DependencyError
     import backtrader.research as research
@@ -244,14 +246,21 @@ def test_factor_example_reports_follow_the_evaluation_label(
     broker = SimpleNamespace(submit_count=0, cancel_count=0)
     monkeypatch.setattr(runner, "load_daily_panel", lambda data_config: {})
 
-    def collect(run_config, data, runnext, *, consume_source_frames=False):
-        assert consume_source_frames is True
-        return None, panel, broker
+    if asset_batch_size == 0:
+        def collect(run_config, data, runnext, *, consume_source_frames=False):
+            assert consume_source_frames is True
+            return None, panel, broker
 
-    monkeypatch.setattr(runner, "_run_native_collection", collect)
+        monkeypatch.setattr(runner, "_run_native_collection", collect)
+        monkeypatch.setattr(runner, "_actual_factor_mode", lambda strategy, expected: expected)
+    else:
+        def collect_batches(run_config, data, runnext, batch_size):
+            assert batch_size == asset_batch_size
+            return panel, {"submit": 0, "cancel": 0}
+
+        monkeypatch.setattr(runner, "_run_batched_collection", collect_batches)
     # This test isolates report-label forwarding and deliberately stubs factor
     # collection; the mode contract is exercised by the real collection tests.
-    monkeypatch.setattr(runner, "_actual_factor_mode", lambda strategy, expected: expected)
     monkeypatch.setattr(runner, "_evaluation_spec", lambda run_config, result_panel, periods: None)
     report_calls = []
 
@@ -265,7 +274,15 @@ def test_factor_example_reports_follow_the_evaluation_label(
     monkeypatch.setattr(research, "write_factor_report", capture_report)
     monkeypatch.setattr(research, "evaluate_frames", unavailable)
 
-    result = runner.main(["--output-dir", str(tmp_path / (module_name + "-" + label)), "--report"])
+    result = runner.main(
+        [
+            "--output-dir",
+            str(tmp_path / (module_name + "-" + label)),
+            "--asset-batch-size",
+            str(asset_batch_size),
+            "--report",
+        ]
+    )
 
     assert result == 0
     assert report_calls == [(name, label) for name in factor_names]
@@ -306,6 +323,93 @@ def test_native_example_collection_observes_zero_broker_writes(
     assert len(dataset.factors) == 30 * len(panel["assets"])
     assert broker.submit_count == 0
     assert broker.cancel_count == 0
+
+
+@pytest.mark.parametrize(
+    ("runner_path", "module_name", "factor_names"),
+    (
+        (SINGLE_RUNNER, "iteration49_single_asset_batches", ("close_ma",)),
+        (
+            MULTI_RUNNER,
+            "iteration49_multi_asset_batches",
+            ("close_ma", "kdj_j", "roc"),
+        ),
+    ),
+)
+@pytest.mark.parametrize("factor_mode", ("native", "build"))
+@pytest.mark.parametrize("runnext", (False, True))
+def test_batched_factor_examples_match_full_cerebro_collection(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    runner_path: Path,
+    module_name: str,
+    factor_names: Tuple[str, ...],
+    factor_mode: str,
+    runnext: bool,
+):
+    root = tmp_path / "a_stocks"
+    symbols, _ = _write_daily_panel(root, symbol_count=5, day_count=35)
+    manifest_path = root / "_metadata" / "manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["output"]["symbols"].reverse()
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+    runner = _load_module(runner_path, module_name)
+    monkeypatch.syspath_prepend(str(runner_path.parent))
+    config = _example_config(runner, root)
+    config["factor_mode"] = factor_mode
+    config["data"]["max_symbols"] = 4
+    loaded = runner.load_daily_panel(config["data"])
+    assert loaded["assets"] == tuple(reversed(symbols))[:4]
+
+    def independent_input():
+        return {
+            **loaded,
+            "feeds": {asset: frame.copy() for asset, frame in loaded["feeds"].items()},
+        }
+
+    strategy, expected, full_broker = runner._run_native_collection(
+        config, independent_input(), runnext
+    )
+    actual, batch_broker = runner._run_batched_collection(
+        config, independent_input(), runnext, batch_size=3
+    )
+
+    assert runner._actual_factor_mode(strategy, factor_mode) == factor_mode
+    assert tuple(strategy._factor_specs_by_name) == factor_names
+    assert batch_broker == {"submit": 0, "cancel": 0}
+    assert (full_broker.submit_count, full_broker.cancel_count) == (0, 0)
+    assert actual.target_order == expected.target_order == loaded["assets"]
+    assert actual.factor_order == expected.factor_order == factor_names
+    assert actual.groups == expected.groups
+    assert actual.directions == expected.directions
+    assert actual.start == expected.start
+    assert actual.end == expected.end
+    pd.testing.assert_frame_equal(actual.grid, expected.grid)
+    pd.testing.assert_frame_equal(actual.factors, expected.factors)
+    pd.testing.assert_frame_equal(actual.prices_open, expected.prices_open)
+    pd.testing.assert_frame_equal(actual.prices_close, expected.prices_close)
+    pd.testing.assert_frame_equal(actual.universe, expected.universe)
+
+
+@pytest.mark.parametrize(
+    ("runner_path", "module_name"),
+    (
+        (SINGLE_RUNNER, "iteration49_single_batch_cli"),
+        (MULTI_RUNNER, "iteration49_multi_batch_cli"),
+    ),
+)
+def test_factor_example_batch_size_cli_defaults_and_unbatched_override(
+    runner_path: Path, module_name: str
+):
+    runner = _load_module(runner_path, module_name)
+
+    assert runner._parser().parse_args(["--output-dir", "out"]).asset_batch_size == 256
+    assert (
+        runner._parser()
+        .parse_args(["--output-dir", "out", "--asset-batch-size", "0"])
+        .asset_batch_size
+        == 0
+    )
 
 
 def test_026_multi_example_preserves_legacy_factor_order():

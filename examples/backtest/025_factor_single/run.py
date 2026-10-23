@@ -281,6 +281,35 @@ def _run_native_collection(
     return strategies[0], strategies[0].get_panel(), broker
 
 
+def _run_batched_collection(
+    config: Mapping[str, Any],
+    panel: Mapping[str, Any],
+    runnext: bool,
+    batch_size: int,
+) -> Tuple[Any, Dict[str, int]]:
+    factor_mode = _resolve_factor_mode(None, config.get("factor_mode"))
+    factor_name = config["factor"]["name"]
+    support_dir = SCRIPT_DIR.parent / "025_factor_single"
+    if str(support_dir) not in sys.path:
+        sys.path.insert(0, str(support_dir))
+    from _iteration49_factor_asset_batch import run_batched_factor_collection
+
+    factor_names = (factor_name,)
+    return run_batched_factor_collection(
+        config,
+        panel,
+        runnext,
+        batch_size,
+        factor_names,
+        _factor_classes(factor_mode),
+        factor_mode,
+        {factor_name: config["factor"]["direction"]},
+        _create_research_spec,
+        _run_native_collection,
+        _actual_factor_mode,
+    )
+
+
 def _parse_periods(values: Optional[Sequence[int]], default: Sequence[int]) -> Tuple[int, ...]:
     result = tuple(default if values is None else values)
     if not result or any(type(value) is not int or value <= 0 for value in result):
@@ -311,6 +340,12 @@ def _parser() -> argparse.ArgumentParser:
         "--max-symbols",
         type=int,
         help="evenly sampled symbol count; 0 uses every symbol in the manifest",
+    )
+    parser.add_argument(
+        "--asset-batch-size",
+        type=int,
+        default=256,
+        help="assets per native Cerebro run; 0 uses one Cerebro run (default: 256)",
     )
     parser.add_argument(
         "--save-panel", action="store_true", help="also write the CSV panel for offline reevaluation"
@@ -362,6 +397,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         parser.error(
             "--factor-mode cannot be combined with --panel; offline panels are not recalculated"
         )
+    if args.asset_batch_size < 0:
+        parser.error("--asset-batch-size must be zero or a positive integer")
     try:
         config = _load_config()
         if args.panel:
@@ -406,15 +443,21 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             broker_summary = None
         else:
             prices = load_daily_panel(config["data"])
-            strategy, panel, broker = _run_native_collection(
-                config, prices, args.runnext, consume_source_frames=True
-            )
-            factor_mode = _actual_factor_mode(strategy, factor_mode)
             factor_classes = _factor_class_identities(factor_mode)
-            if (broker.submit_count, broker.cancel_count) != (0, 0):
-                raise RuntimeError("research-only Cerebro run submitted or cancelled an order")
-            broker_summary = {"submit": broker.submit_count, "cancel": broker.cancel_count}
-            del strategy, broker, prices
+            if args.asset_batch_size:
+                panel, broker_summary = _run_batched_collection(
+                    config, prices, args.runnext, args.asset_batch_size
+                )
+            else:
+                strategy, panel, broker = _run_native_collection(
+                    config, prices, args.runnext, consume_source_frames=True
+                )
+                factor_mode = _actual_factor_mode(strategy, factor_mode)
+                if (broker.submit_count, broker.cancel_count) != (0, 0):
+                    raise RuntimeError("research-only Cerebro run submitted or cancelled an order")
+                broker_summary = {"submit": broker.submit_count, "cancel": broker.cancel_count}
+                del strategy, broker
+            del prices
             gc.collect()
 
         mode_summary = {

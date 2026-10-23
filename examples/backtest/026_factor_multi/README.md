@@ -19,6 +19,8 @@ The current single-class refactor passed local source and installed-wheel checks
 
 Like 025, the runner evenly samples **500** symbols from `tests/datas/a_stocks` by default; `--max-symbols 0` uses all 5,471, and `--data-dir` selects another panel with the same layout. The research calendar is the source-observed session union, prices are unadjusted, and missing rows are not filled.
 
+Native collection defaults to 256 assets per ordinary Cerebro run. Each asset keeps its full date history; the runner merges factors and full-grid prices in manifest order, then evaluates and reports once on the complete panel. Use `--asset-batch-size 0` to run one Cerebro over all selected assets; `--panel` skips factor calculation and ignores this option.
+
 The configured evaluation asks fincore for cross-sectional ranks, the fixed `equal_weight` combination, its leave-one-factor-out ablations, IC/Rank IC, quantiles, stability, correlation and common-pool comparisons. The output factor columns are `close_ma`, `kdj_j`, `roc` (the library's stable order), one row per grid time and symbol.
 
 Outputs:
@@ -31,7 +33,7 @@ Outputs:
 
 Evaluation is optional. When fincore's research API is unavailable, `factor_values.csv` is still written, `EVALUATION SKIPPED` is printed, and the run exits 0 with `summary.json.status="PANEL_ONLY"`. Exit codes are 0 for written outputs, 1 for a failed or `UNEVALUABLE` evaluation, 2 for invalid or missing input, and 3 for an output I/O failure.
 
-Useful flags: `--report`, `--report-language zh|en` (default `zh`; the HTML also has a 中文/EN switch), `--no-charts`, `--periods 1 5 20`, `--runnext`, `--save-panel`, and `--panel <saved-panel>` for offline re-evaluation without Cerebro. `--report` delegates to `fincore.report.factor.write_factor_report`, so it works even when the separate research-evaluation API is unavailable.
+Useful flags: `--report`, `--report-language zh|en` (default `zh`; the HTML also has a 中文/EN switch), `--no-charts`, `--periods 1 5 20`, `--runnext`, `--asset-batch-size 256|0`, `--save-panel`, and `--panel <saved-panel>` for offline re-evaluation without Cerebro. `--report` delegates to `fincore.report.factor.write_factor_report`, so it works even when the separate research-evaluation API is unavailable.
 
 `--panel` cannot be combined with an explicit `--factor-mode`; the config's default mode does not trigger calculation. Its summary records `factor_mode="NOT_APPLICABLE"` and `factor_calculation="NOT_RUN"`. Use a new output directory for each run.
 

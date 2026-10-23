@@ -13,7 +13,9 @@ python examples/backtest/025_factor_single/run.py --factor-mode build --report -
 
 The current single-class refactor passed local source and installed-wheel checks; see the [Iteration49 implementation and acceptance record](../../../docs/_internal/opts/requirements/迭代49-因子单类双模式重构/实施与验收.md). The historical [Iteration48 acceptance record](../../../docs/_internal/opts/requirements/迭代48-Alpha101-build实现/验收结果.md) includes this entry's complete native/build output comparison and CSV reevaluation on pinned wheels with 20 assets. The separate 500-asset comparison remains recorded in Iteration47.
 
-By default the runner evenly samples **500** symbols from the manifest, which keeps an example run to about a minute while still covering the whole market. Use `--max-symbols 0` for all 5,471 symbols, or `--data-dir <dir>` to point at another panel with the same `_metadata/manifest.json` and per-symbol CSV layout.
+By default the runner evenly samples **500** symbols from the manifest. Use `--max-symbols 0` for all 5,471 symbols, or `--data-dir <dir>` to point at another panel with the same `_metadata/manifest.json` and per-symbol CSV layout.
+
+Native collection defaults to 256 assets per ordinary Cerebro run. The runner merges the per-asset factor and price panels in manifest order before one full-panel evaluation and report. Use `--asset-batch-size 0` to run one Cerebro over all selected assets; `--panel` skips factor calculation and ignores this option.
 
 The research calendar is `_metadata/observed_calendar.csv`: the union of sessions observed in the source, not a verified exchange calendar. The source timezone is `Asia/Shanghai`; prices are used as provided, without adjustment or forward filling. Missing stock/day rows remain absent and become NaN, so the first 19 bars of each symbol have an incomplete SMA window.
 
@@ -27,7 +29,7 @@ Outputs:
 
 Evaluation is optional: when the fincore research API is unavailable, the runner still writes `factor_values.csv`, prints `EVALUATION SKIPPED`, and exits 0 with `summary.json.status="PANEL_ONLY"`. Exit codes are 0 for written outputs, 1 for a failed or `UNEVALUABLE` evaluation, 2 for invalid or missing input, and 3 for an output I/O failure.
 
-Useful flags: `--report`, `--report-language zh|en` (default `zh`; the HTML also has a 中文/EN switch), `--no-charts`, `--periods 1 5 20`, `--runnext`, `--save-panel`, and `--panel <saved-panel>` to re-evaluate without constructing Cerebro or factor indicators (the saved panel must be paired with the same `config.yaml`, which supplies the explicit window, directions and orders). `--report` delegates to `fincore.report.factor.write_factor_report`, so it works even when the separate research-evaluation API is unavailable.
+Useful flags: `--report`, `--report-language zh|en` (default `zh`; the HTML also has a 中文/EN switch), `--no-charts`, `--periods 1 5 20`, `--runnext`, `--asset-batch-size 256|0`, `--save-panel`, and `--panel <saved-panel>` to re-evaluate without constructing Cerebro or factor indicators (the saved panel must be paired with the same `config.yaml`, which supplies the explicit window, directions and orders). `--report` delegates to `fincore.report.factor.write_factor_report`, so it works even when the separate research-evaluation API is unavailable.
 
 The runner is intentionally thin: it loads the panel, assembles `ResearchSpec`/`FactorSpec`, runs `FactorStrategy`, and exports the factor panel. Exhaustive result validation belongs to the library and its tests, not to this example.
 
