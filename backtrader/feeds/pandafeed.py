@@ -23,6 +23,19 @@ from ..utils.py3 import filter, integer_types, string_types
 logger = get_logger(__name__)
 
 
+def _datetime_index_signature(index):
+    try:
+        unit = getattr(index, "unit", None)
+        return (
+            index.asi8.tobytes(),
+            str(index.dtype),
+            None if unit is None else str(unit),
+            str(index.tz),
+        )
+    except Exception:
+        return None
+
+
 class PandasDirectData(DataBase):
     """
     Uses a Pandas DataFrame as the feed source, iterating directly over the
@@ -310,26 +323,40 @@ class PandasData(DataBase):
         try:
             coldtime = self._coldtime
             ts = df.index if coldtime is None else df.iloc[:, coldtime]
-            try:
-                import numpy as np
-
-                py_dts = np.array(ts.to_pydatetime())
-            except Exception as e1:
-                logger.debug("ts.to_pydatetime() failed, trying .dt accessor: %s", e1)
+            hint = getattr(self, "_factor_research_datetime_hint", None)
+            if (
+                coldtime is None
+                and isinstance(hint, tuple)
+                and len(hint) == 3
+                and ts is hint[0]
+                and isinstance(hint[1], tuple)
+                and len(hint[1]) == self._df_len
+                and isinstance(hint[2], tuple)
+                and str(getattr(ts, "tz", None)) == "UTC"
+                and _datetime_index_signature(ts) == hint[2]
+            ):
+                self._dt_dtnum = hint[1]
+            else:
                 try:
-                    import warnings
-
                     import numpy as np
 
-                    with warnings.catch_warnings():
-                        warnings.simplefilter("ignore", FutureWarning)
-                        py_dts = np.array(ts.dt.to_pydatetime())
-                except Exception as e2:
-                    logger.debug(
-                        "ts.dt.to_pydatetime() failed, falling back to element-wise: %s", e2
-                    )
-                    py_dts = [x.to_pydatetime() if hasattr(x, "to_pydatetime") else x for x in ts]
-            self._dt_dtnum = [date2num(d) for d in py_dts]
+                    py_dts = np.array(ts.to_pydatetime())
+                except Exception as e1:
+                    logger.debug("ts.to_pydatetime() failed, trying .dt accessor: %s", e1)
+                    try:
+                        import warnings
+
+                        import numpy as np
+
+                        with warnings.catch_warnings():
+                            warnings.simplefilter("ignore", FutureWarning)
+                            py_dts = np.array(ts.dt.to_pydatetime())
+                    except Exception as e2:
+                        logger.debug(
+                            "ts.dt.to_pydatetime() failed, falling back to element-wise: %s", e2
+                        )
+                        py_dts = [x.to_pydatetime() if hasattr(x, "to_pydatetime") else x for x in ts]
+                self._dt_dtnum = [date2num(d) for d in py_dts]
         except Exception as e:
             logger.warning("Failed to pre-compute datetime numbers: %s", e)
             self._dt_dtnum = None

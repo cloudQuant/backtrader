@@ -409,6 +409,16 @@ def _timestamp(value: Any, field_name: str, pd: Any) -> Any:
     return stamp.tz_convert("UTC")
 
 
+def _datetime_index_signature(index: Any) -> Tuple[bytes, str, Optional[str], str]:
+    unit = getattr(index, "unit", None)
+    return (
+        index.asi8.tobytes(),
+        str(index.dtype),
+        None if unit is None else str(unit),
+        str(index.tz),
+    )
+
+
 def _utc_index(index: Any, field_name: str, pd: Any) -> Any:
     if not isinstance(index, pd.DatetimeIndex):
         raise ResearchConfigError("%s must be a DatetimeIndex" % field_name)
@@ -463,6 +473,10 @@ class ResearchSpec:
 
     _grid: Any = field(repr=False, compare=False)
     _grid_sha256: str = field(repr=False, compare=False)
+    _feed_datetime_nums: Tuple[float, ...] = field(repr=False, compare=False)
+    _feed_datetime_index_signature: Tuple[bytes, str, Optional[str], str] = field(
+        repr=False, compare=False
+    )
     start: Any
     end: Any
     targets: Tuple[str, ...]
@@ -570,8 +584,20 @@ class ResearchSpec:
             field_name="universe",
         )
 
+        from ..utils.dateintern import date2num
+
+        calculation_index = grid_copy.index[grid_copy.index <= end_utc]
+        calculation_datetime_nums = tuple(
+            date2num(value.to_pydatetime()) for value in calculation_index
+        )
+        calculation_datetime_index_signature = _datetime_index_signature(calculation_index)
+
         object.__setattr__(self, "_grid", grid_copy)
         object.__setattr__(self, "_grid_sha256", _grid_sha256(grid_copy))
+        object.__setattr__(self, "_feed_datetime_nums", calculation_datetime_nums)
+        object.__setattr__(
+            self, "_feed_datetime_index_signature", calculation_datetime_index_signature
+        )
         object.__setattr__(self, "start", start_utc)
         object.__setattr__(self, "end", end_utc)
         object.__setattr__(self, "targets", normalized_targets)

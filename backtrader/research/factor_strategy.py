@@ -165,6 +165,12 @@ class FactorStrategy(Strategy):
 
         self._grid = self._calculation_times()
         self._grid_cursor = 0
+        self._input_aliases_by_spec = {
+            id(spec): _input_aliases(spec) for spec in self._factor_specs_by_name.values()
+        }
+        self._required_input_aliases = frozenset(
+            alias for aliases in self._input_aliases_by_spec.values() for alias in aliases
+        )
         self._field_counts = self._build_field_counts()
 
     def _calculation_times(self) -> Tuple[datetime, ...]:
@@ -288,7 +294,10 @@ class FactorStrategy(Strategy):
         lookback = spec.lookback_h
         start = max(0, cursor - lookback)
         expected = cursor - start + 1
-        for alias in _input_aliases(spec):
+        aliases = self._input_aliases_by_spec.get(id(spec))
+        if aliases is None:
+            aliases = _input_aliases(spec)
+        for alias in aliases:
             counts = self._field_counts.get((id(data), alias))
             if counts is None:
                 continue
@@ -306,7 +315,9 @@ class FactorStrategy(Strategy):
                 continue
             fields = metadata.get("field_present") or {}
             for name, values in fields.items():
-                counts[(id(data), str(name))] = _cumulative(values, np)
+                alias = str(name)
+                if alias in self._required_input_aliases:
+                    counts[(id(data), alias)] = _cumulative(values, np)
         return counts
 
     @staticmethod

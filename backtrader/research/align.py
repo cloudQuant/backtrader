@@ -138,6 +138,15 @@ def align_to_grid(
     from ..feeds.pandafeed import PandasData
 
     feed = PandasData(dataname=aligned.loc[calculation_mask])
+    setattr(
+        feed,
+        "_factor_research_datetime_hint",
+        (
+            feed.p.dataname.index,
+            research._feed_datetime_nums,
+            research._feed_datetime_index_signature,
+        ),
+    )
     prices = {name: _numeric_column(aligned, name) for name in _PRICE_COLUMNS}
     metadata = {
         "version": 2,

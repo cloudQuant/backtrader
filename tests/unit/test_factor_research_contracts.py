@@ -1,12 +1,14 @@
 from __future__ import annotations
 
+import numpy as np
 import pandas as pd
 import pytest
 
 import backtrader as bt
 from backtrader.research.factor_indicator import FactorIndicator
 from backtrader.research.factor_strategy import FactorStrategy
-from backtrader.research import align_to_grid
+from backtrader.research import align_to_grid, feed_alignment
+from backtrader.utils import date2num
 from backtrader.research.specs import FactorSpec, ResearchSpec
 
 
@@ -126,3 +128,76 @@ def test_feed_with_label_tail_rows_can_be_added_to_cerebro(runonce, tail_length)
         changed_strategy.factor_instances["close_factor"].lifecycle_diagnostics
         == strategy.factor_instances["close_factor"].lifecycle_diagnostics
     )
+
+
+def test_factor_strategy_counts_only_declared_aliases_without_trimming_metadata() -> None:
+    grid_index = _grid(4)
+    research = _research(grid_index, start=0, end=3)
+    source = _source(grid_index)
+    strategy, aligned = _run(research, source, runonce=False)
+
+    metadata = feed_alignment(aligned.feed)
+    spec = strategy._factor_specs_by_name["close_factor"]
+    assert metadata is not None
+    assert set(metadata["field_present"]) == set(source.columns)
+    assert strategy._input_aliases_by_spec[id(spec)] == ("close",)
+    assert set(strategy._field_counts) == {(id(aligned.feed), "close")}
+
+
+def test_aligned_feeds_share_spec_date_tuple_and_fallback_on_index_replacement() -> None:
+    grid_index = _grid(5)
+    research = _research(grid_index, start=0, end=2)
+    eastern_source = _source(grid_index.tz_convert("America/New_York"))
+    first = align_to_grid(eastern_source, research, "AAA")
+    second = align_to_grid(eastern_source, research, "AAA")
+    cached = research._feed_datetime_nums
+    signature = research._feed_datetime_index_signature
+
+    assert isinstance(cached, tuple)
+    assert isinstance(signature[0], bytes)
+    assert len(signature[0]) == len(cached) * 8
+    assert cached == tuple(
+        date2num(value.to_pydatetime()) for value in research.calculation_grid.index
+    )
+    for aligned in (first, second):
+        aligned.feed.start()
+        assert aligned.feed._dt_dtnum is cached
+        aligned.feed.stop()
+
+    feed = first.feed
+    frame = feed.p.dataname
+    frame.index = frame.index.tz_convert("America/New_York")
+    feed.start()
+    expected = [date2num(value) for value in frame.index.to_pydatetime()]
+    assert feed._dt_dtnum is not cached
+    assert feed._dt_dtnum == expected
+    feed.stop()
+
+
+@pytest.mark.parametrize("view_name", ("values", "asi8"))
+def test_aligned_feed_datetime_hint_falls_back_after_in_place_index_mutation(view_name) -> None:
+    grid_index = _grid(5)
+    research = _research(grid_index, start=0, end=2)
+    aligned = align_to_grid(_source(grid_index), research, "AAA")
+    feed = aligned.feed
+    frame = feed.p.dataname
+    original_index = frame.index
+    cached = research._feed_datetime_nums
+
+    view = original_index.values if view_name == "values" else original_index.asi8
+    unit = getattr(original_index, "unit", "ns")
+    nanoseconds_per_tick = {
+        "s": 1_000_000_000,
+        "ms": 1_000_000,
+        "us": 1_000,
+        "ns": 1,
+    }.get(unit, 1)
+    raw_view = view.view(np.int64) if view_name == "values" else view
+    raw_view[0] += 3_600_000_000_000 // nanoseconds_per_tick
+    assert frame.index is original_index
+
+    feed.start()
+    expected = [date2num(value.to_pydatetime()) for value in original_index]
+    assert feed._dt_dtnum is not cached
+    assert feed._dt_dtnum == expected
+    feed.stop()
