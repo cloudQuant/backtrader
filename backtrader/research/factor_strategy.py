@@ -87,6 +87,7 @@ class FactorStrategy(Strategy):
             raise ResearchConfigError("FactorStrategy requires named target data feeds")
         if self._research.start > self._research.end:
             raise ResearchConfigError("research start must not follow end")
+        owns_sink = self.p.sink is None
         self._sink = self.p.sink
         if self._sink is None:
             from .sink import MemorySink
@@ -165,6 +166,18 @@ class FactorStrategy(Strategy):
 
         self._grid = self._calculation_times()
         self._grid_cursor = 0
+        if (
+            owns_sink
+            and type(self) is FactorStrategy
+            and self._has_complete_price_alignment()
+        ):
+            from .sink import MemorySink
+
+            if type(self._sink) is MemorySink:
+                start = self._research.start.to_pydatetime()
+                end = self._research.end.to_pydatetime()
+                study_steps = sum(start <= value <= end for value in self._grid)
+                self._sink._enable_dense_product_index(study_steps * len(self._target_datas))
         self._input_aliases_by_spec = {
             id(spec): _input_aliases(spec) for spec in self._factor_specs_by_name.values()
         }
@@ -175,6 +188,28 @@ class FactorStrategy(Strategy):
 
     def _calculation_times(self) -> Tuple[datetime, ...]:
         return tuple(value.to_pydatetime() for value in self._research.calculation_grid.index)
+
+    def _has_complete_price_alignment(self) -> bool:
+        """Check alignment shape without retaining or copying mutable price arrays."""
+        grid = self._research.grid
+        grid_size = len(grid.index)
+        grid_sha256 = self._research.grid_sha256
+        for data in self._target_datas:
+            metadata = _alignment_metadata(data)
+            if (
+                not isinstance(metadata, Mapping)
+                or metadata.get("version") != 2
+                or metadata.get("grid_sha256") != grid_sha256
+            ):
+                return False
+            for name in ("prices_open", "prices_close"):
+                values = metadata.get(name)
+                try:
+                    if values is None or len(values) != grid_size:
+                        return False
+                except TypeError:
+                    return False
+        return True
 
     def _validate_clocks(self) -> None:
         cerebro = getattr(self, "env", None)
@@ -248,14 +283,20 @@ class FactorStrategy(Strategy):
             if current > self._grid[-1]:
                 return
             raise RuntimeError("FactorStrategy received more callbacks than the declared grid")
-        current = num2date(float(self.datetime[0]), tz=timezone.utc, naive=False)
+        current_num = float(self.datetime[0])
+        current = num2date(current_num, tz=timezone.utc, naive=False)
         if current != self._grid[self._grid_cursor]:
             raise RuntimeError("FactorStrategy callback time does not match the ResearchSpec grid")
         research = self._research
         in_research = research.start.to_pydatetime() <= current <= research.end.to_pydatetime()
+        use_numeric_date_hint = type(self) is FactorStrategy
         for asset, data in zip(research.targets, self._target_datas):
             present = self._feed_present(data, self._grid_cursor)
-            current_bar = self._current_feed_time(data) == current and present
+            if use_numeric_date_hint:
+                feed_time = self._current_feed_time(data, current_num, current)
+            else:
+                feed_time = self._current_feed_time(data)
+            current_bar = feed_time == current and present
             if in_research:
                 self._sink.on_point(
                     current,
@@ -321,9 +362,16 @@ class FactorStrategy(Strategy):
         return counts
 
     @staticmethod
-    def _current_feed_time(data: Any) -> Optional[datetime]:
+    def _current_feed_time(
+        data: Any,
+        current_num: Optional[float] = None,
+        current: Optional[datetime] = None,
+    ) -> Optional[datetime]:
         try:
-            return cast(datetime, num2date(float(data.datetime[0]), tz=timezone.utc, naive=False))
+            feed_num = float(data.datetime[0])
+            if current is not None and current_num is not None and feed_num == current_num:
+                return current
+            return cast(datetime, num2date(feed_num, tz=timezone.utc, naive=False))
         except (IndexError, TypeError, ValueError, OverflowError):
             return None
 

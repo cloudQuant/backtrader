@@ -243,11 +243,12 @@ def test_factor_example_reports_follow_the_evaluation_label(
     )
     broker = SimpleNamespace(submit_count=0, cancel_count=0)
     monkeypatch.setattr(runner, "load_daily_panel", lambda data_config: {})
-    monkeypatch.setattr(
-        runner,
-        "_run_native_collection",
-        lambda run_config, data, runnext: (None, panel, broker),
-    )
+
+    def collect(run_config, data, runnext, *, consume_source_frames=False):
+        assert consume_source_frames is True
+        return None, panel, broker
+
+    monkeypatch.setattr(runner, "_run_native_collection", collect)
     # This test isolates report-label forwarding and deliberately stubs factor
     # collection; the mode contract is exercised by the real collection tests.
     monkeypatch.setattr(runner, "_actual_factor_mode", lambda strategy, expected: expected)

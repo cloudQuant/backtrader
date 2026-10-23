@@ -223,11 +223,15 @@ def _evaluation_spec(config: Mapping[str, Any], panel: Any, periods: Sequence[in
 
 
 def _run_native_collection(
-    config: Mapping[str, Any], panel: Mapping[str, Any], runnext: bool
+    config: Mapping[str, Any],
+    panel: Mapping[str, Any],
+    runnext: bool,
+    *,
+    consume_source_frames: bool = False,
 ) -> Tuple[Any, Any, Any]:
     import backtrader as bt
     from backtrader.brokers import BackBroker
-    from backtrader.research import FactorSpec, FactorStrategy, MemorySink, align_to_grid
+    from backtrader.research import FactorSpec, FactorStrategy, align_to_grid
 
     factor_mode = _resolve_factor_mode(None, config.get("factor_mode"))
     indicator_classes = _factor_classes(factor_mode)
@@ -263,15 +267,22 @@ def _run_native_collection(
     cerebro = bt.Cerebro(stdstats=False)
     broker = CountingBroker()
     cerebro.setbroker(broker)
+    source_frames = panel["feeds"]
+    if consume_source_frames and type(source_frames) is not dict:
+        raise TypeError("exclusive source-frame consumption requires a plain feed dictionary")
     for asset in panel["assets"]:
+        source_frame = source_frames[asset]
         aligned = align_to_grid(
-            panel["feeds"][asset],
+            source_frame,
             research,
             asset,
             data_version=config["data"]["data_version"],
         )
         cerebro.adddata(aligned.feed, name=asset)
-    cerebro.addstrategy(FactorStrategy, research=research, factors=factors, sink=MemorySink())
+        if consume_source_frames:
+            del source_frames[asset]
+        del source_frame, aligned
+    cerebro.addstrategy(FactorStrategy, research=research, factors=factors)
     strategies = cerebro.run(runonce=not runnext, preload=True)
     if len(strategies) != 1:
         raise RuntimeError("the native collection did not return exactly one strategy")
@@ -404,7 +415,9 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             broker_summary = None
         else:
             prices = load_daily_panel(config["data"])
-            strategy, panel, broker = _run_native_collection(config, prices, args.runnext)
+            strategy, panel, broker = _run_native_collection(
+                config, prices, args.runnext, consume_source_frames=True
+            )
             factor_mode = _actual_factor_mode(strategy, factor_mode)
             factor_classes = _factor_class_identities(factor_mode)
             if (broker.submit_count, broker.cancel_count) != (0, 0):

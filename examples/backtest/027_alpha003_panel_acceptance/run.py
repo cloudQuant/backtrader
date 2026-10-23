@@ -115,13 +115,17 @@ def load_daily_panel(data_config: Mapping[str, Any]) -> Dict[str, Any]:
     }
 
 
-def _run_factor(config: Mapping[str, Any], panel: Mapping[str, Any]) -> Tuple[Any, Any, Any]:
+def _run_factor(
+    config: Mapping[str, Any],
+    panel: Mapping[str, Any],
+    *,
+    consume_source_frames: bool = False,
+) -> Tuple[Any, Any, Any]:
     import backtrader as bt
     from backtrader.brokers import BackBroker
     from backtrader.research import (
         FactorSpec,
         FactorStrategy,
-        MemorySink,
         ResearchSpec,
         align_to_grid,
     )
@@ -172,17 +176,22 @@ def _run_factor(config: Mapping[str, Any], panel: Mapping[str, Any]) -> Tuple[An
 
     broker = CountingBroker()
     cerebro.setbroker(broker)
+    source_frames = panel["feeds"]
+    if consume_source_frames and type(source_frames) is not dict:
+        raise TypeError("exclusive source-frame consumption requires a plain feed dictionary")
     for asset in assets:
+        source_frame = source_frames[asset]
         aligned = align_to_grid(
-            panel["feeds"][asset],
+            source_frame,
             research,
             asset,
             data_version=data_config["data_version"],
         )
         cerebro.adddata(aligned.feed, name=asset)
-    cerebro.addstrategy(
-        FactorStrategy, research=research, factors={FACTOR_NAME: factor}, sink=MemorySink()
-    )
+        if consume_source_frames:
+            del source_frames[asset]
+        del source_frame, aligned
+    cerebro.addstrategy(FactorStrategy, research=research, factors={FACTOR_NAME: factor})
     strategies = cerebro.run(runonce=False, preload=True)
     if len(strategies) != 1:
         raise RuntimeError("the factor run did not return exactly one strategy")
@@ -256,7 +265,9 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
 
     try:
         panel = load_daily_panel(config.get("data", {}))
-        strategy, collected, indicator = _run_factor(config, panel)
+        strategy, collected, indicator = _run_factor(
+            config, panel, consume_source_frames=True
+        )
         factor_instance = strategy.factor_instances[FACTOR_NAME]
         factor_mode = factor_instance.factor_mode
         broker_summary = {

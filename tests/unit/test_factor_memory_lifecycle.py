@@ -86,7 +86,8 @@ def test_quick_runner_releases_run_graphs_before_report(
         return strategy, broker
 
     if key in {"025", "026"}:
-        def collect(_config, prices, _runnext):
+        def collect(_config, prices, _runnext, *, consume_source_frames=False):
+            assert consume_source_frames is True
             price_references.append(weakref.ref(prices))
             strategy, broker = make_strategy()
             return strategy, panel, broker
@@ -105,7 +106,8 @@ def test_quick_runner_releases_run_graphs_before_report(
         class Alpha003:
             operator_profile = "alpha101-v2"
 
-        def collect(_config, prices):
+        def collect(_config, prices, *, consume_source_frames=False):
+            assert consume_source_frames is True
             price_references.append(weakref.ref(prices))
             strategy, broker = make_strategy()
             instance = SimpleNamespace(factor_mode=config.get("factor_mode", "native"))

@@ -79,6 +79,29 @@ class MemorySink(FactorSink):
         self._factor_order: Tuple[str, ...] = ()
         self._panel: Optional[FactorPanel] = None
         self._closed = False
+        self._row_count = 0
+        self._dense_expected_rows: Optional[int] = None
+
+    def _enable_dense_product_index(self, expected_rows: int) -> None:
+        """Use a generated product index for one private strategy collection."""
+        if (
+            isinstance(expected_rows, bool)
+            or not isinstance(expected_rows, int)
+            or expected_rows <= 0
+        ):
+            raise ValueError("dense product collection requires a positive row count")
+        if (
+            self._closed
+            or self._panel is not None
+            or self._row_count
+            or self._times
+            or self._assets
+            or self._values
+            or self._open
+            or self._close
+        ):
+            raise RuntimeError("dense product collection must be enabled on an empty sink")
+        self._dense_expected_rows = expected_rows
 
     def on_point(
         self,
@@ -99,8 +122,9 @@ class MemorySink(FactorSink):
             self._values = [array("d") for _ in order]
         elif order != self._factor_order:
             raise DatasetError("factor columns changed between grid points")
-        self._times.append(time)
-        self._assets.append(asset)
+        if self._dense_expected_rows is None:
+            self._times.append(time)
+            self._assets.append(asset)
         row = tuple(float(values[name]) for name in self._factor_order)
         if not row:
             self._empty_factor_rows += 1
@@ -108,6 +132,7 @@ class MemorySink(FactorSink):
             column.append(value)
         self._open.append(float(open_price))
         self._close.append(float(close_price))
+        self._row_count += 1
         _ = bool(present)
 
     def finalize(self, context: PanelContext) -> FactorPanel:
@@ -115,7 +140,10 @@ class MemorySink(FactorSink):
             return self._panel
         if self._closed:
             raise RuntimeError("sink is closed before finalize")
-        if not self._times:
+        if self._dense_expected_rows is None:
+            if not self._times:
+                raise DatasetError("no grid points were collected")
+        elif not self._row_count:
             raise DatasetError("no grid points were collected")
         pd = _pandas()
         factor_order = tuple(context.factor_order)
@@ -126,20 +154,46 @@ class MemorySink(FactorSink):
             # is followed by a populated one.
             raise IndexError("tuple index out of range")
 
-        frame = pd.DataFrame(
-            {
-                "time": self._times,
-                "asset": self._assets,
-                **dict(zip(factor_order, self._values)),
-            }
-        )
-        factors = frame.set_index(["time", "asset"]).loc[:, list(factor_order)]
-
         grid = context.grid
         grid_index = grid.index
+        dense_index = None
+        if self._dense_expected_rows is None:
+            frame = pd.DataFrame(
+                {
+                    "time": self._times,
+                    "asset": self._assets,
+                    **dict(zip(factor_order, self._values)),
+                }
+            )
+            factors = frame.set_index(["time", "asset"]).loc[:, list(factor_order)]
+        else:
+            study_index = grid_index[
+                (grid_index >= context.start) & (grid_index <= context.end)
+            ]
+            dense_index = pd.MultiIndex.from_product(
+                (study_index, context.target_order), names=("time", "asset")
+            )
+            if (
+                self._row_count != self._dense_expected_rows
+                or len(dense_index) != self._row_count
+            ):
+                raise DatasetError("collected points do not match the dense research grid")
+            frame = pd.DataFrame(dict(zip(factor_order, self._values)), index=dense_index)
+            factors = frame.loc[:, list(factor_order)]
+
         if context.prices_open is not None and context.prices_close is not None:
             prices_open = context.prices_open
             prices_close = context.prices_close
+        elif dense_index is not None:
+            observed = pd.DataFrame(
+                {"open": self._open, "close": self._close}, index=dense_index
+            )
+            prices_open = observed["open"].unstack("asset").reindex(
+                index=grid_index, columns=list(context.target_order)
+            )
+            prices_close = observed["close"].unstack("asset").reindex(
+                index=grid_index, columns=list(context.target_order)
+            )
         else:
             observed = pd.DataFrame(
                 {
@@ -180,6 +234,8 @@ class MemorySink(FactorSink):
         self._open = array("d")
         self._close = array("d")
         self._empty_factor_rows = 0
+        self._row_count = 0
+        self._dense_expected_rows = None
         self._closed = True
 
     @property
