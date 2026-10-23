@@ -427,26 +427,20 @@ def _line_target_relation(source: Any, target: Any, seen: Optional[set] = None) 
     return None
 
 
-def _read_panel_value(source: Any, target: Any) -> Tuple[float, OperatorReason]:
-    """Read a panel parameter at the target feed's populated current grid.
-
-    Panel operands may be outputs of sibling indicators rather than ``datas``
-    of the panel node.  Their cursors are not advanced by the panel's
-    ``once_via_next`` loop.  The native feed line is the authoritative grid
-    index.  Target provenance and source-array bounds make the absolute read
-    safe in both runnext and runonce without consuming or scheduling a node.
-    """
+def _panel_value_array(
+    source: Any, target: Any, grid_index: int
+) -> Tuple[Optional[Any], OperatorReason]:
+    """Resolve a target-aligned panel line array for an absolute grid slot."""
     if source is None:
-        return _NAN, OperatorReason.NONFINITE_INPUT
+        return None, OperatorReason.NONFINITE_INPUT
     try:
         source_array = source.array
     except AttributeError as exc:
         raise OperatorInputError("panel values, membership and groups must be lines") from exc
 
     target_line = _target_clock_line(target)
-    grid_index = int(target_line._idx)
     if grid_index < 0 or target_line.lencount <= grid_index:
-        return _NAN, OperatorReason.NOT_READY
+        return None, OperatorReason.NOT_READY
 
     # A shared native owner clock cannot identify one of several panel output
     # lines. Prefer retained line provenance, then use the ordinary clock for
@@ -463,12 +457,18 @@ def _read_panel_value(source: Any, target: Any) -> Tuple[float, OperatorReason]:
             raise OperatorInputError("panel input clock does not match its target feed")
 
     # In vectorized mode a child indicator can have populated its full result
-    # array while its line cursor remains at -1.  The target's current grid
-    # index is authoritative after provenance/clock validation above; gating
-    # on the sibling line's lencount would incorrectly classify its historical
-    # array slots as NOT_READY.
+    # array while its line cursor remains at -1. The target grid index is
+    # authoritative after provenance/clock validation above.
     if grid_index >= len(source_array):
-        return _NAN, OperatorReason.NOT_READY
+        return None, OperatorReason.NOT_READY
+    return source_array, OperatorReason.READY
+
+
+def _read_panel_value_at(source: Any, target: Any, grid_index: int) -> Tuple[float, OperatorReason]:
+    """Read one panel parameter at an absolute target-grid index."""
+    source_array, readiness = _panel_value_array(source, target, grid_index)
+    if source_array is None:
+        return _NAN, readiness
     raw = float(source_array[grid_index])
     if math.isinf(raw):
         raise OperatorInputError("panel input line contains infinity")
@@ -478,9 +478,54 @@ def _read_panel_value(source: Any, target: Any) -> Tuple[float, OperatorReason]:
     return raw, OperatorReason.READY
 
 
-def _line_pair(left: Any, right: Any) -> Tuple[float, float, OperatorReason]:
-    left_value, left_reason = _read_operand(left)
-    right_value, right_reason = _read_operand(right)
+def _read_panel_value(source: Any, target: Any) -> Tuple[float, OperatorReason]:
+    """Read a panel parameter at the target feed's populated current grid."""
+    target_line = _target_clock_line(target)
+    return _read_panel_value_at(source, target, int(target_line._idx))
+
+
+def _read_panel_window(
+    source: Any, target: Any, period: int
+) -> Tuple[Optional[List[float]], OperatorReason]:
+    """Read a scalar-equivalent window by absolute target-grid indices.
+
+    Panel inputs can be sibling indicators whose once-via-next pass has already
+    filled the array and left its cursor at the final row. The target feed's
+    current index therefore selects the window; the source cursor must not.
+    """
+    if isinstance(source, numbers.Real):
+        return _read_window(source, period)
+
+    target_line = _target_clock_line(target)
+    grid_index = int(target_line._idx)
+    if grid_index < 0 or target_line.lencount <= grid_index:
+        return None, OperatorReason.NOT_READY
+    start = grid_index - period + 1
+    if start < 0:
+        return None, OperatorReason.NOT_READY
+
+    source_array, readiness = _panel_value_array(source, target, grid_index)
+    if source_array is None:
+        return None, readiness
+    values: List[float] = []
+    for absolute_index in range(start, grid_index + 1):
+        value = float(source_array[absolute_index])
+        if math.isinf(value):
+            raise OperatorInputError("panel input line contains infinity")
+        if math.isnan(value):
+            # Scalar _read_window reads and classifies the producer reason, then
+            # reports INCOMPLETE_WINDOW for any invalid slot in the window.
+            _associated_reason(source, absolute_index=absolute_index)
+            return None, OperatorReason.INCOMPLETE_WINDOW
+        values.append(value)
+    return values, OperatorReason.READY
+
+
+def _line_pair_results(
+    left_result: Tuple[float, OperatorReason], right_result: Tuple[float, OperatorReason]
+) -> Tuple[float, float, OperatorReason]:
+    left_value, left_reason = left_result
+    right_value, right_reason = right_result
     if left_reason is OperatorReason.READY and right_reason is OperatorReason.READY:
         return left_value, right_value, OperatorReason.READY
     reasons = tuple(
@@ -494,6 +539,16 @@ def _line_pair(left: Any, right: Any) -> Tuple[float, float, OperatorReason]:
         reasons[0],
     )
     return _NAN, _NAN, reason
+
+
+def _line_pair(left: Any, right: Any) -> Tuple[float, float, OperatorReason]:
+    return _line_pair_results(_read_operand(left), _read_operand(right))
+
+
+def _read_panel_operand(source: Any, target: Any) -> Tuple[float, OperatorReason]:
+    if isinstance(source, numbers.Real):
+        return _read_operand(source)
+    return _read_panel_value(source, target)
 
 
 class _OperatorIndicator(Indicator):
@@ -946,18 +1001,25 @@ class DecayLinear(_Rolling):
         return _guarded_result(calculate)
 
 
+def _pair_window_result(left_result, right_result):
+    left, left_reason = left_result
+    right, right_reason = right_result
+    if left is not None and right is not None:
+        return left, right, OperatorReason.READY
+    if OperatorReason.NOT_READY in (left_reason, right_reason):
+        return None, None, OperatorReason.NOT_READY
+    return None, None, OperatorReason.INCOMPLETE_WINDOW
+
+
 class _RollingPair(_Rolling):
     _mindatas = 2
     _operator_input_count = 2
 
     def _pair_windows(self):
-        left, left_reason = self._window(self._operand(0))
-        right, right_reason = self._window(self._operand(1))
-        if left is not None and right is not None:
-            return left, right, OperatorReason.READY
-        if OperatorReason.NOT_READY in (left_reason, right_reason):
-            return None, None, OperatorReason.NOT_READY
-        return None, None, OperatorReason.INCOMPLETE_WINDOW
+        return _pair_window_result(
+            self._window(self._operand(0)),
+            self._window(self._operand(1)),
+        )
 
 
 _FLOAT64_EPSILON = 2.220446049250313e-16
@@ -1033,6 +1095,42 @@ class RollingCovariance(_RollingPair):
         return _guarded_result(calculate)
 
 
+def _correlation_window_result(
+    left: Sequence[float], right: Sequence[float]
+) -> Tuple[float, OperatorReason]:
+    """Apply the scalar rolling-correlation float64 kernel to two full windows."""
+
+    def calculate() -> float:
+        if all(value == left[0] for value in left) or all(value == right[0] for value in right):
+            raise ValueError("correlation requires non-constant inputs")
+        centered_left = _centered_unit_deviations(left)
+        centered_right = _centered_unit_deviations(right)
+        if centered_left is None or centered_right is None:
+            raise ValueError("correlation requires non-constant inputs")
+        deviations_left, _ = centered_left
+        deviations_right, _ = centered_right
+        left_ss = math.fsum(value * value for value in deviations_left)
+        right_ss = math.fsum(value * value for value in deviations_right)
+        cross = math.fsum(a * b for a, b in zip(deviations_left, deviations_right))
+        correlation = cross / (math.sqrt(left_ss) * math.sqrt(right_ss))
+        if not math.isfinite(correlation):
+            raise ValueError("correlation result is outside its mathematical domain")
+        if correlation > 1.0:
+            if correlation <= 1.0 + 4.0 * _FLOAT64_EPSILON:
+                return 1.0
+            raise ValueError("correlation result is outside its mathematical domain")
+        if correlation < -1.0:
+            if correlation >= -1.0 - 4.0 * _FLOAT64_EPSILON:
+                return -1.0
+            raise ValueError("correlation result is outside its mathematical domain")
+        return correlation
+
+    try:
+        return calculate(), OperatorReason.READY
+    except (ArithmeticError, ValueError):
+        return _NAN, OperatorReason.DOMAIN_ERROR
+
+
 class RollingCorrelation(_RollingPair):
     """Pearson correlation on two complete windows; constant input is invalid."""
 
@@ -1042,36 +1140,7 @@ class RollingCorrelation(_RollingPair):
         left, right, reason = self._pair_windows()
         if left is None:
             return _NAN, reason
-
-        def calculate() -> float:
-            if all(value == left[0] for value in left) or all(value == right[0] for value in right):
-                raise ValueError("correlation requires non-constant inputs")
-            centered_left = _centered_unit_deviations(left)
-            centered_right = _centered_unit_deviations(right)
-            if centered_left is None or centered_right is None:
-                raise ValueError("correlation requires non-constant inputs")
-            deviations_left, _ = centered_left
-            deviations_right, _ = centered_right
-            left_ss = math.fsum(value * value for value in deviations_left)
-            right_ss = math.fsum(value * value for value in deviations_right)
-            cross = math.fsum(a * b for a, b in zip(deviations_left, deviations_right))
-            correlation = cross / (math.sqrt(left_ss) * math.sqrt(right_ss))
-            if not math.isfinite(correlation):
-                raise ValueError("correlation result is outside its mathematical domain")
-            if correlation > 1.0:
-                if correlation <= 1.0 + 4.0 * _FLOAT64_EPSILON:
-                    return 1.0
-                raise ValueError("correlation result is outside its mathematical domain")
-            if correlation < -1.0:
-                if correlation >= -1.0 - 4.0 * _FLOAT64_EPSILON:
-                    return -1.0
-                raise ValueError("correlation result is outside its mathematical domain")
-            return correlation
-
-        try:
-            return calculate(), OperatorReason.READY
-        except (ArithmeticError, ValueError):
-            return _NAN, OperatorReason.DOMAIN_ERROR
+        return _correlation_window_result(left, right)
 
 
 class _PanelOperator(FactorIndicator):
@@ -1193,6 +1262,141 @@ class _PanelOperator(FactorIndicator):
 
     def next(self) -> None:
         self._evaluate_panel()
+
+
+class _LogicalOperatorView:
+    """Non-scheduled, one-target view of a physical paired panel operator."""
+
+    def __init__(
+        self,
+        physical_panel: Any,
+        asset_index: int,
+        target: Any,
+        operands: Sequence[Any],
+    ) -> None:
+        self._physical_panel = physical_panel
+        self._asset_index = int(asset_index)
+        self._target_data = target
+        self._logical_operator_type = physical_panel._logical_operator_type
+        self._operand_args = tuple(operands)
+        self.lines = physical_panel.outputs[target]
+        self.p = physical_panel.p
+        self._period = getattr(physical_panel, "_period", None)
+        self.datas = tuple(value for value in self._operand_args if _is_line_operand(value))
+        for index, operand in enumerate(self._operand_args):
+            setattr(self, "data%d" % index, operand)
+
+
+class _PairedPanelOperator(_PanelOperator):
+    """One ordinary panel Indicator that evaluates independent per-target pairs."""
+
+    params: Any = (("right_inputs", None),)
+    _logical_operator_type: Any = None
+
+    def __init__(self) -> None:
+        super().__init__()
+        if self.p.right_inputs is None:
+            raise ValueError("paired panel operator requires right_values=")
+        self._right_values = tuple(self.p.right_inputs)
+        if len(self._right_values) != len(self._factor_target_datas):
+            raise ValueError("right_values must contain one operand per bound feed")
+        input_minperiod = 1
+        for operand in self._values + self._right_values:
+            if isinstance(operand, bool) or not (
+                _is_line_operand(operand) or isinstance(operand, numbers.Real)
+            ):
+                raise OperatorInputError("operator inputs must be lines or real scalar constants")
+            if isinstance(operand, numbers.Real):
+                if math.isinf(float(operand)):
+                    raise OperatorInputError("scalar operator input contains infinity")
+                continue
+            source_owner = getattr(operand, "_owner", None)
+            source_owner = getattr(source_owner, "_owner_ref", None) or source_owner
+            input_minperiod = max(
+                input_minperiod,
+                int(getattr(operand, "_minperiod", 1)),
+                int(getattr(source_owner, "_minperiod", 1)),
+            )
+        if input_minperiod > 1:
+            # Panel binding uses the target feeds as its clock inputs. Preserve
+            # a pair operand's ordinary indicator minperiod explicitly, as a
+            # scalar operator would inherit it through its line dependencies.
+            self.addminperiod(input_minperiod)
+
+    @classmethod
+    def bind(cls, *datas: Any, **params: Any) -> Any:
+        if "right_values" in params:
+            if "right_inputs" in params:
+                raise ValueError("pass only one of right_values= or right_inputs=")
+            params["right_inputs"] = params.pop("right_values")
+        return super().bind(*datas, **params)
+
+    def _evaluate_target(self, asset_index: int) -> Tuple[float, OperatorReason]:
+        raise NotImplementedError
+
+    def _evaluate_panel(self) -> None:
+        values: List[float] = []
+        reasons: List[OperatorReason] = []
+        context = self._factor_strict_context_for_callback()
+        phase = getattr(context, "phase", "next") if context is not None else "next"
+        for asset_index, target in enumerate(self._factor_target_datas):
+            try:
+                value, reason = self._evaluate_target(asset_index)
+            except Exception as exc:
+                if context is None:
+                    raise
+                # The panel itself spans every feed. Attribute failures through
+                # the concrete target, which the parent strict context binds.
+                from .strict import fail_computation
+
+                fail_computation(context, exc, phase, operation=target)
+            values.append(value)
+            reasons.append(reason)
+        self._write_panel(values, reasons)
+
+
+class _RollingCorrelationPanel(_PairedPanelOperator):
+    """Physical rolling-correlation panel with scalar logical target views."""
+
+    params: Any = (("period", 1),)
+    _logical_operator_type = RollingCorrelation
+
+    def __init__(self) -> None:
+        period = _floor_window(self.p.period, "period")
+        super().__init__()
+        self._period = period
+        self.addminperiod(self._period)
+
+    def _evaluate_target(self, asset_index: int) -> Tuple[float, OperatorReason]:
+        if self._period < 2:
+            return _NAN, OperatorReason.DOMAIN_ERROR
+        target = self._factor_target_datas[asset_index]
+        left, right, reason = _pair_window_result(
+            _read_panel_window(self._values[asset_index], target, self._period),
+            _read_panel_window(self._right_values[asset_index], target, self._period),
+        )
+        if left is None:
+            return _NAN, reason
+        return _correlation_window_result(left, right)
+
+
+class _MultiplyPanel(_PairedPanelOperator):
+    """Physical pointwise-multiply panel with scalar logical target views."""
+
+    _logical_operator_type = Multiply
+
+    def _evaluate_target(self, asset_index: int) -> Tuple[float, OperatorReason]:
+        target = self._factor_target_datas[asset_index]
+        left, right, reason = _line_pair_results(
+            _read_panel_operand(self._values[asset_index], target),
+            _read_panel_operand(self._right_values[asset_index], target),
+        )
+        if reason is not OperatorReason.READY:
+            return _NAN, reason
+        try:
+            return _result(Multiply._apply(left, right))
+        except (ValueError, ZeroDivisionError, OverflowError):
+            return _NAN, OperatorReason.DOMAIN_ERROR
 
 
 class CrossSectionalRank(_PanelOperator):

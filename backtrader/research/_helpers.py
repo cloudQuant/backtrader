@@ -2,7 +2,15 @@
 
 from typing import Any, Sequence, Tuple
 
-from .operators import CrossSectionalRank, CrossSectionalScale, Delay, Divide, Subtract
+from .operators import (
+    CrossSectionalRank,
+    CrossSectionalScale,
+    Delay,
+    Divide,
+    Subtract,
+    _LogicalOperatorView,
+    _PairedPanelOperator,
+)
 
 
 def per_asset(
@@ -32,6 +40,53 @@ def panel(
     node = operator.bind(*factor.datas, values=tuple(values), **panel_kwargs)
     factor._nodes[name] = node
     return tuple(node.outputs[data].value for data in factor.datas)
+
+
+def pair_panel(
+    factor: Any,
+    name: str,
+    operator: Any,
+    left: Sequence[Any],
+    right: Sequence[Any],
+    **kwargs: Any,
+) -> Tuple[Any, ...]:
+    """Build one physical pair panel and retain one logical view per target.
+
+    This helper deliberately does not attach formula-membership lines. Pair
+    operators consume the already computed per-target inputs exactly as their
+    scalar equivalents do.
+    """
+    if not issubclass(operator, _PairedPanelOperator):
+        raise TypeError("pair_panel requires a native paired panel operator")
+    target_count = len(factor.datas)
+    if len(left) != target_count or len(right) != target_count:
+        raise RuntimeError("paired-panel inputs do not match the bound feeds")
+    node = operator.bind(
+        *factor.datas,
+        values=tuple(left),
+        right_values=tuple(right),
+        **kwargs,
+    )
+    physical_nodes = getattr(factor, "_physical_nodes", None)
+    if physical_nodes is None:
+        physical_nodes = []
+        factor._physical_nodes = physical_nodes
+    if not isinstance(physical_nodes, list):
+        raise RuntimeError("factor physical-node registry must be a list during construction")
+    physical_nodes.append(node)
+
+    views = []
+    for index, target in enumerate(factor.datas):
+        view = _LogicalOperatorView(
+            node,
+            index,
+            target,
+            (node._values[index], node._right_values[index]),
+        )
+        factor._nodes["%s_%d" % (name, index)] = view
+        views.append(view)
+    node._logical_views = tuple(views)
+    return tuple(view.lines.value for view in views)
 
 
 def simple_returns(factor: Any, name: str = "returns") -> Tuple[Any, ...]:

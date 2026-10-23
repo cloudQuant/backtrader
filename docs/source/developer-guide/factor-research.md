@@ -230,3 +230,5 @@ VWAP 必须是明确来源字段，不能用 OHLC 均价偷偷替代；ADV 的�
 027 的 `run_daily.py` 是独立的全市场分块/续跑入口，`--chunk-days` 控制分块；它不使用quick YAML、500只默认值或 `--report` 参数。daily也支持 `--factor-mode native|build`，默认native。模式进入运行指纹并传至实际worker，同一输出目录不能跨模式续跑；为另一模式选择新目录。47的daily验收使用小型多分段真实子进程，不代表5,471只全年验收完成。
 
 需要专业因子图表时，三个 quick `run.py` 入口都支持 `--report`（`--report-language zh|en` 选择默认语言），生成自包含的 `factor_report_<factor>.html`。报告实现位于 fincore 的 `fincore.report.factor.write_factor_report(factor, prices, path, ...)`；Backtrader 的 `write_factor_report(panel, factor_name, path)` 会应用该因子的显式方向，并按 `label` 传入原始价格。默认 `next_open_to_open` 使用开盘价与 `next_open=True`，`close_to_close` 使用收盘价与 `next_open=False`；标签只由 fincore 计算一次。025/026 的报告采用与研究评价相同的配置标签，027 保持默认 next-open。评价和报告不修改传入面板的帧、索引或属性。
+
+Alpha003 的native实现还将rolling correlation与负号乘法组织为两个paired panel：每个物理panel是普通`FactorIndicator`，由Cerebro的Indicator生命周期调度；`pair_panel`为每个目标资产创建轻量逻辑view，共享该物理panel的输出line并选择对应目标。逻辑view不继承Indicator、不注册调度回调。它减少按目标拆分物理算子节点的调度开销，但每个格点仍须计算各目标的结果；固定500测量不能证明全市场超线性成本。当前完整输出verifier通过，性能三对方向改善但波动超过稳定门槛，详见[迭代49 Alpha003配对记录](../../_internal/opts/requirements/迭代49-因子分析性能优化/开发与验收记录.md)。

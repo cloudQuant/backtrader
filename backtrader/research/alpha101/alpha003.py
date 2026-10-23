@@ -3,10 +3,10 @@
 from ..factor_indicator import FactorIndicator
 from ..operators import (
     CrossSectionalRank,
-    Multiply,
-    RollingCorrelation,
+    _MultiplyPanel,
+    _RollingCorrelationPanel,
 )
-from .._helpers import panel, per_asset
+from .._helpers import pair_panel, panel
 from ._metadata import native_alpha
 
 
@@ -27,11 +27,21 @@ class Alpha003Native(FactorIndicator):
         self._nodes = {}
         open_rank = panel(self, "rank_open", CrossSectionalRank, self.field_lines("open"))
         volume_rank = panel(self, "rank_volume", CrossSectionalRank, self.field_lines("volume"))
-        correlation = per_asset(
-            self, "correlation10", RollingCorrelation, open_rank, volume_rank, period=10
+        self._physical_nodes = []
+        correlation = pair_panel(
+            self,
+            "correlation10",
+            _RollingCorrelationPanel,
+            open_rank,
+            volume_rank,
+            period=10,
         )
-        self._result_lines = per_asset(
-            self, "negate", Multiply, correlation, (-1.0,) * len(self.datas)
+        self._result_lines = pair_panel(
+            self,
+            "negate",
+            _MultiplyPanel,
+            correlation,
+            (-1.0,) * len(self.datas),
         )
         self.addminperiod(self.lookback_h + 1)
 

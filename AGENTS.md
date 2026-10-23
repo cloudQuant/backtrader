@@ -464,6 +464,9 @@ next and once phases, so build bypasses native callbacks without changing the
 original class or global Indicator construction. Mode is reserved configuration,
 not a formula parameter, and is included in FactorSpec metadata.
 There is no string DSL or second scheduler.
+
+Alpha003 native formula uses two physical paired-panel Indicators (rolling correlation and multiply) with one lightweight logical target view per asset. Cerebro schedules the physical Indicators through its normal lifecycle; the logical views share each panel's output lines and do not register callbacks. The current fixed-500 output comparisons pass, while the three-pair wall/CPU dispersion exceeds the 5% stability gate; do not report a stable speedup or infer 5,471-asset memory/runtime from this sample. See `docs/_internal/opts/requirements/迭代49-因子分析性能优化/开发与验收记录.md`.
+
 The 025/026 native CloseMA, ROC, KDJ and ordinary RSV child also implement
 ordinary Cerebro once ranges for synchronized standard PandasData/full arrays.
 Custom callbacks, unsupported feeds and distinct clocks retain the existing

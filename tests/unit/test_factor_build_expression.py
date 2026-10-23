@@ -33,6 +33,10 @@ from tests.test_utils.alpha101_trace_validation import (
 from tests.unit.test_factor_research_representatives import _factor_spec, _research_feed
 
 
+def _alpha003_operator_type(node):
+    return getattr(node, "_logical_operator_type", type(node)).__name__
+
+
 @pytest.mark.parametrize("runonce", (False, True), ids=("runnext", "runonce"))
 def test_alpha003_build_matches_native_trace_values_reasons_and_lifecycle(runonce):
     frames = make_positive_fixture(320)
@@ -86,7 +90,7 @@ def test_alpha003_build_matches_native_trace_values_reasons_and_lifecycle(runonc
     for key in native_factor._nodes:
         native_node = native_factor._nodes[key]
         build_node = build_factor._nodes[key]
-        assert type(native_node).__name__ == type(build_node).__name__, key
+        assert _alpha003_operator_type(native_node) == _alpha003_operator_type(build_node), key
         if isinstance(native_node, operators._PanelOperator):
             for native_data, build_data in zip(
                 native_factor.target_datas, build_factor.target_datas
@@ -150,6 +154,63 @@ def test_representative_build_modes_match_native_trace_values_and_lifecycle(alph
     )
 
 
+@pytest.mark.parametrize("periods", (320, 640, 1280), ids=lambda value: "T%d" % value)
+@pytest.mark.parametrize("runonce", (False, True), ids=("runnext", "runonce"))
+def test_alpha003_pair_panels_match_build_full_matrix(periods, runonce):
+    frames = make_positive_fixture(periods)
+    assets = tuple(frames)
+    grid = tuple(next(iter(frames.values())).index)
+    native = run_native_batch(frames, (3,), runonce=runonce, factor_mode="native")
+    built = run_native_batch(frames, (3,), runonce=runonce, factor_mode="build")
+    native_factor = native.factor_instances["alpha3"]
+    build_factor = built.factor_instances["alpha3"]
+
+    assert len(native_factor._physical_nodes) == 2
+    correlation_panel, multiply_panel = native_factor._physical_nodes
+    assert correlation_panel._logical_operator_type is operators.RollingCorrelation
+    assert multiply_panel._logical_operator_type is operators.Multiply
+    assert all(
+        multiply_input is correlation_panel.outputs[data].value
+        for multiply_input, data in zip(multiply_panel._values, native_factor.target_datas)
+    )
+    assert len(native_factor._nodes) == 2 + 2 * len(assets)
+    graph_pair = compare_factor_graphs(native_factor, build_factor, 3)
+    assert graph_pair["equal"], graph_pair["failures"]
+    assert graph_pair["node_count_left"] == graph_pair["node_count_right"]
+    assert graph_pair["matched_node_count"] == graph_pair["node_count_left"]
+    for factor, strategy in ((native_factor, native), (build_factor, built)):
+        trace = validate_factor_trace(factor, 3, frames, assets, grid, strategy=strategy)
+        assert trace["failures"] == []
+        assert trace["finite_witness"]
+    _assert_alpha003_values_equal(
+        actual_matrix(native, 3, assets, grid),
+        actual_matrix(built, 3, assets, grid),
+        label="Alpha003 pair-panel T%d %s" % (periods, "runonce" if runonce else "runnext"),
+    )
+
+
+def test_alpha003_runonce_pair_panels_use_current_grid_and_warmup_reasons():
+    frames = make_positive_fixture(320)
+    native = run_native_batch(frames, (3,), runonce=True, factor_mode="native")
+    built = run_native_batch(frames, (3,), runonce=True, factor_mode="build")
+    native_factor = native.factor_instances["alpha3"]
+    build_factor = built.factor_instances["alpha3"]
+
+    graph_pair = compare_factor_graphs(native_factor, build_factor, 3)
+    assert graph_pair["equal"], graph_pair["failures"]
+    assert graph_pair["matched_node_count"] == graph_pair["node_count_left"]
+
+    correlation = native_factor._nodes["correlation10_0"]
+    build_correlation = build_factor._nodes["correlation10_0"]
+    expected_warmup = float(operators.OperatorReason.NOT_READY)
+    assert list(correlation.lines.reason.array[:9]) == [expected_warmup] * 9
+    assert list(build_correlation.lines.reason.array[:9]) == [expected_warmup] * 9
+    assert float(correlation.lines.reason.array[9]) == float(operators.OperatorReason.READY)
+    values = [float(value) for value in correlation.lines.value.array[9:]]
+    finite_values = [value for value in values if math.isfinite(value)]
+    assert len(set(finite_values)) > 1, "runonce correlation must follow the changing target grid"
+
+
 def _run_alpha003_mode_pair(frames, *, runonce):
     native = run_native_batch(frames, (3,), runonce=runonce, factor_mode="native")
     build = run_native_batch(frames, (3,), runonce=runonce, factor_mode="build")
@@ -181,7 +242,7 @@ def _assert_alpha003_reasons_equal(native_factor, build_factor):
     assert set(native_factor._nodes) == set(build_factor._nodes)
     for key, native_node in native_factor._nodes.items():
         build_node = build_factor._nodes[key]
-        assert type(native_node).__name__ == type(build_node).__name__, key
+        assert _alpha003_operator_type(native_node) == _alpha003_operator_type(build_node), key
         if isinstance(native_node, operators._PanelOperator):
             for native_data, build_data in zip(
                 native_factor.target_datas, build_factor.target_datas
@@ -322,7 +383,7 @@ def test_alpha003_degenerate_recovery_missing_bar_nan_trace_and_reason_pair(runo
     correlation_nodes = [
         node
         for node in native_factor._nodes.values()
-        if isinstance(node, operators.RollingCorrelation)
+        if getattr(node, "_logical_operator_type", type(node)) is operators.RollingCorrelation
     ]
     assert len(correlation_nodes) == len(assets)
     assert all(
@@ -974,21 +1035,79 @@ def test_native_and_multiple_build_factors_share_one_strategy_without_shared_nod
     ]
     operator_nodes = [tuple(factor._nodes.values()) for factor in factor_instances]
     operator_ids = [{id(node) for node in nodes} for nodes in operator_nodes]
-    for index, (factor, nodes, node_ids) in enumerate(
-        zip(factor_instances, operator_nodes, operator_ids)
+    physical_nodes = [
+        tuple(getattr(factor, "_physical_nodes", ())) for factor in factor_instances
+    ]
+    physical_ids = [{id(node) for node in nodes} for nodes in physical_nodes]
+    owned_node_ids = [
+        node_ids | panel_ids for node_ids, panel_ids in zip(operator_ids, physical_ids)
+    ]
+    for index, (factor, nodes, node_ids, panels) in enumerate(
+        zip(factor_instances, operator_nodes, operator_ids, physical_nodes)
     ):
         assert len(node_ids) == len(nodes)
+        assert len(physical_ids[index]) == len(panels)
+        assert len(owned_node_ids[index]) == len(nodes) + len(panels)
         for node in nodes:
-            assert node._owner is factor
+            if isinstance(node, operators._LogicalOperatorView):
+                physical = node._physical_panel
+                assert any(physical is panel for panel in panels)
+                assert not hasattr(node, "_owner")
+                assert not any(
+                    child is node
+                    for children in factor._lineiterators.values()
+                    for child in children
+                )
+                assert node._asset_index < len(factor.target_datas)
+                target = factor.target_datas[node._asset_index]
+                assert node._target_data is target
+                assert node.lines is physical.outputs[target]
+                assert node.lines.value is physical.outputs[target].value
+                assert node.lines.reason is physical.outputs[target].reason
+                assert node._logical_operator_type is physical._logical_operator_type
+                assert len(node._operand_args) == 2
+                assert node._operand_args[0] is physical._values[node._asset_index]
+                assert node._operand_args[1] is physical._right_values[node._asset_index]
+            else:
+                assert node._owner is factor
+                registered = [
+                    child
+                    for children in factor._lineiterators.values()
+                    for child in children
+                    if child is node
+                ]
+                assert len(registered) == 1
+        for physical in panels:
+            assert isinstance(physical, operators._PairedPanelOperator)
+            assert physical._owner is factor
+            assert len(physical._factor_target_datas) == len(factor.target_datas)
+            assert all(
+                actual is expected
+                for actual, expected in zip(physical._factor_target_datas, factor.target_datas)
+            )
             registered = [
                 child
                 for children in factor._lineiterators.values()
                 for child in children
-                if child is node
+                if child is physical
             ]
             assert len(registered) == 1
-        for other_ids in operator_ids[index + 1 :]:
-            assert node_ids.isdisjoint(other_ids)
+            assert any(physical is node for node in trees[index])
+            panel_views = tuple(
+                node
+                for node in nodes
+                if isinstance(node, operators._LogicalOperatorView)
+                and node._physical_panel is physical
+            )
+            assert len(panel_views) == len(factor.target_datas)
+            assert tuple(physical._logical_views) == panel_views
+            for asset_index, (view, target) in enumerate(
+                zip(physical._logical_views, factor.target_datas)
+            ):
+                assert view._asset_index == asset_index
+                assert view._target_data is target
+        for other_ids in owned_node_ids[index + 1 :]:
+            assert owned_node_ids[index].isdisjoint(other_ids)
     assert all(
         node.lifecycle_diagnostics["call_count"] == len(research.calculation_grid)
         for tree in trees

@@ -148,17 +148,50 @@ def _operator_period(node: Any) -> float:
     return float(value)
 
 
+def _logical_operator_class(node: Any) -> type:
+    operator_type = getattr(node, "_logical_operator_type", None)
+    return operator_type if isinstance(operator_type, type) else type(node)
+
+
+def _is_logical_operator(node: Any, operator_type: type) -> bool:
+    try:
+        return issubclass(_logical_operator_class(node), operator_type)
+    except TypeError:
+        return False
+
+
 def _operator_expression(node: Any, asset_index: int, line_expression: Any) -> Tuple[Any, ...]:
+    if isinstance(node, operators._PairedPanelOperator):
+        if asset_index < 0 or asset_index >= len(node._factor_target_datas):
+            raise AssertionError("paired panel target index is outside its bound feeds")
+        left_value = node._values[asset_index]
+        right_value = node._right_values[asset_index]
+        left = line_expression(left_value, asset_index)
+        right = (
+            line_expression(right_value, asset_index)
+            if operators._is_line_operand(right_value)
+            else _literal(right_value)
+        )
+        if _is_logical_operator(node, operators.RollingCorrelation):
+            return (
+                "call",
+                "correlation",
+                (left, right, _literal(_operator_period(node))),
+            )
+        if _is_logical_operator(node, operators.Multiply):
+            return ("binary", "*", left, right)
+        raise AssertionError("unmapped paired panel operator %s" % type(node).__name__)
+
     if isinstance(node, operators._PanelOperator):
         inputs = tuple(line_expression(line, index) for index, line in enumerate(node._values))
         if not inputs or any(value != inputs[0] for value in inputs[1:]):
             raise AssertionError("panel operator receives structurally different asset inputs")
         source = inputs[0]
-        if isinstance(node, operators.CrossSectionalRank):
+        if _is_logical_operator(node, operators.CrossSectionalRank):
             return ("call", "rank", (source,))
-        if isinstance(node, operators.CrossSectionalScale):
+        if _is_logical_operator(node, operators.CrossSectionalScale):
             return ("call", "scale", (source,))
-        if isinstance(node, operators.IndNeutralize):
+        if _is_logical_operator(node, operators.IndNeutralize):
             level = str(node.p.level).lower()
             return (
                 "call",
@@ -167,6 +200,7 @@ def _operator_expression(node: Any, asset_index: int, line_expression: Any) -> T
             )
         raise AssertionError("unmapped panel operator %s" % type(node).__name__)
 
+    logical_type = _logical_operator_class(node)
     operands = tuple(
         (
             line_expression(value, asset_index)
@@ -176,21 +210,21 @@ def _operator_expression(node: Any, asset_index: int, line_expression: Any) -> T
         for value in node._operand_args
     )
     for operator_type, symbol in _BINARY_OPERATORS.items():
-        if isinstance(node, operator_type):
+        if issubclass(logical_type, operator_type):
             return ("binary", symbol, operands[0], operands[1])
-    if isinstance(node, operators.Where):
+    if issubclass(logical_type, operators.Where):
         return ("ternary", operands[0], operands[1], operands[2])
-    if isinstance(node, operators.Delay):
-        name = "delta" if isinstance(node, operators.Delta) else "delay"
+    if issubclass(logical_type, operators.Delay):
+        name = "delta" if issubclass(logical_type, operators.Delta) else "delay"
         return ("call", name, (operands[0], _literal(_operator_period(node))))
-    if isinstance(node, operators.Minimum):
+    if issubclass(logical_type, operators.Minimum):
         return ("call", "min", operands)
-    if isinstance(node, operators.Maximum):
+    if issubclass(logical_type, operators.Maximum):
         return ("call", "max", operands)
-    if isinstance(node, operators.Negate):
+    if issubclass(logical_type, operators.Negate):
         return ("unary", "-", operands[0])
     for operator_type, name in _CALL_OPERATORS.items():
-        if isinstance(node, operator_type):
+        if issubclass(logical_type, operator_type):
             if name in (
                 "sum",
                 "product",
@@ -206,7 +240,7 @@ def _operator_expression(node: Any, asset_index: int, line_expression: Any) -> T
             elif name in ("correlation", "covariance"):
                 operands = (operands[0], operands[1], _literal(_operator_period(node)))
             return ("call", name, operands)
-    raise AssertionError("unmapped scalar operator %s" % type(node).__name__)
+    raise AssertionError("unmapped scalar operator %s" % logical_type.__name__)
 
 
 def _exact_discrete_ast(node: Tuple[Any, ...]) -> bool:
@@ -360,8 +394,107 @@ def _line_reason(line: Any, node: Any = None) -> Any:
 
 
 def _operator_type_name(node: Any) -> str:
-    node_type = type(node)
+    node_type = _logical_operator_class(node)
     return "%s.%s" % (node_type.__module__, node_type.__qualname__)
+
+
+def _same_operator_operand(left: Any, right: Any) -> bool:
+    if operators._is_line_operand(left) or operators._is_line_operand(right):
+        return left is right
+    if isinstance(left, bool) or isinstance(right, bool):
+        return False
+    if isinstance(left, (int, float)) and isinstance(right, (int, float)):
+        return float(left) == float(right)
+    return left is right
+
+
+def _validated_pair_panel_views(factor: Any, targets: Sequence[Any]) -> Dict[int, Tuple[Any, ...]]:
+    """Validate physical pair panels and their real per-target line views."""
+    physical_nodes = tuple(getattr(factor, "_physical_nodes", ()))
+    node_items = tuple(getattr(factor, "_nodes", {}).values())
+    if not physical_nodes:
+        if any(isinstance(node, operators._LogicalOperatorView) for node in node_items):
+            raise AssertionError("logical operator views lack a physical panel registry")
+        return {}
+    if len({id(node) for node in physical_nodes}) != len(physical_nodes):
+        raise AssertionError("physical panel registry contains a duplicate node")
+
+    target_indices = {id(target): index for index, target in enumerate(targets)}
+    physical_views: Dict[int, Tuple[Any, ...]] = {}
+    canonical_view_ids = set()
+    view_counts: Dict[int, int] = defaultdict(int)
+    for node in node_items:
+        if isinstance(node, operators._LogicalOperatorView):
+            view_counts[id(node)] += 1
+
+    for physical in physical_nodes:
+        if not isinstance(physical, operators._PairedPanelOperator):
+            raise AssertionError("physical panel registry contains a non-pair operator")
+        physical_targets = tuple(getattr(physical, "_factor_target_datas", ()))
+        if len(physical_targets) != len(targets) or any(
+            left is not right for left, right in zip(physical_targets, targets)
+        ):
+            raise AssertionError("physical pair panel target order differs from factor targets")
+        if tuple(getattr(physical, "_members", ())) != (None,) * len(targets):
+            raise AssertionError("paired panels must not apply a formula-membership mask")
+        if getattr(physical, "_groups", None) is not None:
+            raise AssertionError("paired panels must not carry cross-sectional groups")
+        views = tuple(getattr(physical, "_logical_views", ()))
+        if len(views) != len(targets):
+            raise AssertionError("physical pair panel does not expose one logical view per target")
+        for index, (view, target) in enumerate(zip(views, targets)):
+            if not isinstance(view, operators._LogicalOperatorView):
+                raise AssertionError("physical pair panel has a non-logical target view")
+            if view._physical_panel is not physical:
+                raise AssertionError("logical target view points at a different physical panel")
+            if view._asset_index != index or view._target_data is not target:
+                raise AssertionError("logical target view has an incorrect physical target binding")
+            if view._logical_operator_type is not physical._logical_operator_type:
+                raise AssertionError("logical target view operator type differs from its panel")
+            output = physical.outputs[target]
+            if view.lines is not output or view.lines.value is not output.value:
+                raise AssertionError("logical target value view is detached from its physical output")
+            if view.lines.reason is not output.reason:
+                raise AssertionError("logical target reason view is detached from its physical output")
+            if getattr(output.value, "_factor_research_reason_line", None) is not output.reason:
+                raise AssertionError("physical panel value is detached from its reason line")
+            if getattr(output.reason, "_factor_research_target", None) is not target:
+                raise AssertionError("physical panel reason line is not marked for its target")
+            expected_operands = (physical._values[index], physical._right_values[index])
+            actual_operands = tuple(getattr(view, "_operand_args", ()))
+            if len(actual_operands) != 2 or any(
+                not _same_operator_operand(left, right)
+                for left, right in zip(actual_operands, expected_operands)
+            ):
+                raise AssertionError("logical target operands differ from the physical panel inputs")
+            for operand in expected_operands:
+                if operators._is_line_operand(operand) and (
+                    operators._line_target_relation(operand, target) is not True
+                ):
+                    raise AssertionError("paired panel input is not bound to its real target asset")
+            marker = getattr(output.value, "_factor_research_target", None)
+            if marker is not target or target_indices.get(id(marker)) != index:
+                raise AssertionError("physical panel output is not marked for its real target asset")
+            canonical_view_ids.add(id(view))
+            if view_counts.get(id(view), 0) != 1:
+                raise AssertionError("logical target view is missing or multiply registered")
+        physical_views[id(physical)] = views
+
+    for node in node_items:
+        if isinstance(node, operators._LogicalOperatorView) and id(node) not in canonical_view_ids:
+            raise AssertionError("factor graph contains an unbound logical operator view")
+    return physical_views
+
+
+def _logical_view_for_owner(
+    owner: Any, asset_index: int, physical_views: Mapping[int, Tuple[Any, ...]]
+) -> Any:
+    views = physical_views.get(id(owner))
+    if views is None:
+        return owner
+    if asset_index < 0 or asset_index >= len(views):
+        raise AssertionError("physical panel line is consumed under an invalid target index")
+    return views[asset_index]
 
 
 def _pair_float_token(value: float) -> bytes:
@@ -399,6 +532,7 @@ def _factor_graph_pair_records(factor: Any, alpha_id: int) -> Dict[str, Any]:
     if getattr(factor, "alpha_id", None) != alpha_id:
         raise AssertionError("factor graph identity does not match Alpha%d" % alpha_id)
     targets = tuple(getattr(factor, "target_datas", ())) or tuple(factor._factor_target_datas)
+    physical_views = _validated_pair_panel_views(factor, targets)
     asset_names = _factor_asset_names(factor)
     target_order = tuple(_factor_asset_names_for_output(factor, target) for target in targets)
     grid = tuple(getattr(factor, "_factor_grid", None) or factor._factor_call_times)
@@ -457,7 +591,8 @@ def _factor_graph_pair_records(factor: Any, alpha_id: int) -> Dict[str, Any]:
         if owner_key in active:
             raise AssertionError("Alpha%d graph has a cycle" % alpha_id)
         active.add(owner_key)
-        expression = _operator_expression(owner, asset_index, line_expression)
+        logical_owner = _logical_view_for_owner(owner, asset_index, physical_views)
+        expression = _operator_expression(logical_owner, asset_index, line_expression)
         active.remove(owner_key)
         expression = _fold_constants(expression)
         cache[cache_key] = expression
@@ -589,6 +724,10 @@ def _factor_graph_pair_records(factor: Any, alpha_id: int) -> Dict[str, Any]:
         return expression, operator_type, (asset_names[asset_index],), (), values, reasons
 
     for owner_id, owner in traversed_nodes.items():
+        if isinstance(owner, operators._PairedPanelOperator) and owner_id not in physical_views:
+            raise AssertionError("reachable paired panel is absent from the physical panel registry")
+        if owner_id in physical_views:
+            continue
         if owner_id not in registered_nodes and not _pair_line_operands(owner):
             raise AssertionError(
                 "reachable constant-only operator node %s is absent from factor._nodes"
@@ -791,6 +930,8 @@ def _production_graph(
     factor: Any, alpha_id: int
 ) -> Tuple[Tuple[Any, ...], Dict[Tuple[Any, ...], List[List[List[float]]]]]:
     rows = len(factor._factor_call_times)
+    targets = tuple(getattr(factor, "target_datas", ())) or tuple(factor._factor_target_datas)
+    physical_views = _validated_pair_panel_views(factor, targets)
     aliases = _field_lines(factor)
     active = set()
     canonical_cache: Dict[Tuple[int, int], Tuple[Any, ...]] = {}
@@ -833,7 +974,8 @@ def _production_graph(
         if owner_key in active:
             raise AssertionError("Alpha%d graph has a cycle" % alpha_id)
         active.add(owner_key)
-        expression = _operator_expression(owner, asset_index, line_expression)
+        logical_owner = _logical_view_for_owner(owner, asset_index, physical_views)
+        expression = _operator_expression(logical_owner, asset_index, line_expression)
         active.remove(owner_key)
         expression = _fold_constants(expression)
         canonical_cache[cache_key] = expression
@@ -847,9 +989,13 @@ def _production_graph(
         match = _FIELD_NAME.match(key)
         if match is None:
             raise AssertionError("scalar node key %r lacks a target index" % key)
-        return _fold_constants(
-            _operator_expression(node, int(match.group("index")), line_expression)
-        )
+        asset_index = int(match.group("index"))
+        if isinstance(node, operators._LogicalOperatorView):
+            if node._asset_index != asset_index:
+                raise AssertionError("logical node key and target index differ")
+            if not any(node._physical_panel is physical for physical in getattr(factor, "_physical_nodes", ())):
+                raise AssertionError("logical node is detached from the factor physical panel registry")
+        return _fold_constants(_operator_expression(node, asset_index, line_expression))
 
     root = tuple(
         _fold_constants(line_expression(line, index))
@@ -868,6 +1014,8 @@ def _production_graph(
             if match is None:
                 raise AssertionError("scalar node key %r lacks a target index" % key)
             asset_index = int(match.group("index"))
+            if isinstance(node, operators._LogicalOperatorView) and node._asset_index != asset_index:
+                raise AssertionError("logical node key and target index differ")
             values = _array(node.lines.value, rows)
             groups = scalar_groups[expression]
             for group in groups:

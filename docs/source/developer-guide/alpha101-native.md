@@ -262,3 +262,9 @@ Alpha048 需要 251 格历史跨度以及按子行业去均值。它现在读取
 - [迭代45设计文档](../../_internal/opts/requirements/迭代45-Indicator因子研究与多因子合成/设计文档.md)：`alpha101-v1` 历史语义、字段血缘、ADV、美元成交额与 VWAP；PIT 部分仅作历史说明。
 - [迭代45代表公式与验收材料](../../_internal/opts/requirements/迭代45-Indicator因子研究与多因子合成/Alpha101代表验收案例.md)：代表公式及其独立参考背景。
 - [迭代46计划](../../_internal/opts/requirements/迭代46-Alpha101原生因子实现/迭代计划.md)：101式逐批范围、H/PIT/边界验收门槛和当前状态。
+
+## Alpha003 paired panel的生命周期与验收边界
+
+Alpha003的native图使用一个物理rolling-correlation panel和一个物理multiply panel。两个物理节点都是普通Indicator，由Cerebro通过正常的`next`/`once`生命周期调度；每个目标资产对应一个非Indicator逻辑view，它共享物理panel输出line并投影自己的目标槽位，不会被独立调度。截面rank仍由原有panel算子完成，因子的横截面成员和逐目标公式结果保持原口径。
+
+固定500股的三对完整输出比较中，027每对墙钟和CPU均朝候选改善，但相对离散度分别为9.93%和10.69%，超过5%稳定门槛；这不是稳定提速验收，也不代表5471股表现。全101 T320/T640/T1280分区矩阵已由union覆盖全部公式，但各partial仍保留`INCOMPLETE`。详见[迭代49性能开发与验收记录](../../_internal/opts/requirements/迭代49-因子分析性能优化/开发与验收记录.md)。
