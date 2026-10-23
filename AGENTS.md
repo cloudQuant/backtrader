@@ -491,6 +491,16 @@ fixture with matching verified causes, so that evaluation keeps PARTIAL while
 the parity check passes. The fincore change only fixes empty-quantile/IC report
 rendering. Exact commits, hashes and scope are in Iteration 48's acceptance
 record; these are local source/installed checks, not release or deployment.
+Iteration 49 single-class candidate `166a644a` passed 725 source unit tests,
+34 scenario/data contracts, the all-101 T320/T640/T1280 four-lane matrix,
+and the complete 12-table/101-report downstream pair. Its fresh installed
+wheels with fincore `4b8f31b1` passed 159 tests (including 10 single-class
+mode tests), three actual 20-asset example mode pairs and four CSV reevaluation
+pairs. Receipts use schema 2 and `iteration49-single-class-modes`, checking
+actual grouped factor instances and allowing native operator descendants.
+See `docs/_internal/opts/requirements/迭代49-因子单类双模式重构/实施与验收.md`
+for exact hashes and the preserved PARTIAL evaluation boundaries. These checks
+do not repeat the earlier 500-asset performance benchmark.
 Iteration 46 acceptance is tracked separately in its
 development record. Usage and acceptance records are linked from
 `docs/source/developer-guide/factor-research.md` and `alpha101-native.md`; 025/026 are the standalone

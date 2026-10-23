@@ -8,6 +8,8 @@
 
 迭代47的四公式build、三个500资产示例完整配对和固定wheel验收已通过，见[47验收结果](../../_internal/opts/requirements/迭代47-因子build简洁模式与算子增强/验收结果.md)。48另验收全101式T320/T640/T1280四路矩阵、12张下游评价表、101对实际报告及新wheel的149项检查。固定fixture中的不可计算指标保留原因与PARTIAL状态，不把两实现一致解释为所有因子都有可用IC。
 
+当前单类版本已通过725项源码单测、全101三种历史长度四路矩阵、完整下游报告比较，以及固定提交`166a644a`的159项安装测试和三个实际示例配对。范围、版本和证据见[49验收记录](../../_internal/opts/requirements/迭代49-因子单类双模式重构/实施与验收.md)。
+
 ## 环境与职责
 
 研究入口要求 Python 3.11 及 pandas。普通 Backtrader 核心仍支持其原有 Python 范围；采集和 CSV 交换不需要 fincore。只有评价时才加载包含本轮研究 API 的 fincore 安装产物，不能用同版本号的旧包替代。
@@ -36,7 +38,6 @@ from backtrader.research import FactorIndicator
 class CloseMAFactor(FactorIndicator):
     lines = ("factor",)
     params = (("period", 20),)
-    panel_mode = "next"
     formula_fields = ("close",)
 
     @classmethod

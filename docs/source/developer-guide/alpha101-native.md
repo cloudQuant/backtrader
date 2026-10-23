@@ -10,6 +10,8 @@
 
 此前无用封装删除、接口迁移以及保留原生 Feed 子指标的反例见[封装清理记录](../../_internal/opts/requirements/迭代46-Alpha101原生因子实现/原生研究封装清理记录.md)。该历史检查点为376项源码检查及3项安装smoke，未执行当时的完整installed fincore矩阵；旧双类版本的源码与安装状态以上述48验收结果为准；当前单类重构见[49记录](../../_internal/opts/requirements/迭代49-因子单类双模式重构/实施与验收.md)。真实全市场吞吐仍未验收。
 
+**当前单类版本**：49已完成本地源码和固定wheel验收，101个原类均包含native与build方法；725项单测、三种历史长度四路矩阵、完整下游比较以及159项安装测试通过。用法和精确证据见[49记录](../../_internal/opts/requirements/迭代49-因子单类双模式重构/实施与验收.md)。
+
 ## 查找原生因子
 
 `get_alpha()` 返回一个具体的 `FactorIndicator` 子类；将这个类交给 `FactorSpec`，再由 `FactorStrategy` 装配。`list_alphas()` 返回当前已经登记的升序 ID 元组，是检查当前运行环境可用公式的权威接口。注册表只读；ID 必须是普通整数，`bool` 不算整数 ID，未知或尚未登记的 ID 会报错。
