@@ -1,0 +1,903 @@
+{
+  "acceptance_scope": "analysis only; receipt PASS covers source/output integrity, not timing or memory",
+  "memory_target": {
+    "candidate_peak_limit_bytes": 1000000000,
+    "max_recorded_candidate_peak_bytes": 351059968,
+    "status": "NOT_FINAL_FIXED500"
+  },
+  "per_example": {
+    "025": {
+      "cpu_ns": {
+        "baseline_median": 51734375000,
+        "candidate_median": 19640625000,
+        "candidate_over_baseline_median": 0.38733705772811916,
+        "pair_values": [
+          {
+            "baseline": 51734375000,
+            "candidate": 20125000000,
+            "candidate_over_baseline": 0.3890063424947146,
+            "pair": 1,
+            "reduction_percent": 61.09936575052855
+          },
+          {
+            "baseline": 51953125000,
+            "candidate": 19640625000,
+            "candidate_over_baseline": 0.3780451127819549,
+            "pair": 2,
+            "reduction_percent": 62.195488721804516
+          },
+          {
+            "baseline": 50343750000,
+            "candidate": 19500000000,
+            "candidate_over_baseline": 0.38733705772811916,
+            "pair": 3,
+            "reduction_percent": 61.26629422718808
+          }
+        ],
+        "ratio_range_over_median": 0.02829894401803827
+      },
+      "recorded_conservative_peak_bytes": {
+        "baseline_median": 924651520,
+        "candidate_median": 313319424,
+        "candidate_over_baseline_median": 0.3381981687232791,
+        "pair_values": [
+          {
+            "baseline": 924651520,
+            "candidate": 312578048,
+            "candidate_over_baseline": 0.33804956920419055,
+            "pair": 1,
+            "reduction_percent": 66.19504307958096
+          },
+          {
+            "baseline": 923049984,
+            "candidate": 314392576,
+            "candidate_over_baseline": 0.3406018974591088,
+            "pair": 2,
+            "reduction_percent": 65.93981025408912
+          },
+          {
+            "baseline": 926437376,
+            "candidate": 313319424,
+            "candidate_over_baseline": 0.3381981687232791,
+            "pair": 3,
+            "reduction_percent": 66.18018312767208
+          }
+        ],
+        "ratio_range_over_median": 0.007546842327838311
+      },
+      "wall_ns": {
+        "baseline_median": 53402698000,
+        "candidate_median": 20491821400,
+        "candidate_over_baseline_median": 0.3914982216816087,
+        "final_80_percent_target": "NOT_FINAL_FIXED500",
+        "pair_values": [
+          {
+            "baseline": 53402698000,
+            "candidate": 20907061300,
+            "candidate_over_baseline": 0.3914982216816087,
+            "pair": 1,
+            "reduction_percent": 60.850177831839126
+          },
+          {
+            "baseline": 53810528100,
+            "candidate": 20328988000,
+            "candidate_over_baseline": 0.37778830124508667,
+            "pair": 2,
+            "reduction_percent": 62.221169875491334
+          },
+          {
+            "baseline": 52230317800,
+            "candidate": 20491821400,
+            "candidate_over_baseline": 0.3923357594427656,
+            "pair": 3,
+            "reduction_percent": 60.766424055723434
+          }
+        ],
+        "ratio_range_over_median": 0.03715842727252504
+      }
+    },
+    "026": {
+      "cpu_ns": {
+        "baseline_median": 103359375000,
+        "candidate_median": 42531250000,
+        "candidate_over_baseline_median": 0.41148904006046866,
+        "pair_values": [
+          {
+            "baseline": 102531250000,
+            "candidate": 42968750000,
+            "candidate_over_baseline": 0.4190795489180128,
+            "pair": 1,
+            "reduction_percent": 58.09204510819872
+          },
+          {
+            "baseline": 106125000000,
+            "candidate": 42171875000,
+            "candidate_over_baseline": 0.39737926972909304,
+            "pair": 2,
+            "reduction_percent": 60.2620730270907
+          },
+          {
+            "baseline": 103359375000,
+            "candidate": 42531250000,
+            "candidate_over_baseline": 0.41148904006046866,
+            "pair": 3,
+            "reduction_percent": 58.85109599395313
+          }
+        ],
+        "ratio_range_over_median": 0.05273598340731234
+      },
+      "recorded_conservative_peak_bytes": {
+        "baseline_median": 1244753920,
+        "candidate_median": 350720000,
+        "candidate_over_baseline_median": 0.28203162276444166,
+        "pair_values": [
+          {
+            "baseline": 1244753920,
+            "candidate": 351059968,
+            "candidate_over_baseline": 0.28203162276444166,
+            "pair": 1,
+            "reduction_percent": 71.79683772355583
+          },
+          {
+            "baseline": 1246089216,
+            "candidate": 350720000,
+            "candidate_over_baseline": 0.28145657268893337,
+            "pair": 2,
+            "reduction_percent": 71.85434273110667
+          },
+          {
+            "baseline": 1240702976,
+            "candidate": 350248960,
+            "candidate_over_baseline": 0.2822987989673364,
+            "pair": 3,
+            "reduction_percent": 71.77012010326635
+          }
+        ],
+        "ratio_range_over_median": 0.0029862831343081984
+      },
+      "wall_ns": {
+        "baseline_median": 107795460300,
+        "candidate_median": 44466259800,
+        "candidate_over_baseline_median": 0.41250586690987023,
+        "final_80_percent_target": "NOT_FINAL_FIXED500",
+        "pair_values": [
+          {
+            "baseline": 107795460300,
+            "candidate": 44466259800,
+            "candidate_over_baseline": 0.41250586690987023,
+            "pair": 1,
+            "reduction_percent": 58.74941330901298
+          },
+          {
+            "baseline": 109426121600,
+            "candidate": 44797327100,
+            "candidate_over_baseline": 0.40938421690347104,
+            "pair": 2,
+            "reduction_percent": 59.061578309652894
+          },
+          {
+            "baseline": 106311837900,
+            "candidate": 44189630000,
+            "candidate_over_baseline": 0.41566048403345307,
+            "pair": 3,
+            "reduction_percent": 58.4339515966547
+          }
+        ],
+        "ratio_range_over_median": 0.015214976642631241
+      }
+    },
+    "027": {
+      "cpu_ns": {
+        "baseline_median": 44718750000,
+        "candidate_median": 25953125000,
+        "candidate_over_baseline_median": 0.5803633822501747,
+        "pair_values": [
+          {
+            "baseline": 44718750000,
+            "candidate": 25953125000,
+            "candidate_over_baseline": 0.5803633822501747,
+            "pair": 1,
+            "reduction_percent": 41.96366177498253
+          },
+          {
+            "baseline": 44203125000,
+            "candidate": 26078125000,
+            "candidate_over_baseline": 0.5899611170024743,
+            "pair": 2,
+            "reduction_percent": 41.00388829975257
+          },
+          {
+            "baseline": 45140625000,
+            "candidate": 25718750000,
+            "candidate_over_baseline": 0.5697473174108688,
+            "pair": 3,
+            "reduction_percent": 43.025268258913115
+          }
+        ],
+        "ratio_range_over_median": 0.034829557153025284
+      },
+      "recorded_conservative_peak_bytes": {
+        "baseline_median": 492818432,
+        "candidate_median": 306728960,
+        "candidate_over_baseline_median": 0.621581240921353,
+        "pair_values": [
+          {
+            "baseline": 492818432,
+            "candidate": 307507200,
+            "candidate_over_baseline": 0.6239766616521356,
+            "pair": 1,
+            "reduction_percent": 37.602333834786435
+          },
+          {
+            "baseline": 493465600,
+            "candidate": 306728960,
+            "candidate_over_baseline": 0.621581240921353,
+            "pair": 2,
+            "reduction_percent": 37.8418759078647
+          },
+          {
+            "baseline": 491819008,
+            "candidate": 305590272,
+            "candidate_over_baseline": 0.6213470138998776,
+            "pair": 3,
+            "reduction_percent": 37.865298610012246
+          }
+        ],
+        "ratio_range_over_median": 0.004230577725222516
+      },
+      "wall_ns": {
+        "baseline_median": 46436739800,
+        "candidate_median": 26802817500,
+        "candidate_over_baseline_median": 0.5771899064283579,
+        "final_80_percent_target": "NOT_FINAL_FIXED500",
+        "pair_values": [
+          {
+            "baseline": 45898262700,
+            "candidate": 26488607900,
+            "candidate_over_baseline": 0.5771156976710581,
+            "pair": 1,
+            "reduction_percent": 42.28843023289419
+          },
+          {
+            "baseline": 46442407900,
+            "candidate": 26984458700,
+            "candidate_over_baseline": 0.5810305692612463,
+            "pair": 2,
+            "reduction_percent": 41.89694307387537
+          },
+          {
+            "baseline": 46436739800,
+            "candidate": 26802817500,
+            "candidate_over_baseline": 0.5771899064283579,
+            "pair": 3,
+            "reduction_percent": 42.28100935716421
+          }
+        ],
+        "ratio_range_over_median": 0.006782640421440116
+      }
+    }
+  },
+  "phase_note": "exclusive timer sums are mutually exclusive; remainder is main wall minus all reported exclusive phase rows",
+  "receipt": "D:\\temp\\iteration49-final-7col-500-r1\\fixed500-stage.json",
+  "receipt_status": "PASS",
+  "runs": [
+    {
+      "arm": "baseline",
+      "cli_cpu_over_main_ns": 5687500000,
+      "cli_total_cpu_ns": 57421875000,
+      "cli_total_wall_ns": 59982995400,
+      "cli_wall_over_main_ns": 6580297400,
+      "cpu_ns": 51734375000,
+      "example": "025",
+      "html_report_note": null,
+      "main_peak_working_set_bytes": 924651520,
+      "pair": 1,
+      "phase_breakdown": {
+        "exclusive_by_stage_ns": {
+          "alignment_preload": 4286603900,
+          "collection_finish": 2042641800,
+          "csv_chart_export": 4059609200,
+          "engine": 4251584800,
+          "evaluation_html_report": 8186627000,
+          "fincore_evaluation": 28568314400,
+          "load": 1318045700,
+          "other_small": 674882700
+        },
+        "main_wall_ns": 53402698000,
+        "method": "sum wall_exclusive_ns only; inclusive timers are not added",
+        "phase_exclusive_sum_ns": 53388309500,
+        "unattributed_remainder_ns": 14388500
+      },
+      "receipt_metrics_match": true,
+      "recorded_conservative_peak_bytes": 924651520,
+      "resource_peak_tree_rss_bytes": 864649216,
+      "result": "D:\\temp\\iteration49-final-7col-500-r1\\fixed500-p1-baseline-025\\result.json",
+      "result_sha256": "a9657a0b8a87a86735f2618698cc80d37d17fcd395a2745e42f3a969ff468e70",
+      "wall_ns": 53402698000
+    },
+    {
+      "arm": "candidate",
+      "cli_cpu_over_main_ns": 5218750000,
+      "cli_total_cpu_ns": 25343750000,
+      "cli_total_wall_ns": 26913741400,
+      "cli_wall_over_main_ns": 6006680100,
+      "cpu_ns": 20125000000,
+      "example": "025",
+      "html_report_note": null,
+      "main_peak_working_set_bytes": 312578048,
+      "pair": 1,
+      "phase_breakdown": {
+        "exclusive_by_stage_ns": {
+          "alignment_preload": 2690977500,
+          "collection_finish": 1552859300,
+          "csv_chart_export": 2618089700,
+          "engine": 2340131800,
+          "evaluation_html_report": 4337172500,
+          "fincore_evaluation": 5568474200,
+          "load": 1339154800,
+          "other_small": 371794200
+        },
+        "main_wall_ns": 20907061300,
+        "method": "sum wall_exclusive_ns only; inclusive timers are not added",
+        "phase_exclusive_sum_ns": 20818654000,
+        "unattributed_remainder_ns": 88407300
+      },
+      "receipt_metrics_match": true,
+      "recorded_conservative_peak_bytes": 312578048,
+      "resource_peak_tree_rss_bytes": 304136192,
+      "result": "D:\\temp\\iteration49-final-7col-500-r1\\fixed500-p1-candidate-025\\result.json",
+      "result_sha256": "25030d204510d47681467c3baf4456ee8776d15d7f923839b4d2403739cbe570",
+      "wall_ns": 20907061300
+    },
+    {
+      "arm": "baseline",
+      "cli_cpu_over_main_ns": 5218750000,
+      "cli_total_cpu_ns": 107750000000,
+      "cli_total_wall_ns": 113791980200,
+      "cli_wall_over_main_ns": 5996519900,
+      "cpu_ns": 102531250000,
+      "example": "026",
+      "html_report_note": null,
+      "main_peak_working_set_bytes": 1244753920,
+      "pair": 1,
+      "phase_breakdown": {
+        "exclusive_by_stage_ns": {
+          "alignment_preload": 4726072500,
+          "collection_finish": 3300288900,
+          "csv_chart_export": 6140277000,
+          "engine": 16920113000,
+          "evaluation_html_report": 23040844800,
+          "fincore_evaluation": 49329409800,
+          "load": 1340821300,
+          "other_small": 2968632600
+        },
+        "main_wall_ns": 107795460300,
+        "method": "sum wall_exclusive_ns only; inclusive timers are not added",
+        "phase_exclusive_sum_ns": 107766459900,
+        "unattributed_remainder_ns": 29000400
+      },
+      "receipt_metrics_match": true,
+      "recorded_conservative_peak_bytes": 1244753920,
+      "resource_peak_tree_rss_bytes": 985702400,
+      "result": "D:\\temp\\iteration49-final-7col-500-r1\\fixed500-p1-baseline-026\\result.json",
+      "result_sha256": "004e5300083c8322af44f49880a8dcf54a6f47da1f4079573b5dae6a92a1474c",
+      "wall_ns": 107795460300
+    },
+    {
+      "arm": "candidate",
+      "cli_cpu_over_main_ns": 4906250000,
+      "cli_total_cpu_ns": 47875000000,
+      "cli_total_wall_ns": 50448945600,
+      "cli_wall_over_main_ns": 5982685800,
+      "cpu_ns": 42968750000,
+      "example": "026",
+      "html_report_note": null,
+      "main_peak_working_set_bytes": 351059968,
+      "pair": 1,
+      "phase_breakdown": {
+        "exclusive_by_stage_ns": {
+          "alignment_preload": 2713287700,
+          "collection_finish": 2701208400,
+          "csv_chart_export": 4202629900,
+          "engine": 6980881400,
+          "evaluation_html_report": 11830791600,
+          "fincore_evaluation": 12661538400,
+          "load": 1379365700,
+          "other_small": 1860575500
+        },
+        "main_wall_ns": 44466259800,
+        "method": "sum wall_exclusive_ns only; inclusive timers are not added",
+        "phase_exclusive_sum_ns": 44330278600,
+        "unattributed_remainder_ns": 135981200
+      },
+      "receipt_metrics_match": true,
+      "recorded_conservative_peak_bytes": 351059968,
+      "resource_peak_tree_rss_bytes": 339808256,
+      "result": "D:\\temp\\iteration49-final-7col-500-r1\\fixed500-p1-candidate-026\\result.json",
+      "result_sha256": "23062f5759adee6da581debbce05118e6a41dbcae9bb23bbacf8b8ae9cf38fea",
+      "wall_ns": 44466259800
+    },
+    {
+      "arm": "baseline",
+      "cli_cpu_over_main_ns": 5343750000,
+      "cli_total_cpu_ns": 50062500000,
+      "cli_total_wall_ns": 51938028200,
+      "cli_wall_over_main_ns": 6039765500,
+      "cpu_ns": 44718750000,
+      "example": "027",
+      "html_report_note": "027 html_report includes its single-factor evaluation; it is not pure rendering.",
+      "main_peak_working_set_bytes": 492818432,
+      "pair": 1,
+      "phase_breakdown": {
+        "exclusive_by_stage_ns": {
+          "alignment_preload": 4262932100,
+          "collection_finish": 2639530900,
+          "csv_chart_export": 642028300,
+          "engine": 27040861000,
+          "evaluation_html_report": 8293578100,
+          "fincore_evaluation": 0,
+          "load": 1375780100,
+          "other_small": 1633648200
+        },
+        "main_wall_ns": 45898262700,
+        "method": "sum wall_exclusive_ns only; inclusive timers are not added",
+        "phase_exclusive_sum_ns": 45888358700,
+        "unattributed_remainder_ns": 9904000
+      },
+      "receipt_metrics_match": true,
+      "recorded_conservative_peak_bytes": 492818432,
+      "resource_peak_tree_rss_bytes": 438861824,
+      "result": "D:\\temp\\iteration49-final-7col-500-r1\\fixed500-p1-baseline-027\\result.json",
+      "result_sha256": "156f3c24a7f1045dfb48e7774f0beb12a91a52c0ed564da421d16a1007cab416",
+      "wall_ns": 45898262700
+    },
+    {
+      "arm": "candidate",
+      "cli_cpu_over_main_ns": 5218750000,
+      "cli_total_cpu_ns": 31171875000,
+      "cli_total_wall_ns": 32728251600,
+      "cli_wall_over_main_ns": 6239643700,
+      "cpu_ns": 25953125000,
+      "example": "027",
+      "html_report_note": "027 html_report includes its single-factor evaluation; it is not pure rendering.",
+      "main_peak_working_set_bytes": 307507200,
+      "pair": 1,
+      "phase_breakdown": {
+        "exclusive_by_stage_ns": {
+          "alignment_preload": 3057277100,
+          "collection_finish": 2118909200,
+          "csv_chart_export": 619104100,
+          "engine": 14161742900,
+          "evaluation_html_report": 4281937800,
+          "fincore_evaluation": 0,
+          "load": 1702910400,
+          "other_small": 450423700
+        },
+        "main_wall_ns": 26488607900,
+        "method": "sum wall_exclusive_ns only; inclusive timers are not added",
+        "phase_exclusive_sum_ns": 26392305200,
+        "unattributed_remainder_ns": 96302700
+      },
+      "receipt_metrics_match": true,
+      "recorded_conservative_peak_bytes": 307507200,
+      "resource_peak_tree_rss_bytes": 296771584,
+      "result": "D:\\temp\\iteration49-final-7col-500-r1\\fixed500-p1-candidate-027\\result.json",
+      "result_sha256": "94e843da52e6dc0fbb65ca41bba18bb48ed5f9a591c22fe42cade9ac2a6b5022",
+      "wall_ns": 26488607900
+    },
+    {
+      "arm": "candidate",
+      "cli_cpu_over_main_ns": 5156250000,
+      "cli_total_cpu_ns": 24796875000,
+      "cli_total_wall_ns": 26418861600,
+      "cli_wall_over_main_ns": 6089873600,
+      "cpu_ns": 19640625000,
+      "example": "025",
+      "html_report_note": null,
+      "main_peak_working_set_bytes": 314392576,
+      "pair": 2,
+      "phase_breakdown": {
+        "exclusive_by_stage_ns": {
+          "alignment_preload": 2851321500,
+          "collection_finish": 1571699700,
+          "csv_chart_export": 2430087200,
+          "engine": 2266155800,
+          "evaluation_html_report": 4248735000,
+          "fincore_evaluation": 4975380800,
+          "load": 1505667500,
+          "other_small": 391541700
+        },
+        "main_wall_ns": 20328988000,
+        "method": "sum wall_exclusive_ns only; inclusive timers are not added",
+        "phase_exclusive_sum_ns": 20240589200,
+        "unattributed_remainder_ns": 88398800
+      },
+      "receipt_metrics_match": true,
+      "recorded_conservative_peak_bytes": 314392576,
+      "resource_peak_tree_rss_bytes": 298430464,
+      "result": "D:\\temp\\iteration49-final-7col-500-r1\\fixed500-p2-candidate-025\\result.json",
+      "result_sha256": "be7c56dfd65a5c15497375d661e2a575168735f5139e0b6f42802de2faf3a9bc",
+      "wall_ns": 20328988000
+    },
+    {
+      "arm": "baseline",
+      "cli_cpu_over_main_ns": 4953125000,
+      "cli_total_cpu_ns": 56906250000,
+      "cli_total_wall_ns": 59665619400,
+      "cli_wall_over_main_ns": 5855091300,
+      "cpu_ns": 51953125000,
+      "example": "025",
+      "html_report_note": null,
+      "main_peak_working_set_bytes": 923049984,
+      "pair": 2,
+      "phase_breakdown": {
+        "exclusive_by_stage_ns": {
+          "alignment_preload": 4297859500,
+          "collection_finish": 1903628700,
+          "csv_chart_export": 5095294200,
+          "engine": 4678962300,
+          "evaluation_html_report": 8413182900,
+          "fincore_evaluation": 27377296000,
+          "load": 1369092600,
+          "other_small": 660573700
+        },
+        "main_wall_ns": 53810528100,
+        "method": "sum wall_exclusive_ns only; inclusive timers are not added",
+        "phase_exclusive_sum_ns": 53795889900,
+        "unattributed_remainder_ns": 14638200
+      },
+      "receipt_metrics_match": true,
+      "recorded_conservative_peak_bytes": 923049984,
+      "resource_peak_tree_rss_bytes": 904970240,
+      "result": "D:\\temp\\iteration49-final-7col-500-r1\\fixed500-p2-baseline-025\\result.json",
+      "result_sha256": "16399853d2a54312a6165855b85e72ebc59e235367fd5f4cf485d13e92f55b5b",
+      "wall_ns": 53810528100
+    },
+    {
+      "arm": "candidate",
+      "cli_cpu_over_main_ns": 5453125000,
+      "cli_total_cpu_ns": 47625000000,
+      "cli_total_wall_ns": 51312509300,
+      "cli_wall_over_main_ns": 6515182200,
+      "cpu_ns": 42171875000,
+      "example": "026",
+      "html_report_note": null,
+      "main_peak_working_set_bytes": 350720000,
+      "pair": 2,
+      "phase_breakdown": {
+        "exclusive_by_stage_ns": {
+          "alignment_preload": 2734358800,
+          "collection_finish": 2742434000,
+          "csv_chart_export": 4188825800,
+          "engine": 6947753900,
+          "evaluation_html_report": 12052628500,
+          "fincore_evaluation": 12822040200,
+          "load": 1368317300,
+          "other_small": 1795325300
+        },
+        "main_wall_ns": 44797327100,
+        "method": "sum wall_exclusive_ns only; inclusive timers are not added",
+        "phase_exclusive_sum_ns": 44651683800,
+        "unattributed_remainder_ns": 145643300
+      },
+      "receipt_metrics_match": true,
+      "recorded_conservative_peak_bytes": 350720000,
+      "resource_peak_tree_rss_bytes": 333533184,
+      "result": "D:\\temp\\iteration49-final-7col-500-r1\\fixed500-p2-candidate-026\\result.json",
+      "result_sha256": "2908930338796f4cc3c310cf6e91a48c9788ea2ce3b6e7ec4842b7f007d7a984",
+      "wall_ns": 44797327100
+    },
+    {
+      "arm": "baseline",
+      "cli_cpu_over_main_ns": 5250000000,
+      "cli_total_cpu_ns": 111375000000,
+      "cli_total_wall_ns": 115355405200,
+      "cli_wall_over_main_ns": 5929283600,
+      "cpu_ns": 106125000000,
+      "example": "026",
+      "html_report_note": null,
+      "main_peak_working_set_bytes": 1246089216,
+      "pair": 2,
+      "phase_breakdown": {
+        "exclusive_by_stage_ns": {
+          "alignment_preload": 4383776700,
+          "collection_finish": 3929621400,
+          "csv_chart_export": 7691289800,
+          "engine": 17029664200,
+          "evaluation_html_report": 23233407400,
+          "fincore_evaluation": 48788100800,
+          "load": 1367298900,
+          "other_small": 2983962200
+        },
+        "main_wall_ns": 109426121600,
+        "method": "sum wall_exclusive_ns only; inclusive timers are not added",
+        "phase_exclusive_sum_ns": 109407121400,
+        "unattributed_remainder_ns": 19000200
+      },
+      "receipt_metrics_match": true,
+      "recorded_conservative_peak_bytes": 1246089216,
+      "resource_peak_tree_rss_bytes": 1023479808,
+      "result": "D:\\temp\\iteration49-final-7col-500-r1\\fixed500-p2-baseline-026\\result.json",
+      "result_sha256": "fae02e95d32231bb48ee43bcdd07c9b20fba916709171e7137e7fbdb72ba104e",
+      "wall_ns": 109426121600
+    },
+    {
+      "arm": "candidate",
+      "cli_cpu_over_main_ns": 5328125000,
+      "cli_total_cpu_ns": 31406250000,
+      "cli_total_wall_ns": 32964100900,
+      "cli_wall_over_main_ns": 5979642200,
+      "cpu_ns": 26078125000,
+      "example": "027",
+      "html_report_note": "027 html_report includes its single-factor evaluation; it is not pure rendering.",
+      "main_peak_working_set_bytes": 306728960,
+      "pair": 2,
+      "phase_breakdown": {
+        "exclusive_by_stage_ns": {
+          "alignment_preload": 2762390100,
+          "collection_finish": 2149547500,
+          "csv_chart_export": 644815600,
+          "engine": 15128527900,
+          "evaluation_html_report": 4419936300,
+          "fincore_evaluation": 0,
+          "load": 1335577200,
+          "other_small": 443213900
+        },
+        "main_wall_ns": 26984458700,
+        "method": "sum wall_exclusive_ns only; inclusive timers are not added",
+        "phase_exclusive_sum_ns": 26884008500,
+        "unattributed_remainder_ns": 100450200
+      },
+      "receipt_metrics_match": true,
+      "recorded_conservative_peak_bytes": 306728960,
+      "resource_peak_tree_rss_bytes": 291708928,
+      "result": "D:\\temp\\iteration49-final-7col-500-r1\\fixed500-p2-candidate-027\\result.json",
+      "result_sha256": "19761728ba2fb02fa0b60d0f93090c5fffa229d76aa9da482ae4f5a2fbc919ef",
+      "wall_ns": 26984458700
+    },
+    {
+      "arm": "baseline",
+      "cli_cpu_over_main_ns": 5375000000,
+      "cli_total_cpu_ns": 49578125000,
+      "cli_total_wall_ns": 52528839200,
+      "cli_wall_over_main_ns": 6086431300,
+      "cpu_ns": 44203125000,
+      "example": "027",
+      "html_report_note": "027 html_report includes its single-factor evaluation; it is not pure rendering.",
+      "main_peak_working_set_bytes": 493465600,
+      "pair": 2,
+      "phase_breakdown": {
+        "exclusive_by_stage_ns": {
+          "alignment_preload": 4310943700,
+          "collection_finish": 2477500700,
+          "csv_chart_export": 845694600,
+          "engine": 26925949500,
+          "evaluation_html_report": 8867355800,
+          "fincore_evaluation": 0,
+          "load": 1367708700,
+          "other_small": 1636666200
+        },
+        "main_wall_ns": 46442407900,
+        "method": "sum wall_exclusive_ns only; inclusive timers are not added",
+        "phase_exclusive_sum_ns": 46431819200,
+        "unattributed_remainder_ns": 10588700
+      },
+      "receipt_metrics_match": true,
+      "recorded_conservative_peak_bytes": 493465600,
+      "resource_peak_tree_rss_bytes": 448815104,
+      "result": "D:\\temp\\iteration49-final-7col-500-r1\\fixed500-p2-baseline-027\\result.json",
+      "result_sha256": "4f557e31f9857aa27582e68d950f628c5b8c11928b789576d8fd28c2903d8eeb",
+      "wall_ns": 46442407900
+    },
+    {
+      "arm": "baseline",
+      "cli_cpu_over_main_ns": 5218750000,
+      "cli_total_cpu_ns": 55562500000,
+      "cli_total_wall_ns": 58148694700,
+      "cli_wall_over_main_ns": 5918376900,
+      "cpu_ns": 50343750000,
+      "example": "025",
+      "html_report_note": null,
+      "main_peak_working_set_bytes": 926437376,
+      "pair": 3,
+      "phase_breakdown": {
+        "exclusive_by_stage_ns": {
+          "alignment_preload": 4300339800,
+          "collection_finish": 1727140500,
+          "csv_chart_export": 4788706800,
+          "engine": 3939624500,
+          "evaluation_html_report": 8890142300,
+          "fincore_evaluation": 26577573200,
+          "load": 1332821000,
+          "other_small": 656653100
+        },
+        "main_wall_ns": 52230317800,
+        "method": "sum wall_exclusive_ns only; inclusive timers are not added",
+        "phase_exclusive_sum_ns": 52213001200,
+        "unattributed_remainder_ns": 17316600
+      },
+      "receipt_metrics_match": true,
+      "recorded_conservative_peak_bytes": 926437376,
+      "resource_peak_tree_rss_bytes": 818978816,
+      "result": "D:\\temp\\iteration49-final-7col-500-r1\\fixed500-p3-baseline-025\\result.json",
+      "result_sha256": "2d692c48789d321cd12b81557189c227d6081f55d2f98c908b9998a176f01440",
+      "wall_ns": 52230317800
+    },
+    {
+      "arm": "candidate",
+      "cli_cpu_over_main_ns": 5343750000,
+      "cli_total_cpu_ns": 24843750000,
+      "cli_total_wall_ns": 26911640700,
+      "cli_wall_over_main_ns": 6419819300,
+      "cpu_ns": 19500000000,
+      "example": "025",
+      "html_report_note": null,
+      "main_peak_working_set_bytes": 313319424,
+      "pair": 3,
+      "phase_breakdown": {
+        "exclusive_by_stage_ns": {
+          "alignment_preload": 2829937900,
+          "collection_finish": 1551612000,
+          "csv_chart_export": 2466468600,
+          "engine": 2342416300,
+          "evaluation_html_report": 4336037800,
+          "fincore_evaluation": 5020004500,
+          "load": 1496323700,
+          "other_small": 355160600
+        },
+        "main_wall_ns": 20491821400,
+        "method": "sum wall_exclusive_ns only; inclusive timers are not added",
+        "phase_exclusive_sum_ns": 20397961400,
+        "unattributed_remainder_ns": 93860000
+      },
+      "receipt_metrics_match": true,
+      "recorded_conservative_peak_bytes": 313319424,
+      "resource_peak_tree_rss_bytes": 296955904,
+      "result": "D:\\temp\\iteration49-final-7col-500-r1\\fixed500-p3-candidate-025\\result.json",
+      "result_sha256": "3175688b41f74da323929b5fa01d28190bc5fc3a8e42f1b8187bd0319a8a766d",
+      "wall_ns": 20491821400
+    },
+    {
+      "arm": "baseline",
+      "cli_cpu_over_main_ns": 5234375000,
+      "cli_total_cpu_ns": 108593750000,
+      "cli_total_wall_ns": 112359628200,
+      "cli_wall_over_main_ns": 6047790300,
+      "cpu_ns": 103359375000,
+      "example": "026",
+      "html_report_note": null,
+      "main_peak_working_set_bytes": 1240702976,
+      "pair": 3,
+      "phase_breakdown": {
+        "exclusive_by_stage_ns": {
+          "alignment_preload": 4209523400,
+          "collection_finish": 3223747000,
+          "csv_chart_export": 7200587300,
+          "engine": 16226393100,
+          "evaluation_html_report": 23998940600,
+          "fincore_evaluation": 47146337700,
+          "load": 1328065800,
+          "other_small": 2959803900
+        },
+        "main_wall_ns": 106311837900,
+        "method": "sum wall_exclusive_ns only; inclusive timers are not added",
+        "phase_exclusive_sum_ns": 106293398800,
+        "unattributed_remainder_ns": 18439100
+      },
+      "receipt_metrics_match": true,
+      "recorded_conservative_peak_bytes": 1240702976,
+      "resource_peak_tree_rss_bytes": 1111142400,
+      "result": "D:\\temp\\iteration49-final-7col-500-r1\\fixed500-p3-baseline-026\\result.json",
+      "result_sha256": "cc2108aef798d3b8e96afd86a03dfa864043e3929d68ac2056dafd79d4f7b982",
+      "wall_ns": 106311837900
+    },
+    {
+      "arm": "candidate",
+      "cli_cpu_over_main_ns": 5265625000,
+      "cli_total_cpu_ns": 47796875000,
+      "cli_total_wall_ns": 50143984700,
+      "cli_wall_over_main_ns": 5954354700,
+      "cpu_ns": 42531250000,
+      "example": "026",
+      "html_report_note": null,
+      "main_peak_working_set_bytes": 350248960,
+      "pair": 3,
+      "phase_breakdown": {
+        "exclusive_by_stage_ns": {
+          "alignment_preload": 2782753700,
+          "collection_finish": 2669004600,
+          "csv_chart_export": 3960948200,
+          "engine": 6621871800,
+          "evaluation_html_report": 12102825000,
+          "fincore_evaluation": 12761401100,
+          "load": 1376294900,
+          "other_small": 1784603600
+        },
+        "main_wall_ns": 44189630000,
+        "method": "sum wall_exclusive_ns only; inclusive timers are not added",
+        "phase_exclusive_sum_ns": 44059702900,
+        "unattributed_remainder_ns": 129927100
+      },
+      "receipt_metrics_match": true,
+      "recorded_conservative_peak_bytes": 350248960,
+      "resource_peak_tree_rss_bytes": 333283328,
+      "result": "D:\\temp\\iteration49-final-7col-500-r1\\fixed500-p3-candidate-026\\result.json",
+      "result_sha256": "1cc8a8d01089abb5873a7c9da55841a31a9975ba5ff9dac929b9fb118ac68a05",
+      "wall_ns": 44189630000
+    },
+    {
+      "arm": "baseline",
+      "cli_cpu_over_main_ns": 5312500000,
+      "cli_total_cpu_ns": 50453125000,
+      "cli_total_wall_ns": 52431750100,
+      "cli_wall_over_main_ns": 5995010300,
+      "cpu_ns": 45140625000,
+      "example": "027",
+      "html_report_note": "027 html_report includes its single-factor evaluation; it is not pure rendering.",
+      "main_peak_working_set_bytes": 491819008,
+      "pair": 3,
+      "phase_breakdown": {
+        "exclusive_by_stage_ns": {
+          "alignment_preload": 4729679200,
+          "collection_finish": 2511639200,
+          "csv_chart_export": 627765400,
+          "engine": 27070370600,
+          "evaluation_html_report": 8354294900,
+          "fincore_evaluation": 0,
+          "load": 1413968700,
+          "other_small": 1716310600
+        },
+        "main_wall_ns": 46436739800,
+        "method": "sum wall_exclusive_ns only; inclusive timers are not added",
+        "phase_exclusive_sum_ns": 46424028600,
+        "unattributed_remainder_ns": 12711200
+      },
+      "receipt_metrics_match": true,
+      "recorded_conservative_peak_bytes": 491819008,
+      "resource_peak_tree_rss_bytes": 449851392,
+      "result": "D:\\temp\\iteration49-final-7col-500-r1\\fixed500-p3-baseline-027\\result.json",
+      "result_sha256": "6004e1c211e0bf72cff20825515b85f6d632ee3e401185fcb5b9d92494276747",
+      "wall_ns": 46436739800
+    },
+    {
+      "arm": "candidate",
+      "cli_cpu_over_main_ns": 5062500000,
+      "cli_total_cpu_ns": 30781250000,
+      "cli_total_wall_ns": 32957465000,
+      "cli_wall_over_main_ns": 6154647500,
+      "cpu_ns": 25718750000,
+      "example": "027",
+      "html_report_note": "027 html_report includes its single-factor evaluation; it is not pure rendering.",
+      "main_peak_working_set_bytes": 305590272,
+      "pair": 3,
+      "phase_breakdown": {
+        "exclusive_by_stage_ns": {
+          "alignment_preload": 2714344000,
+          "collection_finish": 2214528700,
+          "csv_chart_export": 631829700,
+          "engine": 14998427600,
+          "evaluation_html_report": 4333452300,
+          "fincore_evaluation": 0,
+          "load": 1359988800,
+          "other_small": 454350300
+        },
+        "main_wall_ns": 26802817500,
+        "method": "sum wall_exclusive_ns only; inclusive timers are not added",
+        "phase_exclusive_sum_ns": 26706921400,
+        "unattributed_remainder_ns": 95896100
+      },
+      "receipt_metrics_match": true,
+      "recorded_conservative_peak_bytes": 305590272,
+      "resource_peak_tree_rss_bytes": 298721280,
+      "result": "D:\\temp\\iteration49-final-7col-500-r1\\fixed500-p3-candidate-027\\result.json",
+      "result_sha256": "8fda99c05155aad5169d976067eeb0171fa80abe44f9af66f58406aef0382b26",
+      "wall_ns": 26802817500
+    }
+  ],
+  "schema": "iteration49.final-analysis.v1",
+  "stage": "fixed500",
+  "timing_target": {
+    "per_example_reduction_percent": 80,
+    "status": "NOT_FINAL_FIXED500"
+  }
+}
