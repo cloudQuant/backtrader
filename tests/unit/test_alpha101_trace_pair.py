@@ -32,13 +32,15 @@ def alpha003_pair():
         frames,
         (3,),
         runonce=False,
-        alpha_classes={3: get_alpha(3, mode="native")},
+        factor_mode="native",
+        alpha_classes={3: get_alpha(3)},
     )
     build = run_native_batch(
         frames,
         (3,),
         runonce=False,
-        alpha_classes={3: get_alpha(3, mode="build")},
+        factor_mode="build",
+        alpha_classes={3: get_alpha(3)},
     )
     return native.factor_instances["alpha3"], build.factor_instances["alpha3"]
 
@@ -119,13 +121,15 @@ def test_alpha028_scale_parameter_is_part_of_panel_graph_identity():
         frames,
         (28,),
         runonce=False,
-        alpha_classes={28: get_alpha(28, mode="native")},
+        factor_mode="native",
+        alpha_classes={28: get_alpha(28)},
     ).factor_instances["alpha28"]
     build = run_native_batch(
         frames,
         (28,),
         runonce=False,
-        alpha_classes={28: get_alpha(28, mode="build")},
+        factor_mode="build",
+        alpha_classes={28: get_alpha(28)},
     ).factor_instances["alpha28"]
 
     assert compare_factor_graphs(native, build, 28)["equal"]
@@ -144,13 +148,15 @@ def test_alpha100_indneutralize_classification_input_is_part_of_panel_graph_iden
         frames,
         (100,),
         runonce=False,
-        alpha_classes={100: get_alpha(100, mode="native")},
+        factor_mode="native",
+        alpha_classes={100: get_alpha(100)},
     ).factor_instances["alpha100"]
     build = run_native_batch(
         frames,
         (100,),
         runonce=False,
-        alpha_classes={100: get_alpha(100, mode="build")},
+        factor_mode="build",
+        alpha_classes={100: get_alpha(100)},
     ).factor_instances["alpha100"]
 
     assert compare_factor_graphs(native, build, 100)["equal"]
@@ -168,7 +174,8 @@ def _run_alpha_instance(frames, alpha_id, mode, runonce):
         frames,
         (alpha_id,),
         runonce=runonce,
-        alpha_classes={alpha_id: get_alpha(alpha_id, mode=mode)},
+        factor_mode=mode,
+        alpha_classes={alpha_id: get_alpha(alpha_id)},
     )
     return strategy.factor_instances["alpha%d" % alpha_id]
 

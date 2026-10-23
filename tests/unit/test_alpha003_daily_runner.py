@@ -208,10 +208,7 @@ def test_daily_native_build_modes_match_oracle_exports_and_resume_identity(tmp_p
     dates, symbols = _write_daily_fixture(data_dir)
     outputs = {}
 
-    for factor_mode, class_name in (
-        ("native", "Alpha003Native"),
-        ("build", "Alpha003Build"),
-    ):
+    for factor_mode in ("native", "build"):
         output_dir = tmp_path / ("alpha003_" + factor_mode)
         assert (
             _RUNNER.main(
@@ -231,7 +228,7 @@ def test_daily_native_build_modes_match_oracle_exports_and_resume_identity(tmp_p
         summary_path = output_dir / "run_summary.json"
         summary = json.loads(summary_path.read_text(encoding="utf-8"))
         assert summary["factor_mode"] == factor_mode
-        assert summary["factor_class"].endswith("." + class_name)
+        assert summary["factor_class"].endswith(".Alpha003Native")
         assert summary["oracle"]["finite_mask_matches"] is True
         assert summary["oracle"]["max_abs_error"] <= _RUNNER.ORACLE_ATOL
         assert summary["broker_submit_count"] == summary["broker_cancel_count"] == 0
@@ -246,7 +243,18 @@ def test_daily_native_build_modes_match_oracle_exports_and_resume_identity(tmp_p
         ]
         assert len(worker_configs) == 2
         assert all(config["factor_mode"] == factor_mode for config in worker_configs)
-        assert all(config["factor_class"].endswith("." + class_name) for config in worker_configs)
+        assert all(
+            config["factor_class"].endswith(".Alpha003Native") for config in worker_configs
+        )
+        worker_results = [
+            json.loads(path.read_text(encoding="utf-8"))
+            for path in sorted((output_dir / "_chunks").glob("chunk_*/result.json"))
+        ]
+        assert len(worker_results) == 2
+        assert all(result["factor_mode"] == factor_mode for result in worker_results)
+        assert all(
+            result["factor_class"].endswith(".Alpha003Native") for result in worker_results
+        )
 
         factors = pd.read_csv(output_dir / "factor_values.csv")
         assert len(factors) == len(dates) * len(symbols)
@@ -271,6 +279,14 @@ def test_daily_native_build_modes_match_oracle_exports_and_resume_identity(tmp_p
         assert resumed["actual_chunk_runs_this_invocation"] == 0
         assert resumed["reused_successful_chunks"] == 2
     pd.testing.assert_frame_equal(outputs["native"], outputs["build"], check_dtype=False)
+    native_summary = json.loads(
+        (tmp_path / "alpha003_native" / "run_summary.json").read_text(encoding="utf-8")
+    )
+    build_summary = json.loads(
+        (tmp_path / "alpha003_build" / "run_summary.json").read_text(encoding="utf-8")
+    )
+    assert native_summary["factor_class"] == build_summary["factor_class"]
+    assert native_summary["params_sha256"] != build_summary["params_sha256"]
     native_output = tmp_path / "alpha003_native"
 
     def snapshot_owned_files(output_dir):

@@ -13,15 +13,9 @@ from backtrader.research import operators
 from backtrader.research._expression import _ExpressionContext
 from backtrader.research.alpha101 import (
     ALPHA_REGISTRY,
-    Alpha003Build,
-    Alpha003Native,
     get_alpha,
     list_alphas,
 )
-from backtrader.research.alpha101.alpha001 import Alpha001Build, Alpha001Native
-from backtrader.research.alpha101.alpha029 import Alpha029Build, Alpha029Native
-from backtrader.research.alpha101.alpha048 import Alpha048Build, Alpha048Native
-from backtrader.research.alpha101.alpha100 import Alpha100Build, Alpha100Native
 from backtrader.research.factor_indicator import FactorIndicator
 from backtrader.research.factor_strategy import FactorStrategy
 from backtrader.research.specs import FactorSpec
@@ -45,18 +39,15 @@ def test_alpha003_build_matches_native_trace_values_reasons_and_lifecycle(runonc
     assets = tuple(frames)
     grid = tuple(next(iter(frames.values())).index)
     native = run_native_batch(frames, (3,), runonce=runonce)
-    built = run_native_batch(
-        frames,
-        (3,),
-        runonce=runonce,
-        alpha_classes={3: get_alpha(3, mode="build")},
-    )
+    built = run_native_batch(frames, (3,), runonce=runonce, factor_mode="build")
 
     native_factor = native.factor_instances["alpha3"]
     build_factor = built.factor_instances["alpha3"]
     assert native_factor._minperiod == build_factor._minperiod == 10
     assert_lifecycle(native, (3,), grid)
-    assert_lifecycle(built, (3,), grid, alpha_classes={3: Alpha003Build})
+    assert_lifecycle(built, (3,), grid)
+    assert native_factor.factor_mode == "native"
+    assert build_factor.factor_mode == "build"
     assert (
         native._alpha101_broker_call_counts
         == built._alpha101_broker_call_counts
@@ -108,43 +99,28 @@ def test_alpha003_build_matches_native_trace_values_reasons_and_lifecycle(runonc
 
 
 @pytest.mark.parametrize(
-    ("alpha_id", "native_class", "build_class"),
-    (
-        (1, Alpha001Native, Alpha001Build),
-        (29, Alpha029Native, Alpha029Build),
-        (48, Alpha048Native, Alpha048Build),
-        (100, Alpha100Native, Alpha100Build),
-    ),
+    "alpha_id",
+    (1, 29, 48, 100),
     ids=("alpha001", "alpha029", "alpha048", "alpha100"),
 )
 @pytest.mark.parametrize("runonce", (False, True), ids=("runnext", "runonce"))
-def test_representative_build_companions_match_native_trace_values_and_lifecycle(
-    alpha_id, native_class, build_class, runonce
-):
+def test_representative_build_modes_match_native_trace_values_and_lifecycle(alpha_id, runonce):
     frames = make_positive_fixture(320)
     assets = tuple(frames)
     grid = tuple(next(iter(frames.values())).index)
-    native = run_native_batch(frames, (alpha_id,), runonce=runonce)
-    built = run_native_batch(
-        frames,
-        (alpha_id,),
-        runonce=runonce,
-        alpha_classes={alpha_id: build_class},
-    )
+    native = run_native_batch(frames, (alpha_id,), runonce=runonce, factor_mode="native")
+    built = run_native_batch(frames, (alpha_id,), runonce=runonce, factor_mode="build")
 
     native_factor = native.factor_instances["alpha%d" % alpha_id]
     build_factor = built.factor_instances["alpha%d" % alpha_id]
-    assert get_alpha(alpha_id, mode="build") is build_class
+    native_class = get_alpha(alpha_id)
+    assert native_factor.__class__.__mro__[1] is native_class
+    assert build_factor.__class__.__mro__[1] is native_class
+    assert native_factor.factor_mode == "native"
+    assert build_factor.factor_mode == "build"
     assert native_factor._minperiod == build_factor._minperiod == native_class.lookback_h + 1
-    assert build_class.lookback_h == native_class.lookback_h
-    assert build_class.case_id == native_class.case_id
-    assert build_class.formula_fields == native_class.formula_fields
-    assert build_class.required_fields == native_class.required_fields
-    assert build_class.formula == native_class.formula
-    assert build_class.operator_profile == native_class.operator_profile
-    assert build_class.input_policy == native_class.input_policy
     assert_lifecycle(native, (alpha_id,), grid)
-    assert_lifecycle(built, (alpha_id,), grid, alpha_classes={alpha_id: build_class})
+    assert_lifecycle(built, (alpha_id,), grid)
 
     native_trace = validate_factor_trace(
         native_factor, alpha_id, frames, assets, grid, strategy=native
@@ -175,13 +151,8 @@ def test_representative_build_companions_match_native_trace_values_and_lifecycle
 
 
 def _run_alpha003_mode_pair(frames, *, runonce):
-    native = run_native_batch(frames, (3,), runonce=runonce)
-    build = run_native_batch(
-        frames,
-        (3,),
-        runonce=runonce,
-        alpha_classes={3: Alpha003Build},
-    )
+    native = run_native_batch(frames, (3,), runonce=runonce, factor_mode="native")
+    build = run_native_batch(frames, (3,), runonce=runonce, factor_mode="build")
     return native, build
 
 
@@ -387,19 +358,20 @@ def test_expression_context_is_per_group_closed_after_build_and_targets_are_iden
         asset: ("left" if index < len(assets) // 2 else "right")
         for index, asset in enumerate(assets)
     }
-    original_build = Alpha003Build.build
+    alpha_class = get_alpha(3)
+    original_build = alpha_class.build
     contexts = []
 
     def counted_build(cls, ctx, **params):
         contexts.append(ctx)
         return original_build(ctx, **params)
 
-    monkeypatch.setattr(Alpha003Build, "build", classmethod(counted_build))
+    monkeypatch.setattr(alpha_class, "build", classmethod(counted_build))
     strategy = run_native_batch(
         frames,
         (3,),
         runonce=runonce,
-        alpha_classes={3: Alpha003Build},
+        factor_mode="build",
         groups=groups,
     )
     aggregate = strategy.factor_instances["alpha3"]
@@ -502,8 +474,8 @@ class _DoubleInitializeBuild(FactorIndicator):
     formula_fields = ("close",)
     lookback_h = 0
     build_calls = []
+    native_init_calls = []
     fail_build = False
-    retry_after_failed_build = False
 
     @classmethod
     def build(cls, ctx, **params):
@@ -513,13 +485,8 @@ class _DoubleInitializeBuild(FactorIndicator):
         return ctx.close
 
     def __init__(self):
-        try:
-            super().__init__()
-        except ValueError:
-            if not self.__class__.retry_after_failed_build:
-                raise
-        # This second call must fail before reconstructing outputs or building
-        # another graph, including when the first build error was caught.
+        self.__class__.native_init_calls.append(self)
+        super().__init__()
         super().__init__()
 
 
@@ -939,8 +906,14 @@ def test_native_and_multiple_build_factors_share_one_strategy_without_shared_nod
         cerebro.adddata(_research_feed(frame, research, asset), name=asset)
     _ParameterizedBuild.build_contexts.clear()
     specs = {
-        "native": _factor_spec("native", Alpha003Native),
-        "build": _factor_spec("build", Alpha003Build),
+        "native": _factor_spec("native", get_alpha(3)),
+        "build": FactorSpec(
+            name="build",
+            indicator=get_alpha(3),
+            panel_line="factor",
+            field_bindings=_factor_spec("build_bindings", get_alpha(3)).field_bindings,
+            mode="build",
+        ),
         "scaled_default": FactorSpec(
             name="scaled_default",
             indicator=_ParameterizedBuild,
@@ -1038,24 +1011,32 @@ def test_factor_strategy_rejects_none_and_raw_line_build_results_with_init_conte
     assert isinstance(raised.value.__cause__, TypeError)
 
 
-@pytest.mark.parametrize("fail_build", (False, True), ids=("second-super", "failed-build-retry"))
-def test_expression_build_initialization_is_once_even_after_a_failed_build(fail_build):
+@pytest.mark.parametrize("fail_build", (False, True), ids=("success", "build-failure"))
+def test_build_skips_native_initializer_and_builds_once(fail_build):
     frames = make_positive_fixture(320)
     _DoubleInitializeBuild.build_calls.clear()
+    _DoubleInitializeBuild.native_init_calls.clear()
     _DoubleInitializeBuild.fail_build = fail_build
-    _DoubleInitializeBuild.retry_after_failed_build = fail_build
 
-    with pytest.raises(FactorComputationError) as raised:
-        _run_custom_expression(_DoubleInitializeBuild, frames, runonce=True)
+    if fail_build:
+        with pytest.raises(FactorComputationError) as raised:
+            _run_custom_expression(_DoubleInitializeBuild, frames, runonce=True)
+        assert raised.value.factor == "custom"
+        assert raised.value.phase == "init"
+        assert isinstance(raised.value.__cause__, ValueError)
+        assert "intentional first build failure" in str(raised.value.__cause__)
+    else:
+        strategy = _run_custom_expression(_DoubleInitializeBuild, frames, runonce=True)
+        factor = strategy.factor_instances["custom"]
+        assert factor.factor_mode == "build"
+        with pytest.raises(RuntimeError, match="only be initialized once"):
+            FactorIndicator.__init__(factor)
 
-    assert raised.value.factor == "custom"
-    assert raised.value.phase == "init"
-    assert isinstance(raised.value.__cause__, RuntimeError)
-    assert "only be initialized once" in str(raised.value.__cause__)
+    assert _DoubleInitializeBuild.native_init_calls == []
     assert len(_DoubleInitializeBuild.build_calls) == 1
 
 
-def test_expression_declarations_and_results_fail_closed():
+def test_factor_declarations_and_expression_results_fail_closed():
     def define(name, **attributes):
         return type(name, (FactorIndicator,), {"__module__": __name__, **attributes})
 
@@ -1067,25 +1048,17 @@ def test_expression_declarations_and_results_fail_closed():
             formula_fields=("close",),
             build=classmethod(lambda cls, ctx, **params: ctx.close),
         )
-    with pytest.raises(TypeError, match="custom next"):
-        define(
-            "_CustomNextBuild",
-            lines=("factor",),
-            panel_mode="expression",
-            formula_fields=("close",),
-            build=classmethod(lambda cls, ctx, **params: ctx.close),
-            next=lambda self: None,
-        )
-    with pytest.raises(TypeError, match="build\(\)/expression"):
-        define(
-            "_MixedNativeBuild",
-            lines=("factor",),
-            panel_mode="next",
-            formula_fields=("close",),
-            build=classmethod(lambda cls, ctx, **params: ctx.close),
-            next=lambda self: None,
-        )
-    with pytest.raises(TypeError, match="expression factors cannot declare expression"):
+    mixed = define(
+        "_MixedNativeBuild",
+        lines=("factor",),
+        panel_mode="expression",
+        formula_fields=("close",),
+        build=classmethod(lambda cls, ctx, **params: ctx.close),
+        next=lambda self: None,
+    )
+    assert mixed._resolve_factor_mode() == "native"
+    assert mixed._resolve_factor_mode("build") == "build"
+    with pytest.raises(TypeError, match="cannot declare expression"):
         define(
             "_MixedExpressionBuild",
             lines=("factor",),
@@ -1156,22 +1129,13 @@ def test_expression_rolling_methods_require_a_positive_non_bool_integer(method, 
     assert context.nodes == {}
 
 
-def test_alpha_registry_build_mode_is_companion_lookup_without_changing_native_registry(
-    monkeypatch,
-):
-    assert get_alpha(3) is Alpha003Native is ALPHA_REGISTRY[3]
-    assert get_alpha(3, mode="build") is Alpha003Build
+def test_alpha_registry_returns_one_class_with_explicit_modes():
+    assert get_alpha(3) is ALPHA_REGISTRY[3]
+    assert get_alpha(3)._resolve_factor_mode() == "native"
+    assert get_alpha(3)._resolve_factor_mode("build") == "build"
     assert list_alphas() == tuple(range(1, 102))
-    native_four = ALPHA_REGISTRY[4]
-    module = __import__(native_four.__module__, fromlist=["*"])
-    companion_name = native_four.__name__[:-6] + "Build"
-    monkeypatch.delattr(module, companion_name, raising=False)
-    with pytest.raises(NotImplementedError, match="Alpha4 build"):
-        get_alpha(4, mode="build")
-    with pytest.raises(ValueError, match="mode"):
-        get_alpha(3, mode="dsl")
     with pytest.raises(KeyError, match="not registered"):
-        get_alpha(102, mode="build")
+        get_alpha(102)
 
 
 def test_expression_class_does_not_require_a_duplicate_required_fields_declaration():
@@ -1185,7 +1149,7 @@ def test_expression_class_does_not_require_a_duplicate_required_fields_declarati
         def build(cls, ctx, **params):
             return ctx.close
 
-    assert FormulaFieldsOnly._validate_factor_declaration() == "expression"
+    assert FormulaFieldsOnly._validate_factor_declaration() == "build"
     with pytest.raises(DatasetError, match="missing explicit field bindings"):
         FactorSpec(name="missing", indicator=FormulaFieldsOnly, panel_line="factor")
 
@@ -1193,7 +1157,7 @@ def test_expression_class_does_not_require_a_duplicate_required_fields_declarati
 def test_factor_spec_rejects_missing_and_non_classmethod_build_declarations(monkeypatch):
     with monkeypatch.context() as patch:
         patch.delattr(_WhereArithmeticBuild, "build")
-        with pytest.raises(ResearchConfigError, match="build\(\) as a classmethod"):
+        with pytest.raises(ResearchConfigError, match="invalid factor declaration"):
             FactorSpec(
                 name="missing_build",
                 indicator=_WhereArithmeticBuild,
@@ -1202,7 +1166,7 @@ def test_factor_spec_rejects_missing_and_non_classmethod_build_declarations(monk
             )
     with monkeypatch.context() as patch:
         patch.setattr(_WhereArithmeticBuild, "build", lambda cls, ctx, **params: ctx.close)
-        with pytest.raises(ResearchConfigError, match="build\(\) as a classmethod"):
+        with pytest.raises(ResearchConfigError, match="invalid factor declaration"):
             FactorSpec(
                 name="function_build",
                 indicator=_WhereArithmeticBuild,

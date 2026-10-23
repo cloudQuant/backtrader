@@ -1,4 +1,4 @@
-"""Native single-factor declaration for the Iteration 45 research example."""
+"""Single-factor declaration for the Iteration 45 research example."""
 
 import math
 
@@ -18,7 +18,6 @@ class CloseMAFactor(FactorIndicator):
 
     lines = ("factor",)
     params = (("period", 20),)
-    panel_mode = "next"
     formula_fields = ("close",)
 
     @classmethod
@@ -40,21 +39,6 @@ class CloseMAFactor(FactorIndicator):
             if len(data) >= self.p.period:
                 value = _close_ratio(close, average)
             self.outputs[data].factor[0] = value
-
-
-class CloseMAFactorBuild(FactorIndicator):
-    """Expression companion for the native single-factor example."""
-
-    lines = ("factor",)
-    params = (("period", 20),)
-    panel_mode = "expression"
-    formula_fields = ("close",)
-
-    @classmethod
-    def lookback_h(cls, period=20, **params):
-        if type(period) is not int or period < 1:
-            raise ValueError("period must be a positive integer")
-        return period - 1
 
     @classmethod
     def build(cls, ctx, period=20, **params):

@@ -87,6 +87,8 @@ MAX_SAMPLES = 8
 SHA256_HEX_RE = re.compile(r"^[0-9a-f]{64}$", re.IGNORECASE)
 REPORT_SEMANTICS_FILENAME = "report_semantics.json"
 REPORT_SEMANTICS_SCHEMA = "factor-report-semantics-v1"
+PAIR_SEMANTICS_SCHEMA = "factor-research-pair-semantic-v2"
+SINGLE_CLASS_MODE_PROFILE = "iteration49-single-class-modes"
 PANEL_CSV_FILES = frozenset(
     {
         "factors.csv",
@@ -793,11 +795,7 @@ def _mode_contract_for_summary(
         errors.append("factor_calculation must be RAN")
 
     if alpha003:
-        expected = (
-            "backtrader.research.alpha101.alpha003.Alpha003Native"
-            if mode == "native"
-            else "backtrader.research.alpha101.alpha003.Alpha003Build"
-        )
+        expected = "backtrader.research.alpha101.alpha003.Alpha003Native"
         actual = summary.get("indicator")
         if actual != expected:
             errors.append("indicator identity does not match factor_mode")
@@ -825,9 +823,9 @@ def _mode_contract_for_summary(
             expected_names = ()
             errors.append("factor column order is not a supported quick example contract")
         class_names = {
-            "close_ma": "CloseMAFactor" if mode == "native" else "CloseMAFactorBuild",
-            "kdj_j": "KDJFactor" if mode == "native" else "KDJFactorBuild",
-            "roc": "ROCFactor" if mode == "native" else "ROCFactorBuild",
+            "close_ma": "CloseMAFactor",
+            "kdj_j": "KDJFactor",
+            "roc": "ROCFactor",
         }
         expected_classes = {
             factor: "%s.%s" % (module, class_names[factor]) for factor in expected_names
@@ -867,6 +865,7 @@ def _compare_mode_pair(
     numeric_equal = numeric_baseline == numeric_candidate
     return {
         "required": True,
+        "implementation_profile": SINGLE_CLASS_MODE_PROFILE,
         "baseline": baseline,
         "candidate": candidate,
         "modes_differ_native_build": modes_differ,
@@ -1088,7 +1087,7 @@ def _compare_alpha003_runs(
                 and (panels is None or panels["equal"])
             )
             return {
-                "schema_version": "factor-research-pair-semantic-v1",
+                "schema_version": PAIR_SEMANTICS_SCHEMA,
                 "baseline_run": str(baseline_dir),
                 "candidate_run": str(candidate_dir),
                 "factor_order": {
@@ -1352,7 +1351,7 @@ def compare_runs(
                 and (panels is None or panels["equal"])
             )
             return {
-                "schema_version": "factor-research-pair-semantic-v1",
+                "schema_version": PAIR_SEMANTICS_SCHEMA,
                 "baseline_run": str(baseline_dir),
                 "candidate_run": str(candidate_dir),
                 "factor_order": {

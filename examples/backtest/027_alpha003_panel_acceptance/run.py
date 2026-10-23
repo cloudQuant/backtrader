@@ -145,10 +145,11 @@ def _run_factor(config: Mapping[str, Any], panel: Mapping[str, Any]) -> Tuple[An
         groups=dict.fromkeys(assets, data_config["group"]),
     )
     factor_mode = _resolve_factor_mode(None, config.get("factor_mode"))
-    indicator = get_alpha(3, mode=factor_mode)
+    indicator = get_alpha(3)
     factor = FactorSpec(
         name=FACTOR_NAME,
         indicator=indicator,
+        mode=factor_mode,
         panel_line="factor",
         field_bindings={field: "feed:target:%s" % field for field in indicator.formula_fields},
     )
@@ -184,7 +185,14 @@ def _run_factor(config: Mapping[str, Any], panel: Mapping[str, Any]) -> Tuple[An
     strategies = cerebro.run(runonce=False, preload=True)
     if len(strategies) != 1:
         raise RuntimeError("the factor run did not return exactly one strategy")
-    return strategies[0], strategies[0].get_panel(), indicator
+    strategy = strategies[0]
+    spec = strategy._factor_specs_by_name[FACTOR_NAME]
+    instances = strategy._factor_instances_by_name[FACTOR_NAME]
+    if spec.mode != factor_mode or not instances:
+        raise RuntimeError("Alpha003 factor spec did not retain the requested mode")
+    if any(instance.factor_mode != factor_mode for instance in instances):
+        raise RuntimeError("Alpha003 factor instance selected an unexpected mode")
+    return strategy, strategy.get_panel(), indicator
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -248,6 +256,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     try:
         panel = load_daily_panel(config.get("data", {}))
         strategy, collected, indicator = _run_factor(config, panel)
+        factor_instance = strategy.factor_instances[FACTOR_NAME]
+        factor_mode = factor_instance.factor_mode
         factors = collected.factors.reset_index()
         factors.to_csv(output_dir / "factor_values.csv", index=False)
         report = None

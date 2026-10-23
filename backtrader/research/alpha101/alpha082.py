@@ -71,22 +71,6 @@ class Alpha082Native(FactorIndicator):
         for data, result in zip(self.datas, self._result_lines):
             self.outputs[data].factor[0] = result[0]
 
-
-@native_alpha
-class Alpha082Build(FactorIndicator):
-    """AF48-082: construct the native Alpha101 graph via expressions."""
-
-    lines = ("factor",)
-    panel_mode = "expression"
-    alpha_id = Alpha082Native.alpha_id
-    case_id = Alpha082Native.case_id
-    lookback_h = Alpha082Native.lookback_h
-    formula_fields = Alpha082Native.formula_fields
-    required_fields = Alpha082Native.required_fields
-    formula = Alpha082Native.formula
-    operator_profile = Alpha082Native.operator_profile
-    input_policy = Alpha082Native.input_policy
-
     @classmethod
     def build(cls, ctx, **params):
         open_delta = ctx.delta(ctx.field("open"), 1.46063)

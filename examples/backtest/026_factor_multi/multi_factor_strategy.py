@@ -1,4 +1,4 @@
-"""Native factor declarations for the Iteration 45 multi-factor example."""
+"""Factor declarations for the Iteration 45 multi-factor example."""
 
 import math
 
@@ -33,7 +33,6 @@ class CloseMAFactor(FactorIndicator):
 
     lines = ("factor",)
     params = (("period", 20),)
-    panel_mode = "next"
     formula_fields = ("close",)
 
     @classmethod
@@ -55,13 +54,16 @@ class CloseMAFactor(FactorIndicator):
                 value = _close_ratio(close, average)
             self.outputs[data].factor[0] = value
 
+    @classmethod
+    def build(cls, ctx, period=20, **params):
+        return ctx.apply(_close_ratio, ctx.close, ctx.sma(ctx.close, period))
+
 
 class ROCFactor(FactorIndicator):
     """Twenty-bar close-to-close simple rate of change."""
 
     lines = ("factor",)
     params = (("period", 20),)
-    panel_mode = "next"
     formula_fields = ("close",)
 
     @classmethod
@@ -88,6 +90,10 @@ class ROCFactor(FactorIndicator):
                 if math.isfinite(candidate):
                     value = candidate
             self.outputs[data].factor[0] = value
+
+    @classmethod
+    def build(cls, ctx, period=20, **params):
+        return ctx.roc(ctx.close, period)
 
 
 class _SafeRSV(Indicator):
@@ -118,7 +124,6 @@ class KDJFactor(FactorIndicator):
 
     lines = ("factor",)
     params = (("period", 9), ("period_dfast", 3), ("period_dslow", 3))
-    panel_mode = "next"
     formula_fields = ("high", "low", "close")
 
     @classmethod
@@ -150,60 +155,6 @@ class KDJFactor(FactorIndicator):
                 d = float(self._d[data][0])
             j = _kdj_j(k, d)
             self.outputs[data].factor[0] = j
-
-
-class CloseMAFactorBuild(FactorIndicator):
-    """Expression companion for the native close-to-average factor."""
-
-    lines = ("factor",)
-    params = (("period", 20),)
-    panel_mode = "expression"
-    formula_fields = ("close",)
-
-    @classmethod
-    def lookback_h(cls, period=20, **params):
-        if type(period) is not int or period < 1:
-            raise ValueError("period must be a positive integer")
-        return period - 1
-
-    @classmethod
-    def build(cls, ctx, period=20, **params):
-        return ctx.apply(_close_ratio, ctx.close, ctx.sma(ctx.close, period))
-
-
-class ROCFactorBuild(FactorIndicator):
-    """Expression companion for the native close-to-close ROC factor."""
-
-    lines = ("factor",)
-    params = (("period", 20),)
-    panel_mode = "expression"
-    formula_fields = ("close",)
-
-    @classmethod
-    def lookback_h(cls, period=20, **params):
-        if type(period) is not int or period < 1:
-            raise ValueError("period must be a positive integer")
-        return period
-
-    @classmethod
-    def build(cls, ctx, period=20, **params):
-        return ctx.roc(ctx.close, period)
-
-
-class KDJFactorBuild(FactorIndicator):
-    """Expression companion exposing the example's 3K-2D output."""
-
-    lines = ("factor",)
-    params = (("period", 9), ("period_dfast", 3), ("period_dslow", 3))
-    panel_mode = "expression"
-    formula_fields = ("high", "low", "close")
-
-    @classmethod
-    def lookback_h(cls, period=9, period_dfast=3, period_dslow=3, **params):
-        values = (period, period_dfast, period_dslow)
-        if any(type(value) is not int or value < 1 for value in values):
-            raise ValueError("KDJ periods must be positive integers")
-        return sum(values) - 3
 
     @classmethod
     def build(cls, ctx, period=9, period_dfast=3, period_dslow=3, **params):

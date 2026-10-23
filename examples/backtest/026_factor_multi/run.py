@@ -53,20 +53,16 @@ def _resolve_factor_mode(cli_mode: Optional[str], configured_mode: Optional[str]
 
 
 def _factor_classes(mode: str) -> Dict[str, Any]:
+    _resolve_factor_mode(None, mode)
     if str(SCRIPT_DIR) not in sys.path:
         sys.path.insert(0, str(SCRIPT_DIR))
     from multi_factor_strategy import (
         CloseMAFactor,
-        CloseMAFactorBuild,
         KDJFactor,
-        KDJFactorBuild,
         ROCFactor,
-        ROCFactorBuild,
     )
 
-    if mode == "native":
-        return {"close_ma": CloseMAFactor, "kdj_j": KDJFactor, "roc": ROCFactor}
-    return {"close_ma": CloseMAFactorBuild, "kdj_j": KDJFactorBuild, "roc": ROCFactorBuild}
+    return {"close_ma": CloseMAFactor, "kdj_j": KDJFactor, "roc": ROCFactor}
 
 
 def _factor_class_identities(mode: str) -> Dict[str, str]:
@@ -74,6 +70,27 @@ def _factor_class_identities(mode: str) -> Dict[str, str]:
         name: "%s.%s" % (indicator.__module__, indicator.__qualname__)
         for name, indicator in _factor_classes(mode).items()
     }
+
+
+def _actual_factor_mode(strategy: Any, expected_mode: str) -> str:
+    """Validate each immutable spec against the mode selected by its instance."""
+    modes = set()
+    specs = strategy._factor_specs_by_name
+    instances_by_name = strategy._factor_instances_by_name
+    for name, spec in specs.items():
+        if spec.mode != expected_mode:
+            raise RuntimeError("factor %s spec selected an unexpected mode" % name)
+        instances = instances_by_name[name]
+        if not instances:
+            raise RuntimeError("factor %s has no bound instances" % name)
+        for instance in instances:
+            instance_mode = instance.factor_mode
+            if instance_mode != expected_mode:
+                raise RuntimeError("factor %s instance selected an unexpected mode" % name)
+            modes.add(instance_mode)
+    if modes != {expected_mode}:
+        raise RuntimeError("factor instances did not report one selected mode")
+    return modes.pop()
 
 
 def load_daily_panel(data_config: Mapping[str, Any]) -> Dict[str, Any]:
@@ -234,6 +251,7 @@ def _run_native_collection(
         factors[name] = FactorSpec(
             name=name,
             indicator=indicator_classes[name],
+            mode=factor_mode,
             params=dict(definition["params"]),
             panel_line=definition["panel_line"],
             direction=definition["direction"],
@@ -384,7 +402,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             )
         else:
             prices = load_daily_panel(config["data"])
-            _, panel, broker = _run_native_collection(config, prices, args.runnext)
+            strategy, panel, broker = _run_native_collection(config, prices, args.runnext)
+            factor_mode = _actual_factor_mode(strategy, factor_mode)
             factor_classes = _factor_class_identities(factor_mode)
             if (broker.submit_count, broker.cancel_count) != (0, 0):
                 raise RuntimeError("research-only Cerebro run submitted or cancelled an order")

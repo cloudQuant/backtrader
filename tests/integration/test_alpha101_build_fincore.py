@@ -406,14 +406,13 @@ def _collect_pair(
     strategies = {}
     traces = {}
     for batch in _batches(ids):
-        classes = {
-            alpha_id: alpha101.get_alpha(alpha_id, mode="build" if build else "native")
-            for alpha_id in batch
-        }
+        mode = "build" if build else "native"
+        classes = {alpha_id: alpha101.get_alpha(alpha_id) for alpha_id in batch}
         strategy = run_native_batch(
             frames,
             batch,
             runonce=False,
+            factor_mode=mode,
             alpha_classes=classes,
         )
         assert_lifecycle(strategy, batch, grid, alpha_classes=classes)
@@ -516,7 +515,7 @@ def _evaluation_spec(panel: Any, ids: Sequence[int]) -> Any:
         targets=panel.target_order,
         start=panel.start,
         end=panel.end,
-        snapshot_id="iteration48-alpha101-native-build-pair-v1",
+        snapshot_id="iteration49-alpha101-single-class-mode-pair-v1",
         price_basis="synthetic-unadjusted-USD",
         calendar_id="synthetic-daily-v1",
         frequency="1session",
@@ -897,7 +896,8 @@ def test_alpha101_native_build_match_fincore_and_reports(tmp_path):
 
     if evidence_value:
         evidence = {
-            "schema_version": 1,
+            "schema_version": 2,
+            "acceptance_profile": "iteration49-single-class-modes",
             "status": "PASS",
             "selected_alpha_ids": list(ids),
             "full_registry": ids == tuple(range(1, 102)),
@@ -932,6 +932,20 @@ def test_alpha101_native_build_match_fincore_and_reports(tmp_path):
                 "scope": "actual HTML rendering and captured ReportDocument semantic payloads",
             },
             "broker": broker_state,
+            "factor_mode_witnesses": {
+                "native": {
+                    str(alpha_id): native_strategies[alpha_id]._alpha101_factor_mode_witnesses[
+                        str(alpha_id)
+                    ]
+                    for alpha_id in ids
+                },
+                "build": {
+                    str(alpha_id): build_strategies[alpha_id]._alpha101_factor_mode_witnesses[
+                        str(alpha_id)
+                    ]
+                    for alpha_id in ids
+                },
+            },
             "input_unchanged": True,
         }
         evidence_path = evidence_root / "alpha101-build-fincore.json"

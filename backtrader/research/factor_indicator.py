@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 from functools import wraps
+from types import MappingProxyType
 from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple, cast
 
 from .. import Indicator
@@ -87,14 +88,14 @@ class FactorIndicator(Indicator):
     aliased = True
     panel_mode = "next"
     formula_fields: Tuple[str, ...] = ()
+    _factor_declared_params: Mapping[str, Any] = MappingProxyType({})
 
     def __init__(self) -> None:
-        if getattr(self.__class__, "panel_mode", None) == "expression" and getattr(
-            self, "_expression_initialization_started", False
-        ):
-            raise RuntimeError("expression factors may only be initialized once")
         if not getattr(self.__class__, "_factor_bound", False):
             raise TypeError("FactorIndicator instances must be created through bind()")
+        selected_mode = getattr(self.__class__, "_factor_runtime", {}).get("mode")
+        if selected_mode == "build" and getattr(self, "_expression_initialization_started", False):
+            raise RuntimeError("expression factors may only be initialized once")
 
         raw_output_datas = getattr(self.__class__, "_factor_output_datas", self.datas)
         output_datas = tuple(cast(Sequence[Any], raw_output_datas))
@@ -142,13 +143,25 @@ class FactorIndicator(Indicator):
         for alias in tuple(getattr(self.__class__, "formula_fields", ())):
             self.field_lines(alias)
 
-        if getattr(self.__class__, "panel_mode", None) == "expression":
+        if selected_mode == "build":
             self._initialize_expression()
 
     def __init_subclass__(cls, **kwargs: Any) -> None:
         is_bound = bool(cls.__dict__.get("_factor_bound", False))
         if not is_bound:
             cls._validate_factor_declaration(check_raw_lines=True)
+            declared_params: Dict[str, Any] = {}
+            for base in reversed(cls.__mro__[1:]):
+                if (
+                    isinstance(base, type)
+                    and base is not FactorIndicator
+                    and issubclass(base, FactorIndicator)
+                ):
+                    declared_params.update(base.__dict__.get("_factor_declared_params", {}))
+            declared_params.update(cls._read_declared_params(cls.__dict__.get("params", ())))
+            if "mode" in declared_params:
+                raise TypeError("factor parameter 'mode' is reserved for FactorSpec/bind mode")
+            cls._factor_declared_params = MappingProxyType(declared_params)
 
         super().__init_subclass__(**kwargs)
         if is_bound:
@@ -165,6 +178,53 @@ class FactorIndicator(Indicator):
             setattr(counted_next, "_factor_counted", True)
             setattr(cls, "next", counted_next)
 
+    @staticmethod
+    def _read_declared_params(params: Any) -> Dict[str, Any]:
+        """Read the author's original parameters before ParamsMixin merges them."""
+        if params is None:
+            return {}
+        if isinstance(params, Mapping):
+            return dict(params.items())
+        if isinstance(params, (tuple, list)):
+            declared: Dict[str, Any] = {}
+            for item in params:
+                if isinstance(item, (tuple, list)) and len(item) >= 2:
+                    declared[item[0]] = item[1]
+                elif isinstance(item, str):
+                    declared[item] = None
+                elif hasattr(item, "__iter__"):
+                    pair = list(item)
+                    if len(pair) >= 2:
+                        declared[pair[0]] = pair[1]
+            return declared
+        if hasattr(params, "items"):
+            return dict(params.items())
+        if hasattr(params, "_getpairs"):
+            return dict(params._getpairs())
+        if hasattr(params, "_gettuple"):
+            return dict(params._gettuple())
+        if hasattr(params, "__dict__"):
+            return {
+                name: value
+                for name, value in params.__dict__.items()
+                if not name.startswith("_") and not callable(value)
+            }
+        return {}
+
+    @classmethod
+    def _resolve_factor_params(cls, params: Mapping[str, Any]) -> Dict[str, Any]:
+        """Validate overrides and return this factor's resolved parameters."""
+        if not isinstance(params, Mapping):
+            raise ResearchConfigError("factor params must be a mapping")
+        if any(not isinstance(name, str) for name in params):
+            raise ResearchConfigError("factor parameter names must be strings")
+        defaults = dict(getattr(cls, "_factor_declared_params", {}))
+        unknown = set(params) - set(defaults)
+        if unknown:
+            raise ResearchConfigError("unsupported factor params: %s" % sorted(unknown))
+        defaults.update(params)
+        return defaults
+
     def prenext(self) -> None:
         """Run user formulas while dependencies warm up, preserving real NaNs."""
         self.next()
@@ -174,7 +234,7 @@ class FactorIndicator(Indicator):
         self.next()
 
     def next(self) -> None:
-        if getattr(self.__class__, "panel_mode", None) != "expression":
+        if self._factor_runtime.get("mode") != "build":
             raise NotImplementedError("concrete factor classes must implement next()")
         self._record_factor_call()
         template = self._factor_template_names()[0]
@@ -193,7 +253,7 @@ class FactorIndicator(Indicator):
         # second graph on the same bound instance.
         object.__setattr__(self, "_expression_initialization_started", True)
         context = _ExpressionContext(self)
-        resolved_params = self.p._getkwargs()
+        resolved_params = dict(self._factor_runtime.get("factor_params", {}))
         try:
             result = self.__class__.build(context, **resolved_params)
             result_lines = context.result_lines(result)
@@ -209,51 +269,78 @@ class FactorIndicator(Indicator):
 
     @classmethod
     def _validate_factor_declaration(cls, *, check_raw_lines: bool = False) -> str:
-        """Validate one concrete native or expression factor declaration."""
+        """Validate one concrete factor and return its implicit selection mode."""
         if check_raw_lines:
             raw_lines = cls.__dict__.get("lines")
-            if not isinstance(raw_lines, (tuple, list)) or not raw_lines:
+            if raw_lines is None:
+                if not cls._factor_template_names():
+                    raise TypeError(
+                        "each concrete factor class must declare or inherit line templates"
+                    )
+            elif not isinstance(raw_lines, (tuple, list)) or not raw_lines:
                 raise TypeError("each concrete factor class must declare line templates")
 
-        mode = getattr(cls, "panel_mode", None)
-        if mode == "next":
-            if "next" not in cls.__dict__ and not any(
-                "next" in base.__dict__ and base is not FactorIndicator for base in cls.__mro__[1:]
-            ):
-                raise TypeError("each native factor class must implement next()")
-            if any(
-                name in base.__dict__ for base in cls.__mro__ for name in ("build", "expression")
-            ):
-                raise TypeError("native factors cannot declare build()/expression()")
-            return mode
+        next_impl = cls._factor_method("next")
+        if next_impl is not None and not callable(next_impl):
+            raise TypeError("factor next() must be callable")
+        native_available = callable(next_impl) and next_impl is not FactorIndicator.next
+        build_impl = cls._factor_method("build")
+        build_available = build_impl is not None
+        if build_available and not isinstance(build_impl, classmethod):
+            raise TypeError("factor build() must be defined as a classmethod")
+        if not native_available and not build_available:
+            raise TypeError(
+                "each concrete factor class must implement next() or classmethod build()"
+            )
 
-        if mode != "expression" or cls.__dict__.get("panel_mode") != "expression":
-            raise TypeError("FactorIndicator requires panel_mode='next' or 'expression'")
-        if len(cls._factor_template_names()) != 1:
-            raise TypeError("expression factors must declare exactly one output line")
-        build = cls.__dict__.get("build")
-        if not isinstance(build, classmethod):
-            raise TypeError("expression factors must define build() as a classmethod")
-        if any("expression" in base.__dict__ for base in cls.__mro__):
-            raise TypeError("expression factors cannot declare expression()")
+        if build_available:
+            if len(cls._factor_template_names()) != 1:
+                raise TypeError("build factors must declare exactly one output line")
+            if any("expression" in base.__dict__ for base in cls.__mro__):
+                raise TypeError("factor classes cannot declare expression()")
+            formula_fields = getattr(cls, "formula_fields", ())
+            if isinstance(formula_fields, str) or not isinstance(formula_fields, (tuple, list)):
+                raise TypeError("build formula_fields must be a tuple or list of field names")
+            fields = tuple(formula_fields)
+            if any(not isinstance(field, str) or not field for field in fields):
+                raise TypeError("build formula_fields must contain non-empty field names")
+            if len(set(fields)) != len(fields):
+                raise TypeError("build formula_fields must not contain duplicates")
+
+        return "native" if native_available else "build"
+
+    @classmethod
+    def _factor_method(cls, name: str) -> Any:
+        """Return the nearest author-declared method, excluding this base class."""
         for base in cls.__mro__:
             if base is FactorIndicator:
                 break
-            if "next" in base.__dict__:
-                raise TypeError("expression factors cannot define or inherit a custom next()")
-
-        formula_fields = cls.__dict__.get("formula_fields")
-        if isinstance(formula_fields, str) or not isinstance(formula_fields, (tuple, list)):
-            raise TypeError("expression formula_fields must be a tuple or list of field names")
-        fields = tuple(formula_fields)
-        if any(not isinstance(field, str) or not field for field in fields):
-            raise TypeError("expression formula_fields must contain non-empty strings")
-        if len(set(fields)) != len(fields):
-            raise TypeError("expression formula_fields must not contain duplicates")
-        return mode
+            if name in base.__dict__:
+                return base.__dict__[name]
+        return None
 
     @classmethod
-    def bind(cls, *datas: Any, **params: Any) -> "FactorIndicator":
+    def _resolve_factor_mode(cls, mode: Optional[str] = None) -> str:
+        """Resolve a requested mode against methods available on this class."""
+        if mode not in (None, "native", "build"):
+            raise ValueError("factor mode must be None, 'native', or 'build'")
+        next_impl = cls._factor_method("next")
+        native_available = callable(next_impl) and next_impl is not FactorIndicator.next
+        build_impl = cls._factor_method("build")
+        build_available = isinstance(build_impl, classmethod)
+        selected = mode
+        if selected is None:
+            selected = "native" if native_available else "build"
+        if selected == "native" and not native_available:
+            raise NotImplementedError(
+                "factor class %s has no native next() implementation" % cls.__name__
+            )
+        if selected == "build" and not build_available:
+            raise NotImplementedError("factor class %s has no classmethod build()" % cls.__name__)
+        return selected
+
+    @classmethod
+    def bind(cls, *datas: Any, mode: Optional[str] = None, **params: Any) -> "FactorIndicator":
         """Build a native feed-local factor whose outputs match its inputs.
 
         The operator-compatible binding API treats each declared formula field
@@ -271,6 +358,7 @@ class FactorIndicator(Indicator):
             factor_name=None,
             field_bindings=native_field_bindings,
             research=None,
+            mode=mode,
             **params,
         )
 
@@ -283,12 +371,17 @@ class FactorIndicator(Indicator):
         factor_name: Optional[str],
         field_bindings: Mapping[str, Any],
         research: Any,
+        mode: Optional[str] = None,
         available_datas: Optional[Sequence[Any]] = None,
         strict: bool = True,
         **params: Any,
     ) -> "FactorIndicator":
         """Construct one native factor with explicit target/input separation."""
         cls._validate_bind_request(datas)
+        selected_mode = cls._resolve_factor_mode(mode)
+        if "mode" in params:
+            raise ResearchConfigError("factor mode must be passed as a FactorSpec or bind argument")
+        resolved_factor_params = cls._resolve_factor_params(params)
         targets = tuple(output_datas)
         names = tuple(asset_names)
         if not targets or len(targets) != len(names) or len(set(names)) != len(names):
@@ -314,6 +407,8 @@ class FactorIndicator(Indicator):
             "field_bindings": dict(field_bindings),
             "research": research,
             "available_datas": input_datas,
+            "mode": selected_mode,
+            "factor_params": resolved_factor_params,
         }
         context = None
         if strict and factor_name:
@@ -323,24 +418,47 @@ class FactorIndicator(Indicator):
                 if isinstance(asset, str) and asset:
                     context.bind_object(data, asset)
             runtime["strict_context"] = context
+        bound_attributes: Dict[str, Any] = {
+            "__module__": cls.__module__,
+            "_factor_bound": True,
+            "_mindatas": len(datas),
+            "_factor_output_datas": targets,
+            "_factor_output_names": output_names,
+            "_factor_runtime": runtime,
+            "lines": concrete_lines,
+        }
+        if selected_mode == "build":
+
+            def build_mode_init(self: "FactorIndicator", *args: Any, **kwargs: Any) -> None:
+                # Expression construction owns the bound instance lifecycle.
+                # The author initializer belongs exclusively to native mode.
+                FactorIndicator.__init__(self)
+
+            # Keep every execution entry point inside the shared expression
+            # lifecycle. Native callbacks and once implementations stay on the
+            # original class and are selected only by native bindings.
+            bound_attributes.update(
+                {
+                    "__init__": build_mode_init,
+                    "prenext": FactorIndicator.prenext,
+                    "nextstart": FactorIndicator.nextstart,
+                    "next": FactorIndicator.next,
+                    "preonce": Indicator.preonce_via_prenext,
+                    "oncestart": Indicator.oncestart_via_nextstart,
+                    "once": Indicator.once_via_next,
+                }
+            )
+
         bound_class = type(
             "_Bound_%s" % cls.__name__,
             (cls,),
-            {
-                "__module__": cls.__module__,
-                "_factor_bound": True,
-                "_mindatas": len(datas),
-                "_factor_output_datas": targets,
-                "_factor_output_names": output_names,
-                "_factor_runtime": runtime,
-                "lines": concrete_lines,
-            },
+            bound_attributes,
         )
         if context is not None:
             cls._validate_bound_sources(context, input_datas, targets, field_bindings)
             context.phase = "init"
         try:
-            instance = bound_class(*datas, **params)
+            instance = bound_class(*datas, **resolved_factor_params)
         except Exception as exc:
             if context is None:
                 raise
@@ -429,9 +547,7 @@ class FactorIndicator(Indicator):
     def _validate_bind_request(cls, datas: Sequence[Any]) -> None:
         if cls is FactorIndicator or not issubclass(cls, FactorIndicator):
             raise TypeError("bind() must be called on a concrete FactorIndicator subclass")
-        mode = cls._validate_factor_declaration()
-        if mode == "next" and cls.next is FactorIndicator.next:
-            raise TypeError("factor class has no concrete next() implementation")
+        cls._validate_factor_declaration()
         if not datas:
             raise ValueError("a factor requires at least one data feed")
         if any(data is None or not hasattr(data, "lines") for data in datas):
@@ -502,6 +618,11 @@ class FactorIndicator(Indicator):
     def target_datas(self) -> Tuple[Any, ...]:
         """The feeds whose assets receive one real output-line set each."""
         return tuple(self._factor_target_datas)
+
+    @property
+    def factor_mode(self) -> str:
+        """The immutable native/build mode selected for this bound instance."""
+        return cast(str, self._factor_runtime["mode"])
 
     @property
     def available_datas(self) -> Tuple[Any, ...]:

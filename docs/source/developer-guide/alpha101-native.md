@@ -4,11 +4,11 @@
 
 > **实现状态（2026-10-22）**：迭代46已完成；101个native类、独立数学参考、完整源码场景、已提交wheel上的6项研究场景及025/026集成验收均通过（AC46-01–06 PASS）。已安装包的 `list_alphas()` 返回1至101。详见[迭代46验收结果](../../_internal/opts/requirements/迭代46-Alpha101原生因子实现/验收结果.md)、[安装验收摘要](../../_internal/opts/requirements/迭代46-Alpha101原生因子实现/evidence/iteration46-installed-20261022/summary.json)及[025/026集成摘要](../../_internal/opts/requirements/迭代46-Alpha101原生因子实现/evidence/iteration46-examples-20261022/summary.json)。后续build前端和全101 native/build对齐分别属于迭代47和48。
 
-**当前状态（2026-10-23）**：45–46优化、47和48均完成本地验收。47的四公式build、三个500资产quick完整配对及固定wheel上的132项检查见[47验收结果](../../_internal/opts/requirements/迭代47-因子build简洁模式与算子增强/验收结果.md)。48全部101个build伴随类通过T320/T640/T1280四路源码矩阵、下游12表及101对实际报告、新wheel149项检查，详见[48验收结果](../../_internal/opts/requirements/迭代48-Alpha101-build实现/验收结果.md)。固定fixture中的14式不可三分位原因保留；完整配对PASS不表示每式都有可用IC。
+**历史验收（2026-10-23，单类重构之前）**：45–46优化、47和48均完成本地验收。47的四公式build、三个500资产quick完整配对及固定wheel上的132项检查见[47验收结果](../../_internal/opts/requirements/迭代47-因子build简洁模式与算子增强/验收结果.md)。48全部101个build伴随类通过T320/T640/T1280四路源码矩阵、下游12表及101对实际报告、新wheel149项检查，详见[48验收结果](../../_internal/opts/requirements/迭代48-Alpha101-build实现/验收结果.md)。固定fixture中的14式不可三分位原因保留；完整配对PASS不表示每式都有可用IC。
 
 本轮直接继承 `FactorIndicator` 的结构重构、模块清理与新验收范围见[重构记录](../../_internal/opts/requirements/迭代46-Alpha101原生因子实现/直接FactorIndicator重构记录.md)。原迭代46安装验收对应其记录的源码版本。
 
-此前无用封装删除、接口迁移以及保留原生 Feed 子指标的反例见[封装清理记录](../../_internal/opts/requirements/迭代46-Alpha101原生因子实现/原生研究封装清理记录.md)。该历史检查点为376项源码检查及3项安装smoke，未执行当时的完整installed fincore矩阵；当前源码与安装状态以上述48验收结果为准。真实全市场吞吐仍未验收。
+此前无用封装删除、接口迁移以及保留原生 Feed 子指标的反例见[封装清理记录](../../_internal/opts/requirements/迭代46-Alpha101原生因子实现/原生研究封装清理记录.md)。该历史检查点为376项源码检查及3项安装smoke，未执行当时的完整installed fincore矩阵；旧双类版本的源码与安装状态以上述48验收结果为准；当前单类重构见[49记录](../../_internal/opts/requirements/迭代49-因子单类双模式重构/实施与验收.md)。真实全市场吞吐仍未验收。
 
 ## 查找原生因子
 
@@ -19,17 +19,16 @@ from backtrader.research.alpha101 import get_alpha, list_alphas
 
 registered_ids = list_alphas()
 alpha003_class = get_alpha(3)
-alpha003_build_class = get_alpha(3, mode="build")
-alpha101_build_class = get_alpha(101, mode="build")
+alpha101_class = get_alpha(101)
 
 assert 3 in registered_ids
 ```
 
-默认 `mode="native"` 保持原有类与注册表；显式 `mode="build"` 选择同一公式文件中的伴随类，覆盖1至101。非法mode报`ValueError`；缺少伴随类时仍明确报`NotImplementedError`，不会回退native。`list_alphas()`仍表示native目录；具体build验收状态见[逐式台账](../../_internal/opts/requirements/迭代45-Indicator因子研究与多因子合成/Alpha101覆盖清单.md)。
+每个ID只返回原来的一个类，保留`Alpha003Native`等类名与只读注册表。两种实现合并在该类中，通过`FactorSpec(..., mode="native")`或`FactorSpec(..., mode="build")`选择；直接绑定使用`alpha003_class.bind(*datas, mode="build")`。生产类省略mode默认native。`get_alpha`不再接受mode，旧双类调用须迁移到绑定配置。具体验收状态见[单类双模式记录](../../_internal/opts/requirements/迭代49-因子单类双模式重构/实施与验收.md)和[逐式台账](../../_internal/opts/requirements/迭代45-Indicator因子研究与多因子合成/Alpha101覆盖清单.md)。
 
 写自己的公式时，直接继承 `FactorIndicator` 并声明 `formula_fields`、`lookback_h`、输出线及计算过程。生产库的 101 个类分别位于 `alpha101/alpha001.py` 至 `alpha101/alpha101.py`，全部直接继承 `FactorIndicator`：在普通 `__init__` 中调用 `super().__init__()` 并组合原生子指标，在 `next` 中写入目标资产的输出线。原生因子和自定义因子都用 `FactorSpec` 与 `FactorStrategy` 运行。
 
-每个同文件Build伴随类也直接继承`FactorIndicator`，以`panel_mode="expression"`和一个`@classmethod build`构图；不调用Native类的初始化、next或整式结果。显式H、字段和原式沿用同文件冻结声明。表达式接口和窗口规则见[build指南](factor-research.md#用-build-编写公式)。
+每个原类现在也定义`@classmethod build`。选择build时只构造表达式子图，跳过原生初始化、next和自定义once阶段；选择native时不调用build。自定义因子允许只实现其中一种，省略mode时按类能力选择。显式H、字段和原式共用同一份声明。表达式接口和窗口规则见[build指南](factor-research.md#用-build-编写公式)。
 
 Alpha ID、原式、窗口、`alpha101-v2` profile、字段依赖（含行业编码字段）直接声明在因子类上。`FactorSpec` 固定一次运行的参数、字段绑定、方向、H 与类源码摘要。重复保存类属性的公式/实现身份对象已经移除；读取原式使用 `get_alpha(id).formula`。改写算法实现不应悄悄改动原式或输入口径。
 
@@ -256,7 +255,7 @@ Alpha048 需要 251 格历史跨度以及按子行业去均值。它现在读取
 
 - [025：单因子 FactorIndicator/FactorStrategy 示例](../../../examples/backtest/025_factor_single/README.md)及其[因子源码](../../../examples/backtest/025_factor_single/close_ma_factor_strategy.py)。
 - [026：多因子采集和离线组合示例](../../../examples/backtest/026_factor_multi/README.md)及其[因子源码](../../../examples/backtest/026_factor_multi/multi_factor_strategy.py)。
-- [027：Alpha003 的真实日线示例](../../../examples/backtest/027_alpha003_panel_acceptance/README.md)及其[入口源码](../../../examples/backtest/027_alpha003_panel_acceptance/run.py)。默认使用生产库的 `Alpha003Native`，`--factor-mode build` 选择同文件的 `Alpha003Build`；quick和daily均支持模式选择。这个单式示例不代表全库验收。
+- [027：Alpha003 的真实日线示例](../../../examples/backtest/027_alpha003_panel_acceptance/README.md)及其[入口源码](../../../examples/backtest/027_alpha003_panel_acceptance/run.py)。两种模式均使用生产库的`Alpha003Native`，`--factor-mode build`选择该类的build方法；quick和daily均支持模式选择。这个单式示例不代表全库验收。
 - [迭代45原生因子研究指南](factor-research.md)：统一 API、面板/CSV 复评和字段来源。
 - [迭代45设计文档](../../_internal/opts/requirements/迭代45-Indicator因子研究与多因子合成/设计文档.md)：`alpha101-v1` 历史语义、字段血缘、ADV、美元成交额与 VWAP；PIT 部分仅作历史说明。
 - [迭代45代表公式与验收材料](../../_internal/opts/requirements/迭代45-Indicator因子研究与多因子合成/Alpha101代表验收案例.md)：代表公式及其独立参考背景。

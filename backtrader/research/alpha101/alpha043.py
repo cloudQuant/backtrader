@@ -42,22 +42,6 @@ class Alpha043Native(FactorIndicator):
         for data, result in zip(self.datas, self._result_lines):
             self.outputs[data].factor[0] = result[0]
 
-
-@native_alpha
-class Alpha043Build(FactorIndicator):
-    """AF48-043: construct the native Alpha101 graph via expressions."""
-
-    lines = ("factor",)
-    panel_mode = "expression"
-    alpha_id = Alpha043Native.alpha_id
-    case_id = Alpha043Native.case_id
-    lookback_h = Alpha043Native.lookback_h
-    formula_fields = Alpha043Native.formula_fields
-    required_fields = Alpha043Native.required_fields
-    formula = Alpha043Native.formula
-    operator_profile = Alpha043Native.operator_profile
-    input_policy = Alpha043Native.input_policy
-
     @classmethod
     def build(cls, ctx, **params):
         volume_to_adv = ctx.field("volume") / ctx.field("adv20")

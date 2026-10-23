@@ -60,22 +60,6 @@ class Alpha005Native(FactorIndicator):
         for data, result in zip(self.datas, self._result_lines):
             self.outputs[data].factor[0] = result[0]
 
-
-@native_alpha
-class Alpha005Build(FactorIndicator):
-    """AF48-005: construct the native Alpha101 graph via expressions."""
-
-    lines = ("factor",)
-    panel_mode = "expression"
-    alpha_id = Alpha005Native.alpha_id
-    case_id = Alpha005Native.case_id
-    lookback_h = Alpha005Native.lookback_h
-    formula_fields = Alpha005Native.formula_fields
-    required_fields = Alpha005Native.required_fields
-    formula = Alpha005Native.formula
-    operator_profile = Alpha005Native.operator_profile
-    input_policy = Alpha005Native.input_policy
-
     @classmethod
     def build(cls, ctx, **params):
         open_minus_average = ctx.field("open") - (ctx.sum(ctx.field("vwap"), 10) / 10.0)

@@ -34,9 +34,8 @@ def _load_runner(key: str, name: str) -> Any:
 
 
 def _config_for_panel(runner: Any, data_dir: Path, *, factor_mode: str) -> Dict[str, Any]:
-    config = copy.deepcopy(runner._load_config())
+    config = EXAMPLE_TESTS._example_config(runner, data_dir)
     config["factor_mode"] = factor_mode
-    config["data"]["directory"] = str(data_dir)
     config["data"]["max_symbols"] = 3
     return config
 
@@ -49,6 +48,23 @@ def _run_quick_panel(
     factor_mode: Optional[str] = None,
 ) -> Tuple[int, pd.DataFrame, dict]:
     runner._load_config = lambda: copy.deepcopy(config)
+    runner._evaluation_spec = lambda *args, **kwargs: None
+    collection_name = (
+        "_run_native_collection"
+        if hasattr(runner, "_run_native_collection")
+        else "_run_factor"
+    )
+    original_collection = getattr(
+        runner, "_factor_mode_test_original_collection", getattr(runner, collection_name)
+    )
+    runner._factor_mode_test_original_collection = original_collection
+
+    def capture_collection(*args: Any, **kwargs: Any) -> Any:
+        result = original_collection(*args, **kwargs)
+        runner._factor_mode_test_last_strategy = result[0]
+        return result
+
+    setattr(runner, collection_name, capture_collection)
     arguments = ["--output-dir", str(output_dir)]
     if factor_mode is not None:
         arguments.extend(("--factor-mode", factor_mode))
@@ -63,8 +79,12 @@ def _run_quick_panel(
 
 
 @pytest.mark.parametrize("key", ("025", "026", "027"))
-def test_quick_mode_cli_config_and_default_precedence(key: str, tmp_path: Path):
+def test_quick_mode_cli_config_and_default_precedence(
+    key: str, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+):
     runner = _load_runner(key, "factor_mode_precedence_" + key)
+    config = EXAMPLE_TESTS._example_config(runner)
+    monkeypatch.setattr(runner, "_load_config", lambda: copy.deepcopy(config))
 
     assert runner._load_config()["factor_mode"] == "native"
     assert runner._resolve_factor_mode(None, None) == "native"
@@ -83,16 +103,16 @@ def test_quick_mode_cli_config_and_default_precedence(key: str, tmp_path: Path):
 
 
 @pytest.mark.parametrize(
-    ("key", "factor_names", "build_class_names"),
+    ("key", "factor_names", "factor_class_names"),
     (
-        ("025", ("close_ma",), {"close_ma": "CloseMAFactorBuild"}),
+        ("025", ("close_ma",), {"close_ma": "CloseMAFactor"}),
         (
             "026",
             ("close_ma", "kdj_j", "roc"),
             {
-                "close_ma": "CloseMAFactorBuild",
-                "kdj_j": "KDJFactorBuild",
-                "roc": "ROCFactorBuild",
+                "close_ma": "CloseMAFactor",
+                "kdj_j": "KDJFactor",
+                "roc": "ROCFactor",
             },
         ),
     ),
@@ -100,7 +120,7 @@ def test_quick_mode_cli_config_and_default_precedence(key: str, tmp_path: Path):
 def test_single_and_multi_quick_modes_export_exact_complete_factor_panels(
     key: str,
     factor_names: Tuple[str, ...],
-    build_class_names: Dict[str, str],
+    factor_class_names: Dict[str, str],
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ):
@@ -121,9 +141,11 @@ def test_single_and_multi_quick_modes_export_exact_complete_factor_panels(
     native_result, native_values, native_summary = _run_quick_panel(
         runner, invalid_config, tmp_path / (key + "_native"), factor_mode="native"
     )
+    native_strategy = runner._factor_mode_test_last_strategy
     build_result, build_values, build_summary = _run_quick_panel(
         runner, build_config, tmp_path / (key + "_build")
     )
+    build_strategy = runner._factor_mode_test_last_strategy
 
     assert native_result == build_result == 0
     assert native_summary["status"] == build_summary["status"] == "PANEL_ONLY"
@@ -132,8 +154,21 @@ def test_single_and_multi_quick_modes_export_exact_complete_factor_panels(
     assert native_summary["factor_calculation"] == build_summary["factor_calculation"] == "RAN"
     assert set(native_summary["factor_classes"]) == set(factor_names)
     assert set(build_summary["factor_classes"]) == set(factor_names)
-    for name, class_name in build_class_names.items():
+    assert build_summary["factor_classes"] == native_summary["factor_classes"]
+    native_classes = runner._factor_classes("native")
+    build_classes = runner._factor_classes("build")
+    assert native_classes.keys() == build_classes.keys()
+    assert all(native_classes[name] is build_classes[name] for name in factor_names)
+    for name, class_name in factor_class_names.items():
+        assert native_summary["factor_classes"][name].endswith("." + class_name)
         assert build_summary["factor_classes"][name].endswith("." + class_name)
+        native_spec = native_strategy._factor_specs_by_name[name]
+        build_spec = build_strategy._factor_specs_by_name[name]
+        assert native_spec.indicator is build_spec.indicator
+        assert native_spec.mode == native_strategy.factor_instances[name].factor_mode == "native"
+        assert build_spec.mode == build_strategy.factor_instances[name].factor_mode == "build"
+        assert not hasattr(native_strategy.factor_instances[name], "_expression_context")
+        assert build_strategy.factor_instances[name]._expression_context._closed is True
     assert len(native_values) == len(build_values) == len(dates) * 3
     assert tuple(name for name in native_values if name in factor_names) == factor_names
     assert tuple(name for name in build_values if name in factor_names) == factor_names
@@ -212,15 +247,24 @@ def test_alpha003_quick_native_build_panels_match_with_cli_override(
     native_result, native_values, native_summary = _run_quick_panel(
         runner, config, tmp_path / "alpha003_native", factor_mode="native"
     )
+    native_strategy = runner._factor_mode_test_last_strategy
     build_result, build_values, build_summary = _run_quick_panel(
         runner, config, tmp_path / "alpha003_build"
     )
+    build_strategy = runner._factor_mode_test_last_strategy
 
     assert native_result == build_result == 0
     assert native_summary["factor_mode"] == "native"
     assert build_summary["factor_mode"] == "build"
     assert native_summary["indicator"].endswith(".Alpha003Native")
-    assert build_summary["indicator"].endswith(".Alpha003Build")
+    assert build_summary["indicator"] == native_summary["indicator"]
+    native_spec = native_strategy._factor_specs_by_name["alpha003"]
+    build_spec = build_strategy._factor_specs_by_name["alpha003"]
+    assert native_spec.indicator is build_spec.indicator
+    assert native_spec.mode == native_strategy.factor_instances["alpha003"].factor_mode == "native"
+    assert build_spec.mode == build_strategy.factor_instances["alpha003"].factor_mode == "build"
+    assert not hasattr(native_strategy.factor_instances["alpha003"], "_expression_context")
+    assert build_strategy.factor_instances["alpha003"]._expression_context._closed is True
     assert native_summary["broker"] == {"submit": 0, "cancel": 0}
     assert build_summary["broker"] == {"submit": 0, "cancel": 0}
     assert len(native_values) == len(build_values) == len(dates) * 3

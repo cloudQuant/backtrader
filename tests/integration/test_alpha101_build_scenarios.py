@@ -102,15 +102,25 @@ def test_all_alpha101_build_batches_are_full_time_order_invariant_and_causal(bat
     grid = tuple(next(iter(frames.values())).index)
     assert len(grid) == _HISTORY
 
-    build_classes = {alpha_id: get_alpha(alpha_id, mode="build") for alpha_id in batch}
-    baseline = run_native_batch(frames, batch, runonce=runonce, alpha_classes=build_classes)
+    build_classes = {alpha_id: get_alpha(alpha_id) for alpha_id in batch}
+    baseline = run_native_batch(
+        frames, batch, runonce=runonce, factor_mode="build", alpha_classes=build_classes
+    )
     reordered_frames = dict(reversed(tuple(frames.items())))
     reordered = run_native_batch(
-        reordered_frames, batch, runonce=runonce, alpha_classes=build_classes
+        reordered_frames,
+        batch,
+        runonce=runonce,
+        factor_mode="build",
+        alpha_classes=build_classes,
     )
     perturbed_frames = _mutate_future_tail(frames, grid)
     perturbed = run_native_batch(
-        perturbed_frames, batch, runonce=runonce, alpha_classes=build_classes
+        perturbed_frames,
+        batch,
+        runonce=runonce,
+        factor_mode="build",
+        alpha_classes=build_classes,
     )
     assert_lifecycle(baseline, batch, grid, alpha_classes=build_classes)
 
@@ -165,16 +175,20 @@ def test_new_build_contexts_are_isolated_in_mixed_and_separate_runs(runonce):
     grid = tuple(next(iter(frames.values())).index)
     alpha_ids = (1, 100, 3)
     classes = {
-        1: get_alpha(1, mode="build"),
-        100: get_alpha(100, mode="build"),
+        1: get_alpha(1),
+        100: get_alpha(100),
         3: get_alpha(3),
     }
-    mixed = run_native_batch(frames, alpha_ids, runonce=runonce, alpha_classes=classes)
+    mixed_modes = {1: "build", 100: "build", 3: "native"}
+    mixed = run_native_batch(
+        frames, alpha_ids, runonce=runonce, factor_modes=mixed_modes, alpha_classes=classes
+    )
     separate = {
         alpha_id: run_native_batch(
             frames,
             (alpha_id,),
             runonce=runonce,
+            factor_mode=mixed_modes[alpha_id],
             alpha_classes={alpha_id: classes[alpha_id]},
         )
         for alpha_id in alpha_ids
@@ -240,12 +254,22 @@ def test_alpha003_build_respects_research_group_isolation(runonce):
         frame["open"] = frame["open"] + (0.55 + index * 0.15) * np.sin(positions * 0.41 + phase)
         frame["volume"] = frame["volume"] * (1.0 + 0.45 * np.cos(positions * 0.27 + phase))
 
-    build_classes = {3: get_alpha(3, mode="build")}
+    build_classes = {3: get_alpha(3)}
     baseline = run_native_batch(
-        frames, (3,), runonce=runonce, alpha_classes=build_classes, groups=groups
+        frames,
+        (3,),
+        runonce=runonce,
+        factor_mode="build",
+        alpha_classes=build_classes,
+        groups=groups,
     )
     mutated = run_native_batch(
-        changed, (3,), runonce=runonce, alpha_classes=build_classes, groups=groups
+        changed,
+        (3,),
+        runonce=runonce,
+        factor_mode="build",
+        alpha_classes=build_classes,
+        groups=groups,
     )
     before = actual_matrix(baseline, 3, assets, grid)
     after = actual_matrix(mutated, 3, assets, grid)
@@ -292,9 +316,11 @@ def test_build_boundaries_cover_missing_nan_flat_zero_and_math_domain(runonce):
     frames["asset-5"].loc[grid[270:], ["open", "close", "volume"]] = 1.0
 
     alpha_ids = (2, 54, 101)
-    build_classes = {alpha_id: get_alpha(alpha_id, mode="build") for alpha_id in alpha_ids}
+    build_classes = {alpha_id: get_alpha(alpha_id) for alpha_id in alpha_ids}
     native = run_native_batch(frames, alpha_ids, runonce=runonce)
-    strategy = run_native_batch(frames, alpha_ids, runonce=runonce, alpha_classes=build_classes)
+    strategy = run_native_batch(
+        frames, alpha_ids, runonce=runonce, factor_mode="build", alpha_classes=build_classes
+    )
     for alpha_id in alpha_ids:
         for label, run in (("native", native), ("build", strategy)):
             factor = run.factor_instances["alpha%d" % alpha_id]
@@ -323,9 +349,11 @@ def test_alpha063_build_tracks_changing_and_unknown_industry_groups(runonce):
     frames["asset-0"].loc[grid[250:], "industry"] = 99.0
     frames["asset-1"].loc[grid[270:], "industry"] = math.nan
 
-    build_classes = {63: get_alpha(63, mode="build")}
+    build_classes = {63: get_alpha(63)}
     native = run_native_batch(frames, (63,), runonce=runonce)
-    strategy = run_native_batch(frames, (63,), runonce=runonce, alpha_classes=build_classes)
+    strategy = run_native_batch(
+        frames, (63,), runonce=runonce, factor_mode="build", alpha_classes=build_classes
+    )
     for label, run in (("native", native), ("build", strategy)):
         report = validate_factor_trace(
             run.factor_instances["alpha63"], 63, frames, assets, grid, strategy=run
@@ -354,13 +382,14 @@ def _run_alpha007_with_explicit_adv(frames, *, factor_mode, runonce):
         setattr(feed, _ALIGNMENT_MARKER, getattr(aligned.feed, _ALIGNMENT_MARKER))
         cerebro.adddata(feed, name=asset)
 
-    indicator = get_alpha(7, mode=factor_mode)
+    indicator = get_alpha(7)
     bindings = {alias: "feed:target:%s" % alias for alias in indicator.formula_fields}
     factor = FactorSpec(
         name="alpha7",
         indicator=indicator,
         panel_line="factor",
         field_bindings=bindings,
+        mode=factor_mode,
     )
     cerebro.addstrategy(FactorStrategy, research=research, factors={"alpha7": factor})
     return cerebro.run()[0]
@@ -382,7 +411,8 @@ def test_alpha007_build_honors_explicit_adv_and_derived_adv_paths(runonce):
         derived_frames,
         (7,),
         runonce=runonce,
-        alpha_classes={7: get_alpha(7, mode="build")},
+        factor_mode="build",
+        alpha_classes={7: get_alpha(7)},
     )
     explicit_native = _run_alpha007_with_explicit_adv(
         explicit_frames, factor_mode="native", runonce=runonce

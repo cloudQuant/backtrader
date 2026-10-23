@@ -131,6 +131,7 @@ class FactorStrategy(Strategy):
                     factor_name=name,
                     field_bindings=spec.field_bindings,
                     research=self._research,
+                    mode=spec.mode,
                     available_datas=self.datas,
                     strict=True,
                     **thaw(spec.params),

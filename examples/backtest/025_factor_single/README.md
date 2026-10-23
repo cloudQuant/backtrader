@@ -9,9 +9,9 @@ python examples/backtest/025_factor_single/run.py --output-dir output/025-real
 python examples/backtest/025_factor_single/run.py --factor-mode build --report --save-panel --output-dir output/025-build
 ```
 
-`--factor-mode native|build` selects the factor implementation before collection. The CLI overrides `config.yaml`'s `factor_mode`; the default is `native`. Both implementations use Cerebro's ordinary indicator lifecycle. This choice is independent of `--runnext`: the default engine remains runonce. The build companion constructs the same SMA and reuses the pointwise ratio rule, including invalid-input handling.
+`--factor-mode native|build` selects the factor implementation before collection. The CLI overrides `config.yaml`'s `factor_mode`; the default is `native`. Both implementations use Cerebro's ordinary indicator lifecycle. This choice is independent of `--runnext`: the default engine remains runonce. The same factor class owns both implementations. `FactorSpec(mode="build")` selects its build method, which constructs the same SMA and reuses the pointwise ratio rule, including invalid-input handling.
 
-The [Iteration48 acceptance record](../../../docs/_internal/opts/requirements/迭代48-Alpha101-build实现/验收结果.md) includes this entry's complete native/build output comparison and CSV reevaluation on pinned wheels with 20 assets. The separate 500-asset comparison remains recorded in Iteration47.
+The current single-class refactor is tracked in the [Iteration49 implementation and acceptance record](../../../docs/_internal/opts/requirements/迭代49-因子单类双模式重构/实施与验收.md). The historical [Iteration48 acceptance record](../../../docs/_internal/opts/requirements/迭代48-Alpha101-build实现/验收结果.md) includes this entry's complete native/build output comparison and CSV reevaluation on pinned wheels with 20 assets. The separate 500-asset comparison remains recorded in Iteration47.
 
 By default the runner evenly samples **500** symbols from the manifest, which keeps an example run to about a minute while still covering the whole market. Use `--max-symbols 0` for all 5,471 symbols, or `--data-dir <dir>` to point at another panel with the same `_metadata/manifest.json` and per-symbol CSV layout.
 

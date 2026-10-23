@@ -130,6 +130,7 @@ def test_factor_mode_pair_is_an_opt_in_archive_profile():
     assert build_pair[: len(base)] == base
     assert set(verifier._FACTOR_MODE_PAIR_ARCHIVE_PATHS).issubset(build_pair)
     assert set(verifier._ALPHA101_BUILD_PAIR_ARCHIVE_PATHS).issubset(build_pair)
+    assert "tests/unit/test_factor_single_class_modes.py" in build_pair
     assert not set(verifier._ALPHA101_BUILD_PAIR_ARCHIVE_PATHS).intersection(paired)
 
     required = [
@@ -145,6 +146,10 @@ def test_factor_mode_pair_is_an_opt_in_archive_profile():
     assert verifier._parser().parse_args(required).alpha101_build_pair is False
     assert (
         verifier._parser().parse_args([*required, "--alpha101-build-pair"]).alpha101_build_pair
+        is True
+    )
+    assert (
+        verifier._parser().parse_args([*required, "--single-class-modes"]).alpha101_build_pair
         is True
     )
 
@@ -213,6 +218,7 @@ def test_installed_pair_profile_runs_complete_unit_files_without_name_filter():
 
     assert "tests/unit/test_factor_build_expression.py" in source
     assert "tests/unit/test_factor_research_examples.py" in source
+    assert "tests/unit/test_factor_single_class_modes.py" in source
     assert "--junitxml" in source
     assert '"-k"' not in source
     assert "'-k'" not in source
@@ -275,6 +281,9 @@ def main(args):
         for engine in ("runnext", "runonce"):
             cases.append("<testcase name=%r />" % (name + "[" + engine + "]"))
     cases.append("<testcase name=%r />" % expected_node)
+    cases.append(
+        '<testcase classname="tests.unit.test_factor_single_class_modes" name="test_native_mode" />'
+    )
     cases.append("</testsuite>")
     junit.write_text("".join(cases))
     output = pathlib.Path(os.environ["BT_ALPHA101_BUILD_PAIR_EVIDENCE"])
@@ -339,6 +348,37 @@ def _valid_alpha101_build_pair_record():
             pair["factor_panel"] = panel()
         return pair
 
+    def mode_witness(mode):
+        build = mode == "build"
+        return {
+            "root_mode": mode,
+            "bound_instance_count": 1,
+            "bound_instances": [
+                {
+                    "group": None,
+                    "assets": ["A"],
+                    "factor_mode": mode,
+                    "has_expression_context": build,
+                    "expression_node_count": 4 if build else 0,
+                    "descendants": (
+                        [
+                            {
+                                "class": "backtrader.research.operators.CrossSectionalRank",
+                                "factor_mode": "native",
+                                "runtime_mode": "native",
+                                "has_expression_context": False,
+                                "expression_node_count": 0,
+                            }
+                        ]
+                        if build
+                        else []
+                    ),
+                }
+            ],
+            "build_context_count": 1 if build else 0,
+            "build_node_count": 4 if build else 0,
+        }
+
     engine_runs = []
     for factor_mode in ("native", "build"):
         for engine in verifier._PAIR_ENGINE_MODES:
@@ -351,6 +391,9 @@ def _valid_alpha101_build_pair_record():
                     "factor_classes": {
                         str(alpha_id): verifier._expected_alpha101_class(alpha_id, factor_mode)
                         for alpha_id in alpha_ids
+                    },
+                    "factor_instance_modes": {
+                        str(alpha_id): mode_witness(factor_mode) for alpha_id in alpha_ids
                     },
                     "oracle_pass_count": 101,
                     "finite_witness_count": 101,
@@ -376,6 +419,11 @@ def _valid_alpha101_build_pair_record():
                 for factor_mode in ("native", "build")
                 for engine in verifier._PAIR_ENGINE_MODES
             },
+            "factor_instance_modes": {
+                factor_mode + "/" + engine: mode_witness(factor_mode)
+                for factor_mode in ("native", "build")
+                for engine in verifier._PAIR_ENGINE_MODES
+            },
             "same_engine_build_pair": {
                 engine: graph_pair(with_panel=True) for engine in verifier._PAIR_ENGINE_MODES
             },
@@ -397,7 +445,8 @@ def _valid_alpha101_build_pair_record():
         for factor_mode in ("native", "build")
     ]
     return {
-        "schema_version": 1,
+        "schema_version": 2,
+        "acceptance_profile": verifier._SINGLE_CLASS_MODE_PROFILE,
         "status": "PASS",
         "periods": 320,
         "alpha_ids": alpha_ids,
@@ -437,6 +486,7 @@ def test_alpha101_build_pair_record_requires_full_exact_matrix(tmp_path):
     summary = verifier._verify_alpha101_build_pair_record(evidence)
 
     assert summary["periods"] == 320
+    assert summary["acceptance_profile"] == verifier._SINGLE_CLASS_MODE_PROFILE
     assert summary["alpha_ids"] == list(range(1, 102))
     assert summary["engine_runs"] == 4
     assert summary["aggregate"]["same_engine_build_pair_count"] == 202
@@ -448,6 +498,11 @@ def test_alpha101_build_pair_record_requires_full_exact_matrix(tmp_path):
 @pytest.mark.parametrize(
     ("mutate", "message"),
     (
+        (lambda r: r.update(schema_version=1), "unsupported schema version"),
+        (
+            lambda r: r.update(acceptance_profile="iteration48-alpha101-build-pair"),
+            "wrong acceptance profile",
+        ),
         (lambda r: r.update(periods=640), "not the T320 run"),
         (lambda r: r.update(alpha_ids=list(range(1, 101))), "exactly Alpha001-Alpha101"),
         (lambda r: r.update(complete_registry_coverage=False), "complete registry coverage"),
@@ -463,6 +518,34 @@ def test_alpha101_build_pair_record_requires_full_exact_matrix(tmp_path):
         (
             lambda r: r["engine_runs"][0]["factor_classes"].update({"1": "wrong.Class"}),
             "wrong installed class for Alpha1",
+        ),
+        (
+            lambda r: r["engine_runs"][0]["factor_instance_modes"]["1"].update(root_mode="build"),
+            "root instance mode does not match",
+        ),
+        (
+            lambda r: r["engine_runs"][2]["factor_instance_modes"]["1"]["bound_instances"][
+                0
+            ].update(expression_node_count=0),
+            "lacks its build context and bound node path",
+        ),
+        (
+            lambda r: r["engine_runs"][0]["factor_instance_modes"]["1"]["bound_instances"][
+                0
+            ].update(expression_node_count=1),
+            "native instance contains a build context/node witness",
+        ),
+        (
+            lambda r: r["per_alpha"]["1"]["factor_instance_modes"]["build/runnext"].update(
+                build_context_count=0
+            ),
+            "lacks complete build context/node witnesses",
+        ),
+        (
+            lambda r: r["engine_runs"][2]["factor_instance_modes"]["1"]["bound_instances"][0][
+                "descendants"
+            ][0].update(factor_mode="build"),
+            "public and runtime modes differ",
         ),
         (
             lambda r: r["per_alpha"].pop("101"),
@@ -510,6 +593,18 @@ def test_alpha101_build_pair_junit_witness_rejects_nonpassing_t320(tmp_path, out
     )
 
     with pytest.raises(verifier.VerificationError, match="did not pass"):
+        verifier._verify_alpha101_build_pair_test_witness(report)
+
+
+def test_alpha101_build_pair_junit_witness_requires_single_class_core_tests(tmp_path):
+    report = tmp_path / "matrix.xml"
+    report.write_text(
+        '<testsuite><testcase name="test_alpha101_native_build_pair_graph_matrix[T320]" />'
+        "</testsuite>",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(verifier.VerificationError, match="single-class FactorSpec mode unit-test"):
         verifier._verify_alpha101_build_pair_test_witness(report)
 
 
@@ -723,7 +818,7 @@ def main(args):
     (
         ("", None),
         ("native", "backtrader.research.alpha101.alpha003.Alpha003Native"),
-        ("build", "backtrader.research.alpha101.alpha003.Alpha003Build"),
+        ("build", "backtrader.research.alpha101.alpha003.Alpha003Native"),
     ),
 )
 def test_027_isolated_bootstrap_accepts_legacy_and_propagates_mode_summary(
@@ -750,8 +845,7 @@ def main(args):
     if '--factor-mode' in args:
         mode = os.environ.get('FACTOR_MODE_OVERRIDE', args[args.index('--factor-mode') + 1])
         summary.update({'factor_mode': mode, 'factor_calculation': 'RAN',
-                        'indicator': 'backtrader.research.alpha101.alpha003.Alpha003'
-                                     + mode.title()})
+                        'indicator': 'backtrader.research.alpha101.alpha003.Alpha003Native'})
     (output / 'summary.json').write_text(json.dumps(summary))
     return 0
 """,

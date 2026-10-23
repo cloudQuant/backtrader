@@ -81,22 +81,6 @@ class Alpha064Native(FactorIndicator):
         for data, result in zip(self.datas, self._result_lines):
             self.outputs[data].factor[0] = result[0]
 
-
-@native_alpha
-class Alpha064Build(FactorIndicator):
-    """AF48-064: construct the native Alpha101 graph via expressions."""
-
-    lines = ("factor",)
-    panel_mode = "expression"
-    alpha_id = Alpha064Native.alpha_id
-    case_id = Alpha064Native.case_id
-    lookback_h = Alpha064Native.lookback_h
-    formula_fields = Alpha064Native.formula_fields
-    required_fields = Alpha064Native.required_fields
-    formula = Alpha064Native.formula
-    operator_profile = Alpha064Native.operator_profile
-    input_policy = Alpha064Native.input_policy
-
     @classmethod
     def build(cls, ctx, **params):
         weight = 0.178404

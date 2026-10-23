@@ -38,22 +38,6 @@ class Alpha084Native(FactorIndicator):
         for data, result in zip(self.datas, self._result_lines):
             self.outputs[data].factor[0] = result[0]
 
-
-@native_alpha
-class Alpha084Build(FactorIndicator):
-    """AF48-084: construct the native Alpha101 graph via expressions."""
-
-    lines = ("factor",)
-    panel_mode = "expression"
-    alpha_id = Alpha084Native.alpha_id
-    case_id = Alpha084Native.case_id
-    lookback_h = Alpha084Native.lookback_h
-    formula_fields = Alpha084Native.formula_fields
-    required_fields = Alpha084Native.required_fields
-    formula = Alpha084Native.formula
-    operator_profile = Alpha084Native.operator_profile
-    input_policy = Alpha084Native.input_policy
-
     @classmethod
     def build(cls, ctx, **params):
         vwap_max = ctx.ts_max(ctx.field("vwap"), 15.3217)

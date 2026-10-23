@@ -2,7 +2,7 @@
 
 迭代45把因子计算留在 Backtrader，把标签、IC、多因子合成与报告放在 fincore。所有研究因子继承 `FactorIndicator`；`FactorStrategy` 负责装配和采集，作者不用为每个因子重写策略的 `next()`。
 
-重构与性能验收见[45–46优化验收结果](../../_internal/opts/requirements/迭代45-46优化/验收结果.md)。迭代47增加公式式 build 和025/026/027双模式；迭代48已补齐全部101式的build伴随类，并完成源码、下游和固定wheel验收，详见[48验收结果](../../_internal/opts/requirements/迭代48-Alpha101-build实现/验收结果.md)。
+重构与性能验收见[45–46优化验收结果](../../_internal/opts/requirements/迭代45-46优化/验收结果.md)。迭代47增加公式式 build，48补齐全部101式。当前接口将build合并到原因子类，模式在绑定时选择；本轮实施和验收状态见[单类双模式重构](../../_internal/opts/requirements/迭代49-因子单类双模式重构/实施与验收.md)。[48验收结果](../../_internal/opts/requirements/迭代48-Alpha101-build实现/验收结果.md)保留旧双类版本的证据。
 
 > 迭代45-46优化（2026-10-22）后，研究链路直接产出普通 `FactorPanel`：`ResearchDataset`、`inputs.py`、`dataset.py`、`storage.py`、`field_validation.py`、PIT/as-of 表、`table:` 绑定和 `classification_bindings` 已删除。本文描述的是当前 API；历史快照文件不再保证可读。
 
@@ -66,12 +66,11 @@ class CloseMAFactor(FactorIndicator):
 
 ## 用 build 编写公式
 
-`panel_mode = "expression"` 的类声明一个 `@classmethod build(cls, ctx, **params)`，返回单个表达式；无需编写资产循环或 `next()`。例如生产 Alpha003 的伴随实现为：
+同一个因子类可以只实现原生`__init__/next`、只实现`@classmethod build(cls, ctx, **params)`，或同时实现两者。build返回单个表达式，无需编写资产循环或`next()`。例如只使用build的自定义Alpha003写法：
 
 ```python
-class Alpha003Build(FactorIndicator):
+class MyAlpha003(FactorIndicator):
     lines = ("factor",)
-    panel_mode = "expression"
     formula_fields = ("open", "volume")
     lookback_h = 9
 
@@ -96,9 +95,24 @@ Alpha101滚动算子沿用`alpha101-v2`的小数窗口取floor规则；普通SMA
 
 每个绑定后的因子实例只调用一次build。ctx构造普通Indicator/Line依赖，由Cerebro按原有时钟推进；不同研究组和实例不共享节点。build返回后上下文关闭，不能在运行期间继续构图，也不能混用另一实例的表达式。
 
-`ctx.apply(function, *expressions)` 将无状态逐点函数适配为普通子指标，参数仅为当前各输入的float值。025/026的伴随类用它保留原生比值与KDJ逐点运算的有限值、除零及严格错误行为；SMA、ROC、Highest和Lowest仍是真实子指标。函数不接收历史数组、整个资产面板或调度权。研究四则算子的DOMAIN_ERROR/NaN语义与任意Python算式并非完全相同，迁移已有因子时应验证极端输入和错误行为。
+`ctx.apply(function, *expressions)` 将无状态逐点函数适配为普通子指标，参数仅为当前各输入的float值。025/026的build方法用它保留原生比值与KDJ逐点运算的有限值、除零及严格错误行为；SMA、ROC、Highest和Lowest仍是真实子指标。函数不接收历史数组、整个资产面板或调度权。研究四则算子的DOMAIN_ERROR/NaN语义与任意Python算式并非完全相同，迁移已有因子时应验证极端输入和错误行为。
 
-选择生产Alpha实现使用 `get_alpha(id, mode="build")`，1至101均提供同文件伴随类；省略mode等同于native。全量验收状态见[48开发与验收记录](../../_internal/opts/requirements/迭代48-Alpha101-build实现/开发与验收记录.md)。025/026在各自示例文件内提供CloseMA、ROC和KDJ.J伴随类。build/native是公式编写方式，与 `runonce=True/False` 的引擎选择相互独立。
+生产Alpha的101个原类以及025/026的CloseMA、ROC和KDJ.J类均在同一类中提供两种实现：
+
+```python
+from backtrader.research import FactorSpec
+from backtrader.research.alpha101 import get_alpha
+
+alpha = get_alpha(3)
+bindings = {"open": "feed:target:open", "volume": "feed:target:volume"}
+native = FactorSpec("native", alpha, "factor", field_bindings=bindings, mode="native")
+built = FactorSpec("built", alpha, "factor", field_bindings=bindings, mode="build")
+# 已有Strategy中也可直接绑定：alpha.bind(*self.datas, mode="build")
+```
+
+`mode=None`按类能力选择：有原生next就使用native，否则使用build；双实现默认native。显式选择未实现的模式会报错。`get_alpha`仅查找类，不再接受mode；旧调用需要迁移到`FactorSpec`或`bind`。mode是独立配置，不能放入公式params；metadata记录解析后的模式，实例的只读`factor_mode`给出实际选择。build绑定跳过作者的原生初始化及计算回调，native绑定不调用build。同一类可在同一策略中使用不同模式，实例参数和子指标彼此隔离。
+
+无需再用`panel_mode`声明选择实现；旧声明不覆盖调用方的mode。build/native与`runonce=True/False`的引擎选择相互独立。当前验收状态见[单类双模式记录](../../_internal/opts/requirements/迭代49-因子单类双模式重构/实施与验收.md)。
 
 ## 装配研究
 

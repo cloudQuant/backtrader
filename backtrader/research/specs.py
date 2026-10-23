@@ -177,6 +177,7 @@ class FactorSpec:
     field_bindings: Mapping[str, Any]
     operator_profile: str
     direction: int
+    mode: str
     lookback_h: int
     source_sha256: str
     module_source_sha256: str
@@ -191,6 +192,7 @@ class FactorSpec:
         field_bindings: Optional[Mapping[str, Any]] = None,
         operator_profile: str = "alpha101-v2",
         direction: int = 1,
+        mode: Optional[str] = None,
         **unsupported: Any,
     ) -> None:
         if unsupported:
@@ -206,6 +208,10 @@ class FactorSpec:
             field_bindings = {}
         if not isinstance(params, Mapping):
             raise ResearchConfigError("factor params must be a mapping")
+        if "mode" in params:
+            raise ResearchConfigError(
+                "factor mode must be selected with FactorSpec(mode=...), not params['mode']"
+            )
         if not isinstance(field_bindings, Mapping):
             raise ResearchConfigError("field_bindings must be a mapping")
 
@@ -219,8 +225,12 @@ class FactorSpec:
             )
         try:
             indicator._validate_factor_declaration()
+            selected_mode = indicator._resolve_factor_mode(mode)
         except (TypeError, ValueError) as exc:
             raise ResearchConfigError("invalid factor declaration: %s" % exc) from exc
+        except NotImplementedError as exc:
+            raise ResearchConfigError("unsupported factor mode: %s" % exc) from exc
+        resolved_params = indicator._resolve_factor_params(params)
         declared = tuple(indicator._factor_template_names())
         if panel_line not in declared:
             raise ResearchConfigError("panel_line must select a declared output template")
@@ -278,7 +288,7 @@ class FactorSpec:
                         "vwap_volume derivation requires vwap/volume bindings"
                     )
 
-        lookback = _lookback(indicator, frozen_params)
+        lookback = _lookback(indicator, resolved_params)
         source_sha256, module_source_sha256, source_hash_kind = _source_fingerprint(indicator)
         object.__setattr__(self, "name", name)
         object.__setattr__(self, "indicator", indicator)
@@ -287,6 +297,7 @@ class FactorSpec:
         object.__setattr__(self, "field_bindings", MappingProxyType(frozen_fields))
         object.__setattr__(self, "operator_profile", operator_profile)
         object.__setattr__(self, "direction", direction)
+        object.__setattr__(self, "mode", selected_mode)
         object.__setattr__(self, "lookback_h", lookback)
         object.__setattr__(self, "source_sha256", source_sha256)
         object.__setattr__(self, "module_source_sha256", module_source_sha256)
@@ -305,6 +316,7 @@ class FactorSpec:
             "field_bindings",
             "operator_profile",
             "direction",
+            "mode",
         }
         unknown = fields - allowed
         if unknown:
@@ -324,6 +336,7 @@ class FactorSpec:
             field_bindings=value.get("field_bindings", {}),
             operator_profile=value.get("operator_profile", "alpha101-v2"),
             direction=value.get("direction", 1),
+            mode=value.get("mode"),
         )
 
     def to_metadata(self) -> Dict[str, Any]:
@@ -331,7 +344,8 @@ class FactorSpec:
             "name": self.name,
             "indicator_module": self.indicator.__module__,
             "indicator_qualname": self.indicator.__qualname__,
-            "panel_mode": self.indicator.panel_mode,
+            "mode": self.mode,
+            "panel_mode": "next" if self.mode == "native" else "expression",
             "panel_line": self.panel_line,
             "params": thaw(self.params),
             "field_bindings": thaw(self.field_bindings),

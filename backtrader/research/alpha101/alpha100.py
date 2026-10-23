@@ -102,22 +102,6 @@ class Alpha100Native(FactorIndicator):
         for data, result in zip(self.datas, self._result_lines):
             self.outputs[data].factor[0] = result[0]
 
-
-@native_alpha
-class Alpha100Build(FactorIndicator):
-    """AF48-100: construct the native Alpha100 graph through the build API."""
-
-    lines = ("factor",)
-    panel_mode = "expression"
-    alpha_id = Alpha100Native.alpha_id
-    case_id = Alpha100Native.case_id
-    lookback_h = Alpha100Native.lookback_h
-    formula_fields = Alpha100Native.formula_fields
-    required_fields = Alpha100Native.required_fields
-    formula = Alpha100Native.formula
-    operator_profile = Alpha100Native.operator_profile
-    input_policy = Alpha100Native.input_policy
-
     @classmethod
     def build(cls, ctx, **params):
         close = ctx.close

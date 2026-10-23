@@ -19,6 +19,7 @@ from tests.test_utils.alpha101_native_harness import (
     make_positive_fixture,
     selected_alpha_batches,
     run_native_batch,
+    assert_factor_mode_witnesses,
 )
 from tests.test_utils.alpha101_trace_validation import compare_factor_graphs, validate_factor_trace
 
@@ -196,6 +197,7 @@ def test_alpha101_native_build_pair_graph_matrix(periods):
         key: {
             "alpha_ids": [],
             "factor_classes": {},
+            "factor_instance_modes": {},
             "oracle_pass_count": 0,
             "finite_witness_count": 0,
             "lifecycle_pass_count": 0,
@@ -220,7 +222,7 @@ def test_alpha101_native_build_pair_graph_matrix(periods):
         lane_classes = {}
         lane_panels = {}
         for mode in modes:
-            classes = {alpha_id: get_alpha(alpha_id, mode=mode) for alpha_id in batch}
+            classes = {alpha_id: get_alpha(alpha_id) for alpha_id in batch}
             for engine_name, runonce in engines:
                 key = (mode, engine_name)
                 strategy = run_native_batch(
@@ -231,6 +233,9 @@ def test_alpha101_native_build_pair_graph_matrix(periods):
                     alpha_classes=classes,
                 )
                 assert_lifecycle(strategy, batch, grid, alpha_classes=classes)
+                instance_modes = assert_factor_mode_witnesses(
+                    strategy, batch, dict.fromkeys(batch, mode)
+                )
                 if strategy._alpha101_broker_call_counts != {"submit": 0, "cancel": 0}:
                     raise AssertionError("Alpha101 research lane invoked broker submit/cancel")
                 lane_strategies[key] = strategy
@@ -256,6 +261,9 @@ def test_alpha101_native_build_pair_graph_matrix(periods):
                         factor_class.__module__,
                         factor_class.__qualname__,
                     )
+                    lane_totals[key]["factor_instance_modes"][str(alpha_id)] = instance_modes[
+                        str(alpha_id)
+                    ]
                     panel = [list(row) for row in trace["panel_actual"]]
                     summary = _exact_panel_summary(panel)
                     lane_panels[(key, alpha_id)] = panel
@@ -272,6 +280,7 @@ def test_alpha101_native_build_pair_graph_matrix(periods):
                             "lifecycle_pass": True,
                             "lookback_h": history_h(alpha_id),
                             "factor_classes": {},
+                            "factor_instance_modes": {},
                             "same_engine_build_pair": {},
                             "cross_engine": {},
                         },
@@ -279,6 +288,9 @@ def test_alpha101_native_build_pair_graph_matrix(periods):
                     entry["factor_classes"]["%s/%s" % (mode, engine_name)] = lane_totals[key][
                         "factor_classes"
                     ][str(alpha_id)]
+                    entry["factor_instance_modes"]["%s/%s" % (mode, engine_name)] = lane_totals[
+                        key
+                    ]["factor_instance_modes"][str(alpha_id)]
 
         for alpha_id in batch:
             alpha_entry = alpha_records[alpha_id]
@@ -340,6 +352,7 @@ def test_alpha101_native_build_pair_graph_matrix(periods):
                 "runonce": engine_name == "runonce",
                 "alpha_ids": list(alpha_ids),
                 "factor_classes": totals["factor_classes"],
+                "factor_instance_modes": totals["factor_instance_modes"],
                 "oracle_pass_count": totals["oracle_pass_count"],
                 "finite_witness_count": totals["finite_witness_count"],
                 "lifecycle_pass_count": totals["lifecycle_pass_count"],
@@ -361,7 +374,8 @@ def test_alpha101_native_build_pair_graph_matrix(periods):
         "all_pass": complete_registry,
     }
     record = {
-        "schema_version": 1,
+        "schema_version": 2,
+        "acceptance_profile": "iteration49-single-class-modes",
         "status": "PASS" if complete_registry else "INCOMPLETE",
         "periods": periods,
         "alpha_ids": list(alpha_ids),

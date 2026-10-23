@@ -34,12 +34,12 @@ class _StrictProbeChild(bt.Indicator):
 
 class _StrictProbeFactor(FactorIndicator):
     lines = ("value",)
-    params = (("mode", "divide"),)
+    params = (("probe_mode", "divide"),)
     lookback_h = 0
 
     def __init__(self):
         super().__init__()
-        self.child = _StrictProbeChild(self.data, mode=self.p.mode)
+        self.child = _StrictProbeChild(self.data, mode=self.p.probe_mode)
 
     def next(self):
         output = self.outputs[self.datas[0]].value
@@ -122,13 +122,13 @@ def _research_inputs(values=(1.5, 2.0)):
     return research, frame
 
 
-def _run_factor(mode, runonce, values=(1.5, 2.0)):
+def _run_factor(probe_mode, runonce, values=(1.5, 2.0)):
     research, frame = _research_inputs(values)
     factor = FactorSpec(
         name="strict_probe",
         indicator=_StrictProbeFactor,
         panel_line="value",
-        params={"mode": mode},
+        params={"probe_mode": probe_mode},
     )
     cerebro = bt.Cerebro(stdstats=False)
     feed = align_to_grid(frame, research, "asset-0").feed
@@ -207,12 +207,12 @@ def _run_uninspectable_csv_source(tmp_path, runonce):
 
 @pytest.mark.parametrize("runonce", (False, True))
 @pytest.mark.parametrize(
-    ("mode", "cause_type"),
+    ("probe_mode", "cause_type"),
     (("divide", ZeroDivisionError), ("overflow", ArithmeticError), ("unexpected", LookupError)),
 )
-def test_native_child_failures_raise_contextual_factor_errors(runonce, mode, cause_type):
+def test_native_child_failures_raise_contextual_factor_errors(runonce, probe_mode, cause_type):
     with pytest.raises(FactorComputationError) as caught:
-        _run_factor(mode, runonce)
+        _run_factor(probe_mode, runonce)
 
     error = caught.value
     assert error.code == "FACTOR_COMPUTATION_FAILED"
@@ -239,7 +239,7 @@ def test_factor_dependency_contexts_are_isolated(runonce):
             name=name,
             indicator=_StrictProbeFactor,
             panel_line="value",
-            params={"mode": "nan"},
+            params={"probe_mode": "nan"},
         )
         for name in ("first", "second")
     }

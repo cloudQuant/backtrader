@@ -453,13 +453,18 @@ an expression-mode FactorIndicator defines a classmethod `build(ctx, **params)`
 that constructs the same native operator children once during bound-factor
 initialization. The context keeps target-feed and instance identity, rejects
 Python boolean conversion and closes construction after build returns; the
-ordinary Cerebro lifecycle performs all calculation. `Alpha003Build` lives
-beside `Alpha003Native` and is selected by `get_alpha(3, mode="build")`.
-Iteration 48 supplies same-file Build companions for all 101 IDs through
-`get_alpha(id, mode="build")`. The native registry and default remain unchanged;
-missing companions still raise `NotImplementedError` rather than falling back.
+ordinary Cerebro lifecycle performs all calculation. Iteration 49 merges each
+of the 101 build methods into its original Alpha class. `get_alpha(id)` returns
+that one class; select the implementation through `FactorSpec(mode=...)` or
+`FactorIndicator.bind(..., mode=...)`, never through `get_alpha`. A class may
+implement native next, classmethod build, or both. Omitted mode selects native
+when available, otherwise build; unavailable explicit modes fail. Each binding
+has a read-only `factor_mode`. Its existing private bound class isolates init,
+next and once phases, so build bypasses native callbacks without changing the
+original class or global Indicator construction. Mode is reserved configuration,
+not a formula parameter, and is included in FactorSpec metadata.
 There is no string DSL or second scheduler.
-025/026 also provide CloseMA, ROC and KDJ build companions. The context's
+025/026 likewise merge CloseMA, ROC and KDJ build into their original classes. The context's
 SMA/ROC/Highest/Lowest adapters use the existing ordinary indicators;
 `ctx.apply` constructs an ordinary pointwise Indicator for shared scalar
 formulas, preserving the examples' native overflow and missing-value rules.

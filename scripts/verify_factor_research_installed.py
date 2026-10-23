@@ -43,7 +43,10 @@ _FACTOR_MODE_PAIR_TEST_INPUTS = (
     "tests/unit/test_factor_build_expression.py",
     "tests/unit/test_factor_research_examples.py",
 )
-_ALPHA101_BUILD_PAIR_TEST_INPUTS = ("tests/integration/test_alpha101_native_matrix.py",)
+_ALPHA101_BUILD_PAIR_TEST_INPUTS = (
+    "tests/integration/test_alpha101_native_matrix.py",
+    "tests/unit/test_factor_single_class_modes.py",
+)
 _PAIR_SEMANTICS_HELPER = "scripts/verify_factor_research_pair_semantics.py"
 _EXAMPLE_DIRS = (
     "examples/backtest/025_factor_single",
@@ -85,6 +88,7 @@ _PAIR_FORMULA_TEST_CASES = {
 _PAIR_ENGINE_MODES = ("runnext", "runonce")
 _ALPHA101_IDS = tuple(range(1, 102))
 _ALPHA101_BUILD_PAIR_RECORD = "alpha101-build-pair-T320.json"
+_SINGLE_CLASS_MODE_PROFILE = "iteration49-single-class-modes"
 _ALPHA101_PAIR_ASSETS = tuple("asset-%d" % index for index in range(6))
 _PAIR_MODULE_NAME = "factor_research_installed_pair_semantics"
 _ALPHA_BATCHES = {"promoted_20", "a", "b", "c", "d", "e"}
@@ -226,7 +230,28 @@ def _verify_alpha101_build_pair_test_witness(junit_xml: Path) -> Mapping[str, An
         raise VerificationError(
             "Alpha101 native/build matrix T320 did not pass: %s" % ",".join(outcomes)
         )
-    return {"test_case": expected, "status": "PASSED"}
+    core_cases = [
+        case
+        for case in root.iter("testcase")
+        if (case.get("classname") or "").endswith("test_factor_single_class_modes")
+    ]
+    if not core_cases:
+        raise VerificationError("single-class FactorSpec mode unit-test witness is absent")
+    core_outcomes = [
+        child.tag
+        for case in core_cases
+        for child in case
+        if child.tag in {"failure", "error", "skipped"}
+    ]
+    if core_outcomes:
+        raise VerificationError(
+            "single-class FactorSpec mode unit tests did not pass: %s" % ",".join(core_outcomes)
+        )
+    return {
+        "test_case": expected,
+        "single_class_mode_test_count": len(core_cases),
+        "status": "PASSED",
+    }
 
 
 def _require_record_keys(record: Any, expected: Sequence[str], label: str) -> Mapping[str, Any]:
@@ -313,8 +338,143 @@ def _require_alpha101_graph_pair(
 
 
 def _expected_alpha101_class(alpha_id: int, mode: str) -> str:
-    name = "Alpha%03d%s" % (alpha_id, mode.title())
+    if mode not in ("native", "build"):
+        raise VerificationError("unsupported Alpha101 factor mode: %s" % mode)
+    name = "Alpha%03dNative" % alpha_id
     return "backtrader.research.alpha101.alpha%03d.%s" % (alpha_id, name)
+
+
+def _require_alpha101_factor_mode_witness(
+    witness: Any, expected_mode: str, label: str
+) -> Mapping[str, Any]:
+    witness = _require_record_keys(
+        witness,
+        (
+            "root_mode",
+            "bound_instance_count",
+            "bound_instances",
+            "build_context_count",
+            "build_node_count",
+        ),
+        label,
+    )
+    if witness["root_mode"] != expected_mode:
+        raise VerificationError("%s root instance mode does not match its lane" % label)
+    if not isinstance(witness["bound_instances"], list) or not witness["bound_instances"]:
+        raise VerificationError("%s has no bound factor instance witnesses" % label)
+    instance_count = _require_record_int(
+        witness["bound_instance_count"], label + ".bound_instance_count"
+    )
+    if instance_count != len(witness["bound_instances"]):
+        raise VerificationError("%s bound instance count differs from its witnesses" % label)
+    context_count = _require_record_int(
+        witness["build_context_count"], label + ".build_context_count"
+    )
+    node_count = _require_record_int(witness["build_node_count"], label + ".build_node_count")
+    observed_contexts = 0
+    observed_nodes = 0
+    observed_groups = set()
+    observed_assets = set()
+    for index, instance in enumerate(witness["bound_instances"]):
+        instance_label = "%s.bound_instances[%d]" % (label, index)
+        instance = _require_record_keys(
+            instance,
+            (
+                "group",
+                "assets",
+                "factor_mode",
+                "has_expression_context",
+                "expression_node_count",
+                "descendants",
+            ),
+            instance_label,
+        )
+        group = instance["group"]
+        if group is not None and not isinstance(group, str):
+            raise VerificationError("%s group must be a string or null" % instance_label)
+        if group is not None:
+            if group in observed_groups:
+                raise VerificationError("%s repeats a bound group" % instance_label)
+            observed_groups.add(group)
+        assets = instance["assets"]
+        if (
+            not isinstance(assets, list)
+            or not assets
+            or any(not isinstance(asset, str) or not asset for asset in assets)
+            or len(assets) != len(set(assets))
+            or observed_assets.intersection(assets)
+        ):
+            raise VerificationError(
+                "%s does not identify unique bound target assets" % instance_label
+            )
+        observed_assets.update(assets)
+        if instance["factor_mode"] != expected_mode:
+            raise VerificationError(
+                "%s actual bound instance mode differs from its lane" % instance_label
+            )
+        if type(instance["has_expression_context"]) is not bool:
+            raise VerificationError("%s has an invalid expression-context witness" % instance_label)
+        expression_nodes = _require_record_int(
+            instance["expression_node_count"], instance_label + ".expression_node_count"
+        )
+        if expected_mode == "build":
+            if not instance["has_expression_context"] or expression_nodes < 1:
+                raise VerificationError(
+                    "%s lacks its build context and bound node path" % instance_label
+                )
+            observed_contexts += 1
+            observed_nodes += expression_nodes
+        elif instance["has_expression_context"] or expression_nodes != 0:
+            raise VerificationError(
+                "%s native instance contains a build context/node witness" % instance_label
+            )
+        descendants = instance["descendants"]
+        if not isinstance(descendants, list):
+            raise VerificationError("%s descendants must be a list" % instance_label)
+        for child_index, child in enumerate(descendants):
+            child_label = "%s.descendants[%d]" % (instance_label, child_index)
+            child = _require_record_keys(
+                child,
+                (
+                    "class",
+                    "factor_mode",
+                    "runtime_mode",
+                    "has_expression_context",
+                    "expression_node_count",
+                ),
+                child_label,
+            )
+            if not isinstance(child["class"], str) or not child["class"]:
+                raise VerificationError("%s has no descendant class identity" % child_label)
+            child_mode = child["factor_mode"]
+            if child_mode not in ("native", "build") or child["runtime_mode"] != child_mode:
+                raise VerificationError("%s public and runtime modes differ" % child_label)
+            if type(child["has_expression_context"]) is not bool:
+                raise VerificationError(
+                    "%s has an invalid expression-context witness" % child_label
+                )
+            child_nodes = _require_record_int(
+                child["expression_node_count"], child_label + ".expression_node_count"
+            )
+            if child_mode == "build":
+                if not child["has_expression_context"] or child_nodes < 1:
+                    raise VerificationError(
+                        "%s lacks its build context and bound node path" % child_label
+                    )
+            elif child["has_expression_context"] or child_nodes != 0:
+                raise VerificationError(
+                    "%s native instance contains a build context/node witness" % child_label
+                )
+    if witness["root_mode"] != witness["bound_instances"][0]["factor_mode"]:
+        raise VerificationError("%s root mode differs from the first bound instance" % label)
+    if expected_mode == "build":
+        if context_count != instance_count or node_count < instance_count:
+            raise VerificationError("%s lacks complete build context/node witnesses" % label)
+    elif context_count != 0 or node_count != 0:
+        raise VerificationError("%s native lane contains build context/node witnesses" % label)
+    if context_count != observed_contexts or node_count != observed_nodes:
+        raise VerificationError("%s build witness counts differ from bound instances" % label)
+    return witness
 
 
 def _verify_alpha101_build_pair_record(evidence: Path) -> Mapping[str, Any]:
@@ -330,6 +490,7 @@ def _verify_alpha101_build_pair_record(evidence: Path) -> Mapping[str, Any]:
         record,
         (
             "schema_version",
+            "acceptance_profile",
             "status",
             "periods",
             "alpha_ids",
@@ -340,8 +501,10 @@ def _verify_alpha101_build_pair_record(evidence: Path) -> Mapping[str, Any]:
         ),
         "Alpha101 build-pair record",
     )
-    if type(record["schema_version"]) is not int or record["schema_version"] != 1:
+    if type(record["schema_version"]) is not int or record["schema_version"] != 2:
         raise VerificationError("Alpha101 build-pair record has an unsupported schema version")
+    if record["acceptance_profile"] != _SINGLE_CLASS_MODE_PROFILE:
+        raise VerificationError("Alpha101 build-pair record has the wrong acceptance profile")
     if record["status"] != "PASS":
         raise VerificationError("Alpha101 build-pair record status is not PASS")
     if type(record["periods"]) is not int or record["periods"] != 320:
@@ -380,6 +543,7 @@ def _verify_alpha101_build_pair_record(evidence: Path) -> Mapping[str, Any]:
                 "runonce",
                 "alpha_ids",
                 "factor_classes",
+                "factor_instance_modes",
                 "oracle_pass_count",
                 "finite_witness_count",
                 "lifecycle_pass_count",
@@ -403,12 +567,22 @@ def _verify_alpha101_build_pair_record(evidence: Path) -> Mapping[str, Any]:
             tuple(str(alpha_id) for alpha_id in _ALPHA101_IDS),
             label + ".factor_classes",
         )
+        instance_modes = _require_record_keys(
+            run["factor_instance_modes"],
+            tuple(str(alpha_id) for alpha_id in _ALPHA101_IDS),
+            label + ".factor_instance_modes",
+        )
         for alpha_id in _ALPHA101_IDS:
             expected_class = _expected_alpha101_class(alpha_id, factor_mode)
             if classes[str(alpha_id)] != expected_class:
                 raise VerificationError(
                     "%s has the wrong installed class for Alpha%d" % (label, alpha_id)
                 )
+            instance_modes[str(alpha_id)] = _require_alpha101_factor_mode_witness(
+                instance_modes[str(alpha_id)],
+                factor_mode,
+                label + ".factor_instance_modes[%d]" % alpha_id,
+            )
         for field in ("oracle_pass_count", "finite_witness_count", "lifecycle_pass_count"):
             if _require_record_int(run[field], label + "." + field) != len(_ALPHA101_IDS):
                 raise VerificationError("%s did not pass all 101 formulas" % label)
@@ -422,6 +596,7 @@ def _verify_alpha101_build_pair_record(evidence: Path) -> Mapping[str, Any]:
             "factor_panel": _require_alpha101_pair_panel(
                 run["factor_panel"], label + ".factor_panel"
             ),
+            "factor_instance_modes": instance_modes,
         }
     if set(run_by_mode) != expected_engine_runs:
         raise VerificationError("Alpha101 build-pair record omitted one of four execution modes")
@@ -442,6 +617,7 @@ def _verify_alpha101_build_pair_record(evidence: Path) -> Mapping[str, Any]:
                 "lifecycle_pass",
                 "lookback_h",
                 "factor_classes",
+                "factor_instance_modes",
                 "same_engine_build_pair",
                 "cross_engine",
             ),
@@ -458,6 +634,11 @@ def _verify_alpha101_build_pair_record(evidence: Path) -> Mapping[str, Any]:
             ("native/runnext", "native/runonce", "build/runnext", "build/runonce"),
             label + ".factor_classes",
         )
+        instance_modes = _require_record_keys(
+            item["factor_instance_modes"],
+            ("native/runnext", "native/runonce", "build/runnext", "build/runonce"),
+            label + ".factor_instance_modes",
+        )
         for factor_mode in ("native", "build"):
             for engine in _PAIR_ENGINE_MODES:
                 run_key = (factor_mode, engine)
@@ -466,6 +647,16 @@ def _verify_alpha101_build_pair_record(evidence: Path) -> Mapping[str, Any]:
                     raise VerificationError("%s has the wrong %s class identity" % (label, run_key))
                 if run_by_mode[run_key]["factor_classes"][alpha_key] != expected_class:
                     raise VerificationError("%s class identity differs from engine run" % label)
+                lane_key = factor_mode + "/" + engine
+                witness = _require_alpha101_factor_mode_witness(
+                    instance_modes[lane_key],
+                    factor_mode,
+                    label + ".factor_instance_modes." + lane_key,
+                )
+                if witness != run_by_mode[run_key]["factor_instance_modes"][alpha_key]:
+                    raise VerificationError(
+                        "%s instance mode witness differs from engine run" % label
+                    )
 
         same_engine = _require_record_keys(
             item["same_engine_build_pair"], _PAIR_ENGINE_MODES, label + ".same_engine_build_pair"
@@ -604,6 +795,7 @@ def _verify_alpha101_build_pair_record(evidence: Path) -> Mapping[str, Any]:
         "path": str(path.resolve()),
         "sha256": _sha256(path),
         "schema_version": record["schema_version"],
+        "acceptance_profile": record["acceptance_profile"],
         "status": record["status"],
         "periods": record["periods"],
         "alpha_ids": list(_ALPHA101_IDS),
@@ -1026,6 +1218,7 @@ if factor_mode_pair:
 if alpha101_build_pair:
     test_paths.extend([
         external_root + "/tests/integration/test_alpha101_native_matrix.py::test_alpha101_native_build_pair_graph_matrix[T320]",
+        external_root + "/tests/unit/test_factor_single_class_modes.py",
     ])
     if "--junitxml" not in test_paths:
         test_paths.extend(["--junitxml", pair_junit])
@@ -1439,10 +1632,10 @@ def _expected_example_factor_classes(example_name: str, mode: str) -> Mapping[st
             return {}
         raise VerificationError("unsupported expected factor mode: %s" % mode)
     if example_name == "025_factor_single":
-        class_name = "CloseMAFactor" if mode == "native" else "CloseMAFactorBuild"
+        class_name = "CloseMAFactor"
         return {"close_ma": "close_ma_factor_strategy." + class_name}
     if example_name == "026_factor_multi":
-        suffix = "" if mode == "native" else "Build"
+        suffix = ""
         return {
             name: "multi_factor_strategy." + class_name + suffix
             for name, class_name in (
@@ -1754,11 +1947,7 @@ if (summary.get("status") != "COMPLETED" or summary.get("symbols") != 20
         or summary.get("dates") != 243):
     raise SystemExit("027 runner summary has unexpected completion dimensions")
 if factor_mode:
-    expected_indicator = (
-        "backtrader.research.alpha101.alpha003.Alpha003Native"
-        if factor_mode == "native"
-        else "backtrader.research.alpha101.alpha003.Alpha003Build"
-    )
+    expected_indicator = "backtrader.research.alpha101.alpha003.Alpha003Native"
     if (summary.get("factor_mode") != factor_mode
             or summary.get("factor_calculation") != "RAN"
             or summary.get("indicator") != expected_indicator):
@@ -1971,11 +2160,7 @@ def _run_027(
         if factor_mode_pair:
             if payload.get("factor_mode") != mode:
                 raise VerificationError("027 %s result has unexpected factor mode" % mode)
-            expected_indicator = (
-                "backtrader.research.alpha101.alpha003.Alpha003Native"
-                if mode == "native"
-                else "backtrader.research.alpha101.alpha003.Alpha003Build"
-            )
+            expected_indicator = "backtrader.research.alpha101.alpha003.Alpha003Native"
             if payload.get("indicator") != expected_indicator:
                 raise VerificationError(
                     "027 %s result has unexpected factor class: %r"
@@ -2042,10 +2227,12 @@ def _parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--alpha101-build-pair",
+        "--single-class-modes",
+        dest="alpha101_build_pair",
         action="store_true",
         help=(
-            "run the Iteration 48 build-pair profile, including --factor-mode-pair and "
-            "the complete installed Alpha101 T320 native/build graph matrix"
+            "run the Iteration 49 single-class mode profile (also available as "
+            "--alpha101-build-pair), including the installed Alpha101 T320 matrix"
         ),
     )
     install = parser.add_mutually_exclusive_group()
@@ -2119,7 +2306,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         provenance = {
             "schema": "iteration46-installed-alpha101-provenance-v1",
             "acceptance_profile": (
-                "iteration48-alpha101-build-pair"
+                _SINGLE_CLASS_MODE_PROFILE
                 if args.alpha101_build_pair
                 else (
                     "iteration47-factor-mode-pair"
@@ -2192,7 +2379,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         final = {
             "status": "PASS_LOCAL_INSTALLED_WHEEL_ACCEPTANCE",
             "acceptance_profile": (
-                "iteration48-alpha101-build-pair"
+                _SINGLE_CLASS_MODE_PROFILE
                 if args.alpha101_build_pair
                 else (
                     "iteration47-factor-mode-pair"
@@ -2218,6 +2405,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             "alpha101_build_pair": (
                 {
                     "enabled": True,
+                    "acceptance_profile": _SINGLE_CLASS_MODE_PROFILE,
                     "periods": 320,
                     "engine_modes": list(_PAIR_ENGINE_MODES),
                     "record": test_report["alpha101_build_pair_record"],

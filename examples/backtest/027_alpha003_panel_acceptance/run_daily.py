@@ -396,7 +396,7 @@ def _params(root: Path, factor_mode: str = "native") -> Dict[str, Any]:
     from backtrader.research.alpha101 import get_alpha
 
     factor_mode = _resolve_factor_mode(factor_mode)
-    indicator = get_alpha(3, mode=factor_mode)
+    indicator = get_alpha(3)
     return {
         "factor": FACTOR_NAME,
         "factor_mode": factor_mode,
@@ -681,13 +681,14 @@ def _run_worker(config_path: Path) -> None:
             raise RuntimeError("align_to_grid did not provide the daily Days/1 feed default")
         cerebro.adddata(aligned.feed, name=symbol)
 
-    factor_class = get_alpha(3, mode=factor_mode)
+    factor_class = get_alpha(3)
     actual_factor_class = factor_class.__module__ + "." + factor_class.__qualname__
     if actual_factor_class != config["factor_class"]:
         raise RuntimeError("worker selected a different Alpha003 implementation")
     factor_spec = FactorSpec(
         name=FACTOR_NAME,
         indicator=factor_class,
+        mode=factor_mode,
         panel_line="factor",
         field_bindings={field: "feed:target:" + field for field in FACTOR_INPUTS},
     )
@@ -703,6 +704,13 @@ def _run_worker(config_path: Path) -> None:
         flush=True,
     )
     strategy = cerebro.run(runonce=False, preload=True)[0]
+    resolved_spec = strategy._factor_specs_by_name[FACTOR_NAME]
+    factor_instances = strategy._factor_instances_by_name[FACTOR_NAME]
+    if resolved_spec.mode != factor_mode or not factor_instances:
+        raise RuntimeError("worker Alpha003 spec did not retain its configured mode")
+    if any(instance.factor_mode != factor_mode for instance in factor_instances):
+        raise RuntimeError("worker Alpha003 instance selected an unexpected mode")
+    actual_factor_mode = factor_instances[0].factor_mode
     panel = strategy.get_panel()
     raw = panel.factors.reset_index()
     raw = raw.loc[
@@ -727,7 +735,7 @@ def _run_worker(config_path: Path) -> None:
         "input_sha256": config["input_sha256"],
         "code_sha256": config["code_sha256"],
         "params_sha256": config["params_sha256"],
-        "factor_mode": factor_mode,
+        "factor_mode": actual_factor_mode,
         "factor_class": actual_factor_class,
         "chunk_index": config["chunk_index"],
         "study_dates": config["study_dates"],
@@ -1184,7 +1192,7 @@ def _run_parent(
     from backtrader.research.alpha101 import get_alpha
 
     # Resolve real module files instead of guessing removed/renamed paths.
-    factor_source_path = _module_source_path(get_alpha(3, mode=factor_mode).__module__)
+    factor_source_path = _module_source_path(get_alpha(3).__module__)
     alignment_source_path = _module_source_path(research_align)
     summary = {
         "status": "COMPLETED",

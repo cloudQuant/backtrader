@@ -164,9 +164,9 @@ def _set_mode_summary(root: Path, mode: str, *, factor_calculation: str = "RAN")
             "factor_classes": {
                 factor: "multi_factor_strategy.%s"
                 % {
-                    "close_ma": "CloseMAFactor" if mode == "native" else "CloseMAFactorBuild",
-                    "kdj_j": "KDJFactor" if mode == "native" else "KDJFactorBuild",
-                    "roc": "ROCFactor" if mode == "native" else "ROCFactorBuild",
+                    "close_ma": "CloseMAFactor",
+                    "kdj_j": "KDJFactor",
+                    "roc": "ROCFactor",
                 }[factor]
                 for factor in FACTOR_ORDER
             },
@@ -288,11 +288,7 @@ def _write_alpha003_run(
         "factor": "alpha003",
         "factor_mode": mode,
         "factor_calculation": "RAN",
-        "indicator": (
-            "backtrader.research.alpha101.alpha003.Alpha003Native"
-            if mode == "native"
-            else "backtrader.research.alpha101.alpha003.Alpha003Build"
-        ),
+        "indicator": "backtrader.research.alpha101.alpha003.Alpha003Native",
         "symbols": 2,
         "dates": 2,
         "cells": len(values),
@@ -744,11 +740,13 @@ def test_required_mode_pair_accepts_ran_native_build_and_zero_orders(tmp_path: P
     result = _COMPARATOR.compare_runs(baseline, candidate, require_mode_pair=True)
 
     assert result["mode_pair"]["valid"] is True
+    assert result["mode_pair"]["implementation_profile"] == (_COMPARATOR.SINGLE_CLASS_MODE_PROFILE)
     assert result["mode_pair"]["modes_differ_native_build"] is True
     assert result["mode_pair"]["summary_numeric_equal"] is True
     assert result["fingerprints"]["equal"] is False
     assert result["fingerprints"]["difference_allowed_by_mode_pair"] is True
     assert result["strict_equal"] is True
+    assert result["schema_version"] == _COMPARATOR.PAIR_SEMANTICS_SCHEMA
 
 
 @pytest.mark.parametrize("mode", ([], {}))
@@ -784,7 +782,7 @@ def test_required_mode_pair_rejects_invalid_or_nonpaired_modes(tmp_path: Path, d
     summary_path = candidate / "summary.json"
     summary = json.loads(summary_path.read_text(encoding="utf-8"))
     if defect == "wrong_identity":
-        summary["factor_classes"]["roc"] = "multi_factor_strategy.ROCFactor"
+        summary["factor_classes"]["roc"] = "multi_factor_strategy.ROCFactorBuild"
     elif defect == "numeric_summary":
         summary["dates"] = 2
     summary_path.write_text(json.dumps(summary), encoding="utf-8")

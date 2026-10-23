@@ -20,7 +20,7 @@ import backtrader as bt
 from backtrader.research.alpha101 import ALPHA_REGISTRY, get_alpha
 from backtrader.research.factor_indicator import FactorIndicator
 from backtrader.research.factor_strategy import FactorStrategy
-from backtrader.research.specs import ResearchSpec
+from backtrader.research.specs import FactorSpec, ResearchSpec
 from tests.test_utils.alpha101_full_reference import (
     formula_ids,
     formula_metadata,
@@ -33,7 +33,6 @@ from tests.unit.test_factor_research_representatives import (
     _research_feed,
     _research_spec as _representative_research_spec,
 )
-
 
 PROMOTED_ALPHA_IDS = (
     1,
@@ -225,9 +224,12 @@ def assert_presence_matches_finite_values(strategy: Any, *args: Any, **kwargs: A
             continue
         grid = list(strategy._grid)
         position = grid.index(times[row].to_pydatetime())
-        assert bool(alignment["present"][position]), (
-            "finite value %r at %s/%s without a real bar"
-            % (panel.factor_order[column], times[row], assets[row])
+        assert bool(
+            alignment["present"][position]
+        ), "finite value %r at %s/%s without a real bar" % (
+            panel.factor_order[column],
+            times[row],
+            assets[row],
         )
 
 
@@ -238,9 +240,7 @@ def presence_matrix(frames: Mapping[str, Any], grid: Sequence[Any]) -> list:
     no separate caller-supplied formula-universe table anymore.
     """
     assets = tuple(frames)
-    return [
-        [point in frames[asset].index for asset in assets] for point in grid
-    ]
+    return [[point in frames[asset].index for asset in assets] for point in grid]
 
 
 def make_research_spec(
@@ -294,9 +294,7 @@ def _assert_one_native_class_metadata(alpha_id: int, factor_class: Any) -> None:
     # Neutralization levels are ordinary declared formula fields; every level
     # the catalog requires must be declared as a bindable feed line.
     expected_levels = tuple(
-        dict.fromkeys(
-            call["level"] for call in metadata["classification_requirements"]["calls"]
-        )
+        dict.fromkeys(call["level"] for call in metadata["classification_requirements"]["calls"])
     )
     if any(level not in declared_fields for level in expected_levels):
         raise AssertionError(
@@ -345,6 +343,7 @@ def run_native_batch(
     *,
     runonce: bool,
     factor_mode: str = "native",
+    factor_modes: Optional[Mapping[int, str]] = None,
     alpha_classes: Optional[Mapping[int, Any]] = None,
     research: Optional[ResearchSpec] = None,
     groups: Optional[Mapping[str, str]] = None,
@@ -356,8 +355,16 @@ def run_native_batch(
         raise ValueError("at least one Alpha101 ID is required")
     if factor_mode not in ("native", "build"):
         raise ValueError("factor_mode must be 'native' or 'build'")
+    if factor_modes is None:
+        modes = dict.fromkeys(ids, factor_mode)
+    else:
+        modes = dict(factor_modes)
+        if set(modes) != set(ids):
+            raise ValueError("factor_modes must provide exactly the requested Alpha101 IDs")
+        if any(mode not in ("native", "build") for mode in modes.values()):
+            raise ValueError("factor_modes values must be 'native' or 'build'")
     if alpha_classes is None:
-        classes = {alpha_id: get_alpha(alpha_id, mode=factor_mode) for alpha_id in ids}
+        classes = {alpha_id: get_alpha(alpha_id) for alpha_id in ids}
     else:
         classes = dict(alpha_classes)
         if set(classes) != set(ids):
@@ -367,10 +374,22 @@ def run_native_batch(
     cerebro = bt.Cerebro(stdstats=False, runonce=bool(runonce))
     for asset, frame in frames.items():
         cerebro.adddata(_research_feed(frame, research, asset), name=asset)
-    factors = {
-        alpha_name(alpha_id): _factor_spec(alpha_name(alpha_id), classes[alpha_id])
-        for alpha_id in ids
-    }
+    factors = {}
+    for alpha_id in ids:
+        name = alpha_name(alpha_id)
+        base_spec = _factor_spec(name, classes[alpha_id])
+        factors[name] = FactorSpec(
+            name=base_spec.name,
+            indicator=base_spec.indicator,
+            panel_line=base_spec.panel_line,
+            params=base_spec.params,
+            field_bindings=base_spec.field_bindings,
+            operator_profile=base_spec.operator_profile,
+            direction=base_spec.direction,
+            mode=modes[alpha_id],
+        )
+    if any(spec.mode != modes[int(name.removeprefix("alpha"))] for name, spec in factors.items()):
+        raise AssertionError("Alpha101 FactorSpec mode differs from the explicit mode selection")
     cerebro.addstrategy(FactorStrategy, research=research, factors=factors)
 
     broker = cerebro.broker
@@ -388,7 +407,110 @@ def run_native_batch(
     broker.cancel = counted_cancel
     strategy = cerebro.run()[0]
     strategy._alpha101_broker_call_counts = dict(broker_calls)
+    strategy._alpha101_factor_modes_expected = {
+        alpha_name(alpha_id): modes[alpha_id] for alpha_id in ids
+    }
+    strategy._alpha101_factor_specs = dict(factors)
+    strategy._alpha101_factor_mode_witnesses = assert_factor_mode_witnesses(strategy, ids, modes)
     return strategy
+
+
+def assert_factor_mode_witnesses(
+    strategy: Any,
+    alpha_ids: Iterable[int],
+    expected_modes: Mapping[int, str],
+) -> Dict[str, Dict[str, Any]]:
+    """Verify the requested implementation mode on each actual bound instance."""
+    witnesses: Dict[str, Dict[str, Any]] = {}
+    for alpha_id in alpha_ids:
+        name = alpha_name(alpha_id)
+        expected = expected_modes[alpha_id]
+        factor = strategy.factor_instances[name]
+        instances = strategy._factor_instances_by_name.get(name)
+        if not instances:
+            raise AssertionError("%s has no bound FactorIndicator instance" % name)
+        group_names = {
+            id(instance): group
+            for group, instance in getattr(factor, "group_instances", {}).items()
+        }
+        bound_instances = []
+        for instance in instances:
+            mode = getattr(instance, "factor_mode", None)
+            if mode != expected:
+                raise AssertionError(
+                    "%s bound factor instance mode differs from requested %s: %r"
+                    % (name, expected, mode)
+                )
+            _validate_factor_instance_witness(instance, mode, name)
+            context = getattr(instance, "_expression_context", None)
+            expression_node_count = len(instance._nodes) if context is not None else 0
+            expression_context = context is not None
+            descendants = []
+            for child in FactorStrategy._factor_tree(instance)[1:]:
+                child_mode = getattr(child, "factor_mode", None)
+                _validate_factor_instance_witness(child, child_mode, name + " descendant")
+                child_context = getattr(child, "_expression_context", None)
+                descendants.append(
+                    {
+                        "class": "%s.%s"
+                        % (child.__class__.__module__, child.__class__.__qualname__),
+                        "factor_mode": child_mode,
+                        "runtime_mode": child._factor_runtime.get("mode"),
+                        "has_expression_context": child_context is not None,
+                        "expression_node_count": (
+                            len(child._nodes) if child_context is not None else 0
+                        ),
+                    }
+                )
+            bound_instances.append(
+                {
+                    "group": group_names.get(id(instance)),
+                    "assets": list(instance._factor_runtime.get("asset_names", ())),
+                    "factor_mode": mode,
+                    "has_expression_context": expression_context,
+                    "expression_node_count": expression_node_count,
+                    "descendants": descendants,
+                }
+            )
+        instance_modes = [item["factor_mode"] for item in bound_instances]
+        if any(mode != expected for mode in instance_modes):
+            raise AssertionError(
+                "%s bound factor instances mix modes for requested %s: %r"
+                % (name, expected, instance_modes)
+            )
+        witnesses[str(alpha_id)] = {
+            "root_mode": instance_modes[0],
+            "bound_instance_count": len(bound_instances),
+            "bound_instances": bound_instances,
+            "build_context_count": sum(item["has_expression_context"] for item in bound_instances),
+            "build_node_count": sum(item["expression_node_count"] for item in bound_instances),
+        }
+    return witnesses
+
+
+def _validate_factor_instance_witness(instance: Any, mode: Any, label: str) -> None:
+    """Validate a real bound FactorIndicator against its own mode capability."""
+    runtime = getattr(instance, "_factor_runtime", None)
+    if not isinstance(runtime, Mapping) or mode not in ("native", "build"):
+        raise AssertionError("%s has no valid bound factor mode" % label)
+    if runtime.get("mode") != mode or getattr(instance, "factor_mode", None) != mode:
+        raise AssertionError("%s public and runtime factor modes differ" % label)
+    try:
+        instance.__class__._resolve_factor_mode(mode)
+    except (NotImplementedError, TypeError, ValueError) as exc:
+        raise AssertionError("%s bound mode is not supported by its class" % label) from exc
+    context = getattr(instance, "_expression_context", None)
+    if mode == "build":
+        nodes = getattr(instance, "_nodes", None)
+        if (
+            context is None
+            or not isinstance(nodes, Mapping)
+            or not nodes
+            or getattr(context, "nodes", None) is not nodes
+        ):
+            raise AssertionError("%s build mode lacks bound expression node paths" % label)
+    elif context is not None:
+        raise AssertionError("%s native mode unexpectedly has a build context" % label)
 
 
 def alpha_name(alpha_id: int) -> str:
@@ -489,6 +611,20 @@ def assert_lifecycle(
     expected_times = tuple(point.to_pydatetime() for point in grid)
     assert set(strategy.factor_instances) == expected_names
     assert strategy._alpha101_broker_call_counts == {"submit": 0, "cancel": 0}
+    expected_modes_by_name = getattr(strategy, "_alpha101_factor_modes_expected", None)
+    assert isinstance(
+        expected_modes_by_name, Mapping
+    ), "explicit FactorSpec modes were not retained"
+    specs_by_name = getattr(strategy, "_alpha101_factor_specs", None)
+    assert isinstance(specs_by_name, Mapping), "explicit FactorSpec objects were not retained"
+    assert set(specs_by_name) == set(expected_modes_by_name)
+    for name, spec in specs_by_name.items():
+        assert spec.mode == expected_modes_by_name[name], "%s FactorSpec mode differs" % name
+    assert_factor_mode_witnesses(
+        strategy,
+        (int(name.removeprefix("alpha")) for name in expected_names),
+        {int(name.removeprefix("alpha")): mode for name, mode in expected_modes_by_name.items()},
+    )
     broker = strategy.broker
     assert not broker.orders
     assert not broker.pending
