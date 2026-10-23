@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""Verify fixed-500 Iteration 49 full-output runs and exact A/B equivalence.
+"""Verify Iteration 49 full-output runs and exact A/B equivalence.
 
 The verifier reads public output files only. It never imports an example, runs
 an example, reads credentials, or changes the benchmark inputs. Each run is
@@ -46,6 +46,10 @@ REPORT_SEMANTICS_NAME = "report_semantics.json"
 REPORT_SEMANTICS_SCHEMA = "factor-report-semantics-v1"
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$", re.IGNORECASE)
 EXPECTED_SELECTION_SHA256 = "14f789a9d9e649987b93bc0477a0f94acc5223edd7ccd70166c8ea4b33ba35dc"
+EXPECTED_ALL_MANIFEST_SHA256 = "7ac8fea0ceb547e010a139f4a17820f6207f38ab08c762cf19257a0f39ec2cfb"
+EXPECTED_ALL_CALENDAR_SHA256 = "ebffd7c7a5626a43ea54f5135c86fb0c8c554255e85ee09ba9bfc5e9da324ba1"
+EXPECTED_ALL_SYMBOL_COUNT = 5471
+EXPECTED_ALL_DATE_COUNT = 243
 
 EXPECTED_EXAMPLES = ("025", "026", "027")
 EXPECTED_FACTORS = {
@@ -208,6 +212,120 @@ def _validate_dynamic_manifest_fields(manifest: Mapping[str, Any], eval_dir: Pat
                 raise VerificationError("evaluation manifest %s escapes its evaluation directory" % key)
 
 
+def _manifest_csv_inputs(
+    data_root: Path, entries: Sequence[Any], expected_count: int
+) -> Tuple[List[str], Dict[str, Dict[str, Any]]]:
+    if len(entries) != expected_count:
+        raise VerificationError("public manifest has %d symbols, expected %d" % (len(entries), expected_count))
+    symbols: List[str] = []
+    pins: Dict[str, Dict[str, Any]] = {}
+    filenames: Set[str] = set()
+    for index, item in enumerate(entries):
+        if not isinstance(item, Mapping):
+            raise VerificationError("public input manifest row %d is malformed" % index)
+        symbol, filename, digest, size = item.get("symbol"), item.get("file"), item.get("sha256"), item.get("bytes")
+        if (
+            not isinstance(symbol, str) or not symbol
+            or not isinstance(filename, str) or not filename
+            or Path(filename).name != filename or PureWindowsPath(filename).name != filename
+            or "\\" in filename
+            or not isinstance(digest, str) or SHA256_RE.fullmatch(digest) is None
+            or type(size) is not int or size < 0
+        ):
+            raise VerificationError("public input manifest row %d has invalid symbol/file/hash/size fields" % index)
+        if symbol in symbols or filename in filenames:
+            raise VerificationError("public input manifest contains duplicate symbol or filename")
+        path = data_root / filename
+        if not _is_within(path, data_root) or not path.is_file():
+            raise VerificationError("public CSV is missing or escapes data root: %s" % filename)
+        actual_sha = _sha256_file(path)
+        if path.stat().st_size != size or actual_sha != digest:
+            raise VerificationError("public CSV differs from its full-manifest pin: %s" % filename)
+        symbols.append(symbol)
+        filenames.add(filename)
+        pins[filename] = {"sha256": actual_sha, "size_bytes": size}
+    return symbols, pins
+
+
+def _load_all_inputs(data_root: Path) -> Dict[str, Any]:
+    data_root = data_root.expanduser().resolve()
+    manifest_path = data_root / "_metadata" / "manifest.json"
+    calendar_path = data_root / "_metadata" / "observed_calendar.csv"
+    try:
+        manifest_sha = _sha256_file(manifest_path)
+        calendar_sha = _sha256_file(calendar_path)
+        manifest = _read_json(manifest_path)
+    except (OSError, ValueError, json.JSONDecodeError) as exc:
+        raise VerificationError("could not read pinned full-universe metadata: %s" % exc) from exc
+    if manifest_sha != EXPECTED_ALL_MANIFEST_SHA256:
+        raise VerificationError("full-universe manifest differs from its frozen pin")
+    if calendar_sha != EXPECTED_ALL_CALENDAR_SHA256:
+        raise VerificationError("full-universe calendar differs from its frozen pin")
+    if not isinstance(manifest, Mapping) or manifest.get("status") != "complete":
+        raise VerificationError("full-universe manifest is not complete")
+    output = manifest.get("output")
+    entries = output.get("symbols") if isinstance(output, Mapping) else None
+    if (
+        not isinstance(entries, list)
+        or output.get("symbol_count") != EXPECTED_ALL_SYMBOL_COUNT
+        or output.get("csv_file_count") != EXPECTED_ALL_SYMBOL_COUNT
+        or output.get("observed_dates") != EXPECTED_ALL_DATE_COUNT
+    ):
+        raise VerificationError("full-universe manifest counts differ from the pinned 5471 x 243 data set")
+    symbols, csv_pins = _manifest_csv_inputs(data_root, entries, EXPECTED_ALL_SYMBOL_COUNT)
+    ordered_digest = hashlib.sha256(("\n".join(symbols) + "\n").encode("utf-8")).hexdigest()
+    dates: List[str] = []
+    timestamps: List[str] = []
+    source_timezone = ZoneInfo("Asia/Shanghai")
+    try:
+        with calendar_path.open("r", encoding="utf-8-sig", newline="") as stream:
+            reader = csv.DictReader(stream)
+            required_fields = {"trade_date", "last_trade_time"}
+            if not reader.fieldnames or not required_fields.issubset(reader.fieldnames):
+                raise VerificationError("public observed calendar lacks trade_date/last_trade_time")
+            for row in reader:
+                trade_date, last_trade_time = row.get("trade_date"), row.get("last_trade_time")
+                if not trade_date or not last_trade_time:
+                    raise VerificationError("public observed calendar contains an incomplete date row")
+                try:
+                    local_close = datetime.datetime.fromisoformat(last_trade_time).replace(tzinfo=source_timezone)
+                except ValueError as exc:
+                    raise VerificationError("public observed calendar contains an invalid last_trade_time") from exc
+                if local_close.date().isoformat() != trade_date:
+                    raise VerificationError("public observed calendar close date differs from trade_date")
+                dates.append(trade_date)
+                timestamps.append(local_close.astimezone(datetime.timezone.utc).isoformat(sep=" "))
+    except (OSError, csv.Error) as exc:
+        raise VerificationError("could not read public observed calendar: %s" % exc) from exc
+    if len(dates) != EXPECTED_ALL_DATE_COUNT or len(set(dates)) != EXPECTED_ALL_DATE_COUNT:
+        raise VerificationError("public observed calendar must contain 243 unique dates")
+    date_range = output.get("date_range")
+    if not isinstance(date_range, Mapping) or (date_range.get("first"), date_range.get("last")) != (
+        dates[0], dates[-1]
+    ):
+        raise VerificationError("full-universe manifest date range differs from the observed calendar")
+    input_pins = {
+        "_metadata/manifest.json": {"sha256": manifest_sha, "size_bytes": manifest_path.stat().st_size},
+        "_metadata/observed_calendar.csv": {"sha256": calendar_sha, "size_bytes": calendar_path.stat().st_size},
+        **csv_pins,
+    }
+    return {
+        "universe": "all",
+        "data_root": str(data_root),
+        "selection_path": None,
+        "selection_sha256": None,
+        "manifest_sha256": manifest_sha,
+        "calendar_sha256": calendar_sha,
+        "source_symbol_count": len(symbols),
+        "symbols": symbols,
+        "dates": dates,
+        "timestamps": timestamps,
+        "grid_cells": len(symbols) * len(dates),
+        "ordered_symbols_sha256": ordered_digest,
+        "files_sha256": hashlib.sha256(_canonical_json(input_pins).encode("utf-8")).hexdigest(),
+    }
+
+
 def _load_fixed_inputs(data_root: Path, selection_path: Path) -> Dict[str, Any]:
     data_root = data_root.expanduser().resolve()
     selection_path = selection_path.expanduser().resolve()
@@ -331,6 +449,7 @@ def _load_fixed_inputs(data_root: Path, selection_path: Path) -> Dict[str, Any]:
     if selection.get("date_range") != [dates[0], dates[-1]]:
         raise VerificationError("benchmark-500.json date range differs from the public calendar")
     return {
+        "universe": "fixed500",
         "data_root": str(data_root),
         "selection_path": str(selection_path),
         "selection_sha256": _sha256_file(selection_path),
@@ -341,7 +460,18 @@ def _load_fixed_inputs(data_root: Path, selection_path: Path) -> Dict[str, Any]:
         "dates": dates,
         "timestamps": timestamps,
         "grid_cells": 121500,
+        "ordered_symbols_sha256": ordered_digest,
     }
+
+
+def _load_inputs(data_root: Path, selection_path: Optional[Path], universe: str) -> Dict[str, Any]:
+    if universe == "all":
+        return _load_all_inputs(data_root)
+    if universe != "fixed500":
+        raise VerificationError("unknown input universe: %s" % universe)
+    if selection_path is None:
+        selection_path = DEFAULT_SELECTION
+    return _load_fixed_inputs(data_root, selection_path)
 
 
 def _resolve_example_dir(value: Path) -> Path:
@@ -802,6 +932,22 @@ def _validate_eval_csv(path: Path, filename: str, entry: Mapping[str, Any]) -> D
     return {"name": filename, "columns": list(expected_columns), "rows": row_count, "unique_keys": len(seen_keys)}
 
 
+def _grid_cell_count(inputs: Mapping[str, Any]) -> int:
+    return len(inputs["symbols"]) * len(inputs["dates"])
+
+
+def _expected_evaluation_counts(example: str, inputs: Mapping[str, Any]) -> Dict[str, int]:
+    cells = _grid_cell_count(inputs)
+    return {
+        "targets": len(inputs["symbols"]),
+        "study_dates": len(inputs["dates"]),
+        "panel_cells": cells,
+        "factors": len(EXPECTED_FACTORS[example]),
+        "signal_rows": cells * len(EXPECTED_FACTORS[example]),
+        "label_rows": cells * len(LABEL_PERIODS),
+    }
+
+
 def _evaluation(example: str, root: Path, summary: Mapping[str, Any], inputs: Mapping[str, Any]) -> Dict[str, Any]:
     if example == "027":
         if summary.get("evaluation_id") is not None or summary.get("evaluation_status") is not None:
@@ -834,14 +980,7 @@ def _evaluation(example: str, root: Path, summary: Mapping[str, Any], inputs: Ma
     if not isinstance(fingerprint, str) or SHA256_RE.fullmatch(fingerprint) is None:
         raise VerificationError("evaluation manifest has no valid result_fingerprint")
     counts = manifest.get("counts")
-    expected_counts = {
-        "targets": 500,
-        "study_dates": 243,
-        "panel_cells": 121500,
-        "factors": len(EXPECTED_FACTORS[example]),
-        "signal_rows": 121500 * len(EXPECTED_FACTORS[example]),
-        "label_rows": 121500 * len(LABEL_PERIODS),
-    }
+    expected_counts = _expected_evaluation_counts(example, inputs)
     if not isinstance(counts, Mapping):
         raise VerificationError("evaluation manifest has no counts object")
     for key, expected in expected_counts.items():
@@ -859,7 +998,7 @@ def _evaluation(example: str, root: Path, summary: Mapping[str, Any], inputs: Ma
     spec = manifest.get("spec")
     targets = spec.get("targets") if isinstance(spec, Mapping) else None
     if targets != inputs["symbols"]:
-        raise VerificationError("evaluation spec target order differs from the fixed 500-symbol selection")
+        raise VerificationError("evaluation spec target order differs from the selected input universe")
     if (
         not isinstance(spec, Mapping)
         or spec.get("label") != "next_open_to_open"
@@ -870,7 +1009,7 @@ def _evaluation(example: str, root: Path, summary: Mapping[str, Any], inputs: Ma
         raise VerificationError("evaluation manifest lacks input fingerprints")
     groups = manifest["inputs"].get("groups")
     if not isinstance(groups, Mapping) or set(groups) != set(inputs["symbols"]):
-        raise VerificationError("evaluation input group metadata does not cover the fixed 500 symbols")
+        raise VerificationError("evaluation input group metadata does not cover every selected symbol")
     if any(not isinstance(group, str) or not group for group in groups.values()):
         raise VerificationError("evaluation input group metadata has an invalid group label")
     tables = manifest.get("tables")
@@ -965,8 +1104,16 @@ def _verify_run(example: str, input_path: Path, inputs: Mapping[str, Any]) -> Tu
     _expect(summary.get("status") == "COMPLETED", errors, "summary status is not COMPLETED")
     _expect(summary.get("factor_mode") == "native", errors, "F-mode factor_mode is not native")
     _expect(summary.get("factor_calculation") == "RAN", errors, "factor_calculation is not RAN")
-    _expect(type(summary.get("symbols")) is int and summary.get("symbols") == 500, errors, "summary symbol count is not 500")
-    _expect(type(summary.get("dates")) is int and summary.get("dates") == 243, errors, "summary date count is not 243")
+    _expect(
+        type(summary.get("symbols")) is int and summary.get("symbols") == len(inputs["symbols"]),
+        errors,
+        "summary symbol count differs from selected inputs",
+    )
+    _expect(
+        type(summary.get("dates")) is int and summary.get("dates") == len(inputs["dates"]),
+        errors,
+        "summary date count differs from selected inputs",
+    )
     broker = summary.get("broker")
     _expect(
         isinstance(broker, Mapping)
@@ -990,9 +1137,9 @@ def _verify_run(example: str, input_path: Path, inputs: Mapping[str, Any]) -> Tu
         _expect(summary.get("operator_profile") == "alpha101-v2", errors, "027 summary operator_profile is not alpha101-v2")
         _expect(isinstance(summary.get("indicator"), str) and "Alpha003" in summary.get("indicator", ""), errors, "027 summary indicator is unknown")
         _expect(
-            type(summary.get("cells")) is int and summary.get("cells") == 121500,
+            type(summary.get("cells")) is int and summary.get("cells") == _grid_cell_count(inputs),
             errors,
-            "027 summary cells is not 121500",
+            "027 summary cells differ from the selected input grid",
         )
 
     factor = _factor_csv(root / "factor_values.csv", inputs, example)
@@ -1209,7 +1356,9 @@ def _compare_pair(example: str, left: Mapping[str, Any], right: Mapping[str, Any
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--data-root", type=Path, default=DEFAULT_DATA_ROOT)
-    parser.add_argument("--selection", type=Path, default=DEFAULT_SELECTION)
+    parser.add_argument("--selection", type=Path, help="frozen selection file used by the default fixed500 universe")
+    parser.add_argument("--universe", choices=("fixed500", "all"), default="fixed500",
+                        help="fixed pinned sample (default) or all 5471 manifest symbols")
     parser.add_argument("--run", action="append", type=_parse_assignment, help="one-run check: repeat EXAMPLE=PATH for 025/026/027")
     parser.add_argument("--baseline", action="append", type=_parse_assignment, help="A/B baseline: repeat EXAMPLE=PATH for 025/026/027")
     parser.add_argument("--candidate", action="append", type=_parse_assignment, help="A/B candidate: repeat EXAMPLE=PATH for 025/026/027")
@@ -1224,8 +1373,15 @@ def _run_record(example: str, path: Path, inputs: Mapping[str, Any]) -> Tuple[Di
 
 def main(argv: Optional[Sequence[str]] = None) -> int:
     args = _parser().parse_args(argv)
+    schema = (
+        "iteration49.fixed500_output_verification.v1"
+        if args.universe == "fixed500"
+        else "iteration49.all_output_verification.v1"
+    )
     mode: str
     try:
+        if args.universe == "all" and args.selection is not None:
+            raise VerificationError("--selection is only valid with --universe fixed500")
         if args.run:
             if args.baseline or args.candidate:
                 raise VerificationError("--run cannot be combined with --baseline/--candidate")
@@ -1241,7 +1397,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             }
     except (VerificationError, OSError, csv.Error, ValueError, TypeError, KeyError) as exc:
         result = {
-            "schema": "iteration49.fixed500_output_verification.v1",
+            "schema": schema,
+            "input_universe": args.universe,
             "status": "FAIL",
             "mode": "invalid-invocation",
             "valid": False,
@@ -1253,7 +1410,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     if args.output:
         destination = args.output.expanduser().resolve()
         protected_roots = [args.data_root.expanduser().resolve()]
-        protected_paths = [args.selection.expanduser().resolve()]
+        protected_paths = [] if args.selection is None else [args.selection.expanduser().resolve()]
         for paths in run_paths.values():
             for path in paths.values():
                 resolved_input = path.expanduser().resolve()
@@ -1266,7 +1423,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             destination == path for path in protected_paths
         ):
             result = {
-                "schema": "iteration49.fixed500_output_verification.v1",
+                "schema": schema,
+                "input_universe": args.universe,
                 "status": "FAIL",
                 "mode": "invalid-invocation",
                 "valid": False,
@@ -1278,10 +1436,11 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             return 1
 
     try:
-        inputs = _load_fixed_inputs(args.data_root, args.selection)
+        inputs = _load_inputs(args.data_root, args.selection, args.universe)
     except (VerificationError, OSError, csv.Error, ValueError, TypeError, KeyError) as exc:
         result = {
-            "schema": "iteration49.fixed500_output_verification.v1",
+            "schema": schema,
+            "input_universe": args.universe,
             "status": "FAIL",
             "mode": mode,
             "valid": False,
@@ -1321,21 +1480,26 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     all_pairs_valid = mode != "ab-pair" or all(item.get("valid") for item in comparisons.values())
     valid = all_runs_valid and all_pairs_valid
     result = {
-        "schema": "iteration49.fixed500_output_verification.v1",
+        "schema": schema,
+        "input_universe": inputs["universe"],
         "status": "PASS" if valid else "FAIL",
         "mode": mode,
         "valid": valid,
         "scope_complete": all(set(paths) == set(EXPECTED_EXAMPLES) for paths in run_paths.values()),
-        "fixed_input": {
-            "selection": inputs["selection_path"],
-            "selection_sha256": inputs["selection_sha256"],
+        ("fixed_input" if args.universe == "fixed500" else "full_input"): {
+            **({
+                "selection": inputs["selection_path"],
+                "selection_sha256": inputs["selection_sha256"],
+            } if args.universe == "fixed500" else {}),
+            "universe": inputs["universe"],
             "data_root": inputs["data_root"],
             "manifest_sha256": inputs["manifest_sha256"],
             "calendar_sha256": inputs["calendar_sha256"],
             "symbol_count": len(inputs["symbols"]),
             "date_count": len(inputs["dates"]),
             "grid_cells": inputs["grid_cells"],
-            "ordered_symbols_sha256": hashlib.sha256(("\n".join(inputs["symbols"]) + "\n").encode("utf-8")).hexdigest(),
+            "ordered_symbols_sha256": inputs["ordered_symbols_sha256"],
+            **({"files_sha256": inputs["files_sha256"]} if args.universe == "all" else {}),
         },
         "runs": runs,
         "comparisons": comparisons,
