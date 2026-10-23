@@ -19,6 +19,7 @@ takes ordinary feed category lines through ``groups=`` (or reads the requested
 ``level`` line from each feed).
 """
 
+import array as _array_module
 from enum import IntEnum
 import math
 import numbers
@@ -26,6 +27,7 @@ import operator
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 from .. import Indicator
+from ..linebuffer import LineBuffer
 from .factor_indicator import FactorIndicator
 
 
@@ -51,6 +53,15 @@ class OperatorInputError(ValueError):
 
 _NAN = float("nan")
 _LEVELS = ("sector", "industry", "subindustry")
+_FAST_WINDOW_MISS = object()
+
+# The window reader may bypass scalar ``LineBuffer.__getitem__`` calls only
+# while the standard implementation is still installed. Keep these identities
+# at import time so runtime monkeypatches take the established scalar path.
+_LINEBUFFER_GETATTRIBUTE = LineBuffer.__getattribute__
+_LINEBUFFER_GETITEM = LineBuffer.__getitem__
+_LINEBUFFER_LEN = LineBuffer.__len__
+_LINEBUFFER_UNBOUNDED = LineBuffer.UnBounded
 
 
 def _associated_reason(
@@ -157,10 +168,69 @@ def _read_operand(source: Any, ago: int = 0) -> Tuple[float, OperatorReason]:
     return _read_value(source, ago)
 
 
+def _try_read_unbounded_linebuffer_window(source: Any, period: int) -> Any:
+    """Read a safe contiguous LineBuffer window, or return the miss sentinel.
+
+    This narrow path is limited to the exact standard LineBuffer storage and
+    method implementations. It reads the current array on every call, so a
+    normal reset that replaces the backing array cannot leave stale data in a
+    cache. Every other source retains the scalar reader's existing behavior.
+    """
+    if type(source) is not LineBuffer or type(period) is not int or period <= 0:
+        return _FAST_WINDOW_MISS
+    if (
+        LineBuffer.__getattribute__ is not _LINEBUFFER_GETATTRIBUTE
+        or LineBuffer.__getitem__ is not _LINEBUFFER_GETITEM
+        or LineBuffer.__len__ is not _LINEBUFFER_LEN
+    ):
+        return _FAST_WINDOW_MISS
+
+    index = source._idx
+    logical_length = source.lencount
+    mode = source.mode
+    storage = source.array
+    if (
+        type(index) is not int
+        or type(logical_length) is not int
+        or type(mode) is not int
+        or mode != _LINEBUFFER_UNBOUNDED
+        or type(storage) is not _array_module.array
+        or storage.typecode != "d"
+        or logical_length < period
+    ):
+        return _FAST_WINDOW_MISS
+
+    if logical_length > 0 and index >= logical_length:
+        index = logical_length - 1
+    start = index - period + 1
+    stop = index + 1
+    if start < 0 or stop > len(storage) or stop - start != period:
+        return _FAST_WINDOW_MISS
+
+    # array.array slicing returns a fresh array('d') snapshot. Keep the old
+    # oldest-to-newest validation order and do not alter the downstream math.
+    values = []
+    for offset, raw_value in enumerate(storage[start:stop]):
+        # Exact array('d') indexing yields a builtin float, so the scalar
+        # reader's repeated float conversion and infinity check are redundant.
+        if math.isinf(raw_value):
+            raise OperatorInputError("source line contains infinity")
+        if math.isnan(raw_value):
+            # The window result is always INCOMPLETE_WINDOW, but preserve the
+            # scalar reader's reason lookup and its observable failures.
+            _associated_reason(source, absolute_index=start + offset)
+            return None, OperatorReason.INCOMPLETE_WINDOW
+        values.append(raw_value)
+    return values, OperatorReason.READY
+
+
 def _read_window(source: Any, period: int) -> Tuple[Optional[List[float]], OperatorReason]:
     """Read a complete oldest-to-newest window, preserving every grid slot."""
     if not isinstance(source, numbers.Real) and len(source) < period:
         return None, OperatorReason.NOT_READY
+    fast_result = _try_read_unbounded_linebuffer_window(source, period)
+    if fast_result is not _FAST_WINDOW_MISS:
+        return fast_result
     values = []
     for ago in range(period - 1, -1, -1):
         value, reason = _read_operand(source, -ago)
