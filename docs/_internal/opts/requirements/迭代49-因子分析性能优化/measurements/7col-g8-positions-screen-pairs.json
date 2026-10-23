@@ -1,0 +1,1162 @@
+{
+  "schema": "iteration49.next-pairs.v1",
+  "status": "PASS_OUTPUT_EQUIVALENCE_MEASUREMENT_ONLY",
+  "counts": {
+    "measured_processes": 6,
+    "unique_comparisons": 3,
+    "verifiers": 1
+  },
+  "sources": {
+    "schema_version": 1,
+    "workspace_root": "D:\\source_code\\backtrader",
+    "output_root": "D:/temp",
+    "output_prefix": "iteration49-g8-positions-500",
+    "pairs": [
+      1
+    ],
+    "backtrader_snapshot": {
+      "mode": "snapshot",
+      "root": "D:/temp/iteration49-g7-backtrader-fa7a34843",
+      "commit": "fa7a34843add94c06bb514630787d65956939124",
+      "manifest_sha256": "6077de3a720ad809b02171c720d35f17aa75a559703a2ce7219b9c8cd3c58e30"
+    },
+    "fincore_baseline": {
+      "mode": "snapshot",
+      "root": "D:/temp/iteration49-g6-fincore-4e01ac9",
+      "commit": "4e01ac9f6f081f13acd60b45559119e1a5ed4a4f",
+      "manifest_sha256": "dd302498270cf278766dca2dbb3c9494abe54c908f84b8c7f97b1493efa7af3c"
+    },
+    "fincore_candidate": {
+      "mode": "worktree",
+      "root": "D:\\source_code\\fincore",
+      "branch": "dev",
+      "commit": "4e01ac9f6f081f13acd60b45559119e1a5ed4a4f",
+      "expected_file_count": 132,
+      "source_scopes": [
+        "fincore"
+      ],
+      "allowed_delta": {
+        "fincore/factor_analysis/portfolio.py": {
+          "size_bytes": 11767,
+          "sha256": "bb495953765d300034f783c0affb99add6c99b65295818bc2878df10c1003f7d"
+        }
+      },
+      "checkout_raw_overrides": {},
+      "test_pins": {
+        "tests/factor_analysis/test_factor_analysis_positions_buffer.py": {
+          "size_bytes": 10024,
+          "sha256": "e58cfbab427d1d3152f1b414649b2e13aec8768af478278b6f414d67a745612d"
+        }
+      },
+      "status_scopes": [
+        "fincore",
+        "tests/factor_analysis/test_factor_analysis_positions_buffer.py"
+      ],
+      "expected_status": [
+        " M fincore/factor_analysis/portfolio.py",
+        "?? tests/factor_analysis/test_factor_analysis_positions_buffer.py"
+      ],
+      "result_source_status": [
+        " M fincore/factor_analysis/portfolio.py"
+      ]
+    },
+    "tool_pins": {
+      "scripts/benchmark_factor_examples.py": {
+        "size_bytes": 39888,
+        "sha256": "63233d4cdfae9fc3f79813f88b96840a9019ea6fcb09d0cb80b667e62c1a8dd2"
+      },
+      "scripts/verify_factor_examples_benchmark.py": {
+        "size_bytes": 78101,
+        "sha256": "5818795349d7856a3dcac897ffbd0687a6c60cde7552e8aa67570a534768c921"
+      }
+    },
+    "data": {
+      "root": "D:\\source_code\\backtrader\\tests\\datas\\a_stocks",
+      "selection": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\迭代49-因子分析性能优化\\benchmark-500-7col.json",
+      "selection_sha256": "14f789a9d9e649987b93bc0477a0f94acc5223edd7ccd70166c8ea4b33ba35dc",
+      "reference_result": "D:\\temp\\iteration49-g7-collection-p1-a-025\\result.json",
+      "reference_result_sha256": "fb2e05ac00058a618074c989c8ca4c4957ba7d585b18d573a52f4b8de151bc2d"
+    }
+  },
+  "fixed_data_identity": {
+    "dates": 243,
+    "files_sha256": "92330cdea2880a9825d35ebaf4763ac330063c7183c669d9e8f0ce6955d98347",
+    "grid_cells": 121500,
+    "ordered_symbols_sha256": "dda661efc19e42770028a61d4b43a4160a0bf08b3adf4dae353e8234d7ad5dbe",
+    "selection_sha256": "14f789a9d9e649987b93bc0477a0f94acc5223edd7ccd70166c8ea4b33ba35dc",
+    "symbols": 500,
+    "universe": "fixed500"
+  },
+  "actual_runs": [
+    {
+      "pair": 1,
+      "arm": "a",
+      "example": "025",
+      "wall_s": 20.1893371,
+      "cpu_s": 19.453125,
+      "peak_bytes": 312221696,
+      "phase_timers": {
+        "align_to_grid": {
+          "calls": 500,
+          "parent_labels": [
+            "collection"
+          ],
+          "process_cpu_exclusive_ns": 828125000,
+          "process_cpu_inclusive_ns": 828125000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 841283900,
+          "wall_inclusive_ns": 841283900
+        },
+        "cerebro_run": {
+          "calls": 1,
+          "parent_labels": [
+            "collection"
+          ],
+          "process_cpu_exclusive_ns": 390625000,
+          "process_cpu_inclusive_ns": 5281250000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 367162000,
+          "wall_inclusive_ns": 5409761800
+        },
+        "collect_grid_points": {
+          "calls": 243,
+          "parent_labels": [
+            "engine_runonce"
+          ],
+          "process_cpu_exclusive_ns": 921875000,
+          "process_cpu_inclusive_ns": 921875000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 868403900,
+          "wall_inclusive_ns": 868403900
+        },
+        "collection": {
+          "calls": 1,
+          "parent_labels": [],
+          "process_cpu_exclusive_ns": 31250000,
+          "process_cpu_inclusive_ns": 6140625000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 39261700,
+          "wall_inclusive_ns": 6290307400
+        },
+        "dataframe_to_csv": {
+          "calls": 36,
+          "parent_labels": [
+            "evaluation_export"
+          ],
+          "process_cpu_exclusive_ns": 1718750000,
+          "process_cpu_inclusive_ns": 1718750000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 1882179500,
+          "wall_inclusive_ns": 1882179500
+        },
+        "engine_runonce": {
+          "calls": 1,
+          "parent_labels": [
+            "cerebro_run"
+          ],
+          "process_cpu_exclusive_ns": 2125000000,
+          "process_cpu_inclusive_ns": 3046875000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 2298613700,
+          "wall_inclusive_ns": 3167017600
+        },
+        "evaluate_frames": {
+          "calls": 1,
+          "parent_labels": [],
+          "process_cpu_exclusive_ns": 140625000,
+          "process_cpu_inclusive_ns": 5453125000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 136874900,
+          "wall_inclusive_ns": 5714515600
+        },
+        "evaluation_charts": {
+          "calls": 1,
+          "parent_labels": [
+            "evaluation_export"
+          ],
+          "process_cpu_exclusive_ns": 500000000,
+          "process_cpu_inclusive_ns": 500000000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 524979400,
+          "wall_inclusive_ns": 524979400
+        },
+        "evaluation_export": {
+          "calls": 1,
+          "parent_labels": [],
+          "process_cpu_exclusive_ns": 46875000,
+          "process_cpu_inclusive_ns": 1656250000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 46877900,
+          "wall_inclusive_ns": 1836260600
+        },
+        "feed_preload": {
+          "calls": 500,
+          "parent_labels": [
+            "cerebro_run"
+          ],
+          "process_cpu_exclusive_ns": 1796875000,
+          "process_cpu_inclusive_ns": 1796875000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 1825422200,
+          "wall_inclusive_ns": 1825422200
+        },
+        "fincore_evaluate": {
+          "calls": 1,
+          "parent_labels": [
+            "evaluate_frames"
+          ],
+          "process_cpu_exclusive_ns": 5312500000,
+          "process_cpu_inclusive_ns": 5312500000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 5577640700,
+          "wall_inclusive_ns": 5577640700
+        },
+        "html_report": {
+          "calls": 1,
+          "parent_labels": [],
+          "process_cpu_exclusive_ns": 4218750000,
+          "process_cpu_inclusive_ns": 4218750000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 4309467100,
+          "wall_inclusive_ns": 4309467100
+        },
+        "load_daily_panel": {
+          "calls": 1,
+          "parent_labels": [],
+          "process_cpu_exclusive_ns": 1281250000,
+          "process_cpu_inclusive_ns": 1281250000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 1340415000,
+          "wall_inclusive_ns": 1340415000
+        },
+        "sink_finalize": {
+          "calls": 1,
+          "parent_labels": [
+            "strategy_stop"
+          ],
+          "process_cpu_exclusive_ns": 46875000,
+          "process_cpu_inclusive_ns": 46875000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 36500100,
+          "wall_inclusive_ns": 36500100
+        },
+        "strategy_stop": {
+          "calls": 1,
+          "parent_labels": [
+            "cerebro_run"
+          ],
+          "process_cpu_exclusive_ns": 0,
+          "process_cpu_inclusive_ns": 46875000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 13659900,
+          "wall_inclusive_ns": 50160000
+        }
+      },
+      "main_peak_working_set_bytes": 312221696,
+      "resource_peak_tree_rss_bytes": 303808512
+    },
+    {
+      "pair": 1,
+      "arm": "b",
+      "example": "025",
+      "wall_s": 19.9195879,
+      "cpu_s": 19.171875,
+      "peak_bytes": 314613760,
+      "phase_timers": {
+        "align_to_grid": {
+          "calls": 500,
+          "parent_labels": [
+            "collection"
+          ],
+          "process_cpu_exclusive_ns": 828125000,
+          "process_cpu_inclusive_ns": 828125000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 853316200,
+          "wall_inclusive_ns": 853316200
+        },
+        "cerebro_run": {
+          "calls": 1,
+          "parent_labels": [
+            "collection"
+          ],
+          "process_cpu_exclusive_ns": 328125000,
+          "process_cpu_inclusive_ns": 5125000000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 365243700,
+          "wall_inclusive_ns": 5367579500
+        },
+        "collect_grid_points": {
+          "calls": 243,
+          "parent_labels": [
+            "engine_runonce"
+          ],
+          "process_cpu_exclusive_ns": 750000000,
+          "process_cpu_inclusive_ns": 750000000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 812201900,
+          "wall_inclusive_ns": 812201900
+        },
+        "collection": {
+          "calls": 1,
+          "parent_labels": [],
+          "process_cpu_exclusive_ns": 46875000,
+          "process_cpu_inclusive_ns": 6000000000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 36809800,
+          "wall_inclusive_ns": 6257705500
+        },
+        "dataframe_to_csv": {
+          "calls": 36,
+          "parent_labels": [
+            "evaluation_export"
+          ],
+          "process_cpu_exclusive_ns": 1796875000,
+          "process_cpu_inclusive_ns": 1796875000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 1832396900,
+          "wall_inclusive_ns": 1832396900
+        },
+        "engine_runonce": {
+          "calls": 1,
+          "parent_labels": [
+            "cerebro_run"
+          ],
+          "process_cpu_exclusive_ns": 2234375000,
+          "process_cpu_inclusive_ns": 2984375000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 2276160500,
+          "wall_inclusive_ns": 3088362400
+        },
+        "evaluate_frames": {
+          "calls": 1,
+          "parent_labels": [],
+          "process_cpu_exclusive_ns": 156250000,
+          "process_cpu_inclusive_ns": 5343750000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 180851800,
+          "wall_inclusive_ns": 5594468000
+        },
+        "evaluation_charts": {
+          "calls": 1,
+          "parent_labels": [
+            "evaluation_export"
+          ],
+          "process_cpu_exclusive_ns": 562500000,
+          "process_cpu_inclusive_ns": 562500000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 558122200,
+          "wall_inclusive_ns": 558122200
+        },
+        "evaluation_export": {
+          "calls": 1,
+          "parent_labels": [],
+          "process_cpu_exclusive_ns": 62500000,
+          "process_cpu_inclusive_ns": 1812500000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 43256000,
+          "wall_inclusive_ns": 1818929800
+        },
+        "feed_preload": {
+          "calls": 500,
+          "parent_labels": [
+            "cerebro_run"
+          ],
+          "process_cpu_exclusive_ns": 1750000000,
+          "process_cpu_inclusive_ns": 1750000000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 1862946500,
+          "wall_inclusive_ns": 1862946500
+        },
+        "fincore_evaluate": {
+          "calls": 1,
+          "parent_labels": [
+            "evaluate_frames"
+          ],
+          "process_cpu_exclusive_ns": 5187500000,
+          "process_cpu_inclusive_ns": 5187500000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 5413616200,
+          "wall_inclusive_ns": 5413616200
+        },
+        "html_report": {
+          "calls": 1,
+          "parent_labels": [],
+          "process_cpu_exclusive_ns": 4031250000,
+          "process_cpu_inclusive_ns": 4031250000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 4197651800,
+          "wall_inclusive_ns": 4197651800
+        },
+        "load_daily_panel": {
+          "calls": 1,
+          "parent_labels": [],
+          "process_cpu_exclusive_ns": 1296875000,
+          "process_cpu_inclusive_ns": 1296875000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 1352790600,
+          "wall_inclusive_ns": 1352790600
+        },
+        "sink_finalize": {
+          "calls": 1,
+          "parent_labels": [
+            "strategy_stop"
+          ],
+          "process_cpu_exclusive_ns": 31250000,
+          "process_cpu_inclusive_ns": 31250000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 37637500,
+          "wall_inclusive_ns": 37637500
+        },
+        "strategy_stop": {
+          "calls": 1,
+          "parent_labels": [
+            "cerebro_run"
+          ],
+          "process_cpu_exclusive_ns": 31250000,
+          "process_cpu_inclusive_ns": 62500000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 13389400,
+          "wall_inclusive_ns": 51026900
+        }
+      },
+      "main_peak_working_set_bytes": 314613760,
+      "resource_peak_tree_rss_bytes": 306212864
+    },
+    {
+      "pair": 1,
+      "arm": "a",
+      "example": "026",
+      "wall_s": 43.1282675,
+      "cpu_s": 41.421875,
+      "peak_bytes": 348176384,
+      "phase_timers": {
+        "align_to_grid": {
+          "calls": 500,
+          "parent_labels": [
+            "collection"
+          ],
+          "process_cpu_exclusive_ns": 843750000,
+          "process_cpu_inclusive_ns": 843750000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 818302500,
+          "wall_inclusive_ns": 818302500
+        },
+        "cerebro_run": {
+          "calls": 1,
+          "parent_labels": [
+            "collection"
+          ],
+          "process_cpu_exclusive_ns": 1781250000,
+          "process_cpu_inclusive_ns": 11390625000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 1795992400,
+          "wall_inclusive_ns": 11957525100
+        },
+        "collect_grid_points": {
+          "calls": 243,
+          "parent_labels": [
+            "engine_runonce"
+          ],
+          "process_cpu_exclusive_ns": 1656250000,
+          "process_cpu_inclusive_ns": 1656250000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 1678129400,
+          "wall_inclusive_ns": 1678129400
+        },
+        "collection": {
+          "calls": 1,
+          "parent_labels": [],
+          "process_cpu_exclusive_ns": 78125000,
+          "process_cpu_inclusive_ns": 12312500000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 103867200,
+          "wall_inclusive_ns": 12879694800
+        },
+        "dataframe_to_csv": {
+          "calls": 56,
+          "parent_labels": [
+            "evaluation_export"
+          ],
+          "process_cpu_exclusive_ns": 3046875000,
+          "process_cpu_inclusive_ns": 3046875000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 3176917600,
+          "wall_inclusive_ns": 3176917600
+        },
+        "engine_runonce": {
+          "calls": 1,
+          "parent_labels": [
+            "cerebro_run"
+          ],
+          "process_cpu_exclusive_ns": 6390625000,
+          "process_cpu_inclusive_ns": 8046875000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 6472135600,
+          "wall_inclusive_ns": 8150265000
+        },
+        "evaluate_frames": {
+          "calls": 1,
+          "parent_labels": [],
+          "process_cpu_exclusive_ns": 140625000,
+          "process_cpu_inclusive_ns": 12343750000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 154585800,
+          "wall_inclusive_ns": 12513744700
+        },
+        "evaluation_charts": {
+          "calls": 1,
+          "parent_labels": [
+            "evaluation_export"
+          ],
+          "process_cpu_exclusive_ns": 546875000,
+          "process_cpu_inclusive_ns": 546875000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 549697000,
+          "wall_inclusive_ns": 549697000
+        },
+        "evaluation_export": {
+          "calls": 1,
+          "parent_labels": [],
+          "process_cpu_exclusive_ns": 31250000,
+          "process_cpu_inclusive_ns": 2781250000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 51832300,
+          "wall_inclusive_ns": 2895588400
+        },
+        "feed_preload": {
+          "calls": 500,
+          "parent_labels": [
+            "cerebro_run"
+          ],
+          "process_cpu_exclusive_ns": 1500000000,
+          "process_cpu_inclusive_ns": 1500000000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 1942346000,
+          "wall_inclusive_ns": 1942346000
+        },
+        "fincore_evaluate": {
+          "calls": 1,
+          "parent_labels": [
+            "evaluate_frames"
+          ],
+          "process_cpu_exclusive_ns": 12203125000,
+          "process_cpu_inclusive_ns": 12203125000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 12359158900,
+          "wall_inclusive_ns": 12359158900
+        },
+        "html_report": {
+          "calls": 3,
+          "parent_labels": [],
+          "process_cpu_exclusive_ns": 11656250000,
+          "process_cpu_inclusive_ns": 11656250000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 12449897500,
+          "wall_inclusive_ns": 12449897500
+        },
+        "load_daily_panel": {
+          "calls": 1,
+          "parent_labels": [],
+          "process_cpu_exclusive_ns": 1343750000,
+          "process_cpu_inclusive_ns": 1343750000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 1369888600,
+          "wall_inclusive_ns": 1369888600
+        },
+        "sink_finalize": {
+          "calls": 1,
+          "parent_labels": [
+            "strategy_stop"
+          ],
+          "process_cpu_exclusive_ns": 46875000,
+          "process_cpu_inclusive_ns": 46875000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 54235000,
+          "wall_inclusive_ns": 54235000
+        },
+        "strategy_stop": {
+          "calls": 1,
+          "parent_labels": [
+            "cerebro_run"
+          ],
+          "process_cpu_exclusive_ns": 15625000,
+          "process_cpu_inclusive_ns": 62500000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 14686700,
+          "wall_inclusive_ns": 68921700
+        }
+      },
+      "main_peak_working_set_bytes": 348176384,
+      "resource_peak_tree_rss_bytes": 337944576
+    },
+    {
+      "pair": 1,
+      "arm": "b",
+      "example": "026",
+      "wall_s": 42.799864,
+      "cpu_s": 41.03125,
+      "peak_bytes": 346042368,
+      "phase_timers": {
+        "align_to_grid": {
+          "calls": 500,
+          "parent_labels": [
+            "collection"
+          ],
+          "process_cpu_exclusive_ns": 875000000,
+          "process_cpu_inclusive_ns": 875000000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 891886500,
+          "wall_inclusive_ns": 891886500
+        },
+        "cerebro_run": {
+          "calls": 1,
+          "parent_labels": [
+            "collection"
+          ],
+          "process_cpu_exclusive_ns": 1812500000,
+          "process_cpu_inclusive_ns": 11125000000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 1885144200,
+          "wall_inclusive_ns": 11957105200
+        },
+        "collect_grid_points": {
+          "calls": 243,
+          "parent_labels": [
+            "engine_runonce"
+          ],
+          "process_cpu_exclusive_ns": 1625000000,
+          "process_cpu_inclusive_ns": 1625000000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 1698121400,
+          "wall_inclusive_ns": 1698121400
+        },
+        "collection": {
+          "calls": 1,
+          "parent_labels": [],
+          "process_cpu_exclusive_ns": 78125000,
+          "process_cpu_inclusive_ns": 12078125000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 103592300,
+          "wall_inclusive_ns": 12952584000
+        },
+        "dataframe_to_csv": {
+          "calls": 56,
+          "parent_labels": [
+            "evaluation_export"
+          ],
+          "process_cpu_exclusive_ns": 3218750000,
+          "process_cpu_inclusive_ns": 3218750000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 3439051200,
+          "wall_inclusive_ns": 3439051200
+        },
+        "engine_runonce": {
+          "calls": 1,
+          "parent_labels": [
+            "cerebro_run"
+          ],
+          "process_cpu_exclusive_ns": 5765625000,
+          "process_cpu_inclusive_ns": 7390625000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 6439747100,
+          "wall_inclusive_ns": 8137868500
+        },
+        "evaluate_frames": {
+          "calls": 1,
+          "parent_labels": [],
+          "process_cpu_exclusive_ns": 93750000,
+          "process_cpu_inclusive_ns": 12781250000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 103714800,
+          "wall_inclusive_ns": 13020017100
+        },
+        "evaluation_charts": {
+          "calls": 1,
+          "parent_labels": [
+            "evaluation_export"
+          ],
+          "process_cpu_exclusive_ns": 562500000,
+          "process_cpu_inclusive_ns": 562500000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 579813600,
+          "wall_inclusive_ns": 579813600
+        },
+        "evaluation_export": {
+          "calls": 1,
+          "parent_labels": [],
+          "process_cpu_exclusive_ns": 46875000,
+          "process_cpu_inclusive_ns": 2984375000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 51830900,
+          "wall_inclusive_ns": 3203574700
+        },
+        "feed_preload": {
+          "calls": 500,
+          "parent_labels": [
+            "cerebro_run"
+          ],
+          "process_cpu_exclusive_ns": 1843750000,
+          "process_cpu_inclusive_ns": 1843750000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 1864897700,
+          "wall_inclusive_ns": 1864897700
+        },
+        "fincore_evaluate": {
+          "calls": 1,
+          "parent_labels": [
+            "evaluate_frames"
+          ],
+          "process_cpu_exclusive_ns": 12687500000,
+          "process_cpu_inclusive_ns": 12687500000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 12916302300,
+          "wall_inclusive_ns": 12916302300
+        },
+        "html_report": {
+          "calls": 3,
+          "parent_labels": [],
+          "process_cpu_exclusive_ns": 10671875000,
+          "process_cpu_inclusive_ns": 10671875000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 10944511000,
+          "wall_inclusive_ns": 10944511000
+        },
+        "load_daily_panel": {
+          "calls": 1,
+          "parent_labels": [],
+          "process_cpu_exclusive_ns": 1531250000,
+          "process_cpu_inclusive_ns": 1531250000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 1668631800,
+          "wall_inclusive_ns": 1668631800
+        },
+        "sink_finalize": {
+          "calls": 1,
+          "parent_labels": [
+            "strategy_stop"
+          ],
+          "process_cpu_exclusive_ns": 62500000,
+          "process_cpu_inclusive_ns": 62500000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 53606600,
+          "wall_inclusive_ns": 53606600
+        },
+        "strategy_stop": {
+          "calls": 1,
+          "parent_labels": [
+            "cerebro_run"
+          ],
+          "process_cpu_exclusive_ns": 15625000,
+          "process_cpu_inclusive_ns": 78125000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 15588200,
+          "wall_inclusive_ns": 69194800
+        }
+      },
+      "main_peak_working_set_bytes": 346042368,
+      "resource_peak_tree_rss_bytes": 335826944
+    },
+    {
+      "pair": 1,
+      "arm": "a",
+      "example": "027",
+      "wall_s": 26.545259,
+      "cpu_s": 25.703125,
+      "peak_bytes": 298209280,
+      "phase_timers": {
+        "align_to_grid": {
+          "calls": 500,
+          "parent_labels": [
+            "collection"
+          ],
+          "process_cpu_exclusive_ns": 812500000,
+          "process_cpu_inclusive_ns": 812500000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 860663900,
+          "wall_inclusive_ns": 860663900
+        },
+        "cerebro_run": {
+          "calls": 1,
+          "parent_labels": [
+            "collection"
+          ],
+          "process_cpu_exclusive_ns": 421875000,
+          "process_cpu_inclusive_ns": 18359375000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 458243400,
+          "wall_inclusive_ns": 18843017600
+        },
+        "collect_grid_points": {
+          "calls": 243,
+          "parent_labels": [
+            "engine_runnext"
+          ],
+          "process_cpu_exclusive_ns": 1359375000,
+          "process_cpu_inclusive_ns": 1359375000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 1091236400,
+          "wall_inclusive_ns": 1091236400
+        },
+        "collection": {
+          "calls": 1,
+          "parent_labels": [],
+          "process_cpu_exclusive_ns": 312500000,
+          "process_cpu_inclusive_ns": 19484375000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 387082000,
+          "wall_inclusive_ns": 20090763500
+        },
+        "dataframe_to_csv": {
+          "calls": 1,
+          "parent_labels": [],
+          "process_cpu_exclusive_ns": 656250000,
+          "process_cpu_inclusive_ns": 656250000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 656020500,
+          "wall_inclusive_ns": 656020500
+        },
+        "engine_runnext": {
+          "calls": 1,
+          "parent_labels": [
+            "cerebro_run"
+          ],
+          "process_cpu_exclusive_ns": 14625000000,
+          "process_cpu_inclusive_ns": 15984375000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 15356095300,
+          "wall_inclusive_ns": 16447331700
+        },
+        "feed_preload": {
+          "calls": 500,
+          "parent_labels": [
+            "cerebro_run"
+          ],
+          "process_cpu_exclusive_ns": 1890625000,
+          "process_cpu_inclusive_ns": 1890625000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 1874634300,
+          "wall_inclusive_ns": 1874634300
+        },
+        "html_report": {
+          "calls": 1,
+          "parent_labels": [],
+          "process_cpu_exclusive_ns": 4156250000,
+          "process_cpu_inclusive_ns": 4156250000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 4363039000,
+          "wall_inclusive_ns": 4363039000
+        },
+        "load_daily_panel": {
+          "calls": 1,
+          "parent_labels": [],
+          "process_cpu_exclusive_ns": 1312500000,
+          "process_cpu_inclusive_ns": 1312500000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 1331503200,
+          "wall_inclusive_ns": 1331503200
+        },
+        "sink_finalize": {
+          "calls": 1,
+          "parent_labels": [
+            "strategy_stop"
+          ],
+          "process_cpu_exclusive_ns": 31250000,
+          "process_cpu_inclusive_ns": 31250000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 38393300,
+          "wall_inclusive_ns": 38393300
+        },
+        "strategy_stop": {
+          "calls": 1,
+          "parent_labels": [
+            "cerebro_run"
+          ],
+          "process_cpu_exclusive_ns": 31250000,
+          "process_cpu_inclusive_ns": 62500000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 24414900,
+          "wall_inclusive_ns": 62808200
+        }
+      },
+      "main_peak_working_set_bytes": 298209280,
+      "resource_peak_tree_rss_bytes": 296042496
+    },
+    {
+      "pair": 1,
+      "arm": "b",
+      "example": "027",
+      "wall_s": 26.3003771,
+      "cpu_s": 25.171875,
+      "peak_bytes": 300474368,
+      "phase_timers": {
+        "align_to_grid": {
+          "calls": 500,
+          "parent_labels": [
+            "collection"
+          ],
+          "process_cpu_exclusive_ns": 843750000,
+          "process_cpu_inclusive_ns": 843750000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 851494700,
+          "wall_inclusive_ns": 851494700
+        },
+        "cerebro_run": {
+          "calls": 1,
+          "parent_labels": [
+            "collection"
+          ],
+          "process_cpu_exclusive_ns": 406250000,
+          "process_cpu_inclusive_ns": 17843750000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 475076400,
+          "wall_inclusive_ns": 18723248600
+        },
+        "collect_grid_points": {
+          "calls": 243,
+          "parent_labels": [
+            "engine_runnext"
+          ],
+          "process_cpu_exclusive_ns": 921875000,
+          "process_cpu_inclusive_ns": 921875000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 1114013900,
+          "wall_inclusive_ns": 1114013900
+        },
+        "collection": {
+          "calls": 1,
+          "parent_labels": [],
+          "process_cpu_exclusive_ns": 406250000,
+          "process_cpu_inclusive_ns": 19093750000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 414206300,
+          "wall_inclusive_ns": 19988949600
+        },
+        "dataframe_to_csv": {
+          "calls": 1,
+          "parent_labels": [],
+          "process_cpu_exclusive_ns": 656250000,
+          "process_cpu_inclusive_ns": 656250000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 721793800,
+          "wall_inclusive_ns": 721793800
+        },
+        "engine_runnext": {
+          "calls": 1,
+          "parent_labels": [
+            "cerebro_run"
+          ],
+          "process_cpu_exclusive_ns": 14437500000,
+          "process_cpu_inclusive_ns": 15359375000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 15106970400,
+          "wall_inclusive_ns": 16220984300
+        },
+        "feed_preload": {
+          "calls": 500,
+          "parent_labels": [
+            "cerebro_run"
+          ],
+          "process_cpu_exclusive_ns": 2031250000,
+          "process_cpu_inclusive_ns": 2031250000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 1975658600,
+          "wall_inclusive_ns": 1975658600
+        },
+        "html_report": {
+          "calls": 1,
+          "parent_labels": [],
+          "process_cpu_exclusive_ns": 4000000000,
+          "process_cpu_inclusive_ns": 4000000000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 4023477700,
+          "wall_inclusive_ns": 4023477700
+        },
+        "load_daily_panel": {
+          "calls": 1,
+          "parent_labels": [],
+          "process_cpu_exclusive_ns": 1296875000,
+          "process_cpu_inclusive_ns": 1296875000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 1417840700,
+          "wall_inclusive_ns": 1417840700
+        },
+        "sink_finalize": {
+          "calls": 1,
+          "parent_labels": [
+            "strategy_stop"
+          ],
+          "process_cpu_exclusive_ns": 46875000,
+          "process_cpu_inclusive_ns": 46875000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 37253100,
+          "wall_inclusive_ns": 37253100
+        },
+        "strategy_stop": {
+          "calls": 1,
+          "parent_labels": [
+            "cerebro_run"
+          ],
+          "process_cpu_exclusive_ns": 0,
+          "process_cpu_inclusive_ns": 46875000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 14276200,
+          "wall_inclusive_ns": 51529300
+        }
+      },
+      "main_peak_working_set_bytes": 300474368,
+      "resource_peak_tree_rss_bytes": 287821824
+    }
+  ],
+  "verifiers": [
+    {
+      "pair": 1,
+      "status": "PASS",
+      "scope_complete": true,
+      "path": "D:\\temp\\iteration49-g8-positions-500-p1-verification.json",
+      "size_bytes": 43452,
+      "sha256": "1c37a3159fe38857cf7bbb6fa690ce4758d35809d9a0241c8610570c1cb90c19"
+    }
+  ],
+  "metrics": {
+    "025": {
+      "wall_s": {
+        "a_median": 20.1893371,
+        "b_median": 19.9195879,
+        "paired_b_over_a": [
+          0.9866390263997326
+        ],
+        "reduction_percent": 1.3360973600267445,
+        "paired_a_over_b": [
+          1.0135419066576172
+        ],
+        "relative_dispersion": null
+      },
+      "cpu_s": {
+        "a_median": 19.453125,
+        "b_median": 19.171875,
+        "paired_b_over_a": [
+          0.9855421686746988
+        ],
+        "reduction_percent": 1.4457831325301207,
+        "paired_a_over_b": [
+          1.0146699266503667
+        ],
+        "relative_dispersion": null
+      },
+      "peak_bytes": {
+        "a_median": 312221696,
+        "b_median": 314613760,
+        "paired_b_over_a": [
+          1.0076614278592606
+        ],
+        "reduction_percent": -0.7661427859260606,
+        "paired_a_over_b": [
+          0.9923968233302956
+        ],
+        "relative_dispersion": null
+      }
+    },
+    "026": {
+      "wall_s": {
+        "a_median": 43.1282675,
+        "b_median": 42.799864,
+        "paired_b_over_a": [
+          0.9923854233189404
+        ],
+        "reduction_percent": 0.7614576681059582,
+        "paired_a_over_b": [
+          1.0076730033534687
+        ],
+        "relative_dispersion": null
+      },
+      "cpu_s": {
+        "a_median": 41.421875,
+        "b_median": 41.03125,
+        "paired_b_over_a": [
+          0.990569596378725
+        ],
+        "reduction_percent": 0.9430403621275008,
+        "paired_a_over_b": [
+          1.0095201827875095
+        ],
+        "relative_dispersion": null
+      },
+      "peak_bytes": {
+        "a_median": 348176384,
+        "b_median": 346042368,
+        "paired_b_over_a": [
+          0.9938708766646276
+        ],
+        "reduction_percent": 0.6129123335372411,
+        "paired_a_over_b": [
+          1.0061669211557354
+        ],
+        "relative_dispersion": null
+      }
+    },
+    "027": {
+      "wall_s": {
+        "a_median": 26.545259,
+        "b_median": 26.3003771,
+        "paired_b_over_a": [
+          0.990774928961891
+        ],
+        "reduction_percent": 0.922507103810899,
+        "paired_a_over_b": [
+          1.0093109653549417
+        ],
+        "relative_dispersion": null
+      },
+      "cpu_s": {
+        "a_median": 25.703125,
+        "b_median": 25.171875,
+        "paired_b_over_a": [
+          0.9793313069908814
+        ],
+        "reduction_percent": 2.0668693009118555,
+        "paired_a_over_b": [
+          1.0211049037864681
+        ],
+        "relative_dispersion": null
+      },
+      "peak_bytes": {
+        "a_median": 298209280,
+        "b_median": 300474368,
+        "paired_b_over_a": [
+          1.0075956321681203
+        ],
+        "reduction_percent": -0.7595632168120314,
+        "paired_a_over_b": [
+          0.9924616265437989
+        ],
+        "relative_dispersion": null
+      }
+    }
+  },
+  "raw_archive": {
+    "size_bytes": 792485,
+    "sha256": "0b20d2fb8f5c1bf9faad222765bac641292d237cde29e1535f29577605a49b67",
+    "payload_count": 14,
+    "manifest_sha256": "1f9d522d24dd9477cdd9927a8159902a7d331d642d5f9080a3028702453f19c8",
+    "path": "7col-g8-positions-screen-raw.zip"
+  },
+  "measured_source_archive": {
+    "size_bytes": 95765,
+    "sha256": "d7746270a0935fcb3be898f24ba6a73ccf6594e1feb87b161a739e9c48786da8",
+    "payload_count": 16,
+    "manifest_sha256": "a3e06c29c905702eead7583046b7221c71fbf26b6d95e2645f660b4ef093715a",
+    "path": "7col-g8-positions-screen-measured-source.zip"
+  },
+  "limitations": [
+    "Single pairs establish an output/nonregression screen, not stable speed.",
+    "Final5471/80%/1GB remains pending.",
+    "Peak=max(OS main working-set high-water, 0.5-second sampled process-tree RSS). Inclusive phase timers overlap."
+  ],
+  "selection_decision": {
+    "status": "REJECTED_LOW_GAIN_SCREEN",
+    "production_candidate_retained": false,
+    "reason": "All three single-pair total-wall reductions are below 1.4%; this does not establish stable gain or materially close the 80% gap. Do not spend two more pairs on this candidate. Source and focused QA are preserved in the measured-source archive; production restored to accepted G6.",
+    "unique_functional_passes": 21,
+    "fincore_head_unchanged": "4e01ac9f6f081f13acd60b45559119e1a5ed4a4f"
+  }
+}
