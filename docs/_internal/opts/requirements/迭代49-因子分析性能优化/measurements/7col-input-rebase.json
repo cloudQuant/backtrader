@@ -1,0 +1,23 @@
+{
+  "status": "PASS_INPUT_REBASE_ONLY",
+  "csv_files": 5471,
+  "csv_columns": [
+    "trade_time",
+    "open",
+    "high",
+    "low",
+    "close",
+    "volume",
+    "amount"
+  ],
+  "daily_rows": 1309654,
+  "csv_bytes": 87081833,
+  "source_manifest_sha256": "7ac8fea0ceb547e010a139f4a17820f6207f38ab08c762cf19257a0f39ec2cfb",
+  "calendar_sha256": "ebffd7c7a5626a43ea54f5135c86fb0c8c554255e85ee09ba9bfc5e9da324ba1",
+  "selection_sha256": "14f789a9d9e649987b93bc0477a0f94acc5223edd7ccd70166c8ea4b33ba35dc",
+  "ordered_symbols_sha256": "dda661efc19e42770028a61d4b43a4160a0bf08b3adf4dae353e8234d7ad5dbe",
+  "old_committed_projection_compared_symbols": 500,
+  "old_committed_projection_compared_rows": 119719,
+  "retained_field_differences": 0,
+  "old_selection_preserved": true
+}
