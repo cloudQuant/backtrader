@@ -11,6 +11,7 @@ an output convenience, not a low-memory streaming promise.
 
 from __future__ import annotations
 
+from array import array
 import shutil
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
@@ -71,10 +72,10 @@ class MemorySink(FactorSink):
     def __init__(self) -> None:
         self._times: List[Any] = []
         self._assets: List[str] = []
-        self._values: List[Tuple[float, ...]] = []
-        self._open: List[float] = []
-        self._close: List[float] = []
-        self._present: List[bool] = []
+        self._values: List[array] = []
+        self._open = array("d")
+        self._close = array("d")
+        self._empty_factor_rows = 0
         self._factor_order: Tuple[str, ...] = ()
         self._panel: Optional[FactorPanel] = None
         self._closed = False
@@ -95,14 +96,19 @@ class MemorySink(FactorSink):
         order = tuple(values)
         if not self._factor_order:
             self._factor_order = order
+            self._values = [array("d") for _ in order]
         elif order != self._factor_order:
             raise DatasetError("factor columns changed between grid points")
         self._times.append(time)
         self._assets.append(asset)
-        self._values.append(tuple(float(values[name]) for name in self._factor_order))
+        row = tuple(float(values[name]) for name in self._factor_order)
+        if not row:
+            self._empty_factor_rows += 1
+        for column, value in zip(self._values, row):
+            column.append(value)
         self._open.append(float(open_price))
         self._close.append(float(close_price))
-        self._present.append(bool(present))
+        _ = bool(present)
 
     def finalize(self, context: PanelContext) -> FactorPanel:
         if self._panel is not None:
@@ -115,12 +121,16 @@ class MemorySink(FactorSink):
         factor_order = tuple(context.factor_order)
         if factor_order != self._factor_order:
             raise DatasetError("collected factor order does not match the panel context")
+        if factor_order and self._empty_factor_rows:
+            # Preserve the old tuple-row failure when an empty first mapping
+            # is followed by a populated one.
+            raise IndexError("tuple index out of range")
 
         frame = pd.DataFrame(
             {
                 "time": self._times,
                 "asset": self._assets,
-                **{name: [row[index] for row in self._values] for index, name in enumerate(factor_order)},
+                **dict(zip(factor_order, self._values)),
             }
         )
         factors = frame.set_index(["time", "asset"]).loc[:, list(factor_order)]
@@ -167,9 +177,9 @@ class MemorySink(FactorSink):
         self._times = []
         self._assets = []
         self._values = []
-        self._open = []
-        self._close = []
-        self._present = []
+        self._open = array("d")
+        self._close = array("d")
+        self._empty_factor_rows = 0
         self._closed = True
 
     @property

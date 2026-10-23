@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import gc
 import json
 import sys
 import time
@@ -258,8 +259,22 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         strategy, collected, indicator = _run_factor(config, panel)
         factor_instance = strategy.factor_instances[FACTOR_NAME]
         factor_mode = factor_instance.factor_mode
+        broker_summary = {
+            "submit": strategy.broker.submit_count,
+            "cancel": strategy.broker.cancel_count,
+        }
+        operator_profile = indicator.operator_profile
+        indicator_identity = indicator.__module__ + "." + indicator.__qualname__
+        symbols = len(collected.target_order)
+        dates = len(collected.grid)
+        cells = len(collected.factors)
+        finite = int(collected.factors[FACTOR_NAME].notna().sum())
+        del factor_instance, strategy, panel
+        gc.collect()
+
         factors = collected.factors.reset_index()
         factors.to_csv(output_dir / "factor_values.csv", index=False)
+        del factors
         report = None
         if args.report:
             from backtrader.research import write_factor_report
@@ -280,17 +295,14 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             "factor": FACTOR_NAME,
             "factor_mode": factor_mode,
             "factor_calculation": "RAN",
-            "operator_profile": indicator.operator_profile,
-            "indicator": indicator.__module__ + "." + indicator.__qualname__,
-            "symbols": len(collected.target_order),
-            "dates": len(collected.grid),
-            "cells": len(factors),
-            "finite": int(factors[FACTOR_NAME].notna().sum()),
+            "operator_profile": operator_profile,
+            "indicator": indicator_identity,
+            "symbols": symbols,
+            "dates": dates,
+            "cells": cells,
+            "finite": finite,
             "output": "factor_values.csv",
-            "broker": {
-                "submit": strategy.broker.submit_count,
-                "cancel": strategy.broker.cancel_count,
-            },
+            "broker": broker_summary,
             "report": None if report is None else str(report),
             "elapsed_seconds": round(time.perf_counter() - started, 2),
         }

@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+from array import array
+
 import numpy as np
 import pandas as pd
 import pytest
 
-from backtrader.errors import DatasetError
+from backtrader.errors import DatasetError, ResearchConfigError
 from backtrader.research.align import align_to_grid
 from backtrader.research.sink import CsvSink, MemorySink, PanelContext
 from backtrader.research.specs import ResearchSpec
@@ -166,6 +168,122 @@ def test_finalize_without_points_is_rejected():
     research = make_research()
     with pytest.raises(DatasetError):
         MemorySink().finalize(make_context(research))
+
+
+def test_memory_sink_keeps_float64_columns_and_preserves_conversion_order():
+    research = make_research()
+    context = make_context(research)
+    sink = MemorySink()
+    events = []
+
+    class TrackedFloat:
+        def __init__(self, label, value):
+            self.label = label
+            self.value = value
+
+        def __float__(self):
+            events.append(self.label)
+            return self.value
+
+    class TrackedPresence:
+        def __bool__(self):
+            events.append("present")
+            return False
+
+    first_time = context.grid.index[0]
+    sink.on_point(
+        first_time,
+        context.target_order[0],
+        {"f1": TrackedFloat("f1", 1.25), "f2": TrackedFloat("f2", -2.5)},
+        TrackedFloat("open", 10.0),
+        TrackedFloat("close", 11.0),
+        TrackedPresence(),
+    )
+    assert events == ["f1", "f2", "open", "close", "present"]
+    assert all(type(column) is array and column.typecode == "d" for column in sink._values)
+    assert type(sink._open) is array and sink._open.typecode == "d"
+    assert type(sink._close) is array and sink._close.typecode == "d"
+    assert not hasattr(sink, "_present")
+
+    for time in context.grid.index:
+        for asset in context.target_order:
+            if time == first_time and asset == context.target_order[0]:
+                continue
+            sink.on_point(time, asset, {"f1": 1.25, "f2": -2.5}, 10.0, 11.0, True)
+
+    panel = sink.finalize(context)
+    assert tuple(panel.factors.dtypes.astype(str)) == ("float64", "float64")
+    assert panel.factors.iloc[0].tolist() == [1.25, -2.5]
+
+
+def test_memory_sink_keeps_duplicate_rejection_at_finalize():
+    research = make_research()
+    context = make_context(research)
+    sink = MemorySink()
+    time = context.grid.index[0]
+    for _ in range(2):
+        sink.on_point(time, context.target_order[0], {"f1": 1.0, "f2": 2.0}, 10.0, 11.0, True)
+
+    with pytest.raises(DatasetError, match="duplicate \\(time, asset\\) keys"):
+        sink.finalize(context)
+
+
+def test_memory_sink_preserves_empty_factor_and_failed_conversion_boundaries():
+    research = make_research()
+    context = make_context(research)
+    empty_sink = MemorySink()
+    for time in context.grid.index:
+        for asset in context.target_order:
+            empty_sink.on_point(time, asset, {}, 10.0, 11.0, True)
+    empty_context = PanelContext(
+        grid=context.grid,
+        start=context.start,
+        end=context.end,
+        target_order=context.target_order,
+        factor_order=(),
+        directions={},
+        prices_open=context.prices_open,
+        prices_close=context.prices_close,
+    )
+    with pytest.raises(ResearchConfigError, match="at least one factor column"):
+        empty_sink.finalize(empty_context)
+
+    transition_sink = MemorySink()
+    transition_sink.on_point(context.grid.index[0], context.target_order[0], {}, 10.0, 11.0, True)
+    transition_sink.on_point(
+        context.grid.index[0], context.target_order[1], {"f1": 1.0}, 10.0, 11.0, True
+    )
+    with pytest.raises(IndexError, match="tuple index out of range"):
+        transition_sink.finalize(
+            PanelContext(
+                grid=context.grid,
+                start=context.start,
+                end=context.end,
+                target_order=context.target_order,
+                factor_order=("f1",),
+                directions={"f1": 1},
+                prices_open=context.prices_open,
+                prices_close=context.prices_close,
+            )
+        )
+
+    class InvalidFloat:
+        def __float__(self):
+            raise ValueError("conversion failed")
+
+    failed_sink = MemorySink()
+    with pytest.raises(ValueError, match="conversion failed"):
+        failed_sink.on_point(
+            context.grid.index[0],
+            context.target_order[0],
+            {"f1": InvalidFloat(), "f2": 2.0},
+            10.0,
+            11.0,
+            True,
+        )
+    assert len(failed_sink._times) == len(failed_sink._assets) == 1
+    assert all(len(column) == 0 for column in failed_sink._values)
+    assert len(failed_sink._open) == len(failed_sink._close) == 0
 
 
 def test_align_keeps_real_bars_and_marks_reindexed_rows_absent():

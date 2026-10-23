@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import gc
 import sys
 from pathlib import Path
 from typing import Any, Dict, Mapping, Optional, Sequence, Tuple
@@ -400,6 +401,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                 factor_order=list(config["factors"]),
                 groups=research.groups,
             )
+            broker_summary = None
         else:
             prices = load_daily_panel(config["data"])
             strategy, panel, broker = _run_native_collection(config, prices, args.runnext)
@@ -407,14 +409,17 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             factor_classes = _factor_class_identities(factor_mode)
             if (broker.submit_count, broker.cancel_count) != (0, 0):
                 raise RuntimeError("research-only Cerebro run submitted or cancelled an order")
+            broker_summary = {"submit": broker.submit_count, "cancel": broker.cancel_count}
+            del strategy, broker, prices
+            gc.collect()
 
         mode_summary = {
             "factor_mode": factor_mode,
             "factor_calculation": "NOT_RUN" if args.panel else "RAN",
             "factor_classes": factor_classes,
         }
-        if broker is not None:
-            mode_summary["broker"] = {"submit": broker.submit_count, "cancel": broker.cancel_count}
+        if broker_summary is not None:
+            mode_summary["broker"] = broker_summary
 
         if args.save_panel:
             panel.to_csv(output_dir / "panel")
@@ -479,8 +484,6 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             "dates": len(panel.grid),
             "reports": reports,
         }
-        if broker is not None:
-            extra["broker"] = {"submit": broker.submit_count, "cancel": broker.cancel_count}
         extra.update(mode_summary)
         _write_summary(output_dir, "COMPLETED", **extra)
         print("%s: %s" % (EXAMPLE_ID, status))

@@ -1,0 +1,1464 @@
+{
+  "comparisons": {
+    "025": {
+      "errors": [],
+      "evaluation_id_equal": true,
+      "evaluation_manifest_equal": true,
+      "evaluation_tables": {
+        "comparisons.csv": {
+          "columns_equal": true,
+          "first_mismatch": null,
+          "row_order_equal": true,
+          "rows_compared": 0
+        },
+        "correlation.csv": {
+          "columns_equal": true,
+          "first_mismatch": null,
+          "row_order_equal": true,
+          "rows_compared": 0
+        },
+        "coverage.csv": {
+          "columns_equal": true,
+          "first_mismatch": null,
+          "row_order_equal": true,
+          "rows_compared": 1
+        },
+        "diagnostics.csv": {
+          "columns_equal": true,
+          "first_mismatch": null,
+          "row_order_equal": true,
+          "rows_compared": 0
+        },
+        "ic.csv": {
+          "columns_equal": true,
+          "first_mismatch": null,
+          "row_order_equal": true,
+          "rows_compared": 643
+        },
+        "ic_summary.csv": {
+          "columns_equal": true,
+          "first_mismatch": null,
+          "row_order_equal": true,
+          "rows_compared": 3
+        },
+        "labels.csv": {
+          "columns_equal": true,
+          "first_mismatch": null,
+          "row_order_equal": true,
+          "rows_compared": 364500
+        },
+        "quantile_returns.csv": {
+          "columns_equal": true,
+          "first_mismatch": null,
+          "row_order_equal": true,
+          "rows_compared": 3215
+        },
+        "signals.csv": {
+          "columns_equal": true,
+          "first_mismatch": null,
+          "row_order_equal": true,
+          "rows_compared": 121500
+        },
+        "spreads.csv": {
+          "columns_equal": true,
+          "first_mismatch": null,
+          "row_order_equal": true,
+          "rows_compared": 643
+        },
+        "stability.csv": {
+          "columns_equal": true,
+          "first_mismatch": null,
+          "row_order_equal": true,
+          "rows_compared": 3
+        },
+        "turnover.csv": {
+          "columns_equal": true,
+          "first_mismatch": null,
+          "row_order_equal": true,
+          "rows_compared": 3085
+        }
+      },
+      "factor_values": {
+        "columns_equal": true,
+        "first_mismatch": null,
+        "row_order_equal": true,
+        "values_equal": true
+      },
+      "reports": {
+        "factor_report_close_ma.html": {
+          "embedded_plot_data_equal": true,
+          "model_tables_and_series_equal": true,
+          "rendered_table_cells_equal": true,
+          "semantic_digest_equal": true
+        }
+      },
+      "result_fingerprint_equal": true,
+      "summary_metadata_equal": true,
+      "valid": true
+    },
+    "026": {
+      "errors": [],
+      "evaluation_id_equal": true,
+      "evaluation_manifest_equal": true,
+      "evaluation_tables": {
+        "comparisons.csv": {
+          "columns_equal": true,
+          "first_mismatch": null,
+          "row_order_equal": true,
+          "rows_compared": 9
+        },
+        "correlation.csv": {
+          "columns_equal": true,
+          "first_mismatch": null,
+          "row_order_equal": true,
+          "rows_compared": 6
+        },
+        "coverage.csv": {
+          "columns_equal": true,
+          "first_mismatch": null,
+          "row_order_equal": true,
+          "rows_compared": 4
+        },
+        "diagnostics.csv": {
+          "columns_equal": true,
+          "first_mismatch": null,
+          "row_order_equal": true,
+          "rows_compared": 7
+        },
+        "ic.csv": {
+          "columns_equal": true,
+          "first_mismatch": null,
+          "row_order_equal": true,
+          "rows_compared": 2587
+        },
+        "ic_summary.csv": {
+          "columns_equal": true,
+          "first_mismatch": null,
+          "row_order_equal": true,
+          "rows_compared": 12
+        },
+        "labels.csv": {
+          "columns_equal": true,
+          "first_mismatch": null,
+          "row_order_equal": true,
+          "rows_compared": 364500
+        },
+        "quantile_returns.csv": {
+          "columns_equal": true,
+          "first_mismatch": null,
+          "row_order_equal": true,
+          "rows_compared": 12935
+        },
+        "signals.csv": {
+          "columns_equal": true,
+          "first_mismatch": null,
+          "row_order_equal": true,
+          "rows_compared": 364500
+        },
+        "spreads.csv": {
+          "columns_equal": true,
+          "first_mismatch": null,
+          "row_order_equal": true,
+          "rows_compared": 2587
+        },
+        "stability.csv": {
+          "columns_equal": true,
+          "first_mismatch": null,
+          "row_order_equal": true,
+          "rows_compared": 12
+        },
+        "turnover.csv": {
+          "columns_equal": true,
+          "first_mismatch": null,
+          "row_order_equal": true,
+          "rows_compared": 9345
+        }
+      },
+      "factor_values": {
+        "columns_equal": true,
+        "first_mismatch": null,
+        "row_order_equal": true,
+        "values_equal": true
+      },
+      "reports": {
+        "factor_report_close_ma.html": {
+          "embedded_plot_data_equal": true,
+          "model_tables_and_series_equal": true,
+          "rendered_table_cells_equal": true,
+          "semantic_digest_equal": true
+        },
+        "factor_report_kdj_j.html": {
+          "embedded_plot_data_equal": true,
+          "model_tables_and_series_equal": true,
+          "rendered_table_cells_equal": true,
+          "semantic_digest_equal": true
+        },
+        "factor_report_roc.html": {
+          "embedded_plot_data_equal": true,
+          "model_tables_and_series_equal": true,
+          "rendered_table_cells_equal": true,
+          "semantic_digest_equal": true
+        }
+      },
+      "result_fingerprint_equal": true,
+      "summary_metadata_equal": true,
+      "valid": true
+    },
+    "027": {
+      "errors": [],
+      "evaluation_id_equal": true,
+      "evaluation_manifest_equal": true,
+      "evaluation_tables": {},
+      "factor_values": {
+        "columns_equal": true,
+        "first_mismatch": null,
+        "row_order_equal": true,
+        "values_equal": true
+      },
+      "reports": {
+        "factor_report_alpha003.html": {
+          "embedded_plot_data_equal": true,
+          "model_tables_and_series_equal": true,
+          "rendered_table_cells_equal": true,
+          "semantic_digest_equal": true
+        }
+      },
+      "result_fingerprint_equal": true,
+      "summary_metadata_equal": true,
+      "valid": true
+    }
+  },
+  "fixed_input": {
+    "calendar_sha256": "ebffd7c7a5626a43ea54f5135c86fb0c8c554255e85ee09ba9bfc5e9da324ba1",
+    "data_root": "D:\\source_code\\backtrader\\tests\\datas\\a_stocks",
+    "date_count": 243,
+    "grid_cells": 121500,
+    "manifest_sha256": "7ac8fea0ceb547e010a139f4a17820f6207f38ab08c762cf19257a0f39ec2cfb",
+    "ordered_symbols_sha256": "dda661efc19e42770028a61d4b43a4160a0bf08b3adf4dae353e8234d7ad5dbe",
+    "selection": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\迭代49-因子分析性能优化\\benchmark-500-7col.json",
+    "selection_sha256": "14f789a9d9e649987b93bc0477a0f94acc5223edd7ccd70166c8ea4b33ba35dc",
+    "symbol_count": 500
+  },
+  "limitations": [
+    "This readback verifies outputs and A/B semantic equivalence; it does not verify benchmark timing or source/runtime provenance.",
+    "Report semantic equality requires report_semantics.json captured from the actual ReportDocument passed to the HTML writer.",
+    "PNG files are parsed and checked for valid dimensions/CRC/zlib image data; pixel identity is not required."
+  ],
+  "mode": "ab-pair",
+  "runs": {
+    "baseline": {
+      "025": {
+        "directory": "D:\\temp\\iteration49-7col-g2a-fcg1-p2-a-025\\example",
+        "errors": [],
+        "evaluation": {
+          "counts": {
+            "combinations": 0,
+            "diagnostics": 0,
+            "evaluable_factor_periods": 3,
+            "factors": 1,
+            "ic_observations": 643,
+            "ic_rows": 643,
+            "label_rows": 364500,
+            "panel_cells": 121500,
+            "signal_rows": 121500,
+            "study_dates": 243,
+            "targets": 500
+          },
+          "csv_files": [
+            {
+              "columns": [
+                "time",
+                "asset",
+                "factor",
+                "direction",
+                "value",
+                "processed_value",
+                "preprocess",
+                "group"
+              ],
+              "name": "signals.csv",
+              "rows": 121500,
+              "unique_keys": 121500
+            },
+            {
+              "columns": [
+                "time",
+                "asset",
+                "period",
+                "value"
+              ],
+              "name": "labels.csv",
+              "rows": 364500,
+              "unique_keys": 364500
+            },
+            {
+              "columns": [
+                "time",
+                "factor",
+                "period",
+                "ic",
+                "rank_ic",
+                "n_assets"
+              ],
+              "name": "ic.csv",
+              "rows": 643,
+              "unique_keys": 643
+            },
+            {
+              "columns": [
+                "factor",
+                "period",
+                "mean_ic",
+                "std_ic",
+                "icir",
+                "mean_rank_ic",
+                "std_rank_ic",
+                "rank_icir",
+                "n_dates"
+              ],
+              "name": "ic_summary.csv",
+              "rows": 3,
+              "unique_keys": 3
+            },
+            {
+              "columns": [
+                "time",
+                "factor",
+                "period",
+                "quantile",
+                "mean_return",
+                "n_assets"
+              ],
+              "name": "quantile_returns.csv",
+              "rows": 3215,
+              "unique_keys": 3215
+            },
+            {
+              "columns": [
+                "time",
+                "factor",
+                "period",
+                "quantile",
+                "turnover"
+              ],
+              "name": "turnover.csv",
+              "rows": 3085,
+              "unique_keys": 3085
+            },
+            {
+              "columns": [
+                "time",
+                "factor",
+                "period",
+                "spread",
+                "top_quantile",
+                "bottom_quantile"
+              ],
+              "name": "spreads.csv",
+              "rows": 643,
+              "unique_keys": 643
+            },
+            {
+              "columns": [
+                "factor",
+                "lag",
+                "mean_rank_autocorrelation",
+                "std_rank_autocorrelation",
+                "n_dates"
+              ],
+              "name": "stability.csv",
+              "rows": 3,
+              "unique_keys": 3
+            },
+            {
+              "columns": [
+                "factor_left",
+                "factor_right",
+                "mean_correlation",
+                "std_correlation",
+                "n_dates"
+              ],
+              "name": "correlation.csv",
+              "rows": 0,
+              "unique_keys": 0
+            },
+            {
+              "columns": [
+                "comparison",
+                "left",
+                "right",
+                "period",
+                "mean_ic",
+                "icir",
+                "mean_ic_left",
+                "mean_ic_right",
+                "icir_left",
+                "icir_right",
+                "n_dates_left",
+                "n_dates_right"
+              ],
+              "name": "comparisons.csv",
+              "rows": 0,
+              "unique_keys": 0
+            },
+            {
+              "columns": [
+                "factor",
+                "kind",
+                "direction",
+                "input_cells",
+                "finite_cells",
+                "label_cells",
+                "evaluable_cells",
+                "status"
+              ],
+              "name": "coverage.csv",
+              "rows": 1,
+              "unique_keys": 1
+            },
+            {
+              "columns": [
+                "factor",
+                "stage",
+                "severity",
+                "code",
+                "message"
+              ],
+              "name": "diagnostics.csv",
+              "rows": 0,
+              "unique_keys": 0
+            }
+          ],
+          "directory": "D:\\temp\\iteration49-7col-g2a-fcg1-p2-a-025\\example\\evaluation\\96f6dd5bc22482b31050b37e4b5218aadfce90c8b6d82486794f3f64043c7059",
+          "evaluation_id": "96f6dd5bc22482b31050b37e4b5218aadfce90c8b6d82486794f3f64043c7059",
+          "labels": [
+            "1D",
+            "5D",
+            "20D"
+          ],
+          "png_files": [
+            {
+              "bytes": 124377,
+              "decoded_bytes": 1843680,
+              "height": 480,
+              "name": "ic_series.png",
+              "width": 960
+            },
+            {
+              "bytes": 28017,
+              "decoded_bytes": 1843680,
+              "height": 480,
+              "name": "quantile_returns.png",
+              "width": 960
+            }
+          ],
+          "result_fingerprint": "cd275033a23a96c15cdf8b02d8aa4e3aee7d987efbe59dc0c998db884ddfabb8",
+          "status": "OK"
+        },
+        "example": "025",
+        "factor_values": {
+          "columns": [
+            "time",
+            "asset",
+            "close_ma"
+          ],
+          "expected_rows": 121500,
+          "factor_counts": {
+            "close_ma": {
+              "finite": 109305,
+              "infinite": 0,
+              "invalid": 0,
+              "nan": 12195
+            }
+          },
+          "path": "D:\\temp\\iteration49-7col-g2a-fcg1-p2-a-025\\example\\factor_values.csv",
+          "rows": 121500,
+          "valid": true
+        },
+        "reports": {
+          "factor_report_close_ma.html": {
+            "chart_data_keys": [
+              "cumulative",
+              "distribution",
+              "ic",
+              "quantile",
+              "turnover"
+            ],
+            "html_sha256": "05da6a94690a908575e87ec42339509254b144497ca899fb198217a8c91dec8b",
+            "semantic_digest": "904e41f780c42cff3d38578043f973b8ae9c4941fe10288b880b808fbccd35da",
+            "table_count": 14
+          }
+        },
+        "summary": {
+          "broker": {
+            "cancel": 0,
+            "submit": 0
+          },
+          "dates": 243,
+          "factor_calculation": "RAN",
+          "factor_mode": "native",
+          "status": "COMPLETED",
+          "symbols": 500
+        },
+        "valid": true
+      },
+      "026": {
+        "directory": "D:\\temp\\iteration49-7col-g2a-fcg1-p2-a-026\\example",
+        "errors": [],
+        "evaluation": {
+          "counts": {
+            "combinations": 1,
+            "diagnostics": 7,
+            "evaluable_factor_periods": 12,
+            "factors": 3,
+            "ic_observations": 2587,
+            "ic_rows": 2587,
+            "label_rows": 364500,
+            "panel_cells": 121500,
+            "signal_rows": 364500,
+            "study_dates": 243,
+            "targets": 500
+          },
+          "csv_files": [
+            {
+              "columns": [
+                "time",
+                "asset",
+                "factor",
+                "direction",
+                "value",
+                "processed_value",
+                "preprocess",
+                "group"
+              ],
+              "name": "signals.csv",
+              "rows": 364500,
+              "unique_keys": 364500
+            },
+            {
+              "columns": [
+                "time",
+                "asset",
+                "period",
+                "value"
+              ],
+              "name": "labels.csv",
+              "rows": 364500,
+              "unique_keys": 364500
+            },
+            {
+              "columns": [
+                "time",
+                "factor",
+                "period",
+                "ic",
+                "rank_ic",
+                "n_assets"
+              ],
+              "name": "ic.csv",
+              "rows": 2587,
+              "unique_keys": 2587
+            },
+            {
+              "columns": [
+                "factor",
+                "period",
+                "mean_ic",
+                "std_ic",
+                "icir",
+                "mean_rank_ic",
+                "std_rank_ic",
+                "rank_icir",
+                "n_dates"
+              ],
+              "name": "ic_summary.csv",
+              "rows": 12,
+              "unique_keys": 12
+            },
+            {
+              "columns": [
+                "time",
+                "factor",
+                "period",
+                "quantile",
+                "mean_return",
+                "n_assets"
+              ],
+              "name": "quantile_returns.csv",
+              "rows": 12935,
+              "unique_keys": 12935
+            },
+            {
+              "columns": [
+                "time",
+                "factor",
+                "period",
+                "quantile",
+                "turnover"
+              ],
+              "name": "turnover.csv",
+              "rows": 9345,
+              "unique_keys": 9345
+            },
+            {
+              "columns": [
+                "time",
+                "factor",
+                "period",
+                "spread",
+                "top_quantile",
+                "bottom_quantile"
+              ],
+              "name": "spreads.csv",
+              "rows": 2587,
+              "unique_keys": 2587
+            },
+            {
+              "columns": [
+                "factor",
+                "lag",
+                "mean_rank_autocorrelation",
+                "std_rank_autocorrelation",
+                "n_dates"
+              ],
+              "name": "stability.csv",
+              "rows": 12,
+              "unique_keys": 12
+            },
+            {
+              "columns": [
+                "factor_left",
+                "factor_right",
+                "mean_correlation",
+                "std_correlation",
+                "n_dates"
+              ],
+              "name": "correlation.csv",
+              "rows": 6,
+              "unique_keys": 6
+            },
+            {
+              "columns": [
+                "comparison",
+                "left",
+                "right",
+                "period",
+                "mean_ic",
+                "icir",
+                "mean_ic_left",
+                "mean_ic_right",
+                "icir_left",
+                "icir_right",
+                "n_dates_left",
+                "n_dates_right"
+              ],
+              "name": "comparisons.csv",
+              "rows": 9,
+              "unique_keys": 9
+            },
+            {
+              "columns": [
+                "factor",
+                "kind",
+                "direction",
+                "input_cells",
+                "finite_cells",
+                "label_cells",
+                "evaluable_cells",
+                "status"
+              ],
+              "name": "coverage.csv",
+              "rows": 4,
+              "unique_keys": 4
+            },
+            {
+              "columns": [
+                "factor",
+                "stage",
+                "severity",
+                "code",
+                "message"
+              ],
+              "name": "diagnostics.csv",
+              "rows": 7,
+              "unique_keys": 0
+            }
+          ],
+          "directory": "D:\\temp\\iteration49-7col-g2a-fcg1-p2-a-026\\example\\evaluation\\1a376bfb5e31e2bcf9689cef4d51467be5fff24ad084604753d24d3d523448da",
+          "evaluation_id": "1a376bfb5e31e2bcf9689cef4d51467be5fff24ad084604753d24d3d523448da",
+          "labels": [
+            "1D",
+            "5D",
+            "20D"
+          ],
+          "png_files": [
+            {
+              "bytes": 128277,
+              "decoded_bytes": 1843680,
+              "height": 480,
+              "name": "ic_series.png",
+              "width": 960
+            },
+            {
+              "bytes": 28020,
+              "decoded_bytes": 1843680,
+              "height": 480,
+              "name": "quantile_returns.png",
+              "width": 960
+            }
+          ],
+          "result_fingerprint": "abfb21f36229bd50eae0ca13ad5ffd50f3866fe4d324e058c9366fe9de2a6480",
+          "status": "OK"
+        },
+        "example": "026",
+        "factor_values": {
+          "columns": [
+            "time",
+            "asset",
+            "close_ma",
+            "kdj_j",
+            "roc"
+          ],
+          "expected_rows": 121500,
+          "factor_counts": {
+            "close_ma": {
+              "finite": 109305,
+              "infinite": 0,
+              "invalid": 0,
+              "nan": 12195
+            },
+            "kdj_j": {
+              "finite": 113132,
+              "infinite": 0,
+              "invalid": 0,
+              "nan": 8368
+            },
+            "roc": {
+              "finite": 108760,
+              "infinite": 0,
+              "invalid": 0,
+              "nan": 12740
+            }
+          },
+          "path": "D:\\temp\\iteration49-7col-g2a-fcg1-p2-a-026\\example\\factor_values.csv",
+          "rows": 121500,
+          "valid": true
+        },
+        "reports": {
+          "factor_report_close_ma.html": {
+            "chart_data_keys": [
+              "cumulative",
+              "distribution",
+              "ic",
+              "quantile",
+              "turnover"
+            ],
+            "html_sha256": "a48c8b2786ca0213ccafe5fed2291f6d20434e8f9c3451c86662fa426ebad089",
+            "semantic_digest": "e60431886890f08b7ba7382bca3f7c8dae39d6f0cb6f861123f46cf21c1eb39c",
+            "table_count": 14
+          },
+          "factor_report_kdj_j.html": {
+            "chart_data_keys": [
+              "cumulative",
+              "distribution",
+              "ic",
+              "quantile",
+              "turnover"
+            ],
+            "html_sha256": "8b05f3ebf1dc8937e0645ef364519beefdd3e4adaa80b65275bea0e3201e7b82",
+            "semantic_digest": "245c73e0134a5211b783a4000eac9445b0f6d3cbe12f45c54f35ae22d2ee4552",
+            "table_count": 14
+          },
+          "factor_report_roc.html": {
+            "chart_data_keys": [
+              "cumulative",
+              "distribution",
+              "ic",
+              "quantile",
+              "turnover"
+            ],
+            "html_sha256": "2b3b950de9ecab2c696dd2c36468f2ae969fbfda2bfbe77dba44b2ddc612dcca",
+            "semantic_digest": "5f664627409e0a72de92db5b8737cb4302f56d5ca04c31cd9909e1ae21f602f9",
+            "table_count": 14
+          }
+        },
+        "summary": {
+          "broker": {
+            "cancel": 0,
+            "submit": 0
+          },
+          "dates": 243,
+          "factor_calculation": "RAN",
+          "factor_mode": "native",
+          "status": "COMPLETED",
+          "symbols": 500
+        },
+        "valid": true
+      },
+      "027": {
+        "directory": "D:\\temp\\iteration49-7col-g2a-fcg1-p2-a-027\\example",
+        "errors": [],
+        "evaluation": {
+          "evaluation_id": null,
+          "result_fingerprint": null,
+          "status": "NOT_APPLICABLE_BY_027"
+        },
+        "example": "027",
+        "factor_values": {
+          "columns": [
+            "time",
+            "asset",
+            "alpha003"
+          ],
+          "expected_rows": 121500,
+          "factor_counts": {
+            "alpha003": {
+              "finite": 114509,
+              "infinite": 0,
+              "invalid": 0,
+              "nan": 6991
+            }
+          },
+          "path": "D:\\temp\\iteration49-7col-g2a-fcg1-p2-a-027\\example\\factor_values.csv",
+          "rows": 121500,
+          "valid": true
+        },
+        "reports": {
+          "factor_report_alpha003.html": {
+            "chart_data_keys": [
+              "cumulative",
+              "distribution",
+              "ic",
+              "quantile",
+              "turnover"
+            ],
+            "html_sha256": "805f85411ddecf4e8d00b8d304331e3dc336533ae8f93c075944717d7dd16315",
+            "semantic_digest": "df0dc8712a40b6a38bcdd51f0cccb5ac8c73b47b07a1b7610aacab9db4c94eb2",
+            "table_count": 14
+          }
+        },
+        "summary": {
+          "broker": {
+            "cancel": 0,
+            "submit": 0
+          },
+          "dates": 243,
+          "factor_calculation": "RAN",
+          "factor_mode": "native",
+          "status": "COMPLETED",
+          "symbols": 500
+        },
+        "valid": true
+      }
+    },
+    "candidate": {
+      "025": {
+        "directory": "D:\\temp\\iteration49-7col-g2a-fcg1-p2-b-025\\example",
+        "errors": [],
+        "evaluation": {
+          "counts": {
+            "combinations": 0,
+            "diagnostics": 0,
+            "evaluable_factor_periods": 3,
+            "factors": 1,
+            "ic_observations": 643,
+            "ic_rows": 643,
+            "label_rows": 364500,
+            "panel_cells": 121500,
+            "signal_rows": 121500,
+            "study_dates": 243,
+            "targets": 500
+          },
+          "csv_files": [
+            {
+              "columns": [
+                "time",
+                "asset",
+                "factor",
+                "direction",
+                "value",
+                "processed_value",
+                "preprocess",
+                "group"
+              ],
+              "name": "signals.csv",
+              "rows": 121500,
+              "unique_keys": 121500
+            },
+            {
+              "columns": [
+                "time",
+                "asset",
+                "period",
+                "value"
+              ],
+              "name": "labels.csv",
+              "rows": 364500,
+              "unique_keys": 364500
+            },
+            {
+              "columns": [
+                "time",
+                "factor",
+                "period",
+                "ic",
+                "rank_ic",
+                "n_assets"
+              ],
+              "name": "ic.csv",
+              "rows": 643,
+              "unique_keys": 643
+            },
+            {
+              "columns": [
+                "factor",
+                "period",
+                "mean_ic",
+                "std_ic",
+                "icir",
+                "mean_rank_ic",
+                "std_rank_ic",
+                "rank_icir",
+                "n_dates"
+              ],
+              "name": "ic_summary.csv",
+              "rows": 3,
+              "unique_keys": 3
+            },
+            {
+              "columns": [
+                "time",
+                "factor",
+                "period",
+                "quantile",
+                "mean_return",
+                "n_assets"
+              ],
+              "name": "quantile_returns.csv",
+              "rows": 3215,
+              "unique_keys": 3215
+            },
+            {
+              "columns": [
+                "time",
+                "factor",
+                "period",
+                "quantile",
+                "turnover"
+              ],
+              "name": "turnover.csv",
+              "rows": 3085,
+              "unique_keys": 3085
+            },
+            {
+              "columns": [
+                "time",
+                "factor",
+                "period",
+                "spread",
+                "top_quantile",
+                "bottom_quantile"
+              ],
+              "name": "spreads.csv",
+              "rows": 643,
+              "unique_keys": 643
+            },
+            {
+              "columns": [
+                "factor",
+                "lag",
+                "mean_rank_autocorrelation",
+                "std_rank_autocorrelation",
+                "n_dates"
+              ],
+              "name": "stability.csv",
+              "rows": 3,
+              "unique_keys": 3
+            },
+            {
+              "columns": [
+                "factor_left",
+                "factor_right",
+                "mean_correlation",
+                "std_correlation",
+                "n_dates"
+              ],
+              "name": "correlation.csv",
+              "rows": 0,
+              "unique_keys": 0
+            },
+            {
+              "columns": [
+                "comparison",
+                "left",
+                "right",
+                "period",
+                "mean_ic",
+                "icir",
+                "mean_ic_left",
+                "mean_ic_right",
+                "icir_left",
+                "icir_right",
+                "n_dates_left",
+                "n_dates_right"
+              ],
+              "name": "comparisons.csv",
+              "rows": 0,
+              "unique_keys": 0
+            },
+            {
+              "columns": [
+                "factor",
+                "kind",
+                "direction",
+                "input_cells",
+                "finite_cells",
+                "label_cells",
+                "evaluable_cells",
+                "status"
+              ],
+              "name": "coverage.csv",
+              "rows": 1,
+              "unique_keys": 1
+            },
+            {
+              "columns": [
+                "factor",
+                "stage",
+                "severity",
+                "code",
+                "message"
+              ],
+              "name": "diagnostics.csv",
+              "rows": 0,
+              "unique_keys": 0
+            }
+          ],
+          "directory": "D:\\temp\\iteration49-7col-g2a-fcg1-p2-b-025\\example\\evaluation\\96f6dd5bc22482b31050b37e4b5218aadfce90c8b6d82486794f3f64043c7059",
+          "evaluation_id": "96f6dd5bc22482b31050b37e4b5218aadfce90c8b6d82486794f3f64043c7059",
+          "labels": [
+            "1D",
+            "5D",
+            "20D"
+          ],
+          "png_files": [
+            {
+              "bytes": 124377,
+              "decoded_bytes": 1843680,
+              "height": 480,
+              "name": "ic_series.png",
+              "width": 960
+            },
+            {
+              "bytes": 28017,
+              "decoded_bytes": 1843680,
+              "height": 480,
+              "name": "quantile_returns.png",
+              "width": 960
+            }
+          ],
+          "result_fingerprint": "cd275033a23a96c15cdf8b02d8aa4e3aee7d987efbe59dc0c998db884ddfabb8",
+          "status": "OK"
+        },
+        "example": "025",
+        "factor_values": {
+          "columns": [
+            "time",
+            "asset",
+            "close_ma"
+          ],
+          "expected_rows": 121500,
+          "factor_counts": {
+            "close_ma": {
+              "finite": 109305,
+              "infinite": 0,
+              "invalid": 0,
+              "nan": 12195
+            }
+          },
+          "path": "D:\\temp\\iteration49-7col-g2a-fcg1-p2-b-025\\example\\factor_values.csv",
+          "rows": 121500,
+          "valid": true
+        },
+        "reports": {
+          "factor_report_close_ma.html": {
+            "chart_data_keys": [
+              "cumulative",
+              "distribution",
+              "ic",
+              "quantile",
+              "turnover"
+            ],
+            "html_sha256": "dd7aba1c7c1af69561153afeea67a3e0e3f59d477478cd8cfba71b08e51fa325",
+            "semantic_digest": "904e41f780c42cff3d38578043f973b8ae9c4941fe10288b880b808fbccd35da",
+            "table_count": 14
+          }
+        },
+        "summary": {
+          "broker": {
+            "cancel": 0,
+            "submit": 0
+          },
+          "dates": 243,
+          "factor_calculation": "RAN",
+          "factor_mode": "native",
+          "status": "COMPLETED",
+          "symbols": 500
+        },
+        "valid": true
+      },
+      "026": {
+        "directory": "D:\\temp\\iteration49-7col-g2a-fcg1-p2-b-026\\example",
+        "errors": [],
+        "evaluation": {
+          "counts": {
+            "combinations": 1,
+            "diagnostics": 7,
+            "evaluable_factor_periods": 12,
+            "factors": 3,
+            "ic_observations": 2587,
+            "ic_rows": 2587,
+            "label_rows": 364500,
+            "panel_cells": 121500,
+            "signal_rows": 364500,
+            "study_dates": 243,
+            "targets": 500
+          },
+          "csv_files": [
+            {
+              "columns": [
+                "time",
+                "asset",
+                "factor",
+                "direction",
+                "value",
+                "processed_value",
+                "preprocess",
+                "group"
+              ],
+              "name": "signals.csv",
+              "rows": 364500,
+              "unique_keys": 364500
+            },
+            {
+              "columns": [
+                "time",
+                "asset",
+                "period",
+                "value"
+              ],
+              "name": "labels.csv",
+              "rows": 364500,
+              "unique_keys": 364500
+            },
+            {
+              "columns": [
+                "time",
+                "factor",
+                "period",
+                "ic",
+                "rank_ic",
+                "n_assets"
+              ],
+              "name": "ic.csv",
+              "rows": 2587,
+              "unique_keys": 2587
+            },
+            {
+              "columns": [
+                "factor",
+                "period",
+                "mean_ic",
+                "std_ic",
+                "icir",
+                "mean_rank_ic",
+                "std_rank_ic",
+                "rank_icir",
+                "n_dates"
+              ],
+              "name": "ic_summary.csv",
+              "rows": 12,
+              "unique_keys": 12
+            },
+            {
+              "columns": [
+                "time",
+                "factor",
+                "period",
+                "quantile",
+                "mean_return",
+                "n_assets"
+              ],
+              "name": "quantile_returns.csv",
+              "rows": 12935,
+              "unique_keys": 12935
+            },
+            {
+              "columns": [
+                "time",
+                "factor",
+                "period",
+                "quantile",
+                "turnover"
+              ],
+              "name": "turnover.csv",
+              "rows": 9345,
+              "unique_keys": 9345
+            },
+            {
+              "columns": [
+                "time",
+                "factor",
+                "period",
+                "spread",
+                "top_quantile",
+                "bottom_quantile"
+              ],
+              "name": "spreads.csv",
+              "rows": 2587,
+              "unique_keys": 2587
+            },
+            {
+              "columns": [
+                "factor",
+                "lag",
+                "mean_rank_autocorrelation",
+                "std_rank_autocorrelation",
+                "n_dates"
+              ],
+              "name": "stability.csv",
+              "rows": 12,
+              "unique_keys": 12
+            },
+            {
+              "columns": [
+                "factor_left",
+                "factor_right",
+                "mean_correlation",
+                "std_correlation",
+                "n_dates"
+              ],
+              "name": "correlation.csv",
+              "rows": 6,
+              "unique_keys": 6
+            },
+            {
+              "columns": [
+                "comparison",
+                "left",
+                "right",
+                "period",
+                "mean_ic",
+                "icir",
+                "mean_ic_left",
+                "mean_ic_right",
+                "icir_left",
+                "icir_right",
+                "n_dates_left",
+                "n_dates_right"
+              ],
+              "name": "comparisons.csv",
+              "rows": 9,
+              "unique_keys": 9
+            },
+            {
+              "columns": [
+                "factor",
+                "kind",
+                "direction",
+                "input_cells",
+                "finite_cells",
+                "label_cells",
+                "evaluable_cells",
+                "status"
+              ],
+              "name": "coverage.csv",
+              "rows": 4,
+              "unique_keys": 4
+            },
+            {
+              "columns": [
+                "factor",
+                "stage",
+                "severity",
+                "code",
+                "message"
+              ],
+              "name": "diagnostics.csv",
+              "rows": 7,
+              "unique_keys": 0
+            }
+          ],
+          "directory": "D:\\temp\\iteration49-7col-g2a-fcg1-p2-b-026\\example\\evaluation\\1a376bfb5e31e2bcf9689cef4d51467be5fff24ad084604753d24d3d523448da",
+          "evaluation_id": "1a376bfb5e31e2bcf9689cef4d51467be5fff24ad084604753d24d3d523448da",
+          "labels": [
+            "1D",
+            "5D",
+            "20D"
+          ],
+          "png_files": [
+            {
+              "bytes": 128277,
+              "decoded_bytes": 1843680,
+              "height": 480,
+              "name": "ic_series.png",
+              "width": 960
+            },
+            {
+              "bytes": 28020,
+              "decoded_bytes": 1843680,
+              "height": 480,
+              "name": "quantile_returns.png",
+              "width": 960
+            }
+          ],
+          "result_fingerprint": "abfb21f36229bd50eae0ca13ad5ffd50f3866fe4d324e058c9366fe9de2a6480",
+          "status": "OK"
+        },
+        "example": "026",
+        "factor_values": {
+          "columns": [
+            "time",
+            "asset",
+            "close_ma",
+            "kdj_j",
+            "roc"
+          ],
+          "expected_rows": 121500,
+          "factor_counts": {
+            "close_ma": {
+              "finite": 109305,
+              "infinite": 0,
+              "invalid": 0,
+              "nan": 12195
+            },
+            "kdj_j": {
+              "finite": 113132,
+              "infinite": 0,
+              "invalid": 0,
+              "nan": 8368
+            },
+            "roc": {
+              "finite": 108760,
+              "infinite": 0,
+              "invalid": 0,
+              "nan": 12740
+            }
+          },
+          "path": "D:\\temp\\iteration49-7col-g2a-fcg1-p2-b-026\\example\\factor_values.csv",
+          "rows": 121500,
+          "valid": true
+        },
+        "reports": {
+          "factor_report_close_ma.html": {
+            "chart_data_keys": [
+              "cumulative",
+              "distribution",
+              "ic",
+              "quantile",
+              "turnover"
+            ],
+            "html_sha256": "e06fdf731f6d6f7fbaddc2c804454266f1258e23e2b2410654b7eebf117b4c05",
+            "semantic_digest": "e60431886890f08b7ba7382bca3f7c8dae39d6f0cb6f861123f46cf21c1eb39c",
+            "table_count": 14
+          },
+          "factor_report_kdj_j.html": {
+            "chart_data_keys": [
+              "cumulative",
+              "distribution",
+              "ic",
+              "quantile",
+              "turnover"
+            ],
+            "html_sha256": "77001f73f617ba00de7ab75af26ecdaf627773cc7b07a0f8f00ab02d7e3cf6b6",
+            "semantic_digest": "245c73e0134a5211b783a4000eac9445b0f6d3cbe12f45c54f35ae22d2ee4552",
+            "table_count": 14
+          },
+          "factor_report_roc.html": {
+            "chart_data_keys": [
+              "cumulative",
+              "distribution",
+              "ic",
+              "quantile",
+              "turnover"
+            ],
+            "html_sha256": "3bd7b4da9a0f1193dad128d37ac527c514938e02034a53199d2d4edcbbfd2705",
+            "semantic_digest": "5f664627409e0a72de92db5b8737cb4302f56d5ca04c31cd9909e1ae21f602f9",
+            "table_count": 14
+          }
+        },
+        "summary": {
+          "broker": {
+            "cancel": 0,
+            "submit": 0
+          },
+          "dates": 243,
+          "factor_calculation": "RAN",
+          "factor_mode": "native",
+          "status": "COMPLETED",
+          "symbols": 500
+        },
+        "valid": true
+      },
+      "027": {
+        "directory": "D:\\temp\\iteration49-7col-g2a-fcg1-p2-b-027\\example",
+        "errors": [],
+        "evaluation": {
+          "evaluation_id": null,
+          "result_fingerprint": null,
+          "status": "NOT_APPLICABLE_BY_027"
+        },
+        "example": "027",
+        "factor_values": {
+          "columns": [
+            "time",
+            "asset",
+            "alpha003"
+          ],
+          "expected_rows": 121500,
+          "factor_counts": {
+            "alpha003": {
+              "finite": 114509,
+              "infinite": 0,
+              "invalid": 0,
+              "nan": 6991
+            }
+          },
+          "path": "D:\\temp\\iteration49-7col-g2a-fcg1-p2-b-027\\example\\factor_values.csv",
+          "rows": 121500,
+          "valid": true
+        },
+        "reports": {
+          "factor_report_alpha003.html": {
+            "chart_data_keys": [
+              "cumulative",
+              "distribution",
+              "ic",
+              "quantile",
+              "turnover"
+            ],
+            "html_sha256": "3e63e8a4dcdad750ef8626f0d57aa2ce205f068731eff46a71a0e1c46114841c",
+            "semantic_digest": "df0dc8712a40b6a38bcdd51f0cccb5ac8c73b47b07a1b7610aacab9db4c94eb2",
+            "table_count": 14
+          }
+        },
+        "summary": {
+          "broker": {
+            "cancel": 0,
+            "submit": 0
+          },
+          "dates": 243,
+          "factor_calculation": "RAN",
+          "factor_mode": "native",
+          "status": "COMPLETED",
+          "symbols": 500
+        },
+        "valid": true
+      }
+    }
+  },
+  "schema": "iteration49.fixed500_output_verification.v1",
+  "scope_complete": true,
+  "status": "PASS",
+  "valid": true
+}
