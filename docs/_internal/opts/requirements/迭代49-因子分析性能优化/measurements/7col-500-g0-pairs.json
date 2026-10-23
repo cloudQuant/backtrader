@@ -1,0 +1,3758 @@
+{
+  "status": "MEASURED_G0_PAIRS_NOT_FINAL_ITERATION_ACCEPTANCE",
+  "profile": "full",
+  "pair_order": [
+    "AB",
+    "BA",
+    "AB"
+  ],
+  "examples": {
+    "025": {
+      "pairs": [
+        {
+          "pair": 1,
+          "a": {
+            "result_path": "D:\\temp\\iteration49-7col-g0-p1-a-025\\result.json",
+            "result_sha256": "ee696dd21ef7acfa39a2f3532a0d201afb4fc4eeb0af380cc0c1c5806a851c17",
+            "wall_s": 51.2130662,
+            "cpu_s": 49.59375,
+            "cli_wall_s": 57.606007,
+            "peak_bytes": 925577216,
+            "sampled_peak_tree_rss_bytes": 733499392,
+            "max_sampled_processes": 1,
+            "memory": {
+              "after_imports_before_main": {
+                "peak_working_set_bytes": 174764032,
+                "rss_bytes": 174764032,
+                "working_set_bytes": 174764032
+              },
+              "after_load_daily_panel": {
+                "elapsed_main_ns": 1421162400,
+                "rss_bytes": 190504960
+              },
+              "after_main": {
+                "peak_working_set_bytes": 925577216,
+                "rss_bytes": 343183360,
+                "working_set_bytes": 343183360
+              }
+            },
+            "phases": {
+              "align_to_grid": {
+                "calls": 500,
+                "parent_labels": [
+                  "collection"
+                ],
+                "process_cpu_exclusive_ns": 2484375000,
+                "process_cpu_inclusive_ns": 2484375000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 2588453600,
+                "wall_inclusive_ns": 2588453600
+              },
+              "cerebro_run": {
+                "calls": 1,
+                "parent_labels": [
+                  "collection"
+                ],
+                "process_cpu_exclusive_ns": 640625000,
+                "process_cpu_inclusive_ns": 8421875000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 693791900,
+                "wall_inclusive_ns": 8606645700
+              },
+              "collect_grid_points": {
+                "calls": 243,
+                "parent_labels": [
+                  "engine_runonce"
+                ],
+                "process_cpu_exclusive_ns": 1531250000,
+                "process_cpu_inclusive_ns": 1531250000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 1557521600,
+                "wall_inclusive_ns": 1557521600
+              },
+              "collection": {
+                "calls": 1,
+                "parent_labels": [],
+                "process_cpu_exclusive_ns": 46875000,
+                "process_cpu_inclusive_ns": 10953125000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 40575600,
+                "wall_inclusive_ns": 11235674900
+              },
+              "dataframe_to_csv": {
+                "calls": 13,
+                "parent_labels": [
+                  "evaluation_export"
+                ],
+                "process_cpu_exclusive_ns": 3562500000,
+                "process_cpu_inclusive_ns": 3562500000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 3640550600,
+                "wall_inclusive_ns": 3640550600
+              },
+              "engine_runonce": {
+                "calls": 1,
+                "parent_labels": [
+                  "cerebro_run"
+                ],
+                "process_cpu_exclusive_ns": 4140625000,
+                "process_cpu_inclusive_ns": 5671875000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 4244857600,
+                "wall_inclusive_ns": 5802379200
+              },
+              "evaluate_frames": {
+                "calls": 1,
+                "parent_labels": [],
+                "process_cpu_exclusive_ns": 109375000,
+                "process_cpu_inclusive_ns": 25343750000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 106070300,
+                "wall_inclusive_ns": 26023578000
+              },
+              "evaluation_charts": {
+                "calls": 1,
+                "parent_labels": [
+                  "evaluation_export"
+                ],
+                "process_cpu_exclusive_ns": 515625000,
+                "process_cpu_inclusive_ns": 515625000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 526204500,
+                "wall_inclusive_ns": 526204500
+              },
+              "evaluation_export": {
+                "calls": 1,
+                "parent_labels": [],
+                "process_cpu_exclusive_ns": 0,
+                "process_cpu_inclusive_ns": 3390625000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 2592800,
+                "wall_inclusive_ns": 3470728500
+              },
+              "feed_preload": {
+                "calls": 500,
+                "parent_labels": [
+                  "cerebro_run"
+                ],
+                "process_cpu_exclusive_ns": 1890625000,
+                "process_cpu_inclusive_ns": 1890625000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 1840367700,
+                "wall_inclusive_ns": 1840367700
+              },
+              "fincore_evaluate": {
+                "calls": 1,
+                "parent_labels": [
+                  "evaluate_frames"
+                ],
+                "process_cpu_exclusive_ns": 25234375000,
+                "process_cpu_inclusive_ns": 25234375000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 25917507700,
+                "wall_inclusive_ns": 25917507700
+              },
+              "html_report": {
+                "calls": 1,
+                "parent_labels": [],
+                "process_cpu_exclusive_ns": 7843750000,
+                "process_cpu_inclusive_ns": 7843750000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 8354595500,
+                "wall_inclusive_ns": 8354595500
+              },
+              "load_daily_panel": {
+                "calls": 1,
+                "parent_labels": [],
+                "process_cpu_exclusive_ns": 1375000000,
+                "process_cpu_inclusive_ns": 1375000000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 1416666100,
+                "wall_inclusive_ns": 1416666100
+              },
+              "sink_finalize": {
+                "calls": 1,
+                "parent_labels": [
+                  "strategy_stop"
+                ],
+                "process_cpu_exclusive_ns": 203125000,
+                "process_cpu_inclusive_ns": 203125000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 251409800,
+                "wall_inclusive_ns": 251409800
+              },
+              "strategy_stop": {
+                "calls": 1,
+                "parent_labels": [
+                  "cerebro_run"
+                ],
+                "process_cpu_exclusive_ns": 15625000,
+                "process_cpu_inclusive_ns": 218750000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 18697100,
+                "wall_inclusive_ns": 270106900
+              }
+            },
+            "runner_sha256": {
+              "sha256": "a971ca097236c6ffbaf85f5291bf58e47022d1f452c861e810bc3b8190a2ea0a",
+              "size_bytes": 33507
+            },
+            "backtrader_source": {
+              "commit": "e305e48de1d3f2f0aa428a506aff0eeba398a338",
+              "kind": "verified_snapshot_manifest_v1",
+              "manifest_sha256": "937180bbc54b424edf016f38535da3cbf97f0cb1e5f9e4914277e76d5fe93132",
+              "source_content_sha256": "4f43ef50fb0ab8224cce9f8447b93b8ddf4089179056606fcc4f167930fedf9e"
+            },
+            "fincore_source": {
+              "commit": "e04bd082b85374d58e304ec15d43dd134b7fe77b",
+              "kind": "verified_snapshot_manifest_v1",
+              "manifest_sha256": "439eadb28881b3910862891d6232c9c6e6b453868cf81b3702db0ff7ef3f0cf5",
+              "source_content_sha256": "f4d5081f1959a7d5399dc5aee93c4b86ba0401ef0b9981b3f30245d41906561f"
+            },
+            "environment": {
+              "available_memory_bytes": 9486696448,
+              "backtrader_origin": "D:\\temp\\iteration49-b0-backtrader-e305e48\\backtrader\\__init__.py",
+              "diagnostic_note": "--diagnostic panel deep-memory measurement runs after load_daily_panel returns and is included in main wall/CPU",
+              "executable": "C:\\anaconda3\\python.exe",
+              "fincore_origin": "D:\\temp\\iteration49-b0-fincore-e04bd08\\fincore\\__init__.py",
+              "logical_cpus": 32,
+              "numpy": "1.26.4",
+              "pandas": "2.2.3",
+              "platform": "Windows-10-10.0.26300-SP0",
+              "python": "3.11.5 | packaged by Anaconda, Inc. | (main, Sep 11 2023, 13:26:23) [MSC v.1916 64 bit (AMD64)]",
+              "resource_sampling_interval_seconds": 0.5,
+              "sampling_note": "tree RSS is summed at each sample; sampled tree CPU is approximate; main process CPU is primary"
+            }
+          },
+          "b": {
+            "result_path": "D:\\temp\\iteration49-7col-g0-p1-b-025\\result.json",
+            "result_sha256": "63fbb1dcf9900d72c3127c1d7eeff6acd5f151f6ff4bb0c4504f91748a616019",
+            "wall_s": 48.3065646,
+            "cpu_s": 46.234375,
+            "cli_wall_s": 54.7743827,
+            "peak_bytes": 922193920,
+            "sampled_peak_tree_rss_bytes": 815636480,
+            "max_sampled_processes": 1,
+            "memory": {
+              "after_imports_before_main": {
+                "peak_working_set_bytes": 174657536,
+                "rss_bytes": 174657536,
+                "working_set_bytes": 174657536
+              },
+              "after_load_daily_panel": {
+                "elapsed_main_ns": 1370449400,
+                "rss_bytes": 190500864
+              },
+              "after_main": {
+                "peak_working_set_bytes": 922193920,
+                "rss_bytes": 342548480,
+                "working_set_bytes": 342548480
+              }
+            },
+            "phases": {
+              "align_to_grid": {
+                "calls": 500,
+                "parent_labels": [
+                  "collection"
+                ],
+                "process_cpu_exclusive_ns": 875000000,
+                "process_cpu_inclusive_ns": 875000000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 888428100,
+                "wall_inclusive_ns": 888428100
+              },
+              "cerebro_run": {
+                "calls": 1,
+                "parent_labels": [
+                  "collection"
+                ],
+                "process_cpu_exclusive_ns": 515625000,
+                "process_cpu_inclusive_ns": 8250000000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 553926600,
+                "wall_inclusive_ns": 8692208100
+              },
+              "collect_grid_points": {
+                "calls": 243,
+                "parent_labels": [
+                  "engine_runonce"
+                ],
+                "process_cpu_exclusive_ns": 1640625000,
+                "process_cpu_inclusive_ns": 1640625000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 1559742200,
+                "wall_inclusive_ns": 1559742200
+              },
+              "collection": {
+                "calls": 1,
+                "parent_labels": [],
+                "process_cpu_exclusive_ns": 31250000,
+                "process_cpu_inclusive_ns": 9156250000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 35045800,
+                "wall_inclusive_ns": 9615682000
+              },
+              "dataframe_to_csv": {
+                "calls": 13,
+                "parent_labels": [
+                  "evaluation_export"
+                ],
+                "process_cpu_exclusive_ns": 3453125000,
+                "process_cpu_inclusive_ns": 3453125000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 3532312200,
+                "wall_inclusive_ns": 3532312200
+              },
+              "engine_runonce": {
+                "calls": 1,
+                "parent_labels": [
+                  "cerebro_run"
+                ],
+                "process_cpu_exclusive_ns": 3937500000,
+                "process_cpu_inclusive_ns": 5578125000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 4331690200,
+                "wall_inclusive_ns": 5891432400
+              },
+              "evaluate_frames": {
+                "calls": 1,
+                "parent_labels": [],
+                "process_cpu_exclusive_ns": 125000000,
+                "process_cpu_inclusive_ns": 23875000000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 174416500,
+                "wall_inclusive_ns": 25009576300
+              },
+              "evaluation_charts": {
+                "calls": 1,
+                "parent_labels": [
+                  "evaluation_export"
+                ],
+                "process_cpu_exclusive_ns": 484375000,
+                "process_cpu_inclusive_ns": 484375000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 518263900,
+                "wall_inclusive_ns": 518263900
+              },
+              "evaluation_export": {
+                "calls": 1,
+                "parent_labels": [],
+                "process_cpu_exclusive_ns": 15625000,
+                "process_cpu_inclusive_ns": 3328125000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 2598900,
+                "wall_inclusive_ns": 3419005200
+              },
+              "feed_preload": {
+                "calls": 500,
+                "parent_labels": [
+                  "cerebro_run"
+                ],
+                "process_cpu_exclusive_ns": 1875000000,
+                "process_cpu_inclusive_ns": 1875000000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 1945253400,
+                "wall_inclusive_ns": 1945253400
+              },
+              "fincore_evaluate": {
+                "calls": 1,
+                "parent_labels": [
+                  "evaluate_frames"
+                ],
+                "process_cpu_exclusive_ns": 23750000000,
+                "process_cpu_inclusive_ns": 23750000000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 24835159800,
+                "wall_inclusive_ns": 24835159800
+              },
+              "html_report": {
+                "calls": 1,
+                "parent_labels": [],
+                "process_cpu_exclusive_ns": 7921875000,
+                "process_cpu_inclusive_ns": 7921875000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 8249068000,
+                "wall_inclusive_ns": 8249068000
+              },
+              "load_daily_panel": {
+                "calls": 1,
+                "parent_labels": [],
+                "process_cpu_exclusive_ns": 1328125000,
+                "process_cpu_inclusive_ns": 1328125000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 1366036900,
+                "wall_inclusive_ns": 1366036900
+              },
+              "sink_finalize": {
+                "calls": 1,
+                "parent_labels": [
+                  "strategy_stop"
+                ],
+                "process_cpu_exclusive_ns": 234375000,
+                "process_cpu_inclusive_ns": 234375000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 275238200,
+                "wall_inclusive_ns": 275238200
+              },
+              "strategy_stop": {
+                "calls": 1,
+                "parent_labels": [
+                  "cerebro_run"
+                ],
+                "process_cpu_exclusive_ns": 46875000,
+                "process_cpu_inclusive_ns": 281250000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 26357500,
+                "wall_inclusive_ns": 301595700
+              }
+            },
+            "runner_sha256": {
+              "sha256": "a971ca097236c6ffbaf85f5291bf58e47022d1f452c861e810bc3b8190a2ea0a",
+              "size_bytes": 33507
+            },
+            "backtrader_source": {
+              "branch": "dev",
+              "commit": "1108ad608eb1c3c5f4b273fef85d0174ed94735b",
+              "kind": "git_worktree",
+              "source_content_sha256": "6f67cfa751592d55e1695a8f4abc81ba7e5c091b0ef3f6f53e06af0fb6388ac5",
+              "source_status": [
+                " M backtrader/research/specs.py",
+                " M backtrader/strategy.py",
+                " M examples/backtest/027_alpha003_panel_acceptance/run_daily.py"
+              ]
+            },
+            "fincore_source": {
+              "branch": "dev",
+              "commit": "e04bd082b85374d58e304ec15d43dd134b7fe77b",
+              "kind": "git_worktree",
+              "source_content_sha256": "7b8e3915bf0447357bba88abf0386120ac2e8a0132bee51095487bc7cb5e8b81",
+              "source_status": [
+                " M fincore/factor_analysis/research.py"
+              ]
+            },
+            "environment": {
+              "available_memory_bytes": 9612156928,
+              "backtrader_origin": "D:\\source_code\\backtrader\\backtrader\\__init__.py",
+              "diagnostic_note": "--diagnostic panel deep-memory measurement runs after load_daily_panel returns and is included in main wall/CPU",
+              "executable": "C:\\anaconda3\\python.exe",
+              "fincore_origin": "D:\\source_code\\fincore\\fincore\\__init__.py",
+              "logical_cpus": 32,
+              "numpy": "1.26.4",
+              "pandas": "2.2.3",
+              "platform": "Windows-10-10.0.26300-SP0",
+              "python": "3.11.5 | packaged by Anaconda, Inc. | (main, Sep 11 2023, 13:26:23) [MSC v.1916 64 bit (AMD64)]",
+              "resource_sampling_interval_seconds": 0.5,
+              "sampling_note": "tree RSS is summed at each sample; sampled tree CPU is approximate; main process CPU is primary"
+            }
+          },
+          "wall_ratio": 0.9432468739784223,
+          "cpu_ratio": 0.9322621298046628,
+          "peak_ratio": 0.996344663695784
+        },
+        {
+          "pair": 2,
+          "a": {
+            "result_path": "D:\\temp\\iteration49-7col-g0-p2-a-025\\result.json",
+            "result_sha256": "a33f2baa2061c0d0bed711661d039884a27e0c92c5b1e9b9f31f3c90813e4be1",
+            "wall_s": 51.3757556,
+            "cpu_s": 48.90625,
+            "cli_wall_s": 57.4694986,
+            "peak_bytes": 919572480,
+            "sampled_peak_tree_rss_bytes": 830337024,
+            "max_sampled_processes": 1,
+            "memory": {
+              "after_imports_before_main": {
+                "peak_working_set_bytes": 175202304,
+                "rss_bytes": 175202304,
+                "working_set_bytes": 175202304
+              },
+              "after_load_daily_panel": {
+                "elapsed_main_ns": 1442742500,
+                "rss_bytes": 191307776
+              },
+              "after_main": {
+                "peak_working_set_bytes": 919572480,
+                "rss_bytes": 341901312,
+                "working_set_bytes": 341901312
+              }
+            },
+            "phases": {
+              "align_to_grid": {
+                "calls": 500,
+                "parent_labels": [
+                  "collection"
+                ],
+                "process_cpu_exclusive_ns": 2453125000,
+                "process_cpu_inclusive_ns": 2453125000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 2569412500,
+                "wall_inclusive_ns": 2569412500
+              },
+              "cerebro_run": {
+                "calls": 1,
+                "parent_labels": [
+                  "collection"
+                ],
+                "process_cpu_exclusive_ns": 750000000,
+                "process_cpu_inclusive_ns": 8062500000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 680353700,
+                "wall_inclusive_ns": 8458856100
+              },
+              "collect_grid_points": {
+                "calls": 243,
+                "parent_labels": [
+                  "engine_runonce"
+                ],
+                "process_cpu_exclusive_ns": 1359375000,
+                "process_cpu_inclusive_ns": 1359375000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 1501393100,
+                "wall_inclusive_ns": 1501393100
+              },
+              "collection": {
+                "calls": 1,
+                "parent_labels": [],
+                "process_cpu_exclusive_ns": 46875000,
+                "process_cpu_inclusive_ns": 10562500000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 40813800,
+                "wall_inclusive_ns": 11069082400
+              },
+              "dataframe_to_csv": {
+                "calls": 13,
+                "parent_labels": [
+                  "evaluation_export"
+                ],
+                "process_cpu_exclusive_ns": 3421875000,
+                "process_cpu_inclusive_ns": 3421875000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 3579205500,
+                "wall_inclusive_ns": 3579205500
+              },
+              "engine_runonce": {
+                "calls": 1,
+                "parent_labels": [
+                  "cerebro_run"
+                ],
+                "process_cpu_exclusive_ns": 3968750000,
+                "process_cpu_inclusive_ns": 5328125000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 4177499100,
+                "wall_inclusive_ns": 5678892200
+              },
+              "evaluate_frames": {
+                "calls": 1,
+                "parent_labels": [],
+                "process_cpu_exclusive_ns": 109375000,
+                "process_cpu_inclusive_ns": 25296875000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 107740900,
+                "wall_inclusive_ns": 26586449300
+              },
+              "evaluation_charts": {
+                "calls": 1,
+                "parent_labels": [
+                  "evaluation_export"
+                ],
+                "process_cpu_exclusive_ns": 500000000,
+                "process_cpu_inclusive_ns": 500000000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 582032300,
+                "wall_inclusive_ns": 582032300
+              },
+              "evaluation_export": {
+                "calls": 1,
+                "parent_labels": [],
+                "process_cpu_exclusive_ns": 0,
+                "process_cpu_inclusive_ns": 3312500000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 5481400,
+                "wall_inclusive_ns": 3529868100
+              },
+              "feed_preload": {
+                "calls": 500,
+                "parent_labels": [
+                  "cerebro_run"
+                ],
+                "process_cpu_exclusive_ns": 1718750000,
+                "process_cpu_inclusive_ns": 1718750000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 1833799400,
+                "wall_inclusive_ns": 1833799400
+              },
+              "fincore_evaluate": {
+                "calls": 1,
+                "parent_labels": [
+                  "evaluate_frames"
+                ],
+                "process_cpu_exclusive_ns": 25187500000,
+                "process_cpu_inclusive_ns": 25187500000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 26478708400,
+                "wall_inclusive_ns": 26478708400
+              },
+              "html_report": {
+                "calls": 1,
+                "parent_labels": [],
+                "process_cpu_exclusive_ns": 7703125000,
+                "process_cpu_inclusive_ns": 7703125000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 8088720000,
+                "wall_inclusive_ns": 8088720000
+              },
+              "load_daily_panel": {
+                "calls": 1,
+                "parent_labels": [],
+                "process_cpu_exclusive_ns": 1390625000,
+                "process_cpu_inclusive_ns": 1390625000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 1435945000,
+                "wall_inclusive_ns": 1435945000
+              },
+              "sink_finalize": {
+                "calls": 1,
+                "parent_labels": [
+                  "strategy_stop"
+                ],
+                "process_cpu_exclusive_ns": 250000000,
+                "process_cpu_inclusive_ns": 250000000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 246902400,
+                "wall_inclusive_ns": 246902400
+              },
+              "strategy_stop": {
+                "calls": 1,
+                "parent_labels": [
+                  "cerebro_run"
+                ],
+                "process_cpu_exclusive_ns": 15625000,
+                "process_cpu_inclusive_ns": 265625000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 18908400,
+                "wall_inclusive_ns": 265810800
+              }
+            },
+            "runner_sha256": {
+              "sha256": "a971ca097236c6ffbaf85f5291bf58e47022d1f452c861e810bc3b8190a2ea0a",
+              "size_bytes": 33507
+            },
+            "backtrader_source": {
+              "commit": "e305e48de1d3f2f0aa428a506aff0eeba398a338",
+              "kind": "verified_snapshot_manifest_v1",
+              "manifest_sha256": "937180bbc54b424edf016f38535da3cbf97f0cb1e5f9e4914277e76d5fe93132",
+              "source_content_sha256": "4f43ef50fb0ab8224cce9f8447b93b8ddf4089179056606fcc4f167930fedf9e"
+            },
+            "fincore_source": {
+              "commit": "e04bd082b85374d58e304ec15d43dd134b7fe77b",
+              "kind": "verified_snapshot_manifest_v1",
+              "manifest_sha256": "439eadb28881b3910862891d6232c9c6e6b453868cf81b3702db0ff7ef3f0cf5",
+              "source_content_sha256": "f4d5081f1959a7d5399dc5aee93c4b86ba0401ef0b9981b3f30245d41906561f"
+            },
+            "environment": {
+              "available_memory_bytes": 9391308800,
+              "backtrader_origin": "D:\\temp\\iteration49-b0-backtrader-e305e48\\backtrader\\__init__.py",
+              "diagnostic_note": "--diagnostic panel deep-memory measurement runs after load_daily_panel returns and is included in main wall/CPU",
+              "executable": "C:\\anaconda3\\python.exe",
+              "fincore_origin": "D:\\temp\\iteration49-b0-fincore-e04bd08\\fincore\\__init__.py",
+              "logical_cpus": 32,
+              "numpy": "1.26.4",
+              "pandas": "2.2.3",
+              "platform": "Windows-10-10.0.26300-SP0",
+              "python": "3.11.5 | packaged by Anaconda, Inc. | (main, Sep 11 2023, 13:26:23) [MSC v.1916 64 bit (AMD64)]",
+              "resource_sampling_interval_seconds": 0.5,
+              "sampling_note": "tree RSS is summed at each sample; sampled tree CPU is approximate; main process CPU is primary"
+            }
+          },
+          "b": {
+            "result_path": "D:\\temp\\iteration49-7col-g0-p2-b-025\\result.json",
+            "result_sha256": "cf3a821822bc7eb54a0e1b201c93817ac0cec2cfa40155af9298885c7afbffbd",
+            "wall_s": 48.2474183,
+            "cpu_s": 46.484375,
+            "cli_wall_s": 54.5664288,
+            "peak_bytes": 924205056,
+            "sampled_peak_tree_rss_bytes": 922976256,
+            "max_sampled_processes": 1,
+            "memory": {
+              "after_imports_before_main": {
+                "peak_working_set_bytes": 174784512,
+                "rss_bytes": 174784512,
+                "working_set_bytes": 174784512
+              },
+              "after_load_daily_panel": {
+                "elapsed_main_ns": 1373499300,
+                "rss_bytes": 190898176
+              },
+              "after_main": {
+                "peak_working_set_bytes": 924205056,
+                "rss_bytes": 345526272,
+                "working_set_bytes": 345526272
+              }
+            },
+            "phases": {
+              "align_to_grid": {
+                "calls": 500,
+                "parent_labels": [
+                  "collection"
+                ],
+                "process_cpu_exclusive_ns": 859375000,
+                "process_cpu_inclusive_ns": 859375000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 886881100,
+                "wall_inclusive_ns": 886881100
+              },
+              "cerebro_run": {
+                "calls": 1,
+                "parent_labels": [
+                  "collection"
+                ],
+                "process_cpu_exclusive_ns": 578125000,
+                "process_cpu_inclusive_ns": 8093750000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 573681800,
+                "wall_inclusive_ns": 8228498600
+              },
+              "collect_grid_points": {
+                "calls": 243,
+                "parent_labels": [
+                  "engine_runonce"
+                ],
+                "process_cpu_exclusive_ns": 1437500000,
+                "process_cpu_inclusive_ns": 1437500000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 1467288200,
+                "wall_inclusive_ns": 1467288200
+              },
+              "collection": {
+                "calls": 1,
+                "parent_labels": [],
+                "process_cpu_exclusive_ns": 31250000,
+                "process_cpu_inclusive_ns": 8984375000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 35494000,
+                "wall_inclusive_ns": 9150873700
+              },
+              "dataframe_to_csv": {
+                "calls": 13,
+                "parent_labels": [
+                  "evaluation_export"
+                ],
+                "process_cpu_exclusive_ns": 3453125000,
+                "process_cpu_inclusive_ns": 3453125000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 3644143800,
+                "wall_inclusive_ns": 3644143800
+              },
+              "engine_runonce": {
+                "calls": 1,
+                "parent_labels": [
+                  "cerebro_run"
+                ],
+                "process_cpu_exclusive_ns": 4015625000,
+                "process_cpu_inclusive_ns": 5453125000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 4085459800,
+                "wall_inclusive_ns": 5552748000
+              },
+              "evaluate_frames": {
+                "calls": 1,
+                "parent_labels": [],
+                "process_cpu_exclusive_ns": 109375000,
+                "process_cpu_inclusive_ns": 24375000000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 105033400,
+                "wall_inclusive_ns": 25348515800
+              },
+              "evaluation_charts": {
+                "calls": 1,
+                "parent_labels": [
+                  "evaluation_export"
+                ],
+                "process_cpu_exclusive_ns": 500000000,
+                "process_cpu_inclusive_ns": 500000000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 520697700,
+                "wall_inclusive_ns": 520697700
+              },
+              "evaluation_export": {
+                "calls": 1,
+                "parent_labels": [],
+                "process_cpu_exclusive_ns": 0,
+                "process_cpu_inclusive_ns": 3328125000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 4589000,
+                "wall_inclusive_ns": 3540940400
+              },
+              "feed_preload": {
+                "calls": 500,
+                "parent_labels": [
+                  "cerebro_run"
+                ],
+                "process_cpu_exclusive_ns": 1796875000,
+                "process_cpu_inclusive_ns": 1796875000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 1838772800,
+                "wall_inclusive_ns": 1838772800
+              },
+              "fincore_evaluate": {
+                "calls": 1,
+                "parent_labels": [
+                  "evaluate_frames"
+                ],
+                "process_cpu_exclusive_ns": 24265625000,
+                "process_cpu_inclusive_ns": 24265625000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 25243482400,
+                "wall_inclusive_ns": 25243482400
+              },
+              "html_report": {
+                "calls": 1,
+                "parent_labels": [],
+                "process_cpu_exclusive_ns": 7859375000,
+                "process_cpu_inclusive_ns": 7859375000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 8196474000,
+                "wall_inclusive_ns": 8196474000
+              },
+              "load_daily_panel": {
+                "calls": 1,
+                "parent_labels": [],
+                "process_cpu_exclusive_ns": 1281250000,
+                "process_cpu_inclusive_ns": 1281250000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 1369096500,
+                "wall_inclusive_ns": 1369096500
+              },
+              "sink_finalize": {
+                "calls": 1,
+                "parent_labels": [
+                  "strategy_stop"
+                ],
+                "process_cpu_exclusive_ns": 234375000,
+                "process_cpu_inclusive_ns": 234375000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 244624300,
+                "wall_inclusive_ns": 244624300
+              },
+              "strategy_stop": {
+                "calls": 1,
+                "parent_labels": [
+                  "cerebro_run"
+                ],
+                "process_cpu_exclusive_ns": 31250000,
+                "process_cpu_inclusive_ns": 265625000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 18671700,
+                "wall_inclusive_ns": 263296000
+              }
+            },
+            "runner_sha256": {
+              "sha256": "a971ca097236c6ffbaf85f5291bf58e47022d1f452c861e810bc3b8190a2ea0a",
+              "size_bytes": 33507
+            },
+            "backtrader_source": {
+              "branch": "dev",
+              "commit": "1108ad608eb1c3c5f4b273fef85d0174ed94735b",
+              "kind": "git_worktree",
+              "source_content_sha256": "6f67cfa751592d55e1695a8f4abc81ba7e5c091b0ef3f6f53e06af0fb6388ac5",
+              "source_status": [
+                " M backtrader/research/specs.py",
+                " M backtrader/strategy.py",
+                " M examples/backtest/027_alpha003_panel_acceptance/run_daily.py"
+              ]
+            },
+            "fincore_source": {
+              "branch": "dev",
+              "commit": "e04bd082b85374d58e304ec15d43dd134b7fe77b",
+              "kind": "git_worktree",
+              "source_content_sha256": "7b8e3915bf0447357bba88abf0386120ac2e8a0132bee51095487bc7cb5e8b81",
+              "source_status": [
+                " M fincore/factor_analysis/research.py"
+              ]
+            },
+            "environment": {
+              "available_memory_bytes": 9358594048,
+              "backtrader_origin": "D:\\source_code\\backtrader\\backtrader\\__init__.py",
+              "diagnostic_note": "--diagnostic panel deep-memory measurement runs after load_daily_panel returns and is included in main wall/CPU",
+              "executable": "C:\\anaconda3\\python.exe",
+              "fincore_origin": "D:\\source_code\\fincore\\fincore\\__init__.py",
+              "logical_cpus": 32,
+              "numpy": "1.26.4",
+              "pandas": "2.2.3",
+              "platform": "Windows-10-10.0.26300-SP0",
+              "python": "3.11.5 | packaged by Anaconda, Inc. | (main, Sep 11 2023, 13:26:23) [MSC v.1916 64 bit (AMD64)]",
+              "resource_sampling_interval_seconds": 0.5,
+              "sampling_note": "tree RSS is summed at each sample; sampled tree CPU is approximate; main process CPU is primary"
+            }
+          },
+          "wall_ratio": 0.9391086853426249,
+          "cpu_ratio": 0.950479233226837,
+          "peak_ratio": 1.0050377497160419
+        },
+        {
+          "pair": 3,
+          "a": {
+            "result_path": "D:\\temp\\iteration49-7col-g0-p3-a-025\\result.json",
+            "result_sha256": "9aefcd4bc16c11fe8cfad95bec182c853075f7bf0ae4cd184946a9cb76c69f88",
+            "wall_s": 51.1044681,
+            "cpu_s": 48.3125,
+            "cli_wall_s": 57.4994264,
+            "peak_bytes": 920764416,
+            "sampled_peak_tree_rss_bytes": 920752128,
+            "max_sampled_processes": 1,
+            "memory": {
+              "after_imports_before_main": {
+                "peak_working_set_bytes": 174837760,
+                "rss_bytes": 174837760,
+                "working_set_bytes": 174837760
+              },
+              "after_load_daily_panel": {
+                "elapsed_main_ns": 1375969400,
+                "rss_bytes": 190910464
+              },
+              "after_main": {
+                "peak_working_set_bytes": 920764416,
+                "rss_bytes": 344371200,
+                "working_set_bytes": 344371200
+              }
+            },
+            "phases": {
+              "align_to_grid": {
+                "calls": 500,
+                "parent_labels": [
+                  "collection"
+                ],
+                "process_cpu_exclusive_ns": 2546875000,
+                "process_cpu_inclusive_ns": 2546875000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 2715651800,
+                "wall_inclusive_ns": 2715651800
+              },
+              "cerebro_run": {
+                "calls": 1,
+                "parent_labels": [
+                  "collection"
+                ],
+                "process_cpu_exclusive_ns": 578125000,
+                "process_cpu_inclusive_ns": 7984375000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 671289500,
+                "wall_inclusive_ns": 8667632400
+              },
+              "collect_grid_points": {
+                "calls": 243,
+                "parent_labels": [
+                  "engine_runonce"
+                ],
+                "process_cpu_exclusive_ns": 1406250000,
+                "process_cpu_inclusive_ns": 1406250000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 1531311600,
+                "wall_inclusive_ns": 1531311600
+              },
+              "collection": {
+                "calls": 1,
+                "parent_labels": [],
+                "process_cpu_exclusive_ns": 62500000,
+                "process_cpu_inclusive_ns": 10593750000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 40593900,
+                "wall_inclusive_ns": 11423878100
+              },
+              "dataframe_to_csv": {
+                "calls": 13,
+                "parent_labels": [
+                  "evaluation_export"
+                ],
+                "process_cpu_exclusive_ns": 3296875000,
+                "process_cpu_inclusive_ns": 3296875000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 3531494600,
+                "wall_inclusive_ns": 3531494600
+              },
+              "engine_runonce": {
+                "calls": 1,
+                "parent_labels": [
+                  "cerebro_run"
+                ],
+                "process_cpu_exclusive_ns": 3937500000,
+                "process_cpu_inclusive_ns": 5343750000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 4241486400,
+                "wall_inclusive_ns": 5772798000
+              },
+              "evaluate_frames": {
+                "calls": 1,
+                "parent_labels": [],
+                "process_cpu_exclusive_ns": 171875000,
+                "process_cpu_inclusive_ns": 24843750000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 183443400,
+                "wall_inclusive_ns": 25965014600
+              },
+              "evaluation_charts": {
+                "calls": 1,
+                "parent_labels": [
+                  "evaluation_export"
+                ],
+                "process_cpu_exclusive_ns": 500000000,
+                "process_cpu_inclusive_ns": 500000000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 563996200,
+                "wall_inclusive_ns": 563996200
+              },
+              "evaluation_export": {
+                "calls": 1,
+                "parent_labels": [],
+                "process_cpu_exclusive_ns": 0,
+                "process_cpu_inclusive_ns": 3343750000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 2522800,
+                "wall_inclusive_ns": 3582106100
+              },
+              "feed_preload": {
+                "calls": 500,
+                "parent_labels": [
+                  "cerebro_run"
+                ],
+                "process_cpu_exclusive_ns": 1812500000,
+                "process_cpu_inclusive_ns": 1812500000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 1973944600,
+                "wall_inclusive_ns": 1973944600
+              },
+              "fincore_evaluate": {
+                "calls": 1,
+                "parent_labels": [
+                  "evaluate_frames"
+                ],
+                "process_cpu_exclusive_ns": 24671875000,
+                "process_cpu_inclusive_ns": 24671875000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 25781571200,
+                "wall_inclusive_ns": 25781571200
+              },
+              "html_report": {
+                "calls": 1,
+                "parent_labels": [],
+                "process_cpu_exclusive_ns": 7750000000,
+                "process_cpu_inclusive_ns": 7750000000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 8233481600,
+                "wall_inclusive_ns": 8233481600
+              },
+              "load_daily_panel": {
+                "calls": 1,
+                "parent_labels": [],
+                "process_cpu_exclusive_ns": 1312500000,
+                "process_cpu_inclusive_ns": 1312500000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 1371385200,
+                "wall_inclusive_ns": 1371385200
+              },
+              "sink_finalize": {
+                "calls": 1,
+                "parent_labels": [
+                  "strategy_stop"
+                ],
+                "process_cpu_exclusive_ns": 234375000,
+                "process_cpu_inclusive_ns": 234375000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 230495300,
+                "wall_inclusive_ns": 230495300
+              },
+              "strategy_stop": {
+                "calls": 1,
+                "parent_labels": [
+                  "cerebro_run"
+                ],
+                "process_cpu_exclusive_ns": 15625000,
+                "process_cpu_inclusive_ns": 250000000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 19105000,
+                "wall_inclusive_ns": 249600300
+              }
+            },
+            "runner_sha256": {
+              "sha256": "a971ca097236c6ffbaf85f5291bf58e47022d1f452c861e810bc3b8190a2ea0a",
+              "size_bytes": 33507
+            },
+            "backtrader_source": {
+              "commit": "e305e48de1d3f2f0aa428a506aff0eeba398a338",
+              "kind": "verified_snapshot_manifest_v1",
+              "manifest_sha256": "937180bbc54b424edf016f38535da3cbf97f0cb1e5f9e4914277e76d5fe93132",
+              "source_content_sha256": "4f43ef50fb0ab8224cce9f8447b93b8ddf4089179056606fcc4f167930fedf9e"
+            },
+            "fincore_source": {
+              "commit": "e04bd082b85374d58e304ec15d43dd134b7fe77b",
+              "kind": "verified_snapshot_manifest_v1",
+              "manifest_sha256": "439eadb28881b3910862891d6232c9c6e6b453868cf81b3702db0ff7ef3f0cf5",
+              "source_content_sha256": "f4d5081f1959a7d5399dc5aee93c4b86ba0401ef0b9981b3f30245d41906561f"
+            },
+            "environment": {
+              "available_memory_bytes": 9000620032,
+              "backtrader_origin": "D:\\temp\\iteration49-b0-backtrader-e305e48\\backtrader\\__init__.py",
+              "diagnostic_note": "--diagnostic panel deep-memory measurement runs after load_daily_panel returns and is included in main wall/CPU",
+              "executable": "C:\\anaconda3\\python.exe",
+              "fincore_origin": "D:\\temp\\iteration49-b0-fincore-e04bd08\\fincore\\__init__.py",
+              "logical_cpus": 32,
+              "numpy": "1.26.4",
+              "pandas": "2.2.3",
+              "platform": "Windows-10-10.0.26300-SP0",
+              "python": "3.11.5 | packaged by Anaconda, Inc. | (main, Sep 11 2023, 13:26:23) [MSC v.1916 64 bit (AMD64)]",
+              "resource_sampling_interval_seconds": 0.5,
+              "sampling_note": "tree RSS is summed at each sample; sampled tree CPU is approximate; main process CPU is primary"
+            }
+          },
+          "b": {
+            "result_path": "D:\\temp\\iteration49-7col-g0-p3-b-025\\result.json",
+            "result_sha256": "863cc5f12c04b0206267841c283468546b8527fe83ffbb74c8806390d6361eb2",
+            "wall_s": 47.9174508,
+            "cpu_s": 46.140625,
+            "cli_wall_s": 54.628194,
+            "peak_bytes": 922271744,
+            "sampled_peak_tree_rss_bytes": 921075712,
+            "max_sampled_processes": 1,
+            "memory": {
+              "after_imports_before_main": {
+                "peak_working_set_bytes": 174370816,
+                "rss_bytes": 174370816,
+                "working_set_bytes": 174370816
+              },
+              "after_load_daily_panel": {
+                "elapsed_main_ns": 1356830400,
+                "rss_bytes": 190226432
+              },
+              "after_main": {
+                "peak_working_set_bytes": 922271744,
+                "rss_bytes": 343183360,
+                "working_set_bytes": 343183360
+              }
+            },
+            "phases": {
+              "align_to_grid": {
+                "calls": 500,
+                "parent_labels": [
+                  "collection"
+                ],
+                "process_cpu_exclusive_ns": 828125000,
+                "process_cpu_inclusive_ns": 828125000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 863194300,
+                "wall_inclusive_ns": 863194300
+              },
+              "cerebro_run": {
+                "calls": 1,
+                "parent_labels": [
+                  "collection"
+                ],
+                "process_cpu_exclusive_ns": 531250000,
+                "process_cpu_inclusive_ns": 8046875000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 563887700,
+                "wall_inclusive_ns": 8255003900
+              },
+              "collect_grid_points": {
+                "calls": 243,
+                "parent_labels": [
+                  "engine_runonce"
+                ],
+                "process_cpu_exclusive_ns": 1484375000,
+                "process_cpu_inclusive_ns": 1484375000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 1506773800,
+                "wall_inclusive_ns": 1506773800
+              },
+              "collection": {
+                "calls": 1,
+                "parent_labels": [],
+                "process_cpu_exclusive_ns": 46875000,
+                "process_cpu_inclusive_ns": 8921875000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 33784900,
+                "wall_inclusive_ns": 9151983100
+              },
+              "dataframe_to_csv": {
+                "calls": 13,
+                "parent_labels": [
+                  "evaluation_export"
+                ],
+                "process_cpu_exclusive_ns": 3312500000,
+                "process_cpu_inclusive_ns": 3312500000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 3617116200,
+                "wall_inclusive_ns": 3617116200
+              },
+              "engine_runonce": {
+                "calls": 1,
+                "parent_labels": [
+                  "cerebro_run"
+                ],
+                "process_cpu_exclusive_ns": 3968750000,
+                "process_cpu_inclusive_ns": 5453125000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 4112294500,
+                "wall_inclusive_ns": 5619068300
+              },
+              "evaluate_frames": {
+                "calls": 1,
+                "parent_labels": [],
+                "process_cpu_exclusive_ns": 109375000,
+                "process_cpu_inclusive_ns": 23937500000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 113595600,
+                "wall_inclusive_ns": 24915343200
+              },
+              "evaluation_charts": {
+                "calls": 1,
+                "parent_labels": [
+                  "evaluation_export"
+                ],
+                "process_cpu_exclusive_ns": 515625000,
+                "process_cpu_inclusive_ns": 515625000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 543227000,
+                "wall_inclusive_ns": 543227000
+              },
+              "evaluation_export": {
+                "calls": 1,
+                "parent_labels": [],
+                "process_cpu_exclusive_ns": 0,
+                "process_cpu_inclusive_ns": 3218750000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 2566400,
+                "wall_inclusive_ns": 3459228300
+              },
+              "feed_preload": {
+                "calls": 500,
+                "parent_labels": [
+                  "cerebro_run"
+                ],
+                "process_cpu_exclusive_ns": 1796875000,
+                "process_cpu_inclusive_ns": 1796875000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 1811478700,
+                "wall_inclusive_ns": 1811478700
+              },
+              "fincore_evaluate": {
+                "calls": 1,
+                "parent_labels": [
+                  "evaluate_frames"
+                ],
+                "process_cpu_exclusive_ns": 23828125000,
+                "process_cpu_inclusive_ns": 23828125000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 24801747600,
+                "wall_inclusive_ns": 24801747600
+              },
+              "html_report": {
+                "calls": 1,
+                "parent_labels": [],
+                "process_cpu_exclusive_ns": 8078125000,
+                "process_cpu_inclusive_ns": 8078125000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 8321272900,
+                "wall_inclusive_ns": 8321272900
+              },
+              "load_daily_panel": {
+                "calls": 1,
+                "parent_labels": [],
+                "process_cpu_exclusive_ns": 1359375000,
+                "process_cpu_inclusive_ns": 1359375000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 1352424100,
+                "wall_inclusive_ns": 1352424100
+              },
+              "sink_finalize": {
+                "calls": 1,
+                "parent_labels": [
+                  "strategy_stop"
+                ],
+                "process_cpu_exclusive_ns": 250000000,
+                "process_cpu_inclusive_ns": 250000000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 242425600,
+                "wall_inclusive_ns": 242425600
+              },
+              "strategy_stop": {
+                "calls": 1,
+                "parent_labels": [
+                  "cerebro_run"
+                ],
+                "process_cpu_exclusive_ns": 15625000,
+                "process_cpu_inclusive_ns": 265625000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 18143600,
+                "wall_inclusive_ns": 260569200
+              }
+            },
+            "runner_sha256": {
+              "sha256": "a971ca097236c6ffbaf85f5291bf58e47022d1f452c861e810bc3b8190a2ea0a",
+              "size_bytes": 33507
+            },
+            "backtrader_source": {
+              "branch": "dev",
+              "commit": "1108ad608eb1c3c5f4b273fef85d0174ed94735b",
+              "kind": "git_worktree",
+              "source_content_sha256": "6f67cfa751592d55e1695a8f4abc81ba7e5c091b0ef3f6f53e06af0fb6388ac5",
+              "source_status": [
+                " M backtrader/research/specs.py",
+                " M backtrader/strategy.py",
+                " M examples/backtest/027_alpha003_panel_acceptance/run_daily.py"
+              ]
+            },
+            "fincore_source": {
+              "branch": "dev",
+              "commit": "e04bd082b85374d58e304ec15d43dd134b7fe77b",
+              "kind": "git_worktree",
+              "source_content_sha256": "7b8e3915bf0447357bba88abf0386120ac2e8a0132bee51095487bc7cb5e8b81",
+              "source_status": [
+                " M fincore/factor_analysis/research.py"
+              ]
+            },
+            "environment": {
+              "available_memory_bytes": 8936792064,
+              "backtrader_origin": "D:\\source_code\\backtrader\\backtrader\\__init__.py",
+              "diagnostic_note": "--diagnostic panel deep-memory measurement runs after load_daily_panel returns and is included in main wall/CPU",
+              "executable": "C:\\anaconda3\\python.exe",
+              "fincore_origin": "D:\\source_code\\fincore\\fincore\\__init__.py",
+              "logical_cpus": 32,
+              "numpy": "1.26.4",
+              "pandas": "2.2.3",
+              "platform": "Windows-10-10.0.26300-SP0",
+              "python": "3.11.5 | packaged by Anaconda, Inc. | (main, Sep 11 2023, 13:26:23) [MSC v.1916 64 bit (AMD64)]",
+              "resource_sampling_interval_seconds": 0.5,
+              "sampling_note": "tree RSS is summed at each sample; sampled tree CPU is approximate; main process CPU is primary"
+            }
+          },
+          "wall_ratio": 0.9376372082815984,
+          "cpu_ratio": 0.955045278137128,
+          "peak_ratio": 1.0016370398049788
+        }
+      ],
+      "median_wall_ratio": 0.9391086853426249,
+      "reduction": 0.06089131465737507,
+      "ratio_range_over_median": 0.005973393478708314,
+      "median_cpu_ratio": 0.950479233226837,
+      "median_peak_ratio": 1.0016370398049788,
+      "a_wall_median": 51.2130662,
+      "b_wall_median": 48.2474183,
+      "a_peak_median": 920764416,
+      "b_peak_median": 922271744
+    },
+    "026": {
+      "pairs": [
+        {
+          "pair": 1,
+          "a": {
+            "result_path": "D:\\temp\\iteration49-7col-g0-p1-a-026\\result.json",
+            "result_sha256": "c40477606e5309c8d54c1948faba3a7ec00c84d78012f0bfbe1f49af4e4c2408",
+            "wall_s": 106.4988963,
+            "cpu_s": 101.984375,
+            "cli_wall_s": 112.8568559,
+            "peak_bytes": 1241325568,
+            "sampled_peak_tree_rss_bytes": 1057980416,
+            "max_sampled_processes": 1,
+            "memory": {
+              "after_imports_before_main": {
+                "peak_working_set_bytes": 174813184,
+                "rss_bytes": 174813184,
+                "working_set_bytes": 174813184
+              },
+              "after_load_daily_panel": {
+                "elapsed_main_ns": 1166606500,
+                "rss_bytes": 190648320
+              },
+              "after_main": {
+                "peak_working_set_bytes": 1241325568,
+                "rss_bytes": 411127808,
+                "working_set_bytes": 411127808
+              }
+            },
+            "phases": {
+              "align_to_grid": {
+                "calls": 500,
+                "parent_labels": [
+                  "collection"
+                ],
+                "process_cpu_exclusive_ns": 2328125000,
+                "process_cpu_inclusive_ns": 2328125000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 2561121500,
+                "wall_inclusive_ns": 2561121500
+              },
+              "cerebro_run": {
+                "calls": 1,
+                "parent_labels": [
+                  "collection"
+                ],
+                "process_cpu_exclusive_ns": 2859375000,
+                "process_cpu_inclusive_ns": 24546875000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 3026725800,
+                "wall_inclusive_ns": 25460625200
+              },
+              "collect_grid_points": {
+                "calls": 243,
+                "parent_labels": [
+                  "engine_runonce"
+                ],
+                "process_cpu_exclusive_ns": 2765625000,
+                "process_cpu_inclusive_ns": 2765625000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 3061452800,
+                "wall_inclusive_ns": 3061452800
+              },
+              "collection": {
+                "calls": 1,
+                "parent_labels": [],
+                "process_cpu_exclusive_ns": 62500000,
+                "process_cpu_inclusive_ns": 26937500000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 54450800,
+                "wall_inclusive_ns": 28076197500
+              },
+              "dataframe_to_csv": {
+                "calls": 13,
+                "parent_labels": [
+                  "evaluation_export"
+                ],
+                "process_cpu_exclusive_ns": 5578125000,
+                "process_cpu_inclusive_ns": 5578125000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 5725537100,
+                "wall_inclusive_ns": 5725537100
+              },
+              "engine_runonce": {
+                "calls": 1,
+                "parent_labels": [
+                  "cerebro_run"
+                ],
+                "process_cpu_exclusive_ns": 16796875000,
+                "process_cpu_inclusive_ns": 19562500000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 17238983100,
+                "wall_inclusive_ns": 20300435900
+              },
+              "evaluate_frames": {
+                "calls": 1,
+                "parent_labels": [],
+                "process_cpu_exclusive_ns": 93750000,
+                "process_cpu_inclusive_ns": 45281250000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 101984600,
+                "wall_inclusive_ns": 47044205900
+              },
+              "evaluation_charts": {
+                "calls": 1,
+                "parent_labels": [
+                  "evaluation_export"
+                ],
+                "process_cpu_exclusive_ns": 484375000,
+                "process_cpu_inclusive_ns": 484375000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 499718700,
+                "wall_inclusive_ns": 499718700
+              },
+              "evaluation_export": {
+                "calls": 1,
+                "parent_labels": [],
+                "process_cpu_exclusive_ns": 0,
+                "process_cpu_inclusive_ns": 5218750000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 3381900,
+                "wall_inclusive_ns": 5369663300
+              },
+              "feed_preload": {
+                "calls": 500,
+                "parent_labels": [
+                  "cerebro_run"
+                ],
+                "process_cpu_exclusive_ns": 1828125000,
+                "process_cpu_inclusive_ns": 1828125000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 1829102300,
+                "wall_inclusive_ns": 1829102300
+              },
+              "fincore_evaluate": {
+                "calls": 1,
+                "parent_labels": [
+                  "evaluate_frames"
+                ],
+                "process_cpu_exclusive_ns": 45187500000,
+                "process_cpu_inclusive_ns": 45187500000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 46942221300,
+                "wall_inclusive_ns": 46942221300
+              },
+              "html_report": {
+                "calls": 3,
+                "parent_labels": [],
+                "process_cpu_exclusive_ns": 22578125000,
+                "process_cpu_inclusive_ns": 22578125000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 23972963700,
+                "wall_inclusive_ns": 23972963700
+              },
+              "load_daily_panel": {
+                "calls": 1,
+                "parent_labels": [],
+                "process_cpu_exclusive_ns": 1109375000,
+                "process_cpu_inclusive_ns": 1109375000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 1160449100,
+                "wall_inclusive_ns": 1160449100
+              },
+              "sink_finalize": {
+                "calls": 1,
+                "parent_labels": [
+                  "strategy_stop"
+                ],
+                "process_cpu_exclusive_ns": 281250000,
+                "process_cpu_inclusive_ns": 281250000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 284928600,
+                "wall_inclusive_ns": 284928600
+              },
+              "strategy_stop": {
+                "calls": 1,
+                "parent_labels": [
+                  "cerebro_run"
+                ],
+                "process_cpu_exclusive_ns": 15625000,
+                "process_cpu_inclusive_ns": 296875000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 19432600,
+                "wall_inclusive_ns": 304361200
+              }
+            },
+            "runner_sha256": {
+              "sha256": "a971ca097236c6ffbaf85f5291bf58e47022d1f452c861e810bc3b8190a2ea0a",
+              "size_bytes": 33507
+            },
+            "backtrader_source": {
+              "commit": "e305e48de1d3f2f0aa428a506aff0eeba398a338",
+              "kind": "verified_snapshot_manifest_v1",
+              "manifest_sha256": "937180bbc54b424edf016f38535da3cbf97f0cb1e5f9e4914277e76d5fe93132",
+              "source_content_sha256": "4f43ef50fb0ab8224cce9f8447b93b8ddf4089179056606fcc4f167930fedf9e"
+            },
+            "fincore_source": {
+              "commit": "e04bd082b85374d58e304ec15d43dd134b7fe77b",
+              "kind": "verified_snapshot_manifest_v1",
+              "manifest_sha256": "439eadb28881b3910862891d6232c9c6e6b453868cf81b3702db0ff7ef3f0cf5",
+              "source_content_sha256": "f4d5081f1959a7d5399dc5aee93c4b86ba0401ef0b9981b3f30245d41906561f"
+            },
+            "environment": {
+              "available_memory_bytes": 9362276352,
+              "backtrader_origin": "D:\\temp\\iteration49-b0-backtrader-e305e48\\backtrader\\__init__.py",
+              "diagnostic_note": "--diagnostic panel deep-memory measurement runs after load_daily_panel returns and is included in main wall/CPU",
+              "executable": "C:\\anaconda3\\python.exe",
+              "fincore_origin": "D:\\temp\\iteration49-b0-fincore-e04bd08\\fincore\\__init__.py",
+              "logical_cpus": 32,
+              "numpy": "1.26.4",
+              "pandas": "2.2.3",
+              "platform": "Windows-10-10.0.26300-SP0",
+              "python": "3.11.5 | packaged by Anaconda, Inc. | (main, Sep 11 2023, 13:26:23) [MSC v.1916 64 bit (AMD64)]",
+              "resource_sampling_interval_seconds": 0.5,
+              "sampling_note": "tree RSS is summed at each sample; sampled tree CPU is approximate; main process CPU is primary"
+            }
+          },
+          "b": {
+            "result_path": "D:\\temp\\iteration49-7col-g0-p1-b-026\\result.json",
+            "result_sha256": "f20a640c151ab86b6a46e9d29ff5866d791584dcb9433dc226c6cc2e1111b41d",
+            "wall_s": 102.1283698,
+            "cpu_s": 98.375,
+            "cli_wall_s": 108.6313282,
+            "peak_bytes": 1243344896,
+            "sampled_peak_tree_rss_bytes": 1072775168,
+            "max_sampled_processes": 1,
+            "memory": {
+              "after_imports_before_main": {
+                "peak_working_set_bytes": 174460928,
+                "rss_bytes": 174460928,
+                "working_set_bytes": 174460928
+              },
+              "after_load_daily_panel": {
+                "elapsed_main_ns": 1360388900,
+                "rss_bytes": 190550016
+              },
+              "after_main": {
+                "peak_working_set_bytes": 1243344896,
+                "rss_bytes": 407130112,
+                "working_set_bytes": 407130112
+              }
+            },
+            "phases": {
+              "align_to_grid": {
+                "calls": 500,
+                "parent_labels": [
+                  "collection"
+                ],
+                "process_cpu_exclusive_ns": 859375000,
+                "process_cpu_inclusive_ns": 859375000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 861135100,
+                "wall_inclusive_ns": 861135100
+              },
+              "cerebro_run": {
+                "calls": 1,
+                "parent_labels": [
+                  "collection"
+                ],
+                "process_cpu_exclusive_ns": 2046875000,
+                "process_cpu_inclusive_ns": 23343750000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 1966020700,
+                "wall_inclusive_ns": 24053027800
+              },
+              "collect_grid_points": {
+                "calls": 243,
+                "parent_labels": [
+                  "engine_runonce"
+                ],
+                "process_cpu_exclusive_ns": 2703125000,
+                "process_cpu_inclusive_ns": 2703125000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 2966470100,
+                "wall_inclusive_ns": 2966470100
+              },
+              "collection": {
+                "calls": 1,
+                "parent_labels": [],
+                "process_cpu_exclusive_ns": 46875000,
+                "process_cpu_inclusive_ns": 24250000000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 48804000,
+                "wall_inclusive_ns": 24962966900
+              },
+              "dataframe_to_csv": {
+                "calls": 13,
+                "parent_labels": [
+                  "evaluation_export"
+                ],
+                "process_cpu_exclusive_ns": 5500000000,
+                "process_cpu_inclusive_ns": 5500000000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 5693362600,
+                "wall_inclusive_ns": 5693362600
+              },
+              "engine_runonce": {
+                "calls": 1,
+                "parent_labels": [
+                  "cerebro_run"
+                ],
+                "process_cpu_exclusive_ns": 16562500000,
+                "process_cpu_inclusive_ns": 19265625000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 16954037900,
+                "wall_inclusive_ns": 19920508000
+              },
+              "evaluate_frames": {
+                "calls": 1,
+                "parent_labels": [],
+                "process_cpu_exclusive_ns": 203125000,
+                "process_cpu_inclusive_ns": 43984375000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 211404000,
+                "wall_inclusive_ns": 45530640700
+              },
+              "evaluation_charts": {
+                "calls": 1,
+                "parent_labels": [
+                  "evaluation_export"
+                ],
+                "process_cpu_exclusive_ns": 484375000,
+                "process_cpu_inclusive_ns": 484375000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 521194700,
+                "wall_inclusive_ns": 521194700
+              },
+              "evaluation_export": {
+                "calls": 1,
+                "parent_labels": [],
+                "process_cpu_exclusive_ns": 0,
+                "process_cpu_inclusive_ns": 5156250000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 2848900,
+                "wall_inclusive_ns": 5355819100
+              },
+              "feed_preload": {
+                "calls": 500,
+                "parent_labels": [
+                  "cerebro_run"
+                ],
+                "process_cpu_exclusive_ns": 1718750000,
+                "process_cpu_inclusive_ns": 1718750000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 1849711000,
+                "wall_inclusive_ns": 1849711000
+              },
+              "fincore_evaluate": {
+                "calls": 1,
+                "parent_labels": [
+                  "evaluate_frames"
+                ],
+                "process_cpu_exclusive_ns": 43781250000,
+                "process_cpu_inclusive_ns": 43781250000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 45319236700,
+                "wall_inclusive_ns": 45319236700
+              },
+              "html_report": {
+                "calls": 3,
+                "parent_labels": [],
+                "process_cpu_exclusive_ns": 22843750000,
+                "process_cpu_inclusive_ns": 22843750000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 24044834300,
+                "wall_inclusive_ns": 24044834300
+              },
+              "load_daily_panel": {
+                "calls": 1,
+                "parent_labels": [],
+                "process_cpu_exclusive_ns": 1281250000,
+                "process_cpu_inclusive_ns": 1281250000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 1355780900,
+                "wall_inclusive_ns": 1355780900
+              },
+              "sink_finalize": {
+                "calls": 1,
+                "parent_labels": [
+                  "strategy_stop"
+                ],
+                "process_cpu_exclusive_ns": 281250000,
+                "process_cpu_inclusive_ns": 281250000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 296928500,
+                "wall_inclusive_ns": 296928500
+              },
+              "strategy_stop": {
+                "calls": 1,
+                "parent_labels": [
+                  "cerebro_run"
+                ],
+                "process_cpu_exclusive_ns": 31250000,
+                "process_cpu_inclusive_ns": 312500000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 19859600,
+                "wall_inclusive_ns": 316788100
+              }
+            },
+            "runner_sha256": {
+              "sha256": "a971ca097236c6ffbaf85f5291bf58e47022d1f452c861e810bc3b8190a2ea0a",
+              "size_bytes": 33507
+            },
+            "backtrader_source": {
+              "branch": "dev",
+              "commit": "1108ad608eb1c3c5f4b273fef85d0174ed94735b",
+              "kind": "git_worktree",
+              "source_content_sha256": "6f67cfa751592d55e1695a8f4abc81ba7e5c091b0ef3f6f53e06af0fb6388ac5",
+              "source_status": [
+                " M backtrader/research/specs.py",
+                " M backtrader/strategy.py",
+                " M examples/backtest/027_alpha003_panel_acceptance/run_daily.py"
+              ]
+            },
+            "fincore_source": {
+              "branch": "dev",
+              "commit": "e04bd082b85374d58e304ec15d43dd134b7fe77b",
+              "kind": "git_worktree",
+              "source_content_sha256": "7b8e3915bf0447357bba88abf0386120ac2e8a0132bee51095487bc7cb5e8b81",
+              "source_status": [
+                " M fincore/factor_analysis/research.py"
+              ]
+            },
+            "environment": {
+              "available_memory_bytes": 9330270208,
+              "backtrader_origin": "D:\\source_code\\backtrader\\backtrader\\__init__.py",
+              "diagnostic_note": "--diagnostic panel deep-memory measurement runs after load_daily_panel returns and is included in main wall/CPU",
+              "executable": "C:\\anaconda3\\python.exe",
+              "fincore_origin": "D:\\source_code\\fincore\\fincore\\__init__.py",
+              "logical_cpus": 32,
+              "numpy": "1.26.4",
+              "pandas": "2.2.3",
+              "platform": "Windows-10-10.0.26300-SP0",
+              "python": "3.11.5 | packaged by Anaconda, Inc. | (main, Sep 11 2023, 13:26:23) [MSC v.1916 64 bit (AMD64)]",
+              "resource_sampling_interval_seconds": 0.5,
+              "sampling_note": "tree RSS is summed at each sample; sampled tree CPU is approximate; main process CPU is primary"
+            }
+          },
+          "wall_ratio": 0.9589617671934503,
+          "cpu_ratio": 0.964608549103723,
+          "peak_ratio": 1.0016267513149297
+        },
+        {
+          "pair": 2,
+          "a": {
+            "result_path": "D:\\temp\\iteration49-7col-g0-p2-a-026\\result.json",
+            "result_sha256": "0c5216798700a1f3f69c49a36ef2cb565b0f81f7a65d2522fc0f5a37f742ca00",
+            "wall_s": 107.3912772,
+            "cpu_s": 103.96875,
+            "cli_wall_s": 113.7657842,
+            "peak_bytes": 1246720000,
+            "sampled_peak_tree_rss_bytes": 1083252736,
+            "max_sampled_processes": 1,
+            "memory": {
+              "after_imports_before_main": {
+                "peak_working_set_bytes": 174649344,
+                "rss_bytes": 174649344,
+                "working_set_bytes": 174649344
+              },
+              "after_load_daily_panel": {
+                "elapsed_main_ns": 1444851400,
+                "rss_bytes": 190496768
+              },
+              "after_main": {
+                "peak_working_set_bytes": 1246720000,
+                "rss_bytes": 414040064,
+                "working_set_bytes": 414040064
+              }
+            },
+            "phases": {
+              "align_to_grid": {
+                "calls": 500,
+                "parent_labels": [
+                  "collection"
+                ],
+                "process_cpu_exclusive_ns": 2578125000,
+                "process_cpu_inclusive_ns": 2578125000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 2670379300,
+                "wall_inclusive_ns": 2670379300
+              },
+              "cerebro_run": {
+                "calls": 1,
+                "parent_labels": [
+                  "collection"
+                ],
+                "process_cpu_exclusive_ns": 2984375000,
+                "process_cpu_inclusive_ns": 24781250000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 3171964700,
+                "wall_inclusive_ns": 25938452700
+              },
+              "collect_grid_points": {
+                "calls": 243,
+                "parent_labels": [
+                  "engine_runonce"
+                ],
+                "process_cpu_exclusive_ns": 2843750000,
+                "process_cpu_inclusive_ns": 2843750000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 3120993800,
+                "wall_inclusive_ns": 3120993800
+              },
+              "collection": {
+                "calls": 1,
+                "parent_labels": [],
+                "process_cpu_exclusive_ns": 46875000,
+                "process_cpu_inclusive_ns": 27406250000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 56710500,
+                "wall_inclusive_ns": 28665542500
+              },
+              "dataframe_to_csv": {
+                "calls": 13,
+                "parent_labels": [
+                  "evaluation_export"
+                ],
+                "process_cpu_exclusive_ns": 5546875000,
+                "process_cpu_inclusive_ns": 5546875000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 5678842700,
+                "wall_inclusive_ns": 5678842700
+              },
+              "engine_runonce": {
+                "calls": 1,
+                "parent_labels": [
+                  "cerebro_run"
+                ],
+                "process_cpu_exclusive_ns": 16859375000,
+                "process_cpu_inclusive_ns": 19703125000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 17348925800,
+                "wall_inclusive_ns": 20469919600
+              },
+              "evaluate_frames": {
+                "calls": 1,
+                "parent_labels": [],
+                "process_cpu_exclusive_ns": 109375000,
+                "process_cpu_inclusive_ns": 45796875000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 107076500,
+                "wall_inclusive_ns": 47069029600
+              },
+              "evaluation_charts": {
+                "calls": 1,
+                "parent_labels": [
+                  "evaluation_export"
+                ],
+                "process_cpu_exclusive_ns": 484375000,
+                "process_cpu_inclusive_ns": 484375000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 523911400,
+                "wall_inclusive_ns": 523911400
+              },
+              "evaluation_export": {
+                "calls": 1,
+                "parent_labels": [],
+                "process_cpu_exclusive_ns": 0,
+                "process_cpu_inclusive_ns": 5171875000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 3441200,
+                "wall_inclusive_ns": 5332632800
+              },
+              "feed_preload": {
+                "calls": 500,
+                "parent_labels": [
+                  "cerebro_run"
+                ],
+                "process_cpu_exclusive_ns": 1812500000,
+                "process_cpu_inclusive_ns": 1812500000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 1988411700,
+                "wall_inclusive_ns": 1988411700
+              },
+              "fincore_evaluate": {
+                "calls": 1,
+                "parent_labels": [
+                  "evaluate_frames"
+                ],
+                "process_cpu_exclusive_ns": 45687500000,
+                "process_cpu_inclusive_ns": 45687500000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 46961953100,
+                "wall_inclusive_ns": 46961953100
+              },
+              "html_report": {
+                "calls": 3,
+                "parent_labels": [],
+                "process_cpu_exclusive_ns": 23312500000,
+                "process_cpu_inclusive_ns": 23312500000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 23993245100,
+                "wall_inclusive_ns": 23993245100
+              },
+              "load_daily_panel": {
+                "calls": 1,
+                "parent_labels": [],
+                "process_cpu_exclusive_ns": 1421875000,
+                "process_cpu_inclusive_ns": 1421875000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 1438670400,
+                "wall_inclusive_ns": 1438670400
+              },
+              "sink_finalize": {
+                "calls": 1,
+                "parent_labels": [
+                  "strategy_stop"
+                ],
+                "process_cpu_exclusive_ns": 265625000,
+                "process_cpu_inclusive_ns": 265625000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 278724500,
+                "wall_inclusive_ns": 278724500
+              },
+              "strategy_stop": {
+                "calls": 1,
+                "parent_labels": [
+                  "cerebro_run"
+                ],
+                "process_cpu_exclusive_ns": 15625000,
+                "process_cpu_inclusive_ns": 281250000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 29432200,
+                "wall_inclusive_ns": 308156700
+              }
+            },
+            "runner_sha256": {
+              "sha256": "a971ca097236c6ffbaf85f5291bf58e47022d1f452c861e810bc3b8190a2ea0a",
+              "size_bytes": 33507
+            },
+            "backtrader_source": {
+              "commit": "e305e48de1d3f2f0aa428a506aff0eeba398a338",
+              "kind": "verified_snapshot_manifest_v1",
+              "manifest_sha256": "937180bbc54b424edf016f38535da3cbf97f0cb1e5f9e4914277e76d5fe93132",
+              "source_content_sha256": "4f43ef50fb0ab8224cce9f8447b93b8ddf4089179056606fcc4f167930fedf9e"
+            },
+            "fincore_source": {
+              "commit": "e04bd082b85374d58e304ec15d43dd134b7fe77b",
+              "kind": "verified_snapshot_manifest_v1",
+              "manifest_sha256": "439eadb28881b3910862891d6232c9c6e6b453868cf81b3702db0ff7ef3f0cf5",
+              "source_content_sha256": "f4d5081f1959a7d5399dc5aee93c4b86ba0401ef0b9981b3f30245d41906561f"
+            },
+            "environment": {
+              "available_memory_bytes": 9428074496,
+              "backtrader_origin": "D:\\temp\\iteration49-b0-backtrader-e305e48\\backtrader\\__init__.py",
+              "diagnostic_note": "--diagnostic panel deep-memory measurement runs after load_daily_panel returns and is included in main wall/CPU",
+              "executable": "C:\\anaconda3\\python.exe",
+              "fincore_origin": "D:\\temp\\iteration49-b0-fincore-e04bd08\\fincore\\__init__.py",
+              "logical_cpus": 32,
+              "numpy": "1.26.4",
+              "pandas": "2.2.3",
+              "platform": "Windows-10-10.0.26300-SP0",
+              "python": "3.11.5 | packaged by Anaconda, Inc. | (main, Sep 11 2023, 13:26:23) [MSC v.1916 64 bit (AMD64)]",
+              "resource_sampling_interval_seconds": 0.5,
+              "sampling_note": "tree RSS is summed at each sample; sampled tree CPU is approximate; main process CPU is primary"
+            }
+          },
+          "b": {
+            "result_path": "D:\\temp\\iteration49-7col-g0-p2-b-026\\result.json",
+            "result_sha256": "beaf3470c179a3f7005754908a59bfd9035cd99e399f238ff1a7a95b651adac3",
+            "wall_s": 100.974254,
+            "cpu_s": 97.359375,
+            "cli_wall_s": 107.69165,
+            "peak_bytes": 1241534464,
+            "sampled_peak_tree_rss_bytes": 1068642304,
+            "max_sampled_processes": 1,
+            "memory": {
+              "after_imports_before_main": {
+                "peak_working_set_bytes": 174592000,
+                "rss_bytes": 174592000,
+                "working_set_bytes": 174592000
+              },
+              "after_load_daily_panel": {
+                "elapsed_main_ns": 1370339200,
+                "rss_bytes": 190664704
+              },
+              "after_main": {
+                "peak_working_set_bytes": 1241534464,
+                "rss_bytes": 405139456,
+                "working_set_bytes": 405139456
+              }
+            },
+            "phases": {
+              "align_to_grid": {
+                "calls": 500,
+                "parent_labels": [
+                  "collection"
+                ],
+                "process_cpu_exclusive_ns": 812500000,
+                "process_cpu_inclusive_ns": 812500000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 836072500,
+                "wall_inclusive_ns": 836072500
+              },
+              "cerebro_run": {
+                "calls": 1,
+                "parent_labels": [
+                  "collection"
+                ],
+                "process_cpu_exclusive_ns": 1812500000,
+                "process_cpu_inclusive_ns": 23281250000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 1957436300,
+                "wall_inclusive_ns": 24123356400
+              },
+              "collect_grid_points": {
+                "calls": 243,
+                "parent_labels": [
+                  "engine_runonce"
+                ],
+                "process_cpu_exclusive_ns": 2796875000,
+                "process_cpu_inclusive_ns": 2796875000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 3026760300,
+                "wall_inclusive_ns": 3026760300
+              },
+              "collection": {
+                "calls": 1,
+                "parent_labels": [],
+                "process_cpu_exclusive_ns": 31250000,
+                "process_cpu_inclusive_ns": 24125000000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 48790000,
+                "wall_inclusive_ns": 25008218900
+              },
+              "dataframe_to_csv": {
+                "calls": 13,
+                "parent_labels": [
+                  "evaluation_export"
+                ],
+                "process_cpu_exclusive_ns": 5406250000,
+                "process_cpu_inclusive_ns": 5406250000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 5677335600,
+                "wall_inclusive_ns": 5677335600
+              },
+              "engine_runonce": {
+                "calls": 1,
+                "parent_labels": [
+                  "cerebro_run"
+                ],
+                "process_cpu_exclusive_ns": 16546875000,
+                "process_cpu_inclusive_ns": 19343750000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 17014606600,
+                "wall_inclusive_ns": 20041366900
+              },
+              "evaluate_frames": {
+                "calls": 1,
+                "parent_labels": [],
+                "process_cpu_exclusive_ns": 218750000,
+                "process_cpu_inclusive_ns": 43187500000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 226073100,
+                "wall_inclusive_ns": 44886253900
+              },
+              "evaluation_charts": {
+                "calls": 1,
+                "parent_labels": [
+                  "evaluation_export"
+                ],
+                "process_cpu_exclusive_ns": 515625000,
+                "process_cpu_inclusive_ns": 515625000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 528054200,
+                "wall_inclusive_ns": 528054200
+              },
+              "evaluation_export": {
+                "calls": 1,
+                "parent_labels": [],
+                "process_cpu_exclusive_ns": 0,
+                "process_cpu_inclusive_ns": 5187500000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 3003400,
+                "wall_inclusive_ns": 5335576500
+              },
+              "feed_preload": {
+                "calls": 500,
+                "parent_labels": [
+                  "cerebro_run"
+                ],
+                "process_cpu_exclusive_ns": 1812500000,
+                "process_cpu_inclusive_ns": 1812500000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 1825122200,
+                "wall_inclusive_ns": 1825122200
+              },
+              "fincore_evaluate": {
+                "calls": 1,
+                "parent_labels": [
+                  "evaluate_frames"
+                ],
+                "process_cpu_exclusive_ns": 42968750000,
+                "process_cpu_inclusive_ns": 42968750000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 44660180800,
+                "wall_inclusive_ns": 44660180800
+              },
+              "html_report": {
+                "calls": 3,
+                "parent_labels": [],
+                "process_cpu_exclusive_ns": 22796875000,
+                "process_cpu_inclusive_ns": 22796875000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 23489013600,
+                "wall_inclusive_ns": 23489013600
+              },
+              "load_daily_panel": {
+                "calls": 1,
+                "parent_labels": [],
+                "process_cpu_exclusive_ns": 1328125000,
+                "process_cpu_inclusive_ns": 1328125000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 1364699900,
+                "wall_inclusive_ns": 1364699900
+              },
+              "sink_finalize": {
+                "calls": 1,
+                "parent_labels": [
+                  "strategy_stop"
+                ],
+                "process_cpu_exclusive_ns": 265625000,
+                "process_cpu_inclusive_ns": 265625000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 267790000,
+                "wall_inclusive_ns": 267790000
+              },
+              "strategy_stop": {
+                "calls": 1,
+                "parent_labels": [
+                  "cerebro_run"
+                ],
+                "process_cpu_exclusive_ns": 46875000,
+                "process_cpu_inclusive_ns": 312500000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 31641000,
+                "wall_inclusive_ns": 299431000
+              }
+            },
+            "runner_sha256": {
+              "sha256": "a971ca097236c6ffbaf85f5291bf58e47022d1f452c861e810bc3b8190a2ea0a",
+              "size_bytes": 33507
+            },
+            "backtrader_source": {
+              "branch": "dev",
+              "commit": "1108ad608eb1c3c5f4b273fef85d0174ed94735b",
+              "kind": "git_worktree",
+              "source_content_sha256": "6f67cfa751592d55e1695a8f4abc81ba7e5c091b0ef3f6f53e06af0fb6388ac5",
+              "source_status": [
+                " M backtrader/research/specs.py",
+                " M backtrader/strategy.py",
+                " M examples/backtest/027_alpha003_panel_acceptance/run_daily.py"
+              ]
+            },
+            "fincore_source": {
+              "branch": "dev",
+              "commit": "e04bd082b85374d58e304ec15d43dd134b7fe77b",
+              "kind": "git_worktree",
+              "source_content_sha256": "7b8e3915bf0447357bba88abf0386120ac2e8a0132bee51095487bc7cb5e8b81",
+              "source_status": [
+                " M fincore/factor_analysis/research.py"
+              ]
+            },
+            "environment": {
+              "available_memory_bytes": 9404489728,
+              "backtrader_origin": "D:\\source_code\\backtrader\\backtrader\\__init__.py",
+              "diagnostic_note": "--diagnostic panel deep-memory measurement runs after load_daily_panel returns and is included in main wall/CPU",
+              "executable": "C:\\anaconda3\\python.exe",
+              "fincore_origin": "D:\\source_code\\fincore\\fincore\\__init__.py",
+              "logical_cpus": 32,
+              "numpy": "1.26.4",
+              "pandas": "2.2.3",
+              "platform": "Windows-10-10.0.26300-SP0",
+              "python": "3.11.5 | packaged by Anaconda, Inc. | (main, Sep 11 2023, 13:26:23) [MSC v.1916 64 bit (AMD64)]",
+              "resource_sampling_interval_seconds": 0.5,
+              "sampling_note": "tree RSS is summed at each sample; sampled tree CPU is approximate; main process CPU is primary"
+            }
+          },
+          "wall_ratio": 0.9402463275667234,
+          "cpu_ratio": 0.936429215509468,
+          "peak_ratio": 0.9958406570841889
+        },
+        {
+          "pair": 3,
+          "a": {
+            "result_path": "D:\\temp\\iteration49-7col-g0-p3-a-026\\result.json",
+            "result_sha256": "8eeede2306f3eafc6810ff65072d7ef1be85a2c122d4ff69b432acc5614240bc",
+            "wall_s": 107.4957284,
+            "cpu_s": 103.6875,
+            "cli_wall_s": 113.8600637,
+            "peak_bytes": 1246089216,
+            "sampled_peak_tree_rss_bytes": 1151971328,
+            "max_sampled_processes": 1,
+            "memory": {
+              "after_imports_before_main": {
+                "peak_working_set_bytes": 174792704,
+                "rss_bytes": 174792704,
+                "working_set_bytes": 174792704
+              },
+              "after_load_daily_panel": {
+                "elapsed_main_ns": 1433377400,
+                "rss_bytes": 191041536
+              },
+              "after_main": {
+                "peak_working_set_bytes": 1246089216,
+                "rss_bytes": 405426176,
+                "working_set_bytes": 405426176
+              }
+            },
+            "phases": {
+              "align_to_grid": {
+                "calls": 500,
+                "parent_labels": [
+                  "collection"
+                ],
+                "process_cpu_exclusive_ns": 2515625000,
+                "process_cpu_inclusive_ns": 2515625000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 2656060100,
+                "wall_inclusive_ns": 2656060100
+              },
+              "cerebro_run": {
+                "calls": 1,
+                "parent_labels": [
+                  "collection"
+                ],
+                "process_cpu_exclusive_ns": 2937500000,
+                "process_cpu_inclusive_ns": 24953125000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 3179846900,
+                "wall_inclusive_ns": 26020977200
+              },
+              "collect_grid_points": {
+                "calls": 243,
+                "parent_labels": [
+                  "engine_runonce"
+                ],
+                "process_cpu_exclusive_ns": 3234375000,
+                "process_cpu_inclusive_ns": 3234375000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 3157428500,
+                "wall_inclusive_ns": 3157428500
+              },
+              "collection": {
+                "calls": 1,
+                "parent_labels": [],
+                "process_cpu_exclusive_ns": 62500000,
+                "process_cpu_inclusive_ns": 27531250000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 58306500,
+                "wall_inclusive_ns": 28735343800
+              },
+              "dataframe_to_csv": {
+                "calls": 13,
+                "parent_labels": [
+                  "evaluation_export"
+                ],
+                "process_cpu_exclusive_ns": 5453125000,
+                "process_cpu_inclusive_ns": 5453125000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 5750905400,
+                "wall_inclusive_ns": 5750905400
+              },
+              "engine_runonce": {
+                "calls": 1,
+                "parent_labels": [
+                  "cerebro_run"
+                ],
+                "process_cpu_exclusive_ns": 16484375000,
+                "process_cpu_inclusive_ns": 19718750000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 17332169700,
+                "wall_inclusive_ns": 20489598200
+              },
+              "evaluate_frames": {
+                "calls": 1,
+                "parent_labels": [],
+                "process_cpu_exclusive_ns": 93750000,
+                "process_cpu_inclusive_ns": 45421875000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 110936400,
+                "wall_inclusive_ns": 47017823000
+              },
+              "evaluation_charts": {
+                "calls": 1,
+                "parent_labels": [
+                  "evaluation_export"
+                ],
+                "process_cpu_exclusive_ns": 515625000,
+                "process_cpu_inclusive_ns": 515625000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 521958100,
+                "wall_inclusive_ns": 521958100
+              },
+              "evaluation_export": {
+                "calls": 1,
+                "parent_labels": [],
+                "process_cpu_exclusive_ns": 31250000,
+                "process_cpu_inclusive_ns": 5140625000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 13883000,
+                "wall_inclusive_ns": 5417336300
+              },
+              "feed_preload": {
+                "calls": 500,
+                "parent_labels": [
+                  "cerebro_run"
+                ],
+                "process_cpu_exclusive_ns": 2000000000,
+                "process_cpu_inclusive_ns": 2000000000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 2052515800,
+                "wall_inclusive_ns": 2052515800
+              },
+              "fincore_evaluate": {
+                "calls": 1,
+                "parent_labels": [
+                  "evaluate_frames"
+                ],
+                "process_cpu_exclusive_ns": 45328125000,
+                "process_cpu_inclusive_ns": 45328125000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 46906886600,
+                "wall_inclusive_ns": 46906886600
+              },
+              "html_report": {
+                "calls": 3,
+                "parent_labels": [],
+                "process_cpu_exclusive_ns": 23281250000,
+                "process_cpu_inclusive_ns": 23281250000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 24010187900,
+                "wall_inclusive_ns": 24010187900
+              },
+              "load_daily_panel": {
+                "calls": 1,
+                "parent_labels": [],
+                "process_cpu_exclusive_ns": 1437500000,
+                "process_cpu_inclusive_ns": 1437500000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 1427039600,
+                "wall_inclusive_ns": 1427039600
+              },
+              "sink_finalize": {
+                "calls": 1,
+                "parent_labels": [
+                  "strategy_stop"
+                ],
+                "process_cpu_exclusive_ns": 281250000,
+                "process_cpu_inclusive_ns": 281250000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 278889500,
+                "wall_inclusive_ns": 278889500
+              },
+              "strategy_stop": {
+                "calls": 1,
+                "parent_labels": [
+                  "cerebro_run"
+                ],
+                "process_cpu_exclusive_ns": 15625000,
+                "process_cpu_inclusive_ns": 296875000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 20126800,
+                "wall_inclusive_ns": 299016300
+              }
+            },
+            "runner_sha256": {
+              "sha256": "a971ca097236c6ffbaf85f5291bf58e47022d1f452c861e810bc3b8190a2ea0a",
+              "size_bytes": 33507
+            },
+            "backtrader_source": {
+              "commit": "e305e48de1d3f2f0aa428a506aff0eeba398a338",
+              "kind": "verified_snapshot_manifest_v1",
+              "manifest_sha256": "937180bbc54b424edf016f38535da3cbf97f0cb1e5f9e4914277e76d5fe93132",
+              "source_content_sha256": "4f43ef50fb0ab8224cce9f8447b93b8ddf4089179056606fcc4f167930fedf9e"
+            },
+            "fincore_source": {
+              "commit": "e04bd082b85374d58e304ec15d43dd134b7fe77b",
+              "kind": "verified_snapshot_manifest_v1",
+              "manifest_sha256": "439eadb28881b3910862891d6232c9c6e6b453868cf81b3702db0ff7ef3f0cf5",
+              "source_content_sha256": "f4d5081f1959a7d5399dc5aee93c4b86ba0401ef0b9981b3f30245d41906561f"
+            },
+            "environment": {
+              "available_memory_bytes": 9234284544,
+              "backtrader_origin": "D:\\temp\\iteration49-b0-backtrader-e305e48\\backtrader\\__init__.py",
+              "diagnostic_note": "--diagnostic panel deep-memory measurement runs after load_daily_panel returns and is included in main wall/CPU",
+              "executable": "C:\\anaconda3\\python.exe",
+              "fincore_origin": "D:\\temp\\iteration49-b0-fincore-e04bd08\\fincore\\__init__.py",
+              "logical_cpus": 32,
+              "numpy": "1.26.4",
+              "pandas": "2.2.3",
+              "platform": "Windows-10-10.0.26300-SP0",
+              "python": "3.11.5 | packaged by Anaconda, Inc. | (main, Sep 11 2023, 13:26:23) [MSC v.1916 64 bit (AMD64)]",
+              "resource_sampling_interval_seconds": 0.5,
+              "sampling_note": "tree RSS is summed at each sample; sampled tree CPU is approximate; main process CPU is primary"
+            }
+          },
+          "b": {
+            "result_path": "D:\\temp\\iteration49-7col-g0-p3-b-026\\result.json",
+            "result_sha256": "443d881d832158c95621e3299e58a57ee01db408ff5d4c5bf8869ea537232f15",
+            "wall_s": 104.4706486,
+            "cpu_s": 98.84375,
+            "cli_wall_s": 111.0159228,
+            "peak_bytes": 1242439680,
+            "sampled_peak_tree_rss_bytes": 1233289216,
+            "max_sampled_processes": 1,
+            "memory": {
+              "after_imports_before_main": {
+                "peak_working_set_bytes": 175001600,
+                "rss_bytes": 175001600,
+                "working_set_bytes": 175001600
+              },
+              "after_load_daily_panel": {
+                "elapsed_main_ns": 1391924300,
+                "rss_bytes": 190865408
+              },
+              "after_main": {
+                "peak_working_set_bytes": 1242439680,
+                "rss_bytes": 412340224,
+                "working_set_bytes": 412340224
+              }
+            },
+            "phases": {
+              "align_to_grid": {
+                "calls": 500,
+                "parent_labels": [
+                  "collection"
+                ],
+                "process_cpu_exclusive_ns": 796875000,
+                "process_cpu_inclusive_ns": 796875000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 872477300,
+                "wall_inclusive_ns": 872477300
+              },
+              "cerebro_run": {
+                "calls": 1,
+                "parent_labels": [
+                  "collection"
+                ],
+                "process_cpu_exclusive_ns": 2015625000,
+                "process_cpu_inclusive_ns": 24171875000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 2037002200,
+                "wall_inclusive_ns": 25374813400
+              },
+              "collect_grid_points": {
+                "calls": 243,
+                "parent_labels": [
+                  "engine_runonce"
+                ],
+                "process_cpu_exclusive_ns": 3312500000,
+                "process_cpu_inclusive_ns": 3312500000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 3310056200,
+                "wall_inclusive_ns": 3310056200
+              },
+              "collection": {
+                "calls": 1,
+                "parent_labels": [],
+                "process_cpu_exclusive_ns": 46875000,
+                "process_cpu_inclusive_ns": 25015625000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 50813100,
+                "wall_inclusive_ns": 26298103800
+              },
+              "dataframe_to_csv": {
+                "calls": 13,
+                "parent_labels": [
+                  "evaluation_export"
+                ],
+                "process_cpu_exclusive_ns": 5578125000,
+                "process_cpu_inclusive_ns": 5578125000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 6215361700,
+                "wall_inclusive_ns": 6215361700
+              },
+              "engine_runonce": {
+                "calls": 1,
+                "parent_labels": [
+                  "cerebro_run"
+                ],
+                "process_cpu_exclusive_ns": 16687500000,
+                "process_cpu_inclusive_ns": 20000000000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 17798734900,
+                "wall_inclusive_ns": 21108791100
+              },
+              "evaluate_frames": {
+                "calls": 1,
+                "parent_labels": [],
+                "process_cpu_exclusive_ns": 218750000,
+                "process_cpu_inclusive_ns": 43765625000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 203289200,
+                "wall_inclusive_ns": 45788057200
+              },
+              "evaluation_charts": {
+                "calls": 1,
+                "parent_labels": [
+                  "evaluation_export"
+                ],
+                "process_cpu_exclusive_ns": 515625000,
+                "process_cpu_inclusive_ns": 515625000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 1086481800,
+                "wall_inclusive_ns": 1086481800
+              },
+              "evaluation_export": {
+                "calls": 1,
+                "parent_labels": [],
+                "process_cpu_exclusive_ns": 15625000,
+                "process_cpu_inclusive_ns": 5265625000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 46675000,
+                "wall_inclusive_ns": 6475382100
+              },
+              "feed_preload": {
+                "calls": 500,
+                "parent_labels": [
+                  "cerebro_run"
+                ],
+                "process_cpu_exclusive_ns": 1875000000,
+                "process_cpu_inclusive_ns": 1875000000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 1929722000,
+                "wall_inclusive_ns": 1929722000
+              },
+              "fincore_evaluate": {
+                "calls": 1,
+                "parent_labels": [
+                  "evaluate_frames"
+                ],
+                "process_cpu_exclusive_ns": 43546875000,
+                "process_cpu_inclusive_ns": 43546875000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 45584768000,
+                "wall_inclusive_ns": 45584768000
+              },
+              "html_report": {
+                "calls": 3,
+                "parent_labels": [],
+                "process_cpu_exclusive_ns": 22578125000,
+                "process_cpu_inclusive_ns": 22578125000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 23632542300,
+                "wall_inclusive_ns": 23632542300
+              },
+              "load_daily_panel": {
+                "calls": 1,
+                "parent_labels": [],
+                "process_cpu_exclusive_ns": 1359375000,
+                "process_cpu_inclusive_ns": 1359375000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 1385682500,
+                "wall_inclusive_ns": 1385682500
+              },
+              "sink_finalize": {
+                "calls": 1,
+                "parent_labels": [
+                  "strategy_stop"
+                ],
+                "process_cpu_exclusive_ns": 265625000,
+                "process_cpu_inclusive_ns": 265625000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 279224400,
+                "wall_inclusive_ns": 279224400
+              },
+              "strategy_stop": {
+                "calls": 1,
+                "parent_labels": [
+                  "cerebro_run"
+                ],
+                "process_cpu_exclusive_ns": 15625000,
+                "process_cpu_inclusive_ns": 281250000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 20073700,
+                "wall_inclusive_ns": 299298100
+              }
+            },
+            "runner_sha256": {
+              "sha256": "a971ca097236c6ffbaf85f5291bf58e47022d1f452c861e810bc3b8190a2ea0a",
+              "size_bytes": 33507
+            },
+            "backtrader_source": {
+              "branch": "dev",
+              "commit": "1108ad608eb1c3c5f4b273fef85d0174ed94735b",
+              "kind": "git_worktree",
+              "source_content_sha256": "6f67cfa751592d55e1695a8f4abc81ba7e5c091b0ef3f6f53e06af0fb6388ac5",
+              "source_status": [
+                " M backtrader/research/specs.py",
+                " M backtrader/strategy.py",
+                " M examples/backtest/027_alpha003_panel_acceptance/run_daily.py"
+              ]
+            },
+            "fincore_source": {
+              "branch": "dev",
+              "commit": "e04bd082b85374d58e304ec15d43dd134b7fe77b",
+              "kind": "git_worktree",
+              "source_content_sha256": "7b8e3915bf0447357bba88abf0386120ac2e8a0132bee51095487bc7cb5e8b81",
+              "source_status": [
+                " M fincore/factor_analysis/research.py"
+              ]
+            },
+            "environment": {
+              "available_memory_bytes": 9205858304,
+              "backtrader_origin": "D:\\source_code\\backtrader\\backtrader\\__init__.py",
+              "diagnostic_note": "--diagnostic panel deep-memory measurement runs after load_daily_panel returns and is included in main wall/CPU",
+              "executable": "C:\\anaconda3\\python.exe",
+              "fincore_origin": "D:\\source_code\\fincore\\fincore\\__init__.py",
+              "logical_cpus": 32,
+              "numpy": "1.26.4",
+              "pandas": "2.2.3",
+              "platform": "Windows-10-10.0.26300-SP0",
+              "python": "3.11.5 | packaged by Anaconda, Inc. | (main, Sep 11 2023, 13:26:23) [MSC v.1916 64 bit (AMD64)]",
+              "resource_sampling_interval_seconds": 0.5,
+              "sampling_note": "tree RSS is summed at each sample; sampled tree CPU is approximate; main process CPU is primary"
+            }
+          },
+          "wall_ratio": 0.9718586045694445,
+          "cpu_ratio": 0.9532851115129596,
+          "peak_ratio": 0.9970712081020048
+        }
+      ],
+      "median_wall_ratio": 0.9589617671934503,
+      "reduction": 0.041038232806549724,
+      "ratio_range_over_median": 0.032965106727079724,
+      "median_cpu_ratio": 0.9532851115129596,
+      "median_peak_ratio": 0.9970712081020048,
+      "a_wall_median": 107.3912772,
+      "b_wall_median": 102.1283698,
+      "a_peak_median": 1246089216,
+      "b_peak_median": 1242439680
+    },
+    "027": {
+      "pairs": [
+        {
+          "pair": 1,
+          "a": {
+            "result_path": "D:\\temp\\iteration49-7col-g0-p1-a-027\\result.json",
+            "result_sha256": "3c8f9e5137b793c97f7dc43b741a951bca48811f22dddaeea33ef65c373cc8f6",
+            "wall_s": 46.7995434,
+            "cpu_s": 45.390625,
+            "cli_wall_s": 53.2557943,
+            "peak_bytes": 493953024,
+            "sampled_peak_tree_rss_bytes": 450838528,
+            "max_sampled_processes": 1,
+            "memory": {
+              "after_imports_before_main": {
+                "peak_working_set_bytes": 174891008,
+                "rss_bytes": 174891008,
+                "working_set_bytes": 174891008
+              },
+              "after_load_daily_panel": {
+                "elapsed_main_ns": 1369152200,
+                "rss_bytes": 191365120
+              },
+              "after_main": {
+                "peak_working_set_bytes": 493953024,
+                "rss_bytes": 359165952,
+                "working_set_bytes": 359165952
+              }
+            },
+            "phases": {
+              "align_to_grid": {
+                "calls": 500,
+                "parent_labels": [
+                  "collection"
+                ],
+                "process_cpu_exclusive_ns": 2390625000,
+                "process_cpu_inclusive_ns": 2390625000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 2490376600,
+                "wall_inclusive_ns": 2490376600
+              },
+              "cerebro_run": {
+                "calls": 1,
+                "parent_labels": [
+                  "collection"
+                ],
+                "process_cpu_exclusive_ns": 1578125000,
+                "process_cpu_inclusive_ns": 32312500000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 1707697800,
+                "wall_inclusive_ns": 33278558600
+              },
+              "collect_grid_points": {
+                "calls": 243,
+                "parent_labels": [
+                  "engine_runnext"
+                ],
+                "process_cpu_exclusive_ns": 1843750000,
+                "process_cpu_inclusive_ns": 1843750000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 1849531700,
+                "wall_inclusive_ns": 1849531700
+              },
+              "collection": {
+                "calls": 1,
+                "parent_labels": [],
+                "process_cpu_exclusive_ns": 375000000,
+                "process_cpu_inclusive_ns": 35078125000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 406310700,
+                "wall_inclusive_ns": 36175245900
+              },
+              "dataframe_to_csv": {
+                "calls": 1,
+                "parent_labels": [],
+                "process_cpu_exclusive_ns": 625000000,
+                "process_cpu_inclusive_ns": 625000000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 646548200,
+                "wall_inclusive_ns": 646548200
+              },
+              "engine_runnext": {
+                "calls": 1,
+                "parent_labels": [
+                  "cerebro_run"
+                ],
+                "process_cpu_exclusive_ns": 26656250000,
+                "process_cpu_inclusive_ns": 28500000000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 27432240500,
+                "wall_inclusive_ns": 29281772200
+              },
+              "feed_preload": {
+                "calls": 500,
+                "parent_labels": [
+                  "cerebro_run"
+                ],
+                "process_cpu_exclusive_ns": 1953125000,
+                "process_cpu_inclusive_ns": 1953125000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 2020282300,
+                "wall_inclusive_ns": 2020282300
+              },
+              "html_report": {
+                "calls": 1,
+                "parent_labels": [],
+                "process_cpu_exclusive_ns": 8375000000,
+                "process_cpu_inclusive_ns": 8375000000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 8601282000,
+                "wall_inclusive_ns": 8601282000
+              },
+              "load_daily_panel": {
+                "calls": 1,
+                "parent_labels": [],
+                "process_cpu_exclusive_ns": 1312500000,
+                "process_cpu_inclusive_ns": 1312500000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 1365563100,
+                "wall_inclusive_ns": 1365563100
+              },
+              "sink_finalize": {
+                "calls": 1,
+                "parent_labels": [
+                  "strategy_stop"
+                ],
+                "process_cpu_exclusive_ns": 250000000,
+                "process_cpu_inclusive_ns": 250000000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 250984800,
+                "wall_inclusive_ns": 250984800
+              },
+              "strategy_stop": {
+                "calls": 1,
+                "parent_labels": [
+                  "cerebro_run"
+                ],
+                "process_cpu_exclusive_ns": 31250000,
+                "process_cpu_inclusive_ns": 281250000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 17821500,
+                "wall_inclusive_ns": 268806300
+              }
+            },
+            "runner_sha256": {
+              "sha256": "a971ca097236c6ffbaf85f5291bf58e47022d1f452c861e810bc3b8190a2ea0a",
+              "size_bytes": 33507
+            },
+            "backtrader_source": {
+              "commit": "e305e48de1d3f2f0aa428a506aff0eeba398a338",
+              "kind": "verified_snapshot_manifest_v1",
+              "manifest_sha256": "937180bbc54b424edf016f38535da3cbf97f0cb1e5f9e4914277e76d5fe93132",
+              "source_content_sha256": "4f43ef50fb0ab8224cce9f8447b93b8ddf4089179056606fcc4f167930fedf9e"
+            },
+            "fincore_source": {
+              "commit": "e04bd082b85374d58e304ec15d43dd134b7fe77b",
+              "kind": "verified_snapshot_manifest_v1",
+              "manifest_sha256": "439eadb28881b3910862891d6232c9c6e6b453868cf81b3702db0ff7ef3f0cf5",
+              "source_content_sha256": "f4d5081f1959a7d5399dc5aee93c4b86ba0401ef0b9981b3f30245d41906561f"
+            },
+            "environment": {
+              "available_memory_bytes": 9315729408,
+              "backtrader_origin": "D:\\temp\\iteration49-b0-backtrader-e305e48\\backtrader\\__init__.py",
+              "diagnostic_note": "--diagnostic panel deep-memory measurement runs after load_daily_panel returns and is included in main wall/CPU",
+              "executable": "C:\\anaconda3\\python.exe",
+              "fincore_origin": "D:\\temp\\iteration49-b0-fincore-e04bd08\\fincore\\__init__.py",
+              "logical_cpus": 32,
+              "numpy": "1.26.4",
+              "pandas": "2.2.3",
+              "platform": "Windows-10-10.0.26300-SP0",
+              "python": "3.11.5 | packaged by Anaconda, Inc. | (main, Sep 11 2023, 13:26:23) [MSC v.1916 64 bit (AMD64)]",
+              "resource_sampling_interval_seconds": 0.5,
+              "sampling_note": "tree RSS is summed at each sample; sampled tree CPU is approximate; main process CPU is primary"
+            }
+          },
+          "b": {
+            "result_path": "D:\\temp\\iteration49-7col-g0-p1-b-027\\result.json",
+            "result_sha256": "da707bb85d74f20a308decbe18197cbc1185b98b7baf29126025ad6affeed477",
+            "wall_s": 44.827558,
+            "cpu_s": 43.375,
+            "cli_wall_s": 51.4228971,
+            "peak_bytes": 494063616,
+            "sampled_peak_tree_rss_bytes": 436666368,
+            "max_sampled_processes": 1,
+            "memory": {
+              "after_imports_before_main": {
+                "peak_working_set_bytes": 174723072,
+                "rss_bytes": 174723072,
+                "working_set_bytes": 174723072
+              },
+              "after_load_daily_panel": {
+                "elapsed_main_ns": 1375385300,
+                "rss_bytes": 190824448
+              },
+              "after_main": {
+                "peak_working_set_bytes": 494063616,
+                "rss_bytes": 358465536,
+                "working_set_bytes": 358465536
+              }
+            },
+            "phases": {
+              "align_to_grid": {
+                "calls": 500,
+                "parent_labels": [
+                  "collection"
+                ],
+                "process_cpu_exclusive_ns": 843750000,
+                "process_cpu_inclusive_ns": 843750000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 849804500,
+                "wall_inclusive_ns": 849804500
+              },
+              "cerebro_run": {
+                "calls": 1,
+                "parent_labels": [
+                  "collection"
+                ],
+                "process_cpu_exclusive_ns": 1156250000,
+                "process_cpu_inclusive_ns": 31812500000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 1090904300,
+                "wall_inclusive_ns": 32948800800
+              },
+              "collect_grid_points": {
+                "calls": 243,
+                "parent_labels": [
+                  "engine_runnext"
+                ],
+                "process_cpu_exclusive_ns": 1890625000,
+                "process_cpu_inclusive_ns": 1890625000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 1965591900,
+                "wall_inclusive_ns": 1965591900
+              },
+              "collection": {
+                "calls": 1,
+                "parent_labels": [],
+                "process_cpu_exclusive_ns": 359375000,
+                "process_cpu_inclusive_ns": 33015625000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 390663200,
+                "wall_inclusive_ns": 34189268500
+              },
+              "dataframe_to_csv": {
+                "calls": 1,
+                "parent_labels": [],
+                "process_cpu_exclusive_ns": 640625000,
+                "process_cpu_inclusive_ns": 640625000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 640861000,
+                "wall_inclusive_ns": 640861000
+              },
+              "engine_runnext": {
+                "calls": 1,
+                "parent_labels": [
+                  "cerebro_run"
+                ],
+                "process_cpu_exclusive_ns": 26734375000,
+                "process_cpu_inclusive_ns": 28625000000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 27789266400,
+                "wall_inclusive_ns": 29754858300
+              },
+              "feed_preload": {
+                "calls": 500,
+                "parent_labels": [
+                  "cerebro_run"
+                ],
+                "process_cpu_exclusive_ns": 1765625000,
+                "process_cpu_inclusive_ns": 1765625000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 1831142900,
+                "wall_inclusive_ns": 1831142900
+              },
+              "html_report": {
+                "calls": 1,
+                "parent_labels": [],
+                "process_cpu_exclusive_ns": 8343750000,
+                "process_cpu_inclusive_ns": 8343750000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 8609219600,
+                "wall_inclusive_ns": 8609219600
+              },
+              "load_daily_panel": {
+                "calls": 1,
+                "parent_labels": [],
+                "process_cpu_exclusive_ns": 1375000000,
+                "process_cpu_inclusive_ns": 1375000000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 1372231500,
+                "wall_inclusive_ns": 1372231500
+              },
+              "sink_finalize": {
+                "calls": 1,
+                "parent_labels": [
+                  "strategy_stop"
+                ],
+                "process_cpu_exclusive_ns": 234375000,
+                "process_cpu_inclusive_ns": 234375000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 251764700,
+                "wall_inclusive_ns": 251764700
+              },
+              "strategy_stop": {
+                "calls": 1,
+                "parent_labels": [
+                  "cerebro_run"
+                ],
+                "process_cpu_exclusive_ns": 31250000,
+                "process_cpu_inclusive_ns": 265625000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 20130600,
+                "wall_inclusive_ns": 271895300
+              }
+            },
+            "runner_sha256": {
+              "sha256": "a971ca097236c6ffbaf85f5291bf58e47022d1f452c861e810bc3b8190a2ea0a",
+              "size_bytes": 33507
+            },
+            "backtrader_source": {
+              "branch": "dev",
+              "commit": "1108ad608eb1c3c5f4b273fef85d0174ed94735b",
+              "kind": "git_worktree",
+              "source_content_sha256": "6f67cfa751592d55e1695a8f4abc81ba7e5c091b0ef3f6f53e06af0fb6388ac5",
+              "source_status": [
+                " M backtrader/research/specs.py",
+                " M backtrader/strategy.py",
+                " M examples/backtest/027_alpha003_panel_acceptance/run_daily.py"
+              ]
+            },
+            "fincore_source": {
+              "branch": "dev",
+              "commit": "e04bd082b85374d58e304ec15d43dd134b7fe77b",
+              "kind": "git_worktree",
+              "source_content_sha256": "7b8e3915bf0447357bba88abf0386120ac2e8a0132bee51095487bc7cb5e8b81",
+              "source_status": [
+                " M fincore/factor_analysis/research.py"
+              ]
+            },
+            "environment": {
+              "available_memory_bytes": 9534861312,
+              "backtrader_origin": "D:\\source_code\\backtrader\\backtrader\\__init__.py",
+              "diagnostic_note": "--diagnostic panel deep-memory measurement runs after load_daily_panel returns and is included in main wall/CPU",
+              "executable": "C:\\anaconda3\\python.exe",
+              "fincore_origin": "D:\\source_code\\fincore\\fincore\\__init__.py",
+              "logical_cpus": 32,
+              "numpy": "1.26.4",
+              "pandas": "2.2.3",
+              "platform": "Windows-10-10.0.26300-SP0",
+              "python": "3.11.5 | packaged by Anaconda, Inc. | (main, Sep 11 2023, 13:26:23) [MSC v.1916 64 bit (AMD64)]",
+              "resource_sampling_interval_seconds": 0.5,
+              "sampling_note": "tree RSS is summed at each sample; sampled tree CPU is approximate; main process CPU is primary"
+            }
+          },
+          "wall_ratio": 0.957863148724652,
+          "cpu_ratio": 0.9555938037865749,
+          "peak_ratio": 1.0002238917359072
+        },
+        {
+          "pair": 2,
+          "a": {
+            "result_path": "D:\\temp\\iteration49-7col-g0-p2-a-027\\result.json",
+            "result_sha256": "b71265600e1ac91dcf1f9785b48a95dda202596917ac2515a026066d86d4d77d",
+            "wall_s": 47.0082132,
+            "cpu_s": 44.5625,
+            "cli_wall_s": 53.2670227,
+            "peak_bytes": 490983424,
+            "sampled_peak_tree_rss_bytes": 446300160,
+            "max_sampled_processes": 1,
+            "memory": {
+              "after_imports_before_main": {
+                "peak_working_set_bytes": 174788608,
+                "rss_bytes": 174788608,
+                "working_set_bytes": 174788608
+              },
+              "after_load_daily_panel": {
+                "elapsed_main_ns": 1374956900,
+                "rss_bytes": 190595072
+              },
+              "after_main": {
+                "peak_working_set_bytes": 490983424,
+                "rss_bytes": 351293440,
+                "working_set_bytes": 351293440
+              }
+            },
+            "phases": {
+              "align_to_grid": {
+                "calls": 500,
+                "parent_labels": [
+                  "collection"
+                ],
+                "process_cpu_exclusive_ns": 2484375000,
+                "process_cpu_inclusive_ns": 2484375000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 2500613800,
+                "wall_inclusive_ns": 2500613800
+              },
+              "cerebro_run": {
+                "calls": 1,
+                "parent_labels": [
+                  "collection"
+                ],
+                "process_cpu_exclusive_ns": 1453125000,
+                "process_cpu_inclusive_ns": 31250000000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 1638943600,
+                "wall_inclusive_ns": 33067440000
+              },
+              "collect_grid_points": {
+                "calls": 243,
+                "parent_labels": [
+                  "engine_runnext"
+                ],
+                "process_cpu_exclusive_ns": 1765625000,
+                "process_cpu_inclusive_ns": 1765625000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 1914462300,
+                "wall_inclusive_ns": 1914462300
+              },
+              "collection": {
+                "calls": 1,
+                "parent_labels": [],
+                "process_cpu_exclusive_ns": 390625000,
+                "process_cpu_inclusive_ns": 34125000000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 410177600,
+                "wall_inclusive_ns": 35978231400
+              },
+              "dataframe_to_csv": {
+                "calls": 1,
+                "parent_labels": [],
+                "process_cpu_exclusive_ns": 640625000,
+                "process_cpu_inclusive_ns": 640625000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 710298900,
+                "wall_inclusive_ns": 710298900
+              },
+              "engine_runnext": {
+                "calls": 1,
+                "parent_labels": [
+                  "cerebro_run"
+                ],
+                "process_cpu_exclusive_ns": 26000000000,
+                "process_cpu_inclusive_ns": 27765625000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 27386066400,
+                "wall_inclusive_ns": 29300528700
+              },
+              "feed_preload": {
+                "calls": 500,
+                "parent_labels": [
+                  "cerebro_run"
+                ],
+                "process_cpu_exclusive_ns": 1765625000,
+                "process_cpu_inclusive_ns": 1765625000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 1849630900,
+                "wall_inclusive_ns": 1849630900
+              },
+              "html_report": {
+                "calls": 1,
+                "parent_labels": [],
+                "process_cpu_exclusive_ns": 8437500000,
+                "process_cpu_inclusive_ns": 8437500000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 8937069800,
+                "wall_inclusive_ns": 8937069800
+              },
+              "load_daily_panel": {
+                "calls": 1,
+                "parent_labels": [],
+                "process_cpu_exclusive_ns": 1359375000,
+                "process_cpu_inclusive_ns": 1359375000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 1371768100,
+                "wall_inclusive_ns": 1371768100
+              },
+              "sink_finalize": {
+                "calls": 1,
+                "parent_labels": [
+                  "strategy_stop"
+                ],
+                "process_cpu_exclusive_ns": 250000000,
+                "process_cpu_inclusive_ns": 250000000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 257649700,
+                "wall_inclusive_ns": 257649700
+              },
+              "strategy_stop": {
+                "calls": 1,
+                "parent_labels": [
+                  "cerebro_run"
+                ],
+                "process_cpu_exclusive_ns": 15625000,
+                "process_cpu_inclusive_ns": 265625000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 20687100,
+                "wall_inclusive_ns": 278336800
+              }
+            },
+            "runner_sha256": {
+              "sha256": "a971ca097236c6ffbaf85f5291bf58e47022d1f452c861e810bc3b8190a2ea0a",
+              "size_bytes": 33507
+            },
+            "backtrader_source": {
+              "commit": "e305e48de1d3f2f0aa428a506aff0eeba398a338",
+              "kind": "verified_snapshot_manifest_v1",
+              "manifest_sha256": "937180bbc54b424edf016f38535da3cbf97f0cb1e5f9e4914277e76d5fe93132",
+              "source_content_sha256": "4f43ef50fb0ab8224cce9f8447b93b8ddf4089179056606fcc4f167930fedf9e"
+            },
+            "fincore_source": {
+              "commit": "e04bd082b85374d58e304ec15d43dd134b7fe77b",
+              "kind": "verified_snapshot_manifest_v1",
+              "manifest_sha256": "439eadb28881b3910862891d6232c9c6e6b453868cf81b3702db0ff7ef3f0cf5",
+              "source_content_sha256": "f4d5081f1959a7d5399dc5aee93c4b86ba0401ef0b9981b3f30245d41906561f"
+            },
+            "environment": {
+              "available_memory_bytes": 9280270336,
+              "backtrader_origin": "D:\\temp\\iteration49-b0-backtrader-e305e48\\backtrader\\__init__.py",
+              "diagnostic_note": "--diagnostic panel deep-memory measurement runs after load_daily_panel returns and is included in main wall/CPU",
+              "executable": "C:\\anaconda3\\python.exe",
+              "fincore_origin": "D:\\temp\\iteration49-b0-fincore-e04bd08\\fincore\\__init__.py",
+              "logical_cpus": 32,
+              "numpy": "1.26.4",
+              "pandas": "2.2.3",
+              "platform": "Windows-10-10.0.26300-SP0",
+              "python": "3.11.5 | packaged by Anaconda, Inc. | (main, Sep 11 2023, 13:26:23) [MSC v.1916 64 bit (AMD64)]",
+              "resource_sampling_interval_seconds": 0.5,
+              "sampling_note": "tree RSS is summed at each sample; sampled tree CPU is approximate; main process CPU is primary"
+            }
+          },
+          "b": {
+            "result_path": "D:\\temp\\iteration49-7col-g0-p2-b-027\\result.json",
+            "result_sha256": "6fa6ebbff51d50af8afe308660c4fc14b9e28ef1561e24b42873696dd144e259",
+            "wall_s": 44.7952804,
+            "cpu_s": 42.53125,
+            "cli_wall_s": 51.4292016,
+            "peak_bytes": 492146688,
+            "sampled_peak_tree_rss_bytes": 440758272,
+            "max_sampled_processes": 1,
+            "memory": {
+              "after_imports_before_main": {
+                "peak_working_set_bytes": 174673920,
+                "rss_bytes": 174673920,
+                "working_set_bytes": 174673920
+              },
+              "after_load_daily_panel": {
+                "elapsed_main_ns": 1393322400,
+                "rss_bytes": 190541824
+              },
+              "after_main": {
+                "peak_working_set_bytes": 492146688,
+                "rss_bytes": 351432704,
+                "working_set_bytes": 351432704
+              }
+            },
+            "phases": {
+              "align_to_grid": {
+                "calls": 500,
+                "parent_labels": [
+                  "collection"
+                ],
+                "process_cpu_exclusive_ns": 812500000,
+                "process_cpu_inclusive_ns": 812500000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 844860800,
+                "wall_inclusive_ns": 844860800
+              },
+              "cerebro_run": {
+                "calls": 1,
+                "parent_labels": [
+                  "collection"
+                ],
+                "process_cpu_exclusive_ns": 1093750000,
+                "process_cpu_inclusive_ns": 31078125000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 1098829400,
+                "wall_inclusive_ns": 32855694600
+              },
+              "collect_grid_points": {
+                "calls": 243,
+                "parent_labels": [
+                  "engine_runnext"
+                ],
+                "process_cpu_exclusive_ns": 1921875000,
+                "process_cpu_inclusive_ns": 1921875000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 1882644700,
+                "wall_inclusive_ns": 1882644700
+              },
+              "collection": {
+                "calls": 1,
+                "parent_labels": [],
+                "process_cpu_exclusive_ns": 406250000,
+                "process_cpu_inclusive_ns": 32296875000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 399233500,
+                "wall_inclusive_ns": 34099788900
+              },
+              "dataframe_to_csv": {
+                "calls": 1,
+                "parent_labels": [],
+                "process_cpu_exclusive_ns": 625000000,
+                "process_cpu_inclusive_ns": 625000000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 629212500,
+                "wall_inclusive_ns": 629212500
+              },
+              "engine_runnext": {
+                "calls": 1,
+                "parent_labels": [
+                  "cerebro_run"
+                ],
+                "process_cpu_exclusive_ns": 26062500000,
+                "process_cpu_inclusive_ns": 27984375000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 27753347600,
+                "wall_inclusive_ns": 29635992300
+              },
+              "feed_preload": {
+                "calls": 500,
+                "parent_labels": [
+                  "cerebro_run"
+                ],
+                "process_cpu_exclusive_ns": 1734375000,
+                "process_cpu_inclusive_ns": 1734375000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 1848603200,
+                "wall_inclusive_ns": 1848603200
+              },
+              "html_report": {
+                "calls": 1,
+                "parent_labels": [],
+                "process_cpu_exclusive_ns": 8250000000,
+                "process_cpu_inclusive_ns": 8250000000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 8666178700,
+                "wall_inclusive_ns": 8666178700
+              },
+              "load_daily_panel": {
+                "calls": 1,
+                "parent_labels": [],
+                "process_cpu_exclusive_ns": 1359375000,
+                "process_cpu_inclusive_ns": 1359375000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 1390152500,
+                "wall_inclusive_ns": 1390152500
+              },
+              "sink_finalize": {
+                "calls": 1,
+                "parent_labels": [
+                  "strategy_stop"
+                ],
+                "process_cpu_exclusive_ns": 250000000,
+                "process_cpu_inclusive_ns": 250000000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 253613900,
+                "wall_inclusive_ns": 253613900
+              },
+              "strategy_stop": {
+                "calls": 1,
+                "parent_labels": [
+                  "cerebro_run"
+                ],
+                "process_cpu_exclusive_ns": 15625000,
+                "process_cpu_inclusive_ns": 265625000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 18655800,
+                "wall_inclusive_ns": 272269700
+              }
+            },
+            "runner_sha256": {
+              "sha256": "a971ca097236c6ffbaf85f5291bf58e47022d1f452c861e810bc3b8190a2ea0a",
+              "size_bytes": 33507
+            },
+            "backtrader_source": {
+              "branch": "dev",
+              "commit": "1108ad608eb1c3c5f4b273fef85d0174ed94735b",
+              "kind": "git_worktree",
+              "source_content_sha256": "6f67cfa751592d55e1695a8f4abc81ba7e5c091b0ef3f6f53e06af0fb6388ac5",
+              "source_status": [
+                " M backtrader/research/specs.py",
+                " M backtrader/strategy.py",
+                " M examples/backtest/027_alpha003_panel_acceptance/run_daily.py"
+              ]
+            },
+            "fincore_source": {
+              "branch": "dev",
+              "commit": "e04bd082b85374d58e304ec15d43dd134b7fe77b",
+              "kind": "git_worktree",
+              "source_content_sha256": "7b8e3915bf0447357bba88abf0386120ac2e8a0132bee51095487bc7cb5e8b81",
+              "source_status": [
+                " M fincore/factor_analysis/research.py"
+              ]
+            },
+            "environment": {
+              "available_memory_bytes": 9595990016,
+              "backtrader_origin": "D:\\source_code\\backtrader\\backtrader\\__init__.py",
+              "diagnostic_note": "--diagnostic panel deep-memory measurement runs after load_daily_panel returns and is included in main wall/CPU",
+              "executable": "C:\\anaconda3\\python.exe",
+              "fincore_origin": "D:\\source_code\\fincore\\fincore\\__init__.py",
+              "logical_cpus": 32,
+              "numpy": "1.26.4",
+              "pandas": "2.2.3",
+              "platform": "Windows-10-10.0.26300-SP0",
+              "python": "3.11.5 | packaged by Anaconda, Inc. | (main, Sep 11 2023, 13:26:23) [MSC v.1916 64 bit (AMD64)]",
+              "resource_sampling_interval_seconds": 0.5,
+              "sampling_note": "tree RSS is summed at each sample; sampled tree CPU is approximate; main process CPU is primary"
+            }
+          },
+          "wall_ratio": 0.9529245497890995,
+          "cpu_ratio": 0.9544179523141655,
+          "peak_ratio": 1.0023692531013022
+        },
+        {
+          "pair": 3,
+          "a": {
+            "result_path": "D:\\temp\\iteration49-7col-g0-p3-a-027\\result.json",
+            "result_sha256": "31996732ff2819845ecd06448608161776245c3870a044e64fa30c15a7466731",
+            "wall_s": 46.8815471,
+            "cpu_s": 44.421875,
+            "cli_wall_s": 53.299773,
+            "peak_bytes": 493379584,
+            "sampled_peak_tree_rss_bytes": 438636544,
+            "max_sampled_processes": 1,
+            "memory": {
+              "after_imports_before_main": {
+                "peak_working_set_bytes": 174751744,
+                "rss_bytes": 174751744,
+                "working_set_bytes": 174751744
+              },
+              "after_load_daily_panel": {
+                "elapsed_main_ns": 1447682700,
+                "rss_bytes": 191094784
+              },
+              "after_main": {
+                "peak_working_set_bytes": 493379584,
+                "rss_bytes": 352223232,
+                "working_set_bytes": 352223232
+              }
+            },
+            "phases": {
+              "align_to_grid": {
+                "calls": 500,
+                "parent_labels": [
+                  "collection"
+                ],
+                "process_cpu_exclusive_ns": 2343750000,
+                "process_cpu_inclusive_ns": 2343750000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 2489042000,
+                "wall_inclusive_ns": 2489042000
+              },
+              "cerebro_run": {
+                "calls": 1,
+                "parent_labels": [
+                  "collection"
+                ],
+                "process_cpu_exclusive_ns": 1718750000,
+                "process_cpu_inclusive_ns": 31390625000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 1674302700,
+                "wall_inclusive_ns": 32951371400
+              },
+              "collect_grid_points": {
+                "calls": 243,
+                "parent_labels": [
+                  "engine_runnext"
+                ],
+                "process_cpu_exclusive_ns": 1843750000,
+                "process_cpu_inclusive_ns": 1843750000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 1886156600,
+                "wall_inclusive_ns": 1886156600
+              },
+              "collection": {
+                "calls": 1,
+                "parent_labels": [],
+                "process_cpu_exclusive_ns": 390625000,
+                "process_cpu_inclusive_ns": 34125000000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 401656900,
+                "wall_inclusive_ns": 35842070300
+              },
+              "dataframe_to_csv": {
+                "calls": 1,
+                "parent_labels": [],
+                "process_cpu_exclusive_ns": 640625000,
+                "process_cpu_inclusive_ns": 640625000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 642561100,
+                "wall_inclusive_ns": 642561100
+              },
+              "engine_runnext": {
+                "calls": 1,
+                "parent_labels": [
+                  "cerebro_run"
+                ],
+                "process_cpu_exclusive_ns": 25812500000,
+                "process_cpu_inclusive_ns": 27656250000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 27264516400,
+                "wall_inclusive_ns": 29150673000
+              },
+              "feed_preload": {
+                "calls": 500,
+                "parent_labels": [
+                  "cerebro_run"
+                ],
+                "process_cpu_exclusive_ns": 1734375000,
+                "process_cpu_inclusive_ns": 1734375000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 1849958700,
+                "wall_inclusive_ns": 1849958700
+              },
+              "html_report": {
+                "calls": 1,
+                "parent_labels": [],
+                "process_cpu_exclusive_ns": 8281250000,
+                "process_cpu_inclusive_ns": 8281250000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 8942249300,
+                "wall_inclusive_ns": 8942249300
+              },
+              "load_daily_panel": {
+                "calls": 1,
+                "parent_labels": [],
+                "process_cpu_exclusive_ns": 1375000000,
+                "process_cpu_inclusive_ns": 1375000000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 1444511400,
+                "wall_inclusive_ns": 1444511400
+              },
+              "sink_finalize": {
+                "calls": 1,
+                "parent_labels": [
+                  "strategy_stop"
+                ],
+                "process_cpu_exclusive_ns": 265625000,
+                "process_cpu_inclusive_ns": 265625000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 257857100,
+                "wall_inclusive_ns": 257857100
+              },
+              "strategy_stop": {
+                "calls": 1,
+                "parent_labels": [
+                  "cerebro_run"
+                ],
+                "process_cpu_exclusive_ns": 15625000,
+                "process_cpu_inclusive_ns": 281250000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 18579900,
+                "wall_inclusive_ns": 276437000
+              }
+            },
+            "runner_sha256": {
+              "sha256": "a971ca097236c6ffbaf85f5291bf58e47022d1f452c861e810bc3b8190a2ea0a",
+              "size_bytes": 33507
+            },
+            "backtrader_source": {
+              "commit": "e305e48de1d3f2f0aa428a506aff0eeba398a338",
+              "kind": "verified_snapshot_manifest_v1",
+              "manifest_sha256": "937180bbc54b424edf016f38535da3cbf97f0cb1e5f9e4914277e76d5fe93132",
+              "source_content_sha256": "4f43ef50fb0ab8224cce9f8447b93b8ddf4089179056606fcc4f167930fedf9e"
+            },
+            "fincore_source": {
+              "commit": "e04bd082b85374d58e304ec15d43dd134b7fe77b",
+              "kind": "verified_snapshot_manifest_v1",
+              "manifest_sha256": "439eadb28881b3910862891d6232c9c6e6b453868cf81b3702db0ff7ef3f0cf5",
+              "source_content_sha256": "f4d5081f1959a7d5399dc5aee93c4b86ba0401ef0b9981b3f30245d41906561f"
+            },
+            "environment": {
+              "available_memory_bytes": 9085743104,
+              "backtrader_origin": "D:\\temp\\iteration49-b0-backtrader-e305e48\\backtrader\\__init__.py",
+              "diagnostic_note": "--diagnostic panel deep-memory measurement runs after load_daily_panel returns and is included in main wall/CPU",
+              "executable": "C:\\anaconda3\\python.exe",
+              "fincore_origin": "D:\\temp\\iteration49-b0-fincore-e04bd08\\fincore\\__init__.py",
+              "logical_cpus": 32,
+              "numpy": "1.26.4",
+              "pandas": "2.2.3",
+              "platform": "Windows-10-10.0.26300-SP0",
+              "python": "3.11.5 | packaged by Anaconda, Inc. | (main, Sep 11 2023, 13:26:23) [MSC v.1916 64 bit (AMD64)]",
+              "resource_sampling_interval_seconds": 0.5,
+              "sampling_note": "tree RSS is summed at each sample; sampled tree CPU is approximate; main process CPU is primary"
+            }
+          },
+          "b": {
+            "result_path": "D:\\temp\\iteration49-7col-g0-p3-b-027\\result.json",
+            "result_sha256": "8a0becaa170b7c4f4d2af6730dc81b8d5e19b04d81be9a24a79a930f90f3611e",
+            "wall_s": 44.1640685,
+            "cpu_s": 42.46875,
+            "cli_wall_s": 50.7574661,
+            "peak_bytes": 492613632,
+            "sampled_peak_tree_rss_bytes": 446177280,
+            "max_sampled_processes": 1,
+            "memory": {
+              "after_imports_before_main": {
+                "peak_working_set_bytes": 174522368,
+                "rss_bytes": 174522368,
+                "working_set_bytes": 174522368
+              },
+              "after_load_daily_panel": {
+                "elapsed_main_ns": 1323476000,
+                "rss_bytes": 190558208
+              },
+              "after_main": {
+                "peak_working_set_bytes": 492613632,
+                "rss_bytes": 358211584,
+                "working_set_bytes": 358211584
+              }
+            },
+            "phases": {
+              "align_to_grid": {
+                "calls": 500,
+                "parent_labels": [
+                  "collection"
+                ],
+                "process_cpu_exclusive_ns": 796875000,
+                "process_cpu_inclusive_ns": 796875000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 811600800,
+                "wall_inclusive_ns": 811600800
+              },
+              "cerebro_run": {
+                "calls": 1,
+                "parent_labels": [
+                  "collection"
+                ],
+                "process_cpu_exclusive_ns": 1046875000,
+                "process_cpu_inclusive_ns": 30984375000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 1079349800,
+                "wall_inclusive_ns": 32303274500
+              },
+              "collect_grid_points": {
+                "calls": 243,
+                "parent_labels": [
+                  "engine_runnext"
+                ],
+                "process_cpu_exclusive_ns": 1765625000,
+                "process_cpu_inclusive_ns": 1765625000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 1910185500,
+                "wall_inclusive_ns": 1910185500
+              },
+              "collection": {
+                "calls": 1,
+                "parent_labels": [],
+                "process_cpu_exclusive_ns": 390625000,
+                "process_cpu_inclusive_ns": 32171875000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 395939800,
+                "wall_inclusive_ns": 33510815100
+              },
+              "dataframe_to_csv": {
+                "calls": 1,
+                "parent_labels": [],
+                "process_cpu_exclusive_ns": 687500000,
+                "process_cpu_inclusive_ns": 687500000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 713869300,
+                "wall_inclusive_ns": 713869300
+              },
+              "engine_runnext": {
+                "calls": 1,
+                "parent_labels": [
+                  "cerebro_run"
+                ],
+                "process_cpu_exclusive_ns": 26203125000,
+                "process_cpu_inclusive_ns": 27968750000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 27217489200,
+                "wall_inclusive_ns": 29127674700
+              },
+              "feed_preload": {
+                "calls": 500,
+                "parent_labels": [
+                  "cerebro_run"
+                ],
+                "process_cpu_exclusive_ns": 1687500000,
+                "process_cpu_inclusive_ns": 1687500000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 1819131500,
+                "wall_inclusive_ns": 1819131500
+              },
+              "html_report": {
+                "calls": 1,
+                "parent_labels": [],
+                "process_cpu_exclusive_ns": 8281250000,
+                "process_cpu_inclusive_ns": 8281250000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 8609799400,
+                "wall_inclusive_ns": 8609799400
+              },
+              "load_daily_panel": {
+                "calls": 1,
+                "parent_labels": [],
+                "process_cpu_exclusive_ns": 1296875000,
+                "process_cpu_inclusive_ns": 1296875000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 1320449900,
+                "wall_inclusive_ns": 1320449900
+              },
+              "sink_finalize": {
+                "calls": 1,
+                "parent_labels": [
+                  "strategy_stop"
+                ],
+                "process_cpu_exclusive_ns": 265625000,
+                "process_cpu_inclusive_ns": 265625000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 259948000,
+                "wall_inclusive_ns": 259948000
+              },
+              "strategy_stop": {
+                "calls": 1,
+                "parent_labels": [
+                  "cerebro_run"
+                ],
+                "process_cpu_exclusive_ns": 15625000,
+                "process_cpu_inclusive_ns": 281250000,
+                "recursive_suppressed": 0,
+                "wall_exclusive_ns": 17170500,
+                "wall_inclusive_ns": 277118500
+              }
+            },
+            "runner_sha256": {
+              "sha256": "a971ca097236c6ffbaf85f5291bf58e47022d1f452c861e810bc3b8190a2ea0a",
+              "size_bytes": 33507
+            },
+            "backtrader_source": {
+              "branch": "dev",
+              "commit": "1108ad608eb1c3c5f4b273fef85d0174ed94735b",
+              "kind": "git_worktree",
+              "source_content_sha256": "6f67cfa751592d55e1695a8f4abc81ba7e5c091b0ef3f6f53e06af0fb6388ac5",
+              "source_status": [
+                " M backtrader/research/specs.py",
+                " M backtrader/strategy.py",
+                " M examples/backtest/027_alpha003_panel_acceptance/run_daily.py"
+              ]
+            },
+            "fincore_source": {
+              "branch": "dev",
+              "commit": "e04bd082b85374d58e304ec15d43dd134b7fe77b",
+              "kind": "git_worktree",
+              "source_content_sha256": "7b8e3915bf0447357bba88abf0386120ac2e8a0132bee51095487bc7cb5e8b81",
+              "source_status": [
+                " M fincore/factor_analysis/research.py"
+              ]
+            },
+            "environment": {
+              "available_memory_bytes": 9077604352,
+              "backtrader_origin": "D:\\source_code\\backtrader\\backtrader\\__init__.py",
+              "diagnostic_note": "--diagnostic panel deep-memory measurement runs after load_daily_panel returns and is included in main wall/CPU",
+              "executable": "C:\\anaconda3\\python.exe",
+              "fincore_origin": "D:\\source_code\\fincore\\fincore\\__init__.py",
+              "logical_cpus": 32,
+              "numpy": "1.26.4",
+              "pandas": "2.2.3",
+              "platform": "Windows-10-10.0.26300-SP0",
+              "python": "3.11.5 | packaged by Anaconda, Inc. | (main, Sep 11 2023, 13:26:23) [MSC v.1916 64 bit (AMD64)]",
+              "resource_sampling_interval_seconds": 0.5,
+              "sampling_note": "tree RSS is summed at each sample; sampled tree CPU is approximate; main process CPU is primary"
+            }
+          },
+          "wall_ratio": 0.9420352192259457,
+          "cpu_ratio": 0.9560323601829054,
+          "peak_ratio": 0.9984475401398044
+        }
+      ],
+      "median_wall_ratio": 0.9529245497890995,
+      "reduction": 0.04707545021090054,
+      "ratio_range_over_median": 0.016609845451257696,
+      "median_cpu_ratio": 0.9555938037865749,
+      "median_peak_ratio": 1.0002238917359072,
+      "a_wall_median": 46.8815471,
+      "b_wall_median": 44.7952804,
+      "a_peak_median": 493379584,
+      "b_peak_median": 492613632
+    }
+  }
+}

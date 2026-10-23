@@ -48,7 +48,7 @@ from typing import Optional
 
 from .lineiterator import LineIterator, StrategyBase
 from .lineroot import LineRoot, LineSingle
-from .lineseries import LineSeriesStub
+from .lineseries import Lines, LineSeriesStub
 from .metabase import ItemCollection, OwnerContext, findowner
 from .order import Order
 from .parameters import make_legacy_parameter_accessor
@@ -83,6 +83,7 @@ from .utils.log_message import SpdLogManager, get_logger
 from .utils.py3 import MAXINT, filter, integer_types, iteritems, keys, map, string_types
 
 logger = get_logger(__name__)
+_NATIVE_LINES_ITER = Lines.__iter__
 _INF = float("inf")
 _SERVICE_RECOVERY_TRADE_STATE_SCHEMA = "backtrader.managed_paper_trade.v1"
 _SERVICE_RECOVERY_TRADE_STATE_FIELDS = frozenset(
@@ -784,9 +785,9 @@ class Strategy(StrategyBase):
 
         def iter_indicator_tree(indicators):
             seen = set()
-            stack = list(indicators)
+            stack = collections.deque(indicators)
             while stack:
-                lineiter = stack.pop(0)
+                lineiter = stack.popleft()
                 lineiter_id = id(lineiter)
                 if lineiter_id in seen:
                     continue
@@ -802,6 +803,7 @@ class Strategy(StrategyBase):
 
         # Data IDs
         dataids = [id(data) for data in self.datas]
+        dataid_set = set(dataids)
         # Data minimum periods
         _dminperiods = collections.defaultdict(list)
         # Loop through all indicators
@@ -827,16 +829,78 @@ class Strategy(StrategyBase):
         # that resolves to a feed *line* (e.g. data.high) can be attributed to
         # its feed.
         _line_to_feed = {}
+        # MinimalClock recovery historically scans feeds in order, checking
+        # each feed itself before its lines. Keep that first-match behavior in
+        # a separate map: _line_to_feed intentionally retains its existing
+        # last-owner behavior for source attribution above. Use the map only
+        # when every feed has the standard Lines iterator and list storage;
+        # custom line containers retain the original per-indicator scan.
+        _first_data_owner_by_id = {}
+        _can_use_first_data_owner_map = True
+
+        def _feed_has_stable_lines(feed, observed_lines):
+            if type(feed).__getattribute__ is not object.__getattribute__:
+                return False
+            try:
+                feed_instance_dict = object.__getattribute__(feed, "__dict__")
+            except Exception:
+                return False
+            if feed_instance_dict.get("lines") is not observed_lines:
+                return False
+
+            for feed_type in type(feed).__mro__:
+                if "lines" not in feed_type.__dict__:
+                    continue
+                class_lines = feed_type.__dict__["lines"]
+                if not isinstance(class_lines, type):
+                    return False
+                try:
+                    if not issubclass(class_lines, Lines):
+                        return False
+                except TypeError:
+                    return False
+                class_lines_type = type(class_lines)
+                if hasattr(class_lines_type, "__set__") or hasattr(
+                    class_lines_type, "__delete__"
+                ):
+                    return False
+            return True
+
         for _data in self.datas:
+            _first_data_owner_by_id.setdefault(id(_data), _data)
             _dlines = getattr(_data, "lines", None)
             if _dlines is None:
+                _can_use_first_data_owner_map = False
                 continue
+            _standard_lines_container = (
+                isinstance(_dlines, Lines)
+                and Lines.__iter__ is _NATIVE_LINES_ITER
+                and type(_dlines).__iter__ is _NATIVE_LINES_ITER
+                and type(_dlines).__getattribute__ is object.__getattribute__
+                and not any("lines" in cls.__dict__ for cls in type(_dlines).__mro__)
+                and _feed_has_stable_lines(_data, _dlines)
+            )
+            if _standard_lines_container:
+                try:
+                    _lines_instance_dict = object.__getattribute__(_dlines, "__dict__")
+                except Exception:
+                    _standard_lines_container = False
+                else:
+                    _standard_lines_container = (
+                        type(_lines_instance_dict.get("lines")) is list
+                    )
+            if not _standard_lines_container:
+                _can_use_first_data_owner_map = False
             try:
                 for _ln in _dlines:
                     _line_to_feed[id(_ln)] = _data
+                    _first_data_owner_by_id.setdefault(id(_ln), _data)
             except TypeError:
                 # Feed lines not iterable; skip mapping this feed's lines.
                 logger.debug("strategy:726 ignored TypeError")
+                _can_use_first_data_owner_map = False
+        if not _can_use_first_data_owner_map:
+            _first_data_owner_by_id = None
 
         def _feed_of(node, _seen=None):
             """Resolve a data node to the concrete feed it ultimately follows."""
@@ -845,7 +909,7 @@ class Strategy(StrategyBase):
             if node is None or id(node) in _seen:
                 return None
             _seen.add(id(node))
-            if id(node) in dataids:
+            if id(node) in dataid_set:
                 return node
             if id(node) in _line_to_feed:
                 return _line_to_feed[id(node)]
@@ -855,7 +919,7 @@ class Strategy(StrategyBase):
                 logger.warning("strategy:745 fallback on Exception")
                 src = None
             if src is not None and src is not node:
-                if id(src) in dataids:
+                if id(src) in dataid_set:
                     return src
                 if id(src) in _line_to_feed:
                     return _line_to_feed[id(src)]
@@ -903,7 +967,7 @@ class Strategy(StrategyBase):
                 if not idatas:
                     continue
                 feed = _feed_of(idatas[0])
-                if feed is not None and feed is not primary_feed and id(feed) in dataids:
+                if feed is not None and feed is not primary_feed and id(feed) in dataid_set:
                     # Pin only the advance clock used by the runonce post-phase
                     # loop and Indicator.advance(); deliberately do NOT change
                     # lineiter._clock here so the existing minperiod-to-feed
@@ -929,19 +993,25 @@ class Strategy(StrategyBase):
                     clock_set = False
                     if hasattr(lineiter, "datas") and lineiter.datas:
                         ind_data = lineiter.datas[0]
-                        for data_feed in self.datas:
-                            # Check if ind_data is the data feed itself
-                            if ind_data is data_feed:
-                                clk = data_feed
+                        if _first_data_owner_by_id is not None:
+                            ind_data_id = id(ind_data)
+                            if ind_data_id in _first_data_owner_by_id:
+                                clk = _first_data_owner_by_id[ind_data_id]
                                 clock_set = True
-                                break
-                            # Check if ind_data is one of the lines of this data feed
-                            if hasattr(data_feed, "lines") and any(
-                                ind_data is line for line in data_feed.lines
-                            ):
-                                clk = data_feed
-                                clock_set = True
-                                break
+                        else:
+                            for data_feed in self.datas:
+                                # Check if ind_data is the data feed itself
+                                if ind_data is data_feed:
+                                    clk = data_feed
+                                    clock_set = True
+                                    break
+                                # Check if ind_data is one of the lines of this data feed
+                                if hasattr(data_feed, "lines") and any(
+                                    ind_data is line for line in data_feed.lines
+                                ):
+                                    clk = data_feed
+                                    clock_set = True
+                                    break
                     if not clock_set:
                         clk = self.datas[0]
                     lineiter._clock = clk  # Update indicator's clock
@@ -967,7 +1037,7 @@ class Strategy(StrategyBase):
             # If clk is not None
             while True:
                 # If clk is a data feed, break
-                if id(clk) in dataids:
+                if id(clk) in dataid_set:
                     break  # already top-level clock (data feed)
 
                 # See if the current clock has higher level clocks

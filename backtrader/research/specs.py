@@ -423,6 +423,35 @@ def _utc_index(index: Any, field_name: str, pd: Any) -> Any:
     return converted
 
 
+def _copy_frame_with_owned_index(frame: Any) -> Any:
+    """Copy a DataFrame and detach its immutable-looking index storage too."""
+    copied = frame.copy(deep=True)
+    copied.index = copied.index.copy(deep=True)
+    return copied
+
+
+def _grid_sha256(grid: Any) -> str:
+    """Hash the canonical grid JSON without materializing all rows at once."""
+    digest = hashlib.sha256()
+    digest.update(b"[")
+    first = True
+    for close_time, open_time in zip(grid.index, grid["open_time"]):
+        if not first:
+            digest.update(b",")
+        first = False
+
+        # Timestamp.isoformat() only emits ASCII ISO-8601 characters, so these
+        # quoted strings have the same JSON representation as json.dumps(...)
+        # with ensure_ascii=False and compact separators.
+        digest.update(b'["')
+        digest.update(close_time.isoformat().encode("utf-8"))
+        digest.update(b'","')
+        digest.update(open_time.isoformat().encode("utf-8"))
+        digest.update(b'"]')
+    digest.update(b"]")
+    return digest.hexdigest()
+
+
 @dataclass(frozen=True, init=False)
 class ResearchSpec:
     """Immutable research calendar, target universe and optional group facts.
@@ -433,6 +462,7 @@ class ResearchSpec:
     """
 
     _grid: Any = field(repr=False, compare=False)
+    _grid_sha256: str = field(repr=False, compare=False)
     start: Any
     end: Any
     targets: Tuple[str, ...]
@@ -477,7 +507,7 @@ class ResearchSpec:
         index = _utc_index(grid_copy.index, "grid index", pd)
         if not index.is_unique or not index.is_monotonic_increasing:
             raise ResearchConfigError("grid close_time must be unique and strictly increasing")
-        grid_copy.index = index
+        grid_copy.index = index.copy(deep=True)
         if "open_time" not in grid_copy.columns:
             raise ResearchConfigError("grid requires an open_time column")
         open_times = pd.DatetimeIndex(pd.to_datetime(grid_copy["open_time"], errors="coerce"))
@@ -541,6 +571,7 @@ class ResearchSpec:
         )
 
         object.__setattr__(self, "_grid", grid_copy)
+        object.__setattr__(self, "_grid_sha256", _grid_sha256(grid_copy))
         object.__setattr__(self, "start", start_utc)
         object.__setattr__(self, "end", end_utc)
         object.__setattr__(self, "targets", normalized_targets)
@@ -556,7 +587,7 @@ class ResearchSpec:
 
     @property
     def grid(self) -> Any:
-        return self._grid.copy(deep=True)
+        return _copy_frame_with_owned_index(self._grid)
 
     @property
     def groups(self) -> Mapping[str, str]:
@@ -569,16 +600,11 @@ class ResearchSpec:
     @property
     def calculation_grid(self) -> Any:
         """Full warm-up through research-end grid, excluding the label tail."""
-        return self._grid.loc[self._grid.index <= self.end].copy(deep=True)
+        return _copy_frame_with_owned_index(self._grid.loc[self._grid.index <= self.end])
 
     @property
     def grid_sha256(self) -> str:
-        rows = [
-            (close_time.isoformat(), open_time.isoformat())
-            for close_time, open_time in zip(self._grid.index, self._grid["open_time"])
-        ]
-        payload = json.dumps(rows, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
-        return hashlib.sha256(payload).hexdigest()
+        return self._grid_sha256
 
 
 def _normalize_bool_index(

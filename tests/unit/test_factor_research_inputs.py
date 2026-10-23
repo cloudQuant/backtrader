@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+import hashlib
+import json
 from typing import Any, Mapping
 
+import numpy as np
 import pandas as pd
 import pytest
 
@@ -69,6 +72,66 @@ def test_research_spec_keeps_explicit_utc_grid_and_inclusive_ranges() -> None:
     assert spec.end == grid.index[3]
     assert list(spec.calculation_grid.index) == list(grid.index[:4])
     assert len(spec.grid_sha256) == 64
+
+
+def test_research_grid_hash_is_cached_and_defensive_against_grid_mutation() -> None:
+    grid = _utc_grid()
+    spec = _research(grid)
+    expected_hash = spec.grid_sha256
+    original_rows = [
+        (close_time.isoformat(), open_time.isoformat())
+        for close_time, open_time in zip(grid.index, grid["open_time"])
+    ]
+    original_payload = json.dumps(
+        original_rows, ensure_ascii=False, separators=(",", ":")
+    ).encode("utf-8")
+    assert expected_hash == hashlib.sha256(original_payload).hexdigest()
+
+    original_index_values = grid.index.values
+    private_index_values = spec._grid.index.values
+    assert not np.shares_memory(original_index_values, private_index_values)
+    original_first_close = spec.grid.index[0]
+    _mutate_index_values_if_writable(grid.index)
+    grid.index = grid.index + pd.Timedelta(days=30)
+    grid.iloc[0, grid.columns.get_loc("open_time")] += pd.Timedelta(days=1)
+
+    returned_grid = spec.grid
+    returned_index_values = returned_grid.index.values
+    assert not np.shares_memory(returned_index_values, private_index_values)
+    _mutate_index_values_if_writable(returned_grid.index)
+    returned_grid.index = returned_grid.index + pd.Timedelta(days=60)
+    returned_grid.iloc[0, returned_grid.columns.get_loc("open_time")] += pd.Timedelta(
+        days=2
+    )
+
+    assert spec.grid.index[0] == original_first_close
+    assert spec.grid_sha256 == expected_hash
+    assert spec.grid_sha256 is expected_hash
+
+
+def _mutate_index_values_if_writable(index: pd.DatetimeIndex) -> None:
+    values = index.values
+    try:
+        values.setflags(write=True)
+    except ValueError:
+        return
+    values[0] += np.timedelta64(1, "D")
+
+
+def test_research_grid_hash_is_equivalent_for_zero_offset_timezones() -> None:
+    utc_grid = _utc_grid()
+    zero_offset_grid = utc_grid.copy(deep=True)
+    zero_offset_grid.index = utc_grid.index.tz_convert("Etc/GMT")
+    zero_offset_grid["open_time"] = utc_grid["open_time"].dt.tz_convert("Etc/GMT")
+
+    utc_spec = _research(utc_grid)
+    equivalent_spec = _research(
+        zero_offset_grid,
+        start=zero_offset_grid.index[1],
+        end=zero_offset_grid.index[3],
+    )
+
+    assert utc_spec.grid_sha256 == equivalent_spec.grid_sha256
 
 
 
