@@ -1,0 +1,547 @@
+{
+  "status": "G1_R3_500_DIAGNOSTIC_NOT_FULL_UNIVERSE_ACCEPTANCE",
+  "encoding": {
+    "status": "DIAGNOSTIC_ONLY_NOT_FORMAL_SPEED",
+    "note": "Same actual 500-stock result payload; tracing starts after main. Allocation peaks are Python-traced, not whole-process RSS. Payload held during diagnostic only.",
+    "observations": [
+      {
+        "value_type": "dict",
+        "streamed": true,
+        "encoded_length": 1181
+      },
+      {
+        "value_type": "dict",
+        "streamed": false,
+        "fallback": true
+      },
+      {
+        "value_type": "dict",
+        "streamed": true,
+        "encoded_length": 1181
+      },
+      {
+        "value_type": "dict",
+        "streamed": false,
+        "fallback": true
+      },
+      {
+        "value_type": "dict",
+        "streamed": true,
+        "encoded_length": 1181
+      },
+      {
+        "value_type": "dict",
+        "streamed": false,
+        "fallback": true
+      },
+      {
+        "value_type": "DataFrame",
+        "streamed": true,
+        "encoded_length": 18292273
+      },
+      {
+        "value_type": "DataFrame",
+        "streamed": true,
+        "encoded_length": 90227
+      },
+      {
+        "value_type": "DataFrame",
+        "streamed": true,
+        "encoded_length": 4114788
+      },
+      {
+        "value_type": "DataFrame",
+        "streamed": true,
+        "encoded_length": 4114788
+      },
+      {
+        "value_type": "DataFrame",
+        "streamed": true,
+        "encoded_length": 3138288
+      },
+      {
+        "value_type": "dict",
+        "streamed": true,
+        "encoded_length": 64668
+      },
+      {
+        "value_type": "dict",
+        "streamed": true,
+        "actual_research_result_payload": true,
+        "encoded_length": 364510609
+      }
+    ],
+    "allocation": {
+      "legacy": {
+        "digest": "abfb21f36229bd50eae0ca13ad5ffd50f3866fe4d324e058c9366fe9de2a6480",
+        "before_bytes": 0,
+        "peak_extra_bytes": 729090852,
+        "current_extra_bytes": 66062
+      },
+      "candidate": {
+        "digest": "abfb21f36229bd50eae0ca13ad5ffd50f3866fe4d324e058c9366fe9de2a6480",
+        "before_bytes": 0,
+        "peak_extra_bytes": 21606737,
+        "current_extra_bytes": 66589
+      }
+    },
+    "models_sha256": "61a154d92b5b6c3f509039f24f55c92c1c584af8a7420bb0244c6a44246c0025",
+    "diagnostic_script_sha256": "086d83256638e7731be53575a58f7f09fe85bce1bfe3ff8d9b828143abbf12c5"
+  },
+  "main_result": {
+    "path": "D:\\temp\\iteration49-7col-g1-r3-026-diagnostic\\result.json",
+    "size_bytes": 1320999,
+    "sha256": "844465ba8ecaba71b6c7e7c6fca27e817ef4ce0b694f9e4d48fb1562389fe1bd"
+  },
+  "main_wall_s": 76.224011,
+  "main_cpu_s": 73.671875,
+  "phase_timers": {
+    "align_to_grid": {
+      "calls": 500,
+      "parent_labels": [
+        "collection"
+      ],
+      "process_cpu_exclusive_ns": 796875000,
+      "process_cpu_inclusive_ns": 796875000,
+      "recursive_suppressed": 0,
+      "wall_exclusive_ns": 804792900,
+      "wall_inclusive_ns": 804792900
+    },
+    "cerebro_run": {
+      "calls": 1,
+      "parent_labels": [
+        "collection"
+      ],
+      "process_cpu_exclusive_ns": 1968750000,
+      "process_cpu_inclusive_ns": 23937500000,
+      "recursive_suppressed": 0,
+      "wall_exclusive_ns": 2098626700,
+      "wall_inclusive_ns": 24786719700
+    },
+    "collect_grid_points": {
+      "calls": 243,
+      "parent_labels": [
+        "engine_runonce"
+      ],
+      "process_cpu_exclusive_ns": 3109375000,
+      "process_cpu_inclusive_ns": 3109375000,
+      "recursive_suppressed": 0,
+      "wall_exclusive_ns": 3012377200,
+      "wall_inclusive_ns": 3012377200
+    },
+    "collection": {
+      "calls": 1,
+      "parent_labels": [],
+      "process_cpu_exclusive_ns": 62500000,
+      "process_cpu_inclusive_ns": 24796875000,
+      "recursive_suppressed": 0,
+      "wall_exclusive_ns": 61401600,
+      "wall_inclusive_ns": 25652914200
+    },
+    "dataframe_to_csv": {
+      "calls": 13,
+      "parent_labels": [
+        "evaluation_export"
+      ],
+      "process_cpu_exclusive_ns": 5406250000,
+      "process_cpu_inclusive_ns": 5406250000,
+      "recursive_suppressed": 0,
+      "wall_exclusive_ns": 5654185700,
+      "wall_inclusive_ns": 5654185700
+    },
+    "diagnostic_fingerprint_value": {
+      "calls": 13,
+      "parent_labels": [
+        "fincore_evaluate",
+        "html_report"
+      ],
+      "process_cpu_exclusive_ns": 22937500000,
+      "process_cpu_inclusive_ns": 22937500000,
+      "recursive_suppressed": 0,
+      "wall_exclusive_ns": 23637818600,
+      "wall_inclusive_ns": 23637818600
+    },
+    "diagnostic_periodset": {
+      "calls": 1,
+      "parent_labels": [
+        "cerebro_run"
+      ],
+      "process_cpu_exclusive_ns": 15625000,
+      "process_cpu_inclusive_ns": 15625000,
+      "recursive_suppressed": 0,
+      "wall_exclusive_ns": 26642200,
+      "wall_inclusive_ns": 26642200
+    },
+    "diagnostic_validate_factors": {
+      "calls": 1,
+      "parent_labels": [
+        "fincore_evaluate"
+      ],
+      "process_cpu_exclusive_ns": 31250000,
+      "process_cpu_inclusive_ns": 31250000,
+      "recursive_suppressed": 0,
+      "wall_exclusive_ns": 22382300,
+      "wall_inclusive_ns": 22382300
+    },
+    "engine_runonce": {
+      "calls": 1,
+      "parent_labels": [
+        "cerebro_run"
+      ],
+      "process_cpu_exclusive_ns": 16546875000,
+      "process_cpu_inclusive_ns": 19656250000,
+      "recursive_suppressed": 0,
+      "wall_exclusive_ns": 17266820200,
+      "wall_inclusive_ns": 20279197400
+    },
+    "evaluate_frames": {
+      "calls": 1,
+      "parent_labels": [],
+      "process_cpu_exclusive_ns": 109375000,
+      "process_cpu_inclusive_ns": 17718750000,
+      "recursive_suppressed": 0,
+      "wall_exclusive_ns": 110682700,
+      "wall_inclusive_ns": 18497105600
+    },
+    "evaluation_charts": {
+      "calls": 1,
+      "parent_labels": [
+        "evaluation_export"
+      ],
+      "process_cpu_exclusive_ns": 515625000,
+      "process_cpu_inclusive_ns": 515625000,
+      "recursive_suppressed": 0,
+      "wall_exclusive_ns": 519787000,
+      "wall_inclusive_ns": 519787000
+    },
+    "evaluation_export": {
+      "calls": 1,
+      "parent_labels": [],
+      "process_cpu_exclusive_ns": 0,
+      "process_cpu_inclusive_ns": 5078125000,
+      "recursive_suppressed": 0,
+      "wall_exclusive_ns": 2928900,
+      "wall_inclusive_ns": 5339944300
+    },
+    "feed_preload": {
+      "calls": 500,
+      "parent_labels": [
+        "cerebro_run"
+      ],
+      "process_cpu_exclusive_ns": 1984375000,
+      "process_cpu_inclusive_ns": 1984375000,
+      "recursive_suppressed": 0,
+      "wall_exclusive_ns": 2080119400,
+      "wall_inclusive_ns": 2080119400
+    },
+    "fincore_evaluate": {
+      "calls": 1,
+      "parent_labels": [
+        "evaluate_frames"
+      ],
+      "process_cpu_exclusive_ns": 8296875000,
+      "process_cpu_inclusive_ns": 17609375000,
+      "recursive_suppressed": 0,
+      "wall_exclusive_ns": 8746635100,
+      "wall_inclusive_ns": 18386422900
+    },
+    "html_report": {
+      "calls": 3,
+      "parent_labels": [],
+      "process_cpu_exclusive_ns": 10093750000,
+      "process_cpu_inclusive_ns": 23750000000,
+      "recursive_suppressed": 0,
+      "wall_exclusive_ns": 10324777500,
+      "wall_inclusive_ns": 24345190600
+    },
+    "load_daily_panel": {
+      "calls": 1,
+      "parent_labels": [],
+      "process_cpu_exclusive_ns": 1484375000,
+      "process_cpu_inclusive_ns": 1484375000,
+      "recursive_suppressed": 0,
+      "wall_exclusive_ns": 1537994400,
+      "wall_inclusive_ns": 1537994400
+    },
+    "sink_finalize": {
+      "calls": 1,
+      "parent_labels": [
+        "strategy_stop"
+      ],
+      "process_cpu_exclusive_ns": 281250000,
+      "process_cpu_inclusive_ns": 281250000,
+      "recursive_suppressed": 0,
+      "wall_exclusive_ns": 282462100,
+      "wall_inclusive_ns": 282462100
+    },
+    "strategy_stop": {
+      "calls": 1,
+      "parent_labels": [
+        "cerebro_run"
+      ],
+      "process_cpu_exclusive_ns": 31250000,
+      "process_cpu_inclusive_ns": 312500000,
+      "recursive_suppressed": 0,
+      "wall_exclusive_ns": 19671900,
+      "wall_inclusive_ns": 302134000
+    }
+  },
+  "memory": {
+    "after_imports_before_main": {
+      "peak_working_set_bytes": 172900352,
+      "rss_bytes": 172900352,
+      "working_set_bytes": 172900352
+    },
+    "after_load_daily_panel": {
+      "elapsed_main_ns": 1334903300,
+      "rss_bytes": 189001728
+    },
+    "after_main": {
+      "peak_working_set_bytes": 522829824,
+      "rss_bytes": 429244416,
+      "working_set_bytes": 429244416
+    },
+    "panel_dataframe_deep_bytes": 5750400,
+    "panel_dataframe_deep_measurement_ns": 208998500
+  },
+  "source_archive": {
+    "path": "D:\\temp\\iteration49-g1-prototype3-source.zip",
+    "size_bytes": 28432,
+    "sha256": "dd6caa181c4fa557a9003095a3b6110ae665e6d5c5b526906b20a43486908c86"
+  },
+  "diagnostic_source_after_run": {
+    "path": "D:\\source_code\\backtrader\\.codex-tmp\\iteration49_g1_diagnostic.py",
+    "size_bytes": 5619,
+    "sha256": "086d83256638e7731be53575a58f7f09fe85bce1bfe3ff8d9b828143abbf12c5"
+  },
+  "diagnostic_source_note": "Report-timer additions were made after the first diagnostic process had loaded its script, so they were not executed there. Its script hash was read at the end, not a launch attestation. Use only its existing encoding/allocation observations; Root separately checked both digests against its actual exported manifest. The report-only successor below was frozen before launch and is separately attributed.",
+  "report_diagnostic": {
+    "status": "REPORT_AND_FALLBACK_DIAGNOSTIC_ONLY",
+    "observations": [
+      {
+        "value_type": "dict",
+        "streamed": true,
+        "encoded_length": 1181
+      },
+      {
+        "value_type": "dict",
+        "streamed": false,
+        "fallback": true,
+        "fallback_trace": [
+          {
+            "name": "_stream_fingerprint",
+            "line": 2719
+          },
+          {
+            "name": "_stream_length",
+            "line": 2347
+          },
+          {
+            "name": "_stream_mapping_length",
+            "line": 2274
+          },
+          {
+            "name": "_stream_length",
+            "line": 2347
+          },
+          {
+            "name": "_stream_mapping_length",
+            "line": 2272
+          },
+          {
+            "name": "_stream_mapping_items",
+            "line": 2255
+          }
+        ]
+      },
+      {
+        "value_type": "dict",
+        "streamed": true,
+        "encoded_length": 1181
+      },
+      {
+        "value_type": "dict",
+        "streamed": false,
+        "fallback": true,
+        "fallback_trace": [
+          {
+            "name": "_stream_fingerprint",
+            "line": 2719
+          },
+          {
+            "name": "_stream_length",
+            "line": 2347
+          },
+          {
+            "name": "_stream_mapping_length",
+            "line": 2274
+          },
+          {
+            "name": "_stream_length",
+            "line": 2347
+          },
+          {
+            "name": "_stream_mapping_length",
+            "line": 2272
+          },
+          {
+            "name": "_stream_mapping_items",
+            "line": 2255
+          }
+        ]
+      },
+      {
+        "value_type": "dict",
+        "streamed": true,
+        "encoded_length": 1181
+      },
+      {
+        "value_type": "dict",
+        "streamed": false,
+        "fallback": true,
+        "fallback_trace": [
+          {
+            "name": "_stream_fingerprint",
+            "line": 2719
+          },
+          {
+            "name": "_stream_length",
+            "line": 2347
+          },
+          {
+            "name": "_stream_mapping_length",
+            "line": 2274
+          },
+          {
+            "name": "_stream_length",
+            "line": 2347
+          },
+          {
+            "name": "_stream_mapping_length",
+            "line": 2272
+          },
+          {
+            "name": "_stream_mapping_items",
+            "line": 2255
+          }
+        ]
+      },
+      {
+        "value_type": "DataFrame",
+        "streamed": true,
+        "encoded_length": 18292273
+      },
+      {
+        "value_type": "DataFrame",
+        "streamed": true,
+        "encoded_length": 90227
+      },
+      {
+        "value_type": "DataFrame",
+        "streamed": true,
+        "encoded_length": 4114788
+      },
+      {
+        "value_type": "DataFrame",
+        "streamed": true,
+        "encoded_length": 4114788
+      },
+      {
+        "value_type": "DataFrame",
+        "streamed": true,
+        "encoded_length": 3138288
+      },
+      {
+        "value_type": "dict",
+        "streamed": true,
+        "encoded_length": 64668
+      },
+      {
+        "value_type": "dict",
+        "streamed": true,
+        "actual_research_result_payload": true,
+        "encoded_length": 364510609
+      }
+    ],
+    "report_timers": {
+      "report_forward_returns": {
+        "calls": 3,
+        "wall_inclusive_ns": 275791100,
+        "cpu_inclusive_ns": 234375000
+      },
+      "report_prepare": {
+        "calls": 3,
+        "wall_inclusive_ns": 1295017400,
+        "cpu_inclusive_ns": 1250000000
+      },
+      "report_pandas_snapshot": {
+        "calls": 291,
+        "wall_inclusive_ns": 108832100,
+        "cpu_inclusive_ns": 140625000
+      },
+      "report_turnover": {
+        "calls": 3,
+        "wall_inclusive_ns": 905256300,
+        "cpu_inclusive_ns": 859375000
+      },
+      "report_rank_autocorrelation": {
+        "calls": 3,
+        "wall_inclusive_ns": 395300400,
+        "cpu_inclusive_ns": 406250000
+      },
+      "report_analysis": {
+        "calls": 3,
+        "wall_inclusive_ns": 22935448500,
+        "cpu_inclusive_ns": 22406250000
+      },
+      "report_build_document": {
+        "calls": 3,
+        "wall_inclusive_ns": 110424300,
+        "cpu_inclusive_ns": 93750000
+      },
+      "report_render": {
+        "calls": 3,
+        "wall_inclusive_ns": 65994400,
+        "cpu_inclusive_ns": 46875000
+      },
+      "report_total": {
+        "calls": 3,
+        "wall_inclusive_ns": 24422401800,
+        "cpu_inclusive_ns": 23828125000
+      }
+    },
+    "source_sha256": "95dc2fea25b1d16b36f17f698f863518ee42bfbb660f6a8373b22d1489230ffd",
+    "models_sha256": "61a154d92b5b6c3f509039f24f55c92c1c584af8a7420bb0244c6a44246c0025"
+  },
+  "report_diagnostic_source": {
+    "path": "D:\\source_code\\backtrader\\.codex-tmp\\iteration49_g1_report_diagnostic.py",
+    "size_bytes": 4657,
+    "sha256": "95dc2fea25b1d16b36f17f698f863518ee42bfbb660f6a8373b22d1489230ffd"
+  },
+  "source_pins": [
+    {
+      "path": "D:\\source_code\\fincore\\fincore\\factor_analysis\\models.py",
+      "size_bytes": 125962,
+      "sha256": "61a154d92b5b6c3f509039f24f55c92c1c584af8a7420bb0244c6a44246c0025"
+    },
+    {
+      "path": "D:\\source_code\\fincore\\tests\\factor_analysis\\test_fingerprint_streaming.py",
+      "size_bytes": 17663,
+      "sha256": "8701ade46a25c33a0c0735e691674314c16fbfd1f60ca6e38a0dd6892d8b2bec"
+    }
+  ],
+  "tests": {
+    "r3_streaming": {
+      "passed": 36,
+      "warnings": 0,
+      "elapsed_s": 2.38
+    },
+    "r2_six_file_suite": {
+      "exit_code": 0,
+      "note": "79 progress dots, no explicit numeric pytest footer; do not treat this as a separately printed pass count."
+    },
+    "ruff": "PASS",
+    "diff_check": "PASS"
+  },
+  "review": "GO_STATIC_R3_FRAME_BOUND_ONLY; full output equality independently verified in actual 500-stock pairs"
+}
