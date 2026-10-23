@@ -436,6 +436,14 @@ def _publish_report_semantics(root: Path, captured: list) -> list:
     return reports
 
 
+def _observed_engine(phase_rows: dict) -> str | None:
+    engines = [
+        engine for engine in ("runonce", "runnext")
+        if phase_rows.get("engine_" + engine, {}).get("calls", 0) > 0
+    ]
+    return engines[0] if len(engines) == 1 else ("mixed" if engines else None)
+
+
 def _parser():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--source-root", type=Path, default=ROOT, help="Backtrader checkout or verified snapshot")
@@ -446,6 +454,8 @@ def _parser():
                         help="fixed pinned 500-symbol sample (default) or all 5471 pinned symbols")
     parser.add_argument("--example", choices=tuple(EXAMPLES), required=True)
     parser.add_argument("--profile", choices=("full", "compute"), default="full")
+    parser.add_argument("--expected-engine", choices=("runonce", "runnext"),
+                        help="assert the observed Cerebro engine; does not select the engine")
     parser.add_argument("--output", type=Path, required=True, help="new result directory")
     parser.add_argument("--diagnostic", action="store_true", help="also time fingerprint, validation and _periodset")
     return parser
@@ -578,7 +588,7 @@ def main(argv=None):
 
         command = _example_cli_arguments(args.example, args.profile, output, data_root, data_identity["symbols"])
         result["example_cli_arguments"] = command
-        result["expected_engine"] = "runnext" if args.example == "027" else "runonce"
+        result["expected_engine"] = args.expected_engine
         result["loaded_module_origins_before_main"] = module_origins
         result["environment"] = {"python": sys.version, "executable": sys.executable,
             "platform": platform.platform(), "logical_cpus": psutil.cpu_count(),
@@ -641,6 +651,9 @@ def main(argv=None):
         if result["example_exit_code"] == 0:
             summary = result["summary"]
             problems = []
+            result["observed_engine"] = _observed_engine(timers.json_rows())
+            if args.expected_engine is not None and result["observed_engine"] != args.expected_engine:
+                problems.append("observed Cerebro engine does not match --expected-engine")
             if not isinstance(summary, dict) or summary.get("status") != "COMPLETED":
                 problems.append("summary is not completed")
             if not isinstance(summary, dict) or (summary.get("symbols"), summary.get("dates")) != (

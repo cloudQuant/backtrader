@@ -1,0 +1,1434 @@
+{
+  "schema": "iteration49.g10c-025-followup-fixed500.v1",
+  "status": "PASS_OUTPUT_EQUIVALENCE_MEASUREMENT_ONLY",
+  "measurement_scope": {
+    "new_pairs": [
+      2,
+      3
+    ],
+    "new_actual_processes": 4,
+    "new_independent_comparisons": 2,
+    "025_pairs_including_g10c_pair1": [
+      1,
+      2,
+      3
+    ],
+    "026_027_reused_controls_from_pair": 1
+  },
+  "counts": {
+    "new_runs": 4,
+    "new_verifiers": 2,
+    "partial_scope_receipts": 2,
+    "reused_control_comparisons": 4
+  },
+  "pins": {
+    "followup_config": {
+      "path": "D:\\source_code\\backtrader\\.codex-tmp\\iteration49-g10c-025-followup-config.json",
+      "size_bytes": 1041,
+      "sha256": "e832c4c901b48527e9d5b682431a2d46d3e44f75478fe4e9aab1250359e0c85c"
+    },
+    "g10c_pair1_config": {
+      "path": "D:\\source_code\\backtrader\\.codex-tmp\\iteration49-g10c-panel-once-pair1-config.json",
+      "size_bytes": 8928,
+      "sha256": "e2efe1ffa90a8837a76f5b60e8d779e24ad81621430edbf68502b23c17885232"
+    },
+    "pair_launcher": {
+      "path": "D:\\source_code\\backtrader\\.codex-tmp\\iteration49_g10_panel_once_pairs.py",
+      "size_bytes": 14662,
+      "sha256": "64182c2d2dd426dc6a6d6c49415df421f50b0dd9bbccfc1dba1e945ad1d98a4c"
+    },
+    "base_helper": {
+      "path": "D:\\source_code\\backtrader\\.codex-tmp\\iteration49_next_pairs.py",
+      "size_bytes": 12797,
+      "sha256": "541b834cc57a93e807fd39a7d2c6c960caf78e2e70caa98bb348f884a1405cfb"
+    },
+    "canonical_runner": {
+      "path": "D:\\source_code\\backtrader\\scripts\\benchmark_factor_examples.py",
+      "size_bytes": 40595,
+      "sha256": "2dea4f0bc64131e3eca52a10f969ffc499b0a6bad901216fc9e52432add5f082"
+    },
+    "canonical_verifier": {
+      "path": "D:\\source_code\\backtrader\\scripts\\verify_factor_examples_benchmark.py",
+      "size_bytes": 78101,
+      "sha256": "5818795349d7856a3dcac897ffbd0687a6c60cde7552e8aa67570a534768c921"
+    },
+    "selection": {
+      "path": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\迭代49-因子分析性能优化\\benchmark-500-7col.json",
+      "size_bytes": 92962,
+      "sha256": "14f789a9d9e649987b93bc0477a0f94acc5223edd7ccd70166c8ea4b33ba35dc"
+    },
+    "pair1_verifier": {
+      "path": "D:\\temp\\iteration49-g10c-panel-once-500-p1-verification.json",
+      "size_bytes": 43500,
+      "sha256": "5f6926beaa9e227cbf4afd97ce1a44c3bc135c324bddfff19229ff32bea0fcca"
+    }
+  },
+  "sources": {
+    "backtrader_baseline": {
+      "root": "D:\\temp\\iteration49-g8-backtrader-7b155ef2",
+      "commit": "7b155ef2be2e2064b990060dcbfe09ce0c1f2a6f",
+      "manifest_sha256": "f18dad9076993f62c5cdc2e305fa20cd1a92fecd67583dbf27f457c258aa1e5f"
+    },
+    "backtrader_candidate": {
+      "mode": "worktree",
+      "root": "D:\\source_code\\backtrader",
+      "branch": "dev",
+      "commit": "1176d71cd60dd59ba76842bb37b21e30b05d301f",
+      "source_scopes": [
+        "backtrader",
+        "examples/backtest/025_factor_single",
+        "examples/backtest/026_factor_multi",
+        "examples/backtest/027_alpha003_panel_acceptance"
+      ],
+      "expected_file_count": 621,
+      "allowed_delta": {
+        "backtrader/research/operators.py": {
+          "sha256": "15335c4bd93c5bcad7e7480d499907cdfddf215234002ceb734dadd5710f864f",
+          "size_bytes": 91758
+        },
+        "examples/backtest/027_alpha003_panel_acceptance/README.md": {
+          "sha256": "3e8a4a5fb6d617596bb460ccc507bdef37f51c7bb6b7b939a545db048ae2d9c4",
+          "size_bytes": 4045
+        },
+        "examples/backtest/027_alpha003_panel_acceptance/run.py": {
+          "sha256": "78e29dadf258bf8ed0821a34e7cb5bee5f13452d04a68e2517236d0218ab4e63",
+          "size_bytes": 13218
+        },
+        "examples/backtest/027_alpha003_panel_acceptance/run_daily.py": {
+          "sha256": "206f13a98d7e153bd0cd6f5d42d38470fb7566788104b957af87614be5999220",
+          "size_bytes": 60707
+        }
+      },
+      "checkout_raw_overrides": {
+        "backtrader/brokers/btapibroker.py": {
+          "sha256": "da5fde0cd89b094e750c7514a743d007a8b3d6ee245690ed431c0f165f6f708b",
+          "size_bytes": 469557
+        },
+        "backtrader/feeds/service_recovery_quotes.py": {
+          "sha256": "95562fb1c19b26c68cb4377be219e952cf3fb65adbe9633021a7d1606b07952d",
+          "size_bytes": 9213
+        },
+        "backtrader/notifications/session.py": {
+          "sha256": "0540d969958630ef110c4f9c10b39d599f914b9ebdb27ece3a5e064ceb4c57b8",
+          "size_bytes": 27452
+        },
+        "backtrader/sizers/strategy_account_book.py": {
+          "sha256": "14eca7acc5a3e9143f29bb0e56938cd3d72f1b7ec2fafbfcb6b5924b60a5f6d8",
+          "size_bytes": 5537
+        },
+        "backtrader/stores/btapistore.py": {
+          "sha256": "62c5abbb6b4b7105cfd8ced2ad56927020fcb0dd28d686a443f0d0706a761a66",
+          "size_bytes": 782916
+        },
+        "backtrader/stores/service_execution_adapter.py": {
+          "sha256": "1cdbb545c9707355acb6d75cb8d7de812d2bbf869efa1cbf219bcad903708a5b",
+          "size_bytes": 72153
+        },
+        "backtrader/stores/service_execution_group.py": {
+          "sha256": "94fee1623276cdc2cd693884fd06cb865efe688008caaa9d2ebf8ec59ef56bb5",
+          "size_bytes": 54068
+        },
+        "backtrader/stores/service_execution_recovery.py": {
+          "sha256": "193e6dc0f7fcf64f01e87963448678612adb1396d27c2ec100766c53d4702856",
+          "size_bytes": 171714
+        },
+        "backtrader/stores/service_execution_session.py": {
+          "sha256": "c492095af903e475b9a9269f845f9ec30f190eb063fe029fefc2b45c83664af3",
+          "size_bytes": 55183
+        },
+        "backtrader/stores/service_read_proxy.py": {
+          "sha256": "809f01eb3ccf5e653247e255145170a6ab4b4360e0b060cc6bdd461df18ddb41",
+          "size_bytes": 67682
+        },
+        "backtrader/stores/service_refresh_loop.py": {
+          "sha256": "71b0974725bf0fa26b92e9546453df82c6c19be1c9a93ab0b381cda42f05b52c",
+          "size_bytes": 5782
+        },
+        "backtrader/stores/service_strategy_account_book.py": {
+          "sha256": "2fddaec2357e5bcad2d83b301519f0172f7b734705b7f5952493bd4c35256ffa",
+          "size_bytes": 24521
+        },
+        "examples/backtest/025_factor_single/_iteration49_factor_asset_batch.py": {
+          "sha256": "867e5dbd00bfe910dcac865ceb21907edbead75e66c3a9e1cc18dbc68088268f",
+          "size_bytes": 9499
+        }
+      },
+      "test_pins": {
+        "tests/unit/test_factor_research_panel_once.py": {
+          "sha256": "118b38d05f3bbc9ee3d2f3b028a4dc7a3bad4dfcf22bca742146fe521b9be2ec",
+          "size_bytes": 15208
+        },
+        "tests/unit/test_alpha003_quick_engine.py": {
+          "sha256": "be12c347029383271bf7f0681996d7446e7fbf9b0c878e23712fc487f367e5f0",
+          "size_bytes": 2370
+        },
+        "tests/unit/test_factor_benchmark_engine.py": {
+          "sha256": "1ec7e882df4d85f5f0daa7860ba574d1158d207128e659089a4956b7195b1e81",
+          "size_bytes": 750
+        },
+        "tests/unit/test_factor_examples_benchmark_universe.py": {
+          "sha256": "32e1542e305187ac78f4a2f1d5766cd917eeccbe003d350c80e7585dfc552e19",
+          "size_bytes": 5852
+        }
+      },
+      "status_scopes": [
+        "backtrader",
+        "examples/backtest/025_factor_single",
+        "examples/backtest/026_factor_multi",
+        "examples/backtest/027_alpha003_panel_acceptance",
+        "scripts/benchmark_factor_examples.py"
+      ],
+      "expected_status": [
+        " M backtrader/research/operators.py",
+        " M examples/backtest/027_alpha003_panel_acceptance/README.md",
+        " M examples/backtest/027_alpha003_panel_acceptance/run.py",
+        " M examples/backtest/027_alpha003_panel_acceptance/run_daily.py",
+        " M scripts/benchmark_factor_examples.py"
+      ],
+      "result_source_status": [
+        " M backtrader/research/operators.py",
+        " M examples/backtest/027_alpha003_panel_acceptance/README.md",
+        " M examples/backtest/027_alpha003_panel_acceptance/run.py",
+        " M examples/backtest/027_alpha003_panel_acceptance/run_daily.py",
+        " M scripts/benchmark_factor_examples.py"
+      ],
+      "preserved_unrelated": {
+        "examples/backtest/027_alpha003_panel_acceptance/run_daily.py": {
+          "sha256": "206f13a98d7e153bd0cd6f5d42d38470fb7566788104b957af87614be5999220",
+          "size_bytes": 60707
+        }
+      }
+    },
+    "fincore_snapshot": {
+      "root": "D:\\temp\\iteration49-g9-fincore-4a80181",
+      "commit": "4a8018105cf331969bb88cd26c47e158704a32e5",
+      "manifest_sha256": "92a8828fef31f5a546abeb419b4eef8cf25864a0a7d61a0e97a14812ce43e27f"
+    }
+  },
+  "fixed_500": {
+    "symbols": 500,
+    "dates": 243,
+    "selection_sha256": "14f789a9d9e649987b93bc0477a0f94acc5223edd7ccd70166c8ea4b33ba35dc"
+  },
+  "pair1_025_control": [
+    {
+      "arm": "a",
+      "path": "D:\\temp\\iteration49-g10c-panel-once-500-p1-a-025",
+      "result": {
+        "size_bytes": 656626,
+        "sha256": "5e98391d62ccac5356eed4b7d5a3500f72197d237e10e139fe6e69b19c33ccef"
+      },
+      "wall_s": 18.875895,
+      "cpu_s": 18.125,
+      "peak_bytes": 309080064,
+      "expected_engine": "runonce",
+      "observed_engine": "runonce",
+      "phase_timers": {
+        "align_to_grid": {
+          "calls": 500,
+          "parent_labels": [
+            "collection"
+          ],
+          "process_cpu_exclusive_ns": 843750000,
+          "process_cpu_inclusive_ns": 843750000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 862564400,
+          "wall_inclusive_ns": 862564400
+        },
+        "cerebro_run": {
+          "calls": 2,
+          "parent_labels": [
+            "collection"
+          ],
+          "process_cpu_exclusive_ns": 281250000,
+          "process_cpu_inclusive_ns": 5062500000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 315332200,
+          "wall_inclusive_ns": 5293461500
+        },
+        "collect_grid_points": {
+          "calls": 486,
+          "parent_labels": [
+            "engine_runonce"
+          ],
+          "process_cpu_exclusive_ns": 812500000,
+          "process_cpu_inclusive_ns": 812500000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 820817700,
+          "wall_inclusive_ns": 820817700
+        },
+        "collection": {
+          "calls": 2,
+          "parent_labels": [],
+          "process_cpu_exclusive_ns": 31250000,
+          "process_cpu_inclusive_ns": 5937500000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 42081900,
+          "wall_inclusive_ns": 6198107800
+        },
+        "dataframe_to_csv": {
+          "calls": 36,
+          "parent_labels": [
+            "evaluation_export"
+          ],
+          "process_cpu_exclusive_ns": 1921875000,
+          "process_cpu_inclusive_ns": 1921875000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 1997332100,
+          "wall_inclusive_ns": 1997332100
+        },
+        "engine_runonce": {
+          "calls": 2,
+          "parent_labels": [
+            "cerebro_run"
+          ],
+          "process_cpu_exclusive_ns": 2015625000,
+          "process_cpu_inclusive_ns": 2828125000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 2229814700,
+          "wall_inclusive_ns": 3050632400
+        },
+        "evaluate_frames": {
+          "calls": 1,
+          "parent_labels": [],
+          "process_cpu_exclusive_ns": 109375000,
+          "process_cpu_inclusive_ns": 4046875000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 97606100,
+          "wall_inclusive_ns": 4337646200
+        },
+        "evaluation_charts": {
+          "calls": 1,
+          "parent_labels": [
+            "evaluation_export"
+          ],
+          "process_cpu_exclusive_ns": 484375000,
+          "process_cpu_inclusive_ns": 484375000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 510397800,
+          "wall_inclusive_ns": 510397800
+        },
+        "evaluation_export": {
+          "calls": 1,
+          "parent_labels": [],
+          "process_cpu_exclusive_ns": 31250000,
+          "process_cpu_inclusive_ns": 1828125000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 33587000,
+          "wall_inclusive_ns": 1912825300
+        },
+        "feed_preload": {
+          "calls": 500,
+          "parent_labels": [
+            "cerebro_run"
+          ],
+          "process_cpu_exclusive_ns": 1890625000,
+          "process_cpu_inclusive_ns": 1890625000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 1873031800,
+          "wall_inclusive_ns": 1873031800
+        },
+        "fincore_evaluate": {
+          "calls": 1,
+          "parent_labels": [
+            "evaluate_frames"
+          ],
+          "process_cpu_exclusive_ns": 3937500000,
+          "process_cpu_inclusive_ns": 3937500000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 4240040100,
+          "wall_inclusive_ns": 4240040100
+        },
+        "html_report": {
+          "calls": 1,
+          "parent_labels": [],
+          "process_cpu_exclusive_ns": 4125000000,
+          "process_cpu_inclusive_ns": 4125000000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 4213288900,
+          "wall_inclusive_ns": 4213288900
+        },
+        "load_daily_panel": {
+          "calls": 1,
+          "parent_labels": [],
+          "process_cpu_exclusive_ns": 1359375000,
+          "process_cpu_inclusive_ns": 1359375000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 1370486600,
+          "wall_inclusive_ns": 1370486600
+        },
+        "sink_finalize": {
+          "calls": 2,
+          "parent_labels": [
+            "strategy_stop"
+          ],
+          "process_cpu_exclusive_ns": 46875000,
+          "process_cpu_inclusive_ns": 46875000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 41396200,
+          "wall_inclusive_ns": 41396200
+        },
+        "strategy_stop": {
+          "calls": 2,
+          "parent_labels": [
+            "cerebro_run"
+          ],
+          "process_cpu_exclusive_ns": 15625000,
+          "process_cpu_inclusive_ns": 62500000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 13068900,
+          "wall_inclusive_ns": 54465100
+        }
+      }
+    },
+    {
+      "arm": "b",
+      "path": "D:\\temp\\iteration49-g10c-panel-once-500-p1-b-025",
+      "result": {
+        "size_bytes": 644138,
+        "sha256": "886b1f0e49ab608b509b51a82b89e476a83af1d7c58a210025d027fa71b4ddc1"
+      },
+      "wall_s": 21.0951314,
+      "cpu_s": 20.46875,
+      "peak_bytes": 308568064,
+      "expected_engine": "runonce",
+      "observed_engine": "runonce",
+      "phase_timers": {
+        "align_to_grid": {
+          "calls": 500,
+          "parent_labels": [
+            "collection"
+          ],
+          "process_cpu_exclusive_ns": 796875000,
+          "process_cpu_inclusive_ns": 796875000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 871744900,
+          "wall_inclusive_ns": 871744900
+        },
+        "cerebro_run": {
+          "calls": 2,
+          "parent_labels": [
+            "collection"
+          ],
+          "process_cpu_exclusive_ns": 359375000,
+          "process_cpu_inclusive_ns": 5265625000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 310357700,
+          "wall_inclusive_ns": 5292355300
+        },
+        "collect_grid_points": {
+          "calls": 486,
+          "parent_labels": [
+            "engine_runonce"
+          ],
+          "process_cpu_exclusive_ns": 765625000,
+          "process_cpu_inclusive_ns": 765625000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 820194800,
+          "wall_inclusive_ns": 820194800
+        },
+        "collection": {
+          "calls": 2,
+          "parent_labels": [],
+          "process_cpu_exclusive_ns": 46875000,
+          "process_cpu_inclusive_ns": 6109375000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 42676400,
+          "wall_inclusive_ns": 6206776600
+        },
+        "dataframe_to_csv": {
+          "calls": 36,
+          "parent_labels": [
+            "evaluation_export"
+          ],
+          "process_cpu_exclusive_ns": 1859375000,
+          "process_cpu_inclusive_ns": 1859375000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 1979762900,
+          "wall_inclusive_ns": 1979762900
+        },
+        "engine_runonce": {
+          "calls": 2,
+          "parent_labels": [
+            "cerebro_run"
+          ],
+          "process_cpu_exclusive_ns": 2296875000,
+          "process_cpu_inclusive_ns": 3062500000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 2238333800,
+          "wall_inclusive_ns": 3058528600
+        },
+        "evaluate_frames": {
+          "calls": 1,
+          "parent_labels": [],
+          "process_cpu_exclusive_ns": 140625000,
+          "process_cpu_inclusive_ns": 5703125000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 142502400,
+          "wall_inclusive_ns": 5767057700
+        },
+        "evaluation_charts": {
+          "calls": 1,
+          "parent_labels": [
+            "evaluation_export"
+          ],
+          "process_cpu_exclusive_ns": 343750000,
+          "process_cpu_inclusive_ns": 343750000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 526193000,
+          "wall_inclusive_ns": 526193000
+        },
+        "evaluation_export": {
+          "calls": 1,
+          "parent_labels": [],
+          "process_cpu_exclusive_ns": 31250000,
+          "process_cpu_inclusive_ns": 1609375000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 44651800,
+          "wall_inclusive_ns": 1927581200
+        },
+        "feed_preload": {
+          "calls": 500,
+          "parent_labels": [
+            "cerebro_run"
+          ],
+          "process_cpu_exclusive_ns": 1796875000,
+          "process_cpu_inclusive_ns": 1796875000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 1871363200,
+          "wall_inclusive_ns": 1871363200
+        },
+        "fincore_evaluate": {
+          "calls": 1,
+          "parent_labels": [
+            "evaluate_frames"
+          ],
+          "process_cpu_exclusive_ns": 5562500000,
+          "process_cpu_inclusive_ns": 5562500000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 5624555300,
+          "wall_inclusive_ns": 5624555300
+        },
+        "html_report": {
+          "calls": 1,
+          "parent_labels": [],
+          "process_cpu_exclusive_ns": 4843750000,
+          "process_cpu_inclusive_ns": 4843750000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 4983960800,
+          "wall_inclusive_ns": 4983960800
+        },
+        "load_daily_panel": {
+          "calls": 1,
+          "parent_labels": [],
+          "process_cpu_exclusive_ns": 1359375000,
+          "process_cpu_inclusive_ns": 1359375000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 1353593900,
+          "wall_inclusive_ns": 1353593900
+        },
+        "sink_finalize": {
+          "calls": 2,
+          "parent_labels": [
+            "strategy_stop"
+          ],
+          "process_cpu_exclusive_ns": 31250000,
+          "process_cpu_inclusive_ns": 31250000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 37906000,
+          "wall_inclusive_ns": 37906000
+        },
+        "strategy_stop": {
+          "calls": 2,
+          "parent_labels": [
+            "cerebro_run"
+          ],
+          "process_cpu_exclusive_ns": 15625000,
+          "process_cpu_inclusive_ns": 46875000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 14199800,
+          "wall_inclusive_ns": 52105800
+        }
+      }
+    }
+  ],
+  "new_025_runs": [
+    {
+      "pair": 2,
+      "arm": "b",
+      "example": "025",
+      "path": "D:\\temp\\iteration49-g10c-025-followup-500-p2-b-025",
+      "result": {
+        "size_bytes": 642599,
+        "sha256": "b3f5e645fa39639b6fab9f3dac72c085fe56988ff4dc558a0a0c54c6a1bb74a6"
+      },
+      "wall_s": 18.4766442,
+      "cpu_s": 18.078125,
+      "peak_bytes": 311635968,
+      "expected_engine": "runonce",
+      "observed_engine": "runonce",
+      "phase_timers": {
+        "align_to_grid": {
+          "calls": 500,
+          "parent_labels": [
+            "collection"
+          ],
+          "process_cpu_exclusive_ns": 875000000,
+          "process_cpu_inclusive_ns": 875000000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 913719500,
+          "wall_inclusive_ns": 913719500
+        },
+        "cerebro_run": {
+          "calls": 2,
+          "parent_labels": [
+            "collection"
+          ],
+          "process_cpu_exclusive_ns": 375000000,
+          "process_cpu_inclusive_ns": 5296875000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 324393600,
+          "wall_inclusive_ns": 5381938200
+        },
+        "collect_grid_points": {
+          "calls": 486,
+          "parent_labels": [
+            "engine_runonce"
+          ],
+          "process_cpu_exclusive_ns": 703125000,
+          "process_cpu_inclusive_ns": 703125000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 825922800,
+          "wall_inclusive_ns": 825922800
+        },
+        "collection": {
+          "calls": 2,
+          "parent_labels": [],
+          "process_cpu_exclusive_ns": 31250000,
+          "process_cpu_inclusive_ns": 6203125000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 41796300,
+          "wall_inclusive_ns": 6337454000
+        },
+        "dataframe_to_csv": {
+          "calls": 36,
+          "parent_labels": [
+            "evaluation_export"
+          ],
+          "process_cpu_exclusive_ns": 1875000000,
+          "process_cpu_inclusive_ns": 1875000000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 1903429100,
+          "wall_inclusive_ns": 1903429100
+        },
+        "engine_runonce": {
+          "calls": 2,
+          "parent_labels": [
+            "cerebro_run"
+          ],
+          "process_cpu_exclusive_ns": 2359375000,
+          "process_cpu_inclusive_ns": 3062500000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 2305276800,
+          "wall_inclusive_ns": 3131199600
+        },
+        "evaluate_frames": {
+          "calls": 1,
+          "parent_labels": [],
+          "process_cpu_exclusive_ns": 140625000,
+          "process_cpu_inclusive_ns": 3890625000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 103624700,
+          "wall_inclusive_ns": 3975452100
+        },
+        "evaluation_charts": {
+          "calls": 1,
+          "parent_labels": [
+            "evaluation_export"
+          ],
+          "process_cpu_exclusive_ns": 484375000,
+          "process_cpu_inclusive_ns": 484375000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 503604100,
+          "wall_inclusive_ns": 503604100
+        },
+        "evaluation_export": {
+          "calls": 1,
+          "parent_labels": [],
+          "process_cpu_exclusive_ns": 0,
+          "process_cpu_inclusive_ns": 1734375000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 31610700,
+          "wall_inclusive_ns": 1784884100
+        },
+        "feed_preload": {
+          "calls": 500,
+          "parent_labels": [
+            "cerebro_run"
+          ],
+          "process_cpu_exclusive_ns": 1796875000,
+          "process_cpu_inclusive_ns": 1796875000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 1868063500,
+          "wall_inclusive_ns": 1868063500
+        },
+        "fincore_evaluate": {
+          "calls": 1,
+          "parent_labels": [
+            "evaluate_frames"
+          ],
+          "process_cpu_exclusive_ns": 3750000000,
+          "process_cpu_inclusive_ns": 3750000000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 3871827400,
+          "wall_inclusive_ns": 3871827400
+        },
+        "html_report": {
+          "calls": 1,
+          "parent_labels": [],
+          "process_cpu_exclusive_ns": 4031250000,
+          "process_cpu_inclusive_ns": 4031250000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 4106388800,
+          "wall_inclusive_ns": 4106388800
+        },
+        "load_daily_panel": {
+          "calls": 1,
+          "parent_labels": [],
+          "process_cpu_exclusive_ns": 1375000000,
+          "process_cpu_inclusive_ns": 1375000000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 1400564800,
+          "wall_inclusive_ns": 1400564800
+        },
+        "sink_finalize": {
+          "calls": 2,
+          "parent_labels": [
+            "strategy_stop"
+          ],
+          "process_cpu_exclusive_ns": 31250000,
+          "process_cpu_inclusive_ns": 31250000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 43916100,
+          "wall_inclusive_ns": 43916100
+        },
+        "strategy_stop": {
+          "calls": 2,
+          "parent_labels": [
+            "cerebro_run"
+          ],
+          "process_cpu_exclusive_ns": 31250000,
+          "process_cpu_inclusive_ns": 62500000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 14365400,
+          "wall_inclusive_ns": 58281500
+        }
+      }
+    },
+    {
+      "pair": 2,
+      "arm": "a",
+      "example": "025",
+      "path": "D:\\temp\\iteration49-g10c-025-followup-500-p2-a-025",
+      "result": {
+        "size_bytes": 656907,
+        "sha256": "3befa12adc95647f2cd0c8f0684521fd826abb9b5b38186bb2425fc8db251834"
+      },
+      "wall_s": 18.995807,
+      "cpu_s": 18.4375,
+      "peak_bytes": 309137408,
+      "expected_engine": "runonce",
+      "observed_engine": "runonce",
+      "phase_timers": {
+        "align_to_grid": {
+          "calls": 500,
+          "parent_labels": [
+            "collection"
+          ],
+          "process_cpu_exclusive_ns": 843750000,
+          "process_cpu_inclusive_ns": 843750000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 832534000,
+          "wall_inclusive_ns": 832534000
+        },
+        "cerebro_run": {
+          "calls": 2,
+          "parent_labels": [
+            "collection"
+          ],
+          "process_cpu_exclusive_ns": 296875000,
+          "process_cpu_inclusive_ns": 5484375000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 322960900,
+          "wall_inclusive_ns": 5719306400
+        },
+        "collect_grid_points": {
+          "calls": 486,
+          "parent_labels": [
+            "engine_runonce"
+          ],
+          "process_cpu_exclusive_ns": 703125000,
+          "process_cpu_inclusive_ns": 703125000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 853267400,
+          "wall_inclusive_ns": 853267400
+        },
+        "collection": {
+          "calls": 2,
+          "parent_labels": [],
+          "process_cpu_exclusive_ns": 46875000,
+          "process_cpu_inclusive_ns": 6375000000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 52785500,
+          "wall_inclusive_ns": 6604625900
+        },
+        "dataframe_to_csv": {
+          "calls": 36,
+          "parent_labels": [
+            "evaluation_export"
+          ],
+          "process_cpu_exclusive_ns": 1843750000,
+          "process_cpu_inclusive_ns": 1843750000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 1901922400,
+          "wall_inclusive_ns": 1901922400
+        },
+        "engine_runonce": {
+          "calls": 2,
+          "parent_labels": [
+            "cerebro_run"
+          ],
+          "process_cpu_exclusive_ns": 2437500000,
+          "process_cpu_inclusive_ns": 3140625000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 2393211600,
+          "wall_inclusive_ns": 3246479000
+        },
+        "evaluate_frames": {
+          "calls": 1,
+          "parent_labels": [],
+          "process_cpu_exclusive_ns": 109375000,
+          "process_cpu_inclusive_ns": 3906250000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 101584100,
+          "wall_inclusive_ns": 3942879400
+        },
+        "evaluation_charts": {
+          "calls": 1,
+          "parent_labels": [
+            "evaluation_export"
+          ],
+          "process_cpu_exclusive_ns": 484375000,
+          "process_cpu_inclusive_ns": 484375000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 485398700,
+          "wall_inclusive_ns": 485398700
+        },
+        "evaluation_export": {
+          "calls": 1,
+          "parent_labels": [],
+          "process_cpu_exclusive_ns": 31250000,
+          "process_cpu_inclusive_ns": 1734375000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 34278300,
+          "wall_inclusive_ns": 1749273800
+        },
+        "feed_preload": {
+          "calls": 500,
+          "parent_labels": [
+            "cerebro_run"
+          ],
+          "process_cpu_exclusive_ns": 1984375000,
+          "process_cpu_inclusive_ns": 1984375000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 2094711500,
+          "wall_inclusive_ns": 2094711500
+        },
+        "fincore_evaluate": {
+          "calls": 1,
+          "parent_labels": [
+            "evaluate_frames"
+          ],
+          "process_cpu_exclusive_ns": 3796875000,
+          "process_cpu_inclusive_ns": 3796875000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 3841295300,
+          "wall_inclusive_ns": 3841295300
+        },
+        "html_report": {
+          "calls": 1,
+          "parent_labels": [],
+          "process_cpu_exclusive_ns": 4187500000,
+          "process_cpu_inclusive_ns": 4187500000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 4398732100,
+          "wall_inclusive_ns": 4398732100
+        },
+        "load_daily_panel": {
+          "calls": 1,
+          "parent_labels": [],
+          "process_cpu_exclusive_ns": 1359375000,
+          "process_cpu_inclusive_ns": 1359375000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 1382837300,
+          "wall_inclusive_ns": 1382837300
+        },
+        "sink_finalize": {
+          "calls": 2,
+          "parent_labels": [
+            "strategy_stop"
+          ],
+          "process_cpu_exclusive_ns": 31250000,
+          "process_cpu_inclusive_ns": 31250000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 39573500,
+          "wall_inclusive_ns": 39573500
+        },
+        "strategy_stop": {
+          "calls": 2,
+          "parent_labels": [
+            "cerebro_run"
+          ],
+          "process_cpu_exclusive_ns": 31250000,
+          "process_cpu_inclusive_ns": 62500000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 15581500,
+          "wall_inclusive_ns": 55155000
+        }
+      }
+    },
+    {
+      "pair": 3,
+      "arm": "a",
+      "example": "025",
+      "path": "D:\\temp\\iteration49-g10c-025-followup-500-p3-a-025",
+      "result": {
+        "size_bytes": 656907,
+        "sha256": "01d1d4b69003308607c006cb39d2f8fbf467fe158c143457bfddf1a4f1f85698"
+      },
+      "wall_s": 19.438632,
+      "cpu_s": 18.3125,
+      "peak_bytes": 310259712,
+      "expected_engine": "runonce",
+      "observed_engine": "runonce",
+      "phase_timers": {
+        "align_to_grid": {
+          "calls": 500,
+          "parent_labels": [
+            "collection"
+          ],
+          "process_cpu_exclusive_ns": 843750000,
+          "process_cpu_inclusive_ns": 843750000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 880835000,
+          "wall_inclusive_ns": 880835000
+        },
+        "cerebro_run": {
+          "calls": 2,
+          "parent_labels": [
+            "collection"
+          ],
+          "process_cpu_exclusive_ns": 281250000,
+          "process_cpu_inclusive_ns": 5171875000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 327289500,
+          "wall_inclusive_ns": 5390829000
+        },
+        "collect_grid_points": {
+          "calls": 486,
+          "parent_labels": [
+            "engine_runonce"
+          ],
+          "process_cpu_exclusive_ns": 796875000,
+          "process_cpu_inclusive_ns": 796875000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 851761600,
+          "wall_inclusive_ns": 851761600
+        },
+        "collection": {
+          "calls": 2,
+          "parent_labels": [],
+          "process_cpu_exclusive_ns": 15625000,
+          "process_cpu_inclusive_ns": 6031250000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 43871200,
+          "wall_inclusive_ns": 6315535200
+        },
+        "dataframe_to_csv": {
+          "calls": 36,
+          "parent_labels": [
+            "evaluation_export"
+          ],
+          "process_cpu_exclusive_ns": 1859375000,
+          "process_cpu_inclusive_ns": 1859375000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 1895979100,
+          "wall_inclusive_ns": 1895979100
+        },
+        "engine_runonce": {
+          "calls": 2,
+          "parent_labels": [
+            "cerebro_run"
+          ],
+          "process_cpu_exclusive_ns": 2187500000,
+          "process_cpu_inclusive_ns": 2984375000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 2273973600,
+          "wall_inclusive_ns": 3125735200
+        },
+        "evaluate_frames": {
+          "calls": 1,
+          "parent_labels": [],
+          "process_cpu_exclusive_ns": 93750000,
+          "process_cpu_inclusive_ns": 4078125000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 121307400,
+          "wall_inclusive_ns": 4361051300
+        },
+        "evaluation_charts": {
+          "calls": 1,
+          "parent_labels": [
+            "evaluation_export"
+          ],
+          "process_cpu_exclusive_ns": 500000000,
+          "process_cpu_inclusive_ns": 500000000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 535061300,
+          "wall_inclusive_ns": 535061300
+        },
+        "evaluation_export": {
+          "calls": 1,
+          "parent_labels": [],
+          "process_cpu_exclusive_ns": 46875000,
+          "process_cpu_inclusive_ns": 1796875000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 32170600,
+          "wall_inclusive_ns": 1851211500
+        },
+        "feed_preload": {
+          "calls": 500,
+          "parent_labels": [
+            "cerebro_run"
+          ],
+          "process_cpu_exclusive_ns": 1859375000,
+          "process_cpu_inclusive_ns": 1859375000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 1883413000,
+          "wall_inclusive_ns": 1883413000
+        },
+        "fincore_evaluate": {
+          "calls": 1,
+          "parent_labels": [
+            "evaluate_frames"
+          ],
+          "process_cpu_exclusive_ns": 3984375000,
+          "process_cpu_inclusive_ns": 3984375000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 4239743900,
+          "wall_inclusive_ns": 4239743900
+        },
+        "html_report": {
+          "calls": 1,
+          "parent_labels": [],
+          "process_cpu_exclusive_ns": 4218750000,
+          "process_cpu_inclusive_ns": 4218750000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 4661503100,
+          "wall_inclusive_ns": 4661503100
+        },
+        "load_daily_panel": {
+          "calls": 1,
+          "parent_labels": [],
+          "process_cpu_exclusive_ns": 1343750000,
+          "process_cpu_inclusive_ns": 1343750000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 1400837200,
+          "wall_inclusive_ns": 1400837200
+        },
+        "sink_finalize": {
+          "calls": 2,
+          "parent_labels": [
+            "strategy_stop"
+          ],
+          "process_cpu_exclusive_ns": 46875000,
+          "process_cpu_inclusive_ns": 46875000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 40230500,
+          "wall_inclusive_ns": 40230500
+        },
+        "strategy_stop": {
+          "calls": 2,
+          "parent_labels": [
+            "cerebro_run"
+          ],
+          "process_cpu_exclusive_ns": 0,
+          "process_cpu_inclusive_ns": 46875000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 14160800,
+          "wall_inclusive_ns": 54391300
+        }
+      }
+    },
+    {
+      "pair": 3,
+      "arm": "b",
+      "example": "025",
+      "path": "D:\\temp\\iteration49-g10c-025-followup-500-p3-b-025",
+      "result": {
+        "size_bytes": 642570,
+        "sha256": "961ca8349b5834a2859d58958dcbdc9a31eff03b83fd7dccce7aca9fb645d046"
+      },
+      "wall_s": 18.9702978,
+      "cpu_s": 18.3125,
+      "peak_bytes": 309522432,
+      "expected_engine": "runonce",
+      "observed_engine": "runonce",
+      "phase_timers": {
+        "align_to_grid": {
+          "calls": 500,
+          "parent_labels": [
+            "collection"
+          ],
+          "process_cpu_exclusive_ns": 859375000,
+          "process_cpu_inclusive_ns": 859375000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 898096200,
+          "wall_inclusive_ns": 898096200
+        },
+        "cerebro_run": {
+          "calls": 2,
+          "parent_labels": [
+            "collection"
+          ],
+          "process_cpu_exclusive_ns": 312500000,
+          "process_cpu_inclusive_ns": 5343750000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 343849700,
+          "wall_inclusive_ns": 5466830700
+        },
+        "collect_grid_points": {
+          "calls": 486,
+          "parent_labels": [
+            "engine_runonce"
+          ],
+          "process_cpu_exclusive_ns": 843750000,
+          "process_cpu_inclusive_ns": 843750000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 831501400,
+          "wall_inclusive_ns": 831501400
+        },
+        "collection": {
+          "calls": 2,
+          "parent_labels": [],
+          "process_cpu_exclusive_ns": 46875000,
+          "process_cpu_inclusive_ns": 6250000000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 42770800,
+          "wall_inclusive_ns": 6407697700
+        },
+        "dataframe_to_csv": {
+          "calls": 36,
+          "parent_labels": [
+            "evaluation_export"
+          ],
+          "process_cpu_exclusive_ns": 1906250000,
+          "process_cpu_inclusive_ns": 1906250000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 1919169700,
+          "wall_inclusive_ns": 1919169700
+        },
+        "engine_runonce": {
+          "calls": 2,
+          "parent_labels": [
+            "cerebro_run"
+          ],
+          "process_cpu_exclusive_ns": 2312500000,
+          "process_cpu_inclusive_ns": 3156250000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 2382734000,
+          "wall_inclusive_ns": 3214235400
+        },
+        "evaluate_frames": {
+          "calls": 1,
+          "parent_labels": [],
+          "process_cpu_exclusive_ns": 93750000,
+          "process_cpu_inclusive_ns": 3859375000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 100382400,
+          "wall_inclusive_ns": 4058820600
+        },
+        "evaluation_charts": {
+          "calls": 1,
+          "parent_labels": [
+            "evaluation_export"
+          ],
+          "process_cpu_exclusive_ns": 515625000,
+          "process_cpu_inclusive_ns": 515625000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 535551800,
+          "wall_inclusive_ns": 535551800
+        },
+        "evaluation_export": {
+          "calls": 1,
+          "parent_labels": [],
+          "process_cpu_exclusive_ns": 0,
+          "process_cpu_inclusive_ns": 1765625000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 31795600,
+          "wall_inclusive_ns": 1787133300
+        },
+        "feed_preload": {
+          "calls": 500,
+          "parent_labels": [
+            "cerebro_run"
+          ],
+          "process_cpu_exclusive_ns": 1812500000,
+          "process_cpu_inclusive_ns": 1812500000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 1849543700,
+          "wall_inclusive_ns": 1849543700
+        },
+        "fincore_evaluate": {
+          "calls": 1,
+          "parent_labels": [
+            "evaluate_frames"
+          ],
+          "process_cpu_exclusive_ns": 3765625000,
+          "process_cpu_inclusive_ns": 3765625000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 3958438200,
+          "wall_inclusive_ns": 3958438200
+        },
+        "html_report": {
+          "calls": 1,
+          "parent_labels": [],
+          "process_cpu_exclusive_ns": 4187500000,
+          "process_cpu_inclusive_ns": 4187500000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 4384796800,
+          "wall_inclusive_ns": 4384796800
+        },
+        "load_daily_panel": {
+          "calls": 1,
+          "parent_labels": [],
+          "process_cpu_exclusive_ns": 1359375000,
+          "process_cpu_inclusive_ns": 1359375000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 1387189900,
+          "wall_inclusive_ns": 1387189900
+        },
+        "sink_finalize": {
+          "calls": 2,
+          "parent_labels": [
+            "strategy_stop"
+          ],
+          "process_cpu_exclusive_ns": 46875000,
+          "process_cpu_inclusive_ns": 46875000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 44184500,
+          "wall_inclusive_ns": 44184500
+        },
+        "strategy_stop": {
+          "calls": 2,
+          "parent_labels": [
+            "cerebro_run"
+          ],
+          "process_cpu_exclusive_ns": 15625000,
+          "process_cpu_inclusive_ns": 62500000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 15017400,
+          "wall_inclusive_ns": 59201900
+        }
+      }
+    }
+  ],
+  "control_inclusive_verifiers": [
+    {
+      "pair": 2,
+      "path": "D:\\temp\\iteration49-g10c-025-followup-500-p2-control-inclusive-verification.json",
+      "size_bytes": 43512,
+      "sha256": "3205cd35bad566e86ef697b4b0259b308804ff3ce366b8ae1c3619f7e2a7c885",
+      "status": "PASS",
+      "scope_complete": true,
+      "independent_examples": [
+        "025"
+      ]
+    },
+    {
+      "pair": 3,
+      "path": "D:\\temp\\iteration49-g10c-025-followup-500-p3-control-inclusive-verification.json",
+      "size_bytes": 43512,
+      "sha256": "4b3d756cc69d1d53510d02962d6feab4cad03f3d1d2afb1546a082efe45a95fe",
+      "status": "PASS",
+      "scope_complete": true,
+      "independent_examples": [
+        "025"
+      ]
+    }
+  ],
+  "partial_scope_receipts": [
+    {
+      "pair": 2,
+      "path": "D:\\temp\\iteration49-g10c-025-followup-500-p2-partial-scope.json",
+      "size_bytes": 3998,
+      "sha256": "7c27b9f71306a4334763d181e4f7b8b30211bdce8aa25cf0a4cbe6d1bee946d9",
+      "scope_complete": false,
+      "independent_scope_complete": true,
+      "independent_examples": [
+        "025"
+      ],
+      "reused_controls": [
+        "026",
+        "027"
+      ]
+    },
+    {
+      "pair": 3,
+      "path": "D:\\temp\\iteration49-g10c-025-followup-500-p3-partial-scope.json",
+      "size_bytes": 3998,
+      "sha256": "914020e998151627b5c5deaa7fb77a8ce949082a85434d302b628233df522195",
+      "scope_complete": false,
+      "independent_scope_complete": true,
+      "independent_examples": [
+        "025"
+      ],
+      "reused_controls": [
+        "026",
+        "027"
+      ]
+    }
+  ],
+  "paired_metrics_025": {
+    "actual_pairs": [
+      1,
+      2,
+      3
+    ],
+    "per_pair": {
+      "1": {
+        "a": {
+          "wall_s": 18.875895,
+          "cpu_s": 18.125,
+          "peak_bytes": 309080064
+        },
+        "b": {
+          "wall_s": 21.0951314,
+          "cpu_s": 20.46875,
+          "peak_bytes": 308568064
+        }
+      },
+      "2": {
+        "b": {
+          "wall_s": 18.4766442,
+          "cpu_s": 18.078125,
+          "peak_bytes": 311635968
+        },
+        "a": {
+          "wall_s": 18.995807,
+          "cpu_s": 18.4375,
+          "peak_bytes": 309137408
+        }
+      },
+      "3": {
+        "a": {
+          "wall_s": 19.438632,
+          "cpu_s": 18.3125,
+          "peak_bytes": 310259712
+        },
+        "b": {
+          "wall_s": 18.9702978,
+          "cpu_s": 18.3125,
+          "peak_bytes": 309522432
+        }
+      }
+    },
+    "metrics": {
+      "wall_s": {
+        "paired_candidate_over_baseline_b_over_a": [
+          1.117569863574681,
+          0.9726696107198815,
+          0.9759070391373221
+        ],
+        "median_b_over_a": 0.9759070391373221,
+        "median_gain_percent": 2.409296086267787,
+        "relative_dispersion_of_b_over_a": 0.14847751583274543
+      },
+      "cpu_s": {
+        "paired_candidate_over_baseline_b_over_a": [
+          1.1293103448275863,
+          0.9805084745762712,
+          1.0
+        ],
+        "median_b_over_a": 1.0,
+        "median_gain_percent": 0.0,
+        "relative_dispersion_of_b_over_a": 0.14880187025131508
+      },
+      "peak_bytes": {
+        "paired_candidate_over_baseline_b_over_a": [
+          0.9983434712890443,
+          1.00808236057928,
+          0.9976236682640897
+        ],
+        "median_b_over_a": 0.9983434712890443,
+        "median_gain_percent": 0.16565287109556737,
+        "relative_dispersion_of_b_over_a": 0.010476046186475449
+      }
+    }
+  },
+  "performance_claim": "Three measured 025 pairs describe this pinned source only; no fixed-universe performance threshold is accepted here.",
+  "reused_controls": {
+    "026": {
+      "a": {
+        "path": "D:\\temp\\iteration49-g10c-panel-once-500-p1-a-026",
+        "result": {
+          "size_bytes": 1302093,
+          "sha256": "7f87899c97731d82196a4c666a97e879646e79c3ff12c61ca2ceafa5717704f3"
+        },
+        "summary": {
+          "size_bytes": 865,
+          "sha256": "ee5e59916af1d8cc7055c5465cbe735dbc9a445c4a8cb0653cd258624bf42757"
+        }
+      },
+      "b": {
+        "path": "D:\\temp\\iteration49-g10c-panel-once-500-p1-b-026",
+        "result": {
+          "size_bytes": 1288099,
+          "sha256": "9cc1ba2e1a576872f4b6eee9f34104085c530f88ace456e910698e962159c97a"
+        },
+        "summary": {
+          "size_bytes": 865,
+          "sha256": "d545eec0f6c58b34c9e451c2c7ad0816e657f3f7769c97c9979b8feb00b22a3d"
+        }
+      }
+    },
+    "027": {
+      "a": {
+        "path": "D:\\temp\\iteration49-g10c-panel-once-500-p1-a-027",
+        "result": {
+          "size_bytes": 687652,
+          "sha256": "ce09b07a66a172169be679a1532c9f115525888b07cd1438f0f7a4c01879d3a8"
+        },
+        "summary": {
+          "size_bytes": 526,
+          "sha256": "5d45377a621fc464326b614834b0ff84a0802419002e4ae862c564a621dc286a"
+        }
+      },
+      "b": {
+        "path": "D:\\temp\\iteration49-g10c-panel-once-500-p1-b-027",
+        "result": {
+          "size_bytes": 670051,
+          "sha256": "b7753107b4d00550c96104e8cecf0fb16cfa5d0d6a50bd6467008940fd14095d"
+        },
+        "summary": {
+          "size_bytes": 527,
+          "sha256": "eac0ca136f90d61e5002976421beed50721f78dc45643bf2cb93a8a7922f4907"
+        }
+      }
+    },
+    "counted_as_new_comparisons": false
+  },
+  "archive": {
+    "requested": true,
+    "path": "D:/source_code/backtrader/docs/_internal/opts/requirements/迭代49-因子分析性能优化/measurements/7col-500-g10c-025-followup-raw.zip"
+  }
+}

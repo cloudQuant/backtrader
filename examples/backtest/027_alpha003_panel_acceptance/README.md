@@ -15,7 +15,7 @@ python examples/backtest/027_alpha003_panel_acceptance/run.py --output-dir outpu
 python examples/backtest/027_alpha003_panel_acceptance/run.py --factor-mode build --report --output-dir output/027-build
 ```
 
-For this quick entry, `--factor-mode native|build` overrides `config.yaml`'s `factor_mode`, with `native` as the default. The engine remains runnext in both modes. The summary includes the actual mode, class, `factor_calculation="RAN"` and zero order counters. Use a new output directory for each run.
+For this quick entry, `--factor-mode native|build` overrides `config.yaml`'s `factor_mode`, with `native` as the default. Both modes use Cerebro's runonce engine by default; `--runnext` selects the per-bar engine. Native panel operators use their array path when its input requirements hold and otherwise retain the ordinary lifecycle fallback. The summary includes the actual mode, class, `factor_calculation="RAN"` and zero order counters. Use a new output directory for each run.
 
 The current single-class refactor passed local source and installed-wheel checks; see the [Iteration49 implementation and acceptance record](../../../docs/_internal/opts/requirements/迭代49-因子单类双模式重构/实施与验收.md). The historical [Iteration48 acceptance record](../../../docs/_internal/opts/requirements/迭代48-Alpha101-build实现/验收结果.md) covers all 101 native/build formula pairs and this quick entry's pinned-wheel output/report comparison with 20 assets. The separate 500-asset comparison and small daily worker/resume checks remain recorded in Iteration47; they do not establish full-market throughput.
 

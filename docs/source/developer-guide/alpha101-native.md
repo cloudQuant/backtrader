@@ -267,4 +267,6 @@ Alpha048 需要 251 格历史跨度以及按子行业去均值。它现在读取
 
 Alpha003的native图使用一个物理rolling-correlation panel和一个物理multiply panel。两个物理节点都是普通Indicator，由Cerebro通过正常的`next`/`once`生命周期调度；每个目标资产对应一个非Indicator逻辑view，它共享物理panel输出line并投影自己的目标槽位，不会被独立调度。截面rank仍由原有panel算子完成，因子的横截面成员和逐目标公式结果保持原口径。
 
-固定500股的三对完整输出比较中，027每对墙钟和CPU均朝候选改善，但相对离散度分别为9.93%和10.69%，超过5%稳定门槛；这不是稳定提速验收，也不代表5471股表现。全101 T320/T640/T1280分区矩阵已由union覆盖全部公式，但各partial仍保留`INCOMPLETE`。详见[迭代49性能开发与验收记录](../../_internal/opts/requirements/迭代49-因子分析性能优化/开发与验收记录.md)。
+早期物理panel版本的固定500股三对完整输出比较通过，但墙钟和CPU相对离散度分别为9.93%和10.69%，超过5%稳定门槛；其分区矩阵由union覆盖全部公式，各partial仍保留`INCOMPLETE`。这份历史记录不改写为后续源码的验收。
+
+G10为两个paired panel和CrossSectionalRank增加普通`once`数组内核，仅对精确标准feed、native绑定及未替换的line/feed钩子启用；其余图保留原回退路径。成功后在区间末尾同步feed，异常时先同步出错日期再生成严格错误上下文。027 quick CLI默认runonce，`--runnext`保留逐bar路径。最终源码通过96项回归及完整101式T320/T640/T1280的native/build × runnext/runonce矩阵，逐节点值、reason与输出均检查；完整500股三对027输出一致，整例计时离散度仍超过5%，不得据此声称全量稳定倍率或1 GB达标。详见[迭代49性能开发与验收记录](../../_internal/opts/requirements/迭代49-因子分析性能优化/开发与验收记录.md)。

@@ -30,7 +30,12 @@ from .. import Indicator
 from ..linebuffer import LineBuffer
 from ..feeds.pandafeed import PandasData
 from ..lineseries import Lines
-from .factor_indicator import FactorIndicator, _PresenceLine
+from .factor_indicator import (
+    FactorIndicator,
+    _PresenceLine,
+    _factor_once_execute,
+    _factor_once_write,
+)
 
 
 class OperatorReason(IntEnum):
@@ -62,15 +67,21 @@ _FAST_WINDOW_MISS = object()
 # at import time so runtime monkeypatches take the established scalar path.
 _LINEBUFFER_GETATTRIBUTE = LineBuffer.__getattribute__
 _LINEBUFFER_GETITEM = LineBuffer.__getitem__
+_LINEBUFFER_SETITEM = LineBuffer.__setitem__
 _LINEBUFFER_LEN = LineBuffer.__len__
 _LINEBUFFER_UNBOUNDED = LineBuffer.UnBounded
 _LINEBUFFER_GETATTR = getattr(LineBuffer, "__getattr__", None)
+_PANDASDATA_BUFLEN = getattr(PandasData, "buflen", None)
+_PANDASDATA_ADVANCE = PandasData.advance
+_PANDASDATA_TICK_NULLIFY = PandasData._tick_nullify
+_PANDASDATA_TICK_FILL = PandasData._tick_fill
 _PANDASDATA_GETATTRIBUTE = PandasData.__getattribute__
 _PANDASDATA_GETATTR = getattr(PandasData, "__getattr__", None)
 _PRESENCE_LINE_GETATTRIBUTE = _PresenceLine.__getattribute__
 _PRESENCE_LINE_GETATTR = getattr(_PresenceLine, "__getattr__", None)
 _LINES_GETATTRIBUTE = Lines.__getattribute__
 _LINES_GETATTR = getattr(Lines, "__getattr__", None)
+_LINES_BUFLEN = Lines.buflen
 
 
 def _associated_reason(
@@ -1180,6 +1191,395 @@ class _RollingPair(_Rolling):
         )
 
 
+_PANEL_ONCE_MISS = object()
+_PANEL_ONCE_NO_SCALAR = object()
+_MULTIPLY_APPLY = Multiply._apply
+
+
+class _PanelOncePlan:
+    """Per-once-call references for one exact, preloaded panel graph."""
+
+    __slots__ = (
+        "targets",
+        "clock_lines",
+        "feed_lines",
+        "feed_lengths",
+        "values",
+        "members",
+        "right_values",
+        "outputs",
+        "partitions",
+    )
+
+    def __init__(
+        self,
+        targets,
+        clock_lines,
+        feed_lines,
+        feed_lengths,
+        values,
+        members,
+        right_values,
+        outputs,
+        partitions,
+    ):
+        self.targets = targets
+        self.clock_lines = clock_lines
+        self.feed_lines = feed_lines
+        self.feed_lengths = feed_lengths
+        self.values = values
+        self.members = members
+        self.right_values = right_values
+        self.outputs = outputs
+        self.partitions = partitions
+
+
+def _panel_once_readers_standard() -> bool:
+    """Only bypass line access while its normal reader hooks are installed."""
+    return (
+        _standard_presence_relation_classes()
+        and LineBuffer.__getitem__ is _LINEBUFFER_GETITEM
+        and LineBuffer.__setitem__ is _LINEBUFFER_SETITEM
+        and LineBuffer.__len__ is _LINEBUFFER_LEN
+    )
+
+
+def _panel_once_line_bindings_empty(line: Any) -> bool:
+    """Require the exact standard line with no write observers attached."""
+    if type(line) is not LineBuffer:
+        return False
+    state = _relation_instance_dict(line)
+    bindings = state.get("bindings") if state is not None else None
+    return type(bindings) is list and not bindings
+
+
+def _panel_once_feed_shape(data: Any, end: int):
+    """Return standard aligned-feed lines, or miss for a custom feed shape."""
+    if type(data) is not PandasData:
+        return _PANEL_ONCE_MISS
+    state = _relation_instance_dict(data)
+    if state is None:
+        return _PANEL_ONCE_MISS
+    # once_via_next dynamically calls data.advance() on every bar, which in
+    # turn dispatches to the tick hooks. The panel kernel synchronizes only
+    # range boundaries, so preserve replacements by taking the ordinary path.
+    if (
+        any(name in state for name in ("advance", "_tick_nullify", "_tick_fill"))
+        or getattr(PandasData, "advance", None) is not _PANDASDATA_ADVANCE
+        or getattr(PandasData, "_tick_nullify", None) is not _PANDASDATA_TICK_NULLIFY
+        or getattr(PandasData, "_tick_fill", None) is not _PANDASDATA_TICK_FILL
+    ):
+        return _PANEL_ONCE_MISS
+    if getattr(PandasData, "buflen", None) is not _PANDASDATA_BUFLEN:
+        return _PANEL_ONCE_MISS
+    alignment = state.get("_factor_research_alignment_v2")
+    hint = state.get("_factor_research_datetime_hint")
+    if type(alignment) is not dict or alignment.get("version") != 2:
+        return _PANEL_ONCE_MISS
+    if type(hint) is not tuple or len(hint) != 3 or type(hint[1]) is not tuple:
+        return _PANEL_ONCE_MISS
+    try:
+        # ``ParameterAccessor`` deliberately resolves parameter names through
+        # dynamic attribute lookup, so read the already-bound feed source from
+        # the ordinary PandasData instance state instead of probing ``p``.
+        frame = state.get("_dataname")
+        frame_index = object.__getattribute__(frame, "index")
+        if hint[0] is not frame_index or len(hint[1]) < end:
+            return _PANEL_ONCE_MISS
+    except (AttributeError, TypeError):
+        return _PANEL_ONCE_MISS
+    filters = state.get("_filters")
+    if type(filters) is not list or filters:
+        return _PANEL_ONCE_MISS
+
+    lines = object.__getattribute__(data, "lines")
+    if not _standard_lines_instance(lines):
+        return _PANEL_ONCE_MISS
+    cached_buflen = state.get("buflen", _PANEL_ONCE_MISS)
+    if cached_buflen is not _PANEL_ONCE_MISS and (
+        getattr(cached_buflen, "__self__", None) is not lines
+        or getattr(cached_buflen, "__func__", None) is not _LINES_BUFLEN
+    ):
+        return _PANEL_ONCE_MISS
+    lines_state = _relation_instance_dict(lines)
+    if (
+        lines_state is None
+        or "buflen" in lines_state
+        or getattr(type(lines), "buflen", None) is not _LINES_BUFLEN
+    ):
+        return _PANEL_ONCE_MISS
+    line_refs = tuple(lines)
+    feed_length = data.buflen()
+    if end > feed_length:
+        return _PANEL_ONCE_MISS
+    for line in line_refs:
+        if (
+            type(line) is not LineBuffer
+            or not _panel_once_line_bindings_empty(line)
+            or line.mode != _LINEBUFFER_UNBOUNDED
+            or line.extension != 0
+            or type(line.array) is not _array_module.array
+            or line.array.typecode != "d"
+            or len(line.array) != feed_length
+        ):
+            return _PANEL_ONCE_MISS
+    return _target_clock_line(data), line_refs, feed_length
+
+
+def _panel_once_input(
+    source: Any, target: Any, end: int, relation_plan=None, *, allow_scalar: bool = False
+):
+    """Bind one safe array reader; every other shape keeps the scalar path."""
+    if type(source) in (int, float):
+        if not allow_scalar:
+            return _PANEL_ONCE_MISS
+        value = float(source)
+        if math.isinf(value):
+            return _PANEL_ONCE_MISS
+        return (_PANEL_ONCE_NO_SCALAR, None, value)
+    if type(source) is not LineBuffer:
+        return _PANEL_ONCE_MISS
+
+    state = _relation_instance_dict(source)
+    if state is None:
+        return _PANEL_ONCE_MISS
+    source_array = state.get("array")
+    if (
+        type(source_array) is not _array_module.array
+        or source_array.typecode != "d"
+        or len(source_array) < end
+    ):
+        return _PANEL_ONCE_MISS
+    if _resolve_panel_relation(source, target, relation_plan) is not True:
+        return _PANEL_ONCE_MISS
+
+    reason_array = None
+    marker = state.get("_factor_research_target")
+    reason_line = state.get("_factor_research_reason_line")
+    if marker is not None:
+        if marker is not target or type(reason_line) is not LineBuffer:
+            return _PANEL_ONCE_MISS
+        owner = state.get("_owner")
+        owner_state = _relation_instance_dict(owner)
+        if owner_state is None:
+            return _PANEL_ONCE_MISS
+        producer = owner_state.get("_owner_ref")
+        producer_type = type(producer)
+        if (
+            not isinstance(producer, FactorIndicator)
+            or producer_type.__bases__
+            not in ((CrossSectionalRank,), (_RollingCorrelationPanel,), (_MultiplyPanel,))
+            or producer_type.__dict__.get("_factor_bound") is not True
+            or getattr(producer, "factor_mode", None) != "native"
+            or type(getattr(producer, "lines", None)) is not type(owner)
+        ):
+            return _PANEL_ONCE_MISS
+        try:
+            producer_output = producer.outputs[target]
+        except (KeyError, TypeError):
+            return _PANEL_ONCE_MISS
+        if producer_output.value is not source or producer_output.reason is not reason_line:
+            return _PANEL_ONCE_MISS
+        reason_state = _relation_instance_dict(reason_line)
+        if (
+            reason_state is None
+            or reason_state.get("_owner") is not owner
+            or reason_state.get("_factor_research_target") is not target
+        ):
+            return _PANEL_ONCE_MISS
+        reason_array = reason_state.get("array")
+        if (
+            type(reason_array) is not _array_module.array
+            or reason_array.typecode != "d"
+            or len(reason_array) < end
+        ):
+            return _PANEL_ONCE_MISS
+    elif reason_line is not None:
+        return _PANEL_ONCE_MISS
+
+    return source_array, reason_array, _PANEL_ONCE_NO_SCALAR
+
+
+def _panel_once_plan(instance: Any, optimized_class: type, start: int, end: int):
+    """Capture one validated graph snapshot before entering its once kernel."""
+    instance_type = type(instance)
+    if (
+        not _panel_once_readers_standard()
+        or start < 0
+        or end < start
+        or instance_type.__bases__ != (optimized_class,)
+        or instance_type.__dict__.get("_factor_bound") is not True
+        or getattr(instance, "factor_mode", None) != "native"
+    ):
+        return None
+    if optimized_class is _MultiplyPanel and Multiply._apply is not _MULTIPLY_APPLY:
+        return None
+
+    targets = tuple(instance._factor_target_datas)
+    datas = tuple(instance.datas)
+    if not targets or len(datas) != len(targets) or any(
+        data is not target for data, target in zip(datas, targets)
+    ):
+        return None
+
+    clock_lines = []
+    feed_lines = []
+    feed_lengths = []
+    for target in targets:
+        feed_shape = _panel_once_feed_shape(target, end)
+        if feed_shape is _PANEL_ONCE_MISS:
+            return None
+        clock, lines, length = feed_shape
+        clock_lines.append(clock)
+        feed_lines.append(lines)
+        feed_lengths.append(length)
+
+    values = []
+    members = []
+    right_values = []
+    outputs = []
+    member_plans = getattr(instance, "_member_relation_plans", ())
+    for index, target in enumerate(targets):
+        relation_plan = member_plans[index] if index < len(member_plans) else None
+        value = _panel_once_input(instance._values[index], target, end)
+        if value is _PANEL_ONCE_MISS:
+            return None
+        values.append(value)
+
+        member = instance._members[index]
+        if member is None:
+            members.append(None)
+        else:
+            member_value = _panel_once_input(member, target, end, relation_plan)
+            if member_value is _PANEL_ONCE_MISS:
+                return None
+            members.append(member_value)
+
+        if isinstance(instance, _PairedPanelOperator):
+            right = _panel_once_input(
+                instance._right_values[index], target, end, allow_scalar=True
+            )
+            if right is _PANEL_ONCE_MISS:
+                return None
+            right_values.append(right)
+
+        target_outputs = instance.outputs[target]
+        output_value = target_outputs.value
+        output_reason = target_outputs.reason
+        if any(
+            type(line) is not LineBuffer
+            or not _panel_once_line_bindings_empty(line)
+            or type(line.array) is not _array_module.array
+            or line.array.typecode != "d"
+            or len(line.array) < end
+            for line in (output_value, output_reason)
+        ):
+            return None
+        outputs.append((output_value, output_reason))
+
+    partitions = None
+    if isinstance(instance, CrossSectionalRank):
+        try:
+            group_keys = instance._static_group_keys()
+        except Exception:
+            return None
+        if any(
+            group is not None
+            and type(group) not in (str, int, float, bool)
+            for group in group_keys
+        ):
+            return None
+        grouped = {}
+        for index, group in enumerate(group_keys):
+            if isinstance(group, float) and not math.isfinite(group):
+                return None
+            grouped.setdefault((type(group), group), []).append(index)
+        partitions = tuple(tuple(indices) for indices in grouped.values())
+
+    return _PanelOncePlan(
+        tuple(targets),
+        tuple(clock_lines),
+        tuple(feed_lines),
+        tuple(feed_lengths),
+        tuple(values),
+        tuple(members),
+        tuple(right_values),
+        tuple(outputs),
+        partitions,
+    )
+
+
+def _panel_once_advance_feeds(plan: _PanelOncePlan, index: int) -> None:
+    """Match an aligned feed's standard cursor/tick state without child walks."""
+    logical_length = index + 1
+    for target, lines, feed_length in zip(plan.targets, plan.feed_lines, plan.feed_lengths):
+        target._tick_nullify()
+        for line in lines:
+            line._idx = index
+            line.lencount = logical_length
+        if logical_length < feed_length:
+            target._tick_fill()
+
+
+def _panel_once_reason(reason_array: Any, index: int):
+    """Classify a marked producer reason only when its value is NaN."""
+    if reason_array is None or index < 0 or index >= len(reason_array):
+        return None
+    try:
+        raw_reason = float(reason_array[index])
+        if not math.isfinite(raw_reason) or raw_reason != int(raw_reason):
+            return None
+        reason = OperatorReason(int(raw_reason))
+    except (IndexError, TypeError, ValueError, OverflowError):
+        return None
+    return reason if reason is not OperatorReason.READY else None
+
+
+def _panel_once_read(source, index: int):
+    source_array, reason_array, scalar = source
+    if scalar is not _PANEL_ONCE_NO_SCALAR:
+        value = float(scalar)
+        if math.isinf(value):
+            raise OperatorInputError("scalar operator input contains infinity")
+        if math.isnan(value):
+            return _NAN, OperatorReason.NONFINITE_INPUT
+        return value, OperatorReason.READY
+    if index < 0 or index >= len(source_array):
+        return _NAN, OperatorReason.NOT_READY
+    value = float(source_array[index])
+    if math.isinf(value):
+        raise OperatorInputError("panel input line contains infinity")
+    if math.isnan(value):
+        return _NAN, _panel_once_reason(reason_array, index) or OperatorReason.NONFINITE_INPUT
+    return value, OperatorReason.READY
+
+
+def _panel_once_window(source, index: int, period: int):
+    source_array, reason_array, scalar = source
+    start = index - period + 1
+    if start < 0:
+        return None, OperatorReason.NOT_READY
+    values = []
+    if scalar is not _PANEL_ONCE_NO_SCALAR:
+        value = float(scalar)
+        if math.isinf(value):
+            raise OperatorInputError("scalar operator input contains infinity")
+        if math.isnan(value):
+            return None, OperatorReason.INCOMPLETE_WINDOW
+        return [value] * period, OperatorReason.READY
+    for absolute_index in range(start, index + 1):
+        if absolute_index >= len(source_array):
+            return None, OperatorReason.NOT_READY
+        value = float(source_array[absolute_index])
+        if math.isinf(value):
+            raise OperatorInputError("panel input line contains infinity")
+        if math.isnan(value):
+            _panel_once_reason(reason_array, absolute_index)
+            return None, OperatorReason.INCOMPLETE_WINDOW
+        values.append(value)
+    return values, OperatorReason.READY
+
+
 _FLOAT64_EPSILON = 2.220446049250313e-16
 
 
@@ -1536,6 +1936,12 @@ class _RollingCorrelationPanel(_PairedPanelOperator):
         self._period = period
         self.addminperiod(self._period)
 
+    def next(self) -> None:
+        self._evaluate_panel()
+
+    def once(self, start: int, end: int) -> None:
+        _panel_once_callback(self, _RollingCorrelationPanel, start, end)
+
     def _evaluate_target(self, asset_index: int) -> Tuple[float, OperatorReason]:
         if self._period < 2:
             return _NAN, OperatorReason.DOMAIN_ERROR
@@ -1553,6 +1959,12 @@ class _MultiplyPanel(_PairedPanelOperator):
     """Physical pointwise-multiply panel with scalar logical target views."""
 
     _logical_operator_type = Multiply
+
+    def next(self) -> None:
+        self._evaluate_panel()
+
+    def once(self, start: int, end: int) -> None:
+        _panel_once_callback(self, _MultiplyPanel, start, end)
 
     def _evaluate_target(self, asset_index: int) -> Tuple[float, OperatorReason]:
         target = self._factor_target_datas[asset_index]
@@ -1573,6 +1985,12 @@ class CrossSectionalRank(_PanelOperator):
 
     lines: Any = ("value", "reason")
 
+    def next(self) -> None:
+        self._evaluate_panel()
+
+    def once(self, start: int, end: int) -> None:
+        _panel_once_callback(self, CrossSectionalRank, start, end)
+
     def _evaluate_panel(self) -> None:
         values, eligible, reasons = self._active_values()
         group_keys = self._static_group_keys()
@@ -1587,6 +2005,184 @@ class CrossSectionalRank(_PanelOperator):
                 results[asset_index] = ranks[rank_index]
                 reasons[asset_index] = OperatorReason.READY
         self._write_panel(results, reasons)
+
+
+def _panel_once_callback(
+    instance: Any, optimized_class: type, start: int, end: int
+) -> None:
+    """Use an ordinary Indicator once hook only for a proven panel snapshot."""
+    try:
+        plan = _panel_once_plan(instance, optimized_class, start, end)
+    except Exception:
+        # Eligibility is an optimization probe; unusual user objects keep the
+        # established ordinary callback path, including its original failures.
+        plan = None
+    if plan is None:
+        Indicator.once_via_next(instance, start, end)
+        return
+
+    def calculate(first: int, last: int) -> None:
+        _run_panel_once(instance, optimized_class, plan, first, last)
+
+    if not _factor_once_execute(instance, optimized_class, calculate, start, end):
+        Indicator.once_via_next(instance, start, end)
+
+
+def _run_panel_once(
+    instance: Any, optimized_class: type, plan: _PanelOncePlan, start: int, end: int
+) -> None:
+    if optimized_class is CrossSectionalRank:
+        _run_rank_panel_once(instance, plan, start, end)
+    else:
+        _run_paired_panel_once(instance, optimized_class, plan, start, end)
+
+
+def _write_panel_once_outputs(
+    plan: _PanelOncePlan,
+    index: int,
+    values: Sequence[float],
+    reasons: Sequence[OperatorReason],
+) -> None:
+    for output, value, reason in zip(plan.outputs, values, reasons):
+        _factor_once_write(output[0], index, value)
+        _factor_once_write(output[1], index, float(reason))
+
+
+def _run_rank_panel_once(
+    instance: CrossSectionalRank, plan: _PanelOncePlan, start: int, end: int
+) -> None:
+    for index in range(start, end):
+        try:
+            values: List[float] = []
+            eligible: List[bool] = []
+            reasons: List[OperatorReason] = []
+            for asset_index, member in enumerate(plan.members):
+                if member is None:
+                    is_member = True
+                else:
+                    member_value, member_reason = _panel_once_read(member, index)
+                    if member_reason is not OperatorReason.READY:
+                        raise OperatorInputError("formula-universe membership is unknown")
+                    if member_value not in (0.0, 1.0):
+                        raise OperatorInputError("panel membership must be 0/1/unknown")
+                    is_member = member_value == 1.0
+                if not is_member:
+                    values.append(_NAN)
+                    eligible.append(False)
+                    reasons.append(OperatorReason.FORMULA_INELIGIBLE)
+                    continue
+                value, reason = _panel_once_read(plan.values[asset_index], index)
+                values.append(value)
+                eligible.append(reason is OperatorReason.READY)
+                reasons.append(reason)
+
+            results = [_NAN] * len(values)
+            for indices in plan.partitions:
+                valid_indices = [asset_index for asset_index in indices if eligible[asset_index]]
+                ranks = _average_rank([values[asset_index] for asset_index in valid_indices])
+                for rank_index, asset_index in enumerate(valid_indices):
+                    results[asset_index] = ranks[rank_index]
+                    reasons[asset_index] = OperatorReason.READY
+            _write_panel_once_outputs(plan, index, results, reasons)
+        except BaseException:
+            try:
+                _panel_once_advance_feeds(plan, index)
+            except Exception:
+                # The exact standard feed and line hooks were validated before
+                # this callback. Preserve the original calculation failure if
+                # an unexpected synchronization error nevertheless occurs.
+                pass
+            raise
+
+    if start < end:
+        _panel_once_advance_feeds(plan, end - 1)
+
+
+def _run_paired_panel_once(
+    instance: _PairedPanelOperator,
+    optimized_class: type,
+    plan: _PanelOncePlan,
+    start: int,
+    end: int,
+) -> None:
+    context = instance._factor_strict_context_for_callback()
+    phase = getattr(context, "phase", "once_via_next") if context is not None else "once_via_next"
+    for index in range(start, end):
+        feeds_synced = False
+        try:
+            values: List[float] = []
+            reasons: List[OperatorReason] = []
+            for asset_index, target in enumerate(plan.targets):
+                try:
+                    if optimized_class is _RollingCorrelationPanel:
+                        if instance._period < 2:
+                            value, reason = _NAN, OperatorReason.DOMAIN_ERROR
+                        else:
+                            left, right, pair_reason = _pair_window_result(
+                                _panel_once_window(
+                                    plan.values[asset_index], index, instance._period
+                                ),
+                                _panel_once_window(
+                                    plan.right_values[asset_index], index, instance._period
+                                ),
+                            )
+                            if left is None:
+                                value, reason = _NAN, pair_reason
+                            else:
+                                value, reason = _correlation_window_result(left, right)
+                    else:
+                        left, right, pair_reason = _line_pair_results(
+                            _panel_once_read(plan.values[asset_index], index),
+                            _panel_once_read(plan.right_values[asset_index], index),
+                        )
+                        if pair_reason is not OperatorReason.READY:
+                            value, reason = _NAN, pair_reason
+                        else:
+                            try:
+                                value, reason = _result(_MULTIPLY_APPLY(left, right))
+                            except (ValueError, ZeroDivisionError, OverflowError):
+                                value, reason = _NAN, OperatorReason.DOMAIN_ERROR
+                except Exception as exc:
+                    if context is None:
+                        raise
+                    from .strict import fail_computation
+
+                    try:
+                        _panel_once_advance_feeds(plan, index)
+                    except Exception:
+                        # Keep the original strict-computation cause if the
+                        # validated standard feed synchronization fails.
+                        pass
+                    feeds_synced = True
+                    fail_computation(context, exc, phase, operation=target)
+                values.append(value)
+                reasons.append(reason)
+            _write_panel_once_outputs(plan, index, values, reasons)
+        except BaseException:
+            if not feeds_synced:
+                try:
+                    _panel_once_advance_feeds(plan, index)
+                except Exception:
+                    # Keep the original calculation/wrapping exception chain.
+                    pass
+            raise
+
+    if start < end:
+        _panel_once_advance_feeds(plan, end - 1)
+
+
+CrossSectionalRank._factor_once_expected_callbacks = (
+    ("next", CrossSectionalRank.__dict__["next"]),
+    ("once", CrossSectionalRank.__dict__["once"]),
+)
+_RollingCorrelationPanel._factor_once_expected_callbacks = (
+    ("next", _RollingCorrelationPanel.__dict__["next"]),
+    ("once", _RollingCorrelationPanel.__dict__["once"]),
+)
+_MultiplyPanel._factor_once_expected_callbacks = (
+    ("next", _MultiplyPanel.__dict__["next"]),
+    ("once", _MultiplyPanel.__dict__["once"]),
+)
 
 
 class CrossSectionalScale(_PanelOperator):

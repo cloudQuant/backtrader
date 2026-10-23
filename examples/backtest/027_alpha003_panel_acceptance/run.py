@@ -120,6 +120,7 @@ def _run_factor(
     panel: Mapping[str, Any],
     *,
     consume_source_frames: bool = False,
+    runonce: bool = False,
 ) -> Tuple[Any, Any, Any]:
     import backtrader as bt
     from backtrader.brokers import BackBroker
@@ -192,7 +193,7 @@ def _run_factor(
             del source_frames[asset]
         del source_frame, aligned
     cerebro.addstrategy(FactorStrategy, research=research, factors={FACTOR_NAME: factor})
-    strategies = cerebro.run(runonce=False, preload=True)
+    strategies = cerebro.run(runonce=runonce, preload=True)
     if len(strategies) != 1:
         raise RuntimeError("the factor run did not return exactly one strategy")
     strategy = strategies[0]
@@ -234,6 +235,9 @@ def _parser() -> argparse.ArgumentParser:
         default=None,
         help="factor implementation; defaults to config.yaml then native",
     )
+    parser.add_argument(
+        "--runnext", action="store_true", help="use Cerebro's per-bar engine instead of runonce"
+    )
     return parser
 
 
@@ -266,7 +270,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     try:
         panel = load_daily_panel(config.get("data", {}))
         strategy, collected, indicator = _run_factor(
-            config, panel, consume_source_frames=True
+            config, panel, consume_source_frames=True, runonce=not args.runnext
         )
         factor_instance = strategy.factor_instances[FACTOR_NAME]
         factor_mode = factor_instance.factor_mode
