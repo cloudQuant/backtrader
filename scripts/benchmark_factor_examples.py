@@ -518,6 +518,7 @@ def main(argv=None):
         import backtrader.research.sink as sink
         import backtrader.research.operators as operators
         import fincore
+        import fincore.factor_analysis.portfolio as fc_portfolio
         import fincore.factor_analysis.models as models
         import fincore.factor_analysis.research as fc_research
         import fincore.report.factor.html as report_html
@@ -551,7 +552,7 @@ def main(argv=None):
             (research, "align_to_grid", "align_to_grid", None),
             (bt.Cerebro, "run", "cerebro_run", None), (bt.Cerebro, "_runonce", "engine_runonce", None),
             (bt.Cerebro, "_runnext", "engine_runnext", None),
-            (bt.feed.DataBase, "preload", "feed_preload", None),
+            (bt.feeds.PandasData, "preload", "feed_preload", None),
             (factor_strategy.FactorStrategy, "__init__", "strategy_init", None),
             (factor_strategy.FactorStrategy, "_collect_current_grid_point", "collect_grid_points", None),
             (factor_strategy.FactorStrategy, "stop", "strategy_stop", None),
@@ -559,6 +560,8 @@ def main(argv=None):
             (research, "write_factor_report", "html_report", None),
             (research, "evaluate_frames", "evaluate_frames", None),
             (fc_research, "evaluate_factor_research", "fincore_evaluate", None),
+            (fc_portfolio, "positions", "fincore_positions", None),
+            (fc_portfolio, "_positions_float64_fastpath", "fincore_positions_float64_fastpath", None),
             (ResearchEvaluationResult, "export", "evaluation_export", None),
             (fc_research, "_write_charts", "evaluation_charts", None),
             (pd.DataFrame, "to_csv", "dataframe_to_csv", None),
