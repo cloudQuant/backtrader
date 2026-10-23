@@ -61,12 +61,6 @@ def _required_source_paths(root: Path, package: str, examples: tuple[str, ...]) 
         required.update(item.relative_to(root).as_posix() for item in path.rglob("*")
                         if item.is_file() and item.suffix.lower() in public_example_suffixes
                         and "__pycache__" not in item.parts)
-    support = root / "examples" / "_support"
-    if package == "backtrader" and support.is_dir():
-        required.update(item.relative_to(root).as_posix() for item in support.rglob("*.py"))
-        required.update(item.relative_to(root).as_posix() for item in support.rglob("*")
-                        if item.is_file() and item.suffix.lower() in public_example_suffixes
-                        and "__pycache__" not in item.parts)
     runner = root / "scripts" / Path(__file__).name
     if package == "backtrader" and runner.is_file():
         required.add(runner.relative_to(root).as_posix())
@@ -76,9 +70,9 @@ def _required_source_paths(root: Path, package: str, examples: tuple[str, ...]) 
 def _source_state(root: Path, package: str, examples: tuple[str, ...] = ()) -> tuple[dict, dict]:
     """Hash public inputs from a verified archive manifest or the actual Git tree."""
     root = root.resolve(strict=True)
-    required = _required_source_paths(root, package, examples)
     manifest_path = root / ".iteration49-source.json"
     if manifest_path.is_file():
+        required = _required_source_paths(root, package, examples)
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
         commit, declared = manifest.get("commit"), manifest.get("files")
         if manifest.get("schema_version") != 1 or not isinstance(commit, str) or not re.fullmatch(r"[0-9a-f]{40}", commit):
@@ -110,7 +104,6 @@ def _source_state(root: Path, package: str, examples: tuple[str, ...] = ()) -> t
 
     scopes = [package, *examples]
     if package == "backtrader":
-        scopes.append("examples/_support")
         if (root / "scripts" / Path(__file__).name).is_file():
             scopes.append("scripts/" + Path(__file__).name)
     listed = subprocess.run(
@@ -125,14 +118,16 @@ def _source_state(root: Path, package: str, examples: tuple[str, ...] = ()) -> t
         path = root.joinpath(*PurePosixPath(name).parts)
         if not path.is_file():
             continue
-        if name.startswith(package + "/") and path.suffix == ".py":
+        if name.startswith(package + "/"):
             names.add(name)
         elif any(name == scope or name.startswith(scope + "/") for scope in examples):
             names.add(name)
-        elif package == "backtrader" and name.startswith("examples/_support/"):
-            names.add(name)
         elif package == "backtrader" and name == "scripts/" + Path(__file__).name:
             names.add(name)
+    # Git determines the public input set. Ignored output directories and local
+    # configs are not source inputs; actual package origins are checked against
+    # these pins after import and again after main.
+    required = {package + "/__init__.py", *(folder + "/run.py" for folder in examples)}
     if not required.issubset(names):
         raise ValueError("Git source scan omits public input: %s" % sorted(required - names)[0])
     if not names:
