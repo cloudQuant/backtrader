@@ -5,6 +5,11 @@ import math
 from backtrader import Indicator
 from backtrader.indicators import Highest, Lowest, ROC, SMA
 from backtrader.research import FactorIndicator
+from backtrader.research.factor_indicator import (
+    _factor_once_execute,
+    _factor_once_read,
+    _factor_once_write,
+)
 
 
 def _close_ratio(close, average):
@@ -54,6 +59,31 @@ class CloseMAFactor(FactorIndicator):
                 value = _close_ratio(close, average)
             self.outputs[data].factor[0] = value
 
+    def _once_range(self, start, end):
+        period = self.p.period
+        for index in range(start, end):
+            for data in self.datas:
+                close = float(_factor_once_read(data.close, index))
+                average = float(_factor_once_read(self._averages[data].lines[0], index))
+                value = math.nan
+                if index + 1 >= period:
+                    value = _close_ratio(close, average)
+                _factor_once_write(self.outputs[data].factor, index, value)
+
+    def preonce(self, start, end):
+        if not _factor_once_execute(
+            self, CloseMAFactor, self._once_range, start, end, phase="once"
+        ):
+            Indicator.preonce_via_prenext(self, start, end)
+
+    def oncestart(self, start, end):
+        if not _factor_once_execute(self, CloseMAFactor, self._once_range, start, end):
+            Indicator.oncestart_via_nextstart(self, start, end)
+
+    def once(self, start, end):
+        if not _factor_once_execute(self, CloseMAFactor, self._once_range, start, end):
+            Indicator.once_via_next(self, start, end)
+
     @classmethod
     def build(cls, ctx, period=20, **params):
         return ctx.apply(_close_ratio, ctx.close, ctx.sma(ctx.close, period))
@@ -91,6 +121,36 @@ class ROCFactor(FactorIndicator):
                     value = candidate
             self.outputs[data].factor[0] = value
 
+    def _once_range(self, start, end):
+        period = self.p.period
+        for index in range(start, end):
+            bars = index + 1
+            for data in self.datas:
+                close = float(_factor_once_read(data.close, index))
+                previous = math.nan
+                if bars > period:
+                    previous = float(_factor_once_read(data.close, index, -period))
+                value = math.nan
+                if bars > period and (
+                    math.isfinite(close) and math.isfinite(previous) and previous != 0.0
+                ):
+                    candidate = float(_factor_once_read(self._roc[data].lines[0], index))
+                    if math.isfinite(candidate):
+                        value = candidate
+                _factor_once_write(self.outputs[data].factor, index, value)
+
+    def preonce(self, start, end):
+        if not _factor_once_execute(self, ROCFactor, self._once_range, start, end, phase="once"):
+            Indicator.preonce_via_prenext(self, start, end)
+
+    def oncestart(self, start, end):
+        if not _factor_once_execute(self, ROCFactor, self._once_range, start, end):
+            Indicator.oncestart_via_nextstart(self, start, end)
+
+    def once(self, start, end):
+        if not _factor_once_execute(self, ROCFactor, self._once_range, start, end):
+            Indicator.once_via_next(self, start, end)
+
     @classmethod
     def build(cls, ctx, period=20, **params):
         return ctx.roc(ctx.close, period)
@@ -112,6 +172,29 @@ class _SafeRSV(Indicator):
         low = float(self._lowest[0])
         close = float(self.data.close[0])
         self.lines.rsv[0] = _kdj_rsv(high, low, close)
+
+    def _once_range(self, start, end):
+        high_line = self._highest.lines[0]
+        low_line = self._lowest.lines[0]
+        close_line = self.data.close
+        output = self.lines.rsv
+        for index in range(start, end):
+            high = float(_factor_once_read(high_line, index))
+            low = float(_factor_once_read(low_line, index))
+            close = float(_factor_once_read(close_line, index))
+            _factor_once_write(output, index, _kdj_rsv(high, low, close))
+
+    def preonce(self, start, end):
+        if not _factor_once_execute(self, _SafeRSV, self._once_range, start, end, phase="once"):
+            Indicator.preonce_via_prenext(self, start, end)
+
+    def oncestart(self, start, end):
+        if not _factor_once_execute(self, _SafeRSV, self._once_range, start, end):
+            Indicator.oncestart_via_nextstart(self, start, end)
+
+    def once(self, start, end):
+        if not _factor_once_execute(self, _SafeRSV, self._once_range, start, end):
+            Indicator.once_via_next(self, start, end)
 
 
 class KDJFactor(FactorIndicator):
@@ -156,6 +239,29 @@ class KDJFactor(FactorIndicator):
             j = _kdj_j(k, d)
             self.outputs[data].factor[0] = j
 
+    def _once_range(self, start, end):
+        required_bars = self.p.period + self.p.period_dfast + self.p.period_dslow - 2
+        for index in range(start, end):
+            bars = index + 1
+            for data in self.datas:
+                k = d = math.nan
+                if bars >= required_bars:
+                    k = float(_factor_once_read(self._k[data].lines[0], index))
+                    d = float(_factor_once_read(self._d[data].lines[0], index))
+                _factor_once_write(self.outputs[data].factor, index, _kdj_j(k, d))
+
+    def preonce(self, start, end):
+        if not _factor_once_execute(self, KDJFactor, self._once_range, start, end, phase="once"):
+            Indicator.preonce_via_prenext(self, start, end)
+
+    def oncestart(self, start, end):
+        if not _factor_once_execute(self, KDJFactor, self._once_range, start, end):
+            Indicator.oncestart_via_nextstart(self, start, end)
+
+    def once(self, start, end):
+        if not _factor_once_execute(self, KDJFactor, self._once_range, start, end):
+            Indicator.once_via_next(self, start, end)
+
     @classmethod
     def build(cls, ctx, period=9, period_dfast=3, period_dslow=3, **params):
         highest = ctx.highest(ctx.high, period)
@@ -164,3 +270,10 @@ class KDJFactor(FactorIndicator):
         k = ctx.sma(rsv, period_dfast)
         d = ctx.sma(k, period_dslow)
         return ctx.apply(_kdj_j, k, d)
+
+
+for _factor_once_class in (CloseMAFactor, ROCFactor, _SafeRSV, KDJFactor):
+    _factor_once_class._factor_once_expected_callbacks = tuple(
+        (name, getattr(_factor_once_class, name))
+        for name in ("next", "prenext", "nextstart", "preonce", "oncestart", "once")
+    )

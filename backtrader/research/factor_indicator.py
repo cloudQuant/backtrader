@@ -7,10 +7,24 @@ from functools import wraps
 from types import MappingProxyType
 from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple, cast
 
-from .. import Indicator
+from ..feed import AbstractDataBase
+from ..feeds.pandafeed import PandasData
+from ..indicator import Indicator
 from ..indicators import SMA
+from ..linebuffer import LineBuffer
+from ..lineiterator import LineIterator
+from ..lineseries import Lines
 from ..utils import num2date
 from ..errors import ResearchConfigError, FactorComputationContext
+
+
+_FACTOR_ONCE_FEED_ADVANCE = AbstractDataBase.advance
+_FACTOR_ONCE_FEED_TICK_NULLIFY = AbstractDataBase._tick_nullify
+_FACTOR_ONCE_FEED_TICK_FILL = AbstractDataBase._tick_fill
+_FACTOR_ONCE_ITERATOR_ADVANCE = LineIterator.advance
+_FACTOR_ONCE_INDICATOR_ADVANCE = Indicator.advance
+_FACTOR_ONCE_LINES_ADVANCE = Lines.advance
+_FACTOR_ONCE_LINE_ADVANCE = LineBuffer.advance
 
 
 class _OutputLines:
@@ -32,6 +46,165 @@ class _OutputLines:
 
     def keys(self) -> Tuple[str, ...]:
         return tuple(self._lines)
+
+
+def _factor_once_method_owner(instance: Any, name: str) -> Optional[type]:
+    """Return the class that supplies one callback on *instance*."""
+    for candidate in type(instance).__mro__:
+        if name in candidate.__dict__:
+            return candidate
+    return None
+
+
+def _factor_once_method_is(instance: Any, name: str, expected: Any) -> bool:
+    """Check an overridable instance hook against its imported implementation."""
+    try:
+        method = object.__getattribute__(instance, name)
+    except (AttributeError, TypeError):
+        return False
+    return getattr(method, "__self__", None) is instance and getattr(
+        method, "__func__", None
+    ) is expected
+
+
+def _factor_once_lines_ready(instance: Any, end: int, seen: set) -> bool:
+    """Check that a full-array node can be read at absolute once indexes."""
+    if id(instance) in seen:
+        return True
+    seen.add(id(instance))
+
+    if isinstance(instance, Indicator):
+        if not _factor_once_method_is(
+            instance, "advance", _FACTOR_ONCE_INDICATOR_ADVANCE
+        ):
+            return False
+    elif isinstance(instance, LineIterator) and not _factor_once_method_is(
+        instance, "advance", _FACTOR_ONCE_ITERATOR_ADVANCE
+    ):
+        return False
+
+    lines = getattr(instance, "lines", None)
+    if lines is not None:
+        if not _factor_once_method_is(lines, "advance", _FACTOR_ONCE_LINES_ADVANCE):
+            return False
+        for line in lines:
+            # The kernel sets these cursors directly to avoid one advance per
+            # feed/child/bar. Keep this limited to the exact standard buffer.
+            if type(line) is not LineBuffer or not _factor_once_method_is(
+                line, "advance", _FACTOR_ONCE_LINE_ADVANCE
+            ):
+                return False
+            if getattr(line, "mode", None) != getattr(line, "UnBounded", 0):
+                return False
+            if len(line.array) < end:
+                return False
+
+    children = getattr(instance, "_lineiterators", {})
+    for child in children.get(LineIterator.IndType, ()):
+        if not _factor_once_lines_ready(child, end, seen):
+            return False
+    return True
+
+
+def _factor_once_supported(
+    instance: Any, optimized_class: type, start: int, end: int
+) -> bool:
+    """Limit array indexing to the synchronized, full-array research path.
+
+    Exact PandasData instances are the feeds produced by ``align_to_grid``.
+    Subclasses and other feeds retain their ordinary Cerebro callbacks, as do
+    custom callback overrides, qbuffers and indicators pinned to a distinct
+    secondary-feed clock.
+    """
+    if start < 0 or end < start:
+        return False
+    if getattr(instance, "factor_mode", "native") != "native":
+        return False
+    instance_type = type(instance)
+    if isinstance(instance, FactorIndicator):
+        if (
+            instance_type.__bases__ != (optimized_class,)
+            or instance_type.__dict__.get("_factor_bound") is not True
+        ):
+            return False
+    elif instance_type is not optimized_class:
+        return False
+    if _factor_once_method_owner(instance, "next") is not optimized_class:
+        return False
+    if _factor_once_method_owner(instance, "once") is not optimized_class:
+        return False
+    expected_callbacks = optimized_class.__dict__.get("_factor_once_expected_callbacks")
+    if not isinstance(expected_callbacks, tuple) or any(
+        not _factor_once_method_is(instance, name, method)
+        for name, method in expected_callbacks
+    ):
+        return False
+
+    # Preserve user-defined warmup callbacks. FactorIndicator supplies the
+    # ordinary next-delegating defaults; a standard Indicator uses LineIterator.
+    allowed_prenext = (optimized_class, FactorIndicator, LineIterator)
+    allowed_nextstart = (optimized_class, FactorIndicator, LineIterator)
+    if _factor_once_method_owner(instance, "prenext") not in allowed_prenext:
+        return False
+    if _factor_once_method_owner(instance, "nextstart") not in allowed_nextstart:
+        return False
+
+    try:
+        datas = tuple(instance.datas)
+        clock = object.__getattribute__(instance, "_clock")
+    except (AttributeError, TypeError):
+        return False
+    if not datas or clock is not datas[0]:
+        return False
+    resolved_clock = getattr(instance, "_resolved_secondary_clock", None)
+    if resolved_clock is not None and resolved_clock is not datas[0]:
+        return False
+
+    for data in datas:
+        if (
+            type(data) is not PandasData
+            or end > data.buflen()
+            or not _factor_once_method_is(data, "advance", _FACTOR_ONCE_FEED_ADVANCE)
+            or not _factor_once_method_is(
+                data, "_tick_nullify", _FACTOR_ONCE_FEED_TICK_NULLIFY
+            )
+            or not _factor_once_method_is(data, "_tick_fill", _FACTOR_ONCE_FEED_TICK_FILL)
+            or not _factor_once_lines_ready(data, end, set())
+        ):
+            return False
+    return _factor_once_lines_ready(instance, end, set())
+
+
+def _factor_once_execute(
+    instance: Any,
+    optimized_class: type,
+    callback: Any,
+    start: int,
+    end: int,
+    *,
+    phase: str = "once_via_next",
+) -> bool:
+    """Execute one supported array range under the ordinary strict phase."""
+    if not _factor_once_supported(instance, optimized_class, start, end):
+        return False
+    instance._factor_run_callback(callback, phase, start, end)
+    if isinstance(instance, FactorIndicator):
+        instance._record_factor_once(start, end)
+    return True
+
+
+def _factor_once_read(line: Any, index: int, ago: int = 0) -> Any:
+    """Read one preloaded line value through its ordinary strict line API."""
+    line._idx = index
+    line.lencount = index + 1
+    return line[ago]
+
+
+def _factor_once_write(line: Any, index: int, value: Any) -> None:
+    """Store one result through the ordinary strict and bound line API."""
+    line._idx = index
+    line.lencount = index + 1
+    line[0] = value
 
 
 class _PresenceLine(Indicator):
@@ -123,6 +296,7 @@ class FactorIndicator(Indicator):
         if asset_names and len(asset_names) != len(output_datas):
             raise RuntimeError("factor asset names do not match its output lines")
         self._factor_call_times: List[datetime] = []
+        self._factor_once_ranges: List[Tuple[int, int]] = []
         self._factor_grid: Optional[Tuple[datetime, ...]] = None
         self._field_line_cache: Dict[str, Tuple[Any, ...]] = {}
         self._formula_member_lines: Optional[Tuple[Any, ...]] = None
@@ -588,6 +762,8 @@ class FactorIndicator(Indicator):
         data = self._factor_target_datas[0] if self._factor_target_datas else self.datas[0]
         current = num2date(float(data.datetime[0]), tz=timezone.utc, naive=False)
         index = len(self._factor_call_times)
+        if self._factor_once_ranges:
+            raise RuntimeError("factor next() ran after its once coverage began")
         if self._factor_grid is not None:
             if index >= len(self._factor_grid):
                 raise RuntimeError("factor next() ran more than once for the requested grid")
@@ -595,16 +771,48 @@ class FactorIndicator(Indicator):
                 raise RuntimeError("factor next() time does not match its next UTC grid point")
         self._factor_call_times.append(current)
 
+    def _record_factor_once(self, start: int, end: int) -> None:
+        """Record a completed ordinary-once range without inventing next calls."""
+        if start == end:
+            return
+        if type(start) is not int or type(end) is not int or start < 0 or end < start:
+            raise RuntimeError("factor once() reported an invalid coverage range")
+        covered = len(self._factor_call_times) + sum(
+            range_end - range_start for range_start, range_end in self._factor_once_ranges
+        )
+        if start != covered:
+            raise RuntimeError("factor once() left a gap or overlap in calculation-grid coverage")
+        if self._factor_grid is not None and end > len(self._factor_grid):
+            raise RuntimeError("factor once() covered beyond the requested calculation grid")
+        self._factor_once_ranges.append((start, end))
+
     @property
     def lifecycle_diagnostics(self) -> Dict[str, Any]:
         """Read-only count and UTC-grid observations for lifecycle acceptance."""
         calls = tuple(self._factor_call_times)
+        once_ranges = tuple(self._factor_once_ranges)
         grid = self._factor_grid
+        once_count = sum(end - start for start, end in once_ranges)
+        once_times = (
+            tuple(value for start, end in once_ranges for value in grid[start:end])
+            if grid is not None
+            else ()
+        )
+        coverage_times = calls + once_times
+        coverage_matches = bool(grid is not None and coverage_times == grid)
         return {
             "call_count": len(calls),
             "call_times": calls,
             "grid_count": len(grid or ()),
             "grid_matches": bool(grid is not None and calls == grid),
+            "next_count": len(calls),
+            "next_times": calls,
+            "once_ranges": once_ranges,
+            "once_count": once_count,
+            "once_times": once_times,
+            "coverage_count": len(calls) + once_count,
+            "coverage_times": coverage_times,
+            "coverage_matches": coverage_matches,
         }
 
     def output_for(self, data: Any, line: str = "factor") -> Any:

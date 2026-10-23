@@ -6,7 +6,7 @@ import math
 import sys
 from collections.abc import Mapping
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional, Tuple, cast
+from typing import Any, Dict, List, Optional, Sequence, Tuple, cast
 
 from .. import Strategy
 from ..utils import num2date
@@ -52,6 +52,19 @@ class _FactorGroupInstances:
             "grid_count": max((item["grid_count"] for item in by_group.values()), default=0),
             "grid_matches": bool(by_group)
             and all(item["grid_matches"] for item in by_group.values()),
+            "next_count": sum(item["next_count"] for item in by_group.values()),
+            "next_times": tuple((group, item["next_times"]) for group, item in by_group.items()),
+            "once_ranges": tuple(
+                (group, item["once_ranges"]) for group, item in by_group.items()
+            ),
+            "once_count": sum(item["once_count"] for item in by_group.values()),
+            "once_times": tuple((group, item["once_times"]) for group, item in by_group.items()),
+            "coverage_count": sum(item["coverage_count"] for item in by_group.values()),
+            "coverage_times": tuple(
+                (group, item["coverage_times"]) for group, item in by_group.items()
+            ),
+            "coverage_matches": bool(by_group)
+            and all(item["coverage_matches"] for item in by_group.values()),
             "group_diagnostics": by_group,
         }
 
@@ -380,9 +393,9 @@ class FactorStrategy(Strategy):
         for name, instances in self._factor_instances_by_name.items():
             for factor in instances:
                 for nested in self._factor_tree(factor):
-                    if not nested.lifecycle_diagnostics["grid_matches"]:
+                    if not nested.lifecycle_diagnostics["coverage_matches"]:
                         raise RuntimeError(
-                            "factor %s did not run once per calculation-grid point" % name
+                            "factor %s did not cover every calculation-grid point" % name
                         )
         self._panel = self._sink.finalize(self._panel_context())
         self._sink.close()

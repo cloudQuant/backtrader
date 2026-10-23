@@ -169,6 +169,20 @@ def test_single_and_multi_quick_modes_export_exact_complete_factor_panels(
         assert build_spec.mode == build_strategy.factor_instances[name].factor_mode == "build"
         assert not hasattr(native_strategy.factor_instances[name], "_expression_context")
         assert build_strategy.factor_instances[name]._expression_context._closed is True
+        native_instances = native_strategy._factor_instances_by_name[name]
+        build_instances = build_strategy._factor_instances_by_name[name]
+        assert len(native_instances) == len(build_instances) == 1
+        native_lifecycle = native_instances[0].lifecycle_diagnostics
+        build_lifecycle = build_instances[0].lifecycle_diagnostics
+        assert native_lifecycle["coverage_matches"]
+        assert native_lifecycle["coverage_count"] == native_lifecycle["grid_count"] == len(dates)
+        assert native_lifecycle["once_ranges"]
+        assert native_lifecycle["once_count"] == len(dates)
+        assert native_lifecycle["next_count"] == native_lifecycle["call_count"] == 0
+        assert native_lifecycle["call_times"] == native_lifecycle["next_times"] == ()
+        assert build_lifecycle["coverage_matches"] and build_lifecycle["grid_matches"]
+        assert build_lifecycle["next_count"] == build_lifecycle["call_count"] == len(dates)
+        assert build_lifecycle["once_ranges"] == ()
     assert len(native_values) == len(build_values) == len(dates) * 3
     assert tuple(name for name in native_values if name in factor_names) == factor_names
     assert tuple(name for name in build_values if name in factor_names) == factor_names
@@ -182,6 +196,149 @@ def test_single_and_multi_quick_modes_export_exact_complete_factor_panels(
     pd.testing.assert_frame_equal(native_values, build_values, check_dtype=False)
     assert native_summary["broker"] == {"submit": 0, "cancel": 0}
     assert build_summary["broker"] == {"submit": 0, "cancel": 0}
+
+
+def test_026_safe_rsv_once_fast_path_hits_each_asset_and_matches_build(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+):
+    """Observe the ordinary RSV child's once kernel, independently of KDJ's factor callback."""
+    from backtrader.errors import DependencyError
+    import backtrader.research as research
+
+    runner = _load_runner("026", "factor_mode_safe_rsv_once")
+    factor_classes = runner._factor_classes("native")
+    strategy_module = __import__(factor_classes["kdj_j"].__module__, fromlist=["_SafeRSV"])
+    safe_rsv_class = strategy_module._SafeRSV
+    original_once_range = safe_rsv_class._once_range
+    ranges_by_instance: Dict[int, list[Tuple[int, int]]] = {}
+
+    def observe_once_range(indicator: Any, start: int, end: int) -> None:
+        ranges_by_instance.setdefault(id(indicator), []).append((start, end))
+        return original_once_range(indicator, start, end)
+
+    monkeypatch.setattr(safe_rsv_class, "_once_range", observe_once_range)
+
+    data_dir = tmp_path / "safe_rsv_daily"
+    _, dates = EXAMPLE_TESTS._write_daily_panel(data_dir, symbol_count=4, day_count=30)
+    native_config = _config_for_panel(runner, data_dir, factor_mode="native")
+    build_config = _config_for_panel(runner, data_dir, factor_mode="build")
+
+    def evaluation_unavailable(*args: Any, **kwargs: Any) -> None:
+        raise DependencyError("expected mode-test evaluation boundary")
+
+    monkeypatch.setattr(research, "evaluate_frames", evaluation_unavailable)
+    native_result, native_values, _ = _run_quick_panel(
+        runner, native_config, tmp_path / "safe_rsv_native"
+    )
+    native_strategy = runner._factor_mode_test_last_strategy
+    native_factor = native_strategy._factor_instances_by_name["kdj_j"][0]
+    rsv_instances = tuple(native_factor._rsv.values())
+    assert len(rsv_instances) == 3
+    assert set(ranges_by_instance) == {id(instance) for instance in rsv_instances}
+    for instance in rsv_instances:
+        ranges = sorted(ranges_by_instance[id(instance)])
+        nonempty_ranges = [(start, end) for start, end in ranges if start < end]
+        assert nonempty_ranges
+        assert nonempty_ranges[0][0] == 0
+        assert nonempty_ranges[-1][1] == len(dates)
+        assert all(
+            previous_end == start
+            for (_, previous_end), (start, _) in zip(nonempty_ranges, nonempty_ranges[1:])
+        )
+        assert sum(end - start for start, end in nonempty_ranges) == len(dates)
+
+    native_ranges = {key: tuple(ranges) for key, ranges in ranges_by_instance.items()}
+    build_result, build_values, _ = _run_quick_panel(
+        runner, build_config, tmp_path / "safe_rsv_build"
+    )
+    assert native_result == build_result == 0
+    assert ranges_by_instance == {key: list(ranges) for key, ranges in native_ranges.items()}
+    assert native_values[["time", "asset"]].equals(build_values[["time", "asset"]])
+    native = pd.to_numeric(native_values["kdj_j"], errors="raise").to_numpy(dtype=float)
+    build = pd.to_numeric(build_values["kdj_j"], errors="raise").to_numpy(dtype=float)
+    assert np.array_equal(np.isfinite(native), np.isfinite(build))
+    assert np.isfinite(native).any(), "fixture must witness finite KDJ values"
+    np.testing.assert_array_equal(native, build)
+
+
+def test_025_once_fast_path_falls_back_for_custom_factor_subclass():
+    """Keep subclass callback semantics while proving the base fast path is used."""
+    factor_module = EXAMPLE_TESTS._load_module(
+        EXAMPLE_TESTS.SINGLE_STRATEGY, "factor_once_custom_subclass_fallback"
+    )
+
+    class _CustomCloseMA(factor_module.CloseMAFactor):
+        def nextstart(self):
+            return super().nextstart()
+
+    frame = EXAMPLE_TESTS._known_close_bars()
+    base_strategy, _ = EXAMPLE_TESTS._run_factor_strategy(
+        frame,
+        factor_name="close_ma",
+        factor_class=factor_module.CloseMAFactor,
+        params={"period": 20},
+        runonce=True,
+    )
+    custom_strategy, _ = EXAMPLE_TESTS._run_factor_strategy(
+        frame,
+        factor_name="close_ma",
+        factor_class=_CustomCloseMA,
+        params={"period": 20},
+        runonce=True,
+    )
+
+    base_factor = base_strategy.factor_instances["close_ma"]
+    custom_factor = custom_strategy.factor_instances["close_ma"]
+    base_lifecycle = base_factor.lifecycle_diagnostics
+    custom_lifecycle = custom_factor.lifecycle_diagnostics
+    assert base_lifecycle["once_ranges"]
+    assert base_lifecycle["next_count"] == 0
+    assert custom_lifecycle["once_ranges"] == ()
+    assert custom_lifecycle["next_count"] == custom_lifecycle["grid_count"] == len(frame)
+    assert custom_lifecycle["coverage_matches"] and custom_lifecycle["grid_matches"]
+    base_values = base_factor.outputs[base_strategy.datas[0]].factor.get(size=len(frame))
+    custom_values = custom_factor.outputs[custom_strategy.datas[0]].factor.get(size=len(frame))
+    np.testing.assert_array_equal(base_values, custom_values)
+
+
+@pytest.mark.parametrize("hook", ("factor_next", "advance", "_tick_nullify", "_tick_fill"))
+def test_025_once_fast_path_falls_back_for_monkeypatched_lifecycle_hooks(
+    hook: str, monkeypatch: pytest.MonkeyPatch
+):
+    """Do not bypass standard callback/feed hooks that callers have replaced."""
+    from backtrader.feeds.pandafeed import PandasData
+
+    factor_module = EXAMPLE_TESTS._load_module(
+        EXAMPLE_TESTS.SINGLE_STRATEGY, "factor_once_monkeypatched_" + hook
+    )
+    if hook == "factor_next":
+        original = factor_module.CloseMAFactor.next
+
+        def factor_replacement(self):
+            return original(self)
+
+        monkeypatch.setattr(factor_module.CloseMAFactor, "next", factor_replacement)
+    else:
+        original = getattr(PandasData, hook)
+
+        def feed_replacement(self, *args, **kwargs):
+            return original(self, *args, **kwargs)
+
+        monkeypatch.setattr(PandasData, hook, feed_replacement)
+
+    frame = EXAMPLE_TESTS._known_close_bars()
+    strategy, _ = EXAMPLE_TESTS._run_factor_strategy(
+        frame,
+        factor_name="close_ma",
+        factor_class=factor_module.CloseMAFactor,
+        params={"period": 20},
+        runonce=True,
+    )
+    factor = strategy.factor_instances["close_ma"]
+    lifecycle = factor.lifecycle_diagnostics
+    assert lifecycle["once_ranges"] == ()
+    assert lifecycle["next_count"] == lifecycle["grid_count"] == len(frame)
+    assert lifecycle["coverage_matches"] and lifecycle["grid_matches"]
 
 
 @pytest.mark.parametrize("key", ("025", "026"))

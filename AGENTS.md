@@ -464,6 +464,15 @@ next and once phases, so build bypasses native callbacks without changing the
 original class or global Indicator construction. Mode is reserved configuration,
 not a formula parameter, and is included in FactorSpec metadata.
 There is no string DSL or second scheduler.
+The 025/026 native CloseMA, ROC, KDJ and ordinary RSV child also implement
+ordinary Cerebro once ranges for synchronized standard PandasData/full arrays.
+Custom callbacks, unsupported feeds and distinct clocks retain the existing
+callback path; build mode still uses its ordinary child lifecycle. Strict line
+reads/writes and scalar arithmetic are preserved. Factor lifecycle diagnostics
+keep `call_count/call_times` as actual next calls (also `next_count/next_times`)
+and record genuine batch coverage separately as `once_ranges/once_count/once_times`.
+FactorStrategy validates `coverage_matches`; the old `grid_matches` still means
+next calls alone match the grid. These helpers are private, not a second scheduler.
 025/026 likewise merge CloseMA, ROC and KDJ build into their original classes. The context's
 SMA/ROC/Highest/Lowest adapters use the existing ordinary indicators;
 `ctx.apply` constructs an ordinary pointwise Indicator for shared scalar

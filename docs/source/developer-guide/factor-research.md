@@ -115,6 +115,10 @@ built = FactorSpec("built", alpha, "factor", field_bindings=bindings, mode="buil
 
 无需再用`panel_mode`声明选择实现；旧声明不覆盖调用方的mode。build/native与`runonce=True/False`的引擎选择相互独立。当前验收状态见[单类双模式记录](../../_internal/opts/requirements/迭代49-因子单类双模式重构/实施与验收.md)。
 
+025/026 的原生 CloseMA、ROC、KDJ 和普通 RSV 子指标在标准同步 PandasData、完整数组及原始回调条件下，使用 Cerebro 的 `preonce/oncestart/once` 批量计算。数值仍经过普通 line 读写与严格错误检查；build 模式、自定义回调或不支持的 feed/clock 保留逐点回放。这里没有增加调度器。
+
+`lifecycle_diagnostics` 的 `call_count/call_times`（以及同义的 `next_count/next_times`）只记录实际逐点计算调用。批量计算另记半开区间 `once_ranges` 和对应的 `once_count/once_times`。检查完整网格覆盖应使用 `coverage_count/coverage_times/coverage_matches`；`grid_matches` 继续只比较逐点调用与网格，不能把批量覆盖解释成发生了同样数量的 `next()` 调用。性能优化的实测进度见[开发与验收记录](../../_internal/opts/requirements/迭代49-因子分析性能优化/开发与验收记录.md)。
+
 ## 装配研究
 
 调用方提供完整 UTC 网格。索引名为 `close_time`，另有 UTC `open_time` 列；每行是一根真实闭合 bar。网格必须包含预热、研究窗口，以及最长标签所需尾部。不要通过多个 Feed 日期的交集来生成研究日历。

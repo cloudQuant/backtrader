@@ -2,8 +2,14 @@
 
 import math
 
+from backtrader import Indicator
 from backtrader.indicators import SMA
 from backtrader.research import FactorIndicator
+from backtrader.research.factor_indicator import (
+    _factor_once_execute,
+    _factor_once_read,
+    _factor_once_write,
+)
 
 
 def _close_ratio(close, average):
@@ -40,6 +46,37 @@ class CloseMAFactor(FactorIndicator):
                 value = _close_ratio(close, average)
             self.outputs[data].factor[0] = value
 
+    def _once_range(self, start, end):
+        period = self.p.period
+        for index in range(start, end):
+            for data in self.datas:
+                close = float(_factor_once_read(data.close, index))
+                average = float(_factor_once_read(self._averages[data].lines[0], index))
+                value = math.nan
+                if index + 1 >= period:
+                    value = _close_ratio(close, average)
+                _factor_once_write(self.outputs[data].factor, index, value)
+
+    def preonce(self, start, end):
+        if not _factor_once_execute(
+            self, CloseMAFactor, self._once_range, start, end, phase="once"
+        ):
+            Indicator.preonce_via_prenext(self, start, end)
+
+    def oncestart(self, start, end):
+        if not _factor_once_execute(self, CloseMAFactor, self._once_range, start, end):
+            Indicator.oncestart_via_nextstart(self, start, end)
+
+    def once(self, start, end):
+        if not _factor_once_execute(self, CloseMAFactor, self._once_range, start, end):
+            Indicator.once_via_next(self, start, end)
+
     @classmethod
     def build(cls, ctx, period=20, **params):
         return ctx.apply(_close_ratio, ctx.close, ctx.sma(ctx.close, period))
+
+
+CloseMAFactor._factor_once_expected_callbacks = tuple(
+    (name, getattr(CloseMAFactor, name))
+    for name in ("next", "prenext", "nextstart", "preonce", "oncestart", "once")
+)
