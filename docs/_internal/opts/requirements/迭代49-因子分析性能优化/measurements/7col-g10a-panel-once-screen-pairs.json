@@ -1,0 +1,1283 @@
+{
+  "schema": "iteration49.g10a-panel-once-screen.v1",
+  "status": "PASS_OUTPUT_EQUIVALENCE_SCREEN_ONLY",
+  "counts": {
+    "actual_processes": 6,
+    "unique_comparisons": 3,
+    "complete_verifiers": 1,
+    "partial_verifiers": 0
+  },
+  "config": {
+    "path": "D:\\source_code\\backtrader\\.codex-tmp\\iteration49-g10-panel-once-pair1-config.json",
+    "size_bytes": 7127,
+    "sha256": "44e6f5066160efd0301b75ebedcd0b2038f2625f94b6e7572a43029163d334a6"
+  },
+  "fixed_500_data": {
+    "root": "D:\\source_code\\backtrader\\tests\\datas\\a_stocks",
+    "selection": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\迭代49-因子分析性能优化\\benchmark-500-7col.json",
+    "selection_sha256": "14f789a9d9e649987b93bc0477a0f94acc5223edd7ccd70166c8ea4b33ba35dc",
+    "identity": {
+      "dates": 243,
+      "files_sha256": "92330cdea2880a9825d35ebaf4763ac330063c7183c669d9e8f0ce6955d98347",
+      "grid_cells": 121500,
+      "ordered_symbols_sha256": "dda661efc19e42770028a61d4b43a4160a0bf08b3adf4dae353e8234d7ad5dbe",
+      "selection_sha256": "14f789a9d9e649987b93bc0477a0f94acc5223edd7ccd70166c8ea4b33ba35dc",
+      "symbols": 500,
+      "universe": "fixed500"
+    },
+    "symbols": 500,
+    "dates": 243
+  },
+  "candidate_snapshot": {
+    "root": "D:\\temp\\iteration49-g10a-panel-once-failed-screen-source-r1",
+    "manifest": {
+      "path": "D:\\temp\\iteration49-g10a-panel-once-failed-screen-source-r1\\MANIFEST.json",
+      "size_bytes": 1266,
+      "sha256": "6cdfda7081ef4f15381254b9411a3430dea6b3c391ed2eda1faee1ba842335da"
+    },
+    "files": [
+      {
+        "path": "backtrader/research/operators.py",
+        "size_bytes": 88759,
+        "sha256": "ebb85d212d162b7631279cc91845ebea6a339f0e0fc12e5df5c5fb6d5a58500f"
+      },
+      {
+        "path": "examples/backtest/027_alpha003_panel_acceptance/README.md",
+        "size_bytes": 4045,
+        "sha256": "3e8a4a5fb6d617596bb460ccc507bdef37f51c7bb6b7b939a545db048ae2d9c4"
+      },
+      {
+        "path": "examples/backtest/027_alpha003_panel_acceptance/run.py",
+        "size_bytes": 13218,
+        "sha256": "78e29dadf258bf8ed0821a34e7cb5bee5f13452d04a68e2517236d0218ab4e63"
+      },
+      {
+        "path": "scripts/benchmark_factor_examples.py",
+        "size_bytes": 40595,
+        "sha256": "2dea4f0bc64131e3eca52a10f969ffc499b0a6bad901216fc9e52432add5f082"
+      },
+      {
+        "path": "tests/unit/test_alpha003_quick_engine.py",
+        "size_bytes": 2370,
+        "sha256": "be12c347029383271bf7f0681996d7446e7fbf9b0c878e23712fc487f367e5f0"
+      },
+      {
+        "path": "tests/unit/test_factor_research_panel_once.py",
+        "size_bytes": 8174,
+        "sha256": "1c221bd9eeb74e7097811cfc899513fe7c5f7a9ed8f8f69a39217d58db0232d8"
+      }
+    ],
+    "unrelated_daily": {
+      "examples/backtest/027_alpha003_panel_acceptance/run_daily.py": {
+        "sha256": "206f13a98d7e153bd0cd6f5d42d38470fb7566788104b957af87614be5999220",
+        "size_bytes": 60707
+      }
+    },
+    "unrelated_daily_note": "the run identity records it as preserved and not executed; it is outside this six-file candidate copy"
+  },
+  "runs": [
+    {
+      "pair": 1,
+      "arm": "a",
+      "example": "025",
+      "wall_s": 19.2688204,
+      "cpu_s": 18.703125,
+      "peak_bytes": 312942592,
+      "expected_engine": "runonce",
+      "observed_engine": "runonce",
+      "phase_timers": {
+        "align_to_grid": {
+          "calls": 500,
+          "parent_labels": [
+            "collection"
+          ],
+          "process_cpu_exclusive_ns": 796875000,
+          "process_cpu_inclusive_ns": 796875000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 820846200,
+          "wall_inclusive_ns": 820846200
+        },
+        "cerebro_run": {
+          "calls": 2,
+          "parent_labels": [
+            "collection"
+          ],
+          "process_cpu_exclusive_ns": 375000000,
+          "process_cpu_inclusive_ns": 5234375000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 329924400,
+          "wall_inclusive_ns": 5328333500
+        },
+        "collect_grid_points": {
+          "calls": 486,
+          "parent_labels": [
+            "engine_runonce"
+          ],
+          "process_cpu_exclusive_ns": 593750000,
+          "process_cpu_inclusive_ns": 593750000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 838197600,
+          "wall_inclusive_ns": 838197600
+        },
+        "collection": {
+          "calls": 2,
+          "parent_labels": [],
+          "process_cpu_exclusive_ns": 78125000,
+          "process_cpu_inclusive_ns": 6109375000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 44464100,
+          "wall_inclusive_ns": 6193643800
+        },
+        "dataframe_to_csv": {
+          "calls": 36,
+          "parent_labels": [
+            "evaluation_export"
+          ],
+          "process_cpu_exclusive_ns": 1921875000,
+          "process_cpu_inclusive_ns": 1921875000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 1988357400,
+          "wall_inclusive_ns": 1988357400
+        },
+        "engine_runonce": {
+          "calls": 2,
+          "parent_labels": [
+            "cerebro_run"
+          ],
+          "process_cpu_exclusive_ns": 2406250000,
+          "process_cpu_inclusive_ns": 3000000000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 2265441900,
+          "wall_inclusive_ns": 3103639500
+        },
+        "evaluate_frames": {
+          "calls": 1,
+          "parent_labels": [],
+          "process_cpu_exclusive_ns": 93750000,
+          "process_cpu_inclusive_ns": 3859375000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 104732500,
+          "wall_inclusive_ns": 3958974100
+        },
+        "evaluation_charts": {
+          "calls": 1,
+          "parent_labels": [
+            "evaluation_export"
+          ],
+          "process_cpu_exclusive_ns": 515625000,
+          "process_cpu_inclusive_ns": 515625000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 522494600,
+          "wall_inclusive_ns": 522494600
+        },
+        "evaluation_export": {
+          "calls": 1,
+          "parent_labels": [],
+          "process_cpu_exclusive_ns": 0,
+          "process_cpu_inclusive_ns": 1718750000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 33559000,
+          "wall_inclusive_ns": 1798458400
+        },
+        "feed_preload": {
+          "calls": 500,
+          "parent_labels": [
+            "cerebro_run"
+          ],
+          "process_cpu_exclusive_ns": 1812500000,
+          "process_cpu_inclusive_ns": 1812500000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 1840538100,
+          "wall_inclusive_ns": 1840538100
+        },
+        "fincore_evaluate": {
+          "calls": 1,
+          "parent_labels": [
+            "evaluate_frames"
+          ],
+          "process_cpu_exclusive_ns": 3765625000,
+          "process_cpu_inclusive_ns": 3765625000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 3854241600,
+          "wall_inclusive_ns": 3854241600
+        },
+        "html_report": {
+          "calls": 1,
+          "parent_labels": [],
+          "process_cpu_exclusive_ns": 4734375000,
+          "process_cpu_inclusive_ns": 4734375000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 4909950100,
+          "wall_inclusive_ns": 4909950100
+        },
+        "load_daily_panel": {
+          "calls": 1,
+          "parent_labels": [],
+          "process_cpu_exclusive_ns": 1359375000,
+          "process_cpu_inclusive_ns": 1359375000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 1414549600,
+          "wall_inclusive_ns": 1414549600
+        },
+        "sink_finalize": {
+          "calls": 2,
+          "parent_labels": [
+            "strategy_stop"
+          ],
+          "process_cpu_exclusive_ns": 46875000,
+          "process_cpu_inclusive_ns": 46875000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 39846400,
+          "wall_inclusive_ns": 39846400
+        },
+        "strategy_stop": {
+          "calls": 2,
+          "parent_labels": [
+            "cerebro_run"
+          ],
+          "process_cpu_exclusive_ns": 0,
+          "process_cpu_inclusive_ns": 46875000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 14385100,
+          "wall_inclusive_ns": 54231500
+        }
+      },
+      "cli_arguments": [
+        "--output-dir",
+        "D:\\temp\\iteration49-g10-panel-once-500-p1-a-025\\example",
+        "--data-dir",
+        "D:\\source_code\\backtrader\\tests\\datas\\a_stocks",
+        "--max-symbols",
+        "500",
+        "--factor-mode",
+        "native",
+        "--report"
+      ]
+    },
+    {
+      "pair": 1,
+      "arm": "b",
+      "example": "025",
+      "wall_s": 18.62334,
+      "cpu_s": 18.109375,
+      "peak_bytes": 309420032,
+      "expected_engine": "runonce",
+      "observed_engine": "runonce",
+      "phase_timers": {
+        "align_to_grid": {
+          "calls": 500,
+          "parent_labels": [
+            "collection"
+          ],
+          "process_cpu_exclusive_ns": 812500000,
+          "process_cpu_inclusive_ns": 812500000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 879921100,
+          "wall_inclusive_ns": 879921100
+        },
+        "cerebro_run": {
+          "calls": 2,
+          "parent_labels": [
+            "collection"
+          ],
+          "process_cpu_exclusive_ns": 265625000,
+          "process_cpu_inclusive_ns": 5218750000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 315109500,
+          "wall_inclusive_ns": 5320519800
+        },
+        "collect_grid_points": {
+          "calls": 486,
+          "parent_labels": [
+            "engine_runonce"
+          ],
+          "process_cpu_exclusive_ns": 828125000,
+          "process_cpu_inclusive_ns": 828125000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 822906200,
+          "wall_inclusive_ns": 822906200
+        },
+        "collection": {
+          "calls": 2,
+          "parent_labels": [],
+          "process_cpu_exclusive_ns": 62500000,
+          "process_cpu_inclusive_ns": 6093750000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 44865700,
+          "wall_inclusive_ns": 6245306600
+        },
+        "dataframe_to_csv": {
+          "calls": 36,
+          "parent_labels": [
+            "evaluation_export"
+          ],
+          "process_cpu_exclusive_ns": 1906250000,
+          "process_cpu_inclusive_ns": 1906250000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 1897806500,
+          "wall_inclusive_ns": 1897806500
+        },
+        "engine_runonce": {
+          "calls": 2,
+          "parent_labels": [
+            "cerebro_run"
+          ],
+          "process_cpu_exclusive_ns": 2187500000,
+          "process_cpu_inclusive_ns": 3015625000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 2276152400,
+          "wall_inclusive_ns": 3099058600
+        },
+        "evaluate_frames": {
+          "calls": 1,
+          "parent_labels": [],
+          "process_cpu_exclusive_ns": 109375000,
+          "process_cpu_inclusive_ns": 3921875000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 99812400,
+          "wall_inclusive_ns": 4012075600
+        },
+        "evaluation_charts": {
+          "calls": 1,
+          "parent_labels": [
+            "evaluation_export"
+          ],
+          "process_cpu_exclusive_ns": 531250000,
+          "process_cpu_inclusive_ns": 531250000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 531654700,
+          "wall_inclusive_ns": 531654700
+        },
+        "evaluation_export": {
+          "calls": 1,
+          "parent_labels": [],
+          "process_cpu_exclusive_ns": 31250000,
+          "process_cpu_inclusive_ns": 1828125000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 33608400,
+          "wall_inclusive_ns": 1822724700
+        },
+        "feed_preload": {
+          "calls": 500,
+          "parent_labels": [
+            "cerebro_run"
+          ],
+          "process_cpu_exclusive_ns": 1875000000,
+          "process_cpu_inclusive_ns": 1875000000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 1853575700,
+          "wall_inclusive_ns": 1853575700
+        },
+        "fincore_evaluate": {
+          "calls": 1,
+          "parent_labels": [
+            "evaluate_frames"
+          ],
+          "process_cpu_exclusive_ns": 3812500000,
+          "process_cpu_inclusive_ns": 3812500000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 3912263200,
+          "wall_inclusive_ns": 3912263200
+        },
+        "html_report": {
+          "calls": 1,
+          "parent_labels": [],
+          "process_cpu_exclusive_ns": 4093750000,
+          "process_cpu_inclusive_ns": 4093750000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 4317107300,
+          "wall_inclusive_ns": 4317107300
+        },
+        "load_daily_panel": {
+          "calls": 1,
+          "parent_labels": [],
+          "process_cpu_exclusive_ns": 1312500000,
+          "process_cpu_inclusive_ns": 1312500000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 1362174400,
+          "wall_inclusive_ns": 1362174400
+        },
+        "sink_finalize": {
+          "calls": 2,
+          "parent_labels": [
+            "strategy_stop"
+          ],
+          "process_cpu_exclusive_ns": 31250000,
+          "process_cpu_inclusive_ns": 31250000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 38594900,
+          "wall_inclusive_ns": 38594900
+        },
+        "strategy_stop": {
+          "calls": 2,
+          "parent_labels": [
+            "cerebro_run"
+          ],
+          "process_cpu_exclusive_ns": 31250000,
+          "process_cpu_inclusive_ns": 62500000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 14181100,
+          "wall_inclusive_ns": 52776000
+        }
+      },
+      "cli_arguments": [
+        "--output-dir",
+        "D:\\temp\\iteration49-g10-panel-once-500-p1-b-025\\example",
+        "--data-dir",
+        "D:\\source_code\\backtrader\\tests\\datas\\a_stocks",
+        "--max-symbols",
+        "500",
+        "--factor-mode",
+        "native",
+        "--report"
+      ]
+    },
+    {
+      "pair": 1,
+      "arm": "a",
+      "example": "026",
+      "wall_s": 41.2444141,
+      "cpu_s": 40.03125,
+      "peak_bytes": 345251840,
+      "expected_engine": "runonce",
+      "observed_engine": "runonce",
+      "phase_timers": {
+        "align_to_grid": {
+          "calls": 500,
+          "parent_labels": [
+            "collection"
+          ],
+          "process_cpu_exclusive_ns": 812500000,
+          "process_cpu_inclusive_ns": 812500000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 809476900,
+          "wall_inclusive_ns": 809476900
+        },
+        "cerebro_run": {
+          "calls": 2,
+          "parent_labels": [
+            "collection"
+          ],
+          "process_cpu_exclusive_ns": 1703125000,
+          "process_cpu_inclusive_ns": 11312500000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 1738194400,
+          "wall_inclusive_ns": 11651155500
+        },
+        "collect_grid_points": {
+          "calls": 486,
+          "parent_labels": [
+            "engine_runonce"
+          ],
+          "process_cpu_exclusive_ns": 1578125000,
+          "process_cpu_inclusive_ns": 1578125000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 1675972100,
+          "wall_inclusive_ns": 1675972100
+        },
+        "collection": {
+          "calls": 2,
+          "parent_labels": [],
+          "process_cpu_exclusive_ns": 78125000,
+          "process_cpu_inclusive_ns": 12203125000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 111643500,
+          "wall_inclusive_ns": 12572275900
+        },
+        "dataframe_to_csv": {
+          "calls": 56,
+          "parent_labels": [
+            "evaluation_export"
+          ],
+          "process_cpu_exclusive_ns": 3031250000,
+          "process_cpu_inclusive_ns": 3031250000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 3129171800,
+          "wall_inclusive_ns": 3129171800
+        },
+        "engine_runonce": {
+          "calls": 2,
+          "parent_labels": [
+            "cerebro_run"
+          ],
+          "process_cpu_exclusive_ns": 6125000000,
+          "process_cpu_inclusive_ns": 7703125000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 6320755400,
+          "wall_inclusive_ns": 7996727500
+        },
+        "evaluate_frames": {
+          "calls": 1,
+          "parent_labels": [],
+          "process_cpu_exclusive_ns": 156250000,
+          "process_cpu_inclusive_ns": 10812500000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 166673000,
+          "wall_inclusive_ns": 11054112300
+        },
+        "evaluation_charts": {
+          "calls": 1,
+          "parent_labels": [
+            "evaluation_export"
+          ],
+          "process_cpu_exclusive_ns": 546875000,
+          "process_cpu_inclusive_ns": 546875000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 622306600,
+          "wall_inclusive_ns": 622306600
+        },
+        "evaluation_export": {
+          "calls": 1,
+          "parent_labels": [],
+          "process_cpu_exclusive_ns": 62500000,
+          "process_cpu_inclusive_ns": 2828125000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 53351300,
+          "wall_inclusive_ns": 2936762400
+        },
+        "feed_preload": {
+          "calls": 500,
+          "parent_labels": [
+            "cerebro_run"
+          ],
+          "process_cpu_exclusive_ns": 1843750000,
+          "process_cpu_inclusive_ns": 1843750000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 1849149600,
+          "wall_inclusive_ns": 1849149600
+        },
+        "fincore_evaluate": {
+          "calls": 1,
+          "parent_labels": [
+            "evaluate_frames"
+          ],
+          "process_cpu_exclusive_ns": 10656250000,
+          "process_cpu_inclusive_ns": 10656250000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 10887439300,
+          "wall_inclusive_ns": 10887439300
+        },
+        "html_report": {
+          "calls": 3,
+          "parent_labels": [],
+          "process_cpu_exclusive_ns": 11796875000,
+          "process_cpu_inclusive_ns": 11796875000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 12173988200,
+          "wall_inclusive_ns": 12173988200
+        },
+        "load_daily_panel": {
+          "calls": 1,
+          "parent_labels": [],
+          "process_cpu_exclusive_ns": 1312500000,
+          "process_cpu_inclusive_ns": 1312500000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 1352734400,
+          "wall_inclusive_ns": 1352734400
+        },
+        "sink_finalize": {
+          "calls": 2,
+          "parent_labels": [
+            "strategy_stop"
+          ],
+          "process_cpu_exclusive_ns": 46875000,
+          "process_cpu_inclusive_ns": 46875000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 53197200,
+          "wall_inclusive_ns": 53197200
+        },
+        "strategy_stop": {
+          "calls": 2,
+          "parent_labels": [
+            "cerebro_run"
+          ],
+          "process_cpu_exclusive_ns": 15625000,
+          "process_cpu_inclusive_ns": 62500000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 13886800,
+          "wall_inclusive_ns": 67084000
+        }
+      },
+      "cli_arguments": [
+        "--output-dir",
+        "D:\\temp\\iteration49-g10-panel-once-500-p1-a-026\\example",
+        "--data-dir",
+        "D:\\source_code\\backtrader\\tests\\datas\\a_stocks",
+        "--max-symbols",
+        "500",
+        "--factor-mode",
+        "native",
+        "--report"
+      ]
+    },
+    {
+      "pair": 1,
+      "arm": "b",
+      "example": "026",
+      "wall_s": 41.8719497,
+      "cpu_s": 40.34375,
+      "peak_bytes": 345841664,
+      "expected_engine": "runonce",
+      "observed_engine": "runonce",
+      "phase_timers": {
+        "align_to_grid": {
+          "calls": 500,
+          "parent_labels": [
+            "collection"
+          ],
+          "process_cpu_exclusive_ns": 781250000,
+          "process_cpu_inclusive_ns": 781250000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 814373900,
+          "wall_inclusive_ns": 814373900
+        },
+        "cerebro_run": {
+          "calls": 2,
+          "parent_labels": [
+            "collection"
+          ],
+          "process_cpu_exclusive_ns": 1640625000,
+          "process_cpu_inclusive_ns": 11703125000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 1687806300,
+          "wall_inclusive_ns": 12141758600
+        },
+        "collect_grid_points": {
+          "calls": 486,
+          "parent_labels": [
+            "engine_runonce"
+          ],
+          "process_cpu_exclusive_ns": 1546875000,
+          "process_cpu_inclusive_ns": 1546875000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 1702770800,
+          "wall_inclusive_ns": 1702770800
+        },
+        "collection": {
+          "calls": 2,
+          "parent_labels": [],
+          "process_cpu_exclusive_ns": 140625000,
+          "process_cpu_inclusive_ns": 12625000000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 112576600,
+          "wall_inclusive_ns": 13068709100
+        },
+        "dataframe_to_csv": {
+          "calls": 56,
+          "parent_labels": [
+            "evaluation_export"
+          ],
+          "process_cpu_exclusive_ns": 3156250000,
+          "process_cpu_inclusive_ns": 3156250000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 3148546800,
+          "wall_inclusive_ns": 3148546800
+        },
+        "engine_runonce": {
+          "calls": 2,
+          "parent_labels": [
+            "cerebro_run"
+          ],
+          "process_cpu_exclusive_ns": 6484375000,
+          "process_cpu_inclusive_ns": 8031250000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 6641947200,
+          "wall_inclusive_ns": 8344718000
+        },
+        "evaluate_frames": {
+          "calls": 1,
+          "parent_labels": [],
+          "process_cpu_exclusive_ns": 156250000,
+          "process_cpu_inclusive_ns": 10859375000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 162905300,
+          "wall_inclusive_ns": 11765469900
+        },
+        "evaluation_charts": {
+          "calls": 1,
+          "parent_labels": [
+            "evaluation_export"
+          ],
+          "process_cpu_exclusive_ns": 468750000,
+          "process_cpu_inclusive_ns": 468750000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 506618600,
+          "wall_inclusive_ns": 506618600
+        },
+        "evaluation_export": {
+          "calls": 1,
+          "parent_labels": [],
+          "process_cpu_exclusive_ns": 62500000,
+          "process_cpu_inclusive_ns": 2828125000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 63966500,
+          "wall_inclusive_ns": 2862438700
+        },
+        "feed_preload": {
+          "calls": 500,
+          "parent_labels": [
+            "cerebro_run"
+          ],
+          "process_cpu_exclusive_ns": 1968750000,
+          "process_cpu_inclusive_ns": 1968750000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 2036918800,
+          "wall_inclusive_ns": 2036918800
+        },
+        "fincore_evaluate": {
+          "calls": 1,
+          "parent_labels": [
+            "evaluate_frames"
+          ],
+          "process_cpu_exclusive_ns": 10703125000,
+          "process_cpu_inclusive_ns": 10703125000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 11602564600,
+          "wall_inclusive_ns": 11602564600
+        },
+        "html_report": {
+          "calls": 3,
+          "parent_labels": [],
+          "process_cpu_exclusive_ns": 11578125000,
+          "process_cpu_inclusive_ns": 11578125000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 11708705600,
+          "wall_inclusive_ns": 11708705600
+        },
+        "load_daily_panel": {
+          "calls": 1,
+          "parent_labels": [],
+          "process_cpu_exclusive_ns": 1328125000,
+          "process_cpu_inclusive_ns": 1328125000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 1334662300,
+          "wall_inclusive_ns": 1334662300
+        },
+        "sink_finalize": {
+          "calls": 2,
+          "parent_labels": [
+            "strategy_stop"
+          ],
+          "process_cpu_exclusive_ns": 62500000,
+          "process_cpu_inclusive_ns": 62500000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 57243700,
+          "wall_inclusive_ns": 57243700
+        },
+        "strategy_stop": {
+          "calls": 2,
+          "parent_labels": [
+            "cerebro_run"
+          ],
+          "process_cpu_exclusive_ns": 0,
+          "process_cpu_inclusive_ns": 62500000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 15071800,
+          "wall_inclusive_ns": 72315500
+        }
+      },
+      "cli_arguments": [
+        "--output-dir",
+        "D:\\temp\\iteration49-g10-panel-once-500-p1-b-026\\example",
+        "--data-dir",
+        "D:\\source_code\\backtrader\\tests\\datas\\a_stocks",
+        "--max-symbols",
+        "500",
+        "--factor-mode",
+        "native",
+        "--report"
+      ]
+    },
+    {
+      "pair": 1,
+      "arm": "a",
+      "example": "027",
+      "wall_s": 26.5565609,
+      "cpu_s": 24.71875,
+      "peak_bytes": 298598400,
+      "expected_engine": "runnext",
+      "observed_engine": "runnext",
+      "phase_timers": {
+        "align_to_grid": {
+          "calls": 500,
+          "parent_labels": [
+            "collection"
+          ],
+          "process_cpu_exclusive_ns": 921875000,
+          "process_cpu_inclusive_ns": 921875000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 910676800,
+          "wall_inclusive_ns": 910676800
+        },
+        "cerebro_run": {
+          "calls": 1,
+          "parent_labels": [
+            "collection"
+          ],
+          "process_cpu_exclusive_ns": 421875000,
+          "process_cpu_inclusive_ns": 16656250000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 456092500,
+          "wall_inclusive_ns": 18208023800
+        },
+        "collect_grid_points": {
+          "calls": 243,
+          "parent_labels": [
+            "engine_runnext"
+          ],
+          "process_cpu_exclusive_ns": 984375000,
+          "process_cpu_inclusive_ns": 984375000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 1075509300,
+          "wall_inclusive_ns": 1075509300
+        },
+        "collection": {
+          "calls": 1,
+          "parent_labels": [],
+          "process_cpu_exclusive_ns": 515625000,
+          "process_cpu_inclusive_ns": 18093750000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 553170600,
+          "wall_inclusive_ns": 19671871200
+        },
+        "dataframe_to_csv": {
+          "calls": 1,
+          "parent_labels": [],
+          "process_cpu_exclusive_ns": 656250000,
+          "process_cpu_inclusive_ns": 656250000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 667142500,
+          "wall_inclusive_ns": 667142500
+        },
+        "engine_runnext": {
+          "calls": 1,
+          "parent_labels": [
+            "cerebro_run"
+          ],
+          "process_cpu_exclusive_ns": 13281250000,
+          "process_cpu_inclusive_ns": 14265625000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 14704434300,
+          "wall_inclusive_ns": 15779943600
+        },
+        "feed_preload": {
+          "calls": 500,
+          "parent_labels": [
+            "cerebro_run"
+          ],
+          "process_cpu_exclusive_ns": 1906250000,
+          "process_cpu_inclusive_ns": 1906250000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 1915549700,
+          "wall_inclusive_ns": 1915549700
+        },
+        "html_report": {
+          "calls": 1,
+          "parent_labels": [],
+          "process_cpu_exclusive_ns": 4500000000,
+          "process_cpu_inclusive_ns": 4500000000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 4743082700,
+          "wall_inclusive_ns": 4743082700
+        },
+        "load_daily_panel": {
+          "calls": 1,
+          "parent_labels": [],
+          "process_cpu_exclusive_ns": 1375000000,
+          "process_cpu_inclusive_ns": 1375000000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 1373846600,
+          "wall_inclusive_ns": 1373846600
+        },
+        "sink_finalize": {
+          "calls": 1,
+          "parent_labels": [
+            "strategy_stop"
+          ],
+          "process_cpu_exclusive_ns": 46875000,
+          "process_cpu_inclusive_ns": 46875000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 39528700,
+          "wall_inclusive_ns": 39528700
+        },
+        "strategy_stop": {
+          "calls": 1,
+          "parent_labels": [
+            "cerebro_run"
+          ],
+          "process_cpu_exclusive_ns": 15625000,
+          "process_cpu_inclusive_ns": 62500000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 16909300,
+          "wall_inclusive_ns": 56438000
+        }
+      },
+      "cli_arguments": [
+        "--output-dir",
+        "D:\\temp\\iteration49-g10-panel-once-500-p1-a-027\\example",
+        "--data-dir",
+        "D:\\source_code\\backtrader\\tests\\datas\\a_stocks",
+        "--max-symbols",
+        "500",
+        "--factor-mode",
+        "native",
+        "--report"
+      ]
+    },
+    {
+      "pair": 1,
+      "arm": "b",
+      "example": "027",
+      "wall_s": 26.254851,
+      "cpu_s": 24.96875,
+      "peak_bytes": 301477888,
+      "expected_engine": "runonce",
+      "observed_engine": "runonce",
+      "phase_timers": {
+        "align_to_grid": {
+          "calls": 500,
+          "parent_labels": [
+            "collection"
+          ],
+          "process_cpu_exclusive_ns": 812500000,
+          "process_cpu_inclusive_ns": 812500000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 809691700,
+          "wall_inclusive_ns": 809691700
+        },
+        "cerebro_run": {
+          "calls": 1,
+          "parent_labels": [
+            "collection"
+          ],
+          "process_cpu_exclusive_ns": 343750000,
+          "process_cpu_inclusive_ns": 17437500000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 435718500,
+          "wall_inclusive_ns": 18543343200
+        },
+        "collect_grid_points": {
+          "calls": 243,
+          "parent_labels": [
+            "engine_runonce"
+          ],
+          "process_cpu_exclusive_ns": 906250000,
+          "process_cpu_inclusive_ns": 906250000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 962837200,
+          "wall_inclusive_ns": 962837200
+        },
+        "collection": {
+          "calls": 1,
+          "parent_labels": [],
+          "process_cpu_exclusive_ns": 375000000,
+          "process_cpu_inclusive_ns": 18625000000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 408878100,
+          "wall_inclusive_ns": 19761913000
+        },
+        "dataframe_to_csv": {
+          "calls": 1,
+          "parent_labels": [],
+          "process_cpu_exclusive_ns": 640625000,
+          "process_cpu_inclusive_ns": 640625000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 649394000,
+          "wall_inclusive_ns": 649394000
+        },
+        "engine_runonce": {
+          "calls": 1,
+          "parent_labels": [
+            "cerebro_run"
+          ],
+          "process_cpu_exclusive_ns": 14421875000,
+          "process_cpu_inclusive_ns": 15328125000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 15175094100,
+          "wall_inclusive_ns": 16137931300
+        },
+        "feed_preload": {
+          "calls": 500,
+          "parent_labels": [
+            "cerebro_run"
+          ],
+          "process_cpu_exclusive_ns": 1718750000,
+          "process_cpu_inclusive_ns": 1718750000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 1920109100,
+          "wall_inclusive_ns": 1920109100
+        },
+        "html_report": {
+          "calls": 1,
+          "parent_labels": [],
+          "process_cpu_exclusive_ns": 4234375000,
+          "process_cpu_inclusive_ns": 4234375000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 4377388700,
+          "wall_inclusive_ns": 4377388700
+        },
+        "load_daily_panel": {
+          "calls": 1,
+          "parent_labels": [],
+          "process_cpu_exclusive_ns": 1375000000,
+          "process_cpu_inclusive_ns": 1375000000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 1366437600,
+          "wall_inclusive_ns": 1366437600
+        },
+        "sink_finalize": {
+          "calls": 1,
+          "parent_labels": [
+            "strategy_stop"
+          ],
+          "process_cpu_exclusive_ns": 31250000,
+          "process_cpu_inclusive_ns": 31250000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 35815400,
+          "wall_inclusive_ns": 35815400
+        },
+        "strategy_stop": {
+          "calls": 1,
+          "parent_labels": [
+            "cerebro_run"
+          ],
+          "process_cpu_exclusive_ns": 15625000,
+          "process_cpu_inclusive_ns": 46875000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 13768900,
+          "wall_inclusive_ns": 49584300
+        }
+      },
+      "cli_arguments": [
+        "--output-dir",
+        "D:\\temp\\iteration49-g10-panel-once-500-p1-b-027\\example",
+        "--data-dir",
+        "D:\\source_code\\backtrader\\tests\\datas\\a_stocks",
+        "--max-symbols",
+        "500",
+        "--factor-mode",
+        "native",
+        "--report"
+      ]
+    }
+  ],
+  "verifier": {
+    "path": "D:\\temp\\iteration49-g10-panel-once-500-p1-verification.json",
+    "size_bytes": 43484,
+    "sha256": "e56b159cd5160525fe0a28ac3f2085ce9d939dd042c1931d69a02bba5094b9cf",
+    "status": "PASS",
+    "valid": true,
+    "scope_complete": true
+  },
+  "metrics": {
+    "025": {
+      "actual_pairs": [
+        1
+      ],
+      "per_pair": {
+        "1": {
+          "a": {
+            "wall_s": 19.2688204,
+            "cpu_s": 18.703125,
+            "peak_bytes": 312942592
+          },
+          "b": {
+            "wall_s": 18.62334,
+            "cpu_s": 18.109375,
+            "peak_bytes": 309420032
+          }
+        }
+      },
+      "metrics": {
+        "wall_s": {
+          "a_median": 19.2688204,
+          "b_median": 18.62334,
+          "paired_b_over_a": [
+            0.9665013017610564
+          ],
+          "median_b_over_a": 0.9665013017610564,
+          "reduction_percent": 3.349869823894358,
+          "relative_dispersion_of_a_over_b": null,
+          "dispersion_limit": null,
+          "within_5pct_dispersion": null
+        },
+        "cpu_s": {
+          "a_median": 18.703125,
+          "b_median": 18.109375,
+          "paired_b_over_a": [
+            0.9682539682539683
+          ],
+          "median_b_over_a": 0.9682539682539683,
+          "reduction_percent": 3.1746031746031744,
+          "relative_dispersion_of_a_over_b": null,
+          "dispersion_limit": null,
+          "within_5pct_dispersion": null
+        },
+        "peak_bytes": {
+          "a_median": 312942592,
+          "b_median": 309420032,
+          "paired_b_over_a": [
+            0.9887437501636083
+          ],
+          "median_b_over_a": 0.9887437501636083,
+          "reduction_percent": 1.125624983639173,
+          "relative_dispersion_of_a_over_b": null,
+          "dispersion_limit": null,
+          "within_5pct_dispersion": null
+        }
+      }
+    },
+    "026": {
+      "actual_pairs": [
+        1
+      ],
+      "per_pair": {
+        "1": {
+          "a": {
+            "wall_s": 41.2444141,
+            "cpu_s": 40.03125,
+            "peak_bytes": 345251840
+          },
+          "b": {
+            "wall_s": 41.8719497,
+            "cpu_s": 40.34375,
+            "peak_bytes": 345841664
+          }
+        }
+      },
+      "metrics": {
+        "wall_s": {
+          "a_median": 41.2444141,
+          "b_median": 41.8719497,
+          "paired_b_over_a": [
+            1.0152150445992152
+          ],
+          "median_b_over_a": 1.0152150445992152,
+          "reduction_percent": -1.5215044599215188,
+          "relative_dispersion_of_a_over_b": null,
+          "dispersion_limit": null,
+          "within_5pct_dispersion": null
+        },
+        "cpu_s": {
+          "a_median": 40.03125,
+          "b_median": 40.34375,
+          "paired_b_over_a": [
+            1.0078064012490242
+          ],
+          "median_b_over_a": 1.0078064012490242,
+          "reduction_percent": -0.7806401249024209,
+          "relative_dispersion_of_a_over_b": null,
+          "dispersion_limit": null,
+          "within_5pct_dispersion": null
+        },
+        "peak_bytes": {
+          "a_median": 345251840,
+          "b_median": 345841664,
+          "paired_b_over_a": [
+            1.0017083877090995
+          ],
+          "median_b_over_a": 1.0017083877090995,
+          "reduction_percent": -0.17083877090995347,
+          "relative_dispersion_of_a_over_b": null,
+          "dispersion_limit": null,
+          "within_5pct_dispersion": null
+        }
+      }
+    },
+    "027": {
+      "actual_pairs": [
+        1
+      ],
+      "per_pair": {
+        "1": {
+          "a": {
+            "wall_s": 26.5565609,
+            "cpu_s": 24.71875,
+            "peak_bytes": 298598400
+          },
+          "b": {
+            "wall_s": 26.254851,
+            "cpu_s": 24.96875,
+            "peak_bytes": 301477888
+          }
+        }
+      },
+      "metrics": {
+        "wall_s": {
+          "a_median": 26.5565609,
+          "b_median": 26.254851,
+          "paired_b_over_a": [
+            0.9886389694382453
+          ],
+          "median_b_over_a": 0.9886389694382453,
+          "reduction_percent": 1.1361030561754748,
+          "relative_dispersion_of_a_over_b": null,
+          "dispersion_limit": 0.05,
+          "within_5pct_dispersion": null
+        },
+        "cpu_s": {
+          "a_median": 24.71875,
+          "b_median": 24.96875,
+          "paired_b_over_a": [
+            1.0101137800252844
+          ],
+          "median_b_over_a": 1.0101137800252844,
+          "reduction_percent": -1.0113780025284402,
+          "relative_dispersion_of_a_over_b": null,
+          "dispersion_limit": 0.05,
+          "within_5pct_dispersion": null
+        },
+        "peak_bytes": {
+          "a_median": 298598400,
+          "b_median": 301477888,
+          "paired_b_over_a": [
+            1.0096433470507544
+          ],
+          "median_b_over_a": 1.0096433470507544,
+          "reduction_percent": -0.9643347050754425,
+          "relative_dispersion_of_a_over_b": null,
+          "dispersion_limit": 0.05,
+          "within_5pct_dispersion": null
+        }
+      }
+    }
+  },
+  "diagnostic_files": {
+    "D:/temp/iteration49-g10-benchmark-engine-qa.log": {
+      "size_bytes": 551,
+      "sha256": "cac79022b1bc27119b05ae6c888fac5440f129632a8f716b2d4881a5a21180bf"
+    },
+    "D:/temp/iteration49-g10-027-runonce-cprofile-500-r1.py": {
+      "size_bytes": 5438,
+      "sha256": "ba0a4918897b1ba37d0fedead889c2879f1aa9100cecac9f7a3109031d104946"
+    },
+    "D:/temp/iteration49-g10-027-runonce-cprofile-500-r1.txt": {
+      "size_bytes": 13726,
+      "sha256": "e5b10956c65e3d2eac8fc0aaa5f7d55b2805df205903bab7b25b846d3053022e"
+    },
+    "D:/temp/iteration49-g10-027-runonce-cprofile-500-r1.pstats": {
+      "size_bytes": 1025741,
+      "sha256": "d8557e76e28715b70fb2893cbac9196c42e80e7342a12feb083b819ae16bae14"
+    }
+  },
+  "raw_archive": {
+    "size_bytes": 1097202,
+    "sha256": "38c9256c542d7037a9395d1e1a7e5114a3baf905a8fa65af91706589f4eedd92",
+    "payload_count": 24,
+    "manifest_sha256": "fc3e01932add72174b0f873b8eb6ab7cc6718cd78eaac0df1a47707e947b0b69",
+    "path": "7col-g10a-panel-once-screen-raw.zip"
+  },
+  "source_archive": {
+    "size_bytes": 148629,
+    "sha256": "bb35e856ccba2519ce84902ac179cc4f6e6f103da479979c85ff3aff2329ed51",
+    "payload_count": 22,
+    "manifest_sha256": "f3b5b5e388c695c172d607ed10f173afa9833c9d9744913169cf277dfa5d3a7b",
+    "path": "7col-g10a-panel-once-screen-source.zip"
+  },
+  "limitations": [
+    "One paired sample per example: dispersion/stability cannot be estimated and no stable speed gain is claimed.",
+    "All three complete output comparisons passed; this is output equivalence evidence only.",
+    "The included cProfile run is diagnostic and excluded from paired performance metrics.",
+    "This screen does not establish the 80% speed target, <=1 GB full-universe memory target, or 5471-symbol acceptance."
+  ]
+}
