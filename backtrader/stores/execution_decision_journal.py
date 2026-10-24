@@ -8,9 +8,10 @@ cannot claim the same intent for dispatch again.  This deliberately chooses
 at-most-once dispatch over a blind retry when the network outcome is uncertain.
 
 Callbacks are stored as deduplicated evidence and delivered at least once until
-acknowledged.  The journal does not project callback payloads into fills,
-positions, commissions, cash, or balances; those remain authoritative only in
-the selected execution route.
+acknowledged.  A caller may attach a same-transaction projection for narrow,
+source-owned evidence such as factor-position attribution; it does not replace
+the selected execution route's authoritative fills, commissions, cash, or
+balances.
 """
 
 from __future__ import annotations
@@ -29,7 +30,7 @@ from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from types import MappingProxyType
 from threading import RLock
-from typing import Any, Iterator, Optional, Tuple, Union
+from typing import Any, Callable, Iterator, Optional, Tuple, Union
 
 
 _ECONOMIC_DECIMAL_FIELDS = frozenset(
@@ -133,6 +134,32 @@ class ExecutionDecisionRecord:
 
 
 @dataclass(frozen=True)
+class ExecutionDecisionCapacitySnapshot:
+    """Read-only decision high-water usage and current SQLite footprint.
+
+    Payload-byte counters cover the canonical decision key, economics, and
+    ordered intent-key JSON stored for each decision.  Database/WAL byte
+    fields report the current physical footprint separately; they are
+    diagnostics, not a hard cap on every journal table or SQLite allocation.
+    """
+
+    base_record_count: int
+    base_record_limit: int
+    base_payload_bytes: int
+    base_payload_byte_limit: int
+    settlement_record_count: int
+    settlement_record_limit: int
+    settlement_payload_bytes: int
+    settlement_payload_byte_limit: int
+    database_bytes: int
+    wal_bytes: int
+
+    @property
+    def physical_bytes(self) -> int:
+        return self.database_bytes + self.wal_bytes
+
+
+@dataclass(frozen=True)
 class ExecutionIntentRecord:
     intent_id: str
     decision_id: str
@@ -163,6 +190,7 @@ class ExecutionCallbackReceipt:
     evidence_payload: Mapping[str, Any]
     acknowledged: bool
     created_at_ns: int
+    is_new: bool = False
 
 
 @dataclass(frozen=True)
@@ -220,6 +248,54 @@ class ExecutionIntentAbandonment:
     created_at_ns: int
 
 
+@dataclass(frozen=True)
+class ExecutionGridCursor:
+    """Durable progress for one Strategy cohort's eligible input grids."""
+
+    account_scope: str
+    strategy_scope: str
+    cohort_id: str
+    ordinal: int
+    epoch_id: str
+    batch_id: str
+    close_time: str
+    decision_id: str
+    updated_at_ns: int
+
+
+@dataclass(frozen=True)
+class ExecutionGridDecision:
+    """Result of atomically persisting a decision and advancing its grid."""
+
+    decision: Optional[ExecutionDecisionRecord]
+    cursor: Optional[ExecutionGridCursor]
+    eligible: bool
+    is_new_grid: bool
+
+
+@dataclass(frozen=True)
+class ExecutionIntentSnapshotPage:
+    """Bounded immutable projection of intents that can affect execution.
+
+    The page includes all unresolved intents and KNOWN intents that still own
+    an account/instrument dispatch slot. Position holdings are projected by
+    ``factor_position_book`` separately; a KNOWN OPEN whose order slot has
+    been reconciled does not appear here merely because a holding exists.
+    """
+
+    items: Tuple[ExecutionIntentRecord, ...]
+    truncated: bool
+
+
+@dataclass(frozen=True)
+class ExecutionCallbackProjectionStatus:
+    """Read-only projection state for one exact callback receipt."""
+
+    status: str
+    receipt_id: Optional[str] = None
+    blocker_code: Optional[str] = None
+
+
 class ExecutionDecisionJournal:
     """SQLite ledger for immutable decisions, dispatch claims and callback work.
 
@@ -232,7 +308,7 @@ class ExecutionDecisionJournal:
     failed persistence step.
     """
 
-    _SCHEMA_VERSION = 2
+    _SCHEMA_VERSION = 8
 
     def __init__(
         self,
@@ -241,6 +317,10 @@ class ExecutionDecisionJournal:
         max_pending_intents: int = 1024,
         max_pending_callbacks: int = 4096,
         max_payload_bytes: int = 65536,
+        max_decision_records: int = 100000,
+        settlement_decision_reserve_records: int = 4096,
+        max_decision_bytes: int = 536870912,
+        settlement_decision_reserve_bytes: int = 67108864,
     ) -> None:
         if (
             type(max_pending_intents) is not int
@@ -249,11 +329,23 @@ class ExecutionDecisionJournal:
             or max_pending_callbacks < 1
             or type(max_payload_bytes) is not int
             or max_payload_bytes < 256
+            or type(max_decision_records) is not int
+            or max_decision_records < 1
+            or type(settlement_decision_reserve_records) is not int
+            or settlement_decision_reserve_records < 1
+            or type(max_decision_bytes) is not int
+            or max_decision_bytes < 1024
+            or type(settlement_decision_reserve_bytes) is not int
+            or settlement_decision_reserve_bytes < 1024
         ):
             raise ExecutionDecisionJournalError("INVALID_JOURNAL_LIMIT")
         self.max_pending_intents = max_pending_intents
         self.max_pending_callbacks = max_pending_callbacks
         self.max_payload_bytes = max_payload_bytes
+        self.max_decision_records = max_decision_records
+        self.settlement_decision_reserve_records = settlement_decision_reserve_records
+        self.max_decision_bytes = max_decision_bytes
+        self.settlement_decision_reserve_bytes = settlement_decision_reserve_bytes
         self._lock = RLock()
         self._failed_closed = False
         self._closed = False
@@ -277,7 +369,17 @@ class ExecutionDecisionJournal:
             self._connection.execute("PRAGMA synchronous = FULL")
             self._connection.execute("PRAGMA foreign_keys = ON")
             self._create_schema()
+        except ExecutionDecisionJournalError:
+            connection = getattr(self, "_connection", None)
+            if connection is not None:
+                connection.close()
+                self._closed = True
+            raise
         except (OSError, sqlite3.Error) as error:
+            connection = getattr(self, "_connection", None)
+            if connection is not None:
+                connection.close()
+                self._closed = True
             raise ExecutionDecisionJournalError("JOURNAL_UNAVAILABLE") from error
 
     def __enter__(self) -> "ExecutionDecisionJournal":
@@ -317,52 +419,381 @@ class ExecutionDecisionJournal:
         now_ns = time.time_ns()
 
         with self._transaction() as cursor:
-            row = cursor.execute(
-                "SELECT * FROM execution_decisions WHERE decision_id = ?", (decision_id,)
+            record, _created = self._record_decision_in_transaction(
+                cursor,
+                decision_id=decision_id,
+                key_json=key_json,
+                payload_json=payload_json,
+                keys_json=keys_json,
+                normalized_keys=normalized_keys,
+                now_ns=now_ns,
+            )
+            return record
+
+    def record_grid_decision(
+        self,
+        key: ExecutionDecisionKey,
+        economic_payload: Mapping[str, Any],
+        *,
+        intent_keys: Tuple[ExecutionIntentKey, ...] = (),
+        epoch_id: str,
+        batch_id: str,
+        eligible: bool,
+        complete: bool,
+        live_ready: bool,
+        inputs_complete: bool,
+        max_order_intents_per_run: Optional[int] = None,
+    ) -> ExecutionGridDecision:
+        """Persist one eligible decision and advance its cohort cursor atomically.
+
+        Cursor identity deliberately excludes ``logical_run_id``, epoch,
+        mode, and configuration. An exact replay of the latest eligible grid
+        returns its prior decision with ``is_new_grid=False``; an older grid
+        or a different decision for the same grid is rejected. Ineligible,
+        incomplete, not-live-ready, or missing-input batches do not write a
+        decision row or advance the cursor.
+        """
+
+        if not isinstance(key, ExecutionDecisionKey):
+            raise ExecutionDecisionJournalError("INVALID_DECISION_KEY")
+        _require_identifier(epoch_id, "INVALID_GRID_EPOCH")
+        _require_identifier(batch_id, "INVALID_GRID_BATCH")
+        flags = (eligible, complete, live_ready, inputs_complete)
+        if any(type(flag) is not bool for flag in flags):
+            raise ExecutionDecisionJournalError("INVALID_GRID_ELIGIBILITY")
+        if max_order_intents_per_run is not None and (
+            type(max_order_intents_per_run) is not int or max_order_intents_per_run < 0
+        ):
+            raise ExecutionDecisionJournalError("INVALID_RUN_ORDER_BUDGET")
+        if not all(flags):
+            return ExecutionGridDecision(
+                decision=None,
+                cursor=self.grid_cursor(key.account_scope, key.strategy_scope, key.cohort_id),
+                eligible=False,
+                is_new_grid=False,
+            )
+
+        payload_json = self._payload_json(economic_payload)
+        normalized_keys = _normalize_intent_keys(intent_keys, self.max_pending_intents)
+        keys_json = _canonical_json([_intent_key_values(item) for item in normalized_keys])
+        key_json = _canonical_json(_decision_key_values(key))
+        decision_id = _stable_id("decision", key_json)
+        now_ns = time.time_ns()
+        cursor_key = (key.account_scope, key.strategy_scope, key.cohort_id)
+
+        with self._transaction() as db_cursor:
+            decision, created = self._record_decision_in_transaction(
+                db_cursor,
+                decision_id=decision_id,
+                key_json=key_json,
+                payload_json=payload_json,
+                keys_json=keys_json,
+                normalized_keys=normalized_keys,
+                now_ns=now_ns,
+            )
+            current = db_cursor.execute(
+                """SELECT * FROM execution_grid_cursors
+                   WHERE account_scope = ? AND strategy_scope = ? AND cohort_id = ?""",
+                cursor_key,
             ).fetchone()
-            if row is not None:
-                if (
-                    row["business_key_json"] != key_json
-                    or row["economic_payload_json"] != payload_json
-                    or row["intent_keys_json"] != keys_json
-                ):
-                    raise ExecutionDecisionJournalError("DECISION_CONFLICT")
-                return _decision_record(row)
-
-            pending = int(
-                cursor.execute(
-                    """SELECT COUNT(*) FROM execution_decision_slots AS s
-                       LEFT JOIN execution_decision_intents AS i ON i.intent_id = s.intent_id
-                       WHERE (i.intent_id IS NULL OR i.state IN ('PREPARED','DISPATCHING','UNKNOWN'))
-                         AND NOT EXISTS (
-                             SELECT 1 FROM execution_intent_abandonments AS a
-                             WHERE a.intent_id = s.intent_id
-                         )"""
-                ).fetchone()[0]
-            )
-            if pending + len(normalized_keys) > self.max_pending_intents:
-                raise ExecutionDecisionJournalError("PENDING_INTENT_LIMIT")
-
-            cursor.execute(
-                """INSERT INTO execution_decisions
-                   (decision_id, business_key_json, economic_payload_json,
-                    intent_keys_json, created_at_ns)
-                   VALUES (?, ?, ?, ?, ?)""",
-                (decision_id, key_json, payload_json, keys_json, now_ns),
-            )
-            for intent_key in normalized_keys:
-                intent_key_json = _canonical_json(_intent_key_values(intent_key))
-                intent_id = _stable_id("intent", decision_id + ":" + intent_key_json)
-                cursor.execute(
-                    """INSERT INTO execution_decision_slots
-                       (intent_id, decision_id, intent_key_json, leg)
-                       VALUES (?, ?, ?, ?)""",
-                    (intent_id, decision_id, intent_key_json, intent_key.leg),
+            if current is not None:
+                same_grid = (
+                    current["decision_id"] == decision_id
+                    and current["epoch_id"] == epoch_id
+                    and current["batch_id"] == batch_id
+                    and current["close_time"] == key.close_time
                 )
-            row = cursor.execute(
-                "SELECT * FROM execution_decisions WHERE decision_id = ?", (decision_id,)
+                if same_grid:
+                    self._apply_run_order_budget(
+                        db_cursor,
+                        key,
+                        max_order_intents_per_run=max_order_intents_per_run,
+                        added_count=0,
+                        created=False,
+                    )
+                    return ExecutionGridDecision(
+                        decision=decision,
+                        cursor=_grid_cursor_record(current),
+                        eligible=True,
+                        is_new_grid=False,
+                    )
+                current_time = _parse_normalized_close_time(current["close_time"])
+                candidate_time = _parse_normalized_close_time(key.close_time)
+                if candidate_time <= current_time:
+                    raise ExecutionDecisionJournalError("GRID_CURSOR_STALE_OR_CONFLICT")
+            if not created:
+                # A previously recorded business decision that has no matching
+                # current cursor cannot be re-admitted as a new dispatch grid.
+                raise ExecutionDecisionJournalError("DECISION_PREEXISTS_OUTSIDE_GRID_CURSOR")
+
+            self._apply_run_order_budget(
+                db_cursor,
+                key,
+                max_order_intents_per_run=max_order_intents_per_run,
+                added_count=len(normalized_keys),
+                created=True,
+            )
+
+            ordinal = 1 if current is None else int(current["ordinal"]) + 1
+            db_cursor.execute(
+                """INSERT INTO execution_grid_cursors
+                   (account_scope, strategy_scope, cohort_id, ordinal, epoch_id,
+                    batch_id, close_time, decision_id, updated_at_ns)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                   ON CONFLICT(account_scope, strategy_scope, cohort_id) DO UPDATE SET
+                     ordinal = excluded.ordinal,
+                     epoch_id = excluded.epoch_id,
+                     batch_id = excluded.batch_id,
+                     close_time = excluded.close_time,
+                     decision_id = excluded.decision_id,
+                     updated_at_ns = excluded.updated_at_ns""",
+                cursor_key + (ordinal, epoch_id, batch_id, key.close_time, decision_id, now_ns),
+            )
+            saved_cursor = db_cursor.execute(
+                """SELECT * FROM execution_grid_cursors
+                   WHERE account_scope = ? AND strategy_scope = ? AND cohort_id = ?""",
+                cursor_key,
             ).fetchone()
-            return _decision_record(row)
+            from .factor_position_book import record_factor_position_grid
+
+            record_factor_position_grid(
+                db_cursor,
+                account_scope=key.account_scope,
+                strategy_scope=key.strategy_scope,
+                cohort_id=key.cohort_id,
+                batch_id=batch_id,
+                close_time=key.close_time,
+                ordinal=ordinal,
+            )
+            return ExecutionGridDecision(
+                decision=decision,
+                cursor=_grid_cursor_record(saved_cursor),
+                eligible=True,
+                is_new_grid=True,
+            )
+
+    def record_risk_decision(
+        self,
+        key: ExecutionDecisionKey,
+        economic_payload: Mapping[str, Any],
+        *,
+        intent_keys: Tuple[ExecutionIntentKey, ...],
+        max_order_intents_per_run: int,
+    ) -> ExecutionGridDecision:
+        """Persist a non-grid risk reduction decision and its order budget.
+
+        This path is for recorded cancels and position-reducing closes when a
+        factor snapshot is unavailable. It intentionally does not advance the
+        eligible-grid cursor. Opening SUBMIT intents are never accepted here.
+        """
+
+        if not isinstance(key, ExecutionDecisionKey):
+            raise ExecutionDecisionJournalError("INVALID_DECISION_KEY")
+        if type(max_order_intents_per_run) is not int or max_order_intents_per_run < 0:
+            raise ExecutionDecisionJournalError("INVALID_RUN_ORDER_BUDGET")
+        normalized_keys = _normalize_intent_keys(intent_keys, self.max_pending_intents)
+        if any(
+            item.action == "SUBMIT" and item.position_effect != "CLOSE" for item in normalized_keys
+        ):
+            raise ExecutionDecisionJournalError("RISK_DECISION_MAY_NOT_OPEN")
+        payload_json = self._payload_json(economic_payload)
+        keys_json = _canonical_json([_intent_key_values(item) for item in normalized_keys])
+        key_json = _canonical_json(_decision_key_values(key))
+        decision_id = _stable_id("decision", key_json)
+        now_ns = time.time_ns()
+        with self._transaction() as cursor:
+            decision, created = self._record_decision_in_transaction(
+                cursor,
+                decision_id=decision_id,
+                key_json=key_json,
+                payload_json=payload_json,
+                keys_json=keys_json,
+                normalized_keys=normalized_keys,
+                now_ns=now_ns,
+            )
+            self._apply_run_order_budget(
+                cursor,
+                key,
+                max_order_intents_per_run=max_order_intents_per_run,
+                added_count=len(normalized_keys),
+                created=created,
+            )
+            return ExecutionGridDecision(
+                decision=decision,
+                cursor=None,
+                eligible=True,
+                is_new_grid=created,
+            )
+
+    def grid_cursor(
+        self, account_scope: str, strategy_scope: str, cohort_id: str
+    ) -> Optional[ExecutionGridCursor]:
+        """Read one cohort cursor without retaining an in-memory bar counter."""
+
+        _require_identifier(account_scope, "INVALID_ACCOUNT_SCOPE")
+        _require_identifier(strategy_scope, "INVALID_STRATEGY_SCOPE")
+        _require_identifier(cohort_id, "INVALID_COHORT_ID")
+        with self._read_lock():
+            row = self._connection.execute(
+                """SELECT * FROM execution_grid_cursors
+                   WHERE account_scope = ? AND strategy_scope = ? AND cohort_id = ?""",
+                (account_scope, strategy_scope, cohort_id),
+            ).fetchone()
+        return None if row is None else _grid_cursor_record(row)
+
+    def run_order_count(self, account_scope: str, strategy_scope: str, logical_run_id: str) -> int:
+        """Return durable submit/cancel intents declared by one logical run."""
+
+        _require_identifier(account_scope, "INVALID_ACCOUNT_SCOPE")
+        _require_identifier(strategy_scope, "INVALID_STRATEGY_SCOPE")
+        _require_identifier(logical_run_id, "INVALID_LOGICAL_RUN_ID")
+        with self._read_lock():
+            row = self._connection.execute(
+                """SELECT intent_count FROM execution_run_order_budgets
+                   WHERE account_scope = ? AND strategy_scope = ? AND logical_run_id = ?""",
+                (account_scope, strategy_scope, logical_run_id),
+            ).fetchone()
+        return 0 if row is None else int(row["intent_count"])
+
+    @staticmethod
+    def _apply_run_order_budget(
+        cursor: sqlite3.Cursor,
+        key: ExecutionDecisionKey,
+        *,
+        max_order_intents_per_run: Optional[int],
+        added_count: int,
+        created: bool,
+    ) -> None:
+        budget_key = (key.account_scope, key.strategy_scope, key.logical_run_id)
+        row = cursor.execute(
+            """SELECT max_intents, intent_count FROM execution_run_order_budgets
+               WHERE account_scope = ? AND strategy_scope = ? AND logical_run_id = ?""",
+            budget_key,
+        ).fetchone()
+        if max_order_intents_per_run is None:
+            if row is not None:
+                raise ExecutionDecisionJournalError("RUN_ORDER_BUDGET_REQUIRED")
+            return
+        if row is None:
+            if not created:
+                raise ExecutionDecisionJournalError("RUN_ORDER_BUDGET_MISSING")
+            count = 0
+            cursor.execute(
+                """INSERT INTO execution_run_order_budgets
+                   (account_scope, strategy_scope, logical_run_id, max_intents,
+                    intent_count, created_at_ns)
+                   VALUES (?, ?, ?, ?, 0, ?)""",
+                budget_key + (max_order_intents_per_run, time.time_ns()),
+            )
+        else:
+            if int(row["max_intents"]) != max_order_intents_per_run:
+                raise ExecutionDecisionJournalError("RUN_ORDER_BUDGET_CONFLICT")
+            count = int(row["intent_count"])
+        if not created:
+            return
+        if count + added_count > max_order_intents_per_run:
+            raise ExecutionDecisionJournalError("RUN_ORDER_BUDGET_EXCEEDED")
+        cursor.execute(
+            """UPDATE execution_run_order_budgets SET intent_count = ?
+               WHERE account_scope = ? AND strategy_scope = ? AND logical_run_id = ?""",
+            (count + added_count,) + budget_key,
+        )
+
+    def _record_decision_in_transaction(
+        self,
+        cursor: sqlite3.Cursor,
+        *,
+        decision_id: str,
+        key_json: str,
+        payload_json: str,
+        keys_json: str,
+        normalized_keys: Tuple[ExecutionIntentKey, ...],
+        now_ns: int,
+    ) -> Tuple[ExecutionDecisionRecord, bool]:
+        row = cursor.execute(
+            "SELECT * FROM execution_decisions WHERE decision_id = ?", (decision_id,)
+        ).fetchone()
+        if row is not None:
+            if (
+                row["business_key_json"] != key_json
+                or row["economic_payload_json"] != payload_json
+                or row["intent_keys_json"] != keys_json
+            ):
+                raise ExecutionDecisionJournalError("DECISION_CONFLICT")
+            return _decision_record(row), False
+
+        decision_class = _decision_capacity_class(normalized_keys)
+        decision_payload_bytes = sum(
+            len(value.encode("utf-8")) for value in (key_json, payload_json, keys_json)
+        )
+        self._check_decision_capacity(
+            cursor,
+            decision_class=decision_class,
+            added_bytes=decision_payload_bytes,
+        )
+
+        pending = int(
+            cursor.execute(
+                """SELECT COUNT(*) FROM execution_decision_slots AS s
+                   LEFT JOIN execution_decision_intents AS i ON i.intent_id = s.intent_id
+                   WHERE (i.intent_id IS NULL OR i.state IN ('PREPARED','DISPATCHING','UNKNOWN'))
+                     AND NOT EXISTS (
+                         SELECT 1 FROM execution_intent_abandonments AS a
+                         WHERE a.intent_id = s.intent_id
+                     )
+                     AND NOT EXISTS (
+                         SELECT 1 FROM execution_slot_abandonments AS a
+                         WHERE a.intent_id = s.intent_id
+                     )"""
+            ).fetchone()[0]
+        )
+        if pending + len(normalized_keys) > self.max_pending_intents:
+            raise ExecutionDecisionJournalError("PENDING_INTENT_LIMIT")
+        cursor.execute(
+            """INSERT INTO execution_decisions
+               (decision_id, business_key_json, economic_payload_json,
+                 intent_keys_json, created_at_ns, capacity_class)
+               VALUES (?, ?, ?, ?, ?, ?)""",
+            (decision_id, key_json, payload_json, keys_json, now_ns, decision_class),
+        )
+        for intent_key in normalized_keys:
+            intent_key_json = _canonical_json(_intent_key_values(intent_key))
+            intent_id = _stable_id("intent", decision_id + ":" + intent_key_json)
+            cursor.execute(
+                """INSERT INTO execution_decision_slots
+                   (intent_id, decision_id, intent_key_json, leg)
+                   VALUES (?, ?, ?, ?)""",
+                (intent_id, decision_id, intent_key_json, intent_key.leg),
+            )
+        row = cursor.execute(
+            "SELECT * FROM execution_decisions WHERE decision_id = ?", (decision_id,)
+        ).fetchone()
+        return _decision_record(row), True
+
+    def _check_decision_capacity(
+        self, cursor: sqlite3.Cursor, *, decision_class: str, added_bytes: int
+    ) -> None:
+        row = cursor.execute(
+            """SELECT COUNT(*) AS record_count,
+                      COALESCE(SUM(LENGTH(CAST(business_key_json AS BLOB)) +
+                                   LENGTH(CAST(economic_payload_json AS BLOB)) +
+                                   LENGTH(CAST(intent_keys_json AS BLOB))), 0) AS stored_bytes
+               FROM execution_decisions WHERE capacity_class = ?""",
+            (decision_class,),
+        ).fetchone()
+        if decision_class == "SETTLEMENT":
+            record_limit = self.settlement_decision_reserve_records
+            byte_limit = self.settlement_decision_reserve_bytes
+            error_code = "SETTLEMENT_CAPACITY_EXHAUSTED"
+        else:
+            record_limit = self.max_decision_records
+            byte_limit = self.max_decision_bytes
+            error_code = "DECISION_CAPACITY_HIGH_WATER"
+        if (
+            int(row["record_count"]) >= record_limit
+            or int(row["stored_bytes"]) + added_bytes > byte_limit
+        ):
+            raise ExecutionDecisionJournalError(error_code)
 
     def decision(self, decision_id: str) -> Optional[ExecutionDecisionRecord]:
         _require_identifier(decision_id, "INVALID_DECISION_ID")
@@ -371,6 +802,57 @@ class ExecutionDecisionJournal:
                 "SELECT * FROM execution_decisions WHERE decision_id = ?", (decision_id,)
             ).fetchone()
         return None if row is None else _decision_record(row)
+
+    def decision_capacity_snapshot(self) -> ExecutionDecisionCapacitySnapshot:
+        """Return bounded decision usage plus a read-only SQLite size sample.
+
+        Exact decision replay does not consume capacity.  BASE includes NOOP,
+        OPEN, and mixed plans; SETTLEMENT is reserved for decisions consisting
+        only of CLOSE and/or CANCEL intents.  The physical DB/WAL sample is
+        informational; decision JSON bytes are the enforced byte high-water.
+        """
+
+        with self._read_lock():
+            rows = self._connection.execute(
+                """SELECT capacity_class, COUNT(*) AS record_count,
+                          COALESCE(SUM(LENGTH(CAST(business_key_json AS BLOB)) +
+                                       LENGTH(CAST(economic_payload_json AS BLOB)) +
+                                       LENGTH(CAST(intent_keys_json AS BLOB))), 0)
+                          AS payload_bytes
+                   FROM execution_decisions GROUP BY capacity_class"""
+            ).fetchall()
+            usage = {
+                row["capacity_class"]: (int(row["record_count"]), int(row["payload_bytes"]))
+                for row in rows
+            }
+            page_count = int(self._connection.execute("PRAGMA page_count").fetchone()[0])
+            page_size = int(self._connection.execute("PRAGMA page_size").fetchone()[0])
+            if self.path == ":memory:":
+                database_bytes = page_count * page_size
+                wal_bytes = 0
+            else:
+                try:
+                    database_bytes = Path(self.path).stat().st_size
+                except FileNotFoundError:
+                    database_bytes = page_count * page_size
+                try:
+                    wal_bytes = Path(str(self.path) + "-wal").stat().st_size
+                except FileNotFoundError:
+                    wal_bytes = 0
+        base_records, base_bytes = usage.get("BASE", (0, 0))
+        settlement_records, settlement_bytes = usage.get("SETTLEMENT", (0, 0))
+        return ExecutionDecisionCapacitySnapshot(
+            base_record_count=base_records,
+            base_record_limit=self.max_decision_records,
+            base_payload_bytes=base_bytes,
+            base_payload_byte_limit=self.max_decision_bytes,
+            settlement_record_count=settlement_records,
+            settlement_record_limit=self.settlement_decision_reserve_records,
+            settlement_payload_bytes=settlement_bytes,
+            settlement_payload_byte_limit=self.settlement_decision_reserve_bytes,
+            database_bytes=database_bytes,
+            wal_bytes=wal_bytes,
+        )
 
     def prepare_intent(
         self,
@@ -424,6 +906,14 @@ class ExecutionDecisionJournal:
                     or row["owner_intent_id"] != owner_intent_id
                 ):
                     raise ExecutionDecisionJournalError("INTENT_CONFLICT")
+                self._index_native_intent_identity(
+                    cursor,
+                    intent_id=intent_id,
+                    account_scope=json.loads(decision_row["business_key_json"])["account_scope"],
+                    strategy_scope=json.loads(decision_row["business_key_json"])["strategy_scope"],
+                    intent_key=intent_key,
+                    original_identity=json.loads(identity_json),
+                )
                 return _intent_record(row)
 
             account_scope = json.loads(decision_row["business_key_json"])["account_scope"]
@@ -433,10 +923,42 @@ class ExecutionDecisionJournal:
                 (account_scope, intent_key.instrument),
             ).fetchone()
             if intent_key.action == "SUBMIT":
-                if owner_intent_id is not None:
-                    raise ExecutionDecisionJournalError("UNEXPECTED_OWNER_INTENT")
                 if owner is not None and owner["owner_intent_id"] is not None:
                     raise ExecutionDecisionJournalError("INSTRUMENT_OWNER_ACTIVE")
+                factor_owned_close = intent_key.position_effect == "CLOSE" and (
+                    owner_intent_id is not None
+                    or any(
+                        name in economic_payload
+                        for name in ("risk_policy_id", "factor_stop_price", "entry_grid_ordinal")
+                    )
+                )
+                if intent_key.position_effect == "OPEN":
+                    if owner_intent_id is not None:
+                        raise ExecutionDecisionJournalError("UNEXPECTED_OWNER_INTENT")
+                elif intent_key.position_effect == "CLOSE":
+                    if factor_owned_close and owner_intent_id is None:
+                        raise ExecutionDecisionJournalError("CLOSE_OWNER_REQUIRED")
+                    if factor_owned_close:
+                        _require_identifier(owner_intent_id, "INVALID_OWNER_INTENT_ID")
+                        try:
+                            from .factor_position_book import validate_factor_position_close_owner
+
+                            validate_factor_position_close_owner(
+                                cursor,
+                                account_scope=account_scope,
+                                strategy_scope=json.loads(decision_row["business_key_json"])[
+                                    "strategy_scope"
+                                ],
+                                instrument=intent_key.instrument,
+                                exchange=str(economic_payload.get("exchange") or ""),
+                                owner_intent_id=owner_intent_id,
+                            )
+                        except ImportError as error:
+                            raise ExecutionDecisionJournalError(
+                                "POSITION_BOOK_UNAVAILABLE"
+                            ) from error
+                else:
+                    raise ExecutionDecisionJournalError("INVALID_POSITION_EFFECT")
                 if owner is None:
                     cursor.execute(
                         """INSERT INTO execution_instrument_owners
@@ -489,6 +1011,14 @@ class ExecutionDecisionJournal:
                     now_ns,
                 ),
             )
+            self._index_native_intent_identity(
+                cursor,
+                intent_id=intent_id,
+                account_scope=account_scope,
+                strategy_scope=json.loads(decision_row["business_key_json"])["strategy_scope"],
+                intent_key=intent_key,
+                original_identity=json.loads(identity_json),
+            )
             row = cursor.execute(
                 "SELECT * FROM execution_decision_intents WHERE intent_id = ?", (intent_id,)
             ).fetchone()
@@ -501,6 +1031,155 @@ class ExecutionDecisionJournal:
                 "SELECT * FROM execution_decision_intents WHERE intent_id = ?", (intent_id,)
             ).fetchone()
         return None if row is None else _intent_record(row)
+
+    def intent_by_native_order_ref(
+        self,
+        *,
+        account_scope: str,
+        strategy_scope: str,
+        trading_day: str,
+        instrument: str,
+        exchange: str,
+        order_ref: str,
+    ) -> Optional[ExecutionIntentRecord]:
+        """Resolve one exact CTP OrderRef through the durable route index.
+
+        The trading day and complete instrument/exchange route are mandatory
+        because providers may reuse references after a session reset. Ambiguous
+        matches fail closed instead of selecting the newest row.
+        """
+
+        for name, value in (
+            ("account_scope", account_scope),
+            ("strategy_scope", strategy_scope),
+            ("trading_day", trading_day),
+            ("instrument", instrument),
+            ("exchange", exchange),
+            ("order_ref", order_ref),
+        ):
+            _require_identifier(value, "INVALID_" + name.upper())
+        if len(trading_day) != 8 or not trading_day.isdigit():
+            raise ExecutionDecisionJournalError("INVALID_TRADING_DAY")
+        with self._read_lock():
+            rows = self._connection.execute(
+                """SELECT i.* FROM execution_native_intent_identities AS n
+                   JOIN execution_decision_intents AS i ON i.intent_id=n.intent_id
+                   WHERE n.account_scope=? AND n.strategy_scope=? AND n.trading_day=?
+                     AND n.instrument=? AND n.exchange=? AND n.order_ref=?
+                   LIMIT 2""",
+                (account_scope, strategy_scope, trading_day, instrument, exchange, order_ref),
+            ).fetchall()
+        if len(rows) > 1:
+            raise ExecutionDecisionJournalError("NATIVE_ORDER_IDENTITY_AMBIGUOUS")
+        return None if not rows else _intent_record(rows[0])
+
+    def callback_projection_status(
+        self,
+        intent_id: str,
+        callback_id: str,
+        evidence_payload: Mapping[str, Any],
+    ) -> ExecutionCallbackProjectionStatus:
+        """Check exact persisted callback evidence and its durable fill projection."""
+
+        _require_identifier(intent_id, "INVALID_INTENT_ID")
+        _require_identifier(callback_id, "INVALID_CALLBACK_ID")
+        payload_json = self._payload_json(evidence_payload)
+        receipt_id = _stable_id("callback", intent_id + ":" + callback_id)
+        execution_id = evidence_payload.get("execution_id")
+        if not _identifier(execution_id):
+            return ExecutionCallbackProjectionStatus("UNRECONCILED", receipt_id)
+        try:
+            with self._read_lock():
+                receipt = self._connection.execute(
+                    """SELECT intent_id, callback_id, evidence_payload_json
+                       FROM execution_decision_callbacks WHERE receipt_id=?""",
+                    (receipt_id,),
+                ).fetchone()
+                if receipt is None:
+                    return ExecutionCallbackProjectionStatus("UNRECONCILED", receipt_id)
+                if (
+                    receipt["intent_id"] != intent_id
+                    or receipt["callback_id"] != callback_id
+                    or receipt["evidence_payload_json"] != payload_json
+                ):
+                    return ExecutionCallbackProjectionStatus(
+                        "BLOCKED", receipt_id, "CALLBACK_EVIDENCE_CONFLICT"
+                    )
+                issue = self._connection.execute(
+                    """SELECT blocker_code FROM factor_position_evidence_issues
+                       WHERE receipt_id=?""",
+                    (receipt_id,),
+                ).fetchone()
+                if issue is not None:
+                    return ExecutionCallbackProjectionStatus(
+                        "BLOCKED", receipt_id, issue["blocker_code"]
+                    )
+                intent = self._connection.execute(
+                    """SELECT i.intent_key_json, i.economic_payload_json,
+                              d.business_key_json
+                       FROM execution_decision_intents AS i
+                       JOIN execution_decisions AS d ON d.decision_id=i.decision_id
+                       WHERE i.intent_id=?""",
+                    (intent_id,),
+                ).fetchone()
+                if intent is None:
+                    return ExecutionCallbackProjectionStatus(
+                        "BLOCKED", receipt_id, "CALLBACK_INTENT_NOT_FOUND"
+                    )
+                key = json.loads(intent["intent_key_json"])
+                economics = json.loads(intent["economic_payload_json"])
+                business_key = json.loads(intent["business_key_json"])
+                fill = self._connection.execute(
+                    """SELECT * FROM factor_position_fills
+                       WHERE account_scope=? AND instrument=? AND exchange=?
+                         AND execution_id=?""",
+                    (
+                        business_key.get("account_scope"),
+                        key.get("instrument"),
+                        economics.get("exchange"),
+                        execution_id,
+                    ),
+                ).fetchone()
+        except (sqlite3.Error, KeyError, TypeError, ValueError, json.JSONDecodeError) as error:
+            raise ExecutionDecisionJournalError("JOURNAL_READ_FAILED") from error
+        if fill is None:
+            return ExecutionCallbackProjectionStatus("UNRECONCILED", receipt_id)
+        if (
+            fill["intent_id"] != intent_id
+            or fill["strategy_scope"] != business_key.get("strategy_scope")
+            or fill["position_effect"] != key.get("position_effect")
+            or fill["order_side"] != key.get("side")
+            or fill["quantity"] != _canonical_decimal(evidence_payload.get("quantity"))
+            or fill["price"] != _canonical_decimal(evidence_payload.get("price"))
+            or fill["filled_at_ns"] != evidence_payload.get("filled_at_ns")
+        ):
+            return ExecutionCallbackProjectionStatus(
+                "BLOCKED", receipt_id, "CALLBACK_FILL_PROJECTION_CONFLICT"
+            )
+        # A query observation may omit commission. That absence does not
+        # contradict a fee already observed on the native callback.
+        fee = evidence_payload.get("fee")
+        if fee is not None and fill["fee"] != _canonical_decimal(fee):
+            return ExecutionCallbackProjectionStatus(
+                "BLOCKED", receipt_id, "CALLBACK_FILL_FEE_CONFLICT"
+            )
+        return ExecutionCallbackProjectionStatus("APPLIED", receipt_id)
+
+    def callback_receipt(
+        self, intent_id: str, callback_id: str
+    ) -> Optional[ExecutionCallbackReceipt]:
+        """Read one exact dedupe receipt without scanning callback history."""
+
+        _require_identifier(intent_id, "INVALID_INTENT_ID")
+        _require_identifier(callback_id, "INVALID_CALLBACK_ID")
+        receipt_id = _stable_id("callback", intent_id + ":" + callback_id)
+        with self._read_lock():
+            row = self._connection.execute(
+                """SELECT * FROM execution_decision_callbacks
+                   WHERE receipt_id=? AND intent_id=? AND callback_id=?""",
+                (receipt_id, intent_id, callback_id),
+            ).fetchone()
+        return None if row is None else _callback_record(row)
 
     def active_instrument_owner(
         self, account_scope: str, instrument: str
@@ -667,6 +1346,28 @@ class ExecutionDecisionJournal:
             ).fetchall()
         return tuple(_reconciliation_record(row) for row in rows)
 
+    def reconciliation(self, reconciliation_id: str) -> Optional[ExecutionIntentReconciliation]:
+        """Read one exact durable query observation by its immutable identity."""
+
+        _require_identifier(reconciliation_id, "INVALID_RECONCILIATION_ID")
+        with self._read_lock():
+            row = self._connection.execute(
+                "SELECT * FROM execution_intent_reconciliations WHERE reconciliation_id=?",
+                (reconciliation_id,),
+            ).fetchone()
+        return None if row is None else _reconciliation_record(row)
+
+    def instrument_resolution(self, intent_id: str) -> Optional[ExecutionInstrumentResolution]:
+        """Read the terminal resolution that freed one pending-order owner."""
+
+        _require_identifier(intent_id, "INVALID_INTENT_ID")
+        with self._read_lock():
+            row = self._connection.execute(
+                "SELECT * FROM execution_intent_resolutions WHERE intent_id=?",
+                (intent_id,),
+            ).fetchone()
+        return None if row is None else _resolution_record(row)
+
     def release_instrument_owner(
         self, intent_id: str, *, reconciliation_id: str
     ) -> ExecutionInstrumentResolution:
@@ -735,6 +1436,16 @@ class ExecutionDecisionJournal:
                 )
                 if existing_values != values:
                     raise ExecutionDecisionJournalError("INSTRUMENT_RESOLUTION_CONFLICT")
+                if bool(existing["position_flat"]) and _factor_book_checkpoint_required(
+                    intent_key, intent_row["economic_payload_json"]
+                ):
+                    from .factor_position_book import record_factor_position_flat_checkpoint
+
+                    record_factor_position_flat_checkpoint(
+                        cursor,
+                        intent_id=intent_id,
+                        reconciliation_id=reconciliation_id,
+                    )
                 return _resolution_record(existing)
             owner = cursor.execute(
                 """SELECT owner_intent_id FROM execution_instrument_owners
@@ -756,6 +1467,16 @@ class ExecutionDecisionJournal:
                    WHERE account_scope = ? AND instrument = ? AND owner_intent_id = ?""",
                 (account_scope, intent_key.instrument, intent_id),
             )
+            if bool(reconciliation["position_flat"]) and _factor_book_checkpoint_required(
+                intent_key, intent_row["economic_payload_json"]
+            ):
+                from .factor_position_book import record_factor_position_flat_checkpoint
+
+                record_factor_position_flat_checkpoint(
+                    cursor,
+                    intent_id=intent_id,
+                    reconciliation_id=reconciliation_id,
+                )
             row = cursor.execute(
                 "SELECT * FROM execution_intent_resolutions WHERE intent_id = ?", (intent_id,)
             ).fetchone()
@@ -820,13 +1541,69 @@ class ExecutionDecisionJournal:
             ).fetchone()
             return _abandonment_record(abandonment)
 
+    def abandon_unprepared_slot(
+        self,
+        decision_id: str,
+        intent_key: ExecutionIntentKey,
+        *,
+        reason_code: str,
+    ) -> ExecutionIntentAbandonment:
+        """Close a declared slot that never acquired a durable intent.
+
+        A slot is safe to abandon only while no intent row exists. Dispatch
+        claim creation always follows intent preparation, so an absent row is
+        proof this leg never reached the route boundary.
+        """
+
+        _require_identifier(decision_id, "INVALID_DECISION_ID")
+        _require_identifier(reason_code, "INVALID_ABANDONMENT_REASON")
+        if not isinstance(intent_key, ExecutionIntentKey):
+            raise ExecutionDecisionJournalError("INVALID_INTENT_KEY")
+        intent_key_json = _canonical_json(_intent_key_values(intent_key))
+        intent_id = _stable_id("intent", decision_id + ":" + intent_key_json)
+        abandonment_id = _stable_id("slot-abandonment", intent_id)
+        now_ns = time.time_ns()
+        with self._transaction() as cursor:
+            slot = cursor.execute(
+                """SELECT decision_id FROM execution_decision_slots WHERE intent_id=?""",
+                (intent_id,),
+            ).fetchone()
+            if slot is None or slot["decision_id"] != decision_id:
+                raise ExecutionDecisionJournalError("INTENT_NOT_DECLARED")
+            if (
+                cursor.execute(
+                    "SELECT 1 FROM execution_decision_intents WHERE intent_id=?", (intent_id,)
+                ).fetchone()
+                is not None
+            ):
+                raise ExecutionDecisionJournalError("INTENT_ALREADY_PREPARED")
+            existing = cursor.execute(
+                "SELECT * FROM execution_slot_abandonments WHERE intent_id=?", (intent_id,)
+            ).fetchone()
+            if existing is not None:
+                if existing["reason_code"] != reason_code:
+                    raise ExecutionDecisionJournalError("INTENT_ABANDONMENT_CONFLICT")
+                return _slot_abandonment_record(existing)
+            cursor.execute(
+                """INSERT INTO execution_slot_abandonments
+                   (abandonment_id, intent_id, reason_code, created_at_ns)
+                   VALUES (?, ?, ?, ?)""",
+                (abandonment_id, intent_id, reason_code, now_ns),
+            )
+            return _slot_abandonment_record(
+                cursor.execute(
+                    "SELECT * FROM execution_slot_abandonments WHERE intent_id=?", (intent_id,)
+                ).fetchone()
+            )
+
     def claim_dispatch(self, intent_id: str) -> Optional[ExecutionDispatchClaim]:
         """Atomically claim the only dispatch attempt for one prepared intent.
 
         Returns ``None`` for DISPATCHING, KNOWN or UNKNOWN intents.  A process
         restart cannot turn an ambiguous dispatch back into permission to send.
-        A multi-intent decision must have every declared leg prepared before
-        its first leg can be claimed.
+        Multi-intent decisions may dispatch sequentially. Earlier declared
+        legs must be KNOWN before a later leg is claimed; an unprepared later
+        leg does not make the first leg atomic or block its dispatch.
         """
 
         _require_identifier(intent_id, "INVALID_INTENT_ID")
@@ -836,9 +1613,14 @@ class ExecutionDecisionJournal:
             ).fetchone()
             if row is None:
                 raise ExecutionDecisionJournalError("INTENT_NOT_PREPARED")
-            if cursor.execute(
-                "SELECT 1 FROM execution_intent_abandonments WHERE intent_id = ?", (intent_id,)
-            ).fetchone():
+            if (
+                cursor.execute(
+                    "SELECT 1 FROM execution_intent_abandonments WHERE intent_id = ?", (intent_id,)
+                ).fetchone()
+                or cursor.execute(
+                    "SELECT 1 FROM execution_slot_abandonments WHERE intent_id = ?", (intent_id,)
+                ).fetchone()
+            ):
                 raise ExecutionDecisionJournalError("INTENT_ABANDONED")
             if row["state"] != "PREPARED":
                 return None
@@ -856,16 +1638,6 @@ class ExecutionDecisionJournal:
                 ).fetchone()
                 if owner_row is None or owner_row["owner_intent_id"] != row["owner_intent_id"]:
                     raise ExecutionDecisionJournalError("CANCEL_OWNER_RELEASED")
-            missing = int(
-                cursor.execute(
-                    """SELECT COUNT(*) FROM execution_decision_slots AS s
-                       LEFT JOIN execution_decision_intents AS i ON i.intent_id = s.intent_id
-                       WHERE s.decision_id = ? AND i.intent_id IS NULL""",
-                    (row["decision_id"],),
-                ).fetchone()[0]
-            )
-            if missing:
-                raise ExecutionDecisionJournalError("DECISION_INTENTS_INCOMPLETE")
             prior_unresolved = int(
                 cursor.execute(
                     """SELECT COUNT(*) FROM execution_decision_slots AS s
@@ -965,6 +1737,41 @@ class ExecutionDecisionJournal:
             ).fetchall()
         return tuple(_intent_record(row) for row in rows)
 
+    def execution_intent_snapshot(self, *, limit: int = 128) -> ExecutionIntentSnapshotPage:
+        """Return a bounded page of unresolved or still-owned intent evidence.
+
+        The projection is read-only and contains no Backtrader objects. It is
+        suitable for strategy/fact reconciliation, not as a command queue.
+        """
+
+        if type(limit) is not int or not 1 <= limit <= self.max_pending_intents:
+            raise ExecutionDecisionJournalError("INVALID_INTENT_SNAPSHOT_LIMIT")
+        with self._read_lock():
+            rows = self._connection.execute(
+                """SELECT i.*
+                   FROM execution_decision_intents AS i
+                   WHERE (
+                          i.state IN ('PREPARED','DISPATCHING','UNKNOWN')
+                          AND NOT EXISTS (
+                              SELECT 1 FROM execution_intent_abandonments AS a
+                              WHERE a.intent_id=i.intent_id
+                          )
+                   )
+                      OR EXISTS (
+                          SELECT 1 FROM execution_instrument_owners AS o
+                          WHERE o.owner_intent_id = i.intent_id
+                             OR o.cancel_intent_id = i.intent_id
+                      )
+                   ORDER BY i.created_at_ns, i.intent_id
+                   LIMIT ?""",
+                (limit + 1,),
+            ).fetchall()
+        truncated = len(rows) > limit
+        return ExecutionIntentSnapshotPage(
+            items=tuple(_intent_record(row) for row in rows[:limit]),
+            truncated=truncated,
+        )
+
     def record_callback(
         self, intent_id: str, callback_id: str, evidence_payload: Mapping[str, Any]
     ) -> ExecutionCallbackReceipt:
@@ -993,7 +1800,7 @@ class ExecutionDecisionJournal:
                     or existing["evidence_payload_json"] != payload_json
                 ):
                     raise ExecutionDecisionJournalError("CALLBACK_CONFLICT")
-                return _callback_record(existing)
+                return _callback_record(existing, is_new=False)
             pending = int(
                 cursor.execute(
                     "SELECT COUNT(*) FROM execution_decision_callbacks WHERE acknowledged = 0"
@@ -1012,7 +1819,73 @@ class ExecutionDecisionJournal:
                 "SELECT * FROM execution_decision_callbacks WHERE receipt_id = ?",
                 (receipt_id,),
             ).fetchone()
-            return _callback_record(row)
+            return _callback_record(row, is_new=True)
+
+    def record_callback_projected(
+        self,
+        intent_id: str,
+        callback_id: str,
+        evidence_payload: Mapping[str, Any],
+        *,
+        project: Callable[[sqlite3.Cursor, str], Any],
+    ) -> Tuple[ExecutionCallbackReceipt, Any]:
+        """Persist callback evidence and run its durable projection atomically.
+
+        The projector receives this journal's write cursor and immutable
+        receipt id. It is invoked for both a new receipt and an exact replay so
+        an idempotent projector can repair a missing derived projection after
+        recovery. A provider fill projector must deduplicate by its stable
+        execution id. The callback receipt and projection commit together.
+        """
+
+        _require_identifier(intent_id, "INVALID_INTENT_ID")
+        _require_identifier(callback_id, "INVALID_CALLBACK_ID")
+        if not callable(project):
+            raise ExecutionDecisionJournalError("CALLBACK_PROJECTOR_REQUIRED")
+        payload_json = self._payload_json(evidence_payload)
+        receipt_id = _stable_id("callback", intent_id + ":" + callback_id)
+        now_ns = time.time_ns()
+        with self._transaction() as cursor:
+            if (
+                cursor.execute(
+                    "SELECT 1 FROM execution_decision_intents WHERE intent_id = ?", (intent_id,)
+                ).fetchone()
+                is None
+            ):
+                raise ExecutionDecisionJournalError("INTENT_NOT_PREPARED")
+            existing = cursor.execute(
+                "SELECT * FROM execution_decision_callbacks WHERE receipt_id = ?", (receipt_id,)
+            ).fetchone()
+            is_new = existing is None
+            if existing is not None:
+                if (
+                    existing["intent_id"] != intent_id
+                    or existing["callback_id"] != callback_id
+                    or existing["evidence_payload_json"] != payload_json
+                ):
+                    raise ExecutionDecisionJournalError("CALLBACK_CONFLICT")
+                row = existing
+            else:
+                pending = int(
+                    cursor.execute(
+                        "SELECT COUNT(*) FROM execution_decision_callbacks WHERE acknowledged = 0"
+                    ).fetchone()[0]
+                )
+                if pending >= self.max_pending_callbacks:
+                    raise ExecutionDecisionJournalError("PENDING_CALLBACK_LIMIT")
+                cursor.execute(
+                    """INSERT INTO execution_decision_callbacks
+                       (receipt_id, intent_id, callback_id, evidence_payload_json,
+                        acknowledged, created_at_ns)
+                       VALUES (?, ?, ?, ?, 0, ?)""",
+                    (receipt_id, intent_id, callback_id, payload_json, now_ns),
+                )
+                row = cursor.execute(
+                    "SELECT * FROM execution_decision_callbacks WHERE receipt_id = ?",
+                    (receipt_id,),
+                ).fetchone()
+            projected = project(cursor, receipt_id)
+            return _callback_record(row, is_new=is_new), projected
 
     def pending_callbacks(self, *, limit: int) -> Tuple[ExecutionCallbackReceipt, ...]:
         """Fetch a bounded page of callback evidence awaiting caller delivery."""
@@ -1055,10 +1928,137 @@ class ExecutionDecisionJournal:
             raise ExecutionDecisionJournalError("JOURNAL_PAYLOAD_TOO_LARGE")
         return encoded
 
+    @staticmethod
+    def _index_native_intent_identity(
+        cursor: sqlite3.Cursor,
+        *,
+        intent_id: str,
+        account_scope: str,
+        strategy_scope: str,
+        intent_key: ExecutionIntentKey,
+        original_identity: Mapping[str, Any],
+    ) -> None:
+        """Persist an exact CTP insert identity for bounded restart lookup.
+
+        Generic journal users may provide an ``order_ref`` without claiming a
+        CTP identity. A trading day or explicit registered-SimNow insert
+        operation claims the CTP tuple, which must then be complete and
+        immutable. Cancel intents refer to the original submit identity and
+        never claim a second OrderRef.
+        """
+
+        if intent_key.action != "SUBMIT":
+            return
+        names = ("trading_day", "instrument_id", "exchange_id", "order_ref")
+        # ``order_ref`` is also used by generic adapters. A CTP identity is
+        # claimed only by its route-specific trading day or the explicit
+        # registered-SimNow insert operation; older generic rows containing
+        # only an order reference remain valid and unindexed.
+        native_claimed = (
+            "trading_day" in original_identity or original_identity.get("operation") == "insert"
+        )
+        if not native_claimed:
+            existing = cursor.execute(
+                "SELECT 1 FROM execution_native_intent_identities WHERE intent_id=?",
+                (intent_id,),
+            ).fetchone()
+            if existing is not None:
+                raise ExecutionDecisionJournalError("NATIVE_ORDER_IDENTITY_CONFLICT")
+            return
+        present = tuple(name in original_identity for name in names)
+        if not all(present) or original_identity.get("operation") != "insert":
+            raise ExecutionDecisionJournalError("NATIVE_ORDER_IDENTITY_INCOMPLETE")
+        trading_day = original_identity.get("trading_day")
+        instrument = original_identity.get("instrument_id")
+        exchange = original_identity.get("exchange_id")
+        order_ref = original_identity.get("order_ref")
+        if (
+            not _identifier(account_scope)
+            or not _identifier(strategy_scope)
+            or type(trading_day) is not str
+            or len(trading_day) != 8
+            or not trading_day.isdigit()
+            or not _identifier(instrument)
+            or instrument != intent_key.instrument
+            or not _identifier(exchange)
+            or type(order_ref) is not str
+            or re.fullmatch(r"[1-9][0-9]{0,19}", order_ref) is None
+        ):
+            raise ExecutionDecisionJournalError("NATIVE_ORDER_IDENTITY_INVALID")
+        values = (
+            account_scope,
+            strategy_scope,
+            trading_day,
+            instrument,
+            exchange,
+            order_ref,
+        )
+        existing = cursor.execute(
+            """SELECT account_scope,strategy_scope,trading_day,instrument,exchange,order_ref
+               FROM execution_native_intent_identities WHERE intent_id=?""",
+            (intent_id,),
+        ).fetchone()
+        if existing is not None:
+            if tuple(existing) != values:
+                raise ExecutionDecisionJournalError("NATIVE_ORDER_IDENTITY_CONFLICT")
+            return
+        claimed = cursor.execute(
+            """SELECT intent_id FROM execution_native_intent_identities
+               WHERE account_scope=? AND trading_day=? AND order_ref=?""",
+            (account_scope, trading_day, order_ref),
+        ).fetchone()
+        if claimed is not None and claimed["intent_id"] != intent_id:
+            raise ExecutionDecisionJournalError("NATIVE_ORDER_IDENTITY_CONFLICT")
+        cursor.execute(
+            """INSERT INTO execution_native_intent_identities
+               (intent_id,account_scope,strategy_scope,trading_day,instrument,exchange,order_ref)
+               VALUES(?,?,?,?,?,?,?)""",
+            (intent_id,) + values,
+        )
+
+    def _backfill_native_intent_identities(self, cursor: sqlite3.Cursor) -> None:
+        """Rebuild the bounded CTP lookup index from immutable v7 intent rows.
+
+        This runs transactionally for every pre-v8 database, including v7
+        databases that already have the index table but predate startup
+        backfill. Intent and dispatch rows are read-only here; any malformed or
+        conflicting native identity aborts the migration.
+        """
+
+        rows = cursor.execute(
+            """SELECT i.intent_id, i.intent_key_json, i.original_identity_json,
+                      d.business_key_json
+               FROM execution_decision_intents AS i
+               JOIN execution_decisions AS d ON d.decision_id=i.decision_id
+               ORDER BY i.created_at_ns, i.intent_id"""
+        ).fetchall()
+        for row in rows:
+            try:
+                intent_key_data = json.loads(row["intent_key_json"])
+                original_identity = json.loads(row["original_identity_json"])
+                business_key = json.loads(row["business_key_json"])
+                if not isinstance(original_identity, Mapping) or not isinstance(
+                    business_key, Mapping
+                ):
+                    raise ValueError("journal identity rows must be objects")
+                intent_key = ExecutionIntentKey(**intent_key_data)
+                self._index_native_intent_identity(
+                    cursor,
+                    intent_id=row["intent_id"],
+                    account_scope=business_key["account_scope"],
+                    strategy_scope=business_key["strategy_scope"],
+                    intent_key=intent_key,
+                    original_identity=original_identity,
+                )
+            except ExecutionDecisionJournalError:
+                raise
+            except (KeyError, TypeError, ValueError) as error:
+                raise ExecutionDecisionJournalError("NATIVE_ORDER_IDENTITY_INVALID") from error
+
     def _create_schema(self) -> None:
         with self._lock:
             version = int(self._connection.execute("PRAGMA user_version").fetchone()[0])
-            if version not in (0, 1, self._SCHEMA_VERSION):
+            if version not in (0, 1, 2, 3, 4, 5, 6, 7, self._SCHEMA_VERSION):
                 raise ExecutionDecisionJournalError("UNSUPPORTED_SCHEMA_VERSION")
             try:
                 self._connection.executescript(
@@ -1068,7 +2068,40 @@ class ExecutionDecisionJournal:
                         business_key_json TEXT NOT NULL UNIQUE,
                         economic_payload_json TEXT NOT NULL,
                         intent_keys_json TEXT NOT NULL,
-                        created_at_ns INTEGER NOT NULL
+                        created_at_ns INTEGER NOT NULL,
+                        capacity_class TEXT NOT NULL DEFAULT 'BASE'
+                            CHECK(capacity_class IN ('BASE','SETTLEMENT'))
+                    );
+                    CREATE TABLE IF NOT EXISTS execution_journal_capacity (
+                        singleton INTEGER PRIMARY KEY CHECK(singleton = 1),
+                        max_decision_records INTEGER NOT NULL CHECK(max_decision_records > 0),
+                        settlement_decision_reserve_records INTEGER NOT NULL
+                            CHECK(settlement_decision_reserve_records > 0),
+                        max_decision_bytes INTEGER NOT NULL CHECK(max_decision_bytes >= 1024),
+                        settlement_decision_reserve_bytes INTEGER NOT NULL
+                            CHECK(settlement_decision_reserve_bytes >= 1024)
+                    );
+                    CREATE TABLE IF NOT EXISTS execution_grid_cursors (
+                        account_scope TEXT NOT NULL,
+                        strategy_scope TEXT NOT NULL,
+                        cohort_id TEXT NOT NULL,
+                        ordinal INTEGER NOT NULL CHECK(ordinal >= 1),
+                        epoch_id TEXT NOT NULL,
+                        batch_id TEXT NOT NULL,
+                        close_time TEXT NOT NULL,
+                        decision_id TEXT NOT NULL REFERENCES execution_decisions(decision_id),
+                        updated_at_ns INTEGER NOT NULL,
+                        PRIMARY KEY(account_scope, strategy_scope, cohort_id)
+                    );
+                    CREATE TABLE IF NOT EXISTS execution_run_order_budgets (
+                        account_scope TEXT NOT NULL,
+                        strategy_scope TEXT NOT NULL,
+                        logical_run_id TEXT NOT NULL,
+                        max_intents INTEGER NOT NULL CHECK(max_intents >= 0),
+                        intent_count INTEGER NOT NULL CHECK(intent_count >= 0),
+                        created_at_ns INTEGER NOT NULL,
+                        PRIMARY KEY(account_scope, strategy_scope, logical_run_id),
+                        CHECK(intent_count <= max_intents)
                     );
                     CREATE TABLE IF NOT EXISTS execution_decision_slots (
                         intent_id TEXT PRIMARY KEY,
@@ -1091,6 +2124,17 @@ class ExecutionDecisionJournal:
                         dispatch_result_json TEXT,
                         created_at_ns INTEGER NOT NULL,
                         updated_at_ns INTEGER NOT NULL
+                    );
+                    CREATE TABLE IF NOT EXISTS execution_native_intent_identities (
+                        intent_id TEXT PRIMARY KEY
+                            REFERENCES execution_decision_intents(intent_id),
+                        account_scope TEXT NOT NULL,
+                        strategy_scope TEXT NOT NULL,
+                        trading_day TEXT NOT NULL CHECK(length(trading_day) = 8),
+                        instrument TEXT NOT NULL,
+                        exchange TEXT NOT NULL,
+                        order_ref TEXT NOT NULL,
+                        UNIQUE(account_scope, trading_day, order_ref)
                     );
                     CREATE TABLE IF NOT EXISTS execution_decision_callbacks (
                         receipt_id TEXT PRIMARY KEY,
@@ -1149,6 +2193,13 @@ class ExecutionDecisionJournal:
                         reason_code TEXT NOT NULL,
                         created_at_ns INTEGER NOT NULL
                     );
+                    CREATE TABLE IF NOT EXISTS execution_slot_abandonments (
+                        abandonment_id TEXT PRIMARY KEY,
+                        intent_id TEXT NOT NULL UNIQUE
+                            REFERENCES execution_decision_slots(intent_id),
+                        reason_code TEXT NOT NULL,
+                        created_at_ns INTEGER NOT NULL
+                    );
                     CREATE TRIGGER IF NOT EXISTS execution_reconciliation_no_update
                     BEFORE UPDATE ON execution_intent_reconciliations
                     BEGIN SELECT RAISE(ABORT, 'reconciliation is append only'); END;
@@ -1161,14 +2212,32 @@ class ExecutionDecisionJournal:
                     CREATE TRIGGER IF NOT EXISTS execution_abandonment_no_delete
                     BEFORE DELETE ON execution_intent_abandonments
                     BEGIN SELECT RAISE(ABORT, 'abandonment is append only'); END;
+                    CREATE TRIGGER IF NOT EXISTS execution_slot_abandonment_no_update
+                    BEFORE UPDATE ON execution_slot_abandonments
+                    BEGIN SELECT RAISE(ABORT, 'slot abandonment is append only'); END;
+                    CREATE TRIGGER IF NOT EXISTS execution_slot_abandonment_no_delete
+                    BEFORE DELETE ON execution_slot_abandonments
+                    BEGIN SELECT RAISE(ABORT, 'slot abandonment is append only'); END;
                     CREATE INDEX IF NOT EXISTS execution_decision_intents_recovery
                         ON execution_decision_intents(state, created_at_ns);
                     CREATE INDEX IF NOT EXISTS execution_decision_callbacks_pending
                         ON execution_decision_callbacks(acknowledged, created_at_ns);
                     CREATE INDEX IF NOT EXISTS execution_intent_reconciliations_order
                         ON execution_intent_reconciliations(intent_id, created_at_ns);
+                    CREATE INDEX IF NOT EXISTS execution_native_intent_lookup
+                        ON execution_native_intent_identities(
+                            account_scope, strategy_scope, trading_day,
+                            instrument, exchange, order_ref
+                        );
                     """
                 )
+                from .factor_position_book import ensure_factor_position_book_schema
+
+                cursor = self._connection.cursor()
+                try:
+                    ensure_factor_position_book_schema(cursor)
+                finally:
+                    cursor.close()
                 if version in (0, 1):
                     columns = {
                         row["name"]
@@ -1186,9 +2255,73 @@ class ExecutionDecisionJournal:
                         """UPDATE execution_decision_intents SET dispatch_state = state
                            WHERE state IN ('KNOWN','UNKNOWN') AND dispatch_state IS NULL"""
                     )
-                if version in (0, 1):
-                    self._connection.execute("PRAGMA user_version = 2")
+                # Version 3 added the durable eligible-grid cursor. Version 4
+                # added the position book. Version 5 records unused decision slots.
+                # Version 6 indexes exact native order IDs for bounded restart recovery.
+                columns = {
+                    row["name"]
+                    for row in self._connection.execute(
+                        "PRAGMA table_info(execution_decisions)"
+                    ).fetchall()
+                }
+                if "capacity_class" not in columns:
+                    self._connection.execute(
+                        """ALTER TABLE execution_decisions ADD COLUMN capacity_class
+                           TEXT NOT NULL DEFAULT 'BASE'
+                           CHECK(capacity_class IN ('BASE','SETTLEMENT'))"""
+                    )
+                self._connection.execute(
+                    """CREATE INDEX IF NOT EXISTS execution_decisions_capacity
+                       ON execution_decisions(capacity_class, created_at_ns)"""
+                )
+                self._connection.execute("BEGIN IMMEDIATE")
+                if version < self._SCHEMA_VERSION:
+                    cursor = self._connection.cursor()
+                    try:
+                        self._backfill_native_intent_identities(cursor)
+                    finally:
+                        cursor.close()
+                self._connection.execute(
+                    """INSERT OR IGNORE INTO execution_journal_capacity
+                       (singleton,max_decision_records,settlement_decision_reserve_records,
+                        max_decision_bytes,settlement_decision_reserve_bytes)
+                       VALUES (1,?,?,?,?)""",
+                    (
+                        self.max_decision_records,
+                        self.settlement_decision_reserve_records,
+                        self.max_decision_bytes,
+                        self.settlement_decision_reserve_bytes,
+                    ),
+                )
+                capacity = self._connection.execute(
+                    "SELECT * FROM execution_journal_capacity WHERE singleton=1"
+                ).fetchone()
+                expected_capacity = (
+                    self.max_decision_records,
+                    self.settlement_decision_reserve_records,
+                    self.max_decision_bytes,
+                    self.settlement_decision_reserve_bytes,
+                )
+                actual_capacity = (
+                    int(capacity["max_decision_records"]),
+                    int(capacity["settlement_decision_reserve_records"]),
+                    int(capacity["max_decision_bytes"]),
+                    int(capacity["settlement_decision_reserve_bytes"]),
+                )
+                if actual_capacity != expected_capacity:
+                    raise ExecutionDecisionJournalError("JOURNAL_CAPACITY_CONFIG_MISMATCH")
+                self._connection.execute("COMMIT")
+                # V3 added the grid cursor, V4 the position book, V5 slot
+                # abandonment, V6 native-id recovery, V7 capacity bounds, and
+                # V8 transactional native-identity backfill.
+                self._connection.execute("PRAGMA user_version = 8")
+            except ExecutionDecisionJournalError:
+                if self._connection.in_transaction:
+                    self._connection.execute("ROLLBACK")
+                raise
             except sqlite3.Error as error:
+                if self._connection.in_transaction:
+                    self._connection.execute("ROLLBACK")
                 raise ExecutionDecisionJournalError("JOURNAL_SCHEMA_FAILED") from error
 
     @contextmanager
@@ -1250,6 +2383,14 @@ def _normalize_intent_keys(
     if len({item.instrument for item in keys}) != len(keys):
         raise ExecutionDecisionJournalError("DUPLICATE_INSTRUMENT_INTENT")
     return keys
+
+
+def _decision_capacity_class(intent_keys: Tuple[ExecutionIntentKey, ...]) -> str:
+    if intent_keys and all(
+        item.action == "CANCEL" or item.position_effect == "CLOSE" for item in intent_keys
+    ):
+        return "SETTLEMENT"
+    return "BASE"
 
 
 def _canonical_json(value: Any) -> str:
@@ -1336,6 +2477,20 @@ def _normalize_close_time(value: Any) -> str:
     return normalized[:-6] + "Z"
 
 
+def _parse_normalized_close_time(value: str) -> datetime:
+    """Parse a journal-normalized UTC timestamp for monotonic cursor checks."""
+
+    if type(value) is not str or not value.endswith("Z"):
+        raise ExecutionDecisionJournalError("INVALID_STORED_GRID_CLOSE_TIME")
+    try:
+        parsed = datetime.fromisoformat(value[:-1] + "+00:00")
+    except ValueError as error:
+        raise ExecutionDecisionJournalError("INVALID_STORED_GRID_CLOSE_TIME") from error
+    if parsed.tzinfo is None or parsed.utcoffset() is None:
+        raise ExecutionDecisionJournalError("INVALID_STORED_GRID_CLOSE_TIME")
+    return parsed.astimezone(timezone.utc)
+
+
 def _require_identifier(value: Any, code: str) -> None:
     if not _identifier(value):
         raise ExecutionDecisionJournalError(code)
@@ -1379,6 +2534,20 @@ def _decision_record(row: sqlite3.Row) -> ExecutionDecisionRecord:
     )
 
 
+def _grid_cursor_record(row: sqlite3.Row) -> ExecutionGridCursor:
+    return ExecutionGridCursor(
+        account_scope=row["account_scope"],
+        strategy_scope=row["strategy_scope"],
+        cohort_id=row["cohort_id"],
+        ordinal=int(row["ordinal"]),
+        epoch_id=row["epoch_id"],
+        batch_id=row["batch_id"],
+        close_time=row["close_time"],
+        decision_id=row["decision_id"],
+        updated_at_ns=int(row["updated_at_ns"]),
+    )
+
+
 def _intent_record(row: sqlite3.Row) -> ExecutionIntentRecord:
     result = None
     if row["provider_identity_json"] is not None:
@@ -1400,7 +2569,7 @@ def _intent_record(row: sqlite3.Row) -> ExecutionIntentRecord:
     )
 
 
-def _callback_record(row: sqlite3.Row) -> ExecutionCallbackReceipt:
+def _callback_record(row: sqlite3.Row, *, is_new: bool = False) -> ExecutionCallbackReceipt:
     return ExecutionCallbackReceipt(
         receipt_id=row["receipt_id"],
         intent_id=row["intent_id"],
@@ -1408,6 +2577,30 @@ def _callback_record(row: sqlite3.Row) -> ExecutionCallbackReceipt:
         evidence_payload=_deep_freeze(json.loads(row["evidence_payload_json"])),
         acknowledged=bool(row["acknowledged"]),
         created_at_ns=int(row["created_at_ns"]),
+        is_new=is_new,
+    )
+
+
+def _factor_book_checkpoint_required(intent_key: ExecutionIntentKey, economics_json: str) -> bool:
+    """Keep the factor-owned position projection out of generic journal orders."""
+
+    try:
+        economics = json.loads(economics_json)
+    except (TypeError, ValueError):
+        return False
+    if not isinstance(economics, Mapping):
+        return False
+    if intent_key.position_effect == "OPEN":
+        return bool(
+            _identifier(economics.get("risk_policy_id"))
+            and economics.get("factor_stop_price") is not None
+        )
+    return bool(
+        intent_key.position_effect == "CLOSE"
+        and _identifier(economics.get("owner_intent_id"))
+        and economics.get("owner_position_effect") == "OPEN"
+        and economics.get("owner_side") in ("BUY", "SELL")
+        and _identifier(economics.get("exchange"))
     )
 
 
@@ -1471,6 +2664,15 @@ def _reconciliation_record(row: sqlite3.Row) -> ExecutionIntentReconciliation:
 
 
 def _abandonment_record(row: sqlite3.Row) -> ExecutionIntentAbandonment:
+    return ExecutionIntentAbandonment(
+        abandonment_id=row["abandonment_id"],
+        intent_id=row["intent_id"],
+        reason_code=row["reason_code"],
+        created_at_ns=int(row["created_at_ns"]),
+    )
+
+
+def _slot_abandonment_record(row: sqlite3.Row) -> ExecutionIntentAbandonment:
     return ExecutionIntentAbandonment(
         abandonment_id=row["abandonment_id"],
         intent_id=row["intent_id"],

@@ -18,6 +18,7 @@ from backtrader.stores.execution_decision_journal import (
     ExecutionDecisionKey,
     ExecutionIntentKey,
 )
+from backtrader.stores.factor_position_book import apply_factor_execution_fill
 
 
 def _decision_key(
@@ -65,6 +66,17 @@ def _order_payload(**changes):
     }
     payload.update(changes)
     return payload
+
+
+def _native_order_identity(order_ref, *, instrument="SIM-IF-1"):
+    return {
+        "backtrader_order_ref": 41,
+        "order_ref": str(order_ref),
+        "instrument_id": instrument,
+        "exchange_id": "CFFEX",
+        "trading_day": "20261024",
+        "operation": "insert",
+    }
 
 
 def _prepare(journal, *, key=None, intent_key=None, original_identity=None):
@@ -189,6 +201,90 @@ def test_equivalent_close_times_normalize_to_one_business_key(tmp_path):
     journal.close()
 
 
+def test_finite_decision_high_water_allows_replay_and_reserved_settlement(tmp_path):
+    path = tmp_path / "finite-capacity.sqlite3"
+    limits = {
+        "max_decision_records": 1,
+        "settlement_decision_reserve_records": 2,
+        "max_decision_bytes": 10000,
+        "settlement_decision_reserve_bytes": 10000,
+    }
+    journal = ExecutionDecisionJournal(path, **limits)
+    base = _decision_key("capacity-base")
+    first = journal.record_decision(base, {"signal": "flat"})
+
+    # Exact replay is idempotent and does not consume another capacity slot.
+    replay = journal.record_decision(base, {"signal": "flat"})
+    assert replay.decision_id == first.decision_id
+    with pytest.raises(ExecutionDecisionJournalError, match="DECISION_CAPACITY_HIGH_WATER"):
+        journal.record_decision(_decision_key("capacity-base-2"), {"signal": "flat"})
+
+    close_key = _intent_key(effect="CLOSE")
+    close = journal.record_decision(
+        _decision_key("capacity-close"),
+        {"signal": "reduce"},
+        intent_keys=(close_key,),
+    )
+    assert close.intent_keys == (close_key,)
+    cancel_key = _intent_key(action="CANCEL", instrument="SIM-IF-2")
+    cancel = journal.record_decision(
+        _decision_key("capacity-cancel"),
+        {"signal": "cancel"},
+        intent_keys=(cancel_key,),
+    )
+    assert cancel.intent_keys == (cancel_key,)
+    with pytest.raises(ExecutionDecisionJournalError, match="SETTLEMENT_CAPACITY_EXHAUSTED"):
+        journal.record_decision(
+            _decision_key("capacity-settlement-3"),
+            {"signal": "cancel"},
+            intent_keys=(_intent_key(action="CANCEL", instrument="SIM-IF-3"),),
+        )
+    journal.close()
+
+    reopened = ExecutionDecisionJournal(path, **limits)
+    assert reopened.decision(first.decision_id) is not None
+    assert reopened.decision(close.decision_id) is not None
+    assert reopened.decision(cancel.decision_id) is not None
+    with pytest.raises(ExecutionDecisionJournalError, match="JOURNAL_CAPACITY_CONFIG_MISMATCH"):
+        ExecutionDecisionJournal(path, **{**limits, "max_decision_records": 2})
+    # Capacity rejection is not a SQLite failure; exact settlement replay survives.
+    assert (
+        reopened.record_decision(
+            _decision_key("capacity-cancel"),
+            {"signal": "cancel"},
+            intent_keys=(cancel_key,),
+        ).decision_id
+        == cancel.decision_id
+    )
+    usage = reopened.decision_capacity_snapshot()
+    assert usage.base_record_count == usage.base_record_limit == 1
+    assert usage.settlement_record_count == usage.settlement_record_limit == 2
+    assert usage.base_payload_bytes > 0
+    assert usage.settlement_payload_bytes > 0
+    assert usage.physical_bytes >= usage.database_bytes
+    reopened.close()
+
+
+def test_decision_byte_high_water_is_transactional_and_replay_free(tmp_path):
+    journal = ExecutionDecisionJournal(
+        tmp_path / "decision-bytes.sqlite3",
+        max_decision_records=10,
+        settlement_decision_reserve_records=2,
+        max_decision_bytes=1024,
+        settlement_decision_reserve_bytes=1024,
+    )
+    key = _decision_key("decision-byte-a")
+    first = journal.record_decision(key, {"note": "x" * 400})
+    assert journal.record_decision(key, {"note": "x" * 400}).decision_id == first.decision_id
+    with pytest.raises(ExecutionDecisionJournalError, match="DECISION_CAPACITY_HIGH_WATER"):
+        journal.record_decision(_decision_key("decision-byte-b"), {"note": "y" * 400})
+    assert journal.decision(first.decision_id) is not None
+    usage = journal.decision_capacity_snapshot()
+    assert usage.base_record_count == 1
+    assert usage.base_payload_bytes <= usage.base_payload_byte_limit == 1024
+    journal.close()
+
+
 def test_schema_v1_migration_preserves_original_dispatch_outcome(tmp_path):
     path = tmp_path / "schema-v1.sqlite3"
     with sqlite3.connect(path) as connection:
@@ -223,11 +319,266 @@ def test_schema_v1_migration_preserves_original_dispatch_outcome(tmp_path):
     assert intent.state == "UNKNOWN"
     assert intent.dispatch_state == "UNKNOWN"
     assert intent.outcome_code == "connection_lost"
-    assert journal._connection.execute("PRAGMA user_version").fetchone()[0] == 2
+    assert journal._connection.execute("PRAGMA user_version").fetchone()[0] == 8
     journal.close()
 
 
-def test_all_legs_prepare_before_dispatch_and_unknown_never_retries(tmp_path):
+def test_schema_v2_migrates_grid_and_run_budget_tables(tmp_path):
+    path = tmp_path / "schema-v2.sqlite3"
+    with sqlite3.connect(path) as connection:
+        connection.execute(
+            """CREATE TABLE execution_decision_intents (
+                   intent_id TEXT PRIMARY KEY,
+                   decision_id TEXT NOT NULL,
+                   intent_key_json TEXT NOT NULL,
+                   economic_payload_json TEXT NOT NULL,
+                   original_identity_json TEXT NOT NULL,
+                   owner_intent_id TEXT,
+                   state TEXT NOT NULL,
+                   dispatch_state TEXT,
+                   provider_identity_json TEXT,
+                   outcome_code TEXT,
+                   dispatch_result_json TEXT,
+                   created_at_ns INTEGER NOT NULL,
+                   updated_at_ns INTEGER NOT NULL
+               )"""
+        )
+        connection.execute("PRAGMA user_version = 2")
+
+    journal = ExecutionDecisionJournal(path)
+    assert journal._connection.execute("PRAGMA user_version").fetchone()[0] == 8
+    names = {
+        row["name"]
+        for row in journal._connection.execute(
+            "SELECT name FROM sqlite_master WHERE type = 'table'"
+        ).fetchall()
+    }
+    assert "execution_grid_cursors" in names
+    assert "execution_run_order_budgets" in names
+    journal.close()
+
+
+def test_schema_v7_startup_backfills_native_ref_without_rewriting_dispatch(tmp_path):
+    path = tmp_path / "schema-v7-native-index.sqlite3"
+    journal = ExecutionDecisionJournal(path)
+    decision = journal.record_decision(
+        _decision_key("native-v7"),
+        _decision_payload(),
+        intent_keys=(_intent_key(),),
+    )
+    intent = journal.prepare_intent(
+        decision.decision_id,
+        _intent_key(),
+        _order_payload(),
+        original_identity=_native_order_identity("417"),
+    )
+    journal.claim_dispatch(intent.intent_id)
+    unknown = journal.record_dispatch_result(
+        intent.intent_id,
+        state="UNKNOWN",
+        provider_identity={"front_id": 13, "session_id": 7},
+        outcome_code="connection_lost",
+    )
+    journal.close()
+
+    with sqlite3.connect(path) as connection:
+        original_rows = connection.execute(
+            """SELECT original_identity_json, state, dispatch_state,
+                      provider_identity_json, outcome_code, dispatch_result_json
+               FROM execution_decision_intents WHERE intent_id=?""",
+            (intent.intent_id,),
+        ).fetchone()
+        connection.execute(
+            "DELETE FROM execution_native_intent_identities WHERE intent_id=?",
+            (intent.intent_id,),
+        )
+        connection.execute("PRAGMA user_version = 7")
+
+    recovered = ExecutionDecisionJournal(path)
+    indexed = recovered.intent_by_native_order_ref(
+        account_scope="account-a",
+        strategy_scope="strategy-a",
+        trading_day="20261024",
+        instrument="SIM-IF-1",
+        exchange="CFFEX",
+        order_ref="417",
+    )
+    assert indexed == unknown
+    assert recovered.intent(intent.intent_id) == unknown
+    assert recovered._connection.execute("PRAGMA user_version").fetchone()[0] == 8
+    recovered.close()
+
+    with sqlite3.connect(path) as connection:
+        recovered_rows = connection.execute(
+            """SELECT original_identity_json, state, dispatch_state,
+                      provider_identity_json, outcome_code, dispatch_result_json
+               FROM execution_decision_intents WHERE intent_id=?""",
+            (intent.intent_id,),
+        ).fetchone()
+        assert recovered_rows == original_rows
+        assert connection.execute(
+            "SELECT intent_id FROM execution_native_intent_identities"
+        ).fetchall() == [(intent.intent_id,)]
+
+
+def test_legacy_order_ref_without_ctp_identity_stays_unindexed(tmp_path):
+    path = tmp_path / "legacy-order-ref.sqlite3"
+    journal = ExecutionDecisionJournal(path)
+    _, intent = _prepare(journal, original_identity={"order_ref": 9})
+    journal.close()
+
+    with sqlite3.connect(path) as connection:
+        connection.execute("PRAGMA user_version = 7")
+
+    recovered = ExecutionDecisionJournal(path)
+    assert recovered.intent(intent.intent_id) is not None
+    assert (
+        recovered.intent_by_native_order_ref(
+            account_scope="account-a",
+            strategy_scope="strategy-a",
+            trading_day="20261024",
+            instrument="SIM-IF-1",
+            exchange="CFFEX",
+            order_ref="9",
+        )
+        is None
+    )
+    assert (
+        recovered._connection.execute(
+            "SELECT COUNT(*) FROM execution_native_intent_identities"
+        ).fetchone()[0]
+        == 0
+    )
+    recovered.close()
+
+
+def test_native_order_ref_collision_rolls_back_second_intent(tmp_path):
+    journal = ExecutionDecisionJournal(tmp_path / "native-ref-collision.sqlite3")
+    first_key = _intent_key("SIM-IF-1")
+    first_decision = journal.record_decision(
+        _decision_key("native-collision-a"),
+        _decision_payload(),
+        intent_keys=(first_key,),
+    )
+    first = journal.prepare_intent(
+        first_decision.decision_id,
+        first_key,
+        _order_payload(),
+        original_identity=_native_order_identity("9001"),
+    )
+    second_key = _intent_key("SIM-IF-2")
+    second_decision = journal.record_decision(
+        _decision_key("native-collision-b"),
+        _decision_payload(),
+        intent_keys=(second_key,),
+    )
+
+    with pytest.raises(ExecutionDecisionJournalError, match="NATIVE_ORDER_IDENTITY_CONFLICT"):
+        journal.prepare_intent(
+            second_decision.decision_id,
+            second_key,
+            _order_payload(),
+            original_identity=_native_order_identity("9001", instrument="SIM-IF-2"),
+        )
+
+    assert (
+        journal.intent_by_native_order_ref(
+            account_scope="account-a",
+            strategy_scope="strategy-a",
+            trading_day="20261024",
+            instrument="SIM-IF-1",
+            exchange="CFFEX",
+            order_ref="9001",
+        ).intent_id
+        == first.intent_id
+    )
+    assert (
+        journal._connection.execute(
+            "SELECT COUNT(*) FROM execution_decision_intents WHERE decision_id=?",
+            (second_decision.decision_id,),
+        ).fetchone()[0]
+        == 0
+    )
+    assert journal.active_instrument_owner("account-a", "SIM-IF-2") is None
+    journal.close()
+
+
+def test_v7_native_ref_collision_aborts_backfill_without_mutating_intents(tmp_path):
+    path = tmp_path / "schema-v7-native-collision.sqlite3"
+    journal = ExecutionDecisionJournal(path)
+    first_key = _intent_key("SIM-IF-1")
+    first_decision = journal.record_decision(
+        _decision_key("native-migration-collision-a"),
+        _decision_payload(),
+        intent_keys=(first_key,),
+    )
+    first = journal.prepare_intent(
+        first_decision.decision_id,
+        first_key,
+        _order_payload(),
+        original_identity=_native_order_identity("9101"),
+    )
+    second_key = _intent_key("SIM-IF-2")
+    second_decision = journal.record_decision(
+        _decision_key("native-migration-collision-b"),
+        _decision_payload(),
+        intent_keys=(second_key,),
+    )
+    second = journal.prepare_intent(
+        second_decision.decision_id,
+        second_key,
+        _order_payload(),
+        original_identity=_native_order_identity("9102", instrument="SIM-IF-2"),
+    )
+    journal.claim_dispatch(first.intent_id)
+    journal.record_dispatch_result(first.intent_id, state="UNKNOWN", outcome_code="connection_lost")
+    journal.claim_dispatch(second.intent_id)
+    journal.record_dispatch_result(
+        second.intent_id, state="UNKNOWN", outcome_code="connection_lost"
+    )
+    journal.close()
+
+    with sqlite3.connect(path) as connection:
+        second_row = connection.execute(
+            "SELECT original_identity_json FROM execution_decision_intents WHERE intent_id=?",
+            (second.intent_id,),
+        ).fetchone()
+        second_identity = json.loads(second_row[0])
+        second_identity["order_ref"] = "9101"
+        connection.execute(
+            "UPDATE execution_decision_intents SET original_identity_json=? WHERE intent_id=?",
+            (json.dumps(second_identity, sort_keys=True, separators=(",", ":")), second.intent_id),
+        )
+        connection.execute("DELETE FROM execution_native_intent_identities")
+        connection.execute("PRAGMA user_version = 7")
+        raw_conflict = connection.execute(
+            """SELECT intent_id, original_identity_json, state, dispatch_state,
+                      outcome_code, dispatch_result_json
+               FROM execution_decision_intents ORDER BY intent_id"""
+        ).fetchall()
+
+    with pytest.raises(ExecutionDecisionJournalError, match="NATIVE_ORDER_IDENTITY_CONFLICT"):
+        ExecutionDecisionJournal(path)
+
+    with sqlite3.connect(path) as connection:
+        assert connection.execute("PRAGMA user_version").fetchone()[0] == 7
+        assert (
+            connection.execute(
+                "SELECT COUNT(*) FROM execution_native_intent_identities"
+            ).fetchone()[0]
+            == 0
+        )
+        assert (
+            connection.execute(
+                """SELECT intent_id, original_identity_json, state, dispatch_state,
+                      outcome_code, dispatch_result_json
+               FROM execution_decision_intents ORDER BY intent_id"""
+            ).fetchall()
+            == raw_conflict
+        )
+
+
+def test_multileg_partial_dispatch_is_sequential_and_unknown_never_retries(tmp_path):
     path = tmp_path / "multi.sqlite3"
     journal = ExecutionDecisionJournal(path, max_pending_intents=4)
     keys = (
@@ -241,8 +592,9 @@ def test_all_legs_prepare_before_dispatch_and_unknown_never_retries(tmp_path):
         _order_payload(),
         original_identity={"backtrader_order_ref": 10, "client_order_id": "bt-10"},
     )
-    with pytest.raises(ExecutionDecisionJournalError, match="DECISION_INTENTS_INCOMPLETE"):
-        journal.claim_dispatch(first.intent_id)
+    first_claim = journal.claim_dispatch(first.intent_id)
+    assert first_claim is not None
+    assert first_claim.intent.state == "DISPATCHING"
     second = journal.prepare_intent(
         decision.decision_id,
         keys[1],
@@ -252,9 +604,7 @@ def test_all_legs_prepare_before_dispatch_and_unknown_never_retries(tmp_path):
     with pytest.raises(ExecutionDecisionJournalError, match="PRIOR_INTENT_NOT_KNOWN"):
         journal.claim_dispatch(second.intent_id)
 
-    claim = journal.claim_dispatch(first.intent_id)
-    assert claim is not None
-    assert claim.intent.state == "DISPATCHING"
+    claim = first_claim
     assert claim.intent.original_identity["client_order_id"] == "bt-10"
     with pytest.raises(TypeError):
         claim.intent.original_identity["client_order_id"] = "changed"
@@ -681,6 +1031,87 @@ def test_callbacks_are_deduplicated_bounded_and_acknowledged_after_delivery(tmp_
     reopened.close()
 
 
+def test_projected_callback_roundtrip_replay_and_exact_key_blocking(tmp_path):
+    journal = ExecutionDecisionJournal(tmp_path / "projected-callback.sqlite3")
+    intent_key = _intent_key("SIM-IF-1", effect="OPEN")
+    decision = journal.record_decision(
+        _decision_key("projected-callback"),
+        _decision_payload(),
+        intent_keys=(intent_key,),
+    )
+    intent = journal.prepare_intent(
+        decision.decision_id,
+        intent_key,
+        {
+            "quantity": "1",
+            "price": "100",
+            "exchange": "CFFEX",
+            "factor_stop_price": "90",
+            "risk_policy_id": "risk-v1",
+            "risk_policy": {"max_loss_per_position": "10"},
+        },
+    )
+    callback_id = "trade-event-1"
+    evidence = {
+        "event_type": "execution_fill",
+        "execution_id": "trade-1",
+        "quantity": "1",
+        "price": "100",
+        "fee": None,
+        "filled_at_ns": 1_798_192_800_000_000_000,
+        "exchange": "CFFEX",
+    }
+    claim = journal.claim_dispatch(intent.intent_id)
+    assert claim is not None
+    assert claim.intent.state == "DISPATCHING"
+
+    def project(cursor, receipt_id):
+        return apply_factor_execution_fill(cursor, receipt_id=receipt_id)
+
+    before_receipt = journal.callback_projection_status(intent.intent_id, callback_id, evidence)
+    assert before_receipt.status == "UNRECONCILED"
+    first, first_projection = journal.record_callback_projected(
+        intent.intent_id, callback_id, evidence, project=project
+    )
+    assert first.is_new is True
+    assert first_projection.status == "APPLIED"
+    assert journal.callback_projection_status(intent.intent_id, callback_id, evidence).status == (
+        "APPLIED"
+    )
+
+    replay, replay_projection = journal.record_callback_projected(
+        intent.intent_id, callback_id, evidence, project=project
+    )
+    assert replay.receipt_id == first.receipt_id
+    assert replay.is_new is False
+    assert replay_projection.status == "DUPLICATE"
+    assert journal.callback_projection_status(intent.intent_id, callback_id, evidence).status == (
+        "APPLIED"
+    )
+
+    wrong_callback = journal.callback_projection_status(
+        intent.intent_id, "different-trade-event", evidence
+    )
+    assert wrong_callback.status == "UNRECONCILED"
+    mismatched_evidence = dict(evidence, quantity="2")
+    wrong_payload = journal.callback_projection_status(
+        intent.intent_id, callback_id, mismatched_evidence
+    )
+    assert wrong_payload.status == "BLOCKED"
+    assert wrong_payload.blocker_code == "CALLBACK_EVIDENCE_CONFLICT"
+    with pytest.raises(ExecutionDecisionJournalError, match="CALLBACK_CONFLICT"):
+        journal.record_callback_projected(
+            intent.intent_id, callback_id, mismatched_evidence, project=project
+        )
+    persisted = journal.callback_receipt(intent.intent_id, callback_id)
+    assert persisted is not None
+    assert persisted.receipt_id == first.receipt_id
+    assert persisted.evidence_payload == first.evidence_payload
+    with pytest.raises(ExecutionDecisionJournalError, match="INTENT_NOT_PREPARED"):
+        journal.record_callback_projected("missing-intent", callback_id, evidence, project=project)
+    journal.close()
+
+
 def test_pending_intent_limit_and_sqlite_write_failure_fail_closed(tmp_path):
     path = tmp_path / "failure.sqlite3"
     journal = ExecutionDecisionJournal(path, max_pending_intents=1)
@@ -789,6 +1220,9 @@ def test_prepared_intent_can_be_abandoned_without_dispatch(tmp_path):
     )
     assert journal.active_instrument_owner("account-a", "SIM-IF-1") is None
     assert journal.recoverable_intents(limit=1) == ()
+    assert journal.execution_intent_snapshot(limit=1).items == ()
+    assert journal.intent(stale.intent_id) == stale
+    assert abandonment.intent_id == stale.intent_id
     with pytest.raises(ExecutionDecisionJournalError, match="INTENT_ABANDONED"):
         journal.claim_dispatch(stale.intent_id)
     with pytest.raises(ExecutionDecisionJournalError, match="INTENT_ABANDONMENT_CONFLICT"):
@@ -872,3 +1306,244 @@ journal.close()
     claims = [json.loads(stdout)["claimed"] for stdout, _stderr in results]
     assert sum(claims) == 1
     assert all(stderr == "" for _stdout, stderr in results)
+
+
+def test_eligible_grid_decision_and_cursor_commit_atomically_including_noop(tmp_path):
+    path = tmp_path / "grid.sqlite3"
+    journal = ExecutionDecisionJournal(path)
+    key = _decision_key(close_time="2026-10-20T10:00:00Z")
+    first = journal.record_grid_decision(
+        key,
+        {"signal": "flat", "quantity": "0"},
+        epoch_id="epoch-a",
+        batch_id="batch-a",
+        eligible=True,
+        complete=True,
+        live_ready=True,
+        inputs_complete=True,
+    )
+    assert first.eligible is True
+    assert first.is_new_grid is True
+    assert first.decision is not None and first.decision.is_noop is True
+    assert first.cursor is not None
+    assert first.cursor.ordinal == 1
+    assert first.cursor.decision_id == first.decision.decision_id
+
+    replay = journal.record_grid_decision(
+        _decision_key(close_time="2026-10-20T18:00:00+08:00"),
+        {"quantity": Decimal("0.0"), "signal": "flat"},
+        epoch_id="epoch-a",
+        batch_id="batch-a",
+        eligible=True,
+        complete=True,
+        live_ready=True,
+        inputs_complete=True,
+    )
+    assert replay.decision == first.decision
+    assert replay.cursor == first.cursor
+    assert replay.is_new_grid is False
+
+    ineligible = journal.record_grid_decision(
+        _decision_key(run_id="run-b", close_time="2026-10-20T10:01:00Z"),
+        {"signal": "must-not-be-written"},
+        epoch_id="epoch-a",
+        batch_id="batch-gap",
+        eligible=True,
+        complete=True,
+        live_ready=True,
+        inputs_complete=False,
+    )
+    assert ineligible.eligible is False
+    assert ineligible.decision is None
+    assert ineligible.cursor == first.cursor
+    assert (
+        journal._connection.execute("SELECT COUNT(*) FROM execution_decisions").fetchone()[0] == 1
+    )
+
+    # A later eligible grid advances once even when logical-run and epoch
+    # identities change; neither identity resets consumed grid progress.
+    next_grid = journal.record_grid_decision(
+        _decision_key(run_id="run-b", close_time="2026-10-20T10:01:00Z"),
+        {"signal": "flat"},
+        epoch_id="epoch-b",
+        batch_id="batch-b",
+        eligible=True,
+        complete=True,
+        live_ready=True,
+        inputs_complete=True,
+    )
+    assert next_grid.is_new_grid is True
+    assert next_grid.cursor is not None and next_grid.cursor.ordinal == 2
+    assert journal.grid_cursor("account-a", "strategy-a", "cohort-1") == next_grid.cursor
+
+    with pytest.raises(ExecutionDecisionJournalError, match="GRID_CURSOR_STALE_OR_CONFLICT"):
+        journal.record_grid_decision(
+            _decision_key(run_id="run-c", close_time="2026-10-20T10:00:00Z"),
+            {"signal": "cross-up"},
+            epoch_id="epoch-c",
+            batch_id="mode-changed-same-old-grid",
+            eligible=True,
+            complete=True,
+            live_ready=True,
+            inputs_complete=True,
+        )
+    assert journal.grid_cursor("account-a", "strategy-a", "cohort-1") == next_grid.cursor
+    journal.close()
+
+
+def test_grid_decision_cursor_is_recovered_and_replay_does_not_redispatch(tmp_path):
+    path = tmp_path / "grid-recovery.sqlite3"
+    journal = ExecutionDecisionJournal(path)
+    key = _decision_key(close_time="2026-10-20T10:00:00Z")
+    result = journal.record_grid_decision(
+        key,
+        {"signal": "flat"},
+        epoch_id="epoch-a",
+        batch_id="batch-a",
+        eligible=True,
+        complete=True,
+        live_ready=True,
+        inputs_complete=True,
+    )
+    journal.close()
+
+    child = r"""
+import json, sys
+from backtrader.stores.execution_decision_journal import ExecutionDecisionJournal, ExecutionDecisionKey
+journal = ExecutionDecisionJournal(sys.argv[1])
+key = ExecutionDecisionKey("account-a", "strategy-a", "run-a", "cohort-1", "2026-10-20T10:00:00Z", "bar")
+saved = journal.grid_cursor("account-a", "strategy-a", "cohort-1")
+replay = journal.record_grid_decision(key, {"signal":"flat"}, epoch_id="epoch-a", batch_id="batch-a", eligible=True, complete=True, live_ready=True, inputs_complete=True)
+assert replay.is_new_grid is False
+assert replay.decision is not None and replay.decision.is_noop
+assert replay.cursor == saved
+print(json.dumps({"ordinal":saved.ordinal, "decision_id":saved.decision_id, "new":replay.is_new_grid}, sort_keys=True))
+journal.close()
+"""
+    completed = subprocess.run(
+        [sys.executable, "-c", child, str(path)],
+        cwd=os.getcwd(),
+        capture_output=True,
+        text=True,
+        check=True,
+        timeout=30,
+    )
+    assert json.loads(completed.stdout) == {
+        "ordinal": 1,
+        "decision_id": result.decision.decision_id,
+        "new": False,
+    }
+
+
+def test_grid_decision_and_cursor_roll_back_together_on_sqlite_failure(tmp_path):
+    path = tmp_path / "grid-rollback.sqlite3"
+    journal = ExecutionDecisionJournal(path)
+    with sqlite3.connect(path) as connection:
+        connection.execute(
+            """CREATE TRIGGER reject_grid_cursor
+               BEFORE INSERT ON execution_grid_cursors
+               BEGIN SELECT RAISE(ABORT, 'synthetic cursor failure'); END"""
+        )
+    key = _decision_key(run_id="rollback-grid")
+    with pytest.raises(ExecutionDecisionJournalError, match="JOURNAL_WRITE_FAILED"):
+        journal.record_grid_decision(
+            key,
+            {"signal": "cross-up"},
+            intent_keys=(_intent_key(),),
+            epoch_id="epoch-a",
+            batch_id="batch-a",
+            eligible=True,
+            complete=True,
+            live_ready=True,
+            inputs_complete=True,
+        )
+    with pytest.raises(ExecutionDecisionJournalError, match="JOURNAL_FAILED_CLOSED"):
+        journal.record_grid_decision(
+            key,
+            {"signal": "cross-up"},
+            intent_keys=(_intent_key(),),
+            epoch_id="epoch-a",
+            batch_id="batch-a",
+            eligible=True,
+            complete=True,
+            live_ready=True,
+            inputs_complete=True,
+        )
+    journal.close()
+
+    reopened = ExecutionDecisionJournal(path)
+    assert (
+        reopened._connection.execute("SELECT COUNT(*) FROM execution_decisions").fetchone()[0] == 0
+    )
+    assert reopened.grid_cursor("account-a", "strategy-a", "cohort-1") is None
+    with sqlite3.connect(path) as connection:
+        assert connection.execute("SELECT COUNT(*) FROM execution_decisions").fetchone()[0] == 0
+        assert (
+            connection.execute("SELECT COUNT(*) FROM execution_decision_slots").fetchone()[0] == 0
+        )
+        assert connection.execute("SELECT COUNT(*) FROM execution_grid_cursors").fetchone()[0] == 0
+    reopened.close()
+
+
+def test_grid_order_budget_counts_submits_and_cancels_once_per_logical_run(tmp_path):
+    journal = ExecutionDecisionJournal(tmp_path / "grid-budget.sqlite3")
+    first_key = _decision_key(run_id="budget-run", close_time="2026-10-20T10:00:00Z")
+    first = journal.record_grid_decision(
+        first_key,
+        {"signal": "cancel-then-close"},
+        intent_keys=(_intent_key("SIM-IF-1", action="CANCEL", leg=0),),
+        epoch_id="epoch-a",
+        batch_id="batch-a",
+        eligible=True,
+        complete=True,
+        live_ready=True,
+        inputs_complete=True,
+        max_order_intents_per_run=1,
+    )
+    assert first.is_new_grid is True
+    assert journal.run_order_count("account-a", "strategy-a", "budget-run") == 1
+
+    replay = journal.record_grid_decision(
+        first_key,
+        {"signal": "cancel-then-close"},
+        intent_keys=(_intent_key("SIM-IF-1", action="CANCEL", leg=0),),
+        epoch_id="epoch-a",
+        batch_id="batch-a",
+        eligible=True,
+        complete=True,
+        live_ready=True,
+        inputs_complete=True,
+        max_order_intents_per_run=1,
+    )
+    assert replay.is_new_grid is False
+    assert journal.run_order_count("account-a", "strategy-a", "budget-run") == 1
+    with pytest.raises(ExecutionDecisionJournalError, match="RUN_ORDER_BUDGET_CONFLICT"):
+        journal.record_grid_decision(
+            first_key,
+            {"signal": "cancel-then-close"},
+            intent_keys=(_intent_key("SIM-IF-1", action="CANCEL", leg=0),),
+            epoch_id="epoch-a",
+            batch_id="batch-a",
+            eligible=True,
+            complete=True,
+            live_ready=True,
+            inputs_complete=True,
+            max_order_intents_per_run=2,
+        )
+
+    with pytest.raises(ExecutionDecisionJournalError, match="RUN_ORDER_BUDGET_EXCEEDED"):
+        journal.record_grid_decision(
+            _decision_key(run_id="budget-run", close_time="2026-10-20T10:01:00Z"),
+            {"signal": "submit"},
+            intent_keys=(_intent_key("SIM-IF-2", leg=0),),
+            epoch_id="epoch-a",
+            batch_id="batch-b",
+            eligible=True,
+            complete=True,
+            live_ready=True,
+            inputs_complete=True,
+            max_order_intents_per_run=1,
+        )
+    assert journal.run_order_count("account-a", "strategy-a", "budget-run") == 1
+    assert journal.grid_cursor("account-a", "strategy-a", "cohort-1") == first.cursor
+    journal.close()
