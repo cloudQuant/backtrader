@@ -11,6 +11,8 @@ from __future__ import annotations
 
 import hashlib
 import inspect
+import json
+import math
 import marshal
 import sys
 from collections.abc import Mapping
@@ -195,6 +197,33 @@ def _validate_feed_binding(alias: Any, binding: Any) -> Tuple[str, Any]:
     raise ResearchConfigError("unknown field binding descriptor")
 
 
+# Only these source-unit pairs have a registered price-times-quantity meaning.
+# Unknown unit algebra remains unqualified rather than being guessed.
+_PIT_PRODUCT_UNITS = {
+    ("USD/share", "share"): "USD",
+    ("CNY/share", "share"): "CNY",
+    ("USD/contract", "contract"): "USD",
+    ("CNY/contract", "contract"): "CNY",
+}
+
+
+@dataclass(frozen=True)
+class FieldPITPolicy:
+    """Factor-authored point-in-time age and unit contract for one input alias."""
+
+    unit: str
+    max_age_seconds: float
+
+    def __post_init__(self) -> None:
+        _nonempty_string(self.unit, "field PIT unit")
+        if type(self.max_age_seconds) not in (int, float):
+            raise ResearchConfigError("field PIT max_age_seconds must be finite numeric")
+        age = float(self.max_age_seconds)
+        if not math.isfinite(age) or age <= 0.0:
+            raise ResearchConfigError("field PIT max_age_seconds must be finite and positive")
+        object.__setattr__(self, "max_age_seconds", age)
+
+
 @dataclass(frozen=True, init=False)
 class FactorSpec:
     """One immutable named native or expression factor declaration.
@@ -209,6 +238,8 @@ class FactorSpec:
     panel_line: str
     params: Mapping[str, Any]
     field_bindings: Mapping[str, Any]
+    field_policies: Mapping[str, FieldPITPolicy]
+    field_policy_sha256: str
     operator_profile: str
     direction: int
     mode: str
@@ -225,6 +256,7 @@ class FactorSpec:
         panel_line: str,
         params: Optional[Mapping[str, Any]] = None,
         field_bindings: Optional[Mapping[str, Any]] = None,
+        field_policies: Optional[Mapping[str, FieldPITPolicy]] = None,
         operator_profile: str = "alpha101-v2",
         direction: int = 1,
         mode: Optional[str] = None,
@@ -241,6 +273,8 @@ class FactorSpec:
             params = {}
         if field_bindings is None:
             field_bindings = {}
+        if field_policies is None:
+            field_policies = {}
         if not isinstance(params, Mapping):
             raise ResearchConfigError("factor params must be a mapping")
         if "mode" in params:
@@ -249,6 +283,8 @@ class FactorSpec:
             )
         if not isinstance(field_bindings, Mapping):
             raise ResearchConfigError("field_bindings must be a mapping")
+        if not isinstance(field_policies, Mapping):
+            raise ResearchConfigError("field_policies must be a mapping")
 
         from .factor_indicator import FactorIndicator
 
@@ -296,6 +332,21 @@ class FactorSpec:
                 code="MISSING_INPUT",
                 report={"factor": name, "missing_fields": tuple(sorted(missing))},
             )
+        frozen_policies: Dict[str, FieldPITPolicy] = {}
+        for alias, policy in field_policies.items():
+            _nonempty_string(alias, "field PIT alias")
+            if alias not in frozen_fields:
+                raise ResearchConfigError("field PIT policy alias must have a field binding")
+            if type(policy) is not FieldPITPolicy:
+                raise ResearchConfigError("field PIT policies must be FieldPITPolicy values")
+            frozen_policies[alias] = policy
+        policy_identity = [
+            (alias, policy.unit, policy.max_age_seconds)
+            for alias, policy in sorted(frozen_policies.items())
+        ]
+        field_policy_sha256 = hashlib.sha256(
+            json.dumps(policy_identity, separators=(",", ":"), ensure_ascii=True).encode("ascii")
+        ).hexdigest()
         for alias, binding in frozen_fields.items():
             if isinstance(binding, Mapping) and binding.get("derive") == "adv":
                 source = binding["source"]
@@ -328,6 +379,30 @@ class FactorSpec:
                         "vwap_volume derivation requires vwap/volume bindings"
                     )
 
+        for alias, binding in frozen_fields.items():
+            policy = frozen_policies.get(alias)
+            if policy is None or not isinstance(binding, Mapping):
+                continue
+            derive = binding.get("derive")
+            if derive == "vwap_volume":
+                vwap_policy = frozen_policies.get(binding["vwap"])
+                volume_policy = frozen_policies.get(binding["volume"])
+                if vwap_policy is None or volume_policy is None:
+                    raise ResearchConfigError(
+                        "PIT dollar_volume requires PIT policies for vwap and volume"
+                    )
+                product_unit = _PIT_PRODUCT_UNITS.get((vwap_policy.unit, volume_policy.unit))
+                if product_unit is None or policy.unit != product_unit:
+                    raise ResearchConfigError(
+                        "PIT vwap_volume units must match a supported price-times-quantity pair"
+                    )
+            elif derive == "adv":
+                source_policy = frozen_policies.get(binding["source"])
+                if source_policy is None or policy.unit != source_policy.unit:
+                    raise ResearchConfigError(
+                        "PIT ADV policy requires the source policy's output unit"
+                    )
+
         lookback = _lookback(indicator, resolved_params)
         source_sha256, module_source_sha256, source_hash_kind = _source_fingerprint(indicator)
         object.__setattr__(self, "name", name)
@@ -335,6 +410,8 @@ class FactorSpec:
         object.__setattr__(self, "panel_line", panel_line)
         object.__setattr__(self, "params", frozen_params)
         object.__setattr__(self, "field_bindings", MappingProxyType(frozen_fields))
+        object.__setattr__(self, "field_policies", MappingProxyType(frozen_policies))
+        object.__setattr__(self, "field_policy_sha256", field_policy_sha256)
         object.__setattr__(self, "operator_profile", operator_profile)
         object.__setattr__(self, "direction", direction)
         object.__setattr__(self, "mode", selected_mode)
@@ -355,6 +432,7 @@ class FactorSpec:
             "params",
             "panel_line",
             "field_bindings",
+            "field_policies",
             "operator_profile",
             "direction",
             "mode",
@@ -375,6 +453,7 @@ class FactorSpec:
             panel_line=value["panel_line"],
             params=value.get("params", {}),
             field_bindings=value.get("field_bindings", {}),
+            field_policies=value.get("field_policies", {}),
             operator_profile=value.get("operator_profile", "alpha101-v2"),
             direction=value.get("direction", 1),
             mode=value.get("mode"),
@@ -390,6 +469,11 @@ class FactorSpec:
             "panel_line": self.panel_line,
             "params": thaw(self.params),
             "field_bindings": thaw(self.field_bindings),
+            "field_policies": {
+                alias: {"unit": policy.unit, "max_age_seconds": policy.max_age_seconds}
+                for alias, policy in self.field_policies.items()
+            },
+            "field_policy_sha256": self.field_policy_sha256,
             "operator_profile": self.operator_profile,
             "direction": self.direction,
             "lookback_h": self.lookback_h,
@@ -729,6 +813,7 @@ def _normalize_bool_index(
 
 
 __all__ = (
+    "FieldPITPolicy",
     "FactorHistoryContract",
     "FactorSpec",
     "ResearchSpec",

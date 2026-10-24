@@ -16,7 +16,7 @@ import math
 import numbers
 import threading
 from collections import deque
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from decimal import Decimal
 from types import MappingProxyType
 from typing import Any, Deque, Dict, Iterable, Mapping, Optional, Tuple
@@ -102,6 +102,77 @@ def _frozen_mapping(
         else:
             frozen[key] = _frozen_scalar(value, key)
     return MappingProxyType(frozen)
+
+
+@dataclass(frozen=True)
+class LiveFieldContract:
+    """Adapter-declared provenance identity and unit for one feed line."""
+
+    source_ref: str
+    unit: str
+    delivery_mode: str
+    validity_seconds: Optional[float] = None
+
+    def __post_init__(self) -> None:
+        _nonempty_text(self.source_ref, "field source_ref")
+        _nonempty_text(self.unit, "field unit")
+        if self.delivery_mode not in ("co_delivered", "independent"):
+            raise LiveCohortValidationError(
+                "field delivery_mode must be co_delivered or independent"
+            )
+        if self.delivery_mode == "co_delivered":
+            if type(self.validity_seconds) not in (int, float):
+                raise LiveCohortValidationError(
+                    "co-delivered field contracts require finite validity_seconds"
+                )
+            validity = float(self.validity_seconds)
+            if not math.isfinite(validity) or validity <= 0.0:
+                raise LiveCohortValidationError(
+                    "co-delivered validity_seconds must be finite and positive"
+                )
+            object.__setattr__(self, "validity_seconds", validity)
+        elif self.validity_seconds is not None:
+            raise LiveCohortValidationError(
+                "independent field validity belongs to each observation"
+            )
+
+
+@dataclass(frozen=True)
+class LiveFieldObservation:
+    """Immutable point-in-time facts supplied by the field's actual adapter."""
+
+    source_ref: str
+    unit: str
+    effective_at: _datetime.datetime
+    available_at: _datetime.datetime
+    revision: Any
+    valid_until: _datetime.datetime
+
+    def __post_init__(self) -> None:
+        _nonempty_text(self.source_ref, "field observation source_ref")
+        _nonempty_text(self.unit, "field observation unit")
+        object.__setattr__(
+            self, "effective_at", _aware_utc(self.effective_at, "field effective_at")
+        )
+        object.__setattr__(
+            self, "available_at", _aware_utc(self.available_at, "field available_at")
+        )
+        object.__setattr__(self, "valid_until", _aware_utc(self.valid_until, "field valid_until"))
+        revision = _frozen_scalar(self.revision, "field revision")
+        if (
+            revision is None
+            or isinstance(revision, bool)
+            or revision == ""
+            or revision == b""
+            or revision == 0
+            or (isinstance(revision, tuple) and not revision)
+        ):
+            raise LiveCohortValidationError("field revision must be an explicit non-empty value")
+        object.__setattr__(self, "revision", revision)
+        if self.available_at < self.effective_at:
+            raise LiveCohortValidationError("field available_at cannot precede effective_at")
+        if self.valid_until < self.effective_at:
+            raise LiveCohortValidationError("field valid_until cannot precede effective_at")
 
 
 @dataclass(frozen=True)
@@ -302,6 +373,7 @@ class LiveCohortMember:
     session_semantics: str = ""
     numeric_fields: Tuple[str, ...] = tuple(_REQUIRED_OHLCV)
     source_origin: Optional[LiveSourceOrigin] = field(default=None, compare=False, repr=False)
+    field_contracts: Mapping[str, LiveFieldContract] = field(default_factory=dict, compare=False)
 
     def __post_init__(self) -> None:
         for name in (
@@ -352,9 +424,19 @@ class LiveCohortMember:
             raise LiveCohortValidationError(
                 "every exposed feed line must map to a validated numeric raw field"
             )
+        if not isinstance(self.field_contracts, Mapping):
+            raise LiveCohortValidationError("field_contracts must be a mapping")
+        contracts = {}
+        for name, contract in self.field_contracts.items():
+            if name not in line_fields:
+                raise LiveCohortValidationError("field contract must name a declared feed line")
+            if type(contract) is not LiveFieldContract:
+                raise LiveCohortValidationError("field contracts must be LiveFieldContract values")
+            contracts[name] = contract
         object.__setattr__(self, "line_fields", line_fields)
         object.__setattr__(self, "raw_fields", raw_fields)
         object.__setattr__(self, "numeric_fields", numeric_fields)
+        object.__setattr__(self, "field_contracts", MappingProxyType(contracts))
 
 
 @dataclass(frozen=True)
@@ -386,6 +468,10 @@ class BarEnvelope:
     present: bool = False
     missing_fields: Tuple[str, ...] = ()
     raw_values: Mapping[str, Any] = field(default_factory=dict, compare=False)
+    line_values: Mapping[str, Any] = field(default_factory=dict, compare=False)
+    field_observations: Mapping[str, LiveFieldObservation] = field(default_factory=dict)
+    field_gaps: Mapping[str, str] = field(default_factory=dict)
+    field_evaluated_at: Optional[_datetime.datetime] = None
     quality_flags: Tuple[str, ...] = ()
     event_source: str = ""
     received_monotonic_ns: Optional[int] = None
@@ -396,12 +482,31 @@ class BarEnvelope:
         object.__setattr__(self, "bucket_start", _aware_utc(self.bucket_start, "bucket_start"))
         object.__setattr__(self, "close_time", _aware_utc(self.close_time, "close_time"))
         object.__setattr__(self, "available_at", _aware_utc(self.available_at, "available_at"))
+        if self.field_evaluated_at is not None:
+            object.__setattr__(
+                self,
+                "field_evaluated_at",
+                _aware_utc(self.field_evaluated_at, "field_evaluated_at"),
+            )
+        missing = tuple(self.missing_fields)
+        gaps = MappingProxyType(dict(self.field_gaps))
+        allow_nan = set(missing).union(gaps)
         object.__setattr__(
-            self,
-            "raw_values",
-            _frozen_mapping(self.raw_values, allow_nan_names=self.missing_fields),
+            self, "raw_values", _frozen_mapping(self.raw_values, allow_nan_names=missing)
         )
-        object.__setattr__(self, "missing_fields", tuple(self.missing_fields))
+        object.__setattr__(
+            self, "line_values", _frozen_mapping(self.line_values, allow_nan_names=allow_nan)
+        )
+        if not isinstance(self.field_observations, Mapping):
+            raise LiveCohortValidationError("field_observations must be a mapping")
+        observations = dict(self.field_observations)
+        if any(type(value) is not LiveFieldObservation for value in observations.values()):
+            raise LiveCohortValidationError(
+                "field observations must be LiveFieldObservation values"
+            )
+        object.__setattr__(self, "field_observations", MappingProxyType(observations))
+        object.__setattr__(self, "field_gaps", gaps)
+        object.__setattr__(self, "missing_fields", missing)
         object.__setattr__(self, "quality_flags", tuple(self.quality_flags))
 
 
@@ -450,14 +555,23 @@ class LiveDeliveryReceipt:
     present: bool = False
     missing_fields: Tuple[str, ...] = ()
     raw_values: Mapping[str, Any] = field(default_factory=dict, compare=False)
+    line_values: Mapping[str, Any] = field(default_factory=dict, compare=False)
 
     def __post_init__(self) -> None:
+        missing = tuple(self.missing_fields)
+        gaps = getattr(self.envelope, "field_gaps", {})
+        allow_nan = set(missing).union(gaps)
         object.__setattr__(
             self,
             "raw_values",
-            _frozen_mapping(self.raw_values, allow_nan_names=self.missing_fields),
+            _frozen_mapping(self.raw_values, allow_nan_names=missing),
         )
-        object.__setattr__(self, "missing_fields", tuple(self.missing_fields))
+        object.__setattr__(
+            self,
+            "line_values",
+            _frozen_mapping(self.line_values, allow_nan_names=allow_nan),
+        )
+        object.__setattr__(self, "missing_fields", missing)
 
 
 @dataclass(frozen=True)
@@ -646,6 +760,7 @@ class LiveBarCohort:
         self._members: Dict[str, LiveCohortMember] = {}
         self._feed_members: Dict[int, LiveCohortMember] = {}
         self._binding_cache: Dict[Tuple[str, str], LiveInputBinding] = {}
+        self._field_policies: Dict[Tuple[str, str], Tuple[str, float]] = {}
         self._sealed = False
         self._frozen_reason: Optional[str] = None
         self._next_slot_index = 0
@@ -739,6 +854,7 @@ class LiveBarCohort:
         session_semantics: Optional[str] = None,
         numeric_fields: Iterable[str] = _REQUIRED_OHLCV,
         source_origin: Optional[LiveSourceOrigin] = None,
+        field_contracts: Optional[Mapping[str, LiveFieldContract]] = None,
     ) -> LiveCohortMember:
         with self._lock:
             if self._sealed:
@@ -761,6 +877,7 @@ class LiveBarCohort:
                 session_semantics=session_semantics or self._calendar.session_semantics,
                 numeric_fields=tuple(numeric_fields),
                 source_origin=source_origin,
+                field_contracts={} if field_contracts is None else field_contracts,
             )
             if member.source_origin is not None and member.source_origin.epoch_id != self.epoch_id:
                 raise LiveCohortValidationError("source_origin epoch does not match the cohort")
@@ -838,6 +955,34 @@ class LiveBarCohort:
         if member is None or member.member_id != receipt.member_id:
             return False
         return self._binding_cache.get((member.member_id, receipt.line_name)) is receipt
+
+    def bind_factor_field_policy(
+        self, feed_ref: Any, line_name: str, *, unit: str, max_age_seconds: float
+    ) -> None:
+        """Bind a factor's exact field policy before the first source capture."""
+        with self._lock:
+            self._require_open()
+            member = self.member_for_feed(feed_ref)
+            if member is None or member.feed_ref is not feed_ref:
+                raise LiveCohortValidationError("PIT field feed is not an exact cohort member")
+            if line_name not in member.line_fields:
+                raise LiveCohortValidationError("PIT field is not a declared member line")
+            contract = member.field_contracts.get(line_name)
+            if contract is None or contract.unit != unit:
+                raise LiveCohortValidationError("PIT field lacks a matching adapter unit contract")
+            if isinstance(max_age_seconds, bool) or not isinstance(max_age_seconds, numbers.Real):
+                raise LiveCohortValidationError("PIT max_age_seconds must be finite numeric")
+            age = float(max_age_seconds)
+            if not math.isfinite(age) or age <= 0.0:
+                raise LiveCohortValidationError("PIT max_age_seconds must be finite and positive")
+            if self._next_slot_index or self._pending or self._prepared is not None:
+                raise LiveCohortValidationError("PIT policies must bind before source capture")
+            key = (member.member_id, line_name)
+            policy = (unit, age)
+            prior = self._field_policies.get(key)
+            if prior is not None and prior != policy:
+                raise LiveCohortValidationError("conflicting PIT policies bind one exact field")
+            self._field_policies[key] = policy
 
     def capture_bar(
         self,
@@ -1092,6 +1237,126 @@ class LiveBarCohort:
             received_monotonic_ns = _read(event, "received_monotonic_ns", None)
         if received_monotonic_ns is not None:
             _positive_int(received_monotonic_ns, "received_monotonic_ns")
+        field_observations = {}
+        field_gaps = {}
+        line_values = dict(raw_values)
+        member_policies = tuple(
+            (field_name, unit, max_age_seconds)
+            for (member_id, field_name), (unit, max_age_seconds) in self._field_policies.items()
+            if member_id == member.member_id
+        )
+        if member_policies:
+            supplied = _read(event, "field_observations", None)
+            if supplied is None:
+                supplied = {}
+            elif type(supplied) is not type(MappingProxyType({})):
+                raise LiveCohortValidationError(
+                    "PIT field_observations must be an immutable mapping"
+                )
+            for field_name, observation in supplied.items():
+                contract = member.field_contracts.get(field_name)
+                if contract is None:
+                    raise LiveCohortValidationError(
+                        "PIT observation names a field without an adapter contract"
+                    )
+                if field_name in missing_fields:
+                    raise LiveCohortValidationError(
+                        "a declared missing field cannot carry an observation"
+                    )
+                if type(observation) is not LiveFieldObservation:
+                    raise LiveCohortValidationError(
+                        "field observations must be immutable LiveFieldObservation values"
+                    )
+                if (
+                    observation.source_ref != contract.source_ref
+                    or observation.unit != contract.unit
+                ):
+                    raise LiveCohortValidationError(
+                        "PIT field source or unit differs from the adapter contract"
+                    )
+                if observation.effective_at > close_time:
+                    raise LiveCohortValidationError("PIT field becomes effective after bar close")
+                if observation.available_at > available_at:
+                    raise LiveCohortValidationError(
+                        "PIT field was not available by the enclosing bar availability"
+                    )
+                if contract.delivery_mode == "co_delivered":
+                    if (
+                        contract.source_ref != member.source_ref
+                        or _read(event, "source_ref", None) != contract.source_ref
+                        or observation.effective_at != close_time
+                        or observation.available_at != available_at
+                        or observation.revision != (generation, sequence, bar_id)
+                    ):
+                        raise LiveCohortValidationError(
+                            "co-delivered PIT provenance does not match this exact bar event"
+                        )
+                    if observation.valid_until > close_time + _datetime.timedelta(
+                        seconds=contract.validity_seconds
+                    ):
+                        raise LiveCohortValidationError(
+                            "co-delivered PIT valid_until exceeds adapter validity"
+                        )
+            for field_name, unit, max_age_seconds in member_policies:
+                contract = member.field_contracts.get(field_name)
+                if contract is None or contract.unit != unit:
+                    raise LiveCohortValidationError("PIT field contract changed after binding")
+                if field_name in missing_fields:
+                    field_gaps[field_name] = "field_missing"
+                    line_values[field_name] = float("nan")
+                    continue
+                observation = supplied.get(field_name)
+                if observation is None and contract.delivery_mode == "co_delivered":
+                    if (
+                        contract.source_ref != member.source_ref
+                        or _read(event, "source_ref", None) != contract.source_ref
+                    ):
+                        raise LiveCohortValidationError(
+                            "co-delivered PIT source differs from the exact bar member"
+                        )
+                    observation = LiveFieldObservation(
+                        source_ref=contract.source_ref,
+                        unit=contract.unit,
+                        effective_at=close_time,
+                        available_at=available_at,
+                        revision=(generation, sequence, bar_id),
+                        valid_until=close_time
+                        + _datetime.timedelta(seconds=contract.validity_seconds),
+                    )
+                if type(observation) is not LiveFieldObservation:
+                    raise LiveCohortValidationError(
+                        "required PIT field lacks an immutable field observation"
+                    )
+                if (
+                    observation.source_ref != contract.source_ref
+                    or observation.unit != contract.unit
+                ):
+                    raise LiveCohortValidationError(
+                        "PIT field source or unit differs from the adapter contract"
+                    )
+                if observation.effective_at > close_time:
+                    raise LiveCohortValidationError("PIT field becomes effective after bar close")
+                if observation.available_at > available_at:
+                    raise LiveCohortValidationError(
+                        "PIT field was not available by the enclosing bar availability"
+                    )
+                if contract.delivery_mode == "co_delivered" and (
+                    contract.source_ref != member.source_ref
+                    or _read(event, "source_ref", None) != contract.source_ref
+                    or observation.effective_at != close_time
+                    or observation.available_at != available_at
+                    or observation.revision != (generation, sequence, bar_id)
+                ):
+                    raise LiveCohortValidationError(
+                        "co-delivered PIT provenance does not match this exact bar event"
+                    )
+                age = (close_time - observation.effective_at).total_seconds()
+                if observation.valid_until < close_time or age > max_age_seconds:
+                    field_gaps[field_name] = (
+                        "field_expired" if observation.valid_until < close_time else "field_stale"
+                    )
+                    line_values[field_name] = float("nan")
+                field_observations[field_name] = observation
         evidence = _read(event, "closed_bar_evidence", None)
         source = _read(event, "source", "")
         if source is not None and not isinstance(source, str):
@@ -1122,6 +1387,10 @@ class LiveBarCohort:
             present=present,
             missing_fields=missing_fields,
             raw_values=raw_values,
+            line_values=line_values,
+            field_observations=field_observations,
+            field_gaps=field_gaps,
+            field_evaluated_at=(close_time if field_observations or field_gaps else None),
             quality_flags=tuple(sorted(flags)),
             event_source=source or "",
             received_monotonic_ns=received_monotonic_ns,
@@ -1171,6 +1440,18 @@ class LiveBarCohort:
             envelope.quality,
             envelope.present,
             envelope.missing_fields,
+            tuple(
+                (
+                    name,
+                    obs.source_ref,
+                    obs.unit,
+                    obs.effective_at,
+                    obs.available_at,
+                    obs.revision,
+                    obs.valid_until,
+                )
+                for name, obs in sorted(envelope.field_observations.items())
+            ),
         )
 
     @classmethod
@@ -1198,6 +1479,60 @@ class LiveBarCohort:
     @classmethod
     def _is_duplicate(cls, prior: BarEnvelope, candidate: BarEnvelope) -> bool:
         return cls._signature_is_duplicate(cls._signature_for(prior), cls._signature_for(candidate))
+
+    def _project_fields_at_scheduler_boundary(
+        self, envelope: BarEnvelope, decision_time: _datetime.datetime
+    ) -> BarEnvelope:
+        """Seal any newly stale field as NaN before the normal feed write."""
+        decision_time = _aware_utc(decision_time, "field decision_time")
+        policies = tuple(
+            (field_name, unit, max_age_seconds)
+            for (member_id, field_name), (unit, max_age_seconds) in self._field_policies.items()
+            if member_id == envelope.member_id
+        )
+        if not policies:
+            return envelope
+        line_values = dict(envelope.line_values)
+        field_gaps = dict(envelope.field_gaps)
+        changed = envelope.field_evaluated_at != decision_time
+        for field_name, unit, max_age_seconds in policies:
+            if field_name in envelope.missing_fields:
+                continue
+            observation = envelope.field_observations.get(field_name)
+            if observation is None or observation.unit != unit:
+                self._freeze("pit_observation_lost_before_delivery")
+                raise LiveCohortFrozenError(
+                    "PIT field observation changed before the prepared feed write"
+                )
+            if observation.available_at > decision_time:
+                self._freeze("pit_field_not_available_at_scheduler_boundary")
+                raise LiveCohortFrozenError(
+                    "PIT field was not available at the scheduler delivery boundary"
+                )
+            age = (decision_time - observation.effective_at).total_seconds()
+            gap = (
+                "field_expired"
+                if observation.valid_until < decision_time
+                else "field_stale"
+                if age > max_age_seconds
+                else None
+            )
+            if gap is not None and field_gaps.get(field_name) not in (
+                "field_missing",
+                "field_expired",
+                "field_stale",
+            ):
+                field_gaps[field_name] = gap
+                line_values[field_name] = float("nan")
+                changed = True
+        if not changed:
+            return envelope
+        return replace(
+            envelope,
+            line_values=line_values,
+            field_gaps=field_gaps,
+            field_evaluated_at=decision_time,
+        )
 
     def prepare_round(
         self,
@@ -1232,7 +1567,16 @@ class LiveBarCohort:
             rows = self._pending.get(slot_index, {})
             missing = tuple(member_id for member_id in self._members if member_id not in rows)
             latest_available_at = (
-                max(envelope.available_at for envelope in rows.values()) if not missing else None
+                max(
+                    [envelope.available_at for envelope in rows.values()]
+                    + [
+                        observation.available_at
+                        for envelope in rows.values()
+                        for observation in envelope.field_observations.values()
+                    ]
+                )
+                if not missing
+                else None
             )
             availability_waiting = (
                 not missing and latest_available_at is not None and latest_available_at > source_now
@@ -1262,6 +1606,9 @@ class LiveBarCohort:
             if set(rows) != expected:
                 self._freeze("cohort_member_set_mismatch")
                 raise LiveCohortFrozenError("prepared member set differs from registered cohort")
+            for member_id, envelope in tuple(rows.items()):
+                projected = self._project_fields_at_scheduler_boundary(envelope, source_now)
+                rows[member_id] = projected
             batch_id = "{}:{}:{}:{}:{}".format(
                 self.cohort_id, self.calendar_id, self.epoch_id, self._calendar.version, slot_index
             )
@@ -1330,7 +1677,14 @@ class LiveBarCohort:
             if not missing:
                 if row_members != expected_members:
                     return LiveCohortWait("FROZEN", None, "cohort_member_set_mismatch")
-                latest_available_at = max(row.available_at for row in rows.values())
+                latest_available_at = max(
+                    [row.available_at for row in rows.values()]
+                    + [
+                        observation.available_at
+                        for row in rows.values()
+                        for observation in row.field_observations.values()
+                    ]
+                )
 
             wait_started_ns = self._wait_started_ns
             if wait_started_ns is None:
@@ -1424,10 +1778,10 @@ class LiveBarCohort:
                 raise LiveCohortFrozenError(
                     "prepared envelope lost its validated present/missing contract"
                 )
-            if not set(member.line_fields).issubset(envelope.raw_values):
+            if not set(member.line_fields).issubset(envelope.line_values):
                 self._freeze("prepared_raw_schema_changed")
                 raise LiveCohortFrozenError("prepared envelope lacks a declared feed line")
-            return MappingProxyType(dict(envelope.raw_values))
+            return MappingProxyType(dict(envelope.line_values))
 
     @staticmethod
     def _envelope_presence_is_valid(member: LiveCohortMember, envelope: BarEnvelope) -> bool:
@@ -1439,6 +1793,7 @@ class LiveBarCohort:
             or len(missing) != len(set(missing))
             or not set(missing).issubset(set(member.numeric_fields))
             or set(envelope.raw_values) != set(member.raw_fields)
+            or set(envelope.line_values) != set(member.raw_fields)
             or envelope.complete is not True
         ):
             return False
@@ -1467,6 +1822,16 @@ class LiveBarCohort:
                 return False
         if any(envelope.raw_values.get(name) is None for name in member.raw_fields):
             return False
+        if any(name not in member.line_fields for name in envelope.field_gaps):
+            return False
+        blocked_fields = set(missing).union(envelope.field_gaps)
+        for name in member.raw_fields:
+            projected = envelope.line_values.get(name)
+            if name in blocked_fields:
+                if not isinstance(projected, float) or not math.isnan(projected):
+                    return False
+            elif projected != envelope.raw_values.get(name):
+                return False
         return True
 
     def record_delivery(
@@ -1503,7 +1868,8 @@ class LiveBarCohort:
                 quality=envelope.quality,
                 present=envelope.present,
                 missing_fields=envelope.missing_fields,
-                raw_values=raw_values,
+                raw_values=envelope.raw_values,
+                line_values=raw_values,
             )
             self._delivered[member.member_id] = receipt
             if len(self._delivered) == len(self._members):
@@ -1522,6 +1888,7 @@ class LiveBarCohort:
             and receipt.quality == "GOOD"
             and receipt.present is True
             and not receipt.missing_fields
+            and not receipt.envelope.field_gaps
             and set(member.line_fields).issubset(receipt.raw_values)
         )
         if prior is None:
@@ -1665,7 +2032,7 @@ class LiveBarCohort:
                     raise LiveCohortValidationError(
                         "prepared envelope has inconsistent present/missing metadata"
                     )
-                if not set(member.line_fields).issubset(envelope.raw_values):
+                if not set(member.line_fields).issubset(envelope.line_values):
                     raise LiveCohortValidationError("prepared envelope lacks a declared feed line")
                 close_time = _aware_utc(delivered_close_time, "delivered_close_time")
                 if close_time != envelope.close_time or close_time != prepared.close_time:
@@ -1691,6 +2058,7 @@ class LiveBarCohort:
                     present=envelope.present,
                     missing_fields=envelope.missing_fields,
                     raw_values=envelope.raw_values,
+                    line_values=envelope.line_values,
                 )
             if set(receipts) != set(self._members):
                 raise LiveCohortValidationError(
@@ -2018,6 +2386,7 @@ class LiveBarCohort:
                 or row.quality != "GOOD"
                 or not row.present
                 or any(name not in row.raw_values for name in names)
+                or any(name in row.envelope.field_gaps for name in names)
                 for row in window
             ):
                 return ()

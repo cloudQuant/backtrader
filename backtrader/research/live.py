@@ -238,6 +238,25 @@ class LiveFactorInput:
 
 
 @dataclass(frozen=True)
+class LiveFieldProvenance:
+    """Bounded immutable provenance for one factor input at one complete batch."""
+
+    alias: str
+    feed_name: str
+    member_id: str
+    line_name: str
+    source_ref: str
+    unit: str
+    delivery_mode: str
+    effective_at: Optional[datetime]
+    available_at: Optional[datetime]
+    revision: Any
+    valid_until: Optional[datetime]
+    evaluated_at: Optional[datetime]
+    status: str
+
+
+@dataclass(frozen=True)
 class LiveFactorOutput:
     """One factor/target value and the exact bar receipt that produced it."""
 
@@ -252,17 +271,34 @@ class LiveFactorOutput:
     source_ref: Any
     sequence: int
     generation: Any
+    field_provenance: Mapping[str, Tuple[LiveFieldProvenance, ...]] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        object.__setattr__(
+            self,
+            "field_provenance",
+            MappingProxyType({name: tuple(rows) for name, rows in self.field_provenance.items()}),
+        )
 
 
 @dataclass(frozen=True)
 class LiveFactorResult:
-    """One immutable factor's metadata and current target-ordered values."""
+    """One immutable factor's metadata and current target-ordered values.
+
+    ``pit_policy_complete`` means every declared formula field has an explicit
+    factor policy. ``pit_qualified`` means every current field-provenance row
+    is qualified; neither field grants trade or account permission.
+    """
 
     name: str
     mode: str
     panel_line: str
     direction: int
     source_sha256: str
+    field_policy_sha256: str
+    pit_policy_complete: bool
+    pit_qualified: bool
+    unqualified_fields: Tuple[str, ...]
     inputs: Mapping[str, Tuple[LiveFactorInput, ...]]
     values: Mapping[str, LiveFactorOutput]
 
@@ -315,6 +351,52 @@ def _field_sources(binding: Any, field_bindings: Mapping[str, Any], stack=()) ->
     if not isinstance(binding, str) or not binding.startswith("feed:"):
         raise ResearchConfigError("live factor fields must resolve to feed lines")
     return (binding,)
+
+
+def _field_source_aliases(
+    alias: str, field_bindings: Mapping[str, Any], stack=()
+) -> Tuple[str, ...]:
+    """Resolve a formula alias to its direct source aliases, preserving units."""
+    if alias in stack:
+        raise ResearchConfigError("cyclic factor field binding")
+    binding = field_bindings.get(alias)
+    if isinstance(binding, Mapping):
+        kind = binding.get("derive")
+        if kind == "adv":
+            return _field_source_aliases(binding["source"], field_bindings, stack + (alias,))
+        if kind == "vwap_volume":
+            return tuple(
+                source_alias
+                for child in (binding["vwap"], binding["volume"])
+                for source_alias in _field_source_aliases(child, field_bindings, stack + (alias,))
+            )
+        if binding.get("kind") == "direct":
+            return (alias,)
+        raise ResearchConfigError("unsupported live factor field derivation")
+    if not isinstance(binding, str) or not binding.startswith("feed:"):
+        raise ResearchConfigError("live factor fields must resolve to feed lines")
+    return (alias,)
+
+
+def _field_binding_window(alias: str, field_bindings: Mapping[str, Any], stack=()) -> int:
+    """Return the largest declared rolling window along one existing binding."""
+    if alias in stack:
+        raise ResearchConfigError("cyclic factor field binding")
+    binding = field_bindings.get(alias)
+    if not isinstance(binding, Mapping):
+        return 1
+    kind = binding.get("derive")
+    if kind == "adv":
+        return max(
+            binding["window"],
+            _field_binding_window(binding["source"], field_bindings, stack + (alias,)),
+        )
+    if kind == "vwap_volume":
+        return max(
+            _field_binding_window(binding["vwap"], field_bindings, stack + (alias,)),
+            _field_binding_window(binding["volume"], field_bindings, stack + (alias,)),
+        )
+    return 1
 
 
 def _freeze_value(value):
@@ -462,6 +544,7 @@ class LiveFactorSet:
             required_fields[id(feed)] = (feed, set())
         input_descriptors: Dict[str, Mapping[str, Tuple[LiveFactorInput, ...]]] = {}
         binding_receipts = {}
+        policy_bindings = {}
         for factor_name, spec in plan.factors.items():
             aliases: Dict[str, Tuple[LiveFactorInput, ...]] = {}
             for alias, binding in spec.field_bindings.items():
@@ -520,7 +603,11 @@ class LiveFactorSet:
                                 LiveFactorInput(
                                     feed_name=feed_name,
                                     member_id=member.member_id,
-                                    source_ref=member.source_ref,
+                                    source_ref=(
+                                        member.field_contracts[line_name].source_ref
+                                        if line_name in member.field_contracts
+                                        else member.source_ref
+                                    ),
                                     line_name=line_name,
                                 )
                             )
@@ -529,6 +616,31 @@ class LiveFactorSet:
                         entry[1].add(line_name)
                 aliases[alias] = tuple(resolved)
             input_descriptors[factor_name] = MappingProxyType(aliases)
+            for alias, policy in spec.field_policies.items():
+                for source_alias in _field_source_aliases(alias, spec.field_bindings):
+                    source_policy = spec.field_policies.get(source_alias)
+                    if source_policy is None:
+                        continue
+                    effective_age = min(policy.max_age_seconds, source_policy.max_age_seconds)
+                    for item in aliases[source_alias]:
+                        feed = feeds[item.feed_name]
+                        key = (id(feed), item.line_name)
+                        prior = policy_bindings.get(key)
+                        if prior is not None and prior[2] != source_policy.unit:
+                            raise ResearchConfigError(
+                                "factor policies assign conflicting units to one feed line"
+                            )
+                        policy_bindings[key] = (
+                            feed,
+                            item.line_name,
+                            source_policy.unit,
+                            effective_age if prior is None else min(prior[3], effective_age),
+                        )
+
+        for feed, line_name, unit, max_age_seconds in policy_bindings.values():
+            cohort.bind_factor_field_policy(
+                feed, line_name, unit=unit, max_age_seconds=max_age_seconds
+            )
 
         scoped_receipts = tuple(
             (receipt.feed_ref, receipt.line_name, receipt) for receipt in binding_receipts.values()
@@ -706,7 +818,7 @@ class LiveFactorSet:
             or receipt.quality != "GOOD"
             or bool(getattr(receipt, "missing_fields", ()))
         )
-        if gap_receipts and not self._has_registered_gap_semantics():
+        if gap_receipts and not self._has_registered_gap_semantics(gap_receipts):
             self._cohort.freeze_unsupported_gap_semantics(batch)
             return self._make_snapshot(
                 batch=batch,
@@ -821,6 +933,9 @@ class LiveFactorSet:
                     freshness_reasons.append("live_bar_future_skew_exceeded")
 
         reconstruction_reasons = self._history_reconstruction_reasons(batch, current_receipts)
+        factor_values, field_pit_gap = self._read_factor_values(
+            current_receipts, required_count=required_count, batch=batch
+        )
         readiness_reasons = []
         if gap_receipts:
             readiness_reasons.append("cohort_gap_present")
@@ -832,6 +947,8 @@ class LiveFactorSet:
             readiness_reasons.append("history_prewarm_not_allowed")
         readiness_reasons.extend(freshness_reasons)
         readiness_reasons.extend(reconstruction_reasons)
+        if field_pit_gap:
+            readiness_reasons.append("field_pit_input_unqualified")
 
         if cutover_state is LiveFactorReadiness.CATCHING_UP:
             readiness = LiveFactorReadiness.CATCHING_UP
@@ -841,12 +958,12 @@ class LiveFactorSet:
             or history_policy_invalid
             or freshness_reasons
             or reconstruction_reasons
+            or field_pit_gap
         ):
             readiness = LiveFactorReadiness.WARMUP
         else:
             readiness = cutover_state
 
-        factor_values = self._read_factor_values(current_receipts)
         return self._make_snapshot(
             batch=batch,
             readiness=readiness,
@@ -942,24 +1059,225 @@ class LiveFactorSet:
                     break
         return tuple(dict.fromkeys(reasons))
 
-    def _has_registered_gap_semantics(self) -> bool:
-        """Allow NaN-window recovery only for the exact production Alpha101 set."""
+    def _has_registered_gap_semantics(self, gap_receipts) -> bool:
+        """Allow known Alpha101 gaps or fully declared PIT missing-field gaps."""
         if not self._plan.factors:
             return False
         from .alpha101 import ALPHA_REGISTRY
 
         accepted = tuple(ALPHA_REGISTRY.values())
-        return all(
+        if all(
             any(spec.indicator is indicator for indicator in accepted)
             for spec in self._plan.factors.values()
-        )
+        ):
+            return True
 
-    def _read_factor_values(self, current_receipts):
+        # A custom graph can recover from an explicit missing auxiliary input
+        # only when every missing source is covered by a factor-authored PIT
+        # policy and the exact cohort member's declared field contract. Generic
+        # incomplete bars and unqualified numeric lines keep the fail-closed
+        # freeze behavior.
+        for receipt in gap_receipts:
+            missing_fields = tuple(getattr(receipt, "missing_fields", ()))
+            if (
+                receipt.present is not False
+                or receipt.complete is not True
+                or receipt.quality != "MISSING"
+                or not missing_fields
+            ):
+                return False
+            feed = receipt.feed_ref
+            member = _member_for_feed(self._cohort, feed)
+            if member is None or member.feed_ref is not feed:
+                return False
+            member_names = tuple(
+                name for name, registered_feed in self._feeds.items() if registered_feed is feed
+            )
+            if len(member_names) != 1:
+                return False
+            feed_name = member_names[0]
+            member_contracts = member.field_contracts
+            uncovered = set(missing_fields)
+
+            for factor_name, spec in self._plan.factors.items():
+                target_names = {
+                    name
+                    for group in self._instances[factor_name]
+                    for name in self._plan.group_targets[group]
+                }
+                for alias in spec.field_bindings:
+                    if spec.field_policies.get(alias) is None:
+                        continue
+                    for source_alias in _field_source_aliases(alias, spec.field_bindings):
+                        source_policy = spec.field_policies.get(source_alias)
+                        if source_policy is None:
+                            continue
+                        source_binding = spec.field_bindings[source_alias]
+                        sources = _field_sources(
+                            source_binding, spec.field_bindings, (source_alias,)
+                        )
+                        for source in sources:
+                            parts = source.split(":")
+                            if len(parts) != 3 or parts[2] not in uncovered:
+                                continue
+                            if parts[1] == "target":
+                                bound_feeds = target_names
+                            else:
+                                bound_feeds = {parts[1]}
+                            contract = member_contracts.get(parts[2])
+                            if (
+                                feed_name in bound_feeds
+                                and parts[2] in member.line_fields
+                                and contract is not None
+                                and contract.unit == source_policy.unit
+                            ):
+                                uncovered.discard(parts[2])
+            if uncovered:
+                return False
+        return True
+
+    def _read_factor_values(self, current_receipts, *, required_count, batch):
         results = {}
+        any_pit_gap = False
         for factor_name, spec in self._plan.factors.items():
             values = {}
             for group, instance in self._instances[factor_name].items():
-                for target in self._plan.group_targets[group]:
+                targets = self._plan.group_targets[group]
+                field_provenance = {}
+                input_reasons = []
+                for alias, binding in spec.field_bindings.items():
+                    rows = []
+                    alias_policy = spec.field_policies.get(alias)
+                    source_aliases = _field_source_aliases(alias, spec.field_bindings)
+                    window_count = max(
+                        required_count,
+                        _field_binding_window(alias, spec.field_bindings),
+                    )
+                    for source_alias in source_aliases:
+                        source_policy = spec.field_policies.get(source_alias)
+                        policy_qualified = alias_policy is not None and source_policy is not None
+                        source_binding = spec.field_bindings[source_alias]
+                        for source in _field_sources(
+                            source_binding, spec.field_bindings, (source_alias,)
+                        ):
+                            parts = source.split(":")
+                            if len(parts) != 3:
+                                continue
+                            feed_names = targets if parts[1] == "target" else (parts[1],)
+                            line_name = parts[2]
+                            for feed_name in feed_names:
+                                feed = self._feeds[feed_name]
+                                member = _member_for_feed(self._cohort, feed)
+                                receipt = current_receipts.get(id(feed))
+                                contract = (
+                                    None
+                                    if member is None
+                                    else member.field_contracts.get(line_name)
+                                )
+                                observation = (
+                                    None
+                                    if receipt is None
+                                    else receipt.envelope.field_observations.get(line_name)
+                                )
+                                field_gap = (
+                                    None
+                                    if receipt is None
+                                    else receipt.envelope.field_gaps.get(line_name)
+                                )
+                                if receipt is not None and line_name in receipt.missing_fields:
+                                    field_gap = "field_missing"
+                                status = "UNQUALIFIED"
+                                if policy_qualified:
+                                    if field_gap is not None:
+                                        status = field_gap.upper()
+                                        reason = {
+                                            "field_missing": "FIELD_PIT_MISSING",
+                                            "field_stale": "FIELD_PIT_STALE",
+                                            "field_expired": "FIELD_PIT_EXPIRED",
+                                        }.get(field_gap, "FIELD_PIT_UNAVAILABLE")
+                                        input_reasons.append(reason)
+                                    elif observation is None:
+                                        status = "PROVENANCE_MISSING"
+                                        input_reasons.append("FIELD_PIT_PROVENANCE_MISSING")
+                                    elif contract is None or contract.unit != source_policy.unit:
+                                        status = "UNIT_UNQUALIFIED"
+                                        input_reasons.append("FIELD_PIT_UNIT_UNQUALIFIED")
+                                    else:
+                                        window = self._cohort.complete_window_bars(
+                                            feed, (line_name,), window_count
+                                        )
+                                        if (
+                                            not window
+                                            or receipt is None
+                                            or window[-1] is not receipt
+                                        ):
+                                            status = "WINDOW_UNQUALIFIED"
+                                            input_reasons.append("FIELD_PIT_WINDOW_UNQUALIFIED")
+                                        elif (
+                                            self._reconstruction.get(factor_name, ("", 0))[0]
+                                            == "replay_from_source_origin"
+                                        ):
+                                            proof = getattr(batch, "history_continuity", {}).get(
+                                                member.member_id
+                                            )
+                                            if (
+                                                proof is None
+                                                or not self._cohort.owns_history_continuity(proof)
+                                                or proof.qualified is not True
+                                                or proof.last_receipt is not receipt
+                                            ):
+                                                status = "RECONSTRUCTION_UNQUALIFIED"
+                                                input_reasons.append(
+                                                    "FIELD_PIT_RECONSTRUCTION_UNQUALIFIED"
+                                                )
+                                            else:
+                                                status = "PIT_QUALIFIED"
+                                        else:
+                                            status = "PIT_QUALIFIED"
+                                rows.append(
+                                    LiveFieldProvenance(
+                                        alias=alias,
+                                        feed_name=feed_name,
+                                        member_id="" if member is None else member.member_id,
+                                        line_name=line_name,
+                                        source_ref=(
+                                            contract.source_ref
+                                            if contract is not None
+                                            else ("" if member is None else member.source_ref)
+                                        ),
+                                        unit="" if contract is None else contract.unit,
+                                        delivery_mode=(
+                                            "" if contract is None else contract.delivery_mode
+                                        ),
+                                        effective_at=(
+                                            None
+                                            if observation is None
+                                            else observation.effective_at
+                                        ),
+                                        available_at=(
+                                            None
+                                            if observation is None
+                                            else observation.available_at
+                                        ),
+                                        revision=(
+                                            None if observation is None else observation.revision
+                                        ),
+                                        valid_until=(
+                                            None if observation is None else observation.valid_until
+                                        ),
+                                        evaluated_at=(
+                                            None
+                                            if receipt is None
+                                            else receipt.envelope.field_evaluated_at
+                                        ),
+                                        status=status,
+                                    )
+                                )
+                    field_provenance[alias] = tuple(rows)
+                input_reasons = list(dict.fromkeys(input_reasons))
+                any_pit_gap = any_pit_gap or bool(input_reasons)
+                frozen_provenance = MappingProxyType(field_provenance)
+                for target in targets:
                     feed = self._feeds[target]
                     receipt = current_receipts.get(id(feed))
                     if receipt is None:
@@ -978,12 +1296,15 @@ class LiveFactorSet:
                     reason = _output_reason(instance, feed, spec.panel_line)
                     if receipt.present is not True and reason is None:
                         reason = "MISSING_INPUT"
+                    if reason is None and input_reasons:
+                        reason = input_reasons[0]
                     available = (
                         receipt.present is True
                         and receipt.complete is True
                         and receipt.quality == "GOOD"
                         and math.isfinite(raw_value)
                         and reason is None
+                        and not input_reasons
                     )
                     values[target] = LiveFactorOutput(
                         value=raw_value,
@@ -1001,21 +1322,42 @@ class LiveFactorSet:
                         source_ref=receipt.source_ref,
                         sequence=int(receipt.feed_sequence),
                         generation=getattr(receipt.envelope, "connection_generation", None),
+                        field_provenance=frozen_provenance,
                     )
             results[factor_name] = MappingProxyType(values)
-        return results
+        return results, any_pit_gap
 
     def _make_snapshot(self, *, batch, readiness, reasons, factor_values):
         factor_results = {}
         for name, spec in self._plan.factors.items():
+            values = MappingProxyType(dict(factor_values.get(name, {})))
+            policy_complete = bool(spec.field_bindings) and set(spec.field_bindings).issubset(
+                spec.field_policies
+            )
+            provenance_statuses = tuple(
+                row.status
+                for output in values.values()
+                for alias in spec.field_bindings
+                for row in output.field_provenance.get(alias, ())
+            )
             factor_results[name] = LiveFactorResult(
                 name=spec.name,
                 mode=spec.mode,
                 panel_line=spec.panel_line,
                 direction=spec.direction,
                 source_sha256=spec.source_sha256,
+                field_policy_sha256=spec.field_policy_sha256,
+                pit_policy_complete=policy_complete,
+                pit_qualified=(
+                    policy_complete
+                    and bool(provenance_statuses)
+                    and all(status == "PIT_QUALIFIED" for status in provenance_statuses)
+                ),
+                unqualified_fields=tuple(
+                    alias for alias in spec.field_bindings if alias not in spec.field_policies
+                ),
                 inputs=self._inputs[name],
-                values=MappingProxyType(dict(factor_values.get(name, {}))),
+                values=values,
             )
         if batch is None:
             cohort_id = str(self._cohort.cohort_id)
@@ -1074,14 +1416,16 @@ def _feed_clock_matches(feed, close_time):
 def _feed_lines_match_receipt(feed, line_names, receipt):
     """Fail closed if a delivered feed line no longer matches its receipt."""
     missing = set(getattr(receipt, "missing_fields", ()))
+    field_gaps = set(getattr(receipt.envelope, "field_gaps", ()))
+    blocked = missing.union(field_gaps)
     for line_name in line_names:
         if line_name == "datetime":
             if not _feed_clock_matches(feed, receipt.close_time):
                 return False
             continue
-        if line_name not in receipt.raw_values:
+        if line_name not in receipt.line_values:
             return False
-        expected = receipt.raw_values[line_name]
+        expected = receipt.line_values[line_name]
         if isinstance(expected, (bool, str, bytes)):
             return False
         try:
@@ -1089,7 +1433,7 @@ def _feed_lines_match_receipt(feed, line_names, receipt):
             expected = float(expected)
         except (AttributeError, IndexError, TypeError, ValueError, OverflowError):
             return False
-        if line_name in missing:
+        if line_name in blocked:
             if not math.isnan(actual) or not math.isnan(expected):
                 return False
         elif not math.isfinite(actual) or not math.isfinite(expected) or actual != expected:
@@ -1148,6 +1492,7 @@ def _output_reason(instance, feed, output_name):
 
 __all__ = (
     "LiveFactorInput",
+    "LiveFieldProvenance",
     "LiveFactorOutput",
     "LiveFactorOutputStatus",
     "LiveFactorPlan",

@@ -20,6 +20,7 @@ from .factor_strategy import FactorStrategy
 from .fincore_adapter import evaluate_frames
 from .live import (
     LiveFactorInput,
+    LiveFieldProvenance,
     LiveFactorOutput,
     LiveFactorOutputStatus,
     LiveFactorPlan,
@@ -28,9 +29,10 @@ from .live import (
     LiveFactorSet,
     LiveFactorSnapshot,
 )
+from .live_cohort import LiveFieldContract, LiveFieldObservation
 from .panel import FactorPanel
 from .sink import CsvSink, FactorSink, MemorySink, PanelContext
-from .specs import FactorHistoryContract, FactorSpec, ResearchSpec
+from .specs import FieldPITPolicy, FactorHistoryContract, FactorSpec, ResearchSpec
 
 ConfigError = ResearchConfigError
 
@@ -49,7 +51,11 @@ __all__ = (
     "FactorSink",
     "FactorSpec",
     "FactorStrategy",
+    "FieldPITPolicy",
     "LiveFactorInput",
+    "LiveFieldContract",
+    "LiveFieldObservation",
+    "LiveFieldProvenance",
     "LiveFactorOutput",
     "LiveFactorOutputStatus",
     "LiveFactorPlan",
