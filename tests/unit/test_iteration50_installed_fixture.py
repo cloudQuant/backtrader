@@ -5,8 +5,10 @@ from __future__ import annotations
 import base64
 import hashlib
 import importlib.util
+import json
 import os
 from pathlib import Path
+import py_compile
 import subprocess
 import sys
 from types import ModuleType
@@ -58,6 +60,18 @@ def _write_record(root: Path, rows: list[tuple[str, bytes]], record_name: str) -
     return record_text
 
 
+def _append_unhashed_record_row(
+    root: Path, record_name: str, record_text: str, relative_name: str
+) -> str:
+    updated = record_text.replace(
+        record_name + ",,\n",
+        relative_name + ",,\n" + record_name + ",,\n",
+    )
+    assert updated != record_text
+    (root / record_name).write_text(updated, encoding="utf-8", newline="")
+    return updated
+
+
 def test_record_verifier_checks_payloads_and_allows_installed_script_scheme(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
@@ -76,13 +90,14 @@ def test_record_verifier_checks_payloads_and_allows_installed_script_scheme(
         record_name,
     )
 
-    verified, record_sha256 = fixture._verify_record(
+    verified, record_sha256, generated_pyc_count = fixture._verify_record(
         record_text,
         _Distribution(site_packages),
         site_packages,
         (venv,),
     )
 
+    assert generated_pyc_count == 0
     assert verified[source_name] == hashlib.sha256(b"public production module\n").hexdigest()
     assert verified[script_name] == hashlib.sha256(b"generated launcher\n").hexdigest()
     assert record_sha256 == hashlib.sha256(record_text.encode("utf-8")).hexdigest()
@@ -124,6 +139,171 @@ def test_record_verifier_rejects_duplicate_and_escaping_paths(
     )
     with pytest.raises(ValueError, match="escapes recognized install roots"):
         fixture._verify_record(escaped_text, _Distribution(site_packages), site_packages, (venv,))
+
+
+def test_record_verifier_accepts_only_unhashed_generated_pyc_auxiliaries(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    fixture = _load_fixture(monkeypatch)
+    venv = tmp_path / "venv"
+    site_packages = venv / "Lib" / "site-packages"
+    record_name = "back_trader_python-1.0.dist-info/RECORD"
+    init_name = "backtrader/__init__.py"
+    source_name = "backtrader/research/live.py"
+    record_text = _write_record(
+        site_packages,
+        [(init_name, b"# package root\n"), (source_name, b"# public research module\n")],
+        record_name,
+    )
+    source_path = site_packages / source_name
+    cache_name = (
+        Path(py_compile.compile(str(source_path), doraise=True))
+        .relative_to(site_packages)
+        .as_posix()
+    )
+    record_text = _append_unhashed_record_row(site_packages, record_name, record_text, cache_name)
+
+    verified, record_sha256, generated_pyc_count = fixture._verify_record(
+        record_text,
+        _Distribution(site_packages),
+        site_packages,
+        (venv,),
+    )
+
+    assert generated_pyc_count == 1
+    assert cache_name not in verified
+    assert set(verified) == {init_name, source_name}
+    assert record_sha256 == hashlib.sha256(record_text.encode("utf-8")).hexdigest()
+    assert (
+        fixture._verify_installed_package_payloads(
+            _Distribution(site_packages),
+            site_packages,
+            verified,
+            verified,
+        )
+        == 2
+    )
+
+
+@pytest.mark.parametrize(
+    "relative_name,payload",
+    [
+        ("backtrader/research/unhashed.py", b"unhashed source\n"),
+        ("backtrader/data/manifest.json", b"unhashed asset\n"),
+    ],
+)
+def test_record_verifier_rejects_unhashed_non_pyc_entries(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    relative_name: str,
+    payload: bytes,
+) -> None:
+    fixture = _load_fixture(monkeypatch)
+    venv = tmp_path / "venv"
+    site_packages = venv / "Lib" / "site-packages"
+    record_name = "back_trader_python-1.0.dist-info/RECORD"
+    record_text = _write_record(site_packages, [], record_name)
+    target = site_packages / relative_name
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_bytes(payload)
+    record_text = _append_unhashed_record_row(
+        site_packages, record_name, record_text, relative_name
+    )
+
+    with pytest.raises(ValueError, match="unhashed installed RECORD entry is not a generated pyc"):
+        fixture._verify_record(
+            record_text,
+            _Distribution(site_packages),
+            site_packages,
+            (venv,),
+        )
+
+
+def test_record_verifier_rejects_unmapped_and_outside_generated_pyc(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    fixture = _load_fixture(monkeypatch)
+    venv = tmp_path / "venv"
+    site_packages = venv / "Lib" / "site-packages"
+    record_name = "back_trader_python-1.0.dist-info/RECORD"
+    record_text = _write_record(site_packages, [], record_name)
+    orphan_source = site_packages / "backtrader" / "orphan.py"
+    orphan_cache = Path(importlib.util.cache_from_source(str(orphan_source)))
+    orphan_cache.parent.mkdir(parents=True, exist_ok=True)
+    orphan_cache.write_bytes(b"orphan cache\n")
+    orphan_name = orphan_cache.relative_to(site_packages).as_posix()
+    orphan_record = _append_unhashed_record_row(
+        site_packages, record_name, record_text, orphan_name
+    )
+    with pytest.raises(
+        ValueError, match="generated bytecode cache does not map to an installed source"
+    ):
+        fixture._verify_record(orphan_record, _Distribution(site_packages), site_packages, (venv,))
+
+    source_name = "backtrader/research/live.py"
+    valid_record = _write_record(
+        site_packages,
+        [(source_name, b"# verified source\n")],
+        record_name,
+    )
+    valid_cache = Path(py_compile.compile(str(site_packages / source_name), doraise=True))
+    traversal_name = "../site-packages/" + valid_cache.relative_to(site_packages).as_posix()
+    traversal_record = _append_unhashed_record_row(
+        site_packages, record_name, valid_record, traversal_name
+    )
+    with pytest.raises(ValueError, match="generated bytecode cache path uses parent traversal"):
+        fixture._verify_record(
+            traversal_record,
+            _Distribution(site_packages),
+            site_packages,
+            (venv,),
+        )
+
+    outside = tmp_path / "outside"
+    outside_source = outside / "outside.py"
+    outside_source.parent.mkdir(parents=True)
+    outside_source.write_text("# outside source\n", encoding="utf-8")
+    outside_cache = Path(py_compile.compile(str(outside_source), doraise=True))
+    outside_name = os.path.relpath(outside_cache, site_packages).replace(os.sep, "/")
+    outside_record = _write_record(site_packages, [], record_name)
+    outside_record = _append_unhashed_record_row(
+        site_packages, record_name, outside_record, outside_name
+    )
+    with pytest.raises(ValueError, match="escapes recognized install roots"):
+        fixture._verify_record(
+            outside_record,
+            _Distribution(site_packages),
+            site_packages,
+            (venv,),
+        )
+
+
+def test_record_verifier_rejects_tampered_source_for_generated_pyc(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    fixture = _load_fixture(monkeypatch)
+    venv = tmp_path / "venv"
+    site_packages = venv / "Lib" / "site-packages"
+    record_name = "back_trader_python-1.0.dist-info/RECORD"
+    source_name = "backtrader/research/live.py"
+    source = b"# pinned source\n"
+    record_text = _write_record(site_packages, [(source_name, source)], record_name)
+    source_path = site_packages / source_name
+    cache_name = (
+        Path(py_compile.compile(str(source_path), doraise=True))
+        .relative_to(site_packages)
+        .as_posix()
+    )
+    record_text = _append_unhashed_record_row(site_packages, record_name, record_text, cache_name)
+    source_path.write_bytes(b"# tampered source\n")
+
+    with pytest.raises(ValueError, match="installed file differs from wheel RECORD"):
+        fixture._verify_record(
+            record_text,
+            _Distribution(site_packages),
+            site_packages,
+            (venv,),
+        )
 
 
 def test_module_origin_must_be_recorded_inside_installed_distribution(
@@ -304,6 +484,165 @@ def test_fixture_process_rejects_ambient_pythonpath_before_importing_package(
     assert completed.returncode != 0
     assert "installed fixture requires PYTHONPATH to be unset" in completed.stderr
     assert "ModuleNotFoundError" not in completed.stderr
+
+
+def _fake_backtrader_package_source(sentinel: str) -> bytes:
+    source = (
+        "import os\n"
+        "import sys\n"
+        "import types\n"
+        "\n"
+        'SOURCE_SENTINEL = "__MARKER__"\n'
+        "CACHE_PREFIX_AT_IMPORT = sys.pycache_prefix\n"
+        "CACHE_PREFIX_EXISTS_AT_IMPORT = bool(\n"
+        "    CACHE_PREFIX_AT_IMPORT and os.path.isdir(CACHE_PREFIX_AT_IMPORT)\n"
+        ")\n"
+        '__version__ = "1.4.0"\n'
+        'Strategy = type("Strategy", (), {})\n'
+        "\n"
+        "def _install(name, names=(), package=False):\n"
+        "    module = types.ModuleType(name)\n"
+        "    if package:\n"
+        "        module.__path__ = []\n"
+        "    sys.modules[name] = module\n"
+        '    parent_name, separator, child_name = name.rpartition(".")\n'
+        "    if separator:\n"
+        "        setattr(sys.modules[parent_name], child_name, module)\n"
+        "    for item in names:\n"
+        '        if item == "get_alpha":\n'
+        "            value = lambda *args, **kwargs: None\n"
+        "        else:\n"
+        "            value = type(item, (), {})\n"
+        "        setattr(module, item, value)\n"
+        "\n"
+        'for package_name in ("backtrader.brokers", "backtrader.feeds", "backtrader.research", "backtrader.stores"):\n'
+        "    _install(package_name, package=True)\n"
+        '_install("backtrader.brokers.btapibroker", ("BtApiBroker",))\n'
+        '_install("backtrader.feeds.btapifeed", ("BtApiFeed",))\n'
+        '_install("backtrader.research", ("FactorSpec", "LiveFactorPlan", "LiveFactorSet"), package=True)\n'
+        '_install("backtrader.research.alpha101", ("get_alpha",))\n'
+        '_install("backtrader.research.live_cohort", ("LiveBarCohort", "LiveCalendarMemberSession", "LiveCalendarSlot", "LiveCohortCalendar"))\n'
+        '_install("backtrader.stores.btapistore", ("BtApiStore",))\n'
+    )
+    return source.replace("__MARKER__", sentinel).encode("utf-8")
+
+
+def test_fixture_entrypoint_ignores_poisoned_timestamp_valid_bytecode(
+    tmp_path: Path,
+) -> None:
+    package_root = tmp_path / "installed"
+    package_dir = package_root / "backtrader"
+    package_dir.mkdir(parents=True)
+    source_path = package_dir / "__init__.py"
+    pinned_source = _fake_backtrader_package_source("pinned-source")
+    poisoned_source = _fake_backtrader_package_source("poison-source")
+    assert len(pinned_source) == len(poisoned_source)
+    source_path.write_bytes(pinned_source)
+
+    poisoned_source_path = tmp_path / "poisoned_source.py"
+    poisoned_source_path.write_bytes(poisoned_source)
+    fixed_timestamp = 1_700_000_000_000_000_000
+    os.utime(source_path, ns=(fixed_timestamp, fixed_timestamp))
+    os.utime(poisoned_source_path, ns=(fixed_timestamp, fixed_timestamp))
+    pyc_path = Path(importlib.util.cache_from_source(str(source_path)))
+    pyc_path.parent.mkdir(parents=True, exist_ok=True)
+    py_compile.compile(
+        str(poisoned_source_path),
+        cfile=str(pyc_path),
+        dfile=str(source_path),
+        doraise=True,
+        invalidation_mode=py_compile.PycInvalidationMode.TIMESTAMP,
+    )
+    os.utime(source_path, ns=(fixed_timestamp, fixed_timestamp))
+    poisoned_cache = pyc_path.read_bytes()
+
+    environment = os.environ.copy()
+    environment.pop("PYTHONPATH", None)
+    environment.pop("PYTHONPYCACHEPREFIX", None)
+    environment.pop("PYTHONDONTWRITEBYTECODE", None)
+
+    control_code = (
+        "import json,sys; sys.path.insert(0, "
+        + repr(str(package_root))
+        + "); import backtrader; print('UNISOLATED_CACHE=' + json.dumps("
+        "backtrader.SOURCE_SENTINEL))"
+    )
+    control = subprocess.run(
+        [sys.executable, "-S", "-c", control_code],
+        cwd=tmp_path,
+        env=environment,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert control.returncode == 0, control.stderr
+    assert 'UNISOLATED_CACHE="poison-source"' in control.stdout
+
+    cache_temp = tmp_path / "temp"
+    cache_temp.mkdir()
+    isolated_environment = dict(environment)
+    isolated_environment["TMP"] = str(cache_temp)
+    isolated_environment["TEMP"] = str(cache_temp)
+    fixture_code = (
+        "import json,runpy,sys; sys.path.insert(0, "
+        + repr(str(package_root))
+        + "); sys.argv=["
+        + repr(str(_FIXTURE_PATH))
+        + ", '--help']; \n"
+        "try: runpy.run_path(" + repr(str(_FIXTURE_PATH)) + ", run_name='__main__')\n"
+        "except SystemExit as result:\n"
+        "    if result.code != 0: raise\n"
+        "module=sys.modules['backtrader']; print('FIXTURE_CACHE=' + json.dumps({"
+        "'sentinel': module.SOURCE_SENTINEL, 'prefix': module.CACHE_PREFIX_AT_IMPORT, "
+        "'exists': module.CACHE_PREFIX_EXISTS_AT_IMPORT}))"
+    )
+    isolated = subprocess.run(
+        [sys.executable, "-S", "-c", fixture_code],
+        cwd=tmp_path,
+        env=isolated_environment,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert isolated.returncode == 0, isolated.stderr
+    marker = next(
+        line[len("FIXTURE_CACHE=") :]
+        for line in reversed(isolated.stdout.splitlines())
+        if line.startswith("FIXTURE_CACHE=")
+    )
+    result = json.loads(marker)
+    assert result["sentinel"] == "pinned-source"
+    assert result["exists"] is True
+    assert Path(result["prefix"]).parent == cache_temp.resolve()
+    assert Path(result["prefix"]).name.startswith("iteration50-installed-pycache-")
+    assert pyc_path.read_bytes() == poisoned_cache
+
+
+def test_fixture_entrypoint_rejects_preloaded_backtrader_before_cache_setup(
+    tmp_path: Path,
+) -> None:
+    environment = os.environ.copy()
+    environment.pop("PYTHONPATH", None)
+    code = (
+        "import runpy,sys,types; sys.modules['backtrader']=types.ModuleType('backtrader'); "
+        "sys.argv=[" + repr(str(_FIXTURE_PATH)) + ", '--help']; \n"
+        "try: runpy.run_path(" + repr(str(_FIXTURE_PATH)) + ", run_name='__main__')\n"
+        "except RuntimeError as error:\n"
+        "    if 'unloaded before cache setup' not in str(error): raise\n"
+        "    print('EXPECTED_REJECTION')\n"
+        "else: raise AssertionError('preloaded Backtrader was accepted')"
+    )
+    completed = subprocess.run(
+        [sys.executable, "-S", "-c", code],
+        cwd=tmp_path,
+        env=environment,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert completed.returncode == 0, completed.stderr
+    assert "EXPECTED_REJECTION" in completed.stdout
 
 
 def test_read_only_fixture_uses_production_strategy_broker_and_store(
