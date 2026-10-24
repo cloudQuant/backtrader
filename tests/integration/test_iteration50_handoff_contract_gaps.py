@@ -28,6 +28,7 @@ from tests.integration.test_live_factor_cohort_composition import _alpha003_run
 
 UTC = timezone.utc
 START = datetime(2025, 1, 2, 9, 30, tzinfo=UTC)
+_MISSING_PRICE = object()
 _FACTOR_CALLS: list[float] = []
 
 
@@ -229,28 +230,69 @@ def _tick_composition(*, ticks, slot_count: int, quote_capture: bool = False):
 
 @pytest.mark.integration
 @pytest.mark.parametrize(
-    "bad_price, raw_type",
-    [("not-a-number", str), (math.inf, float)],
+    "bad_price, expected_category",
+    [
+        ("not-a-number", "wrong_type"),
+        (math.inf, "non_finite"),
+        (math.nan, "nan"),
+        (0.0, "non_positive"),
+        (None, "missing"),
+        (_MISSING_PRICE, "missing"),
+    ],
+    ids=("string", "infinity", "nan", "zero", "none", "missing"),
 )
-def test_tick_builder_rejects_bad_raw_price_before_publishing_a_normalized_bar(bad_price, raw_type):
+def test_tick_builder_reports_bad_raw_price_before_normalization_or_bar_publication(
+    bad_price, expected_category
+):
     _FACTOR_CALLS.clear()
     valid = _tick(START + timedelta(seconds=10), sequence=1, price=100.0)
     invalid = _tick(START + timedelta(seconds=20), sequence=2, price=100.0)
-    invalid.price = bad_price
+    if bad_price is _MISSING_PRICE:
+        invalid = dict(vars(invalid))
+        invalid.pop("price")
+    else:
+        invalid.price = bad_price
+    raw_before = dict(invalid) if isinstance(invalid, dict) else vars(invalid).copy()
     cerebro, cohort, feed, client, _calendar = _tick_composition(
         ticks=(valid, invalid), slot_count=1
     )
 
-    with pytest.raises(LiveCohortValidationError, match="complete=True"):
+    with pytest.raises(LiveCohortValidationError) as exc_info:
         cerebro.run()
 
+    error = exc_info.value
+    assert str(error) == "raw tick price rejected: LAST_PRICE_INVALID"
+    assert error.code == "LAST_PRICE_INVALID"
+    report = error.report
+    assert report == {
+        "source": "BtApiFeed.tick",
+        "instrument": "A",
+        "field": "price",
+        "category": expected_category,
+        "generation": "generation-1",
+        "sequence": 2,
+        "reason": "LAST_PRICE_INVALID",
+    }
+    with pytest.raises(TypeError):
+        report["reason"] = "changed"
+
     observed_invalid = client.observed_ticks[-1]
-    assert type(observed_invalid.price) is raw_type
-    assert observed_invalid.price == bad_price
-    assert observed_invalid.quality == "INVALID"
-    assert "LAST_PRICE_INVALID" in observed_invalid.quality_flags
-    assert observed_invalid.bar_eligible is False
+    raw_after = (
+        dict(observed_invalid)
+        if isinstance(observed_invalid, dict)
+        else vars(observed_invalid).copy()
+    )
+    assert raw_after == raw_before
+    if bad_price is _MISSING_PRICE:
+        assert "price" not in observed_invalid
+    elif isinstance(bad_price, float) and math.isnan(bad_price):
+        assert type(observed_invalid.price) is float
+        assert math.isnan(observed_invalid.price)
+    else:
+        assert type(observed_invalid.price) is type(bad_price)
+        assert observed_invalid.price == bad_price
     assert cohort.frozen is True
+    assert cohort.frozen_reason == "invalid_source_tick_price"
     assert cohort.current_batch() is None
     assert len(feed) == 0
     assert _FACTOR_CALLS == []

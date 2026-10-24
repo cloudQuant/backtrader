@@ -8,8 +8,10 @@ from collections.abc import Mapping
 import copy
 import datetime as _dt
 import math
+import numbers
 import time as _time
 from dataclasses import dataclass
+from decimal import Decimal
 from types import MappingProxyType, SimpleNamespace
 
 from ..channel import Event, EventPriority
@@ -41,6 +43,8 @@ def _safe_log(level, message, *args):
 _UTC = _dt.timezone.utc
 _CTP_INVALID_ABS = 1.0e50
 _COHORT_MISSING = object()
+_TICK_PRICE_FIELDS = ("price", "last_price", "LastPrice")
+_MAX_DIAGNOSTIC_TEXT = 128
 _MAPPING_PROXY_TYPE = type(MappingProxyType({}))
 _LIVE_COHORT_EXTRA_LINES = (
     "vwap",
@@ -73,6 +77,69 @@ class _PreparedLiveBarCohortDelivery:
     raw_values: object
     close_time: object
     datetime_value: float
+
+
+def _raw_tick_field(tick, names):
+    """Read the first explicitly present raw tick alias without normalizing it."""
+    first_null = None
+    for name in names:
+        if isinstance(tick, Mapping):
+            if name in tick:
+                value = tick[name]
+                if value is not None:
+                    return name, value, True
+                if first_null is None:
+                    first_null = (name, value)
+            continue
+        value = getattr(tick, name, _COHORT_MISSING)
+        if value is not _COHORT_MISSING:
+            if value is not None:
+                return name, value, True
+            if first_null is None:
+                first_null = (name, value)
+    if first_null is not None:
+        return first_null[0], first_null[1], True
+    return names[0], _COHORT_MISSING, False
+
+
+def _tick_price_category(value, present):
+    """Classify a raw price before the tolerant numeric conversion path runs."""
+    if not present or value is None or (isinstance(value, str) and value == ""):
+        return "missing"
+    if isinstance(value, bool) or not isinstance(value, (numbers.Real, Decimal)):
+        return "wrong_type"
+    try:
+        number = float(value)
+    except (TypeError, ValueError, OverflowError):
+        return "non_finite"
+    if math.isnan(number):
+        return "nan"
+    if not math.isfinite(number):
+        return "non_finite"
+    if abs(number) >= _CTP_INVALID_ABS:
+        return "sentinel"
+    if number <= 0:
+        return "non_positive"
+    return None
+
+
+def _bounded_context_value(value):
+    """Keep diagnostic identifiers finite without retaining arbitrary objects."""
+    if type(value) is str:
+        return value[:_MAX_DIAGNOSTIC_TEXT]
+    if type(value) is int and -(2**63) <= value < 2**63:
+        return value
+    return None
+
+
+def _live_tick_validation_error(report):
+    """Build a structured cohort error without importing research on Feed import."""
+    from ..research.live_cohort import LiveCohortValidationError
+
+    error = LiveCohortValidationError("raw tick price rejected: LAST_PRICE_INVALID")
+    error.code = "LAST_PRICE_INVALID"
+    error.report = MappingProxyType(dict(report))
+    return error
 
 
 def _set_tick_value(tick, name, value):
@@ -1299,6 +1366,7 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
             drained = True
             drained_count += 1
 
+            self._validate_raw_cohort_tick_price(tick)
             self._prepare_tick(tick)
 
             if self._handle_event_health(tick):
@@ -1330,6 +1398,36 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
             ):
                 break
         return drained
+
+    def _validate_raw_cohort_tick_price(self, tick):
+        """Reject an unpriced cohort tick before tolerant normalization mutates it."""
+        cohort = self._live_bar_cohort
+        if cohort is None:
+            return
+
+        field_name, raw_price, present = _raw_tick_field(tick, _TICK_PRICE_FIELDS)
+        category = _tick_price_category(raw_price, present)
+        if category is None:
+            return
+
+        member = cohort.member_for_feed(self)
+        instrument = member.instrument if member is not None else self._dataname
+        report = {
+            "source": "BtApiFeed.tick",
+            "instrument": _bounded_context_value(instrument),
+            "field": field_name,
+            "category": category,
+            "generation": _bounded_context_value(
+                _tick_value(tick, "connection_generation", "stream_generation", default=None)
+            ),
+            "sequence": _bounded_context_value(
+                _tick_value(tick, "ingest_seq", "sequence", default=None)
+            ),
+            "reason": "LAST_PRICE_INVALID",
+        }
+        cohort._freeze("invalid_source_tick_price")
+        self._cohort_delivery_failed = True
+        raise _live_tick_validation_error(report)
 
     def _handle_source_exhaustion(self):
         """Finalize an explicitly finite source and report natural EOF.
