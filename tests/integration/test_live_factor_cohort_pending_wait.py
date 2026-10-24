@@ -53,6 +53,7 @@ class _InterruptibleClock:
         self.now = now
         self.monotonic = 1_000
         self.wait_started = threading.Event()
+        self.before_condition_wait = None
         self.wait_results = []
         self.wait_timeouts = []
 
@@ -68,6 +69,10 @@ class _InterruptibleClock:
     def wait_interruptibly(self, timeout_seconds, wait_for_event):
         self.wait_timeouts.append(timeout_seconds)
         self.wait_started.set()
+        if self.before_condition_wait is not None and not self.before_condition_wait.wait(
+            timeout=2.0
+        ):
+            raise AssertionError("the Store event did not arrive before Condition.wait")
         interrupted = wait_for_event(timeout_seconds)
         self.wait_results.append(interrupted)
         return interrupted
@@ -224,6 +229,13 @@ def test_pending_cohort_wait_polls_ordinary_broker_and_wakes_on_last_store_membe
     cerebro.add_live_bar_cohort(cohort, clock=clock)
     cerebro.addstrategy(_PendingWaitStrategy, cohort=cohort, plan=plan)
 
+    # runnext snapshots the wake generation before calling this clock hook.
+    # Hold just before its real Condition wait until the provider thread has
+    # published and notified, deterministically exercising the compare-before-
+    # wait interval instead of relying on scheduler timing.
+    publication_complete = threading.Event()
+    clock.before_condition_wait = publication_complete
+
     broker_steps = []
     original_broker_next = broker.next
 
@@ -255,6 +267,7 @@ def test_pending_cohort_wait_polls_ordinary_broker_and_wakes_on_last_store_membe
             if not client.notifier_bound.wait(timeout=2.0):
                 raise AssertionError("Cerebro never registered the Store event notifier")
             client.publish_bar("B", store_last)
+            publication_complete.set()
         except BaseException as exc:  # surfaced in the test thread after engine cleanup
             publish_errors.append(exc)
 
