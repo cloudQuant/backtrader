@@ -1439,6 +1439,204 @@ def test_order_planner_refuses_new_risk_when_explicit_budgets_are_exceeded(
     assert plan.actions == ()
 
 
+@pytest.mark.parametrize(
+    ("denial", "expected_reason"),
+    (
+        ("account_route", "ROUTE_NOT_AUTHORIZED"),
+        ("instrument_route", "INSTRUMENT_NOT_AUTHORIZED"),
+        ("instrument_trading", "INSTRUMENT_NOT_AUTHORIZED"),
+    ),
+)
+def test_order_planner_never_opens_when_route_or_trading_permission_is_denied(
+    denial, expected_reason
+):
+    inputs = _risk_facts()
+    if denial == "account_route":
+        inputs = replace(
+            inputs,
+            account=replace(inputs.account, route_permitted=False),
+        )
+    else:
+        instrument = inputs.instruments[0]
+        if denial == "instrument_route":
+            instrument = replace(instrument, route_permitted=False)
+        else:
+            instrument = replace(instrument, trading_permitted=False)
+        inputs = replace(inputs, instruments=(instrument,) + inputs.instruments[1:])
+
+    plan = _STRATEGY.plan_alpha003_orders(inputs)
+
+    assert plan.status == "BLOCKED"
+    assert plan.reason == expected_reason
+    assert plan.actions == ()
+
+
+def test_live_run_keeps_source_backed_owned_order_cancel_during_warmup_without_open_readiness():
+    from contextlib import contextmanager
+    from types import MethodType
+
+    module_name = "_alpha003_source_backed_dated_facts_fixture"
+    facts_fixture = sys.modules.get(module_name)
+    if facts_fixture is None:
+        path = _ROOT / "tests" / "unit" / "stores" / "test_factor_execution_facts.py"
+        spec = importlib.util.spec_from_file_location(module_name, path)
+        assert spec is not None and spec.loader is not None
+        facts_fixture = importlib.util.module_from_spec(spec)
+        sys.modules[module_name] = facts_fixture
+        spec.loader.exec_module(facts_fixture)
+
+    now = datetime.now(UTC)
+    remote_order = {
+        "OrderRef": "94",
+        "OrderSysID": "sys-94",
+        "InstrumentID": facts_fixture._INSTRUMENT,
+        "ExchangeID": facts_fixture._EXCHANGE,
+        "OrderStatus": "3",
+        "Direction": "0",
+        "CombOffsetFlag": "0",
+        "VolumeTotal": "1",
+        "FrontID": 4,
+        "SessionID": 7,
+    }
+    api, store, broker, _journal, _source_coordinator, target = facts_fixture._system_under_test(
+        now=now,
+        rows=facts_fixture._query_rows(orders=(remote_order,)),
+        tick=None,
+    )
+    receipt = facts_fixture._refresh_all(store, target)
+    facts_fixture._arm(store)
+    order = facts_fixture.BuyOrder(
+        owner=None,
+        data=target.data,
+        size=1,
+        price=100,
+        exectype=facts_fixture.Order.Limit,
+        simulated=True,
+    )
+    order.status = facts_fixture.Order.Accepted
+    order.info.update(
+        {
+            "external_order_ref": "94",
+            "order_sys_id": "sys-94",
+            "instrument_id": facts_fixture._INSTRUMENT,
+            "exchange_id": facts_fixture._EXCHANGE,
+            "factor_position_effect": "OPEN",
+            "factor_strategy_scope": "alpha003",
+            "factor_intent_id": "intent-94",
+            "front_id": 4,
+            "session_id": 7,
+            "execution_unknown": False,
+            "cancel_requested_remote": False,
+            "cancel_intent_active": False,
+            "managed_execution_cancel_pending": False,
+        }
+    )
+    broker.orders[order.ref] = order
+    store._latest_ticks.clear()
+
+    batch = SimpleNamespace(
+        status="COMPLETE",
+        batch_id="warmup-batch",
+        cohort_id="cohort-1",
+        calendar_id="simnow-common-minutes-v1",
+        epoch_id=1,
+        close_time=CLOSE,
+        available_at=AVAILABLE,
+    )
+    snapshot = SimpleNamespace(
+        readiness=LiveFactorReadiness.WARMUP,
+        batch_complete=False,
+    )
+    scopes = []
+    canceled = []
+
+    class _Coordinator:
+        def run_order_count(self):
+            return 0
+
+        def decision_scope(self, **_kwargs):
+            pytest.fail("WARMUP must not dispatch a new OPEN grid decision")
+
+        @contextmanager
+        def risk_decision_scope(self, **kwargs):
+            scopes.append(kwargs)
+            yield SimpleNamespace(dispatch_allowed=True)
+
+    strategy = object.__new__(_STRATEGY.Alpha003TargetStrategy)
+    strategy.p = SimpleNamespace(
+        execution_enabled=True,
+        replay_mode=False,
+        cohort=SimpleNamespace(cohort_id=batch.cohort_id, current_batch=lambda: batch),
+        control_refresh_loop=SimpleNamespace(last_receipt=receipt),
+    )
+    strategy.broker = broker
+    strategy._coordinator = _Coordinator()
+    strategy._risk_policy = _risk_policy()
+    strategy._account_scope = "acct-scope"
+    strategy._strategy_scope = "alpha003"
+    strategy._logical_run_id = "run-1"
+    strategy._routes = {target.target_id: (target.instrument, target.exchange)}
+    strategy._target_ids = (target.target_id,)
+    strategy._data_by_target = {target.target_id: target.data}
+    strategy._orders_by_broker_ref = {}
+    strategy._quote_max_age_seconds = None
+    strategy._max_query_age_seconds = None
+    strategy._last_signal_target = None
+    strategy._live_shadow_order_count = 0
+    strategy._shutdown_requested = Event()
+    strategy.last_order_plan = None
+    strategy.last_execution_facts = None
+    strategy.last_execution_block_reason = None
+    strategy.cancel = lambda candidate: canceled.append(candidate)
+    strategy._record_decision_tape = lambda *_args: (True, None, None)
+    strategy._find_order_object = MethodType(
+        _STRATEGY.Alpha003TargetStrategy._find_order_object, strategy
+    )
+    strategy._order_intents = MethodType(_STRATEGY.Alpha003TargetStrategy._order_intents, strategy)
+    strategy._dispatch_live_actions = MethodType(
+        _STRATEGY.Alpha003TargetStrategy._dispatch_live_actions, strategy
+    )
+
+    _STRATEGY.Alpha003TargetStrategy._run_live(
+        strategy,
+        batch,
+        snapshot,
+        datetime.now(UTC),
+        None,
+        None,
+        True,
+        is_new_batch=True,
+    )
+
+    facts = strategy.last_execution_facts
+    assert facts is not None
+    assert tuple(query.family for query in facts.query_provenance) == (
+        "account_result",
+        "orders_result",
+        "trades_result",
+        "instruments_result",
+        "positions_result",
+        "instrument_margin_rate_result",
+    )
+    assert facts.open_risk_ready is False
+    assert facts.order_cancel_ready is True, facts.order_cancel_blockers
+    assert facts.account is not None and facts.account.route_permitted is True
+    assert facts.working_orders[0].owner_strategy_scope == facts.strategy_scope
+    assert facts.working_orders[0].owner_intent_id == "intent-94"
+    assert api.query_calls
+
+    assert strategy.last_order_plan.status == "READY"
+    assert strategy.last_order_plan.reason == "CANCEL_OPEN_ORDERS_BEFORE_EXIT"
+    assert len(strategy.last_order_plan.actions) == 1
+    assert strategy.last_order_plan.actions[0].action == "CANCEL"
+    assert len(scopes) == 1
+    assert len(scopes[0]["intent_keys"]) == 1
+    assert scopes[0]["intent_keys"][0].action == "CANCEL"
+    assert scopes[0]["intent_keys"][0].position_effect == "OPEN"
+    assert scopes[0]["economic_payload"]["intent_economics"][0]["owner_intent_id"] == ("intent-94")
+    assert canceled == [order]
+
+
 def test_reduction_is_submitted_alone_before_any_new_target_is_opened():
     evaluated_at = AVAILABLE + timedelta(seconds=6)
     positions = (
