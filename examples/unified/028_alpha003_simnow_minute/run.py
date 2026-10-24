@@ -2250,11 +2250,18 @@ class QueryRefreshLoop:
         return False
 
     @staticmethod
-    def _reconcile_all(method, facts, allowed_statuses, label):
+    def _reconcile_all(method, facts, allowed_statuses, label, *, refresh_receipt=None):
         offset = 0
         total = 0
         while True:
-            page = method(facts, limit=128, offset=offset)
+            page_kwargs = {"limit": 128, "offset": offset}
+            if refresh_receipt is not None:
+                # Terminal UNKNOWN recovery must validate the very query batch
+                # from which ``facts`` was projected.  The caller passes this
+                # receipt from its current refresh_snapshot invocation; never
+                # reuse the loop's previously published receipt here.
+                page_kwargs["refresh_receipt"] = refresh_receipt
+            page = method(facts, **page_kwargs)
             if page.offset != offset or page.observation_count > 512:
                 raise RunnerError("LIVE_RECONCILIATION_PAGE_INVALID", label)
             if any(item.status not in allowed_statuses for item in page.items):
@@ -2374,6 +2381,7 @@ class QueryRefreshLoop:
                 facts,
                 {"RESOLVED", "DUPLICATE", "EXTERNAL_TERMINAL_FLAT"},
                 "terminal_orders",
+                refresh_receipt=receipt,
             )
             # Strategy and the proof reads both consume the exact second query
             # set, which postdates the durable trade/dated-book writes.

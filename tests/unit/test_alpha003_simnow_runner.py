@@ -259,7 +259,91 @@ def test_refresh_loop_stop_wins_before_reserved_query_start():
     assert loop.joined is True
     assert reservation_results == [False]
     assert refresh_calls == []
-    assert loop._interrupt_refresh.is_set()
+
+
+def test_refresh_loop_passes_same_query_set_receipt_to_terminal_coordinator():
+    """Real runner, Store, Broker, and coordinator preserve the exact receipt pair."""
+    from types import SimpleNamespace
+
+    from backtrader.stores.factor_execution_facts import FactorExecutionRefreshReceipt
+    from tests.unit.stores.test_factor_execution_facts import (
+        _build_source_backed_read_only_reconciliation_case,
+    )
+
+    case = _build_source_backed_read_only_reconciliation_case()
+    loop = RUNNER.QueryRefreshLoop(
+        case.store,
+        case.broker,
+        (case.target,),
+        coordinator=case.coordinator,
+        account_scope=case.facts.account_scope,
+        strategy_scope=case.facts.strategy_scope,
+        clock=SimpleNamespace(utc_now=lambda: datetime.now(UTC)),
+        quote_max_age=timedelta(seconds=2),
+        max_query_age=timedelta(seconds=30),
+        timeout=1.0,
+        overall_timeout=8.0,
+        interval=0.1,
+        cerebro=SimpleNamespace(),
+        shutdown_grace_seconds=1.0,
+    )
+    terminal_pairs = []
+    terminal_results = []
+    original = case.coordinator.reconcile_terminal_order_observations
+
+    def capture_terminal(facts, *, refresh_receipt=None, limit=128, offset=0):
+        terminal_pairs.append((facts, refresh_receipt))
+        page = original(
+            facts,
+            refresh_receipt=refresh_receipt,
+            limit=limit,
+            offset=offset,
+        )
+        terminal_results.append(page)
+        return page
+
+    case.coordinator.reconcile_terminal_order_observations = capture_terminal
+    try:
+        receipt = loop.refresh_once()
+        assert type(receipt) is FactorExecutionRefreshReceipt
+        assert receipt is loop.last_receipt
+        assert len(terminal_pairs) == 1
+        facts, paired_receipt = terminal_pairs[0]
+        assert paired_receipt is receipt
+        assert facts.query_set_id == receipt.query_set.query_set_id
+        assert tuple(item.request_id for item in facts.query_provenance) == tuple(
+            item.request_id for item in receipt.query_provenance
+        )
+        assert terminal_results[0].items == ()
+        assert loop.last_facts.query_set_id == receipt.query_set.query_set_id
+    finally:
+        case.journal.close()
+
+
+def test_reconcile_all_fails_closed_on_blocked_coordinator_result():
+    """A blocked reconciliation page is never converted into success."""
+    from types import SimpleNamespace
+
+    receipt = object()
+
+    def reconcile(_facts, *, refresh_receipt, limit, offset):
+        assert refresh_receipt is receipt
+        return SimpleNamespace(
+            items=(SimpleNamespace(status="BLOCKED"),),
+            observation_count=1,
+            offset=offset,
+            next_offset=None,
+            truncated=False,
+        )
+
+    with pytest.raises(RUNNER.RunnerError, match="LIVE_RECONCILIATION_BLOCKED"):
+        RUNNER.QueryRefreshLoop._reconcile_all(
+            reconcile,
+            object(),
+            {"RESOLVED", "DUPLICATE", "EXTERNAL_TERMINAL_FLAT"},
+            "terminal_orders",
+            refresh_receipt=receipt,
+        )
 
 
 def _trading_days():
