@@ -1,0 +1,903 @@
+{
+  "acceptance_scope": "analysis only; receipt PASS covers source/output integrity, not timing or memory",
+  "memory_target": {
+    "candidate_peak_limit_bytes": 1000000000,
+    "max_recorded_candidate_peak_bytes": 347570176,
+    "status": "NOT_FINAL_FIXED500"
+  },
+  "per_example": {
+    "025": {
+      "cpu_ns": {
+        "baseline_median": 49187500000,
+        "candidate_median": 17390625000,
+        "candidate_over_baseline_median": 0.3543781725888325,
+        "pair_values": [
+          {
+            "baseline": 48671875000,
+            "candidate": 17390625000,
+            "candidate_over_baseline": 0.35730337078651686,
+            "pair": 1,
+            "reduction_percent": 64.26966292134831
+          },
+          {
+            "baseline": 49187500000,
+            "candidate": 17218750000,
+            "candidate_over_baseline": 0.35006353240152477,
+            "pair": 2,
+            "reduction_percent": 64.99364675984752
+          },
+          {
+            "baseline": 49250000000,
+            "candidate": 17453125000,
+            "candidate_over_baseline": 0.3543781725888325,
+            "pair": 3,
+            "reduction_percent": 64.56218274111676
+          }
+        ],
+        "ratio_range_over_median": 0.020429696140998276
+      },
+      "recorded_conservative_peak_bytes": {
+        "baseline_median": 923357184,
+        "candidate_median": 309694464,
+        "candidate_over_baseline_median": 0.33539455181805683,
+        "pair_values": [
+          {
+            "baseline": 921530368,
+            "candidate": 317333504,
+            "candidate_over_baseline": 0.3443549068151816,
+            "pair": 1,
+            "reduction_percent": 65.56450931848184
+          },
+          {
+            "baseline": 923373568,
+            "candidate": 309694464,
+            "candidate_over_baseline": 0.33539455181805683,
+            "pair": 2,
+            "reduction_percent": 66.46054481819432
+          },
+          {
+            "baseline": 923357184,
+            "candidate": 309600256,
+            "candidate_over_baseline": 0.335298475351441,
+            "pair": 3,
+            "reduction_percent": 66.4701524648559
+          }
+        ],
+        "ratio_range_over_median": 0.027002321339594883
+      },
+      "wall_ns": {
+        "baseline_median": 50314188500,
+        "candidate_median": 17738849500,
+        "candidate_over_baseline_median": 0.3514251949030242,
+        "final_80_percent_target": "NOT_FINAL_FIXED500",
+        "pair_values": [
+          {
+            "baseline": 49698994000,
+            "candidate": 17738849500,
+            "candidate_over_baseline": 0.35692572569979986,
+            "pair": 1,
+            "reduction_percent": 64.30742743002001
+          },
+          {
+            "baseline": 50314188500,
+            "candidate": 17681673500,
+            "candidate_over_baseline": 0.3514251949030242,
+            "pair": 2,
+            "reduction_percent": 64.85748050969758
+          },
+          {
+            "baseline": 50524951300,
+            "candidate": 17754050000,
+            "candidate_over_baseline": 0.3513917290999942,
+            "pair": 3,
+            "reduction_percent": 64.86082709000058
+          }
+        ],
+        "ratio_range_over_median": 0.015747296096208303
+      }
+    },
+    "026": {
+      "cpu_ns": {
+        "baseline_median": 101390625000,
+        "candidate_median": 37390625000,
+        "candidate_over_baseline_median": 0.36826715912588487,
+        "pair_values": [
+          {
+            "baseline": 100359375000,
+            "candidate": 37515625000,
+            "candidate_over_baseline": 0.3738128600342519,
+            "pair": 1,
+            "reduction_percent": 62.61871399657481
+          },
+          {
+            "baseline": 101531250000,
+            "candidate": 37390625000,
+            "candidate_over_baseline": 0.36826715912588487,
+            "pair": 2,
+            "reduction_percent": 63.17328408741152
+          },
+          {
+            "baseline": 101390625000,
+            "candidate": 36468750000,
+            "candidate_over_baseline": 0.3596856218215442,
+            "pair": 3,
+            "reduction_percent": 64.03143781784559
+          }
+        ],
+        "ratio_range_over_median": 0.03836138483333674
+      },
+      "recorded_conservative_peak_bytes": {
+        "baseline_median": 1245339648,
+        "candidate_median": 347189248,
+        "candidate_over_baseline_median": 0.27879080904360637,
+        "pair_values": [
+          {
+            "baseline": 1245171712,
+            "candidate": 347570176,
+            "candidate_over_baseline": 0.2791343335625023,
+            "pair": 1,
+            "reduction_percent": 72.08656664374978
+          },
+          {
+            "baseline": 1245675520,
+            "candidate": 346800128,
+            "candidate_over_baseline": 0.27840326187031433,
+            "pair": 2,
+            "reduction_percent": 72.15967381296858
+          },
+          {
+            "baseline": 1245339648,
+            "candidate": 347189248,
+            "candidate_over_baseline": 0.27879080904360637,
+            "pair": 3,
+            "reduction_percent": 72.12091909563935
+          }
+        ],
+        "ratio_range_over_median": 0.0026222948119986153
+      },
+      "wall_ns": {
+        "baseline_median": 104132127200,
+        "candidate_median": 38702705000,
+        "candidate_over_baseline_median": 0.37189980884208806,
+        "final_80_percent_target": "NOT_FINAL_FIXED500",
+        "pair_values": [
+          {
+            "baseline": 104132127200,
+            "candidate": 38726718200,
+            "candidate_over_baseline": 0.37189980884208806,
+            "pair": 1,
+            "reduction_percent": 62.81001911579119
+          },
+          {
+            "baseline": 104838313600,
+            "candidate": 38564976400,
+            "candidate_over_baseline": 0.3678519338563645,
+            "pair": 2,
+            "reduction_percent": 63.21480661436355
+          },
+          {
+            "baseline": 104005186400,
+            "candidate": 38702705000,
+            "candidate_over_baseline": 0.37212283675114877,
+            "pair": 3,
+            "reduction_percent": 62.787716324885125
+          }
+        ],
+        "ratio_range_over_median": 0.011484014762152595
+      }
+    },
+    "027": {
+      "cpu_ns": {
+        "baseline_median": 44421875000,
+        "candidate_median": 20343750000,
+        "candidate_over_baseline_median": 0.46559139784946235,
+        "pair_values": [
+          {
+            "baseline": 44421875000,
+            "candidate": 20859375000,
+            "candidate_over_baseline": 0.4695743932465705,
+            "pair": 1,
+            "reduction_percent": 53.04256067534294
+          },
+          {
+            "baseline": 44453125000,
+            "candidate": 20343750000,
+            "candidate_over_baseline": 0.4576449912126538,
+            "pair": 2,
+            "reduction_percent": 54.23550087873462
+          },
+          {
+            "baseline": 43593750000,
+            "candidate": 20296875000,
+            "candidate_over_baseline": 0.46559139784946235,
+            "pair": 3,
+            "reduction_percent": 53.44086021505377
+          }
+        ],
+        "ratio_range_over_median": 0.025622041319959734
+      },
+      "recorded_conservative_peak_bytes": {
+        "baseline_median": 493797376,
+        "candidate_median": 301142016,
+        "candidate_over_baseline_median": 0.6094365544410236,
+        "pair_values": [
+          {
+            "baseline": 493797376,
+            "candidate": 301142016,
+            "candidate_over_baseline": 0.6098493646106374,
+            "pair": 1,
+            "reduction_percent": 39.01506353893625
+          },
+          {
+            "baseline": 492744704,
+            "candidate": 298766336,
+            "candidate_over_baseline": 0.6063308921936176,
+            "pair": 2,
+            "reduction_percent": 39.36691078063824
+          },
+          {
+            "baseline": 494911488,
+            "candidate": 301617152,
+            "candidate_over_baseline": 0.6094365544410236,
+            "pair": 3,
+            "reduction_percent": 39.05634455589764
+          }
+        ],
+        "ratio_range_over_median": 0.00577332027654135
+      },
+      "wall_ns": {
+        "baseline_median": 45734543000,
+        "candidate_median": 20887609700,
+        "candidate_over_baseline_median": 0.459224849893074,
+        "final_80_percent_target": "NOT_FINAL_FIXED500",
+        "pair_values": [
+          {
+            "baseline": 45734543000,
+            "candidate": 21501779000,
+            "candidate_over_baseline": 0.4701430820025905,
+            "pair": 1,
+            "reduction_percent": 52.985691799740955
+          },
+          {
+            "baseline": 45484493500,
+            "candidate": 20887609700,
+            "candidate_over_baseline": 0.459224849893074,
+            "pair": 2,
+            "reduction_percent": 54.0775150106926
+          },
+          {
+            "baseline": 45802838700,
+            "candidate": 20822313700,
+            "candidate_over_baseline": 0.45460749357441027,
+            "pair": 3,
+            "reduction_percent": 54.539250642558976
+          }
+        ],
+        "ratio_range_over_median": 0.0338300256003078
+      }
+    }
+  },
+  "phase_note": "exclusive timer sums are mutually exclusive; remainder is main wall minus all reported exclusive phase rows",
+  "receipt": "D:\\temp\\iteration49-final-7col-500-r2b\\fixed500-stage.json",
+  "receipt_status": "PASS",
+  "runs": [
+    {
+      "arm": "baseline",
+      "cli_cpu_over_main_ns": 5343750000,
+      "cli_total_cpu_ns": 54015625000,
+      "cli_total_wall_ns": 55798982500,
+      "cli_wall_over_main_ns": 6099988500,
+      "cpu_ns": 48671875000,
+      "example": "025",
+      "html_report_note": "html_report includes factor evaluation and rendering; positions sub-timers are grouped here using exclusive time only.",
+      "main_peak_working_set_bytes": 921530368,
+      "pair": 1,
+      "phase_breakdown": {
+        "exclusive_by_stage_ns": {
+          "alignment_preload": 4255775000,
+          "collection_finish": 1792134900,
+          "csv_chart_export": 4025684200,
+          "engine": 4157736100,
+          "evaluation_html_report": 8030180300,
+          "fincore_evaluation": 25421142800,
+          "load": 1339504700,
+          "other_small": 663694800
+        },
+        "main_wall_ns": 49698994000,
+        "method": "sum wall_exclusive_ns only; inclusive timers are not added",
+        "phase_exclusive_sum_ns": 49685852800,
+        "unattributed_remainder_ns": 13141200
+      },
+      "receipt_metrics_match": true,
+      "recorded_conservative_peak_bytes": 921530368,
+      "resource_peak_tree_rss_bytes": 839958528,
+      "result": "D:\\temp\\iteration49-final-7col-500-r2b\\fixed500-p1-baseline-025\\result.json",
+      "result_sha256": "b9c93817d71a65e501a88d7240357fe161c320a1ca27518bbac87aee1becfd30",
+      "wall_ns": 49698994000
+    },
+    {
+      "arm": "candidate",
+      "cli_cpu_over_main_ns": 6265625000,
+      "cli_total_cpu_ns": 23656250000,
+      "cli_total_wall_ns": 25357645300,
+      "cli_wall_over_main_ns": 7618795800,
+      "cpu_ns": 17390625000,
+      "example": "025",
+      "html_report_note": "html_report includes factor evaluation and rendering; positions sub-timers are grouped here using exclusive time only.",
+      "main_peak_working_set_bytes": 317333504,
+      "pair": 1,
+      "phase_breakdown": {
+        "exclusive_by_stage_ns": {
+          "alignment_preload": 2749629300,
+          "collection_finish": 958225500,
+          "csv_chart_export": 2480650000,
+          "engine": 2326730800,
+          "evaluation_html_report": 3439250400,
+          "fincore_evaluation": 3849599800,
+          "load": 1383800300,
+          "other_small": 315687400
+        },
+        "main_wall_ns": 17738849500,
+        "method": "sum wall_exclusive_ns only; inclusive timers are not added",
+        "phase_exclusive_sum_ns": 17503573500,
+        "unattributed_remainder_ns": 235276000
+      },
+      "receipt_metrics_match": true,
+      "recorded_conservative_peak_bytes": 317333504,
+      "resource_peak_tree_rss_bytes": 301142016,
+      "result": "D:\\temp\\iteration49-final-7col-500-r2b\\fixed500-p1-candidate-025\\result.json",
+      "result_sha256": "f83696a9a12a4de016f2c7c86fc12eefc43feaead64aa8654c3b58c0d5288d04",
+      "wall_ns": 17738849500
+    },
+    {
+      "arm": "baseline",
+      "cli_cpu_over_main_ns": 5375000000,
+      "cli_total_cpu_ns": 105734375000,
+      "cli_total_wall_ns": 110292004400,
+      "cli_wall_over_main_ns": 6159877200,
+      "cpu_ns": 100359375000,
+      "example": "026",
+      "html_report_note": "html_report includes factor evaluation and rendering; positions sub-timers are grouped here using exclusive time only.",
+      "main_peak_working_set_bytes": 1245171712,
+      "pair": 1,
+      "phase_breakdown": {
+        "exclusive_by_stage_ns": {
+          "alignment_preload": 4309874400,
+          "collection_finish": 3342509300,
+          "csv_chart_export": 6139415200,
+          "engine": 17208449700,
+          "evaluation_html_report": 22877334900,
+          "fincore_evaluation": 45875610400,
+          "load": 1365354800,
+          "other_small": 2996783800
+        },
+        "main_wall_ns": 104132127200,
+        "method": "sum wall_exclusive_ns only; inclusive timers are not added",
+        "phase_exclusive_sum_ns": 104115332500,
+        "unattributed_remainder_ns": 16794700
+      },
+      "receipt_metrics_match": true,
+      "recorded_conservative_peak_bytes": 1245171712,
+      "resource_peak_tree_rss_bytes": 1114423296,
+      "result": "D:\\temp\\iteration49-final-7col-500-r2b\\fixed500-p1-baseline-026\\result.json",
+      "result_sha256": "742054485c55544b2a915e4286ed58431bccf6d48920d1de9e19893671d64c80",
+      "wall_ns": 104132127200
+    },
+    {
+      "arm": "candidate",
+      "cli_cpu_over_main_ns": 5031250000,
+      "cli_total_cpu_ns": 42546875000,
+      "cli_total_wall_ns": 44921713900,
+      "cli_wall_over_main_ns": 6194995700,
+      "cpu_ns": 37515625000,
+      "example": "026",
+      "html_report_note": "html_report includes factor evaluation and rendering; positions sub-timers are grouped here using exclusive time only.",
+      "main_peak_working_set_bytes": 347570176,
+      "pair": 1,
+      "phase_breakdown": {
+        "exclusive_by_stage_ns": {
+          "alignment_preload": 2727491900,
+          "collection_finish": 1907101600,
+          "csv_chart_export": 3788374200,
+          "engine": 6577279600,
+          "evaluation_html_report": 9318167400,
+          "fincore_evaluation": 10955527000,
+          "load": 1407791500,
+          "other_small": 1763741700
+        },
+        "main_wall_ns": 38726718200,
+        "method": "sum wall_exclusive_ns only; inclusive timers are not added",
+        "phase_exclusive_sum_ns": 38445474900,
+        "unattributed_remainder_ns": 281243300
+      },
+      "receipt_metrics_match": true,
+      "recorded_conservative_peak_bytes": 347570176,
+      "resource_peak_tree_rss_bytes": 333254656,
+      "result": "D:\\temp\\iteration49-final-7col-500-r2b\\fixed500-p1-candidate-026\\result.json",
+      "result_sha256": "ea58006ea902f9e31f933b988553abadec1929b2b4f0e172bd1b6f3b6a3f7ee9",
+      "wall_ns": 38726718200
+    },
+    {
+      "arm": "baseline",
+      "cli_cpu_over_main_ns": 5109375000,
+      "cli_total_cpu_ns": 49531250000,
+      "cli_total_wall_ns": 51869267300,
+      "cli_wall_over_main_ns": 6134724300,
+      "cpu_ns": 44421875000,
+      "example": "027",
+      "html_report_note": "html_report includes factor evaluation and rendering; positions sub-timers are grouped here using exclusive time only.",
+      "main_peak_working_set_bytes": 493797376,
+      "pair": 1,
+      "phase_breakdown": {
+        "exclusive_by_stage_ns": {
+          "alignment_preload": 4286159700,
+          "collection_finish": 2625201800,
+          "csv_chart_export": 634965500,
+          "engine": 26767461500,
+          "evaluation_html_report": 8413938700,
+          "fincore_evaluation": 0,
+          "load": 1373690400,
+          "other_small": 1623569600
+        },
+        "main_wall_ns": 45734543000,
+        "method": "sum wall_exclusive_ns only; inclusive timers are not added",
+        "phase_exclusive_sum_ns": 45724987200,
+        "unattributed_remainder_ns": 9555800
+      },
+      "receipt_metrics_match": true,
+      "recorded_conservative_peak_bytes": 493797376,
+      "resource_peak_tree_rss_bytes": 438849536,
+      "result": "D:\\temp\\iteration49-final-7col-500-r2b\\fixed500-p1-baseline-027\\result.json",
+      "result_sha256": "0cf4975d47f96d6e802cee5b10ceac3dd23836dafcf9098339bcad3532d56e8c",
+      "wall_ns": 45734543000
+    },
+    {
+      "arm": "candidate",
+      "cli_cpu_over_main_ns": 5406250000,
+      "cli_total_cpu_ns": 26265625000,
+      "cli_total_wall_ns": 27909393600,
+      "cli_wall_over_main_ns": 6407614600,
+      "cpu_ns": 20859375000,
+      "example": "027",
+      "html_report_note": "html_report includes factor evaluation and rendering; positions sub-timers are grouped here using exclusive time only.",
+      "main_peak_working_set_bytes": 301142016,
+      "pair": 1,
+      "phase_breakdown": {
+        "exclusive_by_stage_ns": {
+          "alignment_preload": 2828743900,
+          "collection_finish": 1633525600,
+          "csv_chart_export": 633533600,
+          "engine": 10896916800,
+          "evaluation_html_report": 3538925600,
+          "fincore_evaluation": 0,
+          "load": 1386100300,
+          "other_small": 479983800
+        },
+        "main_wall_ns": 21501779000,
+        "method": "sum wall_exclusive_ns only; inclusive timers are not added",
+        "phase_exclusive_sum_ns": 21397729600,
+        "unattributed_remainder_ns": 104049400
+      },
+      "receipt_metrics_match": true,
+      "recorded_conservative_peak_bytes": 301142016,
+      "resource_peak_tree_rss_bytes": 287965184,
+      "result": "D:\\temp\\iteration49-final-7col-500-r2b\\fixed500-p1-candidate-027\\result.json",
+      "result_sha256": "ff92e260ea751a81c153e64a797894ddedd4ce1c4b9b0195b16dacf37b48da3e",
+      "wall_ns": 21501779000
+    },
+    {
+      "arm": "candidate",
+      "cli_cpu_over_main_ns": 5125000000,
+      "cli_total_cpu_ns": 22343750000,
+      "cli_total_wall_ns": 23569587000,
+      "cli_wall_over_main_ns": 5887913500,
+      "cpu_ns": 17218750000,
+      "example": "025",
+      "html_report_note": "html_report includes factor evaluation and rendering; positions sub-timers are grouped here using exclusive time only.",
+      "main_peak_working_set_bytes": 309694464,
+      "pair": 2,
+      "phase_breakdown": {
+        "exclusive_by_stage_ns": {
+          "alignment_preload": 2713345100,
+          "collection_finish": 963513200,
+          "csv_chart_export": 2441138700,
+          "engine": 2251073500,
+          "evaluation_html_report": 3585385500,
+          "fincore_evaluation": 3872656600,
+          "load": 1323967700,
+          "other_small": 299285200
+        },
+        "main_wall_ns": 17681673500,
+        "method": "sum wall_exclusive_ns only; inclusive timers are not added",
+        "phase_exclusive_sum_ns": 17450365500,
+        "unattributed_remainder_ns": 231308000
+      },
+      "receipt_metrics_match": true,
+      "recorded_conservative_peak_bytes": 309694464,
+      "resource_peak_tree_rss_bytes": 295317504,
+      "result": "D:\\temp\\iteration49-final-7col-500-r2b\\fixed500-p2-candidate-025\\result.json",
+      "result_sha256": "5a3c9ad10640ea2e4c7dcb5ead9627b677cce2d09cfca7c0cd833e9fe0a1cb2c",
+      "wall_ns": 17681673500
+    },
+    {
+      "arm": "baseline",
+      "cli_cpu_over_main_ns": 5140625000,
+      "cli_total_cpu_ns": 54328125000,
+      "cli_total_wall_ns": 56336766900,
+      "cli_wall_over_main_ns": 6022578400,
+      "cpu_ns": 49187500000,
+      "example": "025",
+      "html_report_note": "html_report includes factor evaluation and rendering; positions sub-timers are grouped here using exclusive time only.",
+      "main_peak_working_set_bytes": 923373568,
+      "pair": 2,
+      "phase_breakdown": {
+        "exclusive_by_stage_ns": {
+          "alignment_preload": 4301661900,
+          "collection_finish": 1880154200,
+          "csv_chart_export": 4087113400,
+          "engine": 4295475100,
+          "evaluation_html_report": 8106866900,
+          "fincore_evaluation": 25575432200,
+          "load": 1367353700,
+          "other_small": 683944600
+        },
+        "main_wall_ns": 50314188500,
+        "method": "sum wall_exclusive_ns only; inclusive timers are not added",
+        "phase_exclusive_sum_ns": 50298002000,
+        "unattributed_remainder_ns": 16186500
+      },
+      "receipt_metrics_match": true,
+      "recorded_conservative_peak_bytes": 923373568,
+      "resource_peak_tree_rss_bytes": 634851328,
+      "result": "D:\\temp\\iteration49-final-7col-500-r2b\\fixed500-p2-baseline-025\\result.json",
+      "result_sha256": "75ac05666dd2076d007ea665112f501f44e01c3b49b5808c3ec50bf0ade677bd",
+      "wall_ns": 50314188500
+    },
+    {
+      "arm": "candidate",
+      "cli_cpu_over_main_ns": 5140625000,
+      "cli_total_cpu_ns": 42531250000,
+      "cli_total_wall_ns": 44657923200,
+      "cli_wall_over_main_ns": 6092946800,
+      "cpu_ns": 37390625000,
+      "example": "026",
+      "html_report_note": "html_report includes factor evaluation and rendering; positions sub-timers are grouped here using exclusive time only.",
+      "main_peak_working_set_bytes": 346800128,
+      "pair": 2,
+      "phase_breakdown": {
+        "exclusive_by_stage_ns": {
+          "alignment_preload": 2682289300,
+          "collection_finish": 1968341200,
+          "csv_chart_export": 3659808100,
+          "engine": 6550116800,
+          "evaluation_html_report": 9416684700,
+          "fincore_evaluation": 10889444800,
+          "load": 1357707400,
+          "other_small": 1759147200
+        },
+        "main_wall_ns": 38564976400,
+        "method": "sum wall_exclusive_ns only; inclusive timers are not added",
+        "phase_exclusive_sum_ns": 38283539500,
+        "unattributed_remainder_ns": 281436900
+      },
+      "receipt_metrics_match": true,
+      "recorded_conservative_peak_bytes": 346800128,
+      "resource_peak_tree_rss_bytes": 328019968,
+      "result": "D:\\temp\\iteration49-final-7col-500-r2b\\fixed500-p2-candidate-026\\result.json",
+      "result_sha256": "f88cd32c1eafdef33a9c244911f2758078659126568384348fb4fe44f9c7d9fe",
+      "wall_ns": 38564976400
+    },
+    {
+      "arm": "baseline",
+      "cli_cpu_over_main_ns": 5234375000,
+      "cli_total_cpu_ns": 106765625000,
+      "cli_total_wall_ns": 110909339300,
+      "cli_wall_over_main_ns": 6071025700,
+      "cpu_ns": 101531250000,
+      "example": "026",
+      "html_report_note": "html_report includes factor evaluation and rendering; positions sub-timers are grouped here using exclusive time only.",
+      "main_peak_working_set_bytes": 1245675520,
+      "pair": 2,
+      "phase_breakdown": {
+        "exclusive_by_stage_ns": {
+          "alignment_preload": 4243622900,
+          "collection_finish": 3323098900,
+          "csv_chart_export": 6132454900,
+          "engine": 17108945100,
+          "evaluation_html_report": 23603557800,
+          "fincore_evaluation": 46207654500,
+          "load": 1370484400,
+          "other_small": 2830837200
+        },
+        "main_wall_ns": 104838313600,
+        "method": "sum wall_exclusive_ns only; inclusive timers are not added",
+        "phase_exclusive_sum_ns": 104820655700,
+        "unattributed_remainder_ns": 17657900
+      },
+      "receipt_metrics_match": true,
+      "recorded_conservative_peak_bytes": 1245675520,
+      "resource_peak_tree_rss_bytes": 1244766208,
+      "result": "D:\\temp\\iteration49-final-7col-500-r2b\\fixed500-p2-baseline-026\\result.json",
+      "result_sha256": "77e21619cef537dfdc97ad8f1e89c941e8dea11819ee7542fa610c9d96ab42b1",
+      "wall_ns": 104838313600
+    },
+    {
+      "arm": "candidate",
+      "cli_cpu_over_main_ns": 5250000000,
+      "cli_total_cpu_ns": 25593750000,
+      "cli_total_wall_ns": 27009117800,
+      "cli_wall_over_main_ns": 6121508100,
+      "cpu_ns": 20343750000,
+      "example": "027",
+      "html_report_note": "html_report includes factor evaluation and rendering; positions sub-timers are grouped here using exclusive time only.",
+      "main_peak_working_set_bytes": 298766336,
+      "pair": 2,
+      "phase_breakdown": {
+        "exclusive_by_stage_ns": {
+          "alignment_preload": 2733975800,
+          "collection_finish": 1486005300,
+          "csv_chart_export": 625310400,
+          "engine": 10597493900,
+          "evaluation_html_report": 3489142800,
+          "fincore_evaluation": 0,
+          "load": 1388922500,
+          "other_small": 467792300
+        },
+        "main_wall_ns": 20887609700,
+        "method": "sum wall_exclusive_ns only; inclusive timers are not added",
+        "phase_exclusive_sum_ns": 20788643000,
+        "unattributed_remainder_ns": 98966700
+      },
+      "receipt_metrics_match": true,
+      "recorded_conservative_peak_bytes": 298766336,
+      "resource_peak_tree_rss_bytes": 295870464,
+      "result": "D:\\temp\\iteration49-final-7col-500-r2b\\fixed500-p2-candidate-027\\result.json",
+      "result_sha256": "996d63f7be746d8a47e6f7ada5d82c0515832c90efe14a7ee8f0a3031bc07b93",
+      "wall_ns": 20887609700
+    },
+    {
+      "arm": "baseline",
+      "cli_cpu_over_main_ns": 5375000000,
+      "cli_total_cpu_ns": 49828125000,
+      "cli_total_wall_ns": 51663563000,
+      "cli_wall_over_main_ns": 6179069500,
+      "cpu_ns": 44453125000,
+      "example": "027",
+      "html_report_note": "html_report includes factor evaluation and rendering; positions sub-timers are grouped here using exclusive time only.",
+      "main_peak_working_set_bytes": 492744704,
+      "pair": 2,
+      "phase_breakdown": {
+        "exclusive_by_stage_ns": {
+          "alignment_preload": 4330704100,
+          "collection_finish": 2463670200,
+          "csv_chart_export": 644391800,
+          "engine": 26554644200,
+          "evaluation_html_report": 8447663300,
+          "fincore_evaluation": 0,
+          "load": 1366376000,
+          "other_small": 1667360000
+        },
+        "main_wall_ns": 45484493500,
+        "method": "sum wall_exclusive_ns only; inclusive timers are not added",
+        "phase_exclusive_sum_ns": 45474809600,
+        "unattributed_remainder_ns": 9683900
+      },
+      "receipt_metrics_match": true,
+      "recorded_conservative_peak_bytes": 492744704,
+      "resource_peak_tree_rss_bytes": 436555776,
+      "result": "D:\\temp\\iteration49-final-7col-500-r2b\\fixed500-p2-baseline-027\\result.json",
+      "result_sha256": "da813693c00f132ac7964b55b34c26781d32cbff0b1756c274e67888f9616bee",
+      "wall_ns": 45484493500
+    },
+    {
+      "arm": "baseline",
+      "cli_cpu_over_main_ns": 5156250000,
+      "cli_total_cpu_ns": 54406250000,
+      "cli_total_wall_ns": 56520822200,
+      "cli_wall_over_main_ns": 5995870900,
+      "cpu_ns": 49250000000,
+      "example": "025",
+      "html_report_note": "html_report includes factor evaluation and rendering; positions sub-timers are grouped here using exclusive time only.",
+      "main_peak_working_set_bytes": 923357184,
+      "pair": 3,
+      "phase_breakdown": {
+        "exclusive_by_stage_ns": {
+          "alignment_preload": 4359489300,
+          "collection_finish": 1902020500,
+          "csv_chart_export": 4004398900,
+          "engine": 4248834900,
+          "evaluation_html_report": 8284152300,
+          "fincore_evaluation": 25660691100,
+          "load": 1362905000,
+          "other_small": 689266000
+        },
+        "main_wall_ns": 50524951300,
+        "method": "sum wall_exclusive_ns only; inclusive timers are not added",
+        "phase_exclusive_sum_ns": 50511758000,
+        "unattributed_remainder_ns": 13193300
+      },
+      "receipt_metrics_match": true,
+      "recorded_conservative_peak_bytes": 923357184,
+      "resource_peak_tree_rss_bytes": 635146240,
+      "result": "D:\\temp\\iteration49-final-7col-500-r2b\\fixed500-p3-baseline-025\\result.json",
+      "result_sha256": "a9e3c0fc116adbbbaa07f3de8cdfa656817405daf9ade0036cff7985f3f45700",
+      "wall_ns": 50524951300
+    },
+    {
+      "arm": "candidate",
+      "cli_cpu_over_main_ns": 5140625000,
+      "cli_total_cpu_ns": 22593750000,
+      "cli_total_wall_ns": 23767693200,
+      "cli_wall_over_main_ns": 6013643200,
+      "cpu_ns": 17453125000,
+      "example": "025",
+      "html_report_note": "html_report includes factor evaluation and rendering; positions sub-timers are grouped here using exclusive time only.",
+      "main_peak_working_set_bytes": 309600256,
+      "pair": 3,
+      "phase_breakdown": {
+        "exclusive_by_stage_ns": {
+          "alignment_preload": 2728421600,
+          "collection_finish": 945875400,
+          "csv_chart_export": 2423510700,
+          "engine": 2365465100,
+          "evaluation_html_report": 3506344500,
+          "fincore_evaluation": 3822372400,
+          "load": 1378752800,
+          "other_small": 326838600
+        },
+        "main_wall_ns": 17754050000,
+        "method": "sum wall_exclusive_ns only; inclusive timers are not added",
+        "phase_exclusive_sum_ns": 17497581100,
+        "unattributed_remainder_ns": 256468900
+      },
+      "receipt_metrics_match": true,
+      "recorded_conservative_peak_bytes": 309600256,
+      "resource_peak_tree_rss_bytes": 296075264,
+      "result": "D:\\temp\\iteration49-final-7col-500-r2b\\fixed500-p3-candidate-025\\result.json",
+      "result_sha256": "47c6142e8ec7b580b8c602db987493b725319cd09aa19186ebd5c719b005975e",
+      "wall_ns": 17754050000
+    },
+    {
+      "arm": "baseline",
+      "cli_cpu_over_main_ns": 5328125000,
+      "cli_total_cpu_ns": 106718750000,
+      "cli_total_wall_ns": 110156588700,
+      "cli_wall_over_main_ns": 6151402300,
+      "cpu_ns": 101390625000,
+      "example": "026",
+      "html_report_note": "html_report includes factor evaluation and rendering; positions sub-timers are grouped here using exclusive time only.",
+      "main_peak_working_set_bytes": 1245339648,
+      "pair": 3,
+      "phase_breakdown": {
+        "exclusive_by_stage_ns": {
+          "alignment_preload": 4323237000,
+          "collection_finish": 3331138900,
+          "csv_chart_export": 6224298500,
+          "engine": 16848070600,
+          "evaluation_html_report": 23486723500,
+          "fincore_evaluation": 45390561400,
+          "load": 1369114100,
+          "other_small": 3014988600
+        },
+        "main_wall_ns": 104005186400,
+        "method": "sum wall_exclusive_ns only; inclusive timers are not added",
+        "phase_exclusive_sum_ns": 103988132600,
+        "unattributed_remainder_ns": 17053800
+      },
+      "receipt_metrics_match": true,
+      "recorded_conservative_peak_bytes": 1245339648,
+      "resource_peak_tree_rss_bytes": 890687488,
+      "result": "D:\\temp\\iteration49-final-7col-500-r2b\\fixed500-p3-baseline-026\\result.json",
+      "result_sha256": "93b34084f877cdaea7090f671ebe3e13b92d6daaf9c4dc7b913632e4adfb360f",
+      "wall_ns": 104005186400
+    },
+    {
+      "arm": "candidate",
+      "cli_cpu_over_main_ns": 5140625000,
+      "cli_total_cpu_ns": 41609375000,
+      "cli_total_wall_ns": 44735073800,
+      "cli_wall_over_main_ns": 6032368800,
+      "cpu_ns": 36468750000,
+      "example": "026",
+      "html_report_note": "html_report includes factor evaluation and rendering; positions sub-timers are grouped here using exclusive time only.",
+      "main_peak_working_set_bytes": 347189248,
+      "pair": 3,
+      "phase_breakdown": {
+        "exclusive_by_stage_ns": {
+          "alignment_preload": 2665908500,
+          "collection_finish": 1992453300,
+          "csv_chart_export": 3757315100,
+          "engine": 6604515500,
+          "evaluation_html_report": 9425783900,
+          "fincore_evaluation": 10818500700,
+          "load": 1364597600,
+          "other_small": 1775954600
+        },
+        "main_wall_ns": 38702705000,
+        "method": "sum wall_exclusive_ns only; inclusive timers are not added",
+        "phase_exclusive_sum_ns": 38405029200,
+        "unattributed_remainder_ns": 297675800
+      },
+      "receipt_metrics_match": true,
+      "recorded_conservative_peak_bytes": 347189248,
+      "resource_peak_tree_rss_bytes": 328790016,
+      "result": "D:\\temp\\iteration49-final-7col-500-r2b\\fixed500-p3-candidate-026\\result.json",
+      "result_sha256": "fc259f35f248d3cbd7ed6b85f05628f8d6b4b548e9f7798f2626f7bd81394bfb",
+      "wall_ns": 38702705000
+    },
+    {
+      "arm": "baseline",
+      "cli_cpu_over_main_ns": 5187500000,
+      "cli_total_cpu_ns": 48781250000,
+      "cli_total_wall_ns": 51770714700,
+      "cli_wall_over_main_ns": 5967876000,
+      "cpu_ns": 43593750000,
+      "example": "027",
+      "html_report_note": "html_report includes factor evaluation and rendering; positions sub-timers are grouped here using exclusive time only.",
+      "main_peak_working_set_bytes": 494911488,
+      "pair": 3,
+      "phase_breakdown": {
+        "exclusive_by_stage_ns": {
+          "alignment_preload": 4247841100,
+          "collection_finish": 2560278000,
+          "csv_chart_export": 665790500,
+          "engine": 26986695100,
+          "evaluation_html_report": 8354985400,
+          "fincore_evaluation": 0,
+          "load": 1372244300,
+          "other_small": 1605567100
+        },
+        "main_wall_ns": 45802838700,
+        "method": "sum wall_exclusive_ns only; inclusive timers are not added",
+        "phase_exclusive_sum_ns": 45793401500,
+        "unattributed_remainder_ns": 9437200
+      },
+      "receipt_metrics_match": true,
+      "recorded_conservative_peak_bytes": 494911488,
+      "resource_peak_tree_rss_bytes": 442372096,
+      "result": "D:\\temp\\iteration49-final-7col-500-r2b\\fixed500-p3-baseline-027\\result.json",
+      "result_sha256": "9fa1c7688aa893537194826b7c293f7ddd042b9efb563d1e6b4ae5640b2f3a9e",
+      "wall_ns": 45802838700
+    },
+    {
+      "arm": "candidate",
+      "cli_cpu_over_main_ns": 5234375000,
+      "cli_total_cpu_ns": 25531250000,
+      "cli_total_wall_ns": 26857490500,
+      "cli_wall_over_main_ns": 6035176800,
+      "cpu_ns": 20296875000,
+      "example": "027",
+      "html_report_note": "html_report includes factor evaluation and rendering; positions sub-timers are grouped here using exclusive time only.",
+      "main_peak_working_set_bytes": 301617152,
+      "pair": 3,
+      "phase_breakdown": {
+        "exclusive_by_stage_ns": {
+          "alignment_preload": 2636244400,
+          "collection_finish": 1457128300,
+          "csv_chart_export": 630905700,
+          "engine": 10729546500,
+          "evaluation_html_report": 3527035100,
+          "fincore_evaluation": 0,
+          "load": 1308945700,
+          "other_small": 432515800
+        },
+        "main_wall_ns": 20822313700,
+        "method": "sum wall_exclusive_ns only; inclusive timers are not added",
+        "phase_exclusive_sum_ns": 20722321500,
+        "unattributed_remainder_ns": 99992200
+      },
+      "receipt_metrics_match": true,
+      "recorded_conservative_peak_bytes": 301617152,
+      "resource_peak_tree_rss_bytes": 297230336,
+      "result": "D:\\temp\\iteration49-final-7col-500-r2b\\fixed500-p3-candidate-027\\result.json",
+      "result_sha256": "b2253a1881e9637e3d6b0a1c2dc3a9c80c8b501b69c511549ef9e839634b3298",
+      "wall_ns": 20822313700
+    }
+  ],
+  "schema": "iteration49.final-analysis.v1",
+  "stage": "fixed500",
+  "timing_target": {
+    "per_example_reduction_percent": 80,
+    "status": "NOT_FINAL_FIXED500"
+  }
+}
