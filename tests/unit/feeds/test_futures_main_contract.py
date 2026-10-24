@@ -1,16 +1,23 @@
 """Pure contracts for point-in-time futures main-contract selection."""
 
+import json
 from dataclasses import FrozenInstanceError, replace
 from datetime import date, datetime, timedelta, timezone
+from decimal import Decimal, localcontext
 
 import pytest
 
 from backtrader.feeds.futures_main_contract import (
+    CTP_QUERY_SNAPSHOT_EQUAL_WEIGHT_POLICY,
+    CurrentDayQuoteRecord,
     ExchangeTradingCalendar,
     ExchangeTradingDay,
+    FuturesContractCatalogRecord,
     FuturesContractRecord,
+    MainContractQuerySnapshot,
     MainContractRankingSnapshot,
     MainContractSelectionBlocked,
+    QuerySnapshotSourceEvidence,
     ProductKey,
     ProductRankingCoverage,
     RolloverBoundaryEvidence,
@@ -177,6 +184,129 @@ def _select(
         (ExchangeTradingDay("DCE", current_day),),
         (calendar or _calendar(),),
         decision_at=decision_at,
+    )
+
+
+def _query_source(
+    source_kind,
+    *,
+    count,
+    source_id=None,
+    snapshot_id=None,
+    sha256=None,
+    request_id=41,
+    generation=7,
+    trading_day=CURRENT_DAY,
+    started_at=datetime(2026, 10, 21, 15, 56, tzinfo=UTC),
+    completed_at=datetime(2026, 10, 21, 15, 57, tzinfo=UTC),
+    retrieved_at=datetime(2026, 10, 21, 15, 58, tzinfo=UTC),
+    complete=True,
+    is_last_seen=True,
+):
+    return QuerySnapshotSourceEvidence(
+        source_id=source_id or "fixture.ctp.{}".format(source_kind),
+        source_kind=source_kind,
+        snapshot_id=snapshot_id or "generation-7-request-{}".format(request_id),
+        source_sha256=sha256 or ("c" if source_kind == "instruments" else "d") * 64,
+        request_id=request_id,
+        connection_generation=generation,
+        trading_day=trading_day,
+        started_at=started_at,
+        completed_at=completed_at,
+        retrieved_at=retrieved_at,
+        complete=complete,
+        is_last_seen=is_last_seen,
+        record_count=count,
+    )
+
+
+def _catalog(
+    instrument_id,
+    *,
+    product=PRODUCT,
+    asset_type="future",
+    is_trading=True,
+    expiry=date(2026, 11, 16),
+    product_class="1",
+):
+    return FuturesContractCatalogRecord(
+        product=product,
+        instrument_id=instrument_id,
+        asset_type=asset_type,
+        is_trading=is_trading,
+        expiry_date=expiry,
+        product_class=product_class,
+    )
+
+
+def _query_quote(
+    instrument_id,
+    *,
+    exchange_id="DCE",
+    trading_day=CURRENT_DAY,
+    open_interest=100,
+    volume=200,
+    action_day="20261021",
+    update_time="08:00:00",
+    update_millisec=500,
+):
+    return CurrentDayQuoteRecord(
+        exchange_id=exchange_id,
+        instrument_id=instrument_id,
+        trading_day=trading_day,
+        open_interest=open_interest,
+        volume=volume,
+        action_day=action_day,
+        update_time=update_time,
+        update_millisec=update_millisec,
+    )
+
+
+def _query_snapshot(catalog=None, quotes=None, **changes):
+    catalog_rows = tuple(
+        catalog
+        if catalog is not None
+        else (
+            _catalog("M2611"),
+            _catalog("M2612", expiry=date(2026, 12, 15)),
+        )
+    )
+    quote_rows = tuple(
+        quotes
+        if quotes is not None
+        else (
+            _query_quote("M2611"),
+            _query_quote("M2612", open_interest=100, volume=200),
+        )
+    )
+    values = {
+        "catalog_source": _query_source("instruments", count=len(catalog_rows)),
+        "quote_source": _query_source(
+            "depth_market_data",
+            count=len(quote_rows),
+            started_at=datetime(2026, 10, 21, 15, 57, tzinfo=UTC),
+            completed_at=datetime(2026, 10, 21, 15, 58, tzinfo=UTC),
+            retrieved_at=datetime(2026, 10, 21, 15, 59, tzinfo=UTC),
+        ),
+        "catalog_records": catalog_rows,
+        "quote_records": quote_rows,
+        "session_trading_day_before": CURRENT_DAY,
+        "session_trading_day_after": CURRENT_DAY,
+        "session_generation_before": 7,
+        "session_generation_after": 7,
+    }
+    values.update(changes)
+    return MainContractQuerySnapshot(**values)
+
+
+def _query_select(snapshot=None, *, products=(PRODUCT,), decision_at=DECISION_AT, **changes):
+    return select_main_contracts(
+        snapshot if snapshot is not None else _query_snapshot(),
+        products,
+        (ExchangeTradingDay("DCE", CURRENT_DAY),),
+        (_calendar(),),
+        decision_at=decision_at,
+        policy=changes.get("policy", CTP_QUERY_SNAPSHOT_EQUAL_WEIGHT_POLICY),
     )
 
 
@@ -597,6 +727,311 @@ def test_manifest_is_immutable_deterministic_and_returns_fresh_json_data():
     assert left.manifest_sha256 == right.manifest_sha256
     with pytest.raises(FrozenInstanceError):
         left.status = "READY"
+
+
+def test_current_query_mode_uses_exact_equal_weight_score_and_audits_native_times():
+    catalog = (
+        _catalog("M2611"),
+        _catalog("M2612", expiry=date(2026, 12, 15)),
+        _catalog("M2613", is_trading=False),
+        _catalog("M2610", expiry=date(2026, 10, 26)),
+        _catalog("M2611-C-3000", asset_type="option", expiry=None, product_class="2"),
+        _catalog("M2611-combo", asset_type=None, expiry=None, product_class="3"),
+    )
+    quotes = (
+        _query_quote("M2611", open_interest=100, volume=0, update_time="08:00:00"),
+        _query_quote("M2612", open_interest=0, volume=200, update_time="08:00:00"),
+    )
+    manifest = _query_select(_query_snapshot(catalog, quotes))
+
+    assert manifest.status == "READY"
+    assert manifest.products[0].expected_prior_trading_day is None
+    assert manifest.products[0].ranking_trading_day == CURRENT_DAY
+    assert manifest.products[0].selected_instrument_id == "M2612"
+    assert manifest.products[0].selected_score == "100.0"
+    assert manifest.selected_mapping() == ((PRODUCT, "M2612"),)
+    by_id = {row.instrument_id: row for row in manifest.candidates}
+    assert by_id["M2611"].ranking_score == "50.0"
+    assert by_id["M2611"].action_day == "20261021"
+    assert by_id["M2611"].update_time == "08:00:00"
+    assert by_id["M2610"].status == "EXCLUDED"
+    assert by_id["M2610"].reason == "EXPIRY_TOO_NEAR"
+    assert by_id["M2613"].reason == "NOT_TRADING"
+    assert by_id["M2611-C-3000"].reason == "NOT_ORDINARY_FUTURE"
+    assert by_id["M2611-combo"].status == "EXCLUDED"
+    assert by_id["M2611-combo"].reason == "NOT_ORDINARY_FUTURE"
+    projection = manifest.to_dict()
+    assert projection["schema"] == "backtrader.futures_main_contract_manifest.v2"
+    assert projection["policy"]["policy_id"] == "ctp_query_snapshot_equal_weight_v1"
+    assert projection["policy"]["score_formula"] == "0.5 * open_interest + 0.5 * volume"
+    assert projection["query_snapshot"]["kind"].endswith("NOT_FINALIZED_EOD")
+    assert projection["query_snapshot"]["quote_source"]["available_at"] == ("2026-10-21T15:58:00Z")
+    assert projection["query_snapshot"]["quote_records"][0]["update_time"] == "08:00:00"
+    assert manifest.query_coverage[0].expected_quote_instrument_ids == ("M2611", "M2612")
+
+
+def test_equal_weight_score_arithmetic_and_sort_are_independent_of_decimal_context():
+    catalog = (_catalog("M2611"), _catalog("M2612", expiry=date(2026, 12, 15)))
+    quotes = (
+        _query_quote(
+            "M2611",
+            open_interest=Decimal("100000000000000000000000000000.1"),
+            volume=Decimal("0"),
+        ),
+        _query_quote(
+            "M2612",
+            open_interest=Decimal("100000000000000000000000000000"),
+            volume=Decimal("0.2"),
+        ),
+    )
+    with localcontext() as context:
+        context.prec = 2
+        manifest = _query_select(_query_snapshot(catalog, quotes))
+
+    assert manifest.status == "READY"
+    assert manifest.products[0].selected_instrument_id == "M2612"
+    assert manifest.products[0].selected_score == "50000000000000000000000000000.10"
+    assert manifest.candidates[0].ranking_score == "50000000000000000000000000000.10"
+
+
+def test_query_snapshot_ties_use_open_interest_volume_then_expiry_and_exact_id():
+    catalog = (
+        _catalog("M2612", expiry=date(2026, 12, 15)),
+        _catalog("M2611"),
+        _catalog("M2701", expiry=date(2027, 1, 15)),
+    )
+    quotes = (
+        _query_quote("M2612", open_interest=10, volume=10),
+        _query_quote("M2611", open_interest=11, volume=9),
+        _query_quote("M2701", open_interest=12, volume=8),
+    )
+    manifest = _query_select(_query_snapshot(catalog, quotes))
+
+    assert manifest.status == "READY"
+    assert manifest.products[0].ranked_instrument_ids == ("M2701", "M2611", "M2612")
+
+
+def test_query_snapshot_equal_metrics_tie_break_by_expiry_then_exact_id():
+    catalog = (
+        _catalog("M2612", expiry=date(2026, 12, 15)),
+        _catalog("m2611"),
+        _catalog("M2701", expiry=date(2027, 1, 15)),
+        _catalog("M2611"),
+    )
+    quotes = tuple(
+        _query_quote(item.instrument_id, open_interest=10, volume=10) for item in catalog
+    )
+    manifest = _query_select(_query_snapshot(catalog, quotes))
+
+    assert manifest.status == "READY"
+    assert manifest.products[0].ranked_instrument_ids == ("M2611", "m2611", "M2612", "M2701")
+
+
+@pytest.mark.parametrize(
+    "snapshot_change, expected_blocker",
+    [
+        (
+            {"catalog_source": replace(_query_source("instruments", count=2), complete=False)},
+            "CATALOG_QUERY_QUERY_INCOMPLETE",
+        ),
+        (
+            {
+                "quote_source": replace(
+                    _query_source("depth_market_data", count=2), is_last_seen=False
+                )
+            },
+            "QUOTE_QUERY_QUERY_TERMINAL_NOT_SEEN",
+        ),
+        (
+            {
+                "quote_source": replace(
+                    _query_source("depth_market_data", count=2),
+                    completed_at=datetime(2026, 10, 21, 15, 54, tzinfo=UTC),
+                    retrieved_at=datetime(2026, 10, 21, 15, 55, tzinfo=UTC),
+                )
+            },
+            "QUOTE_QUERY_SNAPSHOT_STALE",
+        ),
+        ({"session_generation_after": 8}, "QUERY_SESSION_CHANGED_DURING_COLLECTION"),
+        (
+            {
+                "quote_source": replace(
+                    _query_source("depth_market_data", count=2), connection_generation=8
+                )
+            },
+            "CATALOG_QUOTE_GENERATION_MISMATCH",
+        ),
+        (
+            {"session_trading_day_after": date(2026, 10, 22)},
+            "QUERY_SESSION_TRADING_DAY_CHANGED_DURING_COLLECTION",
+        ),
+        (
+            {"catalog_source": replace(_query_source("instruments", count=2), record_count=1)},
+            "CATALOG_QUERY_RECORD_COUNT_MISMATCH",
+        ),
+    ],
+)
+def test_query_provenance_completeness_age_generation_and_day_fail_closed(
+    snapshot_change, expected_blocker
+):
+    changed = replace(_query_snapshot(), **snapshot_change)
+    manifest = _query_select(changed)
+
+    assert manifest.status == "BLOCKED"
+    assert expected_blocker in manifest.blockers
+    with pytest.raises(MainContractSelectionBlocked):
+        manifest.selected_mapping()
+
+
+def test_query_collection_span_and_target_session_day_are_checked():
+    snapshot = _query_snapshot()
+    long_collection = replace(
+        snapshot,
+        catalog_source=replace(
+            snapshot.catalog_source,
+            started_at=datetime(2026, 10, 21, 15, 50, tzinfo=UTC),
+        ),
+    )
+    span_manifest = _query_select(long_collection)
+    wrong_day = select_main_contracts(
+        snapshot,
+        (PRODUCT,),
+        (ExchangeTradingDay("DCE", date(2026, 10, 22)),),
+        (_calendar(),),
+        decision_at=DECISION_AT,
+        policy=CTP_QUERY_SNAPSHOT_EQUAL_WEIGHT_POLICY,
+    )
+
+    assert "QUERY_COLLECTION_SPAN_EXCEEDED" in span_manifest.blockers
+    assert "CURRENT_TRADING_DAY_MISMATCH" in wrong_day.blockers
+
+
+@pytest.mark.parametrize(
+    "quotes, expected_blocker",
+    [
+        ((_query_quote("M2611"),), "QUOTE_ROW_MISSING_FOR_CANDIDATE"),
+        (
+            (_query_quote("M2611"), _query_quote("M2611"), _query_quote("M2612")),
+            "DUPLICATE_QUOTE_ROW",
+        ),
+        (
+            (_query_quote("M2611"), _query_quote("M2612"), _query_quote("RB2611")),
+            "QUOTE_ID_NOT_IN_CATALOG",
+        ),
+        (
+            (
+                _query_quote("M2611", trading_day=date(2026, 10, 20)),
+                _query_quote("M2612"),
+            ),
+            "QUOTE_TRADING_DAY_MISMATCH",
+        ),
+    ],
+)
+def test_quote_id_coverage_duplicates_and_cross_day_rows_block(quotes, expected_blocker):
+    manifest = _query_select(_query_snapshot(quotes=quotes))
+
+    assert manifest.status == "BLOCKED"
+    assert expected_blocker in manifest.blockers
+
+
+@pytest.mark.parametrize("bad_value", [None, -1, Decimal("NaN"), Decimal("Infinity")])
+def test_invalid_query_ranking_metrics_block_without_shrinking_candidate_pool(bad_value):
+    snapshot = _query_snapshot(
+        quotes=(
+            _query_quote("M2611", open_interest=bad_value),
+            _query_quote("M2612"),
+        )
+    )
+    manifest = _query_select(snapshot)
+
+    assert manifest.status == "BLOCKED"
+    assert "RANKING_VALUE_MISSING_OR_INVALID" in manifest.blockers
+    assert manifest.products[0].selected_instrument_id is None
+
+
+def test_query_metric_range_and_nonfinite_values_are_blocked_and_json_safe():
+    out_of_range = _query_select(
+        _query_snapshot(
+            quotes=(
+                _query_quote("M2611", open_interest=Decimal("1e100000000")),
+                _query_quote("M2612"),
+            )
+        )
+    )
+    assert out_of_range.status == "BLOCKED"
+    assert "RANKING_VALUE_RANGE_UNSUPPORTED" in out_of_range.blockers
+    assert out_of_range.to_dict()["query_snapshot"]["quote_records"][0]["open_interest"] == {
+        "value": "<decimal-out-of-supported-range>",
+        "valid_nonnegative_finite": False,
+    }
+    assert len(out_of_range.manifest_sha256) == 64
+
+    nonfinite = _query_select(
+        _query_snapshot(
+            quotes=(
+                _query_quote("M2611", open_interest=float("nan")),
+                _query_quote("M2612"),
+            )
+        )
+    )
+    assert nonfinite.status == "BLOCKED"
+    assert json.dumps(nonfinite.to_dict(), allow_nan=False)
+
+
+def test_catalog_duplicates_and_explicit_policy_mode_fail_closed():
+    duplicate_catalog = _query_snapshot(
+        catalog=(_catalog("M2611"), _catalog("M2611"), _catalog("M2612")),
+        quotes=(_query_quote("M2611"), _query_quote("M2612")),
+    )
+    blocked = _query_select(duplicate_catalog)
+
+    assert blocked.status == "BLOCKED"
+    assert "DUPLICATE_CATALOG_INSTRUMENT_ID" in blocked.blockers
+    with pytest.raises(ValueError, match="explicit query-snapshot policy"):
+        select_main_contracts(
+            _query_snapshot(),
+            (PRODUCT,),
+            (ExchangeTradingDay("DCE", CURRENT_DAY),),
+            (_calendar(),),
+            decision_at=DECISION_AT,
+        )
+
+
+@pytest.mark.parametrize(
+    "product_class,asset_type,expected_blocker",
+    [
+        ("9", "future", "CATALOG_PRODUCT_CLASS_UNKNOWN"),
+        ("1", "option", "CATALOG_PRODUCT_CLASS_ASSET_TYPE_MISMATCH"),
+        (None, "future", "CATALOG_PRODUCT_CLASS_UNKNOWN"),
+    ],
+)
+def test_query_unknown_or_contradictory_product_class_blocks(
+    product_class, asset_type, expected_blocker
+):
+    catalog = (_catalog("M2611", product_class=product_class, asset_type=asset_type),)
+    manifest = _query_select(_query_snapshot(catalog, (_query_quote("M2611"),)))
+
+    assert manifest.status == "BLOCKED"
+    assert expected_blocker in manifest.blockers
+
+
+def test_query_catalog_reports_non_target_options_as_explicit_exclusions():
+    other_product = ProductKey("DCE", "C")
+    catalog = (
+        _catalog("M2611"),
+        _catalog(
+            "C2611-C-3000",
+            product=other_product,
+            asset_type="option",
+            product_class="2",
+        ),
+    )
+    manifest = _query_select(_query_snapshot(catalog, (_query_quote("M2611"),)))
+    option = next(item for item in manifest.candidates if item.instrument_id == "C2611-C-3000")
+
+    assert manifest.status == "READY"
+    assert option.status == "EXCLUDED"
+    assert option.reason == "NOT_ORDINARY_FUTURE"
 
 
 def _rollover_manifests():
