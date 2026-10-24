@@ -10,7 +10,7 @@ import sys
 import time
 from concurrent.futures import ThreadPoolExecutor
 from decimal import Decimal
-from threading import Event, RLock
+from threading import Barrier, Event, RLock
 
 import pytest
 
@@ -1727,7 +1727,9 @@ def test_grid_order_budget_counts_submits_and_cancels_once_per_logical_run(tmp_p
         complete=True,
         live_ready=True,
         inputs_complete=True,
-        max_order_intents_per_run=1,
+        max_order_intents_per_run=2,
+        expected_run_order_intents_used=0,
+        remaining_exit_intent_reserve=1,
     )
     assert first.is_new_grid is True
     assert journal.run_order_count("account-a", "strategy-a", "budget-run") == 1
@@ -1742,7 +1744,7 @@ def test_grid_order_budget_counts_submits_and_cancels_once_per_logical_run(tmp_p
         complete=True,
         live_ready=True,
         inputs_complete=True,
-        max_order_intents_per_run=1,
+        max_order_intents_per_run=2,
     )
     assert replay.is_new_grid is False
     assert journal.run_order_count("account-a", "strategy-a", "budget-run") == 1
@@ -1757,8 +1759,47 @@ def test_grid_order_budget_counts_submits_and_cancels_once_per_logical_run(tmp_p
             complete=True,
             live_ready=True,
             inputs_complete=True,
-            max_order_intents_per_run=2,
+            max_order_intents_per_run=3,
         )
+
+    with pytest.raises(ExecutionDecisionJournalError, match="DECISION_CONFLICT"):
+        journal.record_grid_decision(
+            first_key,
+            {"signal": "cancel-then-close"},
+            intent_keys=(_intent_key("SIM-IF-1", action="CANCEL", leg=0),),
+            epoch_id="epoch-a",
+            batch_id="batch-a",
+            eligible=True,
+            complete=True,
+            live_ready=True,
+            inputs_complete=True,
+            max_order_intents_per_run=2,
+            expected_run_order_intents_used=1,
+            remaining_exit_intent_reserve=0,
+        )
+    assert journal.run_order_count("account-a", "strategy-a", "budget-run") == 1
+    assert journal.grid_cursor("account-a", "strategy-a", "cohort-1") == first.cursor
+
+    with pytest.raises(ExecutionDecisionJournalError, match="RUN_ORDER_BUDGET_STALE"):
+        journal.record_grid_decision(
+            _decision_key(run_id="budget-run", close_time="2026-10-20T10:01:00Z"),
+            {"signal": "submit"},
+            intent_keys=(_intent_key("SIM-IF-2", leg=0),),
+            epoch_id="epoch-a",
+            batch_id="batch-b",
+            eligible=True,
+            complete=True,
+            live_ready=True,
+            inputs_complete=True,
+            max_order_intents_per_run=2,
+            expected_run_order_intents_used=0,
+            remaining_exit_intent_reserve=1,
+        )
+    assert journal.run_order_count("account-a", "strategy-a", "budget-run") == 1
+    assert journal.grid_cursor("account-a", "strategy-a", "cohort-1") == first.cursor
+    assert (
+        journal._connection.execute("SELECT COUNT(*) FROM execution_decisions").fetchone()[0] == 1
+    )
 
     with pytest.raises(ExecutionDecisionJournalError, match="RUN_ORDER_BUDGET_EXCEEDED"):
         journal.record_grid_decision(
@@ -1771,8 +1812,362 @@ def test_grid_order_budget_counts_submits_and_cancels_once_per_logical_run(tmp_p
             complete=True,
             live_ready=True,
             inputs_complete=True,
-            max_order_intents_per_run=1,
+            max_order_intents_per_run=2,
+            expected_run_order_intents_used=1,
+            remaining_exit_intent_reserve=1,
         )
     assert journal.run_order_count("account-a", "strategy-a", "budget-run") == 1
     assert journal.grid_cursor("account-a", "strategy-a", "cohort-1") == first.cursor
+    assert (
+        journal._connection.execute("SELECT COUNT(*) FROM execution_decisions").fetchone()[0] == 1
+    )
+
+    second = journal.record_grid_decision(
+        _decision_key(run_id="budget-run", close_time="2026-10-20T10:01:00Z"),
+        {"signal": "submit"},
+        intent_keys=(_intent_key("SIM-IF-2", leg=0),),
+        epoch_id="epoch-a",
+        batch_id="batch-b",
+        eligible=True,
+        complete=True,
+        live_ready=True,
+        inputs_complete=True,
+        max_order_intents_per_run=2,
+        expected_run_order_intents_used=1,
+        remaining_exit_intent_reserve=0,
+    )
+    assert second.is_new_grid is True
+    assert second.cursor.ordinal == 2
+    assert journal.run_order_count("account-a", "strategy-a", "budget-run") == 2
     journal.close()
+
+
+def test_budgeted_decisions_require_reserved_evidence_and_reject_payload_collision(tmp_path):
+    journal = ExecutionDecisionJournal(tmp_path / "budget-evidence.sqlite3")
+    key = _decision_key(run_id="budget-evidence")
+    common = {
+        "epoch_id": "epoch-a",
+        "batch_id": "batch-a",
+        "eligible": True,
+        "complete": True,
+        "live_ready": True,
+        "inputs_complete": True,
+        "max_order_intents_per_run": 0,
+    }
+    with pytest.raises(
+        ExecutionDecisionJournalError, match="RUN_ORDER_BUDGET_RESERVATION_REQUIRED"
+    ):
+        journal.record_grid_decision(key, {"signal": "flat"}, **common)
+    assert journal.grid_cursor("account-a", "strategy-a", "cohort-1") is None
+    assert (
+        journal._connection.execute("SELECT COUNT(*) FROM execution_decisions").fetchone()[0] == 0
+    )
+    assert journal.run_order_count("account-a", "strategy-a", "budget-evidence") == 0
+
+    with pytest.raises(ExecutionDecisionJournalError, match="INVALID_RUN_ORDER_BUDGET_RESERVATION"):
+        journal.record_grid_decision(
+            key,
+            {"signal": "flat"},
+            **common,
+            expected_run_order_intents_used=0,
+        )
+    assert (
+        journal._connection.execute("SELECT COUNT(*) FROM execution_decisions").fetchone()[0] == 0
+    )
+
+    with pytest.raises(ExecutionDecisionJournalError, match="RUN_ORDER_BUDGET_EVIDENCE_RESERVED"):
+        journal.record_grid_decision(
+            key,
+            {"signal": "flat", "_journal_run_order_reservation": {"fake": True}},
+            **common,
+            expected_run_order_intents_used=0,
+            remaining_exit_intent_reserve=0,
+        )
+    assert (
+        journal._connection.execute("SELECT COUNT(*) FROM execution_decisions").fetchone()[0] == 0
+    )
+
+    noop = journal.record_grid_decision(
+        key,
+        {"signal": "flat"},
+        **common,
+        expected_run_order_intents_used=0,
+        remaining_exit_intent_reserve=0,
+    )
+    assert noop.is_new_grid is True
+    assert noop.decision.economic_payload["_journal_run_order_reservation"] == {
+        "max_order_intents_per_run": 0,
+        "remaining_exit_intent_reserve": 0,
+    }
+    journal.close()
+
+
+def test_risk_decision_uses_atomic_run_budget_and_reserve(tmp_path):
+    journal = ExecutionDecisionJournal(tmp_path / "risk-budget.sqlite3")
+    opening = journal.record_grid_decision(
+        _decision_key(run_id="risk-budget"),
+        {"signal": "open"},
+        intent_keys=(_intent_key("SIM-IF-1", leg=0, effect="OPEN"),),
+        epoch_id="epoch-a",
+        batch_id="batch-a",
+        eligible=True,
+        complete=True,
+        live_ready=True,
+        inputs_complete=True,
+        max_order_intents_per_run=3,
+        expected_run_order_intents_used=0,
+        remaining_exit_intent_reserve=2,
+    )
+    assert opening.is_new_grid is True
+    assert journal.run_order_count("account-a", "strategy-a", "risk-budget") == 1
+
+    missing_reservation_key = _decision_key(
+        run_id="risk-budget", close_time="2026-10-20T10:00:30Z", kind="risk"
+    )
+    before = journal._connection.execute("SELECT COUNT(*) FROM execution_decisions").fetchone()[0]
+    with pytest.raises(
+        ExecutionDecisionJournalError, match="RUN_ORDER_BUDGET_RESERVATION_REQUIRED"
+    ):
+        journal.record_risk_decision(
+            missing_reservation_key,
+            {"signal": "reduce"},
+            intent_keys=(_intent_key("SIM-IF-1", side="SELL", effect="CLOSE"),),
+            max_order_intents_per_run=3,
+        )
+    assert (
+        journal._connection.execute("SELECT COUNT(*) FROM execution_decisions").fetchone()[0]
+        == before
+    )
+    assert journal.run_order_count("account-a", "strategy-a", "risk-budget") == 1
+
+    close_key = _decision_key(run_id="risk-budget", close_time="2026-10-20T10:01:00Z", kind="risk")
+    close_intents = (_intent_key("SIM-IF-1", action="SUBMIT", side="SELL", effect="CLOSE"),)
+    close = journal.record_risk_decision(
+        close_key,
+        {"signal": "reduce"},
+        intent_keys=close_intents,
+        max_order_intents_per_run=3,
+        expected_run_order_intents_used=1,
+        remaining_exit_intent_reserve=1,
+    )
+    assert close.is_new_grid is True
+    assert journal.run_order_count("account-a", "strategy-a", "risk-budget") == 2
+
+    replay = journal.record_risk_decision(
+        close_key,
+        {"signal": "reduce"},
+        intent_keys=close_intents,
+        max_order_intents_per_run=3,
+        expected_run_order_intents_used=0,
+        remaining_exit_intent_reserve=1,
+    )
+    assert replay.is_new_grid is False
+    assert journal.run_order_count("account-a", "strategy-a", "risk-budget") == 2
+
+    with pytest.raises(ExecutionDecisionJournalError, match="DECISION_CONFLICT"):
+        journal.record_risk_decision(
+            close_key,
+            {"signal": "reduce"},
+            intent_keys=close_intents,
+            max_order_intents_per_run=3,
+            expected_run_order_intents_used=2,
+            remaining_exit_intent_reserve=0,
+        )
+
+    next_risk_key = _decision_key(
+        run_id="risk-budget", close_time="2026-10-20T10:02:00Z", kind="risk"
+    )
+    before = journal._connection.execute("SELECT COUNT(*) FROM execution_decisions").fetchone()[0]
+    with pytest.raises(ExecutionDecisionJournalError, match="RUN_ORDER_BUDGET_STALE"):
+        journal.record_risk_decision(
+            next_risk_key,
+            {"signal": "reduce-again"},
+            intent_keys=close_intents,
+            max_order_intents_per_run=3,
+            expected_run_order_intents_used=1,
+            remaining_exit_intent_reserve=0,
+        )
+    assert (
+        journal._connection.execute("SELECT COUNT(*) FROM execution_decisions").fetchone()[0]
+        == before
+    )
+
+    with pytest.raises(ExecutionDecisionJournalError, match="RUN_ORDER_BUDGET_EXCEEDED"):
+        journal.record_risk_decision(
+            next_risk_key,
+            {"signal": "reduce-again"},
+            intent_keys=close_intents,
+            max_order_intents_per_run=3,
+            expected_run_order_intents_used=2,
+            remaining_exit_intent_reserve=1,
+        )
+    assert (
+        journal._connection.execute("SELECT COUNT(*) FROM execution_decisions").fetchone()[0]
+        == before
+    )
+    assert journal.run_order_count("account-a", "strategy-a", "risk-budget") == 2
+    journal.close()
+
+
+def test_run_order_budget_compare_and_swap_serializes_two_connections(tmp_path):
+    path = tmp_path / "budget-concurrent.sqlite3"
+    journals = (ExecutionDecisionJournal(path), ExecutionDecisionJournal(path))
+    start = Barrier(2)
+
+    def admit(index):
+        start.wait(timeout=5)
+        key = ExecutionDecisionKey(
+            account_scope="account-a",
+            strategy_scope="strategy-a",
+            logical_run_id="shared-run",
+            cohort_id=f"cohort-{index}",
+            close_time="2026-10-20T10:00:00Z",
+            decision_kind="bar",
+        )
+        try:
+            result = journals[index].record_grid_decision(
+                key,
+                {"signal": f"candidate-{index}"},
+                intent_keys=(_intent_key(f"SIM-IF-{index + 1}"),),
+                epoch_id="epoch-a",
+                batch_id=f"batch-{index}",
+                eligible=True,
+                complete=True,
+                live_ready=True,
+                inputs_complete=True,
+                max_order_intents_per_run=2,
+                expected_run_order_intents_used=0,
+                remaining_exit_intent_reserve=1,
+            )
+            return "admitted" if result.is_new_grid else "replayed"
+        except ExecutionDecisionJournalError as error:
+            return error.code
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        futures = [pool.submit(admit, index) for index in range(2)]
+        outcomes = [future.result(timeout=10) for future in futures]
+
+    assert outcomes.count("admitted") == 1
+    assert outcomes.count("RUN_ORDER_BUDGET_STALE") == 1
+    assert journals[0].run_order_count("account-a", "strategy-a", "shared-run") == 1
+    assert (
+        journals[0]._connection.execute("SELECT COUNT(*) FROM execution_decisions").fetchone()[0]
+        == 1
+    )
+    assert (
+        journals[0]._connection.execute("SELECT COUNT(*) FROM execution_grid_cursors").fetchone()[0]
+        == 1
+    )
+    for journal in journals:
+        journal.close()
+
+
+def test_run_order_budget_restart_respects_saved_usage_and_replays_without_charge(tmp_path):
+    path = tmp_path / "budget-restart.sqlite3"
+    journal = ExecutionDecisionJournal(path)
+    first = journal.record_grid_decision(
+        _decision_key(run_id="restart-budget"),
+        {"signal": "open"},
+        intent_keys=(_intent_key("SIM-IF-1"),),
+        epoch_id="epoch-a",
+        batch_id="batch-a",
+        eligible=True,
+        complete=True,
+        live_ready=True,
+        inputs_complete=True,
+        max_order_intents_per_run=2,
+        expected_run_order_intents_used=0,
+        remaining_exit_intent_reserve=1,
+    )
+    assert first.is_new_grid is True
+    journal.close()
+
+    child = r"""
+import json, sys
+from backtrader.stores.execution_decision_journal import ExecutionDecisionJournal, ExecutionDecisionJournalError, ExecutionDecisionKey, ExecutionIntentKey
+journal = ExecutionDecisionJournal(sys.argv[1])
+first = journal.grid_cursor("account-a", "strategy-a", "cohort-1")
+key = ExecutionDecisionKey("account-a", "strategy-a", "restart-budget", "cohort-1", "2026-10-20T10:01:00Z", "bar")
+intent = ExecutionIntentKey("SUBMIT", "SIM-IF-2", "BUY", "OPEN", 0)
+try:
+    journal.record_grid_decision(key, {"signal":"open-again"}, intent_keys=(intent,), epoch_id="epoch-a", batch_id="batch-b", eligible=True, complete=True, live_ready=True, inputs_complete=True, max_order_intents_per_run=2, expected_run_order_intents_used=1, remaining_exit_intent_reserve=1)
+except ExecutionDecisionJournalError as error:
+    assert error.code == "RUN_ORDER_BUDGET_EXCEEDED"
+else:
+    raise AssertionError("reserved exit slot was consumed")
+assert journal.run_order_count("account-a", "strategy-a", "restart-budget") == 1
+assert journal.grid_cursor("account-a", "strategy-a", "cohort-1") == first
+assert journal._connection.execute("SELECT COUNT(*) FROM execution_decisions").fetchone()[0] == 1
+risk_key = ExecutionDecisionKey("account-a", "strategy-a", "restart-budget", "cohort-1", "2026-10-20T10:02:00Z", "risk")
+close = ExecutionIntentKey("SUBMIT", "SIM-IF-1", "SELL", "CLOSE", 0)
+saved = journal.record_risk_decision(risk_key, {"signal":"reduce"}, intent_keys=(close,), max_order_intents_per_run=2, expected_run_order_intents_used=1, remaining_exit_intent_reserve=0)
+replay = journal.record_risk_decision(risk_key, {"signal":"reduce"}, intent_keys=(close,), max_order_intents_per_run=2, expected_run_order_intents_used=0, remaining_exit_intent_reserve=0)
+assert saved.is_new_grid and not replay.is_new_grid
+assert journal.run_order_count("account-a", "strategy-a", "restart-budget") == 2
+print(json.dumps({"cursor_ordinal": first.ordinal, "risk_replayed": not replay.is_new_grid, "used": journal.run_order_count("account-a", "strategy-a", "restart-budget")}, sort_keys=True))
+journal.close()
+"""
+    completed = subprocess.run(
+        [sys.executable, "-c", child, str(path)],
+        cwd=os.getcwd(),
+        capture_output=True,
+        text=True,
+        check=True,
+        timeout=30,
+    )
+    assert json.loads(completed.stdout) == {
+        "cursor_ordinal": 1,
+        "risk_replayed": True,
+        "used": 2,
+    }
+
+
+def test_run_order_budget_sql_failure_rolls_back_decision_cursor_and_usage(tmp_path):
+    path = tmp_path / "budget-rollback.sqlite3"
+    journal = ExecutionDecisionJournal(path)
+    first = journal.record_grid_decision(
+        _decision_key(run_id="rollback-budget"),
+        {"signal": "first"},
+        intent_keys=(_intent_key("SIM-IF-1"),),
+        epoch_id="epoch-a",
+        batch_id="batch-a",
+        eligible=True,
+        complete=True,
+        live_ready=True,
+        inputs_complete=True,
+        max_order_intents_per_run=2,
+        expected_run_order_intents_used=0,
+        remaining_exit_intent_reserve=0,
+    )
+    with sqlite3.connect(path) as connection:
+        connection.execute(
+            """CREATE TRIGGER reject_budget_increment
+               BEFORE UPDATE OF intent_count ON execution_run_order_budgets
+               BEGIN SELECT RAISE(ABORT, 'synthetic budget failure'); END"""
+        )
+    with pytest.raises(ExecutionDecisionJournalError, match="JOURNAL_WRITE_FAILED"):
+        journal.record_grid_decision(
+            _decision_key(run_id="rollback-budget", close_time="2026-10-20T10:01:00Z"),
+            {"signal": "second"},
+            intent_keys=(_intent_key("SIM-IF-2"),),
+            epoch_id="epoch-a",
+            batch_id="batch-b",
+            eligible=True,
+            complete=True,
+            live_ready=True,
+            inputs_complete=True,
+            max_order_intents_per_run=2,
+            expected_run_order_intents_used=1,
+            remaining_exit_intent_reserve=0,
+        )
+    journal.close()
+    with sqlite3.connect(path) as connection:
+        connection.execute("DROP TRIGGER reject_budget_increment")
+
+    recovered = ExecutionDecisionJournal(path)
+    assert recovered.run_order_count("account-a", "strategy-a", "rollback-budget") == 1
+    assert recovered.grid_cursor("account-a", "strategy-a", "cohort-1") == first.cursor
+    assert (
+        recovered._connection.execute("SELECT COUNT(*) FROM execution_decisions").fetchone()[0] == 1
+    )
+    recovered.close()

@@ -1653,6 +1653,8 @@ def _make_runtime(args: argparse.Namespace, grids: int, warmup_bars: int, rss_sa
                 live_ready=True,
                 inputs_complete=inputs_complete,
                 max_order_intents_per_run=0,
+                expected_run_order_intents_used=0,
+                remaining_exit_intent_reserve=0,
             )
             end_ns = time.monotonic_ns()
             self._journal_write_latencies.add((end_ns - journal_start_ns) / 1_000_000.0)

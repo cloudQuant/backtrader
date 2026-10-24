@@ -62,6 +62,7 @@ _ECONOMIC_DECIMAL_FIELDS = frozenset(
 _RFC3339_TIMESTAMP = re.compile(
     r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?(?:Z|[+-]\d{2}:\d{2})$"
 )
+_RUN_ORDER_RESERVATION_FIELD = "_journal_run_order_reservation"
 
 
 class ExecutionDecisionJournalError(RuntimeError):
@@ -444,6 +445,8 @@ class ExecutionDecisionJournal:
         live_ready: bool,
         inputs_complete: bool,
         max_order_intents_per_run: Optional[int] = None,
+        expected_run_order_intents_used: Optional[int] = None,
+        remaining_exit_intent_reserve: Optional[int] = None,
     ) -> ExecutionGridDecision:
         """Persist one eligible decision and advance its cohort cursor atomically.
 
@@ -452,7 +455,10 @@ class ExecutionDecisionJournal:
         returns its prior decision with ``is_new_grid=False``; an older grid
         or a different decision for the same grid is rejected. Ineligible,
         incomplete, not-live-ready, or missing-input batches do not write a
-        decision row or advance the cursor.
+        decision row or advance the cursor. When a run limit is configured,
+        new decisions also require the caller's expected durable usage and the
+        post-plan exit reserve. The compare-and-swap, reservation, decision,
+        and cursor update commit together.
         """
 
         if not isinstance(key, ExecutionDecisionKey):
@@ -466,6 +472,11 @@ class ExecutionDecisionJournal:
             type(max_order_intents_per_run) is not int or max_order_intents_per_run < 0
         ):
             raise ExecutionDecisionJournalError("INVALID_RUN_ORDER_BUDGET")
+        self._validate_run_order_reservation(
+            max_order_intents_per_run=max_order_intents_per_run,
+            expected_run_order_intents_used=expected_run_order_intents_used,
+            remaining_exit_intent_reserve=remaining_exit_intent_reserve,
+        )
         if not all(flags):
             return ExecutionGridDecision(
                 decision=None,
@@ -474,7 +485,11 @@ class ExecutionDecisionJournal:
                 is_new_grid=False,
             )
 
-        payload_json = self._payload_json(economic_payload)
+        payload_json, replay_payload_json, reservation = self._budgeted_payload_json(
+            economic_payload,
+            max_order_intents_per_run=max_order_intents_per_run,
+            remaining_exit_intent_reserve=remaining_exit_intent_reserve,
+        )
         normalized_keys = _normalize_intent_keys(intent_keys, self.max_pending_intents)
         keys_json = _canonical_json([_intent_key_values(item) for item in normalized_keys])
         key_json = _canonical_json(_decision_key_values(key))
@@ -488,6 +503,8 @@ class ExecutionDecisionJournal:
                 decision_id=decision_id,
                 key_json=key_json,
                 payload_json=payload_json,
+                replay_payload_json=replay_payload_json,
+                run_order_reservation=reservation,
                 keys_json=keys_json,
                 normalized_keys=normalized_keys,
                 now_ns=now_ns,
@@ -511,6 +528,9 @@ class ExecutionDecisionJournal:
                         max_order_intents_per_run=max_order_intents_per_run,
                         added_count=0,
                         created=False,
+                        expected_run_order_intents_used=expected_run_order_intents_used,
+                        remaining_exit_intent_reserve=remaining_exit_intent_reserve,
+                        require_reservation=True,
                     )
                     return ExecutionGridDecision(
                         decision=decision,
@@ -533,6 +553,9 @@ class ExecutionDecisionJournal:
                 max_order_intents_per_run=max_order_intents_per_run,
                 added_count=len(normalized_keys),
                 created=True,
+                expected_run_order_intents_used=expected_run_order_intents_used,
+                remaining_exit_intent_reserve=remaining_exit_intent_reserve,
+                require_reservation=True,
             )
 
             ordinal = 1 if current is None else int(current["ordinal"]) + 1
@@ -580,24 +603,37 @@ class ExecutionDecisionJournal:
         *,
         intent_keys: Tuple[ExecutionIntentKey, ...],
         max_order_intents_per_run: int,
+        expected_run_order_intents_used: Optional[int] = None,
+        remaining_exit_intent_reserve: Optional[int] = None,
     ) -> ExecutionGridDecision:
         """Persist a non-grid risk reduction decision and its order budget.
 
         This path is for recorded cancels and position-reducing closes when a
         factor snapshot is unavailable. It intentionally does not advance the
         eligible-grid cursor. Opening SUBMIT intents are never accepted here.
+        Its expected-use compare-and-swap and remaining exit reserve are checked
+        in the same transaction as the immutable decision and intent charge.
         """
 
         if not isinstance(key, ExecutionDecisionKey):
             raise ExecutionDecisionJournalError("INVALID_DECISION_KEY")
         if type(max_order_intents_per_run) is not int or max_order_intents_per_run < 0:
             raise ExecutionDecisionJournalError("INVALID_RUN_ORDER_BUDGET")
+        self._validate_run_order_reservation(
+            max_order_intents_per_run=max_order_intents_per_run,
+            expected_run_order_intents_used=expected_run_order_intents_used,
+            remaining_exit_intent_reserve=remaining_exit_intent_reserve,
+        )
         normalized_keys = _normalize_intent_keys(intent_keys, self.max_pending_intents)
         if any(
             item.action == "SUBMIT" and item.position_effect != "CLOSE" for item in normalized_keys
         ):
             raise ExecutionDecisionJournalError("RISK_DECISION_MAY_NOT_OPEN")
-        payload_json = self._payload_json(economic_payload)
+        payload_json, replay_payload_json, reservation = self._budgeted_payload_json(
+            economic_payload,
+            max_order_intents_per_run=max_order_intents_per_run,
+            remaining_exit_intent_reserve=remaining_exit_intent_reserve,
+        )
         keys_json = _canonical_json([_intent_key_values(item) for item in normalized_keys])
         key_json = _canonical_json(_decision_key_values(key))
         decision_id = _stable_id("decision", key_json)
@@ -608,6 +644,8 @@ class ExecutionDecisionJournal:
                 decision_id=decision_id,
                 key_json=key_json,
                 payload_json=payload_json,
+                replay_payload_json=replay_payload_json,
+                run_order_reservation=reservation,
                 keys_json=keys_json,
                 normalized_keys=normalized_keys,
                 now_ns=now_ns,
@@ -618,6 +656,9 @@ class ExecutionDecisionJournal:
                 max_order_intents_per_run=max_order_intents_per_run,
                 added_count=len(normalized_keys),
                 created=created,
+                expected_run_order_intents_used=expected_run_order_intents_used,
+                remaining_exit_intent_reserve=remaining_exit_intent_reserve,
+                require_reservation=True,
             )
             return ExecutionGridDecision(
                 decision=decision,
@@ -664,6 +705,9 @@ class ExecutionDecisionJournal:
         max_order_intents_per_run: Optional[int],
         added_count: int,
         created: bool,
+        expected_run_order_intents_used: Optional[int] = None,
+        remaining_exit_intent_reserve: Optional[int] = None,
+        require_reservation: bool = False,
     ) -> None:
         budget_key = (key.account_scope, key.strategy_scope, key.logical_run_id)
         row = cursor.execute(
@@ -692,13 +736,68 @@ class ExecutionDecisionJournal:
             count = int(row["intent_count"])
         if not created:
             return
-        if count + added_count > max_order_intents_per_run:
+        if require_reservation and (
+            expected_run_order_intents_used is None or remaining_exit_intent_reserve is None
+        ):
+            raise ExecutionDecisionJournalError("RUN_ORDER_BUDGET_RESERVATION_REQUIRED")
+        if expected_run_order_intents_used is not None and count != expected_run_order_intents_used:
+            raise ExecutionDecisionJournalError("RUN_ORDER_BUDGET_STALE")
+        reserve_count = remaining_exit_intent_reserve or 0
+        if count + added_count + reserve_count > max_order_intents_per_run:
             raise ExecutionDecisionJournalError("RUN_ORDER_BUDGET_EXCEEDED")
         cursor.execute(
             """UPDATE execution_run_order_budgets SET intent_count = ?
                WHERE account_scope = ? AND strategy_scope = ? AND logical_run_id = ?""",
             (count + added_count,) + budget_key,
         )
+
+    @staticmethod
+    def _validate_run_order_reservation(
+        *,
+        max_order_intents_per_run: Optional[int],
+        expected_run_order_intents_used: Optional[int],
+        remaining_exit_intent_reserve: Optional[int],
+    ) -> None:
+        if max_order_intents_per_run is None:
+            if (
+                expected_run_order_intents_used is not None
+                or remaining_exit_intent_reserve is not None
+            ):
+                raise ExecutionDecisionJournalError("INVALID_RUN_ORDER_BUDGET_RESERVATION")
+            return
+        if expected_run_order_intents_used is None and remaining_exit_intent_reserve is None:
+            # Missing values remain valid for exact replay. A newly admitted
+            # budgeted decision is rejected inside the write transaction.
+            return
+        if (
+            type(expected_run_order_intents_used) is not int
+            or expected_run_order_intents_used < 0
+            or type(remaining_exit_intent_reserve) is not int
+            or remaining_exit_intent_reserve < 0
+        ):
+            raise ExecutionDecisionJournalError("INVALID_RUN_ORDER_BUDGET_RESERVATION")
+
+    def _budgeted_payload_json(
+        self,
+        economic_payload: Mapping[str, Any],
+        *,
+        max_order_intents_per_run: Optional[int],
+        remaining_exit_intent_reserve: Optional[int],
+    ) -> Tuple[str, str, Optional[Mapping[str, int]]]:
+        """Bind the post-plan reserve to immutable economics, separate from CAS state."""
+
+        base_payload_json = self._payload_json(economic_payload)
+        if _RUN_ORDER_RESERVATION_FIELD in economic_payload:
+            raise ExecutionDecisionJournalError("RUN_ORDER_BUDGET_EVIDENCE_RESERVED")
+        if max_order_intents_per_run is None or remaining_exit_intent_reserve is None:
+            return base_payload_json, base_payload_json, None
+        reservation = {
+            "max_order_intents_per_run": max_order_intents_per_run,
+            "remaining_exit_intent_reserve": remaining_exit_intent_reserve,
+        }
+        persisted_payload = dict(economic_payload)
+        persisted_payload[_RUN_ORDER_RESERVATION_FIELD] = reservation
+        return self._payload_json(persisted_payload), base_payload_json, reservation
 
     def _record_decision_in_transaction(
         self,
@@ -710,14 +809,30 @@ class ExecutionDecisionJournal:
         keys_json: str,
         normalized_keys: Tuple[ExecutionIntentKey, ...],
         now_ns: int,
+        replay_payload_json: Optional[str] = None,
+        run_order_reservation: Optional[Mapping[str, int]] = None,
     ) -> Tuple[ExecutionDecisionRecord, bool]:
         row = cursor.execute(
             "SELECT * FROM execution_decisions WHERE decision_id = ?", (decision_id,)
         ).fetchone()
         if row is not None:
+            economics_match = row["economic_payload_json"] == payload_json
+            if not economics_match and replay_payload_json is not None:
+                try:
+                    persisted_economics = json.loads(row["economic_payload_json"])
+                except (TypeError, ValueError):
+                    persisted_economics = None
+                if isinstance(persisted_economics, Mapping):
+                    persisted_evidence = persisted_economics.pop(_RUN_ORDER_RESERVATION_FIELD, None)
+                    economics_match = _canonical_json(persisted_economics) == replay_payload_json
+                    if economics_match:
+                        economics_match = _valid_run_order_reservation_evidence(
+                            persisted_evidence,
+                            requested=run_order_reservation,
+                        )
             if (
                 row["business_key_json"] != key_json
-                or row["economic_payload_json"] != payload_json
+                or not economics_match
                 or row["intent_keys_json"] != keys_json
             ):
                 raise ExecutionDecisionJournalError("DECISION_CONFLICT")
@@ -2478,6 +2593,27 @@ def _canonical_json(value: Any) -> str:
         separators=(",", ":"),
         sort_keys=True,
     )
+
+
+def _valid_run_order_reservation_evidence(
+    evidence: Any, *, requested: Optional[Mapping[str, int]]
+) -> bool:
+    """Check persisted reservation evidence while allowing legacy replay without it."""
+
+    if evidence is None:
+        return requested is None
+    if not isinstance(evidence, Mapping) or set(evidence) != {
+        "max_order_intents_per_run",
+        "remaining_exit_intent_reserve",
+    }:
+        return False
+    maximum = evidence.get("max_order_intents_per_run")
+    reserve = evidence.get("remaining_exit_intent_reserve")
+    if type(maximum) is not int or maximum < 0 or type(reserve) is not int or reserve < 0:
+        return False
+    if requested is None:
+        return True
+    return reserve == requested.get("remaining_exit_intent_reserve")
 
 
 def _canonical_value(value: Any, *, field_name: Optional[str] = None) -> Any:
