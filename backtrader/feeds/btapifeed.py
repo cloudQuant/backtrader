@@ -1806,14 +1806,20 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
         events.append(mapping)
 
     def _evidence_symbol(self):
-        """Return the public feed identity used by downstream evidence.
+        """Return the display identity used by legacy bars and quote evidence.
 
         ``dataname`` remains the provider subscription key.  Cerebro's
-        explicit feed name is the identity shared with strategy contracts and
-        is therefore used for sealed bars and their quote window when present.
+        explicit feed name is preserved for ordinary display and quote-window
+        records when present.  Cohort bars use the exact source route instead.
         """
         name = getattr(self, "_name", None)
         return name if isinstance(name, str) and name else self._dataname
+
+    def _completed_bar_symbol(self):
+        """Use the exact provider route for cohort bars, display name otherwise."""
+        if self._live_bar_cohort is not None:
+            return self._dataname
+        return self._evidence_symbol()
 
     def _quote_capture_mapping(self, tick):
         """Freeze a prepared tick as a live bar-bound quote record.
@@ -2419,7 +2425,7 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
             )
             completed = BarEvent(
                 timestamp=bucket_end.replace(tzinfo=_UTC).timestamp(),
-                symbol=self._evidence_symbol(),
+                symbol=self._completed_bar_symbol(),
                 exchange=current["exchange"],
                 asset_type=current["asset_type"],
                 local_time=available_ts,
