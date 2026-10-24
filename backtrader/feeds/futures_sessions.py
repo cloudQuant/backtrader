@@ -14,7 +14,7 @@ import json
 import re
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta, timezone
-from typing import Any, Dict, Iterator, Mapping, Optional, Sequence, Tuple
+from typing import Any, Dict, Iterator, Mapping, Optional, Sequence, Tuple, Union
 from urllib.parse import urlparse
 
 from .futures_main_contract import ExchangeTradingCalendar, ProductKey
@@ -170,6 +170,65 @@ class PublicSourceEvidence:
 
 
 @dataclass(frozen=True)
+class ExpectedRuleEvidence:
+    """Public rule references used to derive an expected, not observed, calendar.
+
+    ``rules_manifest_sha256`` fingerprints the normalized local rule manifest.
+    It is deliberately distinct from ``PublicSourceEvidence.sha256``, which
+    fingerprints captured source bytes.  The expected mode is an explicit
+    forecast under reviewed rules and overlays; it does not claim an exchange
+    response was captured or that no later notice will change the schedule.
+    """
+
+    source_id: str
+    source_urls: Tuple[str, ...]
+    version: str
+    available_at: datetime
+    retrieved_at: datetime
+    rules_manifest_sha256: str
+    limitations: Tuple[str, ...] = ()
+    evidence_kind: str = "expected_rule_derived"
+
+    def __post_init__(self) -> None:
+        _text(self.source_id, "source_id")
+        _text(self.version, "version")
+        if self.evidence_kind != "expected_rule_derived":
+            raise ValueError("evidence_kind must be expected_rule_derived")
+        urls = _bounded_sequence(self.source_urls, "expected rule source_urls", 32)
+        if not urls or any(not isinstance(url, str) for url in urls):
+            raise ValueError("source_urls must contain HTTPS URLs")
+        normalized_urls = tuple(sorted({_url(url, "source_url") for url in urls}))
+        if len(normalized_urls) != len(urls):
+            raise ValueError("source_urls must be unique")
+        available = _aware(self.available_at, "available_at")
+        retrieved = _aware(self.retrieved_at, "retrieved_at")
+        if retrieved.astimezone(timezone.utc) < available.astimezone(timezone.utc):
+            raise ValueError("retrieved_at precedes available_at")
+        _sha256(self.rules_manifest_sha256, "rules_manifest_sha256")
+        limitations = _bounded_sequence(self.limitations, "expected rule limitations", 32)
+        if any(
+            not isinstance(item, str) or not item or item != item.strip() for item in limitations
+        ):
+            raise ValueError("limitations must contain non-empty trimmed text")
+        if len(set(limitations)) != len(limitations):
+            raise ValueError("limitations must be unique")
+        object.__setattr__(self, "source_urls", normalized_urls)
+        object.__setattr__(self, "limitations", tuple(limitations))
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "evidence_kind": self.evidence_kind,
+            "source_id": self.source_id,
+            "source_urls": list(self.source_urls),
+            "version": self.version,
+            "available_at": _utc(self.available_at),
+            "retrieved_at": _utc(self.retrieved_at),
+            "rules_manifest_sha256": self.rules_manifest_sha256,
+            "limitations": list(self.limitations),
+        }
+
+
+@dataclass(frozen=True)
 class SessionWindow:
     """An explicit continuous trading interval for one product TradingDay.
 
@@ -247,13 +306,15 @@ class ProductTradingDaySessions:
 
 @dataclass(frozen=True)
 class ExchangeSessionCalendar:
-    """An immutable, source-backed exchange calendar and product schedule.
+    """An immutable exchange calendar and product schedule.
 
     ``trading_days`` is an explicit exhaustive sequence over the declared
-    range, never a weekday expansion.  ``product_universe`` is the exchange
-    product set covered by the official schedule sources.  The grid builder
-    still requires a matching schedule row for every requested product/day,
-    so ``complete=True`` alone cannot hide missing product rows.
+    range, never an implicit weekday expansion.  ``evidence_mode`` distinguishes
+    source-backed schedules from schedules expected under a normalized rule
+    manifest.  ``product_universe`` is the exchange product set covered by the
+    declared evidence; the grid builder still requires a matching schedule row
+    for every requested product/day, so ``complete=True`` cannot hide missing
+    product rows.
     """
 
     exchange_id: str
@@ -263,13 +324,16 @@ class ExchangeSessionCalendar:
     trading_days: Tuple[date, ...]
     product_universe: Tuple[ProductKey, ...]
     product_days: Tuple[ProductTradingDaySessions, ...]
-    sources: Tuple[PublicSourceEvidence, ...]
+    sources: Tuple[Union[PublicSourceEvidence, ExpectedRuleEvidence], ...]
     complete: bool = True
+    evidence_mode: str = "source_backed"
 
     def __post_init__(self) -> None:
         exchange = _text(self.exchange_id, "exchange_id").upper()
         object.__setattr__(self, "exchange_id", exchange)
         _text(self.calendar_source_id, "calendar_source_id")
+        if self.evidence_mode not in ("source_backed", "expected_rule_derived"):
+            raise ValueError("unsupported calendar evidence_mode")
         start = _day(self.coverage_start, "coverage_start")
         through = _day(self.coverage_through, "coverage_through")
         if through < start:
@@ -304,8 +368,18 @@ class ExchangeSessionCalendar:
         if any(item.trading_day not in days for item in rows):
             raise ValueError("product-day row is outside explicit trading_days")
         sources = _bounded_sequence(self.sources, "calendar sources", _MAX_SOURCES_PER_CALENDAR)
-        if not sources or any(not isinstance(item, PublicSourceEvidence) for item in sources):
-            raise ValueError("sources must contain PublicSourceEvidence records")
+        if not sources or any(
+            not isinstance(item, (PublicSourceEvidence, ExpectedRuleEvidence)) for item in sources
+        ):
+            raise ValueError("sources must contain public or expected-rule evidence records")
+        expected_sources = tuple(item for item in sources if isinstance(item, ExpectedRuleEvidence))
+        if self.evidence_mode == "expected_rule_derived":
+            if len(expected_sources) != len(sources):
+                raise ValueError("expected-rule calendars require expected-rule evidence only")
+            if len({item.rules_manifest_sha256 for item in expected_sources}) != 1:
+                raise ValueError("expected-rule sources must share one rules manifest")
+        elif expected_sources:
+            raise ValueError("expected-rule evidence requires expected_rule_derived mode")
         source_ids = [item.source_id for item in sources]
         if len(set(source_ids)) != len(source_ids):
             raise ValueError("sources contains duplicate source_id values")
@@ -328,7 +402,9 @@ class ExchangeSessionCalendar:
         object.__setattr__(self, "sources", tuple(sorted(sources, key=lambda item: item.source_id)))
 
     @property
-    def source_index(self) -> Mapping[str, PublicSourceEvidence]:
+    def source_index(
+        self,
+    ) -> Mapping[str, Union[PublicSourceEvidence, ExpectedRuleEvidence]]:
         return {item.source_id: item for item in self.sources}
 
     @property
@@ -336,7 +412,7 @@ class ExchangeSessionCalendar:
         return _json_sha256(self.to_dict())
 
     def to_dict(self) -> dict[str, Any]:
-        return {
+        result = {
             "schema": "backtrader.exchange_session_calendar.v1",
             "exchange_id": self.exchange_id,
             "calendar_source_id": self.calendar_source_id,
@@ -372,6 +448,9 @@ class ExchangeSessionCalendar:
                 for item in self.product_days
             ],
         }
+        if self.evidence_mode != "source_backed":
+            result["evidence_mode"] = self.evidence_mode
+        return result
 
     def to_main_contract_calendar(self) -> ExchangeTradingCalendar:
         """Adapt the exact day set to the selector's existing calendar contract."""
@@ -387,6 +466,10 @@ class ExchangeSessionCalendar:
             coverage_through=self.coverage_through,
             trading_days=self.trading_days,
             complete=self.complete,
+            evidence_mode=self.evidence_mode,
+            source_manifest_sha256=(
+                source.rules_manifest_sha256 if isinstance(source, ExpectedRuleEvidence) else None
+            ),
         )
 
 
@@ -428,16 +511,36 @@ def load_exchange_session_calendar(document: Mapping[str, Any]) -> ExchangeSessi
     for value in source_values:
         if not isinstance(value, Mapping):
             raise SessionCalendarError("SESSION_SOURCE_MUST_BE_OBJECT")
-        sources.append(
-            PublicSourceEvidence(
-                source_id=value.get("source_id"),
-                source_url=value.get("source_url"),
-                version=value.get("version"),
-                available_at=_iso_datetime(value.get("available_at"), "available_at"),
-                retrieved_at=_iso_datetime(value.get("retrieved_at"), "retrieved_at"),
-                sha256=value.get("sha256"),
+        evidence_kind = value.get("evidence_kind", "public_source_bytes")
+        if evidence_kind == "public_source_bytes":
+            sources.append(
+                PublicSourceEvidence(
+                    source_id=value.get("source_id"),
+                    source_url=value.get("source_url"),
+                    version=value.get("version"),
+                    available_at=_iso_datetime(value.get("available_at"), "available_at"),
+                    retrieved_at=_iso_datetime(value.get("retrieved_at"), "retrieved_at"),
+                    sha256=value.get("sha256"),
+                )
             )
-        )
+        elif evidence_kind == "expected_rule_derived":
+            sources.append(
+                ExpectedRuleEvidence(
+                    source_id=value.get("source_id"),
+                    source_urls=tuple(
+                        _bounded_sequence(value.get("source_urls", ()), "source_urls", 32)
+                    ),
+                    version=value.get("version"),
+                    available_at=_iso_datetime(value.get("available_at"), "available_at"),
+                    retrieved_at=_iso_datetime(value.get("retrieved_at"), "retrieved_at"),
+                    rules_manifest_sha256=value.get("rules_manifest_sha256"),
+                    limitations=tuple(
+                        _bounded_sequence(value.get("limitations", ()), "limitations", 32)
+                    ),
+                )
+            )
+        else:
+            raise SessionCalendarError("SESSION_SOURCE_KIND_UNSUPPORTED")
     products = []
     for value in product_values:
         if not isinstance(value, Mapping):
@@ -493,6 +596,7 @@ def load_exchange_session_calendar(document: Mapping[str, Any]) -> ExchangeSessi
         product_days=tuple(rows),
         sources=tuple(sources),
         complete=complete,
+        evidence_mode=document.get("evidence_mode", "source_backed"),
     )
 
 
@@ -864,7 +968,7 @@ def iter_common_minute_windows(
     rows_by_product: Dict[ProductKey, Dict[date, ProductTradingDaySessions]] = {
         product: {} for product in products
     }
-    source_indexes: Dict[str, Mapping[str, PublicSourceEvidence]] = {}
+    source_indexes: Dict[str, Mapping[str, Union[PublicSourceEvidence, ExpectedRuleEvidence]]] = {}
     for exchange_id, calendar in selected_calendars.items():
         source_indexes[exchange_id] = calendar.source_index
         for row in calendar.product_days:
@@ -1049,6 +1153,7 @@ def find_planned_common_minute(
 __all__ = [
     "CommonMinuteGrid",
     "ExchangeSessionCalendar",
+    "ExpectedRuleEvidence",
     "PlannedCommonMinute",
     "ProductTradingDaySessions",
     "PublicSourceEvidence",

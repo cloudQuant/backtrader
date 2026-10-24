@@ -178,6 +178,8 @@ class ExchangeTradingCalendar:
     coverage_through: date
     trading_days: Tuple[date, ...]
     complete: bool = True
+    evidence_mode: str = "source_backed"
+    source_manifest_sha256: Optional[str] = None
 
     def __post_init__(self) -> None:
         object.__setattr__(
@@ -185,6 +187,15 @@ class ExchangeTradingCalendar:
         )
         object.__setattr__(self, "source_id", _identity_text(self.source_id, "calendar source_id"))
         object.__setattr__(self, "version", _identity_text(self.version, "calendar version"))
+        if self.evidence_mode not in ("source_backed", "expected_rule_derived"):
+            raise ValueError("unsupported calendar evidence_mode")
+        if self.evidence_mode == "expected_rule_derived":
+            if type(self.source_manifest_sha256) is not str or not _SOURCE_SHA256.fullmatch(
+                self.source_manifest_sha256
+            ):
+                raise ValueError("expected-rule calendar requires a rules manifest SHA-256")
+        elif self.source_manifest_sha256 is not None:
+            raise ValueError("source_manifest_sha256 is only valid for expected-rule calendars")
         _aware_datetime(self.available_at, "calendar available_at")
         _aware_datetime(self.retrieved_at, "calendar retrieved_at")
         if self.retrieved_at.astimezone(timezone.utc) < self.available_at.astimezone(timezone.utc):
@@ -206,19 +217,21 @@ class ExchangeTradingCalendar:
 
     @property
     def evidence_sha256(self) -> str:
-        return _canonical_json_sha256(
-            {
-                "exchange_id": self.exchange_id,
-                "source_id": self.source_id,
-                "version": self.version,
-                "available_at": _utc_text(self.available_at),
-                "retrieved_at": _utc_text(self.retrieved_at),
-                "coverage_start": self.coverage_start.isoformat(),
-                "coverage_through": self.coverage_through.isoformat(),
-                "complete": self.complete,
-                "trading_days": [day.isoformat() for day in self.trading_days],
-            }
-        )
+        projection = {
+            "exchange_id": self.exchange_id,
+            "source_id": self.source_id,
+            "version": self.version,
+            "available_at": _utc_text(self.available_at),
+            "retrieved_at": _utc_text(self.retrieved_at),
+            "coverage_start": self.coverage_start.isoformat(),
+            "coverage_through": self.coverage_through.isoformat(),
+            "complete": self.complete,
+            "trading_days": [day.isoformat() for day in self.trading_days],
+        }
+        if self.evidence_mode != "source_backed":
+            projection["evidence_mode"] = self.evidence_mode
+            projection["source_manifest_sha256"] = self.source_manifest_sha256
+        return _canonical_json_sha256(projection)
 
     def previous_complete_trading_day(self, current_trading_day: date) -> date:
         if not self.complete:
@@ -557,6 +570,8 @@ class CalendarEvidence:
     complete: bool
     trading_days: Tuple[date, ...]
     sha256: str
+    evidence_mode: str = "source_backed"
+    source_manifest_sha256: Optional[str] = None
 
 
 @dataclass(frozen=True)
@@ -781,6 +796,14 @@ class MainContractManifest:
                     "complete": item.complete,
                     "trading_days": [day.isoformat() for day in item.trading_days],
                     "sha256": item.sha256,
+                    **(
+                        {
+                            "evidence_mode": item.evidence_mode,
+                            "source_manifest_sha256": item.source_manifest_sha256,
+                        }
+                        if item.evidence_mode != "source_backed"
+                        else {}
+                    ),
                 }
                 for item in self.calendars
             ],
@@ -917,6 +940,8 @@ def _calendar_evidence(calendar: ExchangeTradingCalendar) -> CalendarEvidence:
         complete=calendar.complete,
         trading_days=calendar.trading_days,
         sha256=calendar.evidence_sha256,
+        evidence_mode=calendar.evidence_mode,
+        source_manifest_sha256=calendar.source_manifest_sha256,
     )
 
 
