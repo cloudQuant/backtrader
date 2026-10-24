@@ -860,3 +860,9 @@ docs/_internal/opts/requirements/迭代49-因子分析性能优化/measurements/
 # Preserve the accepted Alpha101 QBuffer raw pytest records.
 docs/_internal/opts/requirements/迭代50-因子实盘运行与交易接入/evidence/alpha101-qbuffer-20261024/pytest-output.txt -text
 docs/_internal/opts/requirements/迭代50-因子实盘运行与交易接入/evidence/alpha101-qbuffer-20261024/pytest.xml -text
+
+# Preserve final core, strategy and Alpha003 stream raw acceptance records.
+docs/_internal/opts/requirements/迭代50-因子实盘运行与交易接入/evidence/core-feed-strategies-20261024/i5051_final_core_feed_20261024.xml -text
+docs/_internal/opts/requirements/迭代50-因子实盘运行与交易接入/evidence/core-feed-strategies-20261024/i5051_final_strategies_20261024.xml -text
+docs/_internal/opts/requirements/迭代50-因子实盘运行与交易接入/evidence/alpha003-stream-20261024/pytest.xml -text
+docs/_internal/opts/requirements/迭代50-因子实盘运行与交易接入/evidence/alpha003-stream-20261024/pytest-output.txt -text
