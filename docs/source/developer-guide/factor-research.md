@@ -25,6 +25,8 @@
 
 研究异常统一定义在 `backtrader.errors`，直接导入使用 `from backtrader.errors import ResearchError, ResearchConfigError`。`ResearchConfigError` 同时保留 `ValueError` 捕获行为；`backtrader.research.ConfigError` 是同一对象别名。
 
+普通 `bt.Strategy` 的 cohort 实时因子用法与研究入口不同，见[实时因子指南](factor-live.md)；实时 API 的安装和真实 SimNow 验收仍在进行。
+
 ## 写一个因子
 
 原生写法保留 `__init__`、`super()`、`self.p`、`self.datas` 和 `next()`。每个资产的输出是独立的 Backtrader 数值线，不能把整个截面的字典写进一条 float line。
