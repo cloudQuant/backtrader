@@ -3,6 +3,7 @@
 import hashlib
 import math
 import struct
+from collections import Counter
 from types import SimpleNamespace
 
 import pandas as pd
@@ -136,11 +137,7 @@ def _alpha003_frames(rows=1280, assets=5):
                 + 8.0 * math.sin(row * 0.17 + asset * 1.3)
                 + ((row * asset) % 5) * 0.3
             )
-            volumes.append(
-                10000.0
-                + ((row * (asset + 2) + asset * 7) % 19) * 137.0
-                + asset * 29.0
-            )
+            volumes.append(10000.0 + ((row * (asset + 2) + asset * 7) % 19) * 137.0 + asset * 29.0)
         frames["asset-%d" % asset] = pd.DataFrame(
             {
                 "open": opens,
@@ -209,9 +206,7 @@ def _max_qbuffer_capacity(strategy):
             continue
         visited.add(id(owner))
         lines = getattr(getattr(owner, "lines", None), "lines", ())
-        capacities.extend(
-            line.maxlen for line in lines if line.mode == LineBuffer.QBuffer
-        )
+        capacities.extend(line.maxlen for line in lines if line.mode == LineBuffer.QBuffer)
         for children in getattr(owner, "_lineiterators", {}).values():
             pending.extend(children)
     return max(capacities, default=0)
@@ -372,12 +367,19 @@ def _first_stream_difference(left, right):
                 continue
             if len(left_tokens) != len(right_tokens):
                 return "%r %s row count %d != %d" % (
-                    key, field, len(left_tokens), len(right_tokens)
+                    key,
+                    field,
+                    len(left_tokens),
+                    len(right_tokens),
                 )
             for row_index, (left_token, right_token) in enumerate(zip(left_tokens, right_tokens)):
                 if left_token != right_token:
                     return "%r %s row %d: %r != %r" % (
-                        key, field, row_index, left_token, right_token
+                        key,
+                        field,
+                        row_index,
+                        left_token,
+                        right_token,
                     )
     return None
 
@@ -426,30 +428,146 @@ def _run_alpha101_buffer_batch(
 
 
 def _qbuffer_profile(strategy):
-    """Return configured and actually retained qbuffer capacities in the run."""
-    pending = [strategy, *strategy.datas]
-    pending.extend(
-        factor
-        for instances in strategy._factor_instances_by_name.values()
-        for factor in instances
+    """Summarize actual QBuffer capacities by bounded role and line identity."""
+    roles = ("target", "input", "value", "reason")
+    seen = {role: set() for role in roles}
+    capacities = {role: {} for role in roles}
+    distributions = {role: Counter() for role in roles}
+    samples = {role: [] for role in roles}
+    target_labels = {}
+    direct_inputs, derived_inputs = set(), set()
+
+    def add(role, line, label):
+        identity = id(line)
+        if identity in seen[role]:
+            return capacities[role][identity]
+        if getattr(line, "mode", None) != LineBuffer.QBuffer:
+            raise AssertionError("%s line %s is not an actual QBuffer" % (role, label))
+        configured = int(line.maxlen)
+        retained = len(line.array) - int(line.extension)
+        if not 0 < retained <= configured:
+            raise AssertionError(
+                "%s line %s has invalid capacity %d/%d" % (role, label, configured, retained)
+            )
+        seen[role].add(identity)
+        capacities[role][identity] = (configured, retained)
+        distributions[role][(configured, retained)] += 1
+        if len(samples[role]) < 4:
+            samples[role].append((label, configured, retained))
+        return configured, retained
+
+    for data in strategy.datas:
+        aliases, lines = tuple(data.getlinealiases()), tuple(data.lines.lines)
+        if len(aliases) != len(lines):
+            raise AssertionError("target feed aliases do not match its buffers")
+        for alias, line in zip(aliases, lines):
+            label = "%s.%s" % (getattr(data, "_name", ""), alias)
+            add("target", line, label)
+            target_labels[id(line)] = label
+
+    for name, instances in strategy._factor_instances_by_name.items():
+        for group, factor in enumerate(instances):
+            for alias, lines in factor._field_line_cache.items():
+                for index, line in enumerate(lines):
+                    identity = id(line)
+                    source = target_labels.get(identity)
+                    if source is None:
+                        owner = getattr(getattr(line, "_owner", None), "_owner_ref", None)
+                        source = type(owner).__name__
+                        derived_inputs.add(identity)
+                    else:
+                        direct_inputs.add(identity)
+                    add("input", line, "%s[%d].%s<-%s" % (name, group, alias, source))
+
+    for name, instances in strategy._factor_instances_by_name.items():
+        for group, factor in enumerate(instances):
+            entries = list(factor._nodes.items()) + [
+                ("@physical:%d" % i, node)
+                for i, node in enumerate(getattr(factor, "_physical_nodes", ()))
+            ]
+            seen_nodes = set()
+            for node_key, node in entries:
+                if id(node) in seen_nodes:
+                    continue
+                seen_nodes.add(id(node))
+                for target, value_line, reason_line in _node_line_pairs(node):
+                    label = "%s[%d].%s.%s@%s" % (
+                        name,
+                        group,
+                        node_key,
+                        type(node).__name__,
+                        target or "<unnamed>",
+                    )
+                    value = add("value", value_line, label)
+                    reason = add("reason", reason_line, label)
+                    if value != reason:
+                        raise AssertionError("value/reason capacities differ at %s" % label)
+
+    if not direct_inputs or direct_inputs & derived_inputs:
+        raise AssertionError("field inputs do not include exact target feed lines")
+    if any(capacities["input"][i] != capacities["target"][i] for i in direct_inputs):
+        raise AssertionError("direct field inputs do not preserve target capacity")
+    return {
+        role: {
+            "count": len(seen[role]),
+            "distribution": tuple(
+                (*pair, count) for pair, count in sorted(distributions[role].items())
+            ),
+            "samples": tuple(samples[role]),
+            **(
+                {"direct_target_lines": len(direct_inputs), "derived_lines": len(derived_inputs)}
+                if role == "input"
+                else {}
+            ),
+        }
+        for role in roles
+    }
+
+
+def _assert_qbuffer_profile(profile):
+    """Check capacity distributions and the feed/input and value/reason ties."""
+    assert tuple(profile) == ("target", "input", "value", "reason")
+    for role, receipt in profile.items():
+        assert receipt["count"] > 0, "no actual QBuffer lines for role %s" % role
+        assert receipt["distribution"]
+        assert receipt["samples"]
+        assert sum(count for _configured, _retained, count in receipt["distribution"]) == (
+            receipt["count"]
+        )
+        assert all(
+            0 < retained <= configured and count > 0
+            for configured, retained, count in receipt["distribution"]
+        ), ("invalid configured/retained QBuffer capacity for role %s" % role)
+
+    assert profile["input"]["direct_target_lines"] > 0
+
+    value_pairs = {
+        (configured, retained): count
+        for configured, retained, count in profile["value"]["distribution"]
+    }
+    reason_pairs = {
+        (configured, retained): count
+        for configured, retained, count in profile["reason"]["distribution"]
+    }
+    assert (
+        value_pairs == reason_pairs
+    ), "operator values/reasons have different capacity distributions"
+    configured_capacities = {
+        configured
+        for receipt in profile.values()
+        for configured, _retained, _count in receipt["distribution"]
+    }
+    assert (
+        len(configured_capacities) > 1
+    ), "actual target/input/operator buffers did not exhibit distinct configured capacities"
+    target_max = max(
+        configured for configured, _retained, _count in profile["target"]["distribution"]
     )
-    visited = set()
-    configured = []
-    retained = []
-    while pending:
-        owner = pending.pop()
-        if id(owner) in visited:
-            continue
-        visited.add(id(owner))
-        lines = getattr(getattr(owner, "lines", None), "lines", ())
-        for line in lines:
-            if getattr(line, "mode", None) != LineBuffer.QBuffer:
-                continue
-            configured.append(int(line.maxlen))
-            retained.append(len(line.array) - int(line.extension))
-        for children in getattr(owner, "_lineiterators", {}).values():
-            pending.extend(children)
-    return tuple(configured), tuple(retained)
+    assert all(
+        configured <= target_max
+        for role in ("input", "value", "reason")
+        for configured, _retained, _count in profile[role]["distribution"]
+    ), "target feed capacity is smaller than a required input/operator buffer"
 
 
 def _assert_exact_matrices(left, right, *, label):
@@ -463,8 +581,7 @@ def _assert_exact_matrices(left, right, *, label):
             if math.isnan(left_value) or math.isnan(right_value):
                 if not (math.isnan(left_value) and math.isnan(right_value)):
                     raise AssertionError(
-                        "%s NaN mask differs at row %d asset %d"
-                        % (label, row_index, asset_index)
+                        "%s NaN mask differs at row %d asset %d" % (label, row_index, asset_index)
                     )
             elif math.isinf(left_value) or math.isinf(right_value) or left_value != right_value:
                 raise AssertionError(
@@ -520,14 +637,39 @@ def test_alpha101_prefix_uses_node_aware_scalar_trace_for_rank_outputs():
             _panel_factor_matrix(queued_strategy, alpha_id, grid, assets),
             label="Alpha%d T320 full/qbuffer smoke" % alpha_id,
         )
-    configured, retained = _qbuffer_profile(queued_strategy)
-    assert configured and retained
-    actual_max = max(retained)
+    capacity_profile = _qbuffer_profile(queued_strategy)
+    _assert_qbuffer_profile(capacity_profile)
+    actual_max = max(
+        retained
+        for receipt in capacity_profile.values()
+        for _configured, retained, _count in receipt["distribution"]
+    )
     assert actual_max > 0
     print(
         "Alpha101 qbuffer prefix complete: mode=native formulas=%d-%d rows=%d "
-        "actual_max_retained=%d complete_wraps=%d"
-        % (alpha_ids[0], alpha_ids[-1], len(grid), actual_max, len(grid) // actual_max),
+        "actual_max_retained=%d complete_wraps=%d capacity_distribution=%r"
+        % (
+            alpha_ids[0],
+            alpha_ids[-1],
+            len(grid),
+            actual_max,
+            len(grid) // actual_max,
+            {
+                role: {
+                    "distribution": receipt["distribution"],
+                    "samples": receipt["samples"],
+                    **(
+                        {
+                            "direct_target_lines": receipt["direct_target_lines"],
+                            "derived_lines": receipt["derived_lines"],
+                        }
+                        if role == "input"
+                        else {}
+                    ),
+                }
+                for role, receipt in capacity_profile.items()
+            },
+        ),
         flush=True,
     )
 
@@ -561,31 +703,42 @@ def test_alpha101_full_and_qbuffer_native_build_values_and_reasons_match(monkeyp
                     alpha_id,
                     mode,
                 )
-                assert any(value != 0.0 for value in finite), (
-                    "Alpha%d %s full run has only zero post-H values" % (alpha_id, mode)
-                )
+                assert any(
+                    value != 0.0 for value in finite
+                ), "Alpha%d %s full run has only zero post-H values" % (alpha_id, mode)
                 full_matrices[alpha_id] = actual
 
             queued_strategy, queued_streams = _run_alpha101_buffer_batch(
                 monkeypatch, frames, batch, mode=mode, exactbars=1
             )
-            configured, retained = _qbuffer_profile(queued_strategy)
-            assert configured and retained, "exactbars=1 run produced no actual qbuffer lines"
-            max_retained = max(retained)
+            capacity_profile = _qbuffer_profile(queued_strategy)
+            _assert_qbuffer_profile(capacity_profile)
+            max_configured = max(
+                configured
+                for receipt in capacity_profile.values()
+                for configured, _retained, _count in receipt["distribution"]
+            )
+            max_retained = max(
+                retained
+                for receipt in capacity_profile.values()
+                for _configured, retained, _count in receipt["distribution"]
+            )
             lane_capacity_receipts[(mode, batch[0], batch[-1])] = {
-                "configured_maxlen": max(configured),
+                "configured_maxlen": max_configured,
                 "actual_retained_max": max_retained,
                 "complete_wraps": rows // max_retained,
+                "by_role": capacity_profile,
             }
             assert max_retained > 0
             assert rows >= max(1280, 10 * max_retained), (
                 "Alpha101 %s/%d-%d fixture does not wrap its actual max retained capacity "
-                "ten times: rows=%d actual_max=%d"
-                % (mode, batch[0], batch[-1], rows, max_retained)
+                "ten times: rows=%d actual_max=%d" % (mode, batch[0], batch[-1], rows, max_retained)
             )
             if full_streams.keys() != queued_streams.keys():
                 missing = sorted(set(full_streams) ^ set(queued_streams), key=repr)
-                raise AssertionError("%s node inventory changed with qbuffer: %r" % (mode, missing[:8]))
+                raise AssertionError(
+                    "%s node inventory changed with qbuffer: %r" % (mode, missing[:8])
+                )
             for key in full_streams:
                 if full_streams[key]["reason_codes"] == 0:
                     raise AssertionError("%s %s node has no numeric reason witness" % (mode, key))
@@ -613,21 +766,37 @@ def test_alpha101_full_and_qbuffer_native_build_values_and_reasons_match(monkeyp
                     alpha_id,
                     mode,
                 )
-                assert any(value != 0.0 for value in finite), (
-                    "Alpha%d %s qbuffer run has only zero post-H values" % (alpha_id, mode)
-                )
+                assert any(
+                    value != 0.0 for value in finite
+                ), "Alpha%d %s qbuffer run has only zero post-H values" % (alpha_id, mode)
 
             print(
                 "Alpha101 qbuffer lane complete: mode=%s formulas=%d-%d rows=%d "
-                "configured_maxlen=%d actual_max_retained=%d complete_wraps=%d"
+                "configured_maxlen=%d actual_max_retained=%d complete_wraps=%d "
+                "capacity_distribution=%r"
                 % (
                     mode,
                     batch[0],
                     batch[-1],
                     rows,
-                    max(configured),
+                    max_configured,
                     max_retained,
                     rows // max_retained,
+                    {
+                        role: {
+                            "distribution": receipt["distribution"],
+                            "samples": receipt["samples"],
+                            **(
+                                {
+                                    "direct_target_lines": receipt["direct_target_lines"],
+                                    "derived_lines": receipt["derived_lines"],
+                                }
+                                if role == "input"
+                                else {}
+                            ),
+                        }
+                        for role, receipt in capacity_profile.items()
+                    },
                 ),
                 flush=True,
             )
