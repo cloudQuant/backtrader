@@ -1054,6 +1054,55 @@ def test_unknown_owner_blocks_same_instrument_in_a_new_logical_run(tmp_path):
     recovered.close()
 
 
+def test_dispatching_crash_recovery_rejects_unproven_terminal_and_keeps_owner(tmp_path):
+    journal = ExecutionDecisionJournal(tmp_path / "dispatching-no-fill.sqlite3")
+    _decision, intent = _prepare(
+        journal,
+        original_identity={
+            "backtrader_order_ref": 41,
+            "order_ref": "501",
+            "instrument_id": "SIM-IF-1",
+            "exchange_id": "CFFEX",
+            "trading_day": "20261024",
+            "operation": "insert",
+        },
+    )
+    assert journal.claim_dispatch(intent.intent_id) is not None
+
+    with pytest.raises(
+        ExecutionDecisionJournalError,
+        match="DISPATCHING_NO_FILL_EVIDENCE_MISMATCH",
+    ):
+        journal.record_dispatching_no_fill_terminal(
+            intent.intent_id,
+            reconciliation_id="crash-recovery-unproven",
+            query_id="orders-query-unproven",
+            provider_identity={},
+            terminal_state="CANCELLED",
+            terminal_event_id="orders-query-unproven",
+            position_snapshot_id="positions-snapshot-unproven",
+            expected_original_identity=intent.original_identity,
+        )
+
+    current = journal.intent(intent.intent_id)
+    owner = journal.active_instrument_owner("account-a", intent.key.instrument)
+    assert current is not None
+    assert current.state == "DISPATCHING"
+    assert current.dispatch_state is None
+    assert current.provider_identity is None
+    assert current.outcome_code is None
+    assert owner is not None and owner.intent_id == intent.intent_id
+    with pytest.raises(
+        ExecutionDecisionJournalError,
+        match="INTENT_NOT_RECONCILED_TERMINAL",
+    ):
+        journal.release_instrument_owner(
+            intent.intent_id,
+            reconciliation_id="crash-recovery-unproven",
+        )
+    journal.close()
+
+
 def test_unknown_query_resolution_is_append_only_and_allows_close_after_fill(tmp_path):
     path = tmp_path / "resolve-unknown.sqlite3"
     journal = ExecutionDecisionJournal(path)

@@ -4,8 +4,9 @@ Each source worker is a test-owned spawned process. It calls ``os._exit`` only
 after a selected SQLite/API boundary, so Python cleanup cannot hide whether
 the last durable state survived. Recovery workers use the real journal,
 coordinator, Store and Broker with the existing fake SDK leaves. A DISPATCHING
-row is retained as DISPATCHING; this file does not manufacture UNKNOWN or
-claim that positive reconciliation for that state exists.
+row with no complete terminal query remains unresolved. The positive SUBMIT
+no-fill recovery below uses a new complete query after the original
+dispatcher has exited; this file does not manufacture UNKNOWN.
 """
 
 from __future__ import annotations
@@ -17,8 +18,15 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from backtrader.stores.execution_decision_journal import ExecutionDecisionJournal
-from backtrader.stores.factor_execution import FactorExecutionDecisionScope
+from backtrader.stores.execution_decision_journal import (
+    ExecutionDecisionJournal,
+    ExecutionDecisionKey,
+    ExecutionIntentKey,
+)
+from backtrader.stores.factor_execution import (
+    FactorExecutionDecisionScope,
+    FactorExecutionError,
+)
 from tests.integration import test_factor_execution_unknown_recovery as recovery_helpers
 from tests.unit.stores import test_factor_execution_facts as facts_helpers
 
@@ -34,10 +42,12 @@ _EXIT_CODES = {
     "callback_after_projection": 82,
     "callback_after_broker_apply": 83,
     "callback_after_ack": 84,
+    "live_dispatching_submit_crash": 85,
+    "cancel_dispatching_crash": 86,
 }
 
-_INCOMPLETE_DISPATCHING_RECOVERY = (
-    "INCOMPLETE_POSITIVE_RECOVERY_UNSUPPORTED:DISPATCHING_REMAINS_UNRESOLVED"
+_INCOMPLETE_DISPATCHING_WITHOUT_TERMINAL_PROOF = (
+    "INCOMPLETE_RECOVERY_WITHOUT_TERMINAL_PROOF:DISPATCHING_REMAINS_UNRESOLVED"
 )
 _INCOMPLETE_CALLBACK_RECOVERY = (
     "INCOMPLETE_CALLBACK_RECOVERY:EXACT_NATIVE_RECEIPT_REQUIRES_SUPPORTED_RECONCILIATION"
@@ -308,7 +318,7 @@ def _child_reopen_and_replay_decision(journal_path, checkpoint, result_queue):
                 "native_calls": len(api.native_calls),
                 "old_order_rebuilt": bool(broker.orders),
                 "recovery_state": (
-                    _INCOMPLETE_DISPATCHING_RECOVERY
+                    _INCOMPLETE_DISPATCHING_WITHOUT_TERMINAL_PROOF
                     if intent is not None and intent.state == "DISPATCHING"
                     else "NO_DISPATCHING_POSITIVE_RECOVERY_REQUIRED"
                 ),
@@ -471,7 +481,7 @@ def test_spawned_dispatch_crash_preserves_grid_identity_and_never_replays_native
     assert recovered["owner_retained"] is (expected_state is not None)
     if expected_state == "DISPATCHING":
         # This is a safety characterization, not positive recovery acceptance.
-        assert recovered["recovery_state"] == _INCOMPLETE_DISPATCHING_RECOVERY
+        assert recovered["recovery_state"] == _INCOMPLETE_DISPATCHING_WITHOUT_TERMINAL_PROOF
 
 
 def _callback_rows(journal, intent_id):
@@ -946,9 +956,701 @@ def test_spawned_callback_crash_keeps_projection_idempotent_and_marks_recovery_l
         assert recovered["recovery_state"] == "QUERY_PROJECTION_RECOVERED_WITHOUT_ORDER_REBUILD"
 
 
-def test_module_declares_dispatching_positive_recovery_incomplete_without_state_rewrite():
-    """Make the supported boundary explicit for operators and future tests."""
+def test_dispatching_without_terminal_query_stays_unresolved_on_grid_replay():
+    """Old-grid replay alone never resolves a claimed native dispatch."""
 
-    assert _INCOMPLETE_DISPATCHING_RECOVERY == (
-        "INCOMPLETE_POSITIVE_RECOVERY_UNSUPPORTED:DISPATCHING_REMAINS_UNRESOLVED"
+    assert _INCOMPLETE_DISPATCHING_WITHOUT_TERMINAL_PROOF == (
+        "INCOMPLETE_RECOVERY_WITHOUT_TERMINAL_PROOF:DISPATCHING_REMAINS_UNRESOLVED"
     )
+
+
+def _spawned_submit_live_until_crash_worker(
+    journal_path, checkpoint_path, request_entered, crash_now
+):
+    """Hold the real dispatch gate across a submitted fake native request."""
+
+    now = datetime.now(timezone.utc)
+    (
+        api,
+        store,
+        broker,
+        journal,
+        coordinator,
+        target,
+        data,
+        owner,
+        _cerebro,
+    ) = recovery_helpers._durable_system(journal_path, now=now)
+    try:
+        facts = recovery_helpers._initial_open_facts(api, store, broker, target, now=now)
+        scope, _intent_key, _economics = recovery_helpers._decision_scope(
+            coordinator,
+            owner,
+            facts,
+            close_time=facts.available_at - timedelta(milliseconds=2),
+            batch_id="dispatching-live-gate-submit",
+        )
+        native_insert = api.trader_client.submit_order_insert
+
+        def request_then_hold(field, request_id, *, execution_capability):
+            native_code = native_insert(
+                field,
+                request_id,
+                execution_capability=execution_capability,
+            )
+            order_ref = str(field.OrderRef)
+            intent = journal.intent_by_native_order_ref(
+                account_scope=recovery_helpers._ACCOUNT_SCOPE,
+                strategy_scope=recovery_helpers._STRATEGY_SCOPE,
+                trading_day=recovery_helpers._TRADING_DAY,
+                instrument=recovery_helpers._INSTRUMENT,
+                exchange=recovery_helpers._EXCHANGE,
+                order_ref=order_ref,
+            )
+            assert intent is not None and intent.state == "DISPATCHING"
+            assert intent.dispatch_state is None
+            _write_checkpoint(
+                checkpoint_path,
+                {
+                    "boundary": "live_dispatching_submit",
+                    "intent_id": intent.intent_id,
+                    "native_request_id": request_id,
+                    "native_return_code_before_crash": native_code,
+                    "original_identity": dict(intent.original_identity),
+                    "native_call_count": len(api.native_calls),
+                },
+            )
+            request_entered.set()
+            if not crash_now.wait(20):
+                os._exit(94)
+            # Exit before the Store returns and before complete_order can
+            # persist a KNOWN/UNKNOWN dispatch result.
+            os._exit(_EXIT_CODES["live_dispatching_submit_crash"])
+
+        api.trader_client.submit_order_insert = request_then_hold
+        _submit_in_scope(scope, owner, data)
+        raise AssertionError("the controlled native request returned normally")
+    finally:
+        journal.close()
+
+
+def _refresh_and_reconcile_inside_terminal_scope(
+    api,
+    store,
+    broker,
+    target,
+    coordinator,
+    *,
+    generation,
+    sequence,
+    stale_snapshot=None,
+):
+    """Keep the durable dispatch gate across source reads and retirement."""
+
+    with coordinator.terminal_recovery_scope(timeout_seconds=5.0) as scope_started_at:
+        stale_page = None
+        if stale_snapshot is not None:
+            stale_receipt, stale_facts = stale_snapshot
+            stale_page = coordinator.reconcile_terminal_order_observations(
+                stale_facts,
+                refresh_receipt=stale_receipt,
+                limit=128,
+            )
+        receipt, facts = recovery_helpers._refresh_five_family_facts(
+            api,
+            store,
+            broker,
+            target,
+            generation=generation,
+            sequence=sequence,
+        )
+        page = coordinator.reconcile_terminal_order_observations(
+            facts,
+            refresh_receipt=receipt,
+            limit=128,
+        )
+    return receipt, facts, page, scope_started_at, stale_page
+
+
+def _spawned_recover_submit_dispatching_no_fill(journal_path, terminal_row, result_queue):
+    """Recover only from a new complete query after the original process died."""
+
+    now = datetime.now(timezone.utc)
+    (
+        api,
+        store,
+        broker,
+        journal,
+        coordinator,
+        target,
+        data,
+        strategy,
+        _cerebro,
+    ) = recovery_helpers._durable_system(journal_path, now=now)
+    stage = "fresh_terminal_query"
+    reconciliation_item = None
+    try:
+        recovery_helpers._bind_current_session_identity(api, generation=2, front_id=5, session_id=8)
+        api.query_rows["orders_result"] = [terminal_row]
+        stale_receipt, stale_facts = recovery_helpers._refresh_five_family_facts(
+            api,
+            store,
+            broker,
+            target,
+            generation=2,
+            sequence=8,
+        )
+        assert stale_receipt.query_set is not None
+        assert stale_receipt.query_set.started_at_utc < datetime.now(timezone.utc)
+        outside_scope = coordinator.reconcile_terminal_order_observations(
+            stale_facts,
+            refresh_receipt=stale_receipt,
+            limit=128,
+        )
+        assert len(outside_scope.items) == 1
+        assert outside_scope.items[0].status == "BLOCKED"
+        assert outside_scope.items[0].blocker_code == "DISPATCHING_RECOVERY_SCOPE_REQUIRED"
+        dispatch_owner = journal.active_instrument_owner(
+            recovery_helpers._ACCOUNT_SCOPE,
+            recovery_helpers._INSTRUMENT,
+        )
+        assert dispatch_owner is not None
+        still_dispatching = journal.intent(dispatch_owner.intent_id)
+        assert still_dispatching is not None and still_dispatching.state == "DISPATCHING"
+
+        (
+            receipt,
+            facts,
+            page,
+            scope_started_at,
+            stale_page,
+        ) = _refresh_and_reconcile_inside_terminal_scope(
+            api,
+            store,
+            broker,
+            target,
+            coordinator,
+            generation=2,
+            sequence=9,
+            stale_snapshot=(stale_receipt, stale_facts),
+        )
+        assert receipt.query_set is not None
+        assert receipt.blockers == ()
+        assert receipt.pending_families == ()
+        assert receipt.query_set.connection_generation == 2
+        assert receipt.query_set.trading_day == recovery_helpers._TRADING_DAY
+        assert receipt.query_set.started_at_utc >= scope_started_at
+        assert stale_receipt.query_set.started_at_utc < scope_started_at
+        assert stale_page is not None and len(stale_page.items) == 1
+        assert stale_page.items[0].status == "BLOCKED"
+        assert stale_page.items[0].blocker_code == "DISPATCHING_RECOVERY_QUERY_PREDATES_SCOPE"
+        assert facts.trade_observations == ()
+        assert len(facts.terminal_orders) == 1
+        assert facts.terminal_orders[0].order_ref == terminal_row["OrderRef"]
+        assert facts.terminal_orders[0].volume_traded == 0
+        assert facts.positions[0].broker_quantity == 0
+        assert facts.positions[0].long_quantity == 0
+        assert facts.positions[0].short_quantity == 0
+        assert not broker.orders, "fresh-process recovery must not rebuild the old Order"
+        assert api.native_calls == []
+
+        assert len(page.items) == 1
+        item = page.items[0]
+        reconciliation_item = item
+        assert item.status == "RESOLVED", item
+        intent = journal.intent(item.intent_id)
+        assert intent is not None
+        assert intent.state == "KNOWN"
+        # Reconciliation proves terminal no-fill; it is not a fabricated
+        # native dispatch response and must preserve the absent dispatch data.
+        assert intent.dispatch_state is None
+        assert intent.provider_identity is None
+        assert intent.outcome_code is None
+        assert dict(intent.original_identity)["order_ref"] == terminal_row["OrderRef"]
+        resolution = journal.instrument_resolution(intent.intent_id)
+        assert resolution is not None
+        assert resolution.reconciliation_id == item.reconciliation_id
+        assert resolution.position_flat is True
+        assert (
+            journal.active_instrument_owner(
+                recovery_helpers._ACCOUNT_SCOPE,
+                recovery_helpers._INSTRUMENT,
+            )
+            is None
+        )
+        assert not broker.orders
+        assert api.native_calls == []
+
+        # A later grid is admitted only after a fresh generation-2 quote/query
+        # preflight and the normal route-arm path. Its OrderRef must be new.
+        stage = "fresh_grid_preflight"
+        store.registered_sim_configure_arm_templates(
+            {
+                (recovery_helpers._INSTRUMENT, recovery_helpers._EXCHANGE): (
+                    recovery_helpers._arm_template()
+                )
+            }
+        )
+        store.registered_sim_arm(
+            instrument=recovery_helpers._INSTRUMENT,
+            exchange=recovery_helpers._EXCHANGE,
+            **recovery_helpers._arm_template(),
+        )
+        api._next_order_reference = 900
+        next_receipt, next_facts = recovery_helpers._refresh_five_family_facts(
+            api,
+            store,
+            broker,
+            target,
+            generation=2,
+            sequence=10,
+            include_margin=True,
+        )
+        assert next_receipt.query_set is not None
+        assert next_receipt.query_set.connection_generation == 2
+        assert next_facts.open_risk_ready is True, next_facts.blockers
+        assert not broker.orders
+        assert api.native_calls == []
+
+        stage = "new_grid_submit"
+        new_order = recovery_helpers._submit_open(
+            coordinator,
+            strategy,
+            data,
+            next_facts,
+            close_time=next_facts.available_at - timedelta(milliseconds=2),
+            batch_id="dispatching-no-fill-recovered-new-grid",
+        )
+        assert new_order is not None
+        new_intent = journal.intent(new_order.info["factor_intent_id"])
+        assert new_intent is not None and new_intent.dispatch_state == "KNOWN"
+        assert new_intent.original_identity["order_ref"] != terminal_row["OrderRef"]
+        assert len(api.native_calls) == 1
+        assert api.native_calls[0][0] == "insert"
+        assert api.native_calls[0][3] == new_intent.original_identity["order_ref"]
+        assert len(broker.orders) == 1
+        assert broker.orders[new_order.ref] is new_order
+
+        result_queue.put(
+            {
+                "status": "OK",
+                "old_intent_id": intent.intent_id,
+                "old_order_ref": intent.original_identity["order_ref"],
+                "old_dispatch_fields_null": (
+                    intent.dispatch_state is None
+                    and intent.provider_identity is None
+                    and intent.outcome_code is None
+                ),
+                "resolution_flat": resolution.position_flat,
+                "owner_released_before_new_grid": True,
+                "old_order_rebuilt": False,
+                "new_intent_id": new_intent.intent_id,
+                "new_order_ref": new_intent.original_identity["order_ref"],
+                "native_calls": tuple(api.native_calls),
+            }
+        )
+    except BaseException as error:
+        result_queue.put(
+            {
+                "status": "ERROR",
+                "stage": stage,
+                "error_type": type(error).__name__,
+                "error_code": getattr(error, "code", None),
+                "reconciliation_status": (
+                    None if reconciliation_item is None else reconciliation_item.status
+                ),
+                "reconciliation_blocker_code": (
+                    None if reconciliation_item is None else reconciliation_item.blocker_code
+                ),
+                "error_message": str(error)[:240],
+            }
+        )
+    finally:
+        journal.close()
+
+
+def test_spawned_live_dispatch_gate_then_fresh_process_no_fill_recovery_and_new_grid(tmp_path):
+    """A live dispatch blocks CAS; post-crash proof resolves without replaying its ref."""
+
+    path = tmp_path / "dispatching-submit-positive-recovery.sqlite3"
+    checkpoint_path = tmp_path / "dispatching-submit-crash.json"
+    context = multiprocessing.get_context("spawn")
+    request_entered = context.Event()
+    crash_now = context.Event()
+    dispatcher = context.Process(
+        target=_spawned_submit_live_until_crash_worker,
+        args=(str(path), str(checkpoint_path), request_entered, crash_now),
+        name="factor-execution-live-dispatch-crash",
+    )
+    dispatcher.start()
+    recovery_journal = None
+    query_journal = None
+    try:
+        assert request_entered.wait(15), "the native leaf did not reach its barrier"
+        checkpoint = json.loads(checkpoint_path.read_text(encoding="utf-8"))
+        assert checkpoint["boundary"] == "live_dispatching_submit"
+        assert checkpoint["native_call_count"] == 1
+        identity = checkpoint["original_identity"]
+        old_order_ref = identity["order_ref"]
+        assert old_order_ref.isdecimal() and int(old_order_ref) > 0
+
+        recovery_journal = ExecutionDecisionJournal(path)
+        persisted = recovery_journal.intent(checkpoint["intent_id"])
+        assert persisted is not None
+        assert persisted.state == "DISPATCHING"
+        assert persisted.dispatch_state is None
+        assert persisted.provider_identity is None
+        assert persisted.outcome_code is None
+        assert dict(persisted.original_identity) == identity
+        owner = recovery_journal.active_instrument_owner(
+            recovery_helpers._ACCOUNT_SCOPE,
+            recovery_helpers._INSTRUMENT,
+        )
+        assert owner is not None and owner.intent_id == persisted.intent_id
+        assert owner.state == "DISPATCHING"
+
+        # A complete-looking terminal row cannot race a dispatcher that still
+        # owns the shared Journal gate.
+        now = datetime.now(timezone.utc)
+        (
+            api,
+            store,
+            broker,
+            query_journal,
+            coordinator,
+            target,
+            _data,
+            _strategy,
+            _cerebro,
+        ) = recovery_helpers._durable_system(path, now=now)
+        recovery_helpers._bind_current_session_identity(api, generation=2, front_id=5, session_id=8)
+        terminal_row = recovery_helpers._terminal_row(
+            old_order_ref,
+            front_id=identity["front_id"],
+            session_id=identity["session_id"],
+            trading_day=identity["trading_day"],
+        )
+        api.query_rows["orders_result"] = [terminal_row]
+        with pytest.raises(FactorExecutionError) as busy, coordinator.terminal_recovery_scope(
+            timeout_seconds=0.25
+        ):
+            recovery_helpers._refresh_five_family_facts(
+                api,
+                store,
+                broker,
+                target,
+                generation=2,
+                sequence=9,
+            )
+        assert busy.value.code == "DISPATCH_SERIALIZATION_BUSY"
+        assert api.query_calls == [], "the durable gate must be acquired before any query"
+        still_pending = recovery_journal.intent(persisted.intent_id)
+        assert still_pending is not None and still_pending.state == "DISPATCHING"
+        assert still_pending.dispatch_state is None
+        assert recovery_journal.instrument_resolution(persisted.intent_id) is None
+        assert recovery_journal.reconciliations(persisted.intent_id, limit=8) == ()
+        still_owned = recovery_journal.active_instrument_owner(
+            recovery_helpers._ACCOUNT_SCOPE,
+            recovery_helpers._INSTRUMENT,
+        )
+        assert still_owned is not None and still_owned.intent_id == persisted.intent_id
+        assert api.native_calls == []
+        query_journal.close()
+        query_journal = None
+    finally:
+        crash_now.set()
+        dispatcher.join(timeout=15)
+        if dispatcher.is_alive():
+            dispatcher.terminate()
+            dispatcher.join(timeout=5)
+        if query_journal is not None:
+            query_journal.close()
+        if recovery_journal is not None:
+            recovery_journal.close()
+    assert dispatcher.exitcode == _EXIT_CODES["live_dispatching_submit_crash"]
+
+    terminal_row = recovery_helpers._terminal_row(
+        old_order_ref,
+        front_id=identity["front_id"],
+        session_id=identity["session_id"],
+        trading_day=identity["trading_day"],
+    )
+    recovered = _spawn_result(
+        context,
+        target=_spawned_recover_submit_dispatching_no_fill,
+        args=(str(path), terminal_row),
+    )
+    assert recovered["old_intent_id"] == checkpoint["intent_id"]
+    assert recovered["old_order_ref"] == old_order_ref
+    assert recovered["old_dispatch_fields_null"] is True
+    assert recovered["resolution_flat"] is True
+    assert recovered["owner_released_before_new_grid"] is True
+    assert recovered["old_order_rebuilt"] is False
+    assert recovered["new_intent_id"] != checkpoint["intent_id"]
+    assert recovered["new_order_ref"] != old_order_ref
+    assert recovered["native_calls"] == (
+        (
+            "insert",
+            recovery_helpers._INSTRUMENT,
+            recovery_helpers._EXCHANGE,
+            recovered["new_order_ref"],
+            101,
+        ),
+    )
+
+
+def _spawned_cancel_dispatching_crash_worker(journal_path, checkpoint_path):
+    """Create a real known submit, then die inside its claimed native cancel."""
+
+    now = datetime.now(timezone.utc)
+    (
+        api,
+        store,
+        broker,
+        journal,
+        coordinator,
+        target,
+        data,
+        strategy,
+        _cerebro,
+    ) = recovery_helpers._durable_system(journal_path, now=now)
+    try:
+        facts = recovery_helpers._initial_open_facts(api, store, broker, target, now=now)
+        order = recovery_helpers._submit_open(
+            coordinator,
+            strategy,
+            data,
+            facts,
+            close_time=facts.available_at - timedelta(milliseconds=2),
+            batch_id="cancel-dispatching-parent-submit",
+        )
+        assert order is not None and order.status == recovery_helpers.Order.Accepted
+        submit_intent_id = order.info["factor_intent_id"]
+        order_ref = order.info["external_order_ref"]
+        active_row = {
+            **recovery_helpers._terminal_row(order_ref),
+            "OrderSysID": "",
+            "OrderStatus": "3",
+            "Direction": "0",
+        }
+        api.query_rows["orders_result"] = [active_row]
+        _active_receipt, active_facts = recovery_helpers._refresh_five_family_facts(
+            api,
+            store,
+            broker,
+            target,
+            generation=1,
+            sequence=20,
+        )
+        assert active_facts.order_cancel_ready is True, active_facts.order_cancel_blockers
+
+        cancel_key = ExecutionDecisionKey(
+            account_scope=recovery_helpers._ACCOUNT_SCOPE,
+            strategy_scope=recovery_helpers._STRATEGY_SCOPE,
+            logical_run_id="run-1",
+            cohort_id="rb-cohort",
+            close_time=active_facts.available_at.isoformat().replace("+00:00", "Z"),
+            decision_kind="ALPHA003_RISK_REDUCTION",
+        )
+        cancel_intent_key = ExecutionIntentKey(
+            action="CANCEL",
+            instrument=recovery_helpers._INSTRUMENT,
+            side="BUY",
+            position_effect="OPEN",
+            leg=0,
+        )
+        cancel_economics = {
+            "instrument": recovery_helpers._INSTRUMENT,
+            "exchange": recovery_helpers._EXCHANGE,
+            "side": "BUY",
+            "position_effect": "OPEN",
+            "owner_intent_id": submit_intent_id,
+            "reason": "cancel DISPATCHING must not use submit no-fill recovery",
+        }
+        cancel_scope = coordinator.risk_decision_scope(
+            owner=strategy,
+            key=cancel_key,
+            economic_payload={"intent_economics": (cancel_economics,)},
+            intent_keys=(cancel_intent_key,),
+            batch=None,
+            execution_facts=active_facts,
+            inputs_complete=True,
+            expected_run_order_intents_used=coordinator.run_order_count(),
+            remaining_exit_intent_reserve=0,
+        )
+        native_cancel = api.trader_client.submit_order_action
+
+        def cancel_then_crash(field, request_id, *, execution_capability):
+            native_code = native_cancel(
+                field,
+                request_id,
+                execution_capability=execution_capability,
+            )
+            active_owner = journal.active_instrument_owner(
+                recovery_helpers._ACCOUNT_SCOPE,
+                recovery_helpers._INSTRUMENT,
+            )
+            assert active_owner is not None and active_owner.cancel_intent_id is not None
+            cancel_intent = journal.intent(active_owner.cancel_intent_id)
+            assert cancel_intent is not None and cancel_intent.state == "DISPATCHING"
+            assert cancel_intent.dispatch_state is None
+            _write_checkpoint(
+                checkpoint_path,
+                {
+                    "boundary": "cancel_dispatching",
+                    "submit_intent_id": submit_intent_id,
+                    "cancel_intent_id": cancel_intent.intent_id,
+                    "order_ref": order_ref,
+                    "original_identity": dict(journal.intent(submit_intent_id).original_identity),
+                    "cancel_original_identity": dict(cancel_intent.original_identity),
+                    "native_return_code_before_crash": native_code,
+                    "native_call_count": len(api.native_calls),
+                },
+            )
+            os._exit(_EXIT_CODES["cancel_dispatching_crash"])
+
+        api.trader_client.submit_order_action = cancel_then_crash
+        with cancel_scope:
+            strategy.cancel(order)
+        raise AssertionError("the controlled native cancel returned normally")
+    finally:
+        journal.close()
+
+
+def _spawned_check_cancel_dispatching_stays_blocked(journal_path, terminal_row, result_queue):
+    now = datetime.now(timezone.utc)
+    (
+        api,
+        store,
+        broker,
+        journal,
+        coordinator,
+        target,
+        _data,
+        _strategy,
+        _cerebro,
+    ) = recovery_helpers._durable_system(journal_path, now=now)
+    stage = "fresh_cancel_terminal_query"
+    try:
+        recovery_helpers._bind_current_session_identity(api, generation=2, front_id=5, session_id=8)
+        api.query_rows["orders_result"] = [terminal_row]
+        (
+            receipt,
+            facts,
+            page,
+            scope_started_at,
+            _stale_page,
+        ) = _refresh_and_reconcile_inside_terminal_scope(
+            api,
+            store,
+            broker,
+            target,
+            coordinator,
+            generation=2,
+            sequence=21,
+        )
+        assert receipt.query_set is not None and receipt.blockers == ()
+        assert receipt.query_set.started_at_utc >= scope_started_at
+        assert facts.trade_observations == ()
+        assert len(facts.terminal_orders) == 1
+        assert not broker.orders
+        assert not api.native_calls
+        checkpoint_owner = journal.active_instrument_owner(
+            recovery_helpers._ACCOUNT_SCOPE,
+            recovery_helpers._INSTRUMENT,
+        )
+        assert checkpoint_owner is not None and checkpoint_owner.cancel_intent_id is not None
+        cancel_intent_id = checkpoint_owner.cancel_intent_id
+
+        assert len(page.items) == 1
+        item = page.items[0]
+        assert item.status == "BLOCKED", item
+        submit_intent = journal.intent(checkpoint_owner.intent_id)
+        cancel_intent = journal.intent(cancel_intent_id)
+        assert submit_intent is not None and submit_intent.dispatch_state == "KNOWN"
+        assert cancel_intent is not None
+        assert cancel_intent.key.action == "CANCEL"
+        assert cancel_intent.state == "DISPATCHING"
+        assert cancel_intent.dispatch_state is None
+        assert cancel_intent.provider_identity is None
+        assert cancel_intent.outcome_code is None
+        owner_after = journal.active_instrument_owner(
+            recovery_helpers._ACCOUNT_SCOPE,
+            recovery_helpers._INSTRUMENT,
+        )
+        assert owner_after is not None
+        assert owner_after.intent_id == submit_intent.intent_id
+        assert owner_after.cancel_intent_id == cancel_intent.intent_id
+        assert journal.instrument_resolution(submit_intent.intent_id) is None
+        assert not broker.orders
+        assert not api.native_calls
+        result_queue.put(
+            {
+                "status": "OK",
+                "item_status": item.status,
+                "blocker_code": item.blocker_code,
+                "submit_intent_id": submit_intent.intent_id,
+                "cancel_intent_id": cancel_intent.intent_id,
+                "owner_retained": owner_after.cancel_intent_id == cancel_intent.intent_id,
+                "resolution_absent": journal.instrument_resolution(submit_intent.intent_id) is None,
+                "native_calls": len(api.native_calls),
+                "old_orders_rebuilt": bool(broker.orders),
+            }
+        )
+    except BaseException as error:
+        result_queue.put(
+            {
+                "status": "ERROR",
+                "stage": stage,
+                "error_type": type(error).__name__,
+                "error_code": getattr(error, "code", None),
+                "error_message": str(error)[:240],
+            }
+        )
+    finally:
+        journal.close()
+
+
+def test_spawned_cancel_dispatching_is_not_resolved_by_submit_terminal_query(tmp_path):
+    """A cancel with no durable result keeps the original submit owner held."""
+
+    path = tmp_path / "cancel-dispatching-remains-blocked.sqlite3"
+    checkpoint_path = tmp_path / "cancel-dispatching-crash.json"
+    context = multiprocessing.get_context("spawn")
+    child = context.Process(
+        target=_spawned_cancel_dispatching_crash_worker,
+        args=(str(path), str(checkpoint_path)),
+        name="factor-execution-cancel-dispatch-crash",
+    )
+    child.start()
+    child.join(timeout=45)
+    if child.is_alive():
+        child.terminate()
+        child.join(timeout=5)
+        pytest.fail("test-owned cancel DISPATCHING worker exceeded its bound")
+    assert child.exitcode == _EXIT_CODES["cancel_dispatching_crash"]
+    checkpoint = json.loads(checkpoint_path.read_text(encoding="utf-8"))
+    assert checkpoint["boundary"] == "cancel_dispatching"
+    assert checkpoint["native_call_count"] == 2  # original insert + one cancel
+    assert checkpoint["native_return_code_before_crash"] == 0
+    original = checkpoint["original_identity"]
+    assert checkpoint["order_ref"] == original["order_ref"]
+
+    terminal_row = recovery_helpers._terminal_row(
+        original["order_ref"],
+        front_id=original["front_id"],
+        session_id=original["session_id"],
+        trading_day=original["trading_day"],
+    )
+    recovered = _spawn_result(
+        context,
+        target=_spawned_check_cancel_dispatching_stays_blocked,
+        args=(str(path), terminal_row),
+    )
+    assert recovered["item_status"] == "BLOCKED"
+    assert recovered["submit_intent_id"] == checkpoint["submit_intent_id"]
+    assert recovered["cancel_intent_id"] == checkpoint["cancel_intent_id"]
+    assert recovered["owner_retained"] is True
+    assert recovered["resolution_absent"] is True
+    assert recovered["native_calls"] == 0
+    assert recovered["old_orders_rebuilt"] is False

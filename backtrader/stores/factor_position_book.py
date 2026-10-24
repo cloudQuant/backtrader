@@ -860,7 +860,12 @@ def record_factor_position_flat_checkpoint(
     row = cursor.execute(
         """SELECT r.*,i.state AS intent_state,i.dispatch_state,i.intent_key_json,
                   i.economic_payload_json,i.created_at_ns AS intent_created_at_ns,
+                  i.original_identity_json,i.provider_identity_json AS intent_provider_identity_json,
+                  i.outcome_code AS intent_outcome_code,
+                  i.dispatch_result_json AS intent_dispatch_result_json,
                   d.business_key_json,q.state AS reconciliation_state,
+                  q.outcome_code AS reconciliation_outcome_code,
+                  q.provider_identity_json AS reconciliation_provider_identity_json,
                   q.terminal_state AS reconciliation_terminal_state,
                   q.terminal_event_id AS reconciliation_terminal_event_id,
                   q.position_snapshot_id AS reconciliation_snapshot_id,
@@ -880,21 +885,120 @@ def record_factor_position_flat_checkpoint(
         key = json.loads(row["intent_key_json"])
         business = json.loads(row["business_key_json"])
         economics = json.loads(row["economic_payload_json"])
+        original_identity = json.loads(row["original_identity_json"])
+        provider_identity = json.loads(row["reconciliation_provider_identity_json"])
     except (TypeError, ValueError) as error:
         raise FactorPositionBookError("POSITION_FLAT_CHECKPOINT_INVALID") from error
-    if not all(isinstance(value, Mapping) for value in (key, business, economics)):
+    if not all(
+        isinstance(value, Mapping)
+        for value in (key, business, economics, original_identity, provider_identity)
+    ):
         raise FactorPositionBookError("POSITION_FLAT_CHECKPOINT_INVALID")
     account_scope = row["account_scope"]
     instrument = row["instrument"]
     exchange = economics.get("exchange")
     terminal = row["terminal_state"]
     created_at_ns = row["created_at_ns"]
+    no_fill_terminal = {
+        "5": ("CANCELED", "CANCELLED"),
+        "4": ("NO_TRADE_NOT_QUEUEING", "REJECTED"),
+    }.get(provider_identity.get("terminal_status"))
+    volume_total_original = _parse_decimal(
+        provider_identity.get("volume_total_original"), positive=True
+    )
+    volume_traded = _parse_decimal(provider_identity.get("volume_traded"), nonnegative=True)
+    volume_total = _parse_decimal(provider_identity.get("volume_total"), nonnegative=True)
+    requested_quantity = _parse_decimal(economics.get("quantity"), positive=True)
+    expected_query_families = (
+        "account_result",
+        "orders_result",
+        "trades_result",
+        "instruments_result",
+        "positions_result",
+    )
+    query_family_ids = provider_identity.get("query_family_request_ids")
+    query_families_valid = bool(
+        isinstance(query_family_ids, (tuple, list))
+        and len(query_family_ids) == len(expected_query_families)
+        and all(
+            isinstance(item, (tuple, list))
+            and len(item) == 2
+            and item[0] == expected_query_families[index]
+            and type(item[1]) is int
+            and item[1] > 0
+            for index, item in enumerate(query_family_ids)
+        )
+        and len({item[1] for item in query_family_ids}) == len(expected_query_families)
+        and dict(query_family_ids).get("orders_result")
+        == provider_identity.get("orders_request_id")
+    )
+    dispatching_crash_no_fill = bool(
+        row["dispatch_state"] is None
+        and row["intent_state"] == "KNOWN"
+        and row["intent_provider_identity_json"] is None
+        and row["intent_outcome_code"] is None
+        and row["intent_dispatch_result_json"] is None
+        and row["reconciliation_outcome_code"]
+        == "complete_orders_query_dispatching_no_fill_terminal"
+        and provider_identity.get("evidence_kind")
+        == "complete_orders_query_dispatching_no_fill_terminal"
+        and key.get("action") == "SUBMIT"
+        and key.get("position_effect") == "OPEN"
+        and original_identity.get("operation") == "insert"
+        and original_identity.get("instrument_id") == instrument
+        and original_identity.get("exchange_id") == exchange
+        and original_identity.get("order_ref") == provider_identity.get("order_ref")
+        and original_identity.get("account_fingerprint")
+        == provider_identity.get("original_account_fingerprint")
+        and original_identity.get("trading_day") == provider_identity.get("original_trading_day")
+        and original_identity.get("front_id") == provider_identity.get("original_front_id")
+        and original_identity.get("session_id") == provider_identity.get("original_session_id")
+        and original_identity.get("connection_generation")
+        == provider_identity.get("original_connection_generation")
+        and provider_identity.get("intent_id") == intent_id
+        and provider_identity.get("instrument") == instrument
+        and provider_identity.get("exchange") == exchange
+        and provider_identity.get("account_scope") == business.get("account_scope")
+        and provider_identity.get("strategy_scope") == business.get("strategy_scope")
+        and provider_identity.get("account_fingerprint")
+        == original_identity.get("account_fingerprint")
+        and provider_identity.get("trading_day") == original_identity.get("trading_day")
+        and provider_identity.get("original_trading_day") == original_identity.get("trading_day")
+        and type(provider_identity.get("connection_generation")) is int
+        and provider_identity.get("connection_generation") > 0
+        and type(provider_identity.get("matching_trade_count")) is int
+        and provider_identity.get("matching_trade_count") == 0
+        and query_families_valid
+        and _is_identifier(provider_identity.get("query_set_id"))
+        and _is_identifier(provider_identity.get("snapshot_id"))
+        and type(provider_identity.get("orders_request_id")) is int
+        and provider_identity.get("orders_request_id") > 0
+        and provider_identity.get("position_flat") is True
+        and provider_identity.get("position_snapshot_id") == row["position_snapshot_id"]
+        and provider_identity.get("terminal_event_id") == row["terminal_event_id"]
+        and provider_identity.get("observation_id") == row["terminal_event_id"]
+        and no_fill_terminal is not None
+        and no_fill_terminal[0] == provider_identity.get("terminal_state")
+        and no_fill_terminal[1] == terminal
+        and volume_total_original is not None
+        and volume_total_original == volume_total_original.to_integral_value()
+        and volume_traded == 0
+        and volume_total == volume_total_original
+        and requested_quantity == volume_total_original
+        and provider_identity.get("broker_quantity") == "0"
+        and provider_identity.get("ctp_long_quantity") == "0"
+        and provider_identity.get("ctp_short_quantity") == "0"
+        and (
+            original_identity.get("order_sys_id") is None
+            or original_identity.get("order_sys_id") == provider_identity.get("order_sys_id")
+        )
+    )
     if (
         row["intent_id"] != intent_id
         or row["reconciliation_id"] != reconciliation_id
         or row["joined_reconciliation_id"] != reconciliation_id
         or row["intent_state"] != "KNOWN"
-        or row["dispatch_state"] not in ("KNOWN", "UNKNOWN")
+        or (row["dispatch_state"] not in ("KNOWN", "UNKNOWN") and not dispatching_crash_no_fill)
         or row["reconciliation_state"] != "KNOWN"
         or terminal not in ("FILLED", "CANCELLED", "REJECTED")
         or row["reconciliation_terminal_state"] != terminal

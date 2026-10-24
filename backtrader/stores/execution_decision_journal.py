@@ -78,6 +78,7 @@ _RFC3339_TIMESTAMP = re.compile(
     r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?(?:Z|[+-]\d{2}:\d{2})$"
 )
 _RUN_ORDER_RESERVATION_FIELD = "_journal_run_order_reservation"
+_DISPATCHING_CRASH_NO_FILL_OUTCOME = "complete_orders_query_dispatching_no_fill_terminal"
 
 
 class ExecutionDecisionJournalError(RuntimeError):
@@ -370,6 +371,7 @@ class ExecutionDecisionJournal:
         # branch's contract identical instead of letting an RLock create a
         # second dispatch scope on the same journal instance.
         self._dispatch_lock = Lock()
+        self._retained_dispatch_gate_context = None
         self._failed_closed = False
         self._closed = False
 
@@ -415,8 +417,25 @@ class ExecutionDecisionJournal:
     def close(self) -> None:
         with self._lock:
             if not self._closed:
+                retained_gate = self._retained_dispatch_gate_context
+                self._retained_dispatch_gate_context = None
+                if retained_gate is not None:
+                    retained_gate.__exit__(None, None, None)
                 self._connection.close()
                 self._closed = True
+
+    def _retain_dispatch_serialization_gate(self, gate_context: Any) -> None:
+        """Keep an unresolved same-process claim fenced until journal close.
+
+        A claimed dispatch whose result could not be persisted is not a process
+        crash merely because its Strategy scope ended. Retaining the already
+        acquired sidecar makes same-process recovery fail closed; process death
+        still releases the OS lock automatically.
+        """
+
+        if self._retained_dispatch_gate_context is not None:
+            raise ExecutionDecisionJournalError("DISPATCH_GATE_ALREADY_RETAINED")
+        self._retained_dispatch_gate_context = gate_context
 
     @property
     def dispatch_serialization_path(self) -> Optional[Path]:
@@ -1699,91 +1718,279 @@ class ExecutionDecisionJournal:
 
         _require_identifier(intent_id, "INVALID_INTENT_ID")
         _require_identifier(reconciliation_id, "INVALID_RECONCILIATION_ID")
+        with self._transaction() as cursor:
+            return self._release_instrument_owner_in_transaction(
+                cursor,
+                intent_id,
+                reconciliation_id=reconciliation_id,
+                now_ns=time.time_ns(),
+            )
+
+    def record_dispatching_no_fill_terminal(
+        self,
+        intent_id: str,
+        *,
+        reconciliation_id: str,
+        query_id: str,
+        provider_identity: Mapping[str, Any],
+        terminal_state: str,
+        terminal_event_id: str,
+        position_snapshot_id: str,
+        expected_original_identity: Mapping[str, Any],
+    ) -> Tuple[ExecutionIntentReconciliation, ExecutionInstrumentResolution]:
+        """Atomically recover one crashed INSERT proven terminal with no fills.
+
+        This is the sole path that may resolve ``DISPATCHING`` with a NULL
+        dispatch result. It deliberately leaves all provider ACK/UNKNOWN
+        fields NULL: a complete query proves the order's current terminal
+        state, not what the interrupted synchronous RPC returned.
+        """
+
+        _require_identifier(intent_id, "INVALID_INTENT_ID")
+        _require_identifier(reconciliation_id, "INVALID_RECONCILIATION_ID")
+        _require_identifier(query_id, "INVALID_RECONCILIATION_QUERY_ID")
+        _require_identifier(terminal_event_id, "INVALID_TERMINAL_EVENT_ID")
+        _require_identifier(position_snapshot_id, "INVALID_POSITION_SNAPSHOT_ID")
+        if terminal_state not in ("CANCELLED", "REJECTED"):
+            raise ExecutionDecisionJournalError("INVALID_TERMINAL_STATE")
+        if not isinstance(provider_identity, Mapping) or not isinstance(
+            expected_original_identity, Mapping
+        ):
+            raise ExecutionDecisionJournalError("INVALID_JOURNAL_PAYLOAD")
+        try:
+            provider_json = self._payload_json(provider_identity)
+            expected_identity_json = self._payload_json(expected_original_identity)
+        except (TypeError, ValueError) as error:
+            raise ExecutionDecisionJournalError("INVALID_JOURNAL_PAYLOAD") from error
         now_ns = time.time_ns()
+
         with self._transaction() as cursor:
             intent_row = cursor.execute(
-                """SELECT i.*, d.business_key_json FROM execution_decision_intents AS i
-                   JOIN execution_decisions AS d ON d.decision_id = i.decision_id
-                   WHERE i.intent_id = ?""",
+                """SELECT i.*,d.business_key_json FROM execution_decision_intents AS i
+                   JOIN execution_decisions AS d ON d.decision_id=i.decision_id
+                   WHERE i.intent_id=?""",
                 (intent_id,),
             ).fetchone()
             if intent_row is None:
                 raise ExecutionDecisionJournalError("INTENT_NOT_PREPARED")
             intent_key = ExecutionIntentKey(**json.loads(intent_row["intent_key_json"]))
-            account_scope = json.loads(intent_row["business_key_json"])["account_scope"]
-            if intent_key.action != "SUBMIT" or intent_row["state"] != "KNOWN":
-                raise ExecutionDecisionJournalError("INTENT_NOT_RECONCILED_TERMINAL")
-            reconciliation = cursor.execute(
-                """SELECT * FROM execution_intent_reconciliations
-                   WHERE reconciliation_id = ? AND intent_id = ?""",
-                (reconciliation_id, intent_id),
+            business_key = json.loads(intent_row["business_key_json"])
+            original_identity = json.loads(intent_row["original_identity_json"])
+            economics = json.loads(intent_row["economic_payload_json"])
+            if (
+                intent_key.action != "SUBMIT"
+                or intent_key.position_effect != "OPEN"
+                or intent_row["original_identity_json"] != expected_identity_json
+                or original_identity.get("operation") != "insert"
+                or not _dispatching_no_fill_provider_identity_matches(
+                    provider_identity,
+                    intent_id=intent_id,
+                    intent_key=intent_key,
+                    business_key=business_key,
+                    original_identity=original_identity,
+                    economics=economics,
+                    query_id=query_id,
+                    terminal_state=terminal_state,
+                    terminal_event_id=terminal_event_id,
+                    position_snapshot_id=position_snapshot_id,
+                )
+            ):
+                raise ExecutionDecisionJournalError("DISPATCHING_NO_FILL_EVIDENCE_MISMATCH")
+
+            existing_resolution = cursor.execute(
+                "SELECT * FROM execution_intent_resolutions WHERE intent_id=?", (intent_id,)
+            ).fetchone()
+            if existing_resolution is not None:
+                if (
+                    intent_row["state"] != "KNOWN"
+                    or intent_row["dispatch_state"] is not None
+                    or intent_row["provider_identity_json"] is not None
+                    or intent_row["outcome_code"] is not None
+                    or intent_row["dispatch_result_json"] is not None
+                ):
+                    raise ExecutionDecisionJournalError("DISPATCHING_NO_FILL_RECOVERY_CONFLICT")
+                existing_reconciliation = cursor.execute(
+                    """SELECT * FROM execution_intent_reconciliations
+                       WHERE reconciliation_id=? AND intent_id=?""",
+                    (existing_resolution["reconciliation_id"], intent_id),
+                ).fetchone()
+                if not _dispatching_no_fill_replay_matches(
+                    existing_reconciliation,
+                    provider_identity=provider_identity,
+                    original_identity_json=intent_row["original_identity_json"],
+                    terminal_state=terminal_state,
+                ):
+                    raise ExecutionDecisionJournalError("DISPATCHING_NO_FILL_RECOVERY_CONFLICT")
+                durable_reconciliation_id = existing_resolution["reconciliation_id"]
+                resolution = self._release_instrument_owner_in_transaction(
+                    cursor,
+                    intent_id,
+                    reconciliation_id=durable_reconciliation_id,
+                    now_ns=now_ns,
+                    allow_dispatching_no_fill=True,
+                )
+                return _reconciliation_record(existing_reconciliation), resolution
+
+            if (
+                intent_row["state"] != "DISPATCHING"
+                or intent_row["dispatch_state"] is not None
+                or intent_row["provider_identity_json"] is not None
+                or intent_row["outcome_code"] is not None
+                or intent_row["dispatch_result_json"] is not None
+            ):
+                raise ExecutionDecisionJournalError("DISPATCHING_NO_FILL_STATE_MISMATCH")
+            callbacks = cursor.execute(
+                """SELECT evidence_payload_json FROM execution_decision_callbacks
+                   WHERE intent_id=? LIMIT 4097""",
+                (intent_id,),
+            ).fetchall()
+            if len(callbacks) > 4096:
+                raise ExecutionDecisionJournalError("DISPATCHING_NO_FILL_CALLBACKS_UNBOUNDED")
+            for callback in callbacks:
+                try:
+                    callback_payload = json.loads(callback["evidence_payload_json"])
+                except (TypeError, ValueError) as error:
+                    raise ExecutionDecisionJournalError(
+                        "DISPATCHING_NO_FILL_CALLBACK_CONFLICT"
+                    ) from error
+                if isinstance(callback_payload, Mapping) and callback_payload.get("event_type") in (
+                    "execution_fill",
+                    "unresolved_trade_callback",
+                ):
+                    raise ExecutionDecisionJournalError("DISPATCHING_NO_FILL_CALLBACK_CONFLICT")
+            owner = cursor.execute(
+                """SELECT owner_intent_id,cancel_intent_id FROM execution_instrument_owners
+                   WHERE account_scope=? AND instrument=?""",
+                (business_key["account_scope"], intent_key.instrument),
             ).fetchone()
             if (
-                reconciliation is None
-                or reconciliation["state"] != "KNOWN"
-                or reconciliation["terminal_state"] is None
-                or reconciliation["terminal_event_id"] is None
-                or reconciliation["position_snapshot_id"] is None
-                or reconciliation["position_flat"] is None
-                or reconciliation["original_identity_json"] != intent_row["original_identity_json"]
+                owner is None
+                or owner["owner_intent_id"] != intent_id
+                or owner["cancel_intent_id"] is not None
             ):
-                raise ExecutionDecisionJournalError("INTENT_NOT_RECONCILED_TERMINAL")
-            values = (
-                account_scope,
-                intent_key.instrument,
-                reconciliation["terminal_state"],
-                reconciliation["terminal_event_id"],
-                reconciliation_id,
-                reconciliation["position_snapshot_id"],
-                reconciliation["position_flat"],
-            )
-            existing = cursor.execute(
-                "SELECT * FROM execution_intent_resolutions WHERE intent_id = ?", (intent_id,)
-            ).fetchone()
-            if existing is not None:
-                existing_values = (
-                    existing["account_scope"],
-                    existing["instrument"],
-                    existing["terminal_state"],
-                    existing["terminal_event_id"],
-                    existing["reconciliation_id"],
-                    existing["position_snapshot_id"],
-                    int(existing["position_flat"]),
-                )
-                if existing_values != values:
-                    raise ExecutionDecisionJournalError("INSTRUMENT_RESOLUTION_CONFLICT")
-                if bool(existing["position_flat"]) and _factor_book_checkpoint_required(
-                    intent_key, intent_row["economic_payload_json"]
-                ):
-                    from .factor_position_book import record_factor_position_flat_checkpoint
-
-                    record_factor_position_flat_checkpoint(
-                        cursor,
-                        intent_id=intent_id,
-                        reconciliation_id=reconciliation_id,
-                    )
-                return _resolution_record(existing)
-            owner = cursor.execute(
-                """SELECT owner_intent_id FROM execution_instrument_owners
-                   WHERE account_scope = ? AND instrument = ?""",
-                (account_scope, intent_key.instrument),
-            ).fetchone()
-            if owner is None or owner["owner_intent_id"] != intent_id:
                 raise ExecutionDecisionJournalError("INSTRUMENT_OWNER_MISMATCH")
+
+            same_query = cursor.execute(
+                """SELECT reconciliation_id FROM execution_intent_reconciliations
+                   WHERE intent_id=? AND query_id=?""",
+                (intent_id, query_id),
+            ).fetchone()
+            if same_query is not None:
+                raise ExecutionDecisionJournalError("RECONCILIATION_QUERY_CONFLICT")
             cursor.execute(
-                """INSERT INTO execution_intent_resolutions
-                   (intent_id, account_scope, instrument, terminal_state, terminal_event_id,
-                    reconciliation_id, position_snapshot_id, position_flat, created_at_ns)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-                (intent_id,) + values + (now_ns,),
+                """INSERT INTO execution_intent_reconciliations
+                   (reconciliation_id,intent_id,original_identity_json,query_id,state,
+                    provider_identity_json,outcome_code,terminal_state,terminal_event_id,
+                    position_snapshot_id,position_flat,created_at_ns)
+                   VALUES(?,?,?,?,?,?,?,?,?,?,1,?)""",
+                (
+                    reconciliation_id,
+                    intent_id,
+                    intent_row["original_identity_json"],
+                    query_id,
+                    "KNOWN",
+                    provider_json,
+                    _DISPATCHING_CRASH_NO_FILL_OUTCOME,
+                    terminal_state,
+                    terminal_event_id,
+                    position_snapshot_id,
+                    now_ns,
+                ),
             )
-            cursor.execute(
-                """UPDATE execution_instrument_owners
-                   SET owner_intent_id = NULL, cancel_intent_id = NULL
-                   WHERE account_scope = ? AND instrument = ? AND owner_intent_id = ?""",
-                (account_scope, intent_key.instrument, intent_id),
+            updated = cursor.execute(
+                """UPDATE execution_decision_intents SET state='KNOWN',updated_at_ns=?
+                   WHERE intent_id=? AND state='DISPATCHING' AND dispatch_state IS NULL
+                     AND provider_identity_json IS NULL AND outcome_code IS NULL
+                     AND dispatch_result_json IS NULL""",
+                (now_ns, intent_id),
             )
-            if bool(reconciliation["position_flat"]) and _factor_book_checkpoint_required(
+            if updated.rowcount != 1:
+                raise ExecutionDecisionJournalError("DISPATCHING_NO_FILL_STATE_MISMATCH")
+            resolution = self._release_instrument_owner_in_transaction(
+                cursor,
+                intent_id,
+                reconciliation_id=reconciliation_id,
+                now_ns=now_ns,
+                allow_dispatching_no_fill=True,
+            )
+            reconciliation = cursor.execute(
+                """SELECT * FROM execution_intent_reconciliations
+                   WHERE reconciliation_id=?""",
+                (reconciliation_id,),
+            ).fetchone()
+            return _reconciliation_record(reconciliation), resolution
+
+    def _release_instrument_owner_in_transaction(
+        self,
+        cursor: sqlite3.Cursor,
+        intent_id: str,
+        *,
+        reconciliation_id: str,
+        now_ns: int,
+        allow_dispatching_no_fill: bool = False,
+    ) -> ExecutionInstrumentResolution:
+        intent_row = cursor.execute(
+            """SELECT i.*, d.business_key_json FROM execution_decision_intents AS i
+               JOIN execution_decisions AS d ON d.decision_id=i.decision_id
+               WHERE i.intent_id=?""",
+            (intent_id,),
+        ).fetchone()
+        if intent_row is None:
+            raise ExecutionDecisionJournalError("INTENT_NOT_PREPARED")
+        intent_key = ExecutionIntentKey(**json.loads(intent_row["intent_key_json"]))
+        account_scope = json.loads(intent_row["business_key_json"])["account_scope"]
+        if intent_key.action != "SUBMIT" or intent_row["state"] != "KNOWN":
+            raise ExecutionDecisionJournalError("INTENT_NOT_RECONCILED_TERMINAL")
+        reconciliation = cursor.execute(
+            """SELECT * FROM execution_intent_reconciliations
+               WHERE reconciliation_id=? AND intent_id=?""",
+            (reconciliation_id, intent_id),
+        ).fetchone()
+        if (
+            reconciliation is None
+            or reconciliation["state"] != "KNOWN"
+            or reconciliation["terminal_state"] is None
+            or reconciliation["terminal_event_id"] is None
+            or reconciliation["position_snapshot_id"] is None
+            or reconciliation["position_flat"] is None
+            or reconciliation["original_identity_json"] != intent_row["original_identity_json"]
+        ):
+            raise ExecutionDecisionJournalError("INTENT_NOT_RECONCILED_TERMINAL")
+        dispatching_no_fill = bool(
+            allow_dispatching_no_fill
+            and reconciliation["outcome_code"] == _DISPATCHING_CRASH_NO_FILL_OUTCOME
+            and intent_row["dispatch_state"] is None
+            and intent_row["provider_identity_json"] is None
+            and intent_row["outcome_code"] is None
+            and intent_row["dispatch_result_json"] is None
+        )
+        if intent_row["dispatch_state"] not in ("KNOWN", "UNKNOWN") and not dispatching_no_fill:
+            raise ExecutionDecisionJournalError("DISPATCH_RESULT_REQUIRED")
+        values = (
+            account_scope,
+            intent_key.instrument,
+            reconciliation["terminal_state"],
+            reconciliation["terminal_event_id"],
+            reconciliation_id,
+            reconciliation["position_snapshot_id"],
+            reconciliation["position_flat"],
+        )
+        existing = cursor.execute(
+            "SELECT * FROM execution_intent_resolutions WHERE intent_id=?", (intent_id,)
+        ).fetchone()
+        if existing is not None:
+            existing_values = (
+                existing["account_scope"],
+                existing["instrument"],
+                existing["terminal_state"],
+                existing["terminal_event_id"],
+                existing["reconciliation_id"],
+                existing["position_snapshot_id"],
+                int(existing["position_flat"]),
+            )
+            if existing_values != values:
+                raise ExecutionDecisionJournalError("INSTRUMENT_RESOLUTION_CONFLICT")
+            if bool(existing["position_flat"]) and _factor_book_checkpoint_required(
                 intent_key, intent_row["economic_payload_json"]
             ):
                 from .factor_position_book import record_factor_position_flat_checkpoint
@@ -1793,10 +2000,42 @@ class ExecutionDecisionJournal:
                     intent_id=intent_id,
                     reconciliation_id=reconciliation_id,
                 )
-            row = cursor.execute(
-                "SELECT * FROM execution_intent_resolutions WHERE intent_id = ?", (intent_id,)
+            return _resolution_record(existing)
+        owner = cursor.execute(
+            """SELECT owner_intent_id FROM execution_instrument_owners
+               WHERE account_scope=? AND instrument=?""",
+            (account_scope, intent_key.instrument),
+        ).fetchone()
+        if owner is None or owner["owner_intent_id"] != intent_id:
+            raise ExecutionDecisionJournalError("INSTRUMENT_OWNER_MISMATCH")
+        cursor.execute(
+            """INSERT INTO execution_intent_resolutions
+               (intent_id,account_scope,instrument,terminal_state,terminal_event_id,
+                reconciliation_id,position_snapshot_id,position_flat,created_at_ns)
+               VALUES(?,?,?,?,?,?,?,?,?)""",
+            (intent_id,) + values + (now_ns,),
+        )
+        cursor.execute(
+            """UPDATE execution_instrument_owners
+               SET owner_intent_id=NULL,cancel_intent_id=NULL
+               WHERE account_scope=? AND instrument=? AND owner_intent_id=?""",
+            (account_scope, intent_key.instrument, intent_id),
+        )
+        if bool(reconciliation["position_flat"]) and _factor_book_checkpoint_required(
+            intent_key, intent_row["economic_payload_json"]
+        ):
+            from .factor_position_book import record_factor_position_flat_checkpoint
+
+            record_factor_position_flat_checkpoint(
+                cursor,
+                intent_id=intent_id,
+                reconciliation_id=reconciliation_id,
+            )
+        return _resolution_record(
+            cursor.execute(
+                "SELECT * FROM execution_intent_resolutions WHERE intent_id=?", (intent_id,)
             ).fetchone()
-            return _resolution_record(row)
+        )
 
     def abandon_prepared_intent(
         self, intent_id: str, *, reason_code: str
@@ -3092,6 +3331,225 @@ def _reconciliation_matches(
         and row["terminal_event_id"] == terminal_event_id
         and row["position_snapshot_id"] == position_snapshot_id
         and row["position_flat"] == (None if position_flat is None else int(position_flat))
+    )
+
+
+def _dispatching_no_fill_provider_identity_matches(
+    provider: Mapping[str, Any],
+    *,
+    intent_id: str,
+    intent_key: ExecutionIntentKey,
+    business_key: Mapping[str, Any],
+    original_identity: Mapping[str, Any],
+    economics: Mapping[str, Any],
+    query_id: str,
+    terminal_state: str,
+    terminal_event_id: str,
+    position_snapshot_id: str,
+) -> bool:
+    """Check the narrow immutable evidence shape accepted for crash recovery."""
+
+    evidence_kind = "complete_orders_query_dispatching_no_fill_terminal"
+    expected_ctp_terminal = {
+        "5": ("CANCELED", "CANCELLED"),
+        "4": ("NO_TRADE_NOT_QUEUEING", "REJECTED"),
+    }
+    terminal = expected_ctp_terminal.get(provider.get("terminal_status"))
+    if terminal is None:
+        return False
+    expected_families = (
+        "account_result",
+        "orders_result",
+        "trades_result",
+        "instruments_result",
+        "positions_result",
+    )
+    family_ids = provider.get("query_family_request_ids")
+    if not isinstance(family_ids, (tuple, list)) or len(family_ids) != len(expected_families):
+        return False
+    normalized_family_ids = []
+    for row in family_ids:
+        if not isinstance(row, (tuple, list)) or len(row) != 2:
+            return False
+        family, request_id = row
+        if type(family) is not str or type(request_id) is not int or request_id <= 0:
+            return False
+        normalized_family_ids.append((family, request_id))
+    if tuple(family for family, _request_id in normalized_family_ids) != expected_families or len(
+        {request_id for _family, request_id in normalized_family_ids}
+    ) != len(expected_families):
+        return False
+    family_request_ids = dict(normalized_family_ids)
+    try:
+        original_volume = Decimal(str(provider.get("volume_total_original")))
+        traded_volume = Decimal(str(provider.get("volume_traded")))
+        remaining_volume = Decimal(str(provider.get("volume_total")))
+        requested_volume = Decimal(str(economics.get("quantity")))
+    except (InvalidOperation, TypeError, ValueError):
+        return False
+    if any(not value.is_finite() for value in (original_volume, traded_volume, remaining_volume)):
+        return False
+    timestamps = {}
+    timestamp_fields = (
+        "query_set_started_at",
+        "query_set_completed_at",
+        "refresh_started_at",
+        "refresh_completed_at",
+        "orders_completed_at",
+        "position_available_at",
+    )
+    for name in timestamp_fields:
+        value = provider.get(name)
+        if not isinstance(value, str) or _RFC3339_TIMESTAMP.fullmatch(value) is None:
+            return False
+        try:
+            parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        except ValueError:
+            return False
+        if parsed.tzinfo is None or parsed.utcoffset() is None:
+            return False
+        timestamps[name] = parsed.astimezone(timezone.utc)
+    if not (
+        timestamps["refresh_started_at"]
+        <= timestamps["query_set_started_at"]
+        <= timestamps["orders_completed_at"]
+        <= timestamps["query_set_completed_at"]
+        <= timestamps["refresh_completed_at"]
+        and timestamps["orders_completed_at"] <= timestamps["position_available_at"]
+    ):
+        return False
+    account_scope = business_key.get("account_scope")
+    strategy_scope = business_key.get("strategy_scope")
+    if not _identifier(account_scope) or not _identifier(strategy_scope):
+        return False
+    expected = {
+        "account_scope": account_scope,
+        "strategy_scope": strategy_scope,
+        "instrument": intent_key.instrument,
+        "exchange": economics.get("exchange"),
+        "order_ref": original_identity.get("order_ref"),
+        "account_fingerprint": original_identity.get("account_fingerprint"),
+        "trading_day": original_identity.get("trading_day"),
+        "front_id": original_identity.get("front_id"),
+        "session_id": original_identity.get("session_id"),
+        "original_order_ref": original_identity.get("order_ref"),
+        "original_account_fingerprint": original_identity.get("account_fingerprint"),
+        "original_trading_day": original_identity.get("trading_day"),
+        "original_front_id": original_identity.get("front_id"),
+        "original_session_id": original_identity.get("session_id"),
+        "position_snapshot_id": position_snapshot_id,
+        "broker_quantity": "0",
+        "ctp_long_quantity": "0",
+        "ctp_short_quantity": "0",
+        "position_flat": True,
+    }
+    return bool(
+        provider.get("evidence_kind") == evidence_kind
+        and provider.get("intent_id") == intent_id
+        and provider.get("observation_id") == query_id
+        and _identifier(provider.get("query_set_id"))
+        and _identifier(provider.get("snapshot_id"))
+        and provider.get("orders_request_id") is not None
+        and type(provider.get("orders_request_id")) is int
+        and provider["orders_request_id"] > 0
+        and family_request_ids.get("orders_result") == provider.get("orders_request_id")
+        and all(
+            isinstance(provider.get(name), str) and _RFC3339_TIMESTAMP.fullmatch(provider[name])
+            for name in (*timestamp_fields,)
+        )
+        and type(provider.get("connection_generation")) is int
+        and provider["connection_generation"] > 0
+        and type(provider.get("original_connection_generation")) is int
+        and provider["original_connection_generation"]
+        == original_identity.get("connection_generation")
+        and type(provider.get("front_id")) is int
+        and provider["front_id"] > 0
+        and type(provider.get("session_id")) is int
+        and provider["session_id"] > 0
+        and type(provider.get("matching_trade_count")) is int
+        and provider["matching_trade_count"] == 0
+        and terminal[0] == provider.get("terminal_state")
+        and terminal[1] == terminal_state
+        and terminal_event_id == query_id
+        and provider.get("position_snapshot_id") == position_snapshot_id
+        and original_volume.is_finite()
+        and original_volume > 0
+        and original_volume == original_volume.to_integral_value()
+        and requested_volume == original_volume
+        and traded_volume == 0
+        and remaining_volume == original_volume
+        and all(provider.get(name) == value for name, value in expected.items())
+        and original_identity.get("operation") == "insert"
+        and original_identity.get("instrument_id") == intent_key.instrument
+        and original_identity.get("exchange_id") == economics.get("exchange")
+        and original_identity.get("order_ref") == provider.get("order_ref")
+        and (
+            original_identity.get("order_sys_id") is None
+            or original_identity.get("order_sys_id") == provider.get("order_sys_id")
+        )
+        and original_identity.get("account_fingerprint") is not None
+        and original_identity.get("trading_day") is not None
+        and original_identity.get("front_id") is not None
+        and original_identity.get("session_id") is not None
+        and intent_key.position_effect == "OPEN"
+    )
+
+
+def _dispatching_no_fill_replay_matches(
+    row: Optional[sqlite3.Row],
+    *,
+    provider_identity: Mapping[str, Any],
+    original_identity_json: str,
+    terminal_state: str,
+) -> bool:
+    """Allow a fresh exact query to retry Store retirement after a crash."""
+
+    if (
+        row is None
+        or row["state"] != "KNOWN"
+        or row["outcome_code"] != _DISPATCHING_CRASH_NO_FILL_OUTCOME
+        or row["terminal_state"] != terminal_state
+        or row["position_flat"] != 1
+        or row["original_identity_json"] != original_identity_json
+    ):
+        return False
+    try:
+        durable = json.loads(row["provider_identity_json"])
+    except (TypeError, ValueError):
+        return False
+    stable_fields = (
+        "evidence_kind",
+        "intent_id",
+        "account_scope",
+        "strategy_scope",
+        "terminal_status",
+        "terminal_state",
+        "volume_total_original",
+        "volume_traded",
+        "volume_total",
+        "instrument",
+        "exchange",
+        "order_ref",
+        "order_sys_id",
+        "front_id",
+        "session_id",
+        "account_fingerprint",
+        "trading_day",
+        "original_order_ref",
+        "original_front_id",
+        "original_session_id",
+        "original_account_fingerprint",
+        "original_trading_day",
+        "original_connection_generation",
+        "position_flat",
+        "matching_trade_count",
+        "broker_quantity",
+        "ctp_long_quantity",
+        "ctp_short_quantity",
+    )
+    return bool(
+        isinstance(durable, Mapping)
+        and all(durable.get(name) == provider_identity.get(name) for name in stable_fields)
     )
 
 

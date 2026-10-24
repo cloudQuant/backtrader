@@ -14,11 +14,13 @@ import hashlib
 import json
 import re
 from collections.abc import Mapping
+from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal, InvalidOperation
+from threading import get_ident
 from types import MappingProxyType
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, Iterator, Optional, Tuple
 
 from .execution_decision_journal import (
     ExecutionDecisionJournal,
@@ -132,6 +134,15 @@ class ExecutionTerminalReconciliationPage:
     offset: int
     next_offset: Optional[int]
     truncated: bool
+
+
+@dataclass(frozen=True)
+class _TerminalRecoveryScopeState:
+    coordinator: Any
+    journal: ExecutionDecisionJournal
+    lease: Any
+    thread_id: int
+    started_at: datetime
 
 
 def execution_position_snapshot(broker: Any, data: Any) -> ExecutionPositionSnapshot:
@@ -273,6 +284,10 @@ class FactorExecutionCoordinator:
         self._active_scope = contextvars.ContextVar(
             "factor_execution_scope_{}".format(id(self)), default=None
         )
+        self._terminal_recovery_scope_state = contextvars.ContextVar(
+            "factor_terminal_recovery_scope_{}".format(id(self)), default=None
+        )
+        self._active_terminal_recovery_scope_state = None
         broker.factor_execution_coordinator = self
 
     def grid_cursor(self, cohort_id: str):
@@ -290,6 +305,63 @@ class FactorExecutionCoordinator:
 
     def execution_intent_snapshot(self, *, limit: int = 128):
         return self.journal.execution_intent_snapshot(limit=limit)
+
+    @contextmanager
+    def terminal_recovery_scope(self, *, timeout_seconds: float = 5.0) -> Iterator[datetime]:
+        """Hold the cross-process dispatch gate across terminal recovery reads.
+
+        The caller must enter this scope before refreshing the complete query
+        set and keep the same thread in the scope through projection,
+        reconciliation, and Store retirement.  This fences a live
+        prepare/claim/native-call/result interval and prevents another process
+        from mistaking its in-flight DISPATCHING row for a crash.
+
+        The yielded UTC time is the lower bound for every source query's
+        typed start timestamp.  Facts queried before entry are rejected even
+        if their cache is still otherwise fresh.
+        """
+
+        if self._terminal_recovery_scope_state.get() is not None:
+            raise FactorExecutionError("DISPATCHING_RECOVERY_SCOPE_NESTED")
+        gate_context = self.journal.dispatch_serialization_gate(
+            timeout_seconds=timeout_seconds,
+            recovery=True,
+        )
+        try:
+            lease = gate_context.__enter__()
+        except ExecutionDecisionJournalError as error:
+            raise FactorExecutionError(error.code) from error
+        if getattr(lease, "cross_process", None) is not True:
+            gate_context.__exit__(None, None, None)
+            raise FactorExecutionError("DISPATCHING_RECOVERY_REQUIRES_CROSS_PROCESS_GATE")
+
+        started_at = datetime.now(timezone.utc)
+        state = _TerminalRecoveryScopeState(
+            coordinator=self,
+            journal=self.journal,
+            lease=lease,
+            thread_id=get_ident(),
+            started_at=started_at,
+        )
+        self._active_terminal_recovery_scope_state = state
+        token = self._terminal_recovery_scope_state.set(state)
+        try:
+            yield started_at
+        except BaseException as error:
+            try:
+                self._terminal_recovery_scope_state.reset(token)
+            finally:
+                if self._active_terminal_recovery_scope_state is state:
+                    self._active_terminal_recovery_scope_state = None
+            gate_context.__exit__(type(error), error, error.__traceback__)
+            raise
+        else:
+            try:
+                self._terminal_recovery_scope_state.reset(token)
+            finally:
+                if self._active_terminal_recovery_scope_state is state:
+                    self._active_terminal_recovery_scope_state = None
+            gate_context.__exit__(None, None, None)
 
     def reconcile_trade_observations(
         self, facts: Any, *, limit: int = 128, offset: int = 0
@@ -577,6 +649,18 @@ class FactorExecutionCoordinator:
                 intent_id=intent.intent_id,
                 blocker_code=trade_blocker,
             )
+        if intent.state == "DISPATCHING" and intent.dispatch_state is None:
+            return self._reconcile_dispatching_no_fill_terminal(
+                facts, observation, intent, refresh_receipt=refresh_receipt
+            )
+        if intent.state == "KNOWN" and intent.dispatch_state is None:
+            # The only supported KNOWN/NULL combination is the atomic crash
+            # outcome written by record_dispatching_no_fill_terminal.  Its
+            # complete query and owner resolution are replayed below so a
+            # failed Store retirement can be retried without another RPC.
+            return self._reconcile_dispatching_no_fill_terminal(
+                facts, observation, intent, refresh_receipt=refresh_receipt
+            )
         if intent.dispatch_state == "UNKNOWN":
             return self._reconcile_unknown_no_fill_terminal(
                 facts, observation, intent, refresh_receipt=refresh_receipt
@@ -603,6 +687,18 @@ class FactorExecutionCoordinator:
                 intent,
                 cancel_intent,
                 refresh_receipt=refresh_receipt,
+            )
+        if (
+            cancel_intent is not None
+            and cancel_intent.key.action == "CANCEL"
+            and cancel_intent.state == "DISPATCHING"
+            and cancel_intent.dispatch_state is None
+        ):
+            return ExecutionTerminalReconciliationItem(
+                observation_id=observation.observation_id,
+                status="BLOCKED",
+                intent_id=intent.intent_id,
+                blocker_code="CANCEL_DISPATCHING_CRASH_RECOVERY_UNSUPPORTED",
             )
         # A provider order can remain visible as terminal in many later full
         # account snapshots.  Its first terminal reconciliation is immutable,
@@ -844,6 +940,358 @@ class FactorExecutionCoordinator:
             status="RESOLVED",
             intent_id=intent.intent_id,
             reconciliation_id=reconciliation_id,
+        )
+
+    def _reconcile_dispatching_no_fill_terminal(
+        self, facts: Any, observation: Any, intent: ExecutionIntentRecord, *, refresh_receipt: Any
+    ) -> ExecutionTerminalReconciliationItem:
+        """Recover a process-dead, unrecorded INSERT inside a fresh-read scope."""
+
+        scope = self._current_terminal_recovery_scope()
+        if scope is None:
+            return ExecutionTerminalReconciliationItem(
+                observation_id=observation.observation_id,
+                status="BLOCKED",
+                intent_id=intent.intent_id,
+                blocker_code="DISPATCHING_RECOVERY_SCOPE_REQUIRED",
+            )
+
+        try:
+            current = self.journal.intent(intent.intent_id)
+            if current is None:
+                raise FactorExecutionError("DISPATCHING_INTENT_NOT_FOUND")
+            if (
+                current.intent_id != intent.intent_id
+                or current.key != intent.key
+                or dict(current.original_identity) != dict(intent.original_identity)
+                or current.state not in ("DISPATCHING", "KNOWN")
+                or current.dispatch_state is not None
+                or current.provider_identity is not None
+                or current.outcome_code is not None
+            ):
+                raise FactorExecutionError("DISPATCHING_RECOVERY_NOT_APPLICABLE")
+            if current.state == "KNOWN":
+                resolution = self.journal.instrument_resolution(current.intent_id)
+                reconciliation = (
+                    None
+                    if resolution is None
+                    else self.journal.reconciliation(resolution.reconciliation_id)
+                )
+                if (
+                    resolution is None
+                    or reconciliation is None
+                    or reconciliation.outcome_code
+                    != "complete_orders_query_dispatching_no_fill_terminal"
+                    or reconciliation.provider_identity.get("evidence_kind")
+                    != "complete_orders_query_dispatching_no_fill_terminal"
+                ):
+                    raise FactorExecutionError("DISPATCHING_RECOVERY_NOT_APPLICABLE")
+            return self._reconcile_dispatching_no_fill_under_gate(
+                facts,
+                observation,
+                current,
+                refresh_receipt=refresh_receipt,
+                recovery_started_at=scope.started_at,
+            )
+        except ExecutionDecisionJournalError as error:
+            code = error.code
+        except FactorExecutionError as error:
+            code = error.code
+        except Exception as error:
+            observed_code = getattr(error, "code", None)
+            code = (
+                observed_code if _exact_identifier(observed_code) else "DISPATCHING_RECOVERY_FAILED"
+            )
+        return ExecutionTerminalReconciliationItem(
+            observation_id=observation.observation_id,
+            status="BLOCKED",
+            intent_id=intent.intent_id,
+            blocker_code=code,
+        )
+
+    def _reconcile_dispatching_no_fill_under_gate(
+        self,
+        facts: Any,
+        observation: Any,
+        intent: ExecutionIntentRecord,
+        *,
+        refresh_receipt: Any,
+        recovery_started_at: datetime,
+    ) -> ExecutionTerminalReconciliationItem:
+        if intent.key.action != "SUBMIT" or intent.key.position_effect != "OPEN":
+            raise FactorExecutionError("DISPATCHING_RECOVERY_UNSUPPORTED_INTENT")
+        if intent.state == "DISPATCHING" and (
+            intent.dispatch_state is not None
+            or intent.provider_identity is not None
+            or intent.outcome_code is not None
+        ):
+            raise FactorExecutionError("DISPATCHING_RECOVERY_RESULT_ALREADY_PRESENT")
+        if intent.state == "KNOWN" and (
+            intent.dispatch_state is not None
+            or intent.provider_identity is not None
+            or intent.outcome_code is not None
+        ):
+            raise FactorExecutionError("DISPATCHING_RECOVERY_RESULT_ALREADY_PRESENT")
+
+        expected_session, query_set = self._validate_unknown_recovery_snapshot(
+            facts,
+            refresh_receipt,
+            observation,
+            minimum_query_started_at=recovery_started_at,
+        )
+        identity = intent.original_identity
+        if (
+            identity.get("operation") != "insert"
+            or identity.get("instrument_id") != observation.instrument
+            or identity.get("exchange_id") != observation.exchange
+            or identity.get("order_ref") != observation.order_ref
+            or identity.get("trading_day") != observation.trading_day
+            or identity.get("account_fingerprint") != observation.account_fingerprint
+            or identity.get("account_fingerprint") != expected_session["account_fingerprint"]
+            or query_set.trading_day != identity.get("trading_day")
+            or not _positive_int(identity.get("connection_generation"))
+            or not _positive_int(identity.get("front_id"))
+            or not _positive_int(identity.get("session_id"))
+            or observation.front_id != identity.get("front_id")
+            or observation.session_id != identity.get("session_id")
+            or (
+                identity.get("order_sys_id") is not None
+                and identity.get("order_sys_id") != observation.order_sys_id
+            )
+        ):
+            raise FactorExecutionError("DISPATCHING_ORIGINAL_ORDER_LINEAGE_MISMATCH")
+
+        expected_terminal = {
+            "5": ("CANCELED", "CANCELLED"),
+            "4": ("NO_TRADE_NOT_QUEUEING", "REJECTED"),
+        }.get(observation.terminal_status)
+        original_volume = observation.volume_total_original
+        traded_volume = observation.volume_traded
+        remaining_volume = observation.volume_total
+        requested_volume = _decimal_optional(intent.economic_payload.get("quantity"))
+        if (
+            expected_terminal is None
+            or observation.terminal_state != expected_terminal[0]
+            or any(
+                not isinstance(value, Decimal) or not value.is_finite()
+                for value in (original_volume, traded_volume, remaining_volume)
+            )
+            or requested_volume is None
+            or requested_volume != original_volume
+            or original_volume <= 0
+            or original_volume != original_volume.to_integral_value()
+            or traded_volume != 0
+            or remaining_volume != original_volume
+        ):
+            raise FactorExecutionError("DISPATCHING_TERMINAL_NO_FILL_NOT_PROVEN")
+
+        trade_rows = self._validate_unknown_recovery_row_projection(
+            facts,
+            observation,
+            intent,
+            unresolved_state="DISPATCHING",
+            allow_exact_local_unknown=False,
+        )
+        if any(
+            row.order_ref == observation.order_ref
+            and row.instrument == observation.instrument
+            and row.exchange == observation.exchange
+            for row in trade_rows
+        ):
+            raise FactorExecutionError("DISPATCHING_TERMINAL_CONFLICTS_WITH_TRADE_QUERY")
+
+        positions = [
+            row
+            for row in facts.positions
+            if row.instrument == observation.instrument and row.exchange == observation.exchange
+        ]
+        if len(positions) != 1 or not _terminal_position_consistent(positions[0], facts):
+            raise FactorExecutionError("DISPATCHING_POSITION_RECONCILIATION_MISMATCH")
+        position = positions[0]
+        broker_and_ctp_flat = (
+            position.quantity == 0
+            and position.broker_quantity == 0
+            and position.long_quantity == 0
+            and position.short_quantity == 0
+            and position.attributed_signed_quantity in (None, Decimal("0"))
+        )
+        book_flat = (
+            position.position_book_status == "FLAT"
+            and position.position_book_blocker_code is None
+            and position.owner_intent_id is None
+            and position.owner_strategy_scope is None
+        )
+        pending_owner_is_this_dispatch = (
+            broker_and_ctp_flat
+            and position.position_book_status == "UNKNOWN"
+            and position.position_book_blocker_code == "INSTRUMENT_ORDER_UNRESOLVED"
+            and position.owner_intent_id is None
+            and position.owner_strategy_scope is None
+            and self._dispatching_pending_owner_is_exact(intent, observation)
+        )
+        if (
+            not broker_and_ctp_flat
+            or not (book_flat or pending_owner_is_this_dispatch)
+            or any(
+                row.instrument == observation.instrument and row.exchange == observation.exchange
+                for row in facts.working_orders
+            )
+        ):
+            raise FactorExecutionError("DISPATCHING_POSITION_NOT_FLAT_OR_ROUTE_NOT_CLEAR")
+
+        route = self.store.registered_sim_route_eligibility(
+            observation.instrument, observation.exchange
+        )
+        if (
+            route.instrument_id != observation.instrument
+            or route.exchange_id != observation.exchange
+            or route.account_fingerprint != expected_session["account_fingerprint"]
+            or route.connection_generation != expected_session["connection_generation"]
+            or route.trading_day != expected_session["trading_day"]
+            or route.current_session_account_fingerprint != expected_session["account_fingerprint"]
+            or route.current_session_connection_generation
+            != expected_session["connection_generation"]
+            or route.current_session_trading_day != expected_session["trading_day"]
+            or route.current_session_front_id != expected_session["front_id"]
+            or route.current_session_id != expected_session["session_id"]
+            or route.current_session_read_only_ready is not True
+            or route.instrument_query_complete is not True
+            or route.instrument_eligible is not True
+            or route.sdk_capability_armed is not False
+            or route.dispatching_order_ids != ()
+            or route.unknown_order_ids != ()
+        ):
+            raise FactorExecutionError("DISPATCHING_RECOVERY_SESSION_OR_ROUTE_MISMATCH")
+
+        terminal_state = expected_terminal[1]
+        provider_identity = {
+            "evidence_kind": "complete_orders_query_dispatching_no_fill_terminal",
+            "intent_id": intent.intent_id,
+            "account_scope": self.account_scope,
+            "strategy_scope": self.strategy_scope,
+            "observation_id": observation.observation_id,
+            "terminal_event_id": observation.observation_id,
+            "query_set_id": query_set.query_set_id,
+            "snapshot_id": facts.snapshot_id,
+            "orders_request_id": observation.request_id,
+            "query_family_request_ids": query_set.query_ids,
+            "query_set_started_at": _utc_text(query_set.started_at_utc),
+            "query_set_completed_at": _utc_text(query_set.completed_at_utc),
+            "refresh_started_at": _utc_text(refresh_receipt.started_at),
+            "refresh_completed_at": _utc_text(refresh_receipt.completed_at),
+            "orders_completed_at": _utc_text(observation.available_at),
+            "connection_generation": observation.connection_generation,
+            "account_fingerprint": observation.account_fingerprint,
+            "trading_day": observation.trading_day,
+            "terminal_status": observation.terminal_status,
+            "terminal_state": observation.terminal_state,
+            "volume_total_original": str(original_volume),
+            "volume_traded": str(traded_volume),
+            "volume_total": str(remaining_volume),
+            "order_ref": observation.order_ref,
+            "order_sys_id": observation.order_sys_id,
+            "front_id": observation.front_id,
+            "session_id": observation.session_id,
+            "instrument": observation.instrument,
+            "exchange": observation.exchange,
+            "position_flat": True,
+            "broker_quantity": str(position.broker_quantity),
+            "ctp_long_quantity": str(position.long_quantity),
+            "ctp_short_quantity": str(position.short_quantity),
+            "position_snapshot_id": position.snapshot_id,
+            "position_available_at": _utc_text(position.available_at),
+            "original_account_fingerprint": identity["account_fingerprint"],
+            "original_connection_generation": identity["connection_generation"],
+            "original_trading_day": identity["trading_day"],
+            "original_order_ref": identity["order_ref"],
+            "original_front_id": identity["front_id"],
+            "original_session_id": identity["session_id"],
+            "matching_trade_count": 0,
+        }
+        reconciliation_id = _unknown_terminal_reconciliation_id(
+            intent.intent_id, observation.observation_id, query_set.query_set_id, facts.snapshot_id
+        )
+        reconciliation, _resolution = self.journal.record_dispatching_no_fill_terminal(
+            intent.intent_id,
+            reconciliation_id=reconciliation_id,
+            query_id=observation.observation_id,
+            provider_identity=provider_identity,
+            terminal_state=terminal_state,
+            terminal_event_id=observation.observation_id,
+            position_snapshot_id=position.snapshot_id,
+            expected_original_identity=identity,
+        )
+        try:
+            retired = self.store.registered_sim_retire_unknown(
+                intent.intent_id,
+                reconciliation.reconciliation_id,
+                original_identity=identity,
+                expected_session=expected_session,
+                terminal_event=None,
+            )
+        except Exception as error:
+            raise FactorExecutionError("DISPATCHING_STORE_RETIREMENT_NOT_APPLIED") from error
+        if getattr(retired, "status", None) not in ("QUEUED", "ALREADY_ABSENT"):
+            raise FactorExecutionError("DISPATCHING_STORE_RETIREMENT_RESULT_INVALID")
+        return ExecutionTerminalReconciliationItem(
+            observation_id=observation.observation_id,
+            status="RESOLVED",
+            intent_id=intent.intent_id,
+            reconciliation_id=reconciliation.reconciliation_id,
+        )
+
+    def _current_terminal_recovery_scope(self) -> Optional[_TerminalRecoveryScopeState]:
+        scope = self._terminal_recovery_scope_state.get()
+        if (
+            not isinstance(scope, _TerminalRecoveryScopeState)
+            or scope.coordinator is not self
+            or scope.journal is not self.journal
+            or self._active_terminal_recovery_scope_state is not scope
+            or scope.thread_id != get_ident()
+            or getattr(scope.lease, "cross_process", None) is not True
+            or _aware_utc(scope.started_at) is None
+        ):
+            return None
+        return scope
+
+    def _dispatching_pending_owner_is_exact(
+        self, intent: ExecutionIntentRecord, observation: Any
+    ) -> bool:
+        """Allow only the exact DISPATCHING OPEN's own empty-book reservation."""
+
+        if (
+            intent.state != "DISPATCHING"
+            or intent.key.action != "SUBMIT"
+            or intent.key.position_effect != "OPEN"
+            or intent.key.instrument != observation.instrument
+            or intent.original_identity.get("operation") != "insert"
+            or intent.original_identity.get("instrument_id") != observation.instrument
+            or intent.original_identity.get("exchange_id") != observation.exchange
+            or intent.original_identity.get("order_ref") != observation.order_ref
+        ):
+            return False
+        try:
+            owner = self.journal.active_instrument_owner(self.account_scope, observation.instrument)
+            owner_intent = None if owner is None else self.journal.intent(owner.intent_id)
+        except Exception:
+            return False
+        return bool(
+            owner is not None
+            and owner.account_scope == self.account_scope
+            and owner.instrument == observation.instrument
+            and owner.intent_id == intent.intent_id
+            and owner.state == "DISPATCHING"
+            and owner.cancel_intent_id is None
+            and owner_intent is not None
+            and owner_intent.intent_id == intent.intent_id
+            and owner_intent.state == "DISPATCHING"
+            and owner_intent.dispatch_state is None
+            and owner_intent.provider_identity is None
+            and owner_intent.outcome_code is None
+            and owner_intent.key == intent.key
+            and owner_intent.key.action == "SUBMIT"
+            and owner_intent.key.position_effect == "OPEN"
+            and owner_intent.original_identity == intent.original_identity
         )
 
     def _reconcile_unknown_no_fill_terminal(
@@ -1834,7 +2282,12 @@ class FactorExecutionCoordinator:
         }
 
     def _validate_unknown_recovery_snapshot(
-        self, facts: Any, refresh_receipt: Any, observation: Any
+        self,
+        facts: Any,
+        refresh_receipt: Any,
+        observation: Any,
+        *,
+        minimum_query_started_at: Optional[datetime] = None,
     ):
         from .factor_execution_facts import (
             _BASE_FAMILIES,
@@ -1844,6 +2297,11 @@ class FactorExecutionCoordinator:
 
         if type(refresh_receipt) is not FactorExecutionRefreshReceipt:
             raise FactorExecutionError("UNKNOWN_RECOVERY_REFRESH_RECEIPT_REQUIRED")
+        minimum_started_at = (
+            None if minimum_query_started_at is None else _aware_utc(minimum_query_started_at)
+        )
+        if minimum_query_started_at is not None and minimum_started_at is None:
+            raise FactorExecutionError("DISPATCHING_RECOVERY_SCOPE_INVALID")
         if (
             refresh_receipt.cancelled
             or refresh_receipt.deadline_reached
@@ -1856,6 +2314,10 @@ class FactorExecutionCoordinator:
             or not _time_not_after(facts.available_at, refresh_receipt.completed_at)
         ):
             raise FactorExecutionError("UNKNOWN_RECOVERY_REFRESH_RECEIPT_INCOMPLETE")
+        if minimum_started_at is not None and not _time_not_after(
+            minimum_started_at, refresh_receipt.started_at
+        ):
+            raise FactorExecutionError("DISPATCHING_RECOVERY_QUERY_PREDATES_SCOPE")
         receipt_facts = tuple(
             item for item in refresh_receipt.query_provenance if item.family in _BASE_FAMILIES
         )
@@ -1877,6 +2339,10 @@ class FactorExecutionCoordinator:
             )
         ):
             raise FactorExecutionError("UNKNOWN_RECOVERY_QUERY_PROVENANCE_MISMATCH")
+        if minimum_started_at is not None and any(
+            not _time_not_after(minimum_started_at, item.started_at) for item in receipt_facts
+        ):
+            raise FactorExecutionError("DISPATCHING_RECOVERY_QUERY_PREDATES_SCOPE")
         query_set = refresh_receipt.query_set
         if (
             query_set is None
@@ -1895,6 +2361,10 @@ class FactorExecutionCoordinator:
             or not _time_not_after(query_set.completed_at_utc, refresh_receipt.completed_at)
         ):
             raise FactorExecutionError("UNKNOWN_RECOVERY_QUERY_SET_MISMATCH")
+        if minimum_started_at is not None and not _time_not_after(
+            minimum_started_at, query_set.started_at_utc
+        ):
+            raise FactorExecutionError("DISPATCHING_RECOVERY_QUERY_PREDATES_SCOPE")
         try:
             route = self.store.registered_sim_route_eligibility(
                 observation.instrument, observation.exchange
@@ -1935,7 +2405,9 @@ class FactorExecutionCoordinator:
         intent: ExecutionIntentRecord,
         *,
         unresolved_intent_id: Optional[str] = None,
+        unresolved_state: str = "UNKNOWN",
         cancel_intent_id: Optional[str] = None,
+        allow_exact_local_unknown: bool = True,
     ) -> Tuple[Any, ...]:
         """Require every raw order/trade row to survive projection unambiguously.
 
@@ -1965,19 +2437,30 @@ class FactorExecutionCoordinator:
         # the normal terminal update queue. Its exact absence from the remote
         # active map and its unresolved journal state are the only benign
         # projection blockers during that short interval.
-        matching_local_unknown = tuple(
-            row
-            for row in facts.working_orders
-            if row.instrument == observation.instrument
-            and row.exchange == observation.exchange
-            and self._is_exact_unknown_working_order(
-                row, intent, observation, cancel_intent_id=cancel_intent_id
+        matching_local_unknown = (
+            tuple(
+                row
+                for row in facts.working_orders
+                if row.instrument == observation.instrument
+                and row.exchange == observation.exchange
+                and self._is_exact_unknown_working_order(
+                    row, intent, observation, cancel_intent_id=cancel_intent_id
+                )
             )
+            if allow_exact_local_unknown
+            else ()
         )
         if len(matching_local_unknown) > 1:
             raise FactorExecutionError("UNKNOWN_RECOVERY_ORDER_ROWS_AMBIGUOUS")
+        if not allow_exact_local_unknown and any(
+            row.instrument == observation.instrument and row.exchange == observation.exchange
+            for row in facts.working_orders
+        ):
+            raise FactorExecutionError("DISPATCHING_RECOVERY_ROUTE_HAS_WORKING_ORDER")
         unresolved_intent_id = unresolved_intent_id or intent.intent_id
-        allowed = {"journal_intent_unresolved:UNKNOWN:{}".format(unresolved_intent_id)}
+        if unresolved_state not in ("UNKNOWN", "DISPATCHING"):
+            raise FactorExecutionError("UNKNOWN_RECOVERY_INTENT_STATE_INVALID")
+        allowed = {"journal_intent_unresolved:{}:{}".format(unresolved_state, unresolved_intent_id)}
         if matching_local_unknown:
             local_ref = matching_local_unknown[0].broker_order_ref
             if type(local_ref) is not int or local_ref <= 0:
@@ -2839,6 +3322,8 @@ class FactorExecutionDecisionScope:
         self._attempted_indices = set()
         self._prepared = {}
         self._intent_economics: Tuple[Mapping[str, Any], ...] = ()
+        self._dispatch_gate_context = None
+        self._dispatch_gate_claimed = False
 
     def __enter__(self) -> "FactorExecutionDecisionScope":
         coordinator = self.coordinator
@@ -2905,9 +3390,26 @@ class FactorExecutionDecisionScope:
             if self._token is not None:
                 self.coordinator._active_scope.reset(self._token)
             self._entered = False
+            self._finish_dispatch_gate()
         return False
 
     def begin_order(self, order: Any, *, action: str) -> FactorDispatchAttempt:
+        if self._dispatch_gate_context is not None:
+            raise FactorExecutionError("DISPATCH_GATE_SCOPE_ALREADY_ACTIVE")
+        gate_context = self.coordinator.journal.dispatch_serialization_gate()
+        try:
+            gate_context.__enter__()
+        except ExecutionDecisionJournalError as error:
+            raise FactorExecutionError(error.code) from error
+        self._dispatch_gate_context = gate_context
+        self._dispatch_gate_claimed = False
+        try:
+            return self._begin_order_under_dispatch_gate(order, action=action)
+        except BaseException:
+            self._finish_dispatch_gate()
+            raise
+
+    def _begin_order_under_dispatch_gate(self, order: Any, *, action: str) -> FactorDispatchAttempt:
         if not self.dispatch_allowed or not self._entered:
             raise FactorExecutionError("DECISION_REPLAY_DISPATCH_BLOCKED")
         if getattr(self.coordinator.store, "allow_writes", None) is not True:
@@ -3098,6 +3600,7 @@ class FactorExecutionDecisionScope:
         if claim is None:
             raise FactorExecutionError("DISPATCH_ALREADY_CLAIMED")
         intent = claim.intent
+        self._dispatch_gate_claimed = True
         self._attempted.add(intent.intent_id)
         self._attempted_indices.add(self._next_leg)
         self._prepared.pop(self._next_leg, None)
@@ -3124,6 +3627,20 @@ class FactorExecutionDecisionScope:
         )
 
     def complete_order(
+        self, order: Any, attempt: FactorDispatchAttempt, *, response=None, error=None
+    ):
+        try:
+            result = self._complete_order_under_dispatch_gate(
+                order, attempt, response=response, error=error
+            )
+        except BaseException:
+            self._finish_dispatch_gate()
+            raise
+        self._dispatch_gate_claimed = False
+        self._finish_dispatch_gate()
+        return result
+
+    def _complete_order_under_dispatch_gate(
         self, order: Any, attempt: FactorDispatchAttempt, *, response=None, error=None
     ):
         evidence = getattr(error, "evidence", None) if error is not None else None
@@ -3171,6 +3688,22 @@ class FactorExecutionDecisionScope:
             factor_dispatch_outcome=intent.outcome_code,
         )
         return intent
+
+    def _finish_dispatch_gate(self) -> None:
+        gate_context = self._dispatch_gate_context
+        if gate_context is None:
+            return
+        self._dispatch_gate_context = None
+        if self._dispatch_gate_claimed:
+            try:
+                self.coordinator.journal._retain_dispatch_serialization_gate(gate_context)
+            except Exception:
+                # If the gate cannot be retained, do not silently proceed to
+                # another write in this process. Keep the context reachable.
+                self._dispatch_gate_context = gate_context
+                raise
+            return
+        gate_context.__exit__(None, None, None)
 
     def _abandon_unused_slots(self) -> None:
         for index, key in enumerate(self.intent_keys):

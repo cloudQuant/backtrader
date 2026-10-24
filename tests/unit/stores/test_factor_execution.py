@@ -8,6 +8,8 @@ native-call hooks consumed by the real wrapper.
 from __future__ import annotations
 
 import collections
+import contextvars
+from contextlib import ExitStack
 import threading
 import time
 from datetime import datetime, timedelta, timezone
@@ -102,6 +104,116 @@ def test_unknown_insert_terminal_event_matches_backtrader_signed_size(side, sign
         FactorExecutionCoordinator._unknown_terminal_broker_event(
             coordinator, None, intent, observation, Decimal("2")
         )
+
+
+def test_terminal_recovery_scope_is_durable_thread_local_and_not_reentrant(tmp_path):
+    journal = ExecutionDecisionJournal(tmp_path / "terminal-recovery.sqlite3")
+    store = SimpleNamespace(registered_sim_route_id="simnow-registered-v1", allow_writes=True)
+    broker = SimpleNamespace(store=store)
+    coordinator = FactorExecutionCoordinator(
+        broker,
+        journal,
+        account_scope=_ACCOUNT_SCOPE,
+        strategy_scope=_SCOPE,
+        logical_run_id="run-1",
+        max_order_intents_per_grid=1,
+        max_order_intents_per_run=8,
+    )
+    try:
+        copied_context = None
+        with coordinator.terminal_recovery_scope(timeout_seconds=0.25) as started_at:
+            assert started_at.tzinfo is not None
+            scope = coordinator._current_terminal_recovery_scope()
+            assert scope is not None
+            assert scope.coordinator is coordinator
+            assert scope.journal is journal
+            assert scope.lease.cross_process is True
+            with ExitStack() as stack:
+                nested = stack.enter_context(pytest.raises(FactorExecutionError))
+                stack.enter_context(coordinator.terminal_recovery_scope(timeout_seconds=0.25))
+            assert nested.value.code == "DISPATCHING_RECOVERY_SCOPE_NESTED"
+            copied_context = contextvars.copy_context()
+        assert coordinator._current_terminal_recovery_scope() is None
+        assert copied_context is not None
+        assert copied_context.run(coordinator._current_terminal_recovery_scope) is None
+    finally:
+        journal.close()
+
+    memory_journal = ExecutionDecisionJournal(":memory:")
+    memory_coordinator = FactorExecutionCoordinator(
+        SimpleNamespace(store=store),
+        memory_journal,
+        account_scope=_ACCOUNT_SCOPE,
+        strategy_scope=_SCOPE,
+        logical_run_id="run-1",
+        max_order_intents_per_grid=1,
+        max_order_intents_per_run=8,
+    )
+    try:
+        with ExitStack() as stack:
+            memory_scope = stack.enter_context(pytest.raises(FactorExecutionError))
+            stack.enter_context(memory_coordinator.terminal_recovery_scope(timeout_seconds=0.25))
+        assert memory_scope.value.code == "DISPATCH_RECOVERY_REQUIRES_DURABLE_JOURNAL"
+    finally:
+        memory_journal.close()
+
+
+@pytest.mark.parametrize(
+    ("owner_state", "cancel_intent_id", "owner_intent_state", "owner_dispatch_state", "matches"),
+    [
+        ("DISPATCHING", None, "DISPATCHING", None, True),
+        ("UNKNOWN", None, "UNKNOWN", None, False),
+        ("DISPATCHING", "cancel-child", "DISPATCHING", None, False),
+        ("DISPATCHING", None, "DISPATCHING", "KNOWN", False),
+    ],
+)
+def test_dispatching_flat_book_exception_requires_exact_pending_open_owner(
+    owner_state, cancel_intent_id, owner_intent_state, owner_dispatch_state, matches
+):
+    intent_id = "dispatching-open-intent"
+    original_identity = {
+        "operation": "insert",
+        "instrument_id": _INSTRUMENT,
+        "exchange_id": _EXCHANGE,
+        "order_ref": "native-23",
+    }
+    intent = SimpleNamespace(
+        intent_id=intent_id,
+        state="DISPATCHING",
+        dispatch_state=None,
+        provider_identity=None,
+        outcome_code=None,
+        key=SimpleNamespace(action="SUBMIT", position_effect="OPEN", instrument=_INSTRUMENT),
+        original_identity=original_identity,
+    )
+    owner_intent = SimpleNamespace(
+        intent_id=intent_id,
+        state=owner_intent_state,
+        dispatch_state=owner_dispatch_state,
+        provider_identity=None,
+        outcome_code=None,
+        key=intent.key,
+        original_identity=original_identity,
+    )
+    owner = SimpleNamespace(
+        account_scope=_ACCOUNT_SCOPE,
+        instrument=_INSTRUMENT,
+        intent_id=intent_id,
+        state=owner_state,
+        cancel_intent_id=cancel_intent_id,
+    )
+    coordinator = FactorExecutionCoordinator.__new__(FactorExecutionCoordinator)
+    coordinator.account_scope = _ACCOUNT_SCOPE
+    coordinator.journal = SimpleNamespace(
+        active_instrument_owner=lambda _account, _instrument: owner,
+        intent=lambda _intent_id: owner_intent,
+    )
+    observation = SimpleNamespace(
+        instrument=_INSTRUMENT,
+        exchange=_EXCHANGE,
+        order_ref="native-23",
+    )
+    assert coordinator._dispatching_pending_owner_is_exact(intent, observation) is matches
 
 
 class _FakeProviderClient(facts_helpers._ProviderLeaves):
