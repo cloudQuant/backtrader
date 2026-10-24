@@ -3402,6 +3402,20 @@ class BtApiBroker(BrokerBase):
             )
         return position.clone() if clone else position
 
+    def execution_position_snapshot(self, data):
+        """Return the Broker's cached position without a provider refresh."""
+
+        from ..stores.factor_execution import execution_position_snapshot
+
+        return execution_position_snapshot(self, data)
+
+    def execution_order_snapshot(self):
+        """Return alive local orders without querying the Store or provider."""
+
+        from ..stores.factor_execution import execution_order_snapshot
+
+        return execution_order_snapshot(self)
+
     def get_cached_report_state(self):
         """Return the already-synchronized local account state without I/O.
 
@@ -3427,6 +3441,28 @@ class BtApiBroker(BrokerBase):
 
     def submit(self, order):
         """Submit an order through the store."""
+        factor_scope = None
+        if (
+            self.store is not None
+            and getattr(self.store, "registered_sim_route_id", None) == "simnow-registered-v1"
+            and getattr(self.store, "allow_writes", False) is True
+        ):
+            coordinator = getattr(self, "factor_execution_coordinator", None)
+            if coordinator is None or getattr(coordinator, "broker", None) is not self:
+                return self._reject_order(
+                    order,
+                    "factor_execution_coordinator_required",
+                    "Registered-sim writes require a durable Strategy decision scope.",
+                )
+            try:
+                factor_scope = coordinator.active_scope_for_order(order)
+            except Exception as exc:
+                code = getattr(exc, "code", "order_outside_durable_decision_scope")
+                return self._reject_order(
+                    order,
+                    code,
+                    "Registered-sim writes require a matching durable Strategy decision scope.",
+                )
         session = self._service_execution_session
         route_error = (
             session.strategy_order_route_error(order)
@@ -3536,13 +3572,87 @@ class BtApiBroker(BrokerBase):
             # timed-out, or ambiguous remote attempt requires a fresh SDK plan.
             self._execution_recovery_close_attempted = True
 
+        factor_attempt = None
+        factor_dispatch_completed = False
         try:
             order.submit(self)
             order.addcomminfo(self.getcommissioninfo(order.data))
             self._freeze_order_execution_contract(order, replace=True)
             if self.store is None:
                 raise ValueError("BtApiBroker requires a BtApiStore instance")
+            if factor_scope is not None:
+                from ..stores.factor_execution import FactorExecutionError
+
+                try:
+                    factor_attempt = factor_scope.begin_order(order, action="SUBMIT")
+                except FactorExecutionError as exc:
+                    return self._reject_order(
+                        order,
+                        exc.code,
+                        "Order did not match its durable execution decision.",
+                    )
+                # The CTP insert is synchronous and may enqueue a trade/order
+                # callback before Store.submit_order returns. Bind the exact
+                # native OrderRef before crossing that boundary so the first
+                # callback is correlated to this same ordinary Backtrader Order.
+                self.orders[order.ref] = order
+                self._remember_client_ref(order, factor_attempt.order_ref, None)
             response = self.store.submit_order(order)
+            if factor_attempt is not None:
+                factor_dispatch_completed = True
+                try:
+                    factor_intent = factor_scope.complete_order(
+                        order, factor_attempt, response=response
+                    )
+                except Exception:
+                    # The native call already returned. A failed journal write
+                    # is uncertain, so preserve this exact local identity and
+                    # never fall through to normal acceptance/fill handling.
+                    order.accept(self)
+                    order.addinfo(
+                        execution_unknown=True,
+                        factor_dispatch_state="UNKNOWN",
+                        error_code="dispatch_result_not_durable",
+                        error_msg="Dispatch result could not be recorded durably.",
+                    )
+                    self.orders[order.ref] = order
+                    self.notify(order)
+                    return order
+                if factor_intent.state != "KNOWN":
+                    return self._accept_unknown_submission(
+                        order,
+                        RuntimeError("registered_sim_dispatch_evidence_unobserved"),
+                        "registered_sim_dispatch_evidence_unobserved",
+                    )
+                # A registered direct-SimNow return proves only that the
+                # synchronous native insert was acknowledged. It does not
+                # prove that the order is working, filled, or terminal, so
+                # keep the ordinary Backtrader order alive until the source
+                # order/trade projections report that state.
+                order.accept(self)
+                order.addinfo(
+                    execution_unknown=False,
+                    factor_dispatch_state="KNOWN",
+                    factor_dispatch_outcome="native_ack",
+                )
+                self._remember_client_ref(order, factor_attempt.order_ref, response)
+                # Preserve the provider-owned connection identity returned by
+                # the synchronous CTP insert.  The native order reference is
+                # already bound before dispatch; FrontID/SessionID are needed
+                # for a later exact active-order join and safe cancel request.
+                if isinstance(response, dict):
+                    for key in (
+                        "front_id",
+                        "session_id",
+                        "exchange_id",
+                        "order_sys_id",
+                    ):
+                        value = response.get(key)
+                        if value not in (None, ""):
+                            order.addinfo(**{key: value})
+                self.orders[order.ref] = order
+                self.notify(order)
+                return order
             self._freeze_order_execution_contract(order, replace=True)
             if (
                 isinstance(response, dict)
@@ -3662,13 +3772,50 @@ class BtApiBroker(BrokerBase):
                 self._begin_ctp_reconciliation("risk_reducing_order_submitted")
             return order
         except TimeoutError as exc:
+            if factor_attempt is not None and not factor_dispatch_completed:
+                factor_dispatch_completed = True
+                try:
+                    factor_intent = factor_scope.complete_order(order, factor_attempt, error=exc)
+                except Exception:
+                    _safe_log("warning", "btapibroker:factor dispatch journal write failed")
+                    factor_intent = None
             self._sanitize_exception(exc)
+            if factor_attempt is not None:
+                return self._accept_unknown_submission(
+                    order,
+                    exc,
+                    self._safe_exception_code(exc, "registered_sim_execution_unknown"),
+                )
             # A timeout cannot prove that the venue rejected the order. Keep
             # its identity alive for read-only reconciliation; never resubmit.
             return self._accept_unknown_submission(order, exc, "submit_timeout")
         except Exception as exc:
+            if factor_attempt is not None and not factor_dispatch_completed:
+                factor_dispatch_completed = True
+                try:
+                    factor_intent = factor_scope.complete_order(order, factor_attempt, error=exc)
+                except Exception:
+                    _safe_log("warning", "btapibroker:factor dispatch journal write failed")
+                    factor_intent = None
             _safe_log("error", "btapibroker:2710 exception before re-raise (Exception)")
             self._sanitize_exception(exc)
+            if factor_attempt is not None:
+                if factor_intent is not None and factor_intent.state == "KNOWN":
+                    order.accept(self)
+                    order.addinfo(
+                        execution_unknown=False,
+                        factor_dispatch_state="KNOWN",
+                        factor_dispatch_outcome=factor_intent.outcome_code,
+                    )
+                    self._remember_client_ref(order, factor_attempt.order_ref, None)
+                    self.orders[order.ref] = order
+                    self.notify(order)
+                    return order
+                return self._accept_unknown_submission(
+                    order,
+                    exc,
+                    self._safe_exception_code(exc, "registered_sim_execution_unknown"),
+                )
             if bool(getattr(exc, "managed_local_reject", False)):
                 code = self._safe_exception_code(exc, "managed_ctp_local_rejection")
                 return self._reject_order(
@@ -3834,6 +3981,34 @@ class BtApiBroker(BrokerBase):
         if order is None:
             return None
 
+        factor_scope = None
+        if (
+            self.store is not None
+            and getattr(self.store, "registered_sim_route_id", None) == "simnow-registered-v1"
+            and getattr(self.store, "allow_writes", False) is True
+        ):
+            coordinator = getattr(self, "factor_execution_coordinator", None)
+            if coordinator is None or getattr(coordinator, "broker", None) is not self:
+                order.addinfo(
+                    cancel_requested_remote=False,
+                    cancel_rejected_local=True,
+                    error_code="factor_execution_coordinator_required",
+                    error_msg="Registered-sim writes require a durable Strategy decision scope.",
+                )
+                self.notify(order)
+                return order
+            try:
+                factor_scope = coordinator.active_scope_for_order(order)
+            except Exception as exc:
+                order.addinfo(
+                    cancel_requested_remote=False,
+                    cancel_rejected_local=True,
+                    error_code=getattr(exc, "code", "order_outside_durable_decision_scope"),
+                    error_msg="Registered-sim writes require a matching durable Strategy scope.",
+                )
+                self.notify(order)
+                return order
+
         session = self._service_execution_session
         route_error = (
             session.strategy_order_route_error(order)
@@ -3937,9 +4112,74 @@ class BtApiBroker(BrokerBase):
             risk_reducing=True,
             operation="cancel",
         )
+        factor_attempt = None
+        factor_dispatch_completed = False
         try:
+            if factor_scope is not None:
+                from ..stores.factor_execution import FactorExecutionError
+
+                try:
+                    factor_attempt = factor_scope.begin_order(order, action="CANCEL")
+                except FactorExecutionError as exc:
+                    order.addinfo(
+                        cancel_requested_remote=False,
+                        cancel_rejected_local=True,
+                        error_code=exc.code,
+                        error_msg="Cancellation did not match its durable execution decision.",
+                    )
+                    self.notify(order)
+                    return order
             response = self.store.cancel_order(order)
+            if factor_attempt is not None:
+                factor_dispatch_completed = True
+                try:
+                    factor_intent = factor_scope.complete_order(
+                        order, factor_attempt, response=response
+                    )
+                except Exception:
+                    order.addinfo(
+                        cancel_requested_remote=True,
+                        cancel_execution_unknown=True,
+                        cancel_intent_active=True,
+                        execution_unknown=True,
+                        factor_dispatch_state="UNKNOWN",
+                        cancel_error_code="dispatch_result_not_durable",
+                    )
+                    self.orders[order.ref] = order
+                    self.notify(order)
+                    return order
+                if factor_intent.state != "KNOWN":
+                    order.addinfo(
+                        cancel_requested_remote=True,
+                        cancel_execution_unknown=True,
+                        cancel_intent_active=True,
+                        execution_unknown=True,
+                    )
+                    self.orders[order.ref] = order
+                    self.notify(order)
+                    return order
+                # Native cancel success is an acknowledgement only. Keep the
+                # original order alive and mapped until an authoritative
+                # terminal order observation arrives.
+                order.addinfo(
+                    cancel_requested_remote=True,
+                    cancel_execution_unknown=False,
+                    cancel_intent_active=True,
+                    cancel_acknowledged=True,
+                    factor_cancel_dispatch_state="KNOWN",
+                    factor_cancel_intent_id=factor_intent.intent_id,
+                    execution_unknown=False,
+                )
+                self.orders[order.ref] = order
+                self.notify(order)
+                return order
         except Exception as exc:
+            if factor_attempt is not None and not factor_dispatch_completed:
+                factor_dispatch_completed = True
+                try:
+                    factor_scope.complete_order(order, factor_attempt, error=exc)
+                except Exception:
+                    _safe_log("warning", "btapibroker:factor cancel journal write failed")
             _safe_log("warning", "btapibroker:2813 fallback on Exception")
             self._sanitize_exception(exc)
             if bool(getattr(exc, "managed_local_reject", False)):
@@ -4053,8 +4293,16 @@ class BtApiBroker(BrokerBase):
         if self._preserve_managed_cancel_pending(order, response):
             return order
 
-        if bool(self.p.cancel_wait_remote) or bool(getattr(self.store, "_sdk_mode", False)):
-            order.addinfo(cancel_requested_remote=True, cancel_intent_active=True)
+        if (
+            factor_attempt is not None
+            or bool(self.p.cancel_wait_remote)
+            or bool(getattr(self.store, "_sdk_mode", False))
+        ):
+            order.addinfo(
+                cancel_requested_remote=True,
+                cancel_execution_unknown=False,
+                cancel_intent_active=True,
+            )
             if self._is_confirmed_terminal_order_response(response):
                 update = dict(response)
                 update.setdefault("kind", "order")
@@ -9601,7 +9849,90 @@ class BtApiBroker(BrokerBase):
         from_cumulative_status=False,
         position_override=None,
     ):
-        """Apply a normalized remote trade fill to the local order/position state."""
+        """Durably project factor fills before applying them to the local Broker."""
+
+        order = self._lookup_order(update) if isinstance(update, dict) else None
+        coordinator = getattr(self, "factor_execution_coordinator", None)
+        is_registered_route = bool(
+            self.store is not None
+            and getattr(self.store, "registered_sim_route_id", None)
+            == "simnow-registered-v1"
+        )
+        factor_intent_id = (
+            self._order_info_get(order, "factor_intent_id") if order is not None else None
+        )
+        if (
+            is_registered_route
+            and coordinator is not None
+            and getattr(coordinator, "broker", None) is self
+            and isinstance(factor_intent_id, str)
+            and factor_intent_id
+            and not from_cumulative_status
+        ):
+            try:
+                receipt, _projection, already_acknowledged = coordinator.record_trade_callback(
+                    update, order
+                )
+            except Exception as error:
+                order.addinfo(
+                    execution_unknown=True,
+                    ledger_mismatch=True,
+                    factor_callback_error=getattr(error, "code", "trade_callback_unresolved"),
+                )
+                self._position_audit_blocked = True
+                self._position_audit_error = "factor_trade_callback_unresolved"
+                self.notify(order)
+                return "quarantined"
+            if already_acknowledged:
+                return "ignored"
+            trade_key = self._trade_dedupe_key(update, order=order)
+            was_already_applied = bool(trade_key and trade_key in self._seen_trade_ids)
+            result = self._apply_trade_update_impl(
+                update,
+                defer_unmatched=defer_unmatched,
+                from_cumulative_status=from_cumulative_status,
+                position_override=position_override,
+            )
+            if result == "applied" or (was_already_applied and result == "ignored"):
+                try:
+                    coordinator.journal.acknowledge_callback(receipt.receipt_id)
+                except Exception:
+                    order.addinfo(
+                        execution_unknown=True,
+                        ledger_mismatch=True,
+                        factor_callback_error="callback_acknowledgement_not_durable",
+                    )
+                    self._position_audit_blocked = True
+                    self._position_audit_error = "factor_callback_acknowledgement_not_durable"
+                    self.notify(order)
+                    return "applied_unacknowledged"
+            elif result not in ("unmatched", "quarantined"):
+                order.addinfo(
+                    execution_unknown=True,
+                    ledger_mismatch=True,
+                    factor_callback_error="broker_fill_projection_not_applied",
+                )
+                self._position_audit_blocked = True
+                self._position_audit_error = "factor_broker_fill_projection_not_applied"
+                self.notify(order)
+                return "quarantined"
+            return result
+        return self._apply_trade_update_impl(
+            update,
+            defer_unmatched=defer_unmatched,
+            from_cumulative_status=from_cumulative_status,
+            position_override=position_override,
+        )
+
+    def _apply_trade_update_impl(
+        self,
+        update,
+        *,
+        defer_unmatched=True,
+        from_cumulative_status=False,
+        position_override=None,
+    ):
+        """Apply a normalized remote trade fill to local Broker state."""
         trade_key = None if from_cumulative_status else self._trade_dedupe_key(update)
         if trade_key and trade_key in self._seen_trade_ids:
             return "ignored"

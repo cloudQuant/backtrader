@@ -9,10 +9,12 @@ import sys
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Optional
 
 import pytest
 
+from backtrader.stores import execution_decision_journal as execution_decision_journal_module
 from backtrader.stores.execution_decision_journal import (
     ExecutionDecisionJournal,
     ExecutionDecisionKey,
@@ -21,9 +23,13 @@ from backtrader.stores.execution_decision_journal import (
 from backtrader.stores.factor_position_book import (
     FactorPositionBook,
     FactorPositionBookError,
+    _ctp_trade_time_ns,
+    _dated_trade_insert_values,
+    _dated_trade_stable_values,
     apply_factor_execution_fill,
     ensure_factor_position_book_schema,
     _decimal_add,
+    _derive_dated_owner_lots,
     validate_factor_position_close_owner,
 )
 
@@ -260,7 +266,15 @@ journal.close()
     }
 
 
-def test_snapshot_rejects_grid_history_ahead_of_available_time(tmp_path):
+def test_snapshot_rejects_grid_history_ahead_of_available_time(tmp_path, monkeypatch):
+    # Keep callback receipt time before the fixed snapshot boundary, even when
+    # this test runs later in the day. The grid cursor remains independently
+    # ahead of that boundary and must be the reported blocker.
+    monkeypatch.setattr(
+        execution_decision_journal_module,
+        "time",
+        SimpleNamespace(time_ns=lambda: _timestamp_ns(0, 40)),
+    )
     journal = ExecutionDecisionJournal(tmp_path / "positions.sqlite3")
     _key, intent = _new_open(journal)
     _make_open_fill(journal, intent_id=intent.intent_id)
@@ -765,6 +779,50 @@ def test_v4_upgrade_preserves_fills_and_leaves_epoch_unproven(tmp_path):
     journal.close()
 
     connection = sqlite3.connect(database)
+    # A v5 database predates dated-trade metadata. Recreate the historical
+    # NOT NULL fill shape so the v6 migration has to rebuild the fills table.
+    # The dated table must be created after that rebuild or SQLite rewrites its
+    # composite foreign key to the temporary legacy table name.
+    connection.execute("DROP TRIGGER IF EXISTS factor_position_dated_trade_no_update")
+    connection.execute("DROP TRIGGER IF EXISTS factor_position_dated_trade_no_delete")
+    connection.execute("DROP INDEX IF EXISTS factor_position_dated_trades_by_owner")
+    connection.execute("DROP TABLE IF EXISTS factor_position_dated_trade_facts")
+    connection.execute("DROP TRIGGER IF EXISTS factor_position_fill_no_update")
+    connection.execute("DROP TRIGGER IF EXISTS factor_position_fill_no_delete")
+    connection.execute("DROP INDEX IF EXISTS factor_position_fills_by_intent")
+    connection.execute("DROP INDEX IF EXISTS factor_position_fills_by_owner")
+    connection.execute(
+        "ALTER TABLE factor_position_fills RENAME TO factor_position_fills_fixture_old"
+    )
+    connection.execute(
+        """CREATE TABLE factor_position_fills (
+            account_scope TEXT NOT NULL,
+            instrument TEXT NOT NULL,
+            exchange TEXT NOT NULL,
+            execution_id TEXT NOT NULL,
+            receipt_id TEXT NOT NULL REFERENCES execution_decision_callbacks(receipt_id),
+            intent_id TEXT NOT NULL REFERENCES execution_decision_intents(intent_id),
+            strategy_scope TEXT NOT NULL,
+            position_effect TEXT NOT NULL CHECK(position_effect IN ('OPEN','CLOSE')),
+            order_side TEXT NOT NULL CHECK(order_side IN ('BUY','SELL')),
+            owner_intent_id TEXT,
+            quantity TEXT NOT NULL,
+            price TEXT NOT NULL,
+            fee TEXT NOT NULL,
+            filled_at_ns INTEGER NOT NULL CHECK(filled_at_ns > 0),
+            payload_sha256 TEXT NOT NULL,
+            PRIMARY KEY(account_scope,instrument,exchange,execution_id),
+            UNIQUE(receipt_id)
+        )"""
+    )
+    connection.execute(
+        """INSERT INTO factor_position_fills
+           SELECT account_scope,instrument,exchange,execution_id,receipt_id,intent_id,
+                  strategy_scope,position_effect,order_side,owner_intent_id,quantity,price,
+                  fee,filled_at_ns,payload_sha256
+           FROM factor_position_fills_fixture_old"""
+    )
+    connection.execute("DROP TABLE factor_position_fills_fixture_old")
     connection.execute("DROP INDEX factor_position_fill_attributes_by_intent_time")
     connection.execute("ALTER TABLE factor_position_fill_attributes DROP COLUMN position_epoch")
     connection.execute("DROP TABLE factor_position_open_intent_totals")
@@ -806,7 +864,221 @@ def test_v4_upgrade_preserves_fills_and_leaves_epoch_unproven(tmp_path):
     assert snapshot.blocker_code == "POSITION_GRID_ANCHOR_UNAVAILABLE"
     assert snapshot.owner_intent_id == intent.intent_id
     assert snapshot.opening_fees_known is False
+    dated_foreign_keys = migrated._connection.execute(
+        "PRAGMA foreign_key_list(factor_position_dated_trade_facts)"
+    ).fetchall()
+    assert any(row["table"] == "factor_position_fills" for row in dated_foreign_keys)
+    assert migrated._connection.execute("PRAGMA foreign_key_check").fetchall() == []
     migrated.close()
+
+
+def _dated_lot_join_row(
+    *,
+    execution_id,
+    intent_id,
+    owner_intent_id,
+    effect,
+    order_side,
+    offset_flag,
+    quantity,
+    trade_time,
+    account_fingerprint="account-fingerprint",
+    connection_generation=1,
+):
+    trade_date = "20261024"
+    trade_time_ns = _ctp_trade_time_ns(trade_date, trade_time)
+    assert trade_time_ns is not None
+    source = {
+        "account_scope": _ACCOUNT,
+        "instrument": _INSTRUMENT,
+        "exchange": _EXCHANGE,
+        "position_side": "LONG",
+        "hedge_flag": "1",
+        "offset_flag": offset_flag,
+        "quantity": Decimal(quantity),
+        "price": Decimal("3500"),
+        "trading_day": "20261024",
+        "trade_date": trade_date,
+        "trade_time": trade_time,
+        "trade_time_ns": trade_time_ns,
+        "order_ref": "order-" + intent_id,
+        "order_sys_id": "sys-" + intent_id,
+        "observation_id": "observation-" + execution_id,
+        "query_set_id": "query-set-20261024",
+        "snapshot_id": "snapshot-20261024",
+        "request_id": 1,
+        "connection_generation": connection_generation,
+        "account_fingerprint": account_fingerprint,
+        "available_at_ns": trade_time_ns + 1,
+    }
+    values = dict(
+        _dated_trade_insert_values(
+            source,
+            execution_id=execution_id,
+            receipt_id="receipt-" + execution_id,
+            intent_id=intent_id,
+            owner_intent_id=owner_intent_id,
+            strategy_scope=_STRATEGY,
+            position_effect=effect,
+            order_side=order_side,
+        )
+    )
+    fill = {
+        "account_scope": _ACCOUNT,
+        "instrument": _INSTRUMENT,
+        "exchange": _EXCHANGE,
+        "execution_id": execution_id,
+        "receipt_id": "receipt-" + execution_id,
+        "intent_id": intent_id,
+        "strategy_scope": _STRATEGY,
+        "position_effect": effect,
+        "order_side": order_side,
+        "owner_intent_id": owner_intent_id if effect == "CLOSE" else None,
+        "quantity": quantity,
+        "price": "3500",
+        "fee": "1",
+        "filled_at_ns": trade_time_ns,
+        "payload_sha256": "fill-payload",
+    }
+    values.update({"_fill_" + name: value for name, value in fill.items()})
+    return values
+
+
+def test_dated_owner_lots_allocate_partial_close_to_exact_today_hedge_bucket():
+    open_row = _dated_lot_join_row(
+        execution_id="open-trade-1",
+        intent_id="owner-open-1",
+        owner_intent_id="owner-open-1",
+        effect="OPEN",
+        order_side="BUY",
+        offset_flag="0",
+        quantity="2",
+        trade_time="17:00:30",
+    )
+    close_row = _dated_lot_join_row(
+        execution_id="close-trade-1",
+        intent_id="close-intent-1",
+        owner_intent_id="owner-open-1",
+        effect="CLOSE",
+        order_side="SELL",
+        offset_flag="3",
+        quantity="1",
+        trade_time="17:01:30",
+        connection_generation=2,
+    )
+
+    proof = _derive_dated_owner_lots(
+        (open_row, close_row),
+        owner_intent_id="owner-open-1",
+        strategy_scope=_STRATEGY,
+        current_account_fingerprint="account-fingerprint",
+        position_side="LONG",
+        current_trading_day="20261024",
+        expected_quantity=Decimal("1"),
+    )
+
+    assert proof["quantity"] == Decimal("1")
+    assert len(proof["lots"]) == 1
+    lot = proof["lots"][0]
+    assert lot.execution_id == "open-trade-1"
+    assert lot.opened_quantity == Decimal("2")
+    assert lot.closed_quantity == Decimal("1")
+    assert lot.remaining_quantity == Decimal("1")
+    assert lot.close_execution_ids == ("close-trade-1",)
+    assert tuple(proof["groups"]) == (("LONG", "1", "TODAY", "20261024"),)
+
+
+def test_dated_trade_replay_ignores_new_query_identity_but_rejects_changed_economics():
+    original = _dated_lot_join_row(
+        execution_id="open-trade-1",
+        intent_id="owner-open-1",
+        owner_intent_id="owner-open-1",
+        effect="OPEN",
+        order_side="BUY",
+        offset_flag="0",
+        quantity="2",
+        trade_time="17:00:30",
+    )
+
+    replay = dict(original)
+    replay.update(
+        observation_id="observation-open-trade-1-new-query",
+        query_set_id="query-set-20261025",
+        snapshot_id="snapshot-20261025",
+        request_id=9,
+        connection_generation=2,
+        available_at_ns=original["available_at_ns"] + 1,
+    )
+
+    assert _dated_trade_stable_values(original) == _dated_trade_stable_values(replay)
+
+    changed_economics = dict(replay, quantity="3")
+    assert _dated_trade_stable_values(original) != _dated_trade_stable_values(changed_economics)
+
+    changed_offset = dict(replay, offset_flag="3")
+    assert _dated_trade_stable_values(original) != _dated_trade_stable_values(changed_offset)
+
+
+def test_dated_owner_lots_fail_closed_when_close_offset_does_not_match_open_day():
+    open_row = _dated_lot_join_row(
+        execution_id="open-trade-1",
+        intent_id="owner-open-1",
+        owner_intent_id="owner-open-1",
+        effect="OPEN",
+        order_side="BUY",
+        offset_flag="0",
+        quantity="1",
+        trade_time="17:00:30",
+    )
+    close_row = _dated_lot_join_row(
+        execution_id="close-trade-1",
+        intent_id="close-intent-1",
+        owner_intent_id="owner-open-1",
+        effect="CLOSE",
+        order_side="SELL",
+        offset_flag="4",
+        quantity="1",
+        trade_time="17:01:30",
+    )
+
+    with pytest.raises(FactorPositionBookError, match="DATED_CLOSE_EXCEEDS_ELIGIBLE_OPEN_LOTS"):
+        _derive_dated_owner_lots(
+            (open_row, close_row),
+            owner_intent_id="owner-open-1",
+            strategy_scope=_STRATEGY,
+            current_account_fingerprint="account-fingerprint",
+            position_side="LONG",
+            current_trading_day="20261024",
+            expected_quantity=Decimal("1"),
+        )
+
+
+def test_dated_owner_lots_reject_another_account_with_the_same_scope_and_bucket():
+    open_row = _dated_lot_join_row(
+        execution_id="open-trade-1",
+        intent_id="owner-open-1",
+        owner_intent_id="owner-open-1",
+        effect="OPEN",
+        order_side="BUY",
+        offset_flag="0",
+        quantity="1",
+        trade_time="17:00:30",
+        account_fingerprint="different-account-fingerprint",
+    )
+
+    with pytest.raises(
+        FactorPositionBookError,
+        match="DATED_POSITION_ACCOUNT_FINGERPRINT_MISMATCH",
+    ):
+        _derive_dated_owner_lots(
+            (open_row,),
+            owner_intent_id="owner-open-1",
+            strategy_scope=_STRATEGY,
+            current_account_fingerprint="account-fingerprint",
+            position_side="LONG",
+            current_trading_day="20261024",
+            expected_quantity=Decimal("1"),
+        )
 
 
 def test_extreme_observed_fees_remain_exact_and_known(tmp_path):

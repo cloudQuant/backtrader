@@ -16,7 +16,7 @@ import json
 import re
 import sqlite3
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal, InvalidOperation, localcontext
 from types import MappingProxyType
 from typing import Any, Mapping, Optional, Sequence, Tuple
@@ -29,7 +29,8 @@ _MAX_DECIMAL_DIGITS = 128
 _MAX_DECIMAL_EXPONENT = 128
 _MAX_POSITION_ACCUMULATOR_DIGITS = 1024
 _MAX_POSITION_ACCUMULATOR_EXPONENT = 512
-_POSITION_BOOK_SCHEMA_VERSION = 5
+_POSITION_BOOK_SCHEMA_VERSION = 6
+_POSITION_BOOK_FILL_TOTALS_VERSION = 5
 _UNKNOWN_EXCHANGE_KEY = ""
 
 
@@ -78,6 +79,98 @@ class FactorPositionAttributionSnapshot:
     opening_fees_known: bool = False
 
 
+@dataclass(frozen=True)
+class FactorDatedTradeReconciliationItem:
+    """Result for binding one complete-query CTP trade row to a journal fill."""
+
+    observation_id: str
+    status: str
+    intent_id: Optional[str] = None
+    receipt_id: Optional[str] = None
+    execution_id: Optional[str] = None
+    blocker_code: Optional[str] = None
+
+
+@dataclass(frozen=True)
+class FactorDatedTradeReconciliationPage:
+    """Bounded, immutable result of the dated-trade metadata append pass."""
+
+    items: Tuple[FactorDatedTradeReconciliationItem, ...]
+    observation_count: int
+    offset: int
+    next_offset: Optional[int]
+    truncated: bool
+
+
+@dataclass(frozen=True)
+class FactorDatedPositionLot:
+    """One journal OPEN fill and its deterministic dated CLOSE allocation.
+
+    CTP identifies the CLOSE offset and date bucket, not the exact OPEN fill
+    consumed. ``close_execution_ids`` therefore records a FIFO accounting
+    allocation among eligible owned fills, not provider-specified lot linkage.
+    """
+
+    execution_id: str
+    intent_id: str
+    owner_intent_id: str
+    strategy_scope: str
+    trading_day: str
+    position_side: str
+    hedge_flag: str
+    opened_quantity: Decimal
+    closed_quantity: Decimal
+    remaining_quantity: Decimal
+    open_observation_id: str
+    open_snapshot_id: str
+    open_query_set_id: str
+    close_execution_ids: Tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
+class FactorDatedPositionBucket:
+    """Fill-derived ownership compared with one current CTP date bucket."""
+
+    position_side: str
+    hedge_flag: str
+    position_date: str
+    trading_day: str
+    provider_quantity: Decimal
+    owned_quantity: Decimal
+    available_quantity: Optional[Decimal]
+    owner_strategy_scope: Optional[str]
+    owner_intent_id: Optional[str]
+    source_row_ids: Tuple[str, ...]
+    opening_execution_ids: Tuple[str, ...]
+    close_execution_ids: Tuple[str, ...]
+    lots: Tuple[FactorDatedPositionLot, ...]
+    ready: bool
+    blockers: Tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
+class FactorDatedPositionProof:
+    """Read-only, query-bound proof of current owned TODAY/HISTORY buckets."""
+
+    status: str
+    blocker_code: Optional[str]
+    account_scope: str
+    strategy_scope: str
+    target_id: str
+    instrument: str
+    exchange: str
+    query_set_id: Optional[str]
+    account_fingerprint: Optional[str]
+    connection_generation: Optional[int]
+    trading_day: Optional[str]
+    snapshot_id: Optional[str]
+    available_at: Optional[datetime]
+    source_row_ids: Tuple[str, ...]
+    buckets: Tuple[FactorDatedPositionBucket, ...]
+    ready: bool
+    blockers: Tuple[str, ...] = ()
+
+
 def ensure_factor_position_book_schema(cursor: sqlite3.Cursor) -> None:
     """Create or migrate position tables on the execution journal cursor.
 
@@ -109,6 +202,7 @@ def ensure_factor_position_book_schema(cursor: sqlite3.Cursor) -> None:
 
         _create_position_history_schema(cursor)
         _migrate_nullable_fill_fields(cursor)
+        _create_dated_trade_schema(cursor)
         _ensure_grid_time_index(cursor)
         _create_position_projection_schema(cursor)
         _create_position_history_guards(cursor)
@@ -118,8 +212,9 @@ def ensure_factor_position_book_schema(cursor: sqlite3.Cursor) -> None:
         else:
             meta_version = int(meta[0])
         if meta_version < _POSITION_BOOK_SCHEMA_VERSION:
-            _migrate_open_intent_fill_totals(cursor)
-            if 0 < meta_version < _POSITION_BOOK_SCHEMA_VERSION:
+            if meta_version < _POSITION_BOOK_FILL_TOTALS_VERSION:
+                _migrate_open_intent_fill_totals(cursor)
+            if 0 < meta_version < _POSITION_BOOK_FILL_TOTALS_VERSION:
                 _invalidate_legacy_active_risk_facts(cursor)
             _seed_legacy_projection_as_unknown(cursor)
             cursor.execute(
@@ -184,6 +279,45 @@ def _create_position_history_schema(cursor: sqlite3.Cursor) -> None:
     # Do not use executescript: it commits an active journal transaction.
     for statement in statements:
         cursor.execute(statement)
+
+
+def _create_dated_trade_schema(cursor: sqlite3.Cursor) -> None:
+    cursor.execute(
+        """CREATE TABLE IF NOT EXISTS factor_position_dated_trade_facts (
+            account_scope TEXT NOT NULL,
+            instrument TEXT NOT NULL,
+            exchange TEXT NOT NULL,
+            execution_id TEXT NOT NULL,
+            receipt_id TEXT NOT NULL REFERENCES execution_decision_callbacks(receipt_id),
+            intent_id TEXT NOT NULL REFERENCES execution_decision_intents(intent_id),
+            owner_intent_id TEXT NOT NULL,
+            strategy_scope TEXT NOT NULL,
+            position_effect TEXT NOT NULL CHECK(position_effect IN ('OPEN','CLOSE')),
+            order_side TEXT NOT NULL CHECK(order_side IN ('BUY','SELL')),
+            position_side TEXT NOT NULL CHECK(position_side IN ('LONG','SHORT')),
+            hedge_flag TEXT NOT NULL CHECK(hedge_flag IN ('1','2','3','5')),
+            offset_flag TEXT NOT NULL CHECK(offset_flag IN ('0','1','2','3','4','5','6')),
+            quantity TEXT NOT NULL,
+            price TEXT NOT NULL,
+            trading_day TEXT NOT NULL CHECK(length(trading_day)=8),
+            trade_date TEXT NOT NULL CHECK(length(trade_date)=8),
+            trade_time TEXT NOT NULL,
+            trade_time_ns INTEGER NOT NULL CHECK(trade_time_ns > 0),
+            order_ref TEXT NOT NULL,
+            order_sys_id TEXT,
+            observation_id TEXT NOT NULL,
+            query_set_id TEXT NOT NULL,
+            snapshot_id TEXT NOT NULL,
+            request_id INTEGER NOT NULL CHECK(request_id > 0),
+            connection_generation INTEGER NOT NULL CHECK(connection_generation > 0),
+            account_fingerprint TEXT NOT NULL,
+            available_at_ns INTEGER NOT NULL CHECK(available_at_ns > 0),
+            payload_sha256 TEXT NOT NULL,
+            PRIMARY KEY(account_scope,instrument,exchange,execution_id),
+            FOREIGN KEY(account_scope,instrument,exchange,execution_id)
+                REFERENCES factor_position_fills(account_scope,instrument,exchange,execution_id)
+        )"""
+    )
 
 
 def _fill_table_ddl(table_name: str = "factor_position_fills") -> str:
@@ -556,6 +690,10 @@ def _create_position_history_guards(cursor: sqlite3.Cursor) -> None:
         "CREATE INDEX IF NOT EXISTS factor_position_fills_by_intent ON factor_position_fills(intent_id, position_effect, filled_at_ns)",
         "CREATE INDEX IF NOT EXISTS factor_position_fills_by_owner ON factor_position_fills(owner_intent_id, position_effect, filled_at_ns)",
         "CREATE INDEX IF NOT EXISTS factor_position_issues_by_position ON factor_position_evidence_issues(account_scope, instrument, exchange)",
+        """CREATE INDEX IF NOT EXISTS factor_position_dated_trades_by_owner
+           ON factor_position_dated_trade_facts
+             (account_scope,instrument,exchange,owner_intent_id,position_effect,
+              trading_day,trade_time_ns,execution_id)""",
         """CREATE TRIGGER IF NOT EXISTS factor_position_grid_no_update
             BEFORE UPDATE ON factor_position_grid_history
             BEGIN SELECT RAISE(ABORT, 'factor position grid history is append only'); END""",
@@ -580,6 +718,12 @@ def _create_position_history_guards(cursor: sqlite3.Cursor) -> None:
         """CREATE TRIGGER IF NOT EXISTS factor_position_issue_no_delete
             BEFORE DELETE ON factor_position_evidence_issues
             BEGIN SELECT RAISE(ABORT, 'factor position evidence issues are append only'); END""",
+        """CREATE TRIGGER IF NOT EXISTS factor_position_dated_trade_no_update
+            BEFORE UPDATE ON factor_position_dated_trade_facts
+            BEGIN SELECT RAISE(ABORT, 'factor dated trade facts are append only'); END""",
+        """CREATE TRIGGER IF NOT EXISTS factor_position_dated_trade_no_delete
+            BEFORE DELETE ON factor_position_dated_trade_facts
+            BEGIN SELECT RAISE(ABORT, 'factor dated trade facts are append only'); END""",
     )
     for statement in statements:
         cursor.execute(statement)
@@ -2282,6 +2426,404 @@ class FactorPositionBook:
             raise FactorPositionBookError("EXECUTION_JOURNAL_REQUIRED")
         self._journal = journal
 
+    def reconcile_dated_trade_observations(
+        self,
+        facts: Any,
+        *,
+        reconciliation_page: Any,
+        limit: int = 512,
+        offset: int = 0,
+    ) -> FactorDatedTradeReconciliationPage:
+        """Append exact CTP date/hedge/offset facts for already-owned fills.
+
+        This is a runner-refresh operation, not a Strategy projection. The
+        caller first reconciles the same immutable facts through
+        ``FactorExecutionCoordinator.reconcile_trade_observations`` and passes
+        its complete bounded page. Only APPLIED/DUPLICATE rows that exactly
+        match a durable fill and its query callback are stored. A repeated
+        trade ID is idempotent only when all execution economics and dated
+        ownership fields are unchanged.
+        """
+
+        observations, page_items, page_shape = _dated_trade_page_inputs(
+            facts,
+            reconciliation_page,
+            limit=limit,
+            offset=offset,
+        )
+        prepared = []
+        result_items = []
+        preflight_blocked = False
+        for observation, page_item in zip(observations, page_items):
+            observation_id = _exact_identifier_value(_field_value(observation, "observation_id"))
+            if observation_id is None:
+                raise FactorPositionBookError("DATED_TRADE_OBSERVATION_ID_INVALID")
+            status = _exact_identifier_value(_field_value(page_item, "status"))
+            intent_id = _exact_identifier_value(_field_value(page_item, "intent_id"))
+            receipt_id = _exact_identifier_value(_field_value(page_item, "receipt_id"))
+            execution_id = _exact_identifier_value(_field_value(page_item, "execution_id"))
+            blocker = _exact_identifier_value(_field_value(page_item, "blocker_code"))
+            if status not in ("APPLIED", "DUPLICATE"):
+                result_items.append(
+                    FactorDatedTradeReconciliationItem(
+                        observation_id,
+                        status or "BLOCKED",
+                        intent_id,
+                        receipt_id,
+                        execution_id,
+                        blocker or "TRADE_NOT_OWNED_BY_POSITION_BOOK",
+                    )
+                )
+                continue
+            if intent_id is None or receipt_id is None or execution_id is None:
+                preflight_blocked = True
+                result_items.append(
+                    FactorDatedTradeReconciliationItem(
+                        observation_id,
+                        "BLOCKED",
+                        intent_id,
+                        receipt_id,
+                        execution_id,
+                        "TRADE_RECONCILIATION_IDENTITY_INCOMPLETE",
+                    )
+                )
+                continue
+            source_values, error_code = _dated_trade_source_values(
+                facts,
+                observation,
+                page_item,
+                query_set_id=page_shape["query_set_id"],
+            )
+            if error_code is not None:
+                preflight_blocked = True
+                result_items.append(
+                    FactorDatedTradeReconciliationItem(
+                        observation_id,
+                        "BLOCKED",
+                        intent_id,
+                        receipt_id,
+                        execution_id,
+                        error_code,
+                    )
+                )
+                continue
+            prepared.append(
+                (
+                    observation_id,
+                    intent_id,
+                    receipt_id,
+                    execution_id,
+                    source_values,
+                )
+            )
+            result_items.append(
+                FactorDatedTradeReconciliationItem(
+                    observation_id,
+                    "APPLIED",
+                    intent_id,
+                    receipt_id,
+                    execution_id,
+                )
+            )
+
+        by_observation = {item.observation_id: item for item in result_items}
+        with self._journal._transaction() as cursor:
+            ensure_factor_position_book_schema(cursor)
+            inserts = []
+            batch_blocked = preflight_blocked
+            for observation_id, intent_id, receipt_id, execution_id, values in prepared:
+                fill = cursor.execute(
+                    """SELECT * FROM factor_position_fills
+                       WHERE account_scope=? AND instrument=? AND exchange=? AND execution_id=?""",
+                    (
+                        values["account_scope"],
+                        values["instrument"],
+                        values["exchange"],
+                        execution_id,
+                    ),
+                ).fetchone()
+                callback = cursor.execute(
+                    "SELECT * FROM execution_decision_callbacks WHERE receipt_id=?",
+                    (receipt_id,),
+                ).fetchone()
+                existing = cursor.execute(
+                    """SELECT * FROM factor_position_dated_trade_facts
+                       WHERE account_scope=? AND instrument=? AND exchange=? AND execution_id=?""",
+                    (
+                        values["account_scope"],
+                        values["instrument"],
+                        values["exchange"],
+                        execution_id,
+                    ),
+                ).fetchone()
+                insert_values = _dated_trade_insert_values(
+                    values,
+                    execution_id=execution_id,
+                    receipt_id=receipt_id,
+                    intent_id=intent_id,
+                    owner_intent_id=fill["intent_id"]
+                    if fill["position_effect"] == "OPEN"
+                    else fill["owner_intent_id"],
+                    strategy_scope=fill["strategy_scope"],
+                    position_effect=fill["position_effect"],
+                    order_side=fill["order_side"],
+                )
+                if existing is not None:
+                    # A later complete query can report the same native fill
+                    # with a new request/snapshot/observation identity. Keep
+                    # the first immutable source receipt and compare only the
+                    # stable execution identity before treating that query row
+                    # as a duplicate.
+                    if not _dated_trade_row_digest_matches(existing):
+                        batch_blocked = True
+                        by_observation[observation_id] = FactorDatedTradeReconciliationItem(
+                            observation_id,
+                            "BLOCKED",
+                            intent_id,
+                            receipt_id,
+                            execution_id,
+                            "DATED_TRADE_IDENTITY_CONFLICT",
+                        )
+                        continue
+                    if _dated_trade_stable_values(
+                        existing
+                    ) != _dated_trade_stable_values_from_insert(insert_values):
+                        batch_blocked = True
+                        by_observation[observation_id] = FactorDatedTradeReconciliationItem(
+                            observation_id,
+                            "BLOCKED",
+                            intent_id,
+                            receipt_id,
+                            execution_id,
+                            "DATED_TRADE_IDENTITY_CONFLICT",
+                        )
+                        continue
+                    original_callback_values = dict(existing)
+                    original_callback_values["trade_id"] = values["trade_id"]
+                    original_callback_values["quantity"] = _parse_decimal(
+                        existing["quantity"], positive=True
+                    )
+                    original_callback_values["price"] = _parse_decimal(
+                        existing["price"], positive=True
+                    )
+                    blocker = _dated_trade_journal_binding_error(
+                        cursor,
+                        fill,
+                        callback,
+                        original_callback_values,
+                        intent_id=intent_id,
+                        receipt_id=receipt_id,
+                        execution_id=execution_id,
+                    )
+                    if blocker is not None:
+                        batch_blocked = True
+                        by_observation[observation_id] = FactorDatedTradeReconciliationItem(
+                            observation_id,
+                            "BLOCKED",
+                            intent_id,
+                            receipt_id,
+                            execution_id,
+                            blocker,
+                        )
+                    else:
+                        by_observation[observation_id] = FactorDatedTradeReconciliationItem(
+                            observation_id,
+                            "DUPLICATE",
+                            intent_id,
+                            receipt_id,
+                            execution_id,
+                        )
+                    continue
+                blocker = _dated_trade_journal_binding_error(
+                    cursor,
+                    fill,
+                    callback,
+                    values,
+                    intent_id=intent_id,
+                    receipt_id=receipt_id,
+                    execution_id=execution_id,
+                )
+                if blocker is not None:
+                    batch_blocked = True
+                    by_observation[observation_id] = FactorDatedTradeReconciliationItem(
+                        observation_id,
+                        "BLOCKED",
+                        intent_id,
+                        receipt_id,
+                        execution_id,
+                        blocker,
+                    )
+                    continue
+                inserts.append((observation_id, insert_values))
+
+            if batch_blocked:
+                for observation_id, _insert_values in inserts:
+                    item = by_observation[observation_id]
+                    by_observation[observation_id] = FactorDatedTradeReconciliationItem(
+                        observation_id,
+                        "BLOCKED",
+                        item.intent_id,
+                        item.receipt_id,
+                        item.execution_id,
+                        "DATED_TRADE_BATCH_PREFLIGHT_FAILED",
+                    )
+                inserts = []
+            for _observation_id, insert_values in inserts:
+                columns = tuple(insert_values)
+                cursor.execute(
+                    "INSERT INTO factor_position_dated_trade_facts ({}) VALUES ({})".format(
+                        ",".join(columns), ",".join("?" for _ in columns)
+                    ),
+                    tuple(insert_values[name] for name in columns),
+                )
+
+        return FactorDatedTradeReconciliationPage(
+            items=tuple(by_observation[item.observation_id] for item in result_items),
+            observation_count=page_shape["observation_count"],
+            offset=page_shape["offset"],
+            next_offset=page_shape["next_offset"],
+            truncated=page_shape["truncated"],
+        )
+
+    def dated_snapshot(self, facts: Any, *, target_id: str) -> FactorDatedPositionProof:
+        """Read the exact owned dated lots against current immutable CTP buckets."""
+
+        try:
+            context = _dated_position_context(facts, target_id=target_id)
+        except FactorPositionBookError as error:
+            return _empty_dated_proof(
+                facts,
+                target_id=target_id,
+                blocker_code=error.code,
+            )
+        account_scope = context["account_scope"]
+        strategy_scope = context["strategy_scope"]
+        instrument = context["instrument"]
+        exchange = context["exchange"]
+        try:
+            with self._journal._read_lock():
+                connection = self._journal._connection
+                current = connection.execute(
+                    """SELECT * FROM factor_position_current
+                       WHERE account_scope=? AND instrument=? AND exchange=?""",
+                    (account_scope, instrument, exchange),
+                ).fetchone()
+                if current is None or current["state"] != "ACTIVE":
+                    return _empty_dated_proof(
+                        facts,
+                        target_id=target_id,
+                        blocker_code="DATED_POSITION_OWNER_UNAVAILABLE",
+                        context=context,
+                    )
+                owner_intent_id = _exact_identifier_value(current["owner_intent_id"])
+                if (
+                    owner_intent_id is None
+                    or current["strategy_scope"] != strategy_scope
+                    or current["position_side"] not in ("LONG", "SHORT")
+                ):
+                    return _empty_dated_proof(
+                        facts,
+                        target_id=target_id,
+                        blocker_code="DATED_POSITION_OWNER_MISMATCH",
+                        context=context,
+                    )
+                fact_owner_intent_id = _exact_identifier_value(context["position"].owner_intent_id)
+                if (
+                    fact_owner_intent_id != owner_intent_id
+                    or context["position_side"] != current["position_side"]
+                ):
+                    return _empty_dated_proof(
+                        facts,
+                        target_id=target_id,
+                        blocker_code="DATED_POSITION_OWNER_MISMATCH",
+                        context=context,
+                    )
+                active_issue = connection.execute(
+                    """SELECT blocker_code FROM factor_position_active_issues
+                       WHERE account_scope=? AND instrument=? AND exchange_key IN (?,?) LIMIT 1""",
+                    (account_scope, instrument, exchange, _UNKNOWN_EXCHANGE_KEY),
+                ).fetchone()
+                if active_issue is not None:
+                    return _empty_dated_proof(
+                        facts,
+                        target_id=target_id,
+                        blocker_code=active_issue["blocker_code"],
+                        context=context,
+                    )
+                fill_rows = connection.execute(
+                    """SELECT f.*, d.* FROM factor_position_fills AS f
+                       LEFT JOIN factor_position_dated_trade_facts AS d
+                         ON d.account_scope=f.account_scope AND d.instrument=f.instrument
+                        AND d.exchange=f.exchange AND d.execution_id=f.execution_id
+                       WHERE f.account_scope=? AND f.instrument=? AND f.exchange=?
+                         AND ((f.position_effect='OPEN' AND f.intent_id=?)
+                           OR (f.position_effect='CLOSE' AND f.owner_intent_id=?))
+                       ORDER BY f.filled_at_ns,f.execution_id""",
+                    (account_scope, instrument, exchange, owner_intent_id, owner_intent_id),
+                ).fetchall()
+                fill_rows = tuple(_joined_dated_fill_row(row) for row in fill_rows)
+        except (sqlite3.Error, ValueError, TypeError, FactorPositionBookError):
+            return _empty_dated_proof(
+                facts,
+                target_id=target_id,
+                blocker_code="DATED_POSITION_BOOK_UNAVAILABLE",
+                context=context,
+            )
+
+        position_query_time_ns = _safe_datetime_ns(context["positions_query"].completed_at)
+        if position_query_time_ns is None or any(
+            type(row.get("trade_time_ns")) is not int
+            or row["trade_time_ns"] > position_query_time_ns
+            for row in fill_rows
+        ):
+            return _empty_dated_proof(
+                facts,
+                target_id=target_id,
+                blocker_code="DATED_FILL_AFTER_POSITION_QUERY",
+                context=context,
+            )
+
+        try:
+            lot_state = _derive_dated_owner_lots(
+                fill_rows,
+                owner_intent_id=owner_intent_id,
+                strategy_scope=strategy_scope,
+                current_account_fingerprint=context["account_fingerprint"],
+                position_side=current["position_side"],
+                current_trading_day=context["trading_day"],
+                expected_quantity=_decimal_add(
+                    _parse_accumulator_decimal(current["open_quantity"], nonnegative=True),
+                    -_parse_accumulator_decimal(current["close_quantity"], nonnegative=True),
+                ),
+            )
+        except FactorPositionBookError as error:
+            return _empty_dated_proof(
+                facts,
+                target_id=target_id,
+                blocker_code=error.code,
+                context=context,
+            )
+        buckets, bucket_blockers = _match_dated_inventory_buckets(context, lot_state)
+        if bucket_blockers:
+            return FactorDatedPositionProof(
+                status="UNKNOWN",
+                blocker_code=bucket_blockers[0],
+                source_row_ids=context["source_row_ids"],
+                buckets=buckets,
+                ready=False,
+                blockers=tuple(bucket_blockers),
+                **context["proof_fields"],
+            )
+        return FactorDatedPositionProof(
+            status="MATCHED",
+            blocker_code=None,
+            source_row_ids=context["source_row_ids"],
+            buckets=buckets,
+            ready=True,
+            blockers=(),
+            **context["proof_fields"],
+        )
+
     def snapshot(
         self,
         *,
@@ -3050,3 +3592,1269 @@ def _freeze_value(value: Any) -> Any:
     if isinstance(value, list):
         return tuple(_freeze_value(item) for item in value)
     return value
+
+
+_DATED_QUERY_FAMILIES = (
+    "account_result",
+    "orders_result",
+    "trades_result",
+    "instruments_result",
+    "positions_result",
+)
+_DATED_REQUEST_TYPES = {
+    "account_result": "account",
+    "orders_result": "orders",
+    "trades_result": "trades",
+    "instruments_result": "instruments",
+    "positions_result": "positions",
+}
+_DATED_HEDGE_FLAGS = frozenset(("1", "2", "3", "5"))
+_DATED_OFFSET_FLAGS = frozenset(("0", "1", "2", "3", "4", "5", "6"))
+_DATED_INVENTORY_REQUIRED_FIELDS = frozenset(
+    (
+        "InstrumentID",
+        "ExchangeID",
+        "PosiDirection",
+        "HedgeFlag",
+        "PositionDate",
+        "TradingDay",
+        "Position",
+        "TodayPosition",
+        "YdPosition",
+        "LongFrozen",
+        "ShortFrozen",
+        "CombLongFrozen",
+        "CombShortFrozen",
+        "StrikeFrozen",
+        "AbandonFrozen",
+        "LongFrozenAmount",
+        "ShortFrozenAmount",
+        "FrozenMargin",
+        "FrozenCash",
+        "FrozenCommission",
+        "StrikeFrozenAmount",
+        "YdStrikeFrozen",
+    )
+)
+_DATED_STABLE_TRADE_COLUMNS = (
+    "account_scope",
+    "instrument",
+    "exchange",
+    "execution_id",
+    "receipt_id",
+    "intent_id",
+    "owner_intent_id",
+    "strategy_scope",
+    "position_effect",
+    "order_side",
+    "position_side",
+    "hedge_flag",
+    "offset_flag",
+    "quantity",
+    "price",
+    "trading_day",
+    "trade_date",
+    "trade_time",
+    "trade_time_ns",
+    "order_ref",
+    "order_sys_id",
+)
+_POSITION_FILL_COLUMNS = (
+    "account_scope",
+    "instrument",
+    "exchange",
+    "execution_id",
+    "receipt_id",
+    "intent_id",
+    "strategy_scope",
+    "position_effect",
+    "order_side",
+    "owner_intent_id",
+    "quantity",
+    "price",
+    "fee",
+    "filled_at_ns",
+    "payload_sha256",
+)
+_DATED_TRADE_COLUMNS = (
+    "account_scope",
+    "instrument",
+    "exchange",
+    "execution_id",
+    "receipt_id",
+    "intent_id",
+    "owner_intent_id",
+    "strategy_scope",
+    "position_effect",
+    "order_side",
+    "position_side",
+    "hedge_flag",
+    "offset_flag",
+    "quantity",
+    "price",
+    "trading_day",
+    "trade_date",
+    "trade_time",
+    "trade_time_ns",
+    "order_ref",
+    "order_sys_id",
+    "observation_id",
+    "query_set_id",
+    "snapshot_id",
+    "request_id",
+    "connection_generation",
+    "account_fingerprint",
+    "available_at_ns",
+    "payload_sha256",
+)
+_DATED_FILL_MATCH_COLUMNS = (
+    "account_scope",
+    "instrument",
+    "exchange",
+    "execution_id",
+    "receipt_id",
+    "intent_id",
+    "strategy_scope",
+    "position_effect",
+    "order_side",
+)
+
+
+def _field_value(value: Any, name: str, default: Any = None) -> Any:
+    if isinstance(value, Mapping):
+        return value.get(name, default)
+    return getattr(value, name, default)
+
+
+def _exact_identifier_value(value: Any) -> Optional[str]:
+    if type(value) is str and _is_identifier(value):
+        return value
+    return None
+
+
+def _valid_yyyymmdd(value: Any) -> bool:
+    if type(value) is not str or re.fullmatch(r"\d{8}", value) is None:
+        return False
+    try:
+        datetime.strptime(value, "%Y%m%d")
+    except ValueError:
+        return False
+    return True
+
+
+def _aware_utc_datetime(value: Any) -> Optional[datetime]:
+    if not isinstance(value, datetime) or value.tzinfo is None or value.utcoffset() is None:
+        return None
+    return value.astimezone(timezone.utc)
+
+
+def _same_aware_datetime(left: Any, right: Any) -> bool:
+    left_ns = _safe_datetime_ns(left)
+    right_ns = _safe_datetime_ns(right)
+    return left_ns is not None and left_ns == right_ns
+
+
+def _safe_datetime_ns(value: Any) -> Optional[int]:
+    try:
+        return _datetime_to_ns(value)
+    except (TypeError, ValueError, OverflowError):
+        return None
+
+
+def _validated_dated_query_context(facts: Any) -> Mapping[str, Any]:
+    """Validate one complete immutable query set without using wall-clock time."""
+
+    from .factor_execution_facts import (
+        FactorExecutionAccountFacts,
+        FactorExecutionFacts,
+        FactorExecutionQueryFact,
+    )
+
+    if type(facts) is not FactorExecutionFacts:
+        raise FactorPositionBookError("EXECUTION_FACTS_REQUIRED")
+    if (
+        not _is_identifier(facts.account_scope)
+        or not _is_identifier(facts.strategy_scope)
+        or not _is_identifier(facts.snapshot_id)
+        or not _is_identifier(facts.query_set_id)
+        or type(facts.query_provenance) is not tuple
+        or type(facts.positions) is not tuple
+        or type(facts.trade_observations) is not tuple
+    ):
+        raise FactorPositionBookError("DATED_FACTS_IDENTITY_INCOMPLETE")
+    available_at = _aware_utc_datetime(facts.available_at)
+    account = facts.account
+    if (
+        available_at is None
+        or type(account) is not FactorExecutionAccountFacts
+        or account is None
+        or account.account_scope != facts.account_scope
+        or account.snapshot_id != facts.snapshot_id
+        or not _same_aware_datetime(account.available_at, facts.available_at)
+    ):
+        raise FactorPositionBookError("DATED_FACTS_ACCOUNT_BINDING_INVALID")
+
+    base = {}
+    for query in facts.query_provenance:
+        if type(query) is not FactorExecutionQueryFact:
+            continue
+        if query.target_id is None and query.family in _DATED_QUERY_FAMILIES:
+            if query.family in base:
+                raise FactorPositionBookError("DATED_QUERY_PROVENANCE_AMBIGUOUS")
+            base[query.family] = query
+    if set(base) != set(_DATED_QUERY_FAMILIES):
+        raise FactorPositionBookError("DATED_QUERY_SET_INCOMPLETE")
+    ordered = tuple(base[family] for family in _DATED_QUERY_FAMILIES)
+    if any(
+        query.request_type != _DATED_REQUEST_TYPES[family]
+        or type(query.request_id) is not int
+        or query.request_id <= 0
+        or type(query.connection_generation) is not int
+        or query.connection_generation <= 0
+        or not _is_identifier(query.account_fingerprint)
+        or not _valid_yyyymmdd(query.trading_day)
+        or _aware_utc_datetime(query.started_at) is None
+        or _aware_utc_datetime(query.completed_at) is None
+        or query.started_at > query.completed_at
+        or query.source_owned is not True
+        or query.query_complete is not True
+        or query.scope_complete is not True
+        or type(query.row_count) is not int
+        or query.row_count < 0
+        for family, query in zip(_DATED_QUERY_FAMILIES, ordered)
+    ):
+        raise FactorPositionBookError("DATED_QUERY_PROVENANCE_INVALID")
+    if (
+        len({query.request_id for query in ordered}) != len(ordered)
+        or len({query.connection_generation for query in ordered}) != 1
+        or len({query.account_fingerprint for query in ordered}) != 1
+        or len({query.trading_day for query in ordered}) != 1
+    ):
+        raise FactorPositionBookError("DATED_QUERY_SET_IDENTITY_MISMATCH")
+    started_at = min(query.started_at for query in ordered)
+    completed_at = max(query.completed_at for query in ordered)
+    generation = ordered[0].connection_generation
+    fingerprint = ordered[0].account_fingerprint
+    trading_day = ordered[0].trading_day
+    query_ids = tuple(
+        (family, query.request_id) for family, query in zip(_DATED_QUERY_FAMILIES, ordered)
+    )
+    query_set_payload = json.dumps(
+        (
+            "factor-execution-query-set-v1",
+            fingerprint,
+            generation,
+            trading_day,
+            started_at.isoformat(),
+            completed_at.isoformat(),
+            query_ids,
+        ),
+        ensure_ascii=True,
+        separators=(",", ":"),
+    ).encode("ascii")
+    expected_query_set_id = "ctp.query-set:" + hashlib.sha256(query_set_payload).hexdigest()
+    if (
+        expected_query_set_id != facts.query_set_id
+        or not _same_aware_datetime(available_at, completed_at)
+        or account.account_fingerprint != fingerprint
+        or account.connection_generation != generation
+        or account.trading_day != trading_day
+    ):
+        raise FactorPositionBookError("DATED_QUERY_SET_IDENTITY_MISMATCH")
+    trades_query = base["trades_result"]
+    positions_query = base["positions_result"]
+    if trades_query.row_count != len(facts.trade_observations):
+        raise FactorPositionBookError("DATED_TRADE_SOURCE_ROWS_INCOMPLETE")
+    return {
+        "account_scope": facts.account_scope,
+        "strategy_scope": facts.strategy_scope,
+        "snapshot_id": facts.snapshot_id,
+        "available_at": available_at,
+        "query_set_id": facts.query_set_id,
+        "account_fingerprint": fingerprint,
+        "connection_generation": generation,
+        "trading_day": trading_day,
+        "queries": base,
+        "trades_query": trades_query,
+        "positions_query": positions_query,
+    }
+
+
+def _dated_trade_page_inputs(
+    facts: Any,
+    page: Any,
+    *,
+    limit: int,
+    offset: int,
+) -> Tuple[Tuple[Any, ...], Tuple[Any, ...], Mapping[str, Any]]:
+    from .factor_execution import (
+        ExecutionTradeReconciliationItem,
+        ExecutionTradeReconciliationPage,
+    )
+    from .factor_execution_facts import FactorExecutionTradeObservationFacts
+
+    context = _validated_dated_query_context(facts)
+    if type(limit) is not int or not 1 <= limit <= 512:
+        raise FactorPositionBookError("DATED_TRADE_PAGE_LIMIT_INVALID")
+    if type(offset) is not int or offset < 0:
+        raise FactorPositionBookError("DATED_TRADE_PAGE_OFFSET_INVALID")
+    if type(page) is not ExecutionTradeReconciliationPage or type(page.items) is not tuple:
+        raise FactorPositionBookError("DATED_TRADE_RECONCILIATION_PAGE_INVALID")
+    observations = facts.trade_observations
+    if any(type(row) is not FactorExecutionTradeObservationFacts for row in observations):
+        raise FactorPositionBookError("DATED_TRADE_OBSERVATIONS_INVALID")
+    if (
+        type(page.observation_count) is not int
+        or page.observation_count != len(observations)
+        or page.offset != offset
+        or type(page.offset) is not int
+        or type(page.truncated) is not bool
+    ):
+        raise FactorPositionBookError("DATED_TRADE_RECONCILIATION_PAGE_INCOMPLETE")
+    end = min(len(observations), offset + limit)
+    expected = observations[offset:end]
+    is_truncated = end < len(observations)
+    expected_next = end if is_truncated else None
+    if (
+        offset > len(observations)
+        or len(page.items) != len(expected)
+        or page.truncated is not is_truncated
+        or page.next_offset != expected_next
+    ):
+        raise FactorPositionBookError("DATED_TRADE_RECONCILIATION_PAGE_INCOMPLETE")
+    expected_ids = tuple(row.observation_id for row in expected)
+    actual_ids = tuple(_field_value(item, "observation_id") for item in page.items)
+    if actual_ids != expected_ids or len(set(actual_ids)) != len(actual_ids):
+        raise FactorPositionBookError("DATED_TRADE_RECONCILIATION_PAGE_IDENTITY_MISMATCH")
+    if any(type(item) is not ExecutionTradeReconciliationItem for item in page.items):
+        raise FactorPositionBookError("DATED_TRADE_RECONCILIATION_PAGE_INVALID")
+    return (
+        expected,
+        page.items,
+        {
+            **context,
+            "observation_count": page.observation_count,
+            "offset": page.offset,
+            "next_offset": page.next_offset,
+            "truncated": page.truncated,
+        },
+    )
+
+
+def _dated_trade_source_values(
+    facts: Any,
+    observation: Any,
+    page_item: Any,
+    *,
+    query_set_id: str,
+) -> Tuple[Optional[Mapping[str, Any]], Optional[str]]:
+    try:
+        context = _validated_dated_query_context(facts)
+    except FactorPositionBookError as error:
+        return None, error.code
+    query = context["trades_query"]
+    trade_id = _exact_identifier_value(observation.trade_id)
+    order_ref = _exact_identifier_value(observation.order_ref)
+    order_sys_id = (
+        None
+        if observation.order_sys_id is None
+        else _exact_identifier_value(observation.order_sys_id)
+    )
+    instrument = _exact_identifier_value(observation.instrument)
+    exchange = _exact_identifier_value(observation.exchange)
+    direction = observation.direction
+    order_side = observation.side
+    offset_flag = observation.offset_flag
+    hedge_flag = observation.hedge_flag
+    position_effect = observation.position_effect
+    quantity = _parse_decimal(observation.volume, positive=True)
+    price = _parse_decimal(observation.price, positive=True)
+    trade_date = observation.trade_date
+    trade_time = observation.trade_time
+    trade_time_ns = _ctp_trade_time_ns(trade_date, trade_time)
+    observed_time_ns = _safe_datetime_ns(observation.trade_time_utc)
+    available_ns = _safe_datetime_ns(query.completed_at)
+    observation_id = _exact_identifier_value(observation.observation_id)
+    expected_observation_id = _dated_trade_observation_identifier(observation)
+    expected_execution_id = (
+        "ctp:{}:{}".format(trade_date, trade_id)
+        if _valid_yyyymmdd(trade_date) and trade_id is not None
+        else None
+    )
+    execution_id = _exact_identifier_value(_field_value(page_item, "execution_id"))
+    intent_id = _exact_identifier_value(_field_value(page_item, "intent_id"))
+    receipt_id = _exact_identifier_value(_field_value(page_item, "receipt_id"))
+    if (
+        observation.evidence_kind != "complete_trades_query_observation"
+        or observation.snapshot_id != facts.snapshot_id
+        or observation.request_id != query.request_id
+        or observation.connection_generation != query.connection_generation
+        or observation.account_fingerprint != query.account_fingerprint
+        or type(observation.request_id) is not int
+        or observation.trading_day != query.trading_day
+        or not _same_aware_datetime(observation.available_at, query.completed_at)
+        or not _valid_yyyymmdd(observation.trading_day)
+        or observation.trading_day != context["trading_day"]
+        or not _valid_yyyymmdd(trade_date)
+        or trade_time_ns is None
+        or observed_time_ns is None
+        or trade_time_ns != observed_time_ns
+        or available_ns is None
+        or trade_time_ns > available_ns
+        or observation_id is None
+        or observation_id != expected_observation_id
+        or trade_id is None
+        or order_ref is None
+        or (observation.order_sys_id is not None and order_sys_id is None)
+        or instrument is None
+        or exchange is None
+        or direction not in ("0", "1")
+        or order_side not in ("BUY", "SELL")
+        or order_side != ("BUY" if direction == "0" else "SELL")
+        or offset_flag not in _DATED_OFFSET_FLAGS
+        or observation.offset != offset_flag
+        or hedge_flag not in _DATED_HEDGE_FLAGS
+        or position_effect != ("OPEN" if offset_flag == "0" else "CLOSE")
+        or type(observation.volume) is not Decimal
+        or quantity is None
+        or type(observation.price) is not Decimal
+        or price is None
+        or expected_execution_id is None
+        or execution_id != expected_execution_id
+        or intent_id is None
+        or receipt_id is None
+        or not _is_identifier(query_set_id)
+    ):
+        return None, "DATED_TRADE_SOURCE_IDENTITY_INVALID"
+    return {
+        "account_scope": facts.account_scope,
+        "strategy_scope": facts.strategy_scope,
+        "instrument": instrument,
+        "exchange": exchange,
+        "trade_id": trade_id,
+        "execution_id": execution_id,
+        "intent_id": intent_id,
+        "receipt_id": receipt_id,
+        "order_ref": order_ref,
+        "order_sys_id": order_sys_id,
+        "order_side": order_side,
+        "position_effect": position_effect,
+        "position_side": _trade_position_side(order_side, position_effect),
+        "hedge_flag": hedge_flag,
+        "offset_flag": offset_flag,
+        "quantity": quantity,
+        "price": price,
+        "trading_day": observation.trading_day,
+        "trade_date": trade_date,
+        "trade_time": trade_time,
+        "trade_time_ns": trade_time_ns,
+        "observation_id": observation_id,
+        "query_set_id": query_set_id,
+        "snapshot_id": observation.snapshot_id,
+        "request_id": observation.request_id,
+        "connection_generation": observation.connection_generation,
+        "account_fingerprint": observation.account_fingerprint,
+        "available_at_ns": available_ns,
+    }, None
+
+
+def _dated_trade_observation_identifier(observation: Any) -> Optional[str]:
+    """Recompute the facts-layer row ID so dated metadata cannot be rebound."""
+
+    text_fields = (
+        observation.trading_day,
+        observation.trading_day,
+        observation.trade_id,
+        observation.order_ref,
+        observation.instrument,
+        observation.exchange,
+        observation.direction,
+        observation.offset_flag,
+        observation.hedge_flag,
+        observation.trade_date,
+        observation.trade_time,
+    )
+    if (
+        type(observation.connection_generation) is not int
+        or type(observation.request_id) is not int
+        or type(observation.volume) is not Decimal
+        or type(observation.price) is not Decimal
+        or any(type(value) is not str for value in text_fields)
+        or (observation.order_sys_id is not None and type(observation.order_sys_id) is not str)
+    ):
+        return None
+    try:
+        payload = json.dumps(
+            (
+                "ctp-trades-query-observation-v1",
+                observation.connection_generation,
+                observation.trading_day,
+                observation.request_id,
+                observation.trading_day,
+                observation.trade_id,
+                observation.order_ref,
+                observation.order_sys_id,
+                observation.instrument,
+                observation.exchange,
+                observation.direction,
+                observation.offset_flag,
+                observation.hedge_flag,
+                str(observation.volume),
+                str(observation.price),
+                observation.trade_date,
+                observation.trade_time,
+            ),
+            ensure_ascii=True,
+            separators=(",", ":"),
+        ).encode("ascii")
+    except (TypeError, ValueError, UnicodeEncodeError):
+        return None
+    return "trades-query-row:" + hashlib.sha256(payload).hexdigest()
+
+
+def _trade_position_side(order_side: str, position_effect: str) -> str:
+    if position_effect == "OPEN":
+        return "LONG" if order_side == "BUY" else "SHORT"
+    return "LONG" if order_side == "SELL" else "SHORT"
+
+
+def _ctp_trade_time_ns(trade_date: Any, trade_time: Any) -> Optional[int]:
+    if (
+        not _valid_yyyymmdd(trade_date)
+        or type(trade_time) is not str
+        or re.fullmatch(r"\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?", trade_time) is None
+    ):
+        return None
+    try:
+        pattern = "%Y%m%d %H:%M:%S.%f" if "." in trade_time else "%Y%m%d %H:%M:%S"
+        local = datetime.strptime(trade_date + " " + trade_time, pattern).replace(
+            tzinfo=timezone(timedelta(hours=8))
+        )
+        # CTP TradeDate/TradeTime are local exchange time (UTC+08), including
+        # night sessions whose TradingDay may be a later calendar date.
+        return _datetime_to_ns(local.astimezone(timezone.utc))
+    except (TypeError, ValueError, OverflowError):
+        return None
+
+
+def _dated_trade_insert_values(
+    source: Mapping[str, Any],
+    *,
+    execution_id: str,
+    receipt_id: str,
+    intent_id: str,
+    owner_intent_id: Optional[str],
+    strategy_scope: str,
+    position_effect: str,
+    order_side: str,
+) -> Mapping[str, Any]:
+    if not _is_identifier(owner_intent_id):
+        raise FactorPositionBookError("DATED_TRADE_OWNER_ID_INVALID")
+    values = {
+        "account_scope": source["account_scope"],
+        "instrument": source["instrument"],
+        "exchange": source["exchange"],
+        "execution_id": execution_id,
+        "receipt_id": receipt_id,
+        "intent_id": intent_id,
+        "owner_intent_id": owner_intent_id,
+        "strategy_scope": strategy_scope,
+        "position_effect": position_effect,
+        "order_side": order_side,
+        "position_side": source["position_side"],
+        "hedge_flag": source["hedge_flag"],
+        "offset_flag": source["offset_flag"],
+        "quantity": _serialize_decimal(source["quantity"]),
+        "price": _serialize_decimal(source["price"]),
+        "trading_day": source["trading_day"],
+        "trade_date": source["trade_date"],
+        "trade_time": source["trade_time"],
+        "trade_time_ns": source["trade_time_ns"],
+        "order_ref": source["order_ref"],
+        "order_sys_id": source["order_sys_id"],
+        "observation_id": source["observation_id"],
+        "query_set_id": source["query_set_id"],
+        "snapshot_id": source["snapshot_id"],
+        "request_id": source["request_id"],
+        "connection_generation": source["connection_generation"],
+        "account_fingerprint": source["account_fingerprint"],
+        "available_at_ns": source["available_at_ns"],
+    }
+    digest = hashlib.sha256(_canonical_json(values).encode("utf-8")).hexdigest()
+    values["payload_sha256"] = digest
+    return values
+
+
+def _dated_trade_stable_values(row: Mapping[str, Any]) -> Tuple[Any, ...]:
+    return tuple(row[name] for name in _DATED_STABLE_TRADE_COLUMNS)
+
+
+def _dated_trade_stable_values_from_insert(values: Mapping[str, Any]) -> Tuple[Any, ...]:
+    return tuple(values[name] for name in _DATED_STABLE_TRADE_COLUMNS)
+
+
+def _joined_dated_fill_row(row: sqlite3.Row) -> Mapping[str, Any]:
+    values = tuple(row)
+    expected_count = len(_POSITION_FILL_COLUMNS) + len(_DATED_TRADE_COLUMNS)
+    if len(values) != expected_count:
+        raise FactorPositionBookError("DATED_TRADE_JOIN_SHAPE_INVALID")
+    fill = dict(zip(_POSITION_FILL_COLUMNS, values[: len(_POSITION_FILL_COLUMNS)]))
+    dated = dict(zip(_DATED_TRADE_COLUMNS, values[len(_POSITION_FILL_COLUMNS) :]))
+    joined = dict(dated)
+    joined.update({"_fill_" + name: fill[name] for name in _POSITION_FILL_COLUMNS})
+    return joined
+
+
+def _dated_trade_row_digest_matches(row: Mapping[str, Any]) -> bool:
+    try:
+        values = {key: row[key] for key in _DATED_TRADE_COLUMNS if key != "payload_sha256"}
+        digest = hashlib.sha256(_canonical_json(values).encode("utf-8")).hexdigest()
+    except (KeyError, TypeError, ValueError, FactorPositionBookError):
+        return False
+    return digest == row["payload_sha256"]
+
+
+def _dated_trade_journal_binding_error(
+    cursor: sqlite3.Cursor,
+    fill: Any,
+    callback: Any,
+    values: Mapping[str, Any],
+    *,
+    intent_id: str,
+    receipt_id: str,
+    execution_id: str,
+) -> Optional[str]:
+    if fill is None or callback is None:
+        return "DATED_TRADE_JOURNAL_FILL_NOT_FOUND"
+    intent = cursor.execute(
+        """SELECT i.*, s.decision_id AS slot_decision_id,
+                  s.intent_key_json AS slot_intent_key_json,
+                  d.business_key_json
+           FROM execution_decision_intents AS i
+           JOIN execution_decision_slots AS s ON s.intent_id=i.intent_id
+           JOIN execution_decisions AS d ON d.decision_id=i.decision_id
+           WHERE i.intent_id=?""",
+        (intent_id,),
+    ).fetchone()
+    if intent is None:
+        return "DATED_TRADE_INTENT_NOT_FOUND"
+    if (
+        cursor.execute(
+            """SELECT 1 FROM execution_intent_abandonments WHERE intent_id=?
+           UNION ALL
+           SELECT 1 FROM execution_slot_abandonments WHERE intent_id=? LIMIT 1""",
+            (intent_id, intent_id),
+        ).fetchone()
+        is not None
+    ):
+        return "DATED_TRADE_INTENT_ABANDONED"
+    state = intent["state"]
+    dispatch_state = intent["dispatch_state"]
+    dispatch_claimed = state == "DISPATCHING" and dispatch_state is None
+    dispatch_result_recorded = (
+        state in ("KNOWN", "UNKNOWN")
+        and dispatch_state in ("KNOWN", "UNKNOWN")
+        and (
+            state == dispatch_state
+            or (
+                state == "KNOWN"
+                and dispatch_state == "UNKNOWN"
+                and cursor.execute(
+                    """SELECT 1 FROM execution_intent_reconciliations
+                       WHERE intent_id=? AND state='KNOWN' LIMIT 1""",
+                    (intent_id,),
+                ).fetchone()
+                is not None
+            )
+        )
+    )
+    if not (dispatch_claimed or dispatch_result_recorded):
+        return "DATED_TRADE_DISPATCH_NOT_CLAIMED"
+    try:
+        intent_key = json.loads(intent["intent_key_json"])
+        slot_intent_key = json.loads(intent["slot_intent_key_json"])
+        business_key = json.loads(intent["business_key_json"])
+        economics = json.loads(intent["economic_payload_json"])
+        original_identity = json.loads(intent["original_identity_json"])
+    except (TypeError, ValueError):
+        return "DATED_TRADE_INTENT_PAYLOAD_INVALID"
+    if (
+        not isinstance(intent_key, Mapping)
+        or not isinstance(slot_intent_key, Mapping)
+        or intent_key != slot_intent_key
+        or not isinstance(business_key, Mapping)
+        or not isinstance(economics, Mapping)
+        or not isinstance(original_identity, Mapping)
+        or intent["slot_decision_id"] != intent["decision_id"]
+        or intent_key.get("action") != "SUBMIT"
+        or intent_key.get("instrument") != values["instrument"]
+        or intent_key.get("position_effect") != values["position_effect"]
+        or intent_key.get("side") != values["order_side"]
+        or business_key.get("account_scope") != values["account_scope"]
+        or business_key.get("strategy_scope") != values["strategy_scope"]
+        or economics.get("exchange") != values["exchange"]
+        or (
+            values["position_effect"] == "CLOSE"
+            and (
+                intent["owner_intent_id"] != fill["owner_intent_id"]
+                or economics.get("owner_intent_id") != fill["owner_intent_id"]
+            )
+        )
+    ):
+        return "DATED_TRADE_INTENT_BINDING_MISMATCH"
+    native = cursor.execute(
+        """SELECT account_scope,strategy_scope,trading_day,instrument,exchange,order_ref
+           FROM execution_native_intent_identities WHERE intent_id=?""",
+        (intent_id,),
+    ).fetchone()
+    if (
+        native is None
+        or native["account_scope"] != values["account_scope"]
+        or native["strategy_scope"] != values["strategy_scope"]
+        or native["trading_day"] != values["trading_day"]
+        or native["instrument"] != values["instrument"]
+        or native["exchange"] != values["exchange"]
+        or native["order_ref"] != values["order_ref"]
+        or original_identity.get("operation") != "insert"
+        or original_identity.get("trading_day") != values["trading_day"]
+        or original_identity.get("instrument_id") != values["instrument"]
+        or original_identity.get("exchange_id") != values["exchange"]
+        or original_identity.get("order_ref") != values["order_ref"]
+    ):
+        return "DATED_TRADE_NATIVE_IDENTITY_MISMATCH"
+    if (
+        fill["account_scope"] != values["account_scope"]
+        or fill["instrument"] != values["instrument"]
+        or fill["exchange"] != values["exchange"]
+        or fill["execution_id"] != execution_id
+        or fill["receipt_id"] != receipt_id
+        or fill["intent_id"] != intent_id
+        or fill["strategy_scope"] != values["strategy_scope"]
+        or fill["position_effect"] != values["position_effect"]
+        or fill["order_side"] != values["order_side"]
+        or _parse_decimal(fill["quantity"], positive=True) != values["quantity"]
+        or _parse_decimal(fill["price"], positive=True) != values["price"]
+        or type(fill["filled_at_ns"]) is not int
+        or fill["filled_at_ns"] != values["trade_time_ns"]
+        or callback["receipt_id"] != receipt_id
+        or callback["intent_id"] != intent_id
+        or callback["callback_id"]
+        != "query-trade:" + hashlib.sha256(execution_id.encode("utf-8")).hexdigest()
+        or type(callback["acknowledged"]) is not int
+        or callback["acknowledged"] != 1
+    ):
+        return "DATED_TRADE_JOURNAL_FILL_MISMATCH"
+    owner_intent_id = (
+        fill["intent_id"] if fill["position_effect"] == "OPEN" else fill["owner_intent_id"]
+    )
+    if not _is_identifier(owner_intent_id):
+        return "DATED_TRADE_OWNER_BINDING_INVALID"
+    try:
+        evidence = json.loads(callback["evidence_payload_json"])
+    except (TypeError, ValueError):
+        return "DATED_TRADE_CALLBACK_EVIDENCE_INVALID"
+    expected_evidence = {
+        "event_type": "execution_fill",
+        "execution_id": execution_id,
+        "provider_trade_id": values["trade_id"],
+        "order_ref": values["order_ref"],
+        "instrument_id": values["instrument"],
+        "exchange": values["exchange"],
+        "filled_at_ns": values["trade_time_ns"],
+        "evidence_kind": "complete_trades_query_observation",
+        "time_source": "CTP_TradeDate_TradeTime_UTC_PLUS_08",
+        "query_observation_id": values["observation_id"],
+        "snapshot_id": values["snapshot_id"],
+        "request_id": values["request_id"],
+        "connection_generation": values["connection_generation"],
+        "account_fingerprint": values["account_fingerprint"],
+        "trading_day": values["trading_day"],
+        "account_scope": values["account_scope"],
+        "strategy_scope": values["strategy_scope"],
+    }
+    if not isinstance(evidence, Mapping) or any(
+        evidence.get(name) != expected for name, expected in expected_evidence.items()
+    ):
+        return "DATED_TRADE_CALLBACK_SOURCE_BINDING_MISMATCH"
+    if (
+        _parse_decimal(evidence.get("quantity"), positive=True) != values["quantity"]
+        or _parse_decimal(evidence.get("price"), positive=True) != values["price"]
+        or evidence.get("order_sys_id") != values["order_sys_id"]
+    ):
+        return "DATED_TRADE_CALLBACK_ECONOMICS_MISMATCH"
+    return None
+
+
+def _dated_position_context(facts: Any, *, target_id: str) -> Mapping[str, Any]:
+    from .factor_execution_facts import FactorExecutionPositionFacts
+
+    query_context = _validated_dated_query_context(facts)
+    if not _is_identifier(target_id):
+        raise FactorPositionBookError("DATED_TARGET_ID_INVALID")
+    if any(type(row) is not FactorExecutionPositionFacts for row in facts.positions):
+        raise FactorPositionBookError("DATED_POSITION_FACTS_INVALID")
+    matches = tuple(row for row in facts.positions if row.target_id == target_id)
+    if len(matches) != 1:
+        raise FactorPositionBookError("DATED_POSITION_TARGET_AMBIGUOUS")
+    position = matches[0]
+    if (
+        not _is_identifier(position.instrument)
+        or not _is_identifier(position.exchange)
+        or position.snapshot_id != facts.snapshot_id
+        or not _same_aware_datetime(position.available_at, facts.available_at)
+        or type(position.dated_inventory_rows) is not tuple
+    ):
+        raise FactorPositionBookError("DATED_POSITION_TARGET_BINDING_INVALID")
+    if (
+        type(position.quantity) is not Decimal
+        or type(position.broker_quantity) is not Decimal
+        or type(position.long_quantity) is not Decimal
+        or type(position.short_quantity) is not Decimal
+        or _parse_decimal(position.quantity) is None
+        or _parse_decimal(position.broker_quantity) is None
+        or _parse_decimal(position.long_quantity, nonnegative=True) is None
+        or _parse_decimal(position.short_quantity, nonnegative=True) is None
+    ):
+        raise FactorPositionBookError("DATED_POSITION_AGGREGATE_UNAVAILABLE")
+    quantity = _parse_decimal(position.quantity)
+    broker_quantity = _parse_decimal(position.broker_quantity)
+    long_quantity = _parse_decimal(position.long_quantity, nonnegative=True)
+    short_quantity = _parse_decimal(position.short_quantity, nonnegative=True)
+    if (
+        quantity != broker_quantity
+        or quantity != _decimal_add(long_quantity, -short_quantity)
+        or (long_quantity != 0 and short_quantity != 0)
+    ):
+        raise FactorPositionBookError("DATED_BROKER_CTP_AGGREGATE_MISMATCH")
+    owner_intent_id = _exact_identifier_value(position.owner_intent_id)
+    if quantity != 0 and (
+        position.owner_strategy_scope != facts.strategy_scope or owner_intent_id is None
+    ):
+        raise FactorPositionBookError("DATED_POSITION_OWNER_UNAVAILABLE")
+    if quantity == 0:
+        raise FactorPositionBookError("DATED_POSITION_FLAT")
+    rows = position.dated_inventory_rows
+    if not rows:
+        raise FactorPositionBookError("DATED_INVENTORY_ROWS_UNAVAILABLE")
+    from .factor_execution_facts import FactorExecutionDatedInventoryRow
+
+    if any(type(row) is not FactorExecutionDatedInventoryRow for row in rows):
+        raise FactorPositionBookError("DATED_INVENTORY_ROWS_INVALID")
+    return {
+        **query_context,
+        "target_id": target_id,
+        "instrument": position.instrument,
+        "exchange": position.exchange,
+        "position": position,
+        "owner_intent_id": owner_intent_id,
+        "position_side": "LONG" if quantity > 0 else "SHORT",
+        "signed_quantity": quantity,
+        "long_quantity": long_quantity,
+        "short_quantity": short_quantity,
+        "rows": rows,
+        "source_row_ids": tuple(
+            row.source_row_id for row in rows if _is_identifier(row.source_row_id)
+        ),
+        "proof_fields": {
+            "account_scope": query_context["account_scope"],
+            "strategy_scope": query_context["strategy_scope"],
+            "target_id": target_id,
+            "instrument": position.instrument,
+            "exchange": position.exchange,
+            "query_set_id": query_context["query_set_id"],
+            "account_fingerprint": query_context["account_fingerprint"],
+            "connection_generation": query_context["connection_generation"],
+            "trading_day": query_context["trading_day"],
+            "snapshot_id": query_context["snapshot_id"],
+            "available_at": query_context["available_at"],
+        },
+    }
+
+
+def _empty_dated_proof(
+    facts: Any,
+    *,
+    target_id: str,
+    blocker_code: str,
+    context: Optional[Mapping[str, Any]] = None,
+) -> FactorDatedPositionProof:
+    if context is not None:
+        fields = context["proof_fields"]
+        source_ids = context.get("source_row_ids", ())
+    else:
+        fields = {
+            "account_scope": _exact_identifier_value(_field_value(facts, "account_scope"))
+            or "unknown",
+            "strategy_scope": _exact_identifier_value(_field_value(facts, "strategy_scope"))
+            or "unknown",
+            "target_id": _exact_identifier_value(target_id) or "unknown",
+            "instrument": "unknown",
+            "exchange": "unknown",
+            "query_set_id": None,
+            "account_fingerprint": None,
+            "connection_generation": None,
+            "trading_day": None,
+            "snapshot_id": None,
+            "available_at": None,
+        }
+        source_ids = ()
+    return FactorDatedPositionProof(
+        status="UNKNOWN",
+        blocker_code=blocker_code,
+        source_row_ids=tuple(source_ids),
+        buckets=(),
+        ready=False,
+        blockers=(blocker_code,),
+        **fields,
+    )
+
+
+def _derive_dated_owner_lots(
+    fill_rows: Sequence[Any],
+    *,
+    owner_intent_id: str,
+    strategy_scope: str,
+    current_account_fingerprint: str,
+    position_side: str,
+    current_trading_day: str,
+    expected_quantity: Decimal,
+) -> Mapping[str, Any]:
+    """Reconstruct owned date buckets without binding them to a session generation.
+
+    The account fingerprint must still match the current complete query. A
+    connection generation may change across restart for the same account, so
+    per-fill generations are provenance only and are deliberately not compared.
+    """
+
+    if not _is_identifier(current_account_fingerprint):
+        raise FactorPositionBookError("DATED_POSITION_ACCOUNT_FINGERPRINT_INVALID")
+    if (
+        not _valid_yyyymmdd(current_trading_day)
+        or position_side not in ("LONG", "SHORT")
+        or not isinstance(expected_quantity, Decimal)
+        or not expected_quantity.is_finite()
+        or expected_quantity <= 0
+    ):
+        raise FactorPositionBookError("DATED_POSITION_EXPECTED_QUANTITY_INVALID")
+    opens = []
+    closes = []
+    seen_execution_ids = set()
+    seen_trade_times = set()
+    for row in fill_rows:
+        execution_id = _exact_identifier_value(row["execution_id"])
+        if execution_id is None or execution_id in seen_execution_ids:
+            raise FactorPositionBookError("DATED_POSITION_EXECUTION_ID_AMBIGUOUS")
+        seen_execution_ids.add(execution_id)
+        if row["trade_time_ns"] in seen_trade_times:
+            raise FactorPositionBookError("DATED_TRADE_TIME_AMBIGUOUS")
+        seen_trade_times.add(row["trade_time_ns"])
+        if row["strategy_scope"] != strategy_scope:
+            raise FactorPositionBookError("DATED_POSITION_STRATEGY_SCOPE_MISMATCH")
+        if not _dated_trade_row_digest_matches(row):
+            raise FactorPositionBookError("DATED_TRADE_METADATA_DIGEST_INVALID")
+        if row["account_fingerprint"] != current_account_fingerprint:
+            raise FactorPositionBookError("DATED_POSITION_ACCOUNT_FINGERPRINT_MISMATCH")
+        quantity = _parse_accumulator_decimal(row["quantity"], positive=True)
+        price = _parse_accumulator_decimal(row["price"], positive=True)
+        trading_day = row["trading_day"]
+        trade_date = row["trade_date"]
+        trade_time_ns = row["trade_time_ns"]
+        hedge_flag = row["hedge_flag"]
+        offset_flag = row["offset_flag"]
+        effect = row["position_effect"]
+        order_side = row["order_side"]
+        if (
+            quantity is None
+            or price is None
+            or any(row.get("_fill_" + name) != row[name] for name in _DATED_FILL_MATCH_COLUMNS)
+            or _parse_accumulator_decimal(row.get("_fill_quantity"), positive=True) != quantity
+            or _parse_accumulator_decimal(row.get("_fill_price"), positive=True) != price
+            or row.get("_fill_filled_at_ns") != trade_time_ns
+            or (effect == "OPEN" and row.get("_fill_owner_intent_id") is not None)
+            or (effect == "CLOSE" and row.get("_fill_owner_intent_id") != row["owner_intent_id"])
+            or row["position_side"] != _trade_position_side(order_side, effect)
+            or not _valid_yyyymmdd(trading_day)
+            or not _valid_yyyymmdd(trade_date)
+            or type(trade_time_ns) is not int
+            or trade_time_ns <= 0
+            or not _is_identifier(row["intent_id"])
+            or not _is_identifier(row["owner_intent_id"])
+            or not _is_identifier(row["receipt_id"])
+            or hedge_flag not in _DATED_HEDGE_FLAGS
+            or offset_flag not in _DATED_OFFSET_FLAGS
+            or order_side not in ("BUY", "SELL")
+            or effect not in ("OPEN", "CLOSE")
+            or (effect == "OPEN") != (offset_flag == "0")
+        ):
+            raise FactorPositionBookError("DATED_TRADE_METADATA_INVALID")
+        if row["position_effect"] == "OPEN":
+            if row["intent_id"] != owner_intent_id or row["owner_intent_id"] != owner_intent_id:
+                raise FactorPositionBookError("DATED_OPEN_OWNER_MISMATCH")
+            side = _trade_position_side(order_side, effect)
+            if side != position_side:
+                raise FactorPositionBookError("DATED_OPEN_POSITION_SIDE_MISMATCH")
+            if trading_day > current_trading_day:
+                raise FactorPositionBookError("DATED_OPEN_TRADING_DAY_IN_FUTURE")
+            opens.append(
+                {
+                    "execution_id": row["execution_id"],
+                    "intent_id": row["intent_id"],
+                    "owner_intent_id": owner_intent_id,
+                    "strategy_scope": strategy_scope,
+                    "trading_day": trading_day,
+                    "position_side": side,
+                    "hedge_flag": hedge_flag,
+                    "quantity": quantity,
+                    "time_ns": trade_time_ns,
+                    "observation_id": row["observation_id"],
+                    "snapshot_id": row["snapshot_id"],
+                    "query_set_id": row["query_set_id"],
+                    "close_quantity": Decimal(0),
+                    "close_execution_ids": [],
+                }
+            )
+        else:
+            if row["owner_intent_id"] != owner_intent_id:
+                raise FactorPositionBookError("DATED_CLOSE_OWNER_MISMATCH")
+            if _trade_position_side(order_side, effect) != position_side:
+                raise FactorPositionBookError("DATED_CLOSE_POSITION_SIDE_MISMATCH")
+            if offset_flag not in ("3", "4"):
+                raise FactorPositionBookError("DATED_CLOSE_OFFSET_AMBIGUOUS")
+            closes.append(
+                {
+                    "execution_id": row["execution_id"],
+                    "trading_day": trading_day,
+                    "hedge_flag": hedge_flag,
+                    "quantity": quantity,
+                    "time_ns": trade_time_ns,
+                    "offset_flag": offset_flag,
+                }
+            )
+    if not opens:
+        raise FactorPositionBookError("DATED_OPEN_FILL_HISTORY_MISSING")
+    opens.sort(key=lambda item: (item["time_ns"], item["execution_id"]))
+    closes.sort(key=lambda item: (item["time_ns"], item["execution_id"]))
+    for close in closes:
+        remaining_to_allocate = close["quantity"]
+        for opened in opens:
+            if opened["time_ns"] > close["time_ns"]:
+                continue
+            if opened["hedge_flag"] != close["hedge_flag"]:
+                continue
+            eligible = (
+                opened["trading_day"] == close["trading_day"]
+                if close["offset_flag"] == "3"
+                else opened["trading_day"] < close["trading_day"]
+            )
+            if not eligible:
+                continue
+            available = _decimal_add(opened["quantity"], -opened["close_quantity"])
+            if available <= 0:
+                continue
+            allocation = min(available, remaining_to_allocate)
+            opened["close_quantity"] = _decimal_add(opened["close_quantity"], allocation)
+            opened["close_execution_ids"].append(close["execution_id"])
+            remaining_to_allocate = _decimal_add(remaining_to_allocate, -allocation)
+            if remaining_to_allocate == 0:
+                break
+        if remaining_to_allocate != 0:
+            raise FactorPositionBookError("DATED_CLOSE_EXCEEDS_ELIGIBLE_OPEN_LOTS")
+
+    lots = []
+    grouped = {}
+    aggregate = Decimal(0)
+    for opened in opens:
+        remaining = _decimal_add(opened["quantity"], -opened["close_quantity"])
+        if remaining < 0:
+            raise FactorPositionBookError("DATED_LOT_NEGATIVE_REMAINDER")
+        position_date = "TODAY" if opened["trading_day"] == current_trading_day else "HISTORY"
+        lot = FactorDatedPositionLot(
+            execution_id=opened["execution_id"],
+            intent_id=opened["intent_id"],
+            owner_intent_id=opened["owner_intent_id"],
+            strategy_scope=opened["strategy_scope"],
+            trading_day=opened["trading_day"],
+            position_side=opened["position_side"],
+            hedge_flag=opened["hedge_flag"],
+            opened_quantity=opened["quantity"],
+            closed_quantity=opened["close_quantity"],
+            remaining_quantity=remaining,
+            open_observation_id=opened["observation_id"],
+            open_snapshot_id=opened["snapshot_id"],
+            open_query_set_id=opened["query_set_id"],
+            close_execution_ids=tuple(opened["close_execution_ids"]),
+        )
+        lots.append(lot)
+        aggregate = _decimal_add(aggregate, remaining)
+        key = (opened["position_side"], opened["hedge_flag"], position_date, current_trading_day)
+        group = grouped.setdefault(
+            key,
+            {"quantity": Decimal(0), "lots": [], "open_ids": [], "close_ids": []},
+        )
+        group["quantity"] = _decimal_add(group["quantity"], remaining)
+        group["lots"].append(lot)
+        group["open_ids"].append(opened["execution_id"])
+        group["close_ids"].extend(opened["close_execution_ids"])
+    if aggregate != expected_quantity:
+        raise FactorPositionBookError("DATED_OWNER_FILL_TOTAL_MISMATCH")
+    return {
+        "lots": tuple(lots),
+        "groups": grouped,
+        "quantity": aggregate,
+        "owner_intent_id": owner_intent_id,
+        "strategy_scope": strategy_scope,
+        "position_side": position_side,
+    }
+
+
+def _match_dated_inventory_buckets(
+    context: Mapping[str, Any], lot_state: Mapping[str, Any]
+) -> Tuple[Tuple[FactorDatedPositionBucket, ...], Tuple[str, ...]]:
+    from .factor_execution_facts import FactorExecutionDatedInventoryRow
+
+    rows = context["rows"]
+    query = context["positions_query"]
+    groups = lot_state["groups"]
+    inventory = {}
+    blockers = []
+    row_ids = set()
+    observed_total = {"LONG": Decimal(0), "SHORT": Decimal(0)}
+    for row in rows:
+        if type(row) is not FactorExecutionDatedInventoryRow:
+            blockers.append("DATED_INVENTORY_ROW_TYPE_INVALID")
+            continue
+        source_id = _exact_identifier_value(row.source_row_id)
+        if source_id is None or source_id in row_ids:
+            blockers.append("DATED_INVENTORY_ROW_ID_DUPLICATE_OR_MISSING")
+            continue
+        row_ids.add(source_id)
+        if row.blockers:
+            blockers.extend("DATED_INVENTORY_ROW_BLOCKED:{}".format(code) for code in row.blockers)
+        expected_source_prefix = "positions-query-row:{}:".format(query.request_id)
+        suffix = (
+            source_id[len(expected_source_prefix) :]
+            if source_id.startswith(expected_source_prefix)
+            else ""
+        )
+        if not suffix.isdigit() or (len(suffix) > 1 and suffix.startswith("0")):
+            blockers.append("DATED_INVENTORY_SOURCE_ROW_BINDING_INVALID")
+        if (
+            row.instrument != context["instrument"]
+            or row.exchange != context["exchange"]
+            or row.query_set_id != context["query_set_id"]
+            or row.snapshot_id != context["snapshot_id"]
+            or row.request_id != query.request_id
+            or row.connection_generation != context["connection_generation"]
+            or row.account_fingerprint != context["account_fingerprint"]
+            or not _same_aware_datetime(row.available_at, query.completed_at)
+            or row.trading_day != context["trading_day"]
+        ):
+            blockers.append("DATED_INVENTORY_ROW_PROVENANCE_MISMATCH")
+        if (
+            type(row.observed_fields) is not tuple
+            or any(type(name) is not str for name in row.observed_fields)
+            or len(set(row.observed_fields)) != len(row.observed_fields)
+            or not _DATED_INVENTORY_REQUIRED_FIELDS.issubset(set(row.observed_fields))
+        ):
+            blockers.append("DATED_INVENTORY_ROW_FIELDS_INCOMPLETE")
+        numeric_fields = (
+            "position",
+            "today_position",
+            "yd_position",
+            "long_frozen",
+            "short_frozen",
+            "comb_long_frozen",
+            "comb_short_frozen",
+            "strike_frozen",
+            "abandon_frozen",
+            "long_frozen_amount",
+            "short_frozen_amount",
+            "frozen_margin",
+            "frozen_cash",
+            "frozen_commission",
+            "strike_frozen_amount",
+            "yd_strike_frozen",
+        )
+        numeric_invalid = any(
+            type(getattr(row, name)) is not Decimal
+            or _parse_decimal(getattr(row, name), nonnegative=True) is None
+            for name in numeric_fields
+        )
+        if numeric_invalid:
+            blockers.append("DATED_INVENTORY_NUMERIC_FIELD_INVALID")
+        elif any(getattr(row, name) != 0 for name in numeric_fields[3:]):
+            blockers.append("DATED_INVENTORY_FREEZE_PRESENT")
+        if (
+            row.position_side not in ("LONG", "SHORT")
+            or row.hedge_flag not in _DATED_HEDGE_FLAGS
+            or row.position_date_code not in ("1", "2")
+            or row.position_date != ("TODAY" if row.position_date_code == "1" else "HISTORY")
+            or not _valid_yyyymmdd(row.trading_day)
+            or numeric_invalid
+        ):
+            blockers.append("DATED_INVENTORY_ROW_VALUES_INVALID")
+            continue
+        if row.position_date == "TODAY" and row.today_position != row.position:
+            blockers.append("DATED_TODAY_POSITION_CONTRADICTION")
+        if row.position_date == "HISTORY" and row.today_position != 0:
+            blockers.append("DATED_HISTORY_TODAY_POSITION_CONTRADICTION")
+        key = (row.position_side, row.hedge_flag, row.position_date, row.trading_day)
+        if key in inventory:
+            blockers.append("DATED_INVENTORY_BUCKET_DUPLICATE")
+            continue
+        inventory[key] = row
+        observed_total[row.position_side] = _decimal_add(
+            observed_total[row.position_side], row.position
+        )
+    if (
+        observed_total["LONG"] != context["long_quantity"]
+        or observed_total["SHORT"] != context["short_quantity"]
+    ):
+        blockers.append("DATED_INVENTORY_SIDE_TOTAL_MISMATCH")
+
+    expected_keys = {key for key, group in groups.items() if group["quantity"] > 0}
+    observed_keys = set(inventory)
+    missing_keys = expected_keys - observed_keys
+    unmatched_nonzero_keys = {
+        key for key, row in inventory.items() if row.position > 0 and key not in expected_keys
+    }
+    if missing_keys or unmatched_nonzero_keys:
+        blockers.append("DATED_INVENTORY_OWNER_BUCKET_SET_MISMATCH")
+    bucket_items = []
+    all_keys = sorted(expected_keys)
+    for key in all_keys:
+        side, hedge, position_date, trading_day = key
+        row = inventory.get(key)
+        group = groups.get(key)
+        provider_quantity = Decimal(0) if row is None else row.position
+        owned_quantity = Decimal(0) if group is None else group["quantity"]
+        local_blockers = list(blockers)
+        if row is None:
+            local_blockers.append("DATED_INVENTORY_BUCKET_MISSING")
+        if row is not None and group is not None and provider_quantity != owned_quantity:
+            local_blockers.append("DATED_PROVIDER_OWNER_QUANTITY_MISMATCH")
+        global_mismatch = bool(blockers)
+        ready = not local_blockers and not global_mismatch and owned_quantity > 0
+        lot_values = () if group is None else tuple(group["lots"])
+        source_ids = () if row is None else (row.source_row_id,)
+        bucket_items.append(
+            FactorDatedPositionBucket(
+                position_side=side,
+                hedge_flag=hedge,
+                position_date=position_date,
+                trading_day=trading_day,
+                provider_quantity=provider_quantity,
+                owned_quantity=owned_quantity,
+                available_quantity=owned_quantity if ready and owned_quantity > 0 else None,
+                owner_strategy_scope=lot_state["strategy_scope"] if group else None,
+                owner_intent_id=lot_state["owner_intent_id"] if group else None,
+                source_row_ids=source_ids,
+                opening_execution_ids=() if group is None else tuple(group["open_ids"]),
+                close_execution_ids=() if group is None else tuple(group["close_ids"]),
+                lots=lot_values,
+                ready=ready,
+                blockers=tuple(sorted(set(local_blockers))),
+            )
+        )
+        blockers.extend(local_blockers)
+    return tuple(bucket_items), tuple(sorted(set(blockers)))
