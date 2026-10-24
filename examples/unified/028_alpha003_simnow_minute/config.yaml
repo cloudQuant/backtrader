@@ -1,0 +1,106 @@
+# Public, fail-closed template. Copy this file before editing run-specific values.
+schema: backtrader.alpha003.simnow_runner.v1
+mode: dry
+
+# The CLI may select this tier or a lower one. It cannot raise this ceiling.
+entry:
+  tier: dry
+
+factor:
+  # CLI --factor-mode wins; null selects the production native implementation.
+  mode: null
+  direction: 1
+  preheat_bars: 30
+  rebalance_every: 5
+
+selection:
+  # A public point-in-time JSON bundle accepted by load_selection_bundle.
+  bundle: null
+  # Optional list of EXCHANGE.PRODUCT values allowed to receive trade targets.
+  # The complete manifest target pool still participates in cross-sectional ranks.
+  authorized_products: null
+  # Optional ordered public PIT bundles for finite live session rollovers.
+  # Each later bundle is opened only after the previous epoch retires cleanly.
+  daily_bundles: []
+
+inputs:
+  # Saved closed bars must carry source availability and cohort provenance.
+  minute_tape: null
+  # Independent executable quote tape; OHLC is never used as an execution quote.
+  execution_quotes: null
+  # Explicit replay tick/multiplier/margin/permission metadata.
+  instrument_metadata: null
+
+research:
+  start: null
+  end: null
+  source_timezone: Asia/Shanghai
+  price_basis: null
+
+cohort:
+  calendar_id: alpha003-one-minute-v1
+  calendar_version: source-session-snapshot-v1
+  epoch_id: 1
+  clock_domain_id: saved-minute-tape-utc-v1
+  timezone_id: UTC
+  session_semantics: exchange-session-calendar-v1
+  max_pending_slots: 8
+  max_window_bars: 512
+  wait_timeout_seconds: 5.0
+  # Live source-time profile. These stay unset until a deployment chooses
+  # bounds for source freshness and future clock skew.
+  max_live_bar_age_seconds: null
+  max_future_skew_seconds: null
+
+replay:
+  # Leave null until a local simulation account is deliberately configured.
+  starting_cash: null
+  # BackBroker commission percentage; null blocks order planning.
+  commission: null
+
+risk:
+  # Every field is explicit and null in the public template. A null budget
+  # blocks order planning; there is no implicit "safe" default.
+  policy_id: null
+  max_hold_eligible_bars: null
+  preclose_grace_seconds: null
+  run_end_policy: null
+  quote_max_age_seconds: null
+  max_state_age_seconds: null
+  max_notional_per_position: null
+  max_total_notional: null
+  max_margin_per_position: null
+  max_total_margin: null
+  max_loss_per_position: null
+  max_total_loss: null
+  round_trip_fee_upper_bound_per_contract: null
+  stop_loss_ticks: null
+  max_order_intents_per_grid: null
+  max_order_intents_per_run: null
+
+live:
+  # Credentials/configuration are supplied only through this environment name
+  # when --mode live is explicitly selected. The runner never loads .env.
+  store_config_env: BT_SIMNOW_CONFIG_JSON
+  allow_writes: false
+  account_scope: null
+  strategy_scope: null
+  logical_run_id: null
+  journal_path: null
+  # Exact RegisteredSimStore arm templates are intentionally absent by default.
+  arm_templates: []
+  ready_timeout_seconds: null
+  refresh_timeout_seconds: null
+  refresh_overall_timeout_seconds: null
+  refresh_interval_seconds: null
+  # Explicit freshness limits for typed account/position/order/quote facts.
+  quote_max_age_seconds: null
+  query_max_age_seconds: null
+  shutdown_grace_seconds: null
+
+output:
+  directory: artifacts
+  # Replay/live require a new exclusive destination and a finite disk budget.
+  decision_tape_path: null
+  decision_tape_max_bytes: null
+  evaluate_with_fincore: false
