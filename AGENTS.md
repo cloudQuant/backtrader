@@ -518,6 +518,35 @@ development record. Usage and acceptance records are linked from
 `docs/source/developer-guide/factor-research.md` and `alpha101-native.md`; 025/026 are the standalone
 single/multi-factor examples and 027 is the native Alpha003 demonstration.
 
+### Incremental factor components (Iterations 50–51, in progress)
+
+`research/live.py` exposes `LiveFactorPlan` and `LiveFactorSet` for composition
+inside an ordinary `bt.Strategy`. They reuse `FactorSpec`, production native/build
+classes, and the existing indicator lifecycle. A snapshot reads a completed
+cohort; it neither calculates indicators nor authorizes account writes.
+`research/live_cohort.py` owns bounded source envelopes, complete member batches,
+receipt windows, source freshness, and per-member session identities. Cerebro's
+opt-in cohort path delivers complete batches before strategy callbacks. Its
+event-wait, raw-source, and failure-rollback integration is still under acceptance;
+do not infer full live readiness from the component commits.
+
+The QBuffer component at `e6a38fde5` passed full-buffer versus QBuffer comparisons
+for all 101 formulas in native/build modes over 3,072 rows, including each node's
+value/reason stream and at least ten actual capacity wraps. The independent T320
+scalar-node preflight covers the first twenty formulas. These are distinct from
+the pending full live-feed oracle, installed, long-stream, and account profiles.
+
+`feeds/futures_main_contract.py`, the SHFE/CFFEX adapters, ranking aggregation,
+and finite/rolling session planners are local components for Iteration 51.
+The actual DCE/CZCE/GFEX end-of-day source coverage is still incomplete.
+`brokers/factor_replay.py` provides `CausalReplayBroker`. The decision journal,
+registered-sim adapter, execution coordinator, owned-position projection, and
+028 strategy integration must be accepted at their actual composition boundary;
+source or synthetic checks do not establish SimNow account acceptance.
+The authoritative scope, remaining AC items, and per-round commits are under
+`docs/_internal/opts/requirements/迭代50-因子实盘运行与交易接入/` and
+`docs/_internal/opts/requirements/迭代51-因子流批一体与Alpha003-SimNow实盘示例/`.
+
 ## Repository layout
 
 ```
