@@ -29,7 +29,7 @@ from datetime import datetime, timezone
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from types import MappingProxyType
-from threading import RLock
+from threading import Lock, RLock
 from typing import Any, Callable, Iterator, Optional, Tuple, Union
 
 from .execution_journal_archive import (
@@ -38,6 +38,13 @@ from .execution_journal_archive import (
     ExecutionJournalArchiveReceipt,
     create_verified_execution_journal_archive,
     validate_archive_timeout,
+)
+from .execution_dispatch_gate import (
+    ExecutionDispatchGateError,
+    ExecutionDispatchGateLease,
+    acquire_dispatch_gate,
+    dispatch_gate_path,
+    validate_dispatch_gate_timeout,
 )
 
 
@@ -358,6 +365,11 @@ class ExecutionDecisionJournal:
         self.max_decision_bytes = max_decision_bytes
         self.settlement_decision_reserve_bytes = settlement_decision_reserve_bytes
         self._lock = RLock()
+        # Dispatch serialization is deliberately non-reentrant. The file
+        # sidecar already rejects nested acquisition; keep the in-memory
+        # branch's contract identical instead of letting an RLock create a
+        # second dispatch scope on the same journal instance.
+        self._dispatch_lock = Lock()
         self._failed_closed = False
         self._closed = False
 
@@ -405,6 +417,73 @@ class ExecutionDecisionJournal:
             if not self._closed:
                 self._connection.close()
                 self._closed = True
+
+    @property
+    def dispatch_serialization_path(self) -> Optional[Path]:
+        """Canonical sidecar path used to serialize dispatch and recovery."""
+
+        if self.path == ":memory:":
+            return None
+        return dispatch_gate_path(self.path)
+
+    @contextmanager
+    def dispatch_serialization_gate(
+        self, *, timeout_seconds: float = 5.0, recovery: bool = False
+    ) -> Iterator[ExecutionDispatchGateLease]:
+        """Serialize a complete prepare/claim/provider/result interval.
+
+        File-backed journals use a same-directory SQLite sidecar EXCLUSIVE
+        lock, which is released by the OS on process death. The lock is
+        separate from the journal DB so nested journal transactions remain
+        available while the dispatch interval is held. In-memory journals
+        have only a bounded per-instance thread lock and may not be used for
+        process-crash recovery.
+        """
+
+        try:
+            timeout = validate_dispatch_gate_timeout(timeout_seconds)
+        except ExecutionDispatchGateError as error:
+            raise ExecutionDecisionJournalError(error.code) from error
+        if type(recovery) is not bool:
+            raise ExecutionDecisionJournalError("INVALID_DISPATCH_GATE_RECOVERY_FLAG")
+        deadline = time.monotonic() + timeout
+        if not self._dispatch_lock.acquire(timeout=timeout):
+            raise ExecutionDecisionJournalError("DISPATCH_SERIALIZATION_BUSY")
+        dispatch_lock_acquired = True
+        journal_lock_acquired = False
+        try:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0 or not self._lock.acquire(timeout=remaining):
+                raise ExecutionDecisionJournalError("DISPATCH_SERIALIZATION_BUSY")
+            journal_lock_acquired = True
+            self._ensure_writable()
+            if self._connection.in_transaction:
+                raise ExecutionDecisionJournalError("JOURNAL_TRANSACTION_ACTIVE")
+            if self.path == ":memory:":
+                if recovery:
+                    raise ExecutionDecisionJournalError(
+                        "DISPATCH_RECOVERY_REQUIRES_DURABLE_JOURNAL"
+                    )
+                yield ExecutionDispatchGateLease(cross_process=False)
+                return
+
+            remaining = deadline - time.monotonic()
+            if remaining < 0.001:
+                raise ExecutionDecisionJournalError("DISPATCH_SERIALIZATION_BUSY")
+            gate_context = acquire_dispatch_gate(self.path, timeout_seconds=remaining)
+            try:
+                lease = gate_context.__enter__()
+            except ExecutionDispatchGateError as error:
+                raise ExecutionDecisionJournalError(error.code) from error
+            try:
+                yield lease
+            finally:
+                gate_context.__exit__(None, None, None)
+        finally:
+            if journal_lock_acquired:
+                self._lock.release()
+            if dispatch_lock_acquired:
+                self._dispatch_lock.release()
 
     def archive_snapshot(
         self,
