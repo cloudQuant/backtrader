@@ -1182,8 +1182,11 @@ def validate_factor_trace(
     grid: Sequence[Any],
     *,
     strategy: Any,
+    panel_contract: str = "collector",
 ) -> Dict[str, Any]:
     """Validate field bindings, AST topology, and every matched native node."""
+    if type(panel_contract) is not str or panel_contract not in ("collector", "live_snapshot"):
+        raise ValueError("panel_contract must be 'collector' or 'live_snapshot'")
     if factor.__class__.formula != formula_source(alpha_id):
         raise AssertionError(
             "Alpha%d class formula differs from its independent catalog" % alpha_id
@@ -1278,12 +1281,22 @@ def validate_factor_trace(
     if not ok:
         failures.append(message)
     panel_actual = _panel_factor_matrix(strategy, factor, assets, grid)
-    panel_expected = _collector_expected_matrix(factor, alpha_id, frames, assets, grid, expected)
+    if panel_contract == "collector":
+        panel_expected = _collector_expected_matrix(
+            factor, alpha_id, frames, assets, grid, expected
+        )
+        panel_label = "Alpha%d collector panel" % alpha_id
+    else:
+        # LiveFactorSnapshot exposes the raw factor line independently of the
+        # cohort's group readiness. A live Strategy projection therefore
+        # matches the formula output; order eligibility is checked separately.
+        panel_expected = expected
+        panel_label = "Alpha%d live snapshot panel" % alpha_id
     ok, message = _compare_matrices(
         panel_actual,
         panel_expected,
         exact=final_exact,
-        label="Alpha%d collector panel" % alpha_id,
+        label=panel_label,
     )
     if not ok:
         failures.append(message)
@@ -1297,6 +1310,7 @@ def validate_factor_trace(
         "factor_outputs": output_matrix,
         "panel_expected": panel_expected,
         "panel_actual": panel_actual,
+        "panel_contract": panel_contract,
         "matched_nodes": sum(len(production.get(node, ())) for node in ast_nodes),
         "finite_witness": finite_witness,
     }

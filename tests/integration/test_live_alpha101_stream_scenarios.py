@@ -160,8 +160,11 @@ class _ScenarioCapture(bt.Strategy):
             snapshot.batch_complete is not True
             or snapshot.batch_id != batch.batch_id
             or snapshot.close_time != batch.close_time
+            or snapshot.available_at != batch.available_at
+            or snapshot.available_at is None
+            or snapshot.available_at > callback_time
         ):
-            raise AssertionError("live snapshot does not bind the exact current batch")
+            raise AssertionError("live snapshot does not bind the exact available current batch")
         outputs = {
             factor_name: dict(result.values) for factor_name, result in snapshot.factors.items()
         }
@@ -652,6 +655,8 @@ def _trace_for(
     frames: Mapping[str, pd.DataFrame],
     alpha_ids: Sequence[int],
     grid: Sequence[datetime],
+    *,
+    panel_contract: str,
 ) -> Tuple[Dict[int, FullGridFactorTraceView], Dict[int, Mapping[str, Any]]]:
     traces = {}
     reports = {}
@@ -704,6 +709,7 @@ def _trace_for(
             assets,
             grid,
             strategy=strategy,
+            panel_contract=panel_contract,
         )
         if report["failures"]:
             raise AssertionError(
@@ -824,6 +830,19 @@ def _full_alpha_partitions():
     return partitions
 
 
+def test_trace_validator_rejects_unknown_panel_contract_before_inspection():
+    with pytest.raises(ValueError, match="panel_contract"):
+        validate_factor_trace(
+            None,
+            0,
+            {},
+            (),
+            (),
+            strategy=None,
+            panel_contract="guess",
+        )
+
+
 def _gap_reference_frames(
     frames: Mapping[str, pd.DataFrame], gap_target: str, gap_point: datetime
 ) -> Dict[str, pd.DataFrame]:
@@ -898,11 +917,19 @@ def test_full_alpha101_gap_advances_one_planned_grid_and_blocks_then_recovers(fa
                     raise AssertionError("live presence mask differs from the one explicit gap")
 
         oracle_frames = _gap_reference_frames(frames, gap_target, grid[gap_index])
-        _traces, reports = _trace_for(strategy, oracle_frames, alpha_ids, grid)
+        _traces, reports = _trace_for(
+            strategy,
+            oracle_frames,
+            alpha_ids,
+            grid,
+            panel_contract="live_snapshot",
+        )
         required_bars = WARMUP_BARS
         for alpha_id in alpha_ids:
             instance = strategy.live_factor_set.factor_instances["alpha%d" % alpha_id]["default"]
-            span = history_h(alpha_id, oracle_frames)
+            # Structural span is independent of the intentionally dropped row;
+            # the original frames keep equal lengths for history_h's source scan.
+            span = history_h(alpha_id, frames)
             required_bars = max(required_bars, int(instance._minperiod))
             if int(instance._minperiod) != span + 1:
                 raise AssertionError(
@@ -986,6 +1013,66 @@ def test_full_alpha101_gap_advances_one_planned_grid_and_blocks_then_recovers(fa
 
     if not selection_is_focused() and checked != set(formula_ids()):
         raise AssertionError("gap scenario omitted a registered Alpha101 formula")
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize("factor_mode", ("native", "build"))
+def test_alpha007_gap_snapshot_keeps_raw_false_branch_separate_from_group_readiness(
+    factor_mode,
+):
+    """A valid false branch stays observable while the missing-input window warms up."""
+
+    frames = positive_target_frames(_GAP_ROWS)
+    targets = tuple(frames)
+    gap_target = targets[-1]
+    strategy, _cohort, _clock, grid = _run_live(
+        frames,
+        (7,),
+        factor_mode=factor_mode,
+        gap_target=gap_target,
+        gap_index=_GAP_INDEX,
+        run_label="alpha007-gap-output-readiness",
+    )
+    reference = _gap_reference_frames(frames, gap_target, grid[_GAP_INDEX])
+    _traces, reports = _trace_for(
+        strategy,
+        reference,
+        (7,),
+        grid,
+        panel_contract="live_snapshot",
+    )
+    asset_index = targets.index(gap_target)
+    gap_output = strategy.readings[_GAP_INDEX]["outputs"]["alpha7"][gap_target]
+    assert gap_output.present is False
+    assert gap_output.quality == "MISSING"
+    assert gap_output.status.value == "OUTPUT_UNAVAILABLE"
+    assert math.isnan(float(gap_output.value))
+    assert gap_output.reason == "UNKNOWN"
+    assert getattr(strategy.readings[_GAP_INDEX]["readiness"], "value", None) == "WARMUP"
+
+    # At row 301 the graph's active rolling branch is still incomplete, but
+    # Alpha007's valid false branch is the exact constant -1. The snapshot
+    # exposes that raw formula result while cohort readiness blocks decisions.
+    branch_index = _GAP_INDEX + 21
+    branch_record = strategy.readings[branch_index]
+    branch_output = branch_record["outputs"]["alpha7"][gap_target]
+    assert branch_record["receipts"][gap_target].present is True
+    assert branch_output.status.value == "OUTPUT_AVAILABLE"
+    assert branch_output.reason is None
+    assert float(branch_output.value) == -1.0
+    assert reports[7]["expected"][branch_index][asset_index] == -1.0
+    assert reports[7]["actual"][branch_index][asset_index] == -1.0
+    assert reports[7]["panel_contract"] == "live_snapshot"
+    assert reports[7]["panel_expected"][branch_index][asset_index] == -1.0
+    assert reports[7]["panel_actual"][branch_index][asset_index] == -1.0
+    assert getattr(branch_record["readiness"], "value", None) == "WARMUP"
+    assert branch_record["batch_id"] not in strategy.eligible_batches
+
+    recovery_index = _GAP_INDEX + history_h(7, frames) + 1
+    assert recovery_index < len(grid)
+    recovered_record = strategy.readings[recovery_index]
+    assert getattr(recovered_record["readiness"], "value", None) == "LIVE_READY"
+    assert recovered_record["batch_id"] in strategy.eligible_batches
 
 
 def _perturb_future_frames(
@@ -1136,8 +1223,12 @@ def test_full_alpha101_future_fields_benchmark_and_member_order_keep_sealed_pref
         ):
             raise AssertionError("future source arrival perturbation was not observed")
 
-        baseline_traces, baseline_reports = _trace_for(baseline, base_frames, alpha_ids, grid)
-        changed_traces, changed_reports = _trace_for(changed, changed_frames, alpha_ids, grid)
+        baseline_traces, baseline_reports = _trace_for(
+            baseline, base_frames, alpha_ids, grid, panel_contract="live_snapshot"
+        )
+        changed_traces, changed_reports = _trace_for(
+            changed, changed_frames, alpha_ids, grid, panel_contract="live_snapshot"
+        )
         _materialize_presence_segment(baseline, 0, _CAUSAL_PREFIX_ROWS)
         _materialize_presence_segment(changed, 0, _CAUSAL_PREFIX_ROWS)
         for alpha_id in alpha_ids:
@@ -1327,7 +1418,11 @@ def test_full_alpha101_finite_qualified_history_rebuild_matches_cold_live_suffix
         )
         _assert_contiguous_complete_grid(continuous, continuous_cohort, continuous_grid)
         _continuous_traces, continuous_reports = _trace_for(
-            continuous, full_frames, alpha_ids, continuous_grid
+            continuous,
+            full_frames,
+            alpha_ids,
+            continuous_grid,
+            panel_contract="live_snapshot",
         )
         required_by_id = _span_proof(continuous, alpha_ids, full_frames)
         history_count = max(WARMUP_BARS, max(required_by_id.values()))
@@ -1348,7 +1443,11 @@ def test_full_alpha101_finite_qualified_history_rebuild_matches_cold_live_suffix
         )
         _assert_contiguous_complete_grid(rebuilt, rebuilt_cohort, rebuilt_grid)
         _rebuilt_traces, rebuilt_reports = _trace_for(
-            rebuilt, finite_frames, alpha_ids, rebuilt_grid
+            rebuilt,
+            finite_frames,
+            alpha_ids,
+            rebuilt_grid,
+            panel_contract="live_snapshot",
         )
         if history_count >= len(rebuilt.readings):
             raise AssertionError("finite prewarm has no first live source batch")
