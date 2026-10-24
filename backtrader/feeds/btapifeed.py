@@ -1141,7 +1141,13 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
             return  # _load must establish the feed clock before the callback.
         if self._live:
             return  # _load must pair the queued callback with its line bar.
-        drained_ticks = self._drain_live_ticks()
+        # The historical Tick-timeframe check path drains every currently
+        # available tick. Keep that behavior for ordinary feeds, while an
+        # explicit quote binding retains the per-bar freeze boundary.
+        stop_after_queued_bar = self._timeframe != TimeFrame.Ticks or bool(
+            self.p.service_recovery_quote_binding
+        )
+        drained_ticks = self._drain_live_ticks(stop_after_queued_bar=stop_after_queued_bar)
         drained_orderbooks = self._drain_live_orderbooks()
         self._flush_ready_bars(reason="idle")
         self._handle_source_exhaustion()
@@ -1226,13 +1232,13 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
             )
         return True
 
-    def _drain_live_ticks(self, limit=None):
-        """Consume ticks only until the next completed bar boundary.
+    def _drain_live_ticks(self, limit=None, *, stop_after_queued_bar=True):
+        """Drain available ticks subject to the caller's count and bar bounds.
 
-        A single ``_load`` turn may inspect many ticks inside one bucket, but
-        it must stop as soon as any bar event closes.  Otherwise callbacks for
-        several future bars can run before the first matching data-line/next
-        turn, which makes the strategy observe the final callback repeatedly.
+        Normal load and cohort collection stop after the next queued bar so
+        its callback stays paired with the matching line turn.  The legacy
+        Tick-timeframe ``_check`` path may opt out of that queued-bar stop.
+        Completed aggregate bars still end a drain on every path.
         """
         if self.store is None or not hasattr(self.store, "poll_tick"):
             return False
@@ -1272,12 +1278,12 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
                 self._mark_event_dropped(tick, "tick_dispatch_disabled")
             self._ingest_tick(tick)
             self._flush_ready_bars(reason="tick")
-            # Tick-timeframe feeds queue one line bar per ingested tick but do
-            # not advance _bar_sequence (which tracks completed aggregates).
-            # Stop as soon as either path queues a bar so _load_bar freezes
-            # the quote observed for that bar before a later tick can replace
-            # the feed's latest quote binding.
-            if self._bar_sequence != bar_sequence_before or len(self._live) > queued_bars_before:
+            # _bar_sequence tracks completed aggregate bars. Tick-timeframe
+            # bars instead use the queue length; only ordinary _check may
+            # preserve its historical all-available-ticks behavior.
+            if self._bar_sequence != bar_sequence_before or (
+                stop_after_queued_bar and len(self._live) > queued_bars_before
+            ):
                 break
         return drained
 

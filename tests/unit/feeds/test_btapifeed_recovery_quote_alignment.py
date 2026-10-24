@@ -3,7 +3,6 @@
 import datetime as dt
 
 import backtrader as bt
-import pytest
 
 from backtrader.events import TickEvent
 from backtrader.feeds.btapifeed import BtApiFeed
@@ -56,6 +55,10 @@ def test_tick_timeframe_freezes_each_ingested_quote_on_its_own_bar():
 
     try:
         feed._start()
+        feed._check()
+        assert len(feed._live) == 1
+        assert len(client.live_ticks[_SYMBOL]) == 1
+
         observed = []
         for sequence in (1, 2):
             assert feed.load() is True
@@ -82,4 +85,3 @@ def test_tick_timeframe_freezes_each_ingested_quote_on_its_own_bar():
     finally:
         feed.stop()
         store.stop()
-
