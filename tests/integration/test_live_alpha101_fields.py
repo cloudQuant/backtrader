@@ -21,7 +21,7 @@ from backtrader.research.live_cohort import (
 UTC = timezone.utc
 START = datetime(2025, 1, 2, 9, 30, tzinfo=UTC)
 BASE_FIELDS = ("open", "high", "low", "close", "volume")
-EXTRA_FIELDS = ("vwap", "cap", "sector", "industry", "subindustry")
+EXTRA_FIELDS = ("vwap", "cap", "sector", "industry", "subindustry", "dollar_volume")
 ALL_FIELDS = BASE_FIELDS + EXTRA_FIELDS
 
 
@@ -158,6 +158,9 @@ def _event(slot, sequence, *, overrides=None, include_extras=True, delay_seconds
                 "sector": float(sequence % 3),
                 "industry": float(10 + sequence % 5),
                 "subindustry": float(100 + sequence % 7),
+                # Explicit transaction notional input, deliberately distinct
+                # from VWAP multiplied by share volume.
+                "dollar_volume": 25_000.0 + sequence * 1_375.0,
             }
         )
     if overrides:
@@ -258,7 +261,10 @@ def _setup(*, count=3, declared_fields=EXTRA_FIELDS, mode="native", factor=True,
 @pytest.mark.integration
 @pytest.mark.parametrize("mode", ("native", "build"))
 def test_fixed_numeric_alpha101_fields_flow_before_ordinary_strategy_callback(mode):
-    cerebro, cohort, feed, clock, slots, _plan = _setup(count=3, mode=mode)
+    cerebro, cohort, feed, clock, slots, plan = _setup(count=3, mode=mode)
+    assert plan.factors["field_probe"].field_bindings["dollar_volume"] == (
+        "feed:target:dollar_volume"
+    )
     events = tuple(_event(slot, index + 1) for index, slot in enumerate(slots))
     strategy = cerebro.run()[0]
 
@@ -275,6 +281,7 @@ def test_fixed_numeric_alpha101_fields_flow_before_ordinary_strategy_callback(mo
         assert receipt.available_at == event["available_at"]
         for name in EXTRA_FIELDS:
             assert reading["line_values"][name] == event[name]
+        assert event["dollar_volume"] != event["vwap"] * event["volume"]
         expected = sum(float(event[name]) for name in EXTRA_FIELDS)
         assert reading["output"].status.value == "OUTPUT_AVAILABLE"
         assert reading["output"].value == pytest.approx(expected, rel=1e-12, abs=1e-12)
@@ -313,6 +320,9 @@ def test_undeclared_fixed_extras_stay_nan_and_cannot_be_factor_inputs():
         ({"sector": "energy"}, None),
         ({"cap": math.inf}, None),
         ({"vwap": math.nan}, None),
+        ({"dollar_volume": math.inf}, None),
+        ({"dollar_volume": "not-a-number"}, None),
+        ({}, "dollar_volume"),
         ({"available_at": START}, None),
         ({}, "industry"),
     ),
@@ -341,7 +351,8 @@ def test_invalid_or_noncausal_extra_raw_fields_fail_before_any_line_delivery(ove
     assert len(feed) == 0
 
 
-def test_cohort_registration_rejects_a_feed_line_without_numeric_raw_mapping():
+@pytest.mark.parametrize("line_name", ("cap", "dollar_volume"))
+def test_cohort_registration_rejects_a_feed_line_without_numeric_raw_mapping(line_name):
     slot = LiveCalendarSlot(
         slot_id="slot-0",
         bucket_start=START,
@@ -368,8 +379,8 @@ def test_cohort_registration_rejects_a_feed_line_without_numeric_raw_mapping():
             feed,
             instrument="SYN",
             source_ref="synthetic-source-SYN",
-            line_fields=BASE_FIELDS + ("cap",),
-            raw_fields=BASE_FIELDS + ("cap",),
+            line_fields=BASE_FIELDS + (line_name,),
+            raw_fields=BASE_FIELDS + (line_name,),
             numeric_fields=BASE_FIELDS,
         )
 

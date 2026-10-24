@@ -42,7 +42,14 @@ _UTC = _dt.timezone.utc
 _CTP_INVALID_ABS = 1.0e50
 _COHORT_MISSING = object()
 _MAPPING_PROXY_TYPE = type(MappingProxyType({}))
-_LIVE_COHORT_EXTRA_LINES = ("vwap", "cap", "sector", "industry", "subindustry")
+_LIVE_COHORT_EXTRA_LINES = (
+    "vwap",
+    "cap",
+    "sector",
+    "industry",
+    "subindustry",
+    "dollar_volume",
+)
 
 
 @dataclass(frozen=True)
