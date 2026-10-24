@@ -464,6 +464,33 @@ class PrepareResult:
 
 
 @dataclass(frozen=True)
+class LiveCohortWait:
+    """Read-only engine wait recommendation for the current cohort slot."""
+
+    status: str
+    timeout_seconds: Optional[float]
+    reason: Optional[str] = None
+
+    def __post_init__(self) -> None:
+        if self.status not in ("WAITING", "READY", "EXHAUSTED", "FROZEN"):
+            raise LiveCohortValidationError("unknown cohort wait status")
+        if self.status in ("WAITING", "READY"):
+            if (
+                isinstance(self.timeout_seconds, bool)
+                or not isinstance(self.timeout_seconds, numbers.Real)
+                or not math.isfinite(float(self.timeout_seconds))
+                or self.timeout_seconds < 0
+            ):
+                raise LiveCohortValidationError(
+                    "active cohort wait requires a finite non-negative timeout"
+                )
+            if self.status == "READY" and self.timeout_seconds != 0.0:
+                raise LiveCohortValidationError("READY cohort wait must be immediate")
+        elif self.timeout_seconds is not None:
+            raise LiveCohortValidationError("terminal cohort wait cannot carry a timeout")
+
+
+@dataclass(frozen=True)
 class LiveCohortGap:
     """A planned slot that did not receive all required members by deadline."""
 
@@ -836,10 +863,7 @@ class LiveBarCohort:
             if expected_session is not None
             else slot.session_segment
         )
-        if (
-            trading_day != expected_trading_day
-            or session_segment != expected_session_segment
-        ):
+        if trading_day != expected_trading_day or session_segment != expected_session_segment:
             raise LiveCohortValidationError(
                 "bar trading day/session does not match the planned slot"
             )
@@ -1097,6 +1121,84 @@ class LiveBarCohort:
             self._wait_started_ns = None
             self._wait_missing_member_ids = ()
             return PrepareResult("READY", self._prepared)
+
+    def next_wait_timeout(
+        self,
+        source_now_utc: _datetime.datetime,
+        monotonic_now_ns: int,
+    ) -> LiveCohortWait:
+        """Return the next wait budget without changing cohort state.
+
+        The UTC clock determines whether the planned slot is due and when a
+        complete queued batch becomes available. The monotonic clock bounds a
+        missing-member or availability wait only after a due ``prepare_round``
+        has started that wait. A caller may invoke this before preparation; in
+        that case a due but not-yet-started wait returns zero so preparation can
+        start it immediately. The engine applies any independent broker poll
+        deadline by taking the minimum with ``timeout_seconds``.
+        """
+        source_now = _aware_utc(source_now_utc, "source_now_utc")
+        now = _positive_int(monotonic_now_ns, "monotonic_now_ns")
+        with self._lock:
+            if self._frozen_reason is not None:
+                return LiveCohortWait("FROZEN", None, self._frozen_reason)
+            if not self._sealed:
+                raise LiveCohortValidationError(
+                    "cohort must be sealed before computing a wait recommendation"
+                )
+            if self._prepared is not None:
+                return LiveCohortWait("READY", 0.0, "batch_prepared")
+            if self._next_slot_index >= len(self._calendar.slots):
+                return LiveCohortWait("EXHAUSTED", None, "finite_calendar_exhausted")
+            if self._last_prepare_ns is not None and now < self._last_prepare_ns:
+                return LiveCohortWait("WAITING", 0.0, "monotonic_clock_regressed")
+
+            slot_index = self._next_slot_index
+            slot = self._calendar.slots[slot_index]
+            if source_now < slot.close_time and self._wait_started_ns is None:
+                return LiveCohortWait(
+                    "WAITING",
+                    max(0.0, (slot.close_time - source_now).total_seconds()),
+                    "planned_slot_not_closed",
+                )
+
+            rows = self._pending.get(slot_index, {})
+            expected_members = set(self._members)
+            row_members = set(rows)
+            if row_members - expected_members:
+                return LiveCohortWait("FROZEN", None, "cohort_member_set_mismatch")
+            missing = expected_members - row_members
+            latest_available_at = None
+            if not missing:
+                if row_members != expected_members:
+                    return LiveCohortWait("FROZEN", None, "cohort_member_set_mismatch")
+                latest_available_at = max(row.available_at for row in rows.values())
+
+            wait_started_ns = self._wait_started_ns
+            if wait_started_ns is None:
+                if missing:
+                    return LiveCohortWait("WAITING", 0.0, "due_wait_not_started")
+                if latest_available_at > source_now:
+                    return LiveCohortWait("WAITING", 0.0, "due_availability_wait_not_started")
+                return LiveCohortWait("READY", 0.0, "complete_batch_available")
+
+            if now < wait_started_ns:
+                return LiveCohortWait("WAITING", 0.0, "monotonic_clock_regressed")
+            elapsed_ns = now - wait_started_ns
+            if elapsed_ns >= self._wait_timeout_ns:
+                return LiveCohortWait("WAITING", 0.0, "cohort_wait_deadline_reached")
+
+            remaining_seconds = (self._wait_timeout_ns - elapsed_ns) / 1_000_000_000.0
+            if missing:
+                return LiveCohortWait("WAITING", remaining_seconds, "cohort_incomplete")
+            if latest_available_at > source_now:
+                availability_seconds = (latest_available_at - source_now).total_seconds()
+                return LiveCohortWait(
+                    "WAITING",
+                    min(remaining_seconds, max(0.0, availability_seconds)),
+                    "bar_not_yet_available",
+                )
+            return LiveCohortWait("READY", 0.0, "complete_batch_available")
 
     def _wait_timeout_result(
         self,

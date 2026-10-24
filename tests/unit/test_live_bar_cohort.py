@@ -206,9 +206,7 @@ def test_member_sessions_accept_heterogeneous_exchange_day_and_segment_metadata(
         event["session_segment"] = expected.session_segment
         cohort.capture_bar(feed, event, source_role="live")
 
-    prepared = cohort.prepare_round(
-        20_000, source_time_utc=BASE + dt.timedelta(minutes=5)
-    ).prepared
+    prepared = cohort.prepare_round(20_000, source_time_utc=BASE + dt.timedelta(minutes=5)).prepared
     assert prepared is not None
     for member_id, feed in feeds.items():
         envelope = prepared.envelopes[member_id]
@@ -257,9 +255,7 @@ def test_member_sessions_accept_heterogeneous_exchange_day_and_segment_metadata(
         ),
     ],
 )
-def test_seal_rejects_missing_or_extra_member_session_evidence(
-    member_sessions, expected_fragment
-):
+def test_seal_rejects_missing_or_extra_member_session_evidence(member_sessions, expected_fragment):
     slot = LiveCalendarSlot(
         slot_id="coverage-slot",
         bucket_start=BASE,
@@ -375,6 +371,117 @@ def test_is_final_batch_requires_exact_current_batch_at_finite_epoch_end():
     assert cohort.is_final_batch(final_batch) is True
     assert cohort.is_final_batch(first_batch) is False
     assert cohort.is_final_batch(object()) is False
+
+
+def test_next_wait_timeout_starts_missing_deadline_only_after_planned_close():
+    cohort, feeds = make_cohort(member_count=1, count=1, wait_timeout_ns=5_000_000_000)
+    close_time = BASE + dt.timedelta(minutes=1)
+
+    before_close = cohort.next_wait_timeout(BASE + dt.timedelta(seconds=30), 10_000)
+    assert before_close.status == "WAITING"
+    assert before_close.timeout_seconds == 30.0
+    assert before_close.reason == "planned_slot_not_closed"
+    assert cohort._wait_started_ns is None
+
+    at_close_before_prepare = cohort.next_wait_timeout(close_time, 20_000)
+    assert at_close_before_prepare.status == "WAITING"
+    assert at_close_before_prepare.timeout_seconds == 0.0
+    assert at_close_before_prepare.reason == "due_wait_not_started"
+
+    prepared = cohort.prepare_round(20_000, source_time_utc=close_time)
+    assert prepared.status == "WAITING"
+    assert cohort._wait_started_ns == 20_000
+    after_one_second = cohort.next_wait_timeout(BASE, 1_000_020_000)
+    assert after_one_second.status == "WAITING"
+    assert after_one_second.timeout_seconds == 4.0
+
+    deadline = 5_000_020_000
+    at_deadline = cohort.next_wait_timeout(close_time, deadline)
+    assert at_deadline.status == "WAITING"
+    assert at_deadline.timeout_seconds == 0.0
+    assert at_deadline.reason == "cohort_wait_deadline_reached"
+    assert cohort.prepare_round(deadline, source_time_utc=close_time).status == "GAP"
+    frozen = cohort.next_wait_timeout(close_time, deadline)
+    assert frozen.status == "FROZEN"
+    assert frozen.timeout_seconds is None
+
+
+def test_next_wait_timeout_uses_latest_availability_and_returns_ready_immediately():
+    cohort, feeds = make_cohort(member_count=1, count=1, wait_timeout_ns=5_000_000_000)
+    close_time = BASE + dt.timedelta(minutes=1)
+    available_at = close_time + dt.timedelta(seconds=2)
+    event = make_event("asset-0", 0)
+    event["available_at"] = available_at
+    cohort.capture_bar(feeds["asset-0"], event, source_role="live")
+
+    before_close = cohort.next_wait_timeout(close_time - dt.timedelta(seconds=30), 10_000)
+    assert before_close.status == "WAITING"
+    assert before_close.timeout_seconds == 30.0
+    assert cohort._wait_started_ns is None
+
+    at_close_before_prepare = cohort.next_wait_timeout(close_time, 20_000)
+    assert at_close_before_prepare.status == "WAITING"
+    assert at_close_before_prepare.timeout_seconds == 0.0
+    waiting = cohort.prepare_round(20_000, source_time_utc=close_time)
+    assert waiting.status == "WAITING_AVAILABILITY"
+
+    after_one_second = cohort.next_wait_timeout(close_time, 1_000_020_000)
+    assert after_one_second.status == "WAITING"
+    assert after_one_second.timeout_seconds == 2.0
+    assert after_one_second.reason == "bar_not_yet_available"
+    before_availability = cohort.next_wait_timeout(
+        close_time + dt.timedelta(seconds=1.25), 1_250_020_000
+    )
+    assert before_availability.timeout_seconds == 0.75
+
+    available = cohort.next_wait_timeout(available_at, 2_000_020_000)
+    assert available.status == "READY"
+    assert available.timeout_seconds == 0.0
+    prepared = cohort.prepare_round(2_000_020_000, source_time_utc=available_at)
+    assert prepared.status == "READY"
+    assert cohort.next_wait_timeout(available_at, 2_000_020_000).status == "READY"
+
+
+def test_next_wait_timeout_caps_future_availability_by_monotonic_deadline():
+    cohort, feeds = make_cohort(member_count=1, count=1, wait_timeout_ns=2_000_000_000)
+    close_time = BASE + dt.timedelta(minutes=1)
+    available_at = close_time + dt.timedelta(seconds=5)
+    event = make_event("asset-0", 0)
+    event["available_at"] = available_at
+    cohort.capture_bar(feeds["asset-0"], event, source_role="live")
+
+    assert cohort.prepare_round(50_000, source_time_utc=close_time).status == (
+        "WAITING_AVAILABILITY"
+    )
+    after_one_second = cohort.next_wait_timeout(close_time + dt.timedelta(seconds=1), 1_000_050_000)
+    assert after_one_second.status == "WAITING"
+    assert after_one_second.timeout_seconds == 1.0
+    deadline = 2_000_050_000
+    assert cohort.next_wait_timeout(available_at, deadline).timeout_seconds == 0.0
+    assert cohort.prepare_round(
+        deadline, source_time_utc=close_time + dt.timedelta(seconds=2)
+    ).status == ("AVAILABILITY_TIMEOUT")
+
+
+def test_next_wait_timeout_reports_finite_exhaustion_and_frozen_state():
+    cohort, feeds = make_cohort(member_count=1, count=1)
+    capture_slot(cohort, feeds, 0)
+    batch = deliver_prepared(cohort, feeds, 20_000)
+    assert batch is not None
+    exhausted = cohort.next_wait_timeout(BASE + dt.timedelta(minutes=10), 30_000)
+    assert exhausted.status == "EXHAUSTED"
+    assert exhausted.timeout_seconds is None
+    assert exhausted.reason == "finite_calendar_exhausted"
+
+    frozen_cohort, frozen_feeds = make_cohort(member_count=1, count=1)
+    invalid = make_event("asset-0", 0)
+    invalid["close"] = float("inf")
+    with pytest.raises(LiveCohortValidationError):
+        frozen_cohort.capture_bar(frozen_feeds["asset-0"], invalid, source_role="live")
+    frozen = frozen_cohort.next_wait_timeout(BASE, 40_000)
+    assert frozen.status == "FROZEN"
+    assert frozen.timeout_seconds is None
+    assert frozen.reason == "invalid_source_bar"
 
 
 def test_factor_binding_is_cached_and_tied_to_exact_registered_feed():
