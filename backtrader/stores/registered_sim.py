@@ -1121,13 +1121,24 @@ class RegisteredSimWrapper:
         order_ref = _exact_text(original.get("order_ref"), "original OrderRef")
         instrument = _exact_text(original.get("instrument_id"), "original InstrumentID")
         exchange = _exact_text(original.get("exchange_id"), "original ExchangeID")
+        operation = original.get("operation")
+        if operation not in ("insert", "cancel"):
+            raise BtApiStoreError("registered-sim original operation is invalid")
+        owner_intent_id = original.get("owner_intent_id")
         original_front = original.get("front_id")
         original_session = original.get("session_id")
         original_account = original.get("account_fingerprint")
         original_generation = original.get("connection_generation")
         original_day = original.get("trading_day")
         if (
-            original.get("operation") != "insert"
+            (
+                operation == "cancel"
+                and (
+                    not isinstance(owner_intent_id, str)
+                    or not owner_intent_id
+                    or owner_intent_id != owner_intent_id.strip()
+                )
+            )
             or not isinstance(original_account, str)
             or not original_account
             or original_account != original_account.strip()
@@ -1148,13 +1159,21 @@ class RegisteredSimWrapper:
             if not isinstance(details, Mapping):
                 raise BtApiStoreError("registered-sim terminal event details are invalid")
             raw_status = details.get("OrderStatus")
-            terminal_status_matches = (
-                event.get("status") == "canceled"
-                and raw_status in ("5", "CANCELED", "canceled", "cancelled")
-            ) or (
-                event.get("status") == "rejected"
-                and raw_status in ("4", "NO_TRADE_NOT_QUEUEING", "no_trade_not_queueing")
-            )
+            if operation == "cancel":
+                terminal_status_matches = (
+                    event.get("status") == "canceled"
+                    and raw_status in ("5", "CANCELED", "canceled", "cancelled")
+                    and event.get("factor_intent_id") == owner_intent_id
+                    and event.get("factor_cancel_intent_id") == intent_id
+                )
+            else:
+                terminal_status_matches = (
+                    event.get("status") == "canceled"
+                    and raw_status in ("5", "CANCELED", "canceled", "cancelled")
+                ) or (
+                    event.get("status") == "rejected"
+                    and raw_status in ("4", "NO_TRADE_NOT_QUEUEING", "no_trade_not_queueing")
+                )
             if (
                 event.get("kind") != "order"
                 or type(event.get("bt_order_ref")) is not int
@@ -1164,7 +1183,8 @@ class RegisteredSimWrapper:
                 or event.get("exchange_id") != exchange
                 or event.get("front_id") != original_front
                 or event.get("session_id") != original_session
-                or event.get("status") not in ("canceled", "rejected")
+                or event.get("status")
+                not in (("canceled",) if operation == "cancel" else ("canceled", "rejected"))
                 or event.get("terminal_confirmed") is not True
                 or event.get("execution_unknown") is not False
                 or event.get("filled") != 0
@@ -1205,6 +1225,8 @@ class RegisteredSimWrapper:
                 raise BtApiStoreError("registered-sim recovery is blocked by an active dispatch")
             retired_identity = (
                 intent_id,
+                operation,
+                owner_intent_id,
                 original_account,
                 original_generation,
                 original_day,
@@ -1253,8 +1275,9 @@ class RegisteredSimWrapper:
             else:
                 if (
                     self._registered_sim_frozen is not True
-                    or self._registered_sim_freeze_reason != "registered_sim_insert_unknown"
-                    or unknown.operation != "insert"
+                    or self._registered_sim_freeze_reason
+                    != "registered_sim_{}_unknown".format(operation)
+                    or unknown.operation != operation
                     or unknown.status != "UNKNOWN"
                     or unknown.order_ref != order_ref
                     or unknown.instrument_id != instrument
@@ -2267,11 +2290,18 @@ class RegisteredSimStore(BtApiStore):
             )
             if not callable(method):
                 raise BtApiStoreError("registered-sim recovery wrapper is unavailable")
+            operation = (
+                original_identity.get("operation")
+                if isinstance(original_identity, Mapping)
+                else None
+            )
+            expected_reason = (
+                "registered_sim_{}_unknown".format(operation)
+                if operation in ("insert", "cancel")
+                else None
+            )
             store_frozen = self._registered_sim_gate.get("frozen") is True
-            if (
-                store_frozen
-                and self._registered_sim_gate.get("reason") != "registered_sim_insert_unknown"
-            ):
+            if store_frozen and self._registered_sim_gate.get("reason") != expected_reason:
                 raise BtApiStoreError("registered-sim recovery cannot clear another Store freeze")
             result = method(
                 intent_id,

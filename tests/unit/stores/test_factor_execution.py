@@ -27,7 +27,7 @@ from backtrader.stores.execution_decision_journal import (
     ExecutionDecisionKey,
     ExecutionIntentKey,
 )
-from backtrader.stores.factor_execution import FactorExecutionCoordinator
+from backtrader.stores.factor_execution import FactorExecutionCoordinator, FactorExecutionError
 from backtrader.stores.factor_execution_facts import FactorExecutionTarget
 from backtrader.stores.registered_sim import RegisteredSimStore, RegisteredSimWrapper
 from tests.unit.stores import test_factor_execution_facts as facts_helpers
@@ -39,6 +39,69 @@ _SCOPE = "alpha003"
 _ACCOUNT_SCOPE = "acct-scope"
 _COHORT = "rb-cohort"
 _CALENDAR = "simnow-common-minutes-v1"
+
+
+@pytest.mark.parametrize(("side", "signed_size"), [("BUY", 2), ("SELL", -2)])
+def test_unknown_insert_terminal_event_matches_backtrader_signed_size(side, signed_size):
+    intent_id = "unknown-open-intent"
+    order_ref = 23
+    order = SimpleNamespace(
+        alive=lambda: True,
+        isbuy=lambda: side == "BUY",
+        size=signed_size,
+        info={
+            "execution_unknown": True,
+            "factor_intent_id": intent_id,
+            "factor_strategy_scope": _SCOPE,
+            "instrument_id": _INSTRUMENT,
+            "exchange_id": _EXCHANGE,
+            "external_order_ref": "native-23",
+            "factor_position_effect": "OPEN",
+            "factor_session_account_fingerprint": "fake-account-1",
+            "factor_session_trading_day": "20261024",
+            "factor_session_front_id": 4,
+            "factor_session_id": 7,
+        },
+        data=SimpleNamespace(_name="display-name"),
+    )
+    coordinator = SimpleNamespace(
+        broker=SimpleNamespace(orders={order_ref: order}), strategy_scope=_SCOPE
+    )
+    intent = SimpleNamespace(
+        intent_id=intent_id,
+        key=SimpleNamespace(side=side),
+        original_identity={
+            "backtrader_order_ref": order_ref,
+            "account_fingerprint": "fake-account-1",
+            "trading_day": "20261024",
+            "front_id": 4,
+            "session_id": 7,
+        },
+        economic_payload={"offset": "open", "limit_price": "100"},
+    )
+    observation = SimpleNamespace(
+        instrument=_INSTRUMENT,
+        exchange=_EXCHANGE,
+        order_ref="native-23",
+        order_sys_id="sys-23",
+        terminal_status="5",
+        terminal_state="CANCELED",
+    )
+
+    event = FactorExecutionCoordinator._unknown_terminal_broker_event(
+        coordinator, None, intent, observation, Decimal("2")
+    )
+
+    assert event["side"] == side.lower()
+    assert event["size"] == 2
+    assert event["filled"] == 0
+    assert event["remaining"] == 2
+
+    order.size = -signed_size
+    with pytest.raises(FactorExecutionError, match="UNKNOWN_BROKER_ORDER_LINEAGE_MISMATCH"):
+        FactorExecutionCoordinator._unknown_terminal_broker_event(
+            coordinator, None, intent, observation, Decimal("2")
+        )
 
 
 class _FakeProviderClient(facts_helpers._ProviderLeaves):

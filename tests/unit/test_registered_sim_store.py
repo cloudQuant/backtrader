@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import collections
+import copy
 import os
 import subprocess
 import sys
@@ -42,6 +43,7 @@ class FakeSdkTrader:
         self.release_first_native = threading.Event()
         self.block_first_native = False
         self.fail_next_insert = False
+        self.fail_next_cancel = False
 
     def arm_execution_for_registered_sim(self, **kwargs):
         if self.fail_next_arm:
@@ -139,6 +141,9 @@ class FakeSdkTrader:
         if operation == "insert" and self.fail_next_insert:
             self.fail_next_insert = False
             raise OSError("transport result is deliberately ambiguous")
+        if operation == "cancel" and self.fail_next_cancel:
+            self.fail_next_cancel = False
+            raise OSError("cancel result is deliberately ambiguous")
         return 0
 
     def submit_order_insert(self, field, request_id, *, execution_capability):
@@ -208,6 +213,8 @@ class FakeCtpBase:
             ExchangeID=pending["exchange_id"],
             OrderRef=pending["order_ref"],
             RequestID=request_id,
+            FrontID=self.trader_client.get_session_state()["front_id"],
+            SessionID=self.trader_client.get_session_state()["session_id"],
         )
         result = self._send_native_order_action(field, request_id)
         assert result == 0
@@ -1146,6 +1153,153 @@ def test_unknown_retirement_append_failure_keeps_latch_and_exact_retry_queues_on
     assert store.poll_broker_update() is None
     assert store.registered_sim_retire_unknown(**retirement).status == "ALREADY_ABSENT"
     assert len(api._order_updates) == 0
+
+
+@pytest.mark.parametrize("mismatch", ["cancel_child", "parent_intent", "order_ref", "front_id"])
+def test_unknown_cancel_retirement_rejects_mismatched_lineage_and_retries_after_queue_failure(
+    mismatch,
+):
+    class FailOnceDeque(collections.deque):
+        def __init__(self):
+            super().__init__()
+            self.attempts = 0
+
+        def append(self, item):
+            self.attempts += 1
+            if self.attempts == 1:
+                raise OSError("synthetic queue append failure")
+            return super().append(item)
+
+    api = FakeRegisteredSimWrapper(registered_sim_allow_writes=True)
+    api._order_updates = FailOnceDeque()
+    store = RegisteredSimStore(api=api, allow_writes=True)
+    store._connected = True
+    store.registered_sim_arm(
+        instrument="rb2510",
+        exchange="SHFE",
+        md_front="tcp://127.0.0.1:1",
+        strategy_identity_sha256=_sha("a"),
+        execution_cycle_id="cycle-rb",
+        preflight_sha256=_sha("b"),
+    )
+    order = SimpleNamespace(
+        exectype=OrderBase.Limit,
+        price=12.5,
+        pricelimit=None,
+        created=SimpleNamespace(price=12.5),
+        data=SimpleNamespace(_name="rb2510", _dataname="rb2510"),
+        info={"instrument_id": "rb2510", "exchange_id": "SHFE"},
+        ref=23,
+        isbuy=lambda: True,
+        size=2,
+        valid=None,
+        tradeid=0,
+    )
+    response = store.submit_order(order)
+    order.info["external_order_id"] = response["order_ref"]
+    api.trader_client.fail_next_cancel = True
+    with pytest.raises(RegisteredSimExecutionUnknown) as caught:
+        store.cancel_order(order)
+
+    assert caught.value.evidence.operation == "cancel"
+    assert caught.value.evidence.status == "UNKNOWN"
+    assert caught.value.evidence.order_ref == response["order_ref"]
+    assert (caught.value.evidence.front_id, caught.value.evidence.session_id) == (4, 7)
+    assert len(api.trader_client.native_calls) == 2
+
+    original_identity = {
+        "operation": "cancel",
+        "owner_intent_id": "open-intent",
+        "backtrader_order_ref": 23,
+        "order_ref": response["order_ref"],
+        "instrument_id": "rb2510",
+        "exchange_id": "SHFE",
+        "account_fingerprint": "fake-account-1",
+        "connection_generation": 1,
+        "trading_day": "20261024",
+        "front_id": 4,
+        "session_id": 7,
+    }
+    terminal_event = {
+        "kind": "order",
+        "bt_order_ref": 23,
+        "order_ref": response["order_ref"],
+        "instrument": "rb2510",
+        "exchange_id": "SHFE",
+        "front_id": 4,
+        "session_id": 7,
+        "status": "canceled",
+        "side": "buy",
+        "size": 2,
+        "filled": 0,
+        "remaining": 2,
+        "terminal_confirmed": True,
+        "execution_unknown": False,
+        "factor_intent_id": "open-intent",
+        "factor_cancel_intent_id": "cancel-intent",
+        "details": {
+            "OrderRef": response["order_ref"],
+            "InstrumentID": "rb2510",
+            "ExchangeID": "SHFE",
+            "FrontID": 4,
+            "SessionID": 7,
+            "OrderStatus": "5",
+            "VolumeTotalOriginal": 2,
+            "VolumeTraded": 0,
+            "VolumeTotal": 2,
+        },
+    }
+    retirement = {
+        "intent_id": "cancel-intent",
+        "reconciliation_id": "cancel-reconciliation",
+        "original_identity": original_identity,
+        "expected_session": _expected_session(),
+        "terminal_event": terminal_event,
+    }
+
+    # A durable proof cannot clear the latch if publishing its one normal
+    # Broker update fails. The same proof may retry the append once.
+    with pytest.raises(BtApiStoreError, match="update enqueue failed"):
+        store.registered_sim_retire_unknown(**retirement)
+    assert api._registered_sim_frozen is True
+    assert api.registered_sim_execution_facts()["unknown_ids"] == [response["order_ref"]]
+    assert store.registered_sim_status()["frozen"] is True
+    assert api._order_updates.attempts == 1
+    assert len(api._order_updates) == 0
+    assert len(api.trader_client.native_calls) == 2
+
+    invalid = copy.deepcopy(retirement)
+    if mismatch == "cancel_child":
+        invalid["intent_id"] = "different-cancel-intent"
+    elif mismatch == "parent_intent":
+        invalid["terminal_event"]["factor_intent_id"] = "different-open-intent"
+    elif mismatch == "order_ref":
+        invalid["original_identity"]["order_ref"] = "native-999"
+    else:
+        invalid["original_identity"]["front_id"] = 5
+    with pytest.raises(BtApiStoreError):
+        store.registered_sim_retire_unknown(**invalid)
+    assert api._registered_sim_frozen is True
+    assert api.registered_sim_execution_facts()["unknown_ids"] == [response["order_ref"]]
+    assert store.registered_sim_status()["frozen"] is True
+    assert len(api._order_updates) == 0
+    assert len(api.trader_client.native_calls) == 2
+
+    result = store.registered_sim_retire_unknown(**retirement)
+    assert result.status == "QUEUED"
+    assert result.disarmed is True
+    assert api._registered_sim_frozen is False
+    assert api.registered_sim_execution_facts()["unknown_ids"] == []
+    assert store.registered_sim_status()["frozen"] is False
+    assert api._order_updates.attempts == 2
+    assert len(api._order_updates) == 1
+    assert len(api.trader_client.native_calls) == 2
+    assert store.poll_broker_update() == terminal_event
+    assert store.poll_broker_update() is None
+    duplicate = store.registered_sim_retire_unknown(**retirement)
+    assert duplicate.status == "ALREADY_ABSENT"
+    assert len(api._order_updates) == 0
+    assert api._order_updates.attempts == 2
 
 
 def _complete_query_result(api, request_type, *, request_id, records=(), filters=()):
