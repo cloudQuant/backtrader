@@ -526,9 +526,19 @@ classes, and the existing indicator lifecycle. A snapshot reads a completed
 cohort; it neither calculates indicators nor authorizes account writes.
 `research/live_cohort.py` owns bounded source envelopes, complete member batches,
 receipt windows, source freshness, and per-member session identities. Cerebro's
-opt-in cohort path delivers complete batches before strategy callbacks. Its
-event-wait, raw-source, and failure-rollback integration is still under acceptance;
-do not infer full live readiness from the component commits.
+opt-in cohort path stages every member's raw values and line writes before
+atomically publishing a complete receipt batch. A failed pre-publication write
+restores member line state and freezes the cohort; a notification failure after
+publication preserves the complete batch. Feeds require `cohort_source_mode=True`
+and polling Stores require `preserve_raw_bars=True`. Explicit missing fields
+carry NaN plus typed presence/quality metadata; registered Alpha101 factors
+exclude absent members and wait for complete rolling windows, while unsupported
+custom-factor gap semantics freeze the cohort.
+Store event wakers share a generation-checked engine condition. An injected
+clock may implement `wait_interruptibly` to support external wake/runstop;
+legacy clocks retain their own `wait` semantics and observe those signals only
+after that wait returns. The local component checks and full strategy regression
+passed; installed, long-stream and account profiles remain separate acceptance.
 
 The QBuffer component at `e6a38fde5` passed full-buffer versus QBuffer comparisons
 for all 101 formulas in native/build modes over 3,072 rows, including each node's
