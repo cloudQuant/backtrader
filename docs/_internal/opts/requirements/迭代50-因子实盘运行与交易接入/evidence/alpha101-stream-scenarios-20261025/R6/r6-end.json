@@ -1,0 +1,661 @@
+{
+  "run_id": "AC50-17b-native-history-rebuild-R6",
+  "status": "PASS",
+  "end_utc": "2026-10-24T18:27:12.2216745Z",
+  "pytest_exit": 0,
+  "selected_node": "tests/integration/test_live_alpha101_stream_scenarios.py::test_full_alpha101_finite_qualified_history_rebuild_matches_cold_live_suffix[native]",
+  "xml_sha256": "D512FD9B8D598C9B70264D40C424FAF1294D7AABA15E06995BEACE02CAE8179A",
+  "log_sha256": "33A88CD24790E916B8FF4ADE0540A523049EFDDB5D733744816AFF4306569C9E",
+  "source_pins": [
+    {
+      "path": "backtrader/__init__.py",
+      "sha256": "D4C0D8CE5F2BD72A32025596C10F0728F2DF053F241F3B43BC1746AC1F404675",
+      "bytes": 7053
+    },
+    {
+      "path": "backtrader/_cerebro/lifecycle.py",
+      "sha256": "964D65CB7F4A708F621B91B5128C58303AE343517C0262F0A6D4418BB3536828",
+      "bytes": 8521
+    },
+    {
+      "path": "backtrader/_cerebro/runnext.py",
+      "sha256": "D0A12A6558F3418249CC0FF9D9F35336698B5BE7330929C05D02C2D1921511B9",
+      "bytes": 76826
+    },
+    {
+      "path": "backtrader/cerebro.py",
+      "sha256": "EFC293F196CCB2C690C15476F97AA922FC7272440A478A628A9FDAF9C415E076",
+      "bytes": 43056
+    },
+    {
+      "path": "backtrader/feed.py",
+      "sha256": "CB43784E877FB73CA7747C415A00A22454A46CF60FB1B6295657D6A8F96F6503",
+      "bytes": 57844
+    },
+    {
+      "path": "backtrader/feeds/__init__.py",
+      "sha256": "6297A3A372BF140F9BA0BF98F5A13564D95D2ABA527C0CEDD9982E50418C2619",
+      "bytes": 2903
+    },
+    {
+      "path": "backtrader/feeds/btapifeed.py",
+      "sha256": "7758F038988E679ED0B8463C5B637EDE55D65441FFBA3B650800D4B9C844BC47",
+      "bytes": 134670
+    },
+    {
+      "path": "backtrader/linebuffer.py",
+      "sha256": "E898CB6B81D580FD03C0A6F9CAD5272A3651A6787B32C009DA017F5A014F2BC3",
+      "bytes": 148355
+    },
+    {
+      "path": "backtrader/lineiterator.py",
+      "sha256": "3EC9C5B0B041000743B152C078C14B4B7C00C45C42A08534B12036FAFC55854E",
+      "bytes": 121866
+    },
+    {
+      "path": "backtrader/lineroot.py",
+      "sha256": "D5034755681E9A55025BF0072AD1A5662E9395EB5158586D8B05794C26495E64",
+      "bytes": 43995
+    },
+    {
+      "path": "backtrader/lineseries.py",
+      "sha256": "C5B478C889D2ECACF3E93A9E7CC218C4830B92A213C4EB32391D0634C18140C2",
+      "bytes": 96673
+    },
+    {
+      "path": "backtrader/research/__init__.py",
+      "sha256": "9D77EDA0D6FE6D7BFD6BCDB74243428BA335844E25D31A37F65171F2B82774F7",
+      "bytes": 2033
+    },
+    {
+      "path": "backtrader/research/_helpers.py",
+      "sha256": "046163E66E056558071D5E109BD3411DA4C9B3275E450E7AE07C26F43DFC74A3",
+      "bytes": 3701
+    },
+    {
+      "path": "backtrader/research/alpha101/__init__.py",
+      "sha256": "D5C254E2B204803F3221BCD2D4793F8228D5C9404329F87DE79A8332C02DAAAD",
+      "bytes": 10125
+    },
+    {
+      "path": "backtrader/research/alpha101/_metadata.py",
+      "sha256": "D559CF0DCCC3DF2CA4E10DEAFE7AF485708E0CEA054C67D448846649BBAB56EE",
+      "bytes": 2575
+    },
+    {
+      "path": "backtrader/research/alpha101/alpha001.py",
+      "sha256": "F4BFEB0A2DE33ADD4019453BA37DAE0990FD1010E2E7AA6FFA700EEECDDAD3D1",
+      "bytes": 2118
+    },
+    {
+      "path": "backtrader/research/alpha101/alpha002.py",
+      "sha256": "488BA32AB59CE99F4F875627D45ED1F5080941600894F44E680873A46A945B4B",
+      "bytes": 2430
+    },
+    {
+      "path": "backtrader/research/alpha101/alpha003.py",
+      "sha256": "108966393560C22DA47EB3FD924C997280D851D47AD24F7CC0E66792BEA8CF53",
+      "bytes": 1709
+    },
+    {
+      "path": "backtrader/research/alpha101/alpha004.py",
+      "sha256": "F1A539E6633B765CCBDD629C1255B1D869F145FBF25BBFB53F088A8AAFD695C2",
+      "bytes": 1385
+    },
+    {
+      "path": "backtrader/research/alpha101/alpha005.py",
+      "sha256": "317BC1DB1454EE9EEC5CD7AF4C2DC4FACAFEE19C18FC6754BCF5CD422316D8CD",
+      "bytes": 2666
+    },
+    {
+      "path": "backtrader/research/alpha101/alpha006.py",
+      "sha256": "72E170D6A573C3D2C50A043BB511BADC49515B59BF4FB60CBE0801EA07CAC323",
+      "bytes": 1462
+    },
+    {
+      "path": "backtrader/research/alpha101/alpha007.py",
+      "sha256": "DB3929CF287D64B54C1F8115BAD0CCE5071228A4D4179EFF3A3226D6B44E051B",
+      "bytes": 2326
+    },
+    {
+      "path": "backtrader/research/alpha101/alpha008.py",
+      "sha256": "B969EC80D3F2474B0DBE6D8D1ED76CAE771B083A0580274972A49B4983597A4B",
+      "bytes": 2139
+    },
+    {
+      "path": "backtrader/research/alpha101/alpha009.py",
+      "sha256": "599F0E58F3A394D9E63066004A44A3408DC54CCEA874EB44AA81DF746DC0BAC2",
+      "bytes": 2282
+    },
+    {
+      "path": "backtrader/research/alpha101/alpha010.py",
+      "sha256": "F2C5CBD0915964E70A8D55F0D555A1ABB99D269AA10E43DFC8E93C47023F654F",
+      "bytes": 2468
+    },
+    {
+      "path": "backtrader/research/alpha101/alpha011.py",
+      "sha256": "FA44A789CC12D3D8568704E49F137AEDEDC5D5C050F8E1FDD3016553065E2DB0",
+      "bytes": 2453
+    },
+    {
+      "path": "backtrader/research/alpha101/alpha012.py",
+      "sha256": "9A0D8555FD00B5A912A35B91933DE6B2E1A5546819B5970B051176BB939A707E",
+      "bytes": 1785
+    },
+    {
+      "path": "backtrader/research/alpha101/alpha013.py",
+      "sha256": "391B15F8B928C9FD0F6AD502740193C555BE33F35CBB03C849517DF38516F957",
+      "bytes": 1830
+    },
+    {
+      "path": "backtrader/research/alpha101/alpha014.py",
+      "sha256": "B1F3080BEBD2F36A821241F352D03D3F8197EAFB0D49189C3F14ED1BF2CDB594",
+      "bytes": 2133
+    },
+    {
+      "path": "backtrader/research/alpha101/alpha015.py",
+      "sha256": "EDD0C8B72C646C1BFA1DE61901721CA5A3DD7A0761F5419BC8CD7615A7EF4DCC",
+      "bytes": 1992
+    },
+    {
+      "path": "backtrader/research/alpha101/alpha016.py",
+      "sha256": "F05A17265097E6965DDB8298DD8BF03DDA83B3FBB7A182297F8CF73D35EB93DE",
+      "bytes": 1859
+    },
+    {
+      "path": "backtrader/research/alpha101/alpha017.py",
+      "sha256": "0C87F06F024A160136B2B8DA2FC155564F2A89A604F737106863568661652645",
+      "bytes": 3238
+    },
+    {
+      "path": "backtrader/research/alpha101/alpha018.py",
+      "sha256": "03AC290695BBE319F8808D7B4C3DD8CA52E58ACA1A33F2181F4FDF9F7AB2E73D",
+      "bytes": 2467
+    },
+    {
+      "path": "backtrader/research/alpha101/alpha019.py",
+      "sha256": "21F1FFF93CF9B3A53DA1372AC2EF47F8EA962EE81466AA3CC530EE7CA1ADAB0C",
+      "bytes": 2909
+    },
+    {
+      "path": "backtrader/research/alpha101/alpha020.py",
+      "sha256": "7AC4BECF53C6A9A80D9C2CA21FBD9466A06E0EBF8C110AFB7B73ACAAA7DA0122",
+      "bytes": 3048
+    },
+    {
+      "path": "backtrader/research/alpha101/alpha021.py",
+      "sha256": "47B4CF39BA696A72395FAB72ED0E224893B6238042BD5720AC2E96FD71EF4761",
+      "bytes": 4360
+    },
+    {
+      "path": "backtrader/research/alpha101/alpha022.py",
+      "sha256": "E89AB348671687140BB6019CB6432EC7F739C17E28E379060ECDE78D88179942",
+      "bytes": 2271
+    },
+    {
+      "path": "backtrader/research/alpha101/alpha023.py",
+      "sha256": "8EB6D0682B7DD2689FCFF91F2B9FCF373201653AEAE7AAB0CE64773319C6F902",
+      "bytes": 1973
+    },
+    {
+      "path": "backtrader/research/alpha101/alpha024.py",
+      "sha256": "E1AB6910098663DF347B80081643355871963412D2A86B9608A5409C9E5A6A02",
+      "bytes": 3473
+    },
+    {
+      "path": "backtrader/research/alpha101/alpha025.py",
+      "sha256": "14CB0D3AF5548A7D2F6C270604022CB989606836412F09BBE4E1D779ECBD93B9",
+      "bytes": 2196
+    },
+    {
+      "path": "backtrader/research/alpha101/alpha026.py",
+      "sha256": "C6ED70F59A0DA98A4B1DE9764335755803C2F86A167F404671CA599BE39EED8B",
+      "bytes": 1867
+    },
+    {
+      "path": "backtrader/research/alpha101/alpha027.py",
+      "sha256": "D20EF4481736FB8D34218A8D0FD2F8C3BA4C9E2B300EF5AB3659A60323B9B49B",
+      "bytes": 2430
+    },
+    {
+      "path": "backtrader/research/alpha101/alpha028.py",
+      "sha256": "27B4CED0D4E786736E91BFD217DDB4D60D98A401854EB25C853093B87A80F0B4",
+      "bytes": 2294
+    },
+    {
+      "path": "backtrader/research/alpha101/alpha029.py",
+      "sha256": "19EBF3EE66B9F7555A0CEC680868EADDD2921859DF8314D8BDA7DD9CAD048A73",
+      "bytes": 3682
+    },
+    {
+      "path": "backtrader/research/alpha101/alpha030.py",
+      "sha256": "A9D623A973269B2580A1203C6827B8B0C97386E1F759FDBD8F63C33827334711",
+      "bytes": 3600
+    },
+    {
+      "path": "backtrader/research/alpha101/alpha031.py",
+      "sha256": "7D2FDC38360C51B092FACCD8CB7FEE56F38222CF5B38F53E731DFB3804689A73",
+      "bytes": 4240
+    },
+    {
+      "path": "backtrader/research/alpha101/alpha032.py",
+      "sha256": "EED9D9EC3463C2F039166B2D2BF2B91B767191920083C24458070DE44DF6E9E6",
+      "bytes": 2950
+    },
+    {
+      "path": "backtrader/research/alpha101/alpha033.py",
+      "sha256": "41D097F3F103543A657F97BEB9043FEE5044848638CFB3777FD474E4D8CEF999",
+      "bytes": 1808
+    },
+    {
+      "path": "backtrader/research/alpha101/alpha034.py",
+      "sha256": "CEA1054F4EB1CAC0C98BD8D3F780992A18716A93EDFEF68E6ABDB00779229321",
+      "bytes": 2955
+    },
+    {
+      "path": "backtrader/research/alpha101/alpha035.py",
+      "sha256": "95C2A6CE79661034CEE675D2055210B97C589E54DF69A72A26434FFAAA2179D1",
+      "bytes": 2845
+    },
+    {
+      "path": "backtrader/research/alpha101/alpha036.py",
+      "sha256": "93AE6EF7CF6F22EAD12010269C6CB812047C7777625D4FE8BEE4163A56B923E9",
+      "bytes": 6788
+    },
+    {
+      "path": "backtrader/research/alpha101/alpha037.py",
+      "sha256": "12037452B42AFA22720DACFE0CAF25F5A0C2BF6ABA3A887DA8CAE4B528C4C987",
+      "bytes": 2282
+    },
+    {
+      "path": "backtrader/research/alpha101/alpha038.py",
+      "sha256": "76D745C867CDF72E38914FD2CB4B75CB636BA651E32133AB94B116A586A746E7",
+      "bytes": 2274
+    },
+    {
+      "path": "backtrader/research/alpha101/alpha039.py",
+      "sha256": "B8B64D3F98D3B069BE7C207E745B222003B0549D55F6AB3131E44523FB1A51CF",
+      "bytes": 3691
+    },
+    {
+      "path": "backtrader/research/alpha101/alpha040.py",
+      "sha256": "7DBEF38E5A6119F418657024CA910D6DF5044D530AEAE5011FE47E5F8608EACF",
+      "bytes": 2307
+    },
+    {
+      "path": "backtrader/research/alpha101/alpha041.py",
+      "sha256": "E57E61C4341F31FE734FFBC26286AA102C78528B9D0D907E8756BABC24863019",
+      "bytes": 1495
+    },
+    {
+      "path": "backtrader/research/alpha101/alpha042.py",
+      "sha256": "A14288802F09C12C0AFEFD5569A05CC4C39D8A7DAD2D0E68C9FCBC8F910E097C",
+      "bytes": 1901
+    },
+    {
+      "path": "backtrader/research/alpha101/alpha043.py",
+      "sha256": "B778A8CF695861D7348A73C9278CBD30A9249C54C13AC5E8150CF143B2997664",
+      "bytes": 2036
+    },
+    {
+      "path": "backtrader/research/alpha101/alpha044.py",
+      "sha256": "6B5CDF4B237E6A68A28B9080D19B5FA42A1808BF4F196CFE24B420390BCE889D",
+      "bytes": 1632
+    },
+    {
+      "path": "backtrader/research/alpha101/alpha045.py",
+      "sha256": "BB5600E8BE8C00AFF3D50AB74DBF538759E0C1E36208811C179787F616D80027",
+      "bytes": 3287
+    },
+    {
+      "path": "backtrader/research/alpha101/alpha046.py",
+      "sha256": "AADE6047C2E383FC30769F62427A20791D3E9A6D397480D798C59D9979167A7A",
+      "bytes": 3788
+    },
+    {
+      "path": "backtrader/research/alpha101/alpha047.py",
+      "sha256": "9E70015F5A20D8867C6B3D0B8E0A92D0804F31A5E8C0D78DF52501EBCB99D20F",
+      "bytes": 3893
+    },
+    {
+      "path": "backtrader/research/alpha101/alpha048.py",
+      "sha256": "2A26226A92B3692934513AB8E20F5E09F7ED9234DCE94184218C3E9E9E521B7F",
+      "bytes": 3091
+    },
+    {
+      "path": "backtrader/research/alpha101/alpha049.py",
+      "sha256": "9D2845D361F8F8BD000F1F1A70BFE76BC0A193143DBC514606D7B899351B495E",
+      "bytes": 3172
+    },
+    {
+      "path": "backtrader/research/alpha101/alpha050.py",
+      "sha256": "E2034A67C834FAFCE9D0E0E9201089F14624BAFB4CAEF3E8999DAE7D383A63A3",
+      "bytes": 1992
+    },
+    {
+      "path": "backtrader/research/alpha101/alpha051.py",
+      "sha256": "D1EC40439A1EA52A72CCA52BC0BE2D66A92AD1059E5CB5091B5C99C57AED251B",
+      "bytes": 3176
+    },
+    {
+      "path": "backtrader/research/alpha101/alpha052.py",
+      "sha256": "4513B86D61C1D516532A79CF00E28633B7BD2E6FF97C2B72D18D436B2A55B3A9",
+      "bytes": 3250
+    },
+    {
+      "path": "backtrader/research/alpha101/alpha053.py",
+      "sha256": "B68F4C8C0193F2E0670D173FAE6E85A5E7CDD9A301D14FD4AD09EC17884A3612",
+      "bytes": 2082
+    },
+    {
+      "path": "backtrader/research/alpha101/alpha054.py",
+      "sha256": "1748E3706D9F49635FFADE79EEBECAD8844D674D246320120A6AD8AFC6DDBDD5",
+      "bytes": 2517
+    },
+    {
+      "path": "backtrader/research/alpha101/alpha055.py",
+      "sha256": "798563A66D68D8916D4AE89F02508D75C25B0FC9295797F5B1977189398D9273",
+      "bytes": 2773
+    },
+    {
+      "path": "backtrader/research/alpha101/alpha056.py",
+      "sha256": "C153D5CB5F50ACF0FAC0983342E7A3D6BF8A07B6640D16A3A574F9387FEDD929",
+      "bytes": 2529
+    },
+    {
+      "path": "backtrader/research/alpha101/alpha057.py",
+      "sha256": "219F745BC076D025BAE8F4D09D30C7D15AC58793D59649BC3FCC31EE4783FE42",
+      "bytes": 2192
+    },
+    {
+      "path": "backtrader/research/alpha101/alpha058.py",
+      "sha256": "C99AA54528D624EF822D0F0FFA39A18C82B5C5664C646710F66957DEA58D5799",
+      "bytes": 2185
+    },
+    {
+      "path": "backtrader/research/alpha101/alpha059.py",
+      "sha256": "285B93E8B12A92681F0B769722817684BC11818F8BA3456E5DC8D5911EAC137E",
+      "bytes": 3104
+    },
+    {
+      "path": "backtrader/research/alpha101/alpha060.py",
+      "sha256": "C715A395967EA4524BA35E67B969E451975BFF2B0968EE677D58DE021B461D0B",
+      "bytes": 3851
+    },
+    {
+      "path": "backtrader/research/alpha101/alpha061.py",
+      "sha256": "D56A0EE3D4DABC295D7C384362F47C74B439B58362462F116CEC9F23FF6E9221",
+      "bytes": 2198
+    },
+    {
+      "path": "backtrader/research/alpha101/alpha062.py",
+      "sha256": "C6550235D8D8C30E3C13AF998143F42412682D018E1FA187F4E843470E4FAE85",
+      "bytes": 3778
+    },
+    {
+      "path": "backtrader/research/alpha101/alpha063.py",
+      "sha256": "5E45DE6D2F09F36EF765141C89EC2BF4F6F2AE4D5B5D442676C17389CD180AA1",
+      "bytes": 3798
+    },
+    {
+      "path": "backtrader/research/alpha101/alpha064.py",
+      "sha256": "26E41965A71A0C7362EA602D08AAB77F1C63EFD6FB63C8054368BA6973F7E4A7",
+      "bytes": 3979
+    },
+    {
+      "path": "backtrader/research/alpha101/alpha065.py",
+      "sha256": "DA470F34EE51CD4C9DBCA1807E6389D8ABC49BDEC27A3D46FF2649CDF15A9F84",
+      "bytes": 3143
+    },
+    {
+      "path": "backtrader/research/alpha101/alpha066.py",
+      "sha256": "7A77062D3F6A08AF276953019B3EF04003DD4DDE3BA51CA1B5409E29125F0AFA",
+      "bytes": 3760
+    },
+    {
+      "path": "backtrader/research/alpha101/alpha067.py",
+      "sha256": "BA857BD0102FB1189E0836D37C370304997FBB1A16A91009BE82F73FB7826D79",
+      "bytes": 3126
+    },
+    {
+      "path": "backtrader/research/alpha101/alpha068.py",
+      "sha256": "A6F3380D54D5F1192E942E856FAF670E9DB36D005F5E1B9E07409BB55906B4E4",
+      "bytes": 3026
+    },
+    {
+      "path": "backtrader/research/alpha101/alpha069.py",
+      "sha256": "688549F59555EFB0DCA713A0FE3B54CBFA299B7B01EB3BAE3A68B7AD39FA1DE5",
+      "bytes": 3343
+    },
+    {
+      "path": "backtrader/research/alpha101/alpha070.py",
+      "sha256": "5598125CB79D022F8ABAA745788C5AB5F2EB0F83B90ECB7772FFDC137DD189F7",
+      "bytes": 2549
+    },
+    {
+      "path": "backtrader/research/alpha101/alpha071.py",
+      "sha256": "A04BE4C6A94D7CA14B420DA39EF179A58EC3FA7AF440072FD60BC5C4883CDE40",
+      "bytes": 3454
+    },
+    {
+      "path": "backtrader/research/alpha101/alpha072.py",
+      "sha256": "ABA493525502D416B6CE18A313BE0FE6B78EA725B0DF2ABF9AF0FFE5E41AA9F6",
+      "bytes": 3187
+    },
+    {
+      "path": "backtrader/research/alpha101/alpha073.py",
+      "sha256": "43BA2377DB9DD0ADCC069E26516AAC7CD08256F4B79C4C8173EFC2EB5824D59F",
+      "bytes": 3480
+    },
+    {
+      "path": "backtrader/research/alpha101/alpha074.py",
+      "sha256": "4886BA4BE6A05E86320F61EEA1D4FFB8E01348314BEAE2307D29C0EA9B5F2F57",
+      "bytes": 3531
+    },
+    {
+      "path": "backtrader/research/alpha101/alpha075.py",
+      "sha256": "7F4CC67188F7D7D69FB3AB447220770F0FBF85F8DAAC501593B67D9921C23EE4",
+      "bytes": 2343
+    },
+    {
+      "path": "backtrader/research/alpha101/alpha076.py",
+      "sha256": "2208296DE52D69F7776904A193EE797DC3C2AC2CF85AF29D776AADF2115152B8",
+      "bytes": 3211
+    },
+    {
+      "path": "backtrader/research/alpha101/alpha077.py",
+      "sha256": "717C043E0939D057933056257914B2640DD44AE9CBA72D5BE27D49BA827DBA72",
+      "bytes": 3032
+    },
+    {
+      "path": "backtrader/research/alpha101/alpha078.py",
+      "sha256": "FE25DD45458CD0CB06B396680BB9A91935529A27AD7423BA68A7CFD326D90019",
+      "bytes": 3345
+    },
+    {
+      "path": "backtrader/research/alpha101/alpha079.py",
+      "sha256": "3C5D1CBD9FD79577700F46D94CB8FCFDEC8D7C289C7CDBFC07C3EC68149BB732",
+      "bytes": 3344
+    },
+    {
+      "path": "backtrader/research/alpha101/alpha080.py",
+      "sha256": "6630CF96CCC99B89789F5977594F72D2FC4F45EFEFF20E81D9C602D123C5F428",
+      "bytes": 3237
+    },
+    {
+      "path": "backtrader/research/alpha101/alpha081.py",
+      "sha256": "3777F0187D979A12DA732C8188246DDE5A149E2B5F1150EE68D00E0CF935DA8D",
+      "bytes": 3490
+    },
+    {
+      "path": "backtrader/research/alpha101/alpha082.py",
+      "sha256": "5878C6D57BA8DE3BD04F90BC8C7DF57175368C7E3041AB596C3C4B972356B3A4",
+      "bytes": 3772
+    },
+    {
+      "path": "backtrader/research/alpha101/alpha083.py",
+      "sha256": "58A946A3A643B45CC0933EE192A0B2422F3602118317C16DD5038F6CBE0AE1FA",
+      "bytes": 3321
+    },
+    {
+      "path": "backtrader/research/alpha101/alpha084.py",
+      "sha256": "3B64C680D3C091BA378EA29BCB73E60367770736AAEAD1A04CAAAC19550E73EE",
+      "bytes": 1761
+    },
+    {
+      "path": "backtrader/research/alpha101/alpha085.py",
+      "sha256": "D81CC92A3CA2F8E1093590010D29451BAB72811150518D31536D48AEE94BBC9C",
+      "bytes": 4009
+    },
+    {
+      "path": "backtrader/research/alpha101/alpha086.py",
+      "sha256": "7FA4C6032D652029761CB9244569A3D41E6C2373A84048B00BEEBF0F56B3EFEC",
+      "bytes": 3036
+    },
+    {
+      "path": "backtrader/research/alpha101/alpha087.py",
+      "sha256": "946679003FA9AF4249781CCC6887E81629ADB3CFF798E409DA34552452FEBCAF",
+      "bytes": 4312
+    },
+    {
+      "path": "backtrader/research/alpha101/alpha088.py",
+      "sha256": "82966993B956EABDFF2A310DEC8E2EA70EC3FDDEB989FD446C59EC219BBD7264",
+      "bytes": 3949
+    },
+    {
+      "path": "backtrader/research/alpha101/alpha089.py",
+      "sha256": "E03A28DC8C016E40F8795ED8D5D747E31EC565906AF8E01FB6A2B5D9E01E5BEB",
+      "bytes": 3925
+    },
+    {
+      "path": "backtrader/research/alpha101/alpha090.py",
+      "sha256": "AF338B69FBD8EF9BD26F06CE9F9A5D2CBCD5833FA0E5694AA67F7020E4CF4534",
+      "bytes": 2953
+    },
+    {
+      "path": "backtrader/research/alpha101/alpha091.py",
+      "sha256": "CB71C8429E86F211CAFB76287462F65DC5F94396434B46C697EF5C2B465B6DC9",
+      "bytes": 3742
+    },
+    {
+      "path": "backtrader/research/alpha101/alpha092.py",
+      "sha256": "62164BA6F0A45C9AAFF2FE7AC92C6B9ACB5A9F00548D791652DF31743EE46C3A",
+      "bytes": 3523
+    },
+    {
+      "path": "backtrader/research/alpha101/alpha093.py",
+      "sha256": "45DFA85821EC97E762564C2C5E3E40EB6B853C17C12B3B391973104F67B16C7C",
+      "bytes": 3811
+    },
+    {
+      "path": "backtrader/research/alpha101/alpha094.py",
+      "sha256": "D081930249A5208A7AC7C73A6EB09DC933827354F2B73ABB4DEB8AD1866779A7",
+      "bytes": 2876
+    },
+    {
+      "path": "backtrader/research/alpha101/alpha095.py",
+      "sha256": "908898D6D578DAFFE32168BE67F58A2B797F47E4B876E32F85AFB6DBC62C4E3D",
+      "bytes": 3570
+    },
+    {
+      "path": "backtrader/research/alpha101/alpha096.py",
+      "sha256": "EAE93AEF785F7CA222DF336A06399205DA77BE957EC05259ABFCAA719F5D62FF",
+      "bytes": 3477
+    },
+    {
+      "path": "backtrader/research/alpha101/alpha097.py",
+      "sha256": "E4B39EBECAC409C9756EF0C64332344D3D73250E341BAB3206F7232CCA686494",
+      "bytes": 4726
+    },
+    {
+      "path": "backtrader/research/alpha101/alpha098.py",
+      "sha256": "299FCB2B0646B77E574AA80336DF794013A544E8726779992D877FEA0F842D20",
+      "bytes": 3622
+    },
+    {
+      "path": "backtrader/research/alpha101/alpha099.py",
+      "sha256": "91282A1D8950CB38F4C12228C531822737FE4E2E160A963B2287DC1E6553F82E",
+      "bytes": 3438
+    },
+    {
+      "path": "backtrader/research/alpha101/alpha100.py",
+      "sha256": "8F13B84B446783D2058422086FF486C8C620437F9FE0983ACE641591D12747F4",
+      "bytes": 6044
+    },
+    {
+      "path": "backtrader/research/alpha101/alpha101.py",
+      "sha256": "F253EF89D6575C90E9711ADEF6D2342A6980999BF79CE37045BAF41A88E8C2E5",
+      "bytes": 1705
+    },
+    {
+      "path": "backtrader/research/factor_indicator.py",
+      "sha256": "2FB3D2F5404691BA876983965ADB78ECCA7D87BD718819A44710716F13DE275E",
+      "bytes": 52750
+    },
+    {
+      "path": "backtrader/research/factor_strategy.py",
+      "sha256": "1B5237D7CE1DC698FBA509187D17B88BD75B806473775E4C867C449F9806FD86",
+      "bytes": 24245
+    },
+    {
+      "path": "backtrader/research/live_cohort.py",
+      "sha256": "B71B24D60C34DE20767C6B23BFEB724E48880A659086E416EB28CECC7F5AEE96",
+      "bytes": 116549
+    },
+    {
+      "path": "backtrader/research/live.py",
+      "sha256": "778654019646EE87884547202A4177BDE5DE17F24D6BE4E19A18A2133223529A",
+      "bytes": 69373
+    },
+    {
+      "path": "backtrader/research/operators.py",
+      "sha256": "FBF6D142F40564ADE20A0A4F160FFFDE6876C343D9943F4E74671DBAC70DFB42",
+      "bytes": 101673
+    },
+    {
+      "path": "backtrader/research/specs.py",
+      "sha256": "0B14CE92D0D747C38951A993D4D9DD526C37CEF4476CC78A9279B849402C5208",
+      "bytes": 36627
+    },
+    {
+      "path": "backtrader/research/strict.py",
+      "sha256": "BB360654B9E1FAE8EB240CDCD1DC97F375050CC16360E3A5B4F145D4F406BF22",
+      "bytes": 13252
+    },
+    {
+      "path": "backtrader/strategy.py",
+      "sha256": "B24DD6F4D401760A0A64D15934A01C36CA6BB3636C205EB42273C87A31E44D76",
+      "bytes": 199696
+    },
+    {
+      "path": "tests/fixtures/research/alpha101_dependencies.json",
+      "sha256": "1C9EDD6834CF6D8BF0FDF00512DF20B2BE79BE88CBEEF7F7EEE1694CB413ADBC",
+      "bytes": 630316
+    },
+    {
+      "path": "tests/integration/test_live_alpha101_stream_scenarios.py",
+      "sha256": "59E64EE25508A408469EB8B5C56F37A1998E9869F3008C73B3A275D6EC217015",
+      "bytes": 86938
+    },
+    {
+      "path": "tests/test_utils/alpha101_full_reference.py",
+      "sha256": "1D449D115D948A57CFDEC0DD62E1574D65A4F7D3945D011A73748D0B56512B7A",
+      "bytes": 44198
+    },
+    {
+      "path": "tests/test_utils/alpha101_live_cohort_harness.py",
+      "sha256": "E25A79D5E033C86406B82EAE783621FDABFD1CF2AF9368C33FDA18E2D6A02C6E",
+      "bytes": 34856
+    },
+    {
+      "path": "tests/test_utils/alpha101_native_harness.py",
+      "sha256": "BFCE8A9C61AC50107055721C14436939264A3C146AAA97D8E5EE178FA63EEECA",
+      "bytes": 30989
+    },
+    {
+      "path": "tests/test_utils/alpha101_trace_validation.py",
+      "sha256": "5CDDAD0B9BD02DE3F5E1B70B3C6C730724833341D1FB66A0F1406BDF0A0037B2",
+      "bytes": 60036
+    }
+  ]
+}

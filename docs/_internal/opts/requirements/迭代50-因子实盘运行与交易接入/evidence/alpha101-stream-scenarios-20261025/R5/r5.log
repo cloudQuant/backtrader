@@ -1,0 +1,99 @@
+============================= test session starts =============================
+platform win32 -- Python 3.11.5, pytest-8.0.0, pluggy-1.5.0 -- C:\anaconda3\python.exe
+cachedir: .pytest_cache
+backtrader: D:\source_code\backtrader\backtrader\__init__.py
+rootdir: D:\source_code\backtrader
+configfile: pytest.ini
+collecting ... collected 4 items
+
+tests/integration/test_live_alpha101_stream_scenarios.py::test_full_alpha101_future_fields_benchmark_and_member_order_keep_sealed_prefix[build] PASSED
+tests/integration/test_live_alpha101_stream_scenarios.py::test_full_alpha101_future_fields_benchmark_and_member_order_keep_sealed_prefix[native] PASSED
+tests/integration/test_live_alpha101_stream_scenarios.py::test_full_alpha101_finite_qualified_history_rebuild_matches_cold_live_suffix[build] PASSED
+tests/integration/test_live_alpha101_stream_scenarios.py::test_full_alpha101_finite_qualified_history_rebuild_matches_cold_live_suffix[native] FAILED
+
+================================== FAILURES ===================================
+_ test_full_alpha101_finite_qualified_history_rebuild_matches_cold_live_suffix[native] _
+
+factor_mode = 'native'
+
+    @pytest.mark.integration
+    @pytest.mark.slow
+    @pytest.mark.parametrize("factor_mode", ("native", "build"))
+    def test_full_alpha101_finite_qualified_history_rebuild_matches_cold_live_suffix(factor_mode):
+        """Finite prewarm length comes from independent AST plus executed graph span proof."""
+    
+        full_frames = positive_target_frames(_REBUILD_ROWS)
+        targets = tuple(full_frames)
+        checked = set()
+        suffix_rows = _REBUILD_SUFFIX_ROWS
+    
+        for _batch_name, alpha_ids in _full_alpha_partitions():
+            continuous, continuous_cohort, _clock, continuous_grid = _run_live(
+                full_frames,
+                alpha_ids,
+                factor_mode=factor_mode,
+                run_label="rebuild-continuous",
+            )
+            _assert_contiguous_complete_grid(continuous, continuous_cohort, continuous_grid)
+            _continuous_traces, continuous_reports = _trace_for(
+                continuous,
+                full_frames,
+                alpha_ids,
+                continuous_grid,
+                panel_contract="live_snapshot",
+            )
+>           required_by_id = _span_proof(continuous, alpha_ids, full_frames)
+
+tests\integration\test_live_alpha101_stream_scenarios.py:1522: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+strategy = <tests.integration.test_live_alpha101_stream_scenarios._ScenarioCapture object at 0x0000020E619AFDD0>
+alpha_ids = (1, 2, 3, 4, 7, 9, ...)
+frames = {'asset-0':                                open      high  ...  industry  subindustry
+2024-01-01 00:00:00+00:00  2.170...0          2.0
+2024-11-15 00:00:00+00:00  2.660684  2.990159  ...       1.0          2.0
+
+[320 rows x 12 columns], ...}
+
+    def _span_proof(strategy: _ScenarioCapture, alpha_ids: Sequence[int], frames) -> Dict[int, int]:
+        """Bind each independent AST span to the executed operator graph's minperiod."""
+    
+        required = {}
+        for alpha_id in alpha_ids:
+            factor_name = "alpha%d" % alpha_id
+            spec = strategy.p.plan.factors[factor_name]
+            instance = strategy.live_factor_set.factor_instances[factor_name]["default"]
+            independent_span = history_h(alpha_id, frames)
+            if spec.lookback_h != independent_span:
+                raise AssertionError(
+                    "Alpha%d FactorSpec H=%d differs from independent AST span=%d"
+                    % (alpha_id, spec.lookback_h, independent_span)
+                )
+    
+            runtime_periods = [int(instance._minperiod)]
+            nodes = tuple(getattr(instance, "_nodes", {}).values())
+            if not nodes:
+                raise AssertionError(
+                    "Alpha%d runtime graph contains no proven operator nodes" % alpha_id
+                )
+            for node in nodes:
+                minimum = getattr(node, "_minperiod", None)
+                if minimum is None or int(minimum) < 1:
+>                   raise AssertionError(
+                        "Alpha%d graph node has no finite runtime minperiod" % alpha_id
+                    )
+E                   AssertionError: Alpha3 graph node has no finite runtime minperiod
+
+tests\integration\test_live_alpha101_stream_scenarios.py:1433: AssertionError
+============================== warnings summary ===============================
+C:\anaconda3\Lib\site-packages\_pytest\config\__init__.py:1394
+  C:\anaconda3\Lib\site-packages\_pytest\config\__init__.py:1394: PytestConfigWarning: Unknown config option: asyncio_default_fixture_loop_scope
+  
+    self._warn_or_fail_if_strict(f"Unknown config option: {key}\n")
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: D:\source_code\backtrader\.codex-tmp\ac50_full101_stream_scenarios_r5_20261025.xml -
+=========================== short test summary info ===========================
+FAILED tests/integration/test_live_alpha101_stream_scenarios.py::test_full_alpha101_finite_qualified_history_rebuild_matches_cold_live_suffix[native]
+!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!
+============= 1 failed, 3 passed, 1 warning in 838.67s (0:13:58) ==============

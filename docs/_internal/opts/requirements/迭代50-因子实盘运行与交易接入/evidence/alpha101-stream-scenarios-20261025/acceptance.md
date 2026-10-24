@@ -1,0 +1,27 @@
+# Alpha101 streamed scenarios: R4–R6 acceptance record
+
+This packet preserves the original R4 and R5 attempts and the final R6 native rebuild receipt. The three scenario functions were exercised in both `native` and `build` mode. Each function checks the complete 101-factor registry through the existing six partitions; no factor-ID, batch, or length selectors were set.
+
+| Acceptance slice | Build | Native | Evidence |
+| --- | --- | --- | --- |
+| AC50-09b-101: explicit planned gap, blocked cohort eligibility, independent-oracle recovery | PASS (R4) | PASS (R4) | [R4 XML](R4/r4.xml), [R4 log](R4/r4.log) |
+| AC50-17b: future-field and benchmark perturbation, delayed availability, reversed member order, sealed-prefix equality | PASS (R5) | PASS (R5) | [R5 XML](R5/r5.xml), [R5 log](R5/r5.log) |
+| AC50-18b full101 finite-history span/rebuild and cold-live suffix | PASS (R5) | PASS (R6) | [R5 XML](R5/r5.xml), [R6 XML](R6/r6.xml), [R6 log](R6/r6.log); recursive-history focus below |
+
+R4 ran 2026-10-24 17:20:01.0926983–17:45:50.3899749 UTC, taking 1,549.285 seconds and exiting 1. Its gap cases passed. The future-field build case stopped on an `AttributeError` in the test helper: it read `LiveDeliveryReceipt.bar_id` instead of `LiveDeliveryReceipt.envelope.bar_id`. The R4 start/end receipt records show 151 of 152 dependency pins unchanged; the sole difference was `backtrader/stores/btapistore.py`. The concurrent Store change was outside the exercised direct-bar factor path; R4 is retained as a diagnostic attempt, not represented as a clean whole-source pin match.
+
+R5 ran 2026-10-24 17:53:10.4558551–18:07:11.1651489 UTC, taking 840.709 seconds and exiting 1. Both future-field cases and the build rebuild case passed. The native rebuild stopped because the old test walker treated Alpha003's `_LogicalOperatorView` diagnostic wrappers as executed graph nodes even though those wrappers have no minperiod. R5's 152 selected dependency pins matched from start to end. The R4/R5 failed attempts are preserved unmodified; their corrected cases were subsequently run and passed.
+
+The test-only correction committed as `dbfbc0b01149b2593be36da04cd3a1f3bed52bd3` makes `_span_proof` resolve each logical view to its physical panel, deduplicate nodes by identity, and continue checking finite runtime minperiods against the independent AST span plus one. It does not skip physical nodes or relax the span assertion, and it changes no production formula or runtime code. The scenario test pin used by R6 is `59E64EE25508A408469EB8B5C56F37A1998E9869F3008C73B3A275D6EC217015`; the cohort pin is `B71B24D60C34DE20767C6B23BFEB724E48880A659086E416EB28CECC7F5AEE96`.
+
+R6 ran 2026-10-24 18:22:07.4756771–18:27:12.2216745 UTC, taking 303.73 seconds and exiting 0: one test passed, with one existing `PytestConfigWarning` for the unknown `asyncio_default_fixture_loop_scope` option. The selected native rebuild test internally verified all 101 formula IDs. Its 130 selected source pins matched exactly between start and end. The exact command was:
+
+```text
+python -u -m pytest -s -vv --tb=long -p no:asyncio --junitxml=.codex-tmp/ac50_full101_rebuild_native_r6_20261025.xml tests/integration/test_live_alpha101_stream_scenarios.py::test_full_alpha101_finite_qualified_history_rebuild_matches_cold_live_suffix[native]
+```
+
+The three start/end records and the original console/JUnit outputs are included under [R4](R4/), [R5](R5/), and [R6](R6/). Their copied XML/log hashes are respectively R4 `C5A17D39E72A77AC76D909BB012E53A670170778CB917AF37F09BEA5C34ED71D` / `BDEB6FEDB950EA58174EAE6F485997CC3F4C91014718A53A0AC9D1BBBC3F8362`; R5 `7F650A92FB9C5010FBABA5DDA01A49108C08F1B664D7454E240750EEDC58C9AF` / `10C0C7BB2C49E4373819E6B1A0950C309C56108D8C026F0AF7FC925C5BF4FAA3`; R6 `D512FD9B8D598C9B70264D40C424FAF1294D7AABA15E06995BEACE02CAE8179A` / `33A88CD24790E916B8FF4ADE0540A523049EFDDB5D733744816AFF4306569C9E`.
+
+The recursive custom-history clause already has a prior focused result: [recursive-history-focus.xml](recursive-history-focus.xml) records four tests, zero failures/errors/skips. It covers recursive genesis versus truncated-H0 history, unknown-history readiness, the finite custom-history contract/span, and role-scoped history-to-live sequence reset. The same four cases also passed in the prior 86-test `iteration50_history_final_focus_20261024.xml`. Those results were found during inventory and were not rerun. They belong to the history-contract round already accepted in commit `d57a1186a20526ce1f23a8ed194c30f16806cc73`; the development round record documents 86 focused plus 19 affected tests and Root verification of nine source pins. This is inherited acceptance, not a new R6 test run. The focused XML does not include a start/end source-pin ledger; it is preserved as the prior local test result, without a claim that its full runtime source set was re-pinned for R6. The `_span_proof` and receipt-prefix helper corrections described above are not called by these four recursive cases.
+
+Together, the prior recursive-history results and R5/R6 full101 runs provide passing local-composition evidence for the AC50-18b span/rebuild and recursive-history clauses. These tests use local synthetic source events and ordinary Cerebro/BtApiFeed/cohort composition. They do not establish provider/account behavior, Broker invalid-price handling, downstream factor evaluation, installation, or long-stream performance. AC50-15b and AC50-16b are prior accepted evidence and were not rerun here.
