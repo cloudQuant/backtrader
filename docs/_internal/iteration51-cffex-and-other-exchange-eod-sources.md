@@ -106,3 +106,27 @@ official response and schema validation before source adapters can be claimed.
 No exchange candidate list is complete merely because a report fetch
 succeeded; the caller must join exact source IDs to the actual current CTP
 catalog and record missing, duplicate, and ambiguous IDs per product.
+
+## Follow-up public access check and composite coverage adapter (2026-10-24)
+
+The official-source check used search-indexed exchange pages and a normal
+browser tab as alternate public surfaces; it did not repeat the same raw GET
+loops or bypass a site challenge/certificate error. It found no additional
+dated report bytes:
+
+| Exchange | Official public source checked | Follow-up result |
+| --- | --- | --- |
+| DCE | [Daily quote query](http://www.dce.com.cn/publicweb/quotesdata/dayQuotesCh.html) and [multicast market-data specification](https://www.dce.com.cn/dalianshangpin/ywfw/ywzy/jsfwzy/jszl/jkgfjwd/6284851/2022041909582038762.pdf) | The prior bounded public request returned HTTP 412 with a cookie and no quote body; HTTPS timed out. The official specification describes an end-of-day data-service notification on multicast, but that is not an observed public daily-file response or proof of a configured local entitlement. |
+| CZCE | [Official futures trading management rules](https://www.czce.com.cn/cn/content_file/flfg/zcjywgz/ywbf/2026/5/a5ad00e02e484498abdbac8ddbfd5c35.pdf) and candidate dated [FutureDataDaily.txt](https://www.czce.com.cn/cn/DFSStaticFiles/Future/2026/20261023/FutureDataDaily.txt) | The current rules state that daily futures information includes contract name, delivery month, volume, open interest, and related quote fields, published after close. The previously observed HTTP route redirects to HTTPS; the bounded HTTPS fetch timed out. Neither the field schema nor current sample bytes were observed. |
+| GFEX | [Official site map](https://www.gfex.com.cn/en/WebsiteMap/WebsiteMap.shtml), [daily quote page](http://www.gfex.com.cn/gfex/rihq/hqsj_tjsj.shtml), and [trading rules](https://www.gfex.com.cn/gfex/llbb/202402/e91439278d3a44b4aefe7ca126167e1a/files/%E5%B9%BF%E5%B7%9E%E6%9C%9F%E8%B4%A7%E4%BA%A4%E6%98%93%E6%89%80%E4%BA%A4%E6%98%93%E8%A7%84%E5%88%99%EF%BC%882022%E5%B9%B44%E6%9C%8829%E6%97%A5%E7%89%88%EF%BC%89.pdf) | The official site map lists Daily Market Data and Daily Volume & Position Ranking; the rules describe published contract/month, volume, and open interest facts. The prior page/API request returned a JavaScript bot challenge; the normal browser rejected the site certificate hostname and the web fetch timed out. No challenge was solved or certificate warning bypassed, so the request format and response schema remain unknown. |
+
+`backtrader.feeds.futures_ranking_sources` provides a typed composite-input
+builder for the accepted SHFE/INE and CFFEX adapters and future exchange
+adapters. The caller must provide the complete product set and CTP catalog
+snapshot; a missing DCE, CZCE, or GFEX source produces explicit per-product
+coverage blockers. The composite digest binds constituent report identities,
+raw-report digests, timestamps, units, status facts, and normalized joined
+rows. Its availability is no earlier than the latest constituent observed
+availability. It is a manifest digest, not a raw exchange body or evidence
+that any missing exchange is covered. No current all-market-ready snapshot is
+claimed.
