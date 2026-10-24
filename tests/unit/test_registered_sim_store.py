@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import collections
 import os
 import subprocess
 import sys
@@ -94,6 +95,8 @@ class FakeSdkTrader:
             "trading_day": self._trading_day,
             "trading_ready": self.is_ready,
             "read_only_ready": self.is_ready,
+            "front_id": 4,
+            "session_id": 7,
         }
 
     def get_execution_gate_state(self):
@@ -151,6 +154,23 @@ class FakeCtpBase:
         self._execution_instrument_exchanges = {}
         self._pending_orders = {}
         self._next_fake_request_id = 100
+        # The production generated CTP wrapper owns this deque and its Store
+        # poller drains it. Recovery events must use this same normal path.
+        self._order_updates = collections.deque()
+        self._live_bar_event_notifier = None
+
+    def set_live_bar_event_notifier(self, callback):
+        self._live_bar_event_notifier = callback
+
+    def _notify_live_bar_event(self):
+        notifier = self._live_bar_event_notifier
+        if notifier is not None:
+            notifier()
+
+    def poll_broker_update(self):
+        if not self._order_updates:
+            return None
+        return self._order_updates.popleft()
 
     def _next_request_id(self):
         self._next_fake_request_id += 1
@@ -167,6 +187,8 @@ class FakeCtpBase:
             ExchangeID=exchange,
             OrderRef=order_ref,
             RequestID=request_id,
+            FrontID=self.trader_client.get_session_state()["front_id"],
+            SessionID=self.trader_client.get_session_state()["session_id"],
         )
         result = self._send_native_order_insert(field, request_id)
         assert result == 0
@@ -251,6 +273,16 @@ def _field(instrument, exchange, order_ref="order-1", request_id=1):
         OrderRef=order_ref,
         RequestID=request_id,
     )
+
+
+def _expected_session():
+    return {
+        "account_fingerprint": "fake-account-1",
+        "connection_generation": 1,
+        "trading_day": "20261024",
+        "front_id": 4,
+        "session_id": 7,
+    }
 
 
 def test_import_and_store_construction_do_not_import_a_provider():
@@ -559,14 +591,16 @@ def test_multileg_insert_cancel_switch_is_atomic_across_threads():
 
     def first_insert():
         try:
-            wrapper._send_native_order_insert(_field("rb2510", "SHFE", "insert-rb", 11), 11)
+            with wrapper.registered_sim_expected_session_scope(_expected_session()):
+                wrapper._send_native_order_insert(_field("rb2510", "SHFE", "insert-rb", 11), 11)
         except Exception as exc:  # surfaced below as test evidence
             first_errors.append(exc)
 
     def second_cancel():
         second_started.set()
         try:
-            wrapper._send_native_order_action(_field("i2509", "DCE", "cancel-i", 12), 12)
+            with wrapper.registered_sim_expected_session_scope(_expected_session()):
+                wrapper._send_native_order_action(_field("i2509", "DCE", "cancel-i", 12), 12)
         except Exception as exc:  # surfaced below as test evidence
             second_errors.append(exc)
 
@@ -617,7 +651,8 @@ def test_disarm_waits_for_native_dispatch_and_closes_capability_afterward():
 
     def insert():
         try:
-            wrapper._send_native_order_insert(_field("rb2510", "SHFE", "insert-rb", 31), 31)
+            with wrapper.registered_sim_expected_session_scope(_expected_session()):
+                wrapper._send_native_order_insert(_field("rb2510", "SHFE", "insert-rb", 31), 31)
         except Exception as exc:
             errors.append(exc)
 
@@ -652,7 +687,9 @@ def test_ambiguous_native_insert_freezes_and_unknown_survives_callback_and_cache
     wrapper = _wrapper(terminal_limit=2)
     wrapper.trader_client.fail_next_insert = True
 
-    with pytest.raises(RegisteredSimExecutionUnknown):
+    with wrapper.registered_sim_expected_session_scope(_expected_session()), pytest.raises(
+        RegisteredSimExecutionUnknown
+    ):
         wrapper._send_native_order_insert(_field("rb2510", "SHFE", "unknown-1", 21), 21)
 
     assert wrapper._registered_sim_frozen is True
@@ -791,6 +828,133 @@ def test_unknown_store_dispatch_freezes_and_cannot_be_retried():
     with pytest.raises(BtApiStoreError, match="frozen"):
         store.submit_order(order)
     assert len(api.trader_client.native_calls) == 1
+
+
+def test_unknown_retirement_append_failure_keeps_latch_and_exact_retry_queues_once():
+    class FailOnceDeque(collections.deque):
+        def __init__(self):
+            super().__init__()
+            self.attempts = 0
+
+        def append(self, item):
+            self.attempts += 1
+            if self.attempts == 1:
+                raise OSError("synthetic queue append failure")
+            return super().append(item)
+
+    api = FakeRegisteredSimWrapper(registered_sim_allow_writes=True)
+    api.trader_client.fail_next_insert = True
+    api._order_updates = FailOnceDeque()
+    store = RegisteredSimStore(api=api, allow_writes=True)
+    store._connected = True
+    store.registered_sim_arm(
+        instrument="rb2510",
+        exchange="SHFE",
+        md_front="tcp://127.0.0.1:1",
+        strategy_identity_sha256=_sha("a"),
+        execution_cycle_id="cycle-rb",
+        preflight_sha256=_sha("b"),
+    )
+    order = SimpleNamespace(
+        exectype=OrderBase.Limit,
+        price=12.5,
+        pricelimit=None,
+        created=SimpleNamespace(price=12.5),
+        data=SimpleNamespace(_name="rb2510"),
+        info={"instrument_id": "rb2510", "exchange_id": "SHFE"},
+        ref=23,
+        isbuy=lambda: True,
+        size=2,
+        valid=None,
+        tradeid=0,
+    )
+
+    with pytest.raises(RegisteredSimExecutionUnknown) as caught:
+        store.submit_order(order)
+    assert caught.value.evidence.front_id == 4
+    assert caught.value.evidence.session_id == 7
+    assert len(api.trader_client.native_calls) == 1
+    assert api.trader_client.active_capability is None
+    assert api._registered_sim_frozen is True
+    assert api.registered_sim_execution_facts()["unknown_ids"] == ["native-23"]
+    assert store.registered_sim_status()["frozen"] is True
+
+    original_identity = {
+        "operation": "insert",
+        "backtrader_order_ref": 23,
+        "order_ref": "native-23",
+        "instrument_id": "rb2510",
+        "exchange_id": "SHFE",
+        "account_fingerprint": "fake-account-1",
+        "connection_generation": 1,
+        "trading_day": "20261024",
+        "front_id": 4,
+        "session_id": 7,
+    }
+    terminal_event = {
+        "kind": "order",
+        "bt_order_ref": 23,
+        "order_ref": "native-23",
+        "instrument": "rb2510",
+        "exchange_id": "SHFE",
+        "front_id": 4,
+        "session_id": 7,
+        "status": "canceled",
+        "terminal_confirmed": True,
+        "execution_unknown": False,
+        "filled": 0,
+        "size": 2,
+        "remaining": 2,
+        "details": {
+            "OrderRef": "native-23",
+            "InstrumentID": "rb2510",
+            "ExchangeID": "SHFE",
+            "FrontID": 4,
+            "SessionID": 7,
+            "OrderStatus": "5",
+            "VolumeTotalOriginal": 2,
+            "VolumeTraded": 0,
+            "VolumeTotal": 2,
+        },
+    }
+    retirement = {
+        "intent_id": "intent-23",
+        "reconciliation_id": "reconciliation-23",
+        "original_identity": original_identity,
+        "expected_session": _expected_session(),
+        "terminal_event": terminal_event,
+    }
+
+    with pytest.raises(BtApiStoreError, match="update enqueue failed"):
+        store.registered_sim_retire_unknown(**retirement)
+
+    assert api._order_updates.attempts == 1
+    assert len(api._order_updates) == 0
+    assert api._registered_sim_frozen is True
+    assert api.registered_sim_execution_facts()["unknown_ids"] == ["native-23"]
+    assert store.registered_sim_status()["frozen"] is True
+    assert api.trader_client.active_capability is None
+    assert api.trader_client.get_execution_gate_state()["armed"] is False
+    assert len(api.trader_client.native_calls) == 1
+
+    queued = store.registered_sim_retire_unknown(**retirement)
+    assert queued.status == "QUEUED"
+    assert queued.disarmed is True
+    assert api._order_updates.attempts == 2
+    assert len(api._order_updates) == 1
+    assert api._registered_sim_frozen is False
+    assert api.registered_sim_execution_facts()["unknown_ids"] == []
+    assert store.registered_sim_status()["frozen"] is False
+    assert len(api.trader_client.native_calls) == 1
+
+    duplicate = store.registered_sim_retire_unknown(**retirement)
+    assert duplicate.status == "ALREADY_ABSENT"
+    assert len(api._order_updates) == 1
+    assert api._order_updates.attempts == 2
+    assert store.poll_broker_update() == terminal_event
+    assert store.poll_broker_update() is None
+    assert store.registered_sim_retire_unknown(**retirement).status == "ALREADY_ABSENT"
+    assert len(api._order_updates) == 0
 
 
 def _complete_query_result(api, request_type, *, request_id, records=(), filters=()):

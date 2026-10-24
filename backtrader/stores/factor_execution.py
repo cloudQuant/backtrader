@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import contextvars
 import hashlib
+import json
 import re
 from collections.abc import Mapping
 from dataclasses import dataclass
@@ -209,8 +210,10 @@ def execution_order_snapshot(broker: Any) -> Tuple[ExecutionOrderSnapshot, ...]:
                     ),
                     external_order_ref=remote_order_ref,
                     order_sys_id=order_sys_id,
-                    front_id=_positive_int(get("front_id")),
-                    session_id=_positive_int(get("session_id")),
+                    front_id=_positive_int(get("front_id"))
+                    or _positive_int(get("factor_session_front_id")),
+                    session_id=_positive_int(get("session_id"))
+                    or _positive_int(get("factor_session_id")),
                 )
             )
         except (AttributeError, TypeError, ValueError, InvalidOperation) as error:
@@ -337,7 +340,12 @@ class FactorExecutionCoordinator:
         )
 
     def reconcile_terminal_order_observations(
-        self, facts: Any, *, limit: int = 128, offset: int = 0
+        self,
+        facts: Any,
+        *,
+        refresh_receipt: Any = None,
+        limit: int = 128,
+        offset: int = 0,
     ) -> ExecutionTerminalReconciliationPage:
         """Persist complete orders-query terminal evidence and release order locks.
 
@@ -359,6 +367,7 @@ class FactorExecutionCoordinator:
                 facts,
                 observation,
                 trade_blocker=trade_blockers.get((observation.instrument, observation.exchange)),
+                refresh_receipt=refresh_receipt,
             )
             for observation in selected
         )
@@ -517,7 +526,12 @@ class FactorExecutionCoordinator:
         return rows
 
     def _reconcile_one_terminal_order(
-        self, facts: Any, observation: Any, *, trade_blocker: Optional[str] = None
+        self,
+        facts: Any,
+        observation: Any,
+        *,
+        trade_blocker: Optional[str] = None,
+        refresh_receipt: Any = None,
     ) -> ExecutionTerminalReconciliationItem:
         try:
             intent = self.journal.intent_by_native_order_ref(
@@ -562,6 +576,10 @@ class FactorExecutionCoordinator:
                 status="BLOCKED",
                 intent_id=intent.intent_id,
                 blocker_code=trade_blocker,
+            )
+        if intent.dispatch_state == "UNKNOWN":
+            return self._reconcile_unknown_no_fill_terminal(
+                facts, observation, intent, refresh_receipt=refresh_receipt
             )
         # A provider order can remain visible as terminal in many later full
         # account snapshots.  Its first terminal reconciliation is immutable,
@@ -796,6 +814,578 @@ class FactorExecutionCoordinator:
             intent_id=intent.intent_id,
             reconciliation_id=reconciliation_id,
         )
+
+    def _reconcile_unknown_no_fill_terminal(
+        self, facts: Any, observation: Any, intent: ExecutionIntentRecord, *, refresh_receipt: Any
+    ) -> ExecutionTerminalReconciliationItem:
+        """Resolve one UNKNOWN insert from a complete current no-fill snapshot.
+
+        The dispatch generation is retained as historical identity. Current
+        query/session generation may change after a real reconnect, but the
+        exact original account, trading day, route, OrderRef, FrontID and
+        SessionID must still join the terminal CTP row.
+        """
+        try:
+            expected_session, query_set = self._validate_unknown_recovery_snapshot(
+                facts, refresh_receipt, observation
+            )
+        except FactorExecutionError as error:
+            return ExecutionTerminalReconciliationItem(
+                observation_id=observation.observation_id,
+                status="BLOCKED",
+                intent_id=intent.intent_id,
+                blocker_code=error.code,
+            )
+
+        identity = intent.original_identity
+        dispatch = intent.provider_identity
+        if (
+            intent.key.action != "SUBMIT"
+            or intent.state not in ("UNKNOWN", "KNOWN")
+            or intent.dispatch_state != "UNKNOWN"
+            or not isinstance(dispatch, Mapping)
+            or dispatch.get("operation") != "insert"
+            or dispatch.get("status") != "UNKNOWN"
+            or dispatch.get("resend_permitted") is not False
+            or dispatch.get("instrument_id") != observation.instrument
+            or dispatch.get("exchange_id") != observation.exchange
+            or dispatch.get("order_ref") != observation.order_ref
+            or dispatch.get("front_id") != identity.get("front_id")
+            or dispatch.get("session_id") != identity.get("session_id")
+            or identity.get("instrument_id") != observation.instrument
+            or identity.get("exchange_id") != observation.exchange
+            or identity.get("order_ref") != observation.order_ref
+            or identity.get("operation") != "insert"
+            or identity.get("trading_day") != observation.trading_day
+            or identity.get("account_fingerprint") != observation.account_fingerprint
+            or identity.get("account_fingerprint") != expected_session["account_fingerprint"]
+            or not _positive_int(identity.get("connection_generation"))
+            or not _positive_int(identity.get("front_id"))
+            or not _positive_int(identity.get("session_id"))
+            or observation.front_id != identity.get("front_id")
+            or observation.session_id != identity.get("session_id")
+            or (
+                dispatch.get("order_sys_id") is not None
+                and dispatch.get("order_sys_id") != observation.order_sys_id
+            )
+            or (
+                identity.get("order_sys_id") is not None
+                and identity.get("order_sys_id") != observation.order_sys_id
+            )
+        ):
+            return ExecutionTerminalReconciliationItem(
+                observation_id=observation.observation_id,
+                status="BLOCKED",
+                intent_id=intent.intent_id,
+                blocker_code="UNKNOWN_ORIGINAL_ORDER_LINEAGE_MISMATCH",
+            )
+
+        # Recovery accepts only the exact CTP terminal codes with the full
+        # order-volume tuple proving that no contract was filled.
+        expected_terminal = {
+            "5": ("CANCELED", "CANCELLED"),
+            "4": ("NO_TRADE_NOT_QUEUEING", "REJECTED"),
+        }.get(observation.terminal_status)
+        original_volume = observation.volume_total_original
+        traded_volume = observation.volume_traded
+        remaining_volume = observation.volume_total
+        intent_quantity = _decimal_optional(intent.economic_payload.get("quantity"))
+        if (
+            expected_terminal is None
+            or observation.terminal_state != expected_terminal[0]
+            or any(
+                not isinstance(value, Decimal) or not value.is_finite()
+                for value in (original_volume, traded_volume, remaining_volume)
+            )
+            or intent_quantity is None
+            or intent_quantity != original_volume
+            or original_volume <= 0
+            or original_volume != original_volume.to_integral_value()
+            or traded_volume != 0
+            or remaining_volume != original_volume
+        ):
+            return ExecutionTerminalReconciliationItem(
+                observation_id=observation.observation_id,
+                status="BLOCKED",
+                intent_id=intent.intent_id,
+                blocker_code="UNKNOWN_TERMINAL_NO_FILL_NOT_PROVEN",
+            )
+        try:
+            trade_rows = self._validate_unknown_recovery_row_projection(facts, observation, intent)
+        except FactorExecutionError as error:
+            return ExecutionTerminalReconciliationItem(
+                observation_id=observation.observation_id,
+                status="BLOCKED",
+                intent_id=intent.intent_id,
+                blocker_code=error.code,
+            )
+        if any(
+            row.order_ref == observation.order_ref
+            and row.instrument == observation.instrument
+            and row.exchange == observation.exchange
+            for row in trade_rows
+        ):
+            return ExecutionTerminalReconciliationItem(
+                observation_id=observation.observation_id,
+                status="BLOCKED",
+                intent_id=intent.intent_id,
+                blocker_code="UNKNOWN_TERMINAL_CONFLICTS_WITH_TRADE_QUERY",
+            )
+
+        positions = [
+            row
+            for row in facts.positions
+            if row.instrument == observation.instrument and row.exchange == observation.exchange
+        ]
+        if len(positions) != 1 or not _terminal_position_consistent(positions[0], facts):
+            return ExecutionTerminalReconciliationItem(
+                observation_id=observation.observation_id,
+                status="BLOCKED",
+                intent_id=intent.intent_id,
+                blocker_code="TERMINAL_POSITION_RECONCILIATION_MISMATCH",
+            )
+        position = positions[0]
+        if (
+            position.broker_quantity != 0
+            or position.long_quantity != 0
+            or position.short_quantity != 0
+            or getattr(position, "attributed_signed_quantity", None) not in (None, Decimal("0"))
+            or any(
+                row.instrument == observation.instrument and row.exchange == observation.exchange
+                for row in facts.working_orders
+                if not self._is_exact_unknown_working_order(row, intent, observation)
+            )
+        ):
+            return ExecutionTerminalReconciliationItem(
+                observation_id=observation.observation_id,
+                status="BLOCKED",
+                intent_id=intent.intent_id,
+                blocker_code="UNKNOWN_TERMINAL_ROUTE_NOT_FLAT_OR_CLEAR",
+            )
+
+        try:
+            route = self.store.registered_sim_route_eligibility(
+                observation.instrument, observation.exchange
+            )
+        except Exception:
+            return ExecutionTerminalReconciliationItem(
+                observation_id=observation.observation_id,
+                status="BLOCKED",
+                intent_id=intent.intent_id,
+                blocker_code="UNKNOWN_RECOVERY_SESSION_UNOBSERVED",
+            )
+        if (
+            route.instrument_id != observation.instrument
+            or route.exchange_id != observation.exchange
+            or route.account_fingerprint != expected_session["account_fingerprint"]
+            or route.connection_generation != expected_session["connection_generation"]
+            or route.trading_day != expected_session["trading_day"]
+            or route.current_session_account_fingerprint != expected_session["account_fingerprint"]
+            or route.current_session_connection_generation
+            != expected_session["connection_generation"]
+            or route.current_session_trading_day != expected_session["trading_day"]
+            or route.current_session_front_id != expected_session["front_id"]
+            or route.current_session_id != expected_session["session_id"]
+            or route.current_session_read_only_ready is not True
+            or route.instrument_query_complete is not True
+            or route.instrument_eligible is not True
+            or route.sdk_capability_armed is not False
+            or route.dispatching_order_ids != ()
+            or route.unknown_order_ids not in ((), (observation.order_ref,))
+        ):
+            return ExecutionTerminalReconciliationItem(
+                observation_id=observation.observation_id,
+                status="BLOCKED",
+                intent_id=intent.intent_id,
+                blocker_code="UNKNOWN_RECOVERY_SESSION_OR_ROUTE_MISMATCH",
+            )
+
+        terminal_state = expected_terminal[1]
+        try:
+            existing_resolution = self.journal.instrument_resolution(intent.intent_id)
+            if existing_resolution is None:
+                reconciliation_id = _unknown_terminal_reconciliation_id(
+                    intent.intent_id,
+                    observation.observation_id,
+                    query_set.query_set_id,
+                    facts.snapshot_id,
+                )
+                existing_reconciliation = None
+            else:
+                reconciliation_id = existing_resolution.reconciliation_id
+                existing_reconciliation = self.journal.reconciliation(reconciliation_id)
+        except Exception as error:
+            raise FactorExecutionError("UNKNOWN_PRIOR_RECONCILIATION_UNAVAILABLE") from error
+        provider_identity = {
+            "evidence_kind": "complete_orders_query_unknown_no_fill_terminal",
+            "observation_id": observation.observation_id,
+            "query_set_id": query_set.query_set_id,
+            "snapshot_id": facts.snapshot_id,
+            "orders_request_id": observation.request_id,
+            "connection_generation": observation.connection_generation,
+            "account_fingerprint": observation.account_fingerprint,
+            "trading_day": observation.trading_day,
+            "terminal_status": observation.terminal_status,
+            "terminal_state": observation.terminal_state,
+            "volume_total_original": str(original_volume),
+            "volume_traded": str(traded_volume),
+            "volume_total": str(remaining_volume),
+            "order_ref": observation.order_ref,
+            "order_sys_id": observation.order_sys_id,
+            "front_id": observation.front_id,
+            "session_id": observation.session_id,
+            "instrument": observation.instrument,
+            "exchange": observation.exchange,
+            "broker_quantity": str(position.broker_quantity),
+            "ctp_long_quantity": str(position.long_quantity),
+            "ctp_short_quantity": str(position.short_quantity),
+            "position_snapshot_id": position.snapshot_id,
+            "position_available_at": _utc_text(position.available_at),
+            "original_account_fingerprint": identity["account_fingerprint"],
+            "original_connection_generation": identity["connection_generation"],
+            "original_trading_day": identity["trading_day"],
+            "original_order_ref": identity["order_ref"],
+            "original_front_id": identity["front_id"],
+            "original_session_id": identity["session_id"],
+        }
+        try:
+            if existing_resolution is None:
+                self.journal.record_reconciliation(
+                    intent.intent_id,
+                    reconciliation_id=reconciliation_id,
+                    query_id=observation.observation_id,
+                    state="KNOWN",
+                    provider_identity=provider_identity,
+                    outcome_code="complete_orders_query_unknown_no_fill_terminal",
+                    terminal_state=terminal_state,
+                    terminal_event_id=observation.observation_id,
+                    position_snapshot_id=position.snapshot_id,
+                    position_flat=True,
+                )
+            elif not _unknown_terminal_resolution_matches(
+                existing_resolution,
+                existing_reconciliation,
+                account_scope=self.account_scope,
+                identity=identity,
+                observation=observation,
+                terminal_state=terminal_state,
+                volume_total_original=original_volume,
+            ):
+                return ExecutionTerminalReconciliationItem(
+                    observation_id=observation.observation_id,
+                    status="BLOCKED",
+                    intent_id=intent.intent_id,
+                    reconciliation_id=reconciliation_id,
+                    blocker_code="UNKNOWN_PRIOR_RECONCILIATION_CONFLICT",
+                )
+            self.journal.release_instrument_owner(
+                intent.intent_id, reconciliation_id=reconciliation_id
+            )
+        except Exception as error:
+            code = getattr(error, "code", None)
+            return ExecutionTerminalReconciliationItem(
+                observation_id=observation.observation_id,
+                status="BLOCKED",
+                intent_id=intent.intent_id,
+                reconciliation_id=reconciliation_id,
+                blocker_code=code if _exact_identifier(code) else "UNKNOWN_RECOVERY_NOT_DURABLE",
+            )
+
+        terminal_event = self._unknown_terminal_broker_event(
+            facts, intent, observation, original_volume
+        )
+        try:
+            retired = self.store.registered_sim_retire_unknown(
+                intent.intent_id,
+                reconciliation_id,
+                original_identity=identity,
+                expected_session=expected_session,
+                terminal_event=terminal_event,
+            )
+        except Exception:
+            return ExecutionTerminalReconciliationItem(
+                observation_id=observation.observation_id,
+                status="BLOCKED",
+                intent_id=intent.intent_id,
+                reconciliation_id=reconciliation_id,
+                blocker_code="UNKNOWN_STORE_RETIREMENT_NOT_APPLIED",
+            )
+        if getattr(retired, "status", None) not in ("QUEUED", "ALREADY_ABSENT"):
+            return ExecutionTerminalReconciliationItem(
+                observation_id=observation.observation_id,
+                status="BLOCKED",
+                intent_id=intent.intent_id,
+                reconciliation_id=reconciliation_id,
+                blocker_code="UNKNOWN_STORE_RETIREMENT_RESULT_INVALID",
+            )
+        return ExecutionTerminalReconciliationItem(
+            observation_id=observation.observation_id,
+            status="RESOLVED",
+            intent_id=intent.intent_id,
+            reconciliation_id=reconciliation_id,
+        )
+
+    def _validate_unknown_recovery_snapshot(
+        self, facts: Any, refresh_receipt: Any, observation: Any
+    ):
+        from .factor_execution_facts import (
+            _BASE_FAMILIES,
+            FactorExecutionRefreshReceipt,
+            _query_set_matches,
+        )
+
+        if type(refresh_receipt) is not FactorExecutionRefreshReceipt:
+            raise FactorExecutionError("UNKNOWN_RECOVERY_REFRESH_RECEIPT_REQUIRED")
+        if (
+            refresh_receipt.cancelled
+            or refresh_receipt.deadline_reached
+            or refresh_receipt.blockers
+            or refresh_receipt.pending_families
+            or tuple(refresh_receipt.requested_families[: len(_BASE_FAMILIES)]) != _BASE_FAMILIES
+            or tuple(refresh_receipt.attempted_families[: len(_BASE_FAMILIES)]) != _BASE_FAMILIES
+            or facts.available_at is None
+            or not _time_not_after(refresh_receipt.started_at, refresh_receipt.completed_at)
+            or not _time_not_after(facts.available_at, refresh_receipt.completed_at)
+        ):
+            raise FactorExecutionError("UNKNOWN_RECOVERY_REFRESH_RECEIPT_INCOMPLETE")
+        receipt_facts = tuple(
+            item for item in refresh_receipt.query_provenance if item.family in _BASE_FAMILIES
+        )
+        facts_facts = tuple(
+            item for item in facts.query_provenance if item.family in _BASE_FAMILIES
+        )
+        if (
+            tuple(item.family for item in receipt_facts) != _BASE_FAMILIES
+            or receipt_facts != facts_facts
+            or any(
+                item.source_owned is not True
+                or item.query_complete is not True
+                or item.scope_complete is not True
+                or item.request_id is None
+                or item.account_fingerprint is None
+                or item.connection_generation is None
+                or item.trading_day is None
+                for item in receipt_facts
+            )
+        ):
+            raise FactorExecutionError("UNKNOWN_RECOVERY_QUERY_PROVENANCE_MISMATCH")
+        query_set = refresh_receipt.query_set
+        if (
+            query_set is None
+            or query_set.query_set_id != facts.query_set_id
+            or not _query_set_matches(
+                query_set,
+                receipt_facts,
+                now=refresh_receipt.completed_at,
+                max_age=timedelta(seconds=60),
+            )
+            or query_set.account_fingerprint != facts.account.account_fingerprint
+            or query_set.connection_generation != facts.account.connection_generation
+            or query_set.trading_day != facts.account.trading_day
+            or not _time_not_after(refresh_receipt.started_at, query_set.started_at_utc)
+            or not _time_not_after(query_set.started_at_utc, query_set.completed_at_utc)
+            or not _time_not_after(query_set.completed_at_utc, refresh_receipt.completed_at)
+        ):
+            raise FactorExecutionError("UNKNOWN_RECOVERY_QUERY_SET_MISMATCH")
+        try:
+            route = self.store.registered_sim_route_eligibility(
+                observation.instrument, observation.exchange
+            )
+        except Exception as error:
+            raise FactorExecutionError("UNKNOWN_RECOVERY_SESSION_UNOBSERVED") from error
+        expected = {
+            "account_fingerprint": query_set.account_fingerprint,
+            "connection_generation": query_set.connection_generation,
+            "trading_day": query_set.trading_day,
+            "front_id": route.current_session_front_id,
+            "session_id": route.current_session_id,
+        }
+        if (
+            route.account_fingerprint != query_set.account_fingerprint
+            or route.connection_generation != query_set.connection_generation
+            or route.trading_day != query_set.trading_day
+            or route.current_session_account_fingerprint != query_set.account_fingerprint
+            or route.current_session_connection_generation != query_set.connection_generation
+            or route.current_session_trading_day != query_set.trading_day
+            or route.current_session_read_only_ready is not True
+            or not _positive_int(expected["front_id"])
+            or not _positive_int(expected["session_id"])
+            or route.sdk_capability_armed is not False
+            or route.dispatching_order_ids != ()
+            or route.unknown_order_ids not in ((), (observation.order_ref,))
+        ):
+            raise FactorExecutionError("UNKNOWN_RECOVERY_SESSION_OR_ROUTE_MISMATCH")
+        return (
+            expected,
+            query_set,
+        )
+
+    def _validate_unknown_recovery_row_projection(
+        self, facts: Any, observation: Any, intent: ExecutionIntentRecord
+    ) -> Tuple[Any, ...]:
+        """Require every raw order/trade row to survive projection unambiguously.
+
+        The current UNKNOWN local order can also appear in ``working_orders``
+        while the remote full orders query already reports its terminal row.
+        That single expected overlap is valid. Other missing, malformed, or
+        duplicate source rows cannot be treated as evidence of absence.
+        """
+        order_source = _one_query_provenance(facts, "orders_result", "orders")
+        trade_source = _one_query_provenance(facts, "trades_result", "trades")
+        trade_rows = self._validated_trade_observations(facts)
+        if trade_source.row_count != len(trade_rows):
+            raise FactorExecutionError("UNKNOWN_RECOVERY_TRADE_ROWS_INCOMPLETE")
+
+        projected_order_keys = set()
+        for row in tuple(facts.terminal_orders) + tuple(facts.working_orders):
+            order_ref = _exact_identifier(getattr(row, "order_ref", None))
+            instrument = _exact_identifier(getattr(row, "instrument", None))
+            exchange = _exact_identifier(getattr(row, "exchange", None))
+            if order_ref is None or instrument is None or exchange is None:
+                raise FactorExecutionError("UNKNOWN_RECOVERY_ORDER_ROWS_INCOMPLETE")
+            projected_order_keys.add((order_ref, instrument, exchange))
+        if order_source.row_count != len(projected_order_keys):
+            raise FactorExecutionError("UNKNOWN_RECOVERY_ORDER_ROWS_INCOMPLETE")
+
+        # A same-engine UNKNOWN remains locally working until Broker.next drains
+        # the normal terminal update queue. Its exact absence from the remote
+        # active map and its unresolved journal state are the only benign
+        # projection blockers during that short interval.
+        matching_local_unknown = tuple(
+            row
+            for row in facts.working_orders
+            if row.instrument == observation.instrument
+            and row.exchange == observation.exchange
+            and self._is_exact_unknown_working_order(row, intent, observation)
+        )
+        if len(matching_local_unknown) > 1:
+            raise FactorExecutionError("UNKNOWN_RECOVERY_ORDER_ROWS_AMBIGUOUS")
+        allowed = {"journal_intent_unresolved:UNKNOWN:{}".format(intent.intent_id)}
+        if matching_local_unknown:
+            local_ref = matching_local_unknown[0].broker_order_ref
+            if type(local_ref) is not int or local_ref <= 0:
+                raise FactorExecutionError("UNKNOWN_RECOVERY_ORDER_ROWS_INCOMPLETE")
+            allowed.update(
+                {
+                    "broker_working_order_not_remote_active:{}".format(observation.order_ref),
+                    "working_order_execution_state_unobserved:{}".format(local_ref),
+                }
+            )
+        source_projection_prefixes = (
+            "remote_order_row_shape_invalid",
+            "remote_orders_rows_unobserved",
+            "remote_order_trading_day_unobserved_or_mismatch",
+            "remote_order_identity_or_state_unobserved",
+            "remote_order_identity_duplicate:",
+            "remote_terminal_order_trading_day_mismatch:",
+            "remote_terminal_order_identity_duplicate:",
+            "remote_working_order_",
+            "remote_broker_order_",
+            "broker_order_",
+            "working_order_",
+            "broker_working_order_",
+            "journal_intent_",
+            "remote_trade_rows_unobserved",
+            "remote_trade_row_shape_invalid",
+            "remote_trade_trading_day_mismatch:",
+            "remote_trade_fields_unobserved:",
+            "remote_trade_time_after_query:",
+            "remote_trade_id_duplicate:",
+        )
+        for blocker in facts.blockers:
+            if blocker in allowed:
+                continue
+            if blocker.startswith(source_projection_prefixes):
+                raise FactorExecutionError("UNKNOWN_RECOVERY_SOURCE_ROWS_AMBIGUOUS")
+        return trade_rows
+
+    def _is_exact_unknown_working_order(
+        self, row: Any, intent: ExecutionIntentRecord, observation: Any
+    ) -> bool:
+        identity = intent.original_identity
+        return bool(
+            row.order_ref == observation.order_ref
+            and row.instrument == observation.instrument
+            and row.exchange == observation.exchange
+            and row.owner_strategy_scope == self.strategy_scope
+            and row.owner_intent_id == intent.intent_id
+            and row.execution_unknown is True
+            and row.position_effect == "OPEN"
+            and row.side == intent.key.side
+            and row.broker_order_ref == identity.get("backtrader_order_ref")
+            and row.front_id == identity.get("front_id")
+            and row.session_id == identity.get("session_id")
+            and (row.order_sys_id is None or row.order_sys_id == observation.order_sys_id)
+        )
+
+    def _unknown_terminal_broker_event(
+        self, facts: Any, intent: ExecutionIntentRecord, observation: Any, quantity: Decimal
+    ) -> Optional[Mapping[str, Any]]:
+        identity = intent.original_identity
+        bt_ref = identity.get("backtrader_order_ref")
+        if type(bt_ref) is not int or bt_ref <= 0:
+            return None
+        order = getattr(self.broker, "orders", {}).get(bt_ref)
+        if order is None or not order.alive():
+            return None
+        info = getattr(order, "info", {})
+        get = getattr(info, "get", lambda name, default=None: default)
+        external_ref = _first_text(get("external_order_ref"), get("ctp_order_ref"))
+        side = "BUY" if order.isbuy() else "SELL"
+        order_size = _decimal_optional(getattr(order, "size", None))
+        if (
+            not bool(get("execution_unknown", False))
+            or get("factor_intent_id") != intent.intent_id
+            or get("factor_strategy_scope") != self.strategy_scope
+            or get("instrument_id") != observation.instrument
+            or get("exchange_id") != observation.exchange
+            or external_ref != observation.order_ref
+            or side != intent.key.side
+            or get("factor_position_effect") != "OPEN"
+            or get("factor_session_account_fingerprint") != identity.get("account_fingerprint")
+            or get("factor_session_trading_day") != identity.get("trading_day")
+            or get("factor_session_front_id") != identity.get("front_id")
+            or get("factor_session_id") != identity.get("session_id")
+            or order_size != quantity
+            or quantity != quantity.to_integral_value()
+        ):
+            raise FactorExecutionError("UNKNOWN_BROKER_ORDER_LINEAGE_MISMATCH")
+        size = int(quantity)
+        canceled = observation.terminal_state == "CANCELED"
+        details = {
+            "OrderRef": observation.order_ref,
+            "OrderSysID": observation.order_sys_id or "",
+            "InstrumentID": observation.instrument,
+            "ExchangeID": observation.exchange,
+            "FrontID": identity["front_id"],
+            "SessionID": identity["session_id"],
+            "OrderStatus": observation.terminal_status,
+            "VolumeTotalOriginal": size,
+            "VolumeTraded": 0,
+            "VolumeTotal": size,
+        }
+        return {
+            "kind": "order",
+            "bt_order_ref": bt_ref,
+            "order_ref": observation.order_ref,
+            "order_sys_id": observation.order_sys_id,
+            "external_order_id": observation.order_sys_id,
+            "data_name": getattr(getattr(order, "data", None), "_name", ""),
+            "instrument": observation.instrument,
+            "exchange_id": observation.exchange,
+            "front_id": identity["front_id"],
+            "session_id": identity["session_id"],
+            "status": "canceled" if canceled else "rejected",
+            "side": side.lower(),
+            "offset": str(intent.economic_payload.get("offset", "open")),
+            "price": float(_decimal_optional(intent.economic_payload.get("limit_price")) or 0),
+            "size": size,
+            "filled": 0,
+            "remaining": size,
+            "terminal_confirmed": True,
+            "execution_unknown": False,
+            "details": details,
+        }
 
     def _terminal_trade_projection_blockers(
         self, facts: Any, observations: Tuple[Any, ...]
@@ -2316,6 +2906,79 @@ def _terminal_reconciliation_id(
         )
     )
     return "terminal-query:" + hashlib.sha256(material.encode("utf-8")).hexdigest()
+
+
+def _unknown_terminal_reconciliation_id(
+    intent_id: str, observation_id: str, query_set_id: str, snapshot_id: str
+) -> str:
+    material = json.dumps(
+        (intent_id, observation_id, query_set_id, snapshot_id),
+        ensure_ascii=True,
+        separators=(",", ":"),
+    )
+    return "unknown-terminal:" + hashlib.sha256(material.encode("ascii")).hexdigest()
+
+
+def _unknown_terminal_resolution_matches(
+    resolution: Any,
+    reconciliation: Any,
+    *,
+    account_scope: str,
+    identity: Mapping[str, Any],
+    observation: Any,
+    terminal_state: str,
+    volume_total_original: Decimal,
+) -> bool:
+    """Validate a prior durable no-fill resolution before retrying Store retirement."""
+    provider = getattr(reconciliation, "provider_identity", None)
+    if not isinstance(provider, Mapping):
+        return False
+    expected_fields = {
+        "order_ref": observation.order_ref,
+        "order_sys_id": observation.order_sys_id,
+        "front_id": identity.get("front_id"),
+        "session_id": identity.get("session_id"),
+        "instrument": observation.instrument,
+        "exchange": observation.exchange,
+        "account_fingerprint": observation.account_fingerprint,
+        "trading_day": observation.trading_day,
+        "terminal_status": observation.terminal_status,
+        "terminal_state": observation.terminal_state,
+        "volume_total_original": str(volume_total_original),
+        "volume_traded": "0",
+        "volume_total": str(volume_total_original),
+        "original_account_fingerprint": identity.get("account_fingerprint"),
+        "original_connection_generation": identity.get("connection_generation"),
+        "original_trading_day": identity.get("trading_day"),
+        "original_order_ref": identity.get("order_ref"),
+        "original_front_id": identity.get("front_id"),
+        "original_session_id": identity.get("session_id"),
+    }
+    return bool(
+        getattr(resolution, "terminal_state", None) == terminal_state
+        and getattr(resolution, "position_flat", None) is True
+        and getattr(resolution, "account_scope", None) == account_scope
+        and getattr(resolution, "instrument", None) == observation.instrument
+        and getattr(reconciliation, "reconciliation_id", None)
+        == getattr(resolution, "reconciliation_id", None)
+        and getattr(reconciliation, "intent_id", None) == getattr(resolution, "intent_id", None)
+        and getattr(reconciliation, "state", None) == "KNOWN"
+        and getattr(reconciliation, "outcome_code", None)
+        == "complete_orders_query_unknown_no_fill_terminal"
+        and getattr(reconciliation, "terminal_state", None) == terminal_state
+        and getattr(reconciliation, "terminal_event_id", None)
+        == getattr(reconciliation, "query_id", None)
+        and getattr(reconciliation, "position_flat", None) is True
+        and getattr(reconciliation, "position_snapshot_id", None)
+        == provider.get("position_snapshot_id")
+        and provider.get("evidence_kind") == "complete_orders_query_unknown_no_fill_terminal"
+        and _exact_identifier(provider.get("observation_id"))
+        and _exact_identifier(provider.get("query_set_id"))
+        and _exact_identifier(provider.get("snapshot_id"))
+        and provider.get("observation_id") == reconciliation.query_id
+        and provider.get("snapshot_id") == provider.get("position_snapshot_id")
+        and all(provider.get(name) == value for name, value in expected_fields.items())
+    )
 
 
 def _terminal_position_consistent(position: Any, facts: Any) -> bool:

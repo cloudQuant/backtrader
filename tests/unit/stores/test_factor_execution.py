@@ -7,9 +7,9 @@ native-call hooks consumed by the real wrapper.
 
 from __future__ import annotations
 
+import collections
 import threading
 import time
-from queue import Empty, Queue
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from types import SimpleNamespace
@@ -64,9 +64,20 @@ class _FakeProviderClient(facts_helpers._ProviderLeaves):
         self.trader_client.submit_order_insert = self._native_insert
         self.trader_client.submit_order_action = self._native_cancel
         self._provider_orders = {}
-        self._broker_updates = Queue()
+        # Mirror the generated CTP wrapper: normalized provider callbacks and
+        # durable recovery events share its deque, which Store.poll drains.
+        self._order_updates = collections.deque()
+        self._live_bar_event_notifier = None
         self.use_live_query_clock = False
         self.query_completion_floor = None
+
+    def set_live_bar_event_notifier(self, callback):
+        self._live_bar_event_notifier = callback
+
+    def _notify_live_bar_event(self):
+        notifier = self._live_bar_event_notifier
+        if notifier is not None:
+            notifier()
 
     def _query_family(self, family, request_type, **filters):
         if self.use_live_query_clock:
@@ -161,7 +172,7 @@ class _FakeProviderClient(facts_helpers._ProviderLeaves):
                 "VolumeTotal": str(remaining),
             },
         }
-        self._broker_updates.put(update)
+        self._order_updates.append(update)
 
     def emit_provider_trade_callback(
         self,
@@ -191,7 +202,7 @@ class _FakeProviderClient(facts_helpers._ProviderLeaves):
         }
         if not omit_trade_date:
             details["TradeDate"] = trade_date_override or when.strftime("%Y%m%d")
-        self._broker_updates.put(
+        self._order_updates.append(
             {
                 "kind": "trade",
                 "trade_id": trade_id,
@@ -209,11 +220,10 @@ class _FakeProviderClient(facts_helpers._ProviderLeaves):
         )
 
     def poll_broker_update(self):
-        """Expose queued fake provider callbacks through the normal Store poll."""
-        try:
-            return self._broker_updates.get_nowait()
-        except Empty:
+        """Drain the same normal API queue used by the generated CTP wrapper."""
+        if not self._order_updates:
             return None
+        return self._order_updates.popleft()
 
     def submit_order(self, payload):
         request_id = self._next_request()
@@ -828,6 +838,12 @@ def test_ordinary_buy_is_dispatched_from_actual_cerebro_next():
         "session_id": 7,
         "trading_day": "20261024",
     }
+    order.info["front_id"] = None
+    order.info["session_id"] = None
+    snapshot = broker.execution_order_snapshot()
+    assert len(snapshot) == 1
+    assert snapshot[0].front_id == 4
+    assert snapshot[0].session_id == 7
     assert state["decision_id"] is not None
 
 

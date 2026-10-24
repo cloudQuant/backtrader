@@ -111,6 +111,16 @@ class RegisteredSimDispatchEvidence:
 
 
 @dataclass(frozen=True)
+class RegisteredSimUnknownRetirement:
+    """Result of retiring one exact, durably reconciled UNKNOWN insert."""
+
+    status: str
+    intent_id: str
+    reconciliation_id: str
+    disarmed: bool
+
+
+@dataclass(frozen=True)
 class RegisteredSimRouteEligibility:
     """Read-only route facts; these fields do not grant native permission.
 
@@ -149,6 +159,7 @@ class RegisteredSimRouteEligibility:
     current_session_trading_ready: Optional[bool] = None
     current_session_front_id: Optional[int] = None
     current_session_id: Optional[int] = None
+    current_session_read_only_ready: Optional[bool] = None
     native_admission_required: bool = True
 
 
@@ -692,6 +703,7 @@ class RegisteredSimWrapper:
         self._registered_sim_arm_history = collections.deque(maxlen=history_limit)
         self._registered_sim_dispatch_history = collections.deque(maxlen=history_limit)
         self._registered_sim_unknown_dispatch: Optional[RegisteredSimDispatchEvidence] = None
+        self._registered_sim_retired_reconciliation_ids = collections.OrderedDict()
         self._registered_sim_dispatch_sequence = 0
         self._registered_sim_terminal_order_limit = terminal_limit
         self._order_state = collections.OrderedDict()
@@ -1079,6 +1091,221 @@ class RegisteredSimWrapper:
             if self._registered_sim_unknown_dispatch is not None:
                 entries.append(self._registered_sim_unknown_dispatch)
             return tuple(sorted(entries, key=lambda item: item.sequence))
+
+    def retire_registered_sim_unknown(
+        self,
+        intent_id: str,
+        reconciliation_id: str,
+        *,
+        original_identity: Mapping[str, Any],
+        expected_session: Mapping[str, Any],
+        terminal_event: Optional[Mapping[str, Any]],
+    ) -> RegisteredSimUnknownRetirement:
+        """Retire only the matching UNKNOWN latch after durable query proof.
+
+        The coordinator has already committed the terminal reconciliation and
+        order-owner release. This method binds that receipt to the exact
+        in-memory native attempt, keeps the SDK disarmed, and publishes a
+        terminal no-fill update through the API event queue before retiring
+        the UNKNOWN latch. It never calls a native order method or reconstructs
+        an old Order.
+        """
+        intent_id = _exact_text(intent_id, "intent_id")
+        reconciliation_id = _exact_text(reconciliation_id, "reconciliation_id")
+        if not isinstance(original_identity, Mapping):
+            raise BtApiStoreError("registered-sim original intent identity is invalid")
+        original = dict(original_identity)
+        expected = _expected_session(expected_session)
+        if expected.get("front_id") is None or expected.get("session_id") is None:
+            raise BtApiStoreError("registered-sim current session IDs are unavailable")
+        order_ref = _exact_text(original.get("order_ref"), "original OrderRef")
+        instrument = _exact_text(original.get("instrument_id"), "original InstrumentID")
+        exchange = _exact_text(original.get("exchange_id"), "original ExchangeID")
+        original_front = original.get("front_id")
+        original_session = original.get("session_id")
+        original_account = original.get("account_fingerprint")
+        original_generation = original.get("connection_generation")
+        original_day = original.get("trading_day")
+        if (
+            original.get("operation") != "insert"
+            or not isinstance(original_account, str)
+            or not original_account
+            or original_account != original_account.strip()
+            or original_account != expected["account_fingerprint"]
+            or not _positive_int(original_generation)
+            or not isinstance(original_day, str)
+            or re.fullmatch(r"[0-9]{8}", original_day) is None
+            or original_day != expected["trading_day"]
+            or not _positive_int(original_front)
+            or not _positive_int(original_session)
+        ):
+            raise BtApiStoreError("registered-sim original native session IDs are invalid")
+        if terminal_event is not None:
+            if not isinstance(terminal_event, Mapping):
+                raise BtApiStoreError("registered-sim terminal event is invalid")
+            event = copy.deepcopy(dict(terminal_event))
+            details = event.get("details")
+            if not isinstance(details, Mapping):
+                raise BtApiStoreError("registered-sim terminal event details are invalid")
+            raw_status = details.get("OrderStatus")
+            terminal_status_matches = (
+                event.get("status") == "canceled"
+                and raw_status in ("5", "CANCELED", "canceled", "cancelled")
+            ) or (
+                event.get("status") == "rejected"
+                and raw_status in ("4", "NO_TRADE_NOT_QUEUEING", "no_trade_not_queueing")
+            )
+            if (
+                event.get("kind") != "order"
+                or type(event.get("bt_order_ref")) is not int
+                or event.get("bt_order_ref") != original.get("backtrader_order_ref")
+                or event.get("order_ref") != order_ref
+                or event.get("instrument") != instrument
+                or event.get("exchange_id") != exchange
+                or event.get("front_id") != original_front
+                or event.get("session_id") != original_session
+                or event.get("status") not in ("canceled", "rejected")
+                or event.get("terminal_confirmed") is not True
+                or event.get("execution_unknown") is not False
+                or event.get("filled") != 0
+                or type(event.get("size")) is not int
+                or event.get("size") <= 0
+                or event.get("remaining") != event.get("size")
+                or details.get("OrderRef") != order_ref
+                or details.get("InstrumentID") != instrument
+                or details.get("ExchangeID") != exchange
+                or details.get("FrontID") != original_front
+                or details.get("SessionID") != original_session
+                or not terminal_status_matches
+                or details.get("VolumeTotalOriginal") != event.get("size")
+                or details.get("VolumeTraded") != 0
+                or details.get("VolumeTotal") != event.get("size")
+            ):
+                raise BtApiStoreError("registered-sim terminal event identity is invalid")
+        else:
+            event = None
+
+        client = getattr(self, "trader_client", None)
+        with self._registered_sim_lock:
+            current = _session_identity(client)
+            if (
+                not _session_matches(current, expected, require_trading_ready=False)
+                or current.get("read_only_ready") is not True
+            ):
+                raise BtApiStoreError("registered-sim recovery session identity is stale")
+            sdk_gate = self._sdk_gate_state_locked()
+            if not isinstance(sdk_gate, Mapping) or sdk_gate.get("armed") is not False:
+                raise BtApiStoreError("registered-sim recovery requires an observed disarmed SDK")
+            if (
+                self._registered_sim_capability is not None
+                or self._registered_sim_armed_key is not None
+            ):
+                raise BtApiStoreError("registered-sim recovery found an active local capability")
+            if self._dispatching_order_ids:
+                raise BtApiStoreError("registered-sim recovery is blocked by an active dispatch")
+            retired_identity = (
+                intent_id,
+                original_account,
+                original_generation,
+                original_day,
+                instrument,
+                exchange,
+                order_ref,
+                original_front,
+                original_session,
+            )
+            previously_retired = self._registered_sim_retired_reconciliation_ids.get(
+                reconciliation_id
+            )
+            if previously_retired is not None:
+                if previously_retired != retired_identity:
+                    raise BtApiStoreError("registered-sim retirement identity conflicts")
+                unknown_ids = [
+                    key for key, state in self._order_state.items() if state == "unknown"
+                ]
+                local_order_state = self._order_state.get(order_ref)
+                if (
+                    self._registered_sim_unknown_dispatch is not None
+                    or self._registered_sim_frozen
+                    or unknown_ids
+                    or (event is not None and local_order_state not in (None, "terminal"))
+                ):
+                    raise BtApiStoreError("registered-sim recovery cannot clear another freeze")
+                return RegisteredSimUnknownRetirement(
+                    "ALREADY_ABSENT", intent_id, reconciliation_id, True
+                )
+
+            unknown = self._registered_sim_unknown_dispatch
+            if unknown is None:
+                unknown_ids = [
+                    key for key, state in self._order_state.items() if state == "unknown"
+                ]
+                local_order_state = self._order_state.get(order_ref)
+                if (
+                    self._registered_sim_frozen
+                    or unknown_ids
+                    or (event is not None and local_order_state not in (None, "terminal"))
+                ):
+                    raise BtApiStoreError("registered-sim recovery cannot clear another freeze")
+                # A fresh process has no historical Backtrader Order to update.
+                # Never reconstruct or enqueue a historical event in that case.
+                status = "ALREADY_ABSENT"
+            else:
+                if (
+                    self._registered_sim_frozen is not True
+                    or self._registered_sim_freeze_reason != "registered_sim_insert_unknown"
+                    or unknown.operation != "insert"
+                    or unknown.status != "UNKNOWN"
+                    or unknown.order_ref != order_ref
+                    or unknown.instrument_id != instrument
+                    or unknown.exchange_id != exchange
+                    or unknown.front_id != original_front
+                    or unknown.session_id != original_session
+                    or unknown.resend_permitted is not False
+                ):
+                    raise BtApiStoreError("registered-sim UNKNOWN latch does not match proof")
+                unknown_ids = [
+                    key for key, state in self._order_state.items() if state == "unknown"
+                ]
+                if unknown_ids != [order_ref] or self._order_state.get(order_ref) != "unknown":
+                    raise BtApiStoreError("registered-sim UNKNOWN order state is inconsistent")
+                if event is not None:
+                    updates = getattr(self, "_order_updates", None)
+                    notifier = getattr(self, "_notify_live_bar_event", None)
+                    if not isinstance(updates, collections.deque) or not callable(notifier):
+                        raise BtApiStoreError("registered-sim Broker update queue is unavailable")
+                    try:
+                        updates.append(event)
+                    except Exception as exc:
+                        # Keep the exact UNKNOWN latch and freeze intact. The
+                        # same durable reconciliation can safely retry enqueue.
+                        raise BtApiStoreError(
+                            "registered-sim Broker update enqueue failed ({})".format(
+                                type(exc).__name__
+                            )
+                        ) from None
+                    status = "QUEUED"
+                else:
+                    status = "ALREADY_ABSENT"
+                self._registered_sim_dispatch_history.append(unknown)
+                self._registered_sim_unknown_dispatch = None
+                self._order_state.pop(order_ref, None)
+                self._remember_order_state_locked(order_ref, "terminal")
+                self._registered_sim_frozen = False
+                self._registered_sim_freeze_reason = ""
+
+            self._registered_sim_retired_reconciliation_ids[reconciliation_id] = retired_identity
+            self._registered_sim_retired_reconciliation_ids.move_to_end(reconciliation_id)
+            while len(self._registered_sim_retired_reconciliation_ids) > 4096:
+                self._registered_sim_retired_reconciliation_ids.popitem(last=False)
+            if status == "QUEUED":
+                try:
+                    notifier()
+                except Exception:
+                    # The exact terminal event remains in the normal poll
+                    # queue; a wake failure cannot make it safe to enqueue twice.
+                    pass
+            return RegisteredSimUnknownRetirement(status, intent_id, reconciliation_id, True)
 
     def reserve_registered_sim_order_ref(self) -> str:
         """Reserve one SDK-monotonic OrderRef without making a provider call."""
@@ -1837,6 +2064,7 @@ class RegisteredSimStore(BtApiStore):
         current_session_ready = session.get("trading_ready")
         current_session_front_id = session.get("front_id")
         current_session_id = session.get("session_id")
+        current_session_read_only_ready = session.get("read_only_ready")
         arm_api_available = (
             callable(getattr(sdk_client, "arm_execution_for_registered_sim", None))
             if sdk_client is not None
@@ -1948,6 +2176,7 @@ class RegisteredSimStore(BtApiStore):
             current_session_trading_ready=current_session_ready,
             current_session_front_id=current_session_front_id,
             current_session_id=current_session_id,
+            current_session_read_only_ready=current_session_read_only_ready,
         )
 
     def registered_sim_arm_history(self):
@@ -1960,6 +2189,57 @@ class RegisteredSimStore(BtApiStore):
         api = self._api
         method = getattr(api, "registered_sim_dispatch_history", None) if api is not None else None
         return tuple(method()) if callable(method) else None
+
+    def registered_sim_retire_unknown(
+        self,
+        intent_id: str,
+        reconciliation_id: str,
+        *,
+        original_identity: Mapping[str, Any],
+        expected_session: Mapping[str, Any],
+        terminal_event: Optional[Mapping[str, Any]],
+    ) -> RegisteredSimUnknownRetirement:
+        """Retire a proven UNKNOWN through the API queue polled by Broker."""
+        expected = _expected_session(expected_session)
+        with self._registered_sim_gate_lock:
+            api = self._api
+            method = (
+                getattr(api, "retire_registered_sim_unknown", None) if api is not None else None
+            )
+            if not callable(method):
+                raise BtApiStoreError("registered-sim recovery wrapper is unavailable")
+            store_frozen = self._registered_sim_gate.get("frozen") is True
+            if (
+                store_frozen
+                and self._registered_sim_gate.get("reason") != "registered_sim_insert_unknown"
+            ):
+                raise BtApiStoreError("registered-sim recovery cannot clear another Store freeze")
+            result = method(
+                intent_id,
+                reconciliation_id,
+                original_identity=original_identity,
+                expected_session=expected,
+                terminal_event=terminal_event,
+            )
+            if not isinstance(result, RegisteredSimUnknownRetirement):
+                raise BtApiStoreError("registered-sim recovery result is invalid")
+            if result.status not in ("QUEUED", "ALREADY_ABSENT") or result.disarmed is not True:
+                raise BtApiStoreError("registered-sim recovery result is not terminal")
+            if store_frozen:
+                facts = getattr(api, "registered_sim_execution_facts", None)
+                current = facts() if callable(facts) else None
+                if (
+                    not isinstance(current, Mapping)
+                    or current.get("frozen") is not False
+                    or current.get("unknown_ids") != []
+                ):
+                    raise BtApiStoreError("registered-sim recovery left another UNKNOWN freeze")
+
+            if store_frozen:
+                self._registered_sim_gate.update(
+                    {"armed": False, "frozen": False, "reason": "unknown_reconciled_disarmed"}
+                )
+            return result
 
     def registered_sim_reserve_order_ref(self) -> str:
         """Reserve one exact SDK OrderRef before a journal prepares dispatch.
@@ -2477,6 +2757,7 @@ class RegisteredSimStore(BtApiStore):
 __all__ = [
     "RegisteredSimExecutionUnknown",
     "RegisteredSimDispatchEvidence",
+    "RegisteredSimUnknownRetirement",
     "RegisteredSimRouteEligibility",
     "RegisteredSimStore",
     "RegisteredSimWrapper",
