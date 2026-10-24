@@ -2986,6 +2986,62 @@ def _restore_shutdown_signal_handlers(installed):
         signal.signal(signum, previous)
 
 
+def _selection_evidence(plan, epoch_id, *, max_bytes):
+    """Return bounded, JSON-safe selection evidence bound to one epoch route set."""
+
+    if type(max_bytes) is not int or max_bytes < 1:
+        raise RunnerError("SELECTION_EVIDENCE_BYTE_BUDGET_INVALID")
+    if type(epoch_id) is not int or epoch_id < 1:
+        raise RunnerError("SELECTION_EVIDENCE_EPOCH_INVALID")
+    manifest = plan.get("manifest") if isinstance(plan, Mapping) else None
+    to_dict = getattr(manifest, "to_dict", None)
+    manifest_digest = getattr(manifest, "manifest_sha256", None)
+    if not callable(to_dict) or type(manifest_digest) is not str:
+        raise RunnerError("SELECTION_EVIDENCE_MANIFEST_UNAVAILABLE")
+    try:
+        manifest_row = to_dict()
+        if not isinstance(manifest_row, dict):
+            raise TypeError("manifest projection is not a mapping")
+        encoded_manifest = _canonical_json_bytes(manifest_row)
+        if hashlib.sha256(encoded_manifest.rstrip(b"\n")).hexdigest() != manifest_digest:
+            raise ValueError("manifest digest does not match its projection")
+        authorized_targets = plan.get("authorized_targets")
+        route_targets = set(_route_summary(plan))
+        if (
+            type(authorized_targets) not in (tuple, list)
+            or not authorized_targets
+            or any(type(target) is not str or not target for target in authorized_targets)
+            or len(set(authorized_targets)) != len(authorized_targets)
+            or not set(authorized_targets).issubset(route_targets)
+        ):
+            raise RunnerError("SELECTION_EVIDENCE_AUTHORIZED_TARGETS_INVALID")
+        authorized_targets = list(authorized_targets)
+        binding = {
+            "schema": "backtrader.alpha003_epoch_selection_evidence.v1",
+            "epoch_id": epoch_id,
+            "selection_source": str(plan["selection_source"]),
+            "selection_path": str(plan["selection_path"]),
+            "source_snapshot_id": plan.get("source_snapshot_id"),
+            "manifest_sha256": manifest_digest,
+            "routes": _route_summary(plan),
+            "authorized_targets": authorized_targets,
+        }
+        binding_sha256 = hashlib.sha256(_canonical_json_bytes(binding).rstrip(b"\n")).hexdigest()
+        evidence = {
+            **binding,
+            "binding_sha256": binding_sha256,
+            "manifest": manifest_row,
+        }
+        encoded_evidence = _canonical_json_bytes(evidence)
+    except RunnerError:
+        raise
+    except Exception as error:
+        raise RunnerError("SELECTION_EVIDENCE_SERIALIZATION_FAILED", type(error).__name__) from None
+    if len(encoded_evidence) > max_bytes:
+        raise RunnerError("SELECTION_EVIDENCE_BYTE_BUDGET_EXCEEDED")
+    return evidence
+
+
 def run_live(
     config,
     config_path,
@@ -3115,6 +3171,17 @@ def run_live(
         elif plan is None:
             raise RunnerError("LIVE_SELECTION_PLAN_REQUIRED")
         arm_templates = _arm_templates(config, plan) if write_enabled else None
+        tape_path = config["output"]["decision_tape_path"]
+        tape_budget = config["output"]["decision_tape_max_bytes"]
+        if tape_path is None or tape_budget is None:
+            raise RunnerError("DECISION_TAPE_PROFILE_REQUIRED")
+        if type(tape_budget) is not int or tape_budget < 1:
+            raise RunnerError("DECISION_TAPE_BYTE_BUDGET_INVALID")
+        selection_evidence = _selection_evidence(
+            plan,
+            config["cohort"]["epoch_id"],
+            max_bytes=tape_budget,
+        )
         decision_tape = _new_decision_tape(
             config,
             config_path,
@@ -3473,6 +3540,7 @@ def run_live(
         "selection_path": str(plan["selection_path"]),
         "selection_source": plan["selection_source"],
         "source_snapshot_id": plan.get("source_snapshot_id"),
+        "selection_evidence": selection_evidence,
         "calendar_evidence_mode": plan.get("calendar_evidence_mode"),
         "calendar_rules_sha256": plan.get("calendar_rules_sha256"),
         "selection_decision_at": plan["manifest"].decision_at.isoformat(),
@@ -3526,6 +3594,8 @@ def _assert_daily_plan_transition(previous, current):
 
     if set(previous["products"]) != set(current["products"]):
         raise RunnerError("DAILY_SELECTION_PRODUCT_POOL_CHANGED")
+    if previous["manifest"].policy != current["manifest"].policy:
+        raise RunnerError("DAILY_SELECTION_POLICY_CHANGED")
     if set(previous["authorized_targets"]) != set(current["authorized_targets"]):
         raise RunnerError("DAILY_SELECTION_AUTHORIZED_POOL_CHANGED")
     if set(previous["session_calendars"]) != set(current["session_calendars"]):
@@ -3664,6 +3734,7 @@ def _run_ctp_query_live_epochs(
                 "selection_source": plan["selection_source"],
                 "selection_path": str(plan["selection_path"]),
                 "source_snapshot_id": plan.get("source_snapshot_id"),
+                "selection_evidence": result["selection_evidence"],
                 "selection_decision_at": plan["manifest"].decision_at.isoformat(),
                 "calendar_evidence_mode": result.get("calendar_evidence_mode"),
                 "calendar_rules_sha256": result.get("calendar_rules_sha256"),
@@ -3853,6 +3924,7 @@ def run_live_epochs(
             epoch_summary = {
                 "epoch_id": epoch_config["cohort"]["epoch_id"],
                 "selection_path": str(plan["selection_path"]),
+                "selection_evidence": result.get("selection_evidence"),
                 "selection_decision_at": plan["manifest"].decision_at.isoformat(),
                 "trading_days": {
                     row.exchange_id: row.current_trading_day.isoformat()

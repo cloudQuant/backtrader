@@ -815,6 +815,9 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
             bundle=None,
             daily_bundles=[],
             max_epochs=2,
+            # Keep the complete three-product mapping for selection and
+            # evidence, while authorizing only a strict trading subset.
+            authorized_products=["DCE.M", "DCE.A"],
         )
         config["risk"].update(
             policy_id="query-two-epoch-risk-v1",
@@ -1480,6 +1483,12 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
         assert result["next_epoch_loaded"] is True
         assert len(api_clients) == 2
         assert all(client.closed for client in api_clients)
+        # The public epoch result is itself the bounded readback surface. Do
+        # the same strict JSON round trip as the CLI without serializing the
+        # private plan object returned only to the epoch sequencer.
+        result = json.loads(json.dumps(result, allow_nan=False))
+        assert "_plan" not in result
+        assert all("_plan" not in epoch for epoch in result["epochs"])
         assert trace.index(("api_closed", 1)) < trace.index(("api_created", 2))
         assert trace.index(("api_closed", 1)) < trace.index(("selection_catalog_query", 2))
         assert trace.index(("api_closed", 1)) < trace.index(("selection_depth_query", 2))
@@ -1508,6 +1517,152 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
             assert api_clients[epoch_index].context.all_catalog_facts is True
             assert set(epoch["routes"]) == {"DCE.M", "DCE.Y", "DCE.A"}
             assert set(epoch["routes"].values()) == expected_instruments
+            evidence = epoch["selection_evidence"]
+            assert evidence["schema"] == "backtrader.alpha003_epoch_selection_evidence.v1"
+            assert evidence["epoch_id"] == epoch["epoch_id"]
+            assert evidence["selection_source"] == epoch["selection_source"]
+            assert evidence["source_snapshot_id"] == epoch["source_snapshot_id"]
+            assert evidence["routes"] == epoch["routes"]
+            assert evidence["authorized_targets"] == ["DCE.M", "DCE.A"]
+            manifest = evidence["manifest"]
+            assert manifest["schema"] == "backtrader.futures_main_contract_manifest.v2"
+            assert manifest["status"] == "READY"
+            assert manifest["target_products"] == [
+                {"exchange_id": "DCE", "product_id": product} for product in ("A", "M", "Y")
+            ]
+            assert (
+                evidence["manifest_sha256"]
+                == hashlib.sha256(RUNNER._canonical_json_bytes(manifest).rstrip(b"\n")).hexdigest()
+            )
+            binding = {
+                key: evidence[key]
+                for key in (
+                    "schema",
+                    "epoch_id",
+                    "selection_source",
+                    "selection_path",
+                    "source_snapshot_id",
+                    "manifest_sha256",
+                    "routes",
+                    "authorized_targets",
+                )
+            }
+            assert (
+                evidence["binding_sha256"]
+                == hashlib.sha256(RUNNER._canonical_json_bytes(binding).rstrip(b"\n")).hexdigest()
+            )
+            assert len(RUNNER._canonical_json_bytes(evidence)) <= 50_000_000
+            assert manifest["policy"]["ranking_mode"] == "ctp_query_snapshot_equal_weight_v1"
+            assert manifest["policy"]["weights"] == {
+                "open_interest": "0.5",
+                "volume": "0.5",
+            }
+            assert manifest["policy"]["score_formula"] == "0.5 * open_interest + 0.5 * volume"
+            assert manifest["query_snapshot"]["kind"] == (
+                "CTP_CURRENT_DAY_QUERY_SNAPSHOT_NOT_FINALIZED_EOD"
+            )
+            query_snapshot = manifest["query_snapshot"]
+            assert (
+                manifest["source"]["snapshot_id"] == query_snapshot["quote_source"]["snapshot_id"]
+            )
+            assert (
+                manifest["source"]["catalog"]["snapshot_id"]
+                == query_snapshot["catalog_source"]["snapshot_id"]
+            )
+            assert epoch["source_snapshot_id"] == "{}|{}".format(
+                query_snapshot["catalog_source"]["snapshot_id"],
+                query_snapshot["quote_source"]["snapshot_id"],
+            )
+            assert query_snapshot["session"]["trading_day_after"] == expected_day.isoformat()
+            for source_name in ("catalog_source", "quote_source"):
+                source = query_snapshot[source_name]
+                assert {
+                    "source_id",
+                    "snapshot_id",
+                    "sha256",
+                    "request_id",
+                    "connection_generation",
+                    "trading_day",
+                    "started_at",
+                    "completed_at",
+                    "available_at",
+                    "retrieved_at",
+                    "complete",
+                    "is_last_seen",
+                    "record_count",
+                } <= set(source)
+                assert source["complete"] is True
+                assert source["is_last_seen"] is True
+                assert len(source["sha256"]) == 64
+            assert len(manifest["calendars"]) == 1
+            calendar = manifest["calendars"][0]
+            assert calendar["evidence_mode"] == "expected_rule_derived"
+            assert len(calendar["source_manifest_sha256"]) == 64
+            catalog_rows = query_snapshot["catalog_records"]
+            quote_rows = query_snapshot["quote_records"]
+            assert len(catalog_rows) == len(quote_rows) == 6
+            assert all(
+                {"instrument_id", "product", "product_class", "is_trading", "expiry_date"}
+                <= set(row)
+                for row in catalog_rows
+            )
+            assert all(
+                {"instrument_id", "exchange_id", "trading_day", "open_interest", "volume"}
+                <= set(row)
+                for row in quote_rows
+            )
+            assert len(manifest["candidates"]) == 6
+            assert all(
+                {
+                    "instrument_id",
+                    "open_interest",
+                    "volume",
+                    "ranking_score",
+                    "quote_trading_day",
+                    "action_day",
+                    "update_time",
+                    "update_millisec",
+                }
+                <= set(row)
+                for row in manifest["candidates"]
+            )
+            quote_by_id = {row["instrument_id"]: row for row in quote_rows}
+            for candidate in manifest["candidates"]:
+                quote = quote_by_id[candidate["instrument_id"]]
+                open_interest = Decimal(quote["open_interest"]["value"])
+                volume = Decimal(quote["volume"]["value"])
+                assert Decimal(candidate["ranking_score"]) == (open_interest + volume) / Decimal(
+                    "2"
+                )
+            assert all(
+                {"ranked_instrument_ids", "excluded_instrument_ids", "selected_instrument_id"}
+                <= set(row)
+                for row in manifest["products"]
+            )
+            for product_row in manifest["products"]:
+                product = product_row["product"]
+                target = f"{product['exchange_id']}.{product['product_id']}"
+                assert evidence["routes"][target] == product_row["selected_instrument_id"]
+            assert manifest["coverage"] == []
+            assert len(manifest["query_coverage"]) == 3
+            for coverage in manifest["query_coverage"]:
+                product = coverage["product"]
+                catalog_ids = {
+                    row["instrument_id"] for row in catalog_rows if row["product"] == product
+                }
+                quote_ids = {
+                    row["instrument_id"]
+                    for row in quote_rows
+                    if row["exchange_id"] == product["exchange_id"]
+                    and row["instrument_id"].startswith(product["product_id"])
+                }
+                assert set(coverage["catalog_instrument_ids"]) == catalog_ids
+                assert set(coverage["expected_quote_instrument_ids"]) == catalog_ids
+                assert set(coverage["observed_quote_instrument_ids"]) == quote_ids == catalog_ids
+            epoch_number = epoch["epoch_id"]
+            assert trace.count(("selection_catalog_query", epoch_number)) == 1
+            assert trace.count(("selection_depth_query", epoch_number)) == 1
+            assert trace.count(("query_plan_ready", epoch["source_snapshot_id"])) == 1
             expected_decision_count = epoch["decision_tape_readback"]["record_count"]
             assert expected_decision_count > 100
             tape_rows = tuple(
@@ -1518,6 +1673,12 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
             decisions = tape_rows[1:]
             assert len(decisions) == expected_decision_count
             assert all(set(row["members"]) == set(epoch["routes"]) for row in decisions)
+            assert all(
+                row["epoch_id"] == epoch_number
+                and {target: member["instrument"] for target, member in row["members"].items()}
+                == epoch["routes"]
+                for row in decisions
+            )
             assert all(
                 member["source_role"] == "live"
                 and member["complete"] is True
@@ -1731,6 +1892,43 @@ def test_daily_rollover_loads_next_pit_bundle_only_after_retirement_proof(tmp_pa
         event = row["strategy_order_events"]["events"][0]
         assert event["instrument"] == row["routes"][event["target"]]
         assert event["exchange"] == "DCE"
+
+
+def test_daily_rollover_rejects_saved_bundle_policy_drift(tmp_path, monkeypatch):
+    """A later PIT day cannot silently replace the frozen ranking policy."""
+    from types import SimpleNamespace
+
+    config_path, config, _first_plan, second_path = _daily_test_inputs(tmp_path)
+    second_bundle = json.loads(second_path.read_text(encoding="utf-8"))
+    second_bundle["policy"]["policy_id"] = "runner-fixture-different-policy-v1"
+    _write_json(second_path, second_bundle)
+
+    run_epochs = []
+
+    def completed_epoch(epoch_config, _config_path, plan, _factor_mode, _direction, **_kwargs):
+        epoch_id = epoch_config["cohort"]["epoch_id"]
+        run_epochs.append(epoch_id)
+        return _complete_live_epoch_result(epoch_id, RUNNER._route_summary(plan))
+
+    monkeypatch.setattr(RUNNER, "run_live", completed_epoch)
+
+    with pytest.raises(RUNNER.RunnerError) as caught:
+        RUNNER.run_live_epochs(
+            config,
+            config_path,
+            _first_plan,
+            "native",
+            1,
+            decision=SimpleNamespace(effective_tier="live"),
+            allow_write_flag=False,
+        )
+
+    assert caught.value.code == "DAILY_SELECTION_POLICY_CHANGED"
+    assert run_epochs == [1]
+    assert caught.value.assembly_attempts == (1,)
+    assert caught.value.later_bundle_reads == (str(second_path.resolve()),)
+    assert caught.value.next_epoch_load_permitted is False
+    assert caught.value.epoch_results[0]["retirement_proven"] is True
 
 
 def test_strategy_order_event_projection_keeps_exact_epoch_route_and_bounds(
