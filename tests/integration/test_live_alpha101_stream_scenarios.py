@@ -66,12 +66,13 @@ from tests.test_utils.alpha101_trace_validation import (
 
 
 UTC = timezone.utc
-_GAP_INDEX = 280
-_GAP_ROWS = 600
+_GAP_INDEX = 450
+_GAP_ROWS = 800
 _CAUSAL_ROWS = 320
 _CAUSAL_PREFIX_ROWS = 300
 _REBUILD_ROWS = 320
-_REBUILD_SUFFIX_ROWS = 20
+# The exact 60-row suffix has finite, varying independent-oracle witnesses for all IDs.
+_REBUILD_SUFFIX_ROWS = 60
 
 
 def _same_cell(left: Any, right: Any) -> bool:
@@ -85,6 +86,23 @@ def _same_cell(left: Any, right: Any) -> bool:
     if math.isnan(left_value) or math.isnan(right_value):
         return math.isnan(left_value) and math.isnan(right_value)
     return left_value == right_value
+
+
+def _assert_snapshot_output_equal(left: Any, right: Any, *, label: str) -> None:
+    """Compare paired snapshot outputs without collapsing value and readiness."""
+
+    if not _same_number(float(left.value), float(right.value)):
+        raise AssertionError("%s output values differ" % label)
+    left_status = getattr(left.status, "value", left.status)
+    right_status = getattr(right.status, "value", right.status)
+    if (
+        left_status != right_status
+        or left.reason != right.reason
+        or left.present is not right.present
+        or left.complete is not right.complete
+        or left.quality != right.quality
+    ):
+        raise AssertionError("%s output status/reason/quality differs" % label)
 
 
 class _ScenarioCapture(bt.Strategy):
@@ -889,7 +907,7 @@ def _assert_pre_gap_and_recovery_witnesses(
 @pytest.mark.slow
 @pytest.mark.parametrize("factor_mode", ("native", "build"))
 def test_full_alpha101_gap_advances_one_planned_grid_and_blocks_then_recovers(factor_mode):
-    """Every registered formula sees one missing slot and recovers only after its window."""
+    """One explicit gap blocks decisions until a full clean factor/cohort span returns."""
 
     frames = positive_target_frames(_GAP_ROWS)
     targets = tuple(frames)
@@ -916,6 +934,19 @@ def test_full_alpha101_gap_advances_one_planned_grid_and_blocks_then_recovers(fa
                 if receipt.present is not expected_present:
                     raise AssertionError("live presence mask differs from the one explicit gap")
 
+        # A separate ordinary Cerebro run provides the no-gap control. The
+        # independent scalar oracle below validates both runs before their
+        # exact H+warmup recovery slots are compared.
+        control, control_cohort, _control_clock, control_grid = _run_live(
+            frames,
+            alpha_ids,
+            factor_mode=factor_mode,
+            run_label="gap-no-gap-control",
+        )
+        _assert_contiguous_complete_grid(control, control_cohort, control_grid)
+        if tuple(control_grid) != tuple(grid):
+            raise AssertionError("no-gap control changed the planned source grid")
+
         oracle_frames = _gap_reference_frames(frames, gap_target, grid[gap_index])
         _traces, reports = _trace_for(
             strategy,
@@ -924,13 +955,29 @@ def test_full_alpha101_gap_advances_one_planned_grid_and_blocks_then_recovers(fa
             grid,
             panel_contract="live_snapshot",
         )
-        required_bars = WARMUP_BARS
+        _control_traces, control_reports = _trace_for(
+            control,
+            frames,
+            alpha_ids,
+            control_grid,
+            panel_contract="live_snapshot",
+        )
+        required_bars = max(
+            [WARMUP_BARS]
+            + [
+                int(
+                    strategy.live_factor_set.factor_instances["alpha%d" % alpha_id][
+                        "default"
+                    ]._minperiod
+                )
+                for alpha_id in alpha_ids
+            ]
+        )
         for alpha_id in alpha_ids:
             instance = strategy.live_factor_set.factor_instances["alpha%d" % alpha_id]["default"]
             # Structural span is independent of the intentionally dropped row;
             # the original frames keep equal lengths for history_h's source scan.
             span = history_h(alpha_id, frames)
-            required_bars = max(required_bars, int(instance._minperiod))
             if int(instance._minperiod) != span + 1:
                 raise AssertionError(
                     "Alpha%d runtime dependency count %r disagrees with independent span %d"
@@ -952,26 +999,46 @@ def test_full_alpha101_gap_advances_one_planned_grid_and_blocks_then_recovers(fa
                 raise AssertionError(
                     "Alpha%d independent oracle did not mask the missing member" % alpha_id
                 )
-            factor_recovery = gap_index + span + 1
+            clean_bars = max(span + 1, WARMUP_BARS)
+            factor_recovery = gap_index + clean_bars
             if factor_recovery >= len(grid):
                 raise AssertionError(
                     "Alpha%d fixture ends before its full-window recovery" % alpha_id
                 )
-            gap_asset_index = targets.index(gap_target)
-            if not math.isfinite(float(expected[factor_recovery][gap_asset_index])):
-                raise AssertionError(
-                    "Alpha%d oracle did not recover the gapped target after its full span"
-                    % alpha_id
+            control_expected = control_reports[alpha_id]["expected"]
+            actual_expected = expected[factor_recovery]
+            clean_expected = control_expected[factor_recovery]
+            if len(actual_expected) != len(targets) or len(clean_expected) != len(targets):
+                raise AssertionError("Alpha%d recovery oracle omitted a target" % alpha_id)
+            for target_index, target in enumerate(targets):
+                if not _same_number(
+                    float(actual_expected[target_index]), float(clean_expected[target_index])
+                ):
+                    raise AssertionError(
+                        "Alpha%d independent gap/control oracle differs at its clean cutoff for %s"
+                        % (alpha_id, target)
+                    )
+                gap_output = strategy.readings[factor_recovery]["outputs"][
+                    "alpha%d" % alpha_id
+                ][target]
+                control_output = control.readings[factor_recovery]["outputs"][
+                    "alpha%d" % alpha_id
+                ][target]
+                _assert_snapshot_output_equal(
+                    gap_output,
+                    control_output,
+                    label="Alpha%d clean-cutoff target %s" % (alpha_id, target),
                 )
-            recovered_target = strategy.readings[factor_recovery]["outputs"]["alpha%d" % alpha_id][
-                gap_target
-            ]
-            if getattr(
-                recovered_target.status, "value", recovered_target.status
-            ) != "OUTPUT_AVAILABLE" or not math.isfinite(float(recovered_target.value)):
-                raise AssertionError(
-                    "Alpha%d live target remained unavailable after its proven span" % alpha_id
-                )
+                if not _same_number(float(gap_output.value), float(actual_expected[target_index])):
+                    raise AssertionError(
+                        "Alpha%d clean-cutoff live value differs from its independent oracle for %s"
+                        % (alpha_id, target)
+                    )
+                if gap_output.present is not True or gap_output.complete is not True:
+                    raise AssertionError(
+                        "Alpha%d clean cutoff did not carry complete present input for %s"
+                        % (alpha_id, target)
+                    )
             _assert_pre_gap_and_recovery_witnesses(
                 alpha_id,
                 expected,
@@ -982,9 +1049,31 @@ def test_full_alpha101_gap_advances_one_planned_grid_and_blocks_then_recovers(fa
             assert_evaluation_witness(
                 alpha_id,
                 expected,
-                evaluation_bars=40,
-                warmup_start=max(WARMUP_BARS, span + 1),
+                evaluation_bars=len(grid) - factor_recovery,
+                warmup_start=factor_recovery,
             )
+            if factor_recovery < gap_index + required_bars:
+                cutoff_record = strategy.readings[factor_recovery]
+                if (
+                    getattr(cutoff_record["readiness"], "value", cutoff_record["readiness"])
+                    != "WARMUP"
+                    or cutoff_record["batch_id"] in strategy.eligible_batches
+                ):
+                    raise AssertionError(
+                        "Alpha%d factor H recovery was conflated with group decision readiness"
+                        % alpha_id
+                    )
+            else:
+                cutoff_record = strategy.readings[factor_recovery]
+                if (
+                    getattr(cutoff_record["readiness"], "value", cutoff_record["readiness"])
+                    != "LIVE_READY"
+                    or cutoff_record["batch_id"] not in strategy.eligible_batches
+                ):
+                    raise AssertionError(
+                        "Alpha%d clean cutoff did not preserve already-qualified group readiness"
+                        % alpha_id
+                    )
             checked.add(alpha_id)
 
         recovery_index = gap_index + required_bars
@@ -1001,15 +1090,21 @@ def test_full_alpha101_gap_advances_one_planned_grid_and_blocks_then_recovers(fa
             raise AssertionError("whole group did not become ready at its complete recovery window")
         if strategy.readings[recovery_index]["batch_id"] not in strategy.eligible_batches:
             raise AssertionError("whole group did not resume eligibility after complete recovery")
-        for alpha_id in alpha_ids:
-            recovery_values = [
-                float(
-                    strategy.readings[recovery_index]["outputs"]["alpha%d" % alpha_id][target].value
-                )
-                for target in targets
-            ]
-            if not any(math.isfinite(value) for value in recovery_values):
-                raise AssertionError("Alpha%d became ready with only all-NaN outputs" % alpha_id)
+        if (
+            getattr(control.readings[recovery_index]["readiness"], "value", None) != "LIVE_READY"
+            or control.readings[recovery_index]["batch_id"] not in control.eligible_batches
+        ):
+            raise AssertionError("no-gap group control did not meet readiness at the gap cutoff")
+        for record in (strategy.readings[recovery_index], control.readings[recovery_index]):
+            for name, receipt in record["receipts"].items():
+                if (
+                    receipt.present is not True
+                    or receipt.complete is not True
+                    or receipt.quality != "GOOD"
+                ):
+                    raise AssertionError(
+                        "group recovery contains incomplete or missing source input: %s" % name
+                    )
 
     if not selection_is_focused() and checked != set(formula_ids()):
         raise AssertionError("gap scenario omitted a registered Alpha101 formula")
@@ -1050,10 +1145,10 @@ def test_alpha007_gap_snapshot_keeps_raw_false_branch_separate_from_group_readin
     assert gap_output.reason == "UNKNOWN"
     assert getattr(strategy.readings[_GAP_INDEX]["readiness"], "value", None) == "WARMUP"
 
-    # At row 301 the graph's active rolling branch is still incomplete, but
-    # Alpha007's valid false branch is the exact constant -1. The snapshot
-    # exposes that raw formula result while cohort readiness blocks decisions.
-    branch_index = _GAP_INDEX + 21
+    # Twenty rows after the gap, the graph's active rolling branch is
+    # still incomplete, but Alpha007's valid false branch is the exact -1.
+    # The snapshot exposes that raw result while cohort readiness blocks decisions.
+    branch_index = _GAP_INDEX + 20
     branch_record = strategy.readings[branch_index]
     branch_output = branch_record["outputs"]["alpha7"][gap_target]
     assert branch_record["receipts"][gap_target].present is True
