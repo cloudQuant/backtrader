@@ -213,7 +213,11 @@ class FactorStrategy(Strategy):
 
     def _validate_clocks(self) -> None:
         cerebro = getattr(self, "env", None)
-        if bool(getattr(cerebro, "_doreplay", False)) or bool(getattr(cerebro, "_dolive", False)):
+        if (
+            bool(getattr(cerebro, "_doreplay", False))
+            or bool(getattr(cerebro, "_dolive", False))
+            or bool(getattr(getattr(cerebro, "p", None), "live", False))
+        ):
             raise ResearchConfigError(
                 "FactorStrategy does not support live or replay Cerebro clocks",
                 code="UNSUPPORTED_CLOCK",
