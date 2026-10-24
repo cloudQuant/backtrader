@@ -225,6 +225,68 @@ def test_import_and_store_construction_do_not_import_a_provider():
     assert result.returncode == 0, result.stderr
 
 
+def test_registered_sim_tick_source_is_store_owned_and_stamped_on_consumed_ticks():
+    api = _wrapper(allow_writes=False)
+    raw_tick = SimpleNamespace(source="caller-supplied", instrument_id="rb2510")
+    api.poll_tick = lambda _symbol: raw_tick
+    store = RegisteredSimStore(
+        api=api,
+        live_tick_provenance={"source": "caller-supplied"},
+    )
+    store._connected = True
+
+    assert store.registered_sim_tick_source == "ctp-native-live"
+    with pytest.raises(AttributeError):
+        store.registered_sim_tick_source = "caller-supplied"
+
+    consumed = store.poll_tick("rb2510")
+    assert consumed is not raw_tick
+    assert consumed.source == "ctp-native-live"
+    assert raw_tick.source == "caller-supplied"
+
+    snapshot = store.get_latest_tick_snapshot("rb2510")
+    assert snapshot is not raw_tick
+    assert snapshot.source == "ctp-native-live"
+    snapshot.source = "mutated-copy"
+    assert store.get_latest_tick_snapshot("rb2510").source == "ctp-native-live"
+
+
+def test_registered_sim_tick_source_stamps_mapping_without_mutating_raw_tick():
+    api = _wrapper(allow_writes=False)
+    raw_tick = {"source": "untrusted", "InstrumentID": "rb2510"}
+    api.poll_tick = lambda _symbol: raw_tick
+    store = RegisteredSimStore(api=api)
+    store._connected = True
+
+    consumed = store.poll_tick("rb2510")
+
+    assert consumed == {"source": "ctp-native-live", "InstrumentID": "rb2510"}
+    assert consumed is not raw_tick
+    assert raw_tick["source"] == "untrusted"
+
+
+def test_registered_sim_missing_tick_source_returns_detached_unstamped_event():
+    class MissingTickSourceStore(RegisteredSimStore):
+        def __getattribute__(self, name):
+            if name == "registered_sim_tick_source":
+                raise AttributeError(name)
+            return super().__getattribute__(name)
+
+    api = _wrapper(allow_writes=False)
+    raw_tick = SimpleNamespace(source="untrusted", instrument_id="rb2510")
+    api.poll_tick = lambda _symbol: raw_tick
+    store = MissingTickSourceStore(api=api)
+    store._connected = True
+
+    consumed = store.poll_tick("rb2510")
+    snapshot = store.get_latest_tick_snapshot("rb2510")
+
+    assert consumed is not raw_tick
+    assert snapshot is not raw_tick
+    assert consumed.source == "untrusted"
+    assert snapshot.source == "untrusted"
+
+
 def test_shadow_store_refuses_arm_and_all_direct_ctp_writes():
     api = _wrapper(allow_writes=False)
     store = RegisteredSimStore(api=api)

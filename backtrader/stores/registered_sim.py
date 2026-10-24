@@ -35,6 +35,7 @@ from typing import Any, Dict, Optional, Tuple
 from .btapistore import BtApiStore, BtApiStoreError
 
 _HASH_RE = re.compile(r"^[0-9a-f]{64}$")
+_REGISTERED_SIM_TICK_SOURCE = "ctp-native-live"
 _QUERY_METHODS = {
     "account_result": "query_account_result",
     "positions_result": "query_positions_result",
@@ -1009,6 +1010,42 @@ class RegisteredSimStore(BtApiStore):
     def allow_writes(self) -> bool:
         """Constructor-time write switch; intentionally has no setter."""
         return self._registered_sim_allow_writes
+
+    @property
+    def registered_sim_tick_source(self) -> str:
+        """Immutable source identity for ticks consumed on this direct CTP route."""
+        return _REGISTERED_SIM_TICK_SOURCE
+
+    def _stamp_registered_sim_tick_source(self, tick: Any) -> Any:
+        """Stamp a detached tick with the Store-owned route identity."""
+        if tick is None:
+            return None
+        if isinstance(tick, Mapping):
+            result = dict(tick)
+        else:
+            result = copy.copy(tick)
+        try:
+            source = self.registered_sim_tick_source
+        except AttributeError:
+            return result
+        if type(source) is not str or not source or source != source.strip():
+            return result
+        if isinstance(result, Mapping):
+            result["source"] = source
+            return result
+        try:
+            setattr(result, "source", source)
+        except Exception:
+            raise BtApiStoreError("registered-sim tick source cannot be stamped") from None
+        return result
+
+    def poll_tick(self, dataname: str):
+        """Consume a direct CTP tick and stamp the returned event by route."""
+        return self._stamp_registered_sim_tick_source(super().poll_tick(dataname))
+
+    def get_latest_tick_snapshot(self, dataname: str):
+        """Read a detached consumed tick stamped with this Store's route identity."""
+        return self._stamp_registered_sim_tick_source(super().get_latest_tick_snapshot(dataname))
 
     @staticmethod
     def _order_route_from_info(order: Any) -> Optional[Tuple[str, str]]:
