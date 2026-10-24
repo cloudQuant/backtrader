@@ -32,6 +32,14 @@ from types import MappingProxyType
 from threading import RLock
 from typing import Any, Callable, Iterator, Optional, Tuple, Union
 
+from .execution_journal_archive import (
+    DEFAULT_ARCHIVE_TIMEOUT_SECONDS,
+    ExecutionJournalArchiveError,
+    ExecutionJournalArchiveReceipt,
+    create_verified_execution_journal_archive,
+    validate_archive_timeout,
+)
+
 
 _ECONOMIC_DECIMAL_FIELDS = frozenset(
     {
@@ -397,6 +405,48 @@ class ExecutionDecisionJournal:
             if not self._closed:
                 self._connection.close()
                 self._closed = True
+
+    def archive_snapshot(
+        self,
+        destination: Union[str, Path],
+        *,
+        timeout_seconds: float = DEFAULT_ARCHIVE_TIMEOUT_SECONDS,
+    ) -> ExecutionJournalArchiveReceipt:
+        """Create a complete verified SQLite snapshot without changing this journal.
+
+        The exclusive lock wait and SQLite online backup share a cooperative
+        deadline checked between operations; one native SQLite or filesystem
+        call cannot be interrupted. This is an audit snapshot only: it does not
+        reset capacity, release owners, rotate the active database, or remove
+        UNKNOWN intents.
+        """
+
+        try:
+            timeout = validate_archive_timeout(timeout_seconds)
+        except ExecutionJournalArchiveError as error:
+            raise ExecutionDecisionJournalError(error.code) from error
+        deadline = time.monotonic() + timeout
+        if not self._lock.acquire(timeout=timeout):
+            raise ExecutionDecisionJournalError("ARCHIVE_LOCK_TIMEOUT")
+        try:
+            self._ensure_open()
+            if self._connection.in_transaction:
+                raise ExecutionDecisionJournalError("ARCHIVE_SOURCE_TRANSACTION_ACTIVE")
+            remaining = deadline - time.monotonic()
+            if remaining < 0.001:
+                raise ExecutionDecisionJournalError("ARCHIVE_DEADLINE_EXCEEDED")
+            try:
+                return create_verified_execution_journal_archive(
+                    self._connection,
+                    destination,
+                    expected_schema_version=self._SCHEMA_VERSION,
+                    timeout_seconds=remaining,
+                    source_path=self.path,
+                )
+            except ExecutionJournalArchiveError as error:
+                raise ExecutionDecisionJournalError(error.code) from error
+        finally:
+            self._lock.release()
 
     def record_decision(
         self,
