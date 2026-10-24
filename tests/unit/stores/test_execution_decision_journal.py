@@ -1,0 +1,874 @@
+"""Route-neutral durable decision and intent journal contracts."""
+
+from __future__ import annotations
+
+import json
+import os
+import sqlite3
+import subprocess
+import sys
+import time
+from decimal import Decimal
+
+import pytest
+
+from backtrader.stores.execution_decision_journal import (
+    ExecutionDecisionJournal,
+    ExecutionDecisionJournalError,
+    ExecutionDecisionKey,
+    ExecutionIntentKey,
+)
+
+
+def _decision_key(
+    run_id: str = "run-a", *, close_time: str = "2026-10-20T10:00:00Z", kind: str = "bar"
+) -> ExecutionDecisionKey:
+    return ExecutionDecisionKey(
+        account_scope="account-a",
+        strategy_scope="strategy-a",
+        logical_run_id=run_id,
+        cohort_id="cohort-1",
+        close_time=close_time,
+        decision_kind=kind,
+    )
+
+
+def _intent_key(
+    instrument: str = "SIM-IF-1",
+    *,
+    action: str = "SUBMIT",
+    leg: int = 0,
+    side: str = "BUY",
+    effect: str = "OPEN",
+) -> ExecutionIntentKey:
+    return ExecutionIntentKey(
+        action=action,
+        instrument=instrument,
+        side=side,
+        position_effect=effect,
+        leg=leg,
+    )
+
+
+def _decision_payload(**changes):
+    payload = {"signal": "cross-up", "confidence": 0.75}
+    payload.update(changes)
+    return payload
+
+
+def _order_payload(**changes):
+    payload = {
+        "quantity": Decimal("2.000"),
+        "price": Decimal("4012.50"),
+        "order_type": "LIMIT",
+        "time_in_force": "DAY",
+    }
+    payload.update(changes)
+    return payload
+
+
+def _prepare(journal, *, key=None, intent_key=None, original_identity=None):
+    decision = journal.record_decision(
+        key or _decision_key(),
+        _decision_payload(),
+        intent_keys=(intent_key or _intent_key(),),
+    )
+    intent = journal.prepare_intent(
+        decision.decision_id,
+        intent_key or _intent_key(),
+        _order_payload(),
+        original_identity=original_identity or {"backtrader_order_ref": 41},
+    )
+    return decision, intent
+
+
+def _record_terminal_reconciliation(
+    journal,
+    intent,
+    *,
+    reconciliation_id,
+    query_id,
+    terminal_state="FILLED",
+    event_id="provider-event-1",
+    snapshot_id="position-snapshot-1",
+    position_flat=False,
+    provider_order_id="provider-order-1",
+):
+    return journal.record_reconciliation(
+        intent.intent_id,
+        reconciliation_id=reconciliation_id,
+        query_id=query_id,
+        state="KNOWN",
+        provider_identity={"order_id": provider_order_id},
+        outcome_code=terminal_state.lower(),
+        terminal_state=terminal_state,
+        terminal_event_id=event_id,
+        position_snapshot_id=snapshot_id,
+        position_flat=position_flat,
+    )
+
+
+def test_noop_and_canonical_economics_are_durable_and_immutable(tmp_path):
+    path = tmp_path / "decisions.sqlite3"
+    journal = ExecutionDecisionJournal(path)
+    key = _decision_key()
+    first = journal.record_decision(
+        key,
+        {
+            "quantity": Decimal("1.000"),
+            "price": 123.0,
+            "tags": {"z": 1, "a": 2},
+            "path": ["strategy", {"phase": "close"}],
+        },
+    )
+    assert first.is_noop is True
+    assert first.intent_keys == ()
+    assert first.economic_payload == {
+        "quantity": "1",
+        "price": "123",
+        "tags": {"a": 2, "z": 1},
+        "path": ("strategy", {"phase": "close"}),
+    }
+    with pytest.raises(TypeError):
+        first.economic_payload["quantity"] = "99"
+    with pytest.raises(TypeError):
+        first.economic_payload["tags"]["a"] = 99
+    with pytest.raises(TypeError):
+        first.economic_payload["path"][1]["phase"] = "changed"
+    replay = journal.record_decision(
+        key,
+        {
+            "tags": {"a": 2, "z": 1},
+            "price": "123.00",
+            "quantity": "1.0",
+            "path": ["strategy", {"phase": "close"}],
+        },
+    )
+    assert replay.decision_id == first.decision_id
+    with pytest.raises(ExecutionDecisionJournalError, match="DECISION_CONFLICT"):
+        journal.record_decision(
+            key,
+            {"quantity": "1.01", "price": "123", "tags": {"a": 2, "z": 1}},
+        )
+    with pytest.raises(ExecutionDecisionJournalError, match="INVALID_JOURNAL_PAYLOAD"):
+        journal.record_decision(_decision_key("bool-quantity"), {"quantity": True})
+    journal.close()
+
+    reopened = ExecutionDecisionJournal(path)
+    restored = reopened.decision(first.decision_id)
+    assert restored is not None
+    assert restored.is_noop is True
+    assert restored.economic_payload["quantity"] == "1"
+    reopened.close()
+
+    invalid = ExecutionDecisionJournal(tmp_path / "invalid-economic.sqlite3")
+    decision = invalid.record_decision(_decision_key("invalid-economic"), _decision_payload())
+    with pytest.raises(ExecutionDecisionJournalError, match="INVALID_JOURNAL_PAYLOAD"):
+        invalid.prepare_intent(
+            decision.decision_id,
+            _intent_key(),
+            _order_payload(price=False),
+        )
+    invalid.close()
+
+
+def test_equivalent_close_times_normalize_to_one_business_key(tmp_path):
+    journal = ExecutionDecisionJournal(tmp_path / "time.sqlite3")
+    utc_key = _decision_key(close_time="2026-10-20T10:00:00Z")
+    offset_key = _decision_key(close_time="2026-10-20T18:00:00+08:00")
+    assert utc_key.close_time == offset_key.close_time == "2026-10-20T10:00:00Z"
+    first = journal.record_decision(utc_key, {"signal": "flat"})
+    replay = journal.record_decision(offset_key, {"signal": "flat"})
+    assert first.decision_id == replay.decision_id
+    with pytest.raises(ExecutionDecisionJournalError, match="INVALID_DECISION_CLOSE_TIME"):
+        _decision_key(close_time="2026-10-20T10:00:00")
+    with pytest.raises(ExecutionDecisionJournalError, match="INVALID_DECISION_CLOSE_TIME"):
+        _decision_key(close_time="2026-10-20T10:00:00.1234567Z")
+    with pytest.raises(ExecutionDecisionJournalError, match="INVALID_DECISION_CLOSE_TIME"):
+        _decision_key(close_time="2026-10-20T10:00:00-00:00")
+    journal.close()
+
+
+def test_schema_v1_migration_preserves_original_dispatch_outcome(tmp_path):
+    path = tmp_path / "schema-v1.sqlite3"
+    with sqlite3.connect(path) as connection:
+        connection.execute(
+            """CREATE TABLE execution_decision_intents (
+                   intent_id TEXT PRIMARY KEY,
+                   decision_id TEXT NOT NULL,
+                   intent_key_json TEXT NOT NULL,
+                   economic_payload_json TEXT NOT NULL,
+                   original_identity_json TEXT NOT NULL,
+                   owner_intent_id TEXT,
+                   state TEXT NOT NULL,
+                   provider_identity_json TEXT,
+                   outcome_code TEXT,
+                   dispatch_result_json TEXT,
+                   created_at_ns INTEGER NOT NULL,
+                   updated_at_ns INTEGER NOT NULL
+               )"""
+        )
+        connection.execute(
+            """INSERT INTO execution_decision_intents VALUES
+               ('intent-v1', 'decision-v1',
+                '{"action":"SUBMIT","instrument":"SIM-IF-1","side":"BUY","position_effect":"OPEN","leg":0}',
+                '{"quantity":"1"}', '{"order_ref":9}', NULL, 'UNKNOWN', '{}',
+                'connection_lost', '{"outcome_code":"connection_lost","provider_identity":{}}', 1, 2)"""
+        )
+        connection.execute("PRAGMA user_version = 1")
+
+    journal = ExecutionDecisionJournal(path)
+    intent = journal.intent("intent-v1")
+    assert intent is not None
+    assert intent.state == "UNKNOWN"
+    assert intent.dispatch_state == "UNKNOWN"
+    assert intent.outcome_code == "connection_lost"
+    assert journal._connection.execute("PRAGMA user_version").fetchone()[0] == 2
+    journal.close()
+
+
+def test_all_legs_prepare_before_dispatch_and_unknown_never_retries(tmp_path):
+    path = tmp_path / "multi.sqlite3"
+    journal = ExecutionDecisionJournal(path, max_pending_intents=4)
+    keys = (
+        _intent_key("SIM-IF-1", leg=0),
+        _intent_key("SIM-IF-2", leg=1, side="SELL", effect="CLOSE"),
+    )
+    decision = journal.record_decision(_decision_key(), _decision_payload(), intent_keys=keys)
+    first = journal.prepare_intent(
+        decision.decision_id,
+        keys[0],
+        _order_payload(),
+        original_identity={"backtrader_order_ref": 10, "client_order_id": "bt-10"},
+    )
+    with pytest.raises(ExecutionDecisionJournalError, match="DECISION_INTENTS_INCOMPLETE"):
+        journal.claim_dispatch(first.intent_id)
+    second = journal.prepare_intent(
+        decision.decision_id,
+        keys[1],
+        _order_payload(quantity="1"),
+        original_identity={"backtrader_order_ref": 11, "client_order_id": "bt-11"},
+    )
+    with pytest.raises(ExecutionDecisionJournalError, match="PRIOR_INTENT_NOT_KNOWN"):
+        journal.claim_dispatch(second.intent_id)
+
+    claim = journal.claim_dispatch(first.intent_id)
+    assert claim is not None
+    assert claim.intent.state == "DISPATCHING"
+    assert claim.intent.original_identity["client_order_id"] == "bt-10"
+    with pytest.raises(TypeError):
+        claim.intent.original_identity["client_order_id"] = "changed"
+    assert journal.claim_dispatch(first.intent_id) is None
+    unknown = journal.record_dispatch_result(
+        first.intent_id, state="UNKNOWN", outcome_code="connection_lost"
+    )
+    assert unknown.state == "UNKNOWN"
+    assert journal.claim_dispatch(first.intent_id) is None
+    with pytest.raises(ExecutionDecisionJournalError, match="PRIOR_INTENT_NOT_KNOWN"):
+        journal.claim_dispatch(second.intent_id)
+    journal.close()
+
+    recovered = ExecutionDecisionJournal(path)
+    recovered_first = recovered.intent(first.intent_id)
+    assert recovered_first is not None
+    assert recovered_first.state == "UNKNOWN"
+    assert recovered_first.original_identity == {
+        "backtrader_order_ref": 10,
+        "client_order_id": "bt-10",
+    }
+    assert recovered.claim_dispatch(first.intent_id) is None
+    recovered.close()
+
+
+def test_same_instrument_close_open_reversal_is_two_decisions(tmp_path):
+    journal = ExecutionDecisionJournal(tmp_path / "reversal.sqlite3")
+    reversal = (
+        _intent_key("SIM-IF-1", leg=0, side="SELL", effect="CLOSE"),
+        _intent_key("SIM-IF-1", leg=1, side="BUY", effect="OPEN"),
+    )
+    with pytest.raises(ExecutionDecisionJournalError, match="DUPLICATE_INSTRUMENT_INTENT"):
+        journal.record_decision(_decision_key(), _decision_payload(), intent_keys=reversal)
+    journal.close()
+
+
+@pytest.mark.parametrize("final_state", ["DISPATCHING", "UNKNOWN"])
+def test_fresh_process_recovery_never_reclaims_original_dispatch(tmp_path, final_state):
+    path = tmp_path / (final_state.lower() + ".sqlite3")
+    journal = ExecutionDecisionJournal(path)
+    _, intent = _prepare(
+        journal,
+        original_identity={"backtrader_order_ref": 77, "provider_client_id": "client-77"},
+    )
+    assert journal.claim_dispatch(intent.intent_id) is not None
+    if final_state == "UNKNOWN":
+        journal.record_dispatch_result(intent.intent_id, state="UNKNOWN")
+    journal.close()
+
+    child = r"""
+import json, sys
+from backtrader.stores.execution_decision_journal import ExecutionDecisionJournal
+journal = ExecutionDecisionJournal(sys.argv[1])
+intent = journal.intent(sys.argv[2])
+claim = journal.claim_dispatch(sys.argv[2])
+assert intent is not None
+print(json.dumps({"state": intent.state, "identity": dict(intent.original_identity),
+                  "claimed": claim is not None}, sort_keys=True))
+journal.close()
+"""
+    completed = subprocess.run(
+        [sys.executable, "-c", child, str(path), intent.intent_id],
+        cwd=os.getcwd(),
+        capture_output=True,
+        text=True,
+        check=True,
+        timeout=30,
+    )
+    report = json.loads(completed.stdout)
+    assert report == {
+        "state": final_state,
+        "identity": {"backtrader_order_ref": 77, "provider_client_id": "client-77"},
+        "claimed": False,
+    }
+
+
+def test_cross_run_owner_survives_known_ack_until_terminal_position_reconcile(tmp_path):
+    path = tmp_path / "owners.sqlite3"
+    journal = ExecutionDecisionJournal(path)
+    open_key = _intent_key("SIM-IF-1", leg=0, side="BUY", effect="OPEN")
+    first_decision, opening = _prepare(
+        journal,
+        key=_decision_key("run-open"),
+        intent_key=open_key,
+        original_identity={"backtrader_order_ref": 101, "client_order_id": "open-101"},
+    )
+    assert journal.claim_dispatch(opening.intent_id) is not None
+    known = journal.record_dispatch_result(
+        opening.intent_id,
+        state="KNOWN",
+        provider_identity={"order_id": "sim-5001"},
+        outcome_code="accepted",
+    )
+    assert known.state == "KNOWN"
+    owner = journal.active_instrument_owner("account-a", "SIM-IF-1")
+    assert owner is not None and owner.intent_id == opening.intent_id
+
+    close_key = _intent_key("SIM-IF-1", leg=0, side="SELL", effect="CLOSE")
+    next_decision = journal.record_decision(
+        _decision_key("run-close"),
+        _decision_payload(direction="close"),
+        intent_keys=(close_key,),
+    )
+    with pytest.raises(ExecutionDecisionJournalError, match="INSTRUMENT_OWNER_ACTIVE"):
+        journal.prepare_intent(next_decision.decision_id, close_key, _order_payload())
+
+    with pytest.raises(ExecutionDecisionJournalError, match="INTENT_NOT_RECONCILED_TERMINAL"):
+        journal.release_instrument_owner(
+            opening.intent_id,
+            reconciliation_id="recon-1",
+        )
+    open_reconciliation = _record_terminal_reconciliation(
+        journal,
+        opening,
+        reconciliation_id="recon-1",
+        query_id="query-open-1",
+        event_id="sim-event-5001-filled",
+        snapshot_id="position-after-open-1",
+        position_flat=False,
+        provider_order_id="sim-5001",
+    )
+    resolution = journal.release_instrument_owner(
+        opening.intent_id,
+        reconciliation_id=open_reconciliation.reconciliation_id,
+    )
+    assert resolution.position_flat is False
+    assert journal.active_instrument_owner("account-a", "SIM-IF-1") is None
+
+    close_intent = journal.prepare_intent(
+        next_decision.decision_id,
+        close_key,
+        _order_payload(quantity="2", price="4010"),
+        original_identity={"backtrader_order_ref": 102, "client_order_id": "close-102"},
+    )
+    assert close_intent.state == "PREPARED"
+    assert close_intent.owner_intent_id is None
+    assert journal.claim_dispatch(close_intent.intent_id) is not None
+    close_known = journal.record_dispatch_result(
+        close_intent.intent_id,
+        state="KNOWN",
+        provider_identity={"order_id": "sim-5002"},
+        outcome_code="accepted",
+    )
+    assert close_known.state == "KNOWN"
+    close_reconciliation = _record_terminal_reconciliation(
+        journal,
+        close_intent,
+        reconciliation_id="recon-2",
+        query_id="query-close-1",
+        event_id="sim-event-5002-filled",
+        snapshot_id="position-after-close-1",
+        position_flat=True,
+        provider_order_id="sim-5002",
+    )
+    close_resolution = journal.release_instrument_owner(
+        close_intent.intent_id,
+        reconciliation_id=close_reconciliation.reconciliation_id,
+    )
+    assert close_resolution.position_flat is True
+    assert journal.active_instrument_owner("account-a", "SIM-IF-1") is None
+    journal.close()
+
+
+def test_unknown_owner_blocks_same_instrument_in_a_new_logical_run(tmp_path):
+    path = tmp_path / "unknown-owner.sqlite3"
+    journal = ExecutionDecisionJournal(path)
+    _, original = _prepare(journal)
+    journal.claim_dispatch(original.intent_id)
+    journal.record_dispatch_result(original.intent_id, state="UNKNOWN")
+    journal.close()
+
+    recovered = ExecutionDecisionJournal(path)
+    owner = recovered.active_instrument_owner("account-a", "SIM-IF-1")
+    assert owner is not None
+    assert owner.intent_id == original.intent_id
+    assert owner.state == "UNKNOWN"
+    recovered_intent = recovered.intent(original.intent_id)
+    assert recovered_intent.dispatch_state == "UNKNOWN"
+    assert recovered_intent.provider_identity == {}
+    next_key = _intent_key("SIM-IF-1", side="SELL", effect="CLOSE")
+    next_decision = recovered.record_decision(
+        _decision_key("run-next"), _decision_payload(), intent_keys=(next_key,)
+    )
+    with pytest.raises(ExecutionDecisionJournalError, match="INSTRUMENT_OWNER_ACTIVE"):
+        recovered.prepare_intent(next_decision.decision_id, next_key, _order_payload())
+    recovered.close()
+
+
+def test_unknown_query_resolution_is_append_only_and_allows_close_after_fill(tmp_path):
+    path = tmp_path / "resolve-unknown.sqlite3"
+    journal = ExecutionDecisionJournal(path)
+    _, opening = _prepare(
+        journal,
+        original_identity={"backtrader_order_ref": 81, "client_order_id": "client-81"},
+    )
+    assert journal.claim_dispatch(opening.intent_id) is not None
+    original_unknown = journal.record_dispatch_result(
+        opening.intent_id,
+        state="UNKNOWN",
+        outcome_code="connection_lost_after_send",
+    )
+    journal.close()
+
+    recovered = ExecutionDecisionJournal(path)
+    unknown_query = recovered.record_reconciliation(
+        opening.intent_id,
+        reconciliation_id="recon-query-unknown",
+        query_id="provider-query-1",
+        state="UNKNOWN",
+        outcome_code="order_not_visible_yet",
+    )
+    replay_unknown = recovered.record_reconciliation(
+        opening.intent_id,
+        reconciliation_id="recon-query-unknown",
+        query_id="provider-query-1",
+        state="UNKNOWN",
+        outcome_code="order_not_visible_yet",
+    )
+    assert replay_unknown == unknown_query
+    assert recovered.intent(opening.intent_id).state == "UNKNOWN"
+    assert recovered.intent(opening.intent_id).dispatch_state == "UNKNOWN"
+    assert recovered.claim_dispatch(opening.intent_id) is None
+    with pytest.raises(ExecutionDecisionJournalError, match="INTENT_NOT_RECONCILED_TERMINAL"):
+        recovered.release_instrument_owner(
+            opening.intent_id, reconciliation_id=unknown_query.reconciliation_id
+        )
+    with pytest.raises(ExecutionDecisionJournalError, match="RECONCILIATION_CONFLICT"):
+        recovered.record_reconciliation(
+            opening.intent_id,
+            reconciliation_id="recon-query-unknown",
+            query_id="provider-query-1",
+            state="KNOWN",
+            provider_identity={"order_id": "sim-810"},
+        )
+    with pytest.raises(ExecutionDecisionJournalError, match="RECONCILIATION_QUERY_CONFLICT"):
+        recovered.record_reconciliation(
+            opening.intent_id,
+            reconciliation_id="different-receipt-same-query",
+            query_id="provider-query-1",
+            state="UNKNOWN",
+            outcome_code="order_not_visible_yet",
+        )
+
+    filled = _record_terminal_reconciliation(
+        recovered,
+        opening,
+        reconciliation_id="recon-query-filled",
+        query_id="provider-query-2",
+        event_id="sim-event-810-filled",
+        snapshot_id="position-after-open-810",
+        position_flat=False,
+        provider_order_id="sim-810",
+    )
+    assert filled.original_identity == {
+        "backtrader_order_ref": 81,
+        "client_order_id": "client-81",
+    }
+    with pytest.raises(TypeError):
+        filled.original_identity["client_order_id"] = "mutated"
+    resolved_intent = recovered.intent(opening.intent_id)
+    assert resolved_intent.state == "KNOWN"
+    assert resolved_intent.dispatch_state == "UNKNOWN"
+    assert resolved_intent.provider_identity == {}
+    assert resolved_intent.outcome_code == "connection_lost_after_send"
+    assert recovered.claim_dispatch(opening.intent_id) is None
+    assert (
+        recovered.record_reconciliation(
+            opening.intent_id,
+            reconciliation_id="recon-query-filled",
+            query_id="provider-query-2",
+            state="KNOWN",
+            provider_identity={"order_id": "sim-810"},
+            outcome_code="filled",
+            terminal_state="FILLED",
+            terminal_event_id="sim-event-810-filled",
+            position_snapshot_id="position-after-open-810",
+            position_flat=False,
+        )
+        == filled
+    )
+    with pytest.raises(ExecutionDecisionJournalError, match="RECONCILIATION_CONFLICT"):
+        recovered.record_reconciliation(
+            opening.intent_id,
+            reconciliation_id="recon-query-filled",
+            query_id="provider-query-2",
+            state="KNOWN",
+            provider_identity={"order_id": "sim-810"},
+            outcome_code="filled",
+            terminal_state="FILLED",
+            terminal_event_id="different-event",
+            position_snapshot_id="position-after-open-810",
+            position_flat=False,
+        )
+    with pytest.raises(ExecutionDecisionJournalError, match="INTENT_NOT_RECONCILED_TERMINAL"):
+        recovered.release_instrument_owner(
+            opening.intent_id, reconciliation_id=unknown_query.reconciliation_id
+        )
+    resolution = recovered.release_instrument_owner(
+        opening.intent_id, reconciliation_id=filled.reconciliation_id
+    )
+    assert resolution.position_flat is False
+    assert resolution.terminal_event_id == "sim-event-810-filled"
+    assert recovered.active_instrument_owner("account-a", "SIM-IF-1") is None
+
+    close_key = _intent_key("SIM-IF-1", side="SELL", effect="CLOSE")
+    close_decision = recovered.record_decision(
+        _decision_key("run-close-after-recovery"),
+        _decision_payload(direction="close"),
+        intent_keys=(close_key,),
+    )
+    close_intent = recovered.prepare_intent(
+        close_decision.decision_id,
+        close_key,
+        _order_payload(quantity="2", price="4000"),
+        original_identity={"backtrader_order_ref": 82, "client_order_id": "client-82"},
+    )
+    assert recovered.claim_dispatch(close_intent.intent_id) is not None
+    recovered.record_dispatch_result(
+        close_intent.intent_id,
+        state="KNOWN",
+        provider_identity={"order_id": "sim-811"},
+        outcome_code="accepted",
+    )
+    close_reconciliation = _record_terminal_reconciliation(
+        recovered,
+        close_intent,
+        reconciliation_id="recon-close-flat",
+        query_id="provider-query-3",
+        event_id="sim-event-811-filled",
+        snapshot_id="position-after-close-811",
+        position_flat=True,
+        provider_order_id="sim-811",
+    )
+    assert (
+        recovered.release_instrument_owner(
+            close_intent.intent_id,
+            reconciliation_id=close_reconciliation.reconciliation_id,
+        ).position_flat
+        is True
+    )
+    assert original_unknown.dispatch_state == "UNKNOWN"
+    recovered.close()
+
+
+def test_cancel_is_bound_to_active_owner_and_does_not_replace_it(tmp_path):
+    journal = ExecutionDecisionJournal(tmp_path / "cancel.sqlite3")
+    _, submit = _prepare(journal)
+    journal.claim_dispatch(submit.intent_id)
+    journal.record_dispatch_result(
+        submit.intent_id, state="KNOWN", provider_identity={"order_id": "sim-10"}
+    )
+
+    cancel_key = _intent_key("SIM-IF-1", action="CANCEL", leg=0)
+    cancel_decision = journal.record_decision(
+        _decision_key(kind="cancel"),
+        {"target_backtrader_order_ref": 41},
+        intent_keys=(cancel_key,),
+    )
+    with pytest.raises(ExecutionDecisionJournalError, match="CANCEL_OWNER_MISMATCH"):
+        journal.prepare_intent(
+            cancel_decision.decision_id,
+            cancel_key,
+            {"provider_order_id": "sim-10"},
+            owner_intent_id="wrong-owner",
+        )
+    cancel = journal.prepare_intent(
+        cancel_decision.decision_id,
+        cancel_key,
+        {"provider_order_id": "sim-10"},
+        original_identity={"backtrader_order_ref": 41, "provider_order_id": "sim-10"},
+        owner_intent_id=submit.intent_id,
+    )
+    assert cancel.owner_intent_id == submit.intent_id
+    assert journal.claim_dispatch(cancel.intent_id) is not None
+    assert journal.active_instrument_owner("account-a", "SIM-IF-1").intent_id == submit.intent_id
+    journal.close()
+
+
+def test_callbacks_are_deduplicated_bounded_and_acknowledged_after_delivery(tmp_path):
+    path = tmp_path / "callbacks.sqlite3"
+    journal = ExecutionDecisionJournal(path, max_pending_callbacks=1)
+    _, intent = _prepare(journal)
+    evidence = {"event_id": "fill-1", "state": "PARTIALLY_FILLED", "filled_quantity": "1.00"}
+    receipt = journal.record_callback(intent.intent_id, "provider-event-1", evidence)
+    replay = journal.record_callback(
+        intent.intent_id,
+        "provider-event-1",
+        {
+            "filled_quantity": Decimal("1.000"),
+            "state": "PARTIALLY_FILLED",
+            "event_id": "fill-1",
+        },
+    )
+    assert replay.receipt_id == receipt.receipt_id
+    assert len(journal.pending_callbacks(limit=1)) == 1
+    with pytest.raises(ExecutionDecisionJournalError, match="CALLBACK_CONFLICT"):
+        journal.record_callback(
+            intent.intent_id,
+            "provider-event-1",
+            {"event_id": "fill-1", "state": "FILLED", "filled_quantity": "2"},
+        )
+    with pytest.raises(ExecutionDecisionJournalError, match="PENDING_CALLBACK_LIMIT"):
+        journal.record_callback(intent.intent_id, "provider-event-2", {"state": "FILLED"})
+    journal.close()
+
+    # A crash after caller delivery but before acknowledgment replays the same
+    # durable identity; the caller can deduplicate before acknowledging it.
+    reopened = ExecutionDecisionJournal(path, max_pending_callbacks=1)
+    pending = reopened.pending_callbacks(limit=1)
+    assert len(pending) == 1
+    assert pending[0].receipt_id == receipt.receipt_id
+    redelivery = reopened.record_callback(intent.intent_id, "provider-event-1", evidence)
+    assert redelivery.receipt_id == receipt.receipt_id
+    assert redelivery.acknowledged is False
+    reopened.acknowledge_callback(receipt.receipt_id)
+    assert reopened.pending_callbacks(limit=1) == ()
+    acknowledged_replay = reopened.record_callback(intent.intent_id, "provider-event-1", evidence)
+    assert acknowledged_replay.acknowledged is True
+    assert reopened.pending_callbacks(limit=1) == ()
+    with pytest.raises(TypeError):
+        acknowledged_replay.evidence_payload["state"] = "MUTATED"
+    assert not hasattr(reopened, "fills")
+    assert not hasattr(reopened, "balances")
+    reopened.close()
+
+
+def test_pending_intent_limit_and_sqlite_write_failure_fail_closed(tmp_path):
+    path = tmp_path / "failure.sqlite3"
+    journal = ExecutionDecisionJournal(path, max_pending_intents=1)
+    _, first = _prepare(journal)
+    with pytest.raises(ExecutionDecisionJournalError, match="PENDING_INTENT_LIMIT"):
+        journal.record_decision(
+            _decision_key("run-b"),
+            _decision_payload(),
+            intent_keys=(_intent_key("SIM-IF-2"),),
+        )
+
+    with sqlite3.connect(path) as connection:
+        connection.execute(
+            """CREATE TRIGGER reject_dispatch_claim
+               BEFORE UPDATE OF state ON execution_decision_intents
+               BEGIN SELECT RAISE(ABORT, 'synthetic storage failure'); END"""
+        )
+    with pytest.raises(ExecutionDecisionJournalError, match="JOURNAL_WRITE_FAILED"):
+        journal.claim_dispatch(first.intent_id)
+    with pytest.raises(ExecutionDecisionJournalError, match="JOURNAL_FAILED_CLOSED"):
+        journal.claim_dispatch(first.intent_id)
+    journal.close()
+
+    reopened = ExecutionDecisionJournal(path, max_pending_intents=1)
+    persisted = reopened.intent(first.intent_id)
+    assert persisted is not None
+    assert persisted.state == "PREPARED"
+    assert persisted.dispatch_state is None
+    reopened.close()
+
+
+def test_partial_write_failures_roll_back_and_latch_the_instance(tmp_path):
+    decision_path = tmp_path / "decision-rollback.sqlite3"
+    decision_journal = ExecutionDecisionJournal(decision_path)
+    with sqlite3.connect(decision_path) as connection:
+        connection.execute(
+            """CREATE TRIGGER reject_decision_slot
+               BEFORE INSERT ON execution_decision_slots
+               BEGIN SELECT RAISE(ABORT, 'synthetic slot write failure'); END"""
+        )
+    with pytest.raises(ExecutionDecisionJournalError, match="JOURNAL_WRITE_FAILED"):
+        decision_journal.record_decision(
+            _decision_key("rollback-decision"),
+            _decision_payload(),
+            intent_keys=(_intent_key(),),
+        )
+    with pytest.raises(ExecutionDecisionJournalError, match="JOURNAL_FAILED_CLOSED"):
+        decision_journal.record_decision(_decision_key("after-failure"), _decision_payload())
+    decision_journal.close()
+    with sqlite3.connect(decision_path) as connection:
+        assert connection.execute("SELECT COUNT(*) FROM execution_decisions").fetchone()[0] == 0
+        assert (
+            connection.execute("SELECT COUNT(*) FROM execution_decision_slots").fetchone()[0] == 0
+        )
+
+    intent_path = tmp_path / "intent-rollback.sqlite3"
+    intent_journal = ExecutionDecisionJournal(intent_path)
+    decision = intent_journal.record_decision(
+        _decision_key("rollback-intent"),
+        _decision_payload(),
+        intent_keys=(_intent_key(),),
+    )
+    with sqlite3.connect(intent_path) as connection:
+        connection.execute(
+            """CREATE TRIGGER reject_intent_insert
+               BEFORE INSERT ON execution_decision_intents
+               BEGIN SELECT RAISE(ABORT, 'synthetic intent write failure'); END"""
+        )
+    with pytest.raises(ExecutionDecisionJournalError, match="JOURNAL_WRITE_FAILED"):
+        intent_journal.prepare_intent(decision.decision_id, _intent_key(), _order_payload())
+    with pytest.raises(ExecutionDecisionJournalError, match="JOURNAL_FAILED_CLOSED"):
+        intent_journal.prepare_intent(decision.decision_id, _intent_key(), _order_payload())
+    intent_journal.close()
+
+    reopened = ExecutionDecisionJournal(intent_path)
+    assert reopened.decision(decision.decision_id) is not None
+    with sqlite3.connect(intent_path) as connection:
+        intent_id = connection.execute(
+            "SELECT intent_id FROM execution_decision_slots WHERE decision_id = ?",
+            (decision.decision_id,),
+        ).fetchone()[0]
+    assert reopened.intent(intent_id) is None
+    assert reopened.active_instrument_owner("account-a", "SIM-IF-1") is None
+    with sqlite3.connect(intent_path) as connection:
+        assert (
+            connection.execute(
+                "SELECT COUNT(*) FROM execution_instrument_owners WHERE owner_intent_id IS NOT NULL"
+            ).fetchone()[0]
+            == 0
+        )
+    reopened.close()
+
+
+def test_prepared_intent_can_be_abandoned_without_dispatch(tmp_path):
+    path = tmp_path / "abandon.sqlite3"
+    journal = ExecutionDecisionJournal(path, max_pending_intents=1)
+    _, stale = _prepare(journal)
+    owner = journal.active_instrument_owner("account-a", "SIM-IF-1")
+    assert owner is not None and owner.intent_id == stale.intent_id
+
+    abandonment = journal.abandon_prepared_intent(
+        stale.intent_id, reason_code="quote_expired_before_dispatch"
+    )
+    assert abandonment == journal.abandon_prepared_intent(
+        stale.intent_id, reason_code="quote_expired_before_dispatch"
+    )
+    assert journal.active_instrument_owner("account-a", "SIM-IF-1") is None
+    assert journal.recoverable_intents(limit=1) == ()
+    with pytest.raises(ExecutionDecisionJournalError, match="INTENT_ABANDONED"):
+        journal.claim_dispatch(stale.intent_id)
+    with pytest.raises(ExecutionDecisionJournalError, match="INTENT_ABANDONMENT_CONFLICT"):
+        journal.abandon_prepared_intent(stale.intent_id, reason_code="different_reason")
+
+    next_key = _intent_key("SIM-IF-1", side="BUY", effect="OPEN")
+    decision = journal.record_decision(
+        _decision_key("run-after-abandon"), _decision_payload(), intent_keys=(next_key,)
+    )
+    next_intent = journal.prepare_intent(decision.decision_id, next_key, _order_payload())
+    assert next_intent.state == "PREPARED"
+    assert journal.claim_dispatch(next_intent.intent_id) is not None
+    with pytest.raises(ExecutionDecisionJournalError, match="INTENT_NOT_ABANDONABLE"):
+        journal.abandon_prepared_intent(next_intent.intent_id, reason_code="claimed_cannot_abandon")
+    journal.close()
+
+
+def test_two_journal_connections_cannot_claim_the_same_intent_twice(tmp_path):
+    path = tmp_path / "concurrent.sqlite3"
+    first_journal = ExecutionDecisionJournal(path)
+    _, intent = _prepare(first_journal)
+    second_journal = ExecutionDecisionJournal(path)
+    first_claim = first_journal.claim_dispatch(intent.intent_id)
+    second_claim = second_journal.claim_dispatch(intent.intent_id)
+    assert first_claim is not None
+    assert second_claim is None
+    first_journal.close()
+    second_journal.close()
+
+
+def test_two_subprocesses_racing_for_one_dispatch_have_one_winner(tmp_path):
+    path = tmp_path / "subprocess-race.sqlite3"
+    journal = ExecutionDecisionJournal(path)
+    _, intent = _prepare(journal)
+    journal.close()
+
+    gate = tmp_path / "race-start"
+    ready_paths = (tmp_path / "worker-1-ready", tmp_path / "worker-2-ready")
+    worker = r"""
+import json, pathlib, sys, time
+from backtrader.stores.execution_decision_journal import ExecutionDecisionJournal
+database, intent_id, ready_path, start_path = sys.argv[1:]
+pathlib.Path(ready_path).write_text("ready", encoding="ascii")
+deadline = time.monotonic() + 20
+while not pathlib.Path(start_path).exists():
+    if time.monotonic() >= deadline:
+        raise SystemExit("start barrier timed out")
+    time.sleep(0.005)
+journal = ExecutionDecisionJournal(database)
+claim = journal.claim_dispatch(intent_id)
+print(json.dumps({"claimed": claim is not None}))
+journal.close()
+"""
+    processes = [
+        subprocess.Popen(
+            [sys.executable, "-c", worker, str(path), intent.intent_id, str(ready), str(gate)],
+            cwd=os.getcwd(),
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        for ready in ready_paths
+    ]
+    try:
+        deadline = time.monotonic() + 20
+        while not all(ready.exists() for ready in ready_paths):
+            if time.monotonic() >= deadline:
+                raise AssertionError("subprocess workers did not reach the start barrier")
+            if any(process.poll() is not None for process in processes):
+                raise AssertionError("a subprocess worker exited before the start barrier")
+            time.sleep(0.005)
+        gate.touch()
+        results = [process.communicate(timeout=30) for process in processes]
+    finally:
+        for process in processes:
+            if process.poll() is None:
+                process.kill()
+                process.wait(timeout=5)
+
+    assert all(process.returncode == 0 for process in processes), results
+    claims = [json.loads(stdout)["claimed"] for stdout, _stderr in results]
+    assert sum(claims) == 1
+    assert all(stderr == "" for _stdout, stderr in results)
