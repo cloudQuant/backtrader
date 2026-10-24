@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
+import math
 import time
 from types import MappingProxyType
 
@@ -14,10 +15,13 @@ from backtrader.errors import FactorComputationError, ResearchConfigError
 from backtrader.research import (
     FactorIndicator,
     FactorSpec,
+    FactorStrategy,
     LiveFactorPlan,
     LiveFactorOutputStatus,
     LiveFactorReadiness,
     LiveFactorSet,
+    ResearchSpec,
+    align_to_grid,
 )
 from backtrader.research.live_cohort import (
     LiveBarCohort,
@@ -109,6 +113,14 @@ class OrdinaryStrategy(bt.Strategy):
         self.snapshots.append(self.live_factors.snapshot())
 
 
+class UnexplainedNaN(ScaledClose):
+    """A custom native formula that supplies no operator reason for NaN."""
+
+    def next(self):
+        for data in self.datas:
+            self.outputs[data].factor[0] = float("nan")
+
+
 def _bar(slot, sequence, close, source_role, *, available_at=None):
     return MappingProxyType(
         {
@@ -154,6 +166,7 @@ def _make_inputs(
     max_live_bar_age_seconds=60.0,
     max_future_skew_seconds=0.0,
     clock=None,
+    indicator=ScaledClose,
 ):
     slots = tuple(
         LiveCalendarSlot(
@@ -230,7 +243,7 @@ def _make_inputs(
     )
     spec = FactorSpec(
         name="scaled_close",
-        indicator=ScaledClose,
+        indicator=indicator,
         panel_line="factor",
         params={"scale": 2.0},
         field_bindings={"close": "feed:target:close"},
@@ -538,6 +551,72 @@ def test_snapshot_treats_an_unknown_operator_reason_as_unavailable():
     assert output.value == 200.0
     assert output.status is LiveFactorOutputStatus.OUTPUT_UNAVAILABLE
     assert output.reason == "UNKNOWN_REASON"
+
+
+def test_custom_nan_without_reason_stays_unknown_even_when_inputs_are_live_ready():
+    cerebro, _cohort, _feed, _plan, _values, _clock = _make_inputs(
+        count=2, indicator=UnexplainedNaN, mode="native"
+    )
+
+    snapshot = cerebro.run()[0].snapshots[-1]
+    output = snapshot.factors["scaled_close"].values["A"]
+
+    assert snapshot.readiness is LiveFactorReadiness.LIVE_READY
+    assert output.present and output.complete and output.quality == "GOOD"
+    assert math.isnan(output.value)
+    assert output.status is LiveFactorOutputStatus.OUTPUT_UNAVAILABLE
+    assert output.reason is None  # No producer evidence permits inventing a cause.
+    assert not hasattr(snapshot, "execution_permission")
+
+
+@pytest.mark.parametrize("mode", ("native", "build"))
+@pytest.mark.parametrize("runonce", (False, True))
+def test_live_diagnostic_cap_does_not_truncate_offline_factor_coverage(mode, runonce):
+    grid = pd.date_range(START, periods=96, freq="min", name="close_time")
+    closes = [100.0 + index for index in range(len(grid))]
+    source = pd.DataFrame(
+        {
+            "open": closes,
+            "high": [value + 1.0 for value in closes],
+            "low": [value - 1.0 for value in closes],
+            "close": closes,
+            "volume": [1000.0] * len(grid),
+        },
+        index=grid,
+    )
+    research = ResearchSpec(
+        grid=pd.DataFrame({"open_time": grid - pd.Timedelta(minutes=1)}, index=grid),
+        start=grid[0],
+        end=grid[-1],
+        targets=("A",),
+        source_timezone="UTC",
+        snapshot_id="offline-diagnostic-coverage",
+        price_basis="unadjusted close",
+        calendar_id="minute-fixture",
+        frequency="1min",
+    )
+    spec = FactorSpec(
+        name="scaled_close",
+        indicator=ScaledClose,
+        panel_line="factor",
+        params={"scale": 2.0},
+        field_bindings={"close": "feed:target:close"},
+        mode=mode,
+    )
+    cerebro = bt.Cerebro(stdstats=False, runonce=runonce)
+    cerebro.adddata(align_to_grid(source, research, "A").feed, name="A")
+    cerebro.addstrategy(FactorStrategy, research=research, factors={"scaled_close": spec})
+
+    strategy = cerebro.run(runonce=runonce)[0]
+    diagnostics = strategy.factor_instances["scaled_close"].lifecycle_diagnostics
+    expected_times = tuple(grid.to_pydatetime())
+    assert diagnostics["coverage_times"] == expected_times
+    assert diagnostics["coverage_count"] == len(grid) > 64
+    assert diagnostics["coverage_matches"] is True
+    assert diagnostics.get("call_times_truncated", False) is False
+    panel = strategy.get_panel()
+    assert len(panel.factors) == len(grid)
+    assert panel.factors["scaled_close"].tolist() == [value * 2.0 for value in closes]
 
 
 def test_live_source_scope_does_not_skip_raw_dataframe_infinity_scan():
