@@ -14,7 +14,7 @@ import json
 import re
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta, timezone
-from typing import Any, Dict, Mapping, Optional, Sequence, Tuple
+from typing import Any, Dict, Iterator, Mapping, Optional, Sequence, Tuple
 from urllib.parse import urlparse
 
 from .futures_main_contract import ExchangeTradingCalendar, ProductKey
@@ -33,6 +33,11 @@ _MAX_SOURCES_PER_CALENDAR = 10_000
 _MAX_WINDOWS_PER_PRODUCT_DAY = 16
 _MAX_WINDOWS_PER_CALENDAR = 300_000
 _MAX_EXPANDED_PRODUCT_MINUTES = 1_000_000
+_MAX_STREAM_WINDOWS = 300_000
+_MAX_STREAM_PRODUCT_MINUTES = 20_000_000
+_MAX_STREAM_COMMON_MINUTES = 1_000_000
+_MAX_STREAM_CHUNK_MEMBER_RECORDS = 65_536
+_MAX_ROLLING_WINDOW_MINUTES = 4_096
 _MAX_SESSION_DURATION = timedelta(hours=24)
 
 
@@ -784,6 +789,234 @@ def build_common_minute_grid(
     )
 
 
+def iter_common_minute_windows(
+    target_products: Sequence[ProductKey],
+    calendars: Sequence[ExchangeSessionCalendar],
+    product_trading_days: Mapping[ProductKey, Sequence[date]],
+    *,
+    decision_at: datetime,
+    window_size: int = 1_024,
+    max_common_minutes: int = _MAX_STREAM_COMMON_MINUTES,
+) -> Iterator[Tuple[PlannedCommonMinute, ...]]:
+    """Lazily yield bounded chunks of the exact full-cohort minute grid.
+
+    The exchange calendars, product-day rows, requested dates and source
+    availability are validated before the first chunk is yielded.  Session
+    intervals are sorted and checked for overlap without expanding them into
+    minute dictionaries.  The multiway merge retains only one pending minute
+    per product plus one output chunk, so a long finite snapshot does not need
+    a ``product x minute`` slot map in memory.
+
+    The source range remains finite and explicitly covered; this is not an
+    infinite calendar or a dynamic-cohort API.  Call again with the complete
+    new target set and new session snapshots to start a changed mapping,
+    calendar, or membership epoch.  The caller must exhaust the iterator to
+    prove completion.  If the configured common-minute budget is exceeded,
+    iteration raises instead of silently truncating.  Each output chunk also
+    stays under a fixed aggregate member-record budget; for ``N`` products its
+    effective size is ``min(window_size, 65536 // N)``.
+    """
+
+    if type(window_size) is not int or not 1 <= window_size <= _MAX_ROLLING_WINDOW_MINUTES:
+        raise SessionCalendarError(
+            "ROLLING_WINDOW_SIZE_INVALID",
+            "window_size must be in 1..{}".format(_MAX_ROLLING_WINDOW_MINUTES),
+        )
+    if (
+        type(max_common_minutes) is not int
+        or not 1 <= max_common_minutes <= _MAX_STREAM_COMMON_MINUTES
+    ):
+        raise SessionCalendarError(
+            "STREAM_MINUTE_BUDGET_INVALID",
+            "max_common_minutes must be in 1..{}".format(_MAX_STREAM_COMMON_MINUTES),
+        )
+
+    decision = _aware(decision_at, "decision_at")
+    products = _bounded_sequence(target_products, "target_products", _MAX_TARGET_PRODUCTS)
+    if not products or any(not isinstance(item, ProductKey) for item in products):
+        raise ValueError("target_products must contain at least one ProductKey")
+    if len(set(products)) != len(products):
+        raise ValueError("target_products contains duplicates")
+    chunk_size = min(window_size, _MAX_STREAM_CHUNK_MEMBER_RECORDS // len(products))
+    requested = _requested_days(products, product_trading_days)
+    requested_by_product = dict(requested)
+
+    calendar_values = _bounded_sequence(calendars, "calendars", _MAX_EXCHANGE_CALENDARS)
+    exchange_index: Dict[str, ExchangeSessionCalendar] = {}
+    for calendar in calendar_values:
+        if not isinstance(calendar, ExchangeSessionCalendar):
+            raise ValueError("calendars must contain ExchangeSessionCalendar records")
+        if calendar.exchange_id in exchange_index:
+            raise ValueError("calendars contains duplicate exchange_id")
+        exchange_index[calendar.exchange_id] = calendar
+
+    target_exchanges = {product.exchange_id for product in products}
+    selected_calendars: Dict[str, ExchangeSessionCalendar] = {}
+    for exchange_id in target_exchanges:
+        calendar = exchange_index.get(exchange_id)
+        if calendar is None:
+            raise SessionCalendarError("EXCHANGE_CALENDAR_MISSING", exchange_id)
+        if not calendar.complete:
+            raise SessionCalendarError("EXCHANGE_CALENDAR_INCOMPLETE", exchange_id)
+        selected_calendars[exchange_id] = calendar
+
+    product_set = set(products)
+    rows_by_product: Dict[ProductKey, Dict[date, ProductTradingDaySessions]] = {
+        product: {} for product in products
+    }
+    source_indexes: Dict[str, Mapping[str, PublicSourceEvidence]] = {}
+    for exchange_id, calendar in selected_calendars.items():
+        source_indexes[exchange_id] = calendar.source_index
+        for row in calendar.product_days:
+            if row.product in product_set:
+                rows_by_product[row.product][row.trading_day] = row
+
+    intervals_by_product: Dict[ProductKey, list[Tuple[SessionWindow, date]]] = {
+        product: [] for product in products
+    }
+    requested_window_count = 0
+    estimated_product_minutes = 0
+    for product in products:
+        calendar = selected_calendars[product.exchange_id]
+        if product not in calendar.product_universe:
+            raise SessionCalendarError(
+                "PRODUCT_SESSION_UNIVERSE_MISSING",
+                "{}.{}".format(product.exchange_id, product.product_id),
+            )
+        source_ids_needed = {calendar.calendar_source_id}
+        for trading_day in requested_by_product[product]:
+            if trading_day < calendar.coverage_start or trading_day > calendar.coverage_through:
+                raise SessionCalendarError(
+                    "TRADING_DAY_OUTSIDE_COVERAGE",
+                    "{}.{} {}".format(product.exchange_id, product.product_id, trading_day),
+                )
+            if trading_day not in calendar.trading_days:
+                raise SessionCalendarError(
+                    "TRADING_DAY_NOT_IN_SOURCE_CALENDAR",
+                    "{}.{} {}".format(product.exchange_id, product.product_id, trading_day),
+                )
+            row = rows_by_product[product].get(trading_day)
+            if row is None:
+                raise SessionCalendarError(
+                    "PRODUCT_SESSION_ROW_MISSING",
+                    "{}.{} {}".format(product.exchange_id, product.product_id, trading_day),
+                )
+            source_ids_needed.add(row.source_id)
+            requested_window_count += len(row.windows)
+            if requested_window_count > _MAX_STREAM_WINDOWS:
+                raise SessionCalendarError(
+                    "STREAM_SESSION_WINDOW_BUDGET_EXCEEDED",
+                    "requested product-day windows exceed {}".format(_MAX_STREAM_WINDOWS),
+                )
+            for window in row.windows:
+                source_ids_needed.add(window.source_id)
+                intervals_by_product[product].append((window, row.trading_day))
+                estimated_product_minutes += (window.end - window.start) // _ONE_MINUTE
+                if estimated_product_minutes > _MAX_STREAM_PRODUCT_MINUTES:
+                    raise SessionCalendarError(
+                        "STREAM_PRODUCT_MINUTE_BUDGET_EXCEEDED",
+                        "estimated source slots exceed {}".format(_MAX_STREAM_PRODUCT_MINUTES),
+                    )
+        source_index = source_indexes[product.exchange_id]
+        for source_id in source_ids_needed:
+            source = source_index[source_id]
+            if source.available_at.astimezone(timezone.utc) > decision.astimezone(timezone.utc):
+                raise SessionCalendarError("SESSION_SOURCE_NOT_AVAILABLE_AT_DECISION", source_id)
+            if source.retrieved_at.astimezone(timezone.utc) > decision.astimezone(timezone.utc):
+                raise SessionCalendarError("SESSION_SOURCE_RETRIEVED_AFTER_DECISION", source_id)
+
+    ordered_intervals: Dict[ProductKey, Tuple[Tuple[SessionWindow, date], ...]] = {}
+    for product in products:
+        intervals = sorted(intervals_by_product[product], key=lambda item: item[0].start)
+        previous_end = None
+        for window, _trading_day in intervals:
+            if previous_end is not None and window.start < previous_end:
+                raise SessionCalendarError(
+                    "PRODUCT_MINUTE_SLOT_AMBIGUOUS",
+                    "{}.{}".format(product.exchange_id, product.product_id),
+                )
+            previous_end = window.end
+        ordered_intervals[product] = tuple(intervals)
+
+    def product_minutes(
+        product: ProductKey,
+    ) -> Iterator[Tuple[datetime, SessionSlotEvidence]]:
+        for window, trading_day in ordered_intervals[product]:
+            cursor = window.start
+            while cursor < window.end:
+                close_local = cursor + _ONE_MINUTE
+                yield (
+                    close_local.astimezone(timezone.utc),
+                    SessionSlotEvidence(
+                        product=product,
+                        trading_day=trading_day,
+                        session_date=window.session_date,
+                        action_day=close_local.date(),
+                        session_id=window.session_id,
+                    ),
+                )
+                cursor = close_local
+
+    def common_minutes() -> Iterator[PlannedCommonMinute]:
+        streams = [iter(product_minutes(product)) for product in products]
+        sentinel = object()
+        current = [next(stream, sentinel) for stream in streams]
+        if any(value is sentinel for value in current):
+            return
+        while True:
+            target_close = max(value[0] for value in current)
+            for index, stream in enumerate(streams):
+                while current[index] is not sentinel and current[index][0] < target_close:
+                    current[index] = next(stream, sentinel)
+                if current[index] is sentinel:
+                    return
+            latest_close = max(value[0] for value in current)
+            if all(value[0] == latest_close for value in current):
+                yield PlannedCommonMinute(
+                    close_time=latest_close,
+                    members=tuple(value[1] for value in current),
+                )
+                for index, stream in enumerate(streams):
+                    current[index] = next(stream, sentinel)
+                if any(value is sentinel for value in current):
+                    return
+
+    def windows() -> Iterator[Tuple[PlannedCommonMinute, ...]]:
+        common = iter(common_minutes())
+        sentinel = object()
+        emitted = 0
+        exhausted = False
+        while not exhausted:
+            chunk = []
+            while len(chunk) < chunk_size:
+                planned = next(common, sentinel)
+                if planned is sentinel:
+                    exhausted = True
+                    break
+                if emitted >= max_common_minutes:
+                    raise SessionCalendarError(
+                        "STREAM_COMMON_MINUTE_BUDGET_EXCEEDED",
+                        "common closes exceed {}".format(max_common_minutes),
+                    )
+                chunk.append(planned)
+                emitted += 1
+                if emitted == max_common_minutes:
+                    # Prove the limit is the end of the finite source range
+                    # before publishing a final-looking capped chunk.
+                    if next(common, sentinel) is not sentinel:
+                        raise SessionCalendarError(
+                            "STREAM_COMMON_MINUTE_BUDGET_EXCEEDED",
+                            "common closes exceed {}".format(max_common_minutes),
+                        )
+                    exhausted = True
+                    break
+            if chunk:
+                yield tuple(chunk)
+        return
+
+    return windows()
+
+
 def find_planned_common_minute(
     grid: CommonMinuteGrid, close_time: datetime
 ) -> Optional[PlannedCommonMinute]:
@@ -824,5 +1057,6 @@ __all__ = [
     "SessionWindow",
     "build_common_minute_grid",
     "find_planned_common_minute",
+    "iter_common_minute_windows",
     "load_exchange_session_calendar",
 ]

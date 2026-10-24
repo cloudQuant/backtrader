@@ -43,21 +43,36 @@ including its source URLs and time/digest fields. Its adapter to the existing
 `ExchangeTradingCalendar` passes the explicit date facts to
 `select_main_contracts`; it does not synthesize dates.
 
-The finite planner rejects oversized snapshots and requests before expanding
-minute slots: at most 2,000 target products, six exchange calendars, 10,000
-calendar dates, 100,000 product/TradingDay rows, 10,000 requested days per
-product (100,000 total), 10,000 sources, 16 windows per product-day row and
-300,000 windows per exchange snapshot. A continuous session is at most 24
-hours and can cross midnight once. The combined preflight budget is 1,000,000
-product-minute slots across the requested cohort and date range. Longer
-research streams require explicitly bounded window planning. The cap counts
-products multiplied by source minutes: for 20 products it permits at most
-50,000 source minutes in one request, so this component does not establish
-the 20-asset, 100,000-post-warmup-grid acceptance. A rolling planner is not
-implemented here and that long-stream gate remains outstanding.
-`find_planned_common_minute(grid, close_time)` is
-an exact UTC-normalized lookup over the frozen sorted grid. It returns the
-existing `PlannedCommonMinute` and its per-product TradingDay/session/ActionDay
+Both planners reject oversized snapshots and requests before minute expansion:
+at most 2,000 target products, six exchange calendars, 10,000 calendar dates,
+100,000 product/TradingDay rows, 10,000 requested days per product (100,000
+total), 10,000 sources, 16 windows per product-day row and 300,000 windows per
+exchange snapshot. A continuous session is at most 24 hours and can cross
+midnight once. The finite `build_common_minute_grid` additionally caps expanded
+product-minute slots at 1,000,000. It remains suitable for bounded previews and
+smaller snapshots.
+
+`iter_common_minute_windows` is the long finite-snapshot path. It preflights
+the complete target set, explicit dates, every selected product-day row, and
+all source `available_at`/`retrieved_at` times before yielding. It checks for
+overlapping session intervals, then intersects sorted per-product session
+streams without creating per-product minute dictionaries. It yields tuples of
+up to 4,096 `PlannedCommonMinute` records, with a fixed aggregate budget of
+65,536 member records per chunk. For `N` target products the effective chunk
+size is `min(window_size, 65,536 // N)`, so larger cohorts automatically use
+smaller chunks without changing planned closes or member evidence. Total
+limits are 300,000 requested session windows, 20,000,000 estimated
+product-minute slots, and 1,000,000 common closes per invocation. The iterator
+is finite over supplied snapshots,
+and callers must exhaust it to prove the range completed. A changed target
+pool, master mapping, or calendar needs a new call for the new epoch; this API
+does not append assets or invent future dates. These limits accommodate the
+20-product 100,000-close plus warmup fixture while bounding planner memory to
+finite interval metadata, active product streams, and one output chunk.
+
+`find_planned_common_minute(grid, close_time)` is an exact UTC-normalized
+lookup over the frozen sorted materialized grid. It returns the existing
+`PlannedCommonMinute` and its per-product TradingDay/session/ActionDay
 evidence, or `None` for a close not present in the planned intersection. It
 cannot authorize an arbitrary time or callback.
 

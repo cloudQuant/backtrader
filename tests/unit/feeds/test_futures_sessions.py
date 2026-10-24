@@ -3,6 +3,7 @@
 from dataclasses import replace
 from datetime import date, datetime, time, timedelta, timezone
 import hashlib
+from itertools import zip_longest
 
 import pytest
 
@@ -16,6 +17,7 @@ from backtrader.feeds.futures_sessions import (
     SessionWindow,
     build_common_minute_grid,
     find_planned_common_minute,
+    iter_common_minute_windows,
     load_exchange_session_calendar,
 )
 
@@ -437,6 +439,325 @@ def test_planned_close_lookup_returns_exact_frozen_member_evidence():
         find_planned_common_minute(grid, planned.close_time.replace(tzinfo=None))
 
 
+def test_rolling_windows_match_materialized_grid_for_heterogeneous_sessions():
+    products = PRODUCTS
+    calendars = _six_exchange_calendars()
+    full = build_common_minute_grid(
+        products,
+        calendars,
+        _product_days(products),
+        decision_at=DECISION_AT,
+    )
+    chunks = iter_common_minute_windows(
+        products,
+        calendars,
+        _product_days(products),
+        decision_at=DECISION_AT,
+        window_size=17,
+    )
+
+    streamed = tuple(minute for chunk in chunks for minute in chunk)
+
+    assert streamed == full.minutes
+    assert all(
+        0 < len(chunk) <= 17
+        for chunk in iter_common_minute_windows(
+            products,
+            calendars,
+            _product_days(products),
+            decision_at=DECISION_AT,
+            window_size=17,
+        )
+    )
+
+
+def test_rolling_windows_keep_explicit_market_closure_without_synthetic_closes():
+    product = ProductKey("SHFE", "CU")
+    days = (date(2026, 1, 2), date(2026, 1, 5))
+    calendar_id = "SHFE.calendar"
+    session_id = "SHFE.hours"
+    rows = tuple(
+        ProductTradingDaySessions(
+            product=product,
+            trading_day=day,
+            source_id=session_id,
+            windows=_day_windows(product, session_id, day),
+        )
+        for day in days
+    )
+    calendar = ExchangeSessionCalendar(
+        exchange_id="SHFE",
+        calendar_source_id=calendar_id,
+        coverage_start=days[0],
+        coverage_through=days[-1],
+        trading_days=days,
+        product_universe=(product,),
+        product_days=rows,
+        sources=(
+            _source(
+                calendar_id,
+                available_at=datetime(2025, 12, 30, tzinfo=UTC),
+                retrieved_at=datetime(2025, 12, 31, tzinfo=UTC),
+            ),
+            _source(
+                session_id,
+                available_at=datetime(2025, 12, 30, tzinfo=UTC),
+                retrieved_at=datetime(2025, 12, 31, tzinfo=UTC),
+            ),
+        ),
+    )
+    chunks = iter_common_minute_windows(
+        (product,),
+        (calendar,),
+        {product: days},
+        decision_at=DECISION_AT,
+        window_size=128,
+    )
+    closes = tuple(minute.close_time for chunk in chunks for minute in chunk)
+
+    assert len(closes) == 450
+    assert all(
+        closes[index + 1] - closes[index] > timedelta(minutes=1)
+        for index in range(len(closes) - 1)
+        if closes[index].date() != closes[index + 1].date()
+    )
+    assert closes[224] == datetime(2026, 1, 2, 7, 0, tzinfo=UTC)
+    assert closes[225] == datetime(2026, 1, 5, 1, 1, tzinfo=UTC)
+    assert closes[225] - closes[224] > timedelta(days=2)
+
+
+def test_rolling_twenty_product_stream_exceeds_100k_without_product_minute_maps(monkeypatch):
+    products = tuple(ProductKey("SHFE", "P{:04d}".format(index)) for index in range(20))
+    first_day = date(2023, 1, 1)
+    days = tuple(first_day + timedelta(days=offset) for offset in range(500))
+    calendar_id = "SHFE.explicit-long-fixture-calendar"
+    session_id = "SHFE.explicit-long-fixture-sessions"
+    rows = tuple(
+        ProductTradingDaySessions(
+            product=product,
+            trading_day=day,
+            source_id=session_id,
+            windows=_day_windows(product, session_id, day),
+        )
+        for product in products
+        for day in days
+    )
+    calendar = ExchangeSessionCalendar(
+        exchange_id="SHFE",
+        calendar_source_id=calendar_id,
+        coverage_start=days[0],
+        coverage_through=days[-1],
+        trading_days=days,
+        product_universe=products,
+        product_days=rows,
+        sources=(
+            _source(
+                calendar_id,
+                available_at=datetime(2022, 12, 30, tzinfo=UTC),
+                retrieved_at=datetime(2022, 12, 31, tzinfo=UTC),
+            ),
+            _source(
+                session_id,
+                available_at=datetime(2022, 12, 30, tzinfo=UTC),
+                retrieved_at=datetime(2022, 12, 31, tzinfo=UTC),
+            ),
+        ),
+    )
+
+    def reject_materialized_expansion(_row):
+        pytest.fail("rolling planner must not call the finite minute-dictionary expander")
+
+    monkeypatch.setattr(futures_sessions, "_minute_slots", reject_materialized_expansion)
+    with pytest.raises(SessionCalendarError, match="GRID_EXPANSION_BUDGET_EXCEEDED"):
+        build_common_minute_grid(
+            products,
+            (calendar,),
+            dict.fromkeys(products, days),
+            decision_at=DECISION_AT,
+        )
+
+    total = 0
+    chunk_count = 0
+    last_close = None
+    first_minute = None
+    last_minute = None
+    for chunk in iter_common_minute_windows(
+        products,
+        (calendar,),
+        dict.fromkeys(products, days),
+        decision_at=DECISION_AT,
+        window_size=512,
+    ):
+        assert 0 < len(chunk) <= 512
+        chunk_count += 1
+        for minute in chunk:
+            if first_minute is None:
+                first_minute = minute
+            assert last_close is None or minute.close_time > last_close
+            assert tuple(member.product for member in minute.members) == products
+            assert len(minute.members) == len(products)
+            last_close = minute.close_time
+            last_minute = minute
+            total += 1
+
+    assert total == 112_500
+    assert total >= 100_000 + 30  # 100k evaluated closes plus 30 warmup closes.
+    assert chunk_count == 220
+    assert first_minute.close_time == datetime(2023, 1, 1, 1, 1, tzinfo=UTC)
+    assert last_minute.close_time == datetime(2024, 5, 14, 7, 0, tzinfo=UTC)
+    assert first_minute.members[0].trading_day == days[0]
+    assert last_minute.members[-1].trading_day == days[-1]
+
+
+def test_rolling_high_product_count_bounds_aggregate_chunk_members_without_changing_minutes():
+    products = tuple(ProductKey("SHFE", "P{:04d}".format(index)) for index in range(1_000))
+    calendar_id = "SHFE.high-product-calendar"
+    session_id = "SHFE.high-product-sessions"
+    calendar = ExchangeSessionCalendar(
+        exchange_id="SHFE",
+        calendar_source_id=calendar_id,
+        coverage_start=TRADING_DAY,
+        coverage_through=TRADING_DAY,
+        trading_days=(TRADING_DAY,),
+        product_universe=products,
+        product_days=tuple(
+            ProductTradingDaySessions(
+                product=product,
+                trading_day=TRADING_DAY,
+                source_id=session_id,
+                windows=_day_windows(product, session_id),
+            )
+            for product in products
+        ),
+        sources=(_source(calendar_id), _source(session_id)),
+    )
+    requested_days = dict.fromkeys(products, (TRADING_DAY,))
+    large_chunks = iter_common_minute_windows(
+        products,
+        (calendar,),
+        requested_days,
+        decision_at=DECISION_AT,
+        window_size=4_096,
+    )
+    chunk_sizes = []
+    total = 0
+
+    def bounded_stream():
+        nonlocal total
+        for chunk in large_chunks:
+            chunk_sizes.append(len(chunk))
+            assert 0 < len(chunk) <= 65  # 65,536 // 1,000 products
+            assert sum(len(minute.members) for minute in chunk) <= 65_536
+            total += len(chunk)
+            yield from chunk
+
+    smaller_stream = (
+        minute
+        for chunk in iter_common_minute_windows(
+            products,
+            (calendar,),
+            requested_days,
+            decision_at=DECISION_AT,
+            window_size=16,
+        )
+        for minute in chunk
+    )
+    sentinel = object()
+    for large_minute, small_minute in zip_longest(
+        bounded_stream(), smaller_stream, fillvalue=sentinel
+    ):
+        assert large_minute == small_minute
+        if large_minute is not sentinel:
+            assert len(large_minute.members) == len(products)
+
+    assert total == 225
+    assert chunk_sizes == [65, 65, 65, 30]
+
+
+def test_rolling_stream_budget_rejects_extra_common_close_instead_of_truncating():
+    product = PRODUCTS[0]
+    calendar = _exchange_calendar("SHFE", product)
+
+    exact_limit = iter_common_minute_windows(
+        (product,),
+        (calendar,),
+        {product: (TRADING_DAY,)},
+        decision_at=DECISION_AT,
+        window_size=64,
+        max_common_minutes=225,
+    )
+    assert sum(len(chunk) for chunk in exact_limit) == 225
+
+    with pytest.raises(SessionCalendarError, match="STREAM_COMMON_MINUTE_BUDGET_EXCEEDED"):
+        tuple(
+            iter_common_minute_windows(
+                (product,),
+                (calendar,),
+                {product: (TRADING_DAY,)},
+                decision_at=DECISION_AT,
+                window_size=64,
+                max_common_minutes=100,
+            )
+        )
+
+
+def test_rolling_stream_rejects_post_decision_source_before_yielding():
+    product = PRODUCTS[0]
+    late = _exchange_calendar(
+        "SHFE",
+        product,
+        retrieved_at=datetime(2026, 10, 23, 1, tzinfo=UTC),
+    )
+
+    with pytest.raises(SessionCalendarError, match="SESSION_SOURCE_RETRIEVED_AFTER_DECISION"):
+        iter_common_minute_windows(
+            (product,),
+            (late,),
+            {product: (TRADING_DAY,)},
+            decision_at=DECISION_AT,
+        )
+
+
+def test_rolling_stream_rejects_duplicate_slots_across_trading_day_rows():
+    product = ProductKey("SHFE", "CU")
+    days = (date(2026, 10, 22), date(2026, 10, 23))
+    calendar_id = "SHFE.calendar"
+    session_id = "SHFE.hours"
+    duplicate_window = SessionWindow(
+        session_id="duplicate",
+        session_date=days[0],
+        start=_local(days[0], 9),
+        end=_local(days[0], 10),
+        source_id=session_id,
+    )
+    calendar = ExchangeSessionCalendar(
+        exchange_id="SHFE",
+        calendar_source_id=calendar_id,
+        coverage_start=days[0],
+        coverage_through=days[-1],
+        trading_days=days,
+        product_universe=(product,),
+        product_days=tuple(
+            ProductTradingDaySessions(
+                product=product,
+                trading_day=day,
+                source_id=session_id,
+                windows=(duplicate_window,),
+            )
+            for day in days
+        ),
+        sources=(_source(calendar_id), _source(session_id)),
+    )
+
+    with pytest.raises(SessionCalendarError, match="PRODUCT_MINUTE_SLOT_AMBIGUOUS"):
+        iter_common_minute_windows(
+            (product,),
+            (calendar,),
+            {product: days},
+            decision_at=DECISION_AT,
+        )
+
+
 def test_session_json_window_count_is_bounded_before_window_objects_are_created():
     document = _six_exchange_calendars()[0].to_dict()
     windows = document["product_days"][0]["windows"]
@@ -467,7 +788,18 @@ def test_grid_expansion_budget_is_checked_before_minute_slot_expansion(monkeypat
     days = tuple(first_day + timedelta(days=offset) for offset in range(695))
     calendar_id = "SHFE.calendar"
     session_id = "SHFE.hours"
-    sources = (_source(calendar_id), _source(session_id))
+    sources = (
+        _source(
+            calendar_id,
+            available_at=datetime(2019, 12, 30, tzinfo=UTC),
+            retrieved_at=datetime(2019, 12, 31, tzinfo=UTC),
+        ),
+        _source(
+            session_id,
+            available_at=datetime(2019, 12, 30, tzinfo=UTC),
+            retrieved_at=datetime(2019, 12, 31, tzinfo=UTC),
+        ),
+    )
     rows = tuple(
         ProductTradingDaySessions(
             product=product,
