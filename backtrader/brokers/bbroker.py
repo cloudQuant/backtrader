@@ -15,6 +15,7 @@ Example:
 import collections
 import datetime
 import logging
+import math
 
 from backtrader.broker import BrokerBase
 
@@ -2296,6 +2297,16 @@ class BackBroker(BrokerBase):
 
         pcreated = order.created.price
         plimit = order.created.pricelimit
+
+        # Bar-based matching assumes that OHLC describes an observed price
+        # interval. In particular, NaN comparisons can otherwise make limit
+        # predicates select a fill, while Market orders can pass NaN into the
+        # position and cash accounting. Historical orders carry their own
+        # explicit execution price and do not use the current bar.
+        if order.exectype != Order.Historical and not all(
+            math.isfinite(price) for price in (popen, phigh, plow, pclose)
+        ):
+            return
 
         # Execute separately according to different order types
         if order.exectype == Order.Market:
