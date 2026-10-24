@@ -450,6 +450,9 @@ class RunNextMixin:
         winddown_armed = False
         winddown_deadline_ns = None
         cohort_collect_cursor = 0
+        invalid_source_error = None
+        invalid_source_traceback = None
+        invalid_source_maintenance_error = None
         try:
             # Sort data by time period
             datas = sorted(self.datas, key=lambda x: (x._timeframe, x._compression))
@@ -468,6 +471,14 @@ class RunNextMixin:
                 if winddown_timeout_seconds > 0
                 else 0
             )
+            if live_bar_cohort is not None:
+                # Import only for the opt-in cohort path. Ordinary runnext
+                # keeps its existing import and exception behavior.
+                from ..research.live_cohort import LiveCohortValidationError
+
+                cohort_validation_error = LiveCohortValidationError
+            else:
+                cohort_validation_error = ()
             if live_bar_cohort is not None:
                 cohort_waker = _LiveBarCohortWake()
                 self._live_bar_cohort_waker = cohort_waker
@@ -500,6 +511,42 @@ class RunNextMixin:
                 for strat in runstrats
                 if type(strat).notify_idle is not Strategy.notify_idle
             )
+            invalid_source_winddown_supported = False
+            if live_bar_cohort is not None and winddown_timeout_ns > 0:
+                invalid_source_winddown_supported = bool(runstrats) and all(
+                    callable(getattr(strat, "request_shutdown", None))
+                    and callable(getattr(strat, "notify_idle", None))
+                    and type(strat).notify_idle is not Strategy.notify_idle
+                    and hasattr(strat, "shutdown_requested")
+                    and hasattr(strat, "shutdown_ready")
+                    for strat in runstrats
+                )
+
+            def _raise_invalid_source_error_after_winddown():
+                """Re-raise the original source error after bounded maintenance."""
+                if invalid_source_error is None:
+                    return
+                shutdown_confirmed = all(
+                    getattr(strat, "shutdown_requested", None) is True
+                    and getattr(strat, "shutdown_ready", None) is True
+                    for strat in runstrats
+                )
+                status = getattr(self, "live_bar_cohort_winddown_status", None)
+                if status in {"ARMED", "WAITING"} or (
+                    status == "STOPPED" and not shutdown_confirmed
+                ):
+                    reason = (
+                        "invalid_source_winddown_blocked:shutdown_not_confirmed"
+                        if not shutdown_confirmed
+                        else "invalid_source_winddown_blocked:stopped_before_terminal_state"
+                    )
+                    self._record_live_bar_cohort_winddown("FAILED", reason)
+                if invalid_source_maintenance_error is not None:
+                    raise invalid_source_error.with_traceback(
+                        invalid_source_traceback
+                    ) from invalid_source_maintenance_error
+                raise invalid_source_error.with_traceback(invalid_source_traceback)
+
             d0ret = True
             # index for resample only, not replay
             rsonly = [i for i, x in enumerate(datas) if x.resampling and not x.replaying]
@@ -673,6 +720,7 @@ class RunNextMixin:
                 cohort_winddown_active = winddown_armed
                 if cohort_winddown_active:
                     if self._event_stop:
+                        _raise_invalid_source_error_after_winddown()
                         return
                     clock = self.live_bar_cohort_clock
                     now_monotonic_ns = clock.monotonic_ns()
@@ -685,10 +733,18 @@ class RunNextMixin:
                         )
                     elif now_monotonic_ns >= winddown_deadline_ns:
                         if self._record_live_bar_cohort_winddown(
-                            "TIMED_OUT", "winddown_deadline_expired"
+                            "TIMED_OUT",
+                            (
+                                "invalid_source_winddown_blocked:deadline_expired"
+                                if invalid_source_error is not None
+                                else "winddown_deadline_expired"
+                            ),
                         ):
+                            if invalid_source_error is not None:
+                                _raise_invalid_source_error_after_winddown()
                             raise TimeoutError("live bar cohort shutdown winddown timed out")
                         if self._event_stop:
+                            _raise_invalid_source_error_after_winddown()
                             return
                         raise RuntimeError("live cohort winddown state changed before timeout")
                 # if any has live data in the buffer, no data will wait anything
@@ -716,6 +772,7 @@ class RunNextMixin:
                 cohort_terminal = False
                 cohort_status = None
                 final_cohort_batch = False
+                cohort_source_collection_active = False
                 cohort_prepare_budget_exhausted = False
                 # Notify anything from the store even before moving datas
                 # because datas may not move due to an error reported by the store
@@ -723,11 +780,13 @@ class RunNextMixin:
                 if has_stores:
                     self._storenotify()
                     if self._event_stop:  # stop if requested
+                        _raise_invalid_source_error_after_winddown()
                         return
                 # Notify data related info
                 if not single_default_datanotify or data0.notifs:
                     self._datanotify()
                 if self._event_stop:  # stop if requested
+                    _raise_invalid_source_error_after_winddown()
                     return
 
                 # record starting time and tell feeds to discount the elapsed time
@@ -798,10 +857,12 @@ class RunNextMixin:
                                 if collect_now_ns >= prepare_deadline_ns:
                                     cohort_prepare_budget_exhausted = True
                                     break
+                                cohort_source_collection_active = True
                                 data._cohort_collect_source(
                                     collect_now_ns,
                                     deadline_ns=prepare_deadline_ns,
                                 )
+                                cohort_source_collection_active = False
                                 # Resume after the last feed actually visited,
                                 # including one whose call crossed the deadline.
                                 next_cursor = (feed_index + 1) % len(member_feeds)
@@ -995,13 +1056,72 @@ class RunNextMixin:
                             raise RuntimeError(
                                 "unsupported live cohort prepare status: %s" % cohort_status
                             )
-                    except Exception:
-                        if not live_bar_cohort.frozen:
-                            live_bar_cohort._freeze("engine_cohort_round_failed")
-                        for data in self.datas:
-                            data._cohort_armed_envelope = None
-                            data._cohort_delivery_failed = True
-                        raise
+                    except Exception as exc:
+                        if (
+                            cohort_source_collection_active
+                            and isinstance(exc, cohort_validation_error)
+                            and winddown_timeout_ns > 0
+                            and invalid_source_winddown_supported
+                        ):
+                            invalid_source_error = exc
+                            invalid_source_traceback = exc.__traceback__
+                            if not live_bar_cohort.frozen:
+                                live_bar_cohort._freeze("invalid_source_validation")
+                            for data in self.datas:
+                                data._cohort_armed_envelope = None
+                                data._cohort_delivery_failed = True
+
+                            # Start the deadline at the source failure, before
+                            # Strategy shutdown requests or further Broker work.
+                            if not self._record_live_bar_cohort_winddown(
+                                "ARMED", "invalid_source_winddown"
+                            ):
+                                raise RuntimeError(
+                                    "invalid-source winddown could not be armed"
+                                ) from exc
+                            winddown_armed = True
+                            try:
+                                now_monotonic_ns = clock.monotonic_ns()
+                                if type(now_monotonic_ns) is not int or now_monotonic_ns <= 0:
+                                    raise ValueError(
+                                        "live cohort clock returned an invalid monotonic sample"
+                                    )
+                                winddown_deadline_ns = now_monotonic_ns + winddown_timeout_ns
+                            except Exception as clock_error:
+                                self._record_live_bar_cohort_winddown(
+                                    "FAILED", "invalid_source_winddown_clock_unavailable"
+                                )
+                                raise exc.with_traceback(invalid_source_traceback) from clock_error
+
+                            for strat in runstrats:
+                                try:
+                                    strat.request_shutdown()
+                                except Exception as shutdown_error:
+                                    if invalid_source_maintenance_error is None:
+                                        invalid_source_maintenance_error = shutdown_error
+                            self._record_live_bar_cohort_winddown(
+                                "WAITING",
+                                (
+                                    "invalid_source_winddown_blocked:shutdown_request_failed"
+                                    if invalid_source_maintenance_error is not None
+                                    else "invalid_source_owner_maintenance"
+                                ),
+                            )
+                            # This iteration becomes an ordinary no-feed
+                            # maintenance turn: Broker.next and notify_idle run,
+                            # but no feed or factor advances.
+                            cohort_winddown_active = True
+                            cohort_wait = True
+                            cohort_prepare_budget_exhausted = True
+                            cohort_status = "BUDGET_EXHAUSTED"
+                            drets = [None] * len(datas)
+                        else:
+                            if not live_bar_cohort.frozen:
+                                live_bar_cohort._freeze("engine_cohort_round_failed")
+                            for data in self.datas:
+                                data._cohort_armed_envelope = None
+                                data._cohort_delivery_failed = True
+                            raise
                 elif data0_direct_load is not None:
                     drets = (data0_direct_load(),)
                 else:
@@ -1136,6 +1256,7 @@ class RunNextMixin:
                 if not single_default_datanotify or data0.notifs:
                     self._datanotify()
                 if self._event_stop:  # stop if requested
+                    _raise_invalid_source_error_after_winddown()
                     return
                 # Check timer and iterate strategies, call _next_open() to run
                 if d0ret or lastret:  # if any bar, check timers before broker
@@ -1145,11 +1266,13 @@ class RunNextMixin:
                         if single_runstrat is not None:
                             single_runstrat_next_open()
                             if self._event_stop:  # stop if requested
+                                _raise_invalid_source_error_after_winddown()
                                 return
                         else:
                             for strat in runstrats:
                                 strat._next_open()
                                 if self._event_stop:  # stop if requested
+                                    _raise_invalid_source_error_after_winddown()
                                     return
                 # Live brokers can receive fills during a gap in market bars.
                 # Bar-matching brokers still require populated data lines.
@@ -1194,12 +1317,14 @@ class RunNextMixin:
                                 strat._notify()
                             strat.clear()
                     if self._event_stop:  # stop if requested
+                        _raise_invalid_source_error_after_winddown()
                         return
 
                 if d0ret is None:
                     for notify_idle in idle_notifiers:
                         notify_idle()
                         if self._event_stop:
+                            _raise_invalid_source_error_after_winddown()
                             return
 
                 if cohort_terminal:
@@ -1219,10 +1344,18 @@ class RunNextMixin:
                         remaining_ns = winddown_deadline_ns - now_monotonic_ns
                         if remaining_ns <= 0:
                             if self._record_live_bar_cohort_winddown(
-                                "TIMED_OUT", "winddown_deadline_expired"
+                                "TIMED_OUT",
+                                (
+                                    "invalid_source_winddown_blocked:deadline_expired"
+                                    if invalid_source_error is not None
+                                    else "winddown_deadline_expired"
+                                ),
                             ):
+                                if invalid_source_error is not None:
+                                    _raise_invalid_source_error_after_winddown()
                                 raise TimeoutError("live bar cohort shutdown winddown timed out")
                             if self._event_stop:
+                                _raise_invalid_source_error_after_winddown()
                                 return
                             raise RuntimeError("live cohort winddown state changed before timeout")
                         timeout = remaining_ns / 1_000_000_000.0
@@ -1241,6 +1374,7 @@ class RunNextMixin:
                         else:
                             timeout = min(timeout, _LIVE_COHORT_BROKER_IDLE_POLL_SECONDS)
                     if self._event_stop:
+                        _raise_invalid_source_error_after_winddown()
                         return
                     _wait_for_live_bar_cohort(
                         clock,
@@ -1251,6 +1385,7 @@ class RunNextMixin:
                         cohort_wake_generation,
                     )
                     if self._event_stop:
+                        _raise_invalid_source_error_after_winddown()
                         return
 
                 # Notify timer and iterate strategies to run
@@ -1260,6 +1395,7 @@ class RunNextMixin:
                     if single_runstrat is not None:
                         single_runstrat_next()
                         if self._event_stop:  # stop if requested
+                            _raise_invalid_source_error_after_winddown()
                             return
 
                         if has_runwriters:
@@ -1268,6 +1404,7 @@ class RunNextMixin:
                         for strat in runstrats:
                             strat._next()
                             if self._event_stop:  # stop if requested
+                                _raise_invalid_source_error_after_winddown()
                                 return
 
                             if has_runwriters:
@@ -1277,13 +1414,40 @@ class RunNextMixin:
             if not single_default_datanotify or data0.notifs:
                 self._datanotify()
             if self._event_stop:  # stop if requested
+                _raise_invalid_source_error_after_winddown()
                 return
             # Notify store info
             if has_stores:
                 self._storenotify()
                 if self._event_stop:  # stop if requested
+                    _raise_invalid_source_error_after_winddown()
                     return
         except Exception as exc:
+            if invalid_source_error is not None:
+                status = getattr(self, "live_bar_cohort_winddown_status", None)
+                if exc is not invalid_source_error and status in {"ARMED", "WAITING", "STOPPED"}:
+                    self._record_live_bar_cohort_winddown(
+                        "FAILED",
+                        "invalid_source_winddown_blocked:maintenance_%s" % type(exc).__name__,
+                    )
+                elif exc is invalid_source_error and status in {"ARMED", "WAITING"}:
+                    shutdown_confirmed = all(
+                        getattr(strat, "shutdown_requested", None) is True
+                        and getattr(strat, "shutdown_ready", None) is True
+                        for strat in runstrats
+                    )
+                    self._record_live_bar_cohort_winddown(
+                        "FAILED",
+                        (
+                            "invalid_source_winddown_blocked:shutdown_not_confirmed"
+                            if not shutdown_confirmed
+                            else "invalid_source_winddown_blocked:maintenance_ended_early"
+                        ),
+                    )
+                logger.exception("Unhandled exception in _runnext during invalid-source winddown")
+                if exc is invalid_source_error:
+                    raise
+                raise invalid_source_error.with_traceback(invalid_source_traceback) from exc
             if winddown_armed:
                 self._record_live_bar_cohort_winddown(
                     "FAILED", "winddown_failed:%s" % type(exc).__name__
