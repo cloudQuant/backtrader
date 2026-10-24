@@ -32,8 +32,8 @@ tier is deliberately changed to `live`. `--factor-mode native|build` overrides
 `factor.mode`; absent both, the production native mode is used. Fincore is only
 loaded for an explicit offline evaluation request.
 
-Research, replay, and live require an explicit point-in-time selection bundle
-at `selection.bundle`. It must use
+Set `selection.source: bundle` to use an explicit point-in-time selection
+bundle at `selection.bundle`. Bundles use
 `backtrader.futures_selection_bundle.v1`; the runner calls
 `load_selection_bundle` and recomputes the selection. A serialized
 `selection_claim` is audit context only. The bundle's complete exchange
@@ -42,6 +42,31 @@ infers planned times from the bars that happened to arrive. The default
 authorized set is every product in the selected pool. An explicit
 `authorized_products` list narrows who may receive targets, while the complete
 pool remains present for cross-sectional ranking.
+
+The public template defaults to `selection.source: ctp_query` for live mode.
+After the single `RegisteredSimStore` is connected and read-only ready, the
+runner calls its `registered_sim_collect_futures_snapshot()` bridge on that
+same client. The collector issues empty-filter full catalog and current-depth
+queries, preserving all CTP-visible contract rows and requiring complete
+depth coverage. This describes the connected CTP session's visible catalog;
+it does not claim exchange-wide universe coverage. Unknown contract
+classification or a missing eligible quote blocks selection; non-futures and
+known ineligible contracts remain explicit selector exclusions. The
+`ctp_query_snapshot_equal_weight_v1` policy selects
+the maximum exact `0.5 * open_interest + 0.5 * current_day_volume` score for
+each product, with deterministic tie-breaking. No EOD snapshot fallback is
+used. Catalog/depth collection and freshness are checked when an epoch is
+admitted; its selected mapping stays frozen for that epoch. A later query
+epoch gets a fresh Store only after the old Strategy, engine, refresh loop,
+Broker and Store have completed their shutdown checks.
+
+Query selection is a live-only path. Research and replay require
+`selection.source: bundle` and an explicit saved bundle; a query source never
+falls back to one. Query mode uses `selection.max_epochs` as its finite live
+epoch count and does not accept `selection.daily_bundles`. Its session grid is
+created by the local `expected_rule_derived` daytime calendar profile, which
+retains the rule-manifest digest and source references and is not presented as
+a newly fetched exchange calendar.
 
 The saved minute source is a JSON object with schema
 `backtrader.alpha003.minute_tape.v1`, a non-empty `snapshot_id`, explicit
@@ -139,8 +164,8 @@ ready. If a cancel or close still needs later Broker polling or a later market
 bar, the run is reported blocked; the example does not treat process teardown
 as proof of a settled position or order.
 
-For a finite live sequence across trading days, keep the first day's bundle in
-`selection.bundle` and list later public bundles, in order, in
+For saved-bundle live compatibility across trading days, keep the first day's
+bundle in `selection.bundle` and list later public bundles, in order, in
 `selection.daily_bundles`. The runner keeps the selected product pool fixed and
 requires every later point-in-time decision and exchange TradingDay to advance.
 Each epoch gets a new cohort, feeds, Cerebro, Strategy, factor graph, and
@@ -155,6 +180,11 @@ separately from local resource closure; it is never presented as a flat
 account. This finite sequence uses the existing cohort and winddown lifecycle,
 not a second scheduler, and remains source/fake example evidence rather than
 real-account rollover acceptance.
+
+For the query-default path, set `selection.max_epochs` to the desired finite
+count instead. Each epoch queries its own newly connected Store only after the
+prior epoch has retired and closed. The old mapping is not reranked mid-epoch,
+and a failed or unresolved epoch prevents creation of the next Store and query.
 
 Set `cohort.max_live_bar_age_seconds` and
 `cohort.max_future_skew_seconds` to the accepted source-clock profile before

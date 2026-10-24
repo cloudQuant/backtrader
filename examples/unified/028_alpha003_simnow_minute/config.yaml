@@ -14,14 +14,19 @@ factor:
   rebalance_every: 5
 
 selection:
-  # A public point-in-time JSON bundle accepted by load_selection_bundle.
+  # Live defaults to a complete CTP catalog + current-day depth query on the
+  # same RegisteredSimStore later used by Cerebro. Research/replay require the
+  # explicit legacy saved-bundle source below.
+  source: ctp_query
   bundle: null
   # Optional list of EXCHANGE.PRODUCT values allowed to receive trade targets.
   # The complete manifest target pool still participates in cross-sectional ranks.
   authorized_products: null
-  # Optional ordered public PIT bundles for finite live session rollovers.
-  # Each later bundle is opened only after the previous epoch retires cleanly.
+  # Kept for explicit source: bundle live compatibility; never a query fallback.
   daily_bundles: []
+  # Query epochs are finite; each new epoch gets a new Store only after the
+  # previous one has retired and closed.
+  max_epochs: 1
 
 inputs:
   # Saved closed bars must carry source availability and cohort provenance.

@@ -183,7 +183,13 @@ _CONFIG_KEYS = {
 _SECTION_KEYS = {
     "entry": {"tier"},
     "factor": {"mode", "direction", "preheat_bars", "rebalance_every"},
-    "selection": {"bundle", "authorized_products", "daily_bundles"},
+    "selection": {
+        "source",
+        "bundle",
+        "authorized_products",
+        "daily_bundles",
+        "max_epochs",
+    },
     "inputs": {"minute_tape", "execution_quotes", "instrument_metadata"},
     "research": {"start", "end", "source_timezone", "price_basis"},
     "cohort": {
@@ -248,9 +254,12 @@ def load_config(config_path: Path) -> dict[str, Any]:
     for section, expected in _SECTION_KEYS.items():
         row = dict(_mapping(config.get(section), section))
         # Keep the original one-bundle public configuration valid.  Daily
-        # rollover is an additive opt-in and an omitted list means one epoch.
+        # rollover is an additive opt-in and omitted source/epoch keys retain
+        # the original offline-bundle behavior for copied configurations.
         if section == "selection":
+            row.setdefault("source", "bundle")
             row.setdefault("daily_bundles", [])
+            row.setdefault("max_epochs", 1)
         extra = set(row).difference(expected)
         missing_section = expected.difference(row)
         if extra or missing_section:
@@ -264,6 +273,14 @@ def load_config(config_path: Path) -> dict[str, Any]:
         raise RunnerError("DAILY_SELECTION_BUNDLES_INVALID")
     for index, value in enumerate(daily_bundles):
         _text(value, f"selection.daily_bundles[{index}]")
+    selection = config["selection"]
+    if selection["source"] not in {"bundle", "ctp_query"}:
+        raise RunnerError("SELECTION_SOURCE_INVALID")
+    max_epochs = selection["max_epochs"]
+    if type(max_epochs) is not int or not 1 <= max_epochs <= 100:
+        raise RunnerError("SELECTION_MAX_EPOCHS_INVALID")
+    if selection["source"] == "ctp_query" and daily_bundles:
+        raise RunnerError("QUERY_SELECTION_DAILY_BUNDLES_UNSUPPORTED")
     return config
 
 
@@ -382,6 +399,163 @@ def load_market_plan(
         "session_calendars": session_calendars,
         "grid": grid,
         "selection_path": selection_path,
+        "selection_source": "saved_bundle_legacy",
+        "source_snapshot_id": manifest.source_snapshot_id,
+    }
+
+
+def build_ctp_query_market_plan(store, config, *, clock):
+    """Select and calendarize the complete CTP futures universe on this Store.
+
+    The snapshot bridge is deliberately called only after the caller has made
+    this exact Store ready. It reads the existing client; it does not construct
+    or connect another provider session. No catalog row is removed before the
+    shared selector has checked classification and complete depth coverage.
+    """
+
+    from backtrader.feeds.futures_expected_calendar import build_expected_daytime_calendars
+    from backtrader.feeds.futures_main_contract import (
+        CTP_QUERY_SNAPSHOT_EQUAL_WEIGHT_POLICY,
+        ExchangeTradingDay,
+        ProductKey,
+        select_main_contracts,
+    )
+    from backtrader.feeds.futures_sessions import build_common_minute_grid
+
+    collector = getattr(store, "registered_sim_collect_futures_snapshot", None)
+    if not callable(collector):
+        raise RunnerError("CTP_FUTURES_SNAPSHOT_BRIDGE_UNAVAILABLE")
+    try:
+        snapshot = collector(max_collection_seconds=300.0, max_snapshot_age_seconds=300.0)
+    except Exception as error:
+        # Do not expose SDK exception text, provider payloads, or account data.
+        raise RunnerError("CTP_FUTURES_SNAPSHOT_COLLECTION_FAILED", type(error).__name__) from None
+
+    from backtrader.feeds.futures_main_contract import MainContractQuerySnapshot
+
+    if not isinstance(snapshot, MainContractQuerySnapshot):
+        raise RunnerError("CTP_FUTURES_SNAPSHOT_TYPE_INVALID")
+    products = tuple(
+        sorted(
+            {
+                row.product
+                for row in snapshot.catalog_records
+                if row.product_class == "1"
+            },
+            key=lambda product: (product.exchange_id, product.product_id),
+        )
+    )
+    if not products or any(not isinstance(product, ProductKey) for product in products):
+        raise RunnerError("CTP_FUTURES_PRODUCT_POOL_UNAVAILABLE")
+    trading_day = snapshot.session_trading_day_after
+    if type(trading_day) is not date:
+        raise RunnerError("CTP_FUTURES_TRADING_DAY_UNAVAILABLE")
+    exchanges = tuple(sorted({product.exchange_id for product in products}))
+    current_days = dict.fromkeys(exchanges, trading_day)
+    day_rows = tuple(ExchangeTradingDay(exchange, trading_day) for exchange in exchanges)
+    decision_at = _aware_datetime(clock.utc_now(), "CTP selection decision time")
+
+    try:
+        calendar_build = build_expected_daytime_calendars(
+            products,
+            current_days,
+            as_of=decision_at,
+            retrieved_at=decision_at,
+        )
+        manifest = select_main_contracts(
+            snapshot,
+            products,
+            day_rows,
+            calendar_build.trading_calendars,
+            decision_at=decision_at,
+            policy=CTP_QUERY_SNAPSHOT_EQUAL_WEIGHT_POLICY,
+        )
+        if manifest.status != "READY":
+            raise RunnerError("POINT_IN_TIME_SELECTION_BLOCKED", ",".join(manifest.blockers))
+        routes = dict(manifest.selected_mapping())
+        selected_last_days = {}
+        selected = dict(routes)
+        for assessment in manifest.candidates:
+            product = assessment.product
+            if (
+                product in selected
+                and selected[product] == assessment.instrument_id
+                and product.exchange_id == "CFFEX"
+                and product.product_id in {"TF", "T", "TS", "TL"}
+                and assessment.expiry_date is not None
+            ):
+                selected_last_days[product] = (assessment.expiry_date,)
+        if selected_last_days:
+            calendar_build = build_expected_daytime_calendars(
+                products,
+                current_days,
+                as_of=decision_at,
+                retrieved_at=decision_at,
+                selected_contract_last_trading_days=selected_last_days,
+            )
+            manifest = select_main_contracts(
+                snapshot,
+                products,
+                day_rows,
+                calendar_build.trading_calendars,
+                decision_at=decision_at,
+                policy=CTP_QUERY_SNAPSHOT_EQUAL_WEIGHT_POLICY,
+            )
+            if manifest.status != "READY":
+                raise RunnerError(
+                    "POINT_IN_TIME_SELECTION_BLOCKED", ",".join(manifest.blockers)
+                )
+            routes = dict(manifest.selected_mapping())
+        product_days = dict.fromkeys(products, (trading_day,))
+        grid = build_common_minute_grid(
+            products,
+            calendar_build.session_calendars,
+            product_days,
+            decision_at=decision_at,
+        )
+    except RunnerError:
+        raise
+    except Exception as error:
+        code = getattr(error, "code", None)
+        safe_code = code if type(code) is str and code.isascii() else type(error).__name__
+        raise RunnerError("CTP_QUERY_PLAN_BUILD_FAILED", safe_code) from None
+    if grid.status != "READY" or not grid.minutes:
+        raise RunnerError("PLANNED_MINUTE_GRID_BLOCKED", grid.status)
+    if set(routes) != set(products):
+        raise RunnerError("POINT_IN_TIME_ROUTE_SET_MISMATCH")
+
+    authorized_values = config["selection"]["authorized_products"]
+    if authorized_values is None:
+        authorized = tuple(_target_id(product) for product in products)
+    else:
+        if type(authorized_values) is not list or not authorized_values:
+            raise RunnerError("AUTHORIZED_PRODUCTS_INVALID")
+        authorized = tuple(_text(item, "authorized product") for item in authorized_values)
+        target_names = {_target_id(product) for product in products}
+        if len(set(authorized)) != len(authorized) or not set(authorized).issubset(target_names):
+            raise RunnerError("AUTHORIZED_PRODUCTS_OUTSIDE_POOL")
+
+    catalog_id = snapshot.catalog_source.snapshot_id
+    quote_id = snapshot.quote_source.snapshot_id
+    if type(catalog_id) is not str or type(quote_id) is not str:
+        raise RunnerError("CTP_FUTURES_SNAPSHOT_ID_UNAVAILABLE")
+    source_snapshot_id = f"{catalog_id}|{quote_id}"
+    return {
+        "bundle": None,
+        "manifest": manifest,
+        "products": products,
+        "routes": routes,
+        "targets": tuple(_target_id(product) for product in products),
+        "product_by_target": {_target_id(product): product for product in products},
+        "target_by_product": {product: _target_id(product) for product in products},
+        "authorized_targets": authorized,
+        "session_calendars": calendar_build.session_calendar_by_exchange,
+        "grid": grid,
+        "selection_path": f"ctp-query://{catalog_id}|{quote_id}",
+        "selection_source": "ctp_query_snapshot_equal_weight_v1",
+        "source_snapshot_id": source_snapshot_id,
+        "calendar_evidence_mode": calendar_build.evidence_mode,
+        "calendar_rules_sha256": calendar_build.rules_manifest_sha256,
     }
 
 
@@ -2507,8 +2681,10 @@ def _live_epoch_failure_evidence(config, plan, cerebro, refresh_loop, cleanup):
         winddown_reason = None
     return {
         "epoch_id": config["cohort"]["epoch_id"],
-        "selection_path": str(plan["selection_path"]),
-        "routes": _route_summary(plan),
+        "selection_path": str(plan["selection_path"]) if plan is not None else None,
+        "selection_source": plan.get("selection_source") if plan is not None else None,
+        "source_snapshot_id": plan.get("source_snapshot_id") if plan is not None else None,
+        "routes": _route_summary(plan) if plan is not None else {},
         "engine_winddown_status": winddown_status,
         "engine_winddown_reason": winddown_reason,
         "strategy_shutdown_requested": shutdown_requested,
@@ -2543,6 +2719,15 @@ def _project_strategy_order_events(strategy, plan, epoch_id):
     current facts, journal and position projection.
     """
 
+    if plan is None:
+        return {
+            "status": "UNAVAILABLE",
+            "reason": "SELECTION_PLAN_UNAVAILABLE",
+            "capacity": 128,
+            "retained_count": 0,
+            "truncated": None,
+            "events": [],
+        }
     events = getattr(strategy, "order_events", None) if strategy is not None else None
     if events is None:
         return {
@@ -2579,9 +2764,31 @@ def _project_strategy_order_events(strategy, plan, epoch_id):
                 "truncated": len(events) == 128,
                 "events": projected,
             }
-        instrument = event.get("instrument")
+        raw_instrument = event.get("instrument")
+        event_exchange = event.get("exchange")
+        if isinstance(raw_instrument, tuple) and len(raw_instrument) == 2:
+            instrument, route_exchange = raw_instrument
+            if event_exchange is not None and event_exchange != route_exchange:
+                return {
+                    "status": "BLOCKED",
+                    "reason": "STRATEGY_ORDER_EVENT_ROUTE_UNBOUND",
+                    "capacity": 128,
+                    "retained_count": len(events),
+                    "truncated": len(events) == 128,
+                    "events": projected,
+                }
+            event_exchange = route_exchange
+        else:
+            instrument = raw_instrument
         matches = target_by_instrument.get(instrument, ())
-        if not isinstance(instrument, str) or len(matches) != 1:
+        if (
+            not isinstance(instrument, str)
+            or (event_exchange is not None and not isinstance(event_exchange, str))
+        ):
+            matches = ()
+        elif event_exchange is not None:
+            matches = tuple(item for item in matches if item[1] == event_exchange)
+        if len(matches) != 1:
             return {
                 "status": "BLOCKED",
                 "reason": "STRATEGY_ORDER_EVENT_ROUTE_UNBOUND",
@@ -2771,7 +2978,18 @@ def _restore_shutdown_signal_handlers(installed):
         signal.signal(signum, previous)
 
 
-def run_live(config, config_path, plan, factor_mode, direction, *, decision, allow_write_flag):
+def run_live(
+    config,
+    config_path,
+    plan,
+    factor_mode,
+    direction,
+    *,
+    decision,
+    allow_write_flag,
+    previous_plan=None,
+    _include_plan=False,
+):
     import backtrader as bt
     from backtrader.brokers.btapibroker import BtApiBroker
     from backtrader.stores.registered_sim import RegisteredSimStore
@@ -2780,7 +2998,10 @@ def run_live(config, config_path, plan, factor_mode, direction, *, decision, all
     from backtrader.stores.factor_execution_facts import FactorExecutionTarget
 
     max_targets = 256
-    if len(plan["targets"]) > max_targets:
+    query_selection = plan is None
+    if query_selection and config["selection"]["source"] != "ctp_query":
+        raise RunnerError("CTP_QUERY_SELECTION_NOT_CONFIGURED")
+    if plan is not None and len(plan["targets"]) > max_targets:
         raise RunnerError("LIVE_TARGET_CAPACITY_EXCEEDED")
     write_enabled = _write_requested(config, allow_write_flag, decision)
     age_bound = config["cohort"]["max_live_bar_age_seconds"]
@@ -2828,7 +3049,6 @@ def run_live(config, config_path, plan, factor_mode, direction, *, decision, all
             config["live"]["query_max_age_seconds"], "live.query_max_age_seconds", positive=True
         )
     )
-    arm_templates = _arm_templates(config, plan) if write_enabled else None
     store_config, api_kwargs = _live_env_config(config)
     store = None
     broker = None
@@ -2843,21 +3063,15 @@ def run_live(config, config_path, plan, factor_mode, direction, *, decision, all
     cleanup = []
     engine_ran = False
     broker_evidence = None
+    clock = None
+    query_session_ready = False
+    selection_snapshot_id = None
     try:
         from backtrader.stores.execution_decision_journal import ExecutionDecisionJournal
         from backtrader.stores.factor_execution import FactorExecutionCoordinator
 
         if not callable(getattr(bt.Cerebro, "wake_live_bar_cohort", None)):
             raise RunnerError("LIVE_COHORT_WAKE_API_UNAVAILABLE")
-        decision_tape = _new_decision_tape(
-            config,
-            config_path,
-            plan,
-            mode="live",
-            factor_mode=factor_mode,
-            direction=direction,
-            source_snapshot_id=None,
-        )
         store = RegisteredSimStore(
             provider="ctp",
             backend="direct",
@@ -2868,6 +3082,40 @@ def run_live(config, config_path, plan, factor_mode, direction, *, decision, all
         )
         if store.registered_sim_route_id != "simnow-registered-v1" or store.sdk_api is not None:
             raise RunnerError("REGISTERED_SIM_STORE_CONTRACT_INVALID")
+        clock = RunnerWallClock()
+        if query_selection:
+            if not store.registered_sim_wait_ready(ready_timeout):
+                raise RunnerError("LIVE_CTP_SESSION_NOT_READY")
+            login_before_selection = store.registered_sim_login_facts()
+            if login_before_selection.get("read_only_ready") is not True:
+                raise RunnerError("LIVE_CTP_READ_ONLY_STATE_UNAVAILABLE")
+            if write_enabled and login_before_selection.get("trading_ready") is not True:
+                raise RunnerError("LIVE_CTP_TRADING_STATE_UNAVAILABLE")
+            plan = build_ctp_query_market_plan(store, config, clock=clock)
+            if len(plan["targets"]) > max_targets:
+                raise RunnerError("LIVE_TARGET_CAPACITY_EXCEEDED")
+            if previous_plan is not None:
+                _assert_daily_plan_transition(previous_plan, plan)
+            login_after_selection = store.registered_sim_login_facts()
+            if any(
+                login_after_selection.get(key) != login_before_selection.get(key)
+                for key in ("trading_day", "connection_generation")
+            ):
+                raise RunnerError("LIVE_SESSION_CHANGED_DURING_SELECTION")
+            query_session_ready = True
+            selection_snapshot_id = plan["source_snapshot_id"]
+        elif plan is None:
+            raise RunnerError("LIVE_SELECTION_PLAN_REQUIRED")
+        arm_templates = _arm_templates(config, plan) if write_enabled else None
+        decision_tape = _new_decision_tape(
+            config,
+            config_path,
+            plan,
+            mode="live",
+            factor_mode=factor_mode,
+            direction=direction,
+            source_snapshot_id=plan.get("source_snapshot_id"),
+        )
         broker = BtApiBroker(
             store=store,
             provider="ctp",
@@ -2897,7 +3145,6 @@ def run_live(config, config_path, plan, factor_mode, direction, *, decision, all
         )
         cerebro = bt.Cerebro(stdstats=False, runonce=False, preload=False)
         cerebro.setbroker(broker)
-        clock = RunnerWallClock()
         cohort = _make_cohort(config, plan["grid"], begin_at=clock.utc_now())
         query_targets = []
         for target in plan["targets"]:
@@ -2940,7 +3187,7 @@ def run_live(config, config_path, plan, factor_mode, direction, *, decision, all
             winddown_timeout_seconds=shutdown_grace,
         )
 
-        if not store.registered_sim_wait_ready(ready_timeout):
+        if not query_session_ready and not store.registered_sim_wait_ready(ready_timeout):
             raise RunnerError("LIVE_CTP_SESSION_NOT_READY")
         login = store.registered_sim_login_facts()
         if login.get("read_only_ready") is not True:
@@ -3211,11 +3458,15 @@ def run_live(config, config_path, plan, factor_mode, direction, *, decision, all
             error, config, plan, locals().get("cerebro"), refresh_loop, cleanup
         )
         raise
-    return {
+    summary = {
         "status": "LIVE_RUN_COMPLETE",
         "mode": "live",
         "epoch_id": config["cohort"]["epoch_id"],
         "selection_path": str(plan["selection_path"]),
+        "selection_source": plan["selection_source"],
+        "source_snapshot_id": plan.get("source_snapshot_id"),
+        "calendar_evidence_mode": plan.get("calendar_evidence_mode"),
+        "calendar_rules_sha256": plan.get("calendar_rules_sha256"),
         "selection_decision_at": plan["manifest"].decision_at.isoformat(),
         "trading_days": {
             row.exchange_id: row.current_trading_day.isoformat()
@@ -3251,9 +3502,14 @@ def run_live(config, config_path, plan, factor_mode, direction, *, decision, all
         "resource_shutdown": cleanup,
         "cleanup_complete": _cleanup_complete(cleanup),
     }
+    if _include_plan:
+        summary["_plan"] = plan
+    return summary
 
 
 def _route_summary(plan):
+    if plan is None:
+        return {}
     return {target: plan["routes"][plan["product_by_target"][target]] for target in plan["targets"]}
 
 
@@ -3321,6 +3577,149 @@ def _live_epoch_retired(summary):
     )
 
 
+def _run_ctp_query_live_epochs(
+    config,
+    config_path,
+    factor_mode,
+    direction,
+    *,
+    decision,
+    allow_write_flag,
+):
+    """Query and run epochs serially, creating no next Store early."""
+
+    if decision.effective_tier != "live":
+        raise RunnerError("QUERY_SELECTION_LIVE_TIER_REQUIRED")
+    count = config["selection"]["max_epochs"]
+    if count > 1:
+        risk_policy = _risk_policy(config)
+        if risk_policy is None or risk_policy.run_end_policy != "CLOSE_ALL":
+            raise RunnerError("DAILY_ROLLOVER_CLOSE_ALL_POLICY_REQUIRED")
+
+    original_epoch = config["cohort"]["epoch_id"]
+    if type(original_epoch) is not int or original_epoch < 1:
+        raise RunnerError("COHORT_EPOCH_INVALID")
+    summaries = []
+    query_attempts = []
+    assembly_attempts = []
+    previous_plan = None
+    previous_result = None
+    failed_epoch = None
+    try:
+        for index in range(count):
+            epoch_config = deepcopy(config)
+            epoch_config["cohort"]["epoch_id"] = original_epoch + index
+            epoch_config["output"]["decision_tape_path"] = str(
+                _daily_epoch_tape_path(config, config_path, epoch_index=index)
+            )
+            epoch_id = epoch_config["cohort"]["epoch_id"]
+            assembly_attempts.append(epoch_id)
+            query_attempts.append(epoch_id)
+            # run_live creates one Store, queries it after readiness, then
+            # assembles the plan and engine from that same Store. This call
+            # returns only after the prior epoch's cleanup has completed.
+            result = run_live(
+                epoch_config,
+                config_path,
+                None,
+                factor_mode,
+                direction,
+                decision=decision,
+                allow_write_flag=allow_write_flag,
+                previous_plan=previous_plan,
+                _include_plan=True,
+            )
+            plan = result.pop("_plan")
+            if not _live_epoch_retired(result):
+                failed_epoch = {
+                    "epoch_id": epoch_id,
+                    "selection_path": result.get("selection_path"),
+                    "selection_source": result.get("selection_source"),
+                    "routes": _route_summary(plan),
+                    "status": "RETIREMENT_UNPROVEN",
+                    "engine_winddown_status": result.get("engine_winddown_status"),
+                    "strategy_shutdown_ready": result.get("strategy_shutdown_ready"),
+                    "strategy_shutdown_blocker": result.get("strategy_shutdown_blocker"),
+                    "strategy_shutdown_post_join_confirmed": result.get(
+                        "strategy_shutdown_post_join_confirmed"
+                    ),
+                    "strategy_shutdown_post_join_blocker": result.get(
+                        "strategy_shutdown_post_join_blocker"
+                    ),
+                    "shutdown_status": result.get("shutdown_status"),
+                    "resource_shutdown": result.get("resource_shutdown", []),
+                    "cleanup_complete": result.get("cleanup_complete") is True,
+                }
+                raise RunnerError("DAILY_EPOCH_RETIREMENT_UNPROVEN", f"epoch={epoch_id}")
+            row = {
+                "epoch_id": epoch_id,
+                "selection_source": plan["selection_source"],
+                "selection_path": str(plan["selection_path"]),
+                "source_snapshot_id": plan.get("source_snapshot_id"),
+                "selection_decision_at": plan["manifest"].decision_at.isoformat(),
+                "calendar_evidence_mode": result.get("calendar_evidence_mode"),
+                "calendar_rules_sha256": result.get("calendar_rules_sha256"),
+                "trading_days": {
+                    item.exchange_id: item.current_trading_day.isoformat()
+                    for item in plan["manifest"].trading_days
+                },
+                "routes": _route_summary(plan),
+                "status": result["status"],
+                "retirement_proven": True,
+                "shutdown_status": result["shutdown_status"],
+                "strategy_shutdown_ready": result["strategy_shutdown_ready"],
+                "strategy_shutdown_post_join_confirmed": result[
+                    "strategy_shutdown_post_join_confirmed"
+                ],
+                "engine_winddown_status": result["engine_winddown_status"],
+                "cleanup_complete": result["cleanup_complete"],
+                "decision_tape": result["decision_tape"],
+                "decision_tape_readback": result["decision_tape_readback"],
+                "strategy_order_events": result.get("strategy_order_events"),
+            }
+            summaries.append(row)
+            previous_plan = plan
+            previous_result = result
+    except BaseException as error:
+        failed_epoch = failed_epoch or getattr(error, "live_epoch_evidence", None)
+        try:
+            error.epoch_results = tuple(dict(row) for row in summaries)
+            error.query_epoch_attempts = tuple(query_attempts)
+            error.later_bundle_reads = ()
+            error.assembly_attempts = tuple(assembly_attempts)
+            error.previous_epoch_routes = (
+                _route_summary(previous_plan) if previous_plan is not None else None
+            )
+            error.previous_epoch_status = (
+                previous_result.get("status") if previous_result is not None else None
+            )
+            if failed_epoch is not None:
+                error.failed_epoch = dict(failed_epoch)
+            error.next_bundle_read_count = 0
+            error.next_bundle_loaded = False
+            error.next_epoch_load_permitted = False
+            error.next_query_permitted = False
+        except Exception:
+            pass
+        raise
+
+    return {
+        "status": "LIVE_EPOCH_SEQUENCE_COMPLETE",
+        "mode": "live",
+        "tier": decision.effective_tier,
+        "write_mode": bool(allow_write_flag),
+        "factor_mode": factor_mode,
+        "selection_source": "ctp_query_snapshot_equal_weight_v1",
+        "epoch_count": len(summaries),
+        "epochs": summaries,
+        "query_epoch_attempts": query_attempts,
+        "later_bundle_reads": [],
+        "assembly_attempts": assembly_attempts,
+        "cleanup_complete": all(row["cleanup_complete"] for row in summaries),
+        "next_epoch_loaded": len(summaries) > 1,
+    }
+
+
 def run_live_epochs(
     config,
     config_path,
@@ -3336,6 +3735,18 @@ def run_live_epochs(
     The next bundle is opened only after the old engine has completed its
     strategy-owned winddown and its local resources have closed with proof.
     """
+
+    if config["selection"]["source"] == "ctp_query":
+        if config["selection"]["daily_bundles"]:
+            raise RunnerError("QUERY_SELECTION_DAILY_BUNDLES_UNSUPPORTED")
+        return _run_ctp_query_live_epochs(
+            config,
+            config_path,
+            factor_mode,
+            direction,
+            decision=decision,
+            allow_write_flag=allow_write_flag,
+        )
 
     daily_paths = _daily_bundle_paths(config, config_path)
     if not daily_paths:
@@ -3527,6 +3938,11 @@ def run(args=None):
         mode, tier = resolve_mode(config, ns.mode)
         factor_mode, direction, _preheat, _cadence = _factor_parameters(config, ns.factor_mode)
         daily_bundles = config["selection"]["daily_bundles"]
+        selection_source = config["selection"]["source"]
+        if selection_source == "ctp_query" and mode in {"research", "replay"}:
+            raise RunnerError("OFFLINE_MODE_REQUIRES_SAVED_SELECTION_BUNDLE")
+        if selection_source == "ctp_query" and daily_bundles:
+            raise RunnerError("QUERY_SELECTION_DAILY_BUNDLES_UNSUPPORTED")
         if daily_bundles and mode != "live":
             raise RunnerError("DAILY_ROLLOVER_LIVE_MODE_REQUIRED")
         if daily_bundles:
@@ -3545,7 +3961,22 @@ def run(args=None):
                 "factor_mode": factor_mode,
                 **tier.as_evidence(),
             }
+        elif mode == "live" and selection_source == "ctp_query":
+            if tier.effective_tier != "live":
+                raise RunnerError("LIVE_TIER_REQUIRED")
+            summary = run_live_epochs(
+                config,
+                config_path,
+                None,
+                factor_mode,
+                direction,
+                decision=tier,
+                allow_write_flag=ns.allow_write,
+            )
+            summary.update({**tier.as_evidence(), "mode": mode})
         else:
+            if selection_source != "bundle":
+                raise RunnerError("SAVED_SELECTION_BUNDLE_REQUIRED")
             plan = load_market_plan(config, config_path)
             if mode == "research":
                 summary = run_research(config, config_path, plan, factor_mode, direction)
@@ -3566,7 +3997,9 @@ def run(args=None):
                     allow_write_flag=ns.allow_write,
                 )
             summary.update({**tier.as_evidence(), "mode": mode})
-        print(json.dumps(summary, sort_keys=True, default=str))
+        public_summary = dict(summary)
+        public_summary.pop("_plan", None)
+        print(json.dumps(public_summary, sort_keys=True, default=str))
         if summary.get("status") == "REPLAY_INCOMPLETE":
             return 2
         return 0
@@ -3585,6 +4018,8 @@ def run(args=None):
             "next_bundle_read_count",
             "next_bundle_loaded",
             "next_epoch_load_permitted",
+            "next_query_permitted",
+            "query_epoch_attempts",
             "old_route_handling",
         ):
             if hasattr(error, name):
@@ -3607,6 +4042,8 @@ def run(args=None):
             "next_bundle_read_count",
             "next_bundle_loaded",
             "next_epoch_load_permitted",
+            "next_query_permitted",
+            "query_epoch_attempts",
             "old_route_handling",
         ):
             if hasattr(error, name):

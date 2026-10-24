@@ -431,6 +431,7 @@ def _base_config(tmp_path, mode):
     config["mode"] = mode
     config["entry"]["tier"] = "dry" if mode == "research" else mode
     bundle_path = _write_json(tmp_path / "selection.json", _selection_bundle())
+    config["selection"]["source"] = "bundle"
     config["selection"]["bundle"] = str(bundle_path)
     config["selection"]["authorized_products"] = None
     return config
@@ -665,12 +666,12 @@ def _daily_test_inputs(tmp_path):
 
 
 @pytest.mark.parametrize(
-    "unresolved_position",
-    (False, True),
-    ids=("flat-two-epoch-positive", "nonflat-winddown-timeout"),
+    ("selection_source", "unresolved_position"),
+    (("bundle", False), ("bundle", True), ("ctp_query", False)),
+    ids=("flat-two-epoch-positive", "nonflat-winddown-timeout", "same-store-query-live"),
 )
 def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bundle(
-    tmp_path, monkeypatch, unresolved_position
+    tmp_path, monkeypatch, selection_source, unresolved_position
 ):
     """Exercise daily assembly through the real Store/Broker/Cerebro stack.
 
@@ -683,7 +684,11 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
     from types import SimpleNamespace
 
     import backtrader.stores.registered_sim as registered_sim_module
+    from backtrader.feeds import futures_ctp_snapshot
     from tests.unit.stores import test_factor_execution_facts as facts_fixture
+    from tests.test_utils.optional_sdk import optional_sdk
+
+    query_result_type = optional_sdk("bt_api_ctp.query").QueryResult
 
     # Keep the controlled source/session timestamps historical relative to the
     # host query collector's completion time. This exercises strict causal
@@ -720,7 +725,33 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
             session_end=(10, 59),
         ),
     )
-    config["selection"]["daily_bundles"] = [str(second_bundle)]
+    if selection_source == "ctp_query":
+        config["selection"].update(
+            source="ctp_query",
+            bundle=None,
+            daily_bundles=[],
+            max_epochs=2,
+        )
+        config["risk"].update(
+            policy_id="query-two-epoch-risk-v1",
+            max_hold_eligible_bars=12,
+            preclose_grace_seconds=300,
+            run_end_policy="CLOSE_ALL",
+            quote_max_age_seconds=60,
+            max_state_age_seconds=7200,
+            max_notional_per_position=100_000,
+            max_total_notional=300_000,
+            max_margin_per_position=10_000,
+            max_total_margin=30_000,
+            max_loss_per_position=10_000,
+            max_total_loss=20_000,
+            round_trip_fee_upper_bound_per_contract="1.00",
+            stop_loss_ticks=1,
+            max_order_intents_per_grid=2,
+            max_order_intents_per_run=100,
+        )
+    else:
+        config["selection"]["daily_bundles"] = [str(second_bundle)]
     config["live"].update(
         account_scope="alpha003-two-epoch-account",
         strategy_scope="alpha003-two-epoch-shadow",
@@ -736,7 +767,7 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
         quote_max_age_seconds=60.0,
         # Keep the synthetic query evidence on the same controlled clock as
         # the tape, with a finite bound that spans this one-session fixture.
-        query_max_age_seconds=2 * 60 * 60,
+        query_max_age_seconds=12 * 60 * 60,
         shutdown_grace_seconds=0.05 if unresolved_position else 5.0,
         allow_writes=False,
     )
@@ -745,7 +776,11 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
     config["output"]["decision_tape_max_bytes"] = 50_000_000
     config_path.write_text(yaml.safe_dump(config, sort_keys=False), encoding="utf-8")
 
-    now = first_plan["grid"].minutes[0].close_time - timedelta(minutes=1)
+    now = (
+        datetime(2026, 10, 22, 1, 0, tzinfo=UTC)
+        if selection_source == "ctp_query"
+        else first_plan["grid"].minutes[0].close_time - timedelta(minutes=1)
+    )
     trace = []
     api_clients = []
     contexts = deque()
@@ -797,6 +832,10 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
                 # the explicit two-hour query/state age.
                 self._now = self._availability[0] - timedelta(seconds=62)
 
+        def set_utc_now(self, value):
+            with self._lock:
+                self._now = value
+
         def wait_interruptibly(self, timeout_seconds, wait_for_event):
             # Check an actual Cerebro/Store wake first. During an epoch, move
             # UTC only to the next explicit provider availability time; no
@@ -820,7 +859,7 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
     current_plan = {"value": first_plan}
     strategy_instances = []
 
-    def make_context(plan, epoch_id):
+    def make_context(plan, epoch_id, *, context=None):
         bar_rows = defaultdict(list)
         for ordinal, minute in enumerate(plan["grid"].minutes, 1):
             member_by_product = {member.product: member for member in minute.members}
@@ -870,7 +909,7 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
                         "openinterest": 0.0,
                     }
                 )
-        rows = facts_fixture._query_rows()
+        rows = context.rows if context is not None else facts_fixture._query_rows()
         routes = [
             (
                 target,
@@ -882,18 +921,19 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
         context_day = next(iter(plan["manifest"].trading_days)).current_trading_day.strftime(
             "%Y%m%d"
         )
-        rows["instruments_result"] = [
-            {
-                "InstrumentID": instrument,
-                "ExchangeID": exchange,
-                "IsTrading": 1,
-                "VolumeMultiple": 10,
-                "PriceTick": 0.1,
-                "LowerLimitPrice": 80,
-                "UpperLimitPrice": 130,
-            }
-            for _target, instrument, exchange in routes
-        ]
+        if context is None or not getattr(context, "all_catalog_facts", False):
+            rows["instruments_result"] = [
+                {
+                    "InstrumentID": instrument,
+                    "ExchangeID": exchange,
+                    "IsTrading": 1,
+                    "VolumeMultiple": 10,
+                    "PriceTick": 0.1,
+                    "LowerLimitPrice": 80,
+                    "UpperLimitPrice": 130,
+                }
+                for _target, instrument, exchange in routes
+            ]
         rows["instrument_margin_rate_result"] = [
             {
                 "InstrumentID": instrument,
@@ -920,14 +960,89 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
                     ExchangeID=exchange,
                 )
             ]
-        context = SimpleNamespace(
-            epoch_id=epoch_id,
-            trading_day=context_day,
-            rows=rows,
-            bars={instrument: deque(events) for instrument, events in bar_rows.items()},
-        )
+        if context is None:
+            context = SimpleNamespace(
+                epoch_id=epoch_id,
+                trading_day=context_day,
+                rows=rows,
+                bars={},
+                catalog_rows=(),
+                quote_rows=(),
+                all_catalog_facts=False,
+            )
+        context.epoch_id = epoch_id
+        context.trading_day = context_day
+        context.rows = rows
+        context.bars = {instrument: deque(events) for instrument, events in bar_rows.items()}
         clock.set_epoch_events(bar_rows)
         return context
+
+    def make_query_context(epoch_id, trading_day):
+        day_text = trading_day.strftime("%Y%m%d")
+        rows = facts_fixture._query_rows()
+        catalog_rows = []
+        quote_rows = []
+        all_instrument_rows = []
+        all_margin_rows = []
+        for product in PRODUCTS:
+            for contract_index, month in enumerate(("11", "12")):
+                instrument = f"{product.product_id}{str(trading_day.year)[-2:]}{month}"
+                catalog_rows.append(
+                    {
+                        "InstrumentID": instrument,
+                        "ExchangeID": product.exchange_id,
+                        "ProductID": product.product_id.lower(),
+                        "ProductClass": "1",
+                        "IsTrading": 1,
+                        "ExpireDate": "20261116" if month == "11" else "20261214",
+                    }
+                )
+                selected = contract_index == (1 if epoch_id == 1 else 0)
+                quote_rows.append(
+                    {
+                        "InstrumentID": instrument,
+                        "ExchangeID": product.exchange_id,
+                        "TradingDay": day_text,
+                        "OpenInterest": 2000 if selected else 1000,
+                        "Volume": 1500 if selected else 1000,
+                    }
+                )
+                all_instrument_rows.append(
+                    {
+                        "InstrumentID": instrument,
+                        "ExchangeID": product.exchange_id,
+                        "ProductID": product.product_id.lower(),
+                        "ProductClass": "1",
+                        "IsTrading": 1,
+                        "ExpireDate": "20261116" if month == "11" else "20261214",
+                        "VolumeMultiple": 10,
+                        "PriceTick": 0.1,
+                        "LowerLimitPrice": 80,
+                        "UpperLimitPrice": 130,
+                    }
+                )
+                all_margin_rows.append(
+                    {
+                        "InstrumentID": instrument,
+                        "ExchangeID": product.exchange_id,
+                        "HedgeFlag": "1",
+                        "LongMarginRatioByMoney": "0.1",
+                        "LongMarginRatioByVolume": "0",
+                        "ShortMarginRatioByMoney": "0.1",
+                        "ShortMarginRatioByVolume": "0",
+                    }
+                )
+        rows["instruments_result"] = all_instrument_rows
+        rows["instrument_margin_rate_result"] = all_margin_rows
+        return SimpleNamespace(
+            epoch_id=epoch_id,
+            trading_day=day_text,
+            rows=rows,
+            bars={},
+            catalog_rows=tuple(catalog_rows),
+            quote_rows=tuple(quote_rows),
+            all_catalog_facts=True,
+        )
 
     class FakeCtpWrapper(facts_fixture._FakeRegisteredSimWrapper):
         def __init__(self, *args, **kwargs):
@@ -935,6 +1050,8 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
             history_limit = kwargs.pop("registered_sim_history_limit", 64)
             terminal_limit = kwargs.pop("registered_sim_terminal_order_limit", 512)
             context = contexts.popleft()
+            if context.epoch_id > 1:
+                clock.set_utc_now(datetime(2026, 10, 23, 1, 0, tzinfo=UTC))
             super().__init__(
                 *args,
                 registered_sim_allow_writes=allow_writes,
@@ -946,6 +1063,7 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
                 **kwargs,
             )
             self.context = context
+            self._selection_request_id = 0
             client = self.trader_client
             client._account_fingerprint = "alpha003-two-epoch-account"
             client._trading_day = context.trading_day
@@ -959,16 +1077,86 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
                 connection_generation=client._connection_generation,
                 trading_day=context.trading_day,
             )
+            client.get_session_state = lambda: {
+                "connected": self._connected,
+                "read_only_ready": True,
+                "trading_ready": False,
+                "account_fingerprint": client._account_fingerprint,
+                "connection_generation": client._connection_generation,
+                "trading_day": client._trading_day,
+            }
             self.closed = False
             api_clients.append(self)
             trace.append(("api_created", context.epoch_id))
 
         def connect(self):
+            self._connected = True
             trace.append(("api_connected", self.context.epoch_id))
 
         def disconnect(self):
+            self._connected = False
             self.closed = True
             trace.append(("api_closed", self.context.epoch_id))
+
+        def get_session_state(self):
+            client = self.trader_client
+            return {
+                "connected": self._connected,
+                "read_only_ready": client.is_read_only_ready,
+                "connection_generation": client._connection_generation,
+                "trading_day": client._trading_day,
+            }
+
+        def _selection_query_result(self, request_type, records):
+            self._selection_request_id += 1
+            retrieved_at = clock.utc_now()
+            return query_result_type(
+                request_type=request_type,
+                request_id=self._selection_request_id,
+                connection_generation=self.trader_client._connection_generation,
+                account_fingerprint=self.trader_client._account_fingerprint,
+                started_at_utc=retrieved_at - timedelta(milliseconds=2),
+                completed_at_utc=retrieved_at - timedelta(milliseconds=1),
+                is_last_seen=True,
+                error_code=None,
+                error_message="",
+                timed_out=False,
+                complete=True,
+                records=tuple(records),
+                late_callback_count=0,
+                unsupported=False,
+                submit_code=0,
+            )
+
+        def query_instruments_result(
+            self,
+            instrument_id="",
+            exchange_id="",
+            timeout=5.0,
+            *,
+            product_id="",
+            max_duration=None,
+            **filters,
+        ):
+            if max_duration is not None:
+                assert instrument_id == exchange_id == product_id == ""
+                assert not filters
+                trace.append(("selection_catalog_query", self.context.epoch_id))
+                return self._selection_query_result("instruments", self.context.catalog_rows)
+            return super().query_instruments_result(
+                timeout=timeout,
+                instrument_id=instrument_id,
+                exchange_id=exchange_id,
+                product_id=product_id,
+                **filters,
+            )
+
+        def query_depth_market_data_result(
+            self, instrument_id="", exchange_id="", timeout=5.0
+        ):
+            assert instrument_id == exchange_id == ""
+            trace.append(("selection_depth_query", self.context.epoch_id))
+            return self._selection_query_result("depth_market_data", self.context.quote_rows)
 
         def get_balance(self):
             return {"cash": 1_000_000.0, "value": 1_000_000.0}
@@ -1004,10 +1192,16 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
         ),
     )
     monkeypatch.setattr(RUNNER, "_live_env_config", lambda _config: ({}, {}))
+    if selection_source == "ctp_query":
+        monkeypatch.setattr(futures_ctp_snapshot, "_now_utc", clock.utc_now)
+        contexts.append(make_query_context(1, first_day))
+        contexts.append(make_query_context(2, second_day))
 
     original_load = RUNNER.load_market_plan
 
     def tracked_load(*args, bundle_path=None, **kwargs):
+        if selection_source == "ctp_query":
+            raise AssertionError("query selection must not open a saved bundle")
         if bundle_path is not None:
             assert api_clients and api_clients[0].closed is True, trace
             trace.append(("second_bundle_loaded", Path(bundle_path).name))
@@ -1016,13 +1210,28 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
         return plan
 
     monkeypatch.setattr(RUNNER, "load_market_plan", tracked_load)
+    if selection_source == "ctp_query":
+        original_query_plan = RUNNER.build_ctp_query_market_plan
+
+        def tracked_query_plan(*args, **kwargs):
+            plan = original_query_plan(*args, **kwargs)
+            current_plan["value"] = plan
+            trace.append(("query_plan_ready", plan["source_snapshot_id"]))
+            return plan
+
+        monkeypatch.setattr(RUNNER, "build_ctp_query_market_plan", tracked_query_plan)
     original_make_cohort = RUNNER._make_cohort
 
     def tracked_make_cohort(epoch_config, grid, *, begin_at=None):
         plan = current_plan["value"]
         assert grid is plan["grid"]
         epoch_id = epoch_config["cohort"]["epoch_id"]
-        contexts.append(make_context(plan, epoch_id))
+        if selection_source == "ctp_query":
+            context = api_clients[-1].context
+            assert context.all_catalog_facts is True
+            make_context(plan, epoch_id, context=context)
+        else:
+            contexts.append(make_context(plan, epoch_id))
         trace.append(("cohort_assembled", epoch_id))
         return original_make_cohort(epoch_config, grid, begin_at=begin_at)
 
@@ -1066,7 +1275,7 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
         result = RUNNER.run_live_epochs(
             config,
             config_path,
-            first_plan,
+            None if selection_source == "ctp_query" else first_plan,
             "native",
             1,
             decision=SimpleNamespace(effective_tier="live"),
@@ -1177,6 +1386,71 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
 
     assert failure is None
 
+    if selection_source == "ctp_query":
+        assert result["status"] == "LIVE_EPOCH_SEQUENCE_COMPLETE"
+        assert result["epoch_count"] == 2
+        assert result["selection_source"] == "ctp_query_snapshot_equal_weight_v1"
+        assert result["query_epoch_attempts"] == [1, 2]
+        assert result["assembly_attempts"] == [1, 2]
+        assert result["later_bundle_reads"] == []
+        assert result["next_epoch_loaded"] is True
+        assert len(api_clients) == 2
+        assert all(client.closed for client in api_clients)
+        assert trace.index(("api_closed", 1)) < trace.index(("api_created", 2))
+        assert trace.index(("api_closed", 1)) < trace.index(("selection_catalog_query", 2))
+        assert trace.index(("api_closed", 1)) < trace.index(("selection_depth_query", 2))
+        for epoch_index, epoch in enumerate(result["epochs"]):
+            expected_day = first_day if epoch_index == 0 else second_day
+            expected_instruments = (
+                {"M2612", "Y2612", "A2612"}
+                if epoch_index == 0
+                else {"M2611", "Y2611", "A2611"}
+            )
+            assert epoch["epoch_id"] == epoch_index + 1
+            assert epoch["retirement_proven"] is True
+            assert epoch["selection_source"] == "ctp_query_snapshot_equal_weight_v1"
+            assert epoch["calendar_evidence_mode"] == "expected_rule_derived"
+            calendar_rules_hash = epoch["calendar_rules_sha256"]
+            assert isinstance(calendar_rules_hash, str) and len(calendar_rules_hash) == 64
+            assert all(character in "0123456789abcdef" for character in calendar_rules_hash)
+            assert epoch["trading_days"] == {"DCE": expected_day.isoformat()}
+            assert epoch["engine_winddown_status"] == "STOPPED"
+            assert epoch["strategy_shutdown_ready"] is True
+            assert epoch["strategy_shutdown_post_join_confirmed"] is True
+            assert epoch["cleanup_complete"] is True
+            assert epoch["decision_tape"]["closed"] is True
+            assert len(api_clients[epoch_index].context.catalog_rows) == 6
+            assert len(api_clients[epoch_index].context.quote_rows) == 6
+            assert api_clients[epoch_index].context.all_catalog_facts is True
+            assert set(epoch["routes"]) == {"DCE.M", "DCE.Y", "DCE.A"}
+            assert set(epoch["routes"].values()) == expected_instruments
+            expected_decision_count = epoch["decision_tape_readback"]["record_count"]
+            assert expected_decision_count > 100
+            tape_rows = tuple(
+                RUNNER.iter_decision_tape(
+                    Path(epoch["decision_tape"]["path"]), max_bytes=50_000_000
+                )
+            )
+            decisions = tape_rows[1:]
+            assert len(decisions) == expected_decision_count
+            assert all(set(row["members"]) == set(epoch["routes"]) for row in decisions)
+            assert all(
+                member["source_role"] == "live"
+                and member["complete"] is True
+                and member["quality"] == "GOOD"
+                for row in decisions
+                for member in row["members"].values()
+            )
+            assert any(
+                factor_value["value"]["finite"] is True
+                for row in decisions
+                for factor in row["factors"]["factors"].values()
+                for factor_value in factor["values"].values()
+            )
+        assert result["epochs"][0]["routes"] != result["epochs"][1]["routes"]
+        assert trace.index(("api_closed", 1)) < trace.index(("cohort_assembled", 2))
+        return
+
     assert result["status"] == "LIVE_EPOCH_SEQUENCE_COMPLETE"
     assert result["epoch_count"] == 2
     assert result["assembly_attempts"] == [1, 2]
@@ -1243,14 +1517,42 @@ def test_public_config_defaults_to_dry_and_cli_cannot_escalate(tmp_path, capsys)
     assert code == 0
     assert result["status"] == "DRY_VALIDATION_COMPLETE"
     assert result["effective_tier"] == "dry"
+    config = yaml.safe_load(config_path.read_text(encoding="utf-8"))
+    assert config["selection"]["source"] == "ctp_query"
+    assert config["selection"]["bundle"] is None
     code, result = _call_runner(capsys, "--mode", "replay", "--config", str(config_path))
     assert code == 2
     assert result["code"] == "ENTRY_TIER_ESCALATION_DENIED"
+    config["entry"]["tier"] = "replay"
+    offline_config_path = tmp_path / "query-source-offline.yaml"
+    offline_config_path.write_text(yaml.safe_dump(config, sort_keys=False), encoding="utf-8")
+    code, result = _call_runner(
+        capsys, "--mode", "research", "--config", str(offline_config_path)
+    )
+    assert code == 2
+    assert result["code"] == "OFFLINE_MODE_REQUIRES_SAVED_SELECTION_BUNDLE"
     code, result = _call_runner(
         capsys, "--mode", "dry", "--allow-write", "--config", str(config_path)
     )
     assert code == 2
     assert result["code"] == "ALLOW_WRITE_REQUIRES_LIVE_MODE"
+
+
+def test_live_cli_json_never_serializes_private_selection_plan(tmp_path, monkeypatch, capsys):
+    config = _base_config(tmp_path, "live")
+    config_path = tmp_path / "cli-live.yaml"
+    config_path.write_text(yaml.safe_dump(config, sort_keys=False), encoding="utf-8")
+
+    def live_with_internal_plan(_config, _config_path, plan, _factor_mode, _direction, **_kwargs):
+        return {"status": "LIVE_RUN_COMPLETE", "_plan": plan}
+
+    monkeypatch.setattr(RUNNER, "run_live", live_with_internal_plan)
+    code, result = _call_runner(capsys, "--config", str(config_path))
+
+    assert code == 0
+    assert result["status"] == "LIVE_RUN_COMPLETE"
+    assert "_plan" not in result
+    assert "manifest" not in result
 
 
 def test_daily_rollover_loads_next_pit_bundle_only_after_retirement_proof(tmp_path, monkeypatch):
@@ -1383,6 +1685,31 @@ def test_strategy_order_event_projection_keeps_exact_epoch_route_and_bounds(
             "executed_price": "0",
         }
     ]
+
+    exact_route = RUNNER._project_strategy_order_events(
+        SimpleNamespace(
+            order_events=deque(
+                [dict(event, instrument=(instrument, "DCE"), exchange="DCE")], maxlen=128
+            )
+        ),
+        plan,
+        4,
+    )
+    assert exact_route["status"] == "AVAILABLE"
+    assert exact_route["events"][0]["instrument"] == instrument
+    assert exact_route["events"][0]["exchange"] == "DCE"
+
+    mismatched_exact_route = RUNNER._project_strategy_order_events(
+        SimpleNamespace(
+            order_events=deque(
+                [dict(event, instrument=(instrument, "SHFE"), exchange="DCE")], maxlen=128
+            )
+        ),
+        plan,
+        4,
+    )
+    assert mismatched_exact_route["status"] == "BLOCKED"
+    assert mismatched_exact_route["reason"] == "STRATEGY_ORDER_EVENT_ROUTE_UNBOUND"
 
     full = RUNNER._project_strategy_order_events(
         SimpleNamespace(order_events=deque([event] * 128, maxlen=128)), plan, 4
