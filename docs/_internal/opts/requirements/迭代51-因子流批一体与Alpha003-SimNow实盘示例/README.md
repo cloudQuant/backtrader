@@ -3,7 +3,7 @@
 初稿：2026-10-23；联合修订：2026-10-24；版本：v0.2。
 状态：**实施中**。主力选择、部分交易所排名来源、会话规划和本地回放组件已提交，
 见[联合提交记录](../迭代50-因子实盘运行与交易接入/提交记录-20261024.md)。028入口正在集成；
-完整来源覆盖、安装、长流及实际SimNow验收仍未完成。
+完整来源覆盖、安装、长流及实际SimNow验收仍未完成。AC51-06已通过SOURCE验收（提交`54c658ea7`）：真实Feed/Cerebro native/build路径与独立paper oracle验证公式边界；这不证明028 Strategy方向到订单侧的应用，AC51-13仍NOT_RUN。
 
 当前用户选定的临时策略为`ctp_query_snapshot_equal_weight_v1`：按同TradingDay查询快照的0.5×OI+0.5×累计Volume等权排名，显式保留`legacy_previous_complete_day_eod_oi_v1`兼容；300秒限制只用于新epoch准入，映射在epoch内冻结。Store、collector字节文本兼容和CoherentBook/Facts/execution组件已通过本地fake provider leaf测试，其中execution组合经过真实普通Cerebro、Store和Broker，但不证明Alpha003策略runner、全候选来源覆盖或账户验收。真实多目标runner仍等待单活跃arm合同修复，目标池未缩小；AC51-02/03/04/18仍为NOT_RUN。
 
