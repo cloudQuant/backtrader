@@ -2884,7 +2884,7 @@ def _make_runtime(
                     "ac50_25_disk_or_persistent_write_failure_exercised": False,
                     "backbroker_order_lifecycle_journaled_by_noop_decision": False,
                     "reason": (
-                        "short synthetic 27b scenario contract; formal 100000-grid and 2-hour run not launched"
+                        "synthetic 27b fault/idle/order scenario; formal acceptance requires review of both mode reports"
                         if self.p.scenario == "27b"
                         else "standard streaming profile does not include the 27b fault/idle/order fixture"
                     ),
