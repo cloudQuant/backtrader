@@ -58,6 +58,36 @@ class _CohortCapture(parity._LiveAlpha003Capture):
         self.callback_clock_times.append(self.p.clock.utc_now())
 
 
+def _record_cohort_order(cohort):
+    """Observe registration/capture order while delegating to the real cohort."""
+    cohort.registration_order = []
+    cohort.source_arrivals = []
+    register_member = cohort.register_member
+    capture_bar = cohort.capture_bar
+
+    def register_member_spy(member_id, feed_ref, **kwargs):
+        member = register_member(member_id, feed_ref, **kwargs)
+        cohort.registration_order.append(kwargs["instrument"])
+        return member
+
+    def capture_bar_spy(feed_ref, event, *, source_role, received_monotonic_ns=None):
+        captured = capture_bar(
+            feed_ref,
+            event,
+            source_role=source_role,
+            received_monotonic_ns=received_monotonic_ns,
+        )
+        if not captured.duplicate:
+            cohort.source_arrivals.append((captured.slot_index, event["instrument"]))
+        return captured
+
+    # Cerebro deliberately requires the exact public cohort type. These
+    # instance-level observers delegate to original bound production methods;
+    # they do not replace cohort registration, validation or publication.
+    cohort.register_member = register_member_spy
+    cohort.capture_bar = capture_bar_spy
+
+
 def _scenario_frames(member_count):
     """Build three or twenty positive fixture members with varied rank paths."""
     source = parity._minute_frames(_ROWS)
@@ -93,10 +123,19 @@ def _scenario_frames(member_count):
     return frames
 
 
-def _scenario_inputs(frames, *, gap_asset, gap_index, delayed_asset, delay_index):
+def _scenario_inputs(
+    frames, *, gap_asset, gap_index, delayed_asset, delay_index, arrival_order=None
+):
     """Bind source values and explicit real-event presence into immutable bars."""
     events = {}
     oracle_frames = {asset: frame.copy(deep=True) for asset, frame in frames.items()}
+    if arrival_order is None:
+        arrival_rank = None
+    else:
+        arrival_order = tuple(arrival_order)
+        if len(arrival_order) != len(frames) or set(arrival_order) != set(frames):
+            raise ValueError("arrival_order must contain every fixture member exactly once")
+        arrival_rank = {asset: index for index, asset in enumerate(arrival_order)}
     oracle_frames[gap_asset].iloc[
         gap_index, oracle_frames[gap_asset].columns.get_loc("close")
     ] = math.nan
@@ -115,22 +154,45 @@ def _scenario_inputs(frames, *, gap_asset, gap_index, delayed_asset, delay_index
                     }
                 )
             if asset == delayed_asset and row_index == delay_index:
-                payload["available_at"] = payload["bucket_end"] + timedelta(seconds=_DELAY_SECONDS)
+                delay_seconds = _DELAY_SECONDS
+            else:
+                delay_seconds = 0.0
+            if arrival_rank is not None:
+                # Give each member a distinct, bounded source-availability
+                # offset. Reversing arrival_order changes the actual schedule
+                # while preserving the exact planned UTC slots and bar values.
+                delay_seconds += arrival_rank[asset] * 0.05
+            if delay_seconds:
+                payload["available_at"] = payload["bucket_end"] + timedelta(seconds=delay_seconds)
             rows.append(MappingProxyType(payload))
         events[asset] = tuple(rows)
     return oracle_frames, events
 
 
-def _run_scenario(frames, *, mode, gap_index, delay_index):
-    targets = tuple(frames)
-    gap_asset = targets[-1]
-    delayed_asset = targets[0]
+def _run_scenario(
+    frames,
+    *,
+    mode,
+    gap_index,
+    delay_index,
+    target_order=None,
+    feed_order=None,
+    registration_order=None,
+    arrival_order=None,
+    gap_asset=None,
+    delayed_asset=None,
+):
+    targets = tuple(target_order or frames)
+    gap_asset = targets[-1] if gap_asset is None else gap_asset
+    delayed_asset = targets[0] if delayed_asset is None else delayed_asset
+    ordered_frames = {asset: frames[asset] for asset in targets}
     oracle_input, events = _scenario_inputs(
-        frames,
+        ordered_frames,
         gap_asset=gap_asset,
         gap_index=gap_index,
         delayed_asset=delayed_asset,
         delay_index=delay_index,
+        arrival_order=arrival_order,
     )
     grid = tuple(next(iter(oracle_input.values())).index)
     calendar, member_ids = parity._calendar(targets, grid)
@@ -141,6 +203,7 @@ def _run_scenario(frames, *, mode, gap_index, delay_index):
         max_window_bars=len(grid),
         wait_timeout_ns=5_000_000_000,
     )
+    _record_cohort_order(cohort)
     clock = parity._ReplayClock(grid[0].to_pydatetime())
     cerebro = bt.Cerebro(
         stdstats=False,
@@ -149,7 +212,8 @@ def _run_scenario(frames, *, mode, gap_index, delay_index):
         runonce=False,
     )
     feeds = {}
-    feed_order = tuple(reversed(targets))
+    feed_order = tuple(feed_order or reversed(targets))
+    registration_order = tuple(registration_order or reversed(targets))
     for asset in feed_order:
         feed = bt.feeds.BtApiFeed(
             dataname=asset,
@@ -165,7 +229,7 @@ def _run_scenario(frames, *, mode, gap_index, delay_index):
         feeds[asset] = feed
         cerebro.adddata(feed, name=asset)
 
-    for asset in reversed(targets):
+    for asset in registration_order:
         cohort.register_member(
             member_ids[asset],
             feeds[asset],
@@ -175,6 +239,7 @@ def _run_scenario(frames, *, mode, gap_index, delay_index):
             raw_fields=_FIELDS,
             numeric_fields=_FIELDS,
         )
+    assert tuple(cohort.registration_order) == registration_order
 
     plan = parity._live_alpha003_plan(
         targets,
@@ -218,6 +283,30 @@ def _run_scenario(frames, *, mode, gap_index, delay_index):
             is_gap = asset == gap_asset and row_index == gap_index
             assert receipt.present is (not is_gap), (asset, row_index)
             assert receipt.quality == ("MISSING" if is_gap else "GOOD"), (asset, row_index)
+            assert receipt.available_at == events[asset][row_index]["available_at"], (
+                asset,
+                row_index,
+                receipt.available_at,
+                events[asset][row_index]["available_at"],
+            )
+        expected_batch_available_at = max(
+            events[asset][row_index]["available_at"] for asset in targets
+        )
+        assert batch.available_at == expected_batch_available_at, row_index
+        assert strategy.callback_clock_times[row_index] >= batch.available_at, row_index
+
+    captured_slot_zero = tuple(
+        asset for slot_index, asset in cohort.source_arrivals if slot_index == 0
+    )
+    assert captured_slot_zero == feed_order, (captured_slot_zero, feed_order)
+    if arrival_order is not None:
+        actual_first_slot_availability_order = tuple(
+            sorted(targets, key=lambda asset: events[asset][0]["available_at"])
+        )
+        assert actual_first_slot_availability_order == tuple(arrival_order), (
+            actual_first_slot_availability_order,
+            arrival_order,
+        )
 
     gap_feed = feeds[gap_asset]
     assert math.isfinite(float(gap_feed.open.array[gap_index]))
@@ -226,7 +315,9 @@ def _run_scenario(frames, *, mode, gap_index, delay_index):
     delayed_time = grid[delay_index].to_pydatetime()
     delayed_snapshot = strategy.snapshots[delay_index]
     assert delayed_snapshot.close_time == delayed_time
-    assert delayed_snapshot.available_at == delayed_time + timedelta(seconds=_DELAY_SECONDS)
+    assert delayed_snapshot.available_at == max(
+        events[asset][delay_index]["available_at"] for asset in targets
+    )
     assert strategy.callback_clock_times[delay_index] >= delayed_snapshot.available_at
     assert clock.now >= delayed_snapshot.available_at and clock.waits
 
@@ -264,6 +355,114 @@ def _node_values_and_reasons(factor, assets, rows):
             values[key] = _line_array(node.lines.value, rows)
             reasons[key] = tuple(int(value) for value in _line_array(node.lines.reason, rows))
     return values, reasons
+
+
+def _compare_ordered_scenarios(
+    left,
+    right,
+    *,
+    logical_assets,
+    left_target_order,
+    right_target_order,
+    gap_index,
+    label,
+):
+    """Compare equivalent runs by logical asset/node identity, never by sort."""
+    left_strategy, _left_factor, left_values, left_reasons, left_matrix = left
+    right_strategy, _right_factor, right_values, right_reasons, right_matrix = right
+    assert len(left_matrix) == len(right_matrix) == _ROWS
+    assert tuple(left_target_order) != tuple(right_target_order)
+
+    def outputs_by_logical_asset(strategy):
+        return [
+            [float(snapshot.factors["alpha003"].values[asset].value) for asset in logical_assets]
+            for snapshot in strategy.snapshots
+        ]
+
+    left_outputs = outputs_by_logical_asset(left_strategy)
+    right_outputs = outputs_by_logical_asset(right_strategy)
+    matched, message = _compare_matrices(
+        left_outputs,
+        right_outputs,
+        exact=True,
+        label=label + " logical Alpha003 values",
+    )
+    assert matched, message
+    matched, message = _compare_matrices(
+        left_outputs[:gap_index],
+        right_outputs[:gap_index],
+        exact=True,
+        label=label + " sealed logical prefix",
+    )
+    assert matched, message
+
+    for row_index, (left_snapshot, right_snapshot) in enumerate(
+        zip(left_strategy.snapshots, right_strategy.snapshots)
+    ):
+        assert left_snapshot.close_time == right_snapshot.close_time, row_index
+        assert left_snapshot.readiness == right_snapshot.readiness, row_index
+        assert left_snapshot.readiness_reasons == right_snapshot.readiness_reasons, row_index
+        for asset in logical_assets:
+            left_output = left_snapshot.factors["alpha003"].values[asset]
+            right_output = right_snapshot.factors["alpha003"].values[asset]
+            assert (
+                left_output.status,
+                left_output.reason,
+                left_output.present,
+                left_output.quality,
+            ) == (
+                right_output.status,
+                right_output.reason,
+                right_output.present,
+                right_output.quality,
+            ), (
+                label,
+                row_index,
+                asset,
+            )
+
+    left_indices = {asset: index for index, asset in enumerate(left_target_order)}
+    right_indices = {asset: index for index, asset in enumerate(right_target_order)}
+    for rank_name in ("rank_open", "rank_volume"):
+        for asset in logical_assets:
+            left_values_for_asset = left_values[rank_name][left_indices[asset]]
+            right_values_for_asset = right_values[rank_name][right_indices[asset]]
+            matched, message = _compare_matrices(
+                [[value] for value in left_values_for_asset],
+                [[value] for value in right_values_for_asset],
+                exact=True,
+                label="%s %s %s" % (label, rank_name, asset),
+            )
+            assert matched, message
+            assert (
+                left_reasons[rank_name][left_indices[asset]]
+                == right_reasons[rank_name][right_indices[asset]]
+            ), (label, rank_name, asset)
+
+    for node_prefix in ("correlation10", "negate"):
+        for asset in logical_assets:
+            left_key = "%s_%d" % (node_prefix, left_indices[asset])
+            right_key = "%s_%d" % (node_prefix, right_indices[asset])
+            matched, message = _compare_matrices(
+                [[value] for value in left_values[left_key]],
+                [[value] for value in right_values[right_key]],
+                exact=True,
+                label="%s %s %s" % (label, node_prefix, asset),
+            )
+            assert matched, message
+            assert left_reasons[left_key] == right_reasons[right_key], (
+                label,
+                node_prefix,
+                asset,
+            )
+            matched, message = _compare_matrices(
+                [[value] for value in left_values[left_key][:gap_index]],
+                [[value] for value in right_values[right_key][:gap_index]],
+                exact=True,
+                label="%s %s %s sealed prefix" % (label, node_prefix, asset),
+            )
+            assert matched, message
+            assert left_reasons[left_key][:gap_index] == right_reasons[right_key][:gap_index]
 
 
 def _validate_masked_graph(strategy, frames, *, gap_asset, gap_index, label):
@@ -453,6 +652,7 @@ def test_alpha003_live_cohort_delayed_gap_membership_and_window_recovery(member_
         mode=mode,
         gap_index=gap_index,
         delay_index=delay_index,
+        arrival_order=assets,
     )
     label = "%d members %s delayed cohort gap" % (member_count, mode)
     factor, node_values, node_reasons, actual = _validate_masked_graph(
@@ -531,3 +731,54 @@ def test_alpha003_live_cohort_delayed_gap_membership_and_window_recovery(member_
     )
     assert node_values["rank_open"] and node_values["rank_volume"]
     assert node_reasons["rank_open"] and node_reasons["rank_volume"]
+
+    # Pair the same delayed/gap case with changed target axes, actual feed
+    # capture order, registration order, and member source-availability order.
+    # Each run above is checked against the independent oracle; this comparison
+    # then aligns by logical asset and node identity instead of sorting values.
+    reverse_targets = tuple(reversed(assets))
+    rotated_registration = assets[1:] + assets[:1]
+    (
+        order_b,
+        order_b_cohort,
+        _order_b_feeds,
+        order_b_oracle,
+        _grid_b,
+        order_b_gap,
+    ) = _run_scenario(
+        base_frames,
+        mode=mode,
+        gap_index=gap_index,
+        delay_index=delay_index,
+        target_order=reverse_targets,
+        feed_order=assets,
+        registration_order=rotated_registration,
+        arrival_order=reverse_targets,
+        gap_asset=assets[-1],
+        delayed_asset=assets[0],
+    )
+    order_b_label = "%d members %s permuted delayed cohort gap" % (member_count, mode)
+    order_b_factor, order_b_nodes, order_b_reasons, order_b_matrix = _validate_masked_graph(
+        order_b,
+        order_b_oracle,
+        gap_asset=order_b_gap,
+        gap_index=gap_index,
+        label=order_b_label,
+    )
+    order_a_feed_arrivals = tuple(
+        asset for slot_index, asset in cohort.source_arrivals if slot_index == 0
+    )
+    order_b_feed_arrivals = tuple(
+        asset for slot_index, asset in order_b_cohort.source_arrivals if slot_index == 0
+    )
+    assert order_a_feed_arrivals != order_b_feed_arrivals
+    assert tuple(cohort.registration_order) != tuple(order_b_cohort.registration_order)
+    _compare_ordered_scenarios(
+        (scenario, factor, node_values, node_reasons, actual),
+        (order_b, order_b_factor, order_b_nodes, order_b_reasons, order_b_matrix),
+        logical_assets=assets,
+        left_target_order=assets,
+        right_target_order=reverse_targets,
+        gap_index=gap_index,
+        label="%d members %s order invariance" % (member_count, mode),
+    )
