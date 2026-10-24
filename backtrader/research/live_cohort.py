@@ -297,10 +297,18 @@ class LiveCohortMember:
                 raise LiveCohortValidationError("{} must not contain duplicates".format(name))
         if not set(_REQUIRED_OHLCV).issubset(raw_fields):
             raise LiveCohortValidationError("raw_fields must declare open/high/low/close/volume")
+        if not set(_REQUIRED_OHLCV).issubset(numeric_fields):
+            raise LiveCohortValidationError(
+                "numeric_fields must declare finite numeric open/high/low/close/volume"
+            )
         if not set(line_fields).issubset(raw_fields):
             raise LiveCohortValidationError("every exposed line field must be raw-validated")
         if not set(numeric_fields).issubset(raw_fields):
             raise LiveCohortValidationError("numeric_fields must be declared in raw_fields")
+        if not set(line_fields).issubset(numeric_fields):
+            raise LiveCohortValidationError(
+                "every exposed feed line must map to a validated numeric raw field"
+            )
         object.__setattr__(self, "line_fields", line_fields)
         object.__setattr__(self, "raw_fields", raw_fields)
         object.__setattr__(self, "numeric_fields", numeric_fields)

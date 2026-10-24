@@ -42,6 +42,7 @@ _UTC = _dt.timezone.utc
 _CTP_INVALID_ABS = 1.0e50
 _COHORT_MISSING = object()
 _MAPPING_PROXY_TYPE = type(MappingProxyType({}))
+_LIVE_COHORT_EXTRA_LINES = ("vwap", "cap", "sector", "industry", "subindustry")
 
 
 @dataclass(frozen=True)
@@ -222,6 +223,11 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
     It requires ``timeframe=TimeFrame.Ticks``.
     """
 
+    # These fixed numeric slots are used by the opt-in research cohort path.
+    # They remain NaN unless the exact registered member maps each field to a
+    # validated raw numeric field. Ordinary feeds keep their historical loader.
+    lines = _LIVE_COHORT_EXTRA_LINES
+
     params = (
         ("store", None),
         ("provider", "btapi"),
@@ -401,6 +407,14 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
         member = cohort.member_for_feed(self)
         if member is None or member.feed_ref is not self:
             raise ValueError("live bar cohort does not own this exact BtApiFeed")
+        feed_lines = set(self.getlinealiases())
+        unsupported_lines = tuple(name for name in member.line_fields if name not in feed_lines)
+        if unsupported_lines:
+            raise ValueError(
+                "live cohort member declares unsupported BtApiFeed line fields: {!r}".format(
+                    unsupported_lines
+                )
+            )
         if self._cohort_history_source is None or self._cohort_live_source is None:
             raise ValueError(
                 "live cohort explicit bar sources must be replayable tuple/list values"
@@ -747,6 +761,19 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
                 prepared.raw_values.get("openinterest", 0.0),
             ),
         )
+        member = cohort.member_for_feed(self)
+        if member is None or member.feed_ref is not self:
+            self._cohort_delivery_failed = True
+            raise ValueError("BtApiFeed is no longer the exact live cohort member")
+        declared_lines = set(member.line_fields)
+        line_values += tuple(
+            (
+                name,
+                getattr(self.lines, name)[0],
+                prepared.raw_values[name] if name in declared_lines else math.nan,
+            )
+            for name in _LIVE_COHORT_EXTRA_LINES
+        )
 
         def values_match(actual, expected):
             if actual == expected:
@@ -802,6 +829,14 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
             self.lines.close[0] = raw_values["close"]
             self.lines.volume[0] = raw_values["volume"]
             self.lines.openinterest[0] = raw_values.get("openinterest", 0.0)
+            member = cohort.member_for_feed(self)
+            if member is None or member.feed_ref is not self:
+                self._cohort_delivery_failed = True
+                raise ValueError("BtApiFeed is no longer the exact live cohort member")
+            declared_lines = set(member.line_fields)
+            for name in _LIVE_COHORT_EXTRA_LINES:
+                value = raw_values[name] if name in declared_lines else math.nan
+                getattr(self.lines, name)[0] = value
             return True
         except Exception:
             self._cohort_delivery_failed = True
@@ -1221,6 +1256,8 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
         self.lines.close[0] = bar["close"]
         self.lines.volume[0] = bar["volume"]
         self.lines.openinterest[0] = bar["openinterest"]
+        for name in _LIVE_COHORT_EXTRA_LINES:
+            getattr(self.lines, name)[0] = math.nan
         if bool(self.p.service_recovery_quote_binding):
             # The trusted recovery binding is frozen at the exact delivery
             # boundary of this bar: the bar index the strategy will observe
