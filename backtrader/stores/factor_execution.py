@@ -196,6 +196,41 @@ def execution_order_snapshot(broker: Any) -> Tuple[ExecutionOrderSnapshot, ...]:
                 get("order_ref"),
             )
             order_sys_id = _first_text(get("order_sys_id"), get("OrderSysID"))
+            registered_sim_ctp_identity_conflict = False
+            if (
+                getattr(getattr(broker, "store", None), "registered_sim_route_id", None)
+                == "simnow-registered-v1"
+            ):
+                # RegisteredSim's generic ID cache can also be populated by
+                # query or submit projections.  Those rows do not establish
+                # the raw CTP callback lineage needed by the fixed route, so
+                # only the dedicated callback-source field can supply an ID.
+                generic_sys_id = order_sys_id
+                order_sys_id = None
+                registered_sim_ctp_identity_conflict = (
+                    get("registered_sim_ctp_order_sys_id_conflict") is True
+                )
+                registered_sim_sys_id = _exact_identifier(get("registered_sim_ctp_order_sys_id"))
+                registered_sim_source = get("registered_sim_ctp_order_sys_id_source")
+                binding_captured = get("_registered_sim_ctp_identity_binding_captured") is True
+                binding_valid = get("_registered_sim_ctp_identity_binding_valid") is True
+                if (
+                    binding_captured
+                    and binding_valid
+                    and registered_sim_source == "ctp_order_callback"
+                ):
+                    if (
+                        registered_sim_sys_id is not None
+                        and generic_sys_id is not None
+                        and registered_sim_sys_id != generic_sys_id
+                    ):
+                        registered_sim_ctp_identity_conflict = True
+                    elif registered_sim_sys_id is not None:
+                        order_sys_id = registered_sim_sys_id
+                if registered_sim_ctp_identity_conflict:
+                    # Preserve the Broker's cached generic evidence but do
+                    # not let a conflicting source identity satisfy Facts.
+                    order_sys_id = None
             position_effect = _first_text(get("factor_position_effect"))
             if position_effect is not None:
                 position_effect = position_effect.upper()
@@ -213,7 +248,9 @@ def execution_order_snapshot(broker: Any) -> Tuple[ExecutionOrderSnapshot, ...]:
                     remaining_quantity=_decimal_or_zero(broker._order_remaining_qty(order)),
                     owner_strategy_scope=_first_text(get("factor_strategy_scope")),
                     owner_intent_id=_first_text(get("factor_intent_id")),
-                    execution_unknown=get("execution_unknown") is True,
+                    execution_unknown=(
+                        get("execution_unknown") is True or registered_sim_ctp_identity_conflict
+                    ),
                     cancel_pending=bool(
                         get("cancel_requested_remote")
                         or get("cancel_intent_active")

@@ -3698,12 +3698,30 @@ class BtApiBroker(BrokerBase):
                     )
                 # The CTP insert is synchronous and may enqueue a trade/order
                 # callback before Store.submit_order returns. Bind the exact
-                # native OrderRef before crossing that boundary so the first
-                # callback is correlated to this same ordinary Backtrader Order.
+                # native OrderRef and the pre-dispatch factor session before
+                # crossing that boundary so the first callback is correlated
+                # to this same ordinary Backtrader Order.
                 self.orders[order.ref] = order
                 self._remember_client_ref(order, factor_attempt.order_ref, None)
+                identity = getattr(factor_attempt.intent, "original_identity", {})
+                identity_captured = self._capture_registered_sim_ctp_order_identity(
+                    order,
+                    order_ref=factor_attempt.order_ref,
+                    instrument_id=factor_attempt.instrument_id,
+                    exchange_id=factor_attempt.exchange_id,
+                    front_id=identity.get("front_id") if isinstance(identity, Mapping) else None,
+                    session_id=(
+                        identity.get("session_id") if isinstance(identity, Mapping) else None
+                    ),
+                )
+                if identity_captured is not True:
+                    order.addinfo(factor_dispatch_identity_state="BLOCKED")
+                    raise FactorExecutionError("REGISTERED_SIM_CTP_IDENTITY_PREFLIGHT_FAILED")
             response = self.store.submit_order(order)
             if factor_attempt is not None:
+                response_identity_valid = (
+                    self._verify_registered_sim_ctp_order_response(order, response) is True
+                )
                 factor_dispatch_completed = True
                 try:
                     factor_intent = factor_scope.complete_order(
@@ -3723,6 +3741,19 @@ class BtApiBroker(BrokerBase):
                     self.orders[order.ref] = order
                     self.notify(order)
                     return order
+                if not response_identity_valid:
+                    # The Store call has already happened. Persist its actual
+                    # dispatch result once, then keep the ordinary order alive
+                    # as identity-uncertain without applying the mismatching
+                    # response fields to the pre-dispatch identity.
+                    order.addinfo(factor_dispatch_identity_state="CONFLICT")
+                    return self._accept_unknown_submission(
+                        order,
+                        FactorExecutionError(
+                            "REGISTERED_SIM_CTP_RESPONSE_IDENTITY_MISMATCH"
+                        ),
+                        "REGISTERED_SIM_CTP_RESPONSE_IDENTITY_MISMATCH",
+                    )
                 if factor_intent.state != "KNOWN":
                     return self._accept_unknown_submission(
                         order,
@@ -3905,6 +3936,16 @@ class BtApiBroker(BrokerBase):
             _safe_log("error", "btapibroker:2710 exception before re-raise (Exception)")
             self._sanitize_exception(exc)
             if factor_attempt is not None:
+                if (
+                    getattr(exc, "code", None)
+                    == "REGISTERED_SIM_CTP_IDENTITY_PREFLIGHT_FAILED"
+                ):
+                    order.addinfo(factor_dispatch_identity_state="BLOCKED")
+                    return self._accept_unknown_submission(
+                        order,
+                        exc,
+                        "REGISTERED_SIM_CTP_IDENTITY_PREFLIGHT_FAILED",
+                    )
                 if factor_intent is not None and factor_intent.state == "KNOWN":
                     order.accept(self)
                     order.addinfo(
@@ -8929,7 +8970,7 @@ class BtApiBroker(BrokerBase):
                         self._begin_ctp_reconciliation("broker_update_after_reconciliation")
                 try:
                     if kind == "order":
-                        self._apply_order_update(update)
+                        self._apply_order_update(update, from_store_callback=True)
                     elif kind == "trade":
                         self._apply_trade_update(update)
                     elif kind == "error":
@@ -9609,13 +9650,15 @@ class BtApiBroker(BrokerBase):
             update.setdefault("trade_id", deal_id)
         return self._apply_order_update(update)
 
-    def _apply_order_update(self, update, *, from_query=False):
+    def _apply_order_update(self, update, *, from_query=False, from_store_callback=False):
         """Apply a normalized remote order-status update."""
         order = self._lookup_order(update)
         if order is None:
             return None
 
-        self._cache_order_identifiers(order, update)
+        self._cache_order_identifiers(
+            order, update, from_store_callback=from_store_callback and not from_query
+        )
         self._retry_pending_trade_updates()
 
         status = self._normalize_remote_order_status(update.get("status"))
@@ -10720,8 +10763,232 @@ class BtApiBroker(BrokerBase):
 
         return None
 
-    def _cache_order_identifiers(self, order, update):
+    def _capture_registered_sim_ctp_order_identity(
+        self, order, *, order_ref, instrument_id, exchange_id, front_id, session_id
+    ):
+        """Capture the factor-approved CTP identity before Store dispatch."""
+        if getattr(self.store, "registered_sim_route_id", None) != "simnow-registered-v1":
+            return False
+
+        from ..stores.factor_execution import _contract_route
+
+        data_name = self._position_key(order.data)
+        route_instrument, route_exchange = _contract_route(self, data_name)
+        existing_ref = self._order_info_get(order, "ctp_order_ref")
+        already_captured = (
+            self._order_info_get(order, "_registered_sim_ctp_identity_binding_captured", False)
+            is True
+        )
+        factor_front = self._order_info_get(order, "factor_session_front_id")
+        factor_session = self._order_info_get(order, "factor_session_id")
+
+        def valid_positive_int(value):
+            return type(value) is int and value > 0
+
+        mismatch = (
+            not isinstance(order_ref, str)
+            or not order_ref
+            or order_ref != order_ref.strip()
+            or route_instrument != instrument_id
+            or route_exchange != exchange_id
+            or (existing_ref not in (None, "") and existing_ref != order_ref)
+            or not valid_positive_int(front_id)
+            or not valid_positive_int(session_id)
+            or factor_front != front_id
+            or factor_session != session_id
+        )
+        if already_captured:
+            mismatch = mismatch or any(
+                (
+                    self._order_info_get(order, key) not in (None, value)
+                    for key, value in (
+                        ("_registered_sim_ctp_submitted_order_ref", order_ref),
+                        ("_registered_sim_ctp_submitted_front_id", front_id),
+                        ("_registered_sim_ctp_submitted_session_id", session_id),
+                        ("_registered_sim_ctp_submitted_exchange_id", exchange_id),
+                        ("_registered_sim_ctp_route_instrument_id", route_instrument),
+                        ("_registered_sim_ctp_route_exchange_id", route_exchange),
+                    )
+                )
+            )
+        else:
+            order.addinfo(
+                _registered_sim_ctp_identity_binding_captured=True,
+                _registered_sim_ctp_identity_binding_valid=not mismatch,
+                _registered_sim_ctp_submitted_order_ref=order_ref,
+                _registered_sim_ctp_submitted_front_id=front_id,
+                _registered_sim_ctp_submitted_session_id=session_id,
+                _registered_sim_ctp_submitted_exchange_id=exchange_id,
+                _registered_sim_ctp_route_instrument_id=route_instrument,
+                _registered_sim_ctp_route_exchange_id=route_exchange,
+            )
+            if not mismatch:
+                order.addinfo(ctp_order_ref=order_ref)
+
+        if mismatch:
+            order.addinfo(registered_sim_ctp_order_sys_id_conflict=True)
+            return False
+        return True
+
+    def _verify_registered_sim_ctp_order_response(self, order, response):
+        """Reject Store acknowledgements that disagree with pre-dispatch identity."""
+        if getattr(self.store, "registered_sim_route_id", None) != "simnow-registered-v1":
+            return False
+        if (
+            self._order_info_get(order, "_registered_sim_ctp_identity_binding_captured", False)
+            is not True
+            or self._order_info_get(order, "_registered_sim_ctp_identity_binding_valid", False)
+            is not True
+        ):
+            order.addinfo(registered_sim_ctp_order_sys_id_conflict=True)
+            return False
+
+        response = response if isinstance(response, Mapping) else {}
+        expected_ref = self._order_info_get(
+            order, "_registered_sim_ctp_submitted_order_ref"
+        )
+        expected_front = self._order_info_get(
+            order, "_registered_sim_ctp_submitted_front_id"
+        )
+        expected_session = self._order_info_get(
+            order, "_registered_sim_ctp_submitted_session_id"
+        )
+        expected_exchange = self._order_info_get(
+            order, "_registered_sim_ctp_submitted_exchange_id"
+        )
+        response_ref = self._remote_client_order_ref(dict(response))
+        response_front = self._extract_update_value(response, "front_id", "FrontID")
+        response_session = self._extract_update_value(response, "session_id", "SessionID")
+        response_exchange = self._extract_update_value(response, "exchange_id", "ExchangeID")
+
+        def present(value):
+            return value is not None and value != ""
+
+        mismatch = (
+            (present(response_ref) and response_ref != expected_ref)
+            or (
+                present(response_front)
+                and (type(response_front) is not int or response_front != expected_front)
+            )
+            or (
+                present(response_session)
+                and (type(response_session) is not int or response_session != expected_session)
+            )
+            or (present(response_exchange) and response_exchange != expected_exchange)
+        )
+        if mismatch:
+            order.addinfo(registered_sim_ctp_order_sys_id_conflict=True)
+            return False
+        return True
+
+    def _cache_order_identifiers(self, order, update, *, from_store_callback=False):
         """Attach provider identifiers from a remote update to a local order."""
+        if (
+            from_store_callback is True
+            and isinstance(update, dict)
+            and update.get("kind") == "order"
+            and isinstance(update.get("details"), Mapping)
+            and getattr(self.store, "registered_sim_route_id", None) == "simnow-registered-v1"
+        ):
+            details = update["details"]
+            native_sys_id = details.get("OrderSysID")
+            valid_native_sys_id = (
+                isinstance(native_sys_id, str)
+                and bool(native_sys_id)
+                and native_sys_id == native_sys_id.strip()
+            )
+            submitted_ref = self._order_info_get(order, "_registered_sim_ctp_submitted_order_ref")
+            submitted_front = self._order_info_get(order, "_registered_sim_ctp_submitted_front_id")
+            submitted_session = self._order_info_get(
+                order, "_registered_sim_ctp_submitted_session_id"
+            )
+            submitted_exchange = self._order_info_get(
+                order, "_registered_sim_ctp_submitted_exchange_id"
+            )
+            binding_valid = (
+                self._order_info_get(order, "_registered_sim_ctp_identity_binding_captured")
+                is True
+                and self._order_info_get(
+                    order, "_registered_sim_ctp_identity_binding_valid"
+                )
+                is True
+            )
+            route_instrument = self._order_info_get(
+                order, "_registered_sim_ctp_route_instrument_id"
+            )
+            route_exchange = self._order_info_get(order, "_registered_sim_ctp_route_exchange_id")
+            raw_ref = details.get("OrderRef")
+            raw_instrument = details.get("InstrumentID")
+            raw_exchange = details.get("ExchangeID")
+            raw_front = details.get("FrontID")
+            raw_session = details.get("SessionID")
+
+            def exact_text(value):
+                return isinstance(value, str) and bool(value) and value == value.strip()
+
+            def positive_int(value):
+                return type(value) is int and value > 0
+
+            identity_conflict = (
+                (exact_text(submitted_ref) and raw_ref not in (None, "") and raw_ref != submitted_ref)
+                or (
+                    exact_text(route_instrument)
+                    and raw_instrument not in (None, "")
+                    and raw_instrument != route_instrument
+                )
+                or (
+                    exact_text(route_exchange)
+                    and raw_exchange not in (None, "")
+                    and raw_exchange != route_exchange
+                )
+                or (
+                    exact_text(submitted_exchange)
+                    and raw_exchange not in (None, "")
+                    and raw_exchange != submitted_exchange
+                )
+                or (
+                    positive_int(submitted_front)
+                    and raw_front not in (None, "")
+                    and raw_front != submitted_front
+                )
+                or (
+                    positive_int(submitted_session)
+                    and raw_session not in (None, "")
+                    and raw_session != submitted_session
+                )
+            )
+            cached_sys_id = self._order_info_get(order, "registered_sim_ctp_order_sys_id")
+            generic_sys_id = self._order_info_get(order, "order_sys_id")
+            cached_source = self._order_info_get(order, "registered_sim_ctp_order_sys_id_source")
+            if valid_native_sys_id and (
+                (exact_text(cached_sys_id) and cached_sys_id != native_sys_id)
+                or (exact_text(generic_sys_id) and generic_sys_id != native_sys_id)
+                or (exact_text(cached_sys_id) and cached_source != "ctp_order_callback")
+            ):
+                identity_conflict = True
+
+            if identity_conflict:
+                order.addinfo(registered_sim_ctp_order_sys_id_conflict=True)
+            elif binding_valid and valid_native_sys_id and (
+                exact_text(submitted_ref)
+                and raw_ref == submitted_ref
+                and exact_text(route_instrument)
+                and raw_instrument == route_instrument
+                and exact_text(route_exchange)
+                and raw_exchange == route_exchange
+                and positive_int(submitted_front)
+                and raw_front == submitted_front
+                and positive_int(submitted_session)
+                and raw_session == submitted_session
+                and (submitted_exchange in (None, "") or raw_exchange == submitted_exchange)
+                and self._order_info_get(order, "registered_sim_ctp_order_sys_id_conflict", False)
+                is not True
+            ):
+                order.addinfo(
+                    registered_sim_ctp_order_sys_id=native_sys_id,
+                    registered_sim_ctp_order_sys_id_source="ctp_order_callback",
+                )
+
         external_id = self._remote_external_order_id(update)
         order_ref = self._remote_client_order_ref(update)
         if external_id not in (None, ""):
