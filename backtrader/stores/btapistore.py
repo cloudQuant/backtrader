@@ -2015,6 +2015,19 @@ def _create_ctp_wrapper_class():
             self._subscribed_aliases = set()
             self._last_total_volume = {}
             self._last_tick_price = {}
+            # These facts describe one exact MdClient callback stream.  The
+            # Store consumes the bounded revision below to fence a live factor
+            # cohort when CTP disconnects or advances source generation.
+            self._ctp_stream_health_lock = threading.RLock()
+            self._ctp_stream_client = None
+            self._ctp_stream_generation_callbacks = False
+            self._ctp_stream_source_generation = None
+            self._ctp_stream_disconnected_generation = None
+            self._ctp_stream_revision = 0
+            self._ctp_stream_stale = False
+            self._ctp_stream_stale_reason = ""
+            self._ctp_stream_stale_tick_drop_count = 0
+            self._ctp_stream_stale_tick_drop_reason = ""
             self._price_tick_cache = {}
             self._symbol_specs = {}
             self._order_updates: collections.deque = collections.deque()
@@ -2055,6 +2068,239 @@ def _create_ctp_wrapper_class():
             """Keep direct wrapper cancellation disabled in this build."""
             raise BtApiStoreError("CTP direct native order dispatch is disabled")
 
+        def _record_ctp_tick_drops_locked(self, dropped, reason):
+            """Record bounded diagnostics for discarded source-generation ticks."""
+            if dropped <= 0:
+                return 0
+            maximum = (1 << 63) - 1
+            self._ctp_stream_stale_tick_drop_count = min(
+                maximum, self._ctp_stream_stale_tick_drop_count + dropped
+            )
+            self._ctp_stream_stale_tick_drop_reason = reason
+            return dropped
+
+        def _clear_ctp_tick_queues_locked(self, reason):
+            """Discard queued market ticks when their client generation is fenced."""
+            dropped = sum(len(queue) for queue in self._tick_queues.values())
+            if dropped:
+                for queue in self._tick_queues.values():
+                    queue.clear()
+                self._record_ctp_tick_drops_locked(dropped, reason)
+            return dropped
+
+        def _prune_ctp_tick_queue_locked(self, queue):
+            """Keep only non-stale ticks from the exact active source generation."""
+            if not queue:
+                return 0
+            if self._ctp_stream_stale:
+                dropped = len(queue)
+                queue.clear()
+                return self._record_ctp_tick_drops_locked(dropped, "ctp_tick_queue_pruned_stale")
+
+            generation = self._ctp_stream_source_generation
+            if type(generation) is not int or generation <= 0:
+                dropped = len(queue)
+                queue.clear()
+                return self._record_ctp_tick_drops_locked(
+                    dropped, "ctp_tick_queue_generation_unavailable"
+                )
+
+            dropped = 0
+            while queue:
+                event_generation = getattr(queue[0], "connection_generation", None)
+                if type(event_generation) is int and event_generation == generation:
+                    break
+                queue.popleft()
+                dropped += 1
+            if dropped:
+                self._record_ctp_tick_drops_locked(dropped, "ctp_tick_queue_generation_mismatch")
+            return dropped
+
+        def _bind_md_client_callbacks(self, md_client):
+            """Bind one generation-aware callback path to this exact client."""
+            supports_generation = all(
+                hasattr(md_client, name)
+                for name in (
+                    "on_tick_with_generation",
+                    "on_disconnect_with_generation",
+                    "connection_generation",
+                )
+            )
+            changed = False
+            with self._ctp_stream_health_lock:
+                prior_client = self._ctp_stream_client
+                if prior_client is not md_client:
+                    if prior_client is not None:
+                        self._ctp_stream_revision += 1
+                        self._ctp_stream_stale = True
+                        self._ctp_stream_stale_reason = "ctp_md_client_replaced"
+                        self._clear_ctp_tick_queues_locked("ctp_md_client_replaced")
+                        changed = True
+                    else:
+                        self._ctp_stream_stale = False
+                        self._ctp_stream_stale_reason = ""
+                    self._ctp_stream_client = md_client
+                    self._ctp_stream_source_generation = None
+                    self._ctp_stream_disconnected_generation = None
+                self._ctp_stream_generation_callbacks = supports_generation
+
+            if supports_generation:
+
+                def on_tick(payload, generation, source_client=md_client):
+                    self._handle_md_tick_with_generation(payload, generation, source_client)
+
+                def on_disconnect(reason, generation, source_client=md_client):
+                    self._handle_md_disconnect_with_generation(reason, generation, source_client)
+
+                try:
+                    md_client.on_tick_with_generation = on_tick
+                    md_client.on_disconnect_with_generation = on_disconnect
+                except (AttributeError, TypeError):
+                    # A client that only resembles the new callback surface
+                    # remains usable through the legacy non-cohort path.
+                    supports_generation = False
+                    with self._ctp_stream_health_lock:
+                        self._ctp_stream_generation_callbacks = False
+                    for name in ("on_tick_with_generation", "on_disconnect_with_generation"):
+                        try:
+                            setattr(md_client, name, None)
+                        except (AttributeError, TypeError):
+                            pass
+
+            if not supports_generation:
+                md_client.on_tick = lambda payload, source_client=md_client: (
+                    self._handle_md_tick_for_client(payload, source_client)
+                )
+                if hasattr(md_client, "on_disconnect"):
+                    md_client.on_disconnect = lambda reason, source_client=md_client: (
+                        self._handle_md_disconnect_legacy(reason, source_client)
+                    )
+            md_client.on_error = self._handle_md_error
+            if changed:
+                self._notify_live_bar_event()
+
+        def _mark_md_client_connected(self, md_client):
+            """Clear reconnect-pending health only for the active client."""
+            with self._ctp_stream_health_lock:
+                if self._ctp_stream_client is not md_client or md_client is not self.md_client:
+                    return
+                self._ctp_stream_stale = False
+                self._ctp_stream_stale_reason = ""
+                generation = getattr(md_client, "connection_generation", None)
+                if (
+                    self._ctp_stream_generation_callbacks
+                    and type(generation) is int
+                    and generation > 0
+                    and self._ctp_stream_source_generation is None
+                ):
+                    self._ctp_stream_source_generation = generation
+
+        def _handle_md_tick_for_client(self, payload, source_client):
+            """Preserve legacy tick behavior while fencing replaced clients."""
+            if source_client is self.md_client:
+                self._handle_md_tick(payload)
+
+        def _handle_md_tick_with_generation(self, payload, generation, source_client):
+            """Admit ticks only from the exact active CTP client generation."""
+            with self._ctp_stream_health_lock:
+                if (
+                    source_client is not self.md_client
+                    or source_client is not self._ctp_stream_client
+                    or not self._ctp_stream_generation_callbacks
+                    or type(generation) is not int
+                    or generation <= 0
+                ):
+                    return
+                current_generation = getattr(source_client, "connection_generation", None)
+                if type(current_generation) is not int or generation != current_generation:
+                    return
+
+                previous_generation = self._ctp_stream_source_generation
+                if previous_generation is not None and generation < previous_generation:
+                    self._clear_ctp_tick_queues_locked("ctp_source_generation_regressed")
+                    self._ctp_stream_revision += 1
+                    self._ctp_stream_stale = True
+                    self._ctp_stream_stale_reason = "ctp_source_generation_regressed"
+                    self._notify_live_bar_event()
+                    return
+                if self._ctp_stream_stale:
+                    disconnected_generation = self._ctp_stream_disconnected_generation
+                    if disconnected_generation is None or generation <= disconnected_generation:
+                        return
+                    self._ctp_stream_revision += 1
+                    self._ctp_stream_stale = False
+                    self._ctp_stream_stale_reason = ""
+                elif previous_generation is not None and generation > previous_generation:
+                    self._ctp_stream_revision += 1
+
+                if previous_generation is None or generation > previous_generation:
+                    dropped = self._clear_ctp_tick_queues_locked("ctp_source_generation_advanced")
+                    if dropped and previous_generation is None:
+                        self._ctp_stream_revision += 1
+                    self._ctp_stream_source_generation = generation
+                # Keep the exact callback generation through normalization;
+                # do not reread the mutable client state in _handle_md_tick.
+                self._handle_md_tick(payload, _source_generation=generation)
+
+        def _handle_md_disconnect_legacy(self, _reason, source_client):
+            """Expose a bounded stale marker for legacy clients, without trust."""
+            if source_client is not self.md_client:
+                return
+            with self._ctp_stream_health_lock:
+                if not self._ctp_stream_stale:
+                    self._ctp_stream_revision += 1
+                self._ctp_stream_stale = True
+                self._ctp_stream_stale_reason = "ctp_disconnect_generation_unavailable"
+            self._notify_live_bar_event()
+
+        def _handle_md_disconnect_with_generation(self, _reason, generation, source_client):
+            """Fence a disconnect only when it belongs to the current client."""
+            changed = False
+            with self._ctp_stream_health_lock:
+                if (
+                    source_client is not self.md_client
+                    or source_client is not self._ctp_stream_client
+                    or not self._ctp_stream_generation_callbacks
+                    or type(generation) is not int
+                    or generation <= 0
+                ):
+                    return
+                current_generation = getattr(source_client, "connection_generation", None)
+                if type(current_generation) is not int or generation != current_generation:
+                    return
+                if not (
+                    self._ctp_stream_stale
+                    and self._ctp_stream_disconnected_generation == generation
+                ):
+                    self._ctp_stream_revision += 1
+                    changed = True
+                dropped = self._clear_ctp_tick_queues_locked("ctp_front_disconnected")
+                if dropped:
+                    if not changed:
+                        self._ctp_stream_revision += 1
+                    changed = True
+                self._ctp_stream_disconnected_generation = generation
+                self._ctp_stream_stale = True
+                self._ctp_stream_stale_reason = "ctp_front_disconnected"
+            # The event is only a wake hint.  Consumers re-read this immutable
+            # health snapshot before accepting another source event.
+            if changed:
+                self._notify_live_bar_event()
+
+        def _get_live_ctp_stream_health(self):
+            """Return bounded callback provenance for Store health checks."""
+            with self._ctp_stream_health_lock:
+                return {
+                    "generation_callbacks_supported": self._ctp_stream_generation_callbacks,
+                    "source_generation": self._ctp_stream_source_generation,
+                    "source_revision": self._ctp_stream_revision,
+                    "stale": self._ctp_stream_stale,
+                    "stale_reason": self._ctp_stream_stale_reason,
+                    "stale_tick_drop_count": self._ctp_stream_stale_tick_drop_count,
+                    "stale_tick_drop_reason": self._ctp_stream_stale_tick_drop_reason,
+                    "symbols": tuple(sorted(self._subscribed_aliases)),
+                }
+
         def connect(self):
             """Connect to CTP servers."""
             if self.auto_settlement_confirm is not False:
@@ -2075,8 +2321,7 @@ def _create_ctp_wrapper_class():
                 password=self.password,
                 allow_zero_login_response=self.allow_zero_login_response,
             )
-            self.md_client.on_tick = self._handle_md_tick
-            self.md_client.on_error = self._handle_md_error
+            self._bind_md_client_callbacks(self.md_client)
 
             # Create trader client
             trader_kwargs = {
@@ -2123,6 +2368,7 @@ def _create_ctp_wrapper_class():
                 raise BtApiStoreError("CTP trader login did not become ready within 20s")
 
             self._connected = True
+            self._mark_md_client_connected(self.md_client)
 
         def start(self):
             """Start the clients (alias for connect)."""
@@ -2323,10 +2569,21 @@ def _create_ctp_wrapper_class():
 
         def poll_tick(self, symbol):
             """Poll the next live tick for a subscribed symbol."""
-            queue = self._tick_queues.get(str(symbol), None)
-            if not queue:
-                return None
-            return queue.popleft()
+            notify = False
+            with self._ctp_stream_health_lock:
+                queue = self._tick_queues.get(str(symbol), None)
+                if not queue:
+                    return None
+                if not self._ctp_stream_generation_callbacks:
+                    return queue.popleft()
+                dropped = self._prune_ctp_tick_queue_locked(queue)
+                if dropped:
+                    self._ctp_stream_revision += 1
+                    notify = True
+                event = None if self._ctp_stream_stale or not queue else queue.popleft()
+            if notify:
+                self._notify_live_bar_event()
+            return event
 
         def get_next_tick(self, symbol):
             """Alias for poll_tick."""
@@ -2334,8 +2591,21 @@ def _create_ctp_wrapper_class():
 
         def has_pending_tick(self, symbol):
             """Return whether a subscribed symbol has queued live ticks."""
-            queue = self._tick_queues.get(str(symbol), None)
-            return bool(queue)
+            notify = False
+            with self._ctp_stream_health_lock:
+                queue = self._tick_queues.get(str(symbol), None)
+                if not queue:
+                    return False
+                if not self._ctp_stream_generation_callbacks:
+                    return bool(queue)
+                dropped = self._prune_ctp_tick_queue_locked(queue)
+                if dropped:
+                    self._ctp_stream_revision += 1
+                    notify = True
+                pending = bool(queue) and not self._ctp_stream_stale
+            if notify:
+                self._notify_live_bar_event()
+            return pending
 
         def supports_live_ticks(self, symbol):
             """Return whether a symbol has an active live tick subscription."""
@@ -2991,15 +3261,18 @@ def _create_ctp_wrapper_class():
                 update["external_order_id"] = order_sys_id
             return update
 
-        def _handle_md_tick(self, payload):
+        def _handle_md_tick(self, payload, *, _source_generation=None):
             """Convert a raw CTP depth market data callback into queued TickEvents."""
             instrument = _safe_text_attr(payload, "InstrumentID", "ExchangeInstID")
             if not instrument:
                 return
 
-            connection_generation = getattr(
-                getattr(self, "md_client", None), "_connection_generation", None
-            )
+            generation_was_captured = _source_generation is not None
+            connection_generation = _source_generation
+            if not generation_was_captured:
+                connection_generation = getattr(
+                    getattr(self, "md_client", None), "_connection_generation", None
+                )
             raw_ctp_tick = _ctp_raw_tick_snapshot(payload, connection_generation)
             tick_dt = _build_ctp_tick_datetime(raw_ctp_tick)
             raw_price = raw_ctp_tick["LastPrice"]
@@ -3121,11 +3394,15 @@ def _create_ctp_wrapper_class():
                 event.update_time = str(getattr(payload, "UpdateTime", "") or "")
                 event.update_millisec = _coerce_int(getattr(payload, "UpdateMillisec", 0), 0)
                 if provenance_seq is not None:
-                    self._stamp_live_tick_provenance(event, provenance_seq)
+                    self._stamp_live_tick_provenance(
+                        event,
+                        provenance_seq,
+                        allow_generation_override=not generation_was_captured,
+                    )
                 self._tick_queues[alias].append(event)
             self._notify_live_bar_event()
 
-        def _stamp_live_tick_provenance(self, event, sequence):
+        def _stamp_live_tick_provenance(self, event, sequence, *, allow_generation_override=True):
             """Attach caller-owned live clock provenance to one market tick.
 
             The iteration-42 options adapter owns the run-scoped clock
@@ -3141,7 +3418,7 @@ def _create_ctp_wrapper_class():
             event.rules_hash = str(provenance.get("rules_hash") or "")
             event.session_segment = str(provenance.get("session_segment") or "")
             generation = provenance.get("generation")
-            if generation is not None:
+            if allow_generation_override and generation is not None:
                 event.connection_generation = int(generation)
                 event.stream_generation = int(generation)
             event.ingest_seq = sequence
@@ -3581,6 +3858,13 @@ class BtApiStore(LiveStoreBase):
         )
         self._stream_state: Dict[str, Dict[str, Any]] = collections.defaultdict(dict)
         self._stream_generation = 0
+        self._ctp_stream_health_lock = threading.RLock()
+        self._ctp_stream_health_api = None
+        self._ctp_stream_health_revision = None
+        self._ctp_stream_health_source_generation = None
+        self._ctp_stream_health_supported = None
+        self._ctp_stream_health_stale = False
+        self._ctp_stream_health_stale_reason = ""
         self._sdk_event_batch_size = max(int(sdk_options.get("event_batch_size", 1024)), 1)
         configured_coalescing = sdk_options.get("coalesce_market_snapshots", ())
         if isinstance(configured_coalescing, str):
@@ -16625,8 +16909,137 @@ class BtApiStore(LiveStoreBase):
         counters["strategy_delivered"] += 1
         counters[f"{kind}_strategy_delivered"] += 1
 
+    def _has_direct_ctp_cohort_feed(self, symbol: str) -> bool:
+        """Return whether this exact symbol is attached to a strict CTP feed."""
+        if self.backend != "direct" or not self._is_ctp_session_provider():
+            return False
+        for feed in tuple(self._data_feeds):
+            if (
+                getattr(feed, "store", None) is self
+                and str(getattr(feed, "_dataname", "")) == symbol
+                and getattr(feed, "live_bar_cohort", None) is not None
+            ):
+                return True
+        return False
+
+    def _read_ctp_callback_health(self) -> Optional[Dict[str, Any]]:
+        """Consume bounded generation facts from the exact direct CTP wrapper."""
+        if self.backend != "direct" or not self._is_ctp_session_provider():
+            return None
+
+        api = self._api
+        reader = getattr(api, "_get_live_ctp_stream_health", None) if api is not None else None
+        supported = False
+        source_generation = None
+        source_revision = None
+        stale = True
+        stale_reason = "ctp_generation_provenance_unavailable"
+        symbols = ()
+        stale_tick_drop_count = 0
+        stale_tick_drop_reason = ""
+        if callable(reader):
+            try:
+                snapshot = reader()
+            except Exception:
+                snapshot = None
+            if isinstance(snapshot, Mapping):
+                candidate_supported = snapshot.get("generation_callbacks_supported")
+                candidate_generation = snapshot.get("source_generation")
+                candidate_revision = snapshot.get("source_revision")
+                candidate_stale = snapshot.get("stale")
+                candidate_reason = snapshot.get("stale_reason", "")
+                candidate_symbols = snapshot.get("symbols", ())
+                candidate_drop_count = snapshot.get("stale_tick_drop_count", 0)
+                candidate_drop_reason = snapshot.get("stale_tick_drop_reason", "")
+                valid = (
+                    type(candidate_supported) is bool
+                    and (candidate_generation is None or type(candidate_generation) is int)
+                    and (
+                        candidate_revision is None
+                        or (type(candidate_revision) is int and candidate_revision >= 0)
+                    )
+                    and type(candidate_stale) is bool
+                    and type(candidate_reason) is str
+                    and isinstance(candidate_symbols, (tuple, list))
+                    and all(type(value) is str for value in candidate_symbols)
+                    and type(candidate_drop_count) is int
+                    and 0 <= candidate_drop_count <= (1 << 63) - 1
+                    and type(candidate_drop_reason) is str
+                    and candidate_drop_reason
+                    in (
+                        "",
+                        "ctp_md_client_replaced",
+                        "ctp_source_generation_advanced",
+                        "ctp_source_generation_regressed",
+                        "ctp_front_disconnected",
+                        "ctp_tick_queue_pruned_stale",
+                        "ctp_tick_queue_generation_unavailable",
+                        "ctp_tick_queue_generation_mismatch",
+                    )
+                )
+                if valid:
+                    supported = candidate_supported
+                    source_generation = candidate_generation
+                    source_revision = candidate_revision
+                    stale = candidate_stale
+                    stale_reason = candidate_reason
+                    symbols = tuple(candidate_symbols)
+                    stale_tick_drop_count = candidate_drop_count
+                    stale_tick_drop_reason = candidate_drop_reason
+                else:
+                    stale_reason = "ctp_generation_health_invalid"
+            else:
+                stale_reason = "ctp_generation_health_unavailable"
+
+        with self._ctp_stream_health_lock:
+            previous_api = self._ctp_stream_health_api
+            previous_revision = self._ctp_stream_health_revision
+            if api is not previous_api:
+                if previous_api is not None:
+                    self._stream_generation += 1
+                    stale = True
+                    stale_reason = "ctp_source_api_replaced"
+                self._ctp_stream_health_api = api
+                self._ctp_stream_health_revision = source_revision
+                self._ctp_stream_health_source_generation = source_generation
+            elif source_revision is not None:
+                if previous_revision is None:
+                    self._ctp_stream_health_revision = source_revision
+                elif source_revision < previous_revision:
+                    self._stream_generation += 1
+                    stale = True
+                    stale_reason = "ctp_source_revision_regressed"
+                    self._ctp_stream_health_revision = source_revision
+                elif source_revision > previous_revision:
+                    self._stream_generation += source_revision - previous_revision
+                    self._ctp_stream_health_revision = source_revision
+                self._ctp_stream_health_source_generation = source_generation
+
+            self._ctp_stream_health_supported = supported
+            self._ctp_stream_health_stale = stale
+            self._ctp_stream_health_stale_reason = stale_reason
+            if self._ctp_stream_health_stale_reason:
+                stale = True
+            if not supported:
+                stale = True
+                if not stale_reason:
+                    stale_reason = "ctp_generation_provenance_unavailable"
+                self._ctp_stream_health_stale_reason = stale_reason
+            return {
+                "generation_callbacks_supported": supported,
+                "source_generation": source_generation,
+                "source_revision": source_revision,
+                "symbols": symbols,
+                "stale": stale,
+                "stale_reason": stale_reason,
+                "stale_tick_drop_count": stale_tick_drop_count,
+                "stale_tick_drop_reason": stale_tick_drop_reason,
+                "stream_generation": self._stream_generation,
+            }
+
     def get_stream_health(self, dataname: Optional[str] = None) -> Dict[str, Any]:
         """Return causal stream counters and the current fail-closed state."""
+        ctp_health = self._read_ctp_callback_health()
         symbols = (
             [str(dataname)]
             if dataname is not None
@@ -16636,6 +17049,7 @@ class BtApiStore(LiveStoreBase):
                 | set(self._live_bars)
                 | set(self._live_bar_queue_overflow_count)
                 | set(self._live_bar_queue_stale)
+                | set(ctp_health["symbols"] if ctp_health is not None else ())
             )
         )
         result = {}
@@ -16652,13 +17066,21 @@ class BtApiStore(LiveStoreBase):
                 live_bar_queue_depth = len(self._live_bars[symbol])
             live_bar_overflow_count = self._live_bar_queue_overflow_count.get(symbol, 0)
             persistent_bar_stale_reason = self._live_bar_queue_stale.get(symbol, "")
-            stale = bool(state.get("stale", False) or persistent_bar_stale_reason)
+            strict_ctp_feed = self._has_direct_ctp_cohort_feed(symbol)
+            ctp_stale = bool(ctp_health and strict_ctp_feed and ctp_health["stale"])
+            stale = bool(state.get("stale", False) or persistent_bar_stale_reason or ctp_stale)
             result[symbol] = {
                 **counters,
                 **state,
-                "stale_reason": state.get("stale_reason") or persistent_bar_stale_reason,
+                "stale_reason": (
+                    state.get("stale_reason")
+                    or persistent_bar_stale_reason
+                    or (ctp_health["stale_reason"] if ctp_stale and ctp_health is not None else "")
+                ),
                 "continuity_status": (
-                    "gap" if persistent_bar_stale_reason else state.get("continuity_status")
+                    "gap"
+                    if persistent_bar_stale_reason or ctp_stale
+                    else state.get("continuity_status")
                 ),
                 "book_queue_depth": book_queue_depth,
                 "tick_queue_depth": len(self._sdk_ticks[symbol]),
@@ -16689,6 +17111,21 @@ class BtApiStore(LiveStoreBase):
                 ),
                 "market_drop_records": list(self._market_drop_records[symbol]),
                 "stream_generation": self._stream_generation,
+                "source_generation": (
+                    ctp_health["source_generation"] if ctp_health is not None else None
+                ),
+                "source_revision": (
+                    ctp_health["source_revision"] if ctp_health is not None else None
+                ),
+                "generation_callbacks_supported": (
+                    ctp_health["generation_callbacks_supported"] if ctp_health is not None else None
+                ),
+                "source_tick_drop_count": (
+                    ctp_health["stale_tick_drop_count"] if ctp_health is not None else 0
+                ),
+                "source_tick_drop_reason": (
+                    ctp_health["stale_tick_drop_reason"] if ctp_health is not None else ""
+                ),
                 "stale": stale,
             }
         if dataname is not None:
@@ -16703,6 +17140,8 @@ class BtApiStore(LiveStoreBase):
                         str(dataname), 0
                     ),
                     "stale_reason": self._live_bar_queue_stale.get(str(dataname), ""),
+                    "source_tick_drop_count": 0,
+                    "source_tick_drop_reason": "",
                     "continuity_status": (
                         "gap" if self._live_bar_queue_stale.get(str(dataname)) else ""
                     ),

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import threading
 from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 
@@ -198,11 +199,20 @@ def _store(monkeypatch, rows, clock):
     class _FakeMdClient:
         def __init__(self, **_kwargs):
             self.on_tick = None
+            self.on_tick_with_generation = None
+            self.on_disconnect = None
+            self.on_disconnect_with_generation = None
             self.on_error = None
+            self._state_lock = threading.RLock()
             self._connection_generation = 0
             self._rows = rows
             self._index = 0
             clock.source = self
+
+        @property
+        def connection_generation(self):
+            with self._state_lock:
+                return self._connection_generation
 
         @property
         def next_event_time(self):
@@ -214,8 +224,16 @@ def _store(monkeypatch, rows, clock):
             while self.next_event_time is not None and self.next_event_time <= utc_time:
                 _event_time, _instrument, generation, payload = self._rows[self._index]
                 self._index += 1
-                self._connection_generation = generation
-                self.on_tick(payload)
+                # Mirror the SDK SPI boundary: capture the callback and its
+                # source generation together, then invoke without the lock.
+                with self._state_lock:
+                    self._connection_generation = generation
+                    callback = self.on_tick_with_generation
+                    callback_generation = self._connection_generation
+                if callable(callback):
+                    callback(payload, callback_generation)
+                else:
+                    self.on_tick(payload)
 
         def start(self, block=False):
             assert block is False
