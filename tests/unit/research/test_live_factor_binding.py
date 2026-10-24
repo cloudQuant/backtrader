@@ -12,6 +12,7 @@ import pandas as pd
 import pytest
 
 from backtrader.errors import FactorComputationError, ResearchConfigError
+from backtrader.metabase import OwnerContext
 from backtrader.research import (
     FactorIndicator,
     FactorSpec,
@@ -29,7 +30,9 @@ from backtrader.research.live_cohort import (
     LiveCohortCalendar,
     LiveCohortValidationError,
 )
+from backtrader.research.operators import CrossSectionalRank
 from backtrader.research.strict import live_source_binding_active, live_source_binding_scope
+from backtrader.research.alpha101 import get_alpha
 
 
 UTC = timezone.utc
@@ -93,6 +96,21 @@ class ScaledClose(FactorIndicator):
     @classmethod
     def build(cls, ctx, scale=1.0):
         return ctx.close * scale
+
+
+def _raise_live_factor_runtime_error(*_values):
+    raise LookupError("synthetic live factor runtime failure")
+
+
+class FailingLiveFactor(ScaledClose):
+    """Factor whose native and expression callbacks fail during real execution."""
+
+    def next(self):
+        raise LookupError("synthetic live factor runtime failure")
+
+    @classmethod
+    def build(cls, ctx, scale=1.0):
+        return ctx.apply(_raise_live_factor_runtime_error, ctx.close)
 
 
 class OrdinaryStrategy(bt.Strategy):
@@ -241,11 +259,15 @@ def _make_inputs(
         raw_fields=("open", "high", "low", "close", "volume", "openinterest"),
         numeric_fields=("open", "high", "low", "close", "volume", "openinterest"),
     )
+    factor_name = (
+        "alpha%03d" % indicator.alpha_id if hasattr(indicator, "alpha_id") else "scaled_close"
+    )
+    factor_params = {} if hasattr(indicator, "alpha_id") else {"scale": 2.0}
     spec = FactorSpec(
-        name="scaled_close",
+        name=factor_name,
         indicator=indicator,
         panel_line="factor",
-        params={"scale": 2.0},
+        params=factor_params,
         field_bindings={"close": "feed:target:close"},
         direction=-1,
         mode=mode,
@@ -253,7 +275,7 @@ def _make_inputs(
     plan = LiveFactorPlan(
         targets=("A",),
         groups={"A": "primary"},
-        factors={"scaled_close": spec},
+        factors={factor_name: spec},
         calendar_id=calendar.calendar_id,
         frequency=calendar.frequency,
         warmup_min_bars=min(30, count),
@@ -338,6 +360,62 @@ def test_ordinary_strategy_binds_real_cohort_feed_and_publishes_bounded_immutabl
     assert degraded.factors["scaled_close"].values == MappingProxyType({})
     assert not hasattr(snapshot, "execution_permission")
     assert live_source_binding_active() is False
+
+
+@pytest.mark.parametrize("mode", ("native", "build"))
+def test_alpha001_panel_child_bind_inherits_only_the_active_factor_context(mode):
+    cerebro, cohort, feed, _plan, _values, _clock = _make_inputs(
+        count=32,
+        mode=mode,
+        indicator=get_alpha(1),
+    )
+
+    strategy = cerebro.run()[0]
+    factor = strategy.live_factors.factor_instances["alpha001"]["primary"]
+    context = factor._factor_strict_context
+
+    assert context.factor == "alpha001"
+    assert context.failed is False
+    assert strategy.snapshots
+    rank_nodes = [node for node in factor._nodes.values() if isinstance(node, CrossSectionalRank)]
+    assert len(rank_nodes) == 1
+    assert rank_nodes[0]._factor_strict_context is context
+    batch = cohort.current_batch()
+    assert batch is not None and batch.status == "COMPLETE"
+    assert cohort.current_delivery(feed) is batch.receipt_for_feed(feed)
+    assert live_source_binding_active() is False
+
+
+def test_nested_live_bind_requires_explicit_factor_name_to_match_parent_context():
+    _cerebro, cohort, feed, _plan, _values, _clock = _make_inputs(count=2)
+    strategy = _cerebro.run()[0]
+    parent = strategy.live_factors.factor_instances["scaled_close"]["primary"]
+    receipt = cohort.require_factor_field(feed, "close")
+
+    def bind_child(factor_name):
+        return CrossSectionalRank._bind_for_research(
+            feed,
+            output_datas=(feed,),
+            asset_names=("A",),
+            factor_name=factor_name,
+            field_bindings={},
+            research=None,
+            mode="native",
+            available_datas=(feed,),
+            strict=True,
+            line_inputs=(parent.outputs[feed].factor,),
+            members=(None,),
+            groups=("primary",),
+        )
+
+    with OwnerContext.set_owner(parent), live_source_binding_scope(
+        cohort,
+        ((feed, "close", receipt),),
+    ):
+        child = bind_child("scaled_close")
+        assert child._factor_strict_context is parent._factor_strict_context
+        with pytest.raises(ResearchConfigError, match="must match its parent factor_name"):
+            bind_child("other_factor")
 
 
 def test_old_live_bar_does_not_become_fresh_when_scheduler_time_advances():
@@ -520,6 +598,77 @@ def test_factor_instances_and_snapshots_are_isolated_between_strategy_runs():
     assert second.snapshots[-1].factors["scaled_close"].values["A"].value == 2_002.0
     assert first.snapshots[-1] is not second.snapshots[-1]
     assert live_source_binding_active() is False
+
+
+def test_active_live_binding_rejects_public_factor_bind_without_context_name():
+    _cerebro, cohort, feed, _plan, _values, _clock = _make_inputs(count=1)
+    receipt = cohort.require_factor_field(feed, "close")
+
+    with live_source_binding_scope(cohort, ((feed, "close", receipt),)), pytest.raises(
+        ResearchConfigError, match="non-empty factor_name"
+    ):
+        ScaledClose.bind(feed, mode="native", scale=2.0)
+
+
+@pytest.mark.parametrize(
+    ("strict", "factor_name", "message"),
+    (
+        (False, "scaled_close", "requires strict=True"),
+        (True, None, "non-empty factor_name"),
+        (True, "", "non-empty factor_name"),
+        (True, "   ", "non-empty factor_name"),
+        (True, 7, "non-empty factor_name"),
+    ),
+)
+def test_active_live_binding_rejects_strict_or_factor_name_escape(strict, factor_name, message):
+    _cerebro, cohort, feed, _plan, _values, _clock = _make_inputs(count=1)
+    receipt = cohort.require_factor_field(feed, "close")
+
+    with live_source_binding_scope(cohort, ((feed, "close", receipt),)), pytest.raises(
+        ResearchConfigError, match=message
+    ):
+        ScaledClose._bind_for_research(
+            feed,
+            output_datas=(feed,),
+            asset_names=("A",),
+            factor_name=factor_name,
+            field_bindings={"close": "feed:target:close"},
+            research=None,
+            mode="native",
+            available_datas=(feed,),
+            strict=strict,
+            scale=2.0,
+        )
+
+
+@pytest.mark.parametrize("mode", ("native", "build"))
+def test_ordinary_live_factor_runtime_errors_keep_factor_context_and_cause(mode):
+    cerebro, cohort, feed, _plan, _values, _clock = _make_inputs(
+        count=1,
+        mode=mode,
+        indicator=FailingLiveFactor,
+    )
+
+    with pytest.raises(FactorComputationError) as caught:
+        cerebro.run()
+
+    error = caught.value
+    assert error.code == "FACTOR_COMPUTATION_FAILED"
+    assert error.factor == "scaled_close"
+    assert error.asset == "A"
+    assert error.phase == "next"
+    assert isinstance(error.__cause__, LookupError)
+    assert str(error.__cause__) == "synthetic live factor runtime failure"
+
+    # The error occurred after the exact source row passed cohort admission
+    # and all feed lines advanced, so it is a factor runtime error rather than
+    # a fabricated context for pre-factor source validation.
+    batch = cohort.current_batch()
+    assert batch is not None and batch.status == "COMPLETE"
+    receipt = batch.receipt_for_feed(feed)
+    assert receipt.source_role == "live"
+    assert cohort.current_delivery(feed) is receipt
+    assert len(feed) == 1
 
 
 def test_invalid_raw_live_event_is_rejected_before_feed_lines_and_strategy_callback():

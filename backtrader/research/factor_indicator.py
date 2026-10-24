@@ -582,6 +582,66 @@ class FactorIndicator(Indicator):
         **params: Any,
     ) -> "FactorIndicator":
         """Construct one native factor with explicit target/input separation."""
+        from .strict import live_source_binding_active
+
+        live_binding_active = live_source_binding_active()
+        inherited_context = None
+        if live_binding_active:
+            # Factor formulas may construct ordinary FactorIndicator operator
+            # nodes from their __init__. Such a child bind has no independent
+            # public factor name; it is trusted only while the exact parent
+            # iterator carrying the real strict context owns construction.
+            from ..metabase import OwnerContext
+
+            owner = OwnerContext.get_current_owner(LineIterator)
+            candidate = getattr(owner, "_factor_strict_context", None)
+            owner_runtime = getattr(type(owner), "_factor_runtime", None)
+            if (
+                isinstance(owner, FactorIndicator)
+                and isinstance(owner_runtime, dict)
+                and owner_runtime.get("live_source_binding") is True
+                and owner_runtime.get("strict_context") is candidate
+                and isinstance(candidate, FactorComputationContext)
+            ):
+                candidate_factor = getattr(candidate, "factor", None)
+                if (
+                    owner_runtime.get("factor_name") == candidate_factor
+                    and isinstance(candidate_factor, str)
+                    and candidate_factor.strip()
+                ):
+                    inherited_context = candidate
+
+        if live_binding_active and strict is not True:
+            raise ResearchConfigError(
+                "active live factor binding requires strict=True",
+                code="UNSUPPORTED_SOURCE",
+            )
+        if (
+            live_binding_active
+            and inherited_context is not None
+            and factor_name is not None
+            and factor_name != inherited_context.factor
+        ):
+            raise ResearchConfigError(
+                "active nested live factor binding must match its parent factor_name",
+                code="UNSUPPORTED_SOURCE",
+            )
+        effective_factor_name = factor_name
+        if (
+            live_binding_active
+            and (not isinstance(effective_factor_name, str) or not effective_factor_name.strip())
+            and factor_name is None
+            and inherited_context is not None
+        ):
+            effective_factor_name = inherited_context.factor
+        if live_binding_active and (
+            not isinstance(effective_factor_name, str) or not effective_factor_name.strip()
+        ):
+            raise ResearchConfigError(
+                "active live factor binding requires a non-empty factor_name",
+                code="UNSUPPORTED_SOURCE",
+            )
+
         cls._validate_bind_request(datas)
         selected_mode = cls._resolve_factor_mode(mode)
         if "mode" in params:
@@ -608,19 +668,19 @@ class FactorIndicator(Indicator):
         runtime = {
             "asset_names": names,
             "asset_by_data_id": asset_by_data_id,
-            "factor_name": factor_name if strict else None,
+            "factor_name": effective_factor_name if strict else None,
             "field_bindings": dict(field_bindings),
             "research": research,
             "available_datas": input_datas,
             "mode": selected_mode,
             "factor_params": resolved_factor_params,
         }
-        from .strict import live_source_binding_active
-
-        runtime["live_source_binding"] = live_source_binding_active()
+        runtime["live_source_binding"] = live_binding_active
         context = None
-        if strict and factor_name:
-            context = FactorComputationContext(str(factor_name), phase="construct")
+        if strict and effective_factor_name:
+            context = inherited_context or FactorComputationContext(
+                str(effective_factor_name), phase="construct"
+            )
             for data in input_datas:
                 asset = asset_by_data_id.get(id(data)) or getattr(data, "_name", None)
                 if isinstance(asset, str) and asset:
@@ -664,7 +724,10 @@ class FactorIndicator(Indicator):
         )
         if context is not None:
             cls._validate_bound_sources(context, input_datas, targets, field_bindings)
+            previous_phase = context.phase
             context.phase = "init"
+        else:
+            previous_phase = None
         try:
             instance = bound_class(*datas, **resolved_factor_params)
         except Exception as exc:
@@ -681,8 +744,8 @@ class FactorIndicator(Indicator):
                 raise
             raise wrapped from exc
         finally:
-            if context is not None:
-                context.phase = "construct"
+            if context is not None and previous_phase is not None:
+                context.phase = previous_phase
         if not hasattr(instance, "outputs"):
             raise RuntimeError(
                 "factor __init__ must call super().__init__() before creating child indicators"
