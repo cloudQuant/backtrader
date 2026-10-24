@@ -105,6 +105,20 @@ def _qbuffer_logical_to_physical(line: Any, logical_index: int) -> Optional[int]
     return physical_index
 
 
+def _retain_associated_qbuffer_reason(source: Any) -> None:
+    """Keep a producer's marked reason tail as long as its value tail."""
+    try:
+        if source.mode != LineBuffer.QBuffer:
+            return
+        reason_line = source._factor_research_reason_line
+        retained = int(source.maxlen)
+    except (AttributeError, TypeError, ValueError):
+        return
+    if reason_line is None or reason_line is source:
+        return
+    reason_line.minbuffer(retained)
+
+
 def _associated_reason(
     source: Any, *, ago: int = 0, absolute_index: Optional[int] = None
 ) -> Optional[OperatorReason]:
@@ -178,6 +192,33 @@ def _read_value(source: Any, ago: int = 0) -> Tuple[float, OperatorReason]:
     """Read one currently available line value without hiding source errors."""
     if source is None:
         return _NAN, OperatorReason.NONFINITE_INPUT
+    try:
+        source_mode = source.mode
+    except AttributeError:
+        source_mode = LineBuffer.UnBounded
+    if source_mode == LineBuffer.QBuffer:
+        # Relative LineBuffer offsets are physical deque offsets once the
+        # queue wraps. Resolve them from the populated logical tail instead so
+        # an evicted source/reason slot is reported as NOT_READY, rather than
+        # accidentally reading a different retained bar or losing its reason.
+        try:
+            logical_length = int(source.lencount)
+        except (AttributeError, TypeError, ValueError):
+            return _NAN, OperatorReason.NOT_READY
+        absolute_index = logical_length - 1 + ago
+        physical_index = _qbuffer_logical_to_physical(source, absolute_index)
+        if physical_index is None:
+            return _NAN, OperatorReason.NOT_READY
+        try:
+            value = float(source.array[physical_index])
+        except (AttributeError, IndexError, TypeError, ValueError):
+            return _NAN, OperatorReason.NOT_READY
+        if math.isinf(value):
+            raise OperatorInputError("source line contains infinity")
+        if math.isnan(value):
+            reason = _associated_reason(source, absolute_index=absolute_index)
+            return _NAN, reason or OperatorReason.NONFINITE_INPUT
+        return value, OperatorReason.READY
     if len(source) <= abs(ago):
         return _NAN, OperatorReason.NOT_READY
     # LineBuffer.__getitem__ preserves a legacy infinity-to-zero fallback
@@ -822,6 +863,14 @@ class _OperatorIndicator(Indicator):
 
     def _operand(self, index: int) -> Any:
         return self._operand_args[index]
+
+    def qbuffer(self, savemem=0):
+        """Retain reason cells for every value cell kept by this operator."""
+        super().qbuffer(savemem=savemem)
+        if savemem:
+            self.lines.reason.minbuffer(self.lines.value.maxlen)
+            for operand in self._operand_args:
+                _retain_associated_qbuffer_reason(operand)
 
     def prenext(self) -> None:
         self.next()
@@ -1820,6 +1869,22 @@ class _PanelOperator(FactorIndicator):
             output_lines["value"]._factor_research_reason_line = output_lines["reason"]
             for output_line in output_lines.values():
                 output_line._factor_research_target = data
+
+    def qbuffer(self, savemem=0):
+        """Keep each per-feed reason line aligned with its value retention."""
+        super().qbuffer(savemem=savemem)
+        if savemem:
+            for output in self.outputs.values():
+                output_lines = output._lines
+                output_lines["reason"].minbuffer(output_lines["value"].maxlen)
+            sources = (
+                tuple(getattr(self, "_values", ()))
+                + tuple(getattr(self, "_right_values", ()))
+                + tuple(getattr(self, "_members", ()))
+                + tuple(getattr(self, "_groups", ()) or ())
+            )
+            for source in sources:
+                _retain_associated_qbuffer_reason(source)
 
     @classmethod
     def bind(cls, *datas: Any, **params: Any) -> Any:
