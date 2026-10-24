@@ -277,6 +277,10 @@ def test_collects_complete_visible_catalog_and_quote_rows_without_ranking(
     assert len(snapshot.quote_source.source_sha256) == 64
     assert snapshot.catalog_source.source_kind == "instruments"
     assert snapshot.quote_source.source_kind == "depth_market_data"
+    assert snapshot.catalog_source.source_id == "bt_api_ctp.CtpLiveFeed.query_instruments_result"
+    assert snapshot.quote_source.source_id == (
+        "bt_api_ctp.CtpLiveFeed.query_depth_market_data_result"
+    )
     assert feed.session_calls == 2
     assert feed.catalog_kwargs["instrument_id"] == ""
     assert feed.catalog_kwargs["exchange_id"] == ""
@@ -289,6 +293,31 @@ def test_collects_complete_visible_catalog_and_quote_rows_without_ranking(
         {"instrument_id", "exchange_id", "product_id", "timeout", "max_duration"}
     )
     assert set(feed.quote_kwargs).issubset({"instrument_id", "exchange_id", "timeout"})
+
+
+def test_collector_accepts_a_valid_descriptive_source_prefix(monkeypatch, query_result_type):
+    _fixed_collector_clock(monkeypatch)
+    feed = _feed(query_result_type)
+
+    snapshot = adapter.collect_ctp_futures_snapshot(
+        feed,
+        source_prefix="backtrader.stores.CtpClientWrapper.bt_api_ctp.TraderClient",
+    )
+
+    assert snapshot.catalog_source.source_id == (
+        "backtrader.stores.CtpClientWrapper.bt_api_ctp.TraderClient.query_instruments_result"
+    )
+    assert snapshot.quote_source.source_id == (
+        "backtrader.stores.CtpClientWrapper.bt_api_ctp.TraderClient.query_depth_market_data_result"
+    )
+
+
+@pytest.mark.parametrize("source_prefix", ("", "not valid", "provider/TraderClient", "a..b"))
+def test_collector_rejects_invalid_source_prefix_before_loading_sdk(source_prefix):
+    with pytest.raises(adapter.CtpFuturesSnapshotError) as caught:
+        adapter.collect_ctp_futures_snapshot(object(), source_prefix=source_prefix)
+
+    assert caught.value.code == "SOURCE_PREFIX_INVALID"
 
 
 def test_public_query_text_bytes_are_decoded_but_raw_rows_stay_digest_source(

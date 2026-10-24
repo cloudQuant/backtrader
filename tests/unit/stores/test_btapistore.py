@@ -3881,3 +3881,219 @@ def test_non_ctp_forwarding_backend_rejects_public_order_routes():
     assert client.connected is False
     assert client.submitted_orders == []
     assert client.cancelled_orders == []
+
+
+@pytest.fixture
+def query_result_type():
+    return optional_sdk("bt_api_ctp.query").QueryResult
+
+
+def _registered_sim_snapshot_store(
+    query_result_type,
+    *,
+    session_states=None,
+    catalog_complete=True,
+    quote_complete=True,
+    omit_depth_method=False,
+):
+    optional_sdk("bt_api_ctp.ctp.client")
+    from backtrader.stores.btapistore import _create_ctp_wrapper_class
+    from backtrader.stores.registered_sim import RegisteredSimStore, RegisteredSimWrapper
+    from tests.unit.feeds.test_futures_ctp_snapshot import (
+        _catalog_row,
+        _query_result,
+        _quote_row,
+        _session,
+    )
+
+    catalog = _query_result(
+        query_result_type,
+        "instruments",
+        101,
+        (_catalog_row(),),
+        complete=catalog_complete,
+    )
+    quotes = _query_result(
+        query_result_type,
+        "depth_market_data",
+        102,
+        (_quote_row(volume=25),),
+        complete=quote_complete,
+    )
+
+    class FakeTraderClient:
+        def __init__(self):
+            self.query_calls = []
+            self.query_instances = []
+            self.write_calls = []
+            self.capability_calls = []
+            self.session_calls = 0
+            self.session_states = list(session_states or (_session(), _session()))
+
+        def get_session_state(self):
+            index = min(self.session_calls, len(self.session_states) - 1)
+            self.session_calls += 1
+            return dict(self.session_states[index])
+
+        def query_instruments_result(self, **kwargs):
+            self.query_calls.append(("instruments", dict(kwargs)))
+            self.query_instances.append(self)
+            return catalog
+
+        def query_depth_market_data_result(self, **kwargs):
+            self.query_calls.append(("depth_market_data", dict(kwargs)))
+            self.query_instances.append(self)
+            return quotes
+
+        def submit_order_insert(self, *args, **kwargs):
+            self.write_calls.append((args, kwargs))
+            raise AssertionError("snapshot collector attempted an order write")
+
+        def acquire_execution_capability(self, *args, **kwargs):
+            self.capability_calls.append((args, kwargs))
+            raise AssertionError("snapshot collector attempted a capability call")
+
+    wrapper_cls = type(
+        "TestRegisteredSimSnapshotWrapper",
+        (RegisteredSimWrapper, _create_ctp_wrapper_class()),
+        {"__module__": __name__},
+    )
+    api = wrapper_cls(registered_sim_allow_writes=False)
+    trader = FakeTraderClient()
+    if omit_depth_method:
+        trader.query_depth_market_data_result = None
+    api.trader_client = trader
+    api._connected = True
+    store = RegisteredSimStore(api=api, autostart=False)
+    # Model an already-connected Store without calling connect or making an SDK client.
+    store._connected = True
+    store._ensure_api_ready = lambda: pytest.fail("snapshot collector reinitialized the Store")
+    return store, api, trader
+
+
+def test_registered_sim_snapshot_uses_existing_session_and_records_source_provenance(
+    query_result_type, monkeypatch
+):
+    from backtrader.feeds import futures_ctp_snapshot as adapter
+    from tests.unit.feeds.test_futures_ctp_snapshot import NOW
+
+    monkeypatch.setattr(adapter, "_now_utc", lambda: NOW)
+    store, api, trader = _registered_sim_snapshot_store(query_result_type)
+
+    snapshot = store.registered_sim_collect_futures_snapshot(
+        max_collection_seconds=30.0,
+        max_snapshot_age_seconds=30.0,
+    )
+
+    assert store._api is api and store._sdk_owned_api is False
+    assert api.trader_client is trader
+    assert [kind for kind, _ in trader.query_calls] == ["instruments", "depth_market_data"]
+    assert trader.query_instances == [trader, trader]
+    assert trader.session_calls == 2
+    assert trader.write_calls == trader.capability_calls == []
+    assert store.allow_writes is False
+    assert snapshot.catalog_records[0].instrument_id == "M2611"
+    catalog_kwargs = trader.query_calls[0][1]
+    quote_kwargs = trader.query_calls[1][1]
+    assert set(catalog_kwargs) == {
+        "instrument_id",
+        "exchange_id",
+        "product_id",
+        "timeout",
+        "max_duration",
+    }
+    assert set(quote_kwargs) == {"instrument_id", "exchange_id", "timeout"}
+    assert all(catalog_kwargs[key] == "" for key in ("instrument_id", "exchange_id", "product_id"))
+    assert quote_kwargs["instrument_id"] == quote_kwargs["exchange_id"] == ""
+    assert 0 < catalog_kwargs["timeout"] <= 30.0
+    assert 0 < catalog_kwargs["max_duration"] <= 30.0
+    assert 0 < quote_kwargs["timeout"] <= 30.0
+    assert snapshot.catalog_source.source_id == (
+        "backtrader.stores.btapistore.CtpClientWrapper."
+        "bt_api_ctp.TraderClient.query_instruments_result"
+    )
+    assert snapshot.quote_source.source_id == (
+        "backtrader.stores.btapistore.CtpClientWrapper."
+        "bt_api_ctp.TraderClient.query_depth_market_data_result"
+    )
+    assert len(snapshot.catalog_source.source_sha256) == 64
+    assert len(snapshot.quote_source.source_sha256) == 64
+
+
+@pytest.mark.parametrize(
+    "second_state",
+    (
+        {
+            "connected": True,
+            "read_only_ready": True,
+            "connection_generation": 8,
+            "trading_day": "20261023",
+        },
+        {
+            "connected": True,
+            "read_only_ready": True,
+            "connection_generation": 7,
+            "trading_day": "20261026",
+        },
+    ),
+)
+def test_registered_sim_snapshot_rejects_session_generation_or_day_drift(
+    query_result_type, second_state
+):
+    from backtrader.feeds.futures_ctp_snapshot import CtpFuturesSnapshotError
+    from tests.unit.feeds.test_futures_ctp_snapshot import _session
+
+    store, _, trader = _registered_sim_snapshot_store(
+        query_result_type, session_states=(_session(), second_state)
+    )
+    with pytest.raises(CtpFuturesSnapshotError) as caught:
+        store.registered_sim_collect_futures_snapshot()
+
+    assert caught.value.code == "SESSION_CHANGED_DURING_COLLECTION"
+    assert [kind for kind, _ in trader.query_calls] == ["instruments", "depth_market_data"]
+
+
+@pytest.mark.parametrize(
+    ("catalog_complete", "quote_complete", "expected_calls"),
+    ((False, True, ["instruments"]), (True, False, ["instruments", "depth_market_data"])),
+)
+def test_registered_sim_snapshot_rejects_incomplete_query_without_fallback(
+    query_result_type, catalog_complete, quote_complete, expected_calls
+):
+    from backtrader.feeds.futures_ctp_snapshot import CtpFuturesSnapshotError
+
+    store, _, trader = _registered_sim_snapshot_store(
+        query_result_type,
+        catalog_complete=catalog_complete,
+        quote_complete=quote_complete,
+    )
+    with pytest.raises(CtpFuturesSnapshotError):
+        store.registered_sim_collect_futures_snapshot()
+
+    assert [kind for kind, _ in trader.query_calls] == expected_calls
+    assert trader.write_calls == trader.capability_calls == []
+
+
+def test_registered_sim_snapshot_missing_depth_capability_fails_closed(query_result_type):
+    from backtrader.feeds.futures_ctp_snapshot import CtpFuturesSnapshotError
+
+    store, _, trader = _registered_sim_snapshot_store(query_result_type, omit_depth_method=True)
+    with pytest.raises(CtpFuturesSnapshotError) as caught:
+        store.registered_sim_collect_futures_snapshot()
+
+    assert caught.value.code == "QUOTE_QUERY_CALL_FAILED"
+    assert [kind for kind, _ in trader.query_calls] == ["instruments"]
+    assert trader.write_calls == trader.capability_calls == []
+
+
+def test_registered_sim_snapshot_requires_an_already_connected_store(query_result_type):
+    from backtrader.stores.btapistore import BtApiStoreError
+
+    store, api, trader = _registered_sim_snapshot_store(query_result_type)
+    store._connected = False
+    with pytest.raises(BtApiStoreError, match="existing connected Store"):
+        store.registered_sim_collect_futures_snapshot()
+
+    assert store._api is api
+    assert trader.query_calls == [] and trader.session_calls == 0
+    assert trader.write_calls == trader.capability_calls == []

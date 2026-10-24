@@ -16,6 +16,7 @@ from __future__ import annotations
 import hashlib
 import json
 import math
+import re
 import time
 from collections.abc import Mapping
 from datetime import date, datetime, timezone
@@ -27,6 +28,7 @@ _DEFAULT_MAX_COLLECTION_SECONDS = 300.0
 _DEFAULT_MAX_SNAPSHOT_AGE_SECONDS = 300.0
 _MAX_CONFIGURED_SECONDS = 3600.0
 _DAY_FORMAT = "%Y%m%d"
+_SOURCE_PREFIX_RE = re.compile(r"[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*")
 
 
 class CtpFuturesSnapshotError(RuntimeError):
@@ -526,6 +528,7 @@ def collect_ctp_futures_snapshot(
     *,
     max_collection_seconds: float = _DEFAULT_MAX_COLLECTION_SECONDS,
     max_snapshot_age_seconds: float = _DEFAULT_MAX_SNAPSHOT_AGE_SECONDS,
+    source_prefix: str = "bt_api_ctp.CtpLiveFeed",
 ) -> Any:
     """Collect complete all-visible catalog and current-depth query evidence.
 
@@ -538,8 +541,16 @@ def collect_ctp_futures_snapshot(
     Snapshot age is measured from each complete query's ``completed_at_utc``.
     The CTP depth row's UpdateTime is retained only for source audit and is not
     used as a receive time or freshness estimate.
+    ``source_prefix`` is descriptive provenance for the public forwarding path;
+    it is not an identity or authority proof.
     """
 
+    if (
+        type(source_prefix) is not str
+        or not source_prefix.isascii()
+        or _SOURCE_PREFIX_RE.fullmatch(source_prefix) is None
+    ):
+        _fail("SOURCE_PREFIX_INVALID")
     collection_limit = _duration(max_collection_seconds, "COLLECTION_LIMIT")
     snapshot_age_limit = _duration(max_snapshot_age_seconds, "SNAPSHOT_AGE_LIMIT")
     query_type, normalize_instrument = _load_sdk_contract()
@@ -623,7 +634,7 @@ def collect_ctp_futures_snapshot(
     )
 
     catalog_source = QuerySnapshotSourceEvidence(
-        source_id="bt_api_ctp.CtpLiveFeed.query_instruments_result",
+        source_id=f"{source_prefix}.query_instruments_result",
         source_kind="instruments",
         snapshot_id="ctp-visible-instruments:{}:{}:{}:{}".format(
             generation_before,
@@ -643,7 +654,7 @@ def collect_ctp_futures_snapshot(
         record_count=len(catalog_result.records),
     )
     quote_source = QuerySnapshotSourceEvidence(
-        source_id="bt_api_ctp.CtpLiveFeed.query_depth_market_data_result",
+        source_id=f"{source_prefix}.query_depth_market_data_result",
         source_kind="depth_market_data",
         snapshot_id="ctp-visible-depth:{}:{}:{}:{}".format(
             generation_before,

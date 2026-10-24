@@ -2227,21 +2227,29 @@ def _create_ctp_wrapper_class():
             """
             return self._query_result("query_trades_result", timeout=timeout, **kwargs)
 
-        def query_instruments_result(self, instrument_id="", exchange_id="", timeout=5):
+        def query_instruments_result(
+            self, instrument_id="", exchange_id="", timeout=5, *, product_id="", max_duration=None
+        ):
             """Fetch the typed instrument query result.
 
-            Args:
-                instrument_id: Instrument to query; empty means all matching
-                    instruments.
-                exchange_id: Restrict the query to one exchange, if given.
-                timeout: Seconds to wait for the terminal response.
-
-            Returns:
-                The typed instrument result. An incomplete query raises
-                instead of degrading to empty data.
+            Empty filters request all instruments visible to this CTP session.
+            ``max_duration`` bounds the SDK query when its public method supports
+            the typed duration argument; this wrapper does not fall back to a
+            different query if the capability is absent.
             """
             return self._query_result(
                 "query_instruments_result",
+                instrument_id=instrument_id,
+                exchange_id=exchange_id,
+                product_id=product_id,
+                timeout=timeout,
+                max_duration=max_duration,
+            )
+
+        def query_depth_market_data_result(self, instrument_id="", exchange_id="", timeout=5):
+            """Fetch the typed depth result without an alternate-path fallback."""
+            return self._query_result(
+                "query_depth_market_data_result",
                 instrument_id=instrument_id,
                 exchange_id=exchange_id,
                 timeout=timeout,
@@ -3710,6 +3718,45 @@ class BtApiStore(LiveStoreBase):
         ):
             return None
         return self._api
+
+    def registered_sim_collect_futures_snapshot(
+        self,
+        *,
+        max_collection_seconds: float = 300.0,
+        max_snapshot_age_seconds: float = 300.0,
+    ) -> Any:
+        """Collect complete visible CTP futures queries on this live Store session.
+
+        This read-only adapter requires the already-connected
+        ``RegisteredSimStore`` wrapper and its existing trader client. It never
+        initializes a client or invokes a write/capability path.
+        """
+        from .registered_sim import RegisteredSimStore, RegisteredSimWrapper
+
+        if not isinstance(self, RegisteredSimStore):
+            raise BtApiStoreError("futures snapshot requires RegisteredSimStore")
+        if self.provider != "ctp" or self.backend != "direct":
+            raise BtApiStoreError("futures snapshot requires direct CTP provider")
+        if self._is_ctp_session_provider() is not True:
+            raise BtApiStoreError("futures snapshot requires CTP session provider")
+        if getattr(self, "_connected", None) is not True:
+            raise BtApiStoreError("futures snapshot requires existing connected Store")
+        api = getattr(self, "_api", None)
+        if not isinstance(api, RegisteredSimWrapper):
+            raise BtApiStoreError("futures snapshot requires registered-sim wrapper")
+        if getattr(api, "_connected", None) is not True:
+            raise BtApiStoreError("futures snapshot requires existing connected API")
+        if getattr(api, "trader_client", None) is None:
+            raise BtApiStoreError("futures snapshot trader client is unavailable")
+
+        from backtrader.feeds.futures_ctp_snapshot import collect_ctp_futures_snapshot
+
+        return collect_ctp_futures_snapshot(
+            api,
+            source_prefix=("backtrader.stores.btapistore.CtpClientWrapper.bt_api_ctp.TraderClient"),
+            max_collection_seconds=max_collection_seconds,
+            max_snapshot_age_seconds=max_snapshot_age_seconds,
+        )
 
     @property
     def uses_async_commands(self) -> bool:
