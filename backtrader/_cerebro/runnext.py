@@ -21,6 +21,7 @@ from ..utils.log_message import get_logger
 
 UTC = timezone.utc
 _LIVE_COHORT_BROKER_IDLE_POLL_SECONDS = 0.05
+_LIVE_COHORT_PREPARE_BUDGET_NS = 10_000_000
 
 # Keep the historical logger name (D28-04.6): routing/filters must not change.
 logger = get_logger("backtrader.cerebro")
@@ -448,6 +449,7 @@ class RunNextMixin:
         cohort_waker_bindings = []
         winddown_armed = False
         winddown_deadline_ns = None
+        cohort_collect_cursor = 0
         try:
             # Sort data by time period
             datas = sorted(self.datas, key=lambda x: (x._timeframe, x._compression))
@@ -714,6 +716,7 @@ class RunNextMixin:
                 cohort_terminal = False
                 cohort_status = None
                 final_cohort_batch = False
+                cohort_prepare_budget_exhausted = False
                 # Notify anything from the store even before moving datas
                 # because datas may not move due to an error reported by the store
                 # Notify store related info
@@ -748,14 +751,121 @@ class RunNextMixin:
                             or source_time_utc.utcoffset() != datetime.timedelta(0)
                         ):
                             raise ValueError("live cohort clock returned an invalid UTC sample")
-                        for data in self.datas:
-                            data._cohort_collect_source(now_monotonic_ns)
+                        prepare_deadline_ns = now_monotonic_ns + _LIVE_COHORT_PREPARE_BUDGET_NS
+                        # Recheck rows captured during an over-budget prior turn
+                        # before spending this turn's collection slice. This
+                        # lets a completed batch publish even when every
+                        # multi-feed collection round consumes the full budget.
                         prepared_result = live_bar_cohort.prepare_round(
                             now_monotonic_ns,
                             source_time_utc=source_time_utc,
                         )
-                        cohort_status = prepared_result.status
-                        if cohort_status == "READY":
+                        after_prepare_monotonic_ns = clock.monotonic_ns()
+                        if (
+                            type(after_prepare_monotonic_ns) is not int
+                            or after_prepare_monotonic_ns <= 0
+                        ):
+                            raise ValueError(
+                                "live cohort clock returned an invalid monotonic sample"
+                            )
+                        cohort_prepare_budget_exhausted = (
+                            after_prepare_monotonic_ns >= prepare_deadline_ns
+                        )
+
+                        if not cohort_prepare_budget_exhausted and prepared_result.status not in (
+                            "READY",
+                            "GAP",
+                            "AVAILABILITY_TIMEOUT",
+                            "EXHAUSTED",
+                        ):
+                            member_feeds = tuple(self.datas)
+                            if member_feeds:
+                                start_index = cohort_collect_cursor % len(member_feeds)
+                                collect_order = (
+                                    member_feeds[start_index:] + member_feeds[:start_index]
+                                )
+                                next_cursor = start_index
+                            else:
+                                collect_order = ()
+                                next_cursor = 0
+                            for offset, data in enumerate(collect_order):
+                                feed_index = (start_index + offset) % len(member_feeds)
+                                collect_now_ns = clock.monotonic_ns()
+                                if type(collect_now_ns) is not int or collect_now_ns <= 0:
+                                    raise ValueError(
+                                        "live cohort clock returned an invalid monotonic sample"
+                                    )
+                                if collect_now_ns >= prepare_deadline_ns:
+                                    cohort_prepare_budget_exhausted = True
+                                    break
+                                data._cohort_collect_source(
+                                    collect_now_ns,
+                                    deadline_ns=prepare_deadline_ns,
+                                )
+                                # Resume after the last feed actually visited,
+                                # including one whose call crossed the deadline.
+                                next_cursor = (feed_index + 1) % len(member_feeds)
+                                after_collect_ns = clock.monotonic_ns()
+                                if type(after_collect_ns) is not int or after_collect_ns <= 0:
+                                    raise ValueError(
+                                        "live cohort clock returned an invalid monotonic sample"
+                                    )
+                                if after_collect_ns >= prepare_deadline_ns:
+                                    cohort_prepare_budget_exhausted = True
+                                    break
+                            if member_feeds:
+                                cohort_collect_cursor = next_cursor
+
+                        if not cohort_prepare_budget_exhausted and (
+                            prepared_result.status
+                            not in ("READY", "GAP", "AVAILABILITY_TIMEOUT", "EXHAUSTED")
+                        ):
+                            prepare_source_time_utc = clock.utc_now()
+                            prepare_now_monotonic_ns = clock.monotonic_ns()
+                            if (
+                                type(prepare_now_monotonic_ns) is not int
+                                or prepare_now_monotonic_ns <= 0
+                            ):
+                                raise ValueError(
+                                    "live cohort clock returned an invalid monotonic sample"
+                                )
+                            if (
+                                not isinstance(prepare_source_time_utc, datetime.datetime)
+                                or prepare_source_time_utc.tzinfo is None
+                                or prepare_source_time_utc.utcoffset() != datetime.timedelta(0)
+                            ):
+                                raise ValueError("live cohort clock returned an invalid UTC sample")
+                            if prepare_now_monotonic_ns >= prepare_deadline_ns:
+                                cohort_prepare_budget_exhausted = True
+                            else:
+                                prepared_result = live_bar_cohort.prepare_round(
+                                    prepare_now_monotonic_ns,
+                                    source_time_utc=prepare_source_time_utc,
+                                )
+                                after_prepare_monotonic_ns = clock.monotonic_ns()
+                                if (
+                                    type(after_prepare_monotonic_ns) is not int
+                                    or after_prepare_monotonic_ns <= 0
+                                ):
+                                    raise ValueError(
+                                        "live cohort clock returned an invalid monotonic sample"
+                                    )
+                                cohort_prepare_budget_exhausted = (
+                                    after_prepare_monotonic_ns >= prepare_deadline_ns
+                                )
+                        if prepared_result is None:
+                            cohort_status = "BUDGET_EXHAUSTED"
+                        else:
+                            cohort_status = prepared_result.status
+                        if cohort_prepare_budget_exhausted and cohort_status in (
+                            "READY",
+                            "BUDGET_EXHAUSTED",
+                        ):
+                            # Keep a READY cohort prepared but do not advance
+                            # any feed lines after the cooperative deadline.
+                            drets = [None] * len(datas)
+                            cohort_wait = True
+                        elif cohort_status == "READY":
                             prepared = prepared_result.prepared
                             if prepared is None:
                                 raise RuntimeError("READY cohort result has no prepared batch")
@@ -1125,6 +1235,11 @@ class RunNextMixin:
                             if wait_decision.status == "WAITING"
                             else None
                         )
+                    if cohort_prepare_budget_exhausted:
+                        if timeout is None or timeout <= 0:
+                            timeout = _LIVE_COHORT_BROKER_IDLE_POLL_SECONDS
+                        else:
+                            timeout = min(timeout, _LIVE_COHORT_BROKER_IDLE_POLL_SECONDS)
                     if self._event_stop:
                         return
                     _wait_for_live_bar_cohort(

@@ -769,6 +769,18 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
         )
         return True
 
+    def _cohort_prepare_deadline_expired(self, deadline_ns):
+        if deadline_ns is None:
+            return False
+        clock = self._cohort_clock
+        monotonic_ns = getattr(clock, "monotonic_ns", None)
+        if not callable(monotonic_ns):
+            raise RuntimeError("live cohort feed has no monotonic clock")
+        now_ns = monotonic_ns()
+        if type(now_ns) is not int or now_ns <= 0:
+            raise ValueError("live cohort clock returned an invalid monotonic sample")
+        return now_ns >= deadline_ns
+
     def _cohort_next_source_item(self, role):
         if role == "history":
             lookahead_name = "_cohort_history_lookahead"
@@ -790,8 +802,13 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
             setattr(self, exhausted_name, True)
             return _COHORT_MISSING
 
-    def _cohort_collect_source(self, now_monotonic_ns):
-        """Capture a bounded prefix of raw source events without advancing lines."""
+    def _cohort_collect_source(self, now_monotonic_ns, *, deadline_ns=None):
+        """Capture a bounded prefix without advancing lines.
+
+        The deadline is cooperative: one provider poll/normalization call cannot
+        be preempted, but consumed events finish validation/capture before this
+        method yields so they are never silently dropped.
+        """
         cohort = self._live_bar_cohort
         if cohort is None:
             return 0
@@ -806,9 +823,12 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
         # only move from history to live, never back across the cutover.
         for source_role in ("history", "live"):
             while collected < budget:
+                if self._cohort_prepare_deadline_expired(deadline_ns):
+                    return collected
                 event = self._cohort_next_source_item(source_role)
                 if event is _COHORT_MISSING:
                     break
+                expired_after_read = self._cohort_prepare_deadline_expired(deadline_ns)
                 slot_index = self._cohort_event_slot_index(event)
                 if slot_index is not None and slot_index > max_slot:
                     lookahead_name = (
@@ -817,9 +837,13 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
                         else "_cohort_live_lookahead"
                     )
                     setattr(self, lookahead_name, event)
+                    if expired_after_read:
+                        return collected
                     break
                 self._cohort_capture_source(event, source_role, now_monotonic_ns, max_slot)
                 collected += 1
+                if expired_after_read or self._cohort_prepare_deadline_expired(deadline_ns):
+                    return collected
             if collected >= budget:
                 return collected
             if source_role == "history" and not self._cohort_history_exhausted:
@@ -829,6 +853,8 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
         # Aggregated bar events are captured in _enqueue_bar_event. Keep that
         # queue bounded to one lookahead when the calendar window is full.
         if self._cohort_completed_lookahead is not _COHORT_MISSING:
+            if self._cohort_prepare_deadline_expired(deadline_ns):
+                return collected
             event = self._cohort_completed_lookahead
             slot_index = self._cohort_event_slot_index(event)
             if slot_index is not None and slot_index > max_slot:
@@ -836,20 +862,25 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
             self._cohort_completed_lookahead = _COHORT_MISSING
             self._cohort_capture_source(event, "live", now_monotonic_ns, max_slot)
             collected += 1
+            if self._cohort_prepare_deadline_expired(deadline_ns):
+                return collected
 
         if collected >= budget:
             return collected
 
         # Drain a fixed amount per engine round. Feed._check remains a strict
         # no-consumption path, and no per-feed sleep occurs here.
-        drained = self._drain_live_ticks(limit=64)
-        self._drain_live_orderbooks(limit=64)
-        self._flush_ready_bars(reason="cohort")
+        drained = self._drain_live_ticks(limit=64, deadline_ns=deadline_ns)
+        expired_after_ticks = self._cohort_prepare_deadline_expired(deadline_ns)
+        if not expired_after_ticks:
+            self._drain_live_orderbooks(limit=64, deadline_ns=deadline_ns)
+        if not self._cohort_prepare_deadline_expired(deadline_ns):
+            self._flush_ready_bars(reason="cohort")
         if len(self._bar_builders) > cohort.max_pending_slots:
             cohort._freeze("feed_bar_builder_capacity_exceeded")
             self._cohort_delivery_failed = True
             raise RuntimeError("BtApiFeed cohort bar-builder capacity exceeded")
-        if self._bar_builders:
+        if self._bar_builders and not self._cohort_prepare_deadline_expired(deadline_ns):
             self._handle_source_exhaustion()
         if drained:
             self._mark_live()
@@ -867,11 +898,13 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
             self._cohort_completed_lookahead = _COHORT_MISSING
             self._cohort_capture_source(event, "live", now_monotonic_ns, max_slot)
             collected += 1
-        if collected >= budget:
+        if collected >= budget or self._cohort_prepare_deadline_expired(deadline_ns):
             return collected
 
         # Direct completed-bar sources retain their original event schema.
         while collected < budget and self.store is not None:
+            if self._cohort_prepare_deadline_expired(deadline_ns):
+                return collected
             if self._cohort_store_lookahead is not _COHORT_MISSING:
                 event = self._cohort_store_lookahead
                 self._cohort_store_lookahead = _COHORT_MISSING
@@ -882,13 +915,18 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
                 event = poll_live(self._dataname)
             if event is None:
                 break
+            expired_after_poll = self._cohort_prepare_deadline_expired(deadline_ns)
             slot_index = self._cohort_event_slot_index(event)
             if slot_index is not None and slot_index > max_slot:
                 self._cohort_store_lookahead = event
+                if expired_after_poll:
+                    return collected
                 break
             self._cohort_capture_source(event, "live", now_monotonic_ns, max_slot)
             collected += 1
             self._mark_live()
+            if expired_after_poll or self._cohort_prepare_deadline_expired(deadline_ns):
+                return collected
         return collected
 
     def _prepare_live_bar_cohort_delivery(self, envelope):
@@ -1467,7 +1505,7 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
             )
         return True
 
-    def _drain_live_ticks(self, limit=None, *, stop_after_queued_bar=True):
+    def _drain_live_ticks(self, limit=None, *, stop_after_queued_bar=True, deadline_ns=None):
         """Drain available ticks subject to the caller's count and bar bounds.
 
         Normal load and cohort collection stop after the next queued bar so
@@ -1482,11 +1520,14 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
 
         drained_count = 0
         while limit is None or drained_count < limit:
+            if self._cohort_prepare_deadline_expired(deadline_ns):
+                break
             bar_sequence_before = self._bar_sequence
             queued_bars_before = len(self._live)
             tick = self.store.poll_tick(self._dataname)
             if tick is None:
                 break
+            expired_after_poll = self._cohort_prepare_deadline_expired(deadline_ns)
             drained = True
             drained_count += 1
 
@@ -1494,6 +1535,7 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
                 self._mark_event_dropped(tick, "invalid_ctp_source_tick")
                 continue
             self._prepare_tick(tick)
+            expired_after_normalize = self._cohort_prepare_deadline_expired(deadline_ns)
 
             if self._handle_event_health(tick):
                 if self.p.dispatch_ticks:
@@ -1504,6 +1546,12 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
                     )
                 else:
                     self._mark_event_dropped(tick, "tick_dispatch_disabled")
+                if (
+                    expired_after_poll
+                    or expired_after_normalize
+                    or self._cohort_prepare_deadline_expired(deadline_ns)
+                ):
+                    break
                 continue
 
             if self.p.dispatch_ticks:
@@ -1519,6 +1567,12 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
             # _bar_sequence tracks completed aggregate bars. Tick-timeframe
             # bars instead use the queue length; only ordinary _check may
             # preserve its historical all-available-ticks behavior.
+            if (
+                expired_after_poll
+                or expired_after_normalize
+                or self._cohort_prepare_deadline_expired(deadline_ns)
+            ):
+                break
             if self._bar_sequence != bar_sequence_before or (
                 stop_after_queued_bar and len(self._live) > queued_bars_before
             ):
@@ -1613,7 +1667,7 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
             self._flush_ready_bars(reason="source_exhausted_incomplete", force_invalid=True)
         return True
 
-    def _drain_live_orderbooks(self, limit=None):
+    def _drain_live_orderbooks(self, limit=None, *, deadline_ns=None):
         if self.store is None or not hasattr(self.store, "poll_orderbook"):
             return False
 
@@ -1621,9 +1675,12 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
 
         drained_count = 0
         while limit is None or drained_count < limit:
+            if self._cohort_prepare_deadline_expired(deadline_ns):
+                break
             orderbook = self.store.poll_orderbook(self._dataname)
             if orderbook is None:
                 break
+            expired_after_poll = self._cohort_prepare_deadline_expired(deadline_ns)
             drained = True
             drained_count += 1
 
@@ -1637,6 +1694,8 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
                 )
             else:
                 self._mark_event_dropped(orderbook, "orderbook_dispatch_disabled")
+            if expired_after_poll or self._cohort_prepare_deadline_expired(deadline_ns):
+                break
         return drained
 
     def _ingest_tick(self, tick):
