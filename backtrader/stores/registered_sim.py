@@ -1691,6 +1691,56 @@ class RegisteredSimStore(BtApiStore):
         self._ctp_query_snapshots = collections.OrderedDict()
         self._ctp_query_instrument_rows: Dict[Tuple[str, str], Dict[str, Any]] = {}
 
+    @staticmethod
+    def _project_trade_driven_order(update: Any, *, order_row: bool = False) -> Any:
+        """Bind order status projections to this route's CTP trade-fill contract.
+
+        CTP order callbacks expose cumulative traded volume and the order's
+        limit price, while the matching trade callback supplies the actual
+        execution price and identity.  Consequently RegisteredSim orders must
+        wait for trade callbacks before accounting fills.  Keep this
+        classification at the provider-specific Store boundary so generic
+        providers retain their own cumulative-fill semantics.
+        """
+        if not isinstance(update, Mapping):
+            return update
+        if not order_row and update.get("kind") != "order":
+            return update
+
+        source = update.get("execution_source")
+        if source not in (None, "trades"):
+            raise BtApiStoreError(
+                "registered-sim CTP order execution source conflicts with trade callbacks"
+            )
+        projected = dict(update)
+        projected["execution_source"] = "trades"
+        return projected
+
+    def poll_broker_update(self):
+        """Return CTP broker updates with the RegisteredSim fill mode bound."""
+        update = super().poll_broker_update()
+        return self._project_trade_driven_order(update)
+
+    def fetch_open_orders(self, force: bool = False, raise_errors: bool = False):
+        """Return open-order rows with the RegisteredSim fill mode bound."""
+        rows = super().fetch_open_orders(force=force, raise_errors=raise_errors)
+        if not isinstance(rows, list):
+            raise BtApiStoreError("registered-sim open-order projection is invalid")
+        return [self._project_trade_driven_order(row, order_row=True) for row in rows]
+
+    def get_ctp_reconciliation_snapshot(self, *, timeout: float = 5.0):
+        """Preserve CTP query evidence and bind its order rows to trade fills."""
+        snapshot = super().get_ctp_reconciliation_snapshot(timeout=timeout)
+        if not isinstance(snapshot, Mapping):
+            raise BtApiStoreError("registered-sim CTP reconciliation snapshot is invalid")
+        projected = dict(snapshot)
+        order_rows = snapshot.get("orders")
+        if isinstance(order_rows, list):
+            projected["orders"] = [
+                self._project_trade_driven_order(row, order_row=True) for row in order_rows
+            ]
+        return projected
+
     @property
     def allow_writes(self) -> bool:
         """Constructor-time write switch; intentionally has no setter."""
