@@ -14,6 +14,7 @@ import pytest
 from backtrader.errors import FactorComputationError, ResearchConfigError
 from backtrader.metabase import OwnerContext
 from backtrader.research import (
+    FactorHistoryContract,
     FactorIndicator,
     FactorSpec,
     FactorStrategy,
@@ -30,6 +31,7 @@ from backtrader.research.live_cohort import (
     LiveCohortCalendar,
     LiveCohortValidationError,
 )
+from backtrader.research.live import _executed_graph_span
 from backtrader.research.operators import CrossSectionalRank
 from backtrader.research.strict import live_source_binding_active, live_source_binding_scope
 from backtrader.research.alpha101 import get_alpha
@@ -84,6 +86,7 @@ class ScaledClose(FactorIndicator):
     params = (("scale", 1.0),)
     formula_fields = ("close",)
     lookback_h = 0
+    history_contract = FactorHistoryContract.finite_window(span_bars=1)
 
     def __init__(self):
         super().__init__()
@@ -133,6 +136,8 @@ class OrdinaryStrategy(bt.Strategy):
 
 class UnexplainedNaN(ScaledClose):
     """A custom native formula that supplies no operator reason for NaN."""
+
+    history_contract = FactorHistoryContract.finite_window(span_bars=1)
 
     def next(self):
         for data in self.datas:
@@ -268,7 +273,10 @@ def _make_inputs(
         indicator=indicator,
         panel_line="factor",
         params=factor_params,
-        field_bindings={"close": "feed:target:close"},
+        field_bindings={
+            field: "feed:target:%s" % field
+            for field in getattr(indicator, "formula_fields", ("close",))
+        },
         direction=-1,
         mode=mode,
     )
@@ -360,6 +368,21 @@ def test_ordinary_strategy_binds_real_cohort_feed_and_publishes_bounded_immutabl
     assert degraded.factors["scaled_close"].values == MappingProxyType({})
     assert not hasattr(snapshot, "execution_permission")
     assert live_source_binding_active() is False
+
+
+def test_alpha003_history_span_resolves_logical_views_to_physical_panels():
+    cerebro, _cohort, _feed, _plan, _values, _clock = _make_inputs(
+        count=40,
+        indicator=get_alpha(3),
+    )
+
+    strategy = cerebro.run()[0]
+    instance = strategy.live_factors.factor_instances["alpha003"]["primary"]
+    logical_view = instance._nodes["correlation10_0"]
+
+    assert not hasattr(logical_view, "_minperiod")
+    assert any(node is logical_view._physical_panel for node in instance._physical_nodes)
+    assert _executed_graph_span(instance) == 10
 
 
 @pytest.mark.parametrize("mode", ("native", "build"))

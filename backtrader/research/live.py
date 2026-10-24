@@ -37,6 +37,48 @@ class LiveFactorOutputStatus(str, Enum):
     OUTPUT_UNAVAILABLE = "OUTPUT_UNAVAILABLE"
 
 
+def _executed_graph_span(instance: Any) -> int:
+    # Return the largest finite minperiod present in the bound factor graph.
+    from .operators import _LogicalOperatorView
+
+    periods = []
+    minimum = getattr(instance, "_minperiod", None)
+    if isinstance(minimum, bool) or not isinstance(minimum, int) or minimum < 1:
+        raise ResearchConfigError("factor graph has no valid root minperiod")
+    periods.append(minimum)
+    nodes = list(getattr(instance, "_nodes", {}).values())
+    nodes.extend(getattr(instance, "_physical_nodes", ()))
+    seen_nodes = set()
+    for node in nodes:
+        if type(node) is _LogicalOperatorView:
+            node = getattr(node, "_physical_panel", None)
+            if node is None:
+                raise ResearchConfigError("factor graph logical view has no physical panel")
+        if id(node) in seen_nodes:
+            continue
+        seen_nodes.add(id(node))
+        minimum = getattr(node, "_minperiod", None)
+        if isinstance(minimum, bool) or not isinstance(minimum, int) or minimum < 1:
+            raise ResearchConfigError("factor graph node has no finite minperiod")
+        periods.append(minimum)
+        period = getattr(getattr(node, "p", None), "period", None)
+        if period is not None and (
+            isinstance(period, bool)
+            or not isinstance(period, (int, float))
+            or not math.isfinite(float(period))
+            or float(period) < 0.0
+        ):
+            raise ResearchConfigError("factor graph contains an unbounded temporal operator")
+    for lines in getattr(instance, "_field_line_cache", {}).values():
+        for line in lines:
+            owner = getattr(getattr(line, "_owner", None), "_owner_ref", None)
+            minimum = getattr(owner, "_minperiod", 1) if owner is not None else 1
+            if isinstance(minimum, bool) or not isinstance(minimum, int) or minimum < 1:
+                raise ResearchConfigError("factor input graph has no finite minperiod")
+            periods.append(minimum)
+    return max(periods)
+
+
 def _name(value: Any, field_name: str) -> str:
     if not isinstance(value, str) or not value.strip():
         raise ResearchConfigError("%s must be a non-empty string" % field_name)
@@ -298,6 +340,7 @@ class LiveFactorSet:
         required_fields,
         bindings,
         scheduler_clock,
+        reconstruction,
     ):
         self._plan = plan
         self._cohort = cohort
@@ -316,6 +359,7 @@ class LiveFactorSet:
         self._bindings = tuple(
             (binding.feed_ref, binding.line_name, binding) for binding in bindings
         )
+        self._reconstruction = MappingProxyType(dict(reconstruction))
 
     @classmethod
     def bind(cls, plan, datas, *, cohort):
@@ -515,6 +559,50 @@ class LiveFactorSet:
                     by_group[group] = instance
                 instances[factor_name] = by_group
 
+        from .specs import _source_fingerprint
+
+        from .alpha101 import ALPHA_REGISTRY
+
+        registered_alpha_ids = {id(indicator) for indicator in ALPHA_REGISTRY.values()}
+        reconstruction = {}
+        for factor_name, spec in plan.factors.items():
+            spans = tuple(
+                _executed_graph_span(instance) for instance in instances[factor_name].values()
+            )
+            if not spans or len(set(spans)) != 1:
+                raise ResearchConfigError(
+                    "factor groups do not share one executed graph span",
+                    code="UNSUPPORTED_SOURCE",
+                )
+            graph_span = spans[0]
+            if id(spec.indicator) in registered_alpha_ids:
+                current_source, _module_source, _kind = _source_fingerprint(spec.indicator)
+                if current_source != spec.source_sha256:
+                    raise ResearchConfigError(
+                        "registered Alpha101 source changed after FactorSpec construction",
+                        code="UNSUPPORTED_SOURCE",
+                    )
+                if graph_span != spec.lookback_h + 1:
+                    raise ResearchConfigError(
+                        "registered Alpha101 graph span differs from its verified finite profile",
+                        code="UNSUPPORTED_SOURCE",
+                    )
+                reconstruction[factor_name] = ("finite_window", graph_span)
+            elif spec.history_contract is None:
+                reconstruction[factor_name] = ("unqualified", graph_span)
+            elif spec.history_contract.kind == "finite_window":
+                if spec.history_contract.span_bars < graph_span:
+                    raise ResearchConfigError(
+                        "finite_window history contract is shorter than the executed graph span",
+                        code="UNSUPPORTED_SOURCE",
+                    )
+                reconstruction[factor_name] = (
+                    "finite_window",
+                    spec.history_contract.span_bars,
+                )
+            else:
+                reconstruction[factor_name] = ("replay_from_source_origin", graph_span)
+
         return cls(
             plan,
             cohort,
@@ -524,6 +612,7 @@ class LiveFactorSet:
             required_fields,
             tuple(binding_receipts.values()),
             scheduler_clock,
+            reconstruction,
         )
 
     @property
@@ -633,6 +722,7 @@ class LiveFactorSet:
                 for groups in self._instances.values()
                 for instance in groups.values()
             ]
+            + [span for kind, span in self._reconstruction.values() if kind == "finite_window"]
         )
         if required_count > self._plan.max_window_bars:
             return self._make_snapshot(
@@ -730,6 +820,7 @@ class LiveFactorSet:
                 ):
                     freshness_reasons.append("live_bar_future_skew_exceeded")
 
+        reconstruction_reasons = self._history_reconstruction_reasons(batch, current_receipts)
         readiness_reasons = []
         if gap_receipts:
             readiness_reasons.append("cohort_gap_present")
@@ -740,10 +831,17 @@ class LiveFactorSet:
         if history_policy_invalid:
             readiness_reasons.append("history_prewarm_not_allowed")
         readiness_reasons.extend(freshness_reasons)
+        readiness_reasons.extend(reconstruction_reasons)
 
         if cutover_state is LiveFactorReadiness.CATCHING_UP:
             readiness = LiveFactorReadiness.CATCHING_UP
-        elif gap_receipts or not windows_complete or history_policy_invalid or freshness_reasons:
+        elif (
+            gap_receipts
+            or not windows_complete
+            or history_policy_invalid
+            or freshness_reasons
+            or reconstruction_reasons
+        ):
             readiness = LiveFactorReadiness.WARMUP
         else:
             readiness = cutover_state
@@ -755,6 +853,94 @@ class LiveFactorSet:
             reasons=tuple(readiness_reasons),
             factor_values=factor_values,
         )
+
+    def _history_reconstruction_reasons(self, batch, current_receipts):
+        # Qualify history without changing factor values or order permissions.
+        reasons = []
+        for factor_name, (kind, _span) in self._reconstruction.items():
+            if kind == "finite_window":
+                continue
+            if kind == "unqualified":
+                reasons.append("history_reconstruction_unqualified")
+                continue
+            if kind != "replay_from_source_origin":
+                reasons.append("history_reconstruction_unqualified")
+                continue
+            input_feeds = {
+                id(self._feeds[item.feed_name]): self._feeds[item.feed_name]
+                for inputs in self._inputs[factor_name].values()
+                for item in inputs
+            }
+            if not input_feeds:
+                reasons.append("history_reconstruction_unqualified")
+                continue
+            for feed in input_feeds.values():
+                member = _member_for_feed(self._cohort, feed)
+                latest = current_receipts.get(id(feed))
+                proof = (
+                    None
+                    if member is None
+                    else getattr(batch, "history_continuity", {}).get(member.member_id)
+                )
+                if (
+                    member is None
+                    or latest is None
+                    or proof is None
+                    or not self._cohort.owns_history_continuity(proof)
+                    or proof.cohort_id != self._cohort.cohort_id
+                    or proof.member_id != member.member_id
+                    or proof.epoch_id != batch.epoch_id
+                    or proof.source_ref != member.source_ref
+                    or proof.qualified is not True
+                    or proof.last_receipt is not latest
+                    or proof.origin_receipt is None
+                    or proof.origin_receipt.feed_ref is not feed
+                    or proof.origin_receipt.member_id != member.member_id
+                    or proof.origin_receipt.epoch_id != batch.epoch_id
+                ):
+                    reasons.append(
+                        getattr(proof, "reason", None) or "history_reconstruction_unqualified"
+                    )
+                    break
+                if latest.source_role != "live":
+                    continue
+                cutover = batch.cutovers.get(member.member_id)
+                origin = proof.origin_receipt
+                if origin.source_role == "history" and not self._plan.allow_history_prewarm:
+                    reasons.append("history_prewarm_not_allowed")
+                    break
+                handoff_matches = (
+                    cutover is not None
+                    and cutover.cohort_id == self._cohort.cohort_id
+                    and cutover.member_id == member.member_id
+                    and cutover.epoch_id == batch.epoch_id
+                    and cutover.crossed_live is True
+                    and cutover.first_live_receipt is not None
+                    and cutover.first_live_receipt.feed_ref is feed
+                    and cutover.first_live_receipt.member_id == member.member_id
+                    and cutover.first_live_receipt.source_ref == member.source_ref
+                    and cutover.first_live_receipt.source_role == "live"
+                    and cutover.first_live_close_time == cutover.first_live_receipt.close_time
+                )
+                if origin.source_role == "history":
+                    handoff_matches = (
+                        handoff_matches
+                        and cutover.transition_kind == "history_to_live"
+                        and cutover.history_last_close_time is not None
+                        and cutover.history_last_close_time < cutover.first_live_close_time
+                    )
+                elif origin.source_role == "live":
+                    handoff_matches = (
+                        handoff_matches
+                        and cutover.transition_kind == "live_cold_start"
+                        and cutover.first_live_receipt is origin
+                    )
+                else:
+                    handoff_matches = False
+                if not handoff_matches:
+                    reasons.append("history_role_handoff_unverified")
+                    break
+        return tuple(dict.fromkeys(reasons))
 
     def _has_registered_gap_semantics(self) -> bool:
         """Allow NaN-window recovery only for the exact production Alpha101 set."""

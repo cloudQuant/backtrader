@@ -255,6 +255,39 @@ def _update_calendar_fingerprint(digest: Any, value: Mapping[str, Any]) -> None:
 
 
 @dataclass(frozen=True)
+class LiveSourceOrigin:
+    # Adapter-declared first row of its supplied series, not exchange completeness.
+    # It binds one member, epoch and exact source event. It states only that the
+    # supplied prefix begins at this adapter's declared origin.
+
+    member_id: str
+    epoch_id: int
+    source_ref: str
+    source_role: str
+    connection_generation: Any
+    bar_id: str
+    feed_sequence: int
+    close_time: _datetime.datetime
+
+    def __post_init__(self) -> None:
+        _nonempty_text(self.member_id, "member_id")
+        _positive_int(self.epoch_id, "epoch_id")
+        _nonempty_text(self.source_ref, "source_ref")
+        if self.source_role not in ("history", "live"):
+            raise LiveCohortValidationError("origin source_role must be history or live")
+        generation = self.connection_generation
+        if (
+            isinstance(generation, bool)
+            or not isinstance(generation, (str, int))
+            or generation in ("", 0)
+        ):
+            raise LiveCohortValidationError("origin generation must be explicit")
+        _nonempty_text(self.bar_id, "bar_id")
+        _positive_int(self.feed_sequence, "feed_sequence")
+        object.__setattr__(self, "close_time", _aware_utc(self.close_time, "close_time"))
+
+
+@dataclass(frozen=True)
 class LiveCohortMember:
     """Frozen schema for one exact feed object registered with a cohort."""
 
@@ -268,6 +301,7 @@ class LiveCohortMember:
     timezone_id: str = "UTC"
     session_semantics: str = ""
     numeric_fields: Tuple[str, ...] = tuple(_REQUIRED_OHLCV)
+    source_origin: Optional[LiveSourceOrigin] = field(default=None, compare=False, repr=False)
 
     def __post_init__(self) -> None:
         for name in (
@@ -303,6 +337,15 @@ class LiveCohortMember:
             )
         if not set(line_fields).issubset(raw_fields):
             raise LiveCohortValidationError("every exposed line field must be raw-validated")
+        if self.source_origin is not None and type(self.source_origin) is not LiveSourceOrigin:
+            raise LiveCohortValidationError(
+                "source_origin must be an immutable LiveSourceOrigin declaration"
+            )
+        if self.source_origin is not None and (
+            self.source_origin.member_id != self.member_id
+            or self.source_origin.source_ref != self.source_ref
+        ):
+            raise LiveCohortValidationError("source_origin does not match the member identity")
         if not set(numeric_fields).issubset(raw_fields):
             raise LiveCohortValidationError("numeric_fields must be declared in raw_fields")
         if not set(line_fields).issubset(numeric_fields):
@@ -418,6 +461,20 @@ class LiveDeliveryReceipt:
 
 
 @dataclass(frozen=True)
+class LiveHistoryContinuity:
+    # Bounded proof that delivered rows stayed contiguous from one origin.
+
+    cohort_id: str
+    member_id: str
+    epoch_id: int
+    source_ref: str
+    qualified: bool
+    reason: Optional[str]
+    last_receipt: LiveDeliveryReceipt = field(compare=False, repr=False)
+    origin_receipt: Optional[LiveDeliveryReceipt] = field(default=None, compare=False, repr=False)
+
+
+@dataclass(frozen=True)
 class LiveEpochCutover:
     """Observed per-feed transition into delivered live bars for one epoch."""
 
@@ -445,10 +502,14 @@ class LiveCohortBatch:
     available_at: _datetime.datetime
     members: Mapping[str, LiveDeliveryReceipt] = field(default_factory=dict)
     cutovers: Mapping[str, LiveEpochCutover] = field(default_factory=dict)
+    history_continuity: Mapping[str, LiveHistoryContinuity] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "members", MappingProxyType(dict(self.members)))
         object.__setattr__(self, "cutovers", MappingProxyType(dict(self.cutovers)))
+        object.__setattr__(
+            self, "history_continuity", MappingProxyType(dict(self.history_continuity))
+        )
 
     @property
     def status(self) -> str:
@@ -604,6 +665,7 @@ class LiveBarCohort:
         self._last_role: Dict[str, Optional[str]] = {}
         self._history_last_close: Dict[str, _datetime.datetime] = {}
         self._first_live_receipt: Dict[str, LiveDeliveryReceipt] = {}
+        self._history_continuity: Dict[str, LiveHistoryContinuity] = {}
         self._lock = threading.RLock()
 
     @property
@@ -676,6 +738,7 @@ class LiveBarCohort:
         timezone_id: Optional[str] = None,
         session_semantics: Optional[str] = None,
         numeric_fields: Iterable[str] = _REQUIRED_OHLCV,
+        source_origin: Optional[LiveSourceOrigin] = None,
     ) -> LiveCohortMember:
         with self._lock:
             if self._sealed:
@@ -697,7 +760,10 @@ class LiveBarCohort:
                 timezone_id=timezone_id or self._calendar.timezone_id,
                 session_semantics=session_semantics or self._calendar.session_semantics,
                 numeric_fields=tuple(numeric_fields),
+                source_origin=source_origin,
             )
+            if member.source_origin is not None and member.source_origin.epoch_id != self.epoch_id:
+                raise LiveCohortValidationError("source_origin epoch does not match the cohort")
             if member.clock_domain_id != self._calendar.clock_domain_id:
                 raise LiveCohortValidationError("member clock domain does not match calendar")
             if member.timezone_id != self._calendar.timezone_id:
@@ -1444,6 +1510,92 @@ class LiveBarCohort:
                 self._publish_complete_batch()
             return receipt
 
+    def _advance_history_continuity(
+        self,
+        member: LiveCohortMember,
+        receipt: LiveDeliveryReceipt,
+        prior: Optional[LiveHistoryContinuity],
+    ) -> LiveHistoryContinuity:
+        # Advance one bounded origin/continuity fact; failures stay permanent.
+        complete = (
+            receipt.complete is True
+            and receipt.quality == "GOOD"
+            and receipt.present is True
+            and not receipt.missing_fields
+            and set(member.line_fields).issubset(receipt.raw_values)
+        )
+        if prior is None:
+            origin = member.source_origin
+            exact_origin = (
+                origin is not None
+                and origin.member_id == member.member_id
+                and origin.epoch_id == self.epoch_id
+                and origin.source_ref == member.source_ref == receipt.source_ref
+                and origin.source_role == receipt.source_role
+                and origin.connection_generation == receipt.envelope.connection_generation
+                and origin.bar_id == receipt.envelope.bar_id
+                and origin.feed_sequence == receipt.feed_sequence
+                and origin.close_time == receipt.close_time
+            )
+            qualified = bool(exact_origin and complete)
+            reason = (
+                None
+                if qualified
+                else ("history_prefix_incomplete" if exact_origin else "history_origin_unverified")
+            )
+            return LiveHistoryContinuity(
+                cohort_id=self.cohort_id,
+                member_id=member.member_id,
+                epoch_id=self.epoch_id,
+                source_ref=member.source_ref,
+                qualified=qualified,
+                reason=reason,
+                origin_receipt=receipt if exact_origin else None,
+                last_receipt=receipt,
+            )
+
+        if not prior.qualified:
+            return LiveHistoryContinuity(
+                cohort_id=self.cohort_id,
+                member_id=member.member_id,
+                epoch_id=self.epoch_id,
+                source_ref=member.source_ref,
+                qualified=False,
+                reason=prior.reason or "history_reconstruction_discontinuous",
+                origin_receipt=prior.origin_receipt,
+                last_receipt=receipt,
+            )
+
+        previous = prior.last_receipt
+        # The planned slot is the cross-role identity. Sequence counters and
+        # generations are scoped to a source role by the cohort contract.
+        if previous.source_role == receipt.source_role:
+            role_continuous = (
+                receipt.envelope.connection_generation == previous.envelope.connection_generation
+                and receipt.feed_sequence > previous.feed_sequence
+            )
+        else:
+            role_continuous = previous.source_role == "history" and receipt.source_role == "live"
+        continuous = (
+            complete
+            and receipt.cohort_id == prior.cohort_id == self.cohort_id
+            and receipt.member_id == prior.member_id == member.member_id
+            and receipt.epoch_id == prior.epoch_id == self.epoch_id
+            and receipt.source_ref == prior.source_ref == member.source_ref
+            and receipt.slot_index == previous.slot_index + 1
+            and role_continuous
+        )
+        return LiveHistoryContinuity(
+            cohort_id=self.cohort_id,
+            member_id=member.member_id,
+            epoch_id=self.epoch_id,
+            source_ref=member.source_ref,
+            qualified=continuous,
+            reason=None if continuous else "history_reconstruction_discontinuous",
+            origin_receipt=prior.origin_receipt,
+            last_receipt=receipt,
+        )
+
     def record_delivery_batch(
         self,
         deliveries: Tuple[Tuple[Any, BarEnvelope, _datetime.datetime], ...],
@@ -1573,6 +1725,12 @@ class LiveBarCohort:
                         first_live_receipt=first_live,
                     )
 
+            continuity_updates = {
+                member_id: self._advance_history_continuity(
+                    self._members[member_id], receipt, self._history_continuity.get(member_id)
+                )
+                for member_id, receipt in receipts.items()
+            }
             available_at = max(receipt.available_at for receipt in receipts.values())
             batch = LiveCohortBatch(
                 batch_id=prepared.batch_id,
@@ -1585,6 +1743,7 @@ class LiveBarCohort:
                 available_at=available_at,
                 members=receipts,
                 cutovers=cutovers,
+                history_continuity=continuity_updates,
             )
             signature_updates = tuple(
                 (
@@ -1629,6 +1788,7 @@ class LiveBarCohort:
                 member_id: self._first_live_receipt.get(member_id, missing)
                 for member_id in first_live_updates
             }
+            old_history_continuity = dict(self._history_continuity)
             old_current_batch = self._current_batch
             old_prepared = self._prepared
             old_delivered = self._delivered
@@ -1649,6 +1809,7 @@ class LiveBarCohort:
                     self._remember_signature(prepared.slot_index, member_id, signature)
 
                 self._pending.pop(prepared.slot_index)
+                self._history_continuity.update(continuity_updates)
                 self._next_slot_index = prepared.slot_index + 1
                 self._prepared = None
                 self._delivered = {}
@@ -1658,6 +1819,7 @@ class LiveBarCohort:
                 self._current_batch = batch
             except BaseException:
                 self._current_batch = old_current_batch
+                self._history_continuity = old_history_continuity
                 self._prepared = old_prepared
                 self._delivered = old_delivered
                 self._next_slot_index = old_next_slot_index
@@ -1703,6 +1865,12 @@ class LiveBarCohort:
             self._freeze("incomplete_batch_publish")
             raise LiveCohortFrozenError("cannot publish a partial cohort batch")
         receipts = dict(self._delivered)
+        continuity_updates = {
+            member_id: self._advance_history_continuity(
+                self._members[member_id], receipt, self._history_continuity.get(member_id)
+            )
+            for member_id, receipt in receipts.items()
+        }
         cutovers = {}
         for member_id, receipt in receipts.items():
             if receipt.source_role == "history":
@@ -1728,7 +1896,9 @@ class LiveBarCohort:
             available_at=available_at,
             members=receipts,
             cutovers=cutovers,
+            history_continuity=continuity_updates,
         )
+        self._history_continuity.update(continuity_updates)
         self._pending.pop(prepared.slot_index, None)
         self._next_slot_index += 1
         self._prepared = None
@@ -1757,6 +1927,22 @@ class LiveBarCohort:
 
     def delivered_for_feed(self, feed_ref: Any) -> Optional[LiveDeliveryReceipt]:
         return self.current_delivery(feed_ref)
+
+    def history_continuity_for_feed(self, feed_ref: Any) -> Optional[LiveHistoryContinuity]:
+        # Return the current bounded reconstruction fact for an exact feed.
+        with self._lock:
+            member = self.member_for_feed(feed_ref)
+            if member is None:
+                return None
+            return self._history_continuity.get(member.member_id)
+
+    def owns_history_continuity(self, proof: Any) -> bool:
+        # Check exact issuance and current identity of a continuity fact.
+        with self._lock:
+            return (
+                type(proof) is LiveHistoryContinuity
+                and self._history_continuity.get(proof.member_id) is proof
+            )
 
     def current_batch(self) -> Optional[LiveCohortBatch]:
         return self._current_batch

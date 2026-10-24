@@ -14,7 +14,13 @@ from types import MappingProxyType
 import backtrader as bt
 import pytest
 
-from backtrader.research import FactorIndicator, FactorSpec, LiveFactorPlan, LiveFactorSet
+from backtrader.research import (
+    FactorHistoryContract,
+    FactorIndicator,
+    FactorSpec,
+    LiveFactorPlan,
+    LiveFactorSet,
+)
 from backtrader.research.alpha101 import get_alpha
 from backtrader.research.live_cohort import (
     LiveBarCohort,
@@ -63,6 +69,7 @@ class CohortClose(FactorIndicator):
     lines = ("factor",)
     formula_fields = ("close",)
     lookback_h = 0
+    history_contract = FactorHistoryContract.finite_window(span_bars=1)
 
     def __init__(self):
         super().__init__()

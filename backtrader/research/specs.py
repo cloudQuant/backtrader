@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import hashlib
 import inspect
-import json
 import marshal
 import sys
 from collections.abc import Mapping
@@ -117,6 +116,41 @@ def _lookback(indicator: Type[Any], params: Mapping[str, Any]) -> int:
     return value
 
 
+@dataclass(frozen=True)
+class FactorHistoryContract:
+    # Factor-authored statement of how a finite source prefix reconstructs state.
+    # finite_window covers the executed graph; replay_from_source_origin requires
+    # an exact adapter-declared origin and a contiguous validated cohort prefix.
+
+    kind: str
+    span_bars: Optional[int] = None
+
+    def __post_init__(self) -> None:
+        if self.kind == "finite_window":
+            if type(self.span_bars) is not int or self.span_bars < 1:
+                raise ResearchConfigError(
+                    "finite_window history contract requires positive span_bars"
+                )
+        elif self.kind == "replay_from_source_origin":
+            if self.span_bars is not None:
+                raise ResearchConfigError("replay_from_source_origin does not accept span_bars")
+        else:
+            raise ResearchConfigError("unknown factor history contract kind")
+
+    @classmethod
+    def finite_window(cls, span_bars: int) -> "FactorHistoryContract":
+        # Declare that factor state depends on at most span_bars rows.
+        return cls("finite_window", span_bars)
+
+    @classmethod
+    def replay_from_source_origin(cls) -> "FactorHistoryContract":
+        # Declare that factor state must replay from an adapter-declared origin.
+        return cls("replay_from_source_origin")
+
+    def to_metadata(self) -> Dict[str, Any]:
+        return {"kind": self.kind, "span_bars": self.span_bars}
+
+
 def _validate_feed_binding(alias: Any, binding: Any) -> Tuple[str, Any]:
     _nonempty_string(alias, "field binding alias")
 
@@ -182,6 +216,7 @@ class FactorSpec:
     source_sha256: str
     module_source_sha256: str
     source_hash_kind: str
+    history_contract: Optional[FactorHistoryContract]
 
     def __init__(
         self,
@@ -222,6 +257,11 @@ class FactorSpec:
         if indicator is FactorIndicator or getattr(indicator, "_factor_bound", False):
             raise ResearchConfigError(
                 "FactorSpec requires an unbound concrete FactorIndicator class"
+            )
+        history_contract = indicator.__dict__.get("history_contract")
+        if history_contract is not None and type(history_contract) is not FactorHistoryContract:
+            raise ResearchConfigError(
+                "history_contract must be a class-authored FactorHistoryContract"
             )
         try:
             indicator._validate_factor_declaration()
@@ -302,6 +342,7 @@ class FactorSpec:
         object.__setattr__(self, "source_sha256", source_sha256)
         object.__setattr__(self, "module_source_sha256", module_source_sha256)
         object.__setattr__(self, "source_hash_kind", source_hash_kind)
+        object.__setattr__(self, "history_contract", history_contract)
 
     @classmethod
     def from_mapping(cls, name: str, value: Mapping[str, Any]) -> "FactorSpec":
@@ -355,6 +396,9 @@ class FactorSpec:
             "source_sha256": self.source_sha256,
             "module_source_sha256": self.module_source_sha256,
             "source_hash_kind": self.source_hash_kind,
+            "history_contract": (
+                None if self.history_contract is None else self.history_contract.to_metadata()
+            ),
         }
 
 
@@ -685,6 +729,7 @@ def _normalize_bool_index(
 
 
 __all__ = (
+    "FactorHistoryContract",
     "FactorSpec",
     "ResearchSpec",
     "normalize_factor_specs",

@@ -30,7 +30,7 @@ from .live import (
 )
 from .panel import FactorPanel
 from .sink import CsvSink, FactorSink, MemorySink, PanelContext
-from .specs import FactorSpec, ResearchSpec
+from .specs import FactorHistoryContract, FactorSpec, ResearchSpec
 
 ConfigError = ResearchConfigError
 
@@ -43,6 +43,7 @@ __all__ = (
     "DependencyError",
     "FactorComputationContext",
     "FactorComputationError",
+    "FactorHistoryContract",
     "FactorIndicator",
     "FactorPanel",
     "FactorSink",

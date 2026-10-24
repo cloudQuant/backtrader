@@ -311,6 +311,8 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
         # validates them. Ordinary feeds retain their historical tolerant
         # normalization path.
         ("cohort_source_mode", False),
+        # Adapter-authored origin claim; cohort matching does not prove exchange completeness.
+        ("cohort_source_origin", None),
         ("backfill_start", True),
         ("dispatch_ticks", True),
         ("dispatch_orderbooks", True),
@@ -481,6 +483,8 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
         member = cohort.member_for_feed(self)
         if member is None or member.feed_ref is not self:
             raise ValueError("live bar cohort does not own this exact BtApiFeed")
+        if self.p.cohort_source_origin is not member.source_origin:
+            raise ValueError("feed and cohort do not share the exact source-origin declaration")
         feed_lines = set(self.getlinealiases())
         unsupported_lines = tuple(name for name in member.line_fields if name not in feed_lines)
         if unsupported_lines:
