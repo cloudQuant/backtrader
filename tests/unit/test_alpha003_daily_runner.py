@@ -19,7 +19,7 @@ _RUNNER = importlib.util.module_from_spec(_SPEC)
 _SPEC.loader.exec_module(_RUNNER)
 
 
-def _write_daily_fixture(data_dir: Path, *, day_count=22, symbol_count=12):
+def _write_daily_fixture(data_dir: Path, *, day_count=22, symbol_count=12, reduced=False):
     metadata_dir = data_dir / "_metadata"
     metadata_dir.mkdir(parents=True)
     dates = pd.bdate_range("2025-01-02", periods=day_count).strftime("%Y-%m-%d").tolist()
@@ -79,7 +79,12 @@ def _write_daily_fixture(data_dir: Path, *, day_count=22, symbol_count=12):
                 row["amount"] = np.nan
             rows.append(row)
         path = data_dir / (symbol + ".csv")
-        pd.DataFrame(rows).to_csv(path, index=False, encoding="utf-8")
+        frame = pd.DataFrame(rows)
+        if reduced:
+            frame = frame[
+                ["trade_time", "open", "high", "low", "close", "volume", "amount"]
+            ]
+        frame.to_csv(path, index=False, encoding="utf-8")
         invalid_count = sum(bool(row["invalid_day"]) for row in rows)
         manifest_symbols.append(
             {
@@ -339,6 +344,59 @@ def test_daily_native_build_modes_match_oracle_exports_and_resume_identity(tmp_p
             ]
         )
     assert snapshot_owned_files(interrupted_output) == interrupted_before
+
+
+def test_reduced_seven_column_source_matches_legacy_and_runs_end_to_end(tmp_path):
+    legacy_dir = tmp_path / "legacy_a_stocks"
+    reduced_dir = tmp_path / "reduced_a_stocks"
+    dates, symbols = _write_daily_fixture(legacy_dir)
+    _write_daily_fixture(reduced_dir, reduced=True)
+
+    def load(data_dir):
+        _, calendar, entries, digest = _RUNNER._read_manifest(data_dir)
+        return _RUNNER._load_source_arrays(data_dir, calendar, entries), digest
+
+    legacy_arrays, legacy_digest = load(legacy_dir)
+    reduced_arrays, reduced_digest = load(reduced_dir)
+    assert legacy_arrays["source_schema"] == "legacy"
+    assert reduced_arrays["source_schema"] == "reduced"
+    assert legacy_digest != reduced_digest
+    for name in ("open", "high", "low", "close", "volume", "amount"):
+        np.testing.assert_array_equal(reduced_arrays[name], legacy_arrays[name])
+    np.testing.assert_array_equal(reduced_arrays["present"], legacy_arrays["present"])
+    np.testing.assert_array_equal(reduced_arrays["invalid_day"], legacy_arrays["invalid_day"])
+    np.testing.assert_array_equal(
+        reduced_arrays["last_trade_time"], legacy_arrays["last_trade_time"]
+    )
+    assert reduced_arrays["invalid_rows"] == legacy_arrays["invalid_rows"] == 3
+    expected_rows = len(dates) * len(symbols) - 1
+    assert reduced_arrays["total_rows"] == legacy_arrays["total_rows"] == expected_rows
+
+    output_dir = tmp_path / "alpha003_reduced"
+    assert (
+        _RUNNER.main(
+            ["--data-dir", str(reduced_dir), "--output-dir", str(output_dir), "--chunk-days", "11"]
+        )
+        == 0
+    )
+    summary = json.loads((output_dir / "run_summary.json").read_text(encoding="utf-8"))
+    assert summary["status"] == "COMPLETED"
+    assert summary["source_csv_schema"] == "reduced"
+    assert summary["source_daily_row_count"] == expected_rows
+    assert summary["invalid_daily_row_count"] == 3
+    assert summary["chunk_count"] == 2
+    assert summary["oracle"]["finite_mask_matches"] is True
+    assert summary["oracle"]["max_abs_error"] <= _RUNNER.ORACLE_ATOL
+
+    factors = pd.read_parquet(output_dir / "factor_values.parquet")
+    assert len(factors) == len(dates) * len(symbols)
+    by_day = factors.groupby("trade_date", sort=True)["alpha003"]
+    for date in dates[: _RUNNER.LOOKBACK]:
+        assert not np.isfinite(by_day.get_group(date).to_numpy(dtype=float)).any()
+    volume_gap_cell = factors.loc[
+        (factors["trade_date"] == dates[19]) & (factors["asset"] == symbols[3]), "alpha003"
+    ]
+    assert len(volume_gap_cell) == 1 and not np.isfinite(volume_gap_cell.iloc[0])
 
 
 def test_rejects_incomplete_aggregate_manifest(tmp_path):
