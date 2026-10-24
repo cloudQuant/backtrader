@@ -22,7 +22,10 @@ from typing import Any, Deque, Dict, Iterable, Mapping, Optional, Tuple
 _UTC = _datetime.timezone.utc
 _REQUIRED_OHLCV = ("open", "high", "low", "close", "volume")
 _DEFAULT_NUMERIC_FIELDS = frozenset(_REQUIRED_OHLCV)
-_MAX_CALENDAR_SLOTS = 100_000
+# Finite calendars may include both factor warm-up and evaluation history.
+# Keep a hard ceiling above 100k bars while still making exhaustion explicit;
+# this does not imply a rolling or infinite future calendar.
+_MAX_CALENDAR_SLOTS = 200_000
 _MAX_COHORT_MEMBERS = 512
 _MAX_PENDING_SLOTS = 64
 _MAX_WINDOW_BARS = 4096

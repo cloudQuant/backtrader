@@ -494,6 +494,8 @@ class Cerebro(
         self._external_channel_token = None
         self._external_channel_runstrats = None
         self._external_channel_closing = False
+        self._live_bar_cohort = None
+        self._live_bar_cohort_clock = None
         self._dolive = False  # Live trading mode flag
         self._doreplay = False  # Data replay mode flag
         self._dooptimize = False  # Optimization mode flag
@@ -544,6 +546,114 @@ class Cerebro(
         broker.cerebro = self
         self._maybe_add_store(broker)
         return broker
+
+    def add_live_bar_cohort(self, cohort, *, clock):
+        """Opt into one validated, batch-delivered live-bar cohort.
+
+        ``clock`` must provide ``utc_now()``, ``monotonic_ns()``, and a single
+        ``wait(timeout_seconds)`` operation. Cerebro never substitutes its
+        process wall clock for this source-time mapping.
+        """
+        from .research.live_cohort import LiveBarCohort
+
+        if type(cohort) is not LiveBarCohort:
+            raise TypeError("cohort must be a LiveBarCohort")
+        if self._run_active:
+            raise RuntimeError("cannot bind a live bar cohort during an active run")
+        if self._live_bar_cohort is not None:
+            raise ValueError("Cerebro already has a live bar cohort")
+        if clock is None or any(
+            not callable(getattr(clock, name, None))
+            for name in ("utc_now", "monotonic_ns", "wait")
+        ):
+            raise TypeError("clock must provide utc_now(), monotonic_ns(), and wait(timeout)")
+        cohort.seal()
+        self._live_bar_cohort = cohort
+        self._live_bar_cohort_clock = clock
+        return cohort
+
+    @property
+    def live_bar_cohort(self):
+        """The configured cohort, or None for ordinary Cerebro runs."""
+        return self._live_bar_cohort
+
+    @property
+    def live_bar_cohort_clock(self):
+        """The exact caller-injected source/UTC clock for cohort strategies."""
+        return self._live_bar_cohort_clock
+
+    def _validate_live_bar_cohort_run(self, channel):
+        cohort = self._live_bar_cohort
+        if cohort is None:
+            return
+        if channel is not None:
+            raise ValueError("live bar cohorts require ordinary Cerebro feed mode")
+        if not self.datas:
+            raise ValueError("live bar cohort has no Cerebro feeds")
+        if self.p.runonce is not False or self.p.preload is not False:
+            raise ValueError(
+                "live bar cohort requires explicit runonce=False and preload=False"
+            )
+        if self.p.oldsync or self.p.cheat_on_open:
+            raise ValueError("live bar cohort does not support oldsync or cheat_on_open")
+        if self._dooptimize or self.signals:
+            raise ValueError("live bar cohort does not support optimization or signals")
+        if any(bool(getattr(timer.params, "cheat", False)) for timer in self._pretimers):
+            raise ValueError("live bar cohort does not support cheat timers")
+
+        from .feeds.btapifeed import BtApiFeed
+
+        if len(self.datas) != len(cohort.member_ids):
+            raise ValueError("Cerebro feeds must exactly cover the registered cohort members")
+        for data in self.datas:
+            if type(data) is not BtApiFeed:
+                raise ValueError("live bar cohort requires exact BtApiFeed instances")
+            member = cohort.member_for_feed(data)
+            if member is None or member.feed_ref is not data:
+                raise ValueError("Cerebro feed is not an exact registered cohort member")
+            if data._clone or data.resampling or data.replaying:
+                raise ValueError("live bar cohort does not support clone, replay, or resampling")
+            if data._filters or data._ffilters:
+                raise ValueError("live bar cohort does not support feed filters")
+            if bool(data.p.orderbook_as_ticks):
+                raise ValueError("live bar cohort does not support orderbook_as_ticks")
+            if bool(data.p.service_recovery_quote_binding):
+                raise ValueError(
+                    "live bar cohort cannot share the service recovery quote binding"
+                )
+
+    def _activate_live_bar_cohort(self):
+        cohort = self._live_bar_cohort
+        if cohort is None:
+            return
+        clock = self._live_bar_cohort_clock
+        # Activation has two phases.  Preparing one feed is read-only and can
+        # fail on source shape, capacity, or exact-member checks.  Complete
+        # every preparation before clearing any feed's normal queues, so a
+        # bad later member cannot leave an earlier member half-bound.
+        prepared = tuple(
+            (data, data._prepare_live_bar_cohort_activation(cohort, clock))
+            for data in self.datas
+        )
+        if any(
+            state.feed_ref is not data or state.cohort is not cohort or state.clock is not clock
+            for data, state in prepared
+        ):
+            raise RuntimeError("live cohort activation preparation changed identity")
+
+        snapshots = tuple(
+            (data, data._live_bar_cohort_activation_snapshot()) for data, _state in prepared
+        )
+        try:
+            for data, state in prepared:
+                data._commit_live_bar_cohort_activation(state)
+        except BaseException:
+            # The commit phase contains only assignments and deque clears, but
+            # restore exact queue contents if a feed is replaced or a runtime
+            # failure interrupts publication.
+            for data, snapshot in reversed(snapshots):
+                data._restore_live_bar_cohort_activation(snapshot)
+            raise
 
     def getbroker(self):
         """
@@ -691,18 +801,25 @@ class Cerebro(
         """
         # --- channel mode ---------------------------------------------------
         channel = kwargs.pop("channel", None)
+        if self._live_bar_cohort is not None and channel is not None:
+            raise ValueError("live bar cohorts require ordinary Cerebro feed mode")
         if channel is not None:
             # _run_channel is dynamically typed; run() advertises -> list.
             return self._run_channel(channel, **kwargs)
 
         # If no data, return empty list immediately
         if not self.datas:
+            if self._live_bar_cohort is not None:
+                raise ValueError("live bar cohort has no Cerebro feeds")
             return []  # nothing can be run
         # Override standard parameters with passed kwargs
         pkeys = self.params._getkeys()
         for key, val in kwargs.items():
             if key in pkeys:
                 setattr(self.params, key, val)
+
+        self._validate_live_bar_cohort_run(None)
+        self._activate_live_bar_cohort()
 
         # Manage activate/deactivate object cache
         # Manage object cache

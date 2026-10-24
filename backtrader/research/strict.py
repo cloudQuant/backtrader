@@ -6,10 +6,117 @@ line-iterator tree.
 """
 
 import math
+from contextvars import ContextVar
 from collections.abc import Mapping
 from contextlib import contextmanager
 from numbers import Integral
 from typing import NoReturn
+
+
+_ACTIVE_LIVE_SOURCE_BINDINGS = ContextVar("bt_live_factor_source_bindings", default=None)
+
+
+class _LiveSourceBindingScope:
+    """Temporary, identity-checked source evidence for one factor bind call."""
+
+    __slots__ = ("cohort", "bindings")
+
+    def __init__(self, cohort, bindings):
+        from .live_cohort import LiveBarCohort, LiveInputBinding
+
+        if type(cohort) is not LiveBarCohort:
+            raise TypeError("live factor binding requires a LiveBarCohort")
+        if not isinstance(bindings, (tuple, list)):
+            raise TypeError("live factor source bindings must be a sequence")
+
+        indexed = {}
+        for item in bindings:
+            if not isinstance(item, (tuple, list)) or len(item) != 3:
+                raise TypeError("live factor source binding entries must be triples")
+            feed, line_name, receipt = item
+            if not isinstance(line_name, str) or not line_name:
+                raise TypeError("live factor source line names must be non-empty strings")
+            if type(receipt) is not LiveInputBinding:
+                raise TypeError("live factor source evidence must be a cohort-issued binding")
+            if (
+                receipt.feed_ref is not feed
+                or receipt.line_name != line_name
+                or not cohort.owns_factor_binding(receipt)
+            ):
+                raise ValueError("live factor source evidence does not match its cohort feed")
+            member = cohort.member_for_feed(feed)
+            if member is None or member.feed_ref is not feed:
+                raise ValueError("live factor source feed is not an exact cohort member")
+            key = (id(feed), line_name)
+            prior = indexed.get(key)
+            if prior is not None and (prior[0] is not feed or prior[1] is not receipt):
+                raise ValueError("live factor source bindings contain conflicting receipts")
+            indexed[key] = (feed, receipt)
+
+        self.cohort = cohort
+        self.bindings = indexed
+
+    def validate(self, context, feed, line_name, phase):
+        from ..errors import ResearchConfigError
+
+        entry = self.bindings.get((id(feed), line_name))
+        if entry is None or entry[0] is not feed:
+            _raise_unsupported_source(
+                context, feed, line_name, phase, "live_field_not_bound"
+            )
+        receipt = entry[1]
+        if (
+            not self.cohort.owns_factor_binding(receipt)
+            or receipt.feed_ref is not feed
+            or receipt.line_name != line_name
+        ):
+            raise ResearchConfigError(
+                "live factor source evidence is no longer owned by its cohort",
+                code="UNSUPPORTED_SOURCE",
+                report={
+                    "factor": getattr(context, "factor", None),
+                    "phase": phase,
+                    "field": line_name,
+                    "reason": "live_binding_ownership_changed",
+                    "feed_type": type(feed).__name__,
+                },
+            )
+
+
+@contextmanager
+def live_source_binding_scope(cohort, bindings):
+    """Temporarily authorize strict binds with exact cohort-issued field receipts.
+
+    This is deliberately separate from the tabular source path. A caller cannot
+    assert that data was validated: every token is checked against the exact
+    cohort and feed object before the factor graph is built.
+    """
+    scope = _LiveSourceBindingScope(cohort, bindings)
+    token = _ACTIVE_LIVE_SOURCE_BINDINGS.set(scope)
+    try:
+        yield scope
+    finally:
+        _ACTIVE_LIVE_SOURCE_BINDINGS.reset(token)
+
+
+def live_source_binding_active():
+    """Return whether this context is currently binding through a live cohort."""
+    return _ACTIVE_LIVE_SOURCE_BINDINGS.get() is not None
+
+
+def validate_bound_live_feed_source(context, feed, field_name, phase="construct"):
+    """Validate one live field against the currently scoped cohort receipt.
+
+    Return ``False`` when no live scope is active so the caller can retain the
+    existing strict tabular validation path.
+    """
+    scope = _ACTIVE_LIVE_SOURCE_BINDINGS.get()
+    if scope is None:
+        return False
+    if context is None or not isinstance(field_name, str) or not field_name:
+        _raise_unsupported_source(context, feed, field_name, phase, "live_context_missing")
+    scope.validate(context, feed, field_name, phase)
+    return True
 
 
 @contextmanager
@@ -107,12 +214,21 @@ def validate_bound_feed_source(context, feed, field_name, phase="construct"):
     if context is None or not isinstance(field_name, str) or not field_name:
         return
 
+    live_source_bound = validate_bound_live_feed_source(context, feed, field_name, phase)
+
     params = getattr(feed, "p", None)
     source = getattr(params, "dataname", None)
     columns = getattr(source, "columns", None)
     mapping = getattr(feed, "_colmapping", None)
-    if source is None or columns is None or not isinstance(mapping, Mapping):
+    if source is None or columns is None:
+        if live_source_bound:
+            # Streaming sources have no retained table to scan. The exact live
+            # scope proves the feed/field schema; the cohort's per-bar capture
+            # path must validate and seal each raw event before it is written.
+            return
         _raise_unsupported_source(context, feed, field_name, phase, "raw_table_unavailable")
+    if not isinstance(mapping, Mapping):
+        _raise_unsupported_source(context, feed, field_name, phase, "feed_line_mapping_unavailable")
 
     if field_name not in mapping:
         _raise_unsupported_source(context, feed, field_name, phase, "feed_line_unmapped")

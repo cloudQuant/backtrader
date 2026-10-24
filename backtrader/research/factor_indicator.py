@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections import deque
 from datetime import datetime, timezone
 from functools import wraps
 from types import MappingProxyType
@@ -25,6 +26,7 @@ _FACTOR_ONCE_ITERATOR_ADVANCE = LineIterator.advance
 _FACTOR_ONCE_INDICATOR_ADVANCE = Indicator.advance
 _FACTOR_ONCE_LINES_ADVANCE = Lines.advance
 _FACTOR_ONCE_LINE_ADVANCE = LineBuffer.advance
+_LIVE_FACTOR_DIAGNOSTIC_SAMPLE_LIMIT = 64
 
 
 class _OutputLines:
@@ -295,8 +297,18 @@ class FactorIndicator(Indicator):
         asset_names = tuple(self._factor_runtime.get("asset_names", ()))
         if asset_names and len(asset_names) != len(output_datas):
             raise RuntimeError("factor asset names do not match its output lines")
-        self._factor_call_times: List[datetime] = []
-        self._factor_once_ranges: List[Tuple[int, int]] = []
+        self._factor_live_bounded_diagnostics = bool(
+            runtime.get("live_source_binding", False)
+        )
+        self._factor_call_count = 0
+        self._factor_once_range_count = 0
+        self._factor_once_covered_count = 0
+        if self._factor_live_bounded_diagnostics:
+            self._factor_call_times = deque(maxlen=_LIVE_FACTOR_DIAGNOSTIC_SAMPLE_LIMIT)
+            self._factor_once_ranges = deque(maxlen=_LIVE_FACTOR_DIAGNOSTIC_SAMPLE_LIMIT)
+        else:
+            self._factor_call_times: List[datetime] = []
+            self._factor_once_ranges: List[Tuple[int, int]] = []
         self._factor_grid: Optional[Tuple[datetime, ...]] = None
         self._field_line_cache: Dict[str, Tuple[Any, ...]] = {}
         self._formula_member_lines: Optional[Tuple[Any, ...]] = None
@@ -584,6 +596,9 @@ class FactorIndicator(Indicator):
             "mode": selected_mode,
             "factor_params": resolved_factor_params,
         }
+        from .strict import live_source_binding_active
+
+        runtime["live_source_binding"] = live_source_binding_active()
         context = None
         if strict and factor_name:
             context = FactorComputationContext(str(factor_name), phase="construct")
@@ -761,8 +776,8 @@ class FactorIndicator(Indicator):
     def _record_factor_call(self) -> None:
         data = self._factor_target_datas[0] if self._factor_target_datas else self.datas[0]
         current = num2date(float(data.datetime[0]), tz=timezone.utc, naive=False)
-        index = len(self._factor_call_times)
-        if self._factor_once_ranges:
+        index = self._factor_call_count
+        if self._factor_once_range_count:
             raise RuntimeError("factor next() ran after its once coverage began")
         if self._factor_grid is not None:
             if index >= len(self._factor_grid):
@@ -770,6 +785,7 @@ class FactorIndicator(Indicator):
             if current != self._factor_grid[index]:
                 raise RuntimeError("factor next() time does not match its next UTC grid point")
         self._factor_call_times.append(current)
+        self._factor_call_count += 1
 
     def _record_factor_once(self, start: int, end: int) -> None:
         """Record a completed ordinary-once range without inventing next calls."""
@@ -777,20 +793,41 @@ class FactorIndicator(Indicator):
             return
         if type(start) is not int or type(end) is not int or start < 0 or end < start:
             raise RuntimeError("factor once() reported an invalid coverage range")
-        covered = len(self._factor_call_times) + sum(
-            range_end - range_start for range_start, range_end in self._factor_once_ranges
-        )
+        covered = self._factor_call_count + self._factor_once_covered_count
         if start != covered:
             raise RuntimeError("factor once() left a gap or overlap in calculation-grid coverage")
         if self._factor_grid is not None and end > len(self._factor_grid):
             raise RuntimeError("factor once() covered beyond the requested calculation grid")
         self._factor_once_ranges.append((start, end))
+        self._factor_once_range_count += 1
+        self._factor_once_covered_count += end - start
 
     @property
     def lifecycle_diagnostics(self) -> Dict[str, Any]:
         """Read-only count and UTC-grid observations for lifecycle acceptance."""
         calls = tuple(self._factor_call_times)
         once_ranges = tuple(self._factor_once_ranges)
+        if self._factor_live_bounded_diagnostics:
+            coverage_count = self._factor_call_count + self._factor_once_covered_count
+            return {
+                "diagnostic_kind": "bounded_live_samples",
+                "sample_limit": _LIVE_FACTOR_DIAGNOSTIC_SAMPLE_LIMIT,
+                "call_count": self._factor_call_count,
+                "call_times": calls,
+                "call_times_truncated": self._factor_call_count > len(calls),
+                "grid_count": None,
+                "grid_matches": None,
+                "next_count": self._factor_call_count,
+                "next_times": calls,
+                "once_ranges": once_ranges,
+                "once_ranges_truncated": self._factor_once_range_count > len(once_ranges),
+                "once_count": self._factor_once_covered_count,
+                "once_times": (),
+                "coverage_count": coverage_count,
+                "coverage_times": calls,
+                "coverage_times_truncated": coverage_count > len(calls),
+                "coverage_matches": None,
+            }
         grid = self._factor_grid
         once_count = sum(end - start for start, end in once_ranges)
         once_times = (

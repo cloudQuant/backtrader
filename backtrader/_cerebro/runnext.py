@@ -113,7 +113,10 @@ class RunNextMixin:
             datas1 = datas[1:]
             # Main data
             data0 = datas[0]
-            has_qcheck = any(d.p.qcheck for d in datas)
+            live_bar_cohort = getattr(self, "_live_bar_cohort", None)
+            # Cohort mode uses its injected causal UTC/monotonic clock and one
+            # shared wait.  The regular qcheck clock uses process wall time.
+            has_qcheck = not live_bar_cohort and any(d.p.qcheck for d in datas)
             cheat_on_open = self.p.cheat_on_open
             has_timers = bool(self._timers)
             has_timerscheat = bool(self._timerscheat)
@@ -179,7 +182,7 @@ class RunNextMixin:
                 broker_cash_addition = None
                 broker_dual_side_mode = False
             data0_direct_load = None
-            if single_data and not has_qcheck and single_default_haslivedata:
+            if not live_bar_cohort and single_data and not has_qcheck and single_default_haslivedata:
                 try:
                     if data0._runnext_direct_load_ready():
                         data0_direct_load = getattr(data0, "_runnext_direct_load", data0.load)
@@ -311,6 +314,9 @@ class RunNextMixin:
                     newqcheck = not livecount or livecount == ldatas_noclones
 
                 lastret = False
+                cohort_wait = False
+                cohort_terminal = False
+                cohort_status = None
                 # Notify anything from the store even before moving datas
                 # because datas may not move due to an error reported by the store
                 # Notify store related info
@@ -327,18 +333,115 @@ class RunNextMixin:
                 # record starting time and tell feeds to discount the elapsed time
                 # from the qcheck value
                 # Record start time and notify feed to subtract elapsed time from qcheck
-                if data0_direct_load is not None:
+                if live_bar_cohort is not None:
+                    clock = self.live_bar_cohort_clock
+                    try:
+                        now_monotonic_ns = clock.monotonic_ns()
+                        source_time_utc = clock.utc_now()
+                        if (
+                            type(now_monotonic_ns) is not int
+                            or now_monotonic_ns <= 0
+                            or not isinstance(source_time_utc, datetime.datetime)
+                            or source_time_utc.tzinfo is None
+                            or source_time_utc.utcoffset() != datetime.timedelta(0)
+                        ):
+                            raise ValueError("live cohort clock returned an invalid UTC sample")
+                        for data in self.datas:
+                            data._cohort_collect_source(now_monotonic_ns)
+                        prepared_result = live_bar_cohort.prepare_round(
+                            now_monotonic_ns,
+                            source_time_utc=source_time_utc,
+                        )
+                        cohort_status = prepared_result.status
+                        if cohort_status == "READY":
+                            prepared = prepared_result.prepared
+                            if prepared is None:
+                                raise RuntimeError("READY cohort result has no prepared batch")
+                            envelopes = tuple(
+                                prepared.envelope_for_feed(data) for data in self.datas
+                            )
+                            if any(envelope is None for envelope in envelopes):
+                                raise RuntimeError("prepared cohort does not cover every Cerebro feed")
+                            # Validate every exact envelope before the first
+                            # normal feed.next() can write any line.
+                            for data, envelope in zip(self.datas, envelopes):
+                                live_bar_cohort.preflight_delivery(data, envelope)
+                            for data, envelope in zip(self.datas, envelopes):
+                                data._arm_live_bar_cohort_envelope(envelope)
+                            try:
+                                drets = [data.next(ticks=False) for data in datas]
+                                if any(result is not True for result in drets):
+                                    raise RuntimeError(
+                                        "a prepared cohort member did not advance exactly once"
+                                    )
+                                batch = live_bar_cohort.current_batch()
+                                if (
+                                    batch is None
+                                    or batch.status != "COMPLETE"
+                                    or batch.batch_id != prepared.batch_id
+                                    or batch.cohort_id != prepared.cohort_id
+                                    or batch.close_time != prepared.close_time
+                                    or len(batch.members) != len(envelopes)
+                                ):
+                                    raise RuntimeError("Cerebro observed an incomplete cohort batch")
+                                for data, envelope in zip(self.datas, envelopes):
+                                    receipt = batch.receipt_for_feed(data)
+                                    if (
+                                        receipt is None
+                                        or receipt.envelope is not envelope
+                                        or receipt.batch_id != prepared.batch_id
+                                        or receipt.close_time != envelope.close_time
+                                    ):
+                                        raise RuntimeError(
+                                            "completed cohort receipt does not match its feed"
+                                        )
+                                # Feed line delivery is complete for every
+                                # member before any bar notification callback.
+                                for data, envelope in zip(self.datas, envelopes):
+                                    data._dispatch_live_bar_cohort_envelope(envelope)
+                            except Exception:
+                                live_bar_cohort._freeze("engine_batch_delivery_failed")
+                                for data in self.datas:
+                                    data._cohort_armed_envelope = None
+                                    data._cohort_delivery_failed = True
+                                raise
+                        elif cohort_status in ("WAITING", "WAITING_AVAILABILITY", "NOT_DUE"):
+                            drets = [None] * len(datas)
+                            cohort_wait = True
+                            if cohort_status == "WAITING" and all(
+                                data._cohort_source_is_exhausted() for data in self.datas
+                            ):
+                                live_bar_cohort._freeze(
+                                    "finite_source_exhausted_before_complete_batch"
+                                )
+                                cohort_status = "GAP_EOF"
+                                cohort_terminal = True
+                        elif cohort_status in ("GAP", "AVAILABILITY_TIMEOUT", "EXHAUSTED"):
+                            drets = [None] * len(datas)
+                            cohort_terminal = True
+                        else:
+                            raise RuntimeError(
+                                "unsupported live cohort prepare status: %s" % cohort_status
+                            )
+                    except Exception:
+                        if not live_bar_cohort.frozen:
+                            live_bar_cohort._freeze("engine_cohort_round_failed")
+                        for data in self.datas:
+                            data._cohort_armed_envelope = None
+                            data._cohort_delivery_failed = True
+                        raise
+                elif data0_direct_load is not None:
                     drets = (data0_direct_load(),)
                 else:
                     drets = []
-                if data0_direct_load is None and newqcheck and has_qcheck:
+                if live_bar_cohort is None and data0_direct_load is None and newqcheck and has_qcheck:
                     qstart = datetime.datetime.now(UTC)
                     for d in datas:
                         qlapse = datetime.datetime.now(UTC) - qstart
                         d.do_qcheck(newqcheck, qlapse.total_seconds())
                         d_next = d.next(ticks=False)
                         drets.append(d_next)
-                elif data0_direct_load is None:
+                elif live_bar_cohort is None and data0_direct_load is None:
                     for d in datas:
                         if has_qcheck:
                             d.do_qcheck(False, 0.0)
@@ -515,6 +618,19 @@ class RunNextMixin:
                         notify_idle()
                         if self._event_stop:
                             return
+
+                if cohort_terminal:
+                    break
+
+                if cohort_wait:
+                    # Keep order polling and idle callbacks above, then wait
+                    # once for the entire cohort instead of sleeping in each
+                    # feed.  The injected clock owns event-time progression.
+                    timeout = min(
+                        0.05,
+                        live_bar_cohort.wait_timeout_ns / 1_000_000_000.0,
+                    )
+                    self.live_bar_cohort_clock.wait(timeout)
 
                 # Notify timer and iterate strategies to run
                 if d0ret or lastret:  # bars produced by data or filters

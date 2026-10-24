@@ -4,11 +4,13 @@
 from __future__ import annotations
 
 import collections
+from collections.abc import Mapping
 import copy
 import datetime as _dt
 import math
 import time as _time
-from types import SimpleNamespace
+from dataclasses import dataclass
+from types import MappingProxyType, SimpleNamespace
 
 from ..channel import Event, EventPriority
 from ..dataseries import TimeFrame
@@ -38,6 +40,20 @@ def _safe_log(level, message, *args):
 
 _UTC = _dt.timezone.utc
 _CTP_INVALID_ABS = 1.0e50
+_COHORT_MISSING = object()
+_MAPPING_PROXY_TYPE = type(MappingProxyType({}))
+
+
+@dataclass(frozen=True)
+class _PreparedLiveBarCohortActivation:
+    """Validated, side-effect-free feed state staged by Cerebro."""
+
+    feed_ref: object
+    cohort: object
+    clock: object
+    history_iter: object
+    live_iter: object
+    slot_index_by_close: object
 
 
 def _set_tick_value(tick, name, value):
@@ -101,7 +117,7 @@ def _datetime_to_timestamp(value):
 
 
 def _tick_value(tick, *names, default=None):
-    if isinstance(tick, dict):
+    if isinstance(tick, Mapping):
         for name in names:
             if name in tick and tick[name] is not None:
                 return tick[name]
@@ -275,10 +291,43 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
                 )
         self.store = self.p.store
         self.provider = self.p.provider
-        self._history = collections.deque(
-            _normalize_bar(bar) for bar in (self.p.historical_bars or [])
+        history_source = self.p.historical_bars
+        live_source = self.p.live_bars
+        if history_source is None:
+            history_source = ()
+        if live_source is None:
+            live_source = ()
+        # Keep the caller's raw event objects available for the opt-in cohort
+        # path without materializing an arbitrary iterator. Cohort mode accepts
+        # replayable finite sequences here; live stores remain polled directly.
+        self._cohort_history_source = (
+            history_source if isinstance(history_source, (tuple, list)) else None
         )
-        self._live = collections.deque(_normalize_bar(bar) for bar in (self.p.live_bars or []))
+        self._cohort_live_source = (
+            live_source if isinstance(live_source, (tuple, list)) else None
+        )
+        self._live_bar_cohort = None
+        self._cohort_clock = None
+        self._cohort_history_iter = None
+        self._cohort_live_iter = None
+        self._cohort_history_exhausted = False
+        self._cohort_live_exhausted = False
+        self._cohort_history_lookahead = _COHORT_MISSING
+        self._cohort_live_lookahead = _COHORT_MISSING
+        self._cohort_store_lookahead = _COHORT_MISSING
+        self._cohort_completed_lookahead = _COHORT_MISSING
+        self._cohort_slot_index_by_close = {}
+        self._cohort_last_delivered_slot_index = -1
+        self._cohort_armed_envelope = None
+        self._cohort_delivery_failed = False
+        self._history = collections.deque(
+            _normalize_bar(dict(bar) if isinstance(bar, Mapping) else bar)
+            for bar in history_source
+        )
+        self._live = collections.deque(
+            _normalize_bar(dict(bar) if isinstance(bar, Mapping) else bar)
+            for bar in live_source
+        )
         self._live_notified = False
         self._bar_builder = None
         self._bar_builders = collections.OrderedDict()
@@ -303,6 +352,374 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
         self._history_backfilled = bool(self._history)
         self._continuity_degraded = False
         self._session_active = False
+
+    @property
+    def live_bar_cohort(self):
+        """Return the exact cohort installed by Cerebro for this feed, if any."""
+        return self._live_bar_cohort
+
+    def _prepare_live_bar_cohort_activation(self, cohort, clock):
+        """Validate and stage cohort state without changing this feed."""
+        if self._live_bar_cohort is not None:
+            raise ValueError("BtApiFeed is already bound to a live bar cohort")
+        member = cohort.member_for_feed(self)
+        if member is None or member.feed_ref is not self:
+            raise ValueError("live bar cohort does not own this exact BtApiFeed")
+        if self._cohort_history_source is None or self._cohort_live_source is None:
+            raise ValueError(
+                "live cohort explicit bar sources must be replayable tuple/list values"
+            )
+        if not isinstance(self._cohort_history_source, tuple) or not isinstance(
+            self._cohort_live_source, tuple
+        ):
+            raise ValueError("live cohort explicit bar sources must use immutable tuples")
+        if any(
+            type(event) is not _MAPPING_PROXY_TYPE
+            for source in (self._cohort_history_source, self._cohort_live_source)
+            for event in source
+        ):
+            raise ValueError(
+                "live cohort saved bar events must be immutable MappingProxyType mappings"
+            )
+        calendar_slots = cohort._calendar.slots
+        if len(self._cohort_history_source) + len(self._cohort_live_source) > (
+            len(calendar_slots) + cohort.max_pending_slots
+        ):
+            raise ValueError("live cohort saved source exceeds the finite calendar bound")
+        # Creating iterators is side-effect-free.  Cerebro stages every exact
+        # member before asking any feed to publish this state or clear its
+        # legacy, provenance-free queues.
+        return _PreparedLiveBarCohortActivation(
+            feed_ref=self,
+            cohort=cohort,
+            clock=clock,
+            history_iter=iter(self._cohort_history_source),
+            live_iter=iter(self._cohort_live_source),
+            # Cohort owns this immutable-after-construction lookup. Reuse it
+            # rather than building another calendar-sized dictionary/feed.
+            slot_index_by_close=cohort._slot_indices_by_close,
+        )
+
+    def _live_bar_cohort_activation_snapshot(self):
+        """Capture mutable feed state so Cerebro can roll back a failed commit."""
+        return (
+            self._live_bar_cohort,
+            self._cohort_clock,
+            self._cohort_history_iter,
+            self._cohort_live_iter,
+            self._cohort_history_exhausted,
+            self._cohort_live_exhausted,
+            self._cohort_history_lookahead,
+            self._cohort_live_lookahead,
+            self._cohort_store_lookahead,
+            self._cohort_completed_lookahead,
+            self._cohort_slot_index_by_close,
+            self._cohort_last_delivered_slot_index,
+            self._cohort_armed_envelope,
+            self._cohort_delivery_failed,
+            self._history,
+            self._live,
+        )
+
+    def _commit_live_bar_cohort_activation(self, prepared):
+        """Publish previously validated state; Cerebro calls this in phase two."""
+        self._live_bar_cohort = prepared.cohort
+        self._cohort_clock = prepared.clock
+        self._cohort_history_iter = prepared.history_iter
+        self._cohort_live_iter = prepared.live_iter
+        self._cohort_slot_index_by_close = prepared.slot_index_by_close
+        # Swap in empty queues only after every feed was validated. Keeping the
+        # prior deque objects in Cerebro's rollback snapshot avoids copying up
+        # to a full finite history merely to make activation reversible.
+        self._history = collections.deque()
+        self._live = collections.deque()
+
+    def _restore_live_bar_cohort_activation(self, snapshot):
+        """Restore the exact pre-activation feed state after a commit failure."""
+        (
+            self._live_bar_cohort,
+            self._cohort_clock,
+            self._cohort_history_iter,
+            self._cohort_live_iter,
+            self._cohort_history_exhausted,
+            self._cohort_live_exhausted,
+            self._cohort_history_lookahead,
+            self._cohort_live_lookahead,
+            self._cohort_store_lookahead,
+            self._cohort_completed_lookahead,
+            self._cohort_slot_index_by_close,
+            self._cohort_last_delivered_slot_index,
+            self._cohort_armed_envelope,
+            self._cohort_delivery_failed,
+            self._history,
+            self._live,
+        ) = snapshot
+
+    def _cohort_source_is_exhausted(self):
+        """Report EOF only for finite sources with an explicit end contract."""
+        if self._live_bar_cohort is None:
+            return False
+        if not self._cohort_history_exhausted or not self._cohort_live_exhausted:
+            return False
+        if self._cohort_history_lookahead is not _COHORT_MISSING:
+            return False
+        if self._cohort_live_lookahead is not _COHORT_MISSING:
+            return False
+        if self._cohort_store_lookahead is not _COHORT_MISSING:
+            return False
+        if self._cohort_completed_lookahead is not _COHORT_MISSING:
+            return False
+        if self._bar_builders:
+            return False
+
+        store = self.store
+        if store is None:
+            return True
+        source_exhausted = getattr(store, "is_source_exhausted", None)
+        if callable(source_exhausted):
+            try:
+                return bool(source_exhausted(self._dataname))
+            except TypeError:
+                return bool(source_exhausted())
+        # A store with a polling API is live unless it explicitly declares
+        # exhaustion.  A store used only for startup/backfill is finite.
+        return not any(
+            callable(getattr(store, name, None))
+            for name in ("poll_live", "poll_tick", "poll_orderbook")
+        )
+
+    def _cohort_event_slot_index(self, event):
+        close_time = _tick_value(event, "bucket_end", default=None)
+        if not isinstance(close_time, _dt.datetime):
+            return None
+        if close_time.tzinfo is None or close_time.utcoffset() is None:
+            return None
+        return self._cohort_slot_index_by_close.get(close_time.astimezone(_UTC))
+
+    def _cohort_max_collect_slot(self):
+        next_slot = self._cohort_last_delivered_slot_index + 1
+        return next_slot + self._live_bar_cohort.max_pending_slots - 1
+
+    def _cohort_capture_source(self, event, source_role, received_monotonic_ns, max_slot):
+        slot_index = self._cohort_event_slot_index(event)
+        if slot_index is not None and slot_index > max_slot:
+            return False
+        self._live_bar_cohort.capture_bar(
+            self,
+            event,
+            source_role=source_role,
+            received_monotonic_ns=received_monotonic_ns,
+        )
+        return True
+
+    def _cohort_next_source_item(self, role):
+        if role == "history":
+            lookahead_name = "_cohort_history_lookahead"
+            iterator_name = "_cohort_history_iter"
+            exhausted_name = "_cohort_history_exhausted"
+        else:
+            lookahead_name = "_cohort_live_lookahead"
+            iterator_name = "_cohort_live_iter"
+            exhausted_name = "_cohort_live_exhausted"
+        lookahead = getattr(self, lookahead_name)
+        if lookahead is not _COHORT_MISSING:
+            setattr(self, lookahead_name, _COHORT_MISSING)
+            return lookahead
+        if getattr(self, exhausted_name):
+            return _COHORT_MISSING
+        try:
+            return next(getattr(self, iterator_name))
+        except StopIteration:
+            setattr(self, exhausted_name, True)
+            return _COHORT_MISSING
+
+    def _cohort_collect_source(self, now_monotonic_ns):
+        """Capture a bounded prefix of raw source events without advancing lines."""
+        cohort = self._live_bar_cohort
+        if cohort is None:
+            return 0
+        if self._cohort_delivery_failed or cohort.frozen:
+            return 0
+
+        max_slot = self._cohort_max_collect_slot()
+        budget = cohort.max_pending_slots
+        collected = 0
+
+        # Preserve history-before-live ordering so overlap deduplication can
+        # only move from history to live, never back across the cutover.
+        for source_role in ("history", "live"):
+            while collected < budget:
+                event = self._cohort_next_source_item(source_role)
+                if event is _COHORT_MISSING:
+                    break
+                slot_index = self._cohort_event_slot_index(event)
+                if slot_index is not None and slot_index > max_slot:
+                    lookahead_name = (
+                        "_cohort_history_lookahead"
+                        if source_role == "history"
+                        else "_cohort_live_lookahead"
+                    )
+                    setattr(self, lookahead_name, event)
+                    break
+                self._cohort_capture_source(
+                    event, source_role, now_monotonic_ns, max_slot
+                )
+                collected += 1
+            if collected >= budget:
+                return collected
+            if source_role == "history" and not self._cohort_history_exhausted:
+                # Do not let live ticks overtake historical prewarm rows.
+                return collected
+
+        # Aggregated bar events are captured in _enqueue_bar_event. Keep that
+        # queue bounded to one lookahead when the calendar window is full.
+        if self._cohort_completed_lookahead is not _COHORT_MISSING:
+            event = self._cohort_completed_lookahead
+            slot_index = self._cohort_event_slot_index(event)
+            if slot_index is not None and slot_index > max_slot:
+                return collected
+            self._cohort_completed_lookahead = _COHORT_MISSING
+            self._cohort_capture_source(event, "live", now_monotonic_ns, max_slot)
+            collected += 1
+
+        if collected >= budget:
+            return collected
+
+        # Drain a fixed amount per engine round. Feed._check remains a strict
+        # no-consumption path, and no per-feed sleep occurs here.
+        drained = self._drain_live_ticks(limit=64)
+        self._drain_live_orderbooks(limit=64)
+        self._flush_ready_bars(reason="cohort")
+        if len(self._bar_builders) > cohort.max_pending_slots:
+            cohort._freeze("feed_bar_builder_capacity_exceeded")
+            self._cohort_delivery_failed = True
+            raise RuntimeError("BtApiFeed cohort bar-builder capacity exceeded")
+        if self._bar_builders:
+            self._handle_source_exhaustion()
+        if drained:
+            self._mark_live()
+        if self._cohort_completed_lookahead is not _COHORT_MISSING:
+            return collected
+
+        # Direct completed-bar sources retain their original event schema.
+        while collected < budget and self.store is not None:
+            if self._cohort_store_lookahead is not _COHORT_MISSING:
+                event = self._cohort_store_lookahead
+                self._cohort_store_lookahead = _COHORT_MISSING
+            else:
+                poll_live = getattr(self.store, "poll_live", None)
+                if not callable(poll_live):
+                    break
+                event = poll_live(self._dataname)
+            if event is None:
+                break
+            slot_index = self._cohort_event_slot_index(event)
+            if slot_index is not None and slot_index > max_slot:
+                self._cohort_store_lookahead = event
+                break
+            self._cohort_capture_source(event, "live", now_monotonic_ns, max_slot)
+            collected += 1
+            self._mark_live()
+        return collected
+
+    def _arm_live_bar_cohort_envelope(self, envelope):
+        cohort = self._live_bar_cohort
+        if cohort is None or self._cohort_delivery_failed:
+            raise RuntimeError("BtApiFeed is not ready for cohort delivery")
+        if cohort.prepared_envelope(self) is not envelope:
+            raise ValueError("Cerebro supplied a non-prepared cohort envelope")
+        cohort.preflight_delivery(self, envelope)
+        self._cohort_armed_envelope = envelope
+
+    def _load_live_bar_cohort_envelope(self):
+        cohort = self._live_bar_cohort
+        envelope = self._cohort_armed_envelope
+        if self._cohort_delivery_failed:
+            return None
+        if envelope is None:
+            return None
+        if cohort.prepared_envelope(self) is not envelope:
+            self._cohort_delivery_failed = True
+            raise ValueError("armed cohort envelope is no longer the prepared object")
+        try:
+            raw_values = cohort.preflight_delivery(self, envelope)
+            close_time = envelope.close_time
+            self.lines.datetime[0] = date2num(close_time.replace(tzinfo=None))
+            self.lines.open[0] = raw_values["open"]
+            self.lines.high[0] = raw_values["high"]
+            self.lines.low[0] = raw_values["low"]
+            self.lines.close[0] = raw_values["close"]
+            self.lines.volume[0] = raw_values["volume"]
+            self.lines.openinterest[0] = raw_values.get("openinterest", 0.0)
+            if envelope.source_role == "live":
+                self._mark_live()
+            cohort.record_delivery(
+                self,
+                envelope,
+                delivered_close_time=close_time,
+            )
+            self._cohort_last_delivered_slot_index = envelope.slot_index
+            self._cohort_armed_envelope = None
+            return True
+        except Exception:
+            self._cohort_delivery_failed = True
+            raise
+
+    def _dispatch_live_bar_cohort_envelope(self, envelope):
+        """Dispatch notify_bar only after Cerebro verifies a complete batch."""
+        if envelope.feed_ref is not self or envelope.source_role != "live":
+            return False
+        if not self.p.dispatch_bars:
+            return False
+        event = envelope.event_ref
+        if event is None:
+            raise ValueError("live cohort envelope lost its source event")
+        if isinstance(event, Mapping):
+            event = dict(event)
+            event.update(dict(envelope.raw_values))
+            event.update(
+                {
+                    "datetime": envelope.close_time,
+                    "timestamp": envelope.close_time.timestamp(),
+                    "bucket_start": envelope.bucket_start,
+                    "bucket_end": envelope.close_time,
+                    "available_at": envelope.available_at,
+                    "trading_day": envelope.trading_day,
+                    "session_segment": envelope.session_segment,
+                    "connection_generation": envelope.connection_generation,
+                    "bar_sequence": envelope.feed_sequence,
+                    "bar_id": envelope.bar_id,
+                    "complete": envelope.complete,
+                    "quality": envelope.quality,
+                    "quality_flags": envelope.quality_flags,
+                }
+            )
+        else:
+            event = copy.copy(event)
+            for name, value in envelope.raw_values.items():
+                setattr(event, name, value)
+            for name, value in (
+                ("datetime", envelope.close_time),
+                ("timestamp", envelope.close_time.timestamp()),
+                ("bucket_start", envelope.bucket_start),
+                ("bucket_end", envelope.close_time),
+                ("available_at", envelope.available_at),
+                ("trading_day", envelope.trading_day),
+                ("session_segment", envelope.session_segment),
+                ("connection_generation", envelope.connection_generation),
+                ("bar_sequence", envelope.feed_sequence),
+                ("bar_id", envelope.bar_id),
+                ("complete", envelope.complete),
+                ("quality", envelope.quality),
+                ("quality_flags", envelope.quality_flags),
+            ):
+                setattr(event, name, value)
+        self._dispatch_event(
+            channel_type="bar",
+            priority=EventPriority.BAR,
+            event_data=event,
+        )
+        return True
 
     def start(self):
         """Start the feed, register it, and backfill if configured."""
@@ -341,7 +758,11 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
                         timeframe=self._timeframe,
                         compression=self._compression,
                     )
-                    self._history.extend(bars)
+                    if self._live_bar_cohort is not None:
+                        self._cohort_history_iter = iter(bars)
+                        self._cohort_history_exhausted = False
+                    else:
+                        self._history.extend(bars)
                     self._history_backfilled = True
                 else:
                     try:
@@ -350,7 +771,11 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
                             timeframe=self._timeframe,
                             compression=self._compression,
                         )
-                        self._history.extend(bars)
+                        if self._live_bar_cohort is not None:
+                            self._cohort_history_iter = iter(bars)
+                            self._cohort_history_exhausted = False
+                        else:
+                            self._history.extend(bars)
                         self._history_backfilled = True
                     except Exception as e:
                         _safe_log("warning", "btapifeed:312 fallback on Exception")
@@ -405,6 +830,8 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
 
     def islive(self) -> bool:
         """Return whether this feed has a configured live data source."""
+        if self._live_bar_cohort is not None:
+            return True
         dataname = getattr(self, "_dataname", None)
 
         if self._live:
@@ -480,6 +907,8 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
         Treating them as live data here makes Cerebro skip qcheck and spin while
         repeatedly draining ticks that produce no bar.
         """
+        if self._live_bar_cohort is not None:
+            return False
         if self._live:
             return True
 
@@ -499,6 +928,12 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
 
     def _load(self) -> bool:
         """Load the next historical or live bar."""
+        if self._live_bar_cohort is not None:
+            # Only Cerebro may arm the exact envelope after every member has
+            # passed preflight.  In particular, do not consume a side queue or
+            # sleep from this path while another cohort member is pending.
+            return self._load_live_bar_cohort_envelope()
+
         if self._history:
             return self._load_history()
 
@@ -545,6 +980,10 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
 
     def _check(self, forcedata=None):
         """Drain live ticks while waiting for the next completed bar."""
+        if self._live_bar_cohort is not None:
+            # The cohort runner owns bounded collection and the one shared
+            # wait.  Feed._check must not consume events or sleep per member.
+            return
         super()._check(forcedata=forcedata)
         if self.p.orderbook_as_ticks:
             return  # _load must establish the feed clock before the callback.
@@ -635,7 +1074,7 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
             )
         return True
 
-    def _drain_live_ticks(self):
+    def _drain_live_ticks(self, limit=None):
         """Consume ticks only until the next completed bar boundary.
 
         A single ``_load`` turn may inspect many ticks inside one bucket, but
@@ -648,13 +1087,15 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
 
         drained = False
 
-        while True:
+        drained_count = 0
+        while limit is None or drained_count < limit:
             bar_sequence_before = self._bar_sequence
             queued_bars_before = len(self._live)
             tick = self.store.poll_tick(self._dataname)
             if tick is None:
                 break
             drained = True
+            drained_count += 1
 
             self._prepare_tick(tick)
 
@@ -720,17 +1161,19 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
             self._flush_ready_bars(reason="source_exhausted_incomplete", force_invalid=True)
         return True
 
-    def _drain_live_orderbooks(self):
+    def _drain_live_orderbooks(self, limit=None):
         if self.store is None or not hasattr(self.store, "poll_orderbook"):
             return False
 
         drained = False
 
-        while True:
+        drained_count = 0
+        while limit is None or drained_count < limit:
             orderbook = self.store.poll_orderbook(self._dataname)
             if orderbook is None:
                 break
             drained = True
+            drained_count += 1
 
             self._handle_event_health(orderbook)
 
@@ -1034,6 +1477,15 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
 
     def _enqueue_bar_event(self, bar_event, bar_datetime, *, deliver_lines=True):
         """Queue a completed bar for both notify_bar and line delivery."""
+        if self._live_bar_cohort is not None:
+            if self._cohort_completed_lookahead is not _COHORT_MISSING:
+                self._live_bar_cohort._freeze("feed_completed_bar_queue_overflow")
+                self._cohort_delivery_failed = True
+                raise RuntimeError("BtApiFeed completed-bar lookahead is full")
+            # Preserve the provider/feed-produced event intact.  Validation,
+            # line delivery, and notify_bar are deferred to the batch barrier.
+            self._cohort_completed_lookahead = bar_event
+            return
         bar_event.datetime = bar_datetime
         if self.p.dispatch_bars:
             self._dispatch_event(
