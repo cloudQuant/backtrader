@@ -1,0 +1,2300 @@
+{
+  "schema_version": 1,
+  "title": "Isolated Backtrader object slots diagnostic",
+  "repo": "/Users/yunjinqi/Documents/new_projects/backtrader",
+  "output_directory": "/private/var/folders/7d/hnmknylj1w91h3cvq6mh3thm0000gn/T/backtrader_slots_review_37tjfwlb",
+  "metadata": {
+    "git_head": "01555f804db818fdd987e35da8175d58258dc25b",
+    "interpreter": "3.11.8 | packaged by conda-forge | (main, Feb 16 2024, 20:49:36) [Clang 16.0.6 ]",
+    "implementation": "CPython",
+    "executable": "/Users/yunjinqi/opt/anaconda3/bin/python",
+    "platform": "macOS-26.5.1-arm64-arm-64bit",
+    "machine": "arm64",
+    "source_hashes_by_class": {
+      "OrderExecutionBit": {
+        "path": "backtrader/order.py",
+        "sha256": "717b980d2afdf0a6a335b1071b867a73fee7a6e3fef019577a800f166b56ab19"
+      },
+      "OrderData": {
+        "path": "backtrader/order.py",
+        "sha256": "717b980d2afdf0a6a335b1071b867a73fee7a6e3fef019577a800f166b56ab19"
+      },
+      "Position": {
+        "path": "backtrader/position.py",
+        "sha256": "b921772e74628a50e3dfe68a523e4211f1ec15b056a4a86a9a9cde8013d790f1"
+      }
+    },
+    "unique_source_hashes": {
+      "backtrader/order.py": "717b980d2afdf0a6a335b1071b867a73fee7a6e3fef019577a800f166b56ab19",
+      "backtrader/position.py": "b921772e74628a50e3dfe68a523e4211f1ec15b056a4a86a9a9cde8013d790f1"
+    }
+  },
+  "design": {
+    "count_per_process": 1000,
+    "warmup_objects_per_process": 128,
+    "paired_rounds_per_class_and_prototype": 1,
+    "modes": [
+      "baseline",
+      "strict",
+      "hybrid"
+    ],
+    "process_isolation": "one fresh subprocess per class/mode/pair-round; executed sequentially",
+    "memory_cap": "not applied; the available command runner exposes no process memory-limit control",
+    "tracemalloc_and_rss_sampled_before_any_instance___dict__access": true,
+    "shallow_shell_and_dict_sizes_sampled_after_memory_measurement": true,
+    "constructor_call": "cls() with all source-defined defaults",
+    "copy_serialization_formal_acceptance": "NOT_PERFORMED; outside this diagnostic scope",
+    "production_source_modified": false
+  },
+  "field_audit": {
+    "OrderExecutionBit": {
+      "raw_self_write_fields": [
+        "closed",
+        "closedcomm",
+        "closedvalue",
+        "comm",
+        "dt",
+        "opened",
+        "openedcomm",
+        "openedvalue",
+        "pnl",
+        "pprice",
+        "price",
+        "psize",
+        "size",
+        "value"
+      ],
+      "property_setters": {},
+      "property_write_mappings_manually_confirmed": {},
+      "slot_fields": [
+        "closed",
+        "closedcomm",
+        "closedvalue",
+        "comm",
+        "dt",
+        "opened",
+        "openedcomm",
+        "openedvalue",
+        "pnl",
+        "pprice",
+        "price",
+        "psize",
+        "size",
+        "value"
+      ],
+      "dynamic_self_writes": [],
+      "self_dict_or_slots_accesses": [],
+      "write_inventory_complete_for_class_source": true
+    },
+    "OrderData": {
+      "raw_self_write_fields": [
+        "_plimit",
+        "comm",
+        "dt",
+        "exbits",
+        "margin",
+        "p1",
+        "p2",
+        "pclose",
+        "plimit",
+        "pnl",
+        "pprice",
+        "price",
+        "pricelimit",
+        "psize",
+        "remsize",
+        "size",
+        "trailamount",
+        "trailpercent",
+        "value"
+      ],
+      "property_setters": {
+        "plimit": "_setplimit"
+      },
+      "property_write_mappings_manually_confirmed": {
+        "plimit": {
+          "setter": "_setplimit",
+          "backing_field": "_plimit"
+        }
+      },
+      "slot_fields": [
+        "_plimit",
+        "comm",
+        "dt",
+        "exbits",
+        "margin",
+        "p1",
+        "p2",
+        "pclose",
+        "pnl",
+        "pprice",
+        "price",
+        "pricelimit",
+        "psize",
+        "remsize",
+        "size",
+        "trailamount",
+        "trailpercent",
+        "value"
+      ],
+      "dynamic_self_writes": [],
+      "self_dict_or_slots_accesses": [],
+      "write_inventory_complete_for_class_source": true
+    },
+    "Position": {
+      "raw_self_write_fields": [
+        "adjbase",
+        "datetime",
+        "price",
+        "price_orig",
+        "size",
+        "upclosed",
+        "updt",
+        "upopened"
+      ],
+      "property_setters": {},
+      "property_write_mappings_manually_confirmed": {},
+      "slot_fields": [
+        "adjbase",
+        "datetime",
+        "price",
+        "price_orig",
+        "size",
+        "upclosed",
+        "updt",
+        "upopened"
+      ],
+      "dynamic_self_writes": [],
+      "self_dict_or_slots_accesses": [],
+      "write_inventory_complete_for_class_source": true
+    }
+  },
+  "field_counts": {
+    "OrderExecutionBit": {
+      "regular_slot_fields": 14,
+      "strict_slot_entries_including_weakref": 15,
+      "hybrid_slot_entries_including_dict_and_weakref": 16
+    },
+    "OrderData": {
+      "regular_slot_fields": 18,
+      "strict_slot_entries_including_weakref": 19,
+      "hybrid_slot_entries_including_dict_and_weakref": 20
+    },
+    "Position": {
+      "regular_slot_fields": 8,
+      "strict_slot_entries_including_weakref": 9,
+      "hybrid_slot_entries_including_dict_and_weakref": 10
+    }
+  },
+  "manual_risk_notes": [
+    "Strict slots intentionally reject undeclared extension attributes; this is a layout experiment, not public compatibility acceptance.",
+    "Hybrid slots retain an instance __dict__ for arbitrary extension attributes; fixed fields occupy slots and therefore do not appear in vars(instance).",
+    "The write inventory covers assignments through self inside each selected class source. External callers, monkey patches, subclasses, and runtime integrations may write additional attributes and were not exhaustively scanned.",
+    "Copy, pickle, deepcopy, subclassing, framework integration, GC graph behavior, and production order lifecycle are not formally tested here.",
+    "OrderData.plimit assignment is manually mapped to its backing _plimit slot; the source property setter was checked to write _plimit.",
+    "Three per-class source hash entries are recorded, but the target classes live in two unique files: backtrader/order.py (two classes) and backtrader/position.py (one class)."
+  ],
+  "execution_order": [
+    {
+      "class": "OrderExecutionBit",
+      "pair": "strict",
+      "round": 1,
+      "mode": "baseline",
+      "pid": 16684
+    },
+    {
+      "class": "OrderExecutionBit",
+      "pair": "strict",
+      "round": 1,
+      "mode": "strict",
+      "pid": 16686
+    },
+    {
+      "class": "OrderExecutionBit",
+      "pair": "hybrid",
+      "round": 1,
+      "mode": "baseline",
+      "pid": 16687
+    },
+    {
+      "class": "OrderExecutionBit",
+      "pair": "hybrid",
+      "round": 1,
+      "mode": "hybrid",
+      "pid": 16688
+    },
+    {
+      "class": "OrderData",
+      "pair": "strict",
+      "round": 1,
+      "mode": "baseline",
+      "pid": 16690
+    },
+    {
+      "class": "OrderData",
+      "pair": "strict",
+      "round": 1,
+      "mode": "strict",
+      "pid": 16693
+    },
+    {
+      "class": "OrderData",
+      "pair": "hybrid",
+      "round": 1,
+      "mode": "baseline",
+      "pid": 16694
+    },
+    {
+      "class": "OrderData",
+      "pair": "hybrid",
+      "round": 1,
+      "mode": "hybrid",
+      "pid": 16774
+    },
+    {
+      "class": "Position",
+      "pair": "strict",
+      "round": 1,
+      "mode": "baseline",
+      "pid": 16902
+    },
+    {
+      "class": "Position",
+      "pair": "strict",
+      "round": 1,
+      "mode": "strict",
+      "pid": 16905
+    },
+    {
+      "class": "Position",
+      "pair": "hybrid",
+      "round": 1,
+      "mode": "baseline",
+      "pid": 16906
+    },
+    {
+      "class": "Position",
+      "pair": "hybrid",
+      "round": 1,
+      "mode": "hybrid",
+      "pid": 16920
+    }
+  ],
+  "results": [
+    {
+      "class": "OrderExecutionBit",
+      "mode": "baseline",
+      "pid": 16684,
+      "count": 1000,
+      "warmup_count": 128,
+      "constructor_args": [],
+      "construction_seconds_tracemalloc_enabled": 0.002732165994530078,
+      "construction_time_is_performance_gate": false,
+      "tracemalloc_retained_bytes": 256824,
+      "tracemalloc_peak_bytes": 257008,
+      "rss_before_bytes": 34684928,
+      "rss_after_bytes": 34865152,
+      "rss_delta_bytes": 180224,
+      "rss_before_mib": 33.078125,
+      "rss_after_mib": 33.25,
+      "rss_delta_mib": 0.171875,
+      "sample_indices": [
+        0,
+        500,
+        999
+      ],
+      "sampled_field_values": [
+        {
+          "index": 0,
+          "values": {
+            "closed": 0,
+            "closedcomm": {
+              "float": "0.0"
+            },
+            "closedvalue": {
+              "float": "0.0"
+            },
+            "comm": {
+              "float": "0.0"
+            },
+            "dt": null,
+            "opened": 0,
+            "openedcomm": {
+              "float": "0.0"
+            },
+            "openedvalue": {
+              "float": "0.0"
+            },
+            "pnl": {
+              "float": "0.0"
+            },
+            "pprice": {
+              "float": "0.0"
+            },
+            "price": {
+              "float": "0.0"
+            },
+            "psize": 0,
+            "size": 0,
+            "value": {
+              "float": "0.0"
+            }
+          }
+        },
+        {
+          "index": 500,
+          "values": {
+            "closed": 0,
+            "closedcomm": {
+              "float": "0.0"
+            },
+            "closedvalue": {
+              "float": "0.0"
+            },
+            "comm": {
+              "float": "0.0"
+            },
+            "dt": null,
+            "opened": 0,
+            "openedcomm": {
+              "float": "0.0"
+            },
+            "openedvalue": {
+              "float": "0.0"
+            },
+            "pnl": {
+              "float": "0.0"
+            },
+            "pprice": {
+              "float": "0.0"
+            },
+            "price": {
+              "float": "0.0"
+            },
+            "psize": 0,
+            "size": 0,
+            "value": {
+              "float": "0.0"
+            }
+          }
+        },
+        {
+          "index": 999,
+          "values": {
+            "closed": 0,
+            "closedcomm": {
+              "float": "0.0"
+            },
+            "closedvalue": {
+              "float": "0.0"
+            },
+            "comm": {
+              "float": "0.0"
+            },
+            "dt": null,
+            "opened": 0,
+            "openedcomm": {
+              "float": "0.0"
+            },
+            "openedvalue": {
+              "float": "0.0"
+            },
+            "pnl": {
+              "float": "0.0"
+            },
+            "pprice": {
+              "float": "0.0"
+            },
+            "price": {
+              "float": "0.0"
+            },
+            "psize": 0,
+            "size": 0,
+            "value": {
+              "float": "0.0"
+            }
+          }
+        }
+      ],
+      "weakref_works": true,
+      "sampled_shallow_shell_bytes_after_sampling": 56,
+      "sampled_dict_present_after_sampling": true,
+      "sampled_dict_bytes_after_sampling": 184,
+      "sampled_dict_len_before_extension_probe": 14,
+      "sampled_dict_keys_before_extension_probe": [
+        "closed",
+        "closedcomm",
+        "closedvalue",
+        "comm",
+        "dt",
+        "opened",
+        "openedcomm",
+        "openedvalue",
+        "pnl",
+        "pprice",
+        "price",
+        "psize",
+        "size",
+        "value"
+      ],
+      "extension_attribute_write": "accepted",
+      "extension_attribute_readback": true,
+      "orderdata_deque_payload": null,
+      "run_info": {
+        "git_head": "01555f804db818fdd987e35da8175d58258dc25b",
+        "class_sources": {
+          "OrderExecutionBit": {
+            "path": "backtrader/order.py",
+            "sha256": "717b980d2afdf0a6a335b1071b867a73fee7a6e3fef019577a800f166b56ab19"
+          },
+          "OrderData": {
+            "path": "backtrader/order.py",
+            "sha256": "717b980d2afdf0a6a335b1071b867a73fee7a6e3fef019577a800f166b56ab19"
+          },
+          "Position": {
+            "path": "backtrader/position.py",
+            "sha256": "b921772e74628a50e3dfe68a523e4211f1ec15b056a4a86a9a9cde8013d790f1"
+          }
+        },
+        "unique_source_hashes": {
+          "backtrader/order.py": "717b980d2afdf0a6a335b1071b867a73fee7a6e3fef019577a800f166b56ab19",
+          "backtrader/position.py": "b921772e74628a50e3dfe68a523e4211f1ec15b056a4a86a9a9cde8013d790f1"
+        }
+      },
+      "paired_prototype": "strict",
+      "pair_round": 1
+    },
+    {
+      "class": "OrderExecutionBit",
+      "mode": "strict",
+      "pid": 16686,
+      "count": 1000,
+      "warmup_count": 128,
+      "constructor_args": [],
+      "construction_seconds_tracemalloc_enabled": 0.0012040829969919287,
+      "construction_time_is_performance_gate": false,
+      "tracemalloc_retained_bytes": 208824,
+      "tracemalloc_peak_bytes": 209008,
+      "rss_before_bytes": 34619392,
+      "rss_after_bytes": 34750464,
+      "rss_delta_bytes": 131072,
+      "rss_before_mib": 33.015625,
+      "rss_after_mib": 33.140625,
+      "rss_delta_mib": 0.125,
+      "sample_indices": [
+        0,
+        500,
+        999
+      ],
+      "sampled_field_values": [
+        {
+          "index": 0,
+          "values": {
+            "closed": 0,
+            "closedcomm": {
+              "float": "0.0"
+            },
+            "closedvalue": {
+              "float": "0.0"
+            },
+            "comm": {
+              "float": "0.0"
+            },
+            "dt": null,
+            "opened": 0,
+            "openedcomm": {
+              "float": "0.0"
+            },
+            "openedvalue": {
+              "float": "0.0"
+            },
+            "pnl": {
+              "float": "0.0"
+            },
+            "pprice": {
+              "float": "0.0"
+            },
+            "price": {
+              "float": "0.0"
+            },
+            "psize": 0,
+            "size": 0,
+            "value": {
+              "float": "0.0"
+            }
+          }
+        },
+        {
+          "index": 500,
+          "values": {
+            "closed": 0,
+            "closedcomm": {
+              "float": "0.0"
+            },
+            "closedvalue": {
+              "float": "0.0"
+            },
+            "comm": {
+              "float": "0.0"
+            },
+            "dt": null,
+            "opened": 0,
+            "openedcomm": {
+              "float": "0.0"
+            },
+            "openedvalue": {
+              "float": "0.0"
+            },
+            "pnl": {
+              "float": "0.0"
+            },
+            "pprice": {
+              "float": "0.0"
+            },
+            "price": {
+              "float": "0.0"
+            },
+            "psize": 0,
+            "size": 0,
+            "value": {
+              "float": "0.0"
+            }
+          }
+        },
+        {
+          "index": 999,
+          "values": {
+            "closed": 0,
+            "closedcomm": {
+              "float": "0.0"
+            },
+            "closedvalue": {
+              "float": "0.0"
+            },
+            "comm": {
+              "float": "0.0"
+            },
+            "dt": null,
+            "opened": 0,
+            "openedcomm": {
+              "float": "0.0"
+            },
+            "openedvalue": {
+              "float": "0.0"
+            },
+            "pnl": {
+              "float": "0.0"
+            },
+            "pprice": {
+              "float": "0.0"
+            },
+            "price": {
+              "float": "0.0"
+            },
+            "psize": 0,
+            "size": 0,
+            "value": {
+              "float": "0.0"
+            }
+          }
+        }
+      ],
+      "weakref_works": true,
+      "sampled_shallow_shell_bytes_after_sampling": 152,
+      "sampled_dict_present_after_sampling": false,
+      "sampled_dict_bytes_after_sampling": null,
+      "sampled_dict_len_before_extension_probe": null,
+      "sampled_dict_keys_before_extension_probe": null,
+      "extension_attribute_write": "rejected",
+      "extension_attribute_readback": false,
+      "orderdata_deque_payload": null,
+      "run_info": {
+        "git_head": "01555f804db818fdd987e35da8175d58258dc25b",
+        "class_sources": {
+          "OrderExecutionBit": {
+            "path": "backtrader/order.py",
+            "sha256": "717b980d2afdf0a6a335b1071b867a73fee7a6e3fef019577a800f166b56ab19"
+          },
+          "OrderData": {
+            "path": "backtrader/order.py",
+            "sha256": "717b980d2afdf0a6a335b1071b867a73fee7a6e3fef019577a800f166b56ab19"
+          },
+          "Position": {
+            "path": "backtrader/position.py",
+            "sha256": "b921772e74628a50e3dfe68a523e4211f1ec15b056a4a86a9a9cde8013d790f1"
+          }
+        },
+        "unique_source_hashes": {
+          "backtrader/order.py": "717b980d2afdf0a6a335b1071b867a73fee7a6e3fef019577a800f166b56ab19",
+          "backtrader/position.py": "b921772e74628a50e3dfe68a523e4211f1ec15b056a4a86a9a9cde8013d790f1"
+        }
+      },
+      "paired_prototype": "strict",
+      "pair_round": 1
+    },
+    {
+      "class": "OrderExecutionBit",
+      "mode": "baseline",
+      "pid": 16687,
+      "count": 1000,
+      "warmup_count": 128,
+      "constructor_args": [],
+      "construction_seconds_tracemalloc_enabled": 0.0013873330026399344,
+      "construction_time_is_performance_gate": false,
+      "tracemalloc_retained_bytes": 256824,
+      "tracemalloc_peak_bytes": 257008,
+      "rss_before_bytes": 34979840,
+      "rss_after_bytes": 35225600,
+      "rss_delta_bytes": 245760,
+      "rss_before_mib": 33.359375,
+      "rss_after_mib": 33.59375,
+      "rss_delta_mib": 0.234375,
+      "sample_indices": [
+        0,
+        500,
+        999
+      ],
+      "sampled_field_values": [
+        {
+          "index": 0,
+          "values": {
+            "closed": 0,
+            "closedcomm": {
+              "float": "0.0"
+            },
+            "closedvalue": {
+              "float": "0.0"
+            },
+            "comm": {
+              "float": "0.0"
+            },
+            "dt": null,
+            "opened": 0,
+            "openedcomm": {
+              "float": "0.0"
+            },
+            "openedvalue": {
+              "float": "0.0"
+            },
+            "pnl": {
+              "float": "0.0"
+            },
+            "pprice": {
+              "float": "0.0"
+            },
+            "price": {
+              "float": "0.0"
+            },
+            "psize": 0,
+            "size": 0,
+            "value": {
+              "float": "0.0"
+            }
+          }
+        },
+        {
+          "index": 500,
+          "values": {
+            "closed": 0,
+            "closedcomm": {
+              "float": "0.0"
+            },
+            "closedvalue": {
+              "float": "0.0"
+            },
+            "comm": {
+              "float": "0.0"
+            },
+            "dt": null,
+            "opened": 0,
+            "openedcomm": {
+              "float": "0.0"
+            },
+            "openedvalue": {
+              "float": "0.0"
+            },
+            "pnl": {
+              "float": "0.0"
+            },
+            "pprice": {
+              "float": "0.0"
+            },
+            "price": {
+              "float": "0.0"
+            },
+            "psize": 0,
+            "size": 0,
+            "value": {
+              "float": "0.0"
+            }
+          }
+        },
+        {
+          "index": 999,
+          "values": {
+            "closed": 0,
+            "closedcomm": {
+              "float": "0.0"
+            },
+            "closedvalue": {
+              "float": "0.0"
+            },
+            "comm": {
+              "float": "0.0"
+            },
+            "dt": null,
+            "opened": 0,
+            "openedcomm": {
+              "float": "0.0"
+            },
+            "openedvalue": {
+              "float": "0.0"
+            },
+            "pnl": {
+              "float": "0.0"
+            },
+            "pprice": {
+              "float": "0.0"
+            },
+            "price": {
+              "float": "0.0"
+            },
+            "psize": 0,
+            "size": 0,
+            "value": {
+              "float": "0.0"
+            }
+          }
+        }
+      ],
+      "weakref_works": true,
+      "sampled_shallow_shell_bytes_after_sampling": 56,
+      "sampled_dict_present_after_sampling": true,
+      "sampled_dict_bytes_after_sampling": 184,
+      "sampled_dict_len_before_extension_probe": 14,
+      "sampled_dict_keys_before_extension_probe": [
+        "closed",
+        "closedcomm",
+        "closedvalue",
+        "comm",
+        "dt",
+        "opened",
+        "openedcomm",
+        "openedvalue",
+        "pnl",
+        "pprice",
+        "price",
+        "psize",
+        "size",
+        "value"
+      ],
+      "extension_attribute_write": "accepted",
+      "extension_attribute_readback": true,
+      "orderdata_deque_payload": null,
+      "run_info": {
+        "git_head": "01555f804db818fdd987e35da8175d58258dc25b",
+        "class_sources": {
+          "OrderExecutionBit": {
+            "path": "backtrader/order.py",
+            "sha256": "717b980d2afdf0a6a335b1071b867a73fee7a6e3fef019577a800f166b56ab19"
+          },
+          "OrderData": {
+            "path": "backtrader/order.py",
+            "sha256": "717b980d2afdf0a6a335b1071b867a73fee7a6e3fef019577a800f166b56ab19"
+          },
+          "Position": {
+            "path": "backtrader/position.py",
+            "sha256": "b921772e74628a50e3dfe68a523e4211f1ec15b056a4a86a9a9cde8013d790f1"
+          }
+        },
+        "unique_source_hashes": {
+          "backtrader/order.py": "717b980d2afdf0a6a335b1071b867a73fee7a6e3fef019577a800f166b56ab19",
+          "backtrader/position.py": "b921772e74628a50e3dfe68a523e4211f1ec15b056a4a86a9a9cde8013d790f1"
+        }
+      },
+      "paired_prototype": "hybrid",
+      "pair_round": 1
+    },
+    {
+      "class": "OrderExecutionBit",
+      "mode": "hybrid",
+      "pid": 16688,
+      "count": 1000,
+      "warmup_count": 128,
+      "constructor_args": [],
+      "construction_seconds_tracemalloc_enabled": 0.0012732499963021837,
+      "construction_time_is_performance_gate": false,
+      "tracemalloc_retained_bytes": 240824,
+      "tracemalloc_peak_bytes": 241008,
+      "rss_before_bytes": 34766848,
+      "rss_after_bytes": 34947072,
+      "rss_delta_bytes": 180224,
+      "rss_before_mib": 33.15625,
+      "rss_after_mib": 33.328125,
+      "rss_delta_mib": 0.171875,
+      "sample_indices": [
+        0,
+        500,
+        999
+      ],
+      "sampled_field_values": [
+        {
+          "index": 0,
+          "values": {
+            "closed": 0,
+            "closedcomm": {
+              "float": "0.0"
+            },
+            "closedvalue": {
+              "float": "0.0"
+            },
+            "comm": {
+              "float": "0.0"
+            },
+            "dt": null,
+            "opened": 0,
+            "openedcomm": {
+              "float": "0.0"
+            },
+            "openedvalue": {
+              "float": "0.0"
+            },
+            "pnl": {
+              "float": "0.0"
+            },
+            "pprice": {
+              "float": "0.0"
+            },
+            "price": {
+              "float": "0.0"
+            },
+            "psize": 0,
+            "size": 0,
+            "value": {
+              "float": "0.0"
+            }
+          }
+        },
+        {
+          "index": 500,
+          "values": {
+            "closed": 0,
+            "closedcomm": {
+              "float": "0.0"
+            },
+            "closedvalue": {
+              "float": "0.0"
+            },
+            "comm": {
+              "float": "0.0"
+            },
+            "dt": null,
+            "opened": 0,
+            "openedcomm": {
+              "float": "0.0"
+            },
+            "openedvalue": {
+              "float": "0.0"
+            },
+            "pnl": {
+              "float": "0.0"
+            },
+            "pprice": {
+              "float": "0.0"
+            },
+            "price": {
+              "float": "0.0"
+            },
+            "psize": 0,
+            "size": 0,
+            "value": {
+              "float": "0.0"
+            }
+          }
+        },
+        {
+          "index": 999,
+          "values": {
+            "closed": 0,
+            "closedcomm": {
+              "float": "0.0"
+            },
+            "closedvalue": {
+              "float": "0.0"
+            },
+            "comm": {
+              "float": "0.0"
+            },
+            "dt": null,
+            "opened": 0,
+            "openedcomm": {
+              "float": "0.0"
+            },
+            "openedvalue": {
+              "float": "0.0"
+            },
+            "pnl": {
+              "float": "0.0"
+            },
+            "pprice": {
+              "float": "0.0"
+            },
+            "price": {
+              "float": "0.0"
+            },
+            "psize": 0,
+            "size": 0,
+            "value": {
+              "float": "0.0"
+            }
+          }
+        }
+      ],
+      "weakref_works": true,
+      "sampled_shallow_shell_bytes_after_sampling": 168,
+      "sampled_dict_present_after_sampling": true,
+      "sampled_dict_bytes_after_sampling": 72,
+      "sampled_dict_len_before_extension_probe": 0,
+      "sampled_dict_keys_before_extension_probe": [],
+      "extension_attribute_write": "accepted",
+      "extension_attribute_readback": true,
+      "orderdata_deque_payload": null,
+      "run_info": {
+        "git_head": "01555f804db818fdd987e35da8175d58258dc25b",
+        "class_sources": {
+          "OrderExecutionBit": {
+            "path": "backtrader/order.py",
+            "sha256": "717b980d2afdf0a6a335b1071b867a73fee7a6e3fef019577a800f166b56ab19"
+          },
+          "OrderData": {
+            "path": "backtrader/order.py",
+            "sha256": "717b980d2afdf0a6a335b1071b867a73fee7a6e3fef019577a800f166b56ab19"
+          },
+          "Position": {
+            "path": "backtrader/position.py",
+            "sha256": "b921772e74628a50e3dfe68a523e4211f1ec15b056a4a86a9a9cde8013d790f1"
+          }
+        },
+        "unique_source_hashes": {
+          "backtrader/order.py": "717b980d2afdf0a6a335b1071b867a73fee7a6e3fef019577a800f166b56ab19",
+          "backtrader/position.py": "b921772e74628a50e3dfe68a523e4211f1ec15b056a4a86a9a9cde8013d790f1"
+        }
+      },
+      "paired_prototype": "hybrid",
+      "pair_round": 1
+    },
+    {
+      "class": "OrderData",
+      "mode": "baseline",
+      "pid": 16690,
+      "count": 1000,
+      "warmup_count": 128,
+      "constructor_args": [],
+      "construction_seconds_tracemalloc_enabled": 0.0011463340051705018,
+      "construction_time_is_performance_gate": false,
+      "tracemalloc_retained_bytes": 1000824,
+      "tracemalloc_peak_bytes": 1001032,
+      "rss_before_bytes": 34242560,
+      "rss_after_bytes": 34881536,
+      "rss_delta_bytes": 638976,
+      "rss_before_mib": 32.65625,
+      "rss_after_mib": 33.265625,
+      "rss_delta_mib": 0.609375,
+      "sample_indices": [
+        0,
+        500,
+        999
+      ],
+      "sampled_field_values": [
+        {
+          "index": 0,
+          "values": {
+            "_plimit": {
+              "float": "0.0"
+            },
+            "comm": {
+              "float": "0.0"
+            },
+            "dt": null,
+            "exbits": {
+              "type": "collections.deque",
+              "length": 0
+            },
+            "margin": null,
+            "p1": 0,
+            "p2": 0,
+            "pclose": {
+              "float": "0.0"
+            },
+            "pnl": {
+              "float": "0.0"
+            },
+            "pprice": 0,
+            "price": {
+              "float": "0.0"
+            },
+            "pricelimit": {
+              "float": "0.0"
+            },
+            "psize": 0,
+            "remsize": 0,
+            "size": 0,
+            "trailamount": {
+              "float": "0.0"
+            },
+            "trailpercent": {
+              "float": "0.0"
+            },
+            "value": {
+              "float": "0.0"
+            }
+          }
+        },
+        {
+          "index": 500,
+          "values": {
+            "_plimit": {
+              "float": "0.0"
+            },
+            "comm": {
+              "float": "0.0"
+            },
+            "dt": null,
+            "exbits": {
+              "type": "collections.deque",
+              "length": 0
+            },
+            "margin": null,
+            "p1": 0,
+            "p2": 0,
+            "pclose": {
+              "float": "0.0"
+            },
+            "pnl": {
+              "float": "0.0"
+            },
+            "pprice": 0,
+            "price": {
+              "float": "0.0"
+            },
+            "pricelimit": {
+              "float": "0.0"
+            },
+            "psize": 0,
+            "remsize": 0,
+            "size": 0,
+            "trailamount": {
+              "float": "0.0"
+            },
+            "trailpercent": {
+              "float": "0.0"
+            },
+            "value": {
+              "float": "0.0"
+            }
+          }
+        },
+        {
+          "index": 999,
+          "values": {
+            "_plimit": {
+              "float": "0.0"
+            },
+            "comm": {
+              "float": "0.0"
+            },
+            "dt": null,
+            "exbits": {
+              "type": "collections.deque",
+              "length": 0
+            },
+            "margin": null,
+            "p1": 0,
+            "p2": 0,
+            "pclose": {
+              "float": "0.0"
+            },
+            "pnl": {
+              "float": "0.0"
+            },
+            "pprice": 0,
+            "price": {
+              "float": "0.0"
+            },
+            "pricelimit": {
+              "float": "0.0"
+            },
+            "psize": 0,
+            "remsize": 0,
+            "size": 0,
+            "trailamount": {
+              "float": "0.0"
+            },
+            "trailpercent": {
+              "float": "0.0"
+            },
+            "value": {
+              "float": "0.0"
+            }
+          }
+        }
+      ],
+      "weakref_works": true,
+      "sampled_shallow_shell_bytes_after_sampling": 56,
+      "sampled_dict_present_after_sampling": true,
+      "sampled_dict_bytes_after_sampling": 216,
+      "sampled_dict_len_before_extension_probe": 18,
+      "sampled_dict_keys_before_extension_probe": [
+        "_plimit",
+        "comm",
+        "dt",
+        "exbits",
+        "margin",
+        "p1",
+        "p2",
+        "pclose",
+        "pnl",
+        "pprice",
+        "price",
+        "pricelimit",
+        "psize",
+        "remsize",
+        "size",
+        "trailamount",
+        "trailpercent",
+        "value"
+      ],
+      "extension_attribute_write": "accepted",
+      "extension_attribute_readback": true,
+      "orderdata_deque_payload": {
+        "attribute_type": "deque",
+        "payload_length": 1,
+        "pending_length": 1,
+        "payload_bit_type": "OrderExecutionBit",
+        "payload_values": {
+          "dt": {
+            "float": "1.0"
+          },
+          "size": 1,
+          "price": {
+            "float": "10.0"
+          }
+        },
+        "preserved": true
+      },
+      "run_info": {
+        "git_head": "01555f804db818fdd987e35da8175d58258dc25b",
+        "class_sources": {
+          "OrderExecutionBit": {
+            "path": "backtrader/order.py",
+            "sha256": "717b980d2afdf0a6a335b1071b867a73fee7a6e3fef019577a800f166b56ab19"
+          },
+          "OrderData": {
+            "path": "backtrader/order.py",
+            "sha256": "717b980d2afdf0a6a335b1071b867a73fee7a6e3fef019577a800f166b56ab19"
+          },
+          "Position": {
+            "path": "backtrader/position.py",
+            "sha256": "b921772e74628a50e3dfe68a523e4211f1ec15b056a4a86a9a9cde8013d790f1"
+          }
+        },
+        "unique_source_hashes": {
+          "backtrader/order.py": "717b980d2afdf0a6a335b1071b867a73fee7a6e3fef019577a800f166b56ab19",
+          "backtrader/position.py": "b921772e74628a50e3dfe68a523e4211f1ec15b056a4a86a9a9cde8013d790f1"
+        }
+      },
+      "paired_prototype": "strict",
+      "pair_round": 1
+    },
+    {
+      "class": "OrderData",
+      "mode": "strict",
+      "pid": 16693,
+      "count": 1000,
+      "warmup_count": 128,
+      "constructor_args": [],
+      "construction_seconds_tracemalloc_enabled": 0.0014774589944863692,
+      "construction_time_is_performance_gate": false,
+      "tracemalloc_retained_bytes": 952824,
+      "tracemalloc_peak_bytes": 953032,
+      "rss_before_bytes": 34816000,
+      "rss_after_bytes": 35520512,
+      "rss_delta_bytes": 704512,
+      "rss_before_mib": 33.203125,
+      "rss_after_mib": 33.875,
+      "rss_delta_mib": 0.671875,
+      "sample_indices": [
+        0,
+        500,
+        999
+      ],
+      "sampled_field_values": [
+        {
+          "index": 0,
+          "values": {
+            "_plimit": {
+              "float": "0.0"
+            },
+            "comm": {
+              "float": "0.0"
+            },
+            "dt": null,
+            "exbits": {
+              "type": "collections.deque",
+              "length": 0
+            },
+            "margin": null,
+            "p1": 0,
+            "p2": 0,
+            "pclose": {
+              "float": "0.0"
+            },
+            "pnl": {
+              "float": "0.0"
+            },
+            "pprice": 0,
+            "price": {
+              "float": "0.0"
+            },
+            "pricelimit": {
+              "float": "0.0"
+            },
+            "psize": 0,
+            "remsize": 0,
+            "size": 0,
+            "trailamount": {
+              "float": "0.0"
+            },
+            "trailpercent": {
+              "float": "0.0"
+            },
+            "value": {
+              "float": "0.0"
+            }
+          }
+        },
+        {
+          "index": 500,
+          "values": {
+            "_plimit": {
+              "float": "0.0"
+            },
+            "comm": {
+              "float": "0.0"
+            },
+            "dt": null,
+            "exbits": {
+              "type": "collections.deque",
+              "length": 0
+            },
+            "margin": null,
+            "p1": 0,
+            "p2": 0,
+            "pclose": {
+              "float": "0.0"
+            },
+            "pnl": {
+              "float": "0.0"
+            },
+            "pprice": 0,
+            "price": {
+              "float": "0.0"
+            },
+            "pricelimit": {
+              "float": "0.0"
+            },
+            "psize": 0,
+            "remsize": 0,
+            "size": 0,
+            "trailamount": {
+              "float": "0.0"
+            },
+            "trailpercent": {
+              "float": "0.0"
+            },
+            "value": {
+              "float": "0.0"
+            }
+          }
+        },
+        {
+          "index": 999,
+          "values": {
+            "_plimit": {
+              "float": "0.0"
+            },
+            "comm": {
+              "float": "0.0"
+            },
+            "dt": null,
+            "exbits": {
+              "type": "collections.deque",
+              "length": 0
+            },
+            "margin": null,
+            "p1": 0,
+            "p2": 0,
+            "pclose": {
+              "float": "0.0"
+            },
+            "pnl": {
+              "float": "0.0"
+            },
+            "pprice": 0,
+            "price": {
+              "float": "0.0"
+            },
+            "pricelimit": {
+              "float": "0.0"
+            },
+            "psize": 0,
+            "remsize": 0,
+            "size": 0,
+            "trailamount": {
+              "float": "0.0"
+            },
+            "trailpercent": {
+              "float": "0.0"
+            },
+            "value": {
+              "float": "0.0"
+            }
+          }
+        }
+      ],
+      "weakref_works": true,
+      "sampled_shallow_shell_bytes_after_sampling": 184,
+      "sampled_dict_present_after_sampling": false,
+      "sampled_dict_bytes_after_sampling": null,
+      "sampled_dict_len_before_extension_probe": null,
+      "sampled_dict_keys_before_extension_probe": null,
+      "extension_attribute_write": "rejected",
+      "extension_attribute_readback": false,
+      "orderdata_deque_payload": {
+        "attribute_type": "deque",
+        "payload_length": 1,
+        "pending_length": 1,
+        "payload_bit_type": "OrderExecutionBit",
+        "payload_values": {
+          "dt": {
+            "float": "1.0"
+          },
+          "size": 1,
+          "price": {
+            "float": "10.0"
+          }
+        },
+        "preserved": true
+      },
+      "run_info": {
+        "git_head": "01555f804db818fdd987e35da8175d58258dc25b",
+        "class_sources": {
+          "OrderExecutionBit": {
+            "path": "backtrader/order.py",
+            "sha256": "717b980d2afdf0a6a335b1071b867a73fee7a6e3fef019577a800f166b56ab19"
+          },
+          "OrderData": {
+            "path": "backtrader/order.py",
+            "sha256": "717b980d2afdf0a6a335b1071b867a73fee7a6e3fef019577a800f166b56ab19"
+          },
+          "Position": {
+            "path": "backtrader/position.py",
+            "sha256": "b921772e74628a50e3dfe68a523e4211f1ec15b056a4a86a9a9cde8013d790f1"
+          }
+        },
+        "unique_source_hashes": {
+          "backtrader/order.py": "717b980d2afdf0a6a335b1071b867a73fee7a6e3fef019577a800f166b56ab19",
+          "backtrader/position.py": "b921772e74628a50e3dfe68a523e4211f1ec15b056a4a86a9a9cde8013d790f1"
+        }
+      },
+      "paired_prototype": "strict",
+      "pair_round": 1
+    },
+    {
+      "class": "OrderData",
+      "mode": "baseline",
+      "pid": 16694,
+      "count": 1000,
+      "warmup_count": 128,
+      "constructor_args": [],
+      "construction_seconds_tracemalloc_enabled": 0.0011767920004785992,
+      "construction_time_is_performance_gate": false,
+      "tracemalloc_retained_bytes": 1000824,
+      "tracemalloc_peak_bytes": 1001032,
+      "rss_before_bytes": 34652160,
+      "rss_after_bytes": 35356672,
+      "rss_delta_bytes": 704512,
+      "rss_before_mib": 33.046875,
+      "rss_after_mib": 33.71875,
+      "rss_delta_mib": 0.671875,
+      "sample_indices": [
+        0,
+        500,
+        999
+      ],
+      "sampled_field_values": [
+        {
+          "index": 0,
+          "values": {
+            "_plimit": {
+              "float": "0.0"
+            },
+            "comm": {
+              "float": "0.0"
+            },
+            "dt": null,
+            "exbits": {
+              "type": "collections.deque",
+              "length": 0
+            },
+            "margin": null,
+            "p1": 0,
+            "p2": 0,
+            "pclose": {
+              "float": "0.0"
+            },
+            "pnl": {
+              "float": "0.0"
+            },
+            "pprice": 0,
+            "price": {
+              "float": "0.0"
+            },
+            "pricelimit": {
+              "float": "0.0"
+            },
+            "psize": 0,
+            "remsize": 0,
+            "size": 0,
+            "trailamount": {
+              "float": "0.0"
+            },
+            "trailpercent": {
+              "float": "0.0"
+            },
+            "value": {
+              "float": "0.0"
+            }
+          }
+        },
+        {
+          "index": 500,
+          "values": {
+            "_plimit": {
+              "float": "0.0"
+            },
+            "comm": {
+              "float": "0.0"
+            },
+            "dt": null,
+            "exbits": {
+              "type": "collections.deque",
+              "length": 0
+            },
+            "margin": null,
+            "p1": 0,
+            "p2": 0,
+            "pclose": {
+              "float": "0.0"
+            },
+            "pnl": {
+              "float": "0.0"
+            },
+            "pprice": 0,
+            "price": {
+              "float": "0.0"
+            },
+            "pricelimit": {
+              "float": "0.0"
+            },
+            "psize": 0,
+            "remsize": 0,
+            "size": 0,
+            "trailamount": {
+              "float": "0.0"
+            },
+            "trailpercent": {
+              "float": "0.0"
+            },
+            "value": {
+              "float": "0.0"
+            }
+          }
+        },
+        {
+          "index": 999,
+          "values": {
+            "_plimit": {
+              "float": "0.0"
+            },
+            "comm": {
+              "float": "0.0"
+            },
+            "dt": null,
+            "exbits": {
+              "type": "collections.deque",
+              "length": 0
+            },
+            "margin": null,
+            "p1": 0,
+            "p2": 0,
+            "pclose": {
+              "float": "0.0"
+            },
+            "pnl": {
+              "float": "0.0"
+            },
+            "pprice": 0,
+            "price": {
+              "float": "0.0"
+            },
+            "pricelimit": {
+              "float": "0.0"
+            },
+            "psize": 0,
+            "remsize": 0,
+            "size": 0,
+            "trailamount": {
+              "float": "0.0"
+            },
+            "trailpercent": {
+              "float": "0.0"
+            },
+            "value": {
+              "float": "0.0"
+            }
+          }
+        }
+      ],
+      "weakref_works": true,
+      "sampled_shallow_shell_bytes_after_sampling": 56,
+      "sampled_dict_present_after_sampling": true,
+      "sampled_dict_bytes_after_sampling": 216,
+      "sampled_dict_len_before_extension_probe": 18,
+      "sampled_dict_keys_before_extension_probe": [
+        "_plimit",
+        "comm",
+        "dt",
+        "exbits",
+        "margin",
+        "p1",
+        "p2",
+        "pclose",
+        "pnl",
+        "pprice",
+        "price",
+        "pricelimit",
+        "psize",
+        "remsize",
+        "size",
+        "trailamount",
+        "trailpercent",
+        "value"
+      ],
+      "extension_attribute_write": "accepted",
+      "extension_attribute_readback": true,
+      "orderdata_deque_payload": {
+        "attribute_type": "deque",
+        "payload_length": 1,
+        "pending_length": 1,
+        "payload_bit_type": "OrderExecutionBit",
+        "payload_values": {
+          "dt": {
+            "float": "1.0"
+          },
+          "size": 1,
+          "price": {
+            "float": "10.0"
+          }
+        },
+        "preserved": true
+      },
+      "run_info": {
+        "git_head": "01555f804db818fdd987e35da8175d58258dc25b",
+        "class_sources": {
+          "OrderExecutionBit": {
+            "path": "backtrader/order.py",
+            "sha256": "717b980d2afdf0a6a335b1071b867a73fee7a6e3fef019577a800f166b56ab19"
+          },
+          "OrderData": {
+            "path": "backtrader/order.py",
+            "sha256": "717b980d2afdf0a6a335b1071b867a73fee7a6e3fef019577a800f166b56ab19"
+          },
+          "Position": {
+            "path": "backtrader/position.py",
+            "sha256": "b921772e74628a50e3dfe68a523e4211f1ec15b056a4a86a9a9cde8013d790f1"
+          }
+        },
+        "unique_source_hashes": {
+          "backtrader/order.py": "717b980d2afdf0a6a335b1071b867a73fee7a6e3fef019577a800f166b56ab19",
+          "backtrader/position.py": "b921772e74628a50e3dfe68a523e4211f1ec15b056a4a86a9a9cde8013d790f1"
+        }
+      },
+      "paired_prototype": "hybrid",
+      "pair_round": 1
+    },
+    {
+      "class": "OrderData",
+      "mode": "hybrid",
+      "pid": 16774,
+      "count": 1000,
+      "warmup_count": 128,
+      "constructor_args": [],
+      "construction_seconds_tracemalloc_enabled": 0.003704041999299079,
+      "construction_time_is_performance_gate": false,
+      "tracemalloc_retained_bytes": 984824,
+      "tracemalloc_peak_bytes": 985032,
+      "rss_before_bytes": 36110336,
+      "rss_after_bytes": 36749312,
+      "rss_delta_bytes": 638976,
+      "rss_before_mib": 34.4375,
+      "rss_after_mib": 35.046875,
+      "rss_delta_mib": 0.609375,
+      "sample_indices": [
+        0,
+        500,
+        999
+      ],
+      "sampled_field_values": [
+        {
+          "index": 0,
+          "values": {
+            "_plimit": {
+              "float": "0.0"
+            },
+            "comm": {
+              "float": "0.0"
+            },
+            "dt": null,
+            "exbits": {
+              "type": "collections.deque",
+              "length": 0
+            },
+            "margin": null,
+            "p1": 0,
+            "p2": 0,
+            "pclose": {
+              "float": "0.0"
+            },
+            "pnl": {
+              "float": "0.0"
+            },
+            "pprice": 0,
+            "price": {
+              "float": "0.0"
+            },
+            "pricelimit": {
+              "float": "0.0"
+            },
+            "psize": 0,
+            "remsize": 0,
+            "size": 0,
+            "trailamount": {
+              "float": "0.0"
+            },
+            "trailpercent": {
+              "float": "0.0"
+            },
+            "value": {
+              "float": "0.0"
+            }
+          }
+        },
+        {
+          "index": 500,
+          "values": {
+            "_plimit": {
+              "float": "0.0"
+            },
+            "comm": {
+              "float": "0.0"
+            },
+            "dt": null,
+            "exbits": {
+              "type": "collections.deque",
+              "length": 0
+            },
+            "margin": null,
+            "p1": 0,
+            "p2": 0,
+            "pclose": {
+              "float": "0.0"
+            },
+            "pnl": {
+              "float": "0.0"
+            },
+            "pprice": 0,
+            "price": {
+              "float": "0.0"
+            },
+            "pricelimit": {
+              "float": "0.0"
+            },
+            "psize": 0,
+            "remsize": 0,
+            "size": 0,
+            "trailamount": {
+              "float": "0.0"
+            },
+            "trailpercent": {
+              "float": "0.0"
+            },
+            "value": {
+              "float": "0.0"
+            }
+          }
+        },
+        {
+          "index": 999,
+          "values": {
+            "_plimit": {
+              "float": "0.0"
+            },
+            "comm": {
+              "float": "0.0"
+            },
+            "dt": null,
+            "exbits": {
+              "type": "collections.deque",
+              "length": 0
+            },
+            "margin": null,
+            "p1": 0,
+            "p2": 0,
+            "pclose": {
+              "float": "0.0"
+            },
+            "pnl": {
+              "float": "0.0"
+            },
+            "pprice": 0,
+            "price": {
+              "float": "0.0"
+            },
+            "pricelimit": {
+              "float": "0.0"
+            },
+            "psize": 0,
+            "remsize": 0,
+            "size": 0,
+            "trailamount": {
+              "float": "0.0"
+            },
+            "trailpercent": {
+              "float": "0.0"
+            },
+            "value": {
+              "float": "0.0"
+            }
+          }
+        }
+      ],
+      "weakref_works": true,
+      "sampled_shallow_shell_bytes_after_sampling": 200,
+      "sampled_dict_present_after_sampling": true,
+      "sampled_dict_bytes_after_sampling": 72,
+      "sampled_dict_len_before_extension_probe": 0,
+      "sampled_dict_keys_before_extension_probe": [],
+      "extension_attribute_write": "accepted",
+      "extension_attribute_readback": true,
+      "orderdata_deque_payload": {
+        "attribute_type": "deque",
+        "payload_length": 1,
+        "pending_length": 1,
+        "payload_bit_type": "OrderExecutionBit",
+        "payload_values": {
+          "dt": {
+            "float": "1.0"
+          },
+          "size": 1,
+          "price": {
+            "float": "10.0"
+          }
+        },
+        "preserved": true
+      },
+      "run_info": {
+        "git_head": "01555f804db818fdd987e35da8175d58258dc25b",
+        "class_sources": {
+          "OrderExecutionBit": {
+            "path": "backtrader/order.py",
+            "sha256": "717b980d2afdf0a6a335b1071b867a73fee7a6e3fef019577a800f166b56ab19"
+          },
+          "OrderData": {
+            "path": "backtrader/order.py",
+            "sha256": "717b980d2afdf0a6a335b1071b867a73fee7a6e3fef019577a800f166b56ab19"
+          },
+          "Position": {
+            "path": "backtrader/position.py",
+            "sha256": "b921772e74628a50e3dfe68a523e4211f1ec15b056a4a86a9a9cde8013d790f1"
+          }
+        },
+        "unique_source_hashes": {
+          "backtrader/order.py": "717b980d2afdf0a6a335b1071b867a73fee7a6e3fef019577a800f166b56ab19",
+          "backtrader/position.py": "b921772e74628a50e3dfe68a523e4211f1ec15b056a4a86a9a9cde8013d790f1"
+        }
+      },
+      "paired_prototype": "hybrid",
+      "pair_round": 1
+    },
+    {
+      "class": "Position",
+      "mode": "baseline",
+      "pid": 16902,
+      "count": 1000,
+      "warmup_count": 128,
+      "constructor_args": [],
+      "construction_seconds_tracemalloc_enabled": 0.0006694170006085187,
+      "construction_time_is_performance_gate": false,
+      "tracemalloc_retained_bytes": 152824,
+      "tracemalloc_peak_bytes": 153032,
+      "rss_before_bytes": 34422784,
+      "rss_after_bytes": 34504704,
+      "rss_delta_bytes": 81920,
+      "rss_before_mib": 32.828125,
+      "rss_after_mib": 32.90625,
+      "rss_delta_mib": 0.078125,
+      "sample_indices": [
+        0,
+        500,
+        999
+      ],
+      "sampled_field_values": [
+        {
+          "index": 0,
+          "values": {
+            "adjbase": null,
+            "datetime": null,
+            "price": {
+              "float": "0.0"
+            },
+            "price_orig": {
+              "float": "0.0"
+            },
+            "size": 0,
+            "upclosed": 0,
+            "updt": null,
+            "upopened": 0
+          }
+        },
+        {
+          "index": 500,
+          "values": {
+            "adjbase": null,
+            "datetime": null,
+            "price": {
+              "float": "0.0"
+            },
+            "price_orig": {
+              "float": "0.0"
+            },
+            "size": 0,
+            "upclosed": 0,
+            "updt": null,
+            "upopened": 0
+          }
+        },
+        {
+          "index": 999,
+          "values": {
+            "adjbase": null,
+            "datetime": null,
+            "price": {
+              "float": "0.0"
+            },
+            "price_orig": {
+              "float": "0.0"
+            },
+            "size": 0,
+            "upclosed": 0,
+            "updt": null,
+            "upopened": 0
+          }
+        }
+      ],
+      "weakref_works": true,
+      "sampled_shallow_shell_bytes_after_sampling": 56,
+      "sampled_dict_present_after_sampling": true,
+      "sampled_dict_bytes_after_sampling": 136,
+      "sampled_dict_len_before_extension_probe": 8,
+      "sampled_dict_keys_before_extension_probe": [
+        "adjbase",
+        "datetime",
+        "price",
+        "price_orig",
+        "size",
+        "upclosed",
+        "updt",
+        "upopened"
+      ],
+      "extension_attribute_write": "accepted",
+      "extension_attribute_readback": true,
+      "orderdata_deque_payload": null,
+      "run_info": {
+        "git_head": "01555f804db818fdd987e35da8175d58258dc25b",
+        "class_sources": {
+          "OrderExecutionBit": {
+            "path": "backtrader/order.py",
+            "sha256": "717b980d2afdf0a6a335b1071b867a73fee7a6e3fef019577a800f166b56ab19"
+          },
+          "OrderData": {
+            "path": "backtrader/order.py",
+            "sha256": "717b980d2afdf0a6a335b1071b867a73fee7a6e3fef019577a800f166b56ab19"
+          },
+          "Position": {
+            "path": "backtrader/position.py",
+            "sha256": "b921772e74628a50e3dfe68a523e4211f1ec15b056a4a86a9a9cde8013d790f1"
+          }
+        },
+        "unique_source_hashes": {
+          "backtrader/order.py": "717b980d2afdf0a6a335b1071b867a73fee7a6e3fef019577a800f166b56ab19",
+          "backtrader/position.py": "b921772e74628a50e3dfe68a523e4211f1ec15b056a4a86a9a9cde8013d790f1"
+        }
+      },
+      "paired_prototype": "strict",
+      "pair_round": 1
+    },
+    {
+      "class": "Position",
+      "mode": "strict",
+      "pid": 16905,
+      "count": 1000,
+      "warmup_count": 128,
+      "constructor_args": [],
+      "construction_seconds_tracemalloc_enabled": 0.0005970000056549907,
+      "construction_time_is_performance_gate": false,
+      "tracemalloc_retained_bytes": 112824,
+      "tracemalloc_peak_bytes": 113032,
+      "rss_before_bytes": 34242560,
+      "rss_after_bytes": 34275328,
+      "rss_delta_bytes": 32768,
+      "rss_before_mib": 32.65625,
+      "rss_after_mib": 32.6875,
+      "rss_delta_mib": 0.03125,
+      "sample_indices": [
+        0,
+        500,
+        999
+      ],
+      "sampled_field_values": [
+        {
+          "index": 0,
+          "values": {
+            "adjbase": null,
+            "datetime": null,
+            "price": {
+              "float": "0.0"
+            },
+            "price_orig": {
+              "float": "0.0"
+            },
+            "size": 0,
+            "upclosed": 0,
+            "updt": null,
+            "upopened": 0
+          }
+        },
+        {
+          "index": 500,
+          "values": {
+            "adjbase": null,
+            "datetime": null,
+            "price": {
+              "float": "0.0"
+            },
+            "price_orig": {
+              "float": "0.0"
+            },
+            "size": 0,
+            "upclosed": 0,
+            "updt": null,
+            "upopened": 0
+          }
+        },
+        {
+          "index": 999,
+          "values": {
+            "adjbase": null,
+            "datetime": null,
+            "price": {
+              "float": "0.0"
+            },
+            "price_orig": {
+              "float": "0.0"
+            },
+            "size": 0,
+            "upclosed": 0,
+            "updt": null,
+            "upopened": 0
+          }
+        }
+      ],
+      "weakref_works": true,
+      "sampled_shallow_shell_bytes_after_sampling": 104,
+      "sampled_dict_present_after_sampling": false,
+      "sampled_dict_bytes_after_sampling": null,
+      "sampled_dict_len_before_extension_probe": null,
+      "sampled_dict_keys_before_extension_probe": null,
+      "extension_attribute_write": "rejected",
+      "extension_attribute_readback": false,
+      "orderdata_deque_payload": null,
+      "run_info": {
+        "git_head": "01555f804db818fdd987e35da8175d58258dc25b",
+        "class_sources": {
+          "OrderExecutionBit": {
+            "path": "backtrader/order.py",
+            "sha256": "717b980d2afdf0a6a335b1071b867a73fee7a6e3fef019577a800f166b56ab19"
+          },
+          "OrderData": {
+            "path": "backtrader/order.py",
+            "sha256": "717b980d2afdf0a6a335b1071b867a73fee7a6e3fef019577a800f166b56ab19"
+          },
+          "Position": {
+            "path": "backtrader/position.py",
+            "sha256": "b921772e74628a50e3dfe68a523e4211f1ec15b056a4a86a9a9cde8013d790f1"
+          }
+        },
+        "unique_source_hashes": {
+          "backtrader/order.py": "717b980d2afdf0a6a335b1071b867a73fee7a6e3fef019577a800f166b56ab19",
+          "backtrader/position.py": "b921772e74628a50e3dfe68a523e4211f1ec15b056a4a86a9a9cde8013d790f1"
+        }
+      },
+      "paired_prototype": "strict",
+      "pair_round": 1
+    },
+    {
+      "class": "Position",
+      "mode": "baseline",
+      "pid": 16906,
+      "count": 1000,
+      "warmup_count": 128,
+      "constructor_args": [],
+      "construction_seconds_tracemalloc_enabled": 0.001691249999566935,
+      "construction_time_is_performance_gate": false,
+      "tracemalloc_retained_bytes": 152824,
+      "tracemalloc_peak_bytes": 153032,
+      "rss_before_bytes": 34979840,
+      "rss_after_bytes": 35045376,
+      "rss_delta_bytes": 65536,
+      "rss_before_mib": 33.359375,
+      "rss_after_mib": 33.421875,
+      "rss_delta_mib": 0.0625,
+      "sample_indices": [
+        0,
+        500,
+        999
+      ],
+      "sampled_field_values": [
+        {
+          "index": 0,
+          "values": {
+            "adjbase": null,
+            "datetime": null,
+            "price": {
+              "float": "0.0"
+            },
+            "price_orig": {
+              "float": "0.0"
+            },
+            "size": 0,
+            "upclosed": 0,
+            "updt": null,
+            "upopened": 0
+          }
+        },
+        {
+          "index": 500,
+          "values": {
+            "adjbase": null,
+            "datetime": null,
+            "price": {
+              "float": "0.0"
+            },
+            "price_orig": {
+              "float": "0.0"
+            },
+            "size": 0,
+            "upclosed": 0,
+            "updt": null,
+            "upopened": 0
+          }
+        },
+        {
+          "index": 999,
+          "values": {
+            "adjbase": null,
+            "datetime": null,
+            "price": {
+              "float": "0.0"
+            },
+            "price_orig": {
+              "float": "0.0"
+            },
+            "size": 0,
+            "upclosed": 0,
+            "updt": null,
+            "upopened": 0
+          }
+        }
+      ],
+      "weakref_works": true,
+      "sampled_shallow_shell_bytes_after_sampling": 56,
+      "sampled_dict_present_after_sampling": true,
+      "sampled_dict_bytes_after_sampling": 136,
+      "sampled_dict_len_before_extension_probe": 8,
+      "sampled_dict_keys_before_extension_probe": [
+        "adjbase",
+        "datetime",
+        "price",
+        "price_orig",
+        "size",
+        "upclosed",
+        "updt",
+        "upopened"
+      ],
+      "extension_attribute_write": "accepted",
+      "extension_attribute_readback": true,
+      "orderdata_deque_payload": null,
+      "run_info": {
+        "git_head": "01555f804db818fdd987e35da8175d58258dc25b",
+        "class_sources": {
+          "OrderExecutionBit": {
+            "path": "backtrader/order.py",
+            "sha256": "717b980d2afdf0a6a335b1071b867a73fee7a6e3fef019577a800f166b56ab19"
+          },
+          "OrderData": {
+            "path": "backtrader/order.py",
+            "sha256": "717b980d2afdf0a6a335b1071b867a73fee7a6e3fef019577a800f166b56ab19"
+          },
+          "Position": {
+            "path": "backtrader/position.py",
+            "sha256": "b921772e74628a50e3dfe68a523e4211f1ec15b056a4a86a9a9cde8013d790f1"
+          }
+        },
+        "unique_source_hashes": {
+          "backtrader/order.py": "717b980d2afdf0a6a335b1071b867a73fee7a6e3fef019577a800f166b56ab19",
+          "backtrader/position.py": "b921772e74628a50e3dfe68a523e4211f1ec15b056a4a86a9a9cde8013d790f1"
+        }
+      },
+      "paired_prototype": "hybrid",
+      "pair_round": 1
+    },
+    {
+      "class": "Position",
+      "mode": "hybrid",
+      "pid": 16920,
+      "count": 1000,
+      "warmup_count": 128,
+      "constructor_args": [],
+      "construction_seconds_tracemalloc_enabled": 0.0010576660060905851,
+      "construction_time_is_performance_gate": false,
+      "tracemalloc_retained_bytes": 144824,
+      "tracemalloc_peak_bytes": 145032,
+      "rss_before_bytes": 34390016,
+      "rss_after_bytes": 34455552,
+      "rss_delta_bytes": 65536,
+      "rss_before_mib": 32.796875,
+      "rss_after_mib": 32.859375,
+      "rss_delta_mib": 0.0625,
+      "sample_indices": [
+        0,
+        500,
+        999
+      ],
+      "sampled_field_values": [
+        {
+          "index": 0,
+          "values": {
+            "adjbase": null,
+            "datetime": null,
+            "price": {
+              "float": "0.0"
+            },
+            "price_orig": {
+              "float": "0.0"
+            },
+            "size": 0,
+            "upclosed": 0,
+            "updt": null,
+            "upopened": 0
+          }
+        },
+        {
+          "index": 500,
+          "values": {
+            "adjbase": null,
+            "datetime": null,
+            "price": {
+              "float": "0.0"
+            },
+            "price_orig": {
+              "float": "0.0"
+            },
+            "size": 0,
+            "upclosed": 0,
+            "updt": null,
+            "upopened": 0
+          }
+        },
+        {
+          "index": 999,
+          "values": {
+            "adjbase": null,
+            "datetime": null,
+            "price": {
+              "float": "0.0"
+            },
+            "price_orig": {
+              "float": "0.0"
+            },
+            "size": 0,
+            "upclosed": 0,
+            "updt": null,
+            "upopened": 0
+          }
+        }
+      ],
+      "weakref_works": true,
+      "sampled_shallow_shell_bytes_after_sampling": 120,
+      "sampled_dict_present_after_sampling": true,
+      "sampled_dict_bytes_after_sampling": 72,
+      "sampled_dict_len_before_extension_probe": 0,
+      "sampled_dict_keys_before_extension_probe": [],
+      "extension_attribute_write": "accepted",
+      "extension_attribute_readback": true,
+      "orderdata_deque_payload": null,
+      "run_info": {
+        "git_head": "01555f804db818fdd987e35da8175d58258dc25b",
+        "class_sources": {
+          "OrderExecutionBit": {
+            "path": "backtrader/order.py",
+            "sha256": "717b980d2afdf0a6a335b1071b867a73fee7a6e3fef019577a800f166b56ab19"
+          },
+          "OrderData": {
+            "path": "backtrader/order.py",
+            "sha256": "717b980d2afdf0a6a335b1071b867a73fee7a6e3fef019577a800f166b56ab19"
+          },
+          "Position": {
+            "path": "backtrader/position.py",
+            "sha256": "b921772e74628a50e3dfe68a523e4211f1ec15b056a4a86a9a9cde8013d790f1"
+          }
+        },
+        "unique_source_hashes": {
+          "backtrader/order.py": "717b980d2afdf0a6a335b1071b867a73fee7a6e3fef019577a800f166b56ab19",
+          "backtrader/position.py": "b921772e74628a50e3dfe68a523e4211f1ec15b056a4a86a9a9cde8013d790f1"
+        }
+      },
+      "paired_prototype": "hybrid",
+      "pair_round": 1
+    }
+  ],
+  "result_checks": {
+    "all_sampled_fields_match_within_each_pair": true,
+    "all_weakrefs_work": true,
+    "all_orderdata_deque_payloads_preserved": true,
+    "strict_extension_attributes_rejected": true,
+    "hybrid_extension_attributes_accepted": true,
+    "hybrid_fixed_fields_stored_outside_dict": true
+  },
+  "status": "DIAGNOSTIC_COMPLETE_NOT_ACCEPTANCE"
+}
