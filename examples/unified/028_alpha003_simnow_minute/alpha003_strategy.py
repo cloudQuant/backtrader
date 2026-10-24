@@ -3752,13 +3752,16 @@ class Alpha003TargetStrategy(bt.Strategy):
             }
             if action.position_side is not None:
                 info["position_side"] = action.position_side
+            if action.position_effect == "CLOSE":
+                info.update(
+                    factor_owner_side="BUY" if action.side == "SELL" else "SELL",
+                    factor_owner_position_effect="OPEN",
+                )
             if action.position_date is not None:
                 info.update(
                     hedge_flag=action.hedge_flag,
                     position_date=action.position_date,
                     offset_flag=action.offset_flag,
-                    factor_owner_side="BUY" if action.side == "SELL" else "SELL",
-                    factor_owner_position_effect="OPEN",
                     factor_dated_position_side=action.dated_position_side,
                     factor_dated_query_set_id=action.dated_query_set_id,
                     factor_dated_snapshot_id=action.dated_snapshot_id,

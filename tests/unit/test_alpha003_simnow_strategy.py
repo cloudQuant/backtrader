@@ -2701,8 +2701,73 @@ def test_source_backed_dated_position_produces_exact_close_leg_and_broker_order(
     assert observed[0]["hedge_flag"] == "1"
     assert observed[0]["position_date"] == position_date
     assert observed[0]["offset_flag"] == expected_offset_flag
+    assert observed[0]["factor_owner_side"] == economics[0]["owner_side"]
+    assert observed[0]["factor_owner_position_effect"] == economics[0]["owner_position_effect"]
     assert observed[0]["factor_dated_query_set_id"] == facts.query_set_id
     assert observed[0]["factor_dated_source_row_ids"] == action.dated_source_row_ids
+
+
+def test_generic_dce_close_dispatch_matches_owner_intent_economics():
+    base = _risk_facts()
+    owned = replace(
+        base.positions[0],
+        quantity=1,
+        owner_strategy_scope=base.strategy_scope,
+        owner_intent_id="intent-open-dce-A",
+        average_price=Decimal("100"),
+        stop_price=Decimal("95"),
+        held_eligible_bars=12,
+    )
+    planning = _genericize_target_exchange(
+        replace(
+            base,
+            positions=(owned, base.positions[1]),
+            target_decision=None,
+            run_end=True,
+        )
+    )
+
+    plan = _STRATEGY.plan_alpha003_orders(planning)
+
+    assert plan.status == "READY"
+    assert len(plan.actions) == 1
+    action = plan.actions[0]
+    assert (action.exchange, action.position_effect, action.side, action.position_date) == (
+        "DCE",
+        "CLOSE",
+        "SELL",
+        None,
+    )
+    strategy = SimpleNamespace(_risk_policy=_risk_policy())
+    keys, economics = _STRATEGY.Alpha003TargetStrategy._order_intents(
+        strategy, plan, SimpleNamespace(batch_id="generic-close-batch")
+    )
+    assert len(keys) == len(economics) == 1
+    assert economics[0]["owner_intent_id"] == "intent-open-dce-A"
+    assert economics[0]["owner_side"] == "BUY"
+    assert economics[0]["owner_position_effect"] == "OPEN"
+
+    observed = []
+    data = object()
+    dispatch_owner = SimpleNamespace(
+        _data_by_target={"A": data},
+        _strategy_scope=planning.strategy_scope,
+        _orders_by_broker_ref={},
+        sell=lambda **kwargs: observed.append(kwargs),
+    )
+    _STRATEGY.Alpha003TargetStrategy._dispatch_live_actions(
+        dispatch_owner, plan.actions, SimpleNamespace(batch_id="generic-close-batch")
+    )
+
+    assert len(observed) == 1
+    order_info = observed[0]
+    assert order_info["factor_owner_side"] == economics[0]["owner_side"]
+    assert order_info["factor_owner_position_effect"] == economics[0]["owner_position_effect"]
+    assert order_info["instrument_id"] == economics[0]["instrument_id"]
+    assert order_info["exchange_id"] == economics[0]["exchange"] == "DCE"
+    assert "position_date" not in order_info
+    assert "offset_flag" not in order_info
+    assert "hedge_flag" not in order_info
 
 
 def test_exhausted_run_budget_keeps_owned_residual_not_flat():

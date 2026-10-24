@@ -425,6 +425,27 @@ def _query_trade_for_fill(
     }
 
 
+def _execution_id_from_trade_row(row):
+    """Mirror the public identity inputs without conflating TradeDate/day."""
+
+    return "ctp:{}:{}".format(row["TradeDate"], row["TradeID"])
+
+
+def test_execution_identity_uses_trade_date_across_trading_day_boundary():
+    row = _query_trade_for_fill(
+        trade_id="crossnight-trade",
+        order_ref="17",
+        order_sys_id="native-17",
+        filled_at=datetime(2026, 10, 24, 16, 0, tzinfo=timezone.utc),
+        quantity="1",
+        price="100",
+    )
+
+    assert row["TradingDay"] == _TRADING_DAY
+    assert row["TradeDate"] == "20261025"
+    assert _execution_id_from_trade_row(row) == "ctp:20261025:crossnight-trade"
+
+
 def _system_under_test(
     *,
     now=None,
@@ -2129,16 +2150,16 @@ def _build_source_backed_dated_close_facts(
     }
     api.query_rows["orders_result"] = [terminal_row]
     fill_time = now - timedelta(seconds=2)
-    api.query_rows["trades_result"] = [
-        _query_trade_for_fill(
-            trade_id="trade-open-1",
-            order_ref="17",
-            order_sys_id="native-17",
-            filled_at=fill_time,
-            quantity=str(opening_quantity),
-            price="100",
-        )
-    ]
+    open_trade_row = _query_trade_for_fill(
+        trade_id="trade-open-1",
+        order_ref="17",
+        order_sys_id="native-17",
+        filled_at=fill_time,
+        quantity=str(opening_quantity),
+        price="100",
+    )
+    assert open_trade_row["TradingDay"] == _TRADING_DAY
+    api.query_rows["trades_result"] = [open_trade_row]
     query_time = datetime.now(timezone.utc) - timedelta(milliseconds=100)
     api.query_time = query_time
     api.tick = _quote(
@@ -2287,25 +2308,16 @@ def _build_source_backed_dated_close_facts(
             close_decision_time + timedelta(milliseconds=1),
             datetime.now(timezone.utc) - timedelta(milliseconds=500),
         )
-        api.query_rows["trades_result"] = [
-            _query_trade_for_fill(
-                trade_id="trade-open-1",
-                order_ref="17",
-                order_sys_id="native-17",
-                filled_at=fill_time,
-                quantity=str(opening_quantity),
-                price="100",
-            ),
-            _query_trade_for_fill(
-                trade_id="trade-close-1",
-                order_ref="18",
-                order_sys_id="native-18",
-                filled_at=close_trade_time,
-                quantity="-1",
-                price="101",
-                offset_flag="3",
-            ),
-        ]
+        close_trade_row = _query_trade_for_fill(
+            trade_id="trade-close-1",
+            order_ref="18",
+            order_sys_id="native-18",
+            filled_at=close_trade_time,
+            quantity="-1",
+            price="101",
+            offset_flag="3",
+        )
+        api.query_rows["trades_result"] = [open_trade_row, close_trade_row]
         broker.positions[_INSTRUMENT].update(-1, 101.0)
         close_query_time = datetime.now(timezone.utc) - timedelta(milliseconds=100)
         api.query_time = close_query_time
@@ -2494,12 +2506,12 @@ def _build_source_backed_dated_close_facts(
     assert close_leg.owner_intent_id == intent.intent_id
     assert close_leg.query_set_id == facts.query_set_id
     assert close_leg.source_row_ids == (position.dated_inventory_rows[0].source_row_id,)
-    assert close_leg.opening_execution_ids == ("ctp:{}:trade-open-1".format(_TRADING_DAY),)
+    assert close_leg.opening_execution_ids == (_execution_id_from_trade_row(open_trade_row),)
     if partial_close:
         assert close_leg.provider_quantity == Decimal("1")
         assert close_leg.owned_quantity == Decimal("1")
         assert close_leg.available_quantity == Decimal("1")
-        assert close_leg.close_execution_ids == ("ctp:{}:trade-close-1".format(_TRADING_DAY),)
+        assert close_leg.close_execution_ids == (_execution_id_from_trade_row(close_trade_row),)
         assert len(close_leg.lots) == 1
         assert close_leg.lots[0].opened_quantity == Decimal("2")
         assert close_leg.lots[0].closed_quantity == Decimal("1")
@@ -2532,6 +2544,10 @@ def _build_source_backed_dated_close_facts(
         "now": projection_now,
         "query_set": receipt.query_set,
         "query_receipt": receipt,
+        "opening_execution_id": _execution_id_from_trade_row(open_trade_row),
+        "closing_execution_id": (
+            _execution_id_from_trade_row(close_trade_row) if partial_close else None
+        ),
     }
 
 
@@ -2561,7 +2577,7 @@ def test_source_backed_history_open_fill_maps_to_close_yesterday_leg():
 
 
 def test_source_backed_partial_close_keeps_owned_today_remainder():
-    facts, _live_inputs = _build_source_backed_dated_close_facts(partial_close=True)
+    facts, live_inputs = _build_source_backed_dated_close_facts(partial_close=True)
 
     assert facts.positions[0].quantity == Decimal("1")
     assert facts.positions[0].broker_quantity == Decimal("1")
@@ -2571,7 +2587,7 @@ def test_source_backed_partial_close_keeps_owned_today_remainder():
     assert leg.offset_flag == "3"
     assert leg.offset == "close_today"
     assert leg.available_quantity == Decimal("1")
-    assert leg.close_execution_ids == ("ctp:{}:trade-close-1".format(_TRADING_DAY),)
+    assert leg.close_execution_ids == (live_inputs["closing_execution_id"],)
 
 
 def test_source_backed_dated_close_proof_survives_journal_and_coordinator_restart(tmp_path):
@@ -2614,7 +2630,7 @@ def test_source_backed_dated_close_proof_survives_journal_and_coordinator_restar
     assert len(reprojected.dated_close_legs) == 1
     assert reprojected.dated_close_legs[0].ready is True
     assert reprojected.dated_close_legs[0].opening_execution_ids == (
-        "ctp:{}:trade-open-1".format(_TRADING_DAY),
+        live_inputs["opening_execution_id"],
     )
     assert reopened_coordinator.position_book is not None
 
