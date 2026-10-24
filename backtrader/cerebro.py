@@ -43,6 +43,7 @@ import collections
 import datetime
 import functools
 import itertools
+import math as _math
 import multiprocessing
 import threading
 from datetime import timezone
@@ -496,6 +497,9 @@ class Cerebro(
         self._external_channel_closing = False
         self._live_bar_cohort = None
         self._live_bar_cohort_clock = None
+        self._live_bar_cohort_winddown_timeout_seconds = 0.0
+        self._live_bar_cohort_winddown_status = "DISABLED"
+        self._live_bar_cohort_winddown_reason = "disabled"
         self._dolive = False  # Live trading mode flag
         self._doreplay = False  # Data replay mode flag
         self._dooptimize = False  # Optimization mode flag
@@ -547,7 +551,7 @@ class Cerebro(
         self._maybe_add_store(broker)
         return broker
 
-    def add_live_bar_cohort(self, cohort, *, clock):
+    def add_live_bar_cohort(self, cohort, *, clock, winddown_timeout_seconds=0):
         """Opt into one validated, batch-delivered live-bar cohort.
 
         ``clock`` must provide ``utc_now()``, ``monotonic_ns()``, and a single
@@ -560,6 +564,10 @@ class Cerebro(
         boolean. A legacy clock's ``wait`` cannot be interrupted externally;
         ``runstop()`` is observed after that wait returns. Cerebro never
         substitutes its process wall clock for this source-time mapping.
+
+        ``winddown_timeout_seconds`` is a finite, nonnegative bound for the
+        maintenance period after the final complete calendar batch. Zero
+        keeps the normal finite-source EOF behavior.
         """
         from .research.live_cohort import LiveBarCohort
 
@@ -569,6 +577,21 @@ class Cerebro(
             raise RuntimeError("cannot bind a live bar cohort during an active run")
         if self._live_bar_cohort is not None:
             raise ValueError("Cerebro already has a live bar cohort")
+        if type(winddown_timeout_seconds) not in (int, float):
+            raise TypeError("winddown_timeout_seconds must be an int or float, not bool")
+        try:
+            winddown_timeout_seconds = float(winddown_timeout_seconds)
+        except (OverflowError, ValueError) as exc:
+            raise ValueError("winddown_timeout_seconds must be finite and nonnegative") from exc
+        if (
+            not _math.isfinite(winddown_timeout_seconds)
+            or winddown_timeout_seconds < 0
+            or winddown_timeout_seconds > threading.TIMEOUT_MAX
+        ):
+            raise ValueError(
+                "winddown_timeout_seconds must be finite, nonnegative, and no greater "
+                "than threading.TIMEOUT_MAX"
+            )
         if clock is None or any(
             not callable(getattr(clock, name, None)) for name in ("utc_now", "monotonic_ns", "wait")
         ):
@@ -576,6 +599,13 @@ class Cerebro(
         cohort.seal()
         self._live_bar_cohort = cohort
         self._live_bar_cohort_clock = clock
+        self._live_bar_cohort_winddown_timeout_seconds = winddown_timeout_seconds
+        if winddown_timeout_seconds > 0:
+            self._live_bar_cohort_winddown_status = "NOT_REACHED"
+            self._live_bar_cohort_winddown_reason = "final_batch_not_reached"
+        else:
+            self._live_bar_cohort_winddown_status = "DISABLED"
+            self._live_bar_cohort_winddown_reason = "disabled"
         return cohort
 
     @property
@@ -587,6 +617,18 @@ class Cerebro(
     def live_bar_cohort_clock(self):
         """The exact caller-injected source/UTC clock for cohort strategies."""
         return self._live_bar_cohort_clock
+
+    @property
+    def live_bar_cohort_winddown_status(self):
+        """The persisted result of the configured live-cohort terminal window."""
+        with self._runstop_lock:
+            return self._live_bar_cohort_winddown_status
+
+    @property
+    def live_bar_cohort_winddown_reason(self):
+        """The bounded reason associated with the persisted winddown status."""
+        with self._runstop_lock:
+            return self._live_bar_cohort_winddown_reason
 
     def _validate_live_bar_cohort_run(self, channel):
         cohort = self._live_bar_cohort
@@ -604,6 +646,11 @@ class Cerebro(
             raise ValueError("live bar cohort does not support optimization or signals")
         if any(bool(getattr(timer.params, "cheat", False)) for timer in self._pretimers):
             raise ValueError("live bar cohort does not support cheat timers")
+        if (
+            self._live_bar_cohort_winddown_timeout_seconds > 0
+            and getattr(self._broker, "next_without_bar", False) is not True
+        ):
+            raise ValueError("live cohort winddown requires a broker with next_without_bar=True")
 
         from .feeds.btapifeed import BtApiFeed
 

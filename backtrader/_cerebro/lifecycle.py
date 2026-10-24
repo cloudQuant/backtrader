@@ -23,10 +23,38 @@ class RunLifecycleMixin:
             if self._run_active:
                 raise RuntimeError("Cerebro is already running")
             self._event_stop.clear()
+            if self._live_bar_cohort_winddown_timeout_seconds > 0:
+                self._live_bar_cohort_winddown_status = "NOT_REACHED"
+                self._live_bar_cohort_winddown_reason = "final_batch_not_reached"
+            else:
+                self._live_bar_cohort_winddown_status = "DISABLED"
+                self._live_bar_cohort_winddown_reason = "disabled"
             self._run_scope_token += 1
             self._run_scope_owner = threading.get_ident()
             self._run_active = True
             return self._run_scope_token
+
+    def _record_live_bar_cohort_winddown(self, status, reason):
+        """Publish one legal live-cohort winddown transition under the run lock."""
+        allowed_previous = {
+            "ARMED": {"NOT_REACHED"},
+            "WAITING": {"ARMED", "WAITING"},
+            "STOPPED": {"ARMED", "WAITING"},
+            "TIMED_OUT": {"ARMED", "WAITING"},
+            "FAILED": {"ARMED", "WAITING", "STOPPED"},
+        }
+        with self._runstop_lock:
+            if self._live_bar_cohort_winddown_timeout_seconds <= 0:
+                return False
+            if status not in allowed_previous:
+                raise ValueError("unsupported live cohort winddown status")
+            if self._live_bar_cohort_winddown_status not in allowed_previous[status]:
+                return False
+            if status == "TIMED_OUT" and self._event_stop:
+                return False
+            self._live_bar_cohort_winddown_status = status
+            self._live_bar_cohort_winddown_reason = reason
+            return True
 
     def _open_run_scope(self):
         """Open a run scope and roll it back if an overridden start hook fails."""
@@ -161,6 +189,7 @@ class RunLifecycleMixin:
         with self._runstop_lock:
             if self._run_active:
                 self._event_stop.set()
+                self._record_live_bar_cohort_winddown("STOPPED", "runstop_requested")
                 cohort_waker = getattr(self, "_live_bar_cohort_waker", None)
                 if cohort_waker is not None:
                     cohort_waker.notify()

@@ -302,6 +302,36 @@ def _cap_live_cohort_wait_for_broker(cohort_timeout, broker_timeout):
     return min(cohort_timeout, broker_timeout)
 
 
+def _wait_for_live_bar_cohort(clock, timeout, broker, waker, bindings, generation):
+    """Wait through the injected cohort clock, capped by broker deadlines."""
+    if timeout is None:
+        return
+    timeout = float(timeout)
+    if not math.isfinite(timeout) or timeout < 0:
+        raise RuntimeError("live cohort returned an invalid wait timeout")
+    timeout = _cap_live_cohort_wait_for_broker(timeout, _live_cohort_broker_timeout(broker))
+    if timeout <= 0:
+        return
+
+    wait_interruptibly = getattr(clock, "wait_interruptibly", None)
+    if bindings and callable(wait_interruptibly):
+
+        def wait_for_event(wait_timeout):
+            wait_timeout = float(wait_timeout)
+            if not math.isfinite(wait_timeout) or wait_timeout < 0:
+                raise RuntimeError("clock supplied an invalid event wait timeout")
+            return waker.wait(generation, wait_timeout)
+
+        interrupted = wait_interruptibly(timeout, wait_for_event)
+        if type(interrupted) is not bool:
+            raise RuntimeError("clock wait_interruptibly must return bool")
+        return
+
+    # Legacy injected clocks retain their causal wait behavior; event
+    # interruption is an explicit optional clock capability.
+    clock.wait(timeout)
+
+
 def _cleanup_live_bar_cohort_wakers(owner, waker, bindings):
     """Attempt every Store unbind and preserve any active engine exception."""
     active_error = sys.exc_info()[1]
@@ -416,6 +446,8 @@ class RunNextMixin:
         """
         cohort_waker = None
         cohort_waker_bindings = []
+        winddown_armed = False
+        winddown_deadline_ns = None
         try:
             # Sort data by time period
             datas = sorted(self.datas, key=lambda x: (x._timeframe, x._compression))
@@ -424,6 +456,16 @@ class RunNextMixin:
             # Main data
             data0 = datas[0]
             live_bar_cohort = getattr(self, "_live_bar_cohort", None)
+            winddown_timeout_seconds = (
+                self._live_bar_cohort_winddown_timeout_seconds
+                if live_bar_cohort is not None
+                else 0.0
+            )
+            winddown_timeout_ns = (
+                max(1, math.ceil(winddown_timeout_seconds * 1_000_000_000))
+                if winddown_timeout_seconds > 0
+                else 0
+            )
             if live_bar_cohort is not None:
                 cohort_waker = _LiveBarCohortWake()
                 self._live_bar_cohort_waker = cohort_waker
@@ -626,6 +668,27 @@ class RunNextMixin:
                 cohort_wake_generation = (
                     cohort_waker.snapshot() if cohort_waker is not None else None
                 )
+                cohort_winddown_active = winddown_armed
+                if cohort_winddown_active:
+                    if self._event_stop:
+                        return
+                    clock = self.live_bar_cohort_clock
+                    now_monotonic_ns = clock.monotonic_ns()
+                    if type(now_monotonic_ns) is not int or now_monotonic_ns <= 0:
+                        raise ValueError("live cohort clock returned an invalid monotonic sample")
+                    if winddown_deadline_ns is None:
+                        winddown_deadline_ns = now_monotonic_ns + winddown_timeout_ns
+                        self._record_live_bar_cohort_winddown(
+                            "WAITING", "awaiting_strategy_shutdown"
+                        )
+                    elif now_monotonic_ns >= winddown_deadline_ns:
+                        if self._record_live_bar_cohort_winddown(
+                            "TIMED_OUT", "winddown_deadline_expired"
+                        ):
+                            raise TimeoutError("live bar cohort shutdown winddown timed out")
+                        if self._event_stop:
+                            return
+                        raise RuntimeError("live cohort winddown state changed before timeout")
                 # if any has live data in the buffer, no data will wait anything
                 # If any live data exists, newqcheck is False
                 if single_data:
@@ -650,6 +713,7 @@ class RunNextMixin:
                 cohort_wait = False
                 cohort_terminal = False
                 cohort_status = None
+                final_cohort_batch = False
                 # Notify anything from the store even before moving datas
                 # because datas may not move due to an error reported by the store
                 # Notify store related info
@@ -666,7 +730,12 @@ class RunNextMixin:
                 # record starting time and tell feeds to discount the elapsed time
                 # from the qcheck value
                 # Record start time and notify feed to subtract elapsed time from qcheck
-                if live_bar_cohort is not None:
+                if cohort_winddown_active:
+                    # The final Strategy.next has already completed. Keep the
+                    # broker/idle maintenance path below, but never collect,
+                    # check, or advance a feed again during terminal winddown.
+                    drets = [None] * len(datas)
+                elif live_bar_cohort is not None:
                     clock = self.live_bar_cohort_clock
                     try:
                         now_monotonic_ns = clock.monotonic_ns()
@@ -760,6 +829,10 @@ class RunNextMixin:
                                         raise RuntimeError(
                                             "completed cohort receipt does not match its feed"
                                         )
+                                final_cohort_batch = (
+                                    winddown_timeout_seconds > 0
+                                    and live_bar_cohort.is_final_batch(batch)
+                                )
                             except Exception as delivery_error:
                                 rollback_errors = []
                                 if not batch_published:
@@ -778,6 +851,14 @@ class RunNextMixin:
                                         "cohort delivery failed and line rollback was incomplete"
                                     ) from delivery_error
                                 raise
+                            if final_cohort_batch:
+                                winddown_armed = True
+                                if not self._record_live_bar_cohort_winddown(
+                                    "ARMED", "final_batch_delivered"
+                                ):
+                                    raise RuntimeError(
+                                        "live cohort winddown could not arm after its final batch"
+                                    )
                             try:
                                 # Feed line delivery is complete for every
                                 # member before any bar notification callback.
@@ -921,12 +1002,16 @@ class RunNextMixin:
                                 if not tick_direct_filled:
                                     di._tick_fill(force=True)
                 # If d0ret is None, iterate each data and call _check()
-                elif d0ret is None:
+                elif d0ret is None and not cohort_winddown_active:
                     # meant for things like live feeds which may not produce a bar
                     # at the moment but need the loop to run for notifications and
                     # getting resample and others to produce timely bars
                     for data in datas:
                         data._check()
+                elif cohort_winddown_active:
+                    # The final batch was already fully delivered. Do not run
+                    # feed finalization while servicing broker/idle callbacks.
+                    lastret = False
                 # If other case
                 else:
                     lastret = data0._last()
@@ -958,7 +1043,9 @@ class RunNextMixin:
                                     return
                 # Live brokers can receive fills during a gap in market bars.
                 # Bar-matching brokers still require populated data lines.
-                poll_without_bar = d0ret is None and broker_next_without_bar
+                poll_without_bar = cohort_winddown_active or (
+                    d0ret is None and broker_next_without_bar
+                )
                 if d0ret or lastret or poll_without_bar:
                     skip_broker_next = False
                     if default_backbroker_next:
@@ -1008,47 +1095,46 @@ class RunNextMixin:
                 if cohort_terminal:
                     break
 
-                if cohort_wait:
+                if cohort_wait or cohort_winddown_active:
                     # Keep broker polling and idle callbacks above, then wait
-                    # until the earliest cohort or broker deadline. Provider
-                    # callbacks use the same generation-checked engine condition.
+                    # through the same source clock and generation-checked
+                    # Store event condition.
                     clock = self.live_bar_cohort_clock
-                    wait_decision = live_bar_cohort.next_wait_timeout(
-                        clock.utc_now(), clock.monotonic_ns()
+                    if cohort_winddown_active:
+                        now_monotonic_ns = clock.monotonic_ns()
+                        if type(now_monotonic_ns) is not int or now_monotonic_ns <= 0:
+                            raise ValueError(
+                                "live cohort clock returned an invalid monotonic sample"
+                            )
+                        remaining_ns = winddown_deadline_ns - now_monotonic_ns
+                        if remaining_ns <= 0:
+                            if self._record_live_bar_cohort_winddown(
+                                "TIMED_OUT", "winddown_deadline_expired"
+                            ):
+                                raise TimeoutError("live bar cohort shutdown winddown timed out")
+                            if self._event_stop:
+                                return
+                            raise RuntimeError("live cohort winddown state changed before timeout")
+                        timeout = remaining_ns / 1_000_000_000.0
+                    else:
+                        wait_decision = live_bar_cohort.next_wait_timeout(
+                            clock.utc_now(), clock.monotonic_ns()
+                        )
+                        timeout = (
+                            wait_decision.timeout_seconds
+                            if wait_decision.status == "WAITING"
+                            else None
+                        )
+                    if self._event_stop:
+                        return
+                    _wait_for_live_bar_cohort(
+                        clock,
+                        timeout,
+                        broker,
+                        cohort_waker,
+                        cohort_waker_bindings,
+                        cohort_wake_generation,
                     )
-                    if wait_decision.status == "WAITING":
-                        timeout = wait_decision.timeout_seconds
-                        if timeout is not None:
-                            timeout = float(timeout)
-                            if not math.isfinite(timeout) or timeout < 0:
-                                raise RuntimeError("live cohort returned an invalid wait timeout")
-                            broker_timeout = _live_cohort_broker_timeout(broker)
-                            timeout = _cap_live_cohort_wait_for_broker(timeout, broker_timeout)
-                            if timeout > 0:
-                                wait_interruptibly = getattr(clock, "wait_interruptibly", None)
-                                if cohort_waker_bindings and callable(wait_interruptibly):
-
-                                    def wait_for_event(
-                                        wait_timeout,
-                                        generation=cohort_wake_generation,
-                                    ):
-                                        wait_timeout = float(wait_timeout)
-                                        if not math.isfinite(wait_timeout) or wait_timeout < 0:
-                                            raise RuntimeError(
-                                                "clock supplied an invalid event wait timeout"
-                                            )
-                                        return cohort_waker.wait(generation, wait_timeout)
-
-                                    interrupted = wait_interruptibly(timeout, wait_for_event)
-                                    if type(interrupted) is not bool:
-                                        raise RuntimeError(
-                                            "clock wait_interruptibly must return bool"
-                                        )
-                                else:
-                                    # Legacy injected clocks retain their causal
-                                    # wait behavior; event interruption is an
-                                    # explicit optional clock capability.
-                                    clock.wait(timeout)
                     if self._event_stop:
                         return
 
@@ -1082,7 +1168,11 @@ class RunNextMixin:
                 self._storenotify()
                 if self._event_stop:  # stop if requested
                     return
-        except Exception:
+        except Exception as exc:
+            if winddown_armed:
+                self._record_live_bar_cohort_winddown(
+                    "FAILED", "winddown_failed:%s" % type(exc).__name__
+                )
             logger.exception("Unhandled exception in _runnext")
             raise
         finally:
