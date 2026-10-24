@@ -453,7 +453,7 @@ def test_fixture_cli_rejects_unimplemented_profiles_and_factor_modes(
     fixture = _load_fixture(monkeypatch)
     with pytest.raises(SystemExit) as profile_error:
         fixture.main(
-            ["--wheel", "candidate.whl", "--wheel-sha256", "0" * 64, "--profile", "execution"]
+            ["--wheel", "candidate.whl", "--wheel-sha256", "0" * 64, "--profile", "unknown"]
         )
     assert profile_error.value.code == 2
 
@@ -466,6 +466,187 @@ def test_fixture_cli_rejects_unimplemented_profiles_and_factor_modes(
     with pytest.raises(SystemExit) as missing_artifact:
         fixture.main([])
     assert missing_artifact.value.code == 2
+
+
+@pytest.mark.parametrize("mode", ("native", "build"))
+def test_execution_profile_runs_alpha003_through_real_cerebro_broker_and_journal(
+    monkeypatch: pytest.MonkeyPatch, mode: str
+) -> None:
+    fixture = _load_fixture(monkeypatch)
+
+    result = fixture._run_execution_mode(mode)
+
+    assert result["ordinary_cerebro"] is True
+    assert result["exact_feed_type"] == "BtApiFeed"
+    assert result["factor"]["name"] == "alpha003"
+    assert result["factor"]["mode"] == mode
+    assert result["factor"]["readiness"] == "LIVE_READY"
+    assert result["factor"]["selected_value"] == 1.0
+    assert [event["kind"] for event in result["provider_observations"]["events"]] == [
+        "trade",
+        "order",
+        "order",
+        "trade",
+        "order",
+    ]
+    assert [
+        (event["ctp_status"], event["normalized_status"])
+        for event in result["provider_observations"]["events"]
+        if event["kind"] == "order"
+    ] == [("1", "partial"), ("5", "canceled"), ("0", "completed")]
+    observations = result["provider_observations"]
+    assert [
+        (row["ctp_status"], row["filled"], row["remaining"]) for row in observations["orders"]
+    ] == [
+        ("5", 1, 1),
+        ("0", 1, 0),
+    ]
+    assert [row["commission"] for row in observations["trades"]] == [1.25, 0.75]
+    assert [row["price"] for row in observations["trades"]] == [100.0, 100.0]
+    assert observations["positions"] == []
+    notification_statuses = [item["status"] for item in result["order_notifications"]]
+    assert notification_statuses[0] == "Accepted"
+    assert "Partial" in notification_statuses
+    assert "Canceled" in notification_statuses
+    assert notification_statuses[-2:] == ["Accepted", "Completed"]
+    assert (
+        result["orders"]["open"]["final_status"],
+        result["orders"]["open"]["filled_size"],
+        result["orders"]["open"]["filled_price"],
+        result["orders"]["open"]["fee"],
+    ) == ("Canceled", 1.0, 100.0, 1.25)
+    assert (
+        result["orders"]["close"]["final_status"],
+        result["orders"]["close"]["filled_size"],
+        result["orders"]["close"]["filled_price"],
+        result["orders"]["close"]["fee"],
+    ) == ("Completed", -1.0, 100.0, 0.75)
+    partial_notifications = [
+        item for item in result["order_notifications"] if item["status"] == "Partial"
+    ]
+    assert partial_notifications
+    assert all(
+        (item["executed_size"], item["executed_price"], item["executed_commission"])
+        == (1.0, 100.0, 1.25)
+        for item in partial_notifications
+    )
+    close_notification = next(
+        item for item in result["order_notifications"] if item["status"] == "Completed"
+    )
+    assert (
+        close_notification["executed_size"],
+        close_notification["executed_price"],
+        close_notification["executed_commission"],
+    ) == (-1.0, 100.0, 0.75)
+    assert result["trade_notifications"] == [
+        {"just_opened": True, "closed": False, "size": 1.0, "pnlcomm": -1.25},
+        {"just_opened": False, "closed": True, "size": 0.0, "pnlcomm": -2.0},
+    ]
+    open_projection = result["orders"]["open"]["execution_projection"]
+    assert (
+        open_projection["size"],
+        open_projection["price"],
+        open_projection["commission"],
+        open_projection["opened"],
+        open_projection["closed"],
+        open_projection["opened_commission"],
+        open_projection["closed_commission"],
+        open_projection["pnl"],
+    ) == (1.0, 100.0, 1.25, 1.0, 0.0, 1.25, 0.0, 0.0)
+    assert open_projection["bits"]
+    assert sum(bit["size"] for bit in open_projection["bits"]) == open_projection["size"]
+    assert sum(bit["comm"] for bit in open_projection["bits"]) == open_projection["commission"]
+    close_projection = result["orders"]["close"]["execution_projection"]
+    assert (
+        close_projection["size"],
+        close_projection["price"],
+        close_projection["commission"],
+        close_projection["opened"],
+        close_projection["closed"],
+        close_projection["opened_commission"],
+        close_projection["closed_commission"],
+        close_projection["pnl"],
+    ) == (-1.0, 100.0, 0.75, 0.0, -1.0, 0.0, 0.75, 0.0)
+    assert result["provider_observations"]["account"] == {
+        "available": 99_998.0,
+        "current_margin": 0.0,
+        "starting_available": 100_000.0,
+        "cumulative_commission": 2.0,
+        "projection": {"cash": 99_998.0, "value": 99_998.0},
+        "model": "synthetic fee-only balance; margin and realized/unrealized PnL are not modeled",
+    }
+    assert result["final_position"] == "0.0"
+    assert result["journal"]["decision_count"] == 3
+    assert result["journal"]["intent_count"] == 3
+    assert result["journal"]["intent_actions"] == ["SUBMIT", "CANCEL", "SUBMIT"]
+    assert result["journal"]["cancel_owner_intent_id"] == result["orders"]["open"]["intent_id"]
+    assert result["orders"]["open"]["cancel_intent_id"]
+    assert result["journal"]["capacity_after_reopen"]["base_record_count"] == 1
+    assert result["journal"]["capacity_after_reopen"]["settlement_record_count"] == 2
+
+
+def test_execution_fill_gate_rejects_a_broker_commission_projection_mismatch(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fixture = _load_fixture(monkeypatch)
+    bit = SimpleNamespace(
+        size=1.0,
+        price=100.0,
+        comm=2.0,
+        opened=1.0,
+        closed=0.0,
+        openedcomm=2.0,
+        closedcomm=0.0,
+        pnl=0.0,
+    )
+    order = SimpleNamespace(
+        executed=SimpleNamespace(size=1.0, price=100.0, comm=2.0, exbits=(bit,))
+    )
+
+    with pytest.raises(RuntimeError, match="Broker commission differs from provider fill"):
+        fixture._validate_order_execution_fill(
+            order,
+            label="OPEN",
+            expected_size=1.0,
+            expected_price=100.0,
+            expected_commission=1.25,
+            expected_pnl=0.0,
+            expected_opened=1.0,
+            expected_closed=0.0,
+            expected_opened_commission=1.25,
+            expected_closed_commission=0.0,
+        )
+
+
+def test_synthetic_provider_rejects_inconsistent_ctp_order_volumes(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fixture = _load_fixture(monkeypatch)
+    api = object.__new__(fixture._ExecutionProviderLeaf)
+    api._order_identity = {
+        "501": {
+            "instrument": "IC2611",
+            "exchange": "DCE",
+            "side": "buy",
+            "offset": "open",
+            "size": 2,
+            "front_id": 4,
+            "session_id": 7,
+        }
+    }
+    api._provider_order_rows = {}
+    api._provider_events = []
+    api._query_rows = {"orders_result": []}
+    api._update_queue = []
+
+    with pytest.raises(ValueError, match="volumes are inconsistent"):
+        api.observe_order("501", ctp_status="1", filled=1, remaining=0)
+    with pytest.raises(ValueError, match="status and volumes are inconsistent"):
+        api.observe_order("501", ctp_status="0", filled=1, remaining=1)
+
+    assert api._provider_events == []
+    assert api._query_rows["orders_result"] == []
+    assert api._update_queue == []
 
 
 def test_isolated_launcher_uses_external_cwd_and_clears_import_environment(

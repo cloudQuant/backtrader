@@ -8,8 +8,10 @@ environment variables before importing Backtrader.  It uses only public APIs
 and an in-memory provider client.  The ordinary Strategy, Cerebro, BtApiFeed,
 LiveBarCohort, LiveFactorSet, BtApiStore, and BtApiBroker remain installed
 production classes.  ``read-only`` checks Alpha003; ``alpha101-stream`` pairs
-all registered factors' native/build outputs on one finite live stream.  No
-profile calls an external order API; execution acceptance remains separate.
+all registered factors' native/build outputs on one finite live stream;
+``execution`` drives a finite synthetic registered-simulation route through
+the ordinary Broker and durable decision journal. Provider and query calls are
+synthetic leaves; this profile is not account or exchange acceptance.
 """
 
 from __future__ import annotations
@@ -35,6 +37,9 @@ import subprocess
 import sys
 import sysconfig
 import tempfile
+import threading
+import time
+from types import SimpleNamespace
 from types import MappingProxyType
 from typing import Any, Dict, Iterable, Mapping, Optional, Sequence, Tuple
 import zipfile
@@ -271,6 +276,96 @@ _ALPHA101_REQUIRED_OUTPUT_WITNESS_IDS = (3, 5, 7, 48, 56, 58, 59)
 def _require(condition: bool, message: str) -> None:
     if not condition:
         raise RuntimeError("installed fixture failed: " + message)
+
+
+def _validate_order_execution_fill(
+    order,
+    *,
+    label: str,
+    expected_size: float,
+    expected_price: float,
+    expected_commission: float,
+    expected_pnl: float,
+    expected_opened: float,
+    expected_closed: float,
+    expected_opened_commission: float,
+    expected_closed_commission: float,
+) -> Dict[str, Any]:
+    """Gate Broker aggregate execution against all of its actual execution bits."""
+    executed = order.executed
+    bits = tuple(executed.exbits)
+    _require(bits, label + " has no Broker execution bits")
+
+    fields = (
+        "size",
+        "price",
+        "comm",
+        "opened",
+        "closed",
+        "openedcomm",
+        "closedcomm",
+        "pnl",
+    )
+    bit_rows = []
+    for bit in bits:
+        row = {name: float(getattr(bit, name)) for name in fields}
+        _require(
+            all(math.isfinite(value) for value in row.values()),
+            label + " has a non-finite Broker execution bit",
+        )
+        bit_rows.append(row)
+
+    signed_size = sum(row["size"] for row in bit_rows)
+    filled_quantity = sum(abs(row["size"]) for row in bit_rows)
+    _require(filled_quantity > 0.0, label + " has zero aggregate execution quantity")
+    weighted_price = sum(abs(row["size"]) * row["price"] for row in bit_rows) / filled_quantity
+    commission = sum(row["comm"] for row in bit_rows)
+    opened = sum(row["opened"] for row in bit_rows)
+    closed = sum(row["closed"] for row in bit_rows)
+    opened_commission = sum(row["openedcomm"] for row in bit_rows)
+    closed_commission = sum(row["closedcomm"] for row in bit_rows)
+    pnl = sum(row["pnl"] for row in bit_rows)
+    projection = {
+        "size": signed_size,
+        "price": weighted_price,
+        "commission": commission,
+        "opened": opened,
+        "closed": closed,
+        "opened_commission": opened_commission,
+        "closed_commission": closed_commission,
+        "pnl": pnl,
+        "bits": bit_rows,
+    }
+    actual_totals = {
+        "size": float(executed.size),
+        "price": float(executed.price),
+        "commission": float(executed.comm),
+    }
+    for name in ("size", "price", "commission"):
+        _require(
+            math.isfinite(actual_totals[name])
+            and math.isclose(actual_totals[name], projection[name], rel_tol=0.0, abs_tol=1e-12),
+            "%s aggregate %s differs from its execution bits: %r vs %r"
+            % (label, name, actual_totals[name], projection[name]),
+        )
+
+    expected = {
+        "size": expected_size,
+        "price": expected_price,
+        "commission": expected_commission,
+        "pnl": expected_pnl,
+        "opened": expected_opened,
+        "closed": expected_closed,
+        "opened_commission": expected_opened_commission,
+        "closed_commission": expected_closed_commission,
+    }
+    for name, expected_value in expected.items():
+        _require(
+            math.isclose(projection[name], expected_value, rel_tol=0.0, abs_tol=1e-12),
+            "%s Broker %s differs from provider fill: %r != %r"
+            % (label, name, projection[name], expected_value),
+        )
+    return projection
 
 
 def _record_path(value: str) -> PurePosixPath:
@@ -833,8 +928,9 @@ def _fixture_bars(
     *,
     include_extra_fields: bool = False,
     varied_stream: bool = False,
+    first_close: Optional[datetime] = None,
 ) -> Tuple[Dict[str, Tuple[Mapping[str, Any], ...]], LiveCohortCalendar]:
-    first_close = datetime(2025, 1, 2, 9, 31, tzinfo=_UTC)
+    first_close = first_close or datetime(2025, 1, 2, 9, 31, tzinfo=_UTC)
     member_ids = {target: "member-" + target for target in _TARGETS}
     slots = []
     bars: Dict[str, list] = {target: [] for target in _TARGETS}
@@ -1226,12 +1322,12 @@ class _CaptureStrategy(bt.Strategy):
             len({len(data) for data in self.datas}) == 1,
             "ordinary Strategy feeds did not advance on one shared close",
         )
+        feed_closes = {data._name: data.datetime.datetime(0).isoformat() for data in self.datas}
+        expected_close = batch.close_time.replace(tzinfo=None)
         _require(
-            all(
-                data.datetime.datetime(0) == batch.close_time.replace(tzinfo=None)
-                for data in self.datas
-            ),
-            "feed line close differs from the cohort close",
+            all(data.datetime.datetime(0) == expected_close for data in self.datas),
+            "feed line closes %r differ from cohort close %s"
+            % (feed_closes, expected_close.isoformat()),
         )
         snapshot = self.factor_set.snapshot()
         _require(snapshot.batch_complete, "factor snapshot is not bound to a complete batch")
@@ -1862,6 +1958,1647 @@ def _run_alpha101_stream_profile() -> Dict[str, Any]:
     return _run_live_mode("native-build-paired", profile="alpha101-stream")
 
 
+_EXECUTION_SCOPE = "iteration50-alpha003-installed"
+_EXECUTION_ACCOUNT = "fixture-account-scope"
+_EXECUTION_TRADING_DAY = datetime.now(timezone(timedelta(hours=8))).strftime("%Y%m%d")
+_EXECUTION_STARTING_AVAILABLE = 100_000.0
+
+
+class _ExecutionProviderLeaf:
+    """Bounded synthetic CTP leaf composed under the production wrapper."""
+
+    def __init__(self, *, bars, slot_count, **kwargs):
+        del kwargs
+        self._bars = {name: tuple(rows) for name, rows in bars.items()}
+        self._slot_count = int(slot_count)
+        self._bar_counts = Counter()
+        self._bar_condition = threading.Condition()
+        self._allowed_index = self._slot_count - 1
+        self._factor_ready = False
+        self._source_stopped = False
+        self._ticks = {}
+        self._provider_commission = 0.0
+        self._provider_available = _EXECUTION_STARTING_AVAILABLE
+        self._query_rows = self._execution_query_rows()
+        self._query_issuer = object()
+        self._request_id = 0
+        self._update_queue = deque()
+        self._order_identity = {}
+        self._provider_order_rows = {}
+        self._provider_trade_rows = []
+        self._provider_position_quantities = Counter()
+        self._provider_events = []
+        self._native_order_ref = 500
+        self._native_request_id = 100
+        self.native_calls = []
+        self.connected = False
+        self.subscriptions = []
+        self.trader_client = self
+        self.is_ready = True
+        self.is_trading_ready = True
+        self._connection_generation = 1
+        self._account_fingerprint = _EXECUTION_ACCOUNT
+        self._trading_day = _EXECUTION_TRADING_DAY
+        self._front_id = 4
+        self._session_id = 7
+        self._gate_state = {
+            "managed": False,
+            "armed": False,
+            "instrument": None,
+            "authorized_instruments": [],
+            "connection_generation": self._connection_generation,
+            "trading_day": self._trading_day,
+            "scope_version": "ctp-contract-bundle-v1",
+            "proof_sha256": "c" * 64,
+            "environment_profile": "fixture_only",
+            "revocation_reason": None,
+        }
+
+    def _execution_query_rows(self):
+        return {
+            "account_result": [{"Available": str(self._provider_available), "CurrMargin": "0"}],
+            "positions_result": [],
+            "orders_result": [],
+            "trades_result": [],
+            "instruments_result": [
+                {
+                    "InstrumentID": target,
+                    "ExchangeID": "DCE",
+                    "IsTrading": 1,
+                    "VolumeMultiple": 10,
+                    "PriceTick": 1,
+                    "LowerLimitPrice": 1,
+                    "UpperLimitPrice": 1000,
+                }
+                for target in _TARGETS
+            ],
+            "instrument_margin_rate_result": [
+                {
+                    "InstrumentID": target,
+                    "ExchangeID": "DCE",
+                    "HedgeFlag": "1",
+                    "LongMarginRatioByMoney": "0.1",
+                    "LongMarginRatioByVolume": "0",
+                    "ShortMarginRatioByMoney": "0.1",
+                    "ShortMarginRatioByVolume": "0",
+                }
+                for target in _TARGETS
+            ],
+        }
+
+    def connect(self):
+        self.connected = True
+
+    def disconnect(self):
+        self.connected = False
+        self.stop_bar_source()
+
+    def subscribe(self, symbol):
+        self.subscriptions.append(symbol)
+
+    def get_balance(self):
+        row = self._query_rows["account_result"][0]
+        available = float(row["Available"])
+        return {"cash": available, "value": available}
+
+    def get_positions(self):
+        result = []
+        for row in self._query_rows.get("positions_result", ()):
+            quantity = float(row.get("Position", 0) or 0)
+            if quantity <= 0:
+                continue
+            side = "long" if str(row.get("PosiDirection")) == "2" else "short"
+            result.append(
+                {
+                    "instrument": row.get("InstrumentID"),
+                    "symbol": row.get("InstrumentID"),
+                    "exchange_id": row.get("ExchangeID"),
+                    "direction": side,
+                    "size": quantity if side == "long" else -quantity,
+                    "volume": quantity,
+                    "price": 100.0,
+                    "avg_price": 100.0,
+                }
+            )
+        return result
+
+    def fetch_open_orders(self):
+        return []
+
+    def is_source_exhausted(self, symbol):
+        return self._bar_counts[symbol] >= self._slot_count
+
+    def poll_bar(self, symbol):
+        with self._bar_condition:
+            index = self._bar_counts[symbol]
+            if index >= self._slot_count:
+                return None
+            deadline = time.monotonic() + 30.0
+            while index > self._allowed_index and not self._source_stopped:
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    raise RuntimeError("synthetic bar gate timed out")
+                self._bar_condition.wait(remaining)
+            if self._source_stopped:
+                return None
+            self._bar_counts[symbol] += 1
+            return dict(self._bars[symbol][index])
+
+    def freeze_after_factor_ready(self):
+        with self._bar_condition:
+            if not self._factor_ready:
+                self._factor_ready = True
+                consumed = min(self._bar_counts.values(), default=0)
+                self._allowed_index = consumed - 1
+                self._bar_condition.notify_all()
+
+    def advance_one_bar(self):
+        with self._bar_condition:
+            self._allowed_index += 1
+            self._bar_condition.notify_all()
+
+    def finish_bar_source(self):
+        with self._bar_condition:
+            self._allowed_index = self._slot_count - 1
+            self._bar_condition.notify_all()
+
+    def stop_bar_source(self):
+        with self._bar_condition:
+            self._source_stopped = True
+            self._bar_condition.notify_all()
+
+    def poll_tick(self, symbol):
+        return self._ticks.pop(symbol, None)
+
+    def publish_tick(self, symbol, sequence, event_time):
+        from backtrader.events import TickEvent
+
+        received_at = datetime.now(_UTC)
+        event_time = min(event_time, received_at)
+        tick = TickEvent(
+            timestamp=event_time.timestamp(),
+            symbol=symbol,
+            exchange="DCE",
+            price=100.0,
+            volume=1.0,
+            bid_price=99.0,
+            ask_price=101.0,
+            bid_volume=5.0,
+            ask_volume=6.0,
+            exchange_time=event_time.timestamp(),
+            received_wall_time=received_at.timestamp(),
+            sequence=sequence,
+            snapshot_or_delta="snapshot",
+            continuity_status="continuous",
+            stale=False,
+            source="fixture-ctp-provider-leaf",
+            event_id="iteration50-execution-%s-%d" % (symbol, sequence),
+            coalesced_count=1,
+        )
+        tick.instrument_id = symbol
+        tick.exchange_id = "DCE"
+        tick.trading_day = self._trading_day
+        tick.connection_generation = self._connection_generation
+        tick.stream_generation = self._connection_generation
+        tick.ingest_seq = sequence
+        self._ticks[symbol] = tick
+
+    def get_query_session_scope(self):
+        return SimpleNamespace(
+            issuer=self._query_issuer,
+            connection_generation=self._connection_generation,
+            account_fingerprint=self._account_fingerprint,
+            trading_day=self._trading_day,
+            read_only_ready=True,
+        )
+
+    def get_session_state(self):
+        return {
+            "account_fingerprint": self._account_fingerprint,
+            "connection_generation": self._connection_generation,
+            "trading_day": self._trading_day,
+            "trading_ready": self.is_trading_ready,
+            "front_id": self._front_id,
+            "session_id": self._session_id,
+        }
+
+    def get_execution_gate_state(self):
+        return dict(self._gate_state)
+
+    def arm_execution_for_registered_sim(self, *, instrument_id, **kwargs):
+        del kwargs
+        self._gate_state = {
+            "managed": True,
+            "armed": True,
+            "instrument": instrument_id,
+            "authorized_instruments": [instrument_id],
+            "connection_generation": self._connection_generation,
+            "trading_day": self._trading_day,
+            "scope_version": "ctp-contract-bundle-v1",
+            "proof_sha256": "c" * 64,
+            "environment_profile": "fixture_only",
+            "revocation_reason": None,
+        }
+        return object(), dict(self._gate_state)
+
+    def next_order_ref(self):
+        self._native_order_ref += 1
+        return str(self._native_order_ref)
+
+    def _next_request(self):
+        self._native_request_id += 1
+        return self._native_request_id
+
+    def submit_order_insert(self, field, request_id, *, execution_capability):
+        _require(execution_capability is not None, "native insert lacked wrapper capability")
+        self.native_calls.append(
+            ("insert", field.InstrumentID, field.ExchangeID, field.OrderRef, request_id)
+        )
+        return 0
+
+    def submit_order_action(self, field, request_id, *, execution_capability):
+        _require(execution_capability is not None, "native cancel lacked wrapper capability")
+        self.native_calls.append(
+            ("cancel", field.InstrumentID, field.ExchangeID, field.OrderRef, request_id)
+        )
+        return 0
+
+    def _query_result(self, request_type, family, *, filters=()):
+        self._request_id += 1
+        started = datetime.now(_UTC)
+        mono_started = time.monotonic()
+        rows = self._query_rows.get(family, [])
+        if family == "instrument_margin_rate_result":
+            instrument = filters.get("instrument_id")
+            exchange = filters.get("exchange_id")
+            rows = [
+                row
+                for row in rows
+                if row.get("InstrumentID") == instrument and row.get("ExchangeID") == exchange
+            ]
+        rows = [dict(row) for row in rows]
+        completed = datetime.now(_UTC)
+        mono_completed = time.monotonic()
+        digest = hashlib.sha256(
+            json.dumps(
+                rows,
+                sort_keys=True,
+                separators=(",", ":"),
+                ensure_ascii=False,
+                allow_nan=False,
+            ).encode("utf-8")
+        ).hexdigest()
+        source = SimpleNamespace(
+            issuer=self._query_issuer,
+            request_type=request_type,
+            request_id=self._request_id,
+            connection_generation=self._connection_generation,
+            account_fingerprint=self._account_fingerprint,
+            trading_day=self._trading_day,
+            started_at_utc=started,
+            completed_at_utc=completed,
+            started_monotonic=mono_started,
+            completed_monotonic=mono_completed,
+            trusted_expires_monotonic=mono_completed + 30.0,
+            records_sha256=digest,
+            explicit_request_filters=tuple(filters.get("source_filters", ())),
+        )
+        return SimpleNamespace(
+            request_type=request_type,
+            request_id=self._request_id,
+            connection_generation=self._connection_generation,
+            account_fingerprint=self._account_fingerprint,
+            started_at_utc=started,
+            completed_at_utc=completed,
+            is_last_seen=True,
+            error_code=None,
+            error_message="",
+            timed_out=False,
+            complete=True,
+            records=tuple(rows),
+            late_callback_count=0,
+            unsupported=False,
+            submit_code=0,
+            query_source=source,
+        )
+
+    def _query(self, request_type, family, **filters):
+        source_filters = ("HedgeFlag",) if family == "instrument_margin_rate_result" else ()
+        return self._query_result(
+            request_type,
+            family,
+            filters={**filters, "source_filters": source_filters},
+        )
+
+    def query_account_result(self, *, timeout=5.0, **filters):
+        del timeout
+        return self._query("account", "account_result", **filters)
+
+    def query_positions_result(self, *, timeout=5.0, **filters):
+        del timeout
+        return self._query("positions", "positions_result", **filters)
+
+    def query_orders_result(self, *, timeout=5.0, **filters):
+        del timeout
+        return self._query("orders", "orders_result", **filters)
+
+    def query_trades_result(self, *, timeout=5.0, **filters):
+        del timeout
+        return self._query("trades", "trades_result", **filters)
+
+    def query_instruments_result(self, *, timeout=5.0, **filters):
+        del timeout
+        return self._query("instruments", "instruments_result", **filters)
+
+    def query_instrument_margin_rate_result(self, *, timeout=5.0, **filters):
+        del timeout
+        return self._query("margin_rate", "instrument_margin_rate_result", **filters)
+
+    def _register_order(self, payload):
+        instrument = payload.get("instrument_id") or payload.get("symbol")
+        order_ref = str(payload.get("order_ref") or self.reserve_registered_sim_order_ref())
+        request_id = self._next_request()
+        field = SimpleNamespace(
+            InstrumentID=instrument,
+            ExchangeID=payload["exchange_id"],
+            OrderRef=order_ref,
+            RequestID=request_id,
+            FrontID=self._front_id,
+            SessionID=self._session_id,
+            OrderSysID="",
+        )
+        self._send_native_order_insert(field, request_id)
+        self._order_identity[order_ref] = {
+            "instrument": instrument,
+            "exchange": payload["exchange_id"],
+            "side": str(payload["side"]).lower(),
+            "offset": str(payload.get("offset") or "open").lower(),
+            "size": abs(int(payload["size"])),
+            "front_id": self._front_id,
+            "session_id": self._session_id,
+        }
+        self._provider_order_rows[order_ref] = self._order_row(
+            order_ref, status="3", filled=0, remaining=abs(int(payload["size"]))
+        )
+        self._query_rows["orders_result"] = list(self._provider_order_rows.values())
+        return {
+            "status": "accepted",
+            "id": order_ref,
+            "order_ref": order_ref,
+            "front_id": self._front_id,
+            "session_id": self._session_id,
+            "exchange_id": payload["exchange_id"],
+        }
+
+    def submit_order(self, payload):
+        return self._register_order(payload)
+
+    def cancel_order(self, order_ref, dataname=None):
+        del dataname
+        identity = self._order_identity[str(order_ref)]
+        request_id = self._next_request()
+        field = SimpleNamespace(
+            InstrumentID=identity["instrument"],
+            ExchangeID=identity["exchange"],
+            OrderRef=str(order_ref),
+            OrderSysID="",
+            FrontID=identity["front_id"],
+            SessionID=identity["session_id"],
+            RequestID=request_id,
+        )
+        self._send_native_order_action(field, request_id)
+        return {
+            "status": "accepted",
+            "id": str(order_ref),
+            "order_ref": str(order_ref),
+            "front_id": identity["front_id"],
+            "session_id": identity["session_id"],
+            "exchange_id": identity["exchange"],
+        }
+
+    def _order_row(self, order_ref, *, status, filled, remaining):
+        identity = self._order_identity[str(order_ref)]
+        side = identity["side"]
+        return {
+            "OrderRef": str(order_ref),
+            "InstrumentID": identity["instrument"],
+            "ExchangeID": identity["exchange"],
+            "OrderStatus": status,
+            "Direction": "0" if side == "buy" else "1",
+            "CombOffsetFlag": "0" if identity["offset"] == "open" else "1",
+            "VolumeTotalOriginal": str(identity["size"]),
+            "VolumeTraded": str(filled),
+            "VolumeTotal": str(remaining),
+            "FrontID": identity["front_id"],
+            "SessionID": identity["session_id"],
+            "TradingDay": self._trading_day,
+        }
+
+    def _trade_row(self, order_ref, trade_id, *, quantity, offset, when, fee):
+        identity = self._order_identity[str(order_ref)]
+        local_time = when.astimezone(timezone(timedelta(hours=8)))
+        return {
+            "TradeID": trade_id,
+            "OrderRef": str(order_ref),
+            "InstrumentID": identity["instrument"],
+            "ExchangeID": identity["exchange"],
+            "Direction": "0" if identity["side"] == "buy" else "1",
+            "OffsetFlag": "0" if offset == "open" else "1",
+            "HedgeFlag": "1",
+            "Volume": str(quantity),
+            "Price": "100",
+            "Commission": str(fee),
+            "TradeDate": local_time.strftime("%Y%m%d"),
+            "TradeTime": local_time.strftime("%H:%M:%S.%f"),
+            "TradingDay": self._trading_day,
+        }
+
+    def _position_row(self, instrument, exchange, *, quantity):
+        side = "2" if quantity > 0 else "3"
+        quantity = abs(int(quantity))
+        return {
+            "InstrumentID": instrument,
+            "ExchangeID": exchange,
+            "PosiDirection": side,
+            "HedgeFlag": "1",
+            "PositionDate": "1",
+            "TradingDay": self._trading_day,
+            "Position": str(quantity),
+            "TodayPosition": str(quantity),
+            "YdPosition": "0",
+            "LongFrozen": "0",
+            "ShortFrozen": "0",
+            "CombLongFrozen": "0",
+            "CombShortFrozen": "0",
+            "StrikeFrozen": "0",
+            "AbandonFrozen": "0",
+            "LongFrozenAmount": "0",
+            "ShortFrozenAmount": "0",
+            "FrozenMargin": "0",
+            "FrozenCash": "0",
+            "FrozenCommission": "0",
+            "StrikeFrozenAmount": "0",
+            "YdStrikeFrozen": "0",
+        }
+
+    def observe_order(self, order_ref, *, ctp_status, filled, remaining):
+        identity = self._order_identity[str(order_ref)]
+        ctp_status = str(ctp_status)
+        filled = int(filled)
+        remaining = int(remaining)
+        if filled < 0 or remaining < 0 or filled + remaining != identity["size"]:
+            raise ValueError("synthetic CTP order volumes are inconsistent")
+        normalized_status = {
+            "0": "completed",
+            "1": "partial",
+            "3": "accepted",
+            "5": "canceled",
+        }.get(ctp_status)
+        if normalized_status is None:
+            raise ValueError("unsupported synthetic CTP order status")
+        if (
+            (ctp_status == "0" and remaining != 0)
+            or (ctp_status == "1" and (filled == 0 or remaining == 0))
+            or (ctp_status == "3" and (filled != 0 or remaining == 0))
+            or (ctp_status == "5" and remaining == 0)
+        ):
+            raise ValueError("synthetic CTP order status and volumes are inconsistent")
+        details = self._order_row(
+            order_ref,
+            status=ctp_status,
+            filled=filled,
+            remaining=remaining,
+        )
+        self._provider_order_rows[str(order_ref)] = details
+        self._query_rows["orders_result"] = list(self._provider_order_rows.values())
+        self._provider_events.append(
+            {
+                "kind": "order",
+                "order_ref": str(order_ref),
+                "ctp_status": ctp_status,
+                "normalized_status": normalized_status,
+                "filled": filled,
+                "remaining": remaining,
+            }
+        )
+        self._update_queue.append(
+            {
+                "kind": "order",
+                "order_ref": str(order_ref),
+                "data_name": identity["instrument"],
+                "instrument": identity["instrument"],
+                "exchange_id": identity["exchange"],
+                "front_id": identity["front_id"],
+                "session_id": identity["session_id"],
+                "status": normalized_status,
+                "side": identity["side"],
+                "offset": identity["offset"],
+                "price": 100.0,
+                "size": identity["size"],
+                "filled": filled,
+                "remaining": remaining,
+                "details": details,
+            }
+        )
+
+    def observe_trade_fill(self, order_ref, trade_id, *, quantity, offset, when, fee):
+        identity = self._order_identity[str(order_ref)]
+        quantity = int(quantity)
+        fee = float(fee)
+        if quantity <= 0 or offset != identity["offset"] or not math.isfinite(fee):
+            raise ValueError("synthetic CTP trade fields do not match the order")
+        details = self._trade_row(
+            order_ref, trade_id, quantity=quantity, offset=offset, when=when, fee=fee
+        )
+        self._provider_trade_rows.append(details)
+        self._query_rows["trades_result"] = list(self._provider_trade_rows)
+        self._provider_commission += fee
+        self._provider_available = _EXECUTION_STARTING_AVAILABLE - self._provider_commission
+        self._query_rows["account_result"] = [
+            {"Available": str(self._provider_available), "CurrMargin": "0"}
+        ]
+        self._provider_events.append(
+            {
+                "kind": "trade",
+                "trade_id": str(trade_id),
+                "order_ref": str(order_ref),
+                "quantity": quantity,
+                "offset": offset,
+                "fee": fee,
+            }
+        )
+        position_key = (identity["instrument"], identity["exchange"])
+        position_delta = quantity if identity["side"] == "buy" else -quantity
+        self._provider_position_quantities[position_key] += position_delta
+        self._query_rows["positions_result"] = [
+            self._position_row(instrument, exchange, quantity=net)
+            for (instrument, exchange), net in sorted(self._provider_position_quantities.items())
+            if net
+        ]
+        self._update_queue.append(
+            {
+                "kind": "trade",
+                "trade_id": trade_id,
+                "order_ref": str(order_ref),
+                "data_name": identity["instrument"],
+                "instrument": identity["instrument"],
+                "exchange_id": identity["exchange"],
+                "side": identity["side"],
+                "offset": offset,
+                "price": 100.0,
+                "size": quantity,
+                "fee": fee,
+                "timestamp": when.isoformat(),
+                "details": details,
+            }
+        )
+
+    def poll_broker_update(self):
+        return self._update_queue.popleft() if self._update_queue else None
+
+
+class _ExecutionStrategy(_CaptureStrategy):
+    params = (
+        _CaptureStrategy.params._gettuple()
+        if hasattr(_CaptureStrategy.params, "_gettuple")
+        else _CaptureStrategy.params
+    ) + (("execution_state", None),)
+
+    def start(self):
+        self.p.execution_state["started"].set()
+
+    def nextstart(self):
+        self._execution_next()
+
+    def next(self):
+        self._execution_next()
+
+    def notify_order(self, order):
+        super().notify_order(order)
+        state = self.p.execution_state
+        status = order.getstatusname()
+        state["order_notifications"].append(
+            {
+                "status": status,
+                "executed_size": float(order.executed.size or 0.0),
+                "executed_price": float(order.executed.price or 0.0),
+                "executed_commission": float(order.executed.comm or 0.0),
+                "cancel_acknowledged": bool(order.info.get("cancel_acknowledged", False)),
+            }
+        )
+        if status == "Partial":
+            state["partial_notification"].set()
+        if order.info.get("cancel_acknowledged") is True:
+            state["cancel_ack_notification"].set()
+        if status == "Canceled":
+            state["terminal_cancel_notification"].set()
+        if status == "Completed" and order.info.get("factor_position_effect") == "CLOSE":
+            state["close_completed_notification"].set()
+
+    def notify_trade(self, trade):
+        self.p.execution_state["trade_notifications"].append(
+            {
+                "just_opened": bool(trade.justopened),
+                "closed": bool(trade.isclosed),
+                "size": float(trade.size or 0.0),
+                "pnlcomm": float(trade.pnlcomm or 0.0),
+            }
+        )
+        if trade.isclosed:
+            self.p.execution_state["closed_trade_notification"].set()
+
+    def _execution_next(self):
+        from backtrader.order import Order
+        from backtrader.stores.execution_decision_journal import (
+            ExecutionDecisionKey,
+            ExecutionIntentKey,
+        )
+
+        self._capture_complete_batch()
+        state = self.p.execution_state
+        state["last_snapshot"] = self.last_snapshot
+        if self.last_snapshot is not None and not state["factor_ready"].is_set():
+            factor = self.last_snapshot.factors.get("alpha003")
+            if (
+                str(getattr(self.last_snapshot.readiness, "value", self.last_snapshot.readiness))
+                == "LIVE_READY"
+                and factor is not None
+                and all(math.isfinite(float(point.value)) for point in factor.values.values())
+                and any(abs(float(point.value)) > 1e-12 for point in factor.values.values())
+            ):
+                state["api"].freeze_after_factor_ready()
+                state["factor_ready"].set()
+
+        command = state.get("command")
+        if not command or command == state.get("consumed_command"):
+            return
+        state["consumed_command"] = command
+        coordinator = state["coordinator"]
+        snapshot = self.last_snapshot
+        batch = state["cohort"].current_batch()
+        if command == "OPEN":
+            _require(snapshot is not None and batch is not None, "OPEN has no live cohort snapshot")
+            factor = snapshot.factors.get("alpha003")
+            _require(factor is not None, "OPEN has no production Alpha003 output")
+            available = [
+                (target, point)
+                for target, point in factor.values.items()
+                if point.status == "OUTPUT_AVAILABLE" and math.isfinite(float(point.value))
+            ]
+            _require(available, "OPEN has no finite Alpha003 route output")
+            target, point = max(available, key=lambda item: abs(float(item[1].value)))
+            side = "BUY" if float(point.value) >= 0.0 else "SELL"
+            data = next(data for data in self.datas if data._name == target)
+            facts = state["open_facts"]
+            economics = {
+                "instrument": target,
+                "exchange": "DCE",
+                "side": side,
+                "position_effect": "OPEN",
+                "quantity": "2",
+                "limit_price": "100",
+                "offset": "open",
+                "factor_stop_price": "95" if side == "BUY" else "105",
+                "risk_policy_id": "alpha003-installed-fixture-v1",
+                "risk_policy": {"stop_loss_ticks": 5, "max_loss_per_position": "200"},
+                "entry_grid_ordinal": 1,
+                "batch_id": batch.batch_id,
+                "price": "100",
+            }
+            key = ExecutionDecisionKey(
+                account_scope=_EXECUTION_ACCOUNT,
+                strategy_scope=_EXECUTION_SCOPE,
+                logical_run_id=state["logical_run_id"],
+                cohort_id=batch.cohort_id,
+                close_time=batch.close_time.isoformat().replace("+00:00", "Z"),
+                decision_kind="ALPHA003_GRID",
+            )
+            intent = ExecutionIntentKey(
+                action="SUBMIT",
+                instrument=target,
+                side=side,
+                position_effect="OPEN",
+                leg=0,
+            )
+            with coordinator.decision_scope(
+                owner=self,
+                key=key,
+                economic_payload={"intent_economics": (economics,)},
+                intent_keys=(intent,),
+                batch=batch,
+                snapshot=snapshot,
+                execution_facts=facts,
+                inputs_complete=True,
+                expected_run_order_intents_used=coordinator.run_order_count(),
+                remaining_exit_intent_reserve=1,
+            ) as decision:
+                state["open_order"] = (
+                    self.buy(
+                        data=data,
+                        size=2,
+                        price=100,
+                        exectype=Order.Limit,
+                        instrument_id=target,
+                        exchange_id="DCE",
+                        factor_position_effect="OPEN",
+                        factor_strategy_scope=_EXECUTION_SCOPE,
+                        offset="open",
+                    )
+                    if side == "BUY"
+                    else self.sell(
+                        data=data,
+                        size=2,
+                        price=100,
+                        exectype=Order.Limit,
+                        instrument_id=target,
+                        exchange_id="DCE",
+                        factor_position_effect="OPEN",
+                        factor_strategy_scope=_EXECUTION_SCOPE,
+                        offset="open",
+                    )
+                )
+            state["selected_target"] = target
+            state["open_side"] = side
+            state["decision_ids"].append(decision.decision_id)
+            state["open_sent"].set()
+        elif command == "PARTIAL_CHECK":
+            order = state["open_order"]
+            _require(order is not None and order.alive(), "partial order is not still alive")
+            _require(abs(float(order.executed.size)) == 1.0, "partial fill quantity changed")
+            state["partial_bar"].set()
+        elif command == "CANCEL":
+            order = state["open_order"]
+            facts = state["cancel_facts"]
+            _require(order is not None and facts.order_cancel_ready, "cancel facts are not ready")
+            key = _risk_key(facts, state["logical_run_id"])
+            intent = ExecutionIntentKey(
+                action="CANCEL",
+                instrument=state["selected_target"],
+                side=state["open_side"],
+                position_effect="OPEN",
+                leg=0,
+            )
+            economics = {
+                "instrument": state["selected_target"],
+                "exchange": "DCE",
+                "side": state["open_side"],
+                "position_effect": "OPEN",
+                "owner_intent_id": order.info.get("factor_intent_id"),
+                "reason": "installed fixture partial remainder cancel",
+            }
+            with coordinator.risk_decision_scope(
+                owner=self,
+                key=key,
+                economic_payload={"intent_economics": (economics,)},
+                intent_keys=(intent,),
+                execution_facts=facts,
+                inputs_complete=True,
+                expected_run_order_intents_used=coordinator.run_order_count(),
+                remaining_exit_intent_reserve=1,
+            ) as decision:
+                self.cancel(order)
+            cancel_intent_id = order.info.get("factor_cancel_intent_id")
+            _require(cancel_intent_id, "ordinary Broker cancel has no durable cancel intent")
+            state["cancel_intent_id"] = cancel_intent_id
+            state["decision_ids"].append(decision.decision_id)
+            state["cancel_sent"].set()
+        elif command == "CANCEL_ACK_CHECK":
+            order = state["open_order"]
+            _require(order is not None and order.alive(), "cancel acknowledgement ended order")
+            _require(order.info.get("cancel_acknowledged") is True, "cancel ACK was not observed")
+            state["cancel_ack_bar"].set()
+        elif command == "TERMINAL_CANCEL_CHECK":
+            order = state["open_order"]
+            _require(
+                order is not None and order.status == Order.Canceled, "terminal cancel missing"
+            )
+            _require(not order.alive(), "terminal canceled order remains alive")
+            state["terminal_cancel_bar"].set()
+        elif command == "CLOSE":
+            order = state["open_order"]
+            facts = state["close_facts"]
+            _require(facts.risk_reduction_ready, "close risk facts are not ready")
+            side = "SELL" if state["open_side"] == "BUY" else "BUY"
+            data = next(data for data in self.datas if data._name == state["selected_target"])
+            owner_intent_id = order.info.get("factor_intent_id")
+            economics = {
+                "instrument": state["selected_target"],
+                "exchange": "DCE",
+                "side": side,
+                "position_effect": "CLOSE",
+                "quantity": "1",
+                "limit_price": "100",
+                "offset": "close",
+                "owner_intent_id": owner_intent_id,
+                "owner_position_effect": "OPEN",
+                "owner_side": state["open_side"],
+                "entry_grid_ordinal": 1,
+            }
+            intent = ExecutionIntentKey(
+                action="SUBMIT",
+                instrument=state["selected_target"],
+                side=side,
+                position_effect="CLOSE",
+                leg=0,
+            )
+            with coordinator.risk_decision_scope(
+                owner=self,
+                key=_risk_key(facts, state["logical_run_id"]),
+                economic_payload={"intent_economics": (economics,)},
+                intent_keys=(intent,),
+                execution_facts=facts,
+                inputs_complete=True,
+                expected_run_order_intents_used=coordinator.run_order_count(),
+                remaining_exit_intent_reserve=0,
+            ) as decision:
+                state["close_order"] = (
+                    self.buy(
+                        data=data,
+                        size=1,
+                        price=100,
+                        exectype=Order.Limit,
+                        instrument_id=state["selected_target"],
+                        exchange_id="DCE",
+                        factor_position_effect="CLOSE",
+                        factor_strategy_scope=_EXECUTION_SCOPE,
+                        factor_owner_side=state["open_side"],
+                        factor_owner_position_effect="OPEN",
+                        offset="close",
+                    )
+                    if side == "BUY"
+                    else self.sell(
+                        data=data,
+                        size=1,
+                        price=100,
+                        exectype=Order.Limit,
+                        instrument_id=state["selected_target"],
+                        exchange_id="DCE",
+                        factor_position_effect="CLOSE",
+                        factor_strategy_scope=_EXECUTION_SCOPE,
+                        factor_owner_side=state["open_side"],
+                        factor_owner_position_effect="OPEN",
+                        offset="close",
+                    )
+                )
+            state["decision_ids"].append(decision.decision_id)
+            state["close_sent"].set()
+        elif command == "CLOSE_CHECK":
+            order = state["close_order"]
+            _require(
+                order is not None and order.status == Order.Completed, "close fill not completed"
+            )
+            position = self.broker.execution_position_snapshot(order.data)
+            _require(position.quantity == 0, "actual Broker position is not flat after close")
+            state["close_bar"].set()
+
+
+def _risk_key(facts, logical_run_id):
+    from backtrader.stores.execution_decision_journal import ExecutionDecisionKey
+
+    return ExecutionDecisionKey(
+        account_scope=_EXECUTION_ACCOUNT,
+        strategy_scope=_EXECUTION_SCOPE,
+        logical_run_id=logical_run_id,
+        cohort_id="iteration50-execution-risk-cohort",
+        close_time=facts.available_at.isoformat().replace("+00:00", "Z"),
+        decision_kind="ALPHA003_RISK_REDUCTION",
+    )
+
+
+def _wait_execution_event(state, name, timeout=20.0):
+    deadline = time.monotonic() + timeout
+    while not state[name].wait(min(0.05, max(0.0, deadline - time.monotonic()))):
+        error = state.get("error")
+        if error is not None:
+            raise RuntimeError(
+                "installed execution engine failed: " + type(error).__name__
+            ) from error
+        if time.monotonic() >= deadline:
+            api = state.get("api")
+            progress = (
+                {
+                    "bars": dict(api._bar_counts),
+                    "allowed_index": api._allowed_index,
+                    "source_stopped": api._source_stopped,
+                    "snapshot": _execution_snapshot_diagnostic(state.get("last_snapshot")),
+                }
+                if api is not None
+                else {}
+            )
+            raise RuntimeError(
+                "installed execution profile timed out at %s; progress=%r" % (name, progress)
+            )
+
+
+def _execution_snapshot_diagnostic(snapshot):
+    if snapshot is None:
+        return None
+    factors = {}
+    for name, factor in snapshot.factors.items():
+        factors[name] = {
+            target: {
+                "status": str(getattr(point.status, "value", point.status)),
+                "reason": str(getattr(point.reason, "value", point.reason)),
+                "value_finite": math.isfinite(float(point.value)),
+            }
+            for target, point in factor.values.items()
+        }
+    return {
+        "readiness": str(getattr(snapshot.readiness, "value", snapshot.readiness)),
+        "close_time": snapshot.close_time.isoformat(),
+        "factors": factors,
+    }
+
+
+def _refresh_execution_facts(store, broker, targets, api, sequence, coordinator):
+    from backtrader.stores.factor_execution_facts import (
+        project_factor_execution_facts,
+        refresh_factor_execution_queries,
+    )
+
+    receipt = refresh_factor_execution_queries(
+        store,
+        targets=targets,
+        timeout=4.0,
+        overall_timeout=20.0,
+    )
+    _require(
+        not receipt.blockers and not receipt.pending_families, "execution source query incomplete"
+    )
+    for target in targets:
+        api.publish_tick(target.instrument, sequence, receipt.completed_at)
+        consumed = store.poll_tick(target.instrument)
+        _require(consumed is not None, "registered Store did not consume a synthetic tick")
+        _require(consumed.source == "ctp-native-live", "Store-owned tick source was not stamped")
+    now = datetime.now(_UTC)
+    facts = project_factor_execution_facts(
+        store,
+        broker,
+        targets=targets,
+        account_scope=_EXECUTION_ACCOUNT,
+        strategy_scope=_EXECUTION_SCOPE,
+        now=now,
+        quote_max_age=timedelta(seconds=2),
+        max_query_age=timedelta(seconds=30),
+        query_set=receipt.query_set,
+    )
+    return receipt, facts
+
+
+def _run_execution_mode(mode: str) -> Dict[str, Any]:
+    from backtrader.stores.execution_decision_journal import (
+        ExecutionDecisionJournal,
+    )
+    from backtrader.stores.factor_execution import FactorExecutionCoordinator
+    from backtrader.stores.factor_execution_facts import FactorExecutionTarget
+    from backtrader.stores.registered_sim import RegisteredSimStore, RegisteredSimWrapper
+
+    class ExecutionApi(RegisteredSimWrapper, _ExecutionProviderLeaf):
+        pass
+
+    _require(mode in {"native", "build"}, "execution profile requires one Alpha003 mode")
+    slot_count = 24
+    now = datetime.now(_UTC).replace(second=0, microsecond=0)
+    first_close = now - timedelta(minutes=slot_count - 1)
+    bars, calendar = _fixture_bars(
+        slot_count,
+        varied_stream=False,
+        first_close=first_close,
+    )
+    clock = _ReplayClock(calendar.slots[0].close_time)
+    api = ExecutionApi(
+        registered_sim_allow_writes=True,
+        bars=bars,
+        slot_count=slot_count,
+    )
+    api.live_tick_provenance = {"source": "fixture-ctp-provider-leaf"}
+    store = RegisteredSimStore(
+        allow_writes=True,
+        provider="ctp",
+        backend="direct",
+        api=api,
+        live_tick_provenance={"source": "fixture-ctp-provider-leaf"},
+        preserve_raw_bars=True,
+    )
+    broker = store.getbroker(
+        cash=100_000.0,
+        market_data_only=False,
+        validation_enabled=False,
+        cash_check_enabled=False,
+        force_refresh_queries=False,
+        position_sync_policy="startup",
+        flatten_on_stop=False,
+        contract_metadata={
+            target: {"instrument_id": target, "exchange_id": "DCE"} for target in _TARGETS
+        },
+    )
+    cohort = LiveBarCohort(
+        "iteration50-installed-execution-" + mode,
+        calendar,
+        max_pending_slots=2,
+        max_window_bars=slot_count,
+        wait_timeout_ns=2_000_000_000,
+    )
+    cerebro = bt.Cerebro(stdstats=False, exactbars=0, preload=False, runonce=False)
+    cerebro.setbroker(broker)
+    feeds = {}
+    targets = []
+    for index, target in enumerate(_TARGETS):
+        feed = store.getdata(
+            dataname=target,
+            cohort_source_mode=True,
+            backfill_start=False,
+            timeframe=bt.TimeFrame.Minutes,
+            compression=1,
+            bar_watermark_ms=0,
+            qcheck=0.0,
+            clock=clock,
+        )
+        _require(type(feed) is BtApiFeed, "execution Store did not create exact BtApiFeed")
+        feeds[target] = feed
+        cerebro.adddata(feed, name=target)
+        declared = _FIELDS
+        cohort.register_member(
+            "member-" + target,
+            feed,
+            instrument=target,
+            source_ref="store-feed-" + target,
+            line_fields=declared,
+            raw_fields=declared,
+            numeric_fields=declared,
+        )
+        targets.append(FactorExecutionTarget("asset-%d" % index, target, "DCE", feed))
+
+    plan = LiveFactorPlan(
+        plan_id="iteration50-installed-execution-alpha003-" + mode,
+        targets=_TARGETS,
+        groups=dict.fromkeys(_TARGETS, "portfolio"),
+        factors={
+            "alpha003": FactorSpec(
+                name="alpha003",
+                indicator=get_alpha(3),
+                panel_line="factor",
+                mode=mode,
+                field_bindings={"open": "feed:target:open", "volume": "feed:target:volume"},
+            )
+        },
+        calendar_id=calendar.calendar_id,
+        frequency=calendar.frequency,
+        warmup_min_bars=10,
+        max_pending_slots=cohort.max_pending_slots,
+        max_window_bars=slot_count,
+        wait_timeout_ns=cohort.wait_timeout_ns,
+        max_live_bar_age_seconds=60.0,
+        max_future_skew_seconds=0.0,
+    )
+    cerebro.add_live_bar_cohort(cohort, clock=clock)
+    journal_dir = tempfile.TemporaryDirectory(prefix="iteration50-execution-journal-")
+    journal_path = str(Path(journal_dir.name) / "decisions.sqlite3")
+    journal_limits = {
+        "max_pending_intents": 128,
+        "max_pending_callbacks": 64,
+        "max_payload_bytes": 65_536,
+        "max_decision_records": 16,
+        "settlement_decision_reserve_records": 8,
+        "max_decision_bytes": 65_536,
+        "settlement_decision_reserve_bytes": 32_768,
+    }
+    journal = ExecutionDecisionJournal(journal_path, **journal_limits)
+    coordinator = FactorExecutionCoordinator(
+        broker,
+        journal,
+        account_scope=_EXECUTION_ACCOUNT,
+        strategy_scope=_EXECUTION_SCOPE,
+        logical_run_id="iteration50-installed-execution-" + mode,
+        max_order_intents_per_grid=2,
+        max_order_intents_per_run=4,
+    )
+    state = {
+        name: threading.Event()
+        for name in (
+            "started",
+            "factor_ready",
+            "open_sent",
+            "partial_notification",
+            "partial_bar",
+            "cancel_sent",
+            "cancel_ack_notification",
+            "cancel_ack_bar",
+            "terminal_cancel_notification",
+            "terminal_cancel_bar",
+            "close_sent",
+            "close_completed_notification",
+            "closed_trade_notification",
+            "close_bar",
+            "engine_done",
+        )
+    }
+    state.update(
+        {
+            "api": api,
+            "coordinator": coordinator,
+            "cohort": cohort,
+            "logical_run_id": "iteration50-installed-execution-" + mode,
+            "command": None,
+            "consumed_command": None,
+            "open_facts": None,
+            "cancel_facts": None,
+            "close_facts": None,
+            "open_order": None,
+            "close_order": None,
+            "selected_target": None,
+            "open_side": None,
+            "decision_ids": [],
+            "order_notifications": [],
+            "trade_notifications": [],
+            "error": None,
+            "result": None,
+            "last_snapshot": None,
+        }
+    )
+    cerebro.addstrategy(
+        _ExecutionStrategy,
+        cohort=cohort,
+        plan=plan,
+        profile="alpha003",
+        alpha_ids=(),
+        warmup_required_bars=0,
+        first_evaluation_close_time=None,
+        execution_state=state,
+    )
+
+    def run_engine():
+        try:
+            state["result"] = cerebro.run(runonce=False, preload=False)
+        except BaseException as error:
+            state["error"] = error
+            api.stop_bar_source()
+        finally:
+            state["engine_done"].set()
+
+    engine = threading.Thread(target=run_engine, name="iteration50-installed-execution")
+    engine.start()
+    receipts = []
+    try:
+        _wait_execution_event(state, "started")
+        _wait_execution_event(state, "factor_ready")
+        initial_receipt, initial_facts = _refresh_execution_facts(
+            store, broker, tuple(targets), api, 1, coordinator
+        )
+        templates = {
+            (target, "DCE"): {
+                "md_front": "tcp://127.0.0.1:1",
+                "strategy_identity_sha256": hashlib.sha256(
+                    ("iteration50-installed:" + target).encode("utf-8")
+                ).hexdigest(),
+                "execution_cycle_id": "cycle-" + target,
+                "preflight_sha256": "b" * 64,
+            }
+            for target in _TARGETS
+        }
+        store.registered_sim_configure_arm_templates(templates)
+        initial_receipt, initial_facts = _refresh_execution_facts(
+            store, broker, tuple(targets), api, 2, coordinator
+        )
+        receipts.append(initial_receipt)
+        _require(
+            initial_facts.open_risk_ready,
+            "armed execution facts are not open-risk ready: " + ",".join(initial_facts.blockers),
+        )
+        state["open_facts"] = initial_facts
+        state["command"] = "OPEN"
+        api.advance_one_bar()
+        _wait_execution_event(state, "open_sent")
+
+        opening = state["open_order"]
+        _require(opening is not None and opening.alive(), "opening order was not accepted")
+        order_ref = str(opening.info.get("external_order_ref") or "")
+        _require(
+            order_ref in api._order_identity,
+            "opening order has no provider identity: order=%r provider_refs=%r"
+            % (dict(opening.info), tuple(api._order_identity)),
+        )
+        open_when = datetime.now(_UTC)
+        api.observe_trade_fill(
+            order_ref,
+            "iteration50-open-fill-1",
+            quantity=1,
+            offset="open",
+            when=open_when,
+            fee=1.25,
+        )
+        api.observe_order(order_ref, ctp_status="1", filled=1, remaining=1)
+        state["command"] = "PARTIAL_CHECK"
+        api.advance_one_bar()
+        _wait_execution_event(state, "partial_bar")
+        _require(
+            state["partial_notification"].is_set(), "Broker omitted partial order notification"
+        )
+        _require(
+            abs(float(opening.executed.size)) == 1.0
+            and math.isfinite(float(opening.executed.comm)),
+            "Broker partial fill economics are not finite",
+        )
+
+        partial_receipt, cancel_facts = _refresh_execution_facts(
+            store, broker, tuple(targets), api, 3, coordinator
+        )
+        receipts.append(partial_receipt)
+        coordinator.reconcile_trade_observations(cancel_facts)
+        partial_receipt, cancel_facts = _refresh_execution_facts(
+            store, broker, tuple(targets), api, 4, coordinator
+        )
+        receipts.append(partial_receipt)
+        coordinator.reconcile_trade_observations(cancel_facts)
+        _require(cancel_facts.order_cancel_ready, "partial-order cancellation facts are not ready")
+        state["cancel_facts"] = cancel_facts
+        state["command"] = "CANCEL"
+        api.advance_one_bar()
+        _wait_execution_event(state, "cancel_sent")
+        _require(opening.alive(), "cancel acknowledgement incorrectly terminated order")
+        _require(opening.info.get("cancel_acknowledged") is True, "native cancel ACK is absent")
+        _require(
+            any(item[0] == "cancel" for item in api.native_calls),
+            "ordinary Broker cancel did not reach the registered native wrapper",
+        )
+
+        state["command"] = "CANCEL_ACK_CHECK"
+        api.advance_one_bar()
+        _wait_execution_event(state, "cancel_ack_bar")
+        _require(opening.alive(), "order ended before a separate terminal callback")
+        api.observe_order(order_ref, ctp_status="5", filled=1, remaining=1)
+        state["command"] = "TERMINAL_CANCEL_CHECK"
+        api.advance_one_bar()
+        _wait_execution_event(state, "terminal_cancel_bar")
+        _require(
+            state["terminal_cancel_notification"].is_set(),
+            "Broker omitted terminal cancel notification",
+        )
+
+        terminal_receipt, terminal_facts = _refresh_execution_facts(
+            store, broker, tuple(targets), api, 5, coordinator
+        )
+        receipts.append(terminal_receipt)
+        coordinator.reconcile_trade_observations(terminal_facts)
+        terminal_result = coordinator.reconcile_terminal_order_observations(
+            terminal_facts,
+            refresh_receipt=terminal_receipt,
+        )
+        _require(
+            terminal_result.items
+            and all(item.status == "RESOLVED" for item in terminal_result.items),
+            "terminal CTP order observation was not reconciled",
+        )
+        close_receipt, close_facts = _refresh_execution_facts(
+            store, broker, tuple(targets), api, 6, coordinator
+        )
+        receipts.append(close_receipt)
+        coordinator.reconcile_trade_observations(close_facts)
+        _require(close_facts.risk_reduction_ready, "close risk facts are not ready")
+        state["close_facts"] = close_facts
+        state["command"] = "CLOSE"
+        api.advance_one_bar()
+        _wait_execution_event(state, "close_sent")
+
+        close_order = state["close_order"]
+        _require(close_order is not None and close_order.alive(), "close order was not dispatched")
+        close_ref = str(close_order.info.get("external_order_ref") or "")
+        _require(close_ref in api._order_identity, "close order has no provider identity")
+        close_when = datetime.now(_UTC)
+        api.observe_trade_fill(
+            close_ref,
+            "iteration50-close-fill-1",
+            quantity=1,
+            offset="close",
+            when=close_when,
+            fee=0.75,
+        )
+        api.observe_order(close_ref, ctp_status="0", filled=1, remaining=0)
+        state["command"] = "CLOSE_CHECK"
+        api.advance_one_bar()
+        _wait_execution_event(state, "close_bar")
+        _require(
+            state["close_completed_notification"].is_set(), "Broker omitted close notification"
+        )
+        _require(
+            state["closed_trade_notification"].is_set(), "Broker omitted closed Trade notification"
+        )
+
+        settlement_queries = {
+            "account": api.query_account_result(),
+            "orders": api.query_orders_result(),
+            "trades": api.query_trades_result(),
+            "positions": api.query_positions_result(),
+        }
+        _require(
+            all(
+                result.complete and result.error_code is None
+                for result in settlement_queries.values()
+            ),
+            "provider settlement query did not complete",
+        )
+
+        api.finish_bar_source()
+        _wait_execution_event(state, "engine_done")
+        engine.join(timeout=5.0)
+        _require(not engine.is_alive(), "ordinary Cerebro execution thread did not stop")
+        if state["error"] is not None:
+            raise RuntimeError(
+                "ordinary Cerebro execution failed: " + type(state["error"]).__name__
+            ) from state["error"]
+        _require(
+            len(state["result"]) == 1, "ordinary Cerebro returned an unexpected Strategy count"
+        )
+        strategy = state["result"][0]
+        _require(
+            strategy.last_snapshot is not None, "execution Strategy captured no factor snapshot"
+        )
+        _require(
+            len(state["decision_ids"]) == 3, "expected OPEN/CANCEL/CLOSE decisions were not durable"
+        )
+        _require(len(api.native_calls) == 3, "unexpected registered native insert/cancel count")
+        _require(
+            broker.execution_position_snapshot(close_order.data).quantity == 0,
+            "final ordinary Broker position is not flat",
+        )
+
+        open_signed_size = 1.0 if state["open_side"] == "BUY" else -1.0
+        close_signed_size = -open_signed_size
+        open_fill = _validate_order_execution_fill(
+            opening,
+            label="OPEN",
+            expected_size=open_signed_size,
+            expected_price=100.0,
+            expected_commission=1.25,
+            expected_pnl=0.0,
+            expected_opened=open_signed_size,
+            expected_closed=0.0,
+            expected_opened_commission=1.25,
+            expected_closed_commission=0.0,
+        )
+        close_fill = _validate_order_execution_fill(
+            close_order,
+            label="CLOSE",
+            expected_size=close_signed_size,
+            expected_price=100.0,
+            expected_commission=0.75,
+            expected_pnl=0.0,
+            expected_opened=0.0,
+            expected_closed=close_signed_size,
+            expected_opened_commission=0.0,
+            expected_closed_commission=0.75,
+        )
+
+        trade_notifications = state["trade_notifications"]
+        opened_trades = [row for row in trade_notifications if row["just_opened"]]
+        closed_trades = [row for row in trade_notifications if row["closed"]]
+        _require(len(opened_trades) == 1, "Broker did not emit exactly one opened Trade")
+        _require(len(closed_trades) == 1, "Broker did not emit exactly one closed Trade")
+        _require(
+            math.isclose(opened_trades[0]["size"], open_signed_size, rel_tol=0.0, abs_tol=1e-12)
+            and math.isclose(opened_trades[0]["pnlcomm"], -1.25, rel_tol=0.0, abs_tol=1e-12),
+            "opened Trade does not match the Broker OPEN fill and fee",
+        )
+        _require(
+            math.isclose(closed_trades[0]["size"], 0.0, rel_tol=0.0, abs_tol=1e-12)
+            and math.isclose(closed_trades[0]["pnlcomm"], -2.0, rel_tol=0.0, abs_tol=1e-12),
+            "closed Trade net PnL does not match both provider commissions",
+        )
+
+        account_rows = tuple(settlement_queries["account"].records)
+        trade_rows = tuple(settlement_queries["trades"].records)
+        order_rows = tuple(settlement_queries["orders"].records)
+        position_rows = tuple(settlement_queries["positions"].records)
+        expected_available = (
+            _EXECUTION_STARTING_AVAILABLE - open_fill["commission"] - close_fill["commission"]
+        )
+        _require(len(account_rows) == 1, "provider account query returned an unexpected row count")
+        provider_available = float(account_rows[0]["Available"])
+        broker_balance_projection = api.get_balance()
+        _require(
+            math.isclose(provider_available, expected_available, rel_tol=0.0, abs_tol=1e-9)
+            and math.isclose(
+                float(broker_balance_projection["cash"]),
+                provider_available,
+                rel_tol=0.0,
+                abs_tol=1e-9,
+            ),
+            "provider Available does not reflect the Broker fill commissions",
+        )
+        _require(
+            math.isclose(
+                float(broker_balance_projection["value"]),
+                provider_available,
+                rel_tol=0.0,
+                abs_tol=1e-9,
+            )
+            and float(account_rows[0]["CurrMargin"]) == 0.0,
+            "synthetic account query and balance projection differ",
+        )
+        _require(
+            len(trade_rows) == 2,
+            "provider trade query does not contain both actual Broker fill references",
+        )
+        trade_rows_by_order = {str(row["OrderRef"]): row for row in trade_rows}
+        _require(
+            set(trade_rows_by_order) == {order_ref, close_ref},
+            "provider trade query order references differ from the Broker orders",
+        )
+        for ref, expected_fee, expected_offset, expected_direction in (
+            (
+                order_ref,
+                open_fill["commission"],
+                "0",
+                "0" if state["open_side"] == "BUY" else "1",
+            ),
+            (
+                close_ref,
+                close_fill["commission"],
+                "1",
+                "1" if state["open_side"] == "BUY" else "0",
+            ),
+        ):
+            row = trade_rows_by_order[ref]
+            _require(
+                int(row["Volume"]) == 1
+                and math.isclose(float(row["Price"]), 100.0, rel_tol=0.0, abs_tol=1e-12)
+                and math.isclose(float(row["Commission"]), expected_fee, rel_tol=0.0, abs_tol=1e-12)
+                and row["OffsetFlag"] == expected_offset
+                and row["Direction"] == expected_direction,
+                "provider trade query differs from actual Broker execution bits for %s" % ref,
+            )
+        order_rows_by_ref = {str(row["OrderRef"]): row for row in order_rows}
+        _require(
+            set(order_rows_by_ref) == {order_ref, close_ref}
+            and order_rows_by_ref[order_ref]["OrderStatus"] == "5"
+            and int(order_rows_by_ref[order_ref]["VolumeTraded"]) == 1
+            and int(order_rows_by_ref[order_ref]["VolumeTotal"]) == 1
+            and order_rows_by_ref[close_ref]["OrderStatus"] == "0"
+            and int(order_rows_by_ref[close_ref]["VolumeTraded"]) == 1
+            and int(order_rows_by_ref[close_ref]["VolumeTotal"]) == 0,
+            "provider order query differs from the observed Broker lifecycle",
+        )
+        _require(not position_rows, "provider position query did not return the settled flat book")
+        _require(not api.connected and not store.is_connected, "Store/API did not close normally")
+        _require(
+            set(api.subscriptions) == set(_TARGETS),
+            "production Store did not subscribe the complete Alpha003 cohort",
+        )
+        decision_rows = [journal.decision(decision_id) for decision_id in state["decision_ids"]]
+        _require(all(row is not None for row in decision_rows), "journal lost a decision row")
+        intent_ids = [
+            opening.info["factor_intent_id"],
+            state["cancel_intent_id"],
+            close_order.info["factor_intent_id"],
+        ]
+        journal_snapshot = journal.decision_capacity_snapshot()
+        journal.close()
+        reopened = ExecutionDecisionJournal(journal_path, **journal_limits)
+        try:
+            replayed = [reopened.decision(decision_id) for decision_id in state["decision_ids"]]
+            intent_rows = [reopened.intent(intent_id) for intent_id in intent_ids]
+            _require(all(row is not None for row in replayed), "journal reopen lost decisions")
+            _require(
+                all(row is not None and row.state == "KNOWN" for row in intent_rows),
+                "journal reopen lost known intents",
+            )
+            _require(
+                intent_rows[1].key.action == "CANCEL"
+                and intent_rows[1].owner_intent_id == intent_rows[0].intent_id,
+                "durable cancel intent lost its opening-order owner link",
+            )
+            reopened_snapshot = reopened.decision_capacity_snapshot()
+        finally:
+            reopened.close()
+        point = strategy.last_snapshot.factors["alpha003"].values[state["selected_target"]]
+        _require(math.isfinite(float(point.value)), "selected Alpha003 output is not finite")
+        return {
+            "mode": mode,
+            "evidence_level": "INSTALLED_SYNTHETIC_REGISTERED_SIM_EXECUTION_FIXTURE_ONLY",
+            "ordinary_cerebro": True,
+            "exact_feed_type": type(feeds[_TARGETS[0]]).__name__,
+            "factor": {
+                "name": "alpha003",
+                "mode": mode,
+                "selected_instrument": state["selected_target"],
+                "selected_side": state["open_side"],
+                "selected_value": float(point.value),
+                "readiness": str(
+                    getattr(
+                        strategy.last_snapshot.readiness, "value", strategy.last_snapshot.readiness
+                    )
+                ),
+                "close_time": strategy.last_snapshot.close_time.isoformat(),
+            },
+            "provider_dispatches": [list(item) for item in api.native_calls],
+            "provider_observations": {
+                "events": list(api._provider_events),
+                "orders": [
+                    {
+                        "order_ref": row["OrderRef"],
+                        "ctp_status": row["OrderStatus"],
+                        "filled": int(row["VolumeTraded"]),
+                        "remaining": int(row["VolumeTotal"]),
+                    }
+                    for row in order_rows
+                ],
+                "trades": [
+                    {
+                        "trade_id": row["TradeID"],
+                        "order_ref": row["OrderRef"],
+                        "quantity": int(row["Volume"]),
+                        "price": float(row["Price"]),
+                        "commission": float(row["Commission"]),
+                    }
+                    for row in trade_rows
+                ],
+                "positions": [
+                    {
+                        "instrument": row["InstrumentID"],
+                        "direction": row["PosiDirection"],
+                        "quantity": int(row["Position"]),
+                    }
+                    for row in position_rows
+                ],
+                "account": {
+                    "available": provider_available,
+                    "current_margin": float(account_rows[0]["CurrMargin"]),
+                    "starting_available": _EXECUTION_STARTING_AVAILABLE,
+                    "cumulative_commission": open_fill["commission"] + close_fill["commission"],
+                    "projection": broker_balance_projection,
+                    "model": "synthetic fee-only balance; margin and realized/unrealized PnL are not modeled",
+                },
+            },
+            "order_notifications": state["order_notifications"],
+            "trade_notifications": state["trade_notifications"],
+            "orders": {
+                "open": {
+                    "intent_id": opening.info.get("factor_intent_id"),
+                    "cancel_intent_id": state["cancel_intent_id"],
+                    "final_status": opening.getstatusname(),
+                    "filled_size": float(opening.executed.size),
+                    "filled_price": float(opening.executed.price),
+                    "fee": float(opening.executed.comm),
+                    "execution_projection": open_fill,
+                    "cancel_acknowledged": opening.info.get("cancel_acknowledged") is True,
+                },
+                "close": {
+                    "intent_id": close_order.info.get("factor_intent_id"),
+                    "final_status": close_order.getstatusname(),
+                    "filled_size": float(close_order.executed.size),
+                    "filled_price": float(close_order.executed.price),
+                    "fee": float(close_order.executed.comm),
+                    "execution_projection": close_fill,
+                },
+            },
+            "final_position": str(broker.execution_position_snapshot(close_order.data).quantity),
+            "journal": {
+                "decision_count": len(replayed),
+                "intent_count": len(intent_rows),
+                "intent_actions": [row.key.action for row in intent_rows],
+                "cancel_owner_intent_id": intent_rows[1].owner_intent_id,
+                "capacity_before_close": {
+                    name: getattr(journal_snapshot, name)
+                    for name in (
+                        "base_record_count",
+                        "base_record_limit",
+                        "settlement_record_count",
+                        "settlement_record_limit",
+                        "base_payload_bytes",
+                        "base_payload_byte_limit",
+                        "database_bytes",
+                        "wal_bytes",
+                        "physical_bytes",
+                    )
+                },
+                "capacity_after_reopen": {
+                    name: getattr(reopened_snapshot, name)
+                    for name in (
+                        "base_record_count",
+                        "base_record_limit",
+                        "settlement_record_count",
+                        "settlement_record_limit",
+                        "base_payload_bytes",
+                        "base_payload_byte_limit",
+                        "database_bytes",
+                        "wal_bytes",
+                        "physical_bytes",
+                    )
+                },
+            },
+            "query_refreshes": len(receipts),
+            "store_disconnected": not api.connected and not store.is_connected,
+            "provider_calls_are_fixture_only": True,
+        }
+    finally:
+        api.stop_bar_source()
+        if engine.is_alive():
+            engine.join(timeout=5.0)
+        if journal._connection is not None:
+            journal.close()
+        journal_dir.cleanup()
+
+
 def main(argv: Optional[Sequence[str]] = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -1874,7 +3611,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     )
     parser.add_argument(
         "--profile",
-        choices=("read-only", "alpha101-stream"),
+        choices=("read-only", "alpha101-stream", "execution"),
         default="read-only",
         help="select the installed acceptance profile",
     )
@@ -1899,6 +3636,17 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             binding["wheel_payload_hashes"],
             previous=binding["loaded_modules"],
         )
+    elif args.profile == "execution":
+        requested = ("native", "build") if args.factor_mode == "both" else (args.factor_mode,)
+        results = []
+        for mode in requested:
+            results.append(_run_execution_mode(mode))
+            binding["loaded_modules"] = _snapshot_loaded_package_modules(
+                binding["install_root"],
+                binding["record_hashes"],
+                binding["wheel_payload_hashes"],
+                previous=binding["loaded_modules"],
+            )
     else:
         requested = ("native", "build") if args.factor_mode == "both" else (args.factor_mode,)
         results = []
@@ -1920,6 +3668,19 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                 ),
                 "native/build Alpha003 outputs differ for " + target,
             )
+    if args.profile == "execution" and len(results) == 2:
+        native, build = results
+        _require(
+            native["factor"]["selected_instrument"] == build["factor"]["selected_instrument"]
+            and native["factor"]["selected_side"] == build["factor"]["selected_side"]
+            and math.isclose(
+                native["factor"]["selected_value"],
+                build["factor"]["selected_value"],
+                rel_tol=1e-9,
+                abs_tol=1e-12,
+            ),
+            "execution native/build Alpha003 route outputs differ",
+        )
     print(
         json.dumps(
             {
