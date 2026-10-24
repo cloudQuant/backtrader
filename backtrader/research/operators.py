@@ -84,6 +84,27 @@ _LINES_GETATTR = getattr(Lines, "__getattr__", None)
 _LINES_BUFLEN = Lines.buflen
 
 
+def _qbuffer_logical_to_physical(line: Any, logical_index: int) -> Optional[int]:
+    """Map a populated grid index into one queued line's retained tail."""
+    if logical_index < 0:
+        return None
+    try:
+        source_array = line.array
+        logical_length = int(line.lencount)
+        extension = int(line.extension)
+        retained_length = len(source_array) - extension
+    except (AttributeError, TypeError, ValueError):
+        return None
+    if logical_length <= logical_index or retained_length < 0:
+        return None
+
+    logical_origin = logical_length - retained_length
+    physical_index = logical_index - logical_origin
+    if physical_index < 0 or physical_index >= retained_length:
+        return None
+    return physical_index
+
+
 def _associated_reason(
     source: Any, *, ago: int = 0, absolute_index: Optional[int] = None
 ) -> Optional[OperatorReason]:
@@ -115,9 +136,19 @@ def _associated_reason(
         if absolute_index is None:
             raw_reason = float(reason_line[ago])
         else:
-            if absolute_index < 0 or absolute_index >= reason_line.lencount:
+            try:
+                reason_mode = reason_line.mode
+            except AttributeError:
+                reason_mode = LineBuffer.UnBounded
+            if reason_mode != LineBuffer.QBuffer:
+                if absolute_index < 0 or absolute_index >= reason_line.lencount:
+                    return None
+                physical_index = absolute_index
+            else:
+                physical_index = _qbuffer_logical_to_physical(reason_line, absolute_index)
+            if physical_index is None:
                 return None
-            raw_reason = float(reason_line.array[absolute_index])
+            raw_reason = float(reason_line.array[physical_index])
         if not math.isfinite(raw_reason) or raw_reason != int(raw_reason):
             return None
         reason = OperatorReason(int(raw_reason))
@@ -154,6 +185,7 @@ def _read_value(source: Any, ago: int = 0) -> Tuple[float, OperatorReason]:
     # first so the alpha101 operator contract can reject source infinities in
     # both ordinary and strict research runs.
     raw_index = None
+    source_length = None
     try:
         source_index = source._idx
         source_length = source.lencount
@@ -169,7 +201,13 @@ def _read_value(source: Any, ago: int = 0) -> Tuple[float, OperatorReason]:
     if math.isinf(value):
         raise OperatorInputError("source line contains infinity")
     if math.isnan(value):
-        reason = _associated_reason(source, absolute_index=raw_index)
+        reason_index = raw_index
+        try:
+            if source.mode == LineBuffer.QBuffer and source_length is not None:
+                reason_index = source_length - 1 + ago
+        except AttributeError:
+            pass
+        reason = _associated_reason(source, absolute_index=reason_index)
         return _NAN, reason or OperatorReason.NONFINITE_INPUT
     return value, OperatorReason.READY
 
@@ -585,18 +623,22 @@ def _panel_value_array(
     target: Any,
     grid_index: int,
     relation_plan: Optional[_PresenceLineRelationPlan] = None,
-) -> Tuple[Optional[Any], OperatorReason]:
-    """Resolve a target-aligned panel line array for an absolute grid slot."""
+) -> Tuple[Optional[Any], Optional[int], OperatorReason, bool]:
+    """Resolve a target-aligned value array and its current physical slot."""
     if source is None:
-        return None, OperatorReason.NONFINITE_INPUT
+        return None, None, OperatorReason.NONFINITE_INPUT, False
     try:
         source_array = source.array
     except AttributeError as exc:
         raise OperatorInputError("panel values, membership and groups must be lines") from exc
+    try:
+        source_is_qbuffer = source.mode == LineBuffer.QBuffer
+    except AttributeError:
+        source_is_qbuffer = False
 
     target_line = _target_clock_line(target)
     if grid_index < 0 or target_line.lencount <= grid_index:
-        return None, OperatorReason.NOT_READY
+        return None, None, OperatorReason.NOT_READY, source_is_qbuffer
 
     # A shared native owner clock cannot identify one of several panel output
     # lines. Prefer retained line provenance, then use the ordinary clock for
@@ -615,9 +657,15 @@ def _panel_value_array(
     # In vectorized mode a child indicator can have populated its full result
     # array while its line cursor remains at -1. The target grid index is
     # authoritative after provenance/clock validation above.
-    if grid_index >= len(source_array):
-        return None, OperatorReason.NOT_READY
-    return source_array, OperatorReason.READY
+    if source_is_qbuffer:
+        physical_index = _qbuffer_logical_to_physical(source, grid_index)
+        if physical_index is None:
+            return None, None, OperatorReason.NOT_READY, True
+    else:
+        if grid_index >= len(source_array):
+            return None, None, OperatorReason.NOT_READY, False
+        physical_index = grid_index
+    return source_array, physical_index, OperatorReason.READY, source_is_qbuffer
 
 
 def _read_panel_value_at(
@@ -627,12 +675,14 @@ def _read_panel_value_at(
     relation_plan: Optional[_PresenceLineRelationPlan] = None,
 ) -> Tuple[float, OperatorReason]:
     """Read one panel parameter at an absolute target-grid index."""
-    source_array, readiness = _panel_value_array(
+    source_array, physical_index, readiness, _ = _panel_value_array(
         source, target, grid_index, relation_plan=relation_plan
     )
     if source_array is None:
         return _NAN, readiness
-    raw = float(source_array[grid_index])
+    if physical_index is None:
+        return _NAN, OperatorReason.NOT_READY
+    raw = float(source_array[physical_index])
     if math.isinf(raw):
         raise OperatorInputError("panel input line contains infinity")
     if math.isnan(raw):
@@ -648,8 +698,11 @@ def _read_panel_value(
 ) -> Tuple[float, OperatorReason]:
     """Read a panel parameter at the target feed's populated current grid."""
     target_line = _target_clock_line(target)
+    grid_index = int(target_line._idx)
+    if target_line.mode == LineBuffer.QBuffer:
+        grid_index = int(target_line.lencount) - 1
     return _read_panel_value_at(
-        source, target, int(target_line._idx), relation_plan=relation_plan
+        source, target, grid_index, relation_plan=relation_plan
     )
 
 
@@ -667,18 +720,30 @@ def _read_panel_window(
 
     target_line = _target_clock_line(target)
     grid_index = int(target_line._idx)
+    if target_line.mode == LineBuffer.QBuffer:
+        grid_index = int(target_line.lencount) - 1
     if grid_index < 0 or target_line.lencount <= grid_index:
         return None, OperatorReason.NOT_READY
     start = grid_index - period + 1
     if start < 0:
         return None, OperatorReason.NOT_READY
 
-    source_array, readiness = _panel_value_array(source, target, grid_index)
+    source_array, _, readiness, source_is_qbuffer = _panel_value_array(
+        source, target, grid_index
+    )
     if source_array is None:
         return None, readiness
     values: List[float] = []
     for absolute_index in range(start, grid_index + 1):
-        value = float(source_array[absolute_index])
+        if source_is_qbuffer:
+            physical_index = _qbuffer_logical_to_physical(source, absolute_index)
+        else:
+            physical_index = absolute_index
+            if physical_index >= len(source_array):
+                return None, OperatorReason.NOT_READY
+        if physical_index is None:
+            return None, OperatorReason.NOT_READY
+        value = float(source_array[physical_index])
         if math.isinf(value):
             raise OperatorInputError("panel input line contains infinity")
         if math.isnan(value):
@@ -1935,6 +2000,23 @@ class _RollingCorrelationPanel(_PairedPanelOperator):
         super().__init__()
         self._period = period
         self.addminperiod(self._period)
+
+    def qbuffer(self, savemem=0):
+        """Retain each input window even though logical views are unscheduled.
+
+        Paired panels read their input lines directly, so Backtrader cannot
+        infer the rolling dependency from the normal indicator graph. Record
+        this consumer's storage requirement before the source indicators
+        configure their qbuffers, and grow an already configured source when
+        traversal reaches this consumer later.
+        """
+        if savemem:
+            for source in self._values + self._right_values:
+                if not isinstance(source, LineBuffer):
+                    continue
+                source.updateminperiod(self._period)
+                source.minbuffer(self._period)
+        super().qbuffer(savemem=savemem)
 
     def next(self) -> None:
         self._evaluate_panel()
