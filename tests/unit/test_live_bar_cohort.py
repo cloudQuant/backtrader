@@ -2,11 +2,13 @@
 
 import datetime as dt
 from decimal import Decimal
+from types import MappingProxyType
 
 import pytest
 
 from backtrader.research.live_cohort import (
     LiveBarCohort,
+    LiveCalendarMemberSession,
     LiveCalendarSlot,
     LiveCohortCalendar,
     LiveCohortCapacityError,
@@ -152,6 +154,227 @@ def test_complete_batch_publishes_only_after_every_exact_feed_delivery():
     assert batch.receipt_for_feed(first_feed) is receipt
     assert cohort.current_delivery(first_feed) is receipt
     assert cohort.prepared_envelope(first_feed) is None
+
+
+def test_member_sessions_accept_heterogeneous_exchange_day_and_segment_metadata():
+    sessions = {
+        "asset-0": LiveCalendarMemberSession("2026-10-20", "XSHG-day"),
+        "asset-1": LiveCalendarMemberSession("2026-10-21", "CME-overnight"),
+    }
+    slot = LiveCalendarSlot(
+        slot_id="heterogeneous-slot",
+        bucket_start=BASE,
+        close_time=BASE + dt.timedelta(minutes=1),
+        trading_day="shared-legacy-day",
+        session_segment="shared-legacy-segment",
+        member_sessions=sessions,
+    )
+    calendar = LiveCohortCalendar(
+        calendar_id="multi-exchange-1m",
+        version="v1",
+        epoch_id=3,
+        frequency="1m",
+        frequency_seconds=60,
+        timezone_id="UTC",
+        clock_domain_id="source-clock-A",
+        session_semantics="per-exchange-v1",
+        slots=(slot,),
+    )
+    cohort = LiveBarCohort("multi-exchange", calendar, max_window_bars=2)
+    feeds = {}
+    for index, member_id in enumerate(("asset-0", "asset-1")):
+        feed = object()
+        feeds[member_id] = feed
+        cohort.register_member(
+            member_id,
+            feed,
+            instrument="SYM{}".format(index),
+            source_ref="provider-feed-{}".format(index),
+            line_fields=LINE_FIELDS,
+            raw_fields=RAW_FIELDS,
+        )
+
+    cohort.seal()
+    assert isinstance(slot.member_sessions, MappingProxyType)
+    with pytest.raises(TypeError):
+        slot.member_sessions["asset-2"] = LiveCalendarMemberSession("2026-10-22", "other")
+
+    for member_id, feed in feeds.items():
+        event = make_event(member_id, 0)
+        expected = slot.member_sessions[member_id]
+        event["trading_day"] = expected.trading_day
+        event["session_segment"] = expected.session_segment
+        cohort.capture_bar(feed, event, source_role="live")
+
+    prepared = cohort.prepare_round(
+        20_000, source_time_utc=BASE + dt.timedelta(minutes=5)
+    ).prepared
+    assert prepared is not None
+    for member_id, feed in feeds.items():
+        envelope = prepared.envelopes[member_id]
+        cohort.record_delivery(feed, envelope, delivered_close_time=envelope.close_time)
+    batch = cohort.current_batch()
+    assert batch is not None and batch.status == "COMPLETE"
+    assert cohort.is_final_batch(batch)
+    assert calendar.fingerprint == calendar.calendar_fingerprint
+
+    legacy_calendar = LiveCohortCalendar(
+        calendar_id="multi-exchange-1m",
+        version="v1",
+        epoch_id=3,
+        frequency="1m",
+        frequency_seconds=60,
+        timezone_id="UTC",
+        clock_domain_id="source-clock-A",
+        session_semantics="per-exchange-v1",
+        slots=(
+            LiveCalendarSlot(
+                slot_id="heterogeneous-slot",
+                bucket_start=BASE,
+                close_time=BASE + dt.timedelta(minutes=1),
+                trading_day="shared-legacy-day",
+                session_segment="shared-legacy-segment",
+            ),
+        ),
+    )
+    assert calendar.fingerprint != legacy_calendar.fingerprint
+
+
+@pytest.mark.parametrize(
+    "member_sessions, expected_fragment",
+    [
+        (
+            {"asset-0": LiveCalendarMemberSession("2026-10-20", "day")},
+            "missing=('asset-1',)",
+        ),
+        (
+            {
+                "asset-0": LiveCalendarMemberSession("2026-10-20", "day"),
+                "asset-1": LiveCalendarMemberSession("2026-10-21", "night"),
+                "unregistered": LiveCalendarMemberSession("2026-10-22", "extra"),
+            },
+            "extra=('unregistered',)",
+        ),
+    ],
+)
+def test_seal_rejects_missing_or_extra_member_session_evidence(
+    member_sessions, expected_fragment
+):
+    slot = LiveCalendarSlot(
+        slot_id="coverage-slot",
+        bucket_start=BASE,
+        close_time=BASE + dt.timedelta(minutes=1),
+        trading_day="legacy-day",
+        session_segment="legacy-segment",
+        member_sessions=member_sessions,
+    )
+    calendar = LiveCohortCalendar(
+        calendar_id="coverage-calendar",
+        version="v1",
+        epoch_id=1,
+        frequency="1m",
+        frequency_seconds=60,
+        timezone_id="UTC",
+        clock_domain_id="source-clock-A",
+        session_semantics="shared-session-contract",
+        slots=(slot,),
+    )
+    cohort = LiveBarCohort("coverage-cohort", calendar, max_window_bars=2)
+    for index in range(2):
+        cohort.register_member(
+            "asset-{}".format(index),
+            object(),
+            instrument="SYM{}".format(index),
+            source_ref="source-{}".format(index),
+            line_fields=LINE_FIELDS,
+            raw_fields=RAW_FIELDS,
+        )
+
+    with pytest.raises(LiveCohortValidationError) as raised:
+        cohort.seal()
+    assert expected_fragment in str(raised.value)
+    assert cohort._sealed is False
+
+
+def test_capture_rejects_another_slot_members_future_session_metadata():
+    slots = (
+        LiveCalendarSlot(
+            "slot-0",
+            BASE,
+            BASE + dt.timedelta(minutes=1),
+            "legacy-day-0",
+            "legacy-session-0",
+            {
+                "asset-0": LiveCalendarMemberSession("2026-10-20", "day-0"),
+                "asset-1": LiveCalendarMemberSession("2026-10-21", "night-0"),
+            },
+        ),
+        LiveCalendarSlot(
+            "slot-1",
+            BASE + dt.timedelta(minutes=1),
+            BASE + dt.timedelta(minutes=2),
+            "legacy-day-1",
+            "legacy-session-1",
+            {
+                "asset-0": LiveCalendarMemberSession("2026-10-20", "day-1"),
+                "asset-1": LiveCalendarMemberSession("2026-10-21", "night-1"),
+            },
+        ),
+    )
+    calendar = LiveCohortCalendar(
+        calendar_id="future-metadata-calendar",
+        version="v1",
+        epoch_id=1,
+        frequency="1m",
+        frequency_seconds=60,
+        timezone_id="UTC",
+        clock_domain_id="source-clock-A",
+        session_semantics="exchange-session-v1",
+        slots=slots,
+    )
+    cohort = LiveBarCohort("future-metadata-cohort", calendar, max_window_bars=2)
+    feed = object()
+    cohort.register_member(
+        "asset-0",
+        feed,
+        instrument="SYM0",
+        source_ref="source-0",
+        line_fields=LINE_FIELDS,
+        raw_fields=RAW_FIELDS,
+    )
+    cohort.register_member(
+        "asset-1",
+        object(),
+        instrument="SYM1",
+        source_ref="source-1",
+        line_fields=LINE_FIELDS,
+        raw_fields=RAW_FIELDS,
+    )
+    cohort.seal()
+
+    event = make_event("asset-0", 0)
+    event["trading_day"] = slots[1].member_sessions["asset-0"].trading_day
+    event["session_segment"] = slots[1].member_sessions["asset-0"].session_segment
+    with pytest.raises(LiveCohortValidationError, match="planned slot"):
+        cohort.capture_bar(feed, event, source_role="live")
+    assert cohort.frozen_reason == "invalid_source_bar"
+
+
+def test_is_final_batch_requires_exact_current_batch_at_finite_epoch_end():
+    cohort, feeds = make_cohort(member_count=1, count=2)
+    assert cohort.is_final_batch(None) is False
+
+    capture_slot(cohort, feeds, 0)
+    first_batch = deliver_prepared(cohort, feeds, 20_000)
+    assert first_batch is not None
+    assert cohort.is_final_batch(first_batch) is False
+
+    capture_slot(cohort, feeds, 1)
+    final_batch = deliver_prepared(cohort, feeds, 20_001)
+    assert final_batch is not None
+    assert cohort.is_final_batch(final_batch) is True
+    assert cohort.is_final_batch(first_batch) is False
+    assert cohort.is_final_batch(object()) is False
 
 
 def test_factor_binding_is_cached_and_tied_to_exact_registered_feed():

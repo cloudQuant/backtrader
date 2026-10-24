@@ -9,6 +9,8 @@ registered indicators.
 from __future__ import annotations
 
 import datetime as _datetime
+import hashlib
+import json
 import math
 import numbers
 import threading
@@ -91,6 +93,18 @@ def _frozen_mapping(values: Mapping[str, Any]) -> Mapping[str, Any]:
 
 
 @dataclass(frozen=True)
+class LiveCalendarMemberSession:
+    """One member's exchange-local day and session identity for a slot."""
+
+    trading_day: str
+    session_segment: str
+
+    def __post_init__(self) -> None:
+        _nonempty_text(self.trading_day, "trading_day")
+        _nonempty_text(self.session_segment, "session_segment")
+
+
+@dataclass(frozen=True)
 class LiveCalendarSlot:
     """One explicitly planned bar interval in UTC."""
 
@@ -99,6 +113,7 @@ class LiveCalendarSlot:
     close_time: _datetime.datetime
     trading_day: str
     session_segment: str
+    member_sessions: Mapping[str, LiveCalendarMemberSession] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         _nonempty_text(self.slot_id, "slot_id")
@@ -108,8 +123,19 @@ class LiveCalendarSlot:
         close = _aware_utc(self.close_time, "close_time")
         if close <= start:
             raise LiveCohortValidationError("calendar slot close_time must follow bucket_start")
+        if not isinstance(self.member_sessions, Mapping):
+            raise LiveCohortValidationError("member_sessions must be a mapping")
+        member_sessions = {}
+        for member_id, session in self.member_sessions.items():
+            _nonempty_text(member_id, "member_sessions member_id")
+            if type(session) is not LiveCalendarMemberSession:
+                raise LiveCohortValidationError(
+                    "member_sessions values must be LiveCalendarMemberSession values"
+                )
+            member_sessions[member_id] = session
         object.__setattr__(self, "bucket_start", start)
         object.__setattr__(self, "close_time", close)
+        object.__setattr__(self, "member_sessions", MappingProxyType(member_sessions))
 
 
 @dataclass(frozen=True)
@@ -125,6 +151,7 @@ class LiveCohortCalendar:
     clock_domain_id: str
     session_semantics: str
     slots: Tuple[LiveCalendarSlot, ...]
+    _fingerprint: str = field(init=False, repr=False, compare=False)
 
     def __post_init__(self) -> None:
         for name in (
@@ -164,6 +191,55 @@ class LiveCohortCalendar:
                     )
             prior = slot
         object.__setattr__(self, "slots", slots)
+        digest = hashlib.sha256()
+        header = {
+            "calendar_id": self.calendar_id,
+            "version": self.version,
+            "epoch_id": self.epoch_id,
+            "frequency": self.frequency,
+            "frequency_seconds": self.frequency_seconds,
+            "timezone_id": self.timezone_id,
+            "clock_domain_id": self.clock_domain_id,
+            "session_semantics": self.session_semantics,
+        }
+        _update_calendar_fingerprint(digest, header)
+        for slot in slots:
+            _update_calendar_fingerprint(
+                digest,
+                {
+                    "slot_id": slot.slot_id,
+                    "bucket_start": slot.bucket_start.isoformat(),
+                    "close_time": slot.close_time.isoformat(),
+                    "trading_day": slot.trading_day,
+                    "session_segment": slot.session_segment,
+                    "member_sessions": {
+                        member_id: {
+                            "trading_day": session.trading_day,
+                            "session_segment": session.session_segment,
+                        }
+                        for member_id, session in sorted(slot.member_sessions.items())
+                    },
+                },
+            )
+        object.__setattr__(self, "_fingerprint", digest.hexdigest())
+
+    @property
+    def fingerprint(self) -> str:
+        """Stable digest of the finite calendar, including member session evidence."""
+        return self._fingerprint
+
+    @property
+    def calendar_fingerprint(self) -> str:
+        """Explicitly named alias for :attr:`fingerprint`."""
+        return self._fingerprint
+
+
+def _update_calendar_fingerprint(digest: Any, value: Mapping[str, Any]) -> None:
+    encoded = json.dumps(
+        value, sort_keys=True, separators=(",", ":"), ensure_ascii=True, allow_nan=False
+    ).encode("ascii")
+    digest.update(len(encoded).to_bytes(8, byteorder="big", signed=False))
+    digest.update(encoded)
 
 
 @dataclass(frozen=True)
@@ -480,6 +556,10 @@ class LiveBarCohort:
         return self._calendar.version
 
     @property
+    def calendar_fingerprint(self) -> str:
+        return self._calendar.fingerprint
+
+    @property
     def epoch_id(self) -> int:
         return self._calendar.epoch_id
 
@@ -575,6 +655,18 @@ class LiveBarCohort:
         with self._lock:
             if not self._members:
                 raise LiveCohortValidationError("cohort requires at least one registered member")
+            expected_members = set(self._members)
+            for slot in self._calendar.slots:
+                if not slot.member_sessions:
+                    continue
+                configured_members = set(slot.member_sessions)
+                if configured_members != expected_members:
+                    missing = tuple(sorted(expected_members - configured_members))
+                    extra = tuple(sorted(configured_members - expected_members))
+                    raise LiveCohortValidationError(
+                        "calendar member_sessions must exactly cover registered members "
+                        "(missing={!r}, extra={!r})".format(missing, extra)
+                    )
             self._sealed = True
 
     def member_for_feed(self, feed_ref: Any) -> Optional[LiveCohortMember]:
@@ -735,7 +827,19 @@ class LiveBarCohort:
         bar_id = _nonempty_text(_read(event, "bar_id", None), "bar_id")
         trading_day = _nonempty_text(_read(event, "trading_day", None), "trading_day")
         session_segment = _nonempty_text(_read(event, "session_segment", None), "session_segment")
-        if trading_day != slot.trading_day or session_segment != slot.session_segment:
+        expected_session = slot.member_sessions.get(member.member_id)
+        expected_trading_day = (
+            expected_session.trading_day if expected_session is not None else slot.trading_day
+        )
+        expected_session_segment = (
+            expected_session.session_segment
+            if expected_session is not None
+            else slot.session_segment
+        )
+        if (
+            trading_day != expected_trading_day
+            or session_segment != expected_session_segment
+        ):
             raise LiveCohortValidationError(
                 "bar trading day/session does not match the planned slot"
             )
@@ -1166,6 +1270,20 @@ class LiveBarCohort:
 
     def current_batch(self) -> Optional[LiveCohortBatch]:
         return self._current_batch
+
+    def is_final_batch(self, batch: Any) -> bool:
+        """Return whether this exact current batch is the finite epoch's last slot."""
+        with self._lock:
+            return bool(
+                batch is not None
+                and batch is self._current_batch
+                and batch.cohort_id == self.cohort_id
+                and batch.calendar_id == self.calendar_id
+                and batch.calendar_version == self.calendar_version
+                and batch.epoch_id == self.epoch_id
+                and batch.slot_index == len(self._calendar.slots) - 1
+                and batch.status == "COMPLETE"
+            )
 
     def complete_window_bars(
         self,
