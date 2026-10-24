@@ -1672,16 +1672,30 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
             )
         return True
 
-    def _drain_live_ticks(self, limit=None, *, stop_after_queued_bar=True, deadline_ns=None):
+    def _drain_live_ticks(
+        self,
+        limit=None,
+        *,
+        stop_after_queued_bar=True,
+        deadline_ns=None,
+        quote_only=False,
+    ):
         """Drain available ticks subject to the caller's count and bar bounds.
 
         Normal load and cohort collection stop after the next queued bar so
         its callback stays paired with the matching line turn.  The legacy
         Tick-timeframe ``_check`` path may opt out of that queued-bar stop.
-        Completed aggregate bars still end a drain on every path.
+        Completed aggregate bars still end a drain on every path.  The private
+        quote-only mode is reserved for a bounded, already-armed cohort
+        winddown: it uses the same source validation and tick dispatch but
+        never mutates or closes a bar builder.  Its integer return is the
+        number of source ticks consumed; the ordinary path keeps its historic
+        boolean return contract.
         """
+        if quote_only and self._live_bar_cohort is None:
+            raise RuntimeError("quote-only tick drain requires an active live bar cohort")
         if self.store is None or not hasattr(self.store, "poll_tick"):
-            return False
+            return 0 if quote_only else False
 
         drained = False
 
@@ -1702,7 +1716,7 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
             if self._validate_raw_cohort_tick_price(tick) is False:
                 self._mark_event_dropped(tick, "invalid_ctp_source_tick")
                 continue
-            self._prepare_tick(tick)
+            self._prepare_tick(tick, quote_only=quote_only)
             expired_after_normalize = self._cohort_prepare_deadline_expired(deadline_ns)
 
             if self._handle_event_health(tick):
@@ -1734,6 +1748,14 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
                 )
             else:
                 self._mark_event_dropped(tick, "tick_dispatch_disabled")
+            if quote_only:
+                if (
+                    expired_after_poll
+                    or expired_after_normalize
+                    or self._cohort_prepare_deadline_expired(deadline_ns)
+                ):
+                    break
+                continue
             self._ingest_tick(tick)
             self._flush_ready_bars(reason="tick")
             # _bar_sequence tracks completed aggregate bars. Tick-timeframe
@@ -1749,7 +1771,20 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
                 stop_after_queued_bar and len(self._live) > queued_bars_before
             ):
                 break
-        return drained
+        return drained_count if quote_only else drained
+
+    def _cohort_drain_winddown_quotes(self, *, limit, deadline_ns):
+        """Consume a bounded source-backed quote prefix without bar work."""
+        if self._live_bar_cohort is None:
+            return 0
+        if self._live_bar_cohort.frozen or self._cohort_delivery_failed:
+            return 0
+        return self._drain_live_ticks(
+            limit=limit,
+            stop_after_queued_bar=False,
+            deadline_ns=deadline_ns,
+            quote_only=True,
+        )
 
     def _validate_raw_cohort_tick_price(self, tick):
         """Reject malformed source values before tolerant tick normalization."""
@@ -2292,7 +2327,7 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
             if already_closed or (watermark is not None and deadline <= watermark):
                 self._bar_quality_overrides.pop(bucket_start, None)
 
-    def _prepare_tick(self, tick):
+    def _prepare_tick(self, tick, *, quote_only=False):
         """Normalize one tick's schema, quality, ordering and volume semantics."""
         schema = str(_tick_value(tick, "schema_version", default="") or "").strip()
         if not schema:
@@ -2496,12 +2531,13 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
             flags.add("OUT_OF_ORDER_EVENT_TIME")
             if delta > 0:
                 flags.add("ORDERING_VOLUME_GAP")
-                if bucket_start is not None:
+                if bucket_start is not None and not quote_only:
                     self._add_bar_quality_override(bucket_start, "ORDERING_VOLUME_GAP")
                 current_start = self._get_bucket_start(
                     _dt.datetime.fromtimestamp(self._max_event_timestamp, _UTC).replace(tzinfo=None)
                 )
-                self._add_bar_quality_override(current_start, "ORDERING_VOLUME_GAP")
+                if not quote_only:
+                    self._add_bar_quality_override(current_start, "ORDERING_VOLUME_GAP")
 
         generation = _tick_value(tick, "connection_generation", "stream_generation", default=None)
         subscription_epoch = _tick_value(tick, "subscription_epoch", default=None)
@@ -2525,22 +2561,23 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
                     flags.add("RETIRED_CONNECTION_SCOPE")
                     retired_ctp_scope = True
                 elif self._highest_ctp_scope is not None and scope != self._highest_ctp_scope:
-                    for builder in self._bar_builders.values():
-                        builder["quality_flags"].add(
-                            (
-                                "CONNECTION_GENERATION_CHANGED"
-                                if generation != self._highest_ctp_scope[0]
-                                else "SUBSCRIPTION_EPOCH_CHANGED"
+                    if not quote_only:
+                        for builder in self._bar_builders.values():
+                            builder["quality_flags"].add(
+                                (
+                                    "CONNECTION_GENERATION_CHANGED"
+                                    if generation != self._highest_ctp_scope[0]
+                                    else "SUBSCRIPTION_EPOCH_CHANGED"
+                                )
                             )
+                        self._flush_ready_bars(
+                            reason=(
+                                "generation"
+                                if generation != self._highest_ctp_scope[0]
+                                else "subscription_epoch"
+                            ),
+                            force_invalid=True,
                         )
-                    self._flush_ready_bars(
-                        reason=(
-                            "generation"
-                            if generation != self._highest_ctp_scope[0]
-                            else "subscription_epoch"
-                        ),
-                        force_invalid=True,
-                    )
                     self._max_event_timestamp = None
                     flags.add(
                         (
@@ -2549,14 +2586,15 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
                             else "SUBSCRIPTION_EPOCH_CHANGED"
                         )
                     )
-                    self._add_bar_quality_override(
-                        bucket_start,
-                        (
-                            "CONNECTION_GENERATION_CHANGED"
-                            if generation != self._highest_ctp_scope[0]
-                            else "SUBSCRIPTION_EPOCH_CHANGED"
-                        ),
-                    )
+                    if not quote_only:
+                        self._add_bar_quality_override(
+                            bucket_start,
+                            (
+                                "CONNECTION_GENERATION_CHANGED"
+                                if generation != self._highest_ctp_scope[0]
+                                else "SUBSCRIPTION_EPOCH_CHANGED"
+                            ),
+                        )
                 if not retired_ctp_scope:
                     self._highest_ctp_scope = scope
                     self._last_ctp_scope = scope
@@ -2566,12 +2604,14 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
                 self._last_connection_generation is not None
                 and generation != self._last_connection_generation
             ):
-                for builder in self._bar_builders.values():
-                    builder["quality_flags"].add("CONNECTION_GENERATION_CHANGED")
-                self._flush_ready_bars(reason="generation", force_invalid=True)
+                if not quote_only:
+                    for builder in self._bar_builders.values():
+                        builder["quality_flags"].add("CONNECTION_GENERATION_CHANGED")
+                    self._flush_ready_bars(reason="generation", force_invalid=True)
                 self._max_event_timestamp = None
                 flags.add("CONNECTION_GENERATION_CHANGED")
-                self._add_bar_quality_override(bucket_start, "CONNECTION_GENERATION_CHANGED")
+                if not quote_only:
+                    self._add_bar_quality_override(bucket_start, "CONNECTION_GENERATION_CHANGED")
             self._last_connection_generation = generation
 
         if (
@@ -2605,7 +2645,7 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
         # incomplete. Preserve that evidence before _ingest_tick declines to
         # mutate OHLCV. Otherwise a later watermark could publish the earlier
         # trades as a deceptively complete bar after a volume/order/time gap.
-        if bucket_start is not None and blocking:
+        if bucket_start is not None and blocking and not quote_only:
             already_closed = (
                 self._last_closed_bucket_end is not None
                 and bucket_end is not None
@@ -2623,7 +2663,8 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
         _set_tick_value(tick, "quality", "GOOD" if not blocking else "INVALID")
         _set_tick_value(tick, "execution_eligible", execution_eligible)
         _set_tick_value(tick, "bar_eligible", bar_eligible)
-        self._prune_bar_quality_overrides()
+        if not quote_only:
+            self._prune_bar_quality_overrides()
 
     def _flush_ready_bars(self, *, reason, force_invalid=False):
         """Close trade-backed buckets once the event-time watermark has passed."""

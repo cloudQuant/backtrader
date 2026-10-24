@@ -22,6 +22,7 @@ from ..utils.log_message import get_logger
 UTC = timezone.utc
 _LIVE_COHORT_BROKER_IDLE_POLL_SECONDS = 0.05
 _LIVE_COHORT_PREPARE_BUDGET_NS = 10_000_000
+_LIVE_COHORT_WINDDOWN_TICK_BUDGET = 64
 
 # Keep the historical logger name (D28-04.6): routing/filters must not change.
 logger = get_logger("backtrader.cerebro")
@@ -450,6 +451,7 @@ class RunNextMixin:
         winddown_armed = False
         winddown_deadline_ns = None
         cohort_collect_cursor = 0
+        cohort_winddown_quote_cursor = 0
         invalid_source_error = None
         invalid_source_traceback = None
         invalid_source_maintenance_error = None
@@ -546,6 +548,66 @@ class RunNextMixin:
                         invalid_source_traceback
                     ) from invalid_source_maintenance_error
                 raise invalid_source_error.with_traceback(invalid_source_traceback)
+
+            def _drain_cohort_winddown_quotes():
+                """Poll a fair, shared-budget tick prefix without advancing bars."""
+                nonlocal cohort_winddown_quote_cursor
+                if (
+                    live_bar_cohort is None
+                    or winddown_timeout_ns <= 0
+                    or live_bar_cohort.frozen
+                    or winddown_deadline_ns is None
+                ):
+                    return 0
+
+                feeds = tuple(
+                    data
+                    for data in self.datas
+                    if getattr(data, "_live_bar_cohort", None) is live_bar_cohort
+                )
+                if not feeds:
+                    return 0
+
+                clock = self.live_bar_cohort_clock
+                now_ns = clock.monotonic_ns()
+                if type(now_ns) is not int or now_ns <= 0:
+                    raise ValueError("live cohort clock returned an invalid monotonic sample")
+                tick_deadline_ns = min(
+                    winddown_deadline_ns,
+                    now_ns + _LIVE_COHORT_PREPARE_BUDGET_NS,
+                )
+                if now_ns >= tick_deadline_ns:
+                    return 0
+
+                start_index = cohort_winddown_quote_cursor % len(feeds)
+                ordered_feeds = feeds[start_index:] + feeds[:start_index]
+                cohort_winddown_quote_cursor = (start_index + 1) % len(feeds)
+                remaining = _LIVE_COHORT_WINDDOWN_TICK_BUDGET
+                consumed = 0
+                for offset, data in enumerate(ordered_feeds):
+                    if self._event_stop:
+                        break
+                    now_ns = clock.monotonic_ns()
+                    if type(now_ns) is not int or now_ns <= 0:
+                        raise ValueError("live cohort clock returned an invalid monotonic sample")
+                    if now_ns >= tick_deadline_ns or remaining <= 0:
+                        break
+
+                    feeds_left = len(ordered_feeds) - offset
+                    feed_limit = (remaining + feeds_left - 1) // feeds_left
+                    drain = getattr(data, "_cohort_drain_winddown_quotes", None)
+                    if not callable(drain):
+                        raise RuntimeError("live cohort feed cannot drain winddown quotes")
+                    feed_consumed = drain(limit=feed_limit, deadline_ns=tick_deadline_ns)
+                    if (
+                        type(feed_consumed) is not int
+                        or feed_consumed < 0
+                        or feed_consumed > feed_limit
+                    ):
+                        raise RuntimeError("live cohort feed returned an invalid quote drain count")
+                    consumed += feed_consumed
+                    remaining -= feed_consumed
+                return consumed
 
             d0ret = True
             # index for resample only, not replay
@@ -794,8 +856,10 @@ class RunNextMixin:
                 # Record start time and notify feed to subtract elapsed time from qcheck
                 if cohort_winddown_active:
                     # The final Strategy.next has already completed. Keep the
-                    # broker/idle maintenance path below, but never collect,
-                    # check, or advance a feed again during terminal winddown.
+                    # broker/idle maintenance path below, but do not collect
+                    # bars or advance feed lines during terminal winddown.
+                    # Quote-only polling runs later under its own shared budget.
+                    cohort_prepare_budget_exhausted = True
                     drets = [None] * len(datas)
                 elif live_bar_cohort is not None:
                     clock = self.live_bar_cohort_clock
@@ -1144,6 +1208,9 @@ class RunNextMixin:
                             d.do_qcheck(False, 0.0)
                         d_next = d.next(ticks=False)
                         drets.append(d_next)
+
+                if cohort_winddown_active:
+                    _drain_cohort_winddown_quotes()
                 # Iterate drets, if d0ret is False and any dret is None, d0ret is None
                 if single_data:
                     dret0 = drets[0]

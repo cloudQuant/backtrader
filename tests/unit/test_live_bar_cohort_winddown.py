@@ -313,12 +313,14 @@ def test_final_batch_times_out_with_persisted_blocking_result_and_no_extra_feed_
     assert cerebro.live_bar_cohort_winddown_reason == "winddown_deadline_expired"
     assert strategy.next_calls == 1
     assert strategy.factor.calls == 1
-    assert strategy.idle_calls == 1
-    assert broker.next_calls == 2
+    # Winddown maintenance is now serviced in 50ms turns so a fresh quote
+    # may be consumed without waiting through the whole shutdown deadline.
+    assert strategy.idle_calls == 5
+    assert broker.next_calls == 6  # one final-bar call plus five maintenance turns
     assert len(feed) == 1
     assert feed.last_calls == 0
     assert feed.check_calls == 0
-    assert clock.waits == [pytest.approx(0.25)]
+    assert clock.waits == [pytest.approx(0.05)] * 5
     assert store.unregistered == store.registered
 
 
