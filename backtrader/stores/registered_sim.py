@@ -1709,8 +1709,7 @@ class RegisteredSimStore(BtApiStore):
         """Read a detached consumed tick stamped with this Store's route identity."""
         return self._stamp_registered_sim_tick_source(super().get_latest_tick_snapshot(dataname))
 
-    @staticmethod
-    def _order_route_from_info(order: Any) -> Optional[Tuple[str, str]]:
+    def _order_route_from_info(self, order: Any) -> Optional[Tuple[str, str]]:
         info = getattr(order, "info", None)
         get_info = getattr(info, "get", None)
         if not callable(get_info):
@@ -1721,20 +1720,80 @@ class RegisteredSimStore(BtApiStore):
             return None
         instrument = _exact_text(instrument_value, "order.info.instrument_id")
         exchange = _exact_text(exchange_value, "order.info.exchange_id")
-        data_name_value = BtApiStore._extract_dataname(getattr(order, "data", None))
-        if not isinstance(data_name_value, str) or data_name_value != data_name_value.strip():
-            raise BtApiStoreError("registered-sim order data identity is not exact text")
-        matches = data_name_value == instrument
+        data = getattr(order, "data", None)
+        data_name_value = getattr(data, "_dataname", None)
+        if not isinstance(data_name_value, str) or not data_name_value:
+            raise BtApiStoreError("registered-sim subscribed feed instrument is unavailable")
+        if data_name_value != data_name_value.strip():
+            raise BtApiStoreError("registered-sim subscribed feed instrument is not exact text")
+        # CTP feeds also support the documented raw dataname spellings
+        # ``instrument.exchange`` and ``exchange.instrument`` (and the
+        # historical underscore equivalents). Parse only this subscribed raw
+        # value. In particular, ``data._name`` is a Cerebro display alias and
+        # must never be accepted as contract identity.
+        raw_parts = None
         for separator in (".", "_"):
-            parts = data_name_value.split(separator)
-            if len(parts) == 2:
-                matches = (
-                    matches
-                    or (parts[0].upper() == exchange and parts[1] == instrument)
-                    or (parts[1].upper() == exchange and parts[0] == instrument)
+            if data_name_value.count(separator) == 1:
+                candidate = data_name_value.split(separator)
+                if len(candidate) == 2 and all(candidate):
+                    raw_parts = tuple(candidate)
+                    break
+        if data_name_value == instrument:
+            raw_identity_matches = True
+            subscribed_instrument = data_name_value
+        elif raw_parts is not None:
+            raw_identity_matches = raw_parts in (
+                (instrument, exchange),
+                (exchange, instrument),
+            )
+            subscribed_instrument = instrument if raw_identity_matches else None
+        else:
+            raw_identity_matches = False
+            subscribed_instrument = None
+        if not raw_identity_matches:
+            raise BtApiStoreError("order.info instrument does not match the subscribed feed")
+
+        info_bound_intent = any(
+            get_info(name) is not None for name in ("factor_intent_id", "factor_cancel_intent_id")
+        )
+        # The display name selects one exact Broker contract-metadata row; it
+        # never contributes to instrument identity. The raw feed dataname above
+        # binds the subscription, and this row binds the exact route tuple.
+        broker = getattr(self, "_broker", None)
+        broker_routes = getattr(broker, "_contract_metadata", None)
+        display_name = getattr(data, "_name", None)
+        route_metadata = (
+            broker_routes.get(display_name)
+            if isinstance(broker_routes, Mapping)
+            and isinstance(display_name, str)
+            and display_name == display_name.strip()
+            else None
+        )
+        if route_metadata is not None:
+            if not isinstance(route_metadata, Mapping):
+                raise BtApiStoreError("registered-sim Broker contract binding is invalid")
+            try:
+                bound_instrument = _exact_text(
+                    route_metadata.get("instrument_id"), "Broker contract instrument_id"
                 )
-        if not matches:
-            raise BtApiStoreError("order.info route identity does not match its data feed")
+                bound_exchange = _exact_text(
+                    route_metadata.get("exchange_id"), "Broker contract exchange_id"
+                )
+            except ValueError:
+                raise BtApiStoreError("registered-sim Broker contract binding is invalid") from None
+            if bound_instrument != subscribed_instrument or bound_exchange != exchange:
+                raise BtApiStoreError(
+                    "order.info route identity does not match the exact Broker contract binding"
+                )
+        elif info_bound_intent:
+            raise BtApiStoreError("factor order has no exact Broker contract binding")
+
+        feed_exchange = getattr(data, "_exchange_id", None)
+        if feed_exchange is not None:
+            if not isinstance(feed_exchange, str) or feed_exchange != feed_exchange.strip():
+                raise BtApiStoreError("registered-sim subscribed feed exchange is not exact text")
+            if feed_exchange != exchange:
+                raise BtApiStoreError("order.info exchange does not match the subscribed feed")
         return instrument, exchange
 
     def _order_to_payload(self, order):

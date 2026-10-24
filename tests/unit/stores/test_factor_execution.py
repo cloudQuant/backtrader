@@ -365,6 +365,9 @@ def _system(*, now, query_rows=None, bars=1, bar_advance_gate=None, exchange=_EX
         cash_check_enabled=False,
         contract_metadata={_INSTRUMENT: {"instrument_id": _INSTRUMENT, "exchange_id": exchange}},
     )
+    # Manual component cases do not pass through Store.getbroker()/Cerebro's
+    # Broker startup, so bind the same exact Broker metadata owner explicitly.
+    store._broker = broker
     cerebro = bt.Cerebro()
     cerebro.adddata(data)
     cerebro.setbroker(broker)
@@ -372,6 +375,10 @@ def _system(*, now, query_rows=None, bars=1, bar_advance_gate=None, exchange=_EX
     data.reset()
     data._start()
     assert data.load() is True
+    # PandasData's _dataname is its DataFrame. Bind the synthetic routed
+    # contract explicitly so the RegisteredSimStore order path sees the same
+    # exact subscribed instrument a live CTP feed exposes.
+    data._dataname = _INSTRUMENT
     with OwnerContext.set_owner(cerebro):
         strategy = _PlainStrategy(data)
 

@@ -417,7 +417,7 @@ def test_order_info_exact_instrument_and_exchange_override_data_name_payload():
         price=12.5,
         pricelimit=None,
         created=SimpleNamespace(price=12.5),
-        data=SimpleNamespace(_name="rb2510"),
+        data=SimpleNamespace(_name="rb2510", _dataname="rb2510"),
         info={"instrument_id": "rb2510", "exchange_id": "SHFE"},
         ref=17,
         isbuy=lambda: True,
@@ -435,6 +435,197 @@ def test_order_info_exact_instrument_and_exchange_override_data_name_payload():
     order.info["instrument_id"] = "i2509"
     with pytest.raises(BtApiStoreError, match="does not match"):
         store._order_to_payload(order)
+
+
+@pytest.mark.parametrize(
+    "feed_dataname",
+    ("rb2510", "rb2510.SHFE", "SHFE.rb2510", "rb2510_SHFE", "SHFE_rb2510"),
+)
+def test_order_route_accepts_only_exact_raw_feed_identity_forms(feed_dataname):
+    store = RegisteredSimStore()
+    store._broker = SimpleNamespace(
+        _contract_metadata={
+            "display-only": {"instrument_id": "rb2510", "exchange_id": "SHFE"},
+        }
+    )
+    order = SimpleNamespace(
+        exectype=OrderBase.Limit,
+        price=12.5,
+        pricelimit=None,
+        created=SimpleNamespace(price=12.5),
+        data=SimpleNamespace(
+            _name="display-only",
+            _dataname=feed_dataname,
+            _exchange_id="SHFE",
+        ),
+        info={
+            "instrument_id": "rb2510",
+            "exchange_id": "SHFE",
+            "factor_intent_id": "intent-rb",
+        },
+        ref=20,
+        isbuy=lambda: True,
+        size=1,
+        valid=None,
+        tradeid=0,
+    )
+
+    payload = store._order_to_payload(order)
+    assert payload["data_name"] == "SHFE.rb2510"
+    assert payload["instrument_id"] == "rb2510"
+    assert payload["exchange_id"] == "SHFE"
+
+
+@pytest.mark.parametrize(
+    "feed_dataname",
+    (
+        "SHFE.RB2510",  # Instrument case must remain exact.
+        "shfe.rb2510",  # Exchange identity must remain exact.
+        "DCE.rb2510",  # A display/feed route cannot substitute another exchange.
+        "rb2510.DCE",
+        "SHFE.rb2510.extra",  # Multi-segment aliases are ambiguous.
+        "display-only",  # The display name is never a route identity.
+    ),
+)
+def test_order_route_rejects_ambiguous_or_mismatched_raw_feed_identity(feed_dataname):
+    store = RegisteredSimStore()
+    store._broker = SimpleNamespace(
+        _contract_metadata={
+            "display-only": {"instrument_id": "rb2510", "exchange_id": "SHFE"},
+        }
+    )
+    order = SimpleNamespace(
+        exectype=OrderBase.Limit,
+        price=12.5,
+        pricelimit=None,
+        created=SimpleNamespace(price=12.5),
+        data=SimpleNamespace(_name="display-only", _dataname=feed_dataname),
+        info={
+            "instrument_id": "rb2510",
+            "exchange_id": "SHFE",
+            "factor_intent_id": "intent-rb",
+        },
+        ref=21,
+        isbuy=lambda: True,
+        size=1,
+        valid=None,
+        tradeid=0,
+    )
+
+    with pytest.raises(BtApiStoreError, match="subscribed feed"):
+        store._order_to_payload(order)
+
+
+def test_order_route_rejects_feed_exchange_conflicting_with_raw_pair():
+    store = RegisteredSimStore()
+    order = SimpleNamespace(
+        exectype=OrderBase.Limit,
+        price=12.5,
+        pricelimit=None,
+        created=SimpleNamespace(price=12.5),
+        data=SimpleNamespace(_name="rb-display", _dataname="rb2510.SHFE", _exchange_id="DCE"),
+        info={"instrument_id": "rb2510", "exchange_id": "SHFE"},
+        ref=22,
+        isbuy=lambda: True,
+        size=1,
+        valid=None,
+        tradeid=0,
+    )
+
+    with pytest.raises(BtApiStoreError, match="exchange does not match the subscribed feed"):
+        store._order_to_payload(order)
+
+
+def test_factor_order_uses_subscribed_contract_and_exact_broker_exchange_binding():
+    store = RegisteredSimStore()
+    store._broker = SimpleNamespace(
+        _contract_metadata={
+            "DCE.A": {"instrument_id": "A2612", "exchange_id": "DCE"},
+        }
+    )
+    order = SimpleNamespace(
+        exectype=OrderBase.Limit,
+        price=12.5,
+        pricelimit=None,
+        created=SimpleNamespace(price=12.5),
+        data=SimpleNamespace(_dataname="A2612", _name="DCE.A"),
+        info={
+            "instrument_id": "A2612",
+            "exchange_id": "DCE",
+            "factor_intent_id": "intent-a",
+        },
+        ref=18,
+        isbuy=lambda: True,
+        size=1,
+        valid=None,
+        tradeid=0,
+    )
+
+    payload = store._order_to_payload(order)
+    assert payload["symbol"] == "DCE.A2612"
+    assert payload["instrument_id"] == "A2612"
+    assert payload["exchange_id"] == "DCE"
+
+    # The target alias is display metadata only; it cannot override the feed's
+    # subscribed contract identity or the Broker's exact route binding.
+    order.info["instrument_id"] = "Y2612"
+    with pytest.raises(BtApiStoreError, match="subscribed feed"):
+        store._order_to_payload(order)
+
+    order.info["instrument_id"] = "A2612"
+    order.info["exchange_id"] = "SHFE"
+    with pytest.raises(BtApiStoreError, match="Broker contract binding"):
+        store._order_to_payload(order)
+
+    order.info["exchange_id"] = "DCE"
+    order.data._dataname = "Y2612"
+    with pytest.raises(BtApiStoreError, match="subscribed feed"):
+        store._order_to_payload(order)
+
+
+def test_factor_order_requires_exact_broker_exchange_binding():
+    store = RegisteredSimStore()
+    store._broker = SimpleNamespace(_contract_metadata={"DCE.A": {"instrument_id": "A2612"}})
+    order = SimpleNamespace(
+        exectype=OrderBase.Limit,
+        price=12.5,
+        pricelimit=None,
+        created=SimpleNamespace(price=12.5),
+        data=SimpleNamespace(_dataname="A2612", _name="DCE.A"),
+        info={
+            "instrument_id": "A2612",
+            "exchange_id": "DCE",
+            "factor_intent_id": "intent-a",
+        },
+        ref=19,
+        isbuy=lambda: True,
+        size=1,
+        valid=None,
+        tradeid=0,
+    )
+    with pytest.raises(BtApiStoreError, match="Broker contract binding is invalid"):
+        store._order_to_payload(order)
+
+
+@pytest.mark.parametrize("intent_field", ("factor_intent_id", "factor_cancel_intent_id"))
+def test_blank_factor_intent_marker_still_requires_exact_broker_binding(intent_field):
+    store = RegisteredSimStore()
+    order = SimpleNamespace(
+        exectype=OrderBase.Limit,
+        price=12.5,
+        pricelimit=None,
+        created=SimpleNamespace(price=12.5),
+        data=SimpleNamespace(_dataname="A2612", _name="DCE.A"),
+        info={"instrument_id": "A2612", "exchange_id": "DCE", intent_field: ""},
+        ref=23,
+        isbuy=lambda: True,
+        size=1,
+        valid=None,
+        tradeid=0,
+    )
+
+    with pytest.raises(BtApiStoreError, match="factor order has no exact Broker contract binding"):
+        store._order_route_from_info(order)
 
 
 def test_stock_ctp_store_remains_fail_closed():
@@ -486,7 +677,7 @@ def test_ordinary_store_submit_cancel_hooks_are_synchronous_native_dispatches():
         price=12.5,
         pricelimit=None,
         created=SimpleNamespace(price=12.5),
-        data=SimpleNamespace(_name="rb2510"),
+        data=SimpleNamespace(_name="rb2510", _dataname="rb2510"),
         info={"instrument_id": "rb2510", "exchange_id": "SHFE"},
         ref=17,
         isbuy=lambda: True,
@@ -548,7 +739,7 @@ def test_sdk_order_ref_reservation_is_local_monotonic_and_used_by_submit():
         price=12.5,
         pricelimit=None,
         created=SimpleNamespace(price=12.5),
-        data=SimpleNamespace(_name="rb2510"),
+        data=SimpleNamespace(_name="rb2510", _dataname="rb2510"),
         info={
             "instrument_id": "rb2510",
             "exchange_id": "SHFE",
@@ -803,7 +994,7 @@ def test_unknown_store_dispatch_freezes_and_cannot_be_retried():
         price=12.5,
         pricelimit=None,
         created=SimpleNamespace(price=12.5),
-        data=SimpleNamespace(_name="rb2510"),
+        data=SimpleNamespace(_name="rb2510", _dataname="rb2510"),
         info={"instrument_id": "rb2510", "exchange_id": "SHFE"},
         ref=23,
         isbuy=lambda: True,
@@ -860,7 +1051,7 @@ def test_unknown_retirement_append_failure_keeps_latch_and_exact_retry_queues_on
         price=12.5,
         pricelimit=None,
         created=SimpleNamespace(price=12.5),
-        data=SimpleNamespace(_name="rb2510"),
+        data=SimpleNamespace(_name="rb2510", _dataname="rb2510"),
         info={"instrument_id": "rb2510", "exchange_id": "SHFE"},
         ref=23,
         isbuy=lambda: True,
@@ -1171,7 +1362,7 @@ def test_template_routes_are_plannable_before_first_grant_and_switch_serially():
             price=100.0,
             pricelimit=None,
             created=SimpleNamespace(price=100.0),
-            data=SimpleNamespace(_name=instrument),
+            data=SimpleNamespace(_name=instrument, _dataname=instrument),
             info={"instrument_id": instrument, "exchange_id": exchange},
             ref=ref,
             isbuy=lambda: True,
@@ -1268,7 +1459,7 @@ def test_template_route_missing_from_nonempty_map_never_falls_back_to_current_gr
         price=100.0,
         pricelimit=None,
         created=SimpleNamespace(price=100.0),
-        data=SimpleNamespace(_name="i2509"),
+        data=SimpleNamespace(_name="i2509", _dataname="i2509"),
         info={"instrument_id": "i2509", "exchange_id": "DCE"},
         ref=9,
         isbuy=lambda: True,
@@ -1314,7 +1505,7 @@ def test_sealed_empty_template_map_rejects_active_grant_and_direct_writes():
         price=100.0,
         pricelimit=None,
         created=SimpleNamespace(price=100.0),
-        data=SimpleNamespace(_name="rb2510"),
+        data=SimpleNamespace(_name="rb2510", _dataname="rb2510"),
         info={"instrument_id": "rb2510", "exchange_id": "SHFE", **session_info},
         ref=12,
         isbuy=lambda: True,
@@ -1359,7 +1550,7 @@ def test_final_store_hook_rejects_stale_decision_session_before_native_call():
         price=100.0,
         pricelimit=None,
         created=SimpleNamespace(price=100.0),
-        data=SimpleNamespace(_name="rb2510"),
+        data=SimpleNamespace(_name="rb2510", _dataname="rb2510"),
         info={
             "instrument_id": "rb2510",
             "exchange_id": "SHFE",
@@ -1395,7 +1586,7 @@ def test_factor_intent_cannot_fall_back_to_unbound_legacy_store_hooks():
         price=100.0,
         pricelimit=None,
         created=SimpleNamespace(price=100.0),
-        data=SimpleNamespace(_name="rb2510"),
+        data=SimpleNamespace(_name="rb2510", _dataname="rb2510"),
         info={
             "instrument_id": "rb2510",
             "exchange_id": "SHFE",
