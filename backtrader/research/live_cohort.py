@@ -23,6 +23,7 @@ from typing import Any, Deque, Dict, Iterable, Mapping, Optional, Tuple
 
 
 _UTC = _datetime.timezone.utc
+_COHORT_FIELD_MISSING = object()
 _REQUIRED_OHLCV = ("open", "high", "low", "close", "volume")
 _DEFAULT_NUMERIC_FIELDS = frozenset(_REQUIRED_OHLCV)
 # Finite calendars may include both factor warm-up and evaluation history.
@@ -1064,6 +1065,29 @@ class LiveBarCohort:
     ) -> BarEnvelope:
         if source_role not in ("history", "live"):
             raise LiveCohortValidationError("source_role must be exactly 'history' or 'live'")
+        stale = _read(event, "stale", _COHORT_FIELD_MISSING)
+        if stale is not _COHORT_FIELD_MISSING:
+            if type(stale) is not bool:
+                raise LiveCohortValidationError("bar stale marker must be an exact boolean")
+            if stale:
+                raise LiveCohortValidationError("stale source bars cannot enter a live cohort")
+        continuity = _read(event, "continuity_status", _COHORT_FIELD_MISSING)
+        if continuity is _COHORT_FIELD_MISSING:
+            continuity = _read(event, "continuity", _COHORT_FIELD_MISSING)
+        if continuity is not _COHORT_FIELD_MISSING and continuity is not None:
+            if type(continuity) is not str:
+                raise LiveCohortValidationError("bar continuity status must be text")
+            if continuity.lower() in {
+                "gap",
+                "stale",
+                "disconnected",
+                "checksum_failed",
+                "out_of_order",
+                "invalid",
+            }:
+                raise LiveCohortValidationError(
+                    "non-continuous source bars cannot enter a live cohort"
+                )
         slot_start = _aware_utc(_read(event, "bucket_start"), "bucket_start")
         close_time = _aware_utc(_read(event, "bucket_end"), "bucket_end")
         available_at = _aware_utc(_read(event, "available_at"), "available_at")

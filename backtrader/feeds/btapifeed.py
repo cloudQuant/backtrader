@@ -66,6 +66,7 @@ class _PreparedLiveBarCohortActivation:
     history_iter: object
     live_iter: object
     slot_index_by_close: object
+    stream_health_baseline: object
 
 
 @dataclass(frozen=True)
@@ -542,6 +543,7 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
         self._cohort_armed_envelope = None
         self._cohort_staged_delivery = None
         self._cohort_delivery_failed = False
+        self._cohort_stream_health_baseline = None
         if cohort_source_mode:
             # The sealed cohort owns the strict validation boundary. Preserve
             # exact raw tuples and leave the legacy normalized queues empty so
@@ -645,7 +647,124 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
             # Cohort owns this immutable-after-construction lookup. Reuse it
             # rather than building another calendar-sized dictionary/feed.
             slot_index_by_close=cohort._slot_indices_by_close,
+            stream_health_baseline=self._read_cohort_stream_health(),
         )
+
+    def _read_cohort_stream_health(self):
+        """Read the optional exact Store health counters used by cohort feeds."""
+        store = self.store
+        reader = getattr(store, "get_stream_health", None) if store is not None else None
+        if not callable(reader):
+            # Direct tuple-based synthetic sources do not need a Store health API.
+            return None
+        health = reader(self._dataname)
+        if not isinstance(health, Mapping):
+            raise ValueError("cohort Store stream health must be a mapping")
+        generation = health.get("stream_generation", _COHORT_MISSING)
+        if generation is not _COHORT_MISSING and (type(generation) is not int or generation < 0):
+            raise ValueError("cohort Store stream generation is invalid")
+        overflow_count = health.get("tick_queue_overflow_count", _COHORT_MISSING)
+        if overflow_count is not _COHORT_MISSING and (
+            type(overflow_count) is not int or overflow_count < 0
+        ):
+            raise ValueError("cohort Store tick overflow count is invalid")
+        if overflow_count is not _COHORT_MISSING and generation is _COHORT_MISSING:
+            raise ValueError("cohort Store health omits its stream generation")
+        if overflow_count is _COHORT_MISSING and callable(getattr(store, "poll_tick", None)):
+            raise ValueError("cohort Store health omits its tick queue overflow count")
+        stale = health.get("stale", False)
+        if type(stale) is not bool:
+            raise ValueError("cohort Store stale state must be an exact boolean")
+        return (
+            None if generation is _COHORT_MISSING else generation,
+            None if overflow_count is _COHORT_MISSING else overflow_count,
+            stale,
+        )
+
+    def _freeze_cohort_source(self, reason, message):
+        """Freeze this epoch before an unsafe source event can be captured."""
+        cohort = self._live_bar_cohort
+        if cohort is not None:
+            cohort._freeze(reason)
+            self._cohort_delivery_failed = True
+        from ..research.live_cohort import LiveCohortFrozenError
+
+        raise LiveCohortFrozenError(message)
+
+    def _check_cohort_stream_health(self):
+        """Reject Store drops, restarts, or stale state within this cohort epoch."""
+        cohort = self._live_bar_cohort
+        if cohort is None:
+            return
+        baseline = self._cohort_stream_health_baseline
+        if baseline is None:
+            return
+        try:
+            current = self._read_cohort_stream_health()
+        except Exception:
+            self._freeze_cohort_source(
+                "store_stream_health_invalid", "cohort Store stream health became invalid"
+            )
+        if current is None:
+            self._freeze_cohort_source(
+                "store_stream_health_unavailable",
+                "cohort Store stream health became unavailable",
+            )
+        if current[0] != baseline[0]:
+            self._freeze_cohort_source(
+                "store_stream_generation_changed",
+                "cohort Store stream generation changed",
+            )
+        if current[1] != baseline[1]:
+            reason = (
+                "store_tick_queue_overflow"
+                if (
+                    isinstance(current[1], int)
+                    and not isinstance(current[1], bool)
+                    and isinstance(baseline[1], int)
+                    and not isinstance(baseline[1], bool)
+                    and current[1] > baseline[1]
+                )
+                else "store_tick_overflow_counter_reset"
+            )
+            self._freeze_cohort_source(reason, "cohort Store tick queue continuity changed")
+        if current[2]:
+            self._freeze_cohort_source(
+                "store_stream_stale", "stale Store stream cannot feed a live cohort"
+            )
+
+    def _validate_cohort_source_continuity(self, event):
+        """Reject an explicitly stale or non-continuous source bar before capture."""
+        _field_name, stale, stale_present = _raw_tick_field(event, ("stale",))
+        if stale_present:
+            if type(stale) is not bool:
+                self._freeze_cohort_source(
+                    "invalid_source_stale_marker", "cohort source stale marker is invalid"
+                )
+            if stale:
+                self._freeze_cohort_source(
+                    "stale_source_bar", "stale source bar cannot enter a live cohort"
+                )
+        _field_name, continuity, continuity_present = _raw_tick_field(
+            event, ("continuity_status", "continuity")
+        )
+        if continuity_present and continuity is not None:
+            if type(continuity) is not str:
+                self._freeze_cohort_source(
+                    "invalid_source_continuity", "cohort source continuity status is invalid"
+                )
+            if continuity.lower() in {
+                "gap",
+                "stale",
+                "disconnected",
+                "checksum_failed",
+                "out_of_order",
+                "invalid",
+            }:
+                self._freeze_cohort_source(
+                    "non_continuous_source_bar",
+                    "non-continuous source bar cannot enter a live cohort",
+                )
 
     @staticmethod
     def _validate_cohort_store_raw_mode(store):
@@ -673,6 +792,7 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
             self._cohort_armed_envelope,
             self._cohort_staged_delivery,
             self._cohort_delivery_failed,
+            self._cohort_stream_health_baseline,
             self._history,
             self._live,
         )
@@ -684,6 +804,7 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
         self._cohort_history_iter = prepared.history_iter
         self._cohort_live_iter = prepared.live_iter
         self._cohort_slot_index_by_close = prepared.slot_index_by_close
+        self._cohort_stream_health_baseline = prepared.stream_health_baseline
         # Swap in empty queues only after every feed was validated. Keeping the
         # prior deque objects in Cerebro's rollback snapshot avoids copying up
         # to a full finite history merely to make activation reversible.
@@ -708,6 +829,7 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
             self._cohort_armed_envelope,
             self._cohort_staged_delivery,
             self._cohort_delivery_failed,
+            self._cohort_stream_health_baseline,
             self._history,
             self._live,
         ) = snapshot
@@ -758,6 +880,8 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
         return next_slot + self._live_bar_cohort.max_pending_slots - 1
 
     def _cohort_capture_source(self, event, source_role, received_monotonic_ns, max_slot):
+        self._check_cohort_stream_health()
+        self._validate_cohort_source_continuity(event)
         slot_index = self._cohort_event_slot_index(event)
         if slot_index is not None and slot_index > max_slot:
             return False
@@ -814,6 +938,7 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
             return 0
         if self._cohort_delivery_failed or cohort.frozen:
             return 0
+        self._check_cohort_stream_health()
 
         max_slot = self._cohort_max_collect_slot()
         budget = cohort.max_pending_slots
@@ -913,6 +1038,7 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
                 if not callable(poll_live):
                     break
                 event = poll_live(self._dataname)
+                self._check_cohort_stream_health()
             if event is None:
                 break
             expired_after_poll = self._cohort_prepare_deadline_expired(deadline_ns)
@@ -1164,6 +1290,20 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
                 return
 
             self.store.start(data=self)
+            if self._live_bar_cohort is not None:
+                try:
+                    baseline = self._read_cohort_stream_health()
+                except Exception:
+                    self._freeze_cohort_source(
+                        "store_stream_health_invalid",
+                        "cohort Store stream health is invalid at startup",
+                    )
+                if baseline is not None and (baseline[1] not in (None, 0) or baseline[2]):
+                    self._freeze_cohort_source(
+                        "store_stream_degraded_before_cohort_start",
+                        "cohort Store stream was already degraded at startup",
+                    )
+                self._cohort_stream_health_baseline = baseline
             self.store.register(self)
 
             service_read_only = bool(getattr(self.store, "_service_read_only", False))
@@ -1525,6 +1665,7 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
             bar_sequence_before = self._bar_sequence
             queued_bars_before = len(self._live)
             tick = self.store.poll_tick(self._dataname)
+            self._check_cohort_stream_health()
             if tick is None:
                 break
             expired_after_poll = self._cohort_prepare_deadline_expired(deadline_ns)
@@ -1538,6 +1679,10 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
             expired_after_normalize = self._cohort_prepare_deadline_expired(deadline_ns)
 
             if self._handle_event_health(tick):
+                if self._live_bar_cohort is not None:
+                    self._freeze_cohort_source(
+                        "unhealthy_source_tick", "unhealthy tick cannot continue a live cohort"
+                    )
                 if self.p.dispatch_ticks:
                     self._dispatch_event(
                         channel_type="tick",

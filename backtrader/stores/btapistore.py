@@ -16523,6 +16523,9 @@ class BtApiStore(LiveStoreBase):
                 **state,
                 "book_queue_depth": book_queue_depth,
                 "tick_queue_depth": len(self._sdk_ticks[symbol]),
+                # Keep intentional duplicate filtering separate: this value
+                # counts only evictions from the bounded SDK tick queue.
+                "tick_queue_overflow_count": self._sdk_tick_drops.get(symbol, 0),
                 "store_dropped": counters.get("store_dropped", 0),
                 "strategy_delivered": counters.get("strategy_delivered", 0),
                 "sdk_ingress": counters.get("sdk_ingress", 0),
