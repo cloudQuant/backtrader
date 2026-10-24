@@ -6,12 +6,13 @@ import base64
 import hashlib
 import importlib.util
 import json
+import math
 import os
 from pathlib import Path
 import py_compile
 import subprocess
 import sys
-from types import ModuleType
+from types import ModuleType, SimpleNamespace
 import zipfile
 
 import pytest
@@ -467,23 +468,263 @@ def test_fixture_cli_rejects_unimplemented_profiles_and_factor_modes(
     assert missing_artifact.value.code == 2
 
 
-def test_fixture_process_rejects_ambient_pythonpath_before_importing_package(
-    tmp_path: Path,
+def test_isolated_launcher_uses_external_cwd_and_clears_import_environment(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    environment = os.environ.copy()
-    environment["PYTHONPATH"] = str(_FIXTURE_PATH.parents[1])
-    completed = subprocess.run(
-        [sys.executable, str(_FIXTURE_PATH), "--help"],
-        cwd=tmp_path,
-        env=environment,
-        capture_output=True,
-        text=True,
-        check=False,
+    fixture = _load_fixture(monkeypatch)
+    ambient_names = tuple(
+        sorted(
+            set(fixture._AMBIENT_IMPORT_ENVIRONMENT)
+            .union(name for name in os.environ if name.upper().startswith("PYTHON"))
+            .union({"PYTHONWARNINGS"})
+        )
+    )
+    for name in ambient_names:
+        monkeypatch.setenv(name, "poisoned-import-value")
+    captured = {}
+
+    def fake_run(command, **kwargs):
+        captured["command"] = command
+        captured.update(kwargs)
+        return SimpleNamespace(returncode=0)
+
+    monkeypatch.setattr(fixture.subprocess, "run", fake_run)
+    result = fixture._run_isolated_entry(
+        [
+            "--wheel",
+            "fixed.whl",
+            "--wheel-sha256",
+            "a" * 64,
+            "--profile",
+            "alpha101-stream",
+            "--factor-mode",
+            "both",
+        ]
     )
 
-    assert completed.returncode != 0
-    assert "installed fixture requires PYTHONPATH to be unset" in completed.stderr
-    assert "ModuleNotFoundError" not in completed.stderr
+    assert result == 0
+    assert captured["command"][:2] == [sys.executable, "-I"]
+    assert captured["command"][2] == str(_FIXTURE_PATH.resolve())
+    assert Path(captured["command"][4]).is_absolute()
+    assert captured["command"][5:] == [
+        "--wheel-sha256",
+        "a" * 64,
+        "--profile",
+        "alpha101-stream",
+        "--factor-mode",
+        "both",
+    ]
+    assert Path(captured["cwd"]).resolve() != tmp_path.resolve()
+    assert not Path(captured["cwd"]).resolve().is_relative_to(fixture._REPOSITORY_ROOT)
+    assert all(captured["env"][name] == captured["cwd"] for name in ("TMP", "TEMP", "TMPDIR"))
+    assert all(name not in captured["env"] for name in ambient_names)
+    assert json.loads(captured["env"][fixture._PARENT_CLEARED_ENVIRONMENT_MARKER]) == list(
+        ambient_names
+    )
+
+
+def test_alpha101_profile_requires_same_stream_native_and_build(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    fixture = _load_fixture(monkeypatch)
+    with pytest.raises(SystemExit) as profile_error:
+        fixture.main(
+            [
+                "--wheel",
+                "candidate.whl",
+                "--wheel-sha256",
+                "0" * 64,
+                "--profile",
+                "alpha101-stream",
+                "--factor-mode",
+                "native",
+            ]
+        )
+
+    assert profile_error.value.code == 2
+    assert "requires --factor-mode both" in capsys.readouterr().err
+
+
+def test_alpha101_bindings_and_stream_comparison_keep_exact_reasons_and_finite_tolerance(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fixture = _load_fixture(monkeypatch)
+
+    class _Indicator:
+        formula_fields = ("vwap", "dollar_volume", "adv20", "sector")
+
+    bindings = fixture._alpha101_field_bindings(_Indicator)
+    assert bindings == {
+        "vwap": "feed:target:vwap",
+        "dollar_volume": "feed:target:dollar_volume",
+        "adv20": {"derive": "adv", "source": "dollar_volume", "window": 20},
+        "sector": "feed:target:sector",
+    }
+    policies = fixture._alpha101_field_policies(_Indicator)
+    assert set(policies) == set(bindings)
+    assert policies["vwap"].unit == fixture._FIELD_PIT_UNITS["vwap"]
+    assert policies["dollar_volume"].unit == fixture._FIELD_PIT_UNITS["dollar_volume"]
+    assert policies["adv20"].unit == "USD"
+    assert policies["sector"].unit == fixture._FIELD_PIT_UNITS["sector"]
+    assert fixture._same_stream_value(float("nan"), float("nan"))
+    assert not fixture._same_stream_value(float("inf"), float("inf"))
+    assert not fixture._same_stream_value(float("inf"), float("-inf"))
+    assert not fixture._same_stream_value(1.0, float("inf"))
+    assert fixture._same_stream_value(1.0, 1.0 + 5e-11)
+    assert not fixture._same_stream_value(1.0, 1.0 + 2e-10)
+
+
+def test_alpha101_stream_fixture_and_factor_selection_cover_all_fixed_fields(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fixture = _load_fixture(monkeypatch)
+    bars, calendar = fixture._fixture_bars(
+        5,
+        include_extra_fields=True,
+        varied_stream=True,
+    )
+
+    assert len(calendar.slots) == 5
+    assert set(bars) == set(fixture._TARGETS)
+    for target, rows in bars.items():
+        assert len(rows) == 5
+        for row in rows:
+            assert set(fixture._EXTRA_FIELDS).issubset(row)
+            assert all(math.isfinite(float(row[field])) for field in fixture._EXTRA_FIELDS)
+            assert set(row["field_observations"]) == set(fixture._FIELD_PIT_UNITS)
+            for field_name, observation in row["field_observations"].items():
+                assert observation.source_ref == fixture._alpha101_source_ref(target, field_name)
+                assert observation.unit == fixture._FIELD_PIT_UNITS[field_name]
+                assert observation.effective_at < observation.available_at
+                assert observation.valid_until > observation.available_at
+            assert row["vwap"] != (row["open"] + row["high"] + row["low"] + row["close"]) / 4.0
+            assert not math.isclose(
+                row["dollar_volume"],
+                row["vwap"] * row["volume"],
+                rel_tol=1e-9,
+                abs_tol=1e-9,
+            )
+
+    factors = fixture._alpha101_factor_specs()
+    assert len(factors) == 202
+    for alpha_id in range(1, 102):
+        native = factors["alpha%d_native" % alpha_id]
+        build = factors["alpha%d_build" % alpha_id]
+        assert native.indicator is build.indicator is fixture.get_alpha(alpha_id)
+        assert native.mode == "native"
+        assert build.mode == "build"
+        assert set(native.field_bindings) == set(native.indicator.formula_fields)
+        assert set(native.field_policies) == set(native.indicator.formula_fields)
+        assert set(build.field_policies) == set(build.indicator.formula_fields)
+
+
+def _valid_alpha101_witness_fixture(fixture):
+    expected_points = 9
+    expected_evaluation_points = 6
+    factor_pairs = {
+        str(alpha_id): {
+            "output_available_witnesses": 1,
+            "finite_witnesses": 1,
+            "evaluation_available_finite_witnesses": 1,
+            "pit_qualified_evaluation_points": expected_evaluation_points,
+        }
+        for alpha_id in fixture._ALPHA101_REQUIRED_OUTPUT_WITNESS_IDS
+    }
+    extra_fields = {
+        field_name: {
+            "values_checked": expected_points,
+            "finite_witnesses": expected_points,
+            "pit_qualified_witnesses": expected_evaluation_points,
+            "unit": fixture._FIELD_PIT_UNITS[field_name],
+            "source_refs": sorted(
+                fixture._alpha101_source_ref(target, field_name) for target in fixture._TARGETS
+            ),
+            "first_effective_at": "2025-01-02T09:30:59+00:00",
+            "first_available_at": "2025-01-02T09:31:00+00:00",
+            "first_valid_until": "2025-01-02T09:36:00+00:00",
+            "first_evaluated_at": "2025-01-02T09:31:00+00:00",
+            "last_effective_at": "2025-01-02T09:39:59+00:00",
+            "last_available_at": "2025-01-02T09:40:00+00:00",
+            "last_valid_until": "2025-01-02T09:45:00+00:00",
+            "last_evaluated_at": "2025-01-02T09:40:00+00:00",
+            "distinct_from_ohlc_witnesses": expected_points,
+        }
+        for field_name in fixture._ALPHA101_EXTRA_WITNESS_FACTORS
+    }
+    return factor_pairs, extra_fields, expected_points, expected_evaluation_points
+
+
+def test_alpha101_stream_witness_gate_requires_real_available_finite_and_pit_points(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fixture = _load_fixture(monkeypatch)
+    factor_pairs, extra_fields, expected_points, expected_eval = _valid_alpha101_witness_fixture(
+        fixture
+    )
+
+    fixture._validate_alpha101_stream_witnesses(
+        factor_pairs, extra_fields, expected_points, expected_eval
+    )
+
+    unavailable = {key: dict(value) for key, value in factor_pairs.items()}
+    unavailable["3"]["output_available_witnesses"] = 0
+    with pytest.raises(RuntimeError, match="no finite OUTPUT_AVAILABLE witness"):
+        fixture._validate_alpha101_stream_witnesses(
+            unavailable, extra_fields, expected_points, expected_eval
+        )
+
+    early_only = {key: dict(value) for key, value in factor_pairs.items()}
+    early_only["3"]["evaluation_available_finite_witnesses"] = 0
+    with pytest.raises(RuntimeError, match="no evaluation OUTPUT_AVAILABLE witness"):
+        fixture._validate_alpha101_stream_witnesses(
+            early_only, extra_fields, expected_points, expected_eval
+        )
+
+    missing_pit = {key: dict(value) for key, value in extra_fields.items()}
+    missing_pit["subindustry"]["pit_qualified_witnesses"] = 0
+    with pytest.raises(RuntimeError, match="PIT provenance witnesses"):
+        fixture._validate_alpha101_stream_witnesses(
+            factor_pairs, missing_pit, expected_points, expected_eval
+        )
+
+
+def test_alpha101_field_provenance_gate_requires_qualified_unit_source_and_times(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fixture = _load_fixture(monkeypatch)
+    expected_evaluation_points = 6
+    provenance = {
+        field_name: {
+            "row_count": 12,
+            "pit_qualified_rows": expected_evaluation_points,
+            "unit_counts": {unit: 12},
+            "source_refs": sorted(
+                fixture._alpha101_source_ref(target, field_name) for target in fixture._TARGETS
+            ),
+            "first_effective_at": "2025-01-02T09:30:59+00:00",
+            "last_effective_at": "2025-01-02T09:39:59+00:00",
+            "first_available_at": "2025-01-02T09:31:00+00:00",
+            "last_available_at": "2025-01-02T09:40:00+00:00",
+            "first_valid_until": "2025-01-02T09:36:00+00:00",
+            "last_valid_until": "2025-01-02T09:45:00+00:00",
+            "first_evaluated_at": "2025-01-02T09:31:00+00:00",
+            "last_evaluated_at": "2025-01-02T09:40:00+00:00",
+        }
+        for field_name, unit in fixture._FIELD_PIT_UNITS.items()
+    }
+    fixture._validate_alpha101_field_provenance(provenance, expected_evaluation_points)
+
+    unavailable = {key: dict(value) for key, value in provenance.items()}
+    unavailable["vwap"]["pit_qualified_rows"] = 0
+    with pytest.raises(RuntimeError, match="lacks source, unit, or PIT time witnesses"):
+        fixture._validate_alpha101_field_provenance(unavailable, expected_evaluation_points)
+
+    missing_availability = {key: dict(value) for key, value in provenance.items()}
+    missing_availability["cap"]["last_available_at"] = None
+    with pytest.raises(RuntimeError, match="lacks source, unit, or PIT time witnesses"):
+        fixture._validate_alpha101_field_provenance(
+            missing_availability, expected_evaluation_points
+        )
 
 
 def _fake_backtrader_package_source(sentinel: str) -> bytes:
@@ -519,9 +760,9 @@ def _fake_backtrader_package_source(sentinel: str) -> bytes:
         "    _install(package_name, package=True)\n"
         '_install("backtrader.brokers.btapibroker", ("BtApiBroker",))\n'
         '_install("backtrader.feeds.btapifeed", ("BtApiFeed",))\n'
-        '_install("backtrader.research", ("FactorSpec", "LiveFactorPlan", "LiveFactorSet"), package=True)\n'
+        '_install("backtrader.research", ("FactorSpec", "FieldPITPolicy", "LiveFactorPlan", "LiveFactorSet"), package=True)\n'
         '_install("backtrader.research.alpha101", ("get_alpha",))\n'
-        '_install("backtrader.research.live_cohort", ("LiveBarCohort", "LiveCalendarMemberSession", "LiveCalendarSlot", "LiveCohortCalendar"))\n'
+        '_install("backtrader.research.live_cohort", ("LiveBarCohort", "LiveCalendarMemberSession", "LiveCalendarSlot", "LiveCohortCalendar", "LiveFieldContract", "LiveFieldObservation"))\n'
         '_install("backtrader.stores.btapistore", ("BtApiStore",))\n'
     )
     return source.replace("__MARKER__", sentinel).encode("utf-8")

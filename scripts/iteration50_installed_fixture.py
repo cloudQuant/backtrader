@@ -1,13 +1,15 @@
 #!/usr/bin/env python
-"""Small installed-wheel smoke for the Iteration 50-A Alpha003 handoff.
+"""Installed-wheel fixtures for the Iteration 50 live-factor handoff.
 
 Run this file from outside the Backtrader checkout with the frozen Backtrader
-wheel installed.  It uses only public Backtrader APIs and an in-memory provider
-client.  The ordinary Strategy, Cerebro, BtApiFeed, LiveBarCohort,
-LiveFactorSet, BtApiStore, and BtApiBroker remain the installed production
-classes.  The read-only profile checks runtime composition and native/build
-parity for a small deterministic cohort.  This fixture makes no order calls;
-the execution profile remains pending its separately integrated coordinator.
+wheel installed.  The launcher restarts the profile under Python ``-I`` from
+a fresh external working directory and removes import-affecting ambient
+environment variables before importing Backtrader.  It uses only public APIs
+and an in-memory provider client.  The ordinary Strategy, Cerebro, BtApiFeed,
+LiveBarCohort, LiveFactorSet, BtApiStore, and BtApiBroker remain installed
+production classes.  ``read-only`` checks Alpha003; ``alpha101-stream`` pairs
+all registered factors' native/build outputs on one finite live stream.  No
+profile calls an external order API; execution acceptance remains separate.
 """
 
 from __future__ import annotations
@@ -29,6 +31,7 @@ import math
 import os
 from pathlib import Path, PurePosixPath
 import site
+import subprocess
 import sys
 import sysconfig
 import tempfile
@@ -36,10 +39,141 @@ from types import MappingProxyType
 from typing import Any, Dict, Iterable, Mapping, Optional, Sequence, Tuple
 import zipfile
 
-# This check intentionally runs before importing Backtrader.  The installed
-# consumer must not inherit a checkout path that can shadow the wheel.
-if os.environ.get("PYTHONPATH"):
-    raise RuntimeError("installed fixture requires PYTHONPATH to be unset")
+_REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
+_AMBIENT_IMPORT_ENVIRONMENT = (
+    "PYTHONPATH",
+    "PYTHONHOME",
+    "PYTHONUSERBASE",
+    "PYTHONPYCACHEPREFIX",
+    "PYTHONDONTWRITEBYTECODE",
+    "BT_API_TEST_SOURCE_ROOTS",
+    "BACKTRADER_USE_INSTALLED",
+)
+_PARENT_CLEARED_ENVIRONMENT_MARKER = "ITERATION50_PARENT_CLEARED_ENVIRONMENT"
+
+
+def _ambient_import_environment_names(environment: Mapping[str, str]) -> Tuple[str, ...]:
+    explicit = set(_AMBIENT_IMPORT_ENVIRONMENT)
+    return tuple(
+        sorted(explicit.union(name for name in environment if name.upper().startswith("PYTHON")))
+    )
+
+
+def _sanitized_environment() -> Dict[str, str]:
+    environment = os.environ.copy()
+    names = _ambient_import_environment_names(environment)
+    cleared = [name for name in names if name in environment]
+    for name in names:
+        environment.pop(name, None)
+    environment[_PARENT_CLEARED_ENVIRONMENT_MARKER] = json.dumps(cleared, separators=(",", ":"))
+    return environment
+
+
+def _isolated_arguments(arguments: Sequence[str]) -> list:
+    """Resolve only path-bearing CLI input before changing to the external cwd."""
+
+    resolved = list(arguments)
+    for index, argument in enumerate(resolved):
+        if argument == "--wheel" and index + 1 < len(resolved):
+            resolved[index + 1] = str((Path.cwd() / resolved[index + 1]).resolve())
+        elif argument.startswith("--wheel="):
+            value = argument.split("=", 1)[1]
+            resolved[index] = "--wheel=" + str((Path.cwd() / value).resolve())
+    return resolved
+
+
+def _run_isolated_entry(arguments: Sequence[str]) -> int:
+    """Restart this public fixture under ``-I`` from a fresh external cwd."""
+
+    with tempfile.TemporaryDirectory(prefix="iteration50-installed-external-") as directory:
+        external_cwd = Path(directory).resolve()
+        try:
+            external_cwd.relative_to(_REPOSITORY_ROOT)
+        except ValueError:
+            pass
+        else:
+            raise RuntimeError("installed fixture temporary directory is inside the checkout")
+        command = [
+            sys.executable,
+            "-I",
+            str(Path(__file__).resolve()),
+            *_isolated_arguments(arguments),
+        ]
+        environment = _sanitized_environment()
+        for name in ("TMP", "TEMP", "TMPDIR"):
+            environment[name] = str(external_cwd)
+        completed = subprocess.run(
+            command,
+            cwd=str(external_cwd),
+            env=environment,
+            check=False,
+        )
+        return int(completed.returncode)
+
+
+def _is_direct_script_invocation() -> bool:
+    """Distinguish a real interpreter script launch from the source QA runpy tests."""
+
+    script_path = Path(__file__).resolve()
+    original_arguments = getattr(sys, "orig_argv", ())
+    for argument in original_arguments[1:]:
+        if argument == "-c" or argument == "-m":
+            return False
+        if argument.startswith("-"):
+            continue
+        try:
+            if Path(argument).resolve() == script_path:
+                return True
+        except (OSError, ValueError):
+            continue
+    return False
+
+
+def _cwd_is_inside_checkout() -> bool:
+    try:
+        Path.cwd().resolve().relative_to(_REPOSITORY_ROOT)
+    except ValueError:
+        return False
+    return True
+
+
+def _clear_isolated_environment() -> Dict[str, Any]:
+    """Remove import-affecting environment before the first installed import."""
+
+    encoded_parent_keys = os.environ.pop(_PARENT_CLEARED_ENVIRONMENT_MARKER, "[]")
+    try:
+        parent_cleared = json.loads(encoded_parent_keys)
+    except json.JSONDecodeError as exc:
+        raise RuntimeError("isolated launcher environment receipt is malformed") from exc
+    explicit_names = set(_AMBIENT_IMPORT_ENVIRONMENT)
+    if not isinstance(parent_cleared, list) or any(
+        not isinstance(name, str)
+        or (name not in explicit_names and not name.upper().startswith("PYTHON"))
+        for name in parent_cleared
+    ):
+        raise RuntimeError("isolated launcher environment receipt is invalid")
+
+    names = _ambient_import_environment_names(os.environ)
+    present = [name for name in names if name in os.environ]
+    for name in names:
+        os.environ.pop(name, None)
+    if any(name.upper().startswith("PYTHON") for name in os.environ):
+        raise RuntimeError("installed fixture requires Python environment overrides to be unset")
+    try:
+        Path.cwd().resolve().relative_to(_REPOSITORY_ROOT)
+    except ValueError:
+        external_cwd = True
+    else:
+        external_cwd = False
+    return {
+        "python_isolated": bool(sys.flags.isolated),
+        "external_working_directory": external_cwd,
+        "parent_cleared_environment_names": tuple(parent_cleared),
+        "child_cleared_environment_names": tuple(present),
+        "ambient_import_environment_unset": all(
+            name not in os.environ for name in _AMBIENT_IMPORT_ENVIRONMENT
+        ),
+    }
 
 
 _ISOLATED_BYTECODE_CACHE = None
@@ -68,19 +202,32 @@ def _configure_isolated_bytecode_cache() -> None:
 # A fresh process is the supported installed-fixture entry point. Configure
 # its cache before any Backtrader import so an existing site-packages __pycache__
 # cannot supply timestamp-valid bytecode.
-if __name__ == "__main__":
+_EXECUTION_ENVIRONMENT = None
+if __name__ == "__main__" and _is_direct_script_invocation():
+    if not sys.flags.isolated or _cwd_is_inside_checkout():
+        raise SystemExit(_run_isolated_entry(sys.argv[1:]))
+    _EXECUTION_ENVIRONMENT = _clear_isolated_environment()
+    _configure_isolated_bytecode_cache()
+elif __name__ == "__main__":
     _configure_isolated_bytecode_cache()
 
 import backtrader as bt  # noqa: E402
 from backtrader.brokers.btapibroker import BtApiBroker  # noqa: E402
 from backtrader.feeds.btapifeed import BtApiFeed  # noqa: E402
-from backtrader.research import FactorSpec, LiveFactorPlan, LiveFactorSet  # noqa: E402
+from backtrader.research import (  # noqa: E402
+    FactorSpec,
+    FieldPITPolicy,
+    LiveFactorPlan,
+    LiveFactorSet,
+)
 from backtrader.research.alpha101 import get_alpha  # noqa: E402
 from backtrader.research.live_cohort import (  # noqa: E402
     LiveBarCohort,
     LiveCalendarMemberSession,
     LiveCalendarSlot,
     LiveCohortCalendar,
+    LiveFieldContract,
+    LiveFieldObservation,
 )
 from backtrader.stores.btapistore import BtApiStore  # noqa: E402
 
@@ -89,9 +236,36 @@ _UTC = timezone.utc
 _TARGETS = ("IF2611", "IC2611", "IM2611")
 _SLOT_COUNT = 12
 _FIELDS = ("open", "high", "low", "close", "volume", "openinterest")
+_EXTRA_FIELDS = ("vwap", "cap", "sector", "industry", "subindustry", "dollar_volume")
+_FIELD_PIT_UNITS = {
+    "open": "USD/share",
+    "high": "USD/share",
+    "low": "USD/share",
+    "close": "USD/share",
+    "volume": "share",
+    "vwap": "USD/share",
+    "cap": "USD",
+    "sector": "fixture-code:sector-v1",
+    "industry": "fixture-code:industry-v1",
+    "subindustry": "fixture-code:subindustry-v1",
+    "dollar_volume": "USD",
+}
+_FIELD_PIT_MAX_AGE_SECONDS = 60.0
+_ALPHA101_SLOT_COUNT = 320
 _CLOCK_DOMAIN = "iteration50-installed-fixture-v1"
 _SESSION_SEMANTICS = "regular-minute-v1"
 _DISTRIBUTION_NAME = "back-trader-python"
+_ALPHA101_REL_TOL = 1e-10
+_ALPHA101_ABS_TOL = 1e-12
+_ALPHA101_EXTRA_WITNESS_FACTORS = {
+    "vwap": 5,
+    "cap": 56,
+    "sector": 58,
+    "industry": 59,
+    "subindustry": 48,
+    "dollar_volume": 7,
+}
+_ALPHA101_REQUIRED_OUTPUT_WITNESS_IDS = (3, 5, 7, 48, 56, 58, 59)
 
 
 def _require(condition: bool, message: str) -> None:
@@ -613,13 +787,59 @@ class _ProviderLeaf:
         raise RuntimeError("the installed smoke must not cancel orders")
 
 
-def _fixture_bars() -> Tuple[Dict[str, Tuple[Mapping[str, Any], ...]], LiveCohortCalendar]:
+def _alpha101_source_ref(instrument: str, field_name: str) -> str:
+    return "iteration50-synthetic:%s:%s:v1" % (instrument, field_name)
+
+
+def _validate_alpha101_field_provenance(
+    provenance: Mapping[str, Mapping[str, Any]], expected_evaluation_points: int
+) -> None:
+    """Require real production provenance rows in the bounded stream summary."""
+
+    _require(
+        set(provenance) == set(_FIELD_PIT_UNITS),
+        "field provenance summary does not cover every factor input field",
+    )
+    expected_sources = {
+        field_name: sorted(_alpha101_source_ref(target, field_name) for target in _TARGETS)
+        for field_name in _FIELD_PIT_UNITS
+    }
+    for field_name, expected_unit in _FIELD_PIT_UNITS.items():
+        stats = provenance[field_name]
+        _require(
+            stats["row_count"] >= expected_evaluation_points
+            and stats["pit_qualified_rows"] >= expected_evaluation_points
+            and stats["unit_counts"] == {expected_unit: stats["row_count"]}
+            and stats["source_refs"] == expected_sources[field_name]
+            and all(
+                stats[key]
+                for key in (
+                    "first_effective_at",
+                    "last_effective_at",
+                    "first_available_at",
+                    "last_available_at",
+                    "first_valid_until",
+                    "last_valid_until",
+                    "first_evaluated_at",
+                    "last_evaluated_at",
+                )
+            ),
+            "field provenance summary lacks source, unit, or PIT time witnesses: " + field_name,
+        )
+
+
+def _fixture_bars(
+    slot_count: int = _SLOT_COUNT,
+    *,
+    include_extra_fields: bool = False,
+    varied_stream: bool = False,
+) -> Tuple[Dict[str, Tuple[Mapping[str, Any], ...]], LiveCohortCalendar]:
     first_close = datetime(2025, 1, 2, 9, 31, tzinfo=_UTC)
     member_ids = {target: "member-" + target for target in _TARGETS}
     slots = []
     bars: Dict[str, list] = {target: [] for target in _TARGETS}
 
-    for index in range(_SLOT_COUNT):
+    for index in range(slot_count):
         close_time = first_close + timedelta(minutes=index)
         trading_day = close_time.strftime("%Y%m%d")
         member_sessions = {
@@ -641,44 +861,115 @@ def _fixture_bars() -> Tuple[Dict[str, Tuple[Mapping[str, Any], ...]], LiveCohor
         )
 
         for asset_index, target in enumerate(_TARGETS):
-            open_rank = (asset_index + index) % len(_TARGETS)
-            volume_rank = (asset_index + 2 * index) % len(_TARGETS)
-            open_price = float(100 + open_rank * 10)
-            close_price = open_price + 1.0
-            bars[target].append(
-                MappingProxyType(
+            if varied_stream:
+                phase = index + 1
+                wave = math.sin(phase * (0.071 + asset_index * 0.009)) + 0.37 * math.cos(
+                    phase * (0.037 + asset_index * 0.006)
+                )
+                open_price = 82.0 + asset_index * 13.0 + phase * 0.021 + wave * 2.2
+                move = (
+                    math.sin(phase * (0.113 + asset_index * 0.017)) * 0.72
+                    + math.cos(phase * (0.053 + asset_index * 0.011)) * 0.19
+                )
+                close_price = open_price + move
+                high_price = (
+                    max(open_price, close_price)
+                    + 0.31
+                    + abs(math.sin(phase * 0.17 + asset_index)) * 0.22
+                )
+                low_price = (
+                    min(open_price, close_price)
+                    - 0.29
+                    - abs(math.cos(phase * 0.13 + asset_index)) * 0.18
+                )
+                volume = (
+                    1_500.0
+                    + asset_index * 211.0
+                    + (phase * 37 + asset_index * 83) % 997
+                    + 91.0 * math.sin(phase * 0.083 + asset_index)
+                )
+            else:
+                open_rank = (asset_index + index) % len(_TARGETS)
+                volume_rank = (asset_index + 2 * index) % len(_TARGETS)
+                open_price = float(100 + open_rank * 10)
+                close_price = open_price + 1.0
+                high_price = close_price + 0.5
+                low_price = open_price - 0.5
+                volume = float(1_000 + volume_rank * 100)
+
+            row = {
+                "instrument": target,
+                "symbol": target,
+                "timestamp": close_time.timestamp(),
+                "datetime": close_time,
+                "bucket_start": close_time - timedelta(minutes=1),
+                "bucket_end": close_time,
+                "available_at": close_time,
+                "trading_day": trading_day,
+                "session_segment": "regular",
+                "timezone_id": "UTC",
+                "clock_domain_id": _CLOCK_DOMAIN,
+                "connection_generation": "fixture-generation-1",
+                "bar_sequence": index + 1,
+                "bar_id": "%s-%02d" % (target, index + 1),
+                "open": open_price,
+                "high": high_price,
+                "low": low_price,
+                "close": close_price,
+                "volume": volume,
+                "openinterest": 0.0,
+                "present": True,
+                "complete": True,
+                "quality": "GOOD",
+                "quality_flags": (),
+                "source": (
+                    "iteration50-installed-alpha101-stream"
+                    if varied_stream
+                    else "iteration50-installed-smoke"
+                ),
+            }
+            if include_extra_fields:
+                row.update(
                     {
-                        "instrument": target,
-                        "symbol": target,
-                        "timestamp": close_time.timestamp(),
-                        "datetime": close_time,
-                        "bucket_start": close_time - timedelta(minutes=1),
-                        "bucket_end": close_time,
-                        "available_at": close_time,
-                        "trading_day": trading_day,
-                        "session_segment": "regular",
-                        "timezone_id": "UTC",
-                        "clock_domain_id": _CLOCK_DOMAIN,
-                        "connection_generation": "fixture-generation-1",
-                        "bar_sequence": index + 1,
-                        "bar_id": "%s-%02d" % (target, index + 1),
-                        "open": open_price,
-                        "high": close_price + 0.5,
-                        "low": open_price - 0.5,
-                        "close": close_price,
-                        "volume": float(1_000 + volume_rank * 100),
-                        "openinterest": 0.0,
-                        "present": True,
-                        "complete": True,
-                        "quality": "GOOD",
-                        "quality_flags": (),
-                        "source": "iteration50-installed-smoke",
+                        "vwap": (
+                            (open_price + high_price + low_price + close_price) / 4.0
+                            + 0.173
+                            + asset_index * 0.031
+                            + index * 0.002
+                        ),
+                        "cap": 1_000_000.0 + asset_index * 72_000.0 + index * 1_237.0,
+                        "sector": float(asset_index % 3),
+                        "industry": float(10 + asset_index % 5),
+                        "subindustry": float(100 + asset_index % 7),
+                        "dollar_volume": (
+                            25_000.0
+                            + asset_index * 3_700.0
+                            + index * 29.0
+                            + 1_900.0 * math.sin((index + 1) * 0.101 + asset_index)
+                        ),
                     }
                 )
-            )
+                row["field_observations"] = MappingProxyType(
+                    {
+                        field_name: LiveFieldObservation(
+                            source_ref=_alpha101_source_ref(target, field_name),
+                            unit=unit,
+                            effective_at=close_time - timedelta(seconds=1),
+                            available_at=close_time,
+                            revision="%s-%s-%d" % (target, field_name, index + 1),
+                            valid_until=close_time + timedelta(minutes=5),
+                        )
+                        for field_name, unit in _FIELD_PIT_UNITS.items()
+                    }
+                )
+            bars[target].append(MappingProxyType(row))
 
     calendar = LiveCohortCalendar(
-        calendar_id="iteration50-installed-alpha003-v1",
+        calendar_id=(
+            "iteration50-installed-alpha101-v1"
+            if include_extra_fields
+            else "iteration50-installed-alpha003-v1"
+        ),
         version="1",
         epoch_id=1,
         frequency="1min",
@@ -691,15 +982,233 @@ def _fixture_bars() -> Tuple[Dict[str, Tuple[Mapping[str, Any], ...]], LiveCohor
     return {target: tuple(rows) for target, rows in bars.items()}, calendar
 
 
+def _alpha101_field_bindings(indicator: type) -> Dict[str, Any]:
+    """Map production formula aliases to fixed feed lines or ADV derivations."""
+
+    bindings = {}
+    for alias in tuple(getattr(indicator, "formula_fields", ())):
+        if alias == "dollar_volume":
+            bindings[alias] = "feed:target:dollar_volume"
+        elif alias.startswith("adv") and alias[3:].isdigit():
+            bindings[alias] = {
+                "derive": "adv",
+                "source": "dollar_volume",
+                "window": int(alias[3:]),
+            }
+        else:
+            bindings[alias] = "feed:target:%s" % alias
+    return bindings
+
+
+def _alpha101_field_policies(indicator: type) -> Dict[str, FieldPITPolicy]:
+    """Give each declared source alias an explicit fixture-local unit/age policy."""
+
+    policies = {}
+    for alias in tuple(getattr(indicator, "formula_fields", ())):
+        unit = "USD" if alias.startswith("adv") and alias[3:].isdigit() else _FIELD_PIT_UNITS[alias]
+        policies[alias] = FieldPITPolicy(unit=unit, max_age_seconds=_FIELD_PIT_MAX_AGE_SECONDS)
+    return policies
+
+
+def _alpha101_factor_specs() -> Dict[str, Any]:
+    """Build the installed registry's complete paired native/build selection."""
+
+    factors = {}
+    for alpha_id in range(1, 102):
+        indicator = get_alpha(alpha_id)
+        for mode in ("native", "build"):
+            name = "alpha%d_%s" % (alpha_id, mode)
+            factors[name] = FactorSpec(
+                name=name,
+                indicator=indicator,
+                panel_line="factor",
+                mode=mode,
+                field_bindings=_alpha101_field_bindings(indicator),
+                field_policies=_alpha101_field_policies(indicator),
+            )
+    return factors
+
+
+def _enum_text(value: Any) -> str:
+    return str(getattr(value, "value", value))
+
+
+def _float_token(value: float) -> str:
+    if math.isnan(value):
+        return "nan"
+    if math.isinf(value):
+        return "+inf" if value > 0 else "-inf"
+    return value.hex()
+
+
+def _same_stream_value(left: float, right: float) -> bool:
+    if math.isnan(left) or math.isnan(right):
+        return math.isnan(left) and math.isnan(right)
+    if math.isinf(left) or math.isinf(right):
+        return False
+    return abs(left - right) <= _ALPHA101_ABS_TOL + _ALPHA101_REL_TOL * abs(right)
+
+
+def _validate_alpha101_stream_witnesses(
+    factor_pairs: Mapping[str, Mapping[str, Any]],
+    extra_fields: Mapping[str, Mapping[str, Any]],
+    expected_points: int,
+    expected_evaluation_points: int,
+) -> None:
+    """Fail closed when the stream has no qualified factor/field witnesses."""
+
+    for alpha_id in _ALPHA101_REQUIRED_OUTPUT_WITNESS_IDS:
+        stats = factor_pairs.get(str(alpha_id))
+        _require(stats is not None, "missing required Alpha%d output witness" % alpha_id)
+        _require(
+            stats["output_available_witnesses"] > 0 and stats["finite_witnesses"] > 0,
+            "Alpha%d has no finite OUTPUT_AVAILABLE witness" % alpha_id,
+        )
+        _require(
+            stats["evaluation_available_finite_witnesses"] > 0,
+            "Alpha%d has no evaluation OUTPUT_AVAILABLE witness" % alpha_id,
+        )
+        _require(
+            stats["pit_qualified_evaluation_points"] == expected_evaluation_points,
+            "Alpha%d lacks complete PIT-qualified evaluation witnesses" % alpha_id,
+        )
+
+    for field_name, alpha_id in _ALPHA101_EXTRA_WITNESS_FACTORS.items():
+        stats = extra_fields.get(field_name)
+        _require(stats is not None, "missing extra-field witness record: " + field_name)
+        expected_sources = sorted(_alpha101_source_ref(target, field_name) for target in _TARGETS)
+        _require(
+            stats["values_checked"] == expected_points
+            and stats["finite_witnesses"] == expected_points,
+            "extra field lacks a finite streamed witness for every member: " + field_name,
+        )
+        _require(
+            stats["pit_qualified_witnesses"] == expected_evaluation_points
+            and stats["unit"] == _FIELD_PIT_UNITS[field_name]
+            and stats["source_refs"] == expected_sources
+            and all(
+                stats[key]
+                for key in (
+                    "first_effective_at",
+                    "last_effective_at",
+                    "first_available_at",
+                    "last_available_at",
+                    "first_valid_until",
+                    "last_valid_until",
+                    "first_evaluated_at",
+                    "last_evaluated_at",
+                )
+            ),
+            "extra field lacks PIT provenance witnesses: " + field_name,
+        )
+        factor_stats = factor_pairs.get(str(alpha_id), {})
+        _require(
+            factor_stats.get("output_available_witnesses", 0) > 0,
+            "extra field representative Alpha%d has no available output" % alpha_id,
+        )
+        if field_name in {"vwap", "dollar_volume"}:
+            _require(
+                stats["distinct_from_ohlc_witnesses"] == expected_points,
+                "extra field is not independent on every fixture row: " + field_name,
+            )
+
+
+def _counter_add_bounded(counter: Counter, value: Any, limit: int = 32) -> None:
+    key = _enum_text(value)
+    if len(key) > 128:
+        key = key[:128]
+    if key in counter or len(counter) < limit:
+        counter[key] += 1
+    else:
+        counter["<other>"] += 1
+
+
 class _CaptureStrategy(bt.Strategy):
-    params = (("cohort", None), ("plan", None))
+    params = (
+        ("cohort", None),
+        ("plan", None),
+        ("profile", "alpha003"),
+        ("alpha_ids", ()),
+        ("warmup_required_bars", 0),
+        ("first_evaluation_close_time", None),
+    )
 
     def __init__(self) -> None:
         feeds = {data._name: data for data in self.datas}
         self.factor_set = LiveFactorSet.bind(self.p.plan, feeds, cohort=self.p.cohort)
         self.snapshots = []
+        self.last_snapshot = None
         self.order_callbacks = 0
         self.next_callbacks = 0
+        self._alpha_ids = tuple(self.p.alpha_ids)
+        self._alpha101_first_close_time = None
+        self._alpha101_last_close_time = None
+        self._alpha101_first_available_at = None
+        self._alpha101_last_available_at = None
+        self._alpha101_first_evaluation_close_time = None
+        self._alpha101_first_live_ready_close_time = None
+        self._alpha101_evaluation_batches = 0
+        self._alpha101_digest = hashlib.sha256()
+        self._alpha101_readiness_counts = Counter()
+        self._alpha101_factor_stats = {
+            alpha_id: {
+                "compared_points": 0,
+                "finite_witnesses": 0,
+                "available_finite_witnesses": 0,
+                "output_available_witnesses": 0,
+                "evaluation_available_finite_witnesses": 0,
+                "pit_qualified_evaluation_points": 0,
+                "first_finite_close_time": None,
+                "first_output_available_close_time": None,
+                "max_abs_diff": 0.0,
+                "status_counts": Counter(),
+                "reason_counts": Counter(),
+            }
+            for alpha_id in self._alpha_ids
+        }
+        self._extra_field_stats = {
+            field: {
+                "values_checked": 0,
+                "finite_witnesses": 0,
+                "minimum": None,
+                "maximum": None,
+                "distinct_from_ohlc_witnesses": 0,
+                "pit_qualified_witnesses": 0,
+                "unit": _FIELD_PIT_UNITS[field],
+                "source_refs": set(),
+                "first_effective_at": None,
+                "last_effective_at": None,
+                "first_available_at": None,
+                "last_available_at": None,
+                "first_valid_until": None,
+                "last_valid_until": None,
+                "first_evaluated_at": None,
+                "last_evaluated_at": None,
+            }
+            for field in _EXTRA_FIELDS
+        }
+        self._alpha101_provenance_stats = {
+            field: {
+                "row_count": 0,
+                "pit_qualified_rows": 0,
+                "status_counts": Counter(),
+                "unit_counts": Counter(),
+                "source_refs": set(),
+                "first_effective_at": None,
+                "last_effective_at": None,
+                "first_available_at": None,
+                "last_available_at": None,
+                "first_valid_until": None,
+                "last_valid_until": None,
+                "first_evaluated_at": None,
+                "last_evaluated_at": None,
+            }
+            for field in _FIELD_PIT_UNITS
+        }
+
+    def prenext(self) -> None:
+        if self.p.profile == "alpha101-stream":
+            self._capture_complete_batch()
 
     def notify_order(self, _order: Any) -> None:
         self.order_callbacks += 1
@@ -727,12 +1236,369 @@ class _CaptureStrategy(bt.Strategy):
         snapshot = self.factor_set.snapshot()
         _require(snapshot.batch_complete, "factor snapshot is not bound to a complete batch")
         _require(snapshot.close_time == batch.close_time, "factor snapshot close changed")
-        self.snapshots.append(snapshot)
+        if self.p.profile == "alpha101-stream":
+            _require(
+                snapshot.available_at == batch.available_at,
+                "factor snapshot availability differs from the complete cohort batch",
+            )
+        self.last_snapshot = snapshot
         self.next_callbacks += 1
+        if self.p.profile == "alpha101-stream":
+            self._capture_alpha101_stream(snapshot)
+        else:
+            self.snapshots.append(snapshot)
+
+    def _capture_alpha101_stream(self, snapshot: Any) -> None:
+        _require(self._alpha_ids, "full Alpha101 profile has no selected factor IDs")
+        _require(
+            type(self.p.warmup_required_bars) is int and self.p.warmup_required_bars > 0,
+            "full Alpha101 profile has no finite warmup boundary",
+        )
+        expected_names = {
+            "alpha%d_%s" % (alpha_id, mode)
+            for alpha_id in self._alpha_ids
+            for mode in ("native", "build")
+        }
+        _require(
+            set(snapshot.factors) == expected_names,
+            "full Alpha101 snapshot differs from its native/build factor set",
+        )
+        self._alpha101_readiness_counts[_enum_text(snapshot.readiness)] += 1
+        close_text = snapshot.close_time.isoformat()
+        available_text = snapshot.available_at.isoformat()
+        if self._alpha101_first_close_time is None:
+            self._alpha101_first_close_time = close_text
+            self._alpha101_first_available_at = available_text
+        self._alpha101_last_close_time = close_text
+        self._alpha101_last_available_at = available_text
+        if _enum_text(snapshot.readiness) == "LIVE_READY" and (
+            self._alpha101_first_live_ready_close_time is None
+        ):
+            self._alpha101_first_live_ready_close_time = close_text
+        evaluation_active = self.next_callbacks >= self.p.warmup_required_bars
+        if evaluation_active:
+            self._alpha101_evaluation_batches += 1
+        if self.next_callbacks == self.p.warmup_required_bars:
+            self._alpha101_first_evaluation_close_time = close_text
+            _require(
+                snapshot.close_time == self.p.first_evaluation_close_time,
+                "observed warmup/evaluation boundary differs from the finite calendar",
+            )
+        payload = [
+            close_text,
+            available_text,
+            _enum_text(snapshot.readiness),
+            list(snapshot.readiness_reasons),
+        ]
+
+        for field in _EXTRA_FIELDS:
+            stats = self._extra_field_stats[field]
+            for feed in self.datas:
+                value = float(getattr(feed, field)[0])
+                _require(math.isfinite(value), "installed extra feed line is not finite: " + field)
+                stats["values_checked"] += 1
+                stats["finite_witnesses"] += 1
+                stats["minimum"] = (
+                    value if stats["minimum"] is None else min(stats["minimum"], value)
+                )
+                stats["maximum"] = (
+                    value if stats["maximum"] is None else max(stats["maximum"], value)
+                )
+                if field == "vwap":
+                    ohlc_average = sum(float(getattr(feed, name)[0]) for name in _FIELDS[:4]) / 4.0
+                    if value != ohlc_average:
+                        stats["distinct_from_ohlc_witnesses"] += 1
+                elif field == "dollar_volume":
+                    derived = float(feed.vwap[0]) * float(feed.volume[0])
+                    if not math.isclose(value, derived, rel_tol=1e-9, abs_tol=1e-9):
+                        stats["distinct_from_ohlc_witnesses"] += 1
+
+        for alpha_id in self._alpha_ids:
+            native_name = "alpha%d_native" % alpha_id
+            build_name = "alpha%d_build" % alpha_id
+            native = snapshot.factors[native_name]
+            build = snapshot.factors[build_name]
+            _require(
+                native.mode == "native" and build.mode == "build", "factor mode binding changed"
+            )
+            _require(
+                native.pit_policy_complete is True and build.pit_policy_complete is True,
+                "factor is missing a declared field PIT policy",
+            )
+            _require(
+                native.pit_qualified == build.pit_qualified,
+                "native/build PIT qualification differs",
+            )
+            if evaluation_active:
+                _require(
+                    native.pit_qualified is True,
+                    "factor source fields are not PIT-qualified after its full history window",
+                )
+            stats = self._alpha101_factor_stats[alpha_id]
+            pair_payload = [alpha_id]
+            if evaluation_active and native.pit_qualified:
+                stats["pit_qualified_evaluation_points"] += len(_TARGETS)
+            for target in _TARGETS:
+                left = native.values[target]
+                right = build.values[target]
+                left_status = _enum_text(left.status)
+                right_status = _enum_text(right.status)
+                _require(left_status == right_status, "native/build output status differs")
+                _require(left.reason == right.reason, "native/build output reason differs")
+                _require(
+                    (left.present, left.complete, _enum_text(left.quality))
+                    == (right.present, right.complete, _enum_text(right.quality)),
+                    "native/build output receipt state differs",
+                )
+                _require(
+                    (
+                        left.source_role,
+                        left.member_id,
+                        left.source_ref,
+                        left.sequence,
+                        left.generation,
+                    )
+                    == (
+                        right.source_role,
+                        right.member_id,
+                        right.source_ref,
+                        right.sequence,
+                        right.generation,
+                    ),
+                    "native/build source receipt identity differs",
+                )
+                _require(
+                    left.field_provenance == right.field_provenance,
+                    "native/build field provenance differs",
+                )
+                left_value = float(left.value)
+                right_value = float(right.value)
+                _require(
+                    _same_stream_value(left_value, right_value),
+                    "native/build value exceeds the installed parity tolerance",
+                )
+                if math.isfinite(left_value) and math.isfinite(right_value):
+                    stats["finite_witnesses"] += 1
+                    if stats["first_finite_close_time"] is None:
+                        stats["first_finite_close_time"] = close_text
+                    stats["max_abs_diff"] = max(
+                        stats["max_abs_diff"], abs(left_value - right_value)
+                    )
+                if left_status == "OUTPUT_AVAILABLE":
+                    _require(
+                        math.isfinite(left_value) and math.isfinite(right_value),
+                        "OUTPUT_AVAILABLE factor output is not finite",
+                    )
+                    stats["output_available_witnesses"] += 1
+                    stats["available_finite_witnesses"] += 1
+                    if evaluation_active:
+                        stats["evaluation_available_finite_witnesses"] += 1
+                    if stats["first_output_available_close_time"] is None:
+                        stats["first_output_available_close_time"] = close_text
+                stats["compared_points"] += 1
+                stats["status_counts"][left_status] += 1
+                if left.reason is not None:
+                    _counter_add_bounded(stats["reason_counts"], left.reason)
+                else:
+                    stats["reason_counts"]["<none>"] += 1
+                pair_payload.append(
+                    [
+                        target,
+                        left_status,
+                        _enum_text(left.reason) if left.reason is not None else None,
+                        _float_token(left_value),
+                        _float_token(right_value),
+                        left.present,
+                        left.complete,
+                        _enum_text(left.quality),
+                        left.member_id,
+                        left.sequence,
+                        _enum_text(left.generation),
+                    ]
+                )
+            provenance_output = native.values[_TARGETS[0]]
+            _require(
+                set(provenance_output.field_provenance) == set(native.inputs),
+                "factor input provenance aliases differ from the bound field set",
+            )
+            for alias, rows in provenance_output.field_provenance.items():
+                _require(
+                    len(rows) == len(_TARGETS),
+                    "factor provenance omitted a live cohort member",
+                )
+                for row in rows:
+                    field_name = row.line_name
+                    _require(
+                        field_name in _FIELD_PIT_UNITS,
+                        "factor provenance refers to a field without a fixture unit",
+                    )
+                    expected_unit = (
+                        "USD"
+                        if alias.startswith("adv") and alias[3:].isdigit()
+                        else _FIELD_PIT_UNITS[field_name]
+                    )
+                    _require(
+                        row.unit == expected_unit and bool(row.source_ref),
+                        "factor provenance lacks the declared source unit",
+                    )
+                    _require(
+                        row.source_ref == _alpha101_source_ref(row.feed_name, field_name),
+                        "factor provenance source differs from the synthetic adapter contract",
+                    )
+                    _require(
+                        row.delivery_mode == "independent"
+                        and row.effective_at is not None
+                        and row.available_at is not None
+                        and row.valid_until is not None
+                        and row.evaluated_at is not None
+                        and row.revision is not None,
+                        "factor provenance omits its PIT observation fields",
+                    )
+                    _require(
+                        row.effective_at <= snapshot.close_time
+                        and row.available_at <= snapshot.available_at
+                        and row.valid_until >= snapshot.close_time
+                        and row.evaluated_at == snapshot.close_time
+                        and (snapshot.close_time - row.effective_at).total_seconds()
+                        <= _FIELD_PIT_MAX_AGE_SECONDS,
+                        "factor field observation falls outside its PIT policy boundary",
+                    )
+                    if evaluation_active:
+                        _require(
+                            row.status == "PIT_QUALIFIED",
+                            "field provenance is not PIT-qualified at evaluation time",
+                        )
+                    else:
+                        _require(
+                            row.status in {"WINDOW_UNQUALIFIED", "PIT_QUALIFIED"},
+                            "factor provenance has an unrecognized prewarm state",
+                        )
+                    provenance_stats = self._alpha101_provenance_stats[field_name]
+                    provenance_stats["row_count"] += 1
+                    provenance_stats["status_counts"][row.status] += 1
+                    provenance_stats["unit_counts"][row.unit] += 1
+                    if row.status == "PIT_QUALIFIED":
+                        provenance_stats["pit_qualified_rows"] += 1
+                    if len(provenance_stats["source_refs"]) < len(_TARGETS):
+                        provenance_stats["source_refs"].add(row.source_ref)
+                    for name, timestamp in (
+                        ("effective_at", row.effective_at),
+                        ("available_at", row.available_at),
+                        ("valid_until", row.valid_until),
+                        ("evaluated_at", row.evaluated_at),
+                    ):
+                        first_key = "first_" + name
+                        last_key = "last_" + name
+                        if provenance_stats[first_key] is None:
+                            provenance_stats[first_key] = timestamp.isoformat()
+                        provenance_stats[last_key] = timestamp.isoformat()
+
+                    if (
+                        alpha_id == _ALPHA101_EXTRA_WITNESS_FACTORS.get(field_name)
+                        and alias == field_name
+                    ):
+                        extra_stats = self._extra_field_stats[field_name]
+                        if len(extra_stats["source_refs"]) < len(_TARGETS):
+                            extra_stats["source_refs"].add(row.source_ref)
+                        for name, timestamp in (
+                            ("effective_at", row.effective_at),
+                            ("available_at", row.available_at),
+                            ("valid_until", row.valid_until),
+                            ("evaluated_at", row.evaluated_at),
+                        ):
+                            first_key = "first_" + name
+                            last_key = "last_" + name
+                            if extra_stats[first_key] is None:
+                                extra_stats[first_key] = timestamp.isoformat()
+                            extra_stats[last_key] = timestamp.isoformat()
+                        if evaluation_active and row.status == "PIT_QUALIFIED":
+                            extra_stats["pit_qualified_witnesses"] += 1
+            payload.append(pair_payload)
+
+        encoded = json.dumps(payload, sort_keys=True, separators=(",", ":"), allow_nan=False)
+        self._alpha101_digest.update(encoded.encode("utf-8"))
+        self._alpha101_digest.update(b"\n")
+
+    def alpha101_stream_report(self) -> Dict[str, Any]:
+        _require(
+            self.p.profile == "alpha101-stream", "Alpha101 report requested for another profile"
+        )
+        return {
+            "stream_callbacks": self.next_callbacks,
+            "same_stream_pair_sha256": self._alpha101_digest.hexdigest(),
+            "global_readiness_counts": dict(sorted(self._alpha101_readiness_counts.items())),
+            "stream_boundaries": {
+                "first_close_time": self._alpha101_first_close_time,
+                "last_close_time": self._alpha101_last_close_time,
+                "first_available_at": self._alpha101_first_available_at,
+                "last_available_at": self._alpha101_last_available_at,
+            },
+            "evaluation_boundary": {
+                "configured_warmup_min_bars": self.p.plan.warmup_min_bars,
+                "graph_required_bars": self.p.warmup_required_bars,
+                "observed_first_evaluation_close_time": self._alpha101_first_evaluation_close_time,
+                "first_live_ready_close_time": self._alpha101_first_live_ready_close_time,
+                "evaluation_batches": self._alpha101_evaluation_batches,
+            },
+            "factor_count": len(self._alpha101_factor_stats),
+            "factor_pairs": {
+                str(alpha_id): {
+                    "compared_points": stats["compared_points"],
+                    "finite_witnesses": stats["finite_witnesses"],
+                    "available_finite_witnesses": stats["available_finite_witnesses"],
+                    "output_available_witnesses": stats["output_available_witnesses"],
+                    "evaluation_available_finite_witnesses": stats[
+                        "evaluation_available_finite_witnesses"
+                    ],
+                    "pit_qualified_evaluation_points": stats["pit_qualified_evaluation_points"],
+                    "first_finite_close_time": stats["first_finite_close_time"],
+                    "first_output_available_close_time": stats["first_output_available_close_time"],
+                    "max_abs_diff": stats["max_abs_diff"],
+                    "status_counts": dict(sorted(stats["status_counts"].items())),
+                    "reason_counts": dict(sorted(stats["reason_counts"].items())),
+                }
+                for alpha_id, stats in self._alpha101_factor_stats.items()
+            },
+            "extra_field_witnesses": {
+                field: {
+                    **{name: value for name, value in stats.items() if name != "source_refs"},
+                    "source_refs": sorted(stats["source_refs"]),
+                    "pit_qualified_witnesses": stats["pit_qualified_witnesses"],
+                }
+                for field, stats in self._extra_field_stats.items()
+            },
+            "field_provenance": {
+                field: {
+                    "row_count": stats["row_count"],
+                    "pit_qualified_rows": stats["pit_qualified_rows"],
+                    "status_counts": dict(sorted(stats["status_counts"].items())),
+                    "unit_counts": dict(sorted(stats["unit_counts"].items())),
+                    "source_refs": sorted(stats["source_refs"]),
+                    "first_effective_at": stats["first_effective_at"],
+                    "last_effective_at": stats["last_effective_at"],
+                    "first_available_at": stats["first_available_at"],
+                    "last_available_at": stats["last_available_at"],
+                    "first_valid_until": stats["first_valid_until"],
+                    "last_valid_until": stats["last_valid_until"],
+                    "first_evaluated_at": stats["first_evaluated_at"],
+                    "last_evaluated_at": stats["last_evaluated_at"],
+                }
+                for field, stats in self._alpha101_provenance_stats.items()
+            },
+            "synthetic_field_contracts_only": True,
+        }
 
 
-def _run_read_only_mode(mode: str) -> Dict[str, Any]:
-    bars, calendar = _fixture_bars()
+def _run_live_mode(mode: str, *, profile: str = "alpha003") -> Dict[str, Any]:
+    is_alpha101 = profile == "alpha101-stream"
+    _require(profile in {"alpha003", "alpha101-stream"}, "unknown installed stream profile")
+    slot_count = _ALPHA101_SLOT_COUNT if is_alpha101 else _SLOT_COUNT
+    alpha_ids = tuple(range(1, 102)) if is_alpha101 else ()
+    bars, calendar = _fixture_bars(
+        slot_count,
+        include_extra_fields=is_alpha101,
+        varied_stream=is_alpha101,
+    )
     clock = _ReplayClock(calendar.slots[0].close_time)
     provider = _ProviderLeaf(bars)
     store = BtApiStore(provider="btapi", api=provider, preserve_raw_bars=True)
@@ -744,10 +1610,10 @@ def _run_read_only_mode(mode: str) -> Dict[str, Any]:
     _require(isinstance(broker, BtApiBroker), "Store did not create the production BtApiBroker")
 
     cohort = LiveBarCohort(
-        "iteration50-installed-alpha003",
+        "iteration50-installed-alpha101" if is_alpha101 else "iteration50-installed-alpha003",
         calendar,
         max_pending_slots=2,
-        max_window_bars=_SLOT_COUNT,
+        max_window_bars=slot_count,
         wait_timeout_ns=2_000_000_000,
     )
     cerebro = bt.Cerebro(stdstats=False, exactbars=0, preload=False, runonce=False)
@@ -768,21 +1634,42 @@ def _run_read_only_mode(mode: str) -> Dict[str, Any]:
         _require(type(feed) is BtApiFeed, "Store did not create the production BtApiFeed")
         feeds[target] = feed
         cerebro.adddata(feed, name=target)
+        declared_fields = _FIELDS + (_EXTRA_FIELDS if is_alpha101 else ())
         cohort.register_member(
             "member-" + target,
             feed,
             instrument=target,
             source_ref="store-feed-" + target,
-            line_fields=_FIELDS,
-            raw_fields=_FIELDS,
-            numeric_fields=_FIELDS,
+            line_fields=declared_fields,
+            raw_fields=declared_fields,
+            numeric_fields=declared_fields,
+            field_contracts=(
+                {
+                    field_name: LiveFieldContract(
+                        source_ref=_alpha101_source_ref(target, field_name),
+                        unit=unit,
+                        delivery_mode="independent",
+                    )
+                    for field_name, unit in _FIELD_PIT_UNITS.items()
+                }
+                if is_alpha101
+                else None
+            ),
         )
 
-    plan = LiveFactorPlan(
-        plan_id="iteration50-installed-alpha003-" + mode,
-        targets=_TARGETS,
-        groups=dict.fromkeys(_TARGETS, "portfolio"),
-        factors={
+    if is_alpha101:
+        factors = _alpha101_factor_specs()
+        warmup_min_bars = 30
+        graph_required_bars = max(int(spec.lookback_h) + 1 for spec in factors.values())
+        warmup_required_bars = max(warmup_min_bars, graph_required_bars)
+        _require(
+            warmup_required_bars <= slot_count,
+            "finite fixture calendar does not cover the Alpha101 evaluation boundary",
+        )
+        first_evaluation_close_time = calendar.slots[warmup_required_bars - 1].close_time
+        plan_id = "iteration50-installed-alpha101-native-build"
+    else:
+        factors = {
             "alpha003": FactorSpec(
                 name="alpha003",
                 indicator=get_alpha(3),
@@ -793,24 +1680,45 @@ def _run_read_only_mode(mode: str) -> Dict[str, Any]:
                     "volume": "feed:target:volume",
                 },
             )
-        },
+        }
+        warmup_min_bars = 10
+        warmup_required_bars = 0
+        first_evaluation_close_time = None
+        plan_id = "iteration50-installed-alpha003-" + mode
+
+    plan = LiveFactorPlan(
+        plan_id=plan_id,
+        targets=_TARGETS,
+        groups=dict.fromkeys(_TARGETS, "portfolio"),
+        factors=factors,
         calendar_id=calendar.calendar_id,
         frequency=calendar.frequency,
-        warmup_min_bars=10,
+        warmup_min_bars=warmup_min_bars,
         max_pending_slots=cohort.max_pending_slots,
-        max_window_bars=_SLOT_COUNT,
+        max_window_bars=slot_count,
         wait_timeout_ns=cohort.wait_timeout_ns,
         max_live_bar_age_seconds=60.0,
         max_future_skew_seconds=0.0,
     )
     cerebro.add_live_bar_cohort(cohort, clock=clock)
-    cerebro.addstrategy(_CaptureStrategy, cohort=cohort, plan=plan)
+    cerebro.addstrategy(
+        _CaptureStrategy,
+        cohort=cohort,
+        plan=plan,
+        profile=profile,
+        alpha_ids=alpha_ids,
+        warmup_required_bars=warmup_required_bars,
+        first_evaluation_close_time=first_evaluation_close_time,
+    )
 
     strategies = cerebro.run()
     _require(len(strategies) == 1, "Cerebro did not run exactly one ordinary Strategy")
     strategy = strategies[0]
     _require(strategy.next_callbacks > 0, "ordinary Strategy received no complete live batch")
-    _require(strategy.snapshots, "ordinary Strategy captured no factor snapshots")
+    _require(
+        strategy.last_snapshot is not None,
+        "ordinary Strategy captured no complete factor snapshot",
+    )
     _require(strategy.order_callbacks == 0, "NOOP strategy unexpectedly received an order callback")
     _require(
         not provider.connected,
@@ -825,8 +1733,84 @@ def _run_read_only_mode(mode: str) -> Dict[str, Any]:
         "the finite provider fixture left unconsumed bars",
     )
 
-    snapshot = strategy.snapshots[-1]
+    snapshot = strategy.last_snapshot
     _require(snapshot.batch_complete, "final Alpha003 snapshot has no complete batch")
+    if is_alpha101:
+        _require(
+            strategy.next_callbacks == slot_count,
+            "full Alpha101 profile did not capture every complete streamed batch",
+        )
+        summary = strategy.alpha101_stream_report()
+        expected_points = strategy.next_callbacks * len(_TARGETS)
+        expected_evaluation_batches = slot_count - warmup_required_bars + 1
+        expected_evaluation_points = expected_evaluation_batches * len(_TARGETS)
+        _require(
+            summary["factor_count"] == 101,
+            "installed profile omitted an Alpha101 factor pair",
+        )
+        _require(
+            summary["stream_boundaries"]
+            == {
+                "first_close_time": calendar.slots[0].close_time.isoformat(),
+                "last_close_time": calendar.slots[-1].close_time.isoformat(),
+                "first_available_at": calendar.slots[0].close_time.isoformat(),
+                "last_available_at": calendar.slots[-1].close_time.isoformat(),
+            },
+            "stream summary does not cover the finite calendar boundaries",
+        )
+        _require(
+            summary["evaluation_boundary"]["observed_first_evaluation_close_time"]
+            == first_evaluation_close_time.isoformat()
+            and summary["evaluation_boundary"]["evaluation_batches"] == expected_evaluation_batches,
+            "stream summary does not prove the exact warmup/evaluation boundary",
+        )
+        _require(
+            summary["evaluation_boundary"]["first_live_ready_close_time"] is not None,
+            "no LIVE_READY witness occurred in the finite stream",
+        )
+        for alpha_id, stats in summary["factor_pairs"].items():
+            _require(
+                stats["compared_points"] == expected_points,
+                "native/build comparison omitted streamed targets for Alpha%d" % int(alpha_id),
+            )
+            _require(
+                stats["pit_qualified_evaluation_points"] == expected_evaluation_points,
+                "Alpha%d lacks complete PIT-qualified evaluation points" % int(alpha_id),
+            )
+        for field, stats in summary["extra_field_witnesses"].items():
+            _require(
+                stats["values_checked"] == expected_points,
+                "extra field was not checked on every live target batch: " + field,
+            )
+        _validate_alpha101_stream_witnesses(
+            summary["factor_pairs"],
+            summary["extra_field_witnesses"],
+            expected_points,
+            expected_evaluation_points,
+        )
+        _validate_alpha101_field_provenance(summary["field_provenance"], expected_evaluation_points)
+        _require(
+            summary["extra_field_witnesses"]["vwap"]["distinct_from_ohlc_witnesses"]
+            == expected_points,
+            "VWAP fixture was not independent of OHLC on every row",
+        )
+        _require(
+            summary["extra_field_witnesses"]["dollar_volume"]["distinct_from_ohlc_witnesses"]
+            == expected_points,
+            "dollar-volume fixture was not independent of VWAP times volume",
+        )
+        return {
+            "mode": "native-build-paired",
+            "batch_complete": snapshot.batch_complete,
+            "close_time": snapshot.close_time.isoformat(),
+            "target_count": len(_TARGETS),
+            "factor_count": summary["factor_count"],
+            "order_callbacks": strategy.order_callbacks,
+            "provider_calls": dict(sorted(provider.calls.items())),
+            "provider_subscriptions": sorted(provider.subscriptions),
+            "stream": summary,
+        }
+
     _require(
         str(getattr(snapshot.readiness, "value", snapshot.readiness)) == "LIVE_READY",
         "final Alpha003 factor graph did not reach LIVE_READY",
@@ -870,6 +1854,14 @@ def _run_read_only_mode(mode: str) -> Dict[str, Any]:
     }
 
 
+def _run_read_only_mode(mode: str) -> Dict[str, Any]:
+    return _run_live_mode(mode, profile="alpha003")
+
+
+def _run_alpha101_stream_profile() -> Dict[str, Any]:
+    return _run_live_mode("native-build-paired", profile="alpha101-stream")
+
+
 def main(argv: Optional[Sequence[str]] = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -882,7 +1874,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     )
     parser.add_argument(
         "--profile",
-        choices=("read-only",),
+        choices=("read-only", "alpha101-stream"),
         default="read-only",
         help="select the installed acceptance profile",
     )
@@ -893,20 +1885,33 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         help="run one production Alpha003 binding or compare both modes",
     )
     args = parser.parse_args(argv)
+    if args.profile == "alpha101-stream" and args.factor_mode != "both":
+        parser.error("alpha101-stream requires --factor-mode both for same-stream comparison")
+    if not sys.flags.isolated:
+        raise RuntimeError("installed profile must run under the isolated Python -I child")
 
     installed_identity, binding = _verify_installed_distribution(args.wheel, args.wheel_sha256)
-    requested = ("native", "build") if args.factor_mode == "both" else (args.factor_mode,)
-    results = []
-    for mode in requested:
-        results.append(_run_read_only_mode(mode))
+    if args.profile == "alpha101-stream":
+        results = [_run_alpha101_stream_profile()]
         binding["loaded_modules"] = _snapshot_loaded_package_modules(
             binding["install_root"],
             binding["record_hashes"],
             binding["wheel_payload_hashes"],
             previous=binding["loaded_modules"],
         )
+    else:
+        requested = ("native", "build") if args.factor_mode == "both" else (args.factor_mode,)
+        results = []
+        for mode in requested:
+            results.append(_run_read_only_mode(mode))
+            binding["loaded_modules"] = _snapshot_loaded_package_modules(
+                binding["install_root"],
+                binding["record_hashes"],
+                binding["wheel_payload_hashes"],
+                previous=binding["loaded_modules"],
+            )
     installed_identity["loaded_package_modules_verified"] = len(binding["loaded_modules"])
-    if len(results) == 2:
+    if args.profile == "read-only" and len(results) == 2:
         native, build = results
         for target in _TARGETS:
             _require(
@@ -921,6 +1926,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                 "status": "PASS_INSTALLED_WHEEL_PUBLIC_FIXTURE",
                 "evidence_level": "INSTALLED_WHEEL_PUBLIC_FIXTURE_ONLY",
                 "profile": args.profile,
+                "execution_environment": _EXECUTION_ENVIRONMENT,
                 "isolated_bytecode_cache": {
                     "fresh_isolated_cache_before_backtrader_import": (
                         _ISOLATED_BYTECODE_CACHE_PREFIX is not None
