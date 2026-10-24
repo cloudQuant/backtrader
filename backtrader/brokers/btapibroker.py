@@ -1614,7 +1614,41 @@ class BtApiBroker(BrokerBase):
                 self.store.is_connected
                 and getattr(self.store, "_cerebro_managed_lifecycle", True) is not False
             ):
-                return self.store.stop()
+                try:
+                    store_result = self.store.stop()
+                except Exception:
+                    self._shutdown_summary = {
+                        "status": "FAIL",
+                        "store_shutdown_state": "UNPROVEN",
+                        "flat_proven": False,
+                        "live_winddown_started": False,
+                        "reason": "store_shutdown_failed",
+                    }
+                    raise
+                store_state = (
+                    store_result.get("shutdown_state")
+                    if isinstance(store_result, Mapping)
+                    else None
+                )
+                if store_state == "PASS":
+                    status = "PASS"
+                    reason = "store_shutdown_complete"
+                elif store_state == "FAIL":
+                    status = "FAIL"
+                    reason = "store_shutdown_failed"
+                else:
+                    status = "INCOMPLETE"
+                    reason = "store_shutdown_incomplete"
+                self._shutdown_summary = {
+                    "status": status,
+                    "store_shutdown_state": store_state or "UNPROVEN",
+                    "flat_proven": False,
+                    "live_winddown_started": False,
+                    "reason": reason,
+                }
+                # Preserve the historical stop() return value; the Broker's
+                # public summary separately records what the Store proved.
+                return store_result
             return None
 
         timeout = max(float(self.p.shutdown_timeout or 0.0), 0.0)
@@ -2012,19 +2046,83 @@ class BtApiBroker(BrokerBase):
         if not isinstance(health, dict) or health.get("evidence_complete") is not True:
             return None
         aliases = set(self._symbol_aliases(data_name))
+        identity_fields = {
+            "instrument_id": ("instrument_id", "InstrumentID"),
+            "exchange_id": ("exchange_id", "ExchangeID"),
+        }
+        configured_identities = []
+        for key, metadata in self._contract_metadata.items():
+            if key == "__broker__" or not aliases.intersection(self._symbol_aliases(key)):
+                continue
+            if not isinstance(metadata, Mapping):
+                return None
+            has_instrument = any(name in metadata for name in identity_fields["instrument_id"])
+            has_exchange = any(name in metadata for name in identity_fields["exchange_id"])
+            if not has_instrument and not has_exchange:
+                continue
+            identity = []
+            for field in ("instrument_id", "exchange_id"):
+                supplied = [metadata[name] for name in identity_fields[field] if name in metadata]
+                if not supplied or any(
+                    not isinstance(value, str) or not value.strip() for value in supplied
+                ):
+                    return None
+                normalized = {value.strip() for value in supplied}
+                if len(normalized) != 1:
+                    return None
+                identity.append(normalized.pop())
+            configured_identities.append(tuple(identity))
+        expected_identity = None
+        if configured_identities:
+            if len(set(configured_identities)) != 1:
+                return None
+            expected_identity = configured_identities[0]
+
         snapshot_instrument = str(health.get("instrument_id") or "").strip()
-        if snapshot_instrument and not aliases.intersection(
+        snapshot_exchange = str(health.get("exchange_id") or "").strip()
+        if expected_identity is not None:
+            if (snapshot_instrument or snapshot_exchange) and (
+                snapshot_instrument,
+                snapshot_exchange,
+            ) != expected_identity:
+                return None
+        elif snapshot_instrument and not aliases.intersection(
             self._symbol_aliases(snapshot_instrument)
         ):
             return None
         rows = health.get("instruments")
         if not isinstance(rows, list):
             return None
+        exact_matches = []
         for row in rows:
             if not isinstance(row, dict):
                 continue
             instrument = row.get("instrument_id") or row.get("InstrumentID")
             exchange = row.get("exchange_id") or row.get("ExchangeID")
+            if expected_identity is not None:
+                supplied_instruments = [
+                    row[name]
+                    for name in ("instrument_id", "InstrumentID")
+                    if name in row and row[name] not in (None, "")
+                ]
+                supplied_exchanges = [
+                    row[name]
+                    for name in ("exchange_id", "ExchangeID")
+                    if name in row and row[name] not in (None, "")
+                ]
+                if (
+                    not supplied_instruments
+                    or not supplied_exchanges
+                    or any(not isinstance(value, str) for value in supplied_instruments)
+                    or any(not isinstance(value, str) for value in supplied_exchanges)
+                    or len({value.strip() for value in supplied_instruments}) != 1
+                    or len({value.strip() for value in supplied_exchanges}) != 1
+                    or supplied_instruments[0].strip() != expected_identity[0]
+                    or supplied_exchanges[0].strip() != expected_identity[1]
+                ):
+                    continue
+                exact_matches.append(row)
+                continue
             candidates = set(self._symbol_aliases(instrument))
             if instrument and exchange:
                 candidates.update(self._symbol_aliases(f"{exchange}.{instrument}"))
@@ -2037,7 +2135,14 @@ class BtApiBroker(BrokerBase):
             if isinstance(raw_trading, str):
                 trading = raw_trading.strip().lower() in {"1", "true", "yes"}
             return row if trading else None
-        return None
+        if len(exact_matches) != 1:
+            return None
+        row = exact_matches[0]
+        raw_trading = row.get("is_trading", row.get("IsTrading"))
+        trading = raw_trading is True or (type(raw_trading) in {int, float} and raw_trading == 1)
+        if isinstance(raw_trading, str):
+            trading = raw_trading.strip().lower() in {"1", "true", "yes"}
+        return row if trading else None
 
     def _ctp_shutdown_limit_price(self, data, is_buy):
         """Return a fresh opponent-price close limit protected by at most one tick."""

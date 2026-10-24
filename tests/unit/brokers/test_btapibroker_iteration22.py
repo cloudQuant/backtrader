@@ -655,6 +655,165 @@ def test_strict_ctp_broker_rejects_non_tradable_instrument_evidence():
     finally:
         broker.stop()
         store.stop()
+def test_ctp_instrument_lookup_uses_exact_configured_route_identity():
+    broker = BtApiBroker(
+        contract_metadata={
+            "DCE.Y": {"instrument_id": "Y2612", "exchange_id": "DCE"},
+        }
+    )
+    expected = {"InstrumentID": "Y2612", "ExchangeID": "DCE", "IsTrading": 1}
+    health = {
+        "evidence_complete": True,
+        "instrument_id": "",
+        "exchange_id": "",
+        "instruments": [
+            {"InstrumentID": "Y2612", "ExchangeID": "CZCE", "IsTrading": 1},
+            {"InstrumentID": "M2612", "ExchangeID": "DCE", "IsTrading": 1},
+            expected,
+        ],
+    }
+
+    assert broker._current_ctp_instrument_row(health, "DCE.Y") is expected
+
+
+@pytest.mark.parametrize(
+    ("metadata", "health", "expected"),
+    [
+        (
+            {"DCE.Y": {"instrument_id": "Y2612", "exchange_id": "DCE"}},
+            {
+                "evidence_complete": True,
+                "instrument_id": "Y2612",
+                "exchange_id": "CZCE",
+                "instruments": [{"InstrumentID": "Y2612", "ExchangeID": "DCE", "IsTrading": 1}],
+            },
+            None,
+        ),
+        (
+            {"DCE.Y": {"instrument_id": "Y2612", "exchange_id": "DCE"}},
+            {
+                "evidence_complete": True,
+                "instrument_id": "",
+                "exchange_id": "",
+                "instruments": [
+                    {"InstrumentID": "Y2612", "ExchangeID": "DCE", "IsTrading": 1},
+                    {"InstrumentID": "Y2612", "ExchangeID": "DCE", "IsTrading": 1},
+                ],
+            },
+            None,
+        ),
+        (
+            {
+                "DCE.Y": {"instrument_id": "Y2612", "exchange_id": "DCE"},
+                "Y": {"instrument_id": "Y2613", "exchange_id": "DCE"},
+            },
+            {
+                "evidence_complete": True,
+                "instrument_id": "",
+                "exchange_id": "",
+                "instruments": [{"InstrumentID": "Y2612", "ExchangeID": "DCE", "IsTrading": 1}],
+            },
+            None,
+        ),
+    ],
+)
+def test_ctp_instrument_lookup_fails_closed_on_scope_or_binding_ambiguity(
+    metadata, health, expected
+):
+    broker = BtApiBroker(contract_metadata=metadata)
+
+    assert broker._current_ctp_instrument_row(health, "DCE.Y") is expected
+
+
+def test_ctp_instrument_lookup_keeps_legacy_alias_matching_without_binding():
+    broker = BtApiBroker()
+    row = {"InstrumentID": "Y", "ExchangeID": "DCE", "IsTrading": 1}
+    health = {
+        "evidence_complete": True,
+        "instrument_id": "",
+        "exchange_id": "",
+        "instruments": [row],
+    }
+
+    assert broker._current_ctp_instrument_row(health, "DCE.Y") is row
+
+
+def test_ctp_instrument_lookup_rejects_empty_exact_binding_instead_of_alias_fallback():
+    broker = BtApiBroker(contract_metadata={"DCE.Y": {"instrument_id": "", "exchange_id": "DCE"}})
+    health = {
+        "evidence_complete": True,
+        "instrument_id": "",
+        "exchange_id": "",
+        "instruments": [{"InstrumentID": "Y", "ExchangeID": "DCE", "IsTrading": 1}],
+    }
+
+    assert broker._current_ctp_instrument_row(health, "DCE.Y") is None
+
+
+def test_ctp_instrument_lookup_rejects_non_mapping_exact_binding():
+    broker = BtApiBroker()
+    broker._contract_metadata["DCE.Y"] = "malformed metadata"
+    health = {
+        "evidence_complete": True,
+        "instrument_id": "",
+        "exchange_id": "",
+        "instruments": [{"InstrumentID": "Y", "ExchangeID": "DCE", "IsTrading": 1}],
+    }
+
+    assert broker._current_ctp_instrument_row(health, "DCE.Y") is None
+
+
+@pytest.mark.parametrize(
+    ("store_result", "expected_status", "expected_store_state"),
+    [
+        ({"shutdown_state": "PASS"}, "PASS", "PASS"),
+        ({"shutdown_state": "FAIL"}, "FAIL", "FAIL"),
+        ({"shutdown_state": "INCOMPLETE"}, "INCOMPLETE", "INCOMPLETE"),
+        ({"shutdown_state": "NOT_STARTED"}, "INCOMPLETE", "NOT_STARTED"),
+        ({}, "INCOMPLETE", "UNPROVEN"),
+        (None, "INCOMPLETE", "UNPROVEN"),
+    ],
+)
+def test_unstarted_broker_projects_only_explicit_store_shutdown_evidence(
+    store_result, expected_status, expected_store_state
+):
+    store = SimpleNamespace(
+        uses_async_commands=False,
+        is_connected=True,
+        _cerebro_managed_lifecycle=True,
+        stop=lambda: store_result,
+    )
+    broker = BtApiBroker(store=store)
+
+    # Keep the historical stop() return contract while exposing a separate
+    # truthful Broker shutdown summary for callers that inspect it.
+    assert broker.stop() is store_result
+    summary = broker.get_shutdown_summary()
+    assert summary["status"] == expected_status
+    assert summary["store_shutdown_state"] == expected_store_state
+    assert summary["flat_proven"] is False
+    assert summary["live_winddown_started"] is False
+
+
+def test_unstarted_broker_records_store_stop_exception_as_failure():
+    def fail_stop():
+        raise RuntimeError("synthetic store stop failure")
+
+    store = SimpleNamespace(
+        uses_async_commands=False,
+        is_connected=True,
+        _cerebro_managed_lifecycle=True,
+        stop=fail_stop,
+    )
+    broker = BtApiBroker(store=store)
+
+    with pytest.raises(RuntimeError, match="synthetic store stop failure"):
+        broker.stop()
+
+    summary = broker.get_shutdown_summary()
+    assert summary["status"] == "FAIL"
+    assert summary["store_shutdown_state"] == "UNPROVEN"
+    assert summary["flat_proven"] is False
 
 
 @pytest.mark.parametrize(
