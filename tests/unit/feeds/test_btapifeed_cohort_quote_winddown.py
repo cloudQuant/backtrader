@@ -432,6 +432,41 @@ def test_quote_only_winddown_freezes_on_stale_or_gapped_source_tick(monkeypatch)
     assert strategy.indicator.calls == strategy.final_snapshot["indicator_calls"] == 1
 
 
+def test_quote_only_poll_failure_freezes_and_preserves_source_exception(monkeypatch):
+    cerebro, cohort, feeds, clock, store, _broker = _build_run(monkeypatch, count_budget=1)
+    poll_error = OSError("sentinel quote poll failure")
+    poll_calls = []
+    original_poll = store.poll_tick
+
+    def poll_with_winddown_failure(symbol):
+        poll_calls.append(symbol)
+        strategy = QuoteWinddownStrategy.instances[-1] if QuoteWinddownStrategy.instances else None
+        if strategy is not None and strategy.seeded:
+            raise poll_error
+        return original_poll(symbol)
+
+    monkeypatch.setattr(store, "poll_tick", poll_with_winddown_failure)
+
+    with pytest.raises(OSError) as raised:
+        cerebro.run()
+
+    assert raised.value is poll_error
+    assert cohort.frozen is True
+    assert cohort._frozen_reason == "winddown_quote_poll_failed"
+    strategy = QuoteWinddownStrategy.instances[-1]
+    assert strategy.seeded is True
+    assert strategy.final_snapshot is not None
+    assert [tick.symbol for tick in strategy.ticks] == []
+    assert tuple(len(feed) for feed in feeds) == strategy.final_snapshot["lengths"] == (1, 1)
+    assert strategy.indicator.calls == strategy.final_snapshot["indicator_calls"] == 1
+
+    attempts_at_failure = len(poll_calls)
+    deadline_ns = clock.monotonic_ns() + 1_000_000
+    for feed in feeds:
+        assert feed._cohort_drain_winddown_quotes(limit=1, deadline_ns=deadline_ns) == 0
+    assert len(poll_calls) == attempts_at_failure
+
+
 def test_quote_only_scope_change_keeps_quote_ineligible_without_flushing_bars(monkeypatch):
     cerebro, _cohort, feeds, _clock, _store, _broker = _build_run(
         monkeypatch,

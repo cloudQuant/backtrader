@@ -693,12 +693,16 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
             stale,
         )
 
-    def _freeze_cohort_source(self, reason, message):
-        """Freeze this epoch before an unsafe source event can be captured."""
+    def _freeze_cohort_source_state(self, reason):
+        """Freeze this epoch without replacing the active source exception."""
         cohort = self._live_bar_cohort
         if cohort is not None:
             cohort._freeze(reason)
             self._cohort_delivery_failed = True
+
+    def _freeze_cohort_source(self, reason, message):
+        """Freeze this epoch before an unsafe source event can be captured."""
+        self._freeze_cohort_source_state(reason)
         from ..research.live_cohort import LiveCohortFrozenError
 
         raise LiveCohortFrozenError(message)
@@ -1705,7 +1709,15 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
                 break
             bar_sequence_before = self._bar_sequence
             queued_bars_before = len(self._live)
-            tick = self.store.poll_tick(self._dataname)
+            try:
+                tick = self.store.poll_tick(self._dataname)
+            except Exception:
+                if quote_only:
+                    # The cohort cannot be trusted after its bounded quote
+                    # source failed. Mark it frozen while preserving the
+                    # provider exception and traceback for the caller.
+                    self._freeze_cohort_source_state("winddown_quote_poll_failed")
+                raise
             self._check_cohort_stream_health()
             if tick is None:
                 break
