@@ -175,6 +175,11 @@ class FactorExecutionPositionFacts:
     # and matching durable opening-fill evidence; callers must never split a
     # net position into today/history quantities themselves.
     dated_inventory_rows: Tuple["FactorExecutionDatedInventoryRow", ...] = ()
+    # Preserve the exact Book result that contributed a position blocker so
+    # cancellation can distinguish its active-order reservation from unrelated
+    # position uncertainty.  These fields never make retirement or CLOSE ready.
+    position_book_status: Optional[str] = None
+    position_book_blocker_code: Optional[str] = None
 
 
 @dataclass(frozen=True)
@@ -404,6 +409,13 @@ class FactorExecutionInstrumentFacts:
 
 @dataclass(frozen=True)
 class FactorExecutionRouteFacts:
+    """Readiness of one configured route for strategy planning.
+
+    ``eligible`` is a source-backed planning/readiness fact, not an active
+    native capability grant.  The current SDK grant is exposed separately by
+    the ``capability_*`` fields and is checked again at the outbound boundary.
+    """
+
     target_id: str
     instrument: str
     exchange: str
@@ -422,6 +434,14 @@ class FactorExecutionRouteFacts:
     connection_generation: Optional[int]
     trading_day: Optional[str]
     reason_codes: Tuple[str, ...]
+    sdk_frozen: Optional[bool] = None
+    arm_template_configured: Optional[bool] = None
+    arm_templates_configured: Optional[bool] = None
+    arm_api_available: Optional[bool] = None
+    current_session_account_fingerprint: Optional[str] = None
+    current_session_connection_generation: Optional[int] = None
+    current_session_trading_day: Optional[str] = None
+    current_session_trading_ready: Optional[bool] = None
 
 
 @dataclass(frozen=True)
@@ -450,11 +470,26 @@ class FactorExecutionFacts:
     def dated_inventory_rows(self) -> Tuple[FactorExecutionDatedInventoryRow, ...]:
         """Flatten the exact per-target CTP dated inventory source rows."""
 
-        return tuple(
-            row
-            for position in self.positions
-            for row in position.dated_inventory_rows
-        )
+        return tuple(row for position in self.positions for row in position.dated_inventory_rows)
+
+    @property
+    def read_only_reconciliation_blockers(self) -> Tuple[str, ...]:
+        """Return blockers for retiring a run from a read-only snapshot.
+
+        This is not order or risk permission. It proves only that the current
+        query/session, position, and order/trade projections are coherent; the
+        Strategy must still require its own flat-position and no-owned-order
+        conditions before retirement. Write permission, an arm template or
+        active grant, quotes, and capital inputs are deliberately irrelevant.
+        """
+
+        return _read_only_reconciliation_blockers(self)
+
+    @property
+    def read_only_reconciliation_ready(self) -> bool:
+        """Whether this immutable projection is complete for read-only retirement."""
+
+        return not self.read_only_reconciliation_blockers
 
     @property
     def risk_reduction_blockers(self) -> Tuple[str, ...]:
@@ -538,9 +573,12 @@ class FactorExecutionFacts:
     def order_cancel_blockers(self) -> Tuple[str, ...]:
         """Facts blockers relevant to cancelling a positively joined order.
 
-        Quote, current position attribution, hold age and capital projections do
-        not prove or disprove the remote/local order identity. All query,
-        route, dispatch, owner, and native-session blockers remain critical.
+        Quote, position attribution, hold age and capital projections do not
+        prove or disprove the remote/local order identity. Existing
+        position-only blocker classification is preserved. The Book's bare
+        ``INSTRUMENT_ORDER_UNRESOLVED`` reservation is ignored only when every
+        affected target has a complete, owned Broker/CTP order join in this
+        same projection.
         """
 
         ignored_prefixes = (
@@ -548,11 +586,7 @@ class FactorExecutionFacts:
             "consumed_stream_",
             "position_",
             "position_book_",
-            "broker_position",
-            "broker_ctp_position",
-            "opposing_position_",
-            "opposing_broker_position_",
-            "external_position_",
+            "broker_position_",
         )
         return tuple(
             code
@@ -560,6 +594,10 @@ class FactorExecutionFacts:
             if not _is_capital_blocker(code)
             and not _is_open_risk_only_blocker(code)
             and not code.startswith(ignored_prefixes)
+            and not (
+                code == "INSTRUMENT_ORDER_UNRESOLVED"
+                and _exact_owned_cancel_join_covers_book_blocker(self)
+            )
         )
 
     @property
@@ -603,6 +641,292 @@ class FactorExecutionFacts:
         )
 
 
+def _read_only_reconciliation_blockers(facts: FactorExecutionFacts) -> Tuple[str, ...]:
+    """Validate source identity and projections without requiring write facts."""
+
+    blockers = set()
+
+    def block(code: str) -> None:
+        blockers.add(code)
+
+    if (
+        type(facts.account_scope) is not str
+        or not facts.account_scope
+        or facts.account_scope != facts.account_scope.strip()
+    ):
+        block("read_only_account_scope_unobserved")
+    if (
+        type(facts.strategy_scope) is not str
+        or not facts.strategy_scope
+        or facts.strategy_scope != facts.strategy_scope.strip()
+    ):
+        block("read_only_strategy_scope_unobserved")
+    if (
+        _exact_text(facts.snapshot_id) is None
+        or _exact_text(facts.query_set_id) is None
+        or _aware_utc(facts.available_at) is None
+    ):
+        block("read_only_snapshot_binding_unobserved")
+
+    account = facts.account
+    if account is None:
+        block("read_only_account_projection_unavailable")
+    elif (
+        account.account_scope != facts.account_scope
+        or account.snapshot_id != facts.snapshot_id
+        or _aware_utc(account.available_at) != _aware_utc(facts.available_at)
+    ):
+        block("read_only_account_binding_mismatch")
+
+    provenance = tuple(facts.query_provenance)
+    available_at = _aware_utc(facts.available_at)
+    if available_at is None or not _base_query_provenance_complete(provenance, available_at):
+        block("read_only_core_query_provenance_incomplete")
+    else:
+        base = tuple(fact for fact in provenance if fact.family in _BASE_FAMILIES)
+        by_family = {fact.family: fact for fact in base}
+        if len(by_family) != len(_BASE_FAMILIES):
+            block("read_only_core_query_identity_ambiguous")
+        else:
+            ordered = tuple(by_family[family] for family in _BASE_FAMILIES)
+            generation = ordered[0].connection_generation
+            trading_day = ordered[0].trading_day
+            account_fingerprint = ordered[0].account_fingerprint
+            query_ids = tuple((family, by_family[family].request_id) for family in _BASE_FAMILIES)
+            starts = tuple(fact.started_at for fact in ordered)
+            completions = tuple(fact.completed_at for fact in ordered)
+            if (
+                any(value is None for value in starts + completions)
+                or account is None
+                or generation is None
+                or trading_day is None
+                or account_fingerprint is None
+                or len(set(query_ids)) != len(_BASE_FAMILIES)
+                or account.connection_generation != generation
+                or account.trading_day != trading_day
+                or account.account_fingerprint != account_fingerprint
+                or available_at != max(completions)
+                or facts.query_set_id
+                != _query_set_identifier(
+                    account_fingerprint,
+                    generation,
+                    trading_day,
+                    min(starts),
+                    max(completions),
+                    query_ids,
+                )
+            ):
+                block("read_only_core_query_identity_mismatch")
+
+    positions = tuple(facts.positions)
+    routes = tuple(facts.route_eligibilities)
+    instruments = tuple(facts.instruments)
+    if not positions:
+        block("read_only_target_positions_unobserved")
+
+    def target_keys(items: Tuple[Any, ...], label: str) -> set:
+        keys = []
+        for item in items:
+            target_id = _exact_text(_field(item, "target_id"))
+            instrument = _exact_text(_field(item, "instrument"))
+            exchange = _exact_text(_field(item, "exchange"))
+            if target_id is None or instrument is None or exchange is None:
+                block("read_only_{}_identity_unobserved".format(label))
+                continue
+            keys.append((target_id, instrument, exchange))
+        if len(set(keys)) != len(keys):
+            block("read_only_{}_identity_duplicate".format(label))
+        return set(keys)
+
+    position_keys = target_keys(positions, "position")
+    route_keys = target_keys(routes, "route")
+    instrument_keys = target_keys(instruments, "instrument")
+    if not routes or route_keys != position_keys:
+        block("read_only_target_route_set_mismatch")
+    if not instruments or instrument_keys != position_keys:
+        block("read_only_target_instrument_set_mismatch")
+
+    expected_identity = None
+    if account is not None:
+        expected_identity = (
+            account.account_fingerprint,
+            account.connection_generation,
+            account.trading_day,
+        )
+    for route in routes:
+        route_target = _exact_text(route.target_id)
+        identity = expected_identity
+        if (
+            route.route_name != "ctp/direct/registered-sim"
+            or _exact_text(route.instrument) is None
+            or _exact_text(route.exchange) is None
+        ):
+            block("read_only_route_identity_invalid:{}".format(route_target or "unknown"))
+        if (
+            identity is None
+            or route.connection_generation != identity[1]
+            or route.trading_day != identity[2]
+            or route.current_session_account_fingerprint != identity[0]
+            or route.current_session_connection_generation != identity[1]
+            or route.current_session_trading_day != identity[2]
+        ):
+            block("read_only_route_session_mismatch:{}".format(route_target or "unknown"))
+        if route.frozen is not False or route.sdk_frozen is not False:
+            block("read_only_route_frozen_or_unobserved:{}".format(route_target or "unknown"))
+        if route.capability_observed is not True:
+            block("read_only_route_state_unobserved:{}".format(route_target or "unknown"))
+        if route.unknown_order_count != 0 or type(route.unknown_order_count) is not int:
+            block(
+                "read_only_unknown_orders_present_or_unobserved:{}".format(
+                    route_target or "unknown"
+                )
+            )
+        if route.dispatching_order_count != 0 or type(route.dispatching_order_count) is not int:
+            block(
+                "read_only_dispatch_state_present_or_unobserved:{}".format(
+                    route_target or "unknown"
+                )
+            )
+        if route.instrument_query_complete is not True:
+            block("read_only_instrument_query_incomplete:{}".format(route_target or "unknown"))
+
+    for position in positions:
+        target_id = _exact_text(position.target_id)
+        prefix = target_id or "unknown"
+        quantity = position.quantity
+        if (
+            position.snapshot_id != facts.snapshot_id
+            or _aware_utc(position.available_at) != available_at
+            or not isinstance(quantity, Decimal)
+            or not quantity.is_finite()
+            or position.broker_quantity != quantity
+            or not isinstance(position.long_quantity, Decimal)
+            or not isinstance(position.short_quantity, Decimal)
+            or not position.long_quantity.is_finite()
+            or not position.short_quantity.is_finite()
+            or position.long_quantity < 0
+            or position.short_quantity < 0
+            or quantity != position.long_quantity - position.short_quantity
+            or (position.long_quantity != 0 and position.short_quantity != 0)
+        ):
+            block("read_only_position_projection_mismatch:{}".format(prefix))
+        if quantity not in (None, Decimal(0)) and (
+            position.owner_strategy_scope != facts.strategy_scope
+            or _exact_text(position.owner_intent_id) is None
+        ):
+            block("read_only_position_owner_unresolved:{}".format(prefix))
+        if position.exchange.upper() in {"SHFE", "INE"}:
+            for row in position.dated_inventory_rows:
+                if (
+                    row.blockers
+                    or row.instrument != position.instrument
+                    or row.exchange != position.exchange
+                    or row.query_set_id != facts.query_set_id
+                    or row.snapshot_id != facts.snapshot_id
+                    or expected_identity is None
+                    or row.connection_generation != expected_identity[1]
+                    or row.account_fingerprint != expected_identity[0]
+                    or row.trading_day != expected_identity[2]
+                    or row.available_at is None
+                    or row.position is None
+                ):
+                    block("read_only_dated_position_row_invalid:{}".format(prefix))
+
+    for instrument in instruments:
+        if instrument.snapshot_id != facts.snapshot_id:
+            block("read_only_instrument_snapshot_mismatch:{}".format(instrument.target_id))
+
+    for order in facts.working_orders:
+        target_id = _exact_text(order.target_id)
+        if (
+            target_id is None
+            or (target_id, order.instrument, order.exchange) not in position_keys
+            or not order.order_ref
+            or order.state not in {"ACCEPTED", "PARTIAL"}
+            or order.side not in {"BUY", "SELL"}
+            or order.position_effect not in {"OPEN", "CLOSE"}
+            or not isinstance(order.remaining_quantity, Decimal)
+            or not order.remaining_quantity.is_finite()
+            or order.remaining_quantity <= 0
+            or order.owner_strategy_scope != facts.strategy_scope
+            or _exact_text(order.owner_intent_id) is None
+            or order.execution_unknown is not False
+            or order.cancel_pending is not False
+            or type(order.broker_order_ref) is not int
+            or order.broker_order_ref <= 0
+            or type(order.front_id) is not int
+            or order.front_id <= 0
+            or type(order.session_id) is not int
+            or order.session_id <= 0
+        ):
+            block("read_only_working_order_projection_invalid:{}".format(order.order_ref))
+
+    query_by_family = {fact.family: fact for fact in provenance if fact.family in _BASE_FAMILIES}
+    for trade in facts.trade_observations:
+        query = query_by_family.get("trades_result")
+        if (
+            query is None
+            or trade.snapshot_id != facts.snapshot_id
+            or trade.request_id != query.request_id
+            or trade.connection_generation != query.connection_generation
+            or trade.account_fingerprint != query.account_fingerprint
+            or trade.trading_day != query.trading_day
+            or trade.available_at != query.completed_at
+        ):
+            block("read_only_trade_observation_binding_mismatch")
+    trade_query = query_by_family.get("trades_result")
+    if trade_query is None or trade_query.row_count != len(facts.trade_observations):
+        block("read_only_trade_observation_coverage_mismatch")
+
+    orders_query = query_by_family.get("orders_result")
+    for terminal in facts.terminal_orders:
+        if (
+            orders_query is None
+            or terminal.snapshot_id != facts.snapshot_id
+            or terminal.request_id != orders_query.request_id
+            or terminal.connection_generation != orders_query.connection_generation
+            or terminal.account_fingerprint != orders_query.account_fingerprint
+            or terminal.trading_day != orders_query.trading_day
+            or terminal.available_at != orders_query.completed_at
+        ):
+            block("read_only_terminal_order_binding_mismatch")
+
+    ignored_prefixes = (
+        "consumed_quote_",
+        "consumed_stream_",
+        "route_ineligible:",
+        "route_eligibility_incomplete:",
+        "route_arm_",
+        "route_active_grant_unavailable:",
+        # The Strategy's route-planning predicate also requires trading-ready.
+        # Read-only retirement independently checks the exact account/day/
+        # generation triple above, so this blocker may only reflect readiness.
+        "route_current_session_identity_mismatch:",
+        "instrument_multiplier_unobserved:",
+        "instrument_tick_unobserved:",
+        "instrument_limits_unobserved:",
+        "instrument_tradability_unobserved:",
+        "instrument_not_trading:",
+    )
+    for code in facts.blockers:
+        if (
+            type(code) is str
+            and not code.startswith(ignored_prefixes)
+            and not _is_capital_blocker(code)
+            and not code.startswith(
+                (
+                    "position_held_age_unavailable:",
+                    "position_opening_fee_unavailable:",
+                    "position_risk_policy_metadata_unavailable:",
+                    "position_average_price_unobserved:",
+                    "position_stop_price_unobserved:",
+                )
+            )
+        ):
+            blockers.add(code)
+    return tuple(sorted(blockers))
+
+
 def _dated_close_positions_ready(facts: FactorExecutionFacts) -> bool:
     """Require source-backed date legs for every nonflat SHFE/INE holding."""
 
@@ -642,8 +966,7 @@ def _dated_close_positions_ready(facts: FactorExecutionFacts) -> bool:
             or leg.position_side != expected_side
             or leg.side != expected_order_side
             or leg.offset_flag != ("3" if leg.position_date == "TODAY" else "4")
-            or leg.offset
-            != ("close_today" if leg.position_date == "TODAY" else "close_yesterday")
+            or leg.offset != ("close_today" if leg.position_date == "TODAY" else "close_yesterday")
             or leg.owner_strategy_scope != facts.strategy_scope
             or leg.owner_intent_id != position.owner_intent_id
             or leg.query_set_id != facts.query_set_id
@@ -669,8 +992,7 @@ def _dated_close_positions_ready(facts: FactorExecutionFacts) -> bool:
         if len({(leg.position_date, leg.hedge_flag) for leg in legs}) != len(legs):
             return False
         if any(
-            order.instrument == position.instrument
-            and order.exchange == position.exchange
+            order.instrument == position.instrument and order.exchange == position.exchange
             for order in facts.working_orders
         ):
             return False
@@ -688,6 +1010,90 @@ def _is_capital_blocker(code: str) -> bool:
             "long_margin_per_hand_unobserved:",
             "short_margin_per_hand_unobserved:",
         )
+    )
+
+
+def _exact_owned_cancel_join_covers_book_blocker(facts: FactorExecutionFacts) -> bool:
+    """Prove that the Book's active-order reservation has a cancellable join.
+
+    This exception affects only order-cancel blocker classification. It does
+    not change position attribution, close readiness, or read-only retirement.
+    Every position carrying this exact Book blocker must be covered by a current
+    target order, and every projected working order must have an exact route,
+    native session, owner, and active state. Order-query mismatch blockers stay
+    in ``facts.blockers`` and are never filtered here.
+    """
+
+    if (
+        facts.snapshot_id is None
+        or facts.query_set_id is None
+        or facts.available_at is None
+        or facts.account is None
+        or facts.account.account_scope != facts.account_scope
+        or facts.account.snapshot_id != facts.snapshot_id
+        or _aware_utc(facts.account.available_at) != facts.available_at
+        or not _base_query_provenance_complete(facts.query_provenance, facts.available_at)
+    ):
+        return False
+    affected = tuple(
+        position
+        for position in facts.positions
+        if position.position_book_status == "UNKNOWN"
+        and position.position_book_blocker_code == "INSTRUMENT_ORDER_UNRESOLVED"
+    )
+    if not affected or not facts.working_orders:
+        return False
+
+    positions_by_target = {}
+    for position in facts.positions:
+        target_id = position.target_id
+        if (
+            target_id is None
+            or target_id in positions_by_target
+            or position.snapshot_id != facts.snapshot_id
+            or _aware_utc(position.available_at) != facts.available_at
+        ):
+            return False
+        positions_by_target[target_id] = position
+
+    order_keys = set()
+    for order in facts.working_orders:
+        key = (order.order_ref, order.instrument, order.exchange)
+        if (
+            order.target_id is None
+            or order.target_id not in positions_by_target
+            or order.order_ref != _exact_text(order.order_ref)
+            or order.instrument != positions_by_target[order.target_id].instrument
+            or order.exchange != positions_by_target[order.target_id].exchange
+            or order.state not in {"ACCEPTED", "PARTIAL"}
+            or order.side not in {"BUY", "SELL"}
+            or order.position_effect not in {"OPEN", "CLOSE"}
+            or type(order.remaining_quantity) is not Decimal
+            or not order.remaining_quantity.is_finite()
+            or order.remaining_quantity <= 0
+            or order.owner_strategy_scope != facts.strategy_scope
+            or _exact_text(order.owner_intent_id) is None
+            or order.execution_unknown is not False
+            or order.cancel_pending is not False
+            or type(order.broker_order_ref) is not int
+            or order.broker_order_ref <= 0
+            or type(order.front_id) is not int
+            or order.front_id <= 0
+            or type(order.session_id) is not int
+            or order.session_id <= 0
+            or key in order_keys
+        ):
+            return False
+        order_keys.add(key)
+
+    return all(
+        any(
+            order.target_id == position.target_id
+            and order.instrument == position.instrument
+            and order.exchange == position.exchange
+            for order in facts.working_orders
+        )
+        for position in affected
     )
 
 
@@ -1321,9 +1727,7 @@ def _position_dated_inventory_rows(
         position_date = {"1": "TODAY", "2": "HISTORY"}.get(date_code)
         row_trading_day = _exact_text(source_value("TradingDay", "trading_day"))
         position = _decimal(source_value("Position", "position"), nonnegative=True)
-        today_position = _decimal(
-            source_value("TodayPosition", "today_position"), nonnegative=True
-        )
+        today_position = _decimal(source_value("TodayPosition", "today_position"), nonnegative=True)
         yd_position = _decimal(source_value("YdPosition", "yd_position"), nonnegative=True)
         freeze_values = {}
         for canonical, alias, name in freeze_fields:
@@ -1669,6 +2073,14 @@ def _route_fact(
             connection_generation=None,
             trading_day=None,
             reason_codes=(),
+            sdk_frozen=None,
+            arm_template_configured=None,
+            arm_templates_configured=None,
+            arm_api_available=None,
+            current_session_account_fingerprint=None,
+            current_session_connection_generation=None,
+            current_session_trading_day=None,
+            current_session_trading_ready=None,
         )
 
     unknown_count = _field(route, "unknown_order_count")
@@ -1679,20 +2091,59 @@ def _route_fact(
     account_fingerprint = _exact_text(_field(route, "account_fingerprint"))
     identity_matches = bool(
         query_identity is not None
+        and type(route_generation) is int
+        and route_generation > 0
         and route_generation == query_identity[0]
         and route_day == query_identity[1]
         and account_fingerprint == query_identity[2]
     )
-    positives = bool(
+
+    def optional_bool(name: str) -> Optional[bool]:
+        value = _field(route, name)
+        return value if type(value) is bool else None
+
+    template_configured = optional_bool("arm_template_configured")
+    templates_configured = optional_bool("arm_templates_configured")
+    arm_api_available = optional_bool("arm_api_available")
+    current_session_account = _exact_text(_field(route, "current_session_account_fingerprint"))
+    current_session_generation = _field(route, "current_session_connection_generation")
+    current_session_day = _exact_text(_field(route, "current_session_trading_day"))
+    current_session_trading_ready = optional_bool("current_session_trading_ready")
+    current_session_matches = bool(
+        query_identity is not None
+        and current_session_trading_ready is True
+        and type(current_session_generation) is int
+        and current_session_generation > 0
+        and current_session_generation == query_identity[0]
+        and current_session_day == query_identity[1]
+        and current_session_account == query_identity[2]
+    )
+
+    active_grant_matches = bool(
+        _field(route, "capability_observed") is True
+        and _field(route, "sdk_capability_managed") is True
+        and _field(route, "sdk_capability_armed") is True
+        and _field(route, "capability_matches_route") is True
+    )
+    template_mode = bool(
+        templates_configured is True and template_configured is True and arm_api_available is True
+    )
+    legacy_active_mode = bool(
+        templates_configured is False and template_configured is False and active_grant_matches
+    )
+    template_scope_consistent = bool(
+        (templates_configured is True and template_configured is True)
+        or (templates_configured is False and template_configured is False)
+    )
+
+    common_positive_facts = bool(
         _field(route, "route_name") == "ctp/direct/registered-sim"
         and _field(route, "instrument_id") == target.instrument
         and _field(route, "exchange_id") == target.exchange
         and _field(route, "allow_writes") is True
         and _field(route, "frozen") is False
+        and _field(route, "sdk_frozen") is False
         and _field(route, "capability_observed") is True
-        and _field(route, "sdk_capability_managed") is True
-        and _field(route, "sdk_capability_armed") is True
-        and _field(route, "capability_matches_route") is True
         and _field(route, "instrument_query_complete") is True
         and _field(route, "instrument_eligible") is True
         and type(unknown_count) is int
@@ -1700,17 +2151,40 @@ def _route_fact(
         and _field(route, "unknown_order_ids") == ()
         and dispatching_ids == ()
         and identity_matches
+        and current_session_matches
+        and template_scope_consistent
     )
+    positives = bool(common_positive_facts and (template_mode or legacy_active_mode))
+
     explicit_denial = bool(
         _field(route, "instrument_id") not in (None, target.instrument)
         or _field(route, "exchange_id") not in (None, target.exchange)
         or _field(route, "allow_writes") is False
         or _field(route, "frozen") is True
-        or _field(route, "sdk_capability_armed") is False
-        or _field(route, "capability_matches_route") is False
+        or _field(route, "sdk_frozen") is True
         or _field(route, "instrument_eligible") is False
         or (type(unknown_count) is int and unknown_count > 0)
         or (isinstance(dispatching_ids, (tuple, list)) and bool(dispatching_ids))
+        or current_session_trading_ready is False
+        or (templates_configured is True and template_configured is not True)
+        or (
+            templates_configured is True
+            and template_configured is True
+            and arm_api_available is False
+        )
+        or (
+            templates_configured is False
+            and template_configured is False
+            and (
+                _field(route, "sdk_capability_armed") is False
+                or _field(route, "capability_matches_route") is False
+            )
+        )
+        or (
+            templates_configured is False
+            and template_configured is False
+            and _field(route, "sdk_capability_managed") is False
+        )
     )
     eligible = True if positives else False if explicit_denial else None
     if eligible is True:
@@ -1721,16 +2195,26 @@ def _route_fact(
         blockers.append("route_eligibility_incomplete:{}".format(target.target_id))
     if not identity_matches:
         blockers.append("route_query_identity_mismatch:{}".format(target.target_id))
+    if not current_session_matches:
+        blockers.append("route_current_session_identity_mismatch:{}".format(target.target_id))
+    if templates_configured is True and template_configured is True:
+        if arm_api_available is False:
+            blockers.append("route_arm_api_unavailable:{}".format(target.target_id))
+        elif arm_api_available is None:
+            blockers.append("route_arm_api_unobserved:{}".format(target.target_id))
+    elif templates_configured is True and template_configured is not True:
+        blockers.append("route_arm_template_missing:{}".format(target.target_id))
+    elif templates_configured is False and template_configured is False:
+        if not active_grant_matches:
+            blockers.append("route_active_grant_unavailable:{}".format(target.target_id))
+    else:
+        blockers.append("route_arm_template_state_unobserved:{}".format(target.target_id))
     raw_reasons = _field(route, "reason_codes")
     reasons = (
         tuple(value for value in raw_reasons if type(value) is str)
         if isinstance(raw_reasons, (tuple, list))
         else ()
     )
-
-    def optional_bool(name: str) -> Optional[bool]:
-        value = _field(route, name)
-        return value if type(value) is bool else None
 
     return FactorExecutionRouteFacts(
         target_id=target.target_id,
@@ -1753,6 +2237,16 @@ def _route_fact(
         connection_generation=route_generation if type(route_generation) is int else None,
         trading_day=route_day,
         reason_codes=reasons,
+        sdk_frozen=optional_bool("sdk_frozen"),
+        arm_template_configured=template_configured,
+        arm_templates_configured=templates_configured,
+        arm_api_available=arm_api_available,
+        current_session_account_fingerprint=current_session_account,
+        current_session_connection_generation=(
+            current_session_generation if type(current_session_generation) is int else None
+        ),
+        current_session_trading_day=current_session_day,
+        current_session_trading_ready=current_session_trading_ready,
     )
 
 
@@ -2147,6 +2641,8 @@ def _position_facts(
                 dated_inventory_rows=tuple(
                     dated_inventory_by_route.get((target.instrument, target.exchange), ())
                 ),
+                position_book_status=status,
+                position_book_blocker_code=book_blocker,
             )
         )
     return tuple(projected)
@@ -2997,9 +3493,7 @@ def _dated_close_legs(
 
         raw_rows = tuple(position.dated_inventory_rows)
         raw_rows_by_id = {
-            row.source_row_id: row
-            for row in raw_rows
-            if row.source_row_id is not None
+            row.source_row_id: row for row in raw_rows if row.source_row_id is not None
         }
         proof_row_ids = set(_dated_text_tuple(_field(proof, "source_row_ids", ())))
         route_row_ids = set(raw_rows_by_id)
@@ -3034,13 +3528,9 @@ def _dated_close_legs(
             bucket_rows = tuple(
                 raw_rows_by_id[row_id] for row_id in source_ids if row_id in raw_rows_by_id
             )
-            provider_quantity = _decimal(
-                _field(bucket, "provider_quantity"), nonnegative=True
-            )
+            provider_quantity = _decimal(_field(bucket, "provider_quantity"), nonnegative=True)
             owned_quantity = _decimal(_field(bucket, "owned_quantity"), nonnegative=True)
-            available_quantity = _decimal(
-                _field(bucket, "available_quantity"), nonnegative=True
-            )
+            available_quantity = _decimal(_field(bucket, "available_quantity"), nonnegative=True)
             owner_scope = _exact_text(_field(bucket, "owner_strategy_scope"))
             owner_intent = _exact_text(_field(bucket, "owner_intent_id"))
             opening_ids = _dated_text_tuple(_field(bucket, "opening_execution_ids", ()))
@@ -3053,11 +3543,7 @@ def _dated_close_legs(
             )
             bucket_blockers = list(_dated_text_tuple(_field(bucket, "blockers", ())))
             bucket_blockers.extend(order_blockers)
-            bucket_blockers.extend(
-                blocker
-                for row in bucket_rows
-                for blocker in row.blockers
-            )
+            bucket_blockers.extend(blocker for row in bucket_rows for blocker in row.blockers)
             if len(bucket_rows) != len(source_ids):
                 bucket_blockers.append("DATED_BUCKET_SOURCE_ROW_UNRESOLVED")
             if not bucket_rows:

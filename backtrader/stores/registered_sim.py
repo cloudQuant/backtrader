@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import collections
 import copy
+import contextlib
 import math
 import re
 import threading
@@ -139,6 +140,13 @@ class RegisteredSimRouteEligibility:
     instrument_query_complete: bool
     instrument_eligible: Optional[bool]
     reason_codes: Tuple[str, ...]
+    arm_template_configured: Optional[bool] = None
+    arm_templates_configured: Optional[bool] = None
+    arm_api_available: Optional[bool] = None
+    current_session_account_fingerprint: Optional[str] = None
+    current_session_connection_generation: Optional[int] = None
+    current_session_trading_day: Optional[str] = None
+    current_session_trading_ready: Optional[bool] = None
     native_admission_required: bool = True
 
 
@@ -156,6 +164,235 @@ def _read_fact(value: Any, name: str, default: Any = None) -> Any:
     if isinstance(value, Mapping):
         return value.get(name, default)
     return getattr(value, name, default)
+
+
+def _expected_session(value: Any) -> Dict[str, Any]:
+    """Validate a decision's exact account/generation/day dispatch binding."""
+    if not isinstance(value, Mapping):
+        raise BtApiStoreError("registered-sim expected session identity is invalid")
+    account = value.get("account_fingerprint")
+    generation = value.get("connection_generation")
+    trading_day = value.get("trading_day")
+    if (
+        not isinstance(account, str)
+        or not account
+        or account != account.strip()
+        or type(generation) is not int
+        or generation <= 0
+        or not isinstance(trading_day, str)
+        or re.fullmatch(r"[0-9]{8}", trading_day) is None
+    ):
+        raise BtApiStoreError("registered-sim expected session identity is invalid")
+    return {
+        "account_fingerprint": account,
+        "connection_generation": generation,
+        "trading_day": trading_day,
+    }
+
+
+def _session_identity(client: Any) -> Dict[str, Any]:
+    """Read the SDK's public live session identity without performing I/O."""
+    scope_method = getattr(client, "get_query_session_scope", None)
+    state_method = getattr(client, "get_session_state", None)
+    if not callable(scope_method) or not callable(state_method):
+        return {
+            "account_fingerprint": None,
+            "connection_generation": None,
+            "trading_day": None,
+            "trading_ready": None,
+            "read_only_ready": None,
+        }
+    try:
+        scope = scope_method()
+        state = state_method()
+    except Exception:
+        return {
+            "account_fingerprint": None,
+            "connection_generation": None,
+            "trading_day": None,
+            "trading_ready": None,
+            "read_only_ready": None,
+        }
+    scope_values = (
+        _read_fact(scope, "account_fingerprint"),
+        _read_fact(scope, "connection_generation"),
+        _read_fact(scope, "trading_day"),
+    )
+    state_values = (
+        _read_fact(state, "account_fingerprint"),
+        _read_fact(state, "connection_generation"),
+        _read_fact(state, "trading_day"),
+    )
+    values = scope_values if scope_values == state_values else (None, None, None)
+    account, generation, trading_day = values
+    identity_valid = (
+        isinstance(account, str)
+        and bool(account)
+        and account == account.strip()
+        and type(generation) is int
+        and generation > 0
+        and isinstance(trading_day, str)
+        and re.fullmatch(r"[0-9]{8}", trading_day) is not None
+    )
+    ready = _read_fact(state, "trading_ready")
+    return {
+        "account_fingerprint": account if identity_valid else None,
+        "connection_generation": generation if identity_valid else None,
+        "trading_day": trading_day if identity_valid else None,
+        "trading_ready": (
+            ready if type(ready) is bool and getattr(client, "is_ready", None) is ready else None
+        ),
+        "read_only_ready": (
+            _read_fact(scope, "read_only_ready")
+            if type(_read_fact(scope, "read_only_ready")) is bool
+            else None
+        ),
+    }
+
+
+def _session_matches(
+    current: Mapping, expected: Optional[Mapping], *, require_trading_ready: bool
+) -> bool:
+    if not isinstance(current, Mapping):
+        return False
+    if (
+        not isinstance(current.get("account_fingerprint"), str)
+        or not current.get("account_fingerprint")
+        or type(current.get("connection_generation")) is not int
+        or current.get("connection_generation") <= 0
+        or not isinstance(current.get("trading_day"), str)
+        or re.fullmatch(r"[0-9]{8}", current.get("trading_day", "")) is None
+    ):
+        return False
+    if require_trading_ready and current.get("trading_ready") is not True:
+        return False
+    if expected is None:
+        return True
+    try:
+        normalized = _expected_session(expected)
+    except BtApiStoreError:
+        return False
+    return all(current.get(name) == value for name, value in normalized.items())
+
+
+def _gate_state_snapshot(state: Any, key: Tuple[str, str]) -> Optional[Dict[str, Any]]:
+    """Return immutable public proof identity for one exact armed SDK grant."""
+    if not isinstance(state, Mapping):
+        return None
+    authorized = state.get("authorized_instruments")
+    if not isinstance(authorized, (tuple, list)):
+        return None
+    authorized_tuple = tuple(authorized)
+    if (
+        not authorized_tuple
+        or any(
+            not isinstance(item, str) or not item or item != item.strip()
+            for item in authorized_tuple
+        )
+        or len(set(authorized_tuple)) != len(authorized_tuple)
+        or key[0] not in authorized_tuple
+    ):
+        return None
+    scope_version = state.get("scope_version")
+    proof_sha256 = state.get("proof_sha256")
+    environment_profile = state.get("environment_profile")
+    if (
+        state.get("managed") is not True
+        or state.get("armed") is not True
+        or state.get("instrument") != key[0]
+        or type(state.get("connection_generation")) is not int
+        or state.get("connection_generation") <= 0
+        or not isinstance(state.get("trading_day"), str)
+        or re.fullmatch(r"[0-9]{8}", state.get("trading_day", "")) is None
+        or not isinstance(scope_version, str)
+        or not scope_version
+        or not isinstance(proof_sha256, str)
+        or _HASH_RE.fullmatch(proof_sha256) is None
+        or not isinstance(environment_profile, str)
+        or not environment_profile
+        or "revocation_reason" not in state
+        or state.get("revocation_reason") is not None
+    ):
+        return None
+    # SDK bundle grants publish canonical sorted instrument lists. Preserve
+    # their exact order and contents; do not reduce a multi-instrument proof
+    # to the one route currently being dispatched.
+    return {
+        "managed": True,
+        "armed": True,
+        "instrument": key[0],
+        "connection_generation": state["connection_generation"],
+        "trading_day": state["trading_day"],
+        "scope_version": scope_version,
+        "authorized_instruments": authorized_tuple,
+        "environment_profile": environment_profile,
+        "proof_sha256": proof_sha256,
+        "revocation_reason": None,
+    }
+
+
+def _detached_gate_state(snapshot: Mapping[str, Any]) -> Dict[str, Any]:
+    """Copy cached proof evidence without exposing its tuple-backed authority."""
+    result = dict(snapshot)
+    result["authorized_instruments"] = list(snapshot["authorized_instruments"])
+    return result
+
+
+def _public_gate_projection(state: Any) -> Optional[Dict[str, Any]]:
+    """Copy non-secret gate observations for a coherent Store facts snapshot."""
+    if not isinstance(state, Mapping):
+        return None
+    authorized = state.get("authorized_instruments")
+    if isinstance(authorized, (tuple, list)) and all(isinstance(item, str) for item in authorized):
+        authorized = tuple(authorized)
+    else:
+        authorized = None
+    return {
+        "managed": state.get("managed") if type(state.get("managed")) is bool else None,
+        "armed": state.get("armed") if type(state.get("armed")) is bool else None,
+        "instrument": state.get("instrument") if isinstance(state.get("instrument"), str) else None,
+        "connection_generation": state.get("connection_generation")
+        if type(state.get("connection_generation")) is int
+        else None,
+        "trading_day": state.get("trading_day")
+        if isinstance(state.get("trading_day"), str)
+        else None,
+        "authorized_instruments": authorized,
+    }
+
+
+def _order_expected_session(order: Any) -> Optional[Dict[str, Any]]:
+    info = getattr(order, "info", {})
+    getter = getattr(info, "get", None)
+    if not callable(getter):
+        return None
+    factor_order = any(
+        getter(name) is not None for name in ("factor_intent_id", "factor_cancel_intent_id")
+    )
+    fields = (
+        getter("factor_session_account_fingerprint"),
+        getter("factor_session_connection_generation"),
+        getter("factor_session_trading_day"),
+    )
+    if all(value is None for value in fields):
+        if factor_order:
+            raise BtApiStoreError("factor order is missing its expected session identity")
+        return None
+    return _expected_session(
+        {
+            "account_fingerprint": fields[0],
+            "connection_generation": fields[1],
+            "trading_day": fields[2],
+        }
+    )
+
+
+def _is_sdk_pre_dispatch_gate_error(error: BaseException) -> bool:
+    error_type = type(error)
+    return (
+        error_type.__name__ == "CtpExecutionGateError"
+        and error_type.__module__ == "bt_api_ctp.ctp.client"
+    )
 
 
 def _query_error_is_clear(value: Any) -> bool:
@@ -424,7 +661,10 @@ class RegisteredSimWrapper:
         self._registered_sim_frozen = False
         self._registered_sim_freeze_reason = ""
         self._registered_sim_arm_templates: Dict[Tuple[str, str], Dict[str, str]] = {}
+        self._registered_sim_arm_templates_sealed = False
+        self._registered_sim_arm_templates_projection = (False, ())
         self._registered_sim_armed_key: Optional[Tuple[str, str]] = None
+        self._registered_sim_expected_session: Optional[Dict[str, Any]] = None
         self._registered_sim_arm_history = collections.deque(maxlen=history_limit)
         self._registered_sim_dispatch_history = collections.deque(maxlen=history_limit)
         self._registered_sim_unknown_dispatch: Optional[RegisteredSimDispatchEvidence] = None
@@ -439,9 +679,9 @@ class RegisteredSimWrapper:
         return self._registered_sim_allow_writes
 
     def configure_registered_sim_arm_templates(self, templates: Mapping) -> None:
-        """Set exact ``(InstrumentID, ExchangeID)`` admission templates."""
-        if not isinstance(templates, Mapping) or not templates:
-            raise ValueError("registered-sim arm templates must be a non-empty mapping")
+        """Fix the wrapper-lifetime exact ``(InstrumentID, ExchangeID)`` allowlist."""
+        if not isinstance(templates, Mapping):
+            raise ValueError("registered-sim arm templates must be a mapping")
         prepared: Dict[Tuple[str, str], Dict[str, str]] = {}
         for raw_key, raw_value in templates.items():
             if not isinstance(raw_key, tuple) or len(raw_key) != 2:
@@ -469,10 +709,96 @@ class RegisteredSimWrapper:
             prepared[(instrument, exchange)] = template
         with self._registered_sim_lock:
             self._require_armable_locked()
+            if self._registered_sim_arm_templates_sealed:
+                if prepared != self._registered_sim_arm_templates:
+                    raise BtApiStoreError("registered-sim arm templates are immutable")
+                return
             if self._registered_sim_capability is not None:
-                raise BtApiStoreError("disarm before changing registered-sim arm templates")
+                raise BtApiStoreError("disarm before setting registered-sim arm templates")
             self._registered_sim_arm_templates = prepared
+            self._registered_sim_arm_templates_sealed = True
             self._registered_sim_armed_key = None
+            # Publish configuration state and its exact keys as one immutable
+            # snapshot. Facts can read it while a native call holds the main
+            # wrapper lock, without constructing an impossible bool/key pair.
+            with self._registered_sim_observation_lock:
+                self._registered_sim_arm_templates_projection = (True, tuple(prepared))
+
+    def registered_sim_expected_session_scope(self, expected: Mapping):
+        """Hold the wrapper lock while a write is bound to one query session."""
+        expected_identity = _expected_session(expected)
+        wrapper = self
+
+        @contextlib.contextmanager
+        def scope():
+            with wrapper._registered_sim_lock:
+                current = _session_identity(getattr(wrapper, "trader_client", None))
+                if (
+                    not _session_matches(current, expected_identity, require_trading_ready=True)
+                    or current.get("read_only_ready") is not True
+                ):
+                    raise BtApiStoreError("registered-sim expected session identity is stale")
+                prior = wrapper._registered_sim_expected_session
+                if prior is not None and prior != expected_identity:
+                    raise BtApiStoreError("registered-sim nested session identity conflicts")
+                wrapper._registered_sim_expected_session = expected_identity
+                try:
+                    yield expected_identity
+                finally:
+                    wrapper._registered_sim_expected_session = prior
+
+        return scope()
+
+    def _require_expected_session_locked(self) -> Optional[Dict[str, Any]]:
+        expected = self._registered_sim_expected_session
+        if expected is None:
+            return None
+        current = _session_identity(getattr(self, "trader_client", None))
+        if (
+            not _session_matches(current, expected, require_trading_ready=True)
+            or current.get("read_only_ready") is not True
+        ):
+            raise BtApiStoreError("registered-sim expected session identity changed")
+        return expected
+
+    def _sdk_gate_state_locked(self) -> Optional[Mapping]:
+        client = getattr(self, "trader_client", None)
+        method = getattr(client, "get_execution_gate_state", None) if client is not None else None
+        if not callable(method):
+            return None
+        try:
+            state = method()
+        except Exception:
+            return None
+        return state if isinstance(state, Mapping) else None
+
+    def _current_grant_matches_locked(
+        self,
+        key: Tuple[str, str],
+        expected: Optional[Mapping],
+        *,
+        state: Any = _UNOBSERVED,
+    ) -> bool:
+        if not isinstance(key, tuple) or len(key) != 2:
+            return False
+        if state is _UNOBSERVED:
+            state = self._sdk_gate_state_locked()
+        cached_snapshot = _gate_state_snapshot(self._registered_sim_state, key)
+        current_snapshot = _gate_state_snapshot(state, key)
+        if (
+            cached_snapshot is None
+            or current_snapshot is None
+            or cached_snapshot != current_snapshot
+            or self._registered_sim_capability is None
+            or self._registered_sim_armed_key != key
+        ):
+            return False
+        current = _session_identity(getattr(self, "trader_client", None))
+        if not _session_matches(current, expected, require_trading_ready=True):
+            return False
+        return current_snapshot["connection_generation"] == current.get(
+            "connection_generation"
+        ) and current_snapshot["trading_day"] == current.get("trading_day")
 
     def _require_armable_locked(self) -> None:
         if not self._registered_sim_allow_writes:
@@ -508,7 +834,9 @@ class RegisteredSimWrapper:
     ) -> Dict[str, Any]:
         self._require_armable_locked()
         client = getattr(self, "trader_client", None)
-        if client is None or getattr(client, "is_ready", None) is not True:
+        expected = self._require_expected_session_locked()
+        current = _session_identity(client)
+        if not _session_matches(current, expected, require_trading_ready=True):
             raise BtApiStoreError("CTP trader client is not ready")
         arm = getattr(client, "arm_execution_for_registered_sim", None)
         if not callable(arm):
@@ -537,24 +865,50 @@ class RegisteredSimWrapper:
             self._registered_sim_armed_key = None
             raise BtApiStoreError("SDK registered-simulation admission returned no capability")
         capability, state = admitted
+        route_key = (instrument_id, exchange_id)
+        route_key = (instrument_id, exchange_id)
+        admitted_snapshot = _gate_state_snapshot(state, route_key)
         if (
-            not isinstance(state, Mapping)
-            or state.get("managed") is not True
-            or state.get("armed") is not True
+            admitted_snapshot is None
+            or admitted_snapshot["connection_generation"] != current.get("connection_generation")
+            or admitted_snapshot["trading_day"] != current.get("trading_day")
         ):
             self._registered_sim_frozen = True
             self._registered_sim_freeze_reason = "native_admission_state_unobserved"
             self._registered_sim_capability = capability
-            self._registered_sim_armed_key = (instrument_id, exchange_id)
+            self._registered_sim_armed_key = route_key
             try:
                 self._disarm_locked(self._registered_sim_freeze_reason)
             except Exception:
                 pass
             raise BtApiStoreError("SDK registered-simulation admission state is not armed")
-        key = (instrument_id, exchange_id)
+        key = route_key
+        current_gate_state = self._sdk_gate_state_locked()
+        current_gate_snapshot = _gate_state_snapshot(current_gate_state, key)
+        if current_gate_snapshot != admitted_snapshot:
+            self._registered_sim_frozen = True
+            self._registered_sim_freeze_reason = "native_admission_proof_changed"
+            self._registered_sim_capability = capability
+            self._registered_sim_armed_key = key
+            try:
+                self._disarm_locked(self._registered_sim_freeze_reason)
+            except Exception:
+                pass
+            raise BtApiStoreError("SDK registered-simulation proof changed during admission")
+        current_after = _session_identity(client)
+        if not _session_matches(current_after, current, require_trading_ready=True):
+            self._registered_sim_capability = capability
+            self._registered_sim_armed_key = key
+            self._registered_sim_frozen = True
+            self._registered_sim_freeze_reason = "session_changed_during_native_admission"
+            try:
+                self._disarm_locked(self._registered_sim_freeze_reason)
+            except Exception:
+                pass
+            raise BtApiStoreError("CTP session changed during registered-sim admission")
         self._registered_sim_capability = capability
         self._registered_sim_armed_key = key
-        self._registered_sim_state = dict(state) if isinstance(state, Mapping) else {}
+        self._registered_sim_state = dict(admitted_snapshot)
         self._registered_sim_arm_history.append(
             {"instrument": instrument_id, "exchange": exchange_id, "at_epoch": time.time()}
         )
@@ -563,7 +917,7 @@ class RegisteredSimWrapper:
             "instrument": instrument_id,
             "exchange_id": exchange_id,
             "switched": switched,
-            "state": dict(self._registered_sim_state),
+            "state": _detached_gate_state(self._registered_sim_state),
         }
 
     def arm_registered_sim_execution(
@@ -605,6 +959,7 @@ class RegisteredSimWrapper:
         capability = self._registered_sim_capability
         self._registered_sim_capability = None
         self._registered_sim_armed_key = None
+        self._registered_sim_state = {}
         if capability is None:
             return {"disarmed": True, "reason": reason, "native": False}
         disarm = getattr(client, "disarm_execution_gate", None) if client is not None else None
@@ -646,19 +1001,39 @@ class RegisteredSimWrapper:
         key = (instrument_id, exchange_id)
         with self._registered_sim_lock:
             self._require_armable_locked()
-            if not self._registered_sim_arm_templates:
-                raise BtApiStoreError("registered-sim arm templates are not configured")
+            expected = self._require_expected_session_locked()
+            current = _session_identity(getattr(self, "trader_client", None))
+            if not _session_matches(current, expected, require_trading_ready=True):
+                raise BtApiStoreError("CTP trader session is not trading ready")
+            templates_configured = self._registered_sim_arm_templates_sealed
             template = self._registered_sim_arm_templates.get(key)
-            if template is None:
+            if templates_configured and template is None:
                 raise BtApiStoreError("registered-sim arm template is missing for outbound leg")
-            if (
-                self._registered_sim_capability is not None
-                and self._registered_sim_armed_key == key
-            ):
+            if self._current_grant_matches_locked(key, expected):
                 return {"armed": True, "instrument": instrument_id, "switched": False}
-            switched = self._registered_sim_capability is not None
-            if switched:
+            sdk_gate = self._sdk_gate_state_locked()
+            if sdk_gate is None:
+                raise BtApiStoreError("SDK registered-simulation grant state is unobserved")
+            sdk_armed = sdk_gate.get("armed")
+            if sdk_armed is True:
+                if self._registered_sim_capability is None:
+                    raise BtApiStoreError("SDK has an unowned registered-simulation grant")
+                local_key = self._registered_sim_armed_key
+                if not self._current_grant_matches_locked(local_key, expected):
+                    raise BtApiStoreError("SDK registered-simulation grant is stale or mismatched")
+                switched = local_key != key
                 self._disarm_locked("registered_sim_instrument_switch")
+            elif sdk_armed is False:
+                # An explicit unarmed observation means a local token may have
+                # been revoked by reconnect or SDK cleanup. Never reuse it.
+                switched = self._registered_sim_armed_key is not None
+                self._registered_sim_capability = None
+                self._registered_sim_armed_key = None
+                self._registered_sim_state = {}
+            else:
+                raise BtApiStoreError("SDK registered-simulation grant state is malformed")
+            if not templates_configured:
+                raise BtApiStoreError("no exact registered-sim template can arm this route")
             return self._arm_locked(
                 instrument_id,
                 exchange_id,
@@ -698,15 +1073,20 @@ class RegisteredSimWrapper:
             _exact_text(getattr(field, "InstrumentID", None), "outbound InstrumentID"),
             _exact_text(getattr(field, "ExchangeID", None), "outbound ExchangeID"),
         )
-        if self._registered_sim_arm_templates:
+        expected = self._require_expected_session_locked()
+        if self._registered_sim_arm_templates_sealed and expected is None:
+            raise BtApiStoreError(
+                "template-bound native dispatch requires decision session identity"
+            )
+        if self._registered_sim_arm_templates_sealed:
             template = self._registered_sim_arm_templates.get(key)
             if template is None:
                 raise BtApiStoreError("outbound leg has no exact registered-sim arm template")
             self.ensure_registered_sim_arm_for(*key)
-        if self._registered_sim_capability is None:
-            raise BtApiStoreError("registered-sim native capability is not armed")
-        if self._registered_sim_armed_key != key:
-            raise BtApiStoreError("registered-sim capability does not match outbound instrument")
+        if not self._current_grant_matches_locked(key, expected):
+            raise BtApiStoreError(
+                "registered-sim capability is not current for outbound instrument"
+            )
         return key
 
     def _remember_order_state_locked(self, order_ref: str, state: str) -> None:
@@ -804,11 +1184,18 @@ class RegisteredSimWrapper:
             method = getattr(client, method_name, None) if client is not None else None
             if not callable(method):
                 raise BtApiStoreError("SDK native {} capability is unavailable".format(operation))
+            self._require_expected_session_locked()
+            if not self._current_grant_matches_locked(key, self._registered_sim_expected_session):
+                raise BtApiStoreError("registered-sim grant changed before native dispatch")
             with self._registered_sim_observation_lock:
                 self._dispatching_order_ids.add(state_ref)
             try:
                 result = method(field, req_id, execution_capability=capability)
             except Exception as exc:
+                if _is_sdk_pre_dispatch_gate_error(exc):
+                    raise BtApiStoreError(
+                        "SDK rejected registered-sim session before native dispatch"
+                    ) from None
                 evidence = self._make_dispatch_evidence_locked(
                     operation,
                     "UNKNOWN",
@@ -866,7 +1253,10 @@ class RegisteredSimWrapper:
                     self._remember_order_state_locked(order_ref, next_state)
 
     def registered_sim_execution_facts(self) -> Dict[str, Any]:
+        # Keep the dispatching fast path nonblocking while reading configuration
+        # and keys as one atomically-published snapshot.
         with self._registered_sim_observation_lock:
+            templates_configured, template_keys = self._registered_sim_arm_templates_projection
             dispatching = sorted(self._dispatching_order_ids)
         if dispatching:
             # Do not wait behind the in-flight native call just to observe it.
@@ -879,9 +1269,14 @@ class RegisteredSimWrapper:
                 "terminal_order_ids": None,
                 "frozen": None,
                 "armed_key": None,
+                "current_grant_matches_sdk": None,
+                "sdk_gate_projection": None,
+                "arm_templates_configured": templates_configured,
+                "arm_template_keys": template_keys,
             }
         with self._registered_sim_lock:
             with self._registered_sim_observation_lock:
+                templates_configured, template_keys = self._registered_sim_arm_templates_projection
                 dispatching = sorted(self._dispatching_order_ids)
             if dispatching:
                 return {
@@ -892,10 +1287,22 @@ class RegisteredSimWrapper:
                     "terminal_order_ids": None,
                     "frozen": None,
                     "armed_key": None,
+                    "current_grant_matches_sdk": None,
+                    "sdk_gate_projection": None,
+                    "arm_templates_configured": templates_configured,
+                    "arm_template_keys": template_keys,
                 }
             unknown_ids = [
                 order_ref for order_ref, state in self._order_state.items() if state == "unknown"
             ]
+            sdk_gate_state = self._sdk_gate_state_locked()
+            current_grant_matches = (
+                self._current_grant_matches_locked(
+                    self._registered_sim_armed_key, None, state=sdk_gate_state
+                )
+                if self._registered_sim_armed_key is not None
+                else False
+            )
             active_ids = [
                 order_ref for order_ref, state in self._order_state.items() if state == "active"
             ]
@@ -911,6 +1318,10 @@ class RegisteredSimWrapper:
                 ],
                 "frozen": self._registered_sim_frozen,
                 "armed_key": self._registered_sim_armed_key,
+                "current_grant_matches_sdk": current_grant_matches,
+                "sdk_gate_projection": _public_gate_projection(sdk_gate_state),
+                "arm_templates_configured": templates_configured,
+                "arm_template_keys": template_keys,
             }
 
 
@@ -1163,7 +1574,13 @@ class RegisteredSimStore(BtApiStore):
                 raise BtApiStoreError("registered-sim multi-instrument arming is unavailable")
             method(templates)
 
-    def registered_sim_ensure_arm(self, instrument: str, exchange: str) -> Dict[str, Any]:
+    def registered_sim_ensure_arm(
+        self,
+        instrument: str,
+        exchange: str,
+        *,
+        expected_session: Optional[Mapping] = None,
+    ) -> Dict[str, Any]:
         if not self._registered_sim_allow_writes:
             raise BtApiStoreError("registered-sim writes are disabled in shadow mode")
         instrument = _exact_text(instrument, "InstrumentID")
@@ -1176,7 +1593,16 @@ class RegisteredSimStore(BtApiStore):
             if not callable(ensure):
                 raise BtApiStoreError("registered-sim multi-instrument arming is unavailable")
             try:
-                result = dict(ensure(instrument, exchange))
+                if expected_session is None:
+                    result = dict(ensure(instrument, exchange))
+                else:
+                    session_scope = getattr(api, "registered_sim_expected_session_scope", None)
+                    if not callable(session_scope):
+                        raise BtApiStoreError(
+                            "registered-sim expected-session binding is unavailable"
+                        )
+                    with session_scope(expected_session):
+                        result = dict(ensure(instrument, exchange))
             except Exception:
                 self._sync_gate_after_arm_failure_locked(api, "native_arm_switch_failed")
                 raise
@@ -1254,6 +1680,16 @@ class RegisteredSimStore(BtApiStore):
             if self._registered_sim_gate.get("frozen") is True:
                 raise BtApiStoreError("registered-sim Store gate is frozen")
 
+    def _order_expected_session_scope(self, order: Any):
+        expected = _order_expected_session(order)
+        if expected is None:
+            return None
+        api = self._api
+        method = getattr(api, "registered_sim_expected_session_scope", None)
+        if not callable(method):
+            raise BtApiStoreError("registered-sim expected-session binding is unavailable")
+        return method(expected)
+
     def registered_sim_route_eligibility(
         self, instrument: str, exchange: str
     ) -> RegisteredSimRouteEligibility:
@@ -1270,6 +1706,7 @@ class RegisteredSimStore(BtApiStore):
             api = self._api
             wrapper_facts = None
             sdk_gate = None
+            sdk_client = None
             if api is not None:
                 wrapper_facts_method = getattr(api, "registered_sim_execution_facts", None)
                 sdk_client = getattr(api, "trader_client", None)
@@ -1281,7 +1718,13 @@ class RegisteredSimStore(BtApiStore):
                     and bool(wrapper_facts.get("dispatching_order_ids"))
                 )
                 if not has_dispatching_ids:
-                    sdk_gate = sdk_state_method() if callable(sdk_state_method) else None
+                    sdk_gate = (
+                        wrapper_facts.get("sdk_gate_projection")
+                        if isinstance(wrapper_facts, Mapping)
+                        else None
+                    )
+                    if sdk_gate is None and callable(sdk_state_method):
+                        sdk_gate = sdk_state_method()
 
         wrapper_observed = (
             isinstance(wrapper_facts, Mapping) and wrapper_facts.get("observed") is True
@@ -1322,6 +1765,11 @@ class RegisteredSimStore(BtApiStore):
             else None
         )
         adapter_key = wrapper_facts.get("armed_key") if wrapper_observed else None
+        cached_grant_matches = (
+            wrapper_facts.get("current_grant_matches_sdk")
+            if wrapper_observed and type(wrapper_facts.get("current_grant_matches_sdk")) is bool
+            else None
+        )
         sdk_capability_matches_route = None
         if wrapper_observed and sdk_gate_observed:
             if (
@@ -1329,10 +1777,13 @@ class RegisteredSimStore(BtApiStore):
                 or sdk_armed is not True
                 or adapter_key != (instrument, exchange)
                 or (sdk_instrument is not None and sdk_instrument != instrument)
+                or cached_grant_matches is False
             ):
                 sdk_capability_matches_route = False
-            elif authorized_instruments is not None:
+            elif cached_grant_matches is True and authorized_instruments is not None:
                 sdk_capability_matches_route = instrument in authorized_instruments
+            elif cached_grant_matches is True or cached_grant_matches is None:
+                sdk_capability_matches_route = None
 
         instrument_query_complete = self.supports_complete_ctp_queries(include_reference_data=True)
         with self._ctp_query_result_lock:
@@ -1355,6 +1806,62 @@ class RegisteredSimStore(BtApiStore):
             account_fingerprint = account_value if isinstance(account_value, str) else None
             connection_generation = generation_value if _positive_int(generation_value) else None
             trading_day = day_value if isinstance(day_value, str) else None
+        session = _session_identity(sdk_client) if sdk_client is not None else {}
+        current_session_account = session.get("account_fingerprint")
+        current_session_generation = session.get("connection_generation")
+        current_session_day = session.get("trading_day")
+        current_session_ready = session.get("trading_ready")
+        arm_api_available = (
+            callable(getattr(sdk_client, "arm_execution_for_registered_sim", None))
+            if sdk_client is not None
+            else None
+        )
+        templates_configured_value = (
+            wrapper_facts.get("arm_templates_configured") if wrapper_observed else None
+        )
+        arm_templates_configured = (
+            templates_configured_value if type(templates_configured_value) is bool else None
+        )
+        if arm_templates_configured is False:
+            arm_template_configured = False
+        elif arm_templates_configured is True:
+            # The public wrapper projection reports only membership and never
+            # exposes template contents.
+            keys = wrapper_facts.get("arm_template_keys")
+            if isinstance(keys, (tuple, list)):
+                if not keys:
+                    arm_template_configured = False
+                elif (instrument, exchange) in keys:
+                    arm_template_configured = True
+                else:
+                    arm_template_configured = None
+            else:
+                arm_template_configured = None
+        else:
+            arm_template_configured = None
+        if (
+            wrapper_observed
+            and sdk_gate_observed
+            and sdk_managed is True
+            and sdk_armed is True
+            and sdk_instrument == instrument
+            and adapter_key == (instrument, exchange)
+            and sdk_gate.get("connection_generation") == current_session_generation
+            and sdk_gate.get("trading_day") == current_session_day
+            and current_session_ready is True
+            and cached_grant_matches is True
+        ):
+            # The SDK exposes only the instrument grant here; exact exchange
+            # identity remains bound by the wrapper key and per-write SDK call.
+            sdk_capability_matches_route = (
+                instrument in authorized_instruments if authorized_instruments is not None else True
+            )
+        elif arm_templates_configured is True and sdk_capability_matches_route is None:
+            # The grant can legitimately be absent before the first per-route
+            # arm. This remains an observed false capability match, never a
+            # write permission.
+            if sdk_gate_observed and sdk_armed is False:
+                sdk_capability_matches_route = False
         reason_codes = []
         if not self._registered_sim_allow_writes:
             reason_codes.append("shadow_mode")
@@ -1380,6 +1887,10 @@ class RegisteredSimStore(BtApiStore):
             reason_codes.append("instrument_eligibility_unobserved")
         elif instrument_eligible is False:
             reason_codes.append("instrument_not_eligible")
+        if current_session_ready is False:
+            reason_codes.append("session_not_trading_ready")
+        if arm_templates_configured is True and arm_template_configured is not True:
+            reason_codes.append("arm_template_missing")
         return RegisteredSimRouteEligibility(
             route_name="ctp/direct/registered-sim",
             instrument_id=instrument,
@@ -1402,6 +1913,13 @@ class RegisteredSimStore(BtApiStore):
             instrument_query_complete=instrument_query_complete,
             instrument_eligible=instrument_eligible,
             reason_codes=tuple(reason_codes),
+            arm_template_configured=arm_template_configured,
+            arm_templates_configured=arm_templates_configured,
+            arm_api_available=arm_api_available,
+            current_session_account_fingerprint=current_session_account,
+            current_session_connection_generation=current_session_generation,
+            current_session_trading_day=current_session_day,
+            current_session_trading_ready=current_session_ready,
         )
 
     def registered_sim_arm_history(self):
@@ -1855,7 +2373,17 @@ class RegisteredSimStore(BtApiStore):
     def submit_order(self, order):
         self._require_registered_sim_not_frozen()
         try:
-            return super().submit_order(order)
+            session_scope = self._order_expected_session_scope(order)
+            if session_scope is None:
+                return super().submit_order(order)
+            # Store gate -> wrapper lock is the global lock order used by arm,
+            # freeze, and dispatch. The wrapper lock remains held through the
+            # SDK's final session/grant check and native method boundary.
+            with self._registered_sim_gate_lock:
+                if self._registered_sim_gate.get("frozen") is True:
+                    raise BtApiStoreError("registered-sim Store gate is frozen")
+                with session_scope:
+                    return super().submit_order(order)
         except Exception as exc:
             if getattr(exc, "execution_unknown", False) is True:
                 try:
@@ -1866,19 +2394,37 @@ class RegisteredSimStore(BtApiStore):
 
     def cancel_order(self, order):
         self._require_registered_sim_not_frozen()
-        route = self._order_route_from_info(order)
-        if route is not None:
-            info = getattr(order, "info", {})
-            order_ref = (
-                info.get("external_order_id")
-                or info.get("ctp_order_ref")
-                or getattr(order, "ref", None)
-            )
-            instrument, exchange = route
-            dataname = "{}.{}".format(exchange, instrument)
-            return self.cancel_order_ref(order_ref, dataname=dataname)
         try:
-            return super().cancel_order(order)
+            session_scope = self._order_expected_session_scope(order)
+            if session_scope is None:
+                route = self._order_route_from_info(order)
+                if route is not None:
+                    info = getattr(order, "info", {})
+                    order_ref = (
+                        info.get("external_order_id")
+                        or info.get("ctp_order_ref")
+                        or getattr(order, "ref", None)
+                    )
+                    instrument, exchange = route
+                    dataname = "{}.{}".format(exchange, instrument)
+                    return self.cancel_order_ref(order_ref, dataname=dataname)
+                return super().cancel_order(order)
+            with self._registered_sim_gate_lock:
+                if self._registered_sim_gate.get("frozen") is True:
+                    raise BtApiStoreError("registered-sim Store gate is frozen")
+                with session_scope:
+                    route = self._order_route_from_info(order)
+                    if route is not None:
+                        info = getattr(order, "info", {})
+                        order_ref = (
+                            info.get("external_order_id")
+                            or info.get("ctp_order_ref")
+                            or getattr(order, "ref", None)
+                        )
+                        instrument, exchange = route
+                        dataname = "{}.{}".format(exchange, instrument)
+                        return self.cancel_order_ref(order_ref, dataname=dataname)
+                    return super().cancel_order(order)
         except Exception as exc:
             if getattr(exc, "execution_unknown", False) is True:
                 try:

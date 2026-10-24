@@ -28,6 +28,7 @@ class FakeSdkTrader:
         self.is_ready = True
         self._connection_generation = 1
         self._account_fingerprint = "fake-account-1"
+        self._trading_day = "20261024"
         self._query_issuer = object()
         self.active_capability = None
         self.arm_calls = []
@@ -46,11 +47,30 @@ class FakeSdkTrader:
             self.fail_next_arm = False
             raise OSError("admission result is deliberately uncertain")
         capability = SimpleNamespace(
-            instrument_id=kwargs["instrument_id"], exchange_id=kwargs["exchange_id"]
+            instrument_id=kwargs["instrument_id"],
+            exchange_id=kwargs["exchange_id"],
+            connection_generation=self._connection_generation,
+            trading_day=self._trading_day,
+            scope_version="ctp-contract-bundle-v1",
+            proof_sha256="{:064x}".format(len(self.arm_calls) + 1),
+            environment_profile="simnow_demo",
+            revocation_reason=None,
         )
         self.active_capability = capability
         self.arm_calls.append((kwargs, capability))
-        return capability, {"managed": True, "armed": True, "admission": "sdk-issued"}
+        return capability, {
+            "managed": True,
+            "armed": True,
+            "instrument": capability.instrument_id,
+            "connection_generation": capability.connection_generation,
+            "trading_day": capability.trading_day,
+            "authorized_instruments": [capability.instrument_id],
+            "scope_version": capability.scope_version,
+            "proof_sha256": capability.proof_sha256,
+            "environment_profile": capability.environment_profile,
+            "revocation_reason": capability.revocation_reason,
+            "admission": "sdk-issued",
+        }
 
     def disarm_execution_gate(self, capability, reason):
         assert capability is self.active_capability
@@ -63,9 +83,18 @@ class FakeSdkTrader:
             issuer=self._query_issuer,
             connection_generation=self._connection_generation,
             account_fingerprint=self._account_fingerprint,
-            trading_day="20261024",
+            trading_day=self._trading_day,
             read_only_ready=True,
         )
+
+    def get_session_state(self):
+        return {
+            "account_fingerprint": self._account_fingerprint,
+            "connection_generation": self._connection_generation,
+            "trading_day": self._trading_day,
+            "trading_ready": self.is_ready,
+            "read_only_ready": self.is_ready,
+        }
 
     def get_execution_gate_state(self):
         capability = self.active_capability
@@ -73,9 +102,19 @@ class FakeSdkTrader:
             "managed": capability is not None,
             "armed": capability is not None,
             "instrument": capability.instrument_id if capability is not None else None,
+            "connection_generation": (
+                capability.connection_generation if capability is not None else None
+            ),
+            "trading_day": capability.trading_day if capability is not None else None,
             "authorized_instruments": (
                 [capability.instrument_id] if capability is not None else None
             ),
+            "scope_version": capability.scope_version if capability is not None else None,
+            "proof_sha256": capability.proof_sha256 if capability is not None else None,
+            "environment_profile": capability.environment_profile
+            if capability is not None
+            else None,
+            "revocation_reason": capability.revocation_reason if capability is not None else None,
         }
 
     def next_order_ref(self):
@@ -88,6 +127,8 @@ class FakeSdkTrader:
         assert capability is execution_capability
         assert capability.instrument_id == field.InstrumentID
         assert capability.exchange_id == field.ExchangeID
+        assert capability.connection_generation == self._connection_generation
+        assert capability.trading_day == self._trading_day
         self.native_calls.append((operation, field.InstrumentID, field.ExchangeID, capability))
         if self.block_first_native and len(self.native_calls) == 1:
             self.first_native_entered.set()
@@ -180,6 +221,17 @@ def _templates():
             "preflight_sha256": _sha("d"),
         },
     }
+
+
+def _three_route_templates():
+    templates = _templates()
+    templates[("cu2510", "SHFE")] = {
+        "md_front": "tcp://127.0.0.1:3",
+        "strategy_identity_sha256": _sha("e"),
+        "execution_cycle_id": "cycle-cu",
+        "preflight_sha256": _sha("f"),
+    }
+    return templates
 
 
 def _wrapper(*, allow_writes=True, terminal_limit=4):
@@ -384,7 +436,9 @@ def test_store_arm_uses_sdk_capability_and_preserves_exact_instrument_case():
 
 
 def test_ordinary_store_submit_cancel_hooks_are_synchronous_native_dispatches():
-    api = _wrapper()
+    # The unconfigured one-route compatibility path remains explicit. A
+    # configured template map requires a query-session-bound Strategy intent.
+    api = FakeRegisteredSimWrapper(registered_sim_allow_writes=True)
     store = RegisteredSimStore(api=api, allow_writes=True)
     store._connected = True
     store.registered_sim_arm(
@@ -439,7 +493,7 @@ def test_ordinary_store_submit_cancel_hooks_are_synchronous_native_dispatches():
 
 
 def test_sdk_order_ref_reservation_is_local_monotonic_and_used_by_submit():
-    api = _wrapper()
+    api = FakeRegisteredSimWrapper(registered_sim_allow_writes=True)
     store = RegisteredSimStore(api=api, allow_writes=True)
     store._connected = True
 
@@ -695,7 +749,7 @@ def test_failed_initial_arm_freezes_store_and_wrapper():
 
 
 def test_unknown_store_dispatch_freezes_and_cannot_be_retried():
-    api = _wrapper()
+    api = FakeRegisteredSimWrapper(registered_sim_allow_writes=True)
     api.trader_client.fail_next_insert = True
     store = RegisteredSimStore(api=api, allow_writes=True)
     store._connected = True
@@ -890,6 +944,335 @@ def test_route_eligibility_is_a_read_only_projection_not_write_authorization():
     assert facts.native_admission_required is True
     assert "shadow_mode" not in facts.reason_codes
     assert not hasattr(facts, "dispatch_authorized")
+
+
+def test_template_routes_are_plannable_before_first_grant_and_switch_serially():
+    api = FakeRegisteredSimWrapper(registered_sim_allow_writes=True)
+    store = RegisteredSimStore(api=api, allow_writes=True)
+    store._connected = True
+    templates = _three_route_templates()
+    store.registered_sim_configure_arm_templates(templates)
+    api.query_account_result = lambda **kwargs: _complete_query_result(api, "account", request_id=1)
+    api.query_positions_result = lambda **kwargs: _complete_query_result(
+        api, "positions", request_id=2
+    )
+    api.query_orders_result = lambda **kwargs: _complete_query_result(api, "orders", request_id=3)
+    api.query_trades_result = lambda **kwargs: _complete_query_result(api, "trades", request_id=4)
+    api.query_instruments_result = lambda **kwargs: _complete_query_result(
+        api,
+        "instruments",
+        request_id=5,
+        records=[
+            {"InstrumentID": instrument, "ExchangeID": exchange, "IsTrading": 1}
+            for instrument, exchange in templates
+        ],
+    )
+    for family in (
+        "account_result",
+        "positions_result",
+        "orders_result",
+        "trades_result",
+        "instruments_result",
+    ):
+        store.registered_sim_query(family, attempts=1)
+
+    for instrument, exchange in templates:
+        route = store.registered_sim_route_eligibility(instrument, exchange)
+        assert route.instrument_query_complete is True
+        assert route.instrument_eligible is True
+        assert route.allow_writes is True
+        assert route.capability_observed is True
+        assert route.sdk_capability_managed is False
+        assert route.sdk_capability_armed is False
+        assert route.capability_matches_route is False
+        assert route.arm_templates_configured is True
+        assert route.arm_template_configured is True
+        assert route.arm_api_available is True
+        assert route.current_session_account_fingerprint == "fake-account-1"
+        assert route.current_session_connection_generation == 1
+        assert route.current_session_trading_day == "20261024"
+        assert route.current_session_trading_ready is True
+
+    # The configured template map is a wrapper-lifetime route allowlist. An
+    # exact repeat is harmless; a changed or omitted route cannot widen it.
+    store.registered_sim_configure_arm_templates(templates)
+    changed = dict(templates)
+    changed[("au2510", "SHFE")] = templates[("cu2510", "SHFE")]
+    with pytest.raises(BtApiStoreError, match="immutable"):
+        store.registered_sim_configure_arm_templates(changed)
+
+    def make_order(instrument, exchange, ref):
+        return SimpleNamespace(
+            exectype=OrderBase.Limit,
+            price=100.0,
+            pricelimit=None,
+            created=SimpleNamespace(price=100.0),
+            data=SimpleNamespace(_name=instrument),
+            info={"instrument_id": instrument, "exchange_id": exchange},
+            ref=ref,
+            isbuy=lambda: True,
+            size=1,
+            valid=None,
+            tradeid=0,
+        )
+
+    routes = [("rb2510", "SHFE"), ("i2509", "DCE"), ("cu2510", "SHFE")]
+    expected_session = {
+        "account_fingerprint": "fake-account-1",
+        "connection_generation": 1,
+        "trading_day": "20261024",
+    }
+    for ref, (instrument, exchange) in enumerate(routes, start=1):
+        store.registered_sim_ensure_arm(instrument, exchange, expected_session=expected_session)
+        order = make_order(instrument, exchange, ref)
+        order.info.update(
+            {
+                "factor_session_account_fingerprint": expected_session["account_fingerprint"],
+                "factor_session_connection_generation": expected_session["connection_generation"],
+                "factor_session_trading_day": expected_session["trading_day"],
+            }
+        )
+        store.submit_order(order)
+
+    assert [call[0]["instrument_id"] for call in api.trader_client.arm_calls] == [
+        "rb2510",
+        "i2509",
+        "cu2510",
+    ]
+    assert [(call[0], call[1], call[2]) for call in api.trader_client.native_calls] == [
+        ("insert", "rb2510", "SHFE"),
+        ("insert", "i2509", "DCE"),
+        ("insert", "cu2510", "SHFE"),
+    ]
+    assert api.trader_client.active_capability.instrument_id == "cu2510"
+
+
+def test_same_key_sdk_rearm_invalidates_cached_proof_and_route_projection():
+    api = FakeRegisteredSimWrapper(registered_sim_allow_writes=True)
+    store = RegisteredSimStore(api=api, allow_writes=True)
+    store._connected = True
+    template = _templates()[("rb2510", "SHFE")]
+    store.registered_sim_configure_arm_templates({("rb2510", "SHFE"): template})
+
+    admitted = store.registered_sim_arm(
+        instrument="rb2510",
+        exchange="SHFE",
+        md_front=template["md_front"],
+        strategy_identity_sha256=template["strategy_identity_sha256"],
+        execution_cycle_id=template["execution_cycle_id"],
+        preflight_sha256=template["preflight_sha256"],
+    )
+    # Mutating the returned diagnostic must not mutate the wrapper's cached
+    # immutable proof tuple.
+    admitted["state"]["authorized_instruments"].clear()
+    route = store.registered_sim_route_eligibility("rb2510", "SHFE")
+    assert route.capability_matches_route is True
+
+    # Model an SDK-side same-instrument/same-session re-arm with a different
+    # signed proof. The opaque core capability and local route key stay the
+    # same, so only a proof-snapshot comparison detects the replacement.
+    api.trader_client.active_capability.proof_sha256 = "f" * 64
+    route = store.registered_sim_route_eligibility("rb2510", "SHFE")
+    assert route.sdk_capability_armed is True
+    assert route.capability_matches_route is False
+
+    expected_session = {
+        "account_fingerprint": "fake-account-1",
+        "connection_generation": 1,
+        "trading_day": "20261024",
+    }
+    with pytest.raises(BtApiStoreError, match="stale or mismatched"):
+        store.registered_sim_ensure_arm("rb2510", "SHFE", expected_session=expected_session)
+    assert api.trader_client.native_calls == []
+
+
+def test_template_route_missing_from_nonempty_map_never_falls_back_to_current_grant():
+    api = FakeRegisteredSimWrapper(registered_sim_allow_writes=True)
+    store = RegisteredSimStore(api=api, allow_writes=True)
+    store._connected = True
+    store.registered_sim_configure_arm_templates(
+        {("rb2510", "SHFE"): _templates()[("rb2510", "SHFE")]}
+    )
+
+    route = store.registered_sim_route_eligibility("i2509", "DCE")
+    assert route.arm_templates_configured is True
+    assert route.arm_template_configured is None
+    assert route.arm_api_available is True
+
+    order = SimpleNamespace(
+        exectype=OrderBase.Limit,
+        price=100.0,
+        pricelimit=None,
+        created=SimpleNamespace(price=100.0),
+        data=SimpleNamespace(_name="i2509"),
+        info={"instrument_id": "i2509", "exchange_id": "DCE"},
+        ref=9,
+        isbuy=lambda: True,
+        size=1,
+        valid=None,
+        tradeid=0,
+    )
+    with pytest.raises(BtApiStoreError, match="template"):
+        store.registered_sim_ensure_arm("i2509", "DCE")
+    with pytest.raises(BtApiStoreError):
+        store.submit_order(order)
+    assert api.trader_client.arm_calls == []
+    assert api.trader_client.native_calls == []
+
+
+def test_sealed_empty_template_map_rejects_active_grant_and_direct_writes():
+    api = FakeRegisteredSimWrapper(registered_sim_allow_writes=True)
+    store = RegisteredSimStore(api=api, allow_writes=True)
+    store._connected = True
+    store.registered_sim_configure_arm_templates({})
+    # Even an explicit SDK grant cannot expand a sealed empty route allowlist.
+    store.registered_sim_arm(
+        instrument="rb2510",
+        exchange="SHFE",
+        md_front="tcp://127.0.0.1:1",
+        strategy_identity_sha256=_sha("a"),
+        execution_cycle_id="cycle-rb",
+        preflight_sha256=_sha("b"),
+    )
+    route = store.registered_sim_route_eligibility("rb2510", "SHFE")
+    assert route.arm_templates_configured is True
+    assert route.arm_template_configured is False
+    assert route.capability_matches_route is True
+    assert route.arm_api_available is True
+
+    session_info = {
+        "factor_session_account_fingerprint": "fake-account-1",
+        "factor_session_connection_generation": 1,
+        "factor_session_trading_day": "20261024",
+    }
+    order = SimpleNamespace(
+        exectype=OrderBase.Limit,
+        price=100.0,
+        pricelimit=None,
+        created=SimpleNamespace(price=100.0),
+        data=SimpleNamespace(_name="rb2510"),
+        info={"instrument_id": "rb2510", "exchange_id": "SHFE", **session_info},
+        ref=12,
+        isbuy=lambda: True,
+        size=1,
+        valid=None,
+        tradeid=0,
+    )
+    with pytest.raises(BtApiStoreError, match="arm template"):
+        store.submit_order(order)
+    assert api.trader_client.native_calls == []
+
+    # Public direct cancel-ref is subject to the same route and session gate.
+    api._pending_orders["native-12"] = {
+        "order_ref": "native-12",
+        "instrument": "rb2510",
+        "exchange_id": "SHFE",
+    }
+    order.info["external_order_id"] = "native-12"
+    with pytest.raises(BtApiStoreError, match="arm template"):
+        store.cancel_order(order)
+    with pytest.raises(BtApiStoreError, match="template-bound|arm template"):
+        store.cancel_order_ref("native-12", dataname="rb2510.SHFE")
+    assert api.trader_client.native_calls == []
+
+
+def test_final_store_hook_rejects_stale_decision_session_before_native_call():
+    api = FakeRegisteredSimWrapper(registered_sim_allow_writes=True)
+    store = RegisteredSimStore(api=api, allow_writes=True)
+    store._connected = True
+    templates = _templates()
+    store.registered_sim_configure_arm_templates(templates)
+    expected = {
+        "account_fingerprint": "fake-account-1",
+        "connection_generation": 1,
+        "trading_day": "20261024",
+    }
+    store.registered_sim_ensure_arm("rb2510", "SHFE", expected_session=expected)
+    api.trader_client._connection_generation = 2
+
+    order = SimpleNamespace(
+        exectype=OrderBase.Limit,
+        price=100.0,
+        pricelimit=None,
+        created=SimpleNamespace(price=100.0),
+        data=SimpleNamespace(_name="rb2510"),
+        info={
+            "instrument_id": "rb2510",
+            "exchange_id": "SHFE",
+            "factor_session_account_fingerprint": expected["account_fingerprint"],
+            "factor_session_connection_generation": expected["connection_generation"],
+            "factor_session_trading_day": expected["trading_day"],
+        },
+        ref=10,
+        isbuy=lambda: True,
+        size=1,
+        valid=None,
+        tradeid=0,
+    )
+    with pytest.raises(BtApiStoreError, match="session identity is stale"):
+        store.submit_order(order)
+    assert api.trader_client.native_calls == []
+
+
+def test_factor_intent_cannot_fall_back_to_unbound_legacy_store_hooks():
+    api = FakeRegisteredSimWrapper(registered_sim_allow_writes=True)
+    store = RegisteredSimStore(api=api, allow_writes=True)
+    store._connected = True
+    store.registered_sim_arm(
+        instrument="rb2510",
+        exchange="SHFE",
+        md_front="tcp://127.0.0.1:1",
+        strategy_identity_sha256=_sha("a"),
+        execution_cycle_id="cycle-rb",
+        preflight_sha256=_sha("b"),
+    )
+    order = SimpleNamespace(
+        exectype=OrderBase.Limit,
+        price=100.0,
+        pricelimit=None,
+        created=SimpleNamespace(price=100.0),
+        data=SimpleNamespace(_name="rb2510"),
+        info={
+            "instrument_id": "rb2510",
+            "exchange_id": "SHFE",
+            "factor_intent_id": "intent-1",
+        },
+        ref=11,
+        isbuy=lambda: True,
+        size=1,
+        valid=None,
+        tradeid=0,
+    )
+
+    with pytest.raises(BtApiStoreError, match="missing its expected session identity"):
+        store.submit_order(order)
+    assert api.trader_client.native_calls == []
+
+    # Cancellation reuses the Order instance and has its own intent marker.
+    # It must be bound to the current query-set identity as well.
+    order.info.pop("factor_intent_id")
+    order.info.update(
+        {
+            "factor_cancel_intent_id": "cancel-1",
+            "external_order_id": "native-11",
+        }
+    )
+    with pytest.raises(BtApiStoreError, match="missing its expected session identity"):
+        store.cancel_order(order)
+    assert api.trader_client.native_calls == []
+
+
+def test_route_projection_keeps_session_identity_when_not_trading_ready():
+    api = _wrapper(allow_writes=True)
+    store = RegisteredSimStore(api=api, allow_writes=True)
+    store._connected = True
+    api.trader_client.is_ready = False
+
+    route = store.registered_sim_route_eligibility("rb2510", "SHFE")
+    assert route.current_session_account_fingerprint == "fake-account-1"
+    assert route.current_session_connection_generation == 1
+    assert route.current_session_trading_day == "20261024"
+    assert route.current_session_trading_ready is False
 
 
 def test_instrument_eligibility_stays_unobserved_for_malformed_full_query_rows():

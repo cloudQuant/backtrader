@@ -81,11 +81,18 @@ class _QueryClient:
         self._account_fingerprint = _ACCOUNT
         self._trading_day = _TRADING_DAY
         self.is_ready = True
+        self.is_trading_ready = True
         self._gate_state = {
             "managed": False,
             "armed": False,
             "instrument": None,
             "authorized_instruments": [],
+            "connection_generation": self._connection_generation,
+            "trading_day": self._trading_day,
+            "scope_version": "ctp-contract-bundle-v1",
+            "proof_sha256": "c" * 64,
+            "environment_profile": "simnow_demo",
+            "revocation_reason": None,
         }
 
     def get_query_session_scope(self):
@@ -99,6 +106,14 @@ class _QueryClient:
 
     def get_execution_gate_state(self):
         return dict(self._gate_state)
+
+    def get_session_state(self):
+        return {
+            "account_fingerprint": self._account_fingerprint,
+            "connection_generation": self._connection_generation,
+            "trading_day": self._trading_day,
+            "trading_ready": self.is_trading_ready,
+        }
 
     def arm_execution_for_registered_sim(
         self,
@@ -116,6 +131,12 @@ class _QueryClient:
             "armed": True,
             "instrument": instrument_id,
             "authorized_instruments": [instrument_id],
+            "connection_generation": self._connection_generation,
+            "trading_day": self._trading_day,
+            "scope_version": "ctp-contract-bundle-v1",
+            "proof_sha256": "c" * 64,
+            "environment_profile": "simnow_demo",
+            "revocation_reason": None,
         }
         return object(), dict(self._gate_state)
 
@@ -123,12 +144,13 @@ class _QueryClient:
 class _ProviderLeaves:
     """Fake only the CTP query/tick leaves; the Store and Broker stay real."""
 
-    def __init__(self, *, query_rows=None, query_time=None, tick=None, **kwargs):
+    def __init__(self, *, query_rows=None, query_time=None, tick=None, ticks=None, **kwargs):
         del kwargs
         self.trader_client = _QueryClient()
         self.query_rows = dict(query_rows or {})
         self.query_time = query_time or datetime.now(timezone.utc)
         self.tick = tick
+        self.ticks = dict(ticks or {})
         self.query_calls = []
         self._next_request_id = 0
         self._registered_sim_allow_writes = True
@@ -225,6 +247,8 @@ class _ProviderLeaves:
         return self._query_family("instrument_margin_rate_result", "margin_rate", **filters)
 
     def poll_tick(self, symbol):
+        if symbol in self.ticks:
+            return self.ticks.pop(symbol)
         if symbol != _INSTRUMENT:
             return None
         tick, self.tick = self.tick, None
@@ -254,6 +278,8 @@ def _quote(
     *,
     event_time,
     received_at=None,
+    symbol=_INSTRUMENT,
+    exchange=_EXCHANGE,
     generation=1,
     sequence=1,
     trading_day=_TRADING_DAY,
@@ -262,8 +288,8 @@ def _quote(
     received_at = received_at or event_time + timedelta(milliseconds=10)
     tick = TickEvent(
         timestamp=event_time.timestamp(),
-        symbol=_INSTRUMENT,
-        exchange=_EXCHANGE,
+        symbol=symbol,
+        exchange=exchange,
         price=100.0,
         volume=1.0,
         bid_price=99.0,
@@ -280,8 +306,8 @@ def _quote(
         event_id="tick-{}".format(sequence),
         coalesced_count=1,
     )
-    tick.instrument_id = _INSTRUMENT
-    tick.exchange_id = _EXCHANGE
+    tick.instrument_id = symbol
+    tick.exchange_id = exchange
     tick.trading_day = trading_day
     tick.connection_generation = generation
     tick.stream_generation = generation
@@ -342,7 +368,7 @@ def _dated_position_row(
     trading_day=_TRADING_DAY,
     today_position=None,
     yd_position=None,
-    **overrides
+    **overrides,
 ):
     """One exact public CTP position bucket for source-backed close tests."""
 
@@ -408,10 +434,11 @@ def _system_under_test(
     journal_path=":memory:",
     store_cls=RegisteredSimStore,
     provenance_source=_UNTRUSTED_TICK_SOURCE,
+    allow_writes=True,
 ):
     now = now or datetime.now(timezone.utc)
     api = _FakeRegisteredSimWrapper(
-        registered_sim_allow_writes=True,
+        registered_sim_allow_writes=allow_writes,
         query_rows=rows or _query_rows(),
         query_time=query_time or now - timedelta(seconds=1),
         tick=tick or _quote(event_time=now - timedelta(milliseconds=200)),
@@ -419,7 +446,7 @@ def _system_under_test(
     api.live_tick_provenance = {"source": provenance_source}
     store = store_cls(
         api=api,
-        allow_writes=True,
+        allow_writes=allow_writes,
         live_tick_provenance={"source": provenance_source},
     )
     store._connected = True
@@ -440,6 +467,244 @@ def _system_under_test(
     )
     target = FactorExecutionTarget("rb", _INSTRUMENT, _EXCHANGE, data)
     return api, store, broker, journal, coordinator, target
+
+
+def _build_source_backed_read_only_reconciliation_case(scenario="positive"):
+    """Build read-only retirement facts through the real Store/Broker/Book path.
+
+    Provider queries remain typed fake leaves. The returned ``facts`` are
+    always produced by the production projection and are never constructed
+    directly by this helper.
+    """
+    scenarios = {
+        "positive",
+        "stale_query",
+        "session_mismatch",
+        "unknown_order",
+        "pending_order",
+        "active_order",
+        "frozen",
+    }
+    if scenario not in scenarios:
+        raise ValueError("unsupported read-only reconciliation scenario")
+
+    now = datetime.now(timezone.utc)
+    query_time = now - timedelta(minutes=1) if scenario == "stale_query" else now
+    remote_order = None
+    if scenario in {"pending_order", "active_order"}:
+        remote_order = {
+            "OrderRef": "94",
+            "OrderSysID": "sys-active-94",
+            "InstrumentID": _INSTRUMENT,
+            "ExchangeID": _EXCHANGE,
+            "OrderStatus": "3",
+            "Direction": "0",
+            "CombOffsetFlag": "0",
+            "VolumeTotal": "1",
+            "FrontID": 4,
+            "SessionID": 7,
+            "TradingDay": _TRADING_DAY,
+        }
+    rows = _query_rows(orders=(remote_order,) if remote_order is not None else ())
+    api, store, broker, journal, coordinator, target = _system_under_test(
+        now=now,
+        rows=rows,
+        query_time=query_time,
+        tick=None,
+        allow_writes=False,
+    )
+    receipt = _refresh_all(store, target)
+
+    intent = None
+    if scenario == "active_order":
+        decision_key = ExecutionDecisionKey(
+            account_scope="acct-scope",
+            strategy_scope="alpha003",
+            logical_run_id="run-1",
+            cohort_id="read-only-fixture",
+            close_time=(now - timedelta(seconds=2)).isoformat().replace("+00:00", "Z"),
+            decision_kind="alpha003-rebalance",
+        )
+        intent_key = ExecutionIntentKey(
+            action="SUBMIT",
+            instrument=_INSTRUMENT,
+            side="BUY",
+            position_effect="OPEN",
+            leg=0,
+        )
+        decision = journal.record_decision(
+            decision_key,
+            {"batch_id": "read-only-batch", "mode": "native"},
+            intent_keys=(intent_key,),
+        )
+        intent = journal.prepare_intent(
+            decision.decision_id,
+            intent_key,
+            {"exchange": _EXCHANGE, "quantity": "1", "price": "100"},
+            original_identity={
+                "backtrader_order_ref": 94,
+                "operation": "insert",
+                "instrument_id": _INSTRUMENT,
+                "exchange_id": _EXCHANGE,
+                "order_ref": "94",
+                "order_sys_id": "sys-active-94",
+                "trading_day": _TRADING_DAY,
+            },
+        )
+        assert journal.claim_dispatch(intent.intent_id) is not None
+        journal.record_dispatch_result(
+            intent.intent_id,
+            state="KNOWN",
+            provider_identity={"order_ref": "94", "order_sys_id": "sys-active-94"},
+            outcome_code="accepted",
+        )
+        order = BuyOrder(
+            owner=None,
+            data=target.data,
+            size=1,
+            price=100,
+            exectype=Order.Limit,
+            simulated=True,
+        )
+        order.status = Order.Accepted
+        order.info.update(
+            {
+                "external_order_ref": "94",
+                "order_sys_id": "sys-active-94",
+                "instrument_id": _INSTRUMENT,
+                "exchange_id": _EXCHANGE,
+                "factor_position_effect": "OPEN",
+                "factor_strategy_scope": "alpha003",
+                "factor_intent_id": intent.intent_id,
+                "front_id": 4,
+                "session_id": 7,
+                "execution_unknown": False,
+                "cancel_requested_remote": False,
+                "cancel_intent_active": False,
+                "managed_execution_cancel_pending": False,
+            }
+        )
+        broker.orders[order.ref] = order
+
+    if scenario == "unknown_order":
+        api._order_state["unknown-94"] = "unknown"
+    elif scenario == "session_mismatch":
+        api.trader_client._account_fingerprint = "different-account"
+    elif scenario == "frozen":
+        store.registered_sim_freeze("read-only fixture freeze")
+
+    # Read-only session identity remains observable even without permission to
+    # trade; this is distinct from the current trading-ready fact.
+    api.trader_client.is_ready = False
+    api.trader_client.is_trading_ready = False
+    projection_now = datetime.now(timezone.utc)
+    facts = project_factor_execution_facts(
+        store,
+        broker,
+        targets=(target,),
+        account_scope="acct-scope",
+        strategy_scope="alpha003",
+        now=projection_now,
+        quote_max_age=timedelta(seconds=2),
+        max_query_age=timedelta(seconds=10),
+        query_set=receipt.query_set,
+    )
+    return SimpleNamespace(
+        api=api,
+        store=store,
+        broker=broker,
+        journal=journal,
+        coordinator=coordinator,
+        target=target,
+        receipt=receipt,
+        query_set=receipt.query_set,
+        now=projection_now,
+        facts=facts,
+        intent=intent,
+    )
+
+
+def _multi_target_system_under_test(*, now, target_specs, missing_template=()):
+    """Keep the real Store/Broker/coordinator path with only provider leaves faked."""
+
+    rows = _query_rows()
+    rows["instruments_result"] = [
+        {
+            "InstrumentID": instrument,
+            "ExchangeID": exchange,
+            "IsTrading": 1,
+            "VolumeMultiple": 10,
+            "PriceTick": 1,
+            "LowerLimitPrice": 1,
+            "UpperLimitPrice": 1000,
+        }
+        for _target_id, instrument, exchange in target_specs
+    ]
+    rows["instrument_margin_rate_result"] = [
+        {
+            "InstrumentID": instrument,
+            "ExchangeID": exchange,
+            "HedgeFlag": "1",
+            "LongMarginRatioByMoney": "0.1",
+            "LongMarginRatioByVolume": "0",
+            "ShortMarginRatioByMoney": "0.1",
+            "ShortMarginRatioByVolume": "0",
+        }
+        for _target_id, instrument, exchange in target_specs
+    ]
+    ticks = {
+        instrument: _quote(
+            event_time=now - timedelta(milliseconds=200),
+            symbol=instrument,
+            exchange=exchange,
+            sequence=index + 1,
+        )
+        for index, (_target_id, instrument, exchange) in enumerate(target_specs)
+    }
+    api = _FakeRegisteredSimWrapper(
+        registered_sim_allow_writes=True,
+        query_rows=rows,
+        query_time=now - timedelta(seconds=1),
+        ticks=ticks,
+    )
+    api.live_tick_provenance = {"source": _UNTRUSTED_TICK_SOURCE}
+    store = RegisteredSimStore(
+        api=api,
+        allow_writes=True,
+        live_tick_provenance={"source": _UNTRUSTED_TICK_SOURCE},
+    )
+    store._connected = True
+    targets = tuple(
+        FactorExecutionTarget(target_id, instrument, exchange, SimpleNamespace(_name=instrument))
+        for target_id, instrument, exchange in target_specs
+    )
+    contract_metadata = {
+        instrument: {"instrument_id": instrument, "exchange_id": exchange}
+        for _target_id, instrument, exchange in target_specs
+    }
+    broker = BtApiBroker(store=store, contract_metadata=contract_metadata)
+    journal = ExecutionDecisionJournal(":memory:")
+    coordinator = FactorExecutionCoordinator(
+        broker,
+        journal,
+        account_scope="acct-scope",
+        strategy_scope="alpha003",
+        logical_run_id="run-1",
+        max_order_intents_per_grid=4,
+        max_order_intents_per_run=1000,
+    )
+    arm_templates = {
+        (instrument, exchange): {
+            "md_front": "tcp://127.0.0.1:1",
+            "strategy_identity_sha256": "a" * 64,
+            "execution_cycle_id": "cycle-{}".format(target_id),
+            "preflight_sha256": "b" * 64,
+        }
+        for target_id, instrument, exchange in target_specs
+        if (target_id, instrument, exchange) not in missing_template
+    }
+    store.registered_sim_configure_arm_templates(arm_templates)
+    return api, store, broker, journal, coordinator, targets, arm_templates
 
 
 def _refresh_all(store, target):
@@ -562,6 +827,283 @@ def test_real_registered_store_and_broker_project_a_complete_flat_snapshot():
     assert coordinator.position_book is not None
     assert journal is coordinator.journal
     assert len(api.query_calls) == 6
+
+
+def test_configured_templates_keep_all_target_routes_plannable_with_one_active_grant():
+    now = datetime.now(timezone.utc)
+    target_specs = (
+        ("rb", "rb2510", "SHFE"),
+        ("cu", "cu2510", "SHFE"),
+        ("au", "au2512", "SHFE"),
+    )
+    (
+        api,
+        store,
+        broker,
+        _journal,
+        _coordinator,
+        targets,
+        templates,
+    ) = _multi_target_system_under_test(now=now, target_specs=target_specs)
+    receipt = refresh_factor_execution_queries(
+        store,
+        targets=targets,
+        overall_timeout=4.0,
+    )
+    assert receipt.blockers == ()
+    assert receipt.pending_families == ()
+    assert receipt.query_set is not None
+    for target in targets:
+        assert store.poll_tick(target.instrument) is not None
+
+    # One target currently holds the single SDK grant. Planning facts for the
+    # other exact, configured routes remain eligible without pretending that
+    # their capabilities are armed.
+    first = targets[0]
+    first_template = templates[(first.instrument, first.exchange)]
+    store.registered_sim_arm(
+        instrument=first.instrument,
+        exchange=first.exchange,
+        **first_template,
+    )
+    facts = project_factor_execution_facts(
+        store,
+        broker,
+        targets=targets,
+        account_scope="acct-scope",
+        strategy_scope="alpha003",
+        now=now,
+        quote_max_age=timedelta(seconds=2),
+        max_query_age=timedelta(seconds=10),
+        query_set=receipt.query_set,
+    )
+
+    assert facts.blockers == (), facts.blockers
+    assert len(facts.positions) == len(facts.quotes) == len(facts.instruments) == 3
+    assert facts.account is not None and facts.account.route_permitted is True
+    assert facts.open_risk_ready is True, facts.blockers
+    assert [route.eligible for route in facts.route_eligibilities] == [True, True, True]
+    assert all(route.arm_template_configured is True for route in facts.route_eligibilities)
+    assert all(route.arm_templates_configured is True for route in facts.route_eligibilities)
+    assert all(route.arm_api_available is True for route in facts.route_eligibilities)
+    assert all(route.current_session_trading_ready is True for route in facts.route_eligibilities)
+    assert [route.capability_matches_route for route in facts.route_eligibilities] == [
+        True,
+        False,
+        False,
+    ]
+    # `capability_armed` is the SDK's current global arm state. Per-route
+    # identity is represented separately by `capability_matches_route`.
+    assert [route.capability_armed for route in facts.route_eligibilities] == [True, True, True]
+    assert len(api.registered_sim_arm_history()) == 1
+
+
+def test_read_only_reconciliation_accepts_coherent_flat_shadow_without_quote_or_grant():
+    case = _build_source_backed_read_only_reconciliation_case()
+    facts = case.facts
+
+    assert facts.account is not None
+    assert facts.account.route_permitted is False
+    assert facts.quotes[0].quality != "GOOD"
+    assert facts.route_eligibilities[0].capability_armed is False
+    assert facts.route_eligibilities[0].current_session_trading_ready is False
+    assert facts.positions[0].quantity == Decimal(0)
+    assert facts.working_orders == ()
+    assert facts.risk_reduction_ready is False
+    assert facts.read_only_reconciliation_ready is True, facts.read_only_reconciliation_blockers
+    assert facts.read_only_reconciliation_blockers == ()
+
+
+def test_read_only_reconciliation_keeps_book_blocker_for_joined_active_order():
+    case = _build_source_backed_read_only_reconciliation_case(scenario="active_order")
+    facts = case.facts
+
+    assert case.intent is not None
+    # The active order is joined and known, but the durable position book
+    # intentionally marks its instrument attribution unresolved while that
+    # order is live. Retirement readiness must preserve that blocker; Strategy
+    # separately checks the owned working order as well.
+    assert facts.read_only_reconciliation_ready is False
+    assert "INSTRUMENT_ORDER_UNRESOLVED" in facts.read_only_reconciliation_blockers
+    assert len(facts.working_orders) == 1
+    working = facts.working_orders[0]
+    assert working.state == "ACCEPTED"
+    assert working.owner_strategy_scope == "alpha003"
+    assert working.owner_intent_id == case.intent.intent_id
+    assert working.execution_unknown is False
+    # Strategy performs its existing no-owned-working-order retirement check.
+    assert working.owner_strategy_scope == facts.strategy_scope
+
+
+def test_cancel_ignores_book_order_reservation_only_for_exact_owned_join():
+    case = _build_source_backed_read_only_reconciliation_case(scenario="active_order")
+    facts = case.facts
+
+    assert facts.positions[0].position_book_status == "UNKNOWN"
+    assert facts.positions[0].position_book_blocker_code == "INSTRUMENT_ORDER_UNRESOLVED"
+    assert "INSTRUMENT_ORDER_UNRESOLVED" in facts.blockers
+    assert "INSTRUMENT_ORDER_UNRESOLVED" in facts.read_only_reconciliation_blockers
+    assert "INSTRUMENT_ORDER_UNRESOLVED" not in facts.order_cancel_blockers
+    preserved_position_only = (
+        "position_metadata_unavailable:rb",
+        "position_book_cursor_unavailable:rb",
+        "broker_position_projection_unavailable:rb",
+    )
+    facts_with_position_only = replace(facts, blockers=facts.blockers + preserved_position_only)
+    assert all(
+        code not in facts_with_position_only.order_cancel_blockers
+        for code in preserved_position_only
+    )
+    # The shadow fixture has no write permission; classifying this position
+    # blocker cannot turn it into cancellation authority.
+    assert facts.order_cancel_ready is False
+
+    order = facts.working_orders[0]
+    invalid_variants = (
+        replace(order, owner_strategy_scope="other-strategy"),
+        replace(order, owner_intent_id=None),
+        replace(order, execution_unknown=True),
+        replace(order, cancel_pending=True),
+        replace(order, state="UNKNOWN"),
+        replace(order, target_id=None),
+        replace(order, exchange="DCE"),
+        replace(order, broker_order_ref=None),
+        replace(order, front_id=None),
+        replace(order, session_id=None),
+    )
+    for invalid_order in invalid_variants:
+        invalid_facts = replace(facts, working_orders=(invalid_order,))
+        assert "INSTRUMENT_ORDER_UNRESOLVED" in invalid_facts.order_cancel_blockers
+
+    no_order_facts = replace(facts, working_orders=())
+    assert "INSTRUMENT_ORDER_UNRESOLVED" in no_order_facts.order_cancel_blockers
+
+    mismatched_facts = replace(
+        facts,
+        blockers=facts.blockers + ("remote_broker_order_front_mismatch:94",),
+    )
+    assert "INSTRUMENT_ORDER_UNRESOLVED" not in mismatched_facts.order_cancel_blockers
+    assert "remote_broker_order_front_mismatch:94" in mismatched_facts.order_cancel_blockers
+
+
+def test_read_only_reconciliation_missing_account_with_dated_rows_fails_closed():
+    facts, _live_inputs = _build_source_backed_dated_close_facts()
+    incomplete = replace(facts, account=None)
+
+    assert incomplete.read_only_reconciliation_ready is False
+    assert "read_only_account_projection_unavailable" in (
+        incomplete.read_only_reconciliation_blockers
+    )
+
+
+@pytest.mark.parametrize(
+    "scenario,expected_prefix",
+    (
+        ("stale_query", "read_only_core_query_provenance_incomplete"),
+        ("session_mismatch", "read_only_core_query_provenance_incomplete"),
+        ("unknown_order", "read_only_unknown_orders_present_or_unobserved"),
+        ("pending_order", "remote_working_order_missing_from_broker"),
+        ("frozen", "read_only_route_frozen_or_unobserved"),
+    ),
+)
+def test_read_only_reconciliation_rejects_stale_or_unresolved_source(scenario, expected_prefix):
+    case = _build_source_backed_read_only_reconciliation_case(scenario=scenario)
+
+    assert case.facts.read_only_reconciliation_ready is False
+    assert any(
+        blocker.startswith(expected_prefix)
+        for blocker in case.facts.read_only_reconciliation_blockers
+    ), case.facts.read_only_reconciliation_blockers
+
+
+@pytest.mark.parametrize(
+    "blocker",
+    ("route_query_identity_mismatch:rb", "OPEN_INTENT_QUANTITY_EXCEEDED"),
+)
+def test_read_only_reconciliation_does_not_hide_query_or_unknown_blockers(blocker):
+    facts = _build_source_backed_read_only_reconciliation_case().facts
+    facts_with_blocker = replace(facts, blockers=facts.blockers + (blocker,))
+
+    assert facts_with_blocker.read_only_reconciliation_ready is False
+    assert blocker in facts_with_blocker.read_only_reconciliation_blockers
+
+
+def test_missing_target_template_blocks_global_readiness_without_filtering_targets():
+    now = datetime.now(timezone.utc)
+    target_specs = (
+        ("rb", "rb2510", "SHFE"),
+        ("cu", "cu2510", "SHFE"),
+        ("au", "au2512", "SHFE"),
+    )
+    missing = (target_specs[-1],)
+    (
+        _api,
+        store,
+        broker,
+        _journal,
+        _coordinator,
+        targets,
+        templates,
+    ) = _multi_target_system_under_test(
+        now=now,
+        target_specs=target_specs,
+        missing_template=missing,
+    )
+    receipt = refresh_factor_execution_queries(store, targets=targets, overall_timeout=4.0)
+    assert receipt.blockers == ()
+    for target in targets:
+        assert store.poll_tick(target.instrument) is not None
+    first = targets[0]
+    store.registered_sim_arm(
+        instrument=first.instrument,
+        exchange=first.exchange,
+        **templates[(first.instrument, first.exchange)],
+    )
+
+    facts = project_factor_execution_facts(
+        store,
+        broker,
+        targets=targets,
+        account_scope="acct-scope",
+        strategy_scope="alpha003",
+        now=now,
+        quote_max_age=timedelta(seconds=2),
+        max_query_age=timedelta(seconds=10),
+        query_set=receipt.query_set,
+    )
+
+    assert len(facts.positions) == len(facts.quotes) == len(facts.instruments) == 3
+    assert len(facts.route_eligibilities) == 3
+    assert facts.route_eligibilities[-1].arm_templates_configured is True
+    assert facts.route_eligibilities[-1].arm_template_configured is None
+    assert facts.route_eligibilities[-1].eligible is False
+    assert "route_arm_template_missing:au" in facts.blockers
+
+
+def test_sealed_empty_arm_template_map_does_not_fall_back_to_active_grant_mode():
+    now = datetime.now(timezone.utc)
+    _api, store, _broker, _journal, _coordinator, target = _system_under_test(now=now)
+    store.registered_sim_configure_arm_templates({})
+    receipt = _refresh_all(store, target)
+
+    facts = project_factor_execution_facts(
+        store,
+        _broker,
+        targets=(target,),
+        account_scope="acct-scope",
+        strategy_scope="alpha003",
+        now=now,
+        quote_max_age=timedelta(seconds=2),
+        max_query_age=timedelta(seconds=10),
+        query_set=receipt.query_set,
+    )
+
+    route = facts.route_eligibilities[0]
+    assert route.arm_templates_configured is True
+    assert route.arm_template_configured is False
+    assert route.eligible is False
+    assert "route_arm_template_missing:rb" in facts.blockers
+    assert facts.open_risk_ready is False
 
 
 def test_history_inventory_keeps_current_position_separate_from_yd_baseline():
@@ -1884,16 +2426,12 @@ def _build_source_backed_dated_close_facts(
     assert close_leg.owner_intent_id == intent.intent_id
     assert close_leg.query_set_id == facts.query_set_id
     assert close_leg.source_row_ids == (position.dated_inventory_rows[0].source_row_id,)
-    assert close_leg.opening_execution_ids == (
-        "ctp:{}:trade-open-1".format(_TRADING_DAY),
-    )
+    assert close_leg.opening_execution_ids == ("ctp:{}:trade-open-1".format(_TRADING_DAY),)
     if partial_close:
         assert close_leg.provider_quantity == Decimal("1")
         assert close_leg.owned_quantity == Decimal("1")
         assert close_leg.available_quantity == Decimal("1")
-        assert close_leg.close_execution_ids == (
-            "ctp:{}:trade-close-1".format(_TRADING_DAY),
-        )
+        assert close_leg.close_execution_ids == ("ctp:{}:trade-close-1".format(_TRADING_DAY),)
         assert len(close_leg.lots) == 1
         assert close_leg.lots[0].opened_quantity == Decimal("2")
         assert close_leg.lots[0].closed_quantity == Decimal("1")
@@ -1965,9 +2503,7 @@ def test_source_backed_partial_close_keeps_owned_today_remainder():
     assert leg.offset_flag == "3"
     assert leg.offset == "close_today"
     assert leg.available_quantity == Decimal("1")
-    assert leg.close_execution_ids == (
-        "ctp:{}:trade-close-1".format(_TRADING_DAY),
-    )
+    assert leg.close_execution_ids == ("ctp:{}:trade-close-1".format(_TRADING_DAY),)
 
 
 def test_source_backed_dated_close_proof_survives_journal_and_coordinator_restart(tmp_path):
@@ -1981,9 +2517,7 @@ def test_source_backed_dated_close_proof_survives_journal_and_coordinator_restar
     reopened_journal = ExecutionDecisionJournal(journal_path)
     reopened_broker = BtApiBroker(
         store=live_inputs["store"],
-        contract_metadata={
-            _INSTRUMENT: {"instrument_id": _INSTRUMENT, "exchange_id": _EXCHANGE}
-        },
+        contract_metadata={_INSTRUMENT: {"instrument_id": _INSTRUMENT, "exchange_id": _EXCHANGE}},
     )
     # A process restart creates a new Broker too. Restore only its ordinary
     # current Broker projection from the prior Broker snapshot; ownership and
@@ -2022,9 +2556,7 @@ def test_unattributed_mixed_date_inventory_does_not_create_close_legs():
     rows = _query_rows(
         positions=(
             _dated_position_row("1", position_date="TODAY", yd_position="0"),
-            _dated_position_row(
-                "1", position_date="HISTORY", today_position="0", yd_position="2"
-            ),
+            _dated_position_row("1", position_date="HISTORY", today_position="0", yd_position="2"),
         )
     )
     _api, store, broker, _journal, _coordinator, target = _system_under_test(

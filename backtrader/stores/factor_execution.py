@@ -17,7 +17,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal, InvalidOperation
 from types import MappingProxyType
-from typing import Any, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple
 
 from .execution_decision_journal import (
     ExecutionDecisionJournal,
@@ -1368,11 +1368,58 @@ class FactorExecutionCoordinator:
             raise FactorExecutionError("ORDER_DATA_OUTSIDE_STRATEGY_SCOPE")
         return scope
 
-    def _route_eligibility(self, instrument_id: str, exchange_id: str, facts: Any) -> None:
+    def _route_eligibility(
+        self, instrument_id: str, exchange_id: str, facts: Any
+    ) -> Dict[str, Any]:
         try:
             route = self.store.registered_sim_route_eligibility(instrument_id, exchange_id)
         except Exception as error:
             raise FactorExecutionError("REGISTERED_SIM_ROUTE_UNOBSERVED") from error
+        account = getattr(facts, "account", None)
+        expected = {
+            "account_fingerprint": getattr(account, "account_fingerprint", None),
+            "connection_generation": getattr(account, "connection_generation", None),
+            "trading_day": getattr(account, "trading_day", None),
+        }
+        if (
+            not isinstance(expected["account_fingerprint"], str)
+            or not expected["account_fingerprint"]
+            or type(expected["connection_generation"]) is not int
+            or expected["connection_generation"] <= 0
+            or not isinstance(expected["trading_day"], str)
+            or _valid_trading_day(expected["trading_day"]) is None
+        ):
+            raise FactorExecutionError("EXECUTION_FACT_SESSION_IDENTITY_UNAVAILABLE")
+        query_identity_matches = (
+            getattr(route, "account_fingerprint", None) == expected["account_fingerprint"]
+            and getattr(route, "connection_generation", None) == expected["connection_generation"]
+            and getattr(route, "trading_day", None) == expected["trading_day"]
+        )
+        current_session_matches = (
+            getattr(route, "current_session_account_fingerprint", None)
+            == expected["account_fingerprint"]
+            and getattr(route, "current_session_connection_generation", None)
+            == expected["connection_generation"]
+            and getattr(route, "current_session_trading_day", None) == expected["trading_day"]
+            and getattr(route, "current_session_trading_ready", None) is True
+        )
+        templates_configured = getattr(route, "arm_templates_configured", None)
+        template_configured = getattr(route, "arm_template_configured", None)
+        arm_api_available = getattr(route, "arm_api_available", None)
+        active_grant_matches = (
+            getattr(route, "sdk_capability_managed", None) is True
+            and getattr(route, "sdk_capability_armed", None) is True
+            and getattr(route, "capability_matches_route", None) is True
+        )
+        if templates_configured is True:
+            route_arm_ready = template_configured is True and arm_api_available is True
+        elif templates_configured is False:
+            # Explicit-arm compatibility applies only when the wrapper has no
+            # template map at all. A missing key in a configured map is never
+            # an implicit fallback.
+            route_arm_ready = template_configured is False and active_grant_matches
+        else:
+            route_arm_ready = False
         positive = (
             getattr(route, "allow_writes", None) is True
             and getattr(route, "frozen", None) is False
@@ -1381,9 +1428,9 @@ class FactorExecutionCoordinator:
             and getattr(route, "unknown_order_ids", None) == ()
             and getattr(route, "dispatching_order_ids", None) == ()
             and getattr(route, "capability_observed", None) is True
-            and getattr(route, "sdk_capability_managed", None) is True
-            and getattr(route, "sdk_capability_armed", None) is True
-            and getattr(route, "capability_matches_route", None) is True
+            and route_arm_ready
+            and query_identity_matches
+            and current_session_matches
             and getattr(route, "instrument_query_complete", None) is True
             and getattr(route, "instrument_eligible", None) is True
             and getattr(route, "instrument_id", None) == instrument_id
@@ -1401,12 +1448,29 @@ class FactorExecutionCoordinator:
             and item.allow_writes is True
             and item.frozen is False
             and item.capability_observed is True
-            and item.capability_managed is True
-            and item.capability_armed is True
-            and item.capability_matches_route is True
+            and item.connection_generation == expected["connection_generation"]
+            and item.trading_day == expected["trading_day"]
+            and item.current_session_account_fingerprint == expected["account_fingerprint"]
+            and item.current_session_connection_generation == expected["connection_generation"]
+            and item.current_session_trading_day == expected["trading_day"]
+            and item.current_session_trading_ready is True
+            and item.arm_templates_configured is templates_configured
+            and item.arm_template_configured is template_configured
+            and item.arm_api_available is arm_api_available
+            and (
+                (templates_configured is True and template_configured is True)
+                or (
+                    templates_configured is False
+                    and template_configured is False
+                    and item.capability_managed is True
+                    and item.capability_armed is True
+                    and item.capability_matches_route is True
+                )
+            )
         ]
         if len(matches) != 1:
             raise FactorExecutionError("EXECUTION_FACT_ROUTE_NOT_READY")
+        return expected
 
 
 class FactorExecutionDecisionScope:
@@ -1588,7 +1652,35 @@ class FactorExecutionDecisionScope:
             )
             if requested_offset not in allowed_offsets:
                 raise FactorExecutionError("REGISTERED_SIM_OFFSET_UNSUPPORTED")
-        self.coordinator._route_eligibility(instrument_id, exchange_id, self.execution_facts)
+        expected_session = self.coordinator._route_eligibility(
+            instrument_id, exchange_id, self.execution_facts
+        )
+        session_info = {
+            "factor_session_account_fingerprint": expected_session["account_fingerprint"],
+            "factor_session_connection_generation": expected_session["connection_generation"],
+            "factor_session_trading_day": expected_session["trading_day"],
+        }
+        for name, value in session_info.items():
+            existing = get(name)
+            # A cancel reuses the original Order object, whose session tags
+            # describe the earlier submit. The current fully reconciled
+            # cancellation decision supersedes those tags; a new submit may
+            # not carry caller-selected session identity.
+            if action != "CANCEL" and existing is not None and existing != value:
+                raise FactorExecutionError("ORDER_SESSION_IDENTITY_MISMATCH")
+        order.addinfo(**session_info)
+        try:
+            # Arm or switch the exact SDK grant while the decision is bound to
+            # the query-set session. This precedes order-ref reservation and
+            # the durable dispatch claim, so a missing template, stale session
+            # or rejected arm cannot reach the native Store method.
+            self.coordinator.store.registered_sim_ensure_arm(
+                instrument_id,
+                exchange_id,
+                expected_session=expected_session,
+            )
+        except Exception as error:
+            raise FactorExecutionError("REGISTERED_SIM_ARM_NOT_READY") from error
         if action == "CANCEL":
             order_ref = _first_text(
                 get("external_order_ref"), get("ctp_order_ref"), get("order_ref")

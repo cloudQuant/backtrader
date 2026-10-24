@@ -724,7 +724,20 @@ def test_ordinary_buy_is_dispatched_from_actual_cerebro_next():
     now = datetime.now(timezone.utc)
     api, store, broker, journal, coordinator, target, data, _strategy, cerebro = _system(now=now)
     query = facts_helpers._refresh_all(store, target)
-    facts_helpers._arm(store)
+    store.registered_sim_configure_arm_templates(
+        {
+            (_INSTRUMENT, _EXCHANGE): {
+                "md_front": "tcp://127.0.0.1:1",
+                "strategy_identity_sha256": "a" * 64,
+                "execution_cycle_id": "cycle-ordinary-buy",
+                "preflight_sha256": "b" * 64,
+            }
+        }
+    )
+    before_arm = store.registered_sim_route_eligibility(_INSTRUMENT, _EXCHANGE)
+    assert before_arm.arm_templates_configured is True
+    assert before_arm.arm_template_configured is True
+    assert before_arm.sdk_capability_armed is False
     assert facts_helpers._consume_quote(store) is not None
     facts = facts_helpers._project(store, broker, target, now, query_set=query.query_set)
     assert facts.open_risk_ready is True, facts.blockers
@@ -784,9 +797,132 @@ def test_ordinary_buy_is_dispatched_from_actual_cerebro_next():
     assert order is not None and order.alive()
     assert order.info["factor_dispatch_state"] == "KNOWN"
     assert order.info["external_order_ref"] == "501"
+    assert order.info["factor_session_account_fingerprint"] == facts.account.account_fingerprint
+    assert order.info["factor_session_connection_generation"] == 1
+    assert order.info["factor_session_trading_day"] == "20261024"
+    assert api.trader_client._gate_state["armed"] is True
+    assert api.trader_client._gate_state["instrument"] == _INSTRUMENT
     assert api.native_calls == [("insert", _INSTRUMENT, _EXCHANGE, "501", 101)]
     assert journal.intent(order.info["factor_intent_id"]).state == "KNOWN"
     assert state["decision_id"] is not None
+
+
+def test_actual_cerebro_session_change_after_preflight_blocks_native_dispatch():
+    now = datetime.now(timezone.utc)
+    api, store, broker, journal, coordinator, target, _data, _strategy, cerebro = _system(now=now)
+    query = facts_helpers._refresh_all(store, target)
+    store.registered_sim_configure_arm_templates(
+        {
+            (_INSTRUMENT, _EXCHANGE): {
+                "md_front": "tcp://127.0.0.1:1",
+                "strategy_identity_sha256": "a" * 64,
+                "execution_cycle_id": "cycle-session-race",
+                "preflight_sha256": "b" * 64,
+            }
+        }
+    )
+    assert facts_helpers._consume_quote(store) is not None
+    facts = facts_helpers._project(store, broker, target, now, query_set=query.query_set)
+    assert facts.open_risk_ready is True, facts.blockers
+
+    intent_key = ExecutionIntentKey(
+        action="SUBMIT",
+        instrument=_INSTRUMENT,
+        side="BUY",
+        position_effect="OPEN",
+        leg=0,
+    )
+    economics = {
+        "instrument": _INSTRUMENT,
+        "exchange": _EXCHANGE,
+        "side": "BUY",
+        "position_effect": "OPEN",
+        "quantity": "1",
+        "limit_price": "100",
+        "factor_stop_price": "95",
+        "risk_policy_id": "a003-risk-v1",
+        "risk_policy": {"stop_loss_ticks": 5, "max_loss_per_position": "25"},
+        "entry_grid_ordinal": 1,
+        "batch_id": "batch-1",
+        "price": "100",
+    }
+    state = {"order": None, "decision_id": None}
+    reserve_ref = store.registered_sim_reserve_order_ref
+
+    def reserve_then_change_session():
+        order_ref = reserve_ref()
+        # This is the narrow reconnect race: the selected route and SDK grant
+        # were validated immediately before the ordinary Broker reserved its
+        # native ref, but the live session changes before Store dispatch.
+        api.trader_client._connection_generation = 2
+        return order_ref
+
+    store.registered_sim_reserve_order_ref = reserve_then_change_session
+
+    def command(owner):
+        with _live_scope(
+            coordinator,
+            owner,
+            facts,
+            now=now,
+            intent_key=intent_key,
+            economics=economics,
+        ) as decision:
+            state["order"] = owner.buy(
+                data=owner.data0,
+                size=1,
+                price=100,
+                exectype=Order.Limit,
+                instrument_id=_INSTRUMENT,
+                exchange_id=_EXCHANGE,
+                factor_position_effect="OPEN",
+                factor_strategy_scope=_SCOPE,
+                offset="open",
+            )
+        state["decision_id"] = decision.decision_id
+
+    cerebro.addstrategy(_EngineBuyStrategy, command=command)
+    result = cerebro.run(runonce=False, preload=False)
+
+    assert len(result) == 1
+    assert state["order"] is not None
+    assert state["decision_id"] is not None
+    assert state["order"].info["factor_session_connection_generation"] == 1
+    assert api.trader_client._connection_generation == 2
+    assert api.native_calls == []
+    intent = journal.intent(state["order"].info["factor_intent_id"])
+    assert intent.dispatch_state == "UNKNOWN"
+
+
+def test_no_template_facts_reject_same_key_sdk_rearm_as_active_route():
+    now = datetime.now(timezone.utc)
+    api, store, broker, _journal, _coordinator, target, _data, _strategy, _cerebro = _system(
+        now=now
+    )
+    query = facts_helpers._refresh_all(store, target)
+    store.registered_sim_arm(
+        instrument=_INSTRUMENT,
+        exchange=_EXCHANGE,
+        md_front="tcp://127.0.0.1:1",
+        strategy_identity_sha256="a" * 64,
+        execution_cycle_id="cycle-legacy-grant",
+        preflight_sha256="b" * 64,
+    )
+    assert facts_helpers._consume_quote(store) is not None
+
+    # An out-of-band SDK re-arm changes the signed proof while keeping the
+    # instrument, session and opaque core capability unchanged. The route DTO
+    # and the resulting strategy facts must no longer call this grant active.
+    api.trader_client._gate_state["proof_sha256"] = "f" * 64
+    route = store.registered_sim_route_eligibility(_INSTRUMENT, _EXCHANGE)
+    assert route.capability_matches_route is False
+
+    facts = facts_helpers._project(store, broker, target, now, query_set=query.query_set)
+    target_route = next(
+        item for item in facts.route_eligibilities if item.instrument == _INSTRUMENT
+    )
+    assert target_route.eligible is False
+    assert target_route.capability_matches_route is False
 
 
 def test_actual_cerebro_open_cancel_terminal_and_risk_close_chain():
