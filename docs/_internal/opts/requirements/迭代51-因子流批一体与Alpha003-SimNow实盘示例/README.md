@@ -5,6 +5,8 @@
 见[联合提交记录](../迭代50-因子实盘运行与交易接入/提交记录-20261024.md)。028入口正在集成；
 完整来源覆盖、安装、长流及实际SimNow验收仍未完成。
 
+当前用户选定的临时策略为`ctp_query_snapshot_equal_weight_v1`：按同TradingDay查询快照的0.5×OI+0.5×累计Volume等权排名，显式保留`legacy_previous_complete_day_eod_oi_v1`兼容；300秒限制只用于新epoch准入，映射在epoch内冻结。Store、collector字节文本兼容和CoherentBook/Facts/execution组件已通过本地fake provider leaf测试，其中execution组合经过真实普通Cerebro、Store和Broker，但不证明Alpha003策略runner、全候选来源覆盖或账户验收。真实多目标runner仍等待单活跃arm合同修复，目标池未缩小；AC51-02/03/04/18仍为NOT_RUN。
+
 ## 最终交付
 
 同一 `get_alpha(3)` 因子定义用于研究、历史交易回测和SimNow实时模拟交易；自动确定各期货品种的最新可用主力，真实tick形成一分钟闭合K线，在正常Cerebro中计算同期横截面因子，经 **Strategy → BtApiBroker → BtApiStore → SDK** 下单并接收真实回报。
