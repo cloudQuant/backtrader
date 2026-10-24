@@ -375,6 +375,7 @@ class LiveCohortMember:
     numeric_fields: Tuple[str, ...] = tuple(_REQUIRED_OHLCV)
     source_origin: Optional[LiveSourceOrigin] = field(default=None, compare=False, repr=False)
     field_contracts: Mapping[str, LiveFieldContract] = field(default_factory=dict, compare=False)
+    rules_hash: Optional[str] = None
 
     def __post_init__(self) -> None:
         for name in (
@@ -388,6 +389,8 @@ class LiveCohortMember:
             _nonempty_text(getattr(self, name), name)
         if self.feed_ref is None:
             raise LiveCohortValidationError("feed_ref is required")
+        if self.rules_hash is not None:
+            _nonempty_text(self.rules_hash, "rules_hash")
         line_fields = tuple(self.line_fields)
         raw_fields = tuple(self.raw_fields)
         numeric_fields = tuple(self.numeric_fields)
@@ -478,9 +481,12 @@ class BarEnvelope:
     received_monotonic_ns: Optional[int] = None
     event_ref: Any = field(default=None, compare=False, repr=False)
     evidence_ref: Any = field(default=None, compare=False, repr=False)
+    rules_hash: Optional[str] = None
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "bucket_start", _aware_utc(self.bucket_start, "bucket_start"))
+        if self.rules_hash is not None:
+            _nonempty_text(self.rules_hash, "rules_hash")
         object.__setattr__(self, "close_time", _aware_utc(self.close_time, "close_time"))
         object.__setattr__(self, "available_at", _aware_utc(self.available_at, "available_at"))
         if self.field_evaluated_at is not None:
@@ -856,6 +862,7 @@ class LiveBarCohort:
         numeric_fields: Iterable[str] = _REQUIRED_OHLCV,
         source_origin: Optional[LiveSourceOrigin] = None,
         field_contracts: Optional[Mapping[str, LiveFieldContract]] = None,
+        rules_hash: Optional[str] = None,
     ) -> LiveCohortMember:
         with self._lock:
             if self._sealed:
@@ -879,6 +886,7 @@ class LiveBarCohort:
                 numeric_fields=tuple(numeric_fields),
                 source_origin=source_origin,
                 field_contracts={} if field_contracts is None else field_contracts,
+                rules_hash=rules_hash,
             )
             if member.source_origin is not None and member.source_origin.epoch_id != self.epoch_id:
                 raise LiveCohortValidationError("source_origin epoch does not match the cohort")
@@ -1001,8 +1009,11 @@ class LiveBarCohort:
             if member is None:
                 self._freeze("unregistered_feed_event")
                 raise LiveCohortValidationError("bar event came from an unregistered feed object")
+            rules_hash = self._validate_revision_notices(member, event)
             try:
-                envelope = self._build_envelope(member, event, source_role, received_monotonic_ns)
+                envelope = self._build_envelope(
+                    member, event, source_role, received_monotonic_ns, rules_hash
+                )
             except LiveCohortValidationError:
                 self._freeze("invalid_source_bar")
                 raise
@@ -1056,12 +1067,47 @@ class LiveBarCohort:
             self._pending.setdefault(slot_index, {})[member.member_id] = envelope
             return CaptureResult(envelope, False, slot_index)
 
+    def _validate_revision_notices(self, member: LiveCohortMember, event: Any) -> Optional[str]:
+        raw_rules_hash = _read(event, "rules_hash", _COHORT_FIELD_MISSING)
+        if (
+            raw_rules_hash is _COHORT_FIELD_MISSING
+            or raw_rules_hash is None
+            or (isinstance(raw_rules_hash, str) and raw_rules_hash == "")
+        ):
+            rules_hash = None
+        elif isinstance(raw_rules_hash, str) and raw_rules_hash.strip() == raw_rules_hash:
+            rules_hash = raw_rules_hash
+        else:
+            self._freeze("invalid_rules_revision_notice")
+            raise LiveCohortFrozenError("source rules revision notice is malformed")
+        if member.rules_hash is not None and rules_hash != member.rules_hash:
+            self._freeze("member_rules_revision_changed")
+            raise LiveCohortFrozenError("member rules revision changed; rebuild the cohort epoch")
+
+        calendar_revision = _read(event, "calendar_revision", _COHORT_FIELD_MISSING)
+        if calendar_revision is not _COHORT_FIELD_MISSING and calendar_revision is not None:
+            if type(calendar_revision) is not LiveCohortCalendar:
+                self._freeze("invalid_calendar_revision_notice")
+                raise LiveCohortFrozenError("source calendar revision notice is malformed")
+            expected = self._calendar
+            observed_identity = (
+                calendar_revision.calendar_id,
+                calendar_revision.version,
+                calendar_revision.fingerprint,
+            )
+            expected_identity = (expected.calendar_id, expected.version, expected.fingerprint)
+            if observed_identity != expected_identity:
+                self._freeze("calendar_revision_changed")
+                raise LiveCohortFrozenError("calendar revision changed; rebuild the cohort epoch")
+        return rules_hash
+
     def _build_envelope(
         self,
         member: LiveCohortMember,
         event: Any,
         source_role: str,
         received_monotonic_ns: Optional[int],
+        rules_hash: Optional[str],
     ) -> BarEnvelope:
         if source_role not in ("history", "live"):
             raise LiveCohortValidationError("source_role must be exactly 'history' or 'live'")
@@ -1420,6 +1466,7 @@ class LiveBarCohort:
             received_monotonic_ns=received_monotonic_ns,
             event_ref=event,
             evidence_ref=evidence,
+            rules_hash=rules_hash,
         )
 
     def _validate_member_sequence(self, member: LiveCohortMember, envelope: BarEnvelope) -> None:
@@ -1464,6 +1511,7 @@ class LiveBarCohort:
             envelope.quality,
             envelope.present,
             envelope.missing_fields,
+            envelope.rules_hash,
             tuple(
                 (
                     name,
