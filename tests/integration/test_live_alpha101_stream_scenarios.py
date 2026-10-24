@@ -1409,6 +1409,8 @@ def _base_receipt_prefix_equal(
 def _span_proof(strategy: _ScenarioCapture, alpha_ids: Sequence[int], frames) -> Dict[int, int]:
     """Bind each independent AST span to the executed operator graph's minperiod."""
 
+    from backtrader.research.operators import _LogicalOperatorView
+
     required = {}
     for alpha_id in alpha_ids:
         factor_name = "alpha%d" % alpha_id
@@ -1422,18 +1424,33 @@ def _span_proof(strategy: _ScenarioCapture, alpha_ids: Sequence[int], frames) ->
             )
 
         runtime_periods = [int(instance._minperiod)]
-        nodes = tuple(getattr(instance, "_nodes", {}).values())
+        nodes = list(getattr(instance, "_nodes", {}).values())
+        nodes.extend(getattr(instance, "_physical_nodes", ()))
         if not nodes:
             raise AssertionError(
                 "Alpha%d runtime graph contains no proven operator nodes" % alpha_id
             )
+        seen_nodes = set()
         for node in nodes:
+            if type(node) is _LogicalOperatorView:
+                node = getattr(node, "_physical_panel", None)
+                if node is None:
+                    raise AssertionError(
+                        "Alpha%d logical operator view has no physical panel" % alpha_id
+                    )
+            if id(node) in seen_nodes:
+                continue
+            seen_nodes.add(id(node))
             minimum = getattr(node, "_minperiod", None)
-            if minimum is None or int(minimum) < 1:
+            if (
+                isinstance(minimum, bool)
+                or not isinstance(minimum, int)
+                or minimum < 1
+            ):
                 raise AssertionError(
                     "Alpha%d graph node has no finite runtime minperiod" % alpha_id
                 )
-            runtime_periods.append(int(minimum))
+            runtime_periods.append(minimum)
             period = getattr(getattr(node, "p", None), "period", None)
             if period is not None and (
                 isinstance(period, bool)
