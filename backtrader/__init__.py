@@ -47,6 +47,7 @@ See Also:
 """
 
 import os as _os
+from importlib import import_module as _import_module
 
 _LIGHT_IMPORT = _os.environ.get("BACKTRADER_LIGHT_IMPORT", "").strip().lower() in {
     "1",
@@ -121,7 +122,6 @@ else:
     from . import signals as signals
     from . import sizers as sizers
     from . import stores as stores
-    from . import talib as talib
     from . import timer as timer
     from . import utils as utils
     from .analyzer import *
@@ -176,3 +176,30 @@ else:
     # import backtrader.studies.contrib
 
     # from backtrader import vectors
+
+
+if not _LIGHT_IMPORT:
+    # Preserve the default package's historical star-import surface. The
+    # explicit ``talib`` export is resolved through __getattr__ only when a
+    # caller requests it.
+    __all__ = [name for name in globals() if not name.startswith("_")] + ["talib"]  # noqa: F405
+
+
+def __getattr__(name):
+    """Load optional public subpackages only when callers request them.
+
+    TA-Lib's installed package imports pandas while it initializes. Keeping
+    this one namespace attribute lazy prevents a normal Backtrader import from
+    pulling an optional analytical dependency into every process, while
+    preserving ``bt.talib`` and ``from backtrader import talib``.
+    """
+    if name == "talib":
+        module = _import_module(".talib", __name__)
+        globals()[name] = module
+        return module
+    raise AttributeError("module %r has no attribute %r" % (__name__, name))
+
+
+def __dir__():
+    """Include lazily provided public attributes in interactive discovery."""
+    return sorted(set(globals()) | {"talib"})
