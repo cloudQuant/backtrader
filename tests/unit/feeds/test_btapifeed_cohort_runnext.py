@@ -175,6 +175,7 @@ def _make_run(
             dataname="A",
             historical_bars=(MappingProxyType(dict(event_a)),),
             live_bars=(),
+            cohort_source_mode=True,
             backfill_start=False,
             timeframe=bt.TimeFrame.Minutes,
             compression=1,
@@ -183,6 +184,7 @@ def _make_run(
             dataname="B",
             historical_bars=(history_b,) if include_b else (),
             live_bars=(),
+            cohort_source_mode=True,
             backfill_start=False,
             timeframe=bt.TimeFrame.Minutes,
             compression=1,
@@ -290,7 +292,9 @@ def test_real_runnext_publishes_complete_history_batch_before_strategy_and_facto
     strategy = cerebro.run()[0]
 
     assert len(clock.waits) == 1
-    assert all(value <= 0.05 for value in clock.waits)
+    assert clock.waits == [
+        pytest.approx((available_at - (START + timedelta(minutes=1))).total_seconds())
+    ]
     assert [len(data) for data in feeds] == [1, 1]
     assert [data.datetime.datetime(0) for data in feeds] == [
         (START + timedelta(minutes=1)).replace(tzinfo=None),
@@ -310,6 +314,45 @@ def test_real_runnext_publishes_complete_history_batch_before_strategy_and_facto
     batch = cohort.current_batch()
     assert batch is not None and batch.status == "COMPLETE"
     assert all(batch.receipt_for_feed(feed).envelope.feed_ref is feed for feed in feeds)
+
+
+def test_store_waker_without_interruptible_clock_keeps_injected_clock_wait():
+    class WakerStore:
+        def __init__(self):
+            self.callbacks = []
+            self.registered = []
+            self.unregistered = []
+
+        def start(self):
+            pass
+
+        def stop(self):
+            pass
+
+        def get_notifications(self):
+            return ()
+
+        def _register_live_bar_event_waker(self, callback):
+            token = object()
+            self.callbacks.append(callback)
+            self.registered.append(token)
+            return token
+
+        def _unregister_live_bar_event_waker(self, token):
+            self.unregistered.append(token)
+
+    available_at = START + timedelta(minutes=1, seconds=2)
+    cerebro, _cohort, _feeds, clock = _make_run(b_available_at=available_at)
+    store = WakerStore()
+    cerebro.addstore(store)
+
+    strategy = cerebro.run()[0]
+
+    assert len(store.callbacks) == 1
+    assert len(store.registered) == 1
+    assert store.unregistered == store.registered
+    assert clock.waits == [pytest.approx(2.0)]
+    assert strategy.strategy_batches
 
 
 def test_finite_eof_with_missing_member_freezes_without_partial_callback_or_line():
@@ -337,7 +380,7 @@ def test_invalid_original_raw_number_is_rejected_before_any_feed_line_or_callbac
     assert [len(data) for data in feeds] == [0, 0]
 
 
-def test_failure_during_second_normal_feed_load_never_reaches_notify_bar_or_next():
+def test_failure_during_second_normal_feed_load_rolls_back_every_member_line():
     cerebro, cohort, feeds, _clock = _make_run()
     feeds[1]._load_live_bar_cohort_envelope = lambda: (_ for _ in ()).throw(
         OSError("synthetic second-member line failure")
@@ -348,9 +391,7 @@ def test_failure_during_second_normal_feed_load_never_reaches_notify_bar_or_next
 
     assert cohort.frozen is True
     assert cohort.current_batch() is None
-    assert [len(data) for data in feeds] == [1, 1]
-    assert feeds[0].close[0] == 10.0
-    assert feeds[1].close[0] != 20.0
+    assert [len(data) for data in feeds] == [0, 0]
 
 
 @pytest.mark.parametrize(

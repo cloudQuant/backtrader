@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import datetime as _datetime
 import hashlib
+import itertools
 import json
 import math
 import numbers
@@ -88,8 +89,19 @@ def _frozen_scalar(value: Any, name: str) -> Any:
     raise LiveCohortValidationError("{} must be an immutable scalar or tuple".format(name))
 
 
-def _frozen_mapping(values: Mapping[str, Any]) -> Mapping[str, Any]:
-    return MappingProxyType({key: _frozen_scalar(value, key) for key, value in values.items()})
+def _frozen_mapping(
+    values: Mapping[str, Any], *, allow_nan_names: Iterable[str] = ()
+) -> Mapping[str, Any]:
+    if not isinstance(values, Mapping):
+        raise LiveCohortValidationError("raw_values must be a mapping")
+    allow_nan = set(allow_nan_names)
+    frozen = {}
+    for key, value in values.items():
+        if key in allow_nan and isinstance(value, float) and math.isnan(value):
+            frozen[key] = value
+        else:
+            frozen[key] = _frozen_scalar(value, key)
+    return MappingProxyType(frozen)
 
 
 @dataclass(frozen=True)
@@ -321,6 +333,7 @@ class BarEnvelope:
     complete: bool = False
     quality: str = ""
     present: bool = False
+    missing_fields: Tuple[str, ...] = ()
     raw_values: Mapping[str, Any] = field(default_factory=dict, compare=False)
     quality_flags: Tuple[str, ...] = ()
     event_source: str = ""
@@ -332,7 +345,12 @@ class BarEnvelope:
         object.__setattr__(self, "bucket_start", _aware_utc(self.bucket_start, "bucket_start"))
         object.__setattr__(self, "close_time", _aware_utc(self.close_time, "close_time"))
         object.__setattr__(self, "available_at", _aware_utc(self.available_at, "available_at"))
-        object.__setattr__(self, "raw_values", _frozen_mapping(self.raw_values))
+        object.__setattr__(
+            self,
+            "raw_values",
+            _frozen_mapping(self.raw_values, allow_nan_names=self.missing_fields),
+        )
+        object.__setattr__(self, "missing_fields", tuple(self.missing_fields))
         object.__setattr__(self, "quality_flags", tuple(self.quality_flags))
 
 
@@ -379,10 +397,16 @@ class LiveDeliveryReceipt:
     complete: bool = False
     quality: str = ""
     present: bool = False
+    missing_fields: Tuple[str, ...] = ()
     raw_values: Mapping[str, Any] = field(default_factory=dict, compare=False)
 
     def __post_init__(self) -> None:
-        object.__setattr__(self, "raw_values", _frozen_mapping(self.raw_values))
+        object.__setattr__(
+            self,
+            "raw_values",
+            _frozen_mapping(self.raw_values, allow_nan_names=self.missing_fields),
+        )
+        object.__setattr__(self, "missing_fields", tuple(self.missing_fields))
 
 
 @dataclass(frozen=True)
@@ -884,8 +908,28 @@ class LiveBarCohort:
         quality = _read(event, "quality", None)
         if complete is not True:
             raise LiveCohortValidationError("bar must explicitly declare complete=True")
-        if not isinstance(quality, str) or quality != "GOOD":
-            raise LiveCohortValidationError("bar quality must be explicitly GOOD")
+
+        missing_fields = _read(event, "missing_fields", ())
+        if type(missing_fields) is not tuple:
+            raise LiveCohortValidationError("missing_fields must be an immutable tuple")
+        if any(not isinstance(name, str) or not name for name in missing_fields):
+            raise LiveCohortValidationError("missing_fields must contain non-empty field names")
+        if (
+            len(missing_fields) != len(set(missing_fields))
+            or tuple(sorted(missing_fields)) != missing_fields
+        ):
+            raise LiveCohortValidationError("missing_fields must be sorted and unique")
+        if not set(missing_fields).issubset(set(member.numeric_fields)):
+            raise LiveCohortValidationError(
+                "only declared numeric raw fields may be marked missing"
+            )
+        if missing_fields:
+            if quality != "MISSING":
+                raise LiveCohortValidationError(
+                    "a missing-field bar must declare quality='MISSING'"
+                )
+        elif quality != "GOOD":
+            raise LiveCohortValidationError("a complete bar without missing fields must be GOOD")
 
         raw_values = {}
         for field_name in member.raw_fields:
@@ -909,36 +953,66 @@ class LiveBarCohort:
                     raise LiveCohortValidationError(
                         "raw field {!r} must be numeric".format(field_name)
                     ) from exc
-                if not math.isfinite(number):
+                if math.isnan(number):
+                    if field_name not in missing_fields:
+                        raise LiveCohortValidationError(
+                            "raw field {!r} is NaN without declared missing metadata".format(
+                                field_name
+                            )
+                        )
+                elif not math.isfinite(number):
                     raise LiveCohortValidationError(
                         "raw field {!r} must be finite".format(field_name)
+                    )
+                elif field_name in missing_fields:
+                    raise LiveCohortValidationError(
+                        "declared missing raw field {!r} must contain NaN".format(field_name)
                     )
                 raw_values[field_name] = number
             else:
                 raw_values[field_name] = _frozen_scalar(value, field_name)
-        values = {key: raw_values[key] for key in _REQUIRED_OHLCV}
-        if values["volume"] < 0:
+        if any(name not in raw_values for name in missing_fields):
+            raise LiveCohortValidationError("declared missing field has no raw value")
+        if "volume" not in missing_fields and raw_values["volume"] < 0:
             raise LiveCohortValidationError("volume cannot be negative")
-        if values["high"] < max(values["open"], values["close"]):
+        finite_ohlc = {
+            name: raw_values[name]
+            for name in ("open", "high", "low", "close")
+            if name not in missing_fields
+        }
+        body_values = [finite_ohlc[name] for name in ("open", "close") if name in finite_ohlc]
+        if "high" in finite_ohlc and body_values and finite_ohlc["high"] < max(body_values):
             raise LiveCohortValidationError("high must contain open and close")
-        if values["low"] > min(values["open"], values["close"]):
+        if "low" in finite_ohlc and body_values and finite_ohlc["low"] > min(body_values):
             raise LiveCohortValidationError("low must contain open and close")
-        if values["low"] > values["high"]:
+        if (
+            "low" in finite_ohlc
+            and "high" in finite_ohlc
+            and finite_ohlc["low"] > finite_ohlc["high"]
+        ):
             raise LiveCohortValidationError("low cannot exceed high")
-        explicit_present = _read(event, "present", None)
-        present = all(raw_values.get(name) is not None for name in member.raw_fields)
-        if explicit_present is not None and explicit_present is not True:
+        unspecified_present = object()
+        explicit_present = _read(event, "present", unspecified_present)
+        if explicit_present is not unspecified_present and type(explicit_present) is not bool:
+            raise LiveCohortValidationError("present must be an exact bool when provided")
+        present = not missing_fields
+        if present and explicit_present is False:
+            raise LiveCohortValidationError("present=False requires declared missing fields")
+        if not present and explicit_present is not False:
             raise LiveCohortValidationError(
-                "bar present flag must not reject its declared raw fields"
+                "a missing-field bar must explicitly declare present=False"
             )
-        if not present:
-            raise LiveCohortValidationError("bar does not contain every declared raw field")
         flags = _read(event, "quality_flags", ()) or ()
         if not isinstance(flags, (list, tuple, set, frozenset)) or any(
             not isinstance(flag, str) or not flag for flag in flags
         ):
             raise LiveCohortValidationError("quality_flags must be immutable non-empty strings")
-        if set(flags).difference({"LEGACY_SCHEMA"}):
+        if missing_fields:
+            if tuple(sorted(flags)) != ("MISSING_FIELDS",):
+                raise LiveCohortValidationError(
+                    "missing-field bars require quality_flags=('MISSING_FIELDS',)"
+                )
+        elif set(flags).difference({"LEGACY_SCHEMA"}):
             raise LiveCohortValidationError("GOOD bars cannot carry blocking quality flags")
         if received_monotonic_ns is None:
             received_monotonic_ns = _read(event, "received_monotonic_ns", None)
@@ -972,6 +1046,7 @@ class LiveBarCohort:
             complete=complete,
             quality=quality,
             present=present,
+            missing_fields=missing_fields,
             raw_values=raw_values,
             quality_flags=tuple(sorted(flags)),
             event_source=source or "",
@@ -1004,15 +1079,24 @@ class LiveBarCohort:
 
     @staticmethod
     def _data_signature(envelope: BarEnvelope) -> Tuple[Any, ...]:
+        missing = set(envelope.missing_fields)
+        raw_items = tuple(
+            (
+                name,
+                ("MISSING_NAN", name) if name in missing else value,
+            )
+            for name, value in sorted(envelope.raw_values.items())
+        )
         return (
             envelope.bucket_start,
             envelope.close_time,
             envelope.trading_day,
             envelope.session_segment,
-            tuple(sorted(envelope.raw_values.items())),
+            raw_items,
             envelope.complete,
             envelope.quality,
             envelope.present,
+            envelope.missing_fields,
         )
 
     @classmethod
@@ -1261,13 +1345,55 @@ class LiveBarCohort:
                 raise LiveCohortValidationError("feed already delivered this prepared batch")
             if envelope.feed_ref is not feed_ref or envelope.member_id != member.member_id:
                 raise LiveCohortValidationError("prepared envelope feed identity changed")
-            if not envelope.complete or envelope.quality != "GOOD" or not envelope.present:
+            if not self._envelope_presence_is_valid(member, envelope):
                 self._freeze("prepared_envelope_quality_changed")
-                raise LiveCohortFrozenError("prepared envelope lost its validated quality")
+                raise LiveCohortFrozenError(
+                    "prepared envelope lost its validated present/missing contract"
+                )
             if not set(member.line_fields).issubset(envelope.raw_values):
                 self._freeze("prepared_raw_schema_changed")
                 raise LiveCohortFrozenError("prepared envelope lacks a declared feed line")
             return MappingProxyType(dict(envelope.raw_values))
+
+    @staticmethod
+    def _envelope_presence_is_valid(member: LiveCohortMember, envelope: BarEnvelope) -> bool:
+        """Check that a sealed row's gap marker agrees with its validated raw values."""
+        missing = envelope.missing_fields
+        if (
+            type(missing) is not tuple
+            or tuple(sorted(missing)) != missing
+            or len(missing) != len(set(missing))
+            or not set(missing).issubset(set(member.numeric_fields))
+            or set(envelope.raw_values) != set(member.raw_fields)
+            or envelope.complete is not True
+        ):
+            return False
+        if missing:
+            if (
+                envelope.quality != "MISSING"
+                or envelope.present is not False
+                or envelope.quality_flags != ("MISSING_FIELDS",)
+            ):
+                return False
+        elif (
+            envelope.quality != "GOOD"
+            or envelope.present is not True
+            or set(envelope.quality_flags).difference({"LEGACY_SCHEMA"})
+        ):
+            return False
+        for name in member.numeric_fields:
+            value = envelope.raw_values.get(name)
+            if isinstance(value, bool) or not isinstance(value, (numbers.Real, Decimal)):
+                return False
+            number = float(value)
+            if name in missing:
+                if not math.isnan(number):
+                    return False
+            elif not math.isfinite(number):
+                return False
+        if any(envelope.raw_values.get(name) is None for name in member.raw_fields):
+            return False
+        return True
 
     def record_delivery(
         self,
@@ -1302,12 +1428,266 @@ class LiveBarCohort:
                 complete=envelope.complete,
                 quality=envelope.quality,
                 present=envelope.present,
+                missing_fields=envelope.missing_fields,
                 raw_values=raw_values,
             )
             self._delivered[member.member_id] = receipt
             if len(self._delivered) == len(self._members):
                 self._publish_complete_batch()
             return receipt
+
+    def record_delivery_batch(
+        self,
+        deliveries: Tuple[Tuple[Any, BarEnvelope, _datetime.datetime], ...],
+    ) -> LiveCohortBatch:
+        """Atomically publish receipts after every member's lines have advanced.
+
+        Each item is ``(exact_feed, exact_prepared_envelope, line_close_time)``.
+        Validation and receipt construction finish before any cohort state is
+        changed. The bounded undo log covers the per-member window heads and
+        the at-most-one-window of signature keys evicted by this slot; it never
+        copies the full retained history on each batch.
+        """
+
+        with self._lock:
+            self._require_open()
+            prepared = self._prepared
+            if prepared is None:
+                raise LiveCohortValidationError("no prepared cohort batch to deliver")
+            if self._delivered:
+                raise LiveCohortValidationError(
+                    "batch delivery cannot be mixed with individual delivery receipts"
+                )
+            if type(deliveries) not in (tuple, list) or len(deliveries) != len(self._members):
+                raise LiveCohortValidationError(
+                    "batch delivery must contain every registered member exactly once"
+                )
+            pending_rows = self._pending.get(prepared.slot_index)
+            if (
+                pending_rows is None
+                or set(pending_rows) != set(self._members)
+                or set(prepared.envelopes) != set(self._members)
+                or any(
+                    pending_rows.get(member_id) is not prepared.envelopes.get(member_id)
+                    for member_id in self._members
+                )
+            ):
+                raise LiveCohortValidationError("prepared slot contents changed before delivery")
+
+            receipts: Dict[str, LiveDeliveryReceipt] = {}
+            for item in deliveries:
+                if type(item) is not tuple or len(item) != 3:
+                    raise LiveCohortValidationError(
+                        "each batch delivery must be an exact three-item tuple"
+                    )
+                feed_ref, envelope, delivered_close_time = item
+                member = self.member_for_feed(feed_ref)
+                if member is None:
+                    raise LiveCohortValidationError(
+                        "batch delivery feed is not an exact registered member"
+                    )
+                member_id = member.member_id
+                if member_id in receipts:
+                    raise LiveCohortValidationError("batch delivery repeats a cohort member")
+                if prepared.envelopes.get(member_id) is not envelope:
+                    raise LiveCohortValidationError(
+                        "delivery envelope is not the exact prepared object"
+                    )
+                if envelope.feed_ref is not feed_ref or envelope.member_id != member_id:
+                    raise LiveCohortValidationError("prepared envelope feed identity changed")
+                if (
+                    envelope.epoch_id != prepared.epoch_id
+                    or envelope.slot_index != prepared.slot_index
+                    or envelope.close_time != prepared.close_time
+                ):
+                    raise LiveCohortValidationError("prepared envelope slot identity changed")
+                if not self._envelope_presence_is_valid(member, envelope):
+                    raise LiveCohortValidationError(
+                        "prepared envelope has inconsistent present/missing metadata"
+                    )
+                if not set(member.line_fields).issubset(envelope.raw_values):
+                    raise LiveCohortValidationError("prepared envelope lacks a declared feed line")
+                close_time = _aware_utc(delivered_close_time, "delivered_close_time")
+                if close_time != envelope.close_time or close_time != prepared.close_time:
+                    raise LiveCohortValidationError(
+                        "feed line datetime differs from prepared close_time"
+                    )
+                receipts[member_id] = LiveDeliveryReceipt(
+                    cohort_id=self.cohort_id,
+                    calendar_id=self.calendar_id,
+                    epoch_id=envelope.epoch_id,
+                    batch_id=prepared.batch_id,
+                    slot_index=envelope.slot_index,
+                    member_id=member_id,
+                    feed_ref=feed_ref,
+                    source_ref=member.source_ref,
+                    envelope=envelope,
+                    feed_sequence=envelope.feed_sequence,
+                    close_time=envelope.close_time,
+                    available_at=envelope.available_at,
+                    source_role=envelope.source_role,
+                    complete=envelope.complete,
+                    quality=envelope.quality,
+                    present=envelope.present,
+                    missing_fields=envelope.missing_fields,
+                    raw_values=envelope.raw_values,
+                )
+            if set(receipts) != set(self._members):
+                raise LiveCohortValidationError(
+                    "batch delivery does not cover every registered member"
+                )
+
+            history_updates: Dict[str, _datetime.datetime] = {}
+            first_live_updates: Dict[str, LiveDeliveryReceipt] = {}
+            cutovers: Dict[str, LiveEpochCutover] = {}
+            for member_id, receipt in receipts.items():
+                if receipt.source_role == "history":
+                    history_updates[member_id] = receipt.close_time
+                elif member_id not in self._first_live_receipt:
+                    first_live_updates[member_id] = receipt
+                first_live = first_live_updates.get(
+                    member_id, self._first_live_receipt.get(member_id)
+                )
+                if first_live is not None:
+                    history_last = history_updates.get(
+                        member_id, self._history_last_close.get(member_id)
+                    )
+                    cutovers[member_id] = LiveEpochCutover(
+                        cohort_id=self.cohort_id,
+                        member_id=member_id,
+                        epoch_id=self.epoch_id,
+                        history_last_close_time=history_last,
+                        first_live_close_time=first_live.close_time,
+                        transition_kind=(
+                            "history_to_live" if history_last is not None else "live_cold_start"
+                        ),
+                        crossed_live=True,
+                        first_live_receipt=first_live,
+                    )
+
+            available_at = max(receipt.available_at for receipt in receipts.values())
+            batch = LiveCohortBatch(
+                batch_id=prepared.batch_id,
+                cohort_id=self.cohort_id,
+                calendar_id=self.calendar_id,
+                calendar_version=self._calendar.version,
+                epoch_id=self.epoch_id,
+                slot_index=prepared.slot_index,
+                close_time=prepared.close_time,
+                available_at=available_at,
+                members=receipts,
+                cutovers=cutovers,
+            )
+            signature_updates = tuple(
+                (
+                    member_id,
+                    self._signature_for(receipt.envelope),
+                )
+                for member_id, receipt in receipts.items()
+            )
+            signature_keys = tuple(
+                (prepared.slot_index, member_id) for member_id, _ in signature_updates
+            )
+            if any(key in self._recent_signatures for key in signature_keys):
+                raise LiveCohortValidationError("prepared slot signature already exists")
+
+            window_undo = {}
+            for member_id, receipt in receipts.items():
+                window = self._window_receipts.get(member_id)
+                if window is None:
+                    raise LiveCohortValidationError("member window is not initialized")
+                evicted = window[0] if len(window) == window.maxlen else None
+                window_undo[member_id] = (receipt, evicted)
+
+            signature_limit = self.max_window_bars * max(len(self._members), 1)
+            signature_evictions_expected = max(
+                0, len(self._recent_signature_order) + len(signature_updates) - signature_limit
+            )
+            signature_evicted_prefix = tuple(
+                itertools.islice(self._recent_signature_order, signature_evictions_expected)
+            )
+            if len(signature_evicted_prefix) != signature_evictions_expected:
+                raise LiveCohortValidationError("signature history changed before publication")
+            signature_evicted_values = {
+                key: self._recent_signatures[key] for key in signature_evicted_prefix
+            }
+
+            missing = object()
+            old_history = {
+                member_id: self._history_last_close.get(member_id, missing)
+                for member_id in history_updates
+            }
+            old_first_live = {
+                member_id: self._first_live_receipt.get(member_id, missing)
+                for member_id in first_live_updates
+            }
+            old_current_batch = self._current_batch
+            old_prepared = self._prepared
+            old_delivered = self._delivered
+            old_next_slot_index = self._next_slot_index
+            old_wait_started_ns = self._wait_started_ns
+            old_wait_missing_member_ids = self._wait_missing_member_ids
+            # Pending slots are explicitly bounded (at most _MAX_PENDING_SLOTS).
+            # Preserve their insertion order if a publication step is interrupted.
+            old_pending_items = tuple(self._pending.items())
+            old_signature_order_length = len(self._recent_signature_order)
+
+            try:
+                self._history_last_close.update(history_updates)
+                self._first_live_receipt.update(first_live_updates)
+                for member_id, (receipt, _evicted) in window_undo.items():
+                    self._window_receipts[member_id].append(receipt)
+                for member_id, signature in signature_updates:
+                    self._remember_signature(prepared.slot_index, member_id, signature)
+
+                self._pending.pop(prepared.slot_index)
+                self._next_slot_index = prepared.slot_index + 1
+                self._prepared = None
+                self._delivered = {}
+                self._wait_started_ns = None
+                self._wait_missing_member_ids = ()
+                # This is the sole public commit point for the completed batch.
+                self._current_batch = batch
+            except BaseException:
+                self._current_batch = old_current_batch
+                self._prepared = old_prepared
+                self._delivered = old_delivered
+                self._next_slot_index = old_next_slot_index
+                self._wait_started_ns = old_wait_started_ns
+                self._wait_missing_member_ids = old_wait_missing_member_ids
+                self._pending.clear()
+                self._pending.update(old_pending_items)
+                for member_id, prior in old_history.items():
+                    if prior is missing:
+                        self._history_last_close.pop(member_id, None)
+                    else:
+                        self._history_last_close[member_id] = prior
+                for member_id, prior in old_first_live.items():
+                    if prior is missing:
+                        self._first_live_receipt.pop(member_id, None)
+                    else:
+                        self._first_live_receipt[member_id] = prior
+                for member_id, (receipt, evicted) in window_undo.items():
+                    window = self._window_receipts[member_id]
+                    if window and window[-1] is receipt:
+                        window.pop()
+                        if evicted is not None:
+                            window.appendleft(evicted)
+                added_key_set = set(signature_keys)
+                while (
+                    self._recent_signature_order
+                    and self._recent_signature_order[-1] in added_key_set
+                ):
+                    self._recent_signature_order.pop()
+                for key in signature_keys:
+                    self._recent_signatures.pop(key, None)
+                evicted_count = old_signature_order_length - len(self._recent_signature_order)
+                for key in reversed(signature_evicted_prefix[:evicted_count]):
+                    self._recent_signature_order.appendleft(key)
+                    self._recent_signatures[key] = signature_evicted_values[key]
+                raise
+
+            return batch
 
     def _publish_complete_batch(self) -> None:
         prepared = self._prepared
@@ -1372,6 +1752,32 @@ class LiveBarCohort:
 
     def current_batch(self) -> Optional[LiveCohortBatch]:
         return self._current_batch
+
+    def freeze_unsupported_gap_semantics(self, batch: LiveCohortBatch) -> str:
+        """Freeze only the exact current complete batch carrying a validated gap.
+
+        ``LiveFactorSet`` uses this when a non-registry factor graph has no
+        accepted NaN/presence contract. The caller cannot turn a healthy batch
+        into a gap by passing a boolean or an alternate receipt projection.
+        """
+        with self._lock:
+            if batch is not self._current_batch or batch is None:
+                raise LiveCohortValidationError(
+                    "gap-semantic freeze requires the exact current cohort batch"
+                )
+            if batch.status != "COMPLETE" or batch.cohort_id != self.cohort_id:
+                raise LiveCohortValidationError("gap-semantic freeze requires a complete batch")
+            if not any(
+                receipt.present is False
+                and receipt.quality == "MISSING"
+                and bool(receipt.missing_fields)
+                for receipt in batch.members.values()
+            ):
+                raise LiveCohortValidationError(
+                    "gap-semantic freeze requires a validated missing-field receipt"
+                )
+            self._freeze("unsupported_factor_gap_semantics")
+            return self._frozen_reason or "unsupported_factor_gap_semantics"
 
     def is_final_batch(self, batch: Any) -> bool:
         """Return whether this exact current batch is the finite epoch's last slot."""

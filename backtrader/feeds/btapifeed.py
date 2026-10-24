@@ -56,6 +56,17 @@ class _PreparedLiveBarCohortActivation:
     slot_index_by_close: object
 
 
+@dataclass(frozen=True)
+class _PreparedLiveBarCohortDelivery:
+    """Read-only, validated values staged before any batch member advances."""
+
+    feed_ref: object
+    envelope: object
+    raw_values: object
+    close_time: object
+    datetime_value: float
+
+
 def _set_tick_value(tick, name, value):
     """Set one normalized field on mapping and object event shapes."""
     if isinstance(tick, dict):
@@ -216,6 +227,10 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
         ("provider", "btapi"),
         ("historical_bars", None),
         ("live_bars", None),
+        # Explicit cohort mode keeps saved source events raw until the cohort
+        # validates them. Ordinary feeds retain their historical tolerant
+        # normalization path.
+        ("cohort_source_mode", False),
         ("backfill_start", True),
         ("dispatch_ticks", True),
         ("dispatch_orderbooks", True),
@@ -297,15 +312,23 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
             history_source = ()
         if live_source is None:
             live_source = ()
+        cohort_source_mode = self.p.cohort_source_mode
+        if type(cohort_source_mode) is not bool:
+            raise ValueError("cohort_source_mode must be an exact bool")
+        if cohort_source_mode:
+            if type(history_source) is not tuple or type(live_source) is not tuple:
+                raise ValueError("cohort_source_mode requires immutable tuple bar sources")
+            if self.p.backfill_start:
+                raise ValueError(
+                    "cohort_source_mode requires backfill_start=False and explicit source tuples"
+                )
         # Keep the caller's raw event objects available for the opt-in cohort
         # path without materializing an arbitrary iterator. Cohort mode accepts
         # replayable finite sequences here; live stores remain polled directly.
         self._cohort_history_source = (
             history_source if isinstance(history_source, (tuple, list)) else None
         )
-        self._cohort_live_source = (
-            live_source if isinstance(live_source, (tuple, list)) else None
-        )
+        self._cohort_live_source = live_source if isinstance(live_source, (tuple, list)) else None
         self._live_bar_cohort = None
         self._cohort_clock = None
         self._cohort_history_iter = None
@@ -319,15 +342,23 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
         self._cohort_slot_index_by_close = {}
         self._cohort_last_delivered_slot_index = -1
         self._cohort_armed_envelope = None
+        self._cohort_staged_delivery = None
         self._cohort_delivery_failed = False
-        self._history = collections.deque(
-            _normalize_bar(dict(bar) if isinstance(bar, Mapping) else bar)
-            for bar in history_source
-        )
-        self._live = collections.deque(
-            _normalize_bar(dict(bar) if isinstance(bar, Mapping) else bar)
-            for bar in live_source
-        )
+        if cohort_source_mode:
+            # The sealed cohort owns the strict validation boundary. Preserve
+            # exact raw tuples and leave the legacy normalized queues empty so
+            # malformed numbers cannot be silently coerced before capture.
+            self._history = collections.deque()
+            self._live = collections.deque()
+        else:
+            self._history = collections.deque(
+                _normalize_bar(dict(bar) if isinstance(bar, Mapping) else bar)
+                for bar in history_source
+            )
+            self._live = collections.deque(
+                _normalize_bar(dict(bar) if isinstance(bar, Mapping) else bar)
+                for bar in live_source
+            )
         self._live_notified = False
         self._bar_builder = None
         self._bar_builders = collections.OrderedDict()
@@ -349,7 +380,7 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
         # replacing the immutable evidence object with a different one.
         self._sealed_closed_bar_evidence_by_event_id = {}
         self._tick_consumer_claimed = False
-        self._history_backfilled = bool(self._history)
+        self._history_backfilled = bool(self._cohort_history_source) or bool(self._history)
         self._continuity_degraded = False
         self._session_active = False
 
@@ -360,6 +391,11 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
 
     def _prepare_live_bar_cohort_activation(self, cohort, clock):
         """Validate and stage cohort state without changing this feed."""
+        if self.p.cohort_source_mode is not True:
+            raise ValueError("live cohort requires cohort_source_mode=True")
+        if self.p.backfill_start:
+            raise ValueError("live cohort raw source mode requires backfill_start=False")
+        self._validate_cohort_store_raw_mode(self.store)
         if self._live_bar_cohort is not None:
             raise ValueError("BtApiFeed is already bound to a live bar cohort")
         member = cohort.member_for_feed(self)
@@ -369,8 +405,9 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
             raise ValueError(
                 "live cohort explicit bar sources must be replayable tuple/list values"
             )
-        if not isinstance(self._cohort_history_source, tuple) or not isinstance(
-            self._cohort_live_source, tuple
+        if (
+            type(self._cohort_history_source) is not tuple
+            or type(self._cohort_live_source) is not tuple
         ):
             raise ValueError("live cohort explicit bar sources must use immutable tuples")
         if any(
@@ -400,6 +437,14 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
             slot_index_by_close=cohort._slot_indices_by_close,
         )
 
+    @staticmethod
+    def _validate_cohort_store_raw_mode(store):
+        """Require Store bars to remain raw until cohort capture."""
+        if store is None or not callable(getattr(store, "poll_live", None)):
+            return
+        if getattr(store, "preserve_raw_bars", None) is not True:
+            raise ValueError("live cohort Store polling requires preserve_raw_bars=True")
+
     def _live_bar_cohort_activation_snapshot(self):
         """Capture mutable feed state so Cerebro can roll back a failed commit."""
         return (
@@ -416,6 +461,7 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
             self._cohort_slot_index_by_close,
             self._cohort_last_delivered_slot_index,
             self._cohort_armed_envelope,
+            self._cohort_staged_delivery,
             self._cohort_delivery_failed,
             self._history,
             self._live,
@@ -450,6 +496,7 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
             self._cohort_slot_index_by_close,
             self._cohort_last_delivered_slot_index,
             self._cohort_armed_envelope,
+            self._cohort_staged_delivery,
             self._cohort_delivery_failed,
             self._history,
             self._live,
@@ -561,9 +608,7 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
                     )
                     setattr(self, lookahead_name, event)
                     break
-                self._cohort_capture_source(
-                    event, source_role, now_monotonic_ns, max_slot
-                )
+                self._cohort_capture_source(event, source_role, now_monotonic_ns, max_slot)
                 collected += 1
             if collected >= budget:
                 return collected
@@ -599,6 +644,20 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
         if drained:
             self._mark_live()
         if self._cohort_completed_lookahead is not _COHORT_MISSING:
+            # Tick aggregation can finish a bar during this collection pass.
+            # Capture that exact event now, before the engine starts a shared
+            # missing-member wait; otherwise the next pass may arrive only at
+            # the deadline and lose to the cohort's timeout check. Preserve
+            # the same collection budget and calendar lookahead bound used by
+            # the source queues above.
+            event = self._cohort_completed_lookahead
+            slot_index = self._cohort_event_slot_index(event)
+            if slot_index is not None and slot_index > max_slot:
+                return collected
+            self._cohort_completed_lookahead = _COHORT_MISSING
+            self._cohort_capture_source(event, "live", now_monotonic_ns, max_slot)
+            collected += 1
+        if collected >= budget:
             return collected
 
         # Direct completed-bar sources retain their original event schema.
@@ -622,44 +681,127 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
             self._mark_live()
         return collected
 
-    def _arm_live_bar_cohort_envelope(self, envelope):
+    def _prepare_live_bar_cohort_delivery(self, envelope):
+        """Preflight one exact envelope without mutating feed or line state."""
         cohort = self._live_bar_cohort
         if cohort is None or self._cohort_delivery_failed:
             raise RuntimeError("BtApiFeed is not ready for cohort delivery")
         if cohort.prepared_envelope(self) is not envelope:
             raise ValueError("Cerebro supplied a non-prepared cohort envelope")
-        cohort.preflight_delivery(self, envelope)
+        raw_values = cohort.preflight_delivery(self, envelope)
+        close_time = envelope.close_time
+        datetime_value = date2num(close_time.replace(tzinfo=None))
+        return _PreparedLiveBarCohortDelivery(
+            feed_ref=self,
+            envelope=envelope,
+            raw_values=raw_values,
+            close_time=close_time,
+            datetime_value=datetime_value,
+        )
+
+    def _arm_live_bar_cohort_envelope(self, envelope, prepared):
+        """Bind an exact preflight result for the following normal feed load."""
+        if (
+            type(prepared) is not _PreparedLiveBarCohortDelivery
+            or prepared.feed_ref is not self
+            or prepared.envelope is not envelope
+        ):
+            raise ValueError("Cerebro supplied a mismatched prepared cohort delivery")
+        if self._cohort_armed_envelope is not None or self._cohort_staged_delivery is not None:
+            raise RuntimeError("BtApiFeed already has an armed cohort delivery")
+        cohort = self._live_bar_cohort
+        if cohort is None or self._cohort_delivery_failed:
+            raise RuntimeError("BtApiFeed is not ready for cohort delivery")
+        if cohort.prepared_envelope(self) is not envelope:
+            raise ValueError("Cerebro supplied a non-prepared cohort envelope")
         self._cohort_armed_envelope = envelope
+        self._cohort_staged_delivery = prepared
+
+    def _preflight_live_bar_cohort_delivery_commit(self, envelope, prepared):
+        """Validate staged line state before the cohort commits receipts atomically."""
+        cohort = self._live_bar_cohort
+        if (
+            cohort is None
+            or self._cohort_delivery_failed
+            or self._cohort_armed_envelope is not envelope
+            or self._cohort_staged_delivery is not prepared
+            or type(prepared) is not _PreparedLiveBarCohortDelivery
+            or prepared.feed_ref is not self
+            or prepared.envelope is not envelope
+        ):
+            self._cohort_delivery_failed = True
+            raise ValueError("BtApiFeed cohort delivery stage changed before commit")
+        if cohort.prepared_envelope(self) is not envelope:
+            self._cohort_delivery_failed = True
+            raise ValueError("BtApiFeed cohort envelope changed before commit")
+        line_values = (
+            ("datetime", self.lines.datetime[0], prepared.datetime_value),
+            ("open", self.lines.open[0], prepared.raw_values["open"]),
+            ("high", self.lines.high[0], prepared.raw_values["high"]),
+            ("low", self.lines.low[0], prepared.raw_values["low"]),
+            ("close", self.lines.close[0], prepared.raw_values["close"]),
+            ("volume", self.lines.volume[0], prepared.raw_values["volume"]),
+            (
+                "openinterest",
+                self.lines.openinterest[0],
+                prepared.raw_values.get("openinterest", 0.0),
+            ),
+        )
+
+        def values_match(actual, expected):
+            if actual == expected:
+                return True
+            try:
+                return math.isnan(float(actual)) and math.isnan(float(expected))
+            except (TypeError, ValueError, OverflowError):
+                return False
+
+        if any(not values_match(actual, expected) for _name, actual, expected in line_values):
+            self._cohort_delivery_failed = True
+            raise ValueError("BtApiFeed line values differ from staged cohort delivery")
+        return True
+
+    def _commit_live_bar_cohort_delivery(self, envelope, prepared):
+        """Publish local feed metadata after the cohort atomically records receipts."""
+        # Cerebro preflights every feed and calls LiveBarCohort's batch commit
+        # before entering this assignment-only phase. Keeping receipt mutation
+        # out of this method prevents a failure on one feed from publishing a
+        # partial cohort batch.
+        self._cohort_last_delivered_slot_index = envelope.slot_index
+        self._cohort_armed_envelope = None
+        self._cohort_staged_delivery = None
+        return True
+
+    def _abort_live_bar_cohort_delivery(self):
+        """Discard staged state after Cerebro rolls back a failed batch write."""
+        self._cohort_armed_envelope = None
+        self._cohort_staged_delivery = None
+        self._cohort_delivery_failed = True
 
     def _load_live_bar_cohort_envelope(self):
         cohort = self._live_bar_cohort
         envelope = self._cohort_armed_envelope
+        prepared = self._cohort_staged_delivery
         if self._cohort_delivery_failed:
             return None
-        if envelope is None:
+        if envelope is None or prepared is None:
             return None
-        if cohort.prepared_envelope(self) is not envelope:
+        if (
+            cohort.prepared_envelope(self) is not envelope
+            or prepared.feed_ref is not self
+            or prepared.envelope is not envelope
+        ):
             self._cohort_delivery_failed = True
-            raise ValueError("armed cohort envelope is no longer the prepared object")
+            raise ValueError("armed cohort delivery is no longer the prepared object")
         try:
-            raw_values = cohort.preflight_delivery(self, envelope)
-            close_time = envelope.close_time
-            self.lines.datetime[0] = date2num(close_time.replace(tzinfo=None))
+            raw_values = prepared.raw_values
+            self.lines.datetime[0] = prepared.datetime_value
             self.lines.open[0] = raw_values["open"]
             self.lines.high[0] = raw_values["high"]
             self.lines.low[0] = raw_values["low"]
             self.lines.close[0] = raw_values["close"]
             self.lines.volume[0] = raw_values["volume"]
             self.lines.openinterest[0] = raw_values.get("openinterest", 0.0)
-            if envelope.source_role == "live":
-                self._mark_live()
-            cohort.record_delivery(
-                self,
-                envelope,
-                delivered_close_time=close_time,
-            )
-            self._cohort_last_delivered_slot_index = envelope.slot_index
-            self._cohort_armed_envelope = None
             return True
         except Exception:
             self._cohort_delivery_failed = True
@@ -667,7 +809,14 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
 
     def _dispatch_live_bar_cohort_envelope(self, envelope):
         """Dispatch notify_bar only after Cerebro verifies a complete batch."""
-        if envelope.feed_ref is not self or envelope.source_role != "live":
+        if envelope.feed_ref is not self:
+            return False
+        if envelope.source_role == "live":
+            # Status notification can append to a user-visible notification
+            # queue and therefore may fail. Run it only after Cerebro has
+            # committed every member's lines and local delivery metadata.
+            self._mark_live()
+        if envelope.source_role != "live":
             return False
         if not self.p.dispatch_bars:
             return False
@@ -730,11 +879,16 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
         claimed_this_start = False
         try:
             super().start()
+            if self.p.cohort_source_mode and self._live_bar_cohort is None:
+                raise ValueError("cohort_source_mode requires Cerebro live cohort activation")
             if self.p.orderbook_as_ticks and self._timeframe != TimeFrame.Ticks:
                 raise ValueError("orderbook_as_ticks requires timeframe=TimeFrame.Ticks")
 
             if self.store is None:
                 self.store = getattr(self, "_store", None)
+
+            if self.p.cohort_source_mode:
+                self._validate_cohort_store_raw_mode(self.store)
 
             if self.store is None:
                 self._session_active = True
@@ -743,9 +897,7 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
             self.store.start(data=self)
             self.store.register(self)
 
-            service_read_only = bool(
-                getattr(self.store, "_service_read_only", False)
-            )
+            service_read_only = bool(getattr(self.store, "_service_read_only", False))
             if service_read_only:
                 # Establish the bounded live cursor before history so bars
                 # published during backfill can be replayed and deduplicated.
@@ -1125,10 +1277,7 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
             # Stop as soon as either path queues a bar so _load_bar freezes
             # the quote observed for that bar before a later tick can replace
             # the feed's latest quote binding.
-            if (
-                self._bar_sequence != bar_sequence_before
-                or len(self._live) > queued_bars_before
-            ):
+            if self._bar_sequence != bar_sequence_before or len(self._live) > queued_bars_before:
                 break
         return drained
 

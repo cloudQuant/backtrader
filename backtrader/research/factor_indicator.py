@@ -64,9 +64,10 @@ def _factor_once_method_is(instance: Any, name: str, expected: Any) -> bool:
         method = object.__getattribute__(instance, name)
     except (AttributeError, TypeError):
         return False
-    return getattr(method, "__self__", None) is instance and getattr(
-        method, "__func__", None
-    ) is expected
+    return (
+        getattr(method, "__self__", None) is instance
+        and getattr(method, "__func__", None) is expected
+    )
 
 
 def _factor_once_lines_ready(instance: Any, end: int, seen: set) -> bool:
@@ -76,9 +77,7 @@ def _factor_once_lines_ready(instance: Any, end: int, seen: set) -> bool:
     seen.add(id(instance))
 
     if isinstance(instance, Indicator):
-        if not _factor_once_method_is(
-            instance, "advance", _FACTOR_ONCE_INDICATOR_ADVANCE
-        ):
+        if not _factor_once_method_is(instance, "advance", _FACTOR_ONCE_INDICATOR_ADVANCE):
             return False
     elif isinstance(instance, LineIterator) and not _factor_once_method_is(
         instance, "advance", _FACTOR_ONCE_ITERATOR_ADVANCE
@@ -108,9 +107,7 @@ def _factor_once_lines_ready(instance: Any, end: int, seen: set) -> bool:
     return True
 
 
-def _factor_once_supported(
-    instance: Any, optimized_class: type, start: int, end: int
-) -> bool:
+def _factor_once_supported(instance: Any, optimized_class: type, start: int, end: int) -> bool:
     """Limit array indexing to the synchronized, full-array research path.
 
     Exact PandasData instances are the feeds produced by ``align_to_grid``.
@@ -137,8 +134,7 @@ def _factor_once_supported(
         return False
     expected_callbacks = optimized_class.__dict__.get("_factor_once_expected_callbacks")
     if not isinstance(expected_callbacks, tuple) or any(
-        not _factor_once_method_is(instance, name, method)
-        for name, method in expected_callbacks
+        not _factor_once_method_is(instance, name, method) for name, method in expected_callbacks
     ):
         return False
 
@@ -167,9 +163,7 @@ def _factor_once_supported(
             type(data) is not PandasData
             or end > data.buflen()
             or not _factor_once_method_is(data, "advance", _FACTOR_ONCE_FEED_ADVANCE)
-            or not _factor_once_method_is(
-                data, "_tick_nullify", _FACTOR_ONCE_FEED_TICK_NULLIFY
-            )
+            or not _factor_once_method_is(data, "_tick_nullify", _FACTOR_ONCE_FEED_TICK_NULLIFY)
             or not _factor_once_method_is(data, "_tick_fill", _FACTOR_ONCE_FEED_TICK_FILL)
             or not _factor_once_lines_ready(data, end, set())
         ):
@@ -210,15 +204,17 @@ def _factor_once_write(line: Any, index: int, value: Any) -> None:
 
 
 class _PresenceLine(Indicator):
-    """One boolean real-bar flag per bar, advancing on the target feed clock.
+    """One target-membership and source-presence flag per target bar.
 
     Cross-sectional operators read it to exclude an asset whose source feed has
-    no bar on the current grid point.  It carries no point-in-time table, source
-    timestamp or availability reason.
+    no bar on the current grid point. Aligned research data uses its existing
+    immutable presence projection. A cohort feed instead reads the exact
+    receipt published for the current complete batch, after every feed line
+    has advanced and before factor callbacks run.
     """
 
     lines: Any = ("value",)
-    params: Any = (("present", ()),)
+    params: Any = (("present", ()), ("cohort", None))
 
     def __init__(self) -> None:
         self._present = tuple(bool(value) for value in self.p.present)
@@ -228,9 +224,34 @@ class _PresenceLine(Indicator):
         index = self._cursor
         self._cursor += 1
         if index >= len(self._present):
-            self.lines.value[0] = 1.0
+            is_member = True
         else:
-            self.lines.value[0] = 1.0 if self._present[index] else 0.0
+            is_member = self._present[index]
+        cohort = self.p.cohort
+        if cohort is not None:
+            batch = cohort.current_batch()
+            receipt = cohort.current_delivery(self.data)
+            if (
+                batch is None
+                or receipt is None
+                or receipt.feed_ref is not self.data
+                or receipt.batch_id != batch.batch_id
+                or batch.members.get(receipt.member_id) is not receipt
+                or receipt.complete is not True
+                or receipt.quality not in ("GOOD", "MISSING")
+            ):
+                # Unknown live membership is not equivalent to an absent asset.
+                # Panel operators reject this NaN instead of ranking a partial
+                # or stale batch.
+                self.lines.value[0] = float("nan")
+                return
+            is_member = (
+                is_member
+                and receipt.present is True
+                and receipt.quality == "GOOD"
+                and not receipt.missing_fields
+            )
+        self.lines.value[0] = 1.0 if is_member else 0.0
 
 
 class _FeedInputLine(Indicator):
@@ -297,9 +318,7 @@ class FactorIndicator(Indicator):
         asset_names = tuple(self._factor_runtime.get("asset_names", ()))
         if asset_names and len(asset_names) != len(output_datas):
             raise RuntimeError("factor asset names do not match its output lines")
-        self._factor_live_bounded_diagnostics = bool(
-            runtime.get("live_source_binding", False)
-        )
+        self._factor_live_bounded_diagnostics = bool(runtime.get("live_source_binding", False))
         self._factor_call_count = 0
         self._factor_once_range_count = 0
         self._factor_once_covered_count = 0
@@ -923,7 +942,17 @@ class FactorIndicator(Indicator):
             if not isinstance(alignment, Mapping):
                 alignment = getattr(data, "_factor_research_alignment_v1", None)
             present = tuple(alignment.get("present", ())) if isinstance(alignment, Mapping) else ()
-            members.append(cast(Any, _PresenceLine)(data, present=present).lines.value)
+            cohort = getattr(data, "live_bar_cohort", None)
+            if cohort is not None:
+                from .live_cohort import LiveBarCohort
+
+                if type(cohort) is not LiveBarCohort or cohort.member_for_feed(data) is None:
+                    raise ResearchConfigError(
+                        "live factor presence requires the exact registered cohort feed"
+                    )
+            members.append(
+                cast(Any, _PresenceLine)(data, present=present, cohort=cohort).lines.value
+            )
         self._formula_member_lines = tuple(members)
         return self._formula_member_lines
 

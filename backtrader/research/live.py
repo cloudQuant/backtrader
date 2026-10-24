@@ -256,9 +256,7 @@ def _field_sources(binding: Any, field_bindings: Mapping[str, Any], stack=()) ->
             alias = binding.get("source")
             if alias in stack:
                 raise ResearchConfigError("cyclic factor field binding")
-            return _field_sources(
-                field_bindings.get(alias), field_bindings, stack + (alias,)
-            )
+            return _field_sources(field_bindings.get(alias), field_bindings, stack + (alias,))
         if kind == "vwap_volume":
             sources = []
             for alias in (binding.get("vwap"), binding.get("volume")):
@@ -310,7 +308,10 @@ class LiveFactorSet:
         )
         self._inputs = MappingProxyType(dict(inputs))
         self._required_fields = MappingProxyType(
-            {feed_id: (feed, tuple(sorted(names))) for feed_id, (feed, names) in required_fields.items()}
+            {
+                feed_id: (feed, tuple(sorted(names)))
+                for feed_id, (feed, names) in required_fields.items()
+            }
         )
         self._bindings = tuple(
             (binding.feed_ref, binding.line_name, binding) for binding in bindings
@@ -378,8 +379,7 @@ class LiveFactorSet:
                 code="UNSUPPORTED_SOURCE",
             )
         if any(
-            getattr(feed, "_cohort_clock", None) is not scheduler_clock
-            for feed in feeds.values()
+            getattr(feed, "_cohort_clock", None) is not scheduler_clock for feed in feeds.values()
         ):
             raise ResearchConfigError(
                 "live cohort feeds do not share one exact scheduler clock",
@@ -402,7 +402,8 @@ class LiveFactorSet:
             )
 
         feed_member_ids = {
-            member.member_id for member in (_member_for_feed(cohort, feed) for feed in feeds.values())
+            member.member_id
+            for member in (_member_for_feed(cohort, feed) for feed in feeds.values())
             if member is not None
         }
         if feed_member_ids != set(cohort.member_ids):
@@ -486,8 +487,7 @@ class LiveFactorSet:
             input_descriptors[factor_name] = MappingProxyType(aliases)
 
         scoped_receipts = tuple(
-            (receipt.feed_ref, receipt.line_name, receipt)
-            for receipt in binding_receipts.values()
+            (receipt.feed_ref, receipt.line_name, receipt) for receipt in binding_receipts.values()
         )
         available_datas = tuple(feeds.values())
         instances: Dict[str, Dict[str, FactorIndicator]] = {}
@@ -511,9 +511,7 @@ class LiveFactorSet:
                     if not isinstance(instance, FactorIndicator):
                         raise RuntimeError("live factor binding did not create a FactorIndicator")
                     if int(getattr(instance, "_minperiod", 1)) > plan.max_window_bars:
-                        raise ResearchConfigError(
-                            "factor graph minperiod exceeds max_window_bars"
-                        )
+                        raise ResearchConfigError("factor graph minperiod exceeds max_window_bars")
                     by_group[group] = instance
                 instances[factor_name] = by_group
 
@@ -595,11 +593,7 @@ class LiveFactorSet:
             member = _member_for_feed(self._cohort, feed)
             receipt = None if member is None else batch.members.get(member.member_id)
             delivered = _current_delivery(self._cohort, feed)
-            if (
-                receipt is None
-                or receipt.feed_ref is not feed
-                or delivered is not receipt
-            ):
+            if receipt is None or receipt.feed_ref is not feed or delivered is not receipt:
                 invalid.append("current_delivery_mismatch")
                 continue
             current_receipts[id(feed)] = receipt
@@ -613,6 +607,22 @@ class LiveFactorSet:
                 batch=batch,
                 readiness=LiveFactorReadiness.DEGRADED,
                 reasons=tuple(dict.fromkeys(invalid)),
+                factor_values={},
+            )
+
+        gap_receipts = tuple(
+            receipt
+            for receipt in current_receipts.values()
+            if receipt.present is not True
+            or receipt.quality != "GOOD"
+            or bool(getattr(receipt, "missing_fields", ()))
+        )
+        if gap_receipts and not self._has_registered_gap_semantics():
+            self._cohort.freeze_unsupported_gap_semantics(batch)
+            return self._make_snapshot(
+                batch=batch,
+                readiness=LiveFactorReadiness.DEGRADED,
+                reasons=("unsupported_factor_gap_semantics",),
                 factor_values={},
             )
 
@@ -692,13 +702,13 @@ class LiveFactorSet:
             )
 
         freshness_reasons = []
-        if current_receipts and len(current_receipts) == len(self._feeds) and all(
-            receipt.source_role == "live" for receipt in current_receipts.values()
+        if (
+            current_receipts
+            and len(current_receipts) == len(self._feeds)
+            and all(receipt.source_role == "live" for receipt in current_receipts.values())
         ):
             try:
-                scheduler_now = _utc(
-                    self._scheduler_clock.utc_now(), "scheduler_clock.utc_now"
-                )
+                scheduler_now = _utc(self._scheduler_clock.utc_now(), "scheduler_clock.utc_now")
             except Exception:
                 # A broken or malformed injected clock is a closed readiness
                 # gate, while the already-computed factor output stays usable
@@ -711,13 +721,18 @@ class LiveFactorSet:
                     self._plan.max_live_bar_age_seconds
                 ):
                     freshness_reasons.append("live_bar_stale")
-                if max(
-                    (close_time - scheduler_now).total_seconds(),
-                    (available_at - scheduler_now).total_seconds(),
-                ) > self._plan.max_future_skew_seconds:
+                if (
+                    max(
+                        (close_time - scheduler_now).total_seconds(),
+                        (available_at - scheduler_now).total_seconds(),
+                    )
+                    > self._plan.max_future_skew_seconds
+                ):
                     freshness_reasons.append("live_bar_future_skew_exceeded")
 
         readiness_reasons = []
+        if gap_receipts:
+            readiness_reasons.append("cohort_gap_present")
         if not windows_complete:
             readiness_reasons.append("input_window_incomplete_or_warmup_short")
         if cutover_state is not LiveFactorReadiness.LIVE_READY:
@@ -728,7 +743,7 @@ class LiveFactorSet:
 
         if cutover_state is LiveFactorReadiness.CATCHING_UP:
             readiness = LiveFactorReadiness.CATCHING_UP
-        elif not windows_complete or history_policy_invalid or freshness_reasons:
+        elif gap_receipts or not windows_complete or history_policy_invalid or freshness_reasons:
             readiness = LiveFactorReadiness.WARMUP
         else:
             readiness = cutover_state
@@ -739,6 +754,18 @@ class LiveFactorSet:
             readiness=readiness,
             reasons=tuple(readiness_reasons),
             factor_values=factor_values,
+        )
+
+    def _has_registered_gap_semantics(self) -> bool:
+        """Allow NaN-window recovery only for the exact production Alpha101 set."""
+        if not self._plan.factors:
+            return False
+        from .alpha101 import ALPHA_REGISTRY
+
+        accepted = tuple(ALPHA_REGISTRY.values())
+        return all(
+            any(spec.indicator is indicator for indicator in accepted)
+            for spec in self._plan.factors.values()
         )
 
     def _read_factor_values(self, current_receipts):
@@ -753,9 +780,18 @@ class LiveFactorSet:
                         continue
                     try:
                         raw_value = float(instance.outputs[feed][spec.panel_line][0])
-                    except (AttributeError, IndexError, KeyError, TypeError, ValueError, OverflowError):
+                    except (
+                        AttributeError,
+                        IndexError,
+                        KeyError,
+                        TypeError,
+                        ValueError,
+                        OverflowError,
+                    ):
                         raw_value = float("nan")
                     reason = _output_reason(instance, feed, spec.panel_line)
+                    if receipt.present is not True and reason is None:
+                        reason = "MISSING_INPUT"
                     available = (
                         receipt.present is True
                         and receipt.complete is True
@@ -778,9 +814,7 @@ class LiveFactorSet:
                         member_id=str(receipt.member_id),
                         source_ref=receipt.source_ref,
                         sequence=int(receipt.feed_sequence),
-                        generation=getattr(
-                            receipt.envelope, "connection_generation", None
-                        ),
+                        generation=getattr(receipt.envelope, "connection_generation", None),
                     )
             results[factor_name] = MappingProxyType(values)
         return results
@@ -819,9 +853,7 @@ class LiveFactorSet:
             batch_id=batch_id,
             close_time=close_time,
             available_at=available_at,
-            batch_complete=(
-                batch is not None and getattr(batch, "status", None) == "COMPLETE"
-            ),
+            batch_complete=(batch is not None and getattr(batch, "status", None) == "COMPLETE"),
             readiness=readiness,
             readiness_reasons=tuple(reasons),
             factors=MappingProxyType(factor_results),
@@ -855,6 +887,7 @@ def _feed_clock_matches(feed, close_time):
 
 def _feed_lines_match_receipt(feed, line_names, receipt):
     """Fail closed if a delivered feed line no longer matches its receipt."""
+    missing = set(getattr(receipt, "missing_fields", ()))
     for line_name in line_names:
         if line_name == "datetime":
             if not _feed_clock_matches(feed, receipt.close_time):
@@ -870,7 +903,10 @@ def _feed_lines_match_receipt(feed, line_names, receipt):
             expected = float(expected)
         except (AttributeError, IndexError, TypeError, ValueError, OverflowError):
             return False
-        if not math.isfinite(actual) or not math.isfinite(expected) or actual != expected:
+        if line_name in missing:
+            if not math.isnan(actual) or not math.isnan(expected):
+                return False
+        elif not math.isfinite(actual) or not math.isfinite(expected) or actual != expected:
             return False
     return True
 

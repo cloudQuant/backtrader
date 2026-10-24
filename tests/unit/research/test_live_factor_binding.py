@@ -197,8 +197,7 @@ def _make_inputs(
                 count,
                 values[-1],
                 "live",
-                available_at=slots[-1].close_time
-                + timedelta(seconds=availability_delay_seconds),
+                available_at=slots[-1].close_time + timedelta(seconds=availability_delay_seconds),
             ),
         )
         if include_live
@@ -208,6 +207,7 @@ def _make_inputs(
         dataname="SYM",
         historical_bars=historical,
         live_bars=live,
+        cohort_source_mode=True,
         backfill_start=False,
         timeframe=bt.TimeFrame.Minutes,
         compression=1,
@@ -273,7 +273,9 @@ def test_ordinary_strategy_binds_real_cohort_feed_and_publishes_bounded_immutabl
     assert all(snapshot.batch_complete for snapshot in strategy.snapshots)
     first = strategy.snapshots[0]
     assert first.readiness is LiveFactorReadiness.WARMUP
-    assert first.factors["scaled_close"].values["A"].status is LiveFactorOutputStatus.OUTPUT_AVAILABLE
+    assert (
+        first.factors["scaled_close"].values["A"].status is LiveFactorOutputStatus.OUTPUT_AVAILABLE
+    )
     assert first.factors["scaled_close"].values["A"].source_role == "history"
     snapshot = strategy.snapshots[-1]
     assert snapshot.readiness is LiveFactorReadiness.LIVE_READY
@@ -296,7 +298,9 @@ def test_ordinary_strategy_binds_real_cohort_feed_and_publishes_bounded_immutabl
     assert 0 < len(feed.close.array) <= 3
     assert len(clock.waits) > 0
 
-    diagnostics = strategy.live_factors.factor_instances["scaled_close"]["primary"].lifecycle_diagnostics
+    diagnostics = strategy.live_factors.factor_instances["scaled_close"][
+        "primary"
+    ].lifecycle_diagnostics
     assert diagnostics["diagnostic_kind"] == "bounded_live_samples"
     assert diagnostics["call_count"] == len(values)
     assert len(diagnostics["call_times"]) == 64

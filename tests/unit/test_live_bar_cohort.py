@@ -1,6 +1,7 @@
 """Focused contracts for bounded live bar cohort validation and delivery."""
 
 import datetime as dt
+import math
 from decimal import Decimal
 from types import MappingProxyType
 
@@ -48,12 +49,19 @@ def make_calendar(count=3, *, epoch_id=1, start=BASE, version="v1"):
     )
 
 
-def make_cohort(member_count=2, *, count=3, wait_timeout_ns=100, max_pending_slots=None):
+def make_cohort(
+    member_count=2,
+    *,
+    count=3,
+    wait_timeout_ns=100,
+    max_pending_slots=None,
+    max_window_bars=None,
+):
     cohort = LiveBarCohort(
         "cohort-A",
         make_calendar(count),
         max_pending_slots=max(count, 1) if max_pending_slots is None else max_pending_slots,
-        max_window_bars=min(max(count, 1), 16),
+        max_window_bars=(min(max(count, 1), 16) if max_window_bars is None else max_window_bars),
         wait_timeout_ns=wait_timeout_ns,
     )
     feeds = {}
@@ -154,6 +162,138 @@ def test_complete_batch_publishes_only_after_every_exact_feed_delivery():
     assert batch.receipt_for_feed(first_feed) is receipt
     assert cohort.current_delivery(first_feed) is receipt
     assert cohort.prepared_envelope(first_feed) is None
+
+
+def test_record_delivery_batch_publishes_all_member_receipts_once():
+    cohort, feeds = make_cohort(member_count=3, count=1)
+    capture_slot(cohort, feeds, 0)
+    result = cohort.prepare_round(20_000, source_time_utc=BASE + dt.timedelta(minutes=2))
+    assert result.status == "READY"
+    prepared = result.prepared
+    deliveries = tuple(
+        (feed, prepared.envelopes[member_id], prepared.envelopes[member_id].close_time)
+        for member_id, feed in reversed(tuple(feeds.items()))
+    )
+
+    batch = cohort.record_delivery_batch(deliveries)
+
+    assert batch is cohort.current_batch()
+    assert batch.status == "COMPLETE"
+    assert set(batch.members) == set(feeds)
+    for member_id, feed in feeds.items():
+        receipt = batch.receipt_for_feed(feed)
+        assert receipt is not None
+        assert receipt is cohort.current_delivery(feed)
+        assert receipt.envelope is prepared.envelopes[member_id]
+    assert cohort._prepared is None
+    assert cohort._delivered == {}
+    assert cohort._next_slot_index == 1
+    assert all(len(cohort._window_receipts[member_id]) == 1 for member_id in feeds)
+
+
+def test_record_delivery_batch_later_validation_failure_preserves_previous_batch():
+    cohort, feeds = make_cohort(member_count=2, count=2)
+    capture_slot(cohort, feeds, 0)
+    first_batch = deliver_prepared(cohort, feeds, 20_000)
+    assert first_batch is cohort.current_batch()
+
+    capture_slot(cohort, feeds, 1)
+    result = cohort.prepare_round(20_001, source_time_utc=BASE + dt.timedelta(minutes=3))
+    assert result.status == "READY"
+    prepared = result.prepared
+    prior_window = {key: tuple(value) for key, value in cohort._window_receipts.items()}
+    prior_signatures = dict(cohort._recent_signatures)
+    prior_signature_order = tuple(cohort._recent_signature_order)
+    prior_history = dict(cohort._history_last_close)
+    prior_first_live = dict(cohort._first_live_receipt)
+    prior_pending = cohort._pending[prepared.slot_index]
+    deliveries = [
+        (feed, prepared.envelopes[member_id], prepared.envelopes[member_id].close_time)
+        for member_id, feed in feeds.items()
+    ]
+    last_feed, last_envelope, _ = deliveries[-1]
+    deliveries[-1] = (last_feed, last_envelope, last_envelope.close_time + dt.timedelta(seconds=1))
+
+    with pytest.raises(LiveCohortValidationError, match="line datetime"):
+        cohort.record_delivery_batch(tuple(deliveries))
+
+    assert cohort.current_batch() is first_batch
+    assert cohort._prepared is prepared
+    assert cohort._delivered == {}
+    assert cohort._next_slot_index == 1
+    assert cohort._pending[prepared.slot_index] is prior_pending
+    assert {key: tuple(value) for key, value in cohort._window_receipts.items()} == prior_window
+    assert cohort._recent_signatures == prior_signatures
+    assert tuple(cohort._recent_signature_order) == prior_signature_order
+    assert cohort._history_last_close == prior_history
+    assert cohort._first_live_receipt == prior_first_live
+
+
+@pytest.mark.parametrize("failure_point", ["before_publish", "during_publish"])
+def test_record_delivery_batch_rolls_back_injected_publish_failure(monkeypatch, failure_point):
+    cohort, feeds = make_cohort(member_count=2, count=3, max_window_bars=1)
+    capture_slot(cohort, feeds, 0)
+    capture_slot(cohort, feeds, 1)
+    capture_slot(cohort, feeds, 2)
+    first_batch = deliver_prepared(cohort, feeds, 20_000)
+    result = cohort.prepare_round(20_001, source_time_utc=BASE + dt.timedelta(minutes=3))
+    assert result.status == "READY"
+    prepared = result.prepared
+    prior_window = {key: tuple(value) for key, value in cohort._window_receipts.items()}
+    prior_signatures = dict(cohort._recent_signatures)
+    prior_signature_order = tuple(cohort._recent_signature_order)
+    prior_pending = cohort._pending[prepared.slot_index]
+    prior_history = dict(cohort._history_last_close)
+    prior_first_live = dict(cohort._first_live_receipt)
+    prior_pending_order = tuple(cohort._pending.items())
+    deliveries = tuple(
+        (feed, prepared.envelopes[member_id], prepared.envelopes[member_id].close_time)
+        for member_id, feed in feeds.items()
+    )
+    original_remember = cohort._remember_signature
+    original_setattr = type(cohort).__setattr__
+    if failure_point == "before_publish":
+
+        def fail_before_signature(slot_index, member_id, signature):
+            raise RuntimeError("injected before signature publication")
+
+        monkeypatch.setattr(cohort, "_remember_signature", fail_before_signature)
+    else:
+        triggered = False
+
+        def fail_at_batch_commit(instance, name, value):
+            nonlocal triggered
+            if (
+                instance is cohort
+                and name == "_current_batch"
+                and value is not first_batch
+                and not triggered
+            ):
+                triggered = True
+                raise RuntimeError("injected before batch commit")
+            original_setattr(instance, name, value)
+
+        monkeypatch.setattr(LiveBarCohort, "__setattr__", fail_at_batch_commit)
+    with pytest.raises(RuntimeError, match="injected"):
+        cohort.record_delivery_batch(deliveries)
+
+    assert cohort.current_batch() is first_batch
+    assert cohort._prepared is prepared
+    assert cohort._delivered == {}
+    assert cohort._next_slot_index == 1
+    assert cohort._pending[prepared.slot_index] is prior_pending
+    assert tuple(cohort._pending.items()) == prior_pending_order
+    assert {key: tuple(value) for key, value in cohort._window_receipts.items()} == prior_window
+    assert cohort._recent_signatures == prior_signatures
+    assert tuple(cohort._recent_signature_order) == prior_signature_order
+    assert cohort._history_last_close == prior_history
+    assert cohort._first_live_receipt == prior_first_live
+
+    monkeypatch.setattr(cohort, "_remember_signature", original_remember)
+    monkeypatch.setattr(LiveBarCohort, "__setattr__", original_setattr)
+    retried = cohort.record_delivery_batch(deliveries)
+    assert retried is cohort.current_batch()
+    assert retried.slot_index == 1
 
 
 def test_member_sessions_accept_heterogeneous_exchange_day_and_segment_metadata():
@@ -580,6 +720,123 @@ def test_invalid_raw_value_freezes_before_any_envelope_can_be_prepared():
     assert cohort.frozen is True
     with pytest.raises(LiveCohortFrozenError):
         cohort.prepare_round(20_000, source_time_utc=BASE + dt.timedelta(minutes=2))
+
+
+def _gap_event(member_id, slot_index, field_name="close"):
+    event = make_event(member_id, slot_index)
+    event[field_name] = float("nan")
+    event.update(
+        {
+            "quality": "MISSING",
+            "present": False,
+            "missing_fields": (field_name,),
+            "quality_flags": ("MISSING_FIELDS",),
+        }
+    )
+    return event
+
+
+def test_declared_nan_gap_is_sealed_delivered_and_blocks_windows_until_it_rolls_out():
+    cohort, feeds = make_cohort(member_count=1, count=4)
+    feed = feeds["asset-0"]
+
+    capture_slot(cohort, feeds, 0)
+    first_batch = deliver_prepared(cohort, feeds, 20_000)
+    assert first_batch.receipt_for_feed(feed).present is True
+
+    gap = _gap_event("asset-0", 1)
+    captured = cohort.capture_bar(feed, gap, source_role="live")
+    envelope = captured.envelope
+    assert envelope.complete is True
+    assert envelope.quality == "MISSING"
+    assert envelope.present is False
+    assert envelope.missing_fields == ("close",)
+    assert envelope.quality_flags == ("MISSING_FIELDS",)
+    assert math.isnan(envelope.raw_values["close"])
+
+    result = cohort.prepare_round(20_001, source_time_utc=BASE + dt.timedelta(minutes=10))
+    assert result.status == "READY"
+    cohort.record_delivery(feed, envelope, delivered_close_time=envelope.close_time)
+    batch = cohort.current_batch()
+    receipt = batch.receipt_for_feed(feed)
+    assert batch.status == "COMPLETE"
+    assert receipt.envelope is envelope
+    assert receipt.present is False
+    assert receipt.quality == "MISSING"
+    assert receipt.missing_fields == ("close",)
+    assert math.isnan(receipt.raw_values["close"])
+    assert cohort.complete_window_bars(feed, ("close",), 2) == ()
+
+    capture_slot(cohort, feeds, 2)
+    deliver_prepared(cohort, feeds, 20_002)
+    assert cohort.complete_window_bars(feed, ("close",), 2) == ()
+    capture_slot(cohort, feeds, 3)
+    deliver_prepared(cohort, feeds, 20_003)
+    recovered = cohort.complete_window_bars(feed, ("close",), 2)
+    assert tuple(row.slot_index for row in recovered) == (2, 3)
+
+
+@pytest.mark.parametrize(
+    "mutate, message",
+    (
+        (lambda event: event.update(close=float("inf")), "must be finite"),
+        (lambda event: event.update(close="nan"), "supported numeric type"),
+        (
+            lambda event: event.update(
+                missing_fields=(), quality="GOOD", present=True, quality_flags=()
+            ),
+            "NaN without declared",
+        ),
+        (lambda event: event.update(present=True), "must explicitly declare present=False"),
+        (lambda event: event.update(quality="GOOD"), "quality='MISSING'"),
+        (lambda event: event.update(missing_fields=("high", "close")), "sorted and unique"),
+        (lambda event: event.update(missing_fields=("openinterest",)), "only declared numeric"),
+        (lambda event: event.update(close=100.0), "must contain NaN"),
+        (lambda event: event.update(missing_fields=("close", "unknown")), "only declared numeric"),
+        (lambda event: event.update(missing_fields=("close", "close")), "sorted and unique"),
+        (lambda event: event.update(quality_flags=()), "MISSING_FIELDS"),
+    ),
+)
+def test_declared_gap_metadata_rejects_inconsistent_raw_event(mutate, message):
+    cohort, feeds = make_cohort(member_count=1, count=1)
+    event = _gap_event("asset-0", 0)
+    mutate(event)
+
+    with pytest.raises(LiveCohortValidationError, match=message):
+        cohort.capture_bar(feeds["asset-0"], event, source_role="live")
+    assert cohort.frozen_reason == "invalid_source_bar"
+
+
+@pytest.mark.parametrize("present", (0, "false", None))
+def test_explicit_present_metadata_must_be_exact_bool(present):
+    cohort, feeds = make_cohort(member_count=1, count=1)
+    event = make_event("asset-0", 0)
+    event["present"] = present
+
+    with pytest.raises(LiveCohortValidationError, match="present must be an exact bool"):
+        cohort.capture_bar(feeds["asset-0"], event, source_role="live")
+    assert cohort.frozen_reason == "invalid_source_bar"
+
+
+def test_gap_semantics_freeze_requires_exact_current_batch_with_real_gap_receipt():
+    cohort, feeds = make_cohort(member_count=1, count=2)
+    feed = feeds["asset-0"]
+    capture_slot(cohort, feeds, 0)
+    good_batch = deliver_prepared(cohort, feeds, 20_000)
+    with pytest.raises(LiveCohortValidationError, match="missing-field receipt"):
+        cohort.freeze_unsupported_gap_semantics(good_batch)
+    assert cohort.frozen is False
+
+    gap = _gap_event("asset-0", 1)
+    envelope = cohort.capture_bar(feed, gap, source_role="live").envelope
+    cohort.prepare_round(20_001, source_time_utc=BASE + dt.timedelta(minutes=10))
+    cohort.record_delivery(feed, envelope, delivered_close_time=envelope.close_time)
+    gap_batch = cohort.current_batch()
+    assert gap_batch is not good_batch
+    with pytest.raises(LiveCohortValidationError, match="exact current cohort batch"):
+        cohort.freeze_unsupported_gap_semantics(good_batch)
+    assert cohort.freeze_unsupported_gap_semantics(gap_batch) == "unsupported_factor_gap_semantics"
+    assert cohort.frozen is True
 
 
 @pytest.mark.parametrize(

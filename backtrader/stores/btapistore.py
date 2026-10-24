@@ -1901,9 +1901,7 @@ def _create_ctp_wrapper_class():
             # Opt-in compatibility for MD fronts that answer login with request
             # ID zero and empty identity fields: subscription-only market data,
             # never an execution identity.  Default stays strict.
-            self.allow_zero_login_response = bool(
-                kwargs.get("allow_zero_login_response", False)
-            )
+            self.allow_zero_login_response = bool(kwargs.get("allow_zero_login_response", False))
             # Optional live tick provenance stamping for the strict
             # feed-sealed closed-bar evidence path (iteration-42 options
             # adapters).  The caller owns the run-scoped clock identity and
@@ -1914,6 +1912,7 @@ def _create_ctp_wrapper_class():
                 dict(provenance) if isinstance(provenance, Mapping) else None
             )
             self._live_tick_provenance_seq = 0
+            self._live_bar_event_notifier = None
             # Settlement confirmation is a terminal write.  The legacy
             # direct CTP wrapper is used for observation and typed query
             # preflights too, so an omitted setting must stay read-only.  A
@@ -1968,9 +1967,7 @@ def _create_ctp_wrapper_class():
             preflight_sha256,
         ):
             """Reject legacy direct admission without touching the SDK."""
-            raise BtApiStoreError(
-                "CTP direct registered-sim execution admission is disabled"
-            )
+            raise BtApiStoreError("CTP direct registered-sim execution admission is disabled")
 
         def _send_native_order_insert(self, field, req_id):
             """Keep direct wrapper order submission disabled in this build."""
@@ -2055,6 +2052,7 @@ def _create_ctp_wrapper_class():
 
         def disconnect(self):
             """Disconnect from CTP servers."""
+            self._notify_live_bar_event()
             if self.md_client:
                 self.md_client.stop()
             if self.trader_client:
@@ -2066,6 +2064,17 @@ def _create_ctp_wrapper_class():
         def stop(self):
             """Stop the clients (alias for disconnect)."""
             self.disconnect()
+
+        def set_live_bar_event_notifier(self, callback):
+            """Bind the Store's opt-in event signal before clients connect."""
+            if callback is not None and not callable(callback):
+                raise TypeError("live-bar event notifier must be callable")
+            self._live_bar_event_notifier = callback
+
+        def _notify_live_bar_event(self):
+            notifier = self._live_bar_event_notifier
+            if notifier is not None:
+                notifier()
 
         def get_session_state(self):
             """Return CTP trader auth/login state from the underlying client."""
@@ -2967,6 +2976,7 @@ def _create_ctp_wrapper_class():
                 if provenance_seq is not None:
                     self._stamp_live_tick_provenance(event, provenance_seq)
                 self._tick_queues[alias].append(event)
+            self._notify_live_bar_event()
 
         def _stamp_live_tick_provenance(self, event, sequence):
             """Attach caller-owned live clock provenance to one market tick.
@@ -3019,6 +3029,7 @@ def _create_ctp_wrapper_class():
                     "details": details,
                 }
             )
+            self._notify_live_bar_event()
 
         def _handle_trader_login(self, payload):
             """Capture trader-login metadata for later cancel requests."""
@@ -3043,6 +3054,7 @@ def _create_ctp_wrapper_class():
                     "details": details,
                 }
             )
+            self._notify_live_bar_event()
 
         def _handle_order(self, payload):
             """Normalize order status callbacks into broker updates."""
@@ -3114,6 +3126,7 @@ def _create_ctp_wrapper_class():
             if order_sys_id:
                 event["external_order_id"] = order_sys_id
             self._order_updates.append(event)
+            self._notify_live_bar_event()
 
         def _handle_trade(self, payload):
             """Normalize trade callbacks into broker updates."""
@@ -3153,6 +3166,7 @@ def _create_ctp_wrapper_class():
             if order_sys_id:
                 event["external_order_id"] = order_sys_id
             self._order_updates.append(event)
+            self._notify_live_bar_event()
 
         def _next_order_ref(self):
             """Generate a numeric CTP client order reference."""
@@ -3217,6 +3231,7 @@ class BtApiStore(LiveStoreBase):
         positions: Optional[Iterable[Dict[str, Any]]] = None,
         historical_bars: Optional[Dict[str, Iterable[Any]]] = None,
         live_bars: Optional[Dict[str, Iterable[Any]]] = None,
+        preserve_raw_bars: bool = False,
         contract_metadata: Optional[Dict[str, Dict[str, Any]]] = None,
         backend: Optional[str] = None,
         managed_execution_adapter: Optional[ManagedExecutionAdapter] = None,
@@ -3239,6 +3254,7 @@ class BtApiStore(LiveStoreBase):
             positions: Initial positions list.
             historical_bars: Pre-seeded historical bars by symbol.
             live_bars: Pre-seeded live bars by symbol.
+            preserve_raw_bars: Preserve raw bar fields for strict opt-in consumers.
             contract_metadata: Contract metadata by symbol.
             backend: Runtime backend. Only ``direct`` remains supported here.
             managed_execution_adapter: A trusted Iteration 41 adapter attached
@@ -3247,6 +3263,9 @@ class BtApiStore(LiveStoreBase):
             autostart: Whether to start the store on initialization.
             **kwargs: Additional provider-specific arguments.
         """
+        if type(preserve_raw_bars) is not bool:
+            raise TypeError("preserve_raw_bars must be bool")
+        self._preserve_raw_bars = preserve_raw_bars
         self.provider = self._resolve_provider(provider)
         self.backend = _resolve_backend(self.provider, backend)
         self._managed_execution_adapter = require_managed_execution_adapter(
@@ -3285,8 +3304,7 @@ class BtApiStore(LiveStoreBase):
             or (api is not None and callable(getattr(api, "poll_event", None)))
         )
         self._service_read_only = (
-            type(getattr(api, "service_read_only", None)) is bool
-            and api.service_read_only is True
+            type(getattr(api, "service_read_only", None)) is bool and api.service_read_only is True
         )
         self._service_read_only_stopped = False
         self._sdk_exchanges = dict(
@@ -3363,6 +3381,13 @@ class BtApiStore(LiveStoreBase):
         update_queue_size = max(int(sdk_options.get("broker_update_queue_size", 2048)), 1)
         self._sdk_updates: Deque[Any] = collections.deque(maxlen=update_queue_size)
         self._sdk_update_lock = threading.Lock()
+        self._live_bar_event_condition = threading.Condition(threading.RLock())
+        self._live_bar_event_generation = 0
+        self._live_bar_event_wakers = {}
+        self._live_bar_sdk_waker_lock = threading.RLock()
+        self._live_bar_sdk_waker_api = None
+        self._live_bar_sdk_waker_token = None
+        self._live_bar_sdk_waker_setter_api = None
         self._sdk_update_drop_records: Deque[Any] = collections.deque(
             maxlen=max(int(sdk_options.get("broker_update_drop_record_limit", 256)), 1)
         )
@@ -3501,7 +3526,7 @@ class BtApiStore(LiveStoreBase):
         self._broker = None
         self.notifs: Deque[Any] = collections.deque()
         self._historical_bars: dict = collections.defaultdict(collections.deque)
-        self._historical_query_cache: Dict[Any, List[Dict[str, Any]]] = {}
+        self._historical_query_cache: Dict[Any, List[Any]] = {}
         self._live_bars: dict = collections.defaultdict(collections.deque)
         self._subscribed_datanames: set = set()
         self._successful_connect_count = 0
@@ -3594,9 +3619,7 @@ class BtApiStore(LiveStoreBase):
                 require_service_execution_group_adapter,
             )
 
-            self._service_execution_group_adapter = (
-                require_service_execution_group_adapter(adapter)
-            )
+            self._service_execution_group_adapter = require_service_execution_group_adapter(adapter)
         except Exception as error:
             raise BtApiStoreError("invalid service group adapter") from error
 
@@ -3637,13 +3660,9 @@ class BtApiStore(LiveStoreBase):
         adapter = self._service_execution_group_adapter
         if adapter is None:
             raise BtApiStoreError("strategy group roll-exit route is unavailable")
-        return adapter.roll_exit(
-            strategy, broker, group_id, source_leg_id, limit_price
-        )
+        return adapter.roll_exit(strategy, broker, group_id, source_leg_id, limit_price)
 
-    def query_group_roll_exit(
-        self, strategy: Any, broker: Any, action_id: str
-    ) -> Any:
+    def query_group_roll_exit(self, strategy: Any, broker: Any, action_id: str) -> Any:
         """Read roll-exit status through its registered read capability."""
 
         adapter = self._service_execution_group_adapter
@@ -4133,15 +4152,133 @@ class BtApiStore(LiveStoreBase):
                 self._ctp_execution_authorization_sha256 = None
                 self._ctp_execution_authorization_consumed = False
 
+    def _live_bar_event_snapshot(self):
+        """Return the current generation for the opt-in live-cohort waiter."""
+        with self._live_bar_event_condition:
+            return self._live_bar_event_generation
+
+    def _wait_live_bar_event(self, generation, timeout):
+        """Wait only when no real Store event has arrived since the snapshot."""
+        with self._live_bar_event_condition:
+            if self._live_bar_event_generation != generation:
+                return True
+            return self._live_bar_event_condition.wait_for(
+                lambda: self._live_bar_event_generation != generation,
+                timeout=max(float(timeout), 0.0),
+            )
+
+    def _register_live_bar_event_waker(self, callback):
+        """Register an engine-owned shared condition notifier for one run."""
+        if not callable(callback):
+            raise TypeError("live-bar event waker must be callable")
+        token = object()
+        with self._live_bar_event_condition:
+            self._live_bar_event_wakers[token] = callback
+        api = self._api
+        if api is not None:
+            try:
+                self._bind_live_bar_event_notifier(api, self._signal_live_bar_event)
+            except Exception:
+                with self._live_bar_event_condition:
+                    self._live_bar_event_wakers.pop(token, None)
+                    no_wakers = not self._live_bar_event_wakers
+                if no_wakers:
+                    try:
+                        self._unbind_live_bar_event_notifier()
+                    except Exception:
+                        pass
+                raise
+        return token
+
+    def _unregister_live_bar_event_waker(self, token):
+        """Remove one engine notifier without changing queued Store events."""
+        with self._live_bar_event_condition:
+            self._live_bar_event_wakers.pop(token, None)
+            no_wakers = not self._live_bar_event_wakers
+        if no_wakers:
+            self._unbind_live_bar_event_notifier()
+
+    def _signal_live_bar_event(self):
+        """Publish a market, broker-update, or Store-stop transition."""
+        with self._live_bar_event_condition:
+            callbacks = tuple(self._live_bar_event_wakers.values())
+            if not callbacks:
+                return
+            self._live_bar_event_generation += 1
+            self._live_bar_event_condition.notify_all()
+        for callback in callbacks:
+            callback()
+
+    def _bind_live_bar_event_notifier(self, api, callback):
+        """Bind the engine wake callback to the active public SDK event source."""
+        with self._live_bar_event_condition:
+            if not self._live_bar_event_wakers:
+                return
+        with self._live_bar_sdk_waker_lock:
+            if self._live_bar_sdk_waker_api is api or self._live_bar_sdk_waker_setter_api is api:
+                return
+            old_api = self._live_bar_sdk_waker_api
+            old_token = self._live_bar_sdk_waker_token
+            old_setter_api = self._live_bar_sdk_waker_setter_api
+            if old_api is not None and old_token is not None:
+                unregister = getattr(old_api, "unregister_event_waker", None)
+                if callable(unregister):
+                    unregister(old_token)
+            if old_setter_api is not None:
+                setter = getattr(old_setter_api, "set_live_bar_event_notifier", None)
+                if callable(setter):
+                    setter(None)
+            self._live_bar_sdk_waker_api = None
+            self._live_bar_sdk_waker_token = None
+            self._live_bar_sdk_waker_setter_api = None
+
+            register = getattr(api, "register_event_waker", None)
+            if callable(register):
+                sdk_token = register(callback)
+                if sdk_token is None:
+                    raise RuntimeError("SDK event-waker registration returned no token")
+                self._live_bar_sdk_waker_api = api
+                self._live_bar_sdk_waker_token = sdk_token
+                return
+
+            setter = getattr(api, "set_live_bar_event_notifier", None)
+            if callable(setter):
+                self._live_bar_sdk_waker_setter_api = api
+                try:
+                    setter(callback)
+                except Exception:
+                    self._live_bar_sdk_waker_setter_api = None
+                    try:
+                        setter(None)
+                    except Exception:
+                        pass
+                    raise
+
+    def _unbind_live_bar_event_notifier(self):
+        """Unbind SDK callbacks after the final engine waiter leaves."""
+        with self._live_bar_sdk_waker_lock:
+            api = self._live_bar_sdk_waker_api
+            token = self._live_bar_sdk_waker_token
+            setter_api = self._live_bar_sdk_waker_setter_api
+            if api is not None and token is not None:
+                unregister = getattr(api, "unregister_event_waker", None)
+                if callable(unregister):
+                    unregister(token)
+            if setter_api is not None:
+                setter = getattr(setter_api, "set_live_bar_event_notifier", None)
+                if callable(setter):
+                    setter(None)
+            self._live_bar_sdk_waker_api = None
+            self._live_bar_sdk_waker_token = None
+            self._live_bar_sdk_waker_setter_api = None
+
     def start(self, data=None, broker=None):
         """Start the store and attach broker/feed instances."""
         legacy_entrypoint = _legacy_gateway_entrypoint(self.provider, self.backend)
         if legacy_entrypoint is not None:
             raise LegacyGatewayMigrationRequiredError(legacy_entrypoint)
         if self._service_read_only_stopped:
-            raise BtApiStoreError(
-                "a stopped read-only service Store requires fresh client facades"
-            )
+            raise BtApiStoreError("a stopped read-only service Store requires fresh client facades")
         with self._read_only_metadata_probe_condition:
             probe_worker = self._read_only_metadata_probe_thread
             if (
@@ -4955,9 +5092,7 @@ class BtApiStore(LiveStoreBase):
             self._command_health["risk_command_rejected"] += 1
             self._latch_risk_state_unknown(reason)
         if command.get("operation") == "account_risk":
-            self._clear_account_risk_refresh_pending(
-                command.get("account_risk_refresh_token")
-            )
+            self._clear_account_risk_refresh_pending(command.get("account_risk_refresh_token"))
         self._command_drop_records.append(
             {
                 "reason": str(reason),
@@ -5160,6 +5295,7 @@ class BtApiStore(LiveStoreBase):
 
     def stop(self, timeout: Optional[float] = None):
         """Bound command draining and disconnect the underlying client."""
+        self._signal_live_bar_event()
         with self._read_only_metadata_probe_condition:
             probe_worker = self._read_only_metadata_probe_thread
             probe_owned_shutdown_pending = bool(
@@ -5177,9 +5313,7 @@ class BtApiStore(LiveStoreBase):
             return self.get_command_health()
         if self._service_read_only:
             try:
-                if self._api is not None and callable(
-                    getattr(self._api, "disconnect", None)
-                ):
+                if self._api is not None and callable(getattr(self._api, "disconnect", None)):
                     self._api.disconnect()
             except Exception:
                 self._shutdown_state = "INCOMPLETE"
@@ -5658,8 +5792,8 @@ class BtApiStore(LiveStoreBase):
         compression: int = 1,
         since=None,
         limit: Optional[int] = None,
-    ) -> List[Dict[str, Any]]:
-        """Fetch normalized historical bars for a symbol."""
+    ) -> List[Any]:
+        """Fetch historical bars, preserving source fields when explicitly requested."""
         if self._service_read_only:
             api = self._ensure_api_ready()
             bars = api.fetch_bars(
@@ -5671,7 +5805,7 @@ class BtApiStore(LiveStoreBase):
             )
             if type(bars) is not list:
                 raise BtApiStoreError("read-only service history is incomplete")
-            return [_normalize_bar(bar) for bar in bars]
+            return [self._copy_or_normalize_bar(bar) for bar in bars]
         request_key = self._history_request_key(dataname, timeframe, compression, since, limit)
         if (
             self._is_default_history_request(timeframe, compression, since, limit)
@@ -5707,7 +5841,7 @@ class BtApiStore(LiveStoreBase):
         if not has_history_api and self._historical_bars[dataname]:
             return deepcopy(list(self._historical_bars[dataname]))
 
-        normalized = [_normalize_bar(bar) for bar in bars or []]
+        normalized = [self._copy_or_normalize_bar(bar) for bar in bars or []]
         if self._is_default_history_request(timeframe, compression, since, limit):
             self._historical_bars[dataname].clear()
             self._historical_bars[dataname].extend(normalized)
@@ -5724,9 +5858,7 @@ class BtApiStore(LiveStoreBase):
         if self._service_read_only:
             api = self._ensure_api_ready()
             orders = api.fetch_open_orders()
-            if type(orders) is not list or any(
-                not isinstance(order, Mapping) for order in orders
-            ):
+            if type(orders) is not list or any(not isinstance(order, Mapping) for order in orders):
                 raise BtApiStoreError("read-only service open-order snapshot is incomplete")
             self._open_orders_cache = [dict(order) for order in orders]
             self._last_open_orders_refresh = time.monotonic()
@@ -5779,12 +5911,12 @@ class BtApiStore(LiveStoreBase):
         """Compatibility alias for fetch_open_orders()."""
         return self.fetch_open_orders()
 
-    def poll_live(self, dataname: str) -> Optional[Dict[str, Any]]:
-        """Poll a single live bar from cache or the API."""
+    def poll_live(self, dataname: str) -> Optional[Any]:
+        """Poll a live bar, preserving source fields when explicitly requested."""
         if self._service_read_only:
             api = self._ensure_api_ready()
             bar = api.poll_bar(dataname)
-            return None if bar is None else _normalize_bar(bar)
+            return None if bar is None else self._copy_or_normalize_bar(bar)
         if self._live_bars[dataname]:
             return cast(Optional[Dict[str, Any]], self._live_bars[dataname].popleft())
 
@@ -5802,7 +5934,7 @@ class BtApiStore(LiveStoreBase):
         if bar is None:
             return None
 
-        return _normalize_bar(bar)
+        return self._copy_or_normalize_bar(bar)
 
     def poll_tick(self, dataname: str):
         """Poll a single live tick from the API."""
@@ -6114,17 +6246,22 @@ class BtApiStore(LiveStoreBase):
                 generation = safe_update.get("session_generation")
                 if not self._accept_command_completions:
                     self._record_sdk_update_drop_locked(safe_update, "session_not_accepting")
-                    return
-                if generation != self._command_generation:
+                elif generation != self._command_generation:
                     self._record_sdk_update_drop_locked(safe_update, "stale_session_generation")
-                    return
-            if (
-                self._sdk_updates.maxlen is not None
-                and len(self._sdk_updates) >= self._sdk_updates.maxlen
-            ):
-                evicted = self._sdk_updates.popleft()
-                self._record_sdk_update_drop_locked(evicted, "broker_update_queue_overflow")
-            self._sdk_updates.append(safe_update)
+                else:
+                    self._append_sdk_update_locked(safe_update)
+            else:
+                self._append_sdk_update_locked(safe_update)
+        self._signal_live_bar_event()
+
+    def _append_sdk_update_locked(self, safe_update):
+        if (
+            self._sdk_updates.maxlen is not None
+            and len(self._sdk_updates) >= self._sdk_updates.maxlen
+        ):
+            evicted = self._sdk_updates.popleft()
+            self._record_sdk_update_drop_locked(evicted, "broker_update_queue_overflow")
+        self._sdk_updates.append(safe_update)
 
     def _record_sdk_update_drop_locked(self, update: Mapping[str, Any], reason: str) -> None:
         """Record a dropped update identity while holding ``_sdk_update_lock``."""
@@ -6177,10 +6314,7 @@ class BtApiStore(LiveStoreBase):
         managed_ctp_operation = bool(
             self._managed_execution_adapter is not None
             and operation in {"submit", "cancel"}
-            and (
-                command_venue == "ctp"
-                or (not command_venue and self._is_ctp_session_provider())
-            )
+            and (command_venue == "ctp" or (not command_venue and self._is_ctp_session_provider()))
         )
         if managed_ctp_operation and (
             type(managed_ctp_binding) is not CtpManagedDispatchBinding
@@ -6505,9 +6639,7 @@ class BtApiStore(LiveStoreBase):
                 if operation == "execution_recovery_complete":
                     self._clear_recovery_completion_pending_locked(command.get("receipt_id"))
             if operation == "account_risk":
-                self._clear_account_risk_refresh_pending(
-                    command.get("account_risk_refresh_token")
-                )
+                self._clear_account_risk_refresh_pending(command.get("account_risk_refresh_token"))
             raise
         except Exception as exc:
             _safe_log("warning", "btapistore:6063 fallback on Exception")
@@ -6586,17 +6718,13 @@ class BtApiStore(LiveStoreBase):
                 identity = self._validated_sdk_identity(venue)
                 request_account_id = getattr(command.get("request"), "account_id", None)
                 if type(request_account_id) is not str or not request_account_id.strip():
-                    raise BtApiStoreError(
-                        "SDK write request account identity is unavailable"
-                    )
+                    raise BtApiStoreError("SDK write request account identity is unavailable")
                 allowed_account_ids = {str(identity.get("account_id") or "").strip().casefold()}
                 account_alias = identity.get("account_alias")
                 if account_alias not in (None, ""):
                     allowed_account_ids.add(str(account_alias).strip().casefold())
                 if request_account_id.strip().casefold() not in allowed_account_ids:
-                    raise BtApiStoreError(
-                        "The requested account_id does not match the SDK ledger"
-                    )
+                    raise BtApiStoreError("The requested account_id does not match the SDK ledger")
         if operation == "submit":
             self._validate_approval_lease_command(command)
         method_names = {
@@ -7153,9 +7281,7 @@ class BtApiStore(LiveStoreBase):
         if self._managed_execution_adapter is not None and is_ctp_write:
             if recovery_exit:
                 self.abort_execution_recovery("execution_recovery_dispatch_failed")
-            raise BtApiStoreError(
-                "managed CTP orders must pass through the typed runtime adapter"
-            )
+            raise BtApiStoreError("managed CTP orders must pass through the typed runtime adapter")
 
         if self._is_sdk_market_data_only():
             if is_ctp_write and recovery_exit:
@@ -7210,7 +7336,9 @@ class BtApiStore(LiveStoreBase):
         ):
             current = get_info(name)
             if current not in (None, "") and current != expected:
-                raise BtApiStoreError("managed CTP order identity differs from its runtime projection")
+                raise BtApiStoreError(
+                    "managed CTP order identity differs from its runtime projection"
+                )
         payload.update(
             managed_intent_id=identity.managed_intent_id,
             runtime_order_id=identity.runtime_order_id,
@@ -7318,13 +7446,8 @@ class BtApiStore(LiveStoreBase):
         if self._service_read_only:
             raise BtApiStoreError("read-only service proxy cannot enqueue cancellations")
         self._assert_write_route_identity()
-        if (
-            self._managed_execution_adapter is not None
-            and self._is_ctp_write_provider()
-        ):
-            raise BtApiStoreError(
-                "managed CTP cancellations cannot use the generic SDK queue"
-            )
+        if self._managed_execution_adapter is not None and self._is_ctp_write_provider():
+            raise BtApiStoreError("managed CTP cancellations cannot use the generic SDK queue")
         if self._is_sdk_market_data_only():
             return self._reject_market_data_only_command(
                 "cancel",
@@ -7595,7 +7718,8 @@ class BtApiStore(LiveStoreBase):
             return False, {"queued": True, "status": "already_pending"}, None
         if (
             self._last_account_risk_refresh_requested
-            and now - self._last_account_risk_refresh_requested < self._account_risk_refresh_interval
+            and now - self._last_account_risk_refresh_requested
+            < self._account_risk_refresh_interval
         ):
             return False, {"queued": False, "status": "refresh_interval"}, None
         self._account_risk_refresh_pending = True
@@ -8109,11 +8233,7 @@ class BtApiStore(LiveStoreBase):
         else:
             external_order_id = getattr(info, "external_order_id", None)
             ctp_order_ref = getattr(info, "ctp_order_ref", None)
-        order_ref = (
-            external_order_id
-            or ctp_order_ref
-            or getattr(order, "ref", None)
-        )
+        order_ref = external_order_id or ctp_order_ref or getattr(order, "ref", None)
         dataname = self._extract_dataname(getattr(order, "data", None))
         if self._managed_execution_adapter is None:
             return self._cancel_order_ref_legacy(order_ref, dataname=dataname)
@@ -8133,9 +8253,7 @@ class BtApiStore(LiveStoreBase):
         preflight_sha256: str,
     ) -> Dict[str, Any]:
         """Reject direct Store callers before API readiness or SDK access."""
-        raise BtApiStoreError(
-            "CTP direct registered-sim execution admission is disabled"
-        )
+        raise BtApiStoreError("CTP direct registered-sim execution admission is disabled")
 
     def cancel_order_ref(self, order_ref, dataname: Optional[str] = None):
         """Cancel through managed execution or, when absent, the legacy Store path."""
@@ -8208,8 +8326,10 @@ class BtApiStore(LiveStoreBase):
         except Exception as exc:
             _safe_log("error", "btapistore:managed execution adapter rejected cancel")
             self.sanitize_exception(exc)
-            local_reject = is_ctp and not dispatched_identity and bool(
-                getattr(exc, "managed_local_reject", False)
+            local_reject = (
+                is_ctp
+                and not dispatched_identity
+                and bool(getattr(exc, "managed_local_reject", False))
             )
             if is_ctp and not local_reject:
                 error = ManagedCtpHandoffError(
@@ -8261,7 +8381,10 @@ class BtApiStore(LiveStoreBase):
                 order_intent_id = get_info("managed_intent_id")
                 if dispatched_identity:
                     identity = dispatched_identity[0]
-                    if order_intent_id not in (None, "") and order_intent_id != identity.managed_intent_id:
+                    if (
+                        order_intent_id not in (None, "")
+                        and order_intent_id != identity.managed_intent_id
+                    ):
                         raise ManagedExecutionAdapterError(
                             "managed CTP cancel intent differs from the framework order"
                         )
@@ -8271,18 +8394,14 @@ class BtApiStore(LiveStoreBase):
                 else:
                     expected_intent_id = order_intent_id
                     expected_runtime_order_id = getattr(response, "runtime_order_id", None)
-                    expected_cancel_intent_id = getattr(
-                        response, "managed_cancel_intent_id", None
-                    )
+                    expected_cancel_intent_id = getattr(response, "managed_cancel_intent_id", None)
                 managed_projection = require_ctp_managed_execution_projection(
                     response,
                     operation="cancel",
                     managed_intent_id=expected_intent_id,
                     runtime_order_id=expected_runtime_order_id,
                     managed_cancel_intent_id=expected_cancel_intent_id,
-                    local_queue_receipt=(
-                        local_queue_receipts[0] if local_queue_receipts else None
-                    ),
+                    local_queue_receipt=(local_queue_receipts[0] if local_queue_receipts else None),
                 )
             except ManagedExecutionAdapterError as error:
                 raise ManagedCtpHandoffError(
@@ -8293,11 +8412,7 @@ class BtApiStore(LiveStoreBase):
         self.emit_runtime_event(
             "managed_execution_cancel_projected",
             order_ref=order_ref,
-            status=(
-                managed_projection.state.value.lower()
-                if is_ctp
-                else "projected"
-            ),
+            status=(managed_projection.state.value.lower() if is_ctp else "projected"),
         )
         return response
 
@@ -8382,12 +8497,15 @@ class BtApiStore(LiveStoreBase):
 
     def push_live_bar(self, dataname: str, bar: Any):
         """Push a live bar into the local queue, primarily for tests."""
-        self._live_bars[dataname].append(_normalize_bar(bar))
+        self._live_bars[dataname].append(self._copy_or_normalize_bar(bar))
+        self._signal_live_bar_event()
 
     def set_history(self, dataname: str, bars: Iterable[Any]):
         """Replace the local historical bar cache, primarily for tests."""
         self._clear_history_query_cache(dataname)
-        self._historical_bars[dataname] = collections.deque(_normalize_bar(bar) for bar in bars)
+        self._historical_bars[dataname] = collections.deque(
+            self._copy_or_normalize_bar(bar) for bar in bars
+        )
 
     def put_notification(self, msg, *args, **kwargs):
         """Record a store-level notification."""
@@ -8474,7 +8592,9 @@ class BtApiStore(LiveStoreBase):
                 routes = routes.keys()
             if isinstance(routes, str):
                 routes = (routes,)
-            return {str(route or "").strip().upper() for route in routes if str(route or "").strip()}
+            return {
+                str(route or "").strip().upper() for route in routes if str(route or "").strip()
+            }
         except Exception as exc:
             raise BtApiStoreError(
                 "Store/API route identity is unavailable; write dispatch is disabled"
@@ -8486,19 +8606,22 @@ class BtApiStore(LiveStoreBase):
         config = getattr(self, "_config", {})
         api_kwargs = getattr(self, "_api_kwargs", {})
         if not isinstance(config, Mapping) or not isinstance(api_kwargs, Mapping):
-            raise BtApiStoreError("Store/API route identity is unavailable; write dispatch is disabled")
+            raise BtApiStoreError(
+                "Store/API route identity is unavailable; write dispatch is disabled"
+            )
         if getattr(self, "backend", "") == "forwarding":
             route = (
-                api_kwargs.get("exchange") or api_kwargs.get("exchange_type")
-                or config.get("exchange") or config.get("exchange_type") or "SIM"
+                api_kwargs.get("exchange")
+                or api_kwargs.get("exchange_type")
+                or config.get("exchange")
+                or config.get("exchange_type")
+                or "SIM"
             )
             return self._write_route_names((route,))
         if provider == "btapi":
             sdk_exchanges = getattr(self, "_sdk_exchanges", {})
             sdk_routes = getattr(self, "_sdk_routes", {})
-            if not isinstance(sdk_exchanges, Mapping) or not isinstance(
-                sdk_routes, Mapping
-            ):
+            if not isinstance(sdk_exchanges, Mapping) or not isinstance(sdk_routes, Mapping):
                 raise BtApiStoreError(
                     "Store/API route identity is unavailable; write dispatch is disabled"
                 )
@@ -8508,10 +8631,7 @@ class BtApiStore(LiveStoreBase):
                 raise BtApiStoreError(
                     "Store/API route identity is unavailable; write dispatch is disabled"
                 ) from exc
-            return (
-                self._write_route_names(sdk_exchanges)
-                | self._write_route_names(symbol_routes)
-            )
+            return self._write_route_names(sdk_exchanges) | self._write_route_names(symbol_routes)
         return self._write_route_names((provider,))
 
     def _assert_write_route_identity(self, *, require_live_route: bool = False) -> None:
@@ -8539,9 +8659,7 @@ class BtApiStore(LiveStoreBase):
                 api_dict = None
             missing_route = object()
             try:
-                static_routes = inspect.getattr_static(
-                    api, "exchange_kwargs", missing_route
-                )
+                static_routes = inspect.getattr_static(api, "exchange_kwargs", missing_route)
             except Exception as exc:
                 raise BtApiStoreError(
                     "Store/API route identity is unavailable; write dispatch is disabled"
@@ -8579,12 +8697,7 @@ class BtApiStore(LiveStoreBase):
                     )
                 live_routes = self._write_route_names(static_routes)
                 live_keys = self._write_route_keys(static_routes)
-        if (
-            require_live_route
-            and api is not None
-            and not snapshot
-            and not live_routes
-        ):
+        if require_live_route and api is not None and not snapshot and not live_routes:
             raise BtApiStoreError(
                 "Store/API route identity is unavailable; write dispatch is disabled"
             )
@@ -8602,9 +8715,7 @@ class BtApiStore(LiveStoreBase):
                 "Store/API route identity is unavailable; write dispatch is disabled"
             )
         elif snapshot and expected and snapshot != expected:
-            raise BtApiStoreError(
-                "Store/API route identity mismatch; write dispatch is disabled"
-            )
+            raise BtApiStoreError("Store/API route identity mismatch; write dispatch is disabled")
 
     def _is_ctp_write_provider(self) -> bool:
         """Fail-close CTP writes from Store route/config snapshots.
@@ -15127,7 +15238,9 @@ class BtApiStore(LiveStoreBase):
                     if receipt.get("queued") is not True:
                         refresh_state = "refresh_rejected"
 
-        safe_snapshot = snapshot if snapshot is not None else self._cached_account_risk_unavailable()
+        safe_snapshot = (
+            snapshot if snapshot is not None else self._cached_account_risk_unavailable()
+        )
         return {
             "snapshot": safe_snapshot,
             "refresh_state": refresh_state,
@@ -15730,8 +15843,7 @@ class BtApiStore(LiveStoreBase):
                     or not runtime_order_id.startswith("bt-managed-v1:")
                     or len(runtime_order_id) != len("bt-managed-v1:") + 64
                     or any(
-                        character not in "0123456789abcdef"
-                        for character in runtime_order_id[14:]
+                        character not in "0123456789abcdef" for character in runtime_order_id[14:]
                     )
                 ):
                     raise BtApiStoreError("managed CTP runtime_order_id is invalid")
@@ -15792,9 +15904,7 @@ class BtApiStore(LiveStoreBase):
                         for character in recovered_intent_id
                     )
                 ):
-                    raise BtApiStoreError(
-                        "SDK CTP runtime binding lacks managed intent identity"
-                    )
+                    raise BtApiStoreError("SDK CTP runtime binding lacks managed intent identity")
                 binding = {
                     "symbol": row.get("symbol"),
                     "exchange_name": venue,
@@ -15822,9 +15932,8 @@ class BtApiStore(LiveStoreBase):
                 if not isinstance(runtime_order_id, str) or not runtime_order_id.strip():
                     raise BtApiStoreError("CTP runtime_order_id is invalid")
                 if client_id:
-                    if (
-                        recovered_match is None
-                        or recovered_match.get("client_order_id") != str(client_id)
+                    if recovered_match is None or recovered_match.get("client_order_id") != str(
+                        client_id
                     ):
                         raise BtApiStoreError(
                             "CTP runtime_order_id and client_order_id binding is ambiguous"
@@ -15848,7 +15957,9 @@ class BtApiStore(LiveStoreBase):
                 runtime_order_id = durable.get("runtime_order_id")
             else:
                 if client_id:
-                    raise BtApiStoreError("CTP OrderRef cannot be accepted without runtime identity")
+                    raise BtApiStoreError(
+                        "CTP OrderRef cannot be accepted without runtime identity"
+                    )
                 durable = reserve_binding(
                     venue,
                     symbol=payload["symbol"],
@@ -15966,11 +16077,9 @@ class BtApiStore(LiveStoreBase):
         runtime_order_id = str(result.get("runtime_order_id") or "")
         order_id = str(result.get("order_id") or "")
         binding = (
-            self._sdk_runtime_refs.get((venue, runtime_order_id))
-            if runtime_order_id
-            else None
-        ) or self._sdk_client_refs.get((venue, client_id)) or (
-            self._sdk_venue_refs.get((venue, order_id)) if order_id else None
+            (self._sdk_runtime_refs.get((venue, runtime_order_id)) if runtime_order_id else None)
+            or self._sdk_client_refs.get((venue, client_id))
+            or (self._sdk_venue_refs.get((venue, order_id)) if order_id else None)
         )
         if binding is None:
             binding = {
@@ -16307,13 +16416,16 @@ class BtApiStore(LiveStoreBase):
         if kind == "orderbook":
             try:
                 _, _, normalize_orderbook_evidence = _sdk_cross_venue_contracts()
-                sequence, previous_sequence, snapshot_kind, continuity = (
-                    normalize_orderbook_evidence(
-                        raw_sequence,
-                        raw_previous_sequence,
-                        raw_snapshot_kind,
-                        raw_continuity,
-                    )
+                (
+                    sequence,
+                    previous_sequence,
+                    snapshot_kind,
+                    continuity,
+                ) = normalize_orderbook_evidence(
+                    raw_sequence,
+                    raw_previous_sequence,
+                    raw_snapshot_kind,
+                    raw_continuity,
                 )
             except (BtApiStoreError, ValueError) as exc:
                 self._record_market_drop(event, str(exc))
@@ -16625,7 +16737,7 @@ class BtApiStore(LiveStoreBase):
                         queue.append(tick)
                     elif kind == "bar":
                         self._accept_sdk_market_event(event, event)
-                        self._live_bars[symbol].append(_normalize_bar(event))
+                        self._live_bars[symbol].append(self._copy_or_normalize_bar(event))
                     else:
                         self._record_market_drop(
                             event,
@@ -16639,7 +16751,20 @@ class BtApiStore(LiveStoreBase):
             return
 
         for dataname, bars in source.items():
-            target[dataname].extend(_normalize_bar(bar) for bar in bars)
+            target[dataname].extend(self._copy_or_normalize_bar(bar) for bar in bars)
+
+    def _copy_or_normalize_bar(self, bar):
+        """Preserve raw values only for callers that explicitly opt in."""
+        if not self._preserve_raw_bars:
+            return _normalize_bar(bar)
+        if isinstance(bar, Mapping):
+            return deepcopy(dict(bar))
+        return deepcopy(bar)
+
+    @property
+    def preserve_raw_bars(self) -> bool:
+        """Whether this Store preserves source bar fields for strict consumers."""
+        return self._preserve_raw_bars
 
     @staticmethod
     def _is_default_history_request(timeframe, compression, since, limit) -> bool:
@@ -16721,6 +16846,7 @@ class BtApiStore(LiveStoreBase):
             )
 
         if self._connected:
+            self._bind_live_bar_event_notifier(self._api, self._signal_live_bar_event)
             return self._api
 
         if self._sdk_mode and not self._sdk_configured:
@@ -16801,6 +16927,7 @@ class BtApiStore(LiveStoreBase):
             )
 
         try:
+            self._bind_live_bar_event_notifier(self._api, self._signal_live_bar_event)
             if hasattr(self._api, "connect"):
                 self._api.connect()
             elif hasattr(self._api, "start"):

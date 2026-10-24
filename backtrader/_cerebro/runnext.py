@@ -6,6 +6,10 @@ edit here must be justified against AC28-09.
 """
 
 import datetime
+import math
+import sys
+import threading
+import time
 from datetime import timezone
 
 from ..brokers import BackBroker
@@ -16,9 +20,313 @@ from ..utils.dateintern import _num2date_cached
 from ..utils.log_message import get_logger
 
 UTC = timezone.utc
+_LIVE_COHORT_BROKER_IDLE_POLL_SECONDS = 0.05
 
 # Keep the historical logger name (D28-04.6): routing/filters must not change.
 logger = get_logger("backtrader.cerebro")
+
+
+def _snapshot_live_cohort_feed_state(data):
+    """Capture the bounded line state changed by one normal feed advance."""
+    roots = tuple(getattr(getattr(data, "lines", None), "lines", ()))
+    pending = list(roots)
+    seen = set()
+    snapshots = []
+    while pending:
+        line = pending.pop()
+        if id(line) in seen:
+            continue
+        seen.add(id(line))
+        pending.extend(tuple(getattr(line, "bindings", ())))
+
+        array = line.array
+        length = len(array)
+        index = line._idx
+        is_qbuffer = getattr(line, "mode", None) == getattr(line, "QBuffer", object())
+        # QBuffer is bounded by its configured capacity. Save that bounded ring
+        # so a failed advance can restore an evicted head exactly.
+        qbuffer_values = tuple(array) if is_qbuffer else None
+        first = array[0] if length else None
+        last = array[-1] if length else None
+        active = array[index] if 0 <= index < length else None
+        caches = tuple(
+            (name, getattr(line, name, None))
+            for name in ("_dt_cache_idx", "_dt_cache_value", "_dt_cache_tz", "_dt_cache_dt")
+        )
+        snapshots.append(
+            (
+                line,
+                array,
+                index,
+                line.lencount,
+                length,
+                is_qbuffer,
+                qbuffer_values,
+                first,
+                last,
+                active,
+                caches,
+            )
+        )
+
+    notifications = getattr(data, "notifs", None)
+    feed_state = (
+        getattr(data, "_laststatus", None),
+        getattr(data, "_live_notified", None),
+        getattr(data, "_cohort_last_delivered_slot_index", None),
+        len(notifications) if notifications is not None else None,
+    )
+    return tuple(snapshots), feed_state
+
+
+def _restore_live_cohort_feed_state(data, checkpoint):
+    """Restore line cursors and one-bar writes after a failed batch advance."""
+    snapshots, feed_state = checkpoint
+    errors = []
+    for (
+        line,
+        original_array,
+        index,
+        lencount,
+        length,
+        is_qbuffer,
+        qbuffer_values,
+        first,
+        last,
+        active,
+        caches,
+    ) in reversed(snapshots):
+        try:
+            if line.array is not original_array:
+                line.array = original_array
+            array = original_array
+            if is_qbuffer:
+                array.clear()
+                array.extend(qbuffer_values)
+            else:
+                current_length = len(array)
+                if current_length > length:
+                    for _ in range(current_length - length):
+                        array.pop()
+                elif current_length < length:
+                    if current_length == length - 1 and length:
+                        array.append(last)
+                    else:
+                        raise RuntimeError("unbounded line lost more than its last slot")
+                if length:
+                    array[0] = first
+                    array[length - 1] = last
+                    if 0 <= index < length:
+                        array[index] = active
+            line._idx = index
+            line.lencount = lencount
+            for name, value in caches:
+                setattr(line, name, value)
+        except Exception as exc:
+            errors.append(exc)
+
+    old_status, old_live_notified, old_slot_index, notification_count = feed_state
+    if old_status is not None:
+        data._laststatus = old_status
+    if old_live_notified is not None:
+        data._live_notified = old_live_notified
+    if old_slot_index is not None:
+        data._cohort_last_delivered_slot_index = old_slot_index
+    notifications = getattr(data, "notifs", None)
+    if notifications is not None and notification_count is not None:
+        try:
+            while len(notifications) > notification_count:
+                notifications.pop()
+        except Exception as exc:
+            errors.append(exc)
+    return tuple(errors)
+
+
+class _LiveBarCohortWake:
+    """One compare-before-wait condition shared by cohort Stores."""
+
+    def __init__(self):
+        self._condition = threading.Condition()
+        self._generation = 0
+
+    def snapshot(self):
+        with self._condition:
+            return self._generation
+
+    def notify(self):
+        with self._condition:
+            self._generation += 1
+            self._condition.notify_all()
+
+    def wait(self, generation, timeout):
+        with self._condition:
+            if self._generation != generation:
+                return True
+            return self._condition.wait_for(
+                lambda: self._generation != generation,
+                timeout=timeout,
+            )
+
+
+def _live_cohort_broker_timeout(broker):
+    """Return the nearest BtApiBroker time-driven poll deadline, if known."""
+    if not getattr(broker, "next_without_bar", False):
+        return None
+
+    params = getattr(broker, "p", None)
+    if params is None:
+        return None
+    now = time.monotonic()
+    deadlines = []
+
+    def add_refresh_deadline(last_attr, interval_attr):
+        interval = float(getattr(params, interval_attr, 0.0) or 0.0)
+        if interval <= 0:
+            deadlines.append(0.0)
+            return
+        if not math.isfinite(interval):
+            return
+        last = float(getattr(broker, last_attr, 0.0) or 0.0)
+        if last <= 0:
+            deadlines.append(0.0)
+        else:
+            remaining = max(0.0, last + interval - now)
+            if math.isfinite(remaining):
+                deadlines.append(remaining)
+
+    if getattr(broker, "_live_started", False):
+        uses_async = getattr(broker, "_uses_async_commands", None)
+        async_pending = bool(
+            callable(uses_async)
+            and uses_async()
+            and getattr(broker, "_periodic_reconcile_pending", False)
+        )
+        if not async_pending:
+            if getattr(params, "position_sync_policy", "periodic") == "startup":
+                if getattr(broker, "_positions_snapshot_loaded", False):
+                    audit_interval = float(getattr(params, "position_audit_interval", 0.0) or 0.0)
+                    pending_trades = bool(getattr(broker, "_pending_trade_updates", ()))
+                    open_orders_get = getattr(broker, "get_orders_open", None)
+                    try:
+                        open_orders = bool(open_orders_get()) if callable(open_orders_get) else True
+                    except Exception:
+                        open_orders = True
+                    if audit_interval > 0 and not pending_trades and not open_orders:
+                        add_refresh_deadline("_last_position_audit", "position_audit_interval")
+                else:
+                    add_refresh_deadline("_last_positions_refresh", "positions_refresh_interval")
+            else:
+                add_refresh_deadline("_last_account_refresh", "account_refresh_interval")
+                add_refresh_deadline("_last_positions_refresh", "positions_refresh_interval")
+                add_refresh_deadline("_last_open_orders_refresh", "open_orders_refresh_interval")
+
+    order_info_get = getattr(broker, "_order_info_get", None)
+    orders = getattr(broker, "orders", None)
+    if callable(order_info_get) and orders is not None:
+        now_ns = time.monotonic_ns()
+        for order in tuple(orders.values()):
+            alive = getattr(order, "alive", None)
+            if not callable(alive) or not alive():
+                continue
+            if bool(order_info_get(order, "service_execution_recovery_managed", False)):
+                continue
+            deadline_keys = []
+            cancel_triggered = bool(
+                order_info_get(order, "execution_deadline_cancel_requested", False)
+            )
+            if not cancel_triggered:
+                execution_deadline_get = getattr(broker, "_execution_deadline", None)
+                if callable(execution_deadline_get):
+                    try:
+                        execution_deadline = execution_deadline_get(order)
+                    except Exception:
+                        execution_deadline = None
+                else:
+                    execution_deadline = None
+                    for key in (
+                        "execution_deadline_monotonic_ns",
+                        "order_deadline_monotonic_ns",
+                        "deadline_monotonic_ns",
+                    ):
+                        value = order_info_get(order, key)
+                        if value in (None, ""):
+                            continue
+                        try:
+                            execution_deadline = int(value)
+                        except (TypeError, ValueError, OverflowError):
+                            execution_deadline = None
+                        break
+                if execution_deadline is not None:
+                    try:
+                        deadline_ns = int(execution_deadline)
+                    except (TypeError, ValueError, OverflowError):
+                        deadline_ns = 0
+                    if deadline_ns > 0:
+                        remaining = max(0.0, (deadline_ns - now_ns) / 1_000_000_000.0)
+                        if math.isfinite(remaining):
+                            deadlines.append(remaining)
+            if bool(order_info_get(order, "cancel_requested_remote", False)) and not bool(
+                order_info_get(order, "cancel_deadline_unknown_marked", False)
+            ):
+                deadline_keys.append("cancel_deadline_monotonic_ns")
+            if not bool(order_info_get(order, "reconcile_requested", False)):
+                deadline_keys.append("reconcile_next_monotonic_ns")
+            if not bool(order_info_get(order, "cancel_requested_remote", False)) and bool(
+                order_info_get(order, "cancel_reconcile_confirmed_live", False)
+            ):
+                deadline_keys.append("cancel_retry_due_monotonic_ns")
+            for key in deadline_keys:
+                value = order_info_get(order, key)
+                if value in (None, ""):
+                    continue
+                try:
+                    deadline_ns = int(value)
+                except (TypeError, ValueError, OverflowError):
+                    continue
+                if deadline_ns > 0:
+                    remaining = max(0.0, (deadline_ns - now_ns) / 1_000_000_000.0)
+                    if math.isfinite(remaining):
+                        deadlines.append(remaining)
+
+    return min(deadlines) if deadlines else None
+
+
+def _cap_live_cohort_wait_for_broker(cohort_timeout, broker_timeout):
+    """Bound broker maintenance waits without delaying a due cohort slot."""
+    if broker_timeout is None:
+        return cohort_timeout
+    if cohort_timeout <= 0:
+        return cohort_timeout
+    if broker_timeout <= 0:
+        return min(cohort_timeout, _LIVE_COHORT_BROKER_IDLE_POLL_SECONDS)
+    return min(cohort_timeout, broker_timeout)
+
+
+def _cleanup_live_bar_cohort_wakers(owner, waker, bindings):
+    """Attempt every Store unbind and preserve any active engine exception."""
+    active_error = sys.exc_info()[1]
+    cleanup_errors = []
+    for store, token in reversed(bindings):
+        unregister = getattr(store, "_unregister_live_bar_event_waker", None)
+        if callable(unregister):
+            try:
+                unregister(token)
+            except Exception as cleanup_error:
+                cleanup_errors.append(cleanup_error)
+    if getattr(owner, "_live_bar_cohort_waker", None) is waker:
+        owner._live_bar_cohort_waker = None
+    if cleanup_errors:
+        if active_error is None:
+            raise cleanup_errors[0]
+        for cleanup_error in cleanup_errors:
+            logger.error(
+                "Failed to unregister a live-bar cohort event waker",
+                exc_info=(
+                    type(cleanup_error),
+                    cleanup_error,
+                    cleanup_error.__traceback__,
+                ),
+            )
 
 
 class RunNextMixin:
@@ -106,6 +414,8 @@ class RunNextMixin:
         4. **Strategy dispatch**: timers fired, broker notified, strategies
            receive ``_next()`` / ``_next_open()``.
         """
+        cohort_waker = None
+        cohort_waker_bindings = []
         try:
             # Sort data by time period
             datas = sorted(self.datas, key=lambda x: (x._timeframe, x._compression))
@@ -114,6 +424,18 @@ class RunNextMixin:
             # Main data
             data0 = datas[0]
             live_bar_cohort = getattr(self, "_live_bar_cohort", None)
+            if live_bar_cohort is not None:
+                cohort_waker = _LiveBarCohortWake()
+                self._live_bar_cohort_waker = cohort_waker
+                registered_store_ids = set()
+                for store in tuple(self.stores):
+                    if id(store) in registered_store_ids:
+                        continue
+                    registered_store_ids.add(id(store))
+                    register = getattr(store, "_register_live_bar_event_waker", None)
+                    if callable(register):
+                        token = register(cohort_waker.notify)
+                        cohort_waker_bindings.append((store, token))
             # Cohort mode uses its injected causal UTC/monotonic clock and one
             # shared wait.  The regular qcheck clock uses process wall time.
             has_qcheck = not live_bar_cohort and any(d.p.qcheck for d in datas)
@@ -182,7 +504,12 @@ class RunNextMixin:
                 broker_cash_addition = None
                 broker_dual_side_mode = False
             data0_direct_load = None
-            if not live_bar_cohort and single_data and not has_qcheck and single_default_haslivedata:
+            if (
+                not live_bar_cohort
+                and single_data
+                and not has_qcheck
+                and single_default_haslivedata
+            ):
                 try:
                     if data0._runnext_direct_load_ready():
                         data0_direct_load = getattr(data0, "_runnext_direct_load", data0.load)
@@ -293,6 +620,12 @@ class RunNextMixin:
             # when d0ret becomes False, the else branch still runs _last() on feeds
             # and only breaks if no feed produces additional data.
             while True:
+                # Take this before source collection. A provider callback that
+                # arrives at any point in this iteration changes the generation
+                # and defeats the later wait under the same condition lock.
+                cohort_wake_generation = (
+                    cohort_waker.snapshot() if cohort_waker is not None else None
+                )
                 # if any has live data in the buffer, no data will wait anything
                 # If any live data exists, newqcheck is False
                 if single_data:
@@ -361,29 +694,61 @@ class RunNextMixin:
                                 prepared.envelope_for_feed(data) for data in self.datas
                             )
                             if any(envelope is None for envelope in envelopes):
-                                raise RuntimeError("prepared cohort does not cover every Cerebro feed")
-                            # Validate every exact envelope before the first
-                            # normal feed.next() can write any line.
-                            for data, envelope in zip(self.datas, envelopes):
-                                live_bar_cohort.preflight_delivery(data, envelope)
-                            for data, envelope in zip(self.datas, envelopes):
-                                data._arm_live_bar_cohort_envelope(envelope)
+                                raise RuntimeError(
+                                    "prepared cohort does not cover every Cerebro feed"
+                                )
+                            staged_deliveries = []
+                            line_checkpoints = []
+                            batch_published = False
                             try:
+                                # Stage every exact raw value set before the
+                                # first normal feed.next() can advance a line.
+                                for data, envelope in zip(self.datas, envelopes):
+                                    staged_deliveries.append(
+                                        data._prepare_live_bar_cohort_delivery(envelope)
+                                    )
+                                line_checkpoints = [
+                                    _snapshot_live_cohort_feed_state(data) for data in self.datas
+                                ]
+                                for data, envelope, stage in zip(
+                                    self.datas, envelopes, staged_deliveries
+                                ):
+                                    data._arm_live_bar_cohort_envelope(envelope, stage)
                                 drets = [data.next(ticks=False) for data in datas]
                                 if any(result is not True for result in drets):
                                     raise RuntimeError(
                                         "a prepared cohort member did not advance exactly once"
                                     )
+                                for data, envelope, stage in zip(
+                                    self.datas, envelopes, staged_deliveries
+                                ):
+                                    data._preflight_live_bar_cohort_delivery_commit(envelope, stage)
+                                committed_batch = live_bar_cohort.record_delivery_batch(
+                                    tuple(
+                                        (data, envelope, stage.close_time)
+                                        for data, envelope, stage in zip(
+                                            self.datas, envelopes, staged_deliveries
+                                        )
+                                    )
+                                )
+                                batch_published = True
+                                for data, envelope, stage in zip(
+                                    self.datas, envelopes, staged_deliveries
+                                ):
+                                    data._commit_live_bar_cohort_delivery(envelope, stage)
                                 batch = live_bar_cohort.current_batch()
                                 if (
                                     batch is None
+                                    or batch is not committed_batch
                                     or batch.status != "COMPLETE"
                                     or batch.batch_id != prepared.batch_id
                                     or batch.cohort_id != prepared.cohort_id
                                     or batch.close_time != prepared.close_time
                                     or len(batch.members) != len(envelopes)
                                 ):
-                                    raise RuntimeError("Cerebro observed an incomplete cohort batch")
+                                    raise RuntimeError(
+                                        "Cerebro observed an incomplete cohort batch"
+                                    )
                                 for data, envelope in zip(self.datas, envelopes):
                                     receipt = batch.receipt_for_feed(data)
                                     if (
@@ -395,15 +760,31 @@ class RunNextMixin:
                                         raise RuntimeError(
                                             "completed cohort receipt does not match its feed"
                                         )
+                            except Exception as delivery_error:
+                                rollback_errors = []
+                                if not batch_published:
+                                    for data, checkpoint in zip(self.datas, line_checkpoints):
+                                        rollback_errors.extend(
+                                            _restore_live_cohort_feed_state(data, checkpoint)
+                                        )
+                                live_bar_cohort._freeze("engine_batch_delivery_failed")
+                                for data in self.datas:
+                                    abort = getattr(data, "_abort_live_bar_cohort_delivery", None)
+                                    if callable(abort):
+                                        abort()
+                                    data._cohort_delivery_failed = True
+                                if rollback_errors:
+                                    raise RuntimeError(
+                                        "cohort delivery failed and line rollback was incomplete"
+                                    ) from delivery_error
+                                raise
+                            try:
                                 # Feed line delivery is complete for every
                                 # member before any bar notification callback.
                                 for data, envelope in zip(self.datas, envelopes):
                                     data._dispatch_live_bar_cohort_envelope(envelope)
                             except Exception:
                                 live_bar_cohort._freeze("engine_batch_delivery_failed")
-                                for data in self.datas:
-                                    data._cohort_armed_envelope = None
-                                    data._cohort_delivery_failed = True
                                 raise
                         elif cohort_status in ("WAITING", "WAITING_AVAILABILITY", "NOT_DUE"):
                             drets = [None] * len(datas)
@@ -434,7 +815,12 @@ class RunNextMixin:
                     drets = (data0_direct_load(),)
                 else:
                     drets = []
-                if live_bar_cohort is None and data0_direct_load is None and newqcheck and has_qcheck:
+                if (
+                    live_bar_cohort is None
+                    and data0_direct_load is None
+                    and newqcheck
+                    and has_qcheck
+                ):
                     qstart = datetime.datetime.now(UTC)
                     for d in datas:
                         qlapse = datetime.datetime.now(UTC) - qstart
@@ -623,14 +1009,48 @@ class RunNextMixin:
                     break
 
                 if cohort_wait:
-                    # Keep order polling and idle callbacks above, then wait
-                    # once for the entire cohort instead of sleeping in each
-                    # feed.  The injected clock owns event-time progression.
-                    timeout = min(
-                        0.05,
-                        live_bar_cohort.wait_timeout_ns / 1_000_000_000.0,
+                    # Keep broker polling and idle callbacks above, then wait
+                    # until the earliest cohort or broker deadline. Provider
+                    # callbacks use the same generation-checked engine condition.
+                    clock = self.live_bar_cohort_clock
+                    wait_decision = live_bar_cohort.next_wait_timeout(
+                        clock.utc_now(), clock.monotonic_ns()
                     )
-                    self.live_bar_cohort_clock.wait(timeout)
+                    if wait_decision.status == "WAITING":
+                        timeout = wait_decision.timeout_seconds
+                        if timeout is not None:
+                            timeout = float(timeout)
+                            if not math.isfinite(timeout) or timeout < 0:
+                                raise RuntimeError("live cohort returned an invalid wait timeout")
+                            broker_timeout = _live_cohort_broker_timeout(broker)
+                            timeout = _cap_live_cohort_wait_for_broker(timeout, broker_timeout)
+                            if timeout > 0:
+                                wait_interruptibly = getattr(clock, "wait_interruptibly", None)
+                                if cohort_waker_bindings and callable(wait_interruptibly):
+
+                                    def wait_for_event(
+                                        wait_timeout,
+                                        generation=cohort_wake_generation,
+                                    ):
+                                        wait_timeout = float(wait_timeout)
+                                        if not math.isfinite(wait_timeout) or wait_timeout < 0:
+                                            raise RuntimeError(
+                                                "clock supplied an invalid event wait timeout"
+                                            )
+                                        return cohort_waker.wait(generation, wait_timeout)
+
+                                    interrupted = wait_interruptibly(timeout, wait_for_event)
+                                    if type(interrupted) is not bool:
+                                        raise RuntimeError(
+                                            "clock wait_interruptibly must return bool"
+                                        )
+                                else:
+                                    # Legacy injected clocks retain their causal
+                                    # wait behavior; event interruption is an
+                                    # explicit optional clock capability.
+                                    clock.wait(timeout)
+                    if self._event_stop:
+                        return
 
                 # Notify timer and iterate strategies to run
                 if d0ret or lastret:  # bars produced by data or filters
@@ -665,3 +1085,5 @@ class RunNextMixin:
         except Exception:
             logger.exception("Unhandled exception in _runnext")
             raise
+        finally:
+            _cleanup_live_bar_cohort_wakers(self, cohort_waker, cohort_waker_bindings)

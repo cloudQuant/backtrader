@@ -130,6 +130,26 @@ class RunLifecycleMixin:
             self._end_run(token)
         return True
 
+    def wake_live_bar_cohort(self):
+        """Wake an active cohort run without requesting that it stop.
+
+        A runner may call this after publishing work that the Strategy consumes
+        from ``notify_idle``. Unlike ``runstop()``, this only interrupts the
+        current cohort wait; it leaves the run and feed state unchanged.
+
+        Returns:
+            ``True`` when an active cohort wait was signaled, otherwise
+            ``False``.
+        """
+        with self._runstop_lock:
+            if not self._run_active or getattr(self, "_live_bar_cohort", None) is None:
+                return False
+            cohort_waker = getattr(self, "_live_bar_cohort_waker", None)
+        if cohort_waker is None:
+            return False
+        cohort_waker.notify()
+        return True
+
     # When called from within a strategy or elsewhere, stops execution quickly
     def runstop(self):
         """Request prompt termination of the currently active run.
@@ -141,3 +161,6 @@ class RunLifecycleMixin:
         with self._runstop_lock:
             if self._run_active:
                 self._event_stop.set()
+                cohort_waker = getattr(self, "_live_bar_cohort_waker", None)
+                if cohort_waker is not None:
+                    cohort_waker.notify()

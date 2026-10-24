@@ -551,8 +551,15 @@ class Cerebro(
         """Opt into one validated, batch-delivered live-bar cohort.
 
         ``clock`` must provide ``utc_now()``, ``monotonic_ns()``, and a single
-        ``wait(timeout_seconds)`` operation. Cerebro never substitutes its
-        process wall clock for this source-time mapping.
+        ``wait(timeout_seconds)`` operation. A clock that needs provider-event
+        interruption may additionally provide
+        ``wait_interruptibly(timeout_seconds, wait_for_event)``. Cerebro uses
+        that optional method only when a Store has registered an event waker;
+        otherwise it always calls the injected ``wait`` method. The callback
+        waits on the engine's generation-checked event condition and returns a
+        boolean. A legacy clock's ``wait`` cannot be interrupted externally;
+        ``runstop()`` is observed after that wait returns. Cerebro never
+        substitutes its process wall clock for this source-time mapping.
         """
         from .research.live_cohort import LiveBarCohort
 
@@ -563,8 +570,7 @@ class Cerebro(
         if self._live_bar_cohort is not None:
             raise ValueError("Cerebro already has a live bar cohort")
         if clock is None or any(
-            not callable(getattr(clock, name, None))
-            for name in ("utc_now", "monotonic_ns", "wait")
+            not callable(getattr(clock, name, None)) for name in ("utc_now", "monotonic_ns", "wait")
         ):
             raise TypeError("clock must provide utc_now(), monotonic_ns(), and wait(timeout)")
         cohort.seal()
@@ -591,9 +597,7 @@ class Cerebro(
         if not self.datas:
             raise ValueError("live bar cohort has no Cerebro feeds")
         if self.p.runonce is not False or self.p.preload is not False:
-            raise ValueError(
-                "live bar cohort requires explicit runonce=False and preload=False"
-            )
+            raise ValueError("live bar cohort requires explicit runonce=False and preload=False")
         if self.p.oldsync or self.p.cheat_on_open:
             raise ValueError("live bar cohort does not support oldsync or cheat_on_open")
         if self._dooptimize or self.signals:
@@ -618,9 +622,7 @@ class Cerebro(
             if bool(data.p.orderbook_as_ticks):
                 raise ValueError("live bar cohort does not support orderbook_as_ticks")
             if bool(data.p.service_recovery_quote_binding):
-                raise ValueError(
-                    "live bar cohort cannot share the service recovery quote binding"
-                )
+                raise ValueError("live bar cohort cannot share the service recovery quote binding")
 
     def _activate_live_bar_cohort(self):
         cohort = self._live_bar_cohort
@@ -632,8 +634,7 @@ class Cerebro(
         # every preparation before clearing any feed's normal queues, so a
         # bad later member cannot leave an earlier member half-bound.
         prepared = tuple(
-            (data, data._prepare_live_bar_cohort_activation(cohort, clock))
-            for data in self.datas
+            (data, data._prepare_live_bar_cohort_activation(cohort, clock)) for data in self.datas
         )
         if any(
             state.feed_ref is not data or state.cohort is not cohort or state.clock is not clock
