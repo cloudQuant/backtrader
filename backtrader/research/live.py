@@ -60,6 +60,21 @@ def _utc(value: Any, field_name: str) -> datetime:
     return value.astimezone(timezone.utc)
 
 
+def _profile_seconds(value: Any, field_name: str, *, positive: bool) -> float:
+    if type(value) not in (int, float):
+        raise ResearchConfigError("%s must be a finite numeric value" % field_name)
+    try:
+        seconds = float(value)
+    except (TypeError, ValueError, OverflowError) as exc:
+        raise ResearchConfigError("%s must be a finite numeric value" % field_name) from exc
+    if not math.isfinite(seconds):
+        raise ResearchConfigError("%s must be finite" % field_name)
+    if (positive and seconds <= 0.0) or (not positive and seconds < 0.0):
+        relation = "positive" if positive else "non-negative"
+        raise ResearchConfigError("%s must be %s" % (field_name, relation))
+    return seconds
+
+
 @dataclass(frozen=True, init=False)
 class LiveFactorPlan:
     """Immutable factor inputs, target groups, calendar and bounded-run policy.
@@ -68,6 +83,9 @@ class LiveFactorPlan:
     existing ``ResearchSpec`` convention. A missing entry uses ``default``.
     ``warmup_min_bars`` is an additional minimum beyond the bound graph's real
     minperiod; a 51 strategy can set its documented 30-bar policy here.
+    The freshness profile compares live batch times to the Cerebro-installed
+    scheduler clock at each snapshot read. The defaults allow a one-minute
+    bar age and no future timestamp skew.
     """
 
     plan_id: str
@@ -80,6 +98,8 @@ class LiveFactorPlan:
     max_pending_slots: int
     max_window_bars: int
     wait_timeout_ns: int
+    max_live_bar_age_seconds: float
+    max_future_skew_seconds: float
     allow_history_prewarm: bool
     _group_targets: Mapping[str, Tuple[str, ...]] = field(repr=False, compare=False)
 
@@ -96,6 +116,8 @@ class LiveFactorPlan:
         max_pending_slots: int = 8,
         max_window_bars: int = 512,
         wait_timeout_ns: int = 5_000_000_000,
+        max_live_bar_age_seconds: float = 60.0,
+        max_future_skew_seconds: float = 0.0,
         allow_history_prewarm: bool = True,
     ) -> None:
         frozen_targets = _unique_names(targets, "targets")
@@ -113,6 +135,16 @@ class LiveFactorPlan:
             raise ResearchConfigError("warmup_min_bars cannot exceed max_window_bars")
         if type(wait_timeout_ns) is not int or wait_timeout_ns < 1:
             raise ResearchConfigError("wait_timeout_ns must be a positive integer")
+        max_live_bar_age_seconds = _profile_seconds(
+            max_live_bar_age_seconds,
+            "max_live_bar_age_seconds",
+            positive=True,
+        )
+        max_future_skew_seconds = _profile_seconds(
+            max_future_skew_seconds,
+            "max_future_skew_seconds",
+            positive=False,
+        )
         if type(allow_history_prewarm) is not bool:
             raise ResearchConfigError("allow_history_prewarm must be a bool")
 
@@ -138,6 +170,8 @@ class LiveFactorPlan:
         object.__setattr__(self, "max_pending_slots", max_pending_slots)
         object.__setattr__(self, "max_window_bars", max_window_bars)
         object.__setattr__(self, "wait_timeout_ns", wait_timeout_ns)
+        object.__setattr__(self, "max_live_bar_age_seconds", max_live_bar_age_seconds)
+        object.__setattr__(self, "max_future_skew_seconds", max_future_skew_seconds)
         object.__setattr__(self, "allow_history_prewarm", allow_history_prewarm)
         object.__setattr__(
             self,
@@ -256,9 +290,20 @@ def _freeze_value(value):
 class LiveFactorSet:
     """Bind shared FactorSpecs to ordinary feed lines under one live cohort."""
 
-    def __init__(self, plan, cohort, feeds, instances, inputs, required_fields, bindings):
+    def __init__(
+        self,
+        plan,
+        cohort,
+        feeds,
+        instances,
+        inputs,
+        required_fields,
+        bindings,
+        scheduler_clock,
+    ):
         self._plan = plan
         self._cohort = cohort
+        self._scheduler_clock = scheduler_clock
         self._feeds = MappingProxyType(dict(feeds))
         self._instances = MappingProxyType(
             {name: MappingProxyType(dict(groups)) for name, groups in instances.items()}
@@ -323,6 +368,23 @@ class LiveFactorSet:
                     "every Strategy feed must be an exact registered cohort member",
                     code="UNSUPPORTED_SOURCE",
                 )
+        # Cerebro installs this exact clock while activating the cohort.  Keep
+        # the shared scheduler object and call its UTC clock at snapshot time;
+        # never infer processing time from the provider's bar timestamps.
+        scheduler_clock = getattr(next(iter(feeds.values())), "_cohort_clock", None)
+        if scheduler_clock is None or not callable(getattr(scheduler_clock, "utc_now", None)):
+            raise ResearchConfigError(
+                "live cohort feeds must share the Cerebro-installed UTC scheduler clock",
+                code="UNSUPPORTED_SOURCE",
+            )
+        if any(
+            getattr(feed, "_cohort_clock", None) is not scheduler_clock
+            for feed in feeds.values()
+        ):
+            raise ResearchConfigError(
+                "live cohort feeds do not share one exact scheduler clock",
+                code="UNSUPPORTED_SOURCE",
+            )
         if getattr(cohort, "calendar_id", None) != plan.calendar_id:
             raise ResearchConfigError("plan calendar_id does not match the live cohort")
         if getattr(cohort, "frequency", None) != plan.frequency:
@@ -463,6 +525,7 @@ class LiveFactorSet:
             input_descriptors,
             required_fields,
             tuple(binding_receipts.values()),
+            scheduler_clock,
         )
 
     @property
@@ -521,6 +584,11 @@ class LiveFactorSet:
             for feed, line_name, receipt in self._bindings
         ):
             invalid.append("input_binding_ownership_changed")
+        if any(
+            getattr(feed, "_cohort_clock", None) is not self._scheduler_clock
+            for feed in self._feeds.values()
+        ):
+            invalid.append("scheduler_clock_identity_changed")
 
         current_receipts = {}
         for feed in self._feeds.values():
@@ -623,6 +691,32 @@ class LiveFactorSet:
                 for receipt in rows
             )
 
+        freshness_reasons = []
+        if current_receipts and len(current_receipts) == len(self._feeds) and all(
+            receipt.source_role == "live" for receipt in current_receipts.values()
+        ):
+            try:
+                scheduler_now = _utc(
+                    self._scheduler_clock.utc_now(), "scheduler_clock.utc_now"
+                )
+            except Exception:
+                # A broken or malformed injected clock is a closed readiness
+                # gate, while the already-computed factor output stays usable
+                # for diagnostics.
+                freshness_reasons.append("scheduler_clock_unavailable")
+            else:
+                close_time = _utc(batch.close_time, "batch.close_time")
+                available_at = _utc(batch.available_at, "batch.available_at")
+                if (scheduler_now - close_time).total_seconds() > (
+                    self._plan.max_live_bar_age_seconds
+                ):
+                    freshness_reasons.append("live_bar_stale")
+                if max(
+                    (close_time - scheduler_now).total_seconds(),
+                    (available_at - scheduler_now).total_seconds(),
+                ) > self._plan.max_future_skew_seconds:
+                    freshness_reasons.append("live_bar_future_skew_exceeded")
+
         readiness_reasons = []
         if not windows_complete:
             readiness_reasons.append("input_window_incomplete_or_warmup_short")
@@ -630,10 +724,11 @@ class LiveFactorSet:
             readiness_reasons.append("live_cutover_incomplete")
         if history_policy_invalid:
             readiness_reasons.append("history_prewarm_not_allowed")
+        readiness_reasons.extend(freshness_reasons)
 
         if cutover_state is LiveFactorReadiness.CATCHING_UP:
             readiness = LiveFactorReadiness.CATCHING_UP
-        elif not windows_complete or history_policy_invalid:
+        elif not windows_complete or history_policy_invalid or freshness_reasons:
             readiness = LiveFactorReadiness.WARMUP
         else:
             readiness = cutover_state

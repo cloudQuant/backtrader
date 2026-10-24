@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
+import time
 from types import MappingProxyType
 
 import backtrader as bt
@@ -34,8 +35,8 @@ START = datetime(2026, 10, 20, 9, 30, tzinfo=UTC)
 class ReplayClock:
     """Deterministic source clock that advances only to scheduled availability."""
 
-    def __init__(self, available_times):
-        self.now = START
+    def __init__(self, available_times, *, now=START):
+        self.now = now
         self.monotonic = 1_000
         self.available_times = tuple(sorted(available_times))
         self.waits = []
@@ -56,6 +57,19 @@ class ReplayClock:
             elapsed = timeout_seconds
         self.now += timedelta(seconds=elapsed)
         self.monotonic += max(1, int(elapsed * 1_000_000_000))
+
+
+class WallClock:
+    """Production-shaped clock whose UTC value comes from datetime.now()."""
+
+    def utc_now(self):
+        return datetime.now(UTC)
+
+    def monotonic_ns(self):
+        return time.monotonic_ns()
+
+    def wait(self, timeout_seconds):
+        time.sleep(timeout_seconds)
 
 
 class ScaledClose(FactorIndicator):
@@ -95,7 +109,7 @@ class OrdinaryStrategy(bt.Strategy):
         self.snapshots.append(self.live_factors.snapshot())
 
 
-def _bar(slot, sequence, close, source_role):
+def _bar(slot, sequence, close, source_role, *, available_at=None):
     return MappingProxyType(
         {
             "instrument": "SYM",
@@ -104,7 +118,7 @@ def _bar(slot, sequence, close, source_role):
             "datetime": slot.close_time,
             "bucket_start": slot.bucket_start,
             "bucket_end": slot.close_time,
-            "available_at": slot.close_time,
+            "available_at": slot.close_time if available_at is None else available_at,
             "trading_day": slot.trading_day,
             "session_segment": slot.session_segment,
             "timezone_id": "UTC",
@@ -127,13 +141,26 @@ def _bar(slot, sequence, close, source_role):
     )
 
 
-def _make_inputs(*, count=70, mode="native", activated=True, bad_close=None, base=100.0):
+def _make_inputs(
+    *,
+    count=70,
+    mode="native",
+    activated=True,
+    bad_close=None,
+    base=100.0,
+    start=START,
+    include_live=True,
+    availability_delay_seconds=0.0,
+    max_live_bar_age_seconds=60.0,
+    max_future_skew_seconds=0.0,
+    clock=None,
+):
     slots = tuple(
         LiveCalendarSlot(
             slot_id="slot-%d" % index,
-            bucket_start=START + timedelta(minutes=index),
-            close_time=START + timedelta(minutes=index + 1),
-            trading_day="2026-10-20",
+            bucket_start=start + timedelta(minutes=index),
+            close_time=start + timedelta(minutes=index + 1),
+            trading_day=start.date().isoformat(),
             session_segment="regular",
         )
         for index in range(count)
@@ -159,11 +186,24 @@ def _make_inputs(*, count=70, mode="native", activated=True, bad_close=None, bas
     values = [base + index for index in range(count)]
     if bad_close is not None:
         values[-1] = bad_close
+    history_slots = slots[:-1] if include_live else slots
     historical = tuple(
-        _bar(slot, index + 1, values[index], "history")
-        for index, slot in enumerate(slots[:-1])
+        _bar(slot, index + 1, values[index], "history") for index, slot in enumerate(history_slots)
     )
-    live = (_bar(slots[-1], count, values[-1], "live"),)
+    live = (
+        (
+            _bar(
+                slots[-1],
+                count,
+                values[-1],
+                "live",
+                available_at=slots[-1].close_time
+                + timedelta(seconds=availability_delay_seconds),
+            ),
+        )
+        if include_live
+        else ()
+    )
     feed = bt.feeds.BtApiFeed(
         dataname="SYM",
         historical_bars=historical,
@@ -207,8 +247,14 @@ def _make_inputs(*, count=70, mode="native", activated=True, bad_close=None, bas
         max_pending_slots=2,
         max_window_bars=count,
         wait_timeout_ns=60_000_000_000,
+        max_live_bar_age_seconds=max_live_bar_age_seconds,
+        max_future_skew_seconds=max_future_skew_seconds,
     )
-    clock = ReplayClock([bar["available_at"] for bar in historical + live])
+    if clock is None:
+        clock = ReplayClock(
+            [bar["available_at"] for bar in historical + live],
+            now=start,
+        )
     if activated:
         cerebro.add_live_bar_cohort(cohort, clock=clock)
         cerebro.addstrategy(OrdinaryStrategy, plan=plan, cohort=cohort)
@@ -244,6 +290,8 @@ def test_ordinary_strategy_binds_real_cohort_feed_and_publishes_bounded_immutabl
     assert factor.mode == mode
     assert factor.direction == -1
     assert factor.inputs["close"][0].line_name == "close"
+    assert plan.max_live_bar_age_seconds == 60.0
+    assert plan.max_future_skew_seconds == 0.0
     assert set(strategy.live_factors.factor_instances["scaled_close"]) == {"primary"}
     assert 0 < len(feed.close.array) <= 3
     assert len(clock.waits) > 0
@@ -273,6 +321,154 @@ def test_ordinary_strategy_binds_real_cohort_feed_and_publishes_bounded_immutabl
     assert degraded.factors["scaled_close"].values == MappingProxyType({})
     assert not hasattr(snapshot, "execution_permission")
     assert live_source_binding_active() is False
+
+
+def test_old_live_bar_does_not_become_fresh_when_scheduler_time_advances():
+    cerebro, _cohort, _feed, _plan, _values, clock = _make_inputs(
+        count=1,
+        max_live_bar_age_seconds=5.0,
+        max_future_skew_seconds=1.0,
+    )
+    strategy = cerebro.run()[0]
+    original = strategy.snapshots[-1]
+    assert original.readiness is LiveFactorReadiness.LIVE_READY
+
+    clock.now = original.close_time + timedelta(seconds=6)
+    later = strategy.live_factors.snapshot()
+
+    output = later.factors["scaled_close"].values["A"]
+    assert later.readiness is LiveFactorReadiness.WARMUP
+    assert "live_bar_stale" in later.readiness_reasons
+    assert later.close_time == original.close_time
+    assert later.available_at == original.available_at
+    assert later.close_time != clock.now
+    assert output.value == original.factors["scaled_close"].values["A"].value
+    assert output.status is LiveFactorOutputStatus.OUTPUT_AVAILABLE
+
+
+def test_future_close_time_exceeding_profile_blocks_readiness_but_keeps_output():
+    cerebro, _cohort, _feed, _plan, _values, clock = _make_inputs(
+        count=1,
+        max_live_bar_age_seconds=30.0,
+        max_future_skew_seconds=2.0,
+    )
+    strategy = cerebro.run()[0]
+    original = strategy.snapshots[-1]
+    clock.now = original.close_time - timedelta(seconds=3)
+
+    future = strategy.live_factors.snapshot()
+
+    output = future.factors["scaled_close"].values["A"]
+    assert future.readiness is LiveFactorReadiness.WARMUP
+    assert "live_bar_future_skew_exceeded" in future.readiness_reasons
+    assert future.close_time == original.close_time
+    assert future.available_at == original.available_at
+    assert output.value == original.factors["scaled_close"].values["A"].value
+    assert output.status is LiveFactorOutputStatus.OUTPUT_AVAILABLE
+
+
+def test_future_available_at_exceeding_profile_blocks_readiness():
+    cerebro, _cohort, _feed, _plan, _values, clock = _make_inputs(
+        count=1,
+        availability_delay_seconds=5.0,
+        max_live_bar_age_seconds=30.0,
+        max_future_skew_seconds=1.0,
+    )
+    strategy = cerebro.run()[0]
+    original = strategy.snapshots[-1]
+    assert original.available_at == original.close_time + timedelta(seconds=5)
+    clock.now = original.close_time
+
+    future = strategy.live_factors.snapshot()
+
+    assert future.readiness is LiveFactorReadiness.WARMUP
+    assert "live_bar_future_skew_exceeded" in future.readiness_reasons
+    assert future.close_time == original.close_time
+    assert future.available_at == original.available_at
+    output = future.factors["scaled_close"].values["A"]
+    assert output.value == original.factors["scaled_close"].values["A"].value
+    assert output.status is LiveFactorOutputStatus.OUTPUT_AVAILABLE
+
+
+def test_history_batch_stays_warmup_after_later_processing_time():
+    cerebro, _cohort, _feed, _plan, _values, clock = _make_inputs(
+        count=1,
+        include_live=False,
+        max_live_bar_age_seconds=1.0,
+    )
+    strategy = cerebro.run()[0]
+    original = strategy.snapshots[-1]
+    assert original.readiness is LiveFactorReadiness.WARMUP
+    assert original.factors["scaled_close"].values["A"].status is (
+        LiveFactorOutputStatus.OUTPUT_AVAILABLE
+    )
+    clock.now = original.close_time + timedelta(days=1)
+
+    later = strategy.live_factors.snapshot()
+
+    assert later.readiness is LiveFactorReadiness.WARMUP
+    assert "live_bar_stale" not in later.readiness_reasons
+    assert later.close_time == original.close_time
+    assert later.available_at == original.available_at
+    assert later.factors["scaled_close"].values["A"].status is (
+        LiveFactorOutputStatus.OUTPUT_AVAILABLE
+    )
+
+
+def test_live_snapshot_fails_closed_when_injected_scheduler_clock_breaks():
+    cerebro, _cohort, _feed, _plan, _values, clock = _make_inputs(count=1)
+    strategy = cerebro.run()[0]
+    original = strategy.snapshots[-1]
+    clock.utc_now = lambda: datetime(2026, 10, 20, 9, 31)
+
+    broken = strategy.live_factors.snapshot()
+
+    assert broken.readiness is LiveFactorReadiness.WARMUP
+    assert "scheduler_clock_unavailable" in broken.readiness_reasons
+    assert broken.close_time == original.close_time
+    assert broken.available_at == original.available_at
+    output = broken.factors["scaled_close"].values["A"]
+    assert output.value == original.factors["scaled_close"].values["A"].value
+    assert output.status is LiveFactorOutputStatus.OUTPUT_AVAILABLE
+
+
+@pytest.mark.parametrize(
+    "value",
+    (0, -1, True, None, float("inf"), float("nan"), "1"),
+)
+def test_live_plan_requires_a_finite_positive_bar_age(value):
+    with pytest.raises(ResearchConfigError, match="max_live_bar_age_seconds"):
+        _make_inputs(count=1, max_live_bar_age_seconds=value)
+
+
+@pytest.mark.parametrize(
+    "value",
+    (-0.1, True, None, float("inf"), float("nan"), "0"),
+)
+def test_live_plan_requires_finite_nonnegative_future_skew(value):
+    with pytest.raises(ResearchConfigError, match="max_future_skew_seconds"):
+        _make_inputs(count=1, max_future_skew_seconds=value)
+
+
+def test_live_snapshot_uses_normal_datetime_now_utc_scheduler_clock():
+    captured_now = datetime.now(UTC).replace(microsecond=0)
+    start = captured_now - timedelta(minutes=1, seconds=5)
+    cerebro, _cohort, feed, _plan, _values, _clock = _make_inputs(
+        count=1,
+        start=start,
+        max_live_bar_age_seconds=60.0,
+        max_future_skew_seconds=0.0,
+        clock=WallClock(),
+    )
+
+    strategy = cerebro.run()[0]
+    snapshot = strategy.snapshots[-1]
+
+    assert snapshot.readiness is LiveFactorReadiness.LIVE_READY
+    assert snapshot.close_time == start + timedelta(minutes=1)
+    assert snapshot.available_at == snapshot.close_time
+    assert snapshot.close_time < datetime.now(UTC)
+    assert feed.datetime.datetime(0) == snapshot.close_time.replace(tzinfo=None)
 
 
 def test_schema_registration_without_cerebro_activation_cannot_bind_live_factors():
