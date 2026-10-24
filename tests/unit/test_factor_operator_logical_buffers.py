@@ -392,6 +392,7 @@ def _run_alpha101_buffer_batch(
     mode,
     exactbars,
     retain_tokens=False,
+    capacity_observation=None,
 ):
     """Run the existing FactorStrategy harness with one test-only row observer."""
     original_cerebro = bt.Cerebro
@@ -410,6 +411,8 @@ def _run_alpha101_buffer_batch(
         # This runs from FactorStrategy's ordinary prenext/next callbacks. It
         # observes outputs after Cerebro scheduled their calculation; it does
         # not advance factors or introduce another time loop.
+        if capacity_observation is not None:
+            _sample_qbuffer_capacity(strategy, capacity_observation)
         _capture_factor_node_row(strategy, streams, retain_tokens=retain_tokens)
 
     with monkeypatch.context() as patch:
@@ -427,34 +430,23 @@ def _run_alpha101_buffer_batch(
     return strategy, _stream_summary(streams)
 
 
-def _qbuffer_profile(strategy):
-    """Summarize actual QBuffer capacities by bounded role and line identity."""
+def _qbuffer_inventory(strategy):
+    """Collect exact QBuffer line identities by their existing graph roles."""
     roles = ("target", "input", "value", "reason")
-    seen = {role: set() for role in roles}
-    capacities = {role: {} for role in roles}
-    distributions = {role: Counter() for role in roles}
-    samples = {role: [] for role in roles}
+    role_lines = {role: {} for role in roles}
     target_labels = {}
     direct_inputs, derived_inputs = set(), set()
 
     def add(role, line, label):
         identity = id(line)
-        if identity in seen[role]:
-            return capacities[role][identity]
+        if identity in role_lines[role]:
+            return
         if getattr(line, "mode", None) != LineBuffer.QBuffer:
             raise AssertionError("%s line %s is not an actual QBuffer" % (role, label))
         configured = int(line.maxlen)
-        retained = len(line.array) - int(line.extension)
-        if not 0 < retained <= configured:
-            raise AssertionError(
-                "%s line %s has invalid capacity %d/%d" % (role, label, configured, retained)
-            )
-        seen[role].add(identity)
-        capacities[role][identity] = (configured, retained)
-        distributions[role][(configured, retained)] += 1
-        if len(samples[role]) < 4:
-            samples[role].append((label, configured, retained))
-        return configured, retained
+        if configured <= 0:
+            raise AssertionError("%s line %s has nonpositive maxlen %d" % (role, label, configured))
+        role_lines[role][identity] = (line, label)
 
     for data in strategy.datas:
         aliases, lines = tuple(data.getlinealiases()), tuple(data.lines.lines)
@@ -498,24 +490,126 @@ def _qbuffer_profile(strategy):
                         type(node).__name__,
                         target or "<unnamed>",
                     )
-                    value = add("value", value_line, label)
-                    reason = add("reason", reason_line, label)
-                    if value != reason:
-                        raise AssertionError("value/reason capacities differ at %s" % label)
+                    add("value", value_line, label)
+                    add("reason", reason_line, label)
 
     if not direct_inputs or direct_inputs & derived_inputs:
         raise AssertionError("field inputs do not include exact target feed lines")
-    if any(capacities["input"][i] != capacities["target"][i] for i in direct_inputs):
-        raise AssertionError("direct field inputs do not preserve target capacity")
+    return {
+        "roles": role_lines,
+        "direct_inputs": direct_inputs,
+        "derived_inputs": derived_inputs,
+    }
+
+
+def _sample_qbuffer_capacity(strategy, observation):
+    """Sample configured and retained capacities in the live strategy callback."""
+    if not observation:
+        inventory = _qbuffer_inventory(strategy)
+        lines = {}
+        for entries in inventory["roles"].values():
+            for identity, (line, label) in entries.items():
+                previous = lines.get(identity)
+                if previous is not None and previous["line"] is not line:
+                    raise AssertionError("line identity was reused during QBuffer inventory")
+                lines.setdefault(
+                    identity,
+                    {
+                        "line": line,
+                        "label": label,
+                        "configured": int(line.maxlen),
+                        "retained_highwater": 0,
+                        "samples": 0,
+                    },
+                )
+        observation.update({"inventory": inventory, "lines": lines, "callbacks": 0})
+
+    for state in observation["lines"].values():
+        line = state["line"]
+        if getattr(line, "mode", None) != LineBuffer.QBuffer:
+            raise AssertionError("sampled line %s stopped being a QBuffer" % state["label"])
+        configured = int(line.maxlen)
+        retained = int(line.buflen())
+        if configured != state["configured"]:
+            raise AssertionError("QBuffer maxlen changed during the run for %s" % state["label"])
+        if configured <= 0 or retained < 0 or retained > configured:
+            raise AssertionError(
+                "%s observed invalid QBuffer capacity %d/%d"
+                % (state["label"], configured, retained)
+            )
+        state["retained_highwater"] = max(state["retained_highwater"], retained)
+        state["samples"] += 1
+    observation["callbacks"] += 1
+
+
+def _qbuffer_profile(strategy, observation):
+    """Summarize callback-sampled QBuffer high-water by exact line identity."""
+    current = _qbuffer_inventory(strategy)
+    sampled = observation["inventory"]
+    assert observation["callbacks"] > 0
+    for role in sampled["roles"]:
+        previous_lines = sampled["roles"][role]
+        current_lines = current["roles"][role]
+        if previous_lines.keys() != current_lines.keys() or any(
+            previous_lines[identity][0] is not current_lines[identity][0]
+            for identity in previous_lines.keys() & current_lines.keys()
+        ):
+            raise AssertionError("QBuffer line identities changed after the sampled run")
+
+    roles = tuple(sampled["roles"])
+    distributions = {role: Counter() for role in roles}
+    samples = {role: [] for role in roles}
+    capacities = {role: {} for role in roles}
+    for role, entries in sampled["roles"].items():
+        for identity, (line, label) in entries.items():
+            state = observation["lines"][identity]
+            configured = state["configured"]
+            retained = state["retained_highwater"]
+            if state["line"] is not line or state["samples"] != observation["callbacks"]:
+                raise AssertionError(
+                    "QBuffer sampling did not follow line %s each callback" % label
+                )
+            if not 0 < retained <= configured:
+                raise AssertionError(
+                    "%s line %s had no positive in-run capacity %d/%d"
+                    % (role, label, configured, retained)
+                )
+            capacities[role][identity] = (configured, retained)
+            distributions[role][(configured, retained)] += 1
+            if len(samples[role]) < 4:
+                samples[role].append((label, configured, retained))
+
+    for identity in sampled["direct_inputs"]:
+        if capacities["input"][identity] != capacities["target"][identity]:
+            raise AssertionError("direct field input does not preserve target capacity")
+    for role, entries in sampled["roles"].items():
+        if role not in ("value", "reason"):
+            continue
+        other = "reason" if role == "value" else "value"
+        other_by_label = {}
+        for pair_id, (_pair_line, label) in sampled["roles"][other].items():
+            other_by_label.setdefault(label, []).append(pair_id)
+        for identity, (_line, label) in entries.items():
+            paired = other_by_label.get(label)
+            if (
+                paired is None
+                or len(paired) != 1
+                or capacities[role][identity] != capacities[other][paired[0]]
+            ):
+                raise AssertionError("value/reason capacities differ at %s" % label)
+
     return {
         role: {
-            "count": len(seen[role]),
+            "count": len(capacities[role]),
             "distribution": tuple(
                 (*pair, count) for pair, count in sorted(distributions[role].items())
             ),
             "samples": tuple(samples[role]),
             **(
-                {"direct_target_lines": len(direct_inputs), "derived_lines": len(derived_inputs)}
+                {
+                    "direct_target_lines": len(sampled["direct_inputs"]),
+                    "derived_lines": len(sampled["derived_inputs"]),
+                }
                 if role == "input"
                 else {}
             ),
@@ -560,14 +654,6 @@ def _assert_qbuffer_profile(profile):
     assert (
         len(configured_capacities) > 1
     ), "actual target/input/operator buffers did not exhibit distinct configured capacities"
-    target_max = max(
-        configured for configured, _retained, _count in profile["target"]["distribution"]
-    )
-    assert all(
-        configured <= target_max
-        for role in ("input", "value", "reason")
-        for configured, _retained, _count in profile[role]["distribution"]
-    ), "target feed capacity is smaller than a required input/operator buffer"
 
 
 def _assert_exact_matrices(left, right, *, label):
@@ -621,10 +707,17 @@ def test_alpha101_prefix_uses_node_aware_scalar_trace_for_rank_outputs():
             trace["failures"][:8],
         )
 
+    capacity_observation = {}
     patch = pytest.MonkeyPatch()
     try:
         queued_strategy, queued_streams = _run_alpha101_buffer_batch(
-            patch, frames, alpha_ids, mode="native", exactbars=1, retain_tokens=True
+            patch,
+            frames,
+            alpha_ids,
+            mode="native",
+            exactbars=1,
+            retain_tokens=True,
+            capacity_observation=capacity_observation,
         )
     finally:
         patch.undo()
@@ -637,7 +730,7 @@ def test_alpha101_prefix_uses_node_aware_scalar_trace_for_rank_outputs():
             _panel_factor_matrix(queued_strategy, alpha_id, grid, assets),
             label="Alpha%d T320 full/qbuffer smoke" % alpha_id,
         )
-    capacity_profile = _qbuffer_profile(queued_strategy)
+    capacity_profile = _qbuffer_profile(queued_strategy, capacity_observation)
     _assert_qbuffer_profile(capacity_profile)
     actual_max = max(
         retained
@@ -674,6 +767,62 @@ def test_alpha101_prefix_uses_node_aware_scalar_trace_for_rank_outputs():
     )
 
 
+def test_alpha101_maxlen_one_samples_during_run_before_eof_empties_buffer(monkeypatch):
+    """Alpha101's unused-at-next-callback tail still had a populated maxlen-1 buffer."""
+    frames = _alpha101_long_gap_fixture(320)
+    assets = tuple(frames)
+    grid = tuple(next(iter(frames.values())).index)
+
+    for mode in ("native", "build"):
+        full_strategy, full_streams = _run_alpha101_buffer_batch(
+            monkeypatch, frames, (101,), mode=mode, exactbars=0
+        )
+        capacity_observation = {}
+        queued_strategy, queued_streams = _run_alpha101_buffer_batch(
+            monkeypatch,
+            frames,
+            (101,),
+            mode=mode,
+            exactbars=1,
+            capacity_observation=capacity_observation,
+        )
+        assert set(full_streams) == set(queued_streams)
+        assert _first_stream_difference(full_streams, queued_streams) is None
+        _assert_exact_matrices(
+            _panel_factor_matrix(full_strategy, 101, grid, assets),
+            _panel_factor_matrix(queued_strategy, 101, grid, assets),
+            label="Alpha101 %s T320 full/qbuffer result" % mode,
+        )
+
+        values = _panel_factor_matrix(queued_strategy, 101, grid, assets)
+        finite = [float(value) for row in values for value in row if math.isfinite(float(value))]
+        assert finite and any(value != 0.0 for value in finite)
+
+        factor = queued_strategy.factor_instances["alpha101"]
+        target_close = queued_strategy.datas[0].close
+        factor_close = factor._field_line_cache["close"][0]
+        assert factor_close is target_close
+        close_sample = capacity_observation["lines"][id(target_close)]
+        assert close_sample["line"] is target_close
+        assert close_sample["configured"] == target_close.maxlen == 1
+        assert close_sample["retained_highwater"] == 1
+        assert close_sample["samples"] == len(grid)
+        assert len(grid) >= 10 * close_sample["retained_highwater"]
+
+        # Cerebro's normal EOF rollback may leave a one-slot QBuffer empty.
+        # That terminal state is distinct from its observed in-run capacity.
+        assert target_close.buflen() == 0
+        assert len(target_close.array) - int(target_close.extension) == 0
+        assert target_close.lencount == len(grid)
+        profile = _qbuffer_profile(queued_strategy, capacity_observation)
+        _assert_qbuffer_profile(profile)
+        assert all(
+            len(grid) >= 10 * retained
+            for receipt in profile.values()
+            for _configured, retained, _count in receipt["distribution"]
+        ), "not every observed QBuffer high-water wrapped ten times"
+
+
 @pytest.mark.slow
 def test_alpha101_full_and_qbuffer_native_build_values_and_reasons_match(monkeypatch):
     """Compare all 101 formulas over a long, gapped real Cerebro history."""
@@ -708,10 +857,16 @@ def test_alpha101_full_and_qbuffer_native_build_values_and_reasons_match(monkeyp
                 ), "Alpha%d %s full run has only zero post-H values" % (alpha_id, mode)
                 full_matrices[alpha_id] = actual
 
+            capacity_observation = {}
             queued_strategy, queued_streams = _run_alpha101_buffer_batch(
-                monkeypatch, frames, batch, mode=mode, exactbars=1
+                monkeypatch,
+                frames,
+                batch,
+                mode=mode,
+                exactbars=1,
+                capacity_observation=capacity_observation,
             )
-            capacity_profile = _qbuffer_profile(queued_strategy)
+            capacity_profile = _qbuffer_profile(queued_strategy, capacity_observation)
             _assert_qbuffer_profile(capacity_profile)
             max_configured = max(
                 configured
