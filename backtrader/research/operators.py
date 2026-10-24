@@ -20,7 +20,9 @@ takes ordinary feed category lines through ``groups=`` (or reads the requested
 """
 
 import array as _array_module
+from collections import deque as _deque
 from enum import IntEnum
+from itertools import islice as _islice
 import math
 import numbers
 import operator
@@ -70,6 +72,7 @@ _LINEBUFFER_GETITEM = LineBuffer.__getitem__
 _LINEBUFFER_SETITEM = LineBuffer.__setitem__
 _LINEBUFFER_LEN = LineBuffer.__len__
 _LINEBUFFER_UNBOUNDED = LineBuffer.UnBounded
+_LINEBUFFER_QBUFFER = LineBuffer.QBuffer
 _LINEBUFFER_GETATTR = getattr(LineBuffer, "__getattr__", None)
 _PANDASDATA_BUFLEN = getattr(PandasData, "buflen", None)
 _PANDASDATA_ADVANCE = PandasData.advance
@@ -323,11 +326,91 @@ def _try_read_unbounded_linebuffer_window(source: Any, period: int) -> Any:
     return values, OperatorReason.READY
 
 
+def _try_read_qbuffer_linebuffer_window(source: Any, period: int) -> Any:
+    """Read one exact standard QBuffer tail, or return the miss sentinel.
+
+    QBuffer's deque retains the logical data tail in chronological order. Map
+    the requested oldest logical slot once, then walk backward from the deque
+    tail across only its extension and requested window. Exact storage and
+    method guards keep custom LineBuffer behavior on the established scalar
+    path.
+    """
+    if type(source) is not LineBuffer or type(period) is not int or period <= 0:
+        return _FAST_WINDOW_MISS
+    if (
+        LineBuffer.__getattribute__ is not _LINEBUFFER_GETATTRIBUTE
+        or LineBuffer.__getitem__ is not _LINEBUFFER_GETITEM
+        or LineBuffer.__len__ is not _LINEBUFFER_LEN
+        or getattr(LineBuffer, "__getattr__", None) is not _LINEBUFFER_GETATTR
+    ):
+        return _FAST_WINDOW_MISS
+
+    logical_length = source.lencount
+    mode = source.mode
+    storage = source.array
+    maxlen = source.maxlen
+    extrasize = source.extrasize
+    extension = source.extension
+    if (
+        type(logical_length) is not int
+        or type(mode) is not int
+        or mode != _LINEBUFFER_QBUFFER
+        or type(storage) is not _deque
+        or type(maxlen) is not int
+        or maxlen < 1
+        or type(extrasize) is not int
+        or extrasize < 0
+        or storage.maxlen != max(1, maxlen + extrasize)
+        or type(extension) is not int
+        or extension < 0
+        or extension > len(storage)
+        or logical_length < period
+    ):
+        return _FAST_WINDOW_MISS
+
+    retained_length = len(storage) - extension
+    logical_origin = logical_length - retained_length
+    logical_start = logical_length - period
+    if logical_origin < 0:
+        return _FAST_WINDOW_MISS
+    physical_start = logical_start - logical_origin
+    physical_stop = physical_start + period
+    if physical_start < 0 or physical_stop > retained_length:
+        return _FAST_WINDOW_MISS
+
+    reverse_start = len(storage) - physical_stop
+    reverse_stop = len(storage) - physical_start
+    reversed_values = list(_islice(reversed(storage), reverse_start, reverse_stop))
+    if len(reversed_values) != period:
+        return _FAST_WINDOW_MISS
+    reversed_values.reverse()
+
+    for offset, raw_value in enumerate(reversed_values):
+        if type(raw_value) not in (int, float):
+            return _FAST_WINDOW_MISS
+        try:
+            value = float(raw_value)
+        except (AttributeError, IndexError, TypeError, ValueError):
+            # Match _read_value's unreadable-cell result without swallowing
+            # other conversion failures or changing scalar fallback behavior.
+            return None, OperatorReason.INCOMPLETE_WINDOW
+        if math.isinf(value):
+            raise OperatorInputError("source line contains infinity")
+        if math.isnan(value):
+            _associated_reason(source, absolute_index=logical_start + offset)
+            return None, OperatorReason.INCOMPLETE_WINDOW
+        reversed_values[offset] = value
+    return reversed_values, OperatorReason.READY
+
+
 def _read_window(source: Any, period: int) -> Tuple[Optional[List[float]], OperatorReason]:
     """Read a complete oldest-to-newest window, preserving every grid slot."""
     if not isinstance(source, numbers.Real) and len(source) < period:
         return None, OperatorReason.NOT_READY
     fast_result = _try_read_unbounded_linebuffer_window(source, period)
+    if fast_result is not _FAST_WINDOW_MISS:
+        return fast_result
+    fast_result = _try_read_qbuffer_linebuffer_window(source, period)
     if fast_result is not _FAST_WINDOW_MISS:
         return fast_result
     values = []
