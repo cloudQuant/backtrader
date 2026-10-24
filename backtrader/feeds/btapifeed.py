@@ -18,7 +18,7 @@ from ..channel import Event, EventPriority
 from ..dataseries import TimeFrame
 from ..events import BarEvent
 from ..feed import DataBase
-from ..stores.btapistore import _normalize_bar, _redact_diagnostic
+from ..stores.btapistore import _build_ctp_tick_datetime, _normalize_bar, _redact_diagnostic
 from ..utils import date2num
 from ..utils.log_message import get_logger
 from .barrier import BarEvidence
@@ -132,14 +132,130 @@ def _bounded_context_value(value):
     return None
 
 
-def _live_tick_validation_error(report):
+def _live_tick_validation_error(report, code="LAST_PRICE_INVALID"):
     """Build a structured cohort error without importing research on Feed import."""
     from ..research.live_cohort import LiveCohortValidationError
 
-    error = LiveCohortValidationError("raw tick price rejected: LAST_PRICE_INVALID")
-    error.code = "LAST_PRICE_INVALID"
+    message = (
+        "raw tick price rejected: LAST_PRICE_INVALID"
+        if code == "LAST_PRICE_INVALID"
+        else "raw CTP tick rejected: {}".format(code)
+    )
+    error = LiveCohortValidationError(message)
+    error.code = code
     error.report = MappingProxyType(dict(report))
     return error
+
+
+def _raw_ctp_volume_category(value, present):
+    """Classify cumulative volume before Store/Feed tolerant conversions."""
+    if not present or value is None or (isinstance(value, str) and value == ""):
+        return "missing"
+    if isinstance(value, bool) or not isinstance(value, (numbers.Real, Decimal)):
+        return "wrong_type"
+    try:
+        number = float(value)
+    except (TypeError, ValueError, OverflowError):
+        return "non_finite"
+    if math.isnan(number):
+        return "nan"
+    if not math.isfinite(number):
+        return "non_finite"
+    if abs(number) >= _CTP_INVALID_ABS:
+        return "sentinel"
+    if number < 0:
+        return "negative"
+    return None
+
+
+def _raw_ctp_tick_problem(raw_tick, *, strict_action_day=False):
+    """Return the first unsafe direct-CTP source field, without coercion."""
+    if not isinstance(raw_tick, Mapping):
+        return "SOURCE_TICK_INVALID", "ctp_raw_tick", "wrong_type", "invalid_source_ctp_tick"
+
+    field, value, present = _raw_tick_field(raw_tick, ("LastPrice",))
+    category = _tick_price_category(value, present)
+    if category is not None:
+        return "LAST_PRICE_INVALID", field, category, "invalid_source_tick_price"
+
+    if strict_action_day:
+        trading_day = raw_tick.get("TradingDay")
+        if type(trading_day) is not str or len(trading_day) != 8 or not trading_day.isdigit():
+            return (
+                "TRADING_DAY_INVALID",
+                "TradingDay",
+                "missing_or_invalid",
+                "invalid_source_trading_day",
+            )
+        try:
+            _dt.datetime.strptime(trading_day, "%Y%m%d")
+        except ValueError:
+            return "TRADING_DAY_INVALID", "TradingDay", "invalid_date", "invalid_source_trading_day"
+
+        action_day = raw_tick.get("ActionDay")
+        if isinstance(action_day, Mapping) and action_day.get("read_error") is True:
+            return "ACTION_DAY_INVALID", "ActionDay", "read_error", "invalid_source_action_day"
+        if action_day is None or action_day == "":
+            # TradingDay is not an event-date proof for night or after-midnight
+            # CTP ticks, so strict cohort input cannot infer ActionDay from it.
+            return "ACTION_DAY_INVALID", "ActionDay", "missing", "invalid_source_action_day"
+        if type(action_day) is not str or len(action_day) != 8 or not action_day.isdigit():
+            return (
+                "ACTION_DAY_INVALID",
+                "ActionDay",
+                "missing_or_invalid",
+                "invalid_source_action_day",
+            )
+        try:
+            _dt.datetime.strptime(action_day, "%Y%m%d")
+        except ValueError:
+            return "ACTION_DAY_INVALID", "ActionDay", "invalid_date", "invalid_source_action_day"
+        if _build_ctp_tick_datetime(raw_tick) is None:
+            return (
+                "SOURCE_TIME_INVALID",
+                "source_time",
+                "missing_or_invalid",
+                "invalid_source_tick_time",
+            )
+    else:
+        if _build_ctp_tick_datetime(raw_tick) is None:
+            return (
+                "SOURCE_TIME_INVALID",
+                "source_time",
+                "missing_or_invalid",
+                "invalid_source_tick_time",
+            )
+        trading_day = raw_tick.get("TradingDay")
+        if type(trading_day) is not str or len(trading_day) != 8 or not trading_day.isdigit():
+            return (
+                "TRADING_DAY_INVALID",
+                "TradingDay",
+                "missing_or_invalid",
+                "invalid_source_trading_day",
+            )
+        try:
+            _dt.datetime.strptime(trading_day, "%Y%m%d")
+        except ValueError:
+            return "TRADING_DAY_INVALID", "TradingDay", "invalid_date", "invalid_source_trading_day"
+
+    field, value, present = _raw_tick_field(raw_tick, ("Volume",))
+    category = _raw_ctp_volume_category(value, present)
+    if category is not None:
+        return "CUMULATIVE_VOLUME_INVALID", field, category, "invalid_source_cumulative_volume"
+
+    generation = raw_tick.get("connection_generation")
+    if type(generation) is not int or generation <= 0:
+        return (
+            "CTP_CONNECTION_GENERATION_INVALID",
+            "connection_generation",
+            "missing_or_invalid",
+            "invalid_source_ctp_scope",
+        )
+
+    issue = raw_tick.get("volume_issue")
+    if issue:
+        return "VOLUME_DISCONTINUITY", "Volume", str(issue), "invalid_source_cumulative_volume"
+    return None
 
 
 def _set_tick_value(tick, name, value):
@@ -444,6 +560,8 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
         self._live_notified = False
         self._bar_builder = None
         self._bar_builders = collections.OrderedDict()
+        self._ctp_first_bucket_scope = None
+        self._ctp_first_bucket_start = None
         self._bar_quality_overrides = collections.defaultdict(set)
         self._max_event_timestamp = None
         self._last_ingest_monotonic_ns = None
@@ -1088,6 +1206,8 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
             self._last_ingest_monotonic_ns = None
             self._last_closed_bucket_end = None
             self._last_connection_generation = None
+            self._ctp_first_bucket_scope = None
+            self._ctp_first_bucket_start = None
             self._last_ctp_scope = None
             self._highest_ctp_scope = None
             self._tick_consumer_claimed = False
@@ -1370,7 +1490,9 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
             drained = True
             drained_count += 1
 
-            self._validate_raw_cohort_tick_price(tick)
+            if self._validate_raw_cohort_tick_price(tick) is False:
+                self._mark_event_dropped(tick, "invalid_ctp_source_tick")
+                continue
             self._prepare_tick(tick)
 
             if self._handle_event_health(tick):
@@ -1404,15 +1526,44 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
         return drained
 
     def _validate_raw_cohort_tick_price(self, tick):
-        """Reject an unpriced cohort tick before tolerant normalization mutates it."""
+        """Reject malformed source values before tolerant tick normalization."""
         cohort = self._live_bar_cohort
+        raw_ctp_tick = _tick_value(tick, "ctp_raw_tick", default=None)
+        if raw_ctp_tick is not None:
+            problem = _raw_ctp_tick_problem(
+                raw_ctp_tick,
+                strict_action_day=cohort is not None,
+            )
+            if problem is not None:
+                code, field_name, category, frozen_reason = problem
+                if cohort is None:
+                    # Preserve ordinary-feed behavior: invalid direct-CTP
+                    # ticks do not enter event dispatch or a bar bucket.
+                    return False
+                member = cohort.member_for_feed(self)
+                instrument = member.instrument if member is not None else self._dataname
+                report = {
+                    "source": "BtApiFeed.ctp_tick",
+                    "instrument": _bounded_context_value(instrument),
+                    "field": field_name,
+                    "category": category,
+                    "generation": _bounded_context_value(raw_ctp_tick.get("connection_generation")),
+                    "sequence": _bounded_context_value(
+                        _tick_value(tick, "ingest_seq", "sequence", default=None)
+                    ),
+                    "reason": code,
+                }
+                cohort._freeze(frozen_reason)
+                self._cohort_delivery_failed = True
+                raise _live_tick_validation_error(report, code=code)
+
         if cohort is None:
-            return
+            return True
 
         field_name, raw_price, present = _raw_tick_field(tick, _TICK_PRICE_FIELDS)
         category = _tick_price_category(raw_price, present)
         if category is None:
-            return
+            return True
 
         member = cohort.member_for_feed(self)
         instrument = member.instrument if member is not None else self._dataname
@@ -1492,6 +1643,21 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
         """Update the current bar builder from a live tick."""
         tick_dt = _tick_datetime(tick)
         tick_ts = _tick_timestamp(tick)
+
+        raw_ctp_tick = _tick_value(tick, "ctp_raw_tick", default=None)
+        if isinstance(raw_ctp_tick, Mapping) and self._timeframe != TimeFrame.Ticks:
+            scope = (
+                raw_ctp_tick.get("connection_generation"),
+                raw_ctp_tick.get("TradingDay"),
+            )
+            bucket_start = self._get_bucket_start(tick_dt)
+            if self._ctp_first_bucket_scope != scope:
+                self._ctp_first_bucket_scope = scope
+                self._ctp_first_bucket_start = bucket_start
+            if bucket_start == self._ctp_first_bucket_start:
+                # The first cumulative observation is a baseline, so the rest
+                # of its partially observed minute cannot form a complete bar.
+                return
 
         price = _finite_market_number(
             _tick_value(tick, "price", "last_price", "LastPrice", default=None)

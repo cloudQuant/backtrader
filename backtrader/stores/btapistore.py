@@ -1681,25 +1681,103 @@ def _infer_tick_direction(
     return "buy"
 
 
-def _build_ctp_tick_datetime(payload: Any) -> _dt.datetime:
-    """Build a timezone-aware datetime from a CTP depth market data tick."""
-    update_time = str(getattr(payload, "UpdateTime", "") or "").strip() or "00:00:00"
-    millisec = max(0, min(_coerce_int(getattr(payload, "UpdateMillisec", 0), 0), 999))
+def _ctp_tick_field(payload: Any, name: str, default: Any = None) -> Any:
+    """Read one raw CTP field without coercing its value or type."""
+    if isinstance(payload, Mapping):
+        try:
+            if name not in payload:
+                return default
+            return payload[name]
+        except Exception:
+            return _CTP_TICK_FIELD_READ_ERROR
+    try:
+        return getattr(payload, name)
+    except AttributeError:
+        try:
+            static_value = inspect.getattr_static(
+                payload,
+                name,
+                _CTP_TICK_FIELD_MISSING,
+            )
+            dynamic_getter = inspect.getattr_static(
+                type(payload),
+                "__getattr__",
+                _CTP_TICK_FIELD_MISSING,
+            )
+        except Exception:
+            return _CTP_TICK_FIELD_READ_ERROR
+        if (
+            static_value is not _CTP_TICK_FIELD_MISSING
+            or dynamic_getter is not _CTP_TICK_FIELD_MISSING
+        ):
+            return _CTP_TICK_FIELD_READ_ERROR
+        return default
+    except Exception:
+        return _CTP_TICK_FIELD_READ_ERROR
 
-    for day_value in (
-        str(getattr(payload, "ActionDay", "") or "").strip(),
-        str(getattr(payload, "TradingDay", "") or "").strip(),
+
+_CTP_TICK_FIELD_MISSING = object()
+_CTP_TICK_FIELD_READ_ERROR = object()
+
+
+def _ctp_raw_tick_snapshot(payload: Any, connection_generation: Any) -> Dict[str, Any]:
+    """Detach the CTP fields needed to audit time, price and cumulative volume."""
+    raw = {}
+    for name in (
+        "InstrumentID",
+        "ExchangeID",
+        "LastPrice",
+        "Volume",
+        "TradingDay",
+        "ActionDay",
+        "UpdateTime",
+        "UpdateMillisec",
     ):
-        if len(day_value) != 8 or not day_value.isdigit():
+        value = _ctp_tick_field(payload, name)
+        if value is _CTP_TICK_FIELD_READ_ERROR:
+            raw[name] = {"read_error": True}
+        elif value is None or type(value) in (str, int, float, bool):
+            raw[name] = value
+        else:
+            # Do not retain arbitrary SWIG/provider objects in an event copied
+            # across Store/Feed boundaries; the type marker still fails validation.
+            raw[name] = {"unsupported_type": type(value).__name__[:64]}
+    raw["connection_generation"] = (
+        connection_generation if type(connection_generation) is int else None
+    )
+    raw["volume_issue"] = None
+    return raw
+
+
+def _build_ctp_tick_datetime(payload: Any) -> Optional[_dt.datetime]:
+    """Build source time from valid CTP fields; never substitute process time."""
+    update_time = _ctp_tick_field(payload, "UpdateTime")
+    if type(update_time) is not str:
+        return None
+    update_time = update_time.strip()
+    if re.fullmatch(r"[0-9]{2}:[0-9]{2}:[0-9]{2}", update_time) is None:
+        return None
+
+    millisec = _ctp_tick_field(payload, "UpdateMillisec")
+    if type(millisec) is not int or not 0 <= millisec <= 999:
+        return None
+
+    for name in ("ActionDay", "TradingDay"):
+        day_value = _ctp_tick_field(payload, name)
+        if type(day_value) is not str:
+            continue
+        day_value = day_value.strip()
+        if re.fullmatch(r"[0-9]{8}", day_value) is None:
             continue
         try:
             dt_value = _dt.datetime.strptime(f"{day_value} {update_time}", "%Y%m%d %H:%M:%S")
-            return dt_value.replace(microsecond=millisec * 1000, tzinfo=_CTP_TZ)
+            # Preserve UpdateMillisec in both event time and ordering.
+            return dt_value.replace(microsecond=(millisec * 1000), tzinfo=_CTP_TZ)
         except ValueError:
             _safe_log("debug", "btapistore:1593 ignored ValueError")
             continue
 
-    return _dt.datetime.now(_CTP_TZ)
+    return None
 
 
 def _ctp_field_to_dict(field: Any) -> Dict[str, Any]:
@@ -2911,34 +2989,82 @@ def _create_ctp_wrapper_class():
             if not instrument:
                 return
 
-            tick_dt = _build_ctp_tick_datetime(payload)
-            last_price = _coerce_float(getattr(payload, "LastPrice", None))
-            if last_price <= 0:
-                return
+            connection_generation = getattr(
+                getattr(self, "md_client", None), "_connection_generation", None
+            )
+            raw_ctp_tick = _ctp_raw_tick_snapshot(payload, connection_generation)
+            tick_dt = _build_ctp_tick_datetime(raw_ctp_tick)
+            raw_price = raw_ctp_tick["LastPrice"]
+            last_price = _coerce_float(raw_price, None)
+            price_valid = last_price is not None and last_price > 0.0
+            normalized_price = last_price if price_valid else 0.0
 
-            exchange_id = str(getattr(payload, "ExchangeID", "") or "").strip().upper()
+            exchange_id = str(raw_ctp_tick.get("ExchangeID") or "").strip().upper()
             if not exchange_id:
                 # Venue payload omitted ExchangeID (observed with SimNow CTP
                 # depth data).  Fall back to the exchange resolved for this
                 # instrument at subscribe() time; a venue-provided value is
                 # never replaced.
                 exchange_id = self._instrument_exchanges.get(instrument, "")
-            total_volume = _coerce_float(getattr(payload, "Volume", None))
-            previous_total = self._last_total_volume.get(instrument)
-            tick_volume = (
-                max(total_volume - previous_total, 0.0) if previous_total is not None else 0.0
+            raw_total = raw_ctp_tick["Volume"]
+            total_volume = _coerce_float(raw_total, None)
+            volume_valid = total_volume is not None and 0.0 <= total_volume < 1.0e50
+            trading_day = raw_ctp_tick.get("TradingDay")
+            scope = (
+                instrument,
+                trading_day if type(trading_day) is str else "",
+                raw_ctp_tick["connection_generation"],
             )
-            self._last_total_volume[instrument] = total_volume
+            update_millisec = raw_ctp_tick.get("UpdateMillisec")
+            tick_order_key = (
+                (tick_dt.replace(microsecond=0), update_millisec)
+                if tick_dt is not None and type(update_millisec) is int
+                else None
+            )
+            signature = (tick_order_key, normalized_price, total_volume)
+            prior = self._last_total_volume.get(scope)
+            tick_volume = 0.0
+            volume_issue = None
+            if tick_dt is None:
+                volume_issue = "invalid_source_time"
+            elif not price_valid:
+                volume_issue = "invalid_source_price"
+            elif not volume_valid:
+                volume_issue = "invalid_cumulative_volume"
+            elif prior is None:
+                # A new instrument/day/connection scope starts with a baseline.
+                self._last_total_volume[scope] = (tick_order_key, total_volume, signature)
+            else:
+                previous_order_key, previous_total, previous_signature = prior
+                if signature == previous_signature:
+                    # CTP has no callback sequence on this source path. An
+                    # identical cumulative snapshot cannot add trade volume;
+                    # treat it as a zero-delta no-trade observation instead
+                    # of guessing whether it is a duplicate or a repeated quote.
+                    tick_volume = 0.0
+                elif tick_order_key < previous_order_key:
+                    volume_issue = "out_of_order"
+                elif total_volume < previous_total:
+                    volume_issue = "cumulative_volume_rollback"
+                else:
+                    tick_volume = total_volume - previous_total
+                    self._last_total_volume[scope] = (
+                        tick_order_key,
+                        total_volume,
+                        signature,
+                    )
+            raw_ctp_tick["volume_issue"] = volume_issue
 
             bid_price = _coerce_float(getattr(payload, "BidPrice1", None), 0.0) or None
             ask_price = _coerce_float(getattr(payload, "AskPrice1", None), 0.0) or None
             direction = _infer_tick_direction(
-                last_price,
+                normalized_price,
                 bid_price,
                 ask_price,
                 self._last_tick_price.get(instrument),
             )
-            self._last_tick_price[instrument] = last_price
+            if price_valid:
+                self._last_tick_price[instrument] = normalized_price
 
             aliases = tuple(self._instrument_aliases.get(instrument) or (instrument,))
             provenance_seq = None
@@ -2946,27 +3072,40 @@ def _create_ctp_wrapper_class():
                 self._live_tick_provenance_seq += 1
                 provenance_seq = self._live_tick_provenance_seq
             for alias in aliases:
+                update_time = raw_ctp_tick.get("UpdateTime")
+                update_time = update_time if type(update_time) is str else ""
+                update_millisec = raw_ctp_tick.get("UpdateMillisec")
+                update_millisec = update_millisec if type(update_millisec) is int else 0
                 event = TickEvent(
-                    timestamp=tick_dt.timestamp(),
+                    timestamp=tick_dt.timestamp() if tick_dt is not None else 0.0,
                     symbol=alias,
                     exchange=exchange_id,
                     asset_type="futures",
                     local_time=time.time(),
-                    price=last_price,
+                    price=normalized_price,
                     volume=tick_volume,
                     direction=direction,
                     trade_id=(
-                        f"{instrument}-{getattr(payload, 'UpdateTime', '')}-"
-                        f"{getattr(payload, 'UpdateMillisec', 0)}-{int(total_volume)}"
+                        f"{instrument}-{update_time}-{update_millisec}-"
+                        f"{int(total_volume or 0.0)}"
                     ),
                     bid_price=bid_price,
                     ask_price=ask_price,
                     bid_volume=_coerce_float(getattr(payload, "BidVolume1", None), 0.0) or None,
                     ask_volume=_coerce_float(getattr(payload, "AskVolume1", None), 0.0) or None,
                 )
-                event.datetime = _normalize_datetime(tick_dt)
+                event.datetime = _normalize_datetime(tick_dt) if tick_dt is not None else None
                 event.instrument_id = instrument
                 event.exchange_id = exchange_id
+                event.connection_generation = raw_ctp_tick["connection_generation"]
+                event.stream_generation = raw_ctp_tick["connection_generation"]
+                event.ctp_raw_tick = dict(raw_ctp_tick)
+                event.bar_eligible = bool(
+                    tick_dt is not None
+                    and price_valid
+                    and volume_issue is None
+                    and tick_volume > 0.0
+                )
                 event.openinterest = _coerce_float(getattr(payload, "OpenInterest", None))
                 event.turnover = _coerce_float(getattr(payload, "Turnover", None))
                 event.trading_day = str(getattr(payload, "TradingDay", "") or "")
@@ -16714,6 +16853,7 @@ class BtApiStore(LiveStoreBase):
                             "open_interest",
                             "lower_limit_price",
                             "upper_limit_price",
+                            "ctp_raw_tick",
                         ):
                             if key in event:
                                 setattr(tick, key, deepcopy(event[key]))
