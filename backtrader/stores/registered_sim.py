@@ -147,6 +147,8 @@ class RegisteredSimRouteEligibility:
     current_session_connection_generation: Optional[int] = None
     current_session_trading_day: Optional[str] = None
     current_session_trading_ready: Optional[bool] = None
+    current_session_front_id: Optional[int] = None
+    current_session_id: Optional[int] = None
     native_admission_required: bool = True
 
 
@@ -183,11 +185,20 @@ def _expected_session(value: Any) -> Dict[str, Any]:
         or re.fullmatch(r"[0-9]{8}", trading_day) is None
     ):
         raise BtApiStoreError("registered-sim expected session identity is invalid")
-    return {
+    front_id = value.get("front_id")
+    session_id = value.get("session_id")
+    if (front_id is None) != (session_id is None):
+        raise BtApiStoreError("registered-sim expected session identity is invalid")
+    if front_id is not None and (not _positive_int(front_id) or not _positive_int(session_id)):
+        raise BtApiStoreError("registered-sim expected session identity is invalid")
+    result = {
         "account_fingerprint": account,
         "connection_generation": generation,
         "trading_day": trading_day,
     }
+    if front_id is not None:
+        result.update({"front_id": front_id, "session_id": session_id})
+    return result
 
 
 def _session_identity(client: Any) -> Dict[str, Any]:
@@ -201,6 +212,8 @@ def _session_identity(client: Any) -> Dict[str, Any]:
             "trading_day": None,
             "trading_ready": None,
             "read_only_ready": None,
+            "front_id": None,
+            "session_id": None,
         }
     try:
         scope = scope_method()
@@ -212,6 +225,8 @@ def _session_identity(client: Any) -> Dict[str, Any]:
             "trading_day": None,
             "trading_ready": None,
             "read_only_ready": None,
+            "front_id": None,
+            "session_id": None,
         }
     scope_values = (
         _read_fact(scope, "account_fingerprint"),
@@ -235,6 +250,8 @@ def _session_identity(client: Any) -> Dict[str, Any]:
         and re.fullmatch(r"[0-9]{8}", trading_day) is not None
     )
     ready = _read_fact(state, "trading_ready")
+    front_id = _read_fact(state, "front_id")
+    session_id = _read_fact(state, "session_id")
     return {
         "account_fingerprint": account if identity_valid else None,
         "connection_generation": generation if identity_valid else None,
@@ -247,6 +264,8 @@ def _session_identity(client: Any) -> Dict[str, Any]:
             if type(_read_fact(scope, "read_only_ready")) is bool
             else None
         ),
+        "front_id": front_id if _positive_int(front_id) else None,
+        "session_id": session_id if _positive_int(session_id) else None,
     }
 
 
@@ -374,17 +393,22 @@ def _order_expected_session(order: Any) -> Optional[Dict[str, Any]]:
         getter("factor_session_connection_generation"),
         getter("factor_session_trading_day"),
     )
+    front_id = getter("factor_session_front_id")
+    session_id = getter("factor_session_id")
     if all(value is None for value in fields):
         if factor_order:
             raise BtApiStoreError("factor order is missing its expected session identity")
         return None
-    return _expected_session(
-        {
-            "account_fingerprint": fields[0],
-            "connection_generation": fields[1],
-            "trading_day": fields[2],
-        }
-    )
+    if factor_order and (not _positive_int(front_id) or not _positive_int(session_id)):
+        raise BtApiStoreError("factor order is missing its expected session identity")
+    expected = {
+        "account_fingerprint": fields[0],
+        "connection_generation": fields[1],
+        "trading_day": fields[2],
+    }
+    if front_id is not None or session_id is not None:
+        expected.update({"front_id": front_id, "session_id": session_id})
+    return _expected_session(expected)
 
 
 def _is_sdk_pre_dispatch_gate_error(error: BaseException) -> bool:
@@ -1811,6 +1835,8 @@ class RegisteredSimStore(BtApiStore):
         current_session_generation = session.get("connection_generation")
         current_session_day = session.get("trading_day")
         current_session_ready = session.get("trading_ready")
+        current_session_front_id = session.get("front_id")
+        current_session_id = session.get("session_id")
         arm_api_available = (
             callable(getattr(sdk_client, "arm_execution_for_registered_sim", None))
             if sdk_client is not None
@@ -1920,6 +1946,8 @@ class RegisteredSimStore(BtApiStore):
             current_session_connection_generation=current_session_generation,
             current_session_trading_day=current_session_day,
             current_session_trading_ready=current_session_ready,
+            current_session_front_id=current_session_front_id,
+            current_session_id=current_session_id,
         )
 
     def registered_sim_arm_history(self):

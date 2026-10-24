@@ -1390,6 +1390,10 @@ class FactorExecutionCoordinator:
             or _valid_trading_day(expected["trading_day"]) is None
         ):
             raise FactorExecutionError("EXECUTION_FACT_SESSION_IDENTITY_UNAVAILABLE")
+        expected["front_id"] = _positive_int(getattr(route, "current_session_front_id", None))
+        expected["session_id"] = _positive_int(getattr(route, "current_session_id", None))
+        if expected["front_id"] is None or expected["session_id"] is None:
+            raise FactorExecutionError("EXECUTION_FACT_NATIVE_SESSION_IDENTITY_UNAVAILABLE")
         query_identity_matches = (
             getattr(route, "account_fingerprint", None) == expected["account_fingerprint"]
             and getattr(route, "connection_generation", None) == expected["connection_generation"]
@@ -1659,6 +1663,8 @@ class FactorExecutionDecisionScope:
             "factor_session_account_fingerprint": expected_session["account_fingerprint"],
             "factor_session_connection_generation": expected_session["connection_generation"],
             "factor_session_trading_day": expected_session["trading_day"],
+            "factor_session_front_id": expected_session["front_id"],
+            "factor_session_id": expected_session["session_id"],
         }
         for name, value in session_info.items():
             existing = get(name)
@@ -1725,7 +1731,11 @@ class FactorExecutionDecisionScope:
                 "order_ref": reserved_ref,
                 "instrument_id": instrument_id,
                 "exchange_id": exchange_id,
+                "account_fingerprint": expected_session["account_fingerprint"],
+                "connection_generation": expected_session["connection_generation"],
                 "trading_day": trading_day,
+                "front_id": expected_session["front_id"],
+                "session_id": expected_session["session_id"],
                 "operation": "insert",
             }
         owner_intent_id = economics.get("owner_intent_id")

@@ -51,6 +51,15 @@ class _FakeProviderClient(facts_helpers._ProviderLeaves):
         self._next_order_reference = 500
         self.trader_client._front_id = 4
         self.trader_client._session_id = 7
+        get_session_state = self.trader_client.get_session_state
+
+        def session_state_with_native_identity():
+            state = get_session_state()
+            state["front_id"] = self.trader_client._front_id
+            state["session_id"] = self.trader_client._session_id
+            return state
+
+        self.trader_client.get_session_state = session_state_with_native_identity
         self.trader_client.next_order_ref = self._reserve_order_ref
         self.trader_client.submit_order_insert = self._native_insert
         self.trader_client.submit_order_action = self._native_cancel
@@ -800,14 +809,39 @@ def test_ordinary_buy_is_dispatched_from_actual_cerebro_next():
     assert order.info["factor_session_account_fingerprint"] == facts.account.account_fingerprint
     assert order.info["factor_session_connection_generation"] == 1
     assert order.info["factor_session_trading_day"] == "20261024"
+    assert order.info["factor_session_front_id"] == 4
+    assert order.info["factor_session_id"] == 7
     assert api.trader_client._gate_state["armed"] is True
     assert api.trader_client._gate_state["instrument"] == _INSTRUMENT
     assert api.native_calls == [("insert", _INSTRUMENT, _EXCHANGE, "501", 101)]
-    assert journal.intent(order.info["factor_intent_id"]).state == "KNOWN"
+    intent = journal.intent(order.info["factor_intent_id"])
+    assert intent.state == "KNOWN"
+    assert intent.original_identity == {
+        "account_fingerprint": facts.account.account_fingerprint,
+        "backtrader_order_ref": order.ref,
+        "connection_generation": 1,
+        "exchange_id": _EXCHANGE,
+        "front_id": 4,
+        "instrument_id": _INSTRUMENT,
+        "operation": "insert",
+        "order_ref": "501",
+        "session_id": 7,
+        "trading_day": "20261024",
+    }
     assert state["decision_id"] is not None
 
 
-def test_actual_cerebro_session_change_after_preflight_blocks_native_dispatch():
+@pytest.mark.parametrize(
+    ("changed_field", "changed_value"),
+    [
+        ("_connection_generation", 2),
+        ("_front_id", 5),
+        ("_session_id", 8),
+    ],
+)
+def test_actual_cerebro_session_change_after_preflight_blocks_native_dispatch(
+    changed_field, changed_value
+):
     now = datetime.now(timezone.utc)
     api, store, broker, journal, coordinator, target, _data, _strategy, cerebro = _system(now=now)
     query = facts_helpers._refresh_all(store, target)
@@ -854,7 +888,7 @@ def test_actual_cerebro_session_change_after_preflight_blocks_native_dispatch():
         # This is the narrow reconnect race: the selected route and SDK grant
         # were validated immediately before the ordinary Broker reserved its
         # native ref, but the live session changes before Store dispatch.
-        api.trader_client._connection_generation = 2
+        setattr(api.trader_client, changed_field, changed_value)
         return order_ref
 
     store.registered_sim_reserve_order_ref = reserve_then_change_session
@@ -888,7 +922,7 @@ def test_actual_cerebro_session_change_after_preflight_blocks_native_dispatch():
     assert state["order"] is not None
     assert state["decision_id"] is not None
     assert state["order"].info["factor_session_connection_generation"] == 1
-    assert api.trader_client._connection_generation == 2
+    assert getattr(api.trader_client, changed_field) == changed_value
     assert api.native_calls == []
     intent = journal.intent(state["order"].info["factor_intent_id"])
     assert intent.dispatch_state == "UNKNOWN"
