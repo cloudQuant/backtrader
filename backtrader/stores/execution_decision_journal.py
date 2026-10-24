@@ -309,8 +309,9 @@ class ExecutionDecisionJournal:
     failed persistence step.
     """
 
-    _SCHEMA_VERSION = 9
+    _SCHEMA_VERSION = 10
     _NATIVE_IDENTITY_SCHEMA_VERSION = 8
+    _DECISION_CAPACITY_SCHEMA_VERSION = 9
 
     def __init__(
         self,
@@ -450,12 +451,13 @@ class ExecutionDecisionJournal:
     ) -> ExecutionGridDecision:
         """Persist one eligible decision and advance its cohort cursor atomically.
 
-        Cursor identity deliberately excludes ``logical_run_id``, epoch,
-        mode, and configuration. An exact replay of the latest eligible grid
-        returns its prior decision with ``is_new_grid=False``; an older grid
-        or a different decision for the same grid is rejected. Ineligible,
-        incomplete, not-live-ready, or missing-input batches do not write a
-        decision row or advance the cursor. When a run limit is configured,
+        The cohort cursor preserves epoch-local ordinals. A second durable
+        highwater keyed by account and stable strategy scope prevents a new
+        cohort, run, mode, or configuration from admitting an already-consumed
+        close time. An exact immutable decision replay returns its prior
+        decision with ``is_new_grid=False`` without rewinding either cursor.
+        Ineligible, incomplete, not-live-ready, or missing-input batches do not
+        write a decision row or advance either cursor. When a run limit is configured,
         new decisions also require the caller's expected durable usage and the
         post-plan exit reserve. The compare-and-swap, reservation, decision,
         and cursor update commit together.
@@ -538,14 +540,42 @@ class ExecutionDecisionJournal:
                         eligible=True,
                         is_new_grid=False,
                     )
+            if not created:
+                # Exact immutable decision replays stay idempotent even after
+                # this cohort has advanced. They never rewind either cursor
+                # and never dispatch again.
+                self._apply_run_order_budget(
+                    db_cursor,
+                    key,
+                    max_order_intents_per_run=max_order_intents_per_run,
+                    added_count=0,
+                    created=False,
+                    expected_run_order_intents_used=expected_run_order_intents_used,
+                    remaining_exit_intent_reserve=remaining_exit_intent_reserve,
+                    require_reservation=True,
+                )
+                return ExecutionGridDecision(
+                    decision=decision,
+                    cursor=None if current is None else _grid_cursor_record(current),
+                    eligible=True,
+                    is_new_grid=False,
+                )
+
+            highwater = db_cursor.execute(
+                """SELECT close_time FROM execution_grid_highwaters
+                   WHERE account_scope = ? AND strategy_scope = ?""",
+                (key.account_scope, key.strategy_scope),
+            ).fetchone()
+            if highwater is not None and _parse_normalized_close_time(
+                key.close_time
+            ) <= _parse_normalized_close_time(highwater["close_time"]):
+                raise ExecutionDecisionJournalError("GRID_CURSOR_STALE_OR_CONFLICT")
+
+            candidate_time = _parse_normalized_close_time(key.close_time)
+            if current is not None:
                 current_time = _parse_normalized_close_time(current["close_time"])
-                candidate_time = _parse_normalized_close_time(key.close_time)
                 if candidate_time <= current_time:
                     raise ExecutionDecisionJournalError("GRID_CURSOR_STALE_OR_CONFLICT")
-            if not created:
-                # A previously recorded business decision that has no matching
-                # current cursor cannot be re-admitted as a new dispatch grid.
-                raise ExecutionDecisionJournalError("DECISION_PREEXISTS_OUTSIDE_GRID_CURSOR")
 
             self._apply_run_order_budget(
                 db_cursor,
@@ -588,6 +618,25 @@ class ExecutionDecisionJournal:
                 batch_id=batch_id,
                 close_time=key.close_time,
                 ordinal=ordinal,
+            )
+            db_cursor.execute(
+                """INSERT INTO execution_grid_highwaters
+                   (account_scope, strategy_scope, close_time, cohort_id, decision_id,
+                    updated_at_ns)
+                   VALUES (?, ?, ?, ?, ?, ?)
+                   ON CONFLICT(account_scope, strategy_scope) DO UPDATE SET
+                     close_time = excluded.close_time,
+                     cohort_id = excluded.cohort_id,
+                     decision_id = excluded.decision_id,
+                     updated_at_ns = excluded.updated_at_ns""",
+                (
+                    key.account_scope,
+                    key.strategy_scope,
+                    key.close_time,
+                    key.cohort_id,
+                    decision_id,
+                    now_ns,
+                ),
             )
             return ExecutionGridDecision(
                 decision=decision,
@@ -2217,10 +2266,52 @@ class ExecutionDecisionJournal:
                 (capacity_class, record_count, payload_bytes),
             )
 
+    @staticmethod
+    def _backfill_execution_grid_highwaters(cursor: sqlite3.Cursor) -> None:
+        """Migrate per-cohort cursors into the stable account/strategy highwater."""
+
+        rows = cursor.execute(
+            """SELECT account_scope,strategy_scope,close_time,cohort_id,decision_id,
+                      updated_at_ns
+               FROM execution_grid_cursors
+               ORDER BY account_scope,strategy_scope,updated_at_ns,cohort_id"""
+        ).fetchall()
+        highwaters = {}
+        for row in rows:
+            scope = (row["account_scope"], row["strategy_scope"])
+            close_time = row["close_time"]
+            parsed_time = _parse_normalized_close_time(close_time)
+            current = highwaters.get(scope)
+            if current is None or parsed_time > current[0]:
+                highwaters[scope] = (
+                    parsed_time,
+                    close_time,
+                    row["cohort_id"],
+                    row["decision_id"],
+                    int(row["updated_at_ns"]),
+                )
+
+        cursor.execute("DELETE FROM execution_grid_highwaters")
+        for (account_scope, strategy_scope), value in highwaters.items():
+            _parsed_time, close_time, cohort_id, decision_id, updated_at_ns = value
+            cursor.execute(
+                """INSERT INTO execution_grid_highwaters
+                   (account_scope,strategy_scope,close_time,cohort_id,decision_id,updated_at_ns)
+                   VALUES(?,?,?,?,?,?)""",
+                (
+                    account_scope,
+                    strategy_scope,
+                    close_time,
+                    cohort_id,
+                    decision_id,
+                    updated_at_ns,
+                ),
+            )
+
     def _create_schema(self) -> None:
         with self._lock:
             version = int(self._connection.execute("PRAGMA user_version").fetchone()[0])
-            if version not in (0, 1, 2, 3, 4, 5, 6, 7, 8, self._SCHEMA_VERSION):
+            if version not in (0, 1, 2, 3, 4, 5, 6, 7, 8, 9, self._SCHEMA_VERSION):
                 raise ExecutionDecisionJournalError("UNSUPPORTED_SCHEMA_VERSION")
             try:
                 self._connection.executescript(
@@ -2260,6 +2351,15 @@ class ExecutionDecisionJournal:
                         decision_id TEXT NOT NULL REFERENCES execution_decisions(decision_id),
                         updated_at_ns INTEGER NOT NULL,
                         PRIMARY KEY(account_scope, strategy_scope, cohort_id)
+                    );
+                    CREATE TABLE IF NOT EXISTS execution_grid_highwaters (
+                        account_scope TEXT NOT NULL,
+                        strategy_scope TEXT NOT NULL,
+                        close_time TEXT NOT NULL,
+                        cohort_id TEXT NOT NULL,
+                        decision_id TEXT NOT NULL REFERENCES execution_decisions(decision_id),
+                        updated_at_ns INTEGER NOT NULL,
+                        PRIMARY KEY(account_scope, strategy_scope)
                     );
                     CREATE TABLE IF NOT EXISTS execution_run_order_budgets (
                         account_scope TEXT NOT NULL,
@@ -2421,6 +2521,7 @@ class ExecutionDecisionJournal:
                     6,
                     7,
                     8,
+                    9,
                     self._SCHEMA_VERSION,
                 ):
                     raise ExecutionDecisionJournalError("UNSUPPORTED_SCHEMA_VERSION")
@@ -2466,10 +2567,16 @@ class ExecutionDecisionJournal:
                         self._backfill_native_intent_identities(cursor)
                     finally:
                         cursor.close()
-                if locked_version < self._SCHEMA_VERSION:
+                if locked_version < self._DECISION_CAPACITY_SCHEMA_VERSION:
                     cursor = self._connection.cursor()
                     try:
                         self._backfill_decision_capacity_usage(cursor)
+                    finally:
+                        cursor.close()
+                if locked_version < self._SCHEMA_VERSION:
+                    cursor = self._connection.cursor()
+                    try:
+                        self._backfill_execution_grid_highwaters(cursor)
                     finally:
                         cursor.close()
                 self._connection.execute(
@@ -2501,12 +2608,12 @@ class ExecutionDecisionJournal:
                 )
                 if actual_capacity != expected_capacity:
                     raise ExecutionDecisionJournalError("JOURNAL_CAPACITY_CONFIG_MISMATCH")
-                self._connection.execute("PRAGMA user_version = 9")
+                self._connection.execute("PRAGMA user_version = 10")
                 self._connection.execute("COMMIT")
-                # V3 added the grid cursor, V4 the position book, V5 slot
-                # abandonment, V6 native-id recovery, V7 capacity bounds, and
-                # V8 transactional native-identity backfill. V9 materializes
-                # bounded BASE/SETTLEMENT decision-capacity usage.
+                # V3 added the cohort grid cursor, V4 the position book, V5 slot
+                # abandonment, V6 native-id recovery, V7 capacity bounds, V8
+                # transactional native-identity backfill, V9 materialized bounded
+                # decision-capacity usage, and V10 the cross-cohort grid highwater.
             except ExecutionDecisionJournalError:
                 if self._connection.in_transaction:
                     self._connection.execute("ROLLBACK")

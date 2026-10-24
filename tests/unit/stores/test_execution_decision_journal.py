@@ -36,6 +36,38 @@ def _decision_key(
     )
 
 
+def _grid_key(
+    *,
+    account_scope="account-a",
+    strategy_scope="strategy-a",
+    run_id="run-a",
+    cohort_id="cohort-a",
+    close_time="2026-10-20T10:00:00Z",
+    kind="bar",
+):
+    return ExecutionDecisionKey(
+        account_scope=account_scope,
+        strategy_scope=strategy_scope,
+        logical_run_id=run_id,
+        cohort_id=cohort_id,
+        close_time=close_time,
+        decision_kind=kind,
+    )
+
+
+def _record_grid_noop(journal, key, *, epoch_id, batch_id, economics=None):
+    return journal.record_grid_decision(
+        key,
+        {"signal": "flat"} if economics is None else economics,
+        epoch_id=epoch_id,
+        batch_id=batch_id,
+        eligible=True,
+        complete=True,
+        live_ready=True,
+        inputs_complete=True,
+    )
+
+
 def _intent_key(
     instrument: str = "SIM-IF-1",
     *,
@@ -297,7 +329,7 @@ def test_capacity_usage_migration_backfills_exact_bytes_once(tmp_path):
         connection.execute("PRAGMA user_version = 8")
 
     migrated = ExecutionDecisionJournal(path)
-    assert migrated._connection.execute("PRAGMA user_version").fetchone()[0] == 9
+    assert migrated._connection.execute("PRAGMA user_version").fetchone()[0] == 10
     usage = migrated._connection.execute(
         """SELECT capacity_class,record_count,payload_bytes
            FROM execution_decision_capacity_usage ORDER BY capacity_class"""
@@ -397,7 +429,7 @@ def test_capacity_usage_concurrent_v8_openers_backfill_once(tmp_path, monkeypatc
 
     assert len(backfill_calls) == 1
     with sqlite3.connect(path) as connection:
-        assert connection.execute("PRAGMA user_version").fetchone()[0] == 9
+        assert connection.execute("PRAGMA user_version").fetchone()[0] == 10
         usage = connection.execute(
             """SELECT capacity_class,record_count
                FROM execution_decision_capacity_usage ORDER BY capacity_class"""
@@ -548,7 +580,7 @@ def test_schema_v1_migration_preserves_original_dispatch_outcome(tmp_path):
     assert intent.state == "UNKNOWN"
     assert intent.dispatch_state == "UNKNOWN"
     assert intent.outcome_code == "connection_lost"
-    assert journal._connection.execute("PRAGMA user_version").fetchone()[0] == 9
+    assert journal._connection.execute("PRAGMA user_version").fetchone()[0] == 10
     journal.close()
 
 
@@ -575,7 +607,7 @@ def test_schema_v2_migrates_grid_and_run_budget_tables(tmp_path):
         connection.execute("PRAGMA user_version = 2")
 
     journal = ExecutionDecisionJournal(path)
-    assert journal._connection.execute("PRAGMA user_version").fetchone()[0] == 9
+    assert journal._connection.execute("PRAGMA user_version").fetchone()[0] == 10
     names = {
         row["name"]
         for row in journal._connection.execute(
@@ -634,7 +666,7 @@ def test_schema_v7_startup_backfills_native_ref_without_rewriting_dispatch(tmp_p
     )
     assert indexed == unknown
     assert recovered.intent(intent.intent_id) == unknown
-    assert recovered._connection.execute("PRAGMA user_version").fetchone()[0] == 9
+    assert recovered._connection.execute("PRAGMA user_version").fetchone()[0] == 10
     recovered.close()
 
     with sqlite3.connect(path) as connection:
@@ -1620,6 +1652,248 @@ def test_eligible_grid_decision_and_cursor_commit_atomically_including_noop(tmp_
     journal.close()
 
 
+def test_grid_highwater_blocks_same_close_across_028_epochs_but_allows_later_and_other_scope(
+    tmp_path,
+):
+    journal = ExecutionDecisionJournal(tmp_path / "alpha003-grid-highwater.sqlite3")
+    close_time = "2026-10-24T10:00:00Z"
+    epoch_a = "epoch-live-1"
+    epoch_b = "epoch-live-2"
+    cohort_a = f"alpha003:20261024:{epoch_a}"
+    cohort_b = f"alpha003:20261024:{epoch_b}"
+
+    first_key = _grid_key(cohort_id=cohort_a, close_time=close_time)
+    first_economics = {"signal": "flat", "mode": "native", "config": "cfg-a"}
+    first = _record_grid_noop(
+        journal,
+        first_key,
+        epoch_id=epoch_a,
+        batch_id="batch-1",
+        economics=first_economics,
+    )
+    assert first.is_new_grid is True
+
+    # Epoch/config/run changes do not make an already-consumed close new.
+    second_epoch_same_close = _grid_key(
+        run_id="run-b",
+        cohort_id=cohort_b,
+        close_time="2026-10-24T18:00:00+08:00",
+    )
+    with pytest.raises(ExecutionDecisionJournalError, match="GRID_CURSOR_STALE_OR_CONFLICT"):
+        _record_grid_noop(
+            journal,
+            second_epoch_same_close,
+            epoch_id=epoch_b,
+            batch_id="batch-replay",
+            economics={"signal": "flat", "mode": "build", "config": "cfg-b"},
+        )
+    assert journal.grid_cursor("account-a", "strategy-a", cohort_b) is None
+    assert (
+        journal._connection.execute("SELECT COUNT(*) FROM execution_decisions").fetchone()[0] == 1
+    )
+
+    # The same exact historical decision remains a no-dispatch replay after
+    # its own cohort cursor has advanced.
+    same_cohort_later = _grid_key(
+        run_id="run-b",
+        cohort_id=cohort_a,
+        close_time="2026-10-24T10:00:30Z",
+    )
+    advanced_a = _record_grid_noop(
+        journal,
+        same_cohort_later,
+        epoch_id=epoch_a,
+        batch_id="batch-2",
+    )
+    assert advanced_a.is_new_grid is True
+    replay = _record_grid_noop(
+        journal,
+        first_key,
+        epoch_id=epoch_a,
+        batch_id="batch-1",
+        economics=first_economics,
+    )
+    assert replay.decision == first.decision
+    assert replay.is_new_grid is False
+    assert replay.cursor == advanced_a.cursor
+
+    # Compare instants, not their normalized strings: a positive microsecond
+    # timestamp sorts textually before the second-level timestamp ending in Z.
+    fractional_later = _grid_key(
+        run_id="run-c",
+        cohort_id=cohort_b,
+        close_time="2026-10-24T10:00:30.000001Z",
+    )
+    assert (
+        _record_grid_noop(
+            journal, fractional_later, epoch_id=epoch_b, batch_id="batch-fractional"
+        ).is_new_grid
+        is True
+    )
+
+    # A later eligible grid under a new epoch is allowed, while a genuinely
+    # independent strategy scope has its own highwater at the earlier close.
+    later_b = _grid_key(
+        run_id="run-c",
+        cohort_id=cohort_b,
+        close_time="2026-10-24T10:01:00Z",
+    )
+    assert (
+        _record_grid_noop(journal, later_b, epoch_id=epoch_b, batch_id="batch-3").is_new_grid
+        is True
+    )
+    other_strategy = _grid_key(
+        strategy_scope="strategy-b",
+        cohort_id=cohort_b,
+        close_time=close_time,
+    )
+    assert (
+        _record_grid_noop(
+            journal, other_strategy, epoch_id=epoch_b, batch_id="other-strategy"
+        ).is_new_grid
+        is True
+    )
+    journal.close()
+
+
+def test_grid_highwater_migration_backfills_maximum_from_v9_cohort_cursors(tmp_path):
+    path = tmp_path / "grid-highwater-v9-migration.sqlite3"
+    journal = ExecutionDecisionJournal(path)
+    epoch_a = "epoch-live-1"
+    epoch_b = "epoch-live-2"
+    first = _grid_key(
+        cohort_id=f"alpha003:20261024:{epoch_a}",
+        close_time="2026-10-24T10:00:00Z",
+    )
+    later = _grid_key(
+        run_id="run-b",
+        cohort_id=f"alpha003:20261024:{epoch_b}",
+        close_time="2026-10-24T10:01:00Z",
+    )
+    _record_grid_noop(journal, first, epoch_id=epoch_a, batch_id="batch-1")
+    _record_grid_noop(journal, later, epoch_id=epoch_b, batch_id="batch-2")
+    journal.close()
+
+    # Recreate the v9 layout: per-cohort cursors exist, the new materialized
+    # stream highwater does not.
+    with sqlite3.connect(path) as connection:
+        connection.execute("DROP TABLE execution_grid_highwaters")
+        connection.execute("PRAGMA user_version = 9")
+
+    migrated = ExecutionDecisionJournal(path)
+    assert migrated._connection.execute("PRAGMA user_version").fetchone()[0] == 10
+    highwater = migrated._connection.execute(
+        """SELECT close_time,cohort_id,decision_id FROM execution_grid_highwaters
+           WHERE account_scope='account-a' AND strategy_scope='strategy-a'"""
+    ).fetchone()
+    assert highwater["close_time"] == "2026-10-24T10:01:00Z"
+    assert highwater["cohort_id"] == later.cohort_id
+
+    stale = _grid_key(
+        run_id="run-c",
+        cohort_id="alpha003:20261024:epoch-live-3",
+        close_time="2026-10-24T10:00:30Z",
+    )
+    with pytest.raises(ExecutionDecisionJournalError, match="GRID_CURSOR_STALE_OR_CONFLICT"):
+        _record_grid_noop(migrated, stale, epoch_id="epoch-live-3", batch_id="batch-3")
+    next_grid = _grid_key(
+        run_id="run-c",
+        cohort_id="alpha003:20261024:epoch-live-3",
+        close_time="2026-10-24T10:02:00Z",
+    )
+    assert (
+        _record_grid_noop(
+            migrated, next_grid, epoch_id="epoch-live-3", batch_id="batch-4"
+        ).is_new_grid
+        is True
+    )
+    migrated.close()
+
+
+def test_grid_highwater_migration_rejects_noncanonical_legacy_cursor_time(tmp_path):
+    path = tmp_path / "grid-highwater-invalid-v9-migration.sqlite3"
+    journal = ExecutionDecisionJournal(path)
+    epoch_a = "epoch-live-1"
+    epoch_b = "epoch-live-2"
+    _record_grid_noop(
+        journal,
+        _grid_key(
+            cohort_id=f"alpha003:20261024:{epoch_a}",
+            close_time="2026-10-24T10:00:00Z",
+        ),
+        epoch_id=epoch_a,
+        batch_id="batch-1",
+    )
+    second = _grid_key(
+        run_id="run-b",
+        cohort_id=f"alpha003:20261024:{epoch_b}",
+        close_time="2026-10-24T10:01:00Z",
+    )
+    _record_grid_noop(journal, second, epoch_id=epoch_b, batch_id="batch-2")
+    journal.close()
+
+    with sqlite3.connect(path) as connection:
+        connection.execute("DROP TABLE execution_grid_highwaters")
+        connection.execute(
+            """UPDATE execution_grid_cursors SET close_time='2026-10-24T10:01:00+00:00'
+               WHERE cohort_id=?""",
+            (second.cohort_id,),
+        )
+        connection.execute("PRAGMA user_version = 9")
+
+    with pytest.raises(ExecutionDecisionJournalError, match="INVALID_STORED_GRID_CLOSE_TIME"):
+        ExecutionDecisionJournal(path)
+
+    with sqlite3.connect(path) as connection:
+        assert connection.execute("PRAGMA user_version").fetchone()[0] == 9
+        assert connection.execute("SELECT COUNT(*) FROM execution_grid_cursors").fetchone()[0] == 2
+        assert (
+            connection.execute("SELECT COUNT(*) FROM execution_grid_highwaters").fetchone()[0] == 0
+        )
+
+
+def test_grid_highwater_and_decision_roll_back_together_on_sqlite_failure(tmp_path):
+    path = tmp_path / "grid-highwater-rollback.sqlite3"
+    journal = ExecutionDecisionJournal(path)
+    with sqlite3.connect(path) as connection:
+        connection.execute(
+            """CREATE TRIGGER reject_grid_highwater
+               BEFORE INSERT ON execution_grid_highwaters
+               BEGIN SELECT RAISE(ABORT, 'synthetic highwater failure'); END"""
+        )
+
+    key = _grid_key(cohort_id="alpha003:20261024:epoch-live-1")
+    with pytest.raises(ExecutionDecisionJournalError, match="JOURNAL_WRITE_FAILED"):
+        _record_grid_noop(journal, key, epoch_id="epoch-live-1", batch_id="batch-1")
+    assert journal._failed_closed is True
+    journal.close()
+
+    with sqlite3.connect(path) as connection:
+        assert connection.execute("SELECT COUNT(*) FROM execution_decisions").fetchone()[0] == 0
+        assert connection.execute("SELECT COUNT(*) FROM execution_grid_cursors").fetchone()[0] == 0
+        assert (
+            connection.execute("SELECT COUNT(*) FROM execution_grid_highwaters").fetchone()[0] == 0
+        )
+        assert (
+            connection.execute("SELECT COUNT(*) FROM factor_position_grid_history").fetchone()[0]
+            == 0
+        )
+        assert (
+            connection.execute(
+                "SELECT SUM(record_count) FROM execution_decision_capacity_usage"
+            ).fetchone()[0]
+            == 0
+        )
+        connection.execute("DROP TRIGGER reject_grid_highwater")
+
+    reopened = ExecutionDecisionJournal(path)
+    assert (
+        _record_grid_noop(reopened, key, epoch_id="epoch-live-1", batch_id="batch-1").is_new_grid
+        is True
+    )
+    reopened.close()
+
+
 def test_grid_decision_cursor_is_recovered_and_replay_does_not_redispatch(tmp_path):
     path = tmp_path / "grid-recovery.sqlite3"
     journal = ExecutionDecisionJournal(path)
@@ -2016,25 +2290,17 @@ def test_run_order_budget_compare_and_swap_serializes_two_connections(tmp_path):
 
     def admit(index):
         start.wait(timeout=5)
-        key = ExecutionDecisionKey(
-            account_scope="account-a",
-            strategy_scope="strategy-a",
-            logical_run_id="shared-run",
+        key = _grid_key(
+            run_id="shared-run",
             cohort_id=f"cohort-{index}",
-            close_time="2026-10-20T10:00:00Z",
-            decision_kind="bar",
+            close_time=f"2026-10-20T10:00:0{index}Z",
+            kind="risk",
         )
         try:
-            result = journals[index].record_grid_decision(
+            result = journals[index].record_risk_decision(
                 key,
                 {"signal": f"candidate-{index}"},
-                intent_keys=(_intent_key(f"SIM-IF-{index + 1}"),),
-                epoch_id="epoch-a",
-                batch_id=f"batch-{index}",
-                eligible=True,
-                complete=True,
-                live_ready=True,
-                inputs_complete=True,
+                intent_keys=(_intent_key(f"SIM-IF-{index + 1}", action="CANCEL"),),
                 max_order_intents_per_run=2,
                 expected_run_order_intents_used=0,
                 remaining_exit_intent_reserve=1,
@@ -2056,7 +2322,7 @@ def test_run_order_budget_compare_and_swap_serializes_two_connections(tmp_path):
     )
     assert (
         journals[0]._connection.execute("SELECT COUNT(*) FROM execution_grid_cursors").fetchone()[0]
-        == 1
+        == 0
     )
     for journal in journals:
         journal.close()
