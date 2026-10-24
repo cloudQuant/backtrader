@@ -3391,7 +3391,11 @@ class BtApiStore(LiveStoreBase):
             provider: A direct provider name (e.g., 'btapi' or 'ctp').
             api: Optional pre-configured API instance.
             api_cls: Optional API class to instantiate.
-            config: Optional configuration dictionary.
+            config: Optional configuration dictionary. ``live_bar_queue_size``
+                sets the bounded completed-bar queue capacity per symbol. It
+                defaults to ``book_queue_size`` (256); overflow is sticky for
+                this Store lifetime and requires a new Store before a cohort
+                can start.
             api_kwargs: Optional API keyword arguments.
             cash: Initial cash amount (default: 0.0).
             value: Initial portfolio value (default: same as cash).
@@ -3400,7 +3404,11 @@ class BtApiStore(LiveStoreBase):
             open_orders_cache_ttl: Time-to-live for open orders cache in seconds.
             positions: Initial positions list.
             historical_bars: Pre-seeded historical bars by symbol.
-            live_bars: Pre-seeded live bars by symbol.
+            live_bars: Pre-seeded live bars by symbol. The completed-bar queue
+                is bounded by ``config['live_bar_queue_size']`` (defaulting to
+                ``book_queue_size``, or 256). Every eviction is counted and
+                marks this Store's stream stale; create a new Store to begin a
+                clean source epoch after any bar loss.
             preserve_raw_bars: Preserve raw bar fields for strict opt-in consumers.
             contract_metadata: Contract metadata by symbol.
             backend: Runtime backend. Only ``direct`` remains supported here.
@@ -3519,6 +3527,16 @@ class BtApiStore(LiveStoreBase):
         self._sdk_local_refs: Dict[str, Any] = {}
         self._sdk_runtime_refs: Dict[Tuple[str, str], Any] = {}
         queue_size = max(int(sdk_options.get("book_queue_size", 256)), 1)
+        # Completed bars are consumed by one Feed per symbol. Keep this queue
+        # finite even for legacy seed/push callers; using the existing book
+        # capacity by default keeps the new bound explicit and predictable.
+        self._live_bar_queue_size = max(int(sdk_options.get("live_bar_queue_size", queue_size)), 1)
+        self._live_bar_queue_lock = threading.RLock()
+        self._live_bar_queue_overflow_count: Dict[str, int] = {}
+        # Bar loss or an explicitly unhealthy pre-seeded bar remains visible
+        # across SDK generation resets. A new Store is required to establish a
+        # clean source epoch after this queue has lost continuity.
+        self._live_bar_queue_stale: Dict[str, str] = {}
         self._sdk_books: Dict[str, Any] = collections.defaultdict(
             lambda: collections.deque(maxlen=queue_size)
         )
@@ -3674,7 +3692,9 @@ class BtApiStore(LiveStoreBase):
         self.notifs: Deque[Any] = collections.deque()
         self._historical_bars: dict = collections.defaultdict(collections.deque)
         self._historical_query_cache: Dict[Any, List[Any]] = {}
-        self._live_bars: dict = collections.defaultdict(collections.deque)
+        self._live_bars: dict = collections.defaultdict(
+            lambda: collections.deque(maxlen=self._live_bar_queue_size)
+        )
         self._subscribed_datanames: set = set()
         self._successful_connect_count = 0
         self.contract_metadata = {
@@ -4848,6 +4868,18 @@ class BtApiStore(LiveStoreBase):
 
     def _reset_sdk_stream_generation(self) -> None:
         """Discard every market-event identity from the previous SDK generation."""
+        # Keep only the bounded drop evidence for live-bar queue loss. Its
+        # count/stale marker survives generation reset so a Feed startup
+        # baseline cannot mistake a seed eviction for a continuous source.
+        retained_bar_drops = {
+            symbol: tuple(
+                record
+                for record in records
+                if record.get("kind") == "bar"
+                and record.get("reason") == "store_live_bar_queue_overflow"
+            )
+            for symbol, records in self._market_drop_records.items()
+        }
         self._stream_generation += 1
         with self._account_risk_lock:
             self._last_account_risk_snapshot = None
@@ -4865,6 +4897,8 @@ class BtApiStore(LiveStoreBase):
         self._strategy_delivered_ids.clear()
         self._feed_dropped_ids.clear()
         self._market_drop_records.clear()
+        for symbol, records in retained_bar_drops.items():
+            self._market_drop_records[symbol].extend(records)
         self._stream_health.clear()
         self._stream_state.clear()
 
@@ -6103,13 +6137,15 @@ class BtApiStore(LiveStoreBase):
             api = self._ensure_api_ready()
             bar = api.poll_bar(dataname)
             return None if bar is None else self._copy_or_normalize_bar(bar)
-        if self._live_bars[dataname]:
-            return cast(Optional[Dict[str, Any]], self._live_bars[dataname].popleft())
+        with self._live_bar_queue_lock:
+            if self._live_bars[dataname]:
+                return cast(Optional[Dict[str, Any]], self._live_bars[dataname].popleft())
 
         api = self._ensure_api_ready()
         if self._sdk_mode:
             self._drain_sdk_events()
-            bar = self._live_bars[dataname].popleft() if self._live_bars[dataname] else None
+            with self._live_bar_queue_lock:
+                bar = self._live_bars[dataname].popleft() if self._live_bars[dataname] else None
         elif hasattr(api, "poll_bar"):
             bar = api.poll_bar(dataname)
         elif hasattr(api, "get_next_bar"):
@@ -8683,7 +8719,7 @@ class BtApiStore(LiveStoreBase):
 
     def push_live_bar(self, dataname: str, bar: Any):
         """Push a live bar into the local queue, primarily for tests."""
-        self._live_bars[dataname].append(self._copy_or_normalize_bar(bar))
+        self._enqueue_live_bar(str(dataname), self._copy_or_normalize_bar(bar))
         self._signal_live_bar_event()
 
     def set_history(self, dataname: str, bars: Iterable[Any]):
@@ -16420,6 +16456,8 @@ class BtApiStore(LiveStoreBase):
         *,
         safety_impact: str = "stream_marked_stale",
         mark_stale: bool = True,
+        symbol: Optional[str] = None,
+        kind: Optional[str] = None,
     ) -> None:
         """Record one canonical market event as explicitly discarded."""
         getter = (
@@ -16427,10 +16465,10 @@ class BtApiStore(LiveStoreBase):
             if isinstance(event, Mapping)
             else lambda key, default=None: getattr(event, key, default)
         )
-        symbol = str(getter("symbol", "") or "")
+        symbol = str(symbol or getter("symbol", "") or "")
         if not symbol:
             return
-        kind = self._market_event_kind(event)
+        kind = str(kind or self._market_event_kind(event)).lower()
         event_id = str(getter("event_id", "") or "")
         counters = self._stream_health[symbol]
         counters["store_dropped"] += 1
@@ -16456,6 +16494,92 @@ class BtApiStore(LiveStoreBase):
                 "stream_generation": self._stream_generation,
             }
         )
+
+    def _mark_live_bar_queue_stale(self, symbol: str, reason: str) -> None:
+        """Keep live-bar loss/invalidity visible until a fresh Store is used."""
+        reason = str(reason)
+        self._live_bar_queue_stale.setdefault(symbol, reason)
+        state = self._stream_state[symbol]
+        state.update(
+            stale=True,
+            stale_reason=self._live_bar_queue_stale[symbol],
+            continuity_status="gap",
+        )
+
+    def _mark_unhealthy_live_bar(self, symbol: str, bar: Any) -> None:
+        """Retain an unsafe seed/push bar as a visible continuity failure."""
+        getter = (
+            bar.get
+            if isinstance(bar, Mapping)
+            else lambda key, default=None: getattr(bar, key, default)
+        )
+        missing = object()
+        stale = getter("stale", missing)
+        if stale is not missing and (type(stale) is not bool or stale):
+            reason = (
+                "store_live_bar_invalid_stale_marker"
+                if type(stale) is not bool
+                else "store_live_bar_stale"
+            )
+            self._mark_live_bar_queue_stale(symbol, reason)
+            return
+        continuity = getter("continuity_status", getter("continuity", missing))
+        if continuity is missing or continuity is None:
+            return
+        if type(continuity) is not str:
+            self._mark_live_bar_queue_stale(symbol, "store_live_bar_invalid_continuity")
+            return
+        normalized = continuity.strip().lower()
+        if normalized in {
+            "gap",
+            "stale",
+            "disconnected",
+            "checksum_failed",
+            "out_of_order",
+            "invalid",
+        }:
+            self._mark_live_bar_queue_stale(
+                symbol, f"store_live_bar_{normalized or 'non_continuous'}"
+            )
+
+    def _enqueue_live_bar(self, symbol: str, bar: Any) -> None:
+        """Append one copied bar, explicitly recording every bounded eviction."""
+        with self._live_bar_queue_lock:
+            queue = self._live_bars[symbol]
+            if queue.maxlen is not None and len(queue) >= queue.maxlen:
+                evicted = queue.popleft()
+                self._live_bar_queue_overflow_count[symbol] = (
+                    self._live_bar_queue_overflow_count.get(symbol, 0) + 1
+                )
+                self._record_market_drop(
+                    evicted,
+                    "store_live_bar_queue_overflow",
+                    safety_impact="oldest_live_bar_evicted_newest_retained_but_stream_marked_stale",
+                    symbol=symbol,
+                    kind="bar",
+                )
+                self._mark_live_bar_queue_stale(symbol, "store_live_bar_queue_overflow")
+                if isinstance(bar, dict):
+                    bar["stale"] = True
+                    bar["stale_reason"] = "store_live_bar_queue_overflow"
+                    bar["continuity_status"] = "gap"
+                else:
+                    try:
+                        bar.stale = True
+                        bar.stale_reason = "store_live_bar_queue_overflow"
+                        bar.continuity_status = "gap"
+                    except Exception:
+                        pass
+            self._mark_unhealthy_live_bar(symbol, bar)
+            queue.append(bar)
+            getter = (
+                bar.get
+                if isinstance(bar, Mapping)
+                else lambda key, default=None: getattr(bar, key, default)
+            )
+            event_id = str(getter("event_id", "") or "")
+            if event_id:
+                self._stream_state[symbol]["last_enqueued_event_id"] = event_id
 
     def mark_feed_dropped(self, event: Any, reason: str) -> None:
         """Close a polled event's accounting when the Feed cannot dispatch it."""
@@ -16506,7 +16630,13 @@ class BtApiStore(LiveStoreBase):
         symbols = (
             [str(dataname)]
             if dataname is not None
-            else sorted(set(self._stream_health) | set(self._stream_state))
+            else sorted(
+                set(self._stream_health)
+                | set(self._stream_state)
+                | set(self._live_bars)
+                | set(self._live_bar_queue_overflow_count)
+                | set(self._live_bar_queue_stale)
+            )
         )
         result = {}
         for symbol in symbols:
@@ -16518,14 +16648,28 @@ class BtApiStore(LiveStoreBase):
             book_delivered = counters.get("orderbook_strategy_delivered", 0)
             book_inflight = counters.get("orderbook_feed_inflight", 0)
             book_queue_depth = len(self._sdk_books[symbol])
+            with self._live_bar_queue_lock:
+                live_bar_queue_depth = len(self._live_bars[symbol])
+            live_bar_overflow_count = self._live_bar_queue_overflow_count.get(symbol, 0)
+            persistent_bar_stale_reason = self._live_bar_queue_stale.get(symbol, "")
+            stale = bool(state.get("stale", False) or persistent_bar_stale_reason)
             result[symbol] = {
                 **counters,
                 **state,
+                "stale_reason": state.get("stale_reason") or persistent_bar_stale_reason,
+                "continuity_status": (
+                    "gap" if persistent_bar_stale_reason else state.get("continuity_status")
+                ),
                 "book_queue_depth": book_queue_depth,
                 "tick_queue_depth": len(self._sdk_ticks[symbol]),
                 # Keep intentional duplicate filtering separate: this value
                 # counts only evictions from the bounded SDK tick queue.
                 "tick_queue_overflow_count": self._sdk_tick_drops.get(symbol, 0),
+                "live_bar_queue_depth": live_bar_queue_depth,
+                "live_bar_queue_capacity": self._live_bar_queue_size,
+                # This is separate from intentional duplicate filtering and
+                # counts only completed bars evicted from the bounded queue.
+                "live_bar_queue_overflow_count": live_bar_overflow_count,
                 "store_dropped": counters.get("store_dropped", 0),
                 "strategy_delivered": counters.get("strategy_delivered", 0),
                 "sdk_ingress": counters.get("sdk_ingress", 0),
@@ -16545,15 +16689,34 @@ class BtApiStore(LiveStoreBase):
                 ),
                 "market_drop_records": list(self._market_drop_records[symbol]),
                 "stream_generation": self._stream_generation,
-                "stale": bool(state.get("stale", False)),
+                "stale": stale,
             }
         if dataname is not None:
-            return result.get(str(dataname), {"stale": False})
+            return result.get(
+                str(dataname),
+                {
+                    "stream_generation": self._stream_generation,
+                    "tick_queue_overflow_count": self._sdk_tick_drops.get(str(dataname), 0),
+                    "live_bar_queue_depth": 0,
+                    "live_bar_queue_capacity": self._live_bar_queue_size,
+                    "live_bar_queue_overflow_count": self._live_bar_queue_overflow_count.get(
+                        str(dataname), 0
+                    ),
+                    "stale_reason": self._live_bar_queue_stale.get(str(dataname), ""),
+                    "continuity_status": (
+                        "gap" if self._live_bar_queue_stale.get(str(dataname)) else ""
+                    ),
+                    "stale": bool(self._live_bar_queue_stale.get(str(dataname))),
+                },
+            )
         return result
 
     def is_stream_ready(self, dataname: str) -> bool:
         """Return false after an explicit gap, stale event, disconnect, or drop."""
-        return not bool(self._stream_state[str(dataname)].get("stale", False))
+        key = str(dataname)
+        return not bool(
+            self._stream_state[key].get("stale", False) or self._live_bar_queue_stale.get(key)
+        )
 
     def _record_sdk_market_event(self, venue: str, raw_event: Mapping[str, Any]):
         """Attach Store-side continuity evidence without decoding venue protocols."""
@@ -16927,7 +17090,7 @@ class BtApiStore(LiveStoreBase):
                         queue.append(tick)
                     elif kind == "bar":
                         self._accept_sdk_market_event(event, event)
-                        self._live_bars[symbol].append(self._copy_or_normalize_bar(event))
+                        self._enqueue_live_bar(str(symbol), self._copy_or_normalize_bar(event))
                     else:
                         self._record_market_drop(
                             event,
@@ -16941,7 +17104,11 @@ class BtApiStore(LiveStoreBase):
             return
 
         for dataname, bars in source.items():
-            target[dataname].extend(self._copy_or_normalize_bar(bar) for bar in bars)
+            if target is self._live_bars:
+                for bar in bars:
+                    self._enqueue_live_bar(str(dataname), self._copy_or_normalize_bar(bar))
+            else:
+                target[dataname].extend(self._copy_or_normalize_bar(bar) for bar in bars)
 
     def _copy_or_normalize_bar(self, bar):
         """Preserve raw values only for callers that explicitly opt in."""

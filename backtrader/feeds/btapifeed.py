@@ -668,16 +668,28 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
             type(overflow_count) is not int or overflow_count < 0
         ):
             raise ValueError("cohort Store tick overflow count is invalid")
-        if overflow_count is not _COHORT_MISSING and generation is _COHORT_MISSING:
+        live_bar_overflow_count = health.get("live_bar_queue_overflow_count", _COHORT_MISSING)
+        if live_bar_overflow_count is not _COHORT_MISSING and (
+            type(live_bar_overflow_count) is not int or live_bar_overflow_count < 0
+        ):
+            raise ValueError("cohort Store live-bar overflow count is invalid")
+        if (
+            overflow_count is not _COHORT_MISSING or live_bar_overflow_count is not _COHORT_MISSING
+        ) and generation is _COHORT_MISSING:
             raise ValueError("cohort Store health omits its stream generation")
         if overflow_count is _COHORT_MISSING and callable(getattr(store, "poll_tick", None)):
             raise ValueError("cohort Store health omits its tick queue overflow count")
+        if live_bar_overflow_count is _COHORT_MISSING and callable(
+            getattr(store, "poll_live", None)
+        ):
+            raise ValueError("cohort Store health omits its live-bar queue overflow count")
         stale = health.get("stale", False)
         if type(stale) is not bool:
             raise ValueError("cohort Store stale state must be an exact boolean")
         return (
             None if generation is _COHORT_MISSING else generation,
             None if overflow_count is _COHORT_MISSING else overflow_count,
+            None if live_bar_overflow_count is _COHORT_MISSING else live_bar_overflow_count,
             stale,
         )
 
@@ -728,7 +740,20 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
                 else "store_tick_overflow_counter_reset"
             )
             self._freeze_cohort_source(reason, "cohort Store tick queue continuity changed")
-        if current[2]:
+        if current[2] != baseline[2]:
+            reason = (
+                "store_live_bar_queue_overflow"
+                if (
+                    isinstance(current[2], int)
+                    and not isinstance(current[2], bool)
+                    and isinstance(baseline[2], int)
+                    and not isinstance(baseline[2], bool)
+                    and current[2] > baseline[2]
+                )
+                else "store_live_bar_overflow_counter_reset"
+            )
+            self._freeze_cohort_source(reason, "cohort Store live-bar queue continuity changed")
+        if current[3]:
             self._freeze_cohort_source(
                 "store_stream_stale", "stale Store stream cannot feed a live cohort"
             )
@@ -1298,7 +1323,9 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
                         "store_stream_health_invalid",
                         "cohort Store stream health is invalid at startup",
                     )
-                if baseline is not None and (baseline[1] not in (None, 0) or baseline[2]):
+                if baseline is not None and (
+                    baseline[1] not in (None, 0) or baseline[2] not in (None, 0) or baseline[3]
+                ):
                     self._freeze_cohort_source(
                         "store_stream_degraded_before_cohort_start",
                         "cohort Store stream was already degraded at startup",
