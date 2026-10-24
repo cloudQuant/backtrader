@@ -1181,6 +1181,11 @@ def test_terminal_order_facts_are_bound_to_the_complete_orders_query_observation
         "InstrumentID": _INSTRUMENT,
         "ExchangeID": _EXCHANGE,
         "OrderStatus": "5",
+        "FrontID": 2,
+        "SessionID": 41,
+        "VolumeTotalOriginal": 3,
+        "VolumeTraded": 0,
+        "VolumeTotal": 3,
     }
     _api, store, broker, _journal, coordinator, target = _system_under_test(
         now=now,
@@ -1206,7 +1211,14 @@ def test_terminal_order_facts_are_bound_to_the_complete_orders_query_observation
     assert fact.snapshot_id == first.snapshot_id
     assert fact.request_id == orders_query.request_id
     assert fact.connection_generation == orders_query.connection_generation
+    assert fact.account_fingerprint == orders_query.account_fingerprint
+    assert fact.trading_day == orders_query.trading_day
     assert fact.available_at == orders_query.completed_at
+    assert fact.front_id == 2
+    assert fact.session_id == 41
+    assert fact.volume_total_original == Decimal(3)
+    assert fact.volume_traded == Decimal(0)
+    assert fact.volume_total == Decimal(3)
     assert fact.observation_id.startswith("orders-query-row:")
     assert second.terminal_orders[0].observation_id == fact.observation_id
     assert not any(
@@ -1225,6 +1237,62 @@ def test_terminal_order_facts_are_bound_to_the_complete_orders_query_observation
     )
     assert resolved.risk_reduction_ready is True, resolved.risk_reduction_blockers
     assert resolved.open_risk_ready is True, resolved.blockers
+
+
+@pytest.mark.parametrize(
+    "source_key,fact_name",
+    (
+        ("FrontID", "front_id"),
+        ("SessionID", "session_id"),
+        ("VolumeTotalOriginal", "volume_total_original"),
+        ("VolumeTraded", "volume_traded"),
+        ("VolumeTotal", "volume_total"),
+    ),
+)
+def test_terminal_order_facts_preserve_missing_unknown_recovery_fields(source_key, fact_name):
+    now = datetime.now(timezone.utc)
+    terminal = {
+        "OrderRef": "18",
+        "OrderSysID": "native-18",
+        "InstrumentID": _INSTRUMENT,
+        "ExchangeID": _EXCHANGE,
+        "OrderStatus": "5",
+        "FrontID": 2,
+        "SessionID": 42,
+        "VolumeTotalOriginal": 4,
+        "VolumeTraded": 0,
+        "VolumeTotal": 4,
+    }
+    terminal.pop(source_key)
+    _api, store, broker, _journal, coordinator, target = _system_under_test(
+        now=now,
+        rows=_query_rows(orders=(terminal,)),
+    )
+    receipt = _refresh_all(store, target)
+    _arm(store)
+    _consume_quote(store)
+
+    facts = _project(store, broker, target, now, query_set=receipt.query_set)
+
+    assert len(facts.terminal_orders) == 1
+    fact = facts.terminal_orders[0]
+    assert getattr(fact, fact_name) is None
+    assert fact.front_id == (None if fact_name == "front_id" else 2)
+    assert fact.session_id == (None if fact_name == "session_id" else 42)
+    assert fact.volume_total_original == (
+        None if fact_name == "volume_total_original" else Decimal(4)
+    )
+    assert fact.volume_traded == (None if fact_name == "volume_traded" else Decimal(0))
+    assert fact.volume_total == (None if fact_name == "volume_total" else Decimal(4))
+    # Missing recovery-only columns do not invalidate unrelated legacy
+    # terminal history; the UNKNOWN recovery coordinator applies stricter
+    # requirements only when this row matches an unresolved native intent.
+    assert not any(
+        blocker.startswith("terminal_order_not_reconciled:") for blocker in facts.blockers
+    )
+    assert coordinator.terminal_order_reconciliation_snapshot(facts).items[0].status == (
+        "EXTERNAL_TERMINAL_FLAT"
+    )
 
 
 def test_trade_observation_preserves_query_and_native_fill_facts_without_fee_inference():

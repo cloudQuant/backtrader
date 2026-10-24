@@ -325,6 +325,14 @@ class FactorExecutionTerminalOrderFacts:
     account_fingerprint: str
     trading_day: str
     available_at: datetime
+    # CTP terminal rows may omit these in older archives. Keep absence
+    # explicit for compatibility; UNKNOWN recovery requires the matching
+    # native session and exact zero-fill volume tuple before it can proceed.
+    front_id: Optional[int] = None
+    session_id: Optional[int] = None
+    volume_total_original: Optional[Decimal] = None
+    volume_traded: Optional[Decimal] = None
+    volume_total: Optional[Decimal] = None
 
 
 @dataclass(frozen=True)
@@ -2797,6 +2805,18 @@ def _terminal_order_facts(
                 account_fingerprint=query_fact.account_fingerprint,
                 trading_day=query_fact.trading_day,
                 available_at=query_fact.completed_at,
+                front_id=_integer(row.get("FrontID", row.get("front_id")), allow_zero=False),
+                session_id=_integer(row.get("SessionID", row.get("session_id")), allow_zero=False),
+                volume_total_original=_decimal(
+                    row.get("VolumeTotalOriginal", row.get("volume_total_original")),
+                    nonnegative=True,
+                ),
+                volume_traded=_decimal(
+                    row.get("VolumeTraded", row.get("volume_traded")), nonnegative=True
+                ),
+                volume_total=_decimal(
+                    row.get("VolumeTotal", row.get("volume_total")), nonnegative=True
+                ),
             )
         )
     if duplicate_refs:
