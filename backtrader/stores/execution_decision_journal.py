@@ -19,9 +19,11 @@ from __future__ import annotations
 import hashlib
 import json
 import math
+import os
 import re
 import sqlite3
 import time
+import uuid
 from collections.abc import Mapping
 from contextlib import contextmanager
 from dataclasses import dataclass
@@ -79,6 +81,15 @@ _RFC3339_TIMESTAMP = re.compile(
 )
 _RUN_ORDER_RESERVATION_FIELD = "_journal_run_order_reservation"
 _DISPATCHING_CRASH_NO_FILL_OUTCOME = "complete_orders_query_dispatching_no_fill_terminal"
+_CALLBACK_QUERY_DISPOSITION = "QUERY_MATCHED_BROKER_ACK_UNOBSERVED_AFTER_RESTART"
+# Shared by journal instances in this OS process, so reopening the same SQLite
+# file does not masquerade as a process restart. PID distinguishes a POSIX fork
+# that inherited this module constant; Windows spawn imports a fresh value.
+_PROCESS_INSTANCE_NONCE = uuid.uuid4().hex
+
+
+def _current_process_instance_id() -> str:
+    return "{}:{}".format(os.getpid(), _PROCESS_INSTANCE_NONCE)
 
 
 class ExecutionDecisionJournalError(RuntimeError):
@@ -211,6 +222,21 @@ class ExecutionCallbackReceipt:
 
 
 @dataclass(frozen=True)
+class ExecutionCallbackQueryDisposition:
+    """Exact query evidence that supersedes delivery of one unacknowledged callback."""
+
+    native_receipt_id: str
+    query_receipt_id: str
+    intent_id: str
+    execution_id: str
+    disposition_code: str
+    query_process_instance_id: Optional[str]
+    proof_payload: Mapping[str, Any]
+    proof_sha256: str
+    created_at_ns: int
+
+
+@dataclass(frozen=True)
 class ExecutionInstrumentOwner:
     account_scope: str
     instrument: str
@@ -325,7 +351,7 @@ class ExecutionDecisionJournal:
     failed persistence step.
     """
 
-    _SCHEMA_VERSION = 10
+    _SCHEMA_VERSION = 11
     _NATIVE_IDENTITY_SCHEMA_VERSION = 8
     _DECISION_CAPACITY_SCHEMA_VERSION = 9
 
@@ -388,6 +414,7 @@ class ExecutionDecisionJournal:
                 connect_path, isolation_level=None, check_same_thread=False
             )
             self._connection.row_factory = sqlite3.Row
+            self._connection.create_function("sha256_text", 1, _sha256_text, deterministic=True)
             self._connection.execute("PRAGMA busy_timeout = 5000")
             if connect_path != ":memory:":
                 self._connection.execute("PRAGMA journal_mode = WAL")
@@ -1516,6 +1543,87 @@ class ExecutionDecisionJournal:
             ).fetchone()
         return None if row is None else _callback_record(row)
 
+    def callback_query_disposition(
+        self, native_receipt_id: str
+    ) -> Optional[ExecutionCallbackQueryDisposition]:
+        """Read one exact, immutable query-matched native callback disposition."""
+
+        _require_identifier(native_receipt_id, "INVALID_NATIVE_CALLBACK_RECEIPT_ID")
+        with self._read_lock():
+            row = self._connection.execute(
+                """SELECT d.*,n.callback_id AS native_callback_id,
+                          n.evidence_payload_json AS native_evidence_json,
+                          n.acknowledged AS native_acknowledged,
+                          n.delivery_pending AS native_delivery_pending,
+                          n.process_instance_id AS native_process_instance_id,
+                          q.callback_id AS query_callback_id,
+                          q.evidence_payload_json AS query_evidence_json,
+                          q.acknowledged AS query_acknowledged
+                    FROM execution_callback_query_dispositions AS d
+                    LEFT JOIN execution_decision_callbacks AS n
+                     ON n.receipt_id=d.native_receipt_id AND n.intent_id=d.intent_id
+                    LEFT JOIN execution_decision_callbacks AS q
+                     ON q.receipt_id=d.query_receipt_id AND q.intent_id=d.intent_id
+                   WHERE d.native_receipt_id=?""",
+                (native_receipt_id,),
+            ).fetchone()
+            if row is None:
+                return None
+            if row["native_callback_id"] is None or row["query_callback_id"] is None:
+                raise ExecutionDecisionJournalError("CALLBACK_QUERY_DISPOSITION_CORRUPT")
+            proof_json = row["proof_payload_json"]
+            if _sha256_text(proof_json) != row["proof_sha256"]:
+                raise ExecutionDecisionJournalError("CALLBACK_QUERY_DISPOSITION_CORRUPT")
+            try:
+                proof = json.loads(proof_json)
+                native_evidence = json.loads(row["native_evidence_json"])
+                query_evidence = json.loads(row["query_evidence_json"])
+            except (TypeError, ValueError) as error:
+                raise ExecutionDecisionJournalError("CALLBACK_QUERY_DISPOSITION_CORRUPT") from error
+            if (
+                not isinstance(proof, Mapping)
+                or proof.get("native_receipt_id") != row["native_receipt_id"]
+                or proof.get("query_receipt_id") != row["query_receipt_id"]
+                or proof.get("intent_id") != row["intent_id"]
+                or proof.get("execution_id") != row["execution_id"]
+                or proof.get("disposition_code") != _CALLBACK_QUERY_DISPOSITION
+                or proof.get("native_callback_id") != row["native_callback_id"]
+                or proof.get("query_callback_id") != row["query_callback_id"]
+                or proof.get("native_evidence_sha256") != _sha256_text(row["native_evidence_json"])
+                or proof.get("query_evidence_sha256") != _sha256_text(row["query_evidence_json"])
+                or row["disposition_code"] != _CALLBACK_QUERY_DISPOSITION
+                or row["native_acknowledged"] != 0
+                or row["native_delivery_pending"] != 0
+                or row["query_acknowledged"] != 1
+                or not isinstance(row["query_process_instance_id"], str)
+                or not row["query_process_instance_id"]
+                or not isinstance(row["native_process_instance_id"], str)
+                or not row["native_process_instance_id"]
+                or row["query_process_instance_id"] == row["native_process_instance_id"]
+            ):
+                raise ExecutionDecisionJournalError("CALLBACK_QUERY_DISPOSITION_CORRUPT")
+            cursor = self._connection.cursor()
+            try:
+                self._validate_callback_query_disposition_proof(
+                    cursor,
+                    proof,
+                    native_receipt_id=row["native_receipt_id"],
+                    query_receipt_id=row["query_receipt_id"],
+                    intent_id=row["intent_id"],
+                    execution_id=row["execution_id"],
+                    native_callback_id=row["native_callback_id"],
+                    query_callback_id=row["query_callback_id"],
+                    native_evidence_sha256=_sha256_text(row["native_evidence_json"]),
+                    query_evidence_sha256=_sha256_text(row["query_evidence_json"]),
+                    native_evidence=native_evidence,
+                    query_evidence=query_evidence,
+                )
+            except ExecutionDecisionJournalError as error:
+                raise ExecutionDecisionJournalError("CALLBACK_QUERY_DISPOSITION_CORRUPT") from error
+            finally:
+                cursor.close()
+            return _callback_query_disposition_record(row)
+
     def active_instrument_owner(
         self, account_scope: str, instrument: str
     ) -> Optional[ExecutionInstrumentOwner]:
@@ -2358,7 +2466,7 @@ class ExecutionDecisionJournal:
                 return _callback_record(existing, is_new=False)
             pending = int(
                 cursor.execute(
-                    "SELECT COUNT(*) FROM execution_decision_callbacks WHERE acknowledged = 0"
+                    "SELECT COUNT(*) FROM execution_decision_callbacks " "WHERE delivery_pending=1"
                 ).fetchone()[0]
             )
             if pending >= self.max_pending_callbacks:
@@ -2366,9 +2474,16 @@ class ExecutionDecisionJournal:
             cursor.execute(
                 """INSERT INTO execution_decision_callbacks
                    (receipt_id, intent_id, callback_id, evidence_payload_json,
-                    acknowledged, created_at_ns)
-                   VALUES (?, ?, ?, ?, 0, ?)""",
-                (receipt_id, intent_id, callback_id, payload_json, now_ns),
+                    acknowledged, created_at_ns, process_instance_id, delivery_pending)
+                   VALUES (?, ?, ?, ?, 0, ?, ?, 1)""",
+                (
+                    receipt_id,
+                    intent_id,
+                    callback_id,
+                    payload_json,
+                    now_ns,
+                    _current_process_instance_id(),
+                ),
             )
             row = cursor.execute(
                 "SELECT * FROM execution_decision_callbacks WHERE receipt_id = ?",
@@ -2423,7 +2538,8 @@ class ExecutionDecisionJournal:
             else:
                 pending = int(
                     cursor.execute(
-                        "SELECT COUNT(*) FROM execution_decision_callbacks WHERE acknowledged = 0"
+                        "SELECT COUNT(*) FROM execution_decision_callbacks "
+                        "WHERE delivery_pending=1"
                     ).fetchone()[0]
                 )
                 if pending >= self.max_pending_callbacks:
@@ -2431,16 +2547,581 @@ class ExecutionDecisionJournal:
                 cursor.execute(
                     """INSERT INTO execution_decision_callbacks
                        (receipt_id, intent_id, callback_id, evidence_payload_json,
-                        acknowledged, created_at_ns)
-                       VALUES (?, ?, ?, ?, 0, ?)""",
-                    (receipt_id, intent_id, callback_id, payload_json, now_ns),
+                        acknowledged, created_at_ns, process_instance_id, delivery_pending)
+                       VALUES (?, ?, ?, ?, 0, ?, ?, 1)""",
+                    (
+                        receipt_id,
+                        intent_id,
+                        callback_id,
+                        payload_json,
+                        now_ns,
+                        _current_process_instance_id(),
+                    ),
                 )
                 row = cursor.execute(
                     "SELECT * FROM execution_decision_callbacks WHERE receipt_id = ?",
                     (receipt_id,),
                 ).fetchone()
             projected = project(cursor, receipt_id)
+            row = cursor.execute(
+                "SELECT * FROM execution_decision_callbacks WHERE receipt_id = ?",
+                (receipt_id,),
+            ).fetchone()
             return _callback_record(row, is_new=is_new), projected
+
+    def record_callback_query_disposition(
+        self,
+        cursor: sqlite3.Cursor,
+        *,
+        native_receipt_id: str,
+        query_receipt_id: str,
+        intent_id: str,
+        execution_id: str,
+        proof_payload: Mapping[str, Any],
+    ) -> ExecutionCallbackQueryDisposition:
+        """Append an exact query match for an unacknowledged native fill.
+
+        This cursor helper is intentionally usable only from the transaction
+        passed to ``record_callback_projected``. It neither acknowledges nor
+        rewrites the native callback receipt.
+        """
+
+        if (
+            not isinstance(cursor, sqlite3.Cursor)
+            or cursor.connection is not self._connection
+            or not self._connection.in_transaction
+        ):
+            raise ExecutionDecisionJournalError("CALLBACK_QUERY_DISPOSITION_TRANSACTION_REQUIRED")
+        for value, code in (
+            (native_receipt_id, "INVALID_NATIVE_CALLBACK_RECEIPT_ID"),
+            (query_receipt_id, "INVALID_QUERY_CALLBACK_RECEIPT_ID"),
+            (intent_id, "INVALID_INTENT_ID"),
+            (execution_id, "INVALID_EXECUTION_ID"),
+        ):
+            _require_identifier(value, code)
+        native = cursor.execute(
+            "SELECT * FROM execution_decision_callbacks WHERE receipt_id=?",
+            (native_receipt_id,),
+        ).fetchone()
+        query = cursor.execute(
+            "SELECT * FROM execution_decision_callbacks WHERE receipt_id=?",
+            (query_receipt_id,),
+        ).fetchone()
+        if native is None or query is None:
+            raise ExecutionDecisionJournalError("CALLBACK_QUERY_RECEIPT_NOT_FOUND")
+        if (
+            native["intent_id"] != intent_id
+            or query["intent_id"] != intent_id
+            or native["acknowledged"] != 0
+        ):
+            raise ExecutionDecisionJournalError("CALLBACK_QUERY_RECEIPT_BINDING_MISMATCH")
+        producer_process = native["process_instance_id"]
+        if not isinstance(producer_process, str) or not producer_process:
+            raise ExecutionDecisionJournalError("CALLBACK_QUERY_RESTART_ORIGIN_UNKNOWN")
+        if producer_process == _current_process_instance_id():
+            raise ExecutionDecisionJournalError("CALLBACK_QUERY_RESTART_NOT_PROVEN")
+        try:
+            native_evidence = json.loads(native["evidence_payload_json"])
+            query_evidence = json.loads(query["evidence_payload_json"])
+        except (TypeError, ValueError) as error:
+            raise ExecutionDecisionJournalError("CALLBACK_QUERY_EVIDENCE_INVALID") from error
+        execution_digest = hashlib.sha256(execution_id.encode("utf-8")).hexdigest()
+        native_callback_id = "ctp-trade:" + execution_digest
+        query_callback_id = "query-trade:" + execution_digest
+        if (
+            native["callback_id"] != native_callback_id
+            or query["callback_id"] != query_callback_id
+            or _stable_id("callback", intent_id + ":" + native_callback_id) != native_receipt_id
+            or _stable_id("callback", intent_id + ":" + query_callback_id) != query_receipt_id
+        ):
+            raise ExecutionDecisionJournalError("CALLBACK_QUERY_RECEIPT_IDENTITY_MISMATCH")
+        native_digest = hashlib.sha256(native["evidence_payload_json"].encode("utf-8")).hexdigest()
+        query_digest = hashlib.sha256(query["evidence_payload_json"].encode("utf-8")).hexdigest()
+        if not isinstance(proof_payload, Mapping) or set(proof_payload) != {
+            "original_order",
+            "matched_order",
+            "trade",
+            "query_set",
+        }:
+            raise ExecutionDecisionJournalError("CALLBACK_QUERY_PROOF_FIELDS_INVALID")
+        proof_payload = {
+            "schema_version": 1,
+            "disposition_code": _CALLBACK_QUERY_DISPOSITION,
+            "native_receipt_id": native_receipt_id,
+            "query_receipt_id": query_receipt_id,
+            "intent_id": intent_id,
+            "execution_id": execution_id,
+            "native_callback_id": native["callback_id"],
+            "native_evidence_sha256": native_digest,
+            "query_callback_id": query["callback_id"],
+            "query_evidence_sha256": query_digest,
+            **dict(proof_payload),
+        }
+        existing = cursor.execute(
+            """SELECT * FROM execution_callback_query_dispositions
+               WHERE native_receipt_id=?""",
+            (native_receipt_id,),
+        ).fetchone()
+        if existing is not None:
+            if (
+                existing["query_receipt_id"] != query_receipt_id
+                or existing["intent_id"] != intent_id
+                or existing["execution_id"] != execution_id
+                or existing["disposition_code"] != _CALLBACK_QUERY_DISPOSITION
+                or not isinstance(existing["query_process_instance_id"], str)
+                or not existing["query_process_instance_id"]
+                or existing["query_process_instance_id"] == producer_process
+                or _sha256_text(existing["proof_payload_json"]) != existing["proof_sha256"]
+                or native["delivery_pending"] != 0
+                or query["acknowledged"] != 1
+            ):
+                raise ExecutionDecisionJournalError("CALLBACK_QUERY_DISPOSITION_CORRUPT")
+            try:
+                original_proof = json.loads(existing["proof_payload_json"])
+            except (TypeError, ValueError) as error:
+                raise ExecutionDecisionJournalError("CALLBACK_QUERY_DISPOSITION_CORRUPT") from error
+            self._validate_callback_query_disposition_proof(
+                cursor,
+                original_proof,
+                native_receipt_id=native_receipt_id,
+                query_receipt_id=query_receipt_id,
+                intent_id=intent_id,
+                execution_id=execution_id,
+                native_callback_id=native_callback_id,
+                query_callback_id=query_callback_id,
+                native_evidence_sha256=native_digest,
+                query_evidence_sha256=query_digest,
+                native_evidence=native_evidence,
+                query_evidence=query_evidence,
+            )
+            if not _callback_query_disposition_replay_matches(original_proof, proof_payload):
+                raise ExecutionDecisionJournalError("CALLBACK_QUERY_DISPOSITION_CONFLICT")
+            # The first complete query proof is immutable. A later complete
+            # query can confirm the same stable execution with a new request,
+            # snapshot and observation time; it must not replace that proof.
+            return _callback_query_disposition_record(existing)
+
+        if native["delivery_pending"] != 1 or query["acknowledged"] != 1:
+            raise ExecutionDecisionJournalError("CALLBACK_QUERY_DELIVERY_STATE_MISMATCH")
+
+        self._validate_callback_query_disposition_proof(
+            cursor,
+            proof_payload,
+            native_receipt_id=native_receipt_id,
+            query_receipt_id=query_receipt_id,
+            intent_id=intent_id,
+            execution_id=execution_id,
+            native_callback_id=native_callback_id,
+            query_callback_id=query_callback_id,
+            native_evidence_sha256=native_digest,
+            query_evidence_sha256=query_digest,
+            native_evidence=native_evidence,
+            query_evidence=query_evidence,
+        )
+        query_process_instance_id = _current_process_instance_id()
+        proof_json = self._payload_json(proof_payload)
+        proof_sha256 = hashlib.sha256(proof_json.encode("utf-8")).hexdigest()
+        cursor.execute(
+            """INSERT INTO execution_callback_query_dispositions
+               (native_receipt_id,query_receipt_id,intent_id,execution_id,
+                disposition_code,query_process_instance_id,proof_payload_json,
+                proof_sha256,created_at_ns)
+               VALUES (?,?,?,?,?,?,?,?,?)""",
+            (
+                native_receipt_id,
+                query_receipt_id,
+                intent_id,
+                execution_id,
+                _CALLBACK_QUERY_DISPOSITION,
+                query_process_instance_id,
+                proof_json,
+                proof_sha256,
+                time.time_ns(),
+            ),
+        )
+        row = cursor.execute(
+            """SELECT * FROM execution_callback_query_dispositions
+               WHERE native_receipt_id=?""",
+            (native_receipt_id,),
+        ).fetchone()
+        cursor.execute(
+            """UPDATE execution_decision_callbacks SET delivery_pending=0
+               WHERE receipt_id=? AND acknowledged=0 AND delivery_pending=1""",
+            (native_receipt_id,),
+        )
+        if cursor.rowcount != 1:
+            raise ExecutionDecisionJournalError("CALLBACK_QUERY_DELIVERY_STATE_MISMATCH")
+        return _callback_query_disposition_record(row)
+
+    def _validate_callback_query_disposition_proof(
+        self,
+        cursor: sqlite3.Cursor,
+        proof: Any,
+        *,
+        native_receipt_id: str,
+        query_receipt_id: str,
+        intent_id: str,
+        execution_id: str,
+        native_callback_id: str,
+        query_callback_id: str,
+        native_evidence_sha256: str,
+        query_evidence_sha256: str,
+        native_evidence: Any,
+        query_evidence: Any,
+    ) -> None:
+        root_fields = {
+            "schema_version",
+            "disposition_code",
+            "native_receipt_id",
+            "query_receipt_id",
+            "intent_id",
+            "execution_id",
+            "native_callback_id",
+            "native_evidence_sha256",
+            "query_callback_id",
+            "query_evidence_sha256",
+            "original_order",
+            "matched_order",
+            "trade",
+            "query_set",
+        }
+        if not isinstance(proof, Mapping) or set(proof) != root_fields:
+            raise ExecutionDecisionJournalError("CALLBACK_QUERY_PROOF_FIELDS_INVALID")
+        if (
+            proof.get("schema_version") != 1
+            or proof.get("disposition_code") != _CALLBACK_QUERY_DISPOSITION
+            or proof.get("native_receipt_id") != native_receipt_id
+            or proof.get("query_receipt_id") != query_receipt_id
+            or proof.get("intent_id") != intent_id
+            or proof.get("execution_id") != execution_id
+            or proof.get("native_callback_id") != native_callback_id
+            or proof.get("native_evidence_sha256") != native_evidence_sha256
+            or proof.get("query_callback_id") != query_callback_id
+            or proof.get("query_evidence_sha256") != query_evidence_sha256
+        ):
+            raise ExecutionDecisionJournalError("CALLBACK_QUERY_PROOF_BINDING_MISMATCH")
+        if not isinstance(native_evidence, Mapping) or not isinstance(query_evidence, Mapping):
+            raise ExecutionDecisionJournalError("CALLBACK_QUERY_EVIDENCE_INVALID")
+        if (
+            native_evidence.get("event_type") != "execution_fill"
+            or native_evidence.get("evidence_kind") != "native_trade_callback"
+            or query_evidence.get("event_type") != "execution_fill"
+            or native_evidence.get("execution_id") != execution_id
+            or query_evidence.get("execution_id") != execution_id
+            or native_evidence.get("order_ref") != query_evidence.get("order_ref")
+            or native_evidence.get("instrument_id") != query_evidence.get("instrument_id")
+            or native_evidence.get("exchange") != query_evidence.get("exchange")
+        ):
+            raise ExecutionDecisionJournalError("CALLBACK_QUERY_ECONOMICS_MISMATCH")
+        for name in ("quantity", "price"):
+            try:
+                if _canonical_decimal(native_evidence.get(name)) != _canonical_decimal(
+                    query_evidence.get(name)
+                ):
+                    raise ExecutionDecisionJournalError("CALLBACK_QUERY_ECONOMICS_MISMATCH")
+            except (InvalidOperation, TypeError, ValueError) as error:
+                raise ExecutionDecisionJournalError("CALLBACK_QUERY_ECONOMICS_INVALID") from error
+        native_fee = native_evidence.get("fee")
+        query_fee = query_evidence.get("fee")
+        if native_fee is not None and query_fee is not None:
+            try:
+                if _canonical_decimal(native_fee) != _canonical_decimal(query_fee):
+                    raise ExecutionDecisionJournalError("CALLBACK_QUERY_FEE_CONFLICT")
+            except (InvalidOperation, TypeError, ValueError) as error:
+                raise ExecutionDecisionJournalError("CALLBACK_QUERY_FEE_INVALID") from error
+        native_time = native_evidence.get("filled_at_ns")
+        query_time = query_evidence.get("filled_at_ns")
+        if type(query_time) is not int or query_time <= 0:
+            raise ExecutionDecisionJournalError("CALLBACK_QUERY_TIME_CONFLICT")
+        if native_time is not None and native_time != query_time:
+            raise ExecutionDecisionJournalError("CALLBACK_QUERY_TIME_CONFLICT")
+        if (
+            native_evidence.get("order_sys_id") is not None
+            and query_evidence.get("order_sys_id") is not None
+            and native_evidence.get("order_sys_id") != query_evidence.get("order_sys_id")
+        ):
+            raise ExecutionDecisionJournalError("CALLBACK_QUERY_ORDER_SYS_ID_CONFLICT")
+
+        original = proof.get("original_order")
+        matched = proof.get("matched_order")
+        trade = proof.get("trade")
+        query_set = proof.get("query_set")
+        if (
+            not isinstance(original, Mapping)
+            or set(original)
+            != {
+                "account_scope",
+                "strategy_scope",
+                "trading_day",
+                "instrument",
+                "exchange",
+                "order_ref",
+                "front_id",
+                "session_id",
+                "order_sys_id",
+            }
+            or not isinstance(matched, Mapping)
+            or set(matched)
+            != {"front_id", "session_id", "order_ref", "instrument", "exchange", "order_sys_id"}
+            or not isinstance(trade, Mapping)
+            or set(trade)
+            != {
+                "trade_id",
+                "trade_date",
+                "trade_time",
+                "query_set_id",
+                "observation_id",
+                "snapshot_id",
+                "request_id",
+                "account_fingerprint",
+                "connection_generation",
+                "trading_day",
+                "side",
+                "position_effect",
+                "order_sys_id",
+                "quantity",
+                "price",
+                "fee",
+                "filled_at_ns",
+            }
+            or not isinstance(query_set, Mapping)
+            or set(query_set)
+            != {
+                "query_set_id",
+                "account_fingerprint",
+                "connection_generation",
+                "trading_day",
+                "started_at_utc",
+                "completed_at_utc",
+                "available_at_utc",
+                "family_request_ids",
+            }
+        ):
+            raise ExecutionDecisionJournalError("CALLBACK_QUERY_PROOF_FIELDS_INVALID")
+        intent_row = cursor.execute(
+            """SELECT i.intent_key_json,i.economic_payload_json,i.original_identity_json,
+                      d.business_key_json
+               FROM execution_decision_intents AS i
+               JOIN execution_decisions AS d ON d.decision_id=i.decision_id
+               WHERE i.intent_id=?""",
+            (intent_id,),
+        ).fetchone()
+        if intent_row is None:
+            raise ExecutionDecisionJournalError("CALLBACK_QUERY_INTENT_NOT_FOUND")
+        try:
+            intent_key = json.loads(intent_row["intent_key_json"])
+            economics = json.loads(intent_row["economic_payload_json"])
+            stored_identity = json.loads(intent_row["original_identity_json"])
+            business_key = json.loads(intent_row["business_key_json"])
+        except (TypeError, ValueError) as error:
+            raise ExecutionDecisionJournalError("CALLBACK_QUERY_INTENT_INVALID") from error
+        native_identity = cursor.execute(
+            "SELECT * FROM execution_native_intent_identities WHERE intent_id=?",
+            (intent_id,),
+        ).fetchone()
+        if native_identity is None:
+            raise ExecutionDecisionJournalError("CALLBACK_QUERY_NATIVE_IDENTITY_MISSING")
+        expected_original = {
+            "account_scope": business_key.get("account_scope"),
+            "strategy_scope": business_key.get("strategy_scope"),
+            "trading_day": native_identity["trading_day"],
+            "instrument": intent_key.get("instrument"),
+            "exchange": economics.get("exchange"),
+            "order_ref": native_identity["order_ref"],
+            "front_id": stored_identity.get("front_id"),
+            "session_id": stored_identity.get("session_id"),
+            "order_sys_id": stored_identity.get("order_sys_id"),
+        }
+        if (
+            intent_key.get("action") != "SUBMIT"
+            or intent_key.get("position_effect") not in ("OPEN", "CLOSE")
+            or intent_key.get("side") not in ("BUY", "SELL")
+            or dict(original) != expected_original
+            or matched.get("front_id") != expected_original["front_id"]
+            or matched.get("session_id") != expected_original["session_id"]
+            or matched.get("order_ref") != expected_original["order_ref"]
+            or matched.get("instrument") != expected_original["instrument"]
+            or matched.get("exchange") != expected_original["exchange"]
+            or native_identity["account_scope"] != expected_original["account_scope"]
+            or native_identity["strategy_scope"] != expected_original["strategy_scope"]
+            or native_identity["instrument"] != expected_original["instrument"]
+            or native_identity["exchange"] != expected_original["exchange"]
+            or native_evidence.get("order_ref") != expected_original["order_ref"]
+            or native_evidence.get("instrument_id") != expected_original["instrument"]
+            or native_evidence.get("exchange") != expected_original["exchange"]
+            or native_evidence.get("quantity") is None
+            or query_evidence.get("provider_trade_id") != trade.get("trade_id")
+            or query_evidence.get("account_scope") != expected_original["account_scope"]
+            or query_evidence.get("strategy_scope") != expected_original["strategy_scope"]
+            or query_evidence.get("evidence_kind") != "complete_trades_query_observation"
+            or query_evidence.get("query_observation_id") != trade.get("observation_id")
+            or query_evidence.get("snapshot_id") != trade.get("snapshot_id")
+            or query_evidence.get("request_id") != trade.get("request_id")
+            or query_evidence.get("account_fingerprint") != trade.get("account_fingerprint")
+            or query_evidence.get("connection_generation") != trade.get("connection_generation")
+            or query_evidence.get("trading_day") != trade.get("trading_day")
+        ):
+            raise ExecutionDecisionJournalError("CALLBACK_QUERY_ORIGINAL_IDENTITY_MISMATCH")
+        families = (
+            "account_result",
+            "orders_result",
+            "trades_result",
+            "instruments_result",
+            "positions_result",
+        )
+        family_ids = query_set.get("family_request_ids")
+        if (
+            not _identifier(query_set.get("query_set_id"))
+            or query_set.get("account_fingerprint") != trade.get("account_fingerprint")
+            or query_set.get("connection_generation") != trade.get("connection_generation")
+            or query_set.get("trading_day") != trade.get("trading_day")
+            or trade.get("query_set_id") != query_set.get("query_set_id")
+            or type(family_ids) not in (tuple, list)
+            or len(family_ids) != len(families)
+            or any(
+                type(item) not in (tuple, list)
+                or len(item) != 2
+                or type(item[0]) is not str
+                or type(item[1]) is not int
+                or item[1] <= 0
+                for item in family_ids
+            )
+            or tuple(item[0] for item in family_ids) != families
+            or len({item[1] for item in family_ids}) != len(families)
+            or dict(family_ids).get("trades_result") != trade.get("request_id")
+        ):
+            raise ExecutionDecisionJournalError("CALLBACK_QUERY_PROOF_FAMILIES_INVALID")
+        for name in (
+            "account_scope",
+            "strategy_scope",
+            "trading_day",
+            "instrument",
+            "exchange",
+            "order_ref",
+        ):
+            _require_identifier(
+                expected_original.get(name), "CALLBACK_QUERY_ORIGINAL_IDENTITY_MISMATCH"
+            )
+        for value in (matched.get("front_id"), matched.get("session_id")):
+            if type(value) is not int or value <= 0:
+                raise ExecutionDecisionJournalError("CALLBACK_QUERY_ORIGINAL_IDENTITY_MISMATCH")
+        if (
+            type(query_set.get("connection_generation")) is not int
+            or query_set["connection_generation"] <= 0
+            or type(trade.get("request_id")) is not int
+            or trade["request_id"] <= 0
+            or type(trade.get("filled_at_ns")) is not int
+            or trade["filled_at_ns"] <= 0
+            or not _identifier(trade.get("trade_id"))
+            or not _identifier(trade.get("observation_id"))
+            or not _identifier(trade.get("snapshot_id"))
+            or not _identifier(trade.get("account_fingerprint"))
+            or trade.get("side") != intent_key.get("side")
+            or trade.get("position_effect") != intent_key.get("position_effect")
+            or _execution_id_parts(execution_id) != (trade.get("trade_date"), trade.get("trade_id"))
+            or trade.get("trading_day") != native_identity["trading_day"]
+            or (trade.get("order_sys_id") is not None and not _identifier(trade["order_sys_id"]))
+            or (
+                matched.get("order_sys_id") is not None
+                and trade.get("order_sys_id") is not None
+                and matched.get("order_sys_id") != trade.get("order_sys_id")
+            )
+            or (
+                stored_identity.get("order_sys_id") is not None
+                and matched.get("order_sys_id") != stored_identity.get("order_sys_id")
+            )
+        ):
+            raise ExecutionDecisionJournalError("CALLBACK_QUERY_PROOF_FIELDS_INVALID")
+        try:
+            proof_quantity = _canonical_decimal(trade.get("quantity"))
+            proof_price = _canonical_decimal(trade.get("price"))
+            proof_fee = None if trade.get("fee") is None else _canonical_decimal(trade.get("fee"))
+            query_quantity = _canonical_decimal(query_evidence.get("quantity"))
+            query_price = _canonical_decimal(query_evidence.get("price"))
+            query_fee = (
+                None
+                if query_evidence.get("fee") is None
+                else _canonical_decimal(query_evidence.get("fee"))
+            )
+        except (InvalidOperation, TypeError, ValueError) as error:
+            raise ExecutionDecisionJournalError("CALLBACK_QUERY_ECONOMICS_INVALID") from error
+        if (
+            query_evidence.get("execution_id") != execution_id
+            or query_evidence.get("order_ref") != expected_original["order_ref"]
+            or query_evidence.get("instrument_id") != expected_original["instrument"]
+            or query_evidence.get("exchange") != expected_original["exchange"]
+            or query_quantity != proof_quantity
+            or query_price != proof_price
+            or query_evidence.get("filled_at_ns") != trade.get("filled_at_ns")
+            or (query_fee is not None and proof_fee is not None and query_fee != proof_fee)
+            or (
+                query_evidence.get("order_sys_id") is not None
+                and trade.get("order_sys_id") is not None
+                and query_evidence.get("order_sys_id") != trade.get("order_sys_id")
+            )
+        ):
+            raise ExecutionDecisionJournalError("CALLBACK_QUERY_ECONOMICS_MISMATCH")
+        parsed_query_times = {}
+        for name in ("started_at_utc", "completed_at_utc", "available_at_utc"):
+            value = query_set[name]
+            parse_text = value[:-1] + "+00:00" if value.endswith("Z") else value
+            try:
+                parsed = datetime.fromisoformat(parse_text)
+            except ValueError as error:
+                raise ExecutionDecisionJournalError("CALLBACK_QUERY_PROOF_TIME_INVALID") from error
+            if parsed.tzinfo is None or parsed.utcoffset() is None:
+                raise ExecutionDecisionJournalError("CALLBACK_QUERY_PROOF_TIME_INVALID")
+            parsed_query_times[name] = parsed.astimezone(timezone.utc)
+        if not (
+            parsed_query_times["started_at_utc"]
+            <= parsed_query_times["completed_at_utc"]
+            == parsed_query_times["available_at_utc"]
+        ):
+            raise ExecutionDecisionJournalError("CALLBACK_QUERY_PROOF_TIME_INVALID")
+        for name in ("started_at_utc", "completed_at_utc", "available_at_utc"):
+            value = query_set.get(name)
+            if type(value) is not str or not value:
+                raise ExecutionDecisionJournalError("CALLBACK_QUERY_PROOF_TIME_INVALID")
+            parse_text = value[:-1] + "+00:00" if value.endswith("Z") else value
+            try:
+                parsed = datetime.fromisoformat(parse_text)
+            except ValueError as error:
+                raise ExecutionDecisionJournalError("CALLBACK_QUERY_PROOF_TIME_INVALID") from error
+            if parsed.tzinfo is None or parsed.utcoffset() is None:
+                raise ExecutionDecisionJournalError("CALLBACK_QUERY_PROOF_TIME_INVALID")
+        fill = cursor.execute(
+            """SELECT * FROM factor_position_fills
+               WHERE account_scope=? AND instrument=? AND exchange=? AND execution_id=?""",
+            (
+                expected_original["account_scope"],
+                expected_original["instrument"],
+                expected_original["exchange"],
+                execution_id,
+            ),
+        ).fetchone()
+        if fill is None:
+            raise ExecutionDecisionJournalError("CALLBACK_QUERY_POSITION_FILL_MISSING")
+        try:
+            query_quantity = _canonical_decimal(query_evidence.get("quantity"))
+            query_price = _canonical_decimal(query_evidence.get("price"))
+            query_fee = (
+                None
+                if query_evidence.get("fee") is None
+                else _canonical_decimal(query_evidence.get("fee"))
+            )
+        except (InvalidOperation, TypeError, ValueError) as error:
+            raise ExecutionDecisionJournalError("CALLBACK_QUERY_ECONOMICS_INVALID") from error
+        if (
+            fill["intent_id"] != intent_id
+            or fill["strategy_scope"] != expected_original["strategy_scope"]
+            or fill["position_effect"] != intent_key["position_effect"]
+            or fill["order_side"] != intent_key["side"]
+            or fill["quantity"] != query_quantity
+            or fill["price"] != query_price
+            or fill["filled_at_ns"] != query_time
+            or (query_fee is not None and fill["fee"] != query_fee)
+        ):
+            raise ExecutionDecisionJournalError("CALLBACK_QUERY_POSITION_FILL_CONFLICT")
 
     def pending_callbacks(self, *, limit: int) -> Tuple[ExecutionCallbackReceipt, ...]:
         """Fetch a bounded page of callback evidence awaiting caller delivery."""
@@ -2449,28 +3130,103 @@ class ExecutionDecisionJournal:
             raise ExecutionDecisionJournalError("INVALID_CALLBACK_LIMIT")
         with self._read_lock():
             rows = self._connection.execute(
-                """SELECT * FROM execution_decision_callbacks WHERE acknowledged = 0
-                   ORDER BY created_at_ns, receipt_id LIMIT ?""",
+                """SELECT c.*,
+                          EXISTS(SELECT 1 FROM execution_callback_query_dispositions AS d
+                                 WHERE d.native_receipt_id=c.receipt_id) AS has_disposition
+                   FROM execution_decision_callbacks AS c
+                   WHERE c.delivery_pending=1
+                   ORDER BY c.created_at_ns,c.receipt_id LIMIT ?""",
                 (limit,),
             ).fetchall()
+        if any(row["acknowledged"] != 0 or row["has_disposition"] for row in rows):
+            raise ExecutionDecisionJournalError("CALLBACK_DELIVERY_STATE_CORRUPT")
         return tuple(_callback_record(row) for row in rows)
+
+    def _validate_callback_delivery_state_on_open(self) -> None:
+        """Validate persisted delivery dispositions once, streaming bounded batches.
+
+        Query-matched callbacks are no longer pending, but their immutable proof
+        is the only reason an unacknowledged native receipt may be omitted from
+        delivery. Validate every stored disposition and check for unacknowledged
+        receipts whose delivery bit was cleared without a disposition. Keeping
+        this scan at open avoids hashing callback history on each hot-path read.
+        """
+
+        with self._lock:
+            self._ensure_open()
+            connection = self._connection
+            cursor = connection.cursor()
+            try:
+                cursor.execute("BEGIN")
+                dispositions = connection.cursor()
+                try:
+                    dispositions.execute(
+                        """SELECT native_receipt_id
+                           FROM execution_callback_query_dispositions
+                           ORDER BY native_receipt_id"""
+                    )
+                    while rows := dispositions.fetchmany(64):
+                        for row in rows:
+                            receipt_id = row["native_receipt_id"]
+                            if self.callback_query_disposition(receipt_id) is None:
+                                raise ExecutionDecisionJournalError(
+                                    "CALLBACK_QUERY_DISPOSITION_CORRUPT"
+                                )
+                finally:
+                    dispositions.close()
+
+                hidden_receipts = connection.cursor()
+                try:
+                    hidden_receipts.execute(
+                        """SELECT c.receipt_id
+                           FROM execution_decision_callbacks AS c
+                           LEFT JOIN execution_callback_query_dispositions AS d
+                             ON d.native_receipt_id=c.receipt_id
+                           WHERE c.acknowledged=0 AND c.delivery_pending=0
+                             AND d.native_receipt_id IS NULL
+                           ORDER BY c.receipt_id"""
+                    )
+                    if hidden_receipts.fetchone() is not None:
+                        raise ExecutionDecisionJournalError("CALLBACK_DELIVERY_STATE_CORRUPT")
+                finally:
+                    hidden_receipts.close()
+                cursor.execute("COMMIT")
+            except BaseException:
+                if connection.in_transaction:
+                    cursor.execute("ROLLBACK")
+                raise
+            finally:
+                cursor.close()
 
     def acknowledge_callback(self, receipt_id: str) -> None:
         """Acknowledge only after caller code has returned successfully."""
 
         _require_identifier(receipt_id, "INVALID_CALLBACK_RECEIPT_ID")
         with self._transaction() as cursor:
-            row = cursor.execute(
-                "SELECT acknowledged FROM execution_decision_callbacks WHERE receipt_id = ?",
+            self.acknowledge_callback_in_transaction(cursor, receipt_id)
+
+    def acknowledge_callback_in_transaction(self, cursor: sqlite3.Cursor, receipt_id: str) -> None:
+        """Acknowledge a projected non-native receipt atomically with its projection."""
+
+        if (
+            not isinstance(cursor, sqlite3.Cursor)
+            or cursor.connection is not self._connection
+            or not self._connection.in_transaction
+        ):
+            raise ExecutionDecisionJournalError("CALLBACK_ACK_TRANSACTION_REQUIRED")
+        _require_identifier(receipt_id, "INVALID_CALLBACK_RECEIPT_ID")
+        row = cursor.execute(
+            "SELECT acknowledged FROM execution_decision_callbacks WHERE receipt_id = ?",
+            (receipt_id,),
+        ).fetchone()
+        if row is None:
+            raise ExecutionDecisionJournalError("CALLBACK_NOT_FOUND")
+        if not row["acknowledged"]:
+            cursor.execute(
+                """UPDATE execution_decision_callbacks
+                   SET acknowledged=1,delivery_pending=0 WHERE receipt_id=?""",
                 (receipt_id,),
-            ).fetchone()
-            if row is None:
-                raise ExecutionDecisionJournalError("CALLBACK_NOT_FOUND")
-            if not row["acknowledged"]:
-                cursor.execute(
-                    "UPDATE execution_decision_callbacks SET acknowledged = 1 WHERE receipt_id = ?",
-                    (receipt_id,),
-                )
+            )
 
     def _payload_json(self, value: Mapping[str, Any]) -> str:
         if not isinstance(value, Mapping):
@@ -2676,11 +3432,56 @@ class ExecutionDecisionJournal:
                 ),
             )
 
+    @staticmethod
+    def _backfill_callback_delivery_pending(cursor: sqlite3.Cursor) -> None:
+        """Restore the indexed delivery projection from immutable receipts."""
+
+        cursor.execute(
+            """UPDATE execution_decision_callbacks
+               SET delivery_pending=CASE WHEN acknowledged=0 THEN 1 ELSE 0 END"""
+        )
+
     def _create_schema(self) -> None:
         with self._lock:
             version = int(self._connection.execute("PRAGMA user_version").fetchone()[0])
-            if version not in (0, 1, 2, 3, 4, 5, 6, 7, 8, 9, self._SCHEMA_VERSION):
+            if version not in (0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, self._SCHEMA_VERSION):
                 raise ExecutionDecisionJournalError("UNSUPPORTED_SCHEMA_VERSION")
+            if version == self._SCHEMA_VERSION:
+                required_tables = {
+                    row["name"]
+                    for row in self._connection.execute(
+                        """SELECT name FROM sqlite_master WHERE type='table'
+                           AND name IN ('execution_decision_callbacks',
+                                        'execution_callback_query_dispositions')"""
+                    ).fetchall()
+                }
+                if required_tables != {
+                    "execution_decision_callbacks",
+                    "execution_callback_query_dispositions",
+                }:
+                    raise ExecutionDecisionJournalError("CALLBACK_DELIVERY_SCHEMA_CORRUPT")
+                callback_columns = {
+                    row["name"]
+                    for row in self._connection.execute(
+                        "PRAGMA table_info(execution_decision_callbacks)"
+                    ).fetchall()
+                }
+                disposition_columns = {
+                    row["name"]
+                    for row in self._connection.execute(
+                        "PRAGMA table_info(execution_callback_query_dispositions)"
+                    ).fetchall()
+                }
+                if (
+                    not {"delivery_pending", "process_instance_id"} <= callback_columns
+                    or not {
+                        "query_process_instance_id",
+                        "proof_payload_json",
+                        "proof_sha256",
+                    }
+                    <= disposition_columns
+                ):
+                    raise ExecutionDecisionJournalError("CALLBACK_DELIVERY_SCHEMA_CORRUPT")
             try:
                 self._connection.executescript(
                     """
@@ -2779,6 +3580,9 @@ class ExecutionDecisionJournal:
                         evidence_payload_json TEXT NOT NULL,
                         acknowledged INTEGER NOT NULL CHECK(acknowledged IN (0,1)),
                         created_at_ns INTEGER NOT NULL,
+                        process_instance_id TEXT,
+                        delivery_pending INTEGER NOT NULL DEFAULT 1
+                            CHECK(delivery_pending IN (0,1)),
                         UNIQUE(intent_id, callback_id)
                     );
                     CREATE TABLE IF NOT EXISTS execution_instrument_owners (
@@ -2823,6 +3627,33 @@ class ExecutionDecisionJournal:
                              AND position_flat IS NOT NULL)
                         )
                     );
+                    CREATE TABLE IF NOT EXISTS execution_callback_query_dispositions (
+                        native_receipt_id TEXT PRIMARY KEY
+                            REFERENCES execution_decision_callbacks(receipt_id),
+                        query_receipt_id TEXT NOT NULL UNIQUE
+                            REFERENCES execution_decision_callbacks(receipt_id),
+                        intent_id TEXT NOT NULL REFERENCES execution_decision_intents(intent_id),
+                        execution_id TEXT NOT NULL,
+                        disposition_code TEXT NOT NULL
+                            CHECK(disposition_code = 'QUERY_MATCHED_BROKER_ACK_UNOBSERVED_AFTER_RESTART'),
+                        query_process_instance_id TEXT NOT NULL,
+                        proof_payload_json TEXT NOT NULL,
+                        proof_sha256 TEXT NOT NULL CHECK(length(proof_sha256) = 64),
+                        created_at_ns INTEGER NOT NULL
+                    );
+                    CREATE TRIGGER IF NOT EXISTS execution_callback_query_disposition_no_update
+                    BEFORE UPDATE ON execution_callback_query_dispositions
+                    BEGIN SELECT RAISE(ABORT, 'callback query disposition is append only'); END;
+                    CREATE TRIGGER IF NOT EXISTS execution_callback_query_disposition_no_delete
+                    BEFORE DELETE ON execution_callback_query_dispositions
+                    BEGIN SELECT RAISE(ABORT, 'callback query disposition is append only'); END;
+                    CREATE TRIGGER IF NOT EXISTS execution_callback_disposition_no_ack
+                    BEFORE UPDATE OF acknowledged ON execution_decision_callbacks
+                    WHEN NEW.acknowledged=1 AND EXISTS (
+                        SELECT 1 FROM execution_callback_query_dispositions AS d
+                        WHERE d.native_receipt_id=OLD.receipt_id
+                    )
+                    BEGIN SELECT RAISE(ABORT, 'query-dispositioned callback remains unacknowledged'); END;
                     CREATE TABLE IF NOT EXISTS execution_intent_abandonments (
                         abandonment_id TEXT PRIMARY KEY,
                         intent_id TEXT NOT NULL UNIQUE REFERENCES execution_decision_intents(intent_id),
@@ -2856,8 +3687,6 @@ class ExecutionDecisionJournal:
                     BEGIN SELECT RAISE(ABORT, 'slot abandonment is append only'); END;
                     CREATE INDEX IF NOT EXISTS execution_decision_intents_recovery
                         ON execution_decision_intents(state, created_at_ns);
-                    CREATE INDEX IF NOT EXISTS execution_decision_callbacks_pending
-                        ON execution_decision_callbacks(acknowledged, created_at_ns);
                     CREATE INDEX IF NOT EXISTS execution_intent_reconciliations_order
                         ON execution_intent_reconciliations(intent_id, created_at_ns);
                     CREATE INDEX IF NOT EXISTS execution_native_intent_lookup
@@ -2890,9 +3719,60 @@ class ExecutionDecisionJournal:
                     7,
                     8,
                     9,
+                    10,
                     self._SCHEMA_VERSION,
                 ):
                     raise ExecutionDecisionJournalError("UNSUPPORTED_SCHEMA_VERSION")
+                callback_columns = {
+                    row["name"]
+                    for row in self._connection.execute(
+                        "PRAGMA table_info(execution_decision_callbacks)"
+                    ).fetchall()
+                }
+                if (
+                    locked_version == self._SCHEMA_VERSION
+                    and not {
+                        "process_instance_id",
+                        "delivery_pending",
+                    }
+                    <= callback_columns
+                ):
+                    raise ExecutionDecisionJournalError("CALLBACK_DELIVERY_SCHEMA_CORRUPT")
+                if "process_instance_id" not in callback_columns:
+                    self._connection.execute(
+                        "ALTER TABLE execution_decision_callbacks ADD COLUMN process_instance_id TEXT"
+                    )
+                if "delivery_pending" not in callback_columns:
+                    if locked_version == self._SCHEMA_VERSION:
+                        raise ExecutionDecisionJournalError("CALLBACK_DELIVERY_SCHEMA_CORRUPT")
+                    self._connection.execute(
+                        """ALTER TABLE execution_decision_callbacks
+                           ADD COLUMN delivery_pending INTEGER NOT NULL DEFAULT 0
+                           CHECK(delivery_pending IN (0,1))"""
+                    )
+                disposition_columns = {
+                    row["name"]
+                    for row in self._connection.execute(
+                        "PRAGMA table_info(execution_callback_query_dispositions)"
+                    ).fetchall()
+                }
+                if (
+                    locked_version == self._SCHEMA_VERSION
+                    and not {
+                        "query_process_instance_id",
+                        "proof_payload_json",
+                        "proof_sha256",
+                    }
+                    <= disposition_columns
+                ):
+                    raise ExecutionDecisionJournalError("CALLBACK_DELIVERY_SCHEMA_CORRUPT")
+                if "query_process_instance_id" not in disposition_columns:
+                    # Any intermediate/legacy disposition has no durable
+                    # process-incarnation witness and remains unusable.
+                    self._connection.execute(
+                        "ALTER TABLE execution_callback_query_dispositions "
+                        "ADD COLUMN query_process_instance_id TEXT"
+                    )
                 if locked_version in (0, 1):
                     columns = {
                         row["name"]
@@ -2945,8 +3825,41 @@ class ExecutionDecisionJournal:
                     cursor = self._connection.cursor()
                     try:
                         self._backfill_execution_grid_highwaters(cursor)
+                        self._backfill_callback_delivery_pending(cursor)
                     finally:
                         cursor.close()
+                    for trigger in (
+                        "execution_callback_delivery_state",
+                        "execution_callback_delivery_insert",
+                        "execution_callback_delivery_acknowledged",
+                        "execution_callback_delivery_disposition",
+                    ):
+                        self._connection.execute("DROP TRIGGER IF EXISTS {}".format(trigger))
+                    self._connection.execute(
+                        "DROP TABLE IF EXISTS execution_callback_delivery_queue"
+                    )
+                self._connection.execute(
+                    """CREATE INDEX IF NOT EXISTS execution_callback_delivery_order
+                       ON execution_decision_callbacks(delivery_pending,created_at_ns,receipt_id)"""
+                )
+                self._connection.execute(
+                    """CREATE INDEX IF NOT EXISTS execution_callback_disposition_startup
+                       ON execution_decision_callbacks(acknowledged,delivery_pending,receipt_id)"""
+                )
+                self._connection.execute(
+                    """CREATE TRIGGER IF NOT EXISTS execution_callback_delivery_state
+                       BEFORE UPDATE OF delivery_pending ON execution_decision_callbacks
+                       WHEN (OLD.delivery_pending=0 AND NEW.delivery_pending=1)
+                            OR (OLD.delivery_pending=1 AND NEW.delivery_pending=0
+                                AND NEW.acknowledged=0
+                                AND NOT EXISTS (
+                                    SELECT 1 FROM execution_callback_query_dispositions AS d
+                                    WHERE d.native_receipt_id=OLD.receipt_id
+                                ))
+                       BEGIN
+                           SELECT RAISE(ABORT, 'callback delivery requires ACK or disposition');
+                       END"""
+                )
                 self._connection.execute(
                     """INSERT OR IGNORE INTO execution_journal_capacity
                        (singleton,max_decision_records,settlement_decision_reserve_records,
@@ -2976,12 +3889,13 @@ class ExecutionDecisionJournal:
                 )
                 if actual_capacity != expected_capacity:
                     raise ExecutionDecisionJournalError("JOURNAL_CAPACITY_CONFIG_MISMATCH")
-                self._connection.execute("PRAGMA user_version = 10")
+                self._connection.execute("PRAGMA user_version = {}".format(self._SCHEMA_VERSION))
                 self._connection.execute("COMMIT")
                 # V3 added the cohort grid cursor, V4 the position book, V5 slot
                 # abandonment, V6 native-id recovery, V7 capacity bounds, V8
                 # transactional native-identity backfill, V9 materialized bounded
-                # decision-capacity usage, and V10 the cross-cohort grid highwater.
+                # decision-capacity usage, V10 the cross-cohort grid highwater,
+                # V11 callback query dispositions and indexed delivery state.
             except ExecutionDecisionJournalError:
                 if self._connection.in_transaction:
                     self._connection.execute("ROLLBACK")
@@ -2990,6 +3904,7 @@ class ExecutionDecisionJournal:
                 if self._connection.in_transaction:
                     self._connection.execute("ROLLBACK")
                 raise ExecutionDecisionJournalError("JOURNAL_SCHEMA_FAILED") from error
+            self._validate_callback_delivery_state_on_open()
 
     @contextmanager
     def _transaction(self) -> Iterator[sqlite3.Cursor]:
@@ -3068,6 +3983,14 @@ def _canonical_json(value: Any) -> str:
         separators=(",", ":"),
         sort_keys=True,
     )
+
+
+def _sha256_text(value: Any) -> Optional[str]:
+    """SQLite scalar used only to detect proof-payload corruption on migration."""
+
+    if type(value) is not str:
+        return None
+    return hashlib.sha256(value.encode("utf-8")).hexdigest()
 
 
 def _valid_run_order_reservation_evidence(
@@ -3267,6 +4190,163 @@ def _callback_record(row: sqlite3.Row, *, is_new: bool = False) -> ExecutionCall
         created_at_ns=int(row["created_at_ns"]),
         is_new=is_new,
     )
+
+
+def _callback_query_disposition_record(
+    row: sqlite3.Row,
+) -> ExecutionCallbackQueryDisposition:
+    return ExecutionCallbackQueryDisposition(
+        native_receipt_id=row["native_receipt_id"],
+        query_receipt_id=row["query_receipt_id"],
+        intent_id=row["intent_id"],
+        execution_id=row["execution_id"],
+        disposition_code=row["disposition_code"],
+        query_process_instance_id=row["query_process_instance_id"],
+        proof_payload=_deep_freeze(json.loads(row["proof_payload_json"])),
+        proof_sha256=row["proof_sha256"],
+        created_at_ns=int(row["created_at_ns"]),
+    )
+
+
+def _callback_query_disposition_replay_matches(original: Any, candidate: Any) -> bool:
+    """Compare a later query proof to the first proof's stable execution facts.
+
+    Query IDs, session generation, snapshot IDs and collection timestamps are
+    expected to change across a legitimate fresh query. The order lineage and
+    the provider execution's identity, economics and fill time must remain the
+    same. A nullable fee is unavailable evidence, so it neither erases nor
+    contradicts a fee that was already observed.
+    """
+
+    if not isinstance(original, Mapping) or not isinstance(candidate, Mapping):
+        return False
+    if set(original) != set(candidate):
+        return False
+    for name in (
+        "schema_version",
+        "disposition_code",
+        "native_receipt_id",
+        "query_receipt_id",
+        "intent_id",
+        "execution_id",
+        "native_callback_id",
+        "native_evidence_sha256",
+        "query_callback_id",
+        "query_evidence_sha256",
+        "original_order",
+        "matched_order",
+    ):
+        if original.get(name) != candidate.get(name):
+            return False
+
+    old_trade = original.get("trade")
+    new_trade = candidate.get("trade")
+    old_query = original.get("query_set")
+    new_query = candidate.get("query_set")
+    if (
+        not isinstance(old_trade, Mapping)
+        or not isinstance(new_trade, Mapping)
+        or set(old_trade) != set(new_trade)
+        or not isinstance(old_query, Mapping)
+        or not isinstance(new_query, Mapping)
+        or set(old_query) != set(new_query)
+    ):
+        return False
+
+    for name in (
+        "trade_id",
+        "trade_date",
+        "trade_time",
+        "account_fingerprint",
+        "trading_day",
+        "side",
+        "position_effect",
+        "order_sys_id",
+        "filled_at_ns",
+    ):
+        if old_trade.get(name) != new_trade.get(name):
+            return False
+    try:
+        if _canonical_decimal(old_trade.get("quantity")) != _canonical_decimal(
+            new_trade.get("quantity")
+        ) or _canonical_decimal(old_trade.get("price")) != _canonical_decimal(
+            new_trade.get("price")
+        ):
+            return False
+        old_fee = None if old_trade.get("fee") is None else _canonical_decimal(old_trade["fee"])
+        new_fee = None if new_trade.get("fee") is None else _canonical_decimal(new_trade["fee"])
+    except (InvalidOperation, TypeError, ValueError):
+        return False
+    if old_fee is not None and new_fee is not None and old_fee != new_fee:
+        return False
+
+    if (
+        old_query.get("account_fingerprint") != new_query.get("account_fingerprint")
+        or old_query.get("trading_day") != new_query.get("trading_day")
+        or new_query.get("account_fingerprint") != new_trade.get("account_fingerprint")
+        or new_query.get("trading_day") != new_trade.get("trading_day")
+        or new_trade.get("query_set_id") != new_query.get("query_set_id")
+        or new_trade.get("connection_generation") != new_query.get("connection_generation")
+        or type(new_query.get("connection_generation")) is not int
+        or new_query["connection_generation"] <= 0
+        or not _identifier(new_query.get("query_set_id"))
+    ):
+        return False
+
+    family_ids = new_query.get("family_request_ids")
+    families = (
+        "account_result",
+        "orders_result",
+        "trades_result",
+        "instruments_result",
+        "positions_result",
+    )
+    if (
+        type(family_ids) not in (tuple, list)
+        or len(family_ids) != len(families)
+        or any(
+            type(item) not in (tuple, list)
+            or len(item) != 2
+            or type(item[0]) is not str
+            or type(item[1]) is not int
+            or item[1] <= 0
+            for item in family_ids
+        )
+        or tuple(item[0] for item in family_ids) != families
+        or len({item[1] for item in family_ids}) != len(families)
+        or dict(family_ids).get("trades_result") != new_trade.get("request_id")
+    ):
+        return False
+
+    try:
+        parsed_times = {}
+        for name in ("started_at_utc", "completed_at_utc", "available_at_utc"):
+            value = new_query.get(name)
+            if type(value) is not str or not value:
+                return False
+            parse_text = value[:-1] + "+00:00" if value.endswith("Z") else value
+            parsed = datetime.fromisoformat(parse_text)
+            if parsed.tzinfo is None or parsed.utcoffset() is None:
+                return False
+            parsed_times[name] = parsed.astimezone(timezone.utc)
+    except (TypeError, ValueError):
+        return False
+    return bool(
+        parsed_times["started_at_utc"]
+        <= parsed_times["completed_at_utc"]
+        == parsed_times["available_at_utc"]
+    )
+
+
+def _execution_id_parts(value: Any) -> Tuple[Optional[str], Optional[str]]:
+    if type(value) is not str:
+        return None, None
+    parts = value.split(":", 2)
+    if len(parts) != 3 or parts[0] != "ctp" or not re.fullmatch(r"\d{8}", parts[1]):
+        return None, None
+    if not parts[2] or parts[2] != parts[2].strip():
+        return None, None
+    return parts[1], parts[2]
 
 
 def _factor_book_checkpoint_required(intent_key: ExecutionIntentKey, economics_json: str) -> bool:

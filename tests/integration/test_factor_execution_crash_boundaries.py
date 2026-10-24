@@ -14,6 +14,7 @@ from __future__ import annotations
 import json
 import multiprocessing
 import os
+from collections.abc import Mapping
 from datetime import datetime, timedelta, timezone
 
 import pytest
@@ -503,6 +504,16 @@ def _callback_rows(journal, intent_id):
     )
 
 
+def _callback_process_instance_id(journal, receipt_id):
+    with journal._read_lock():
+        row = journal._connection.execute(
+            "SELECT process_instance_id FROM execution_decision_callbacks WHERE receipt_id=?",
+            (receipt_id,),
+        ).fetchone()
+    assert row is not None and isinstance(row["process_instance_id"], str)
+    return row["process_instance_id"]
+
+
 def _source_callback_crash_worker(journal_path, checkpoint_path, boundary):
     """Submit one fake order, then crash at a selected Broker callback step."""
 
@@ -587,6 +598,9 @@ def _source_callback_crash_worker(journal_path, checkpoint_path, boundary):
                 {
                     **common,
                     "source_callback_receipt": callback_rows[0],
+                    "source_process_instance_id": _callback_process_instance_id(
+                        journal, receipt.receipt_id
+                    ),
                     "callback_rows_before_recovery": callback_rows,
                     "receipt_id": receipt.receipt_id,
                     "receipt_acknowledged": receipt.acknowledged,
@@ -954,6 +968,553 @@ def test_spawned_callback_crash_keeps_projection_idempotent_and_marks_recovery_l
         assert recovered["item_status"] in ("APPLIED", "DUPLICATE")
         assert recovered["pending_native_callback_ids"] == ()
         assert recovered["recovery_state"] == "QUERY_PROJECTION_RECOVERED_WITHOUT_ORDER_REBUILD"
+
+
+def _callback_fill_count(journal, intent_id):
+    with journal._read_lock():
+        return int(
+            journal._connection.execute(
+                "SELECT COUNT(*) FROM factor_position_fills WHERE intent_id=?",
+                (intent_id,),
+            ).fetchone()[0]
+        )
+
+
+def _callback_proof_json(value):
+    """Canonicalize frozen journal proof values for a spawned-process receipt."""
+
+    return json.dumps(_callback_proof_value(value), sort_keys=True, separators=(",", ":"))
+
+
+def _callback_proof_value(value):
+    if isinstance(value, Mapping):
+        return {key: _callback_proof_value(item) for key, item in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_callback_proof_value(item) for item in value]
+    return value
+
+
+def _callback_query_rows(api, checkpoint, *, trade_price="100"):
+    order_row = {
+        "OrderRef": checkpoint["order_ref"],
+        "OrderSysID": "",
+        "InstrumentID": checkpoint["instrument_id"],
+        "ExchangeID": checkpoint["exchange_id"],
+        "OrderStatus": "0",
+        "Direction": "0",
+        "CombOffsetFlag": "0",
+        "VolumeTotalOriginal": "1",
+        "VolumeTraded": "1",
+        "VolumeTotal": "0",
+        "FrontID": 4,
+        "SessionID": 7,
+        "TradingDay": checkpoint["trading_day"],
+    }
+    position_row = facts_helpers._dated_position_row(
+        "1",
+        position_date="TODAY",
+        side="LONG",
+        trading_day=checkpoint["trading_day"],
+    )
+    trade_row = _trade_query_row(checkpoint)
+    trade_row["Price"] = trade_price
+    api.query_rows = facts_helpers._query_rows(
+        positions=(position_row,),
+        orders=(order_row,),
+        trades=(trade_row,),
+    )
+    recovery_helpers._bind_current_session_identity(
+        api,
+        generation=2,
+        front_id=5,
+        session_id=8,
+    )
+
+
+def _spawned_reconcile_native_callback_query_disposition(
+    journal_path, checkpoint, proof_case, result_queue
+):
+    """Match one persisted native fill to a genuinely completed source query."""
+
+    now = datetime.now(timezone.utc)
+    (
+        api,
+        store,
+        broker,
+        journal,
+        coordinator,
+        target,
+        _data,
+        _owner,
+        _cerebro,
+    ) = recovery_helpers._durable_system(journal_path, now=now)
+    stage = "setup_query"
+    try:
+        _callback_query_rows(
+            api,
+            checkpoint,
+            trade_price="101" if proof_case == "mismatch" else "100",
+        )
+        native = journal.callback_receipt(
+            checkpoint["intent_id"], checkpoint["source_callback_receipt"]["callback_id"]
+        )
+        assert native is not None and native.acknowledged is False
+        assert dict(native.evidence_payload) == checkpoint["source_callback_receipt"]["evidence"]
+        assert not broker.orders, "recovery must not rebuild the original Backtrader Order"
+
+        stage = "fresh_five_family_query"
+        complete_receipt, facts = recovery_helpers._refresh_five_family_facts(
+            api,
+            store,
+            broker,
+            target,
+            generation=2,
+            sequence=22,
+        )
+        receipt = complete_receipt
+        if proof_case == "incomplete":
+            # This is a real second refresh, bounded before its fifth core
+            # family. Keep the complete facts separate so the test proves that
+            # a later incomplete receipt cannot stand in for their source set.
+            receipt, _partial_facts = recovery_helpers._refresh_five_family_facts(
+                api,
+                store,
+                broker,
+                target,
+                generation=2,
+                sequence=23,
+                max_queries=4,
+            )
+            assert receipt.query_set is None
+            assert receipt.pending_families or receipt.blockers
+        else:
+            assert receipt.query_set is not None
+            assert receipt.blockers == ()
+            assert receipt.pending_families == ()
+            assert receipt.requested_families == recovery_helpers._CORE_FAMILIES
+            assert receipt.attempted_families == recovery_helpers._CORE_FAMILIES
+
+        assert complete_receipt.query_set is not None
+        assert complete_receipt.query_set.connection_generation == 2
+        assert len(facts.trade_observations) == 1
+        assert facts.trade_observations[0].trade_id == checkpoint["trade_id"]
+        assert facts.trade_observations[0].order_ref == checkpoint["order_ref"]
+        before_rows = _callback_rows(journal, checkpoint["intent_id"])
+        assert before_rows == (checkpoint["source_callback_receipt"],)
+        pending_before = journal.pending_callbacks(limit=16)
+        assert tuple(
+            row.receipt_id for row in pending_before if row.intent_id == checkpoint["intent_id"]
+        ) == (native.receipt_id,), "fresh reopen must retain the original delivery receipt"
+        fill_count_before = _callback_fill_count(journal, checkpoint["intent_id"])
+
+        stage = "query_reconciliation"
+        page = coordinator.reconcile_trade_observations(
+            facts,
+            limit=16,
+            refresh_receipt=receipt,
+        )
+        assert page.truncated is False
+        assert page.observation_count == 1
+        item = page.items[0]
+        rows_after_first = _callback_rows(journal, checkpoint["intent_id"])
+        native_after_first = journal.callback_receipt(
+            checkpoint["intent_id"], checkpoint["source_callback_receipt"]["callback_id"]
+        )
+        assert native_after_first is not None
+        assert native_after_first.acknowledged is False
+        assert (
+            dict(native_after_first.evidence_payload)
+            == checkpoint["source_callback_receipt"]["evidence"]
+        )
+        disposition = journal.callback_query_disposition(native.receipt_id)
+
+        stage = "query_replay"
+        replay = coordinator.reconcile_trade_observations(
+            facts,
+            limit=16,
+            refresh_receipt=receipt,
+        )
+        assert replay.truncated is False
+        assert replay.observation_count == 1
+        replay_item = replay.items[0]
+        rows_after_replay = _callback_rows(journal, checkpoint["intent_id"])
+        fill_count_after = _callback_fill_count(journal, checkpoint["intent_id"])
+        pending_receipts = journal.pending_callbacks(limit=16)
+        pending_ids = tuple(
+            row.receipt_id for row in pending_receipts if row.intent_id == checkpoint["intent_id"]
+        )
+        owner = journal.active_instrument_owner(
+            recovery_helpers._ACCOUNT_SCOPE,
+            checkpoint["instrument_id"],
+        )
+        assert not broker.orders
+        assert api.native_calls == []
+        assert owner is not None, "query disposition does not release the position owner"
+
+        if proof_case == "match":
+            assert item.status in ("APPLIED", "DUPLICATE"), item
+            assert item.blocker_code is None
+            assert replay_item.status in ("APPLIED", "DUPLICATE"), replay_item
+            assert replay_item.blocker_code is None
+            assert disposition is not None
+            assert disposition.disposition_code == (
+                "QUERY_MATCHED_BROKER_ACK_UNOBSERVED_AFTER_RESTART"
+            )
+            assert disposition.native_receipt_id == native.receipt_id
+            assert disposition.intent_id == checkpoint["intent_id"]
+            assert disposition.execution_id == item.execution_id
+            assert disposition.query_process_instance_id
+            query_pid = disposition.query_process_instance_id.split(":", 1)[0]
+            assert query_pid.isdecimal() and int(query_pid) != checkpoint["source_process_id"]
+            assert disposition.query_process_instance_id != checkpoint["source_process_instance_id"]
+            assert len(disposition.proof_sha256) == 64
+            proof = disposition.proof_payload
+            assert proof["original_order"] == {
+                "account_scope": recovery_helpers._ACCOUNT_SCOPE,
+                "strategy_scope": recovery_helpers._STRATEGY_SCOPE,
+                "trading_day": checkpoint["trading_day"],
+                "instrument": checkpoint["instrument_id"],
+                "exchange": checkpoint["exchange_id"],
+                "order_ref": checkpoint["order_ref"],
+                "front_id": 4,
+                "session_id": 7,
+                "order_sys_id": None,
+            }
+            assert proof["matched_order"] == {
+                "front_id": 4,
+                "session_id": 7,
+                "order_ref": checkpoint["order_ref"],
+                "instrument": checkpoint["instrument_id"],
+                "exchange": checkpoint["exchange_id"],
+                "order_sys_id": None,
+            }
+            assert proof["trade"]["trade_id"] == checkpoint["trade_id"]
+            assert proof["trade"]["trade_date"] == checkpoint["trade_date"]
+            assert proof["trade"]["trade_time"] == checkpoint["trade_time"]
+            assert proof["trade"]["quantity"] == "1"
+            assert proof["trade"]["price"] == "100"
+            assert proof["trade"]["request_id"] > 0
+            assert proof["trade"]["connection_generation"] == 2
+            assert proof["query_set"]["connection_generation"] == 2
+            assert proof["query_set"]["trading_day"] == checkpoint["trading_day"]
+            assert tuple(tuple(row) for row in proof["query_set"]["family_request_ids"]) == tuple(
+                complete_receipt.query_set.query_ids
+            )
+            query_rows = [row for row in rows_after_first if row["receipt_id"] != native.receipt_id]
+            assert len(query_rows) == 1
+            assert query_rows[0]["callback_id"].startswith("query-trade:")
+            assert query_rows[0]["acknowledged"] is True
+            assert disposition.query_receipt_id == query_rows[0]["receipt_id"]
+            assert rows_after_replay == rows_after_first
+            assert fill_count_before == 1 and fill_count_after == 1
+            assert native.receipt_id not in pending_ids
+            repeated_disposition = journal.callback_query_disposition(native.receipt_id)
+            assert repeated_disposition == disposition
+            outcome = "QUERY_MATCHED_NATIVE_CALLBACK_WITHOUT_ACK_OR_ORDER_REBUILD"
+        elif proof_case == "incomplete":
+            assert item.status in ("APPLIED", "DUPLICATE"), item
+            assert item.blocker_code == "CALLBACK_QUERY_REFRESH_RECEIPT_INCOMPLETE"
+            assert replay_item.status in ("APPLIED", "DUPLICATE"), replay_item
+            assert replay_item.blocker_code == item.blocker_code
+            assert disposition is None
+            assert fill_count_before == 1 and fill_count_after == 1
+            assert rows_after_replay == rows_after_first
+            assert native.receipt_id in pending_ids
+            outcome = "INCOMPLETE_QUERY_RECEIPT_LEFT_NATIVE_CALLBACK_PENDING"
+        else:
+            assert proof_case == "mismatch"
+            assert item.status == "BLOCKED", item
+            assert item.blocker_code == "NATIVE_TRADE_CALLBACK_QUERY_CONFLICT"
+            assert replay_item.status == "BLOCKED", replay_item
+            assert replay_item.blocker_code == item.blocker_code
+            assert disposition is None
+            assert fill_count_before == 1 and fill_count_after == 1
+            assert rows_after_replay == rows_after_first == before_rows
+            assert native.receipt_id in pending_ids
+            outcome = "MISMATCHED_TRADE_LEFT_NATIVE_CALLBACK_PENDING"
+
+        result_queue.put(
+            {
+                "status": "OK",
+                "outcome": outcome,
+                "proof_case": proof_case,
+                "item_status": item.status,
+                "blocker_code": item.blocker_code,
+                "replay_status": replay_item.status,
+                "fill_count_before": fill_count_before,
+                "fill_count_after": fill_count_after,
+                "native_receipt_id": native.receipt_id,
+                "native_acknowledged": native_after_first.acknowledged,
+                "native_evidence_unchanged": dict(native_after_first.evidence_payload)
+                == checkpoint["source_callback_receipt"]["evidence"],
+                "native_pending": native.receipt_id in pending_ids,
+                "disposition_code": None if disposition is None else disposition.disposition_code,
+                "disposition_query_receipt_id": (
+                    None if disposition is None else disposition.query_receipt_id
+                ),
+                "disposition_query_process_instance_id": (
+                    None if disposition is None else disposition.query_process_instance_id
+                ),
+                "disposition_proof_json": (
+                    None if disposition is None else _callback_proof_json(disposition.proof_payload)
+                ),
+                "disposition_proof_sha256": (
+                    None if disposition is None else disposition.proof_sha256
+                ),
+                "fresh_broker_orders": len(broker.orders),
+                "native_calls": len(api.native_calls),
+                "owner_retained": owner is not None,
+            }
+        )
+    except BaseException as error:
+        result_queue.put(
+            {
+                "status": "ERROR",
+                "stage": stage,
+                "error_type": type(error).__name__,
+                "error_code": getattr(error, "code", None),
+                "error_message": str(error)[:240],
+            }
+        )
+    finally:
+        journal.close()
+
+
+@pytest.mark.parametrize("proof_case", ("match", "incomplete", "mismatch"))
+def test_spawned_callback_before_ack_uses_exact_query_disposition_only_after_restart(
+    tmp_path, proof_case
+):
+    """A matching full query can retire delivery without ACK or duplicate fill."""
+
+    journal_path = tmp_path / ("callback-query-disposition-" + proof_case + ".sqlite3")
+    checkpoint_path = tmp_path / ("callback-query-disposition-" + proof_case + ".json")
+    context = multiprocessing.get_context("spawn")
+    source = context.Process(
+        target=_source_callback_crash_worker,
+        args=(str(journal_path), str(checkpoint_path), "callback_after_projection"),
+        name="factor-execution-native-callback-crash",
+    )
+    source.start()
+    source_pid = source.pid
+    source.join(timeout=45)
+    if source.is_alive():
+        source.terminate()
+        source.join(timeout=5)
+        pytest.fail("test-owned native callback crash worker exceeded its bound")
+    assert source.exitcode == _EXIT_CODES["callback_after_projection"]
+    checkpoint = json.loads(checkpoint_path.read_text(encoding="utf-8"))
+    checkpoint["source_process_id"] = source_pid
+    assert type(source_pid) is int and source_pid != os.getpid()
+    assert checkpoint["source_callback_receipt"] is not None
+    assert checkpoint["source_callback_receipt"]["acknowledged"] is False
+    assert checkpoint["receipt_acknowledged"] is False
+    assert checkpoint["projection_status"] == "APPLIED"
+    assert checkpoint["broker_position_before_apply"] == 0
+    assert checkpoint["order_executed_before_apply"] == 0
+
+    recovered = _spawn_result(
+        context,
+        target=_spawned_reconcile_native_callback_query_disposition,
+        args=(str(journal_path), checkpoint, proof_case),
+    )
+    assert recovered["proof_case"] == proof_case
+    assert recovered["native_acknowledged"] is False
+    assert recovered["native_evidence_unchanged"] is True
+    assert recovered["fill_count_before"] == 1
+    assert recovered["fill_count_after"] == 1
+    assert recovered["fresh_broker_orders"] == 0
+    assert recovered["native_calls"] == 0
+    assert recovered["owner_retained"] is True
+    if proof_case == "match":
+        assert recovered["outcome"] == "QUERY_MATCHED_NATIVE_CALLBACK_WITHOUT_ACK_OR_ORDER_REBUILD"
+        assert recovered["native_pending"] is False
+        assert recovered["disposition_code"] == (
+            "QUERY_MATCHED_BROKER_ACK_UNOBSERVED_AFTER_RESTART"
+        )
+        assert recovered["blocker_code"] is None
+
+        # Opening the database after the recovery worker has exited exercises
+        # startup validation of a valid persisted proof. This third process
+        # scope reads the exact immutable proof, source callback row and fill
+        # checkpoint without rebuilding an Order or invoking native methods.
+        reopened = ExecutionDecisionJournal(journal_path)
+        try:
+            native = reopened.callback_receipt(
+                checkpoint["intent_id"], checkpoint["source_callback_receipt"]["callback_id"]
+            )
+            assert native is not None
+            assert native.receipt_id == recovered["native_receipt_id"]
+            assert native.acknowledged is False
+            assert (
+                dict(native.evidence_payload) == checkpoint["source_callback_receipt"]["evidence"]
+            )
+
+            disposition = reopened.callback_query_disposition(native.receipt_id)
+            assert disposition is not None
+            assert disposition.disposition_code == recovered["disposition_code"]
+            assert disposition.query_receipt_id == recovered["disposition_query_receipt_id"]
+            assert (
+                disposition.query_process_instance_id
+                == recovered["disposition_query_process_instance_id"]
+            )
+            assert (
+                _callback_proof_json(disposition.proof_payload)
+                == recovered["disposition_proof_json"]
+            )
+            assert disposition.proof_sha256 == recovered["disposition_proof_sha256"]
+
+            persisted_rows = _callback_rows(reopened, checkpoint["intent_id"])
+            assert persisted_rows[0] == checkpoint["source_callback_receipt"]
+            query_rows = [row for row in persisted_rows if row["receipt_id"] != native.receipt_id]
+            assert len(query_rows) == 1
+            assert query_rows[0]["receipt_id"] == disposition.query_receipt_id
+            assert query_rows[0]["acknowledged"] is True
+            pending_ids = tuple(row.receipt_id for row in reopened.pending_callbacks(limit=16))
+            assert native.receipt_id not in pending_ids
+            assert _callback_fill_count(reopened, checkpoint["intent_id"]) == 1
+        finally:
+            reopened.close()
+    elif proof_case == "incomplete":
+        assert recovered["outcome"] == "INCOMPLETE_QUERY_RECEIPT_LEFT_NATIVE_CALLBACK_PENDING"
+        assert recovered["native_pending"] is True
+        assert recovered["disposition_code"] is None
+        assert recovered["blocker_code"] == "CALLBACK_QUERY_REFRESH_RECEIPT_INCOMPLETE"
+    else:
+        assert recovered["outcome"] == "MISMATCHED_TRADE_LEFT_NATIVE_CALLBACK_PENDING"
+        assert recovered["native_pending"] is True
+        assert recovered["disposition_code"] is None
+        assert recovered["blocker_code"] == "NATIVE_TRADE_CALLBACK_QUERY_CONFLICT"
+
+
+def test_reopened_journal_in_same_process_cannot_claim_callback_restart_disposition(tmp_path):
+    """Reopening SQLite in the producer process does not prove a process restart."""
+
+    journal_path = tmp_path / "callback-query-same-process.sqlite3"
+    fixed_now = datetime(2026, 10, 24, 1, 0, 10, tzinfo=timezone.utc)
+    (
+        api,
+        _store,
+        broker,
+        journal,
+        coordinator,
+        target,
+        data,
+        owner,
+        _cerebro,
+    ) = recovery_helpers._durable_system(journal_path, now=fixed_now)
+    checkpoint = None
+    try:
+        initial_facts = recovery_helpers._initial_open_facts(
+            api, _store, broker, target, now=fixed_now
+        )
+        scope, _intent_key, _economics = recovery_helpers._decision_scope(
+            coordinator,
+            owner,
+            initial_facts,
+            close_time=initial_facts.available_at - timedelta(milliseconds=2),
+            batch_id="callback-same-process-source",
+        )
+        order = _submit_in_scope(scope, owner, data)
+        assert order is not None and order.info["factor_dispatch_state"] == "KNOWN"
+        intent = journal.intent(order.info["factor_intent_id"])
+        assert intent is not None and intent.dispatch_state == "KNOWN"
+        order_ref = intent.original_identity["order_ref"]
+        trade_time = (fixed_now + timedelta(seconds=5)).astimezone(timezone(timedelta(hours=8)))
+        api.emit_provider_trade_callback(
+            order_ref,
+            trade_id="callback-same-process-trade",
+            quantity=1,
+            offset="open",
+            when=trade_time,
+            omit_trade_date=False,
+        )
+
+        def interrupt_before_ack(_receipt_id):
+            raise RuntimeError("test leaves the durable callback unacknowledged")
+
+        journal.acknowledge_callback = interrupt_before_ack
+        broker._drain_store_updates()
+        rows = _callback_rows(journal, intent.intent_id)
+        assert len(rows) == 1
+        callback_id = rows[0]["callback_id"]
+        assert rows[0]["acknowledged"] is False
+        assert broker.getposition(data).size == 1
+        assert order.executed.size == 1
+        checkpoint = {
+            "intent_id": intent.intent_id,
+            "order_ref": order_ref,
+            "trading_day": intent.original_identity["trading_day"],
+            "instrument_id": intent.original_identity["instrument_id"],
+            "exchange_id": intent.original_identity["exchange_id"],
+            "trade_id": "callback-same-process-trade",
+            "trade_date": trade_time.strftime("%Y%m%d"),
+            "trade_time": trade_time.strftime("%H:%M:%S"),
+            "source_callback_receipt": rows[0],
+            "source_process_instance_id": _callback_process_instance_id(
+                journal, rows[0]["receipt_id"]
+            ),
+            "source_process_id": os.getpid(),
+        }
+    finally:
+        journal.close()
+
+    # _durable_system creates a fresh Store/Broker and reopens this database,
+    # while the process-instance marker remains shared with the producer.
+    now = datetime.now(timezone.utc)
+    (
+        api,
+        store,
+        broker,
+        journal,
+        coordinator,
+        target,
+        _data,
+        _owner,
+        _cerebro,
+    ) = recovery_helpers._durable_system(journal_path, now=now)
+    try:
+        _callback_query_rows(api, checkpoint)
+        receipt, facts = recovery_helpers._refresh_five_family_facts(
+            api,
+            store,
+            broker,
+            target,
+            generation=2,
+            sequence=22,
+        )
+        assert receipt.blockers == () and receipt.pending_families == ()
+        assert receipt.query_set is not None
+        native = journal.callback_receipt(checkpoint["intent_id"], callback_id)
+        assert native is not None and native.acknowledged is False
+        assert (
+            _callback_process_instance_id(journal, native.receipt_id)
+            == checkpoint["source_process_instance_id"]
+        )
+        assert dict(native.evidence_payload) == checkpoint["source_callback_receipt"]["evidence"]
+        pending_before = journal.pending_callbacks(limit=16)
+        assert native.receipt_id in tuple(row.receipt_id for row in pending_before)
+        page = coordinator.reconcile_trade_observations(
+            facts,
+            limit=16,
+            refresh_receipt=receipt,
+        )
+        assert page.observation_count == 1 and page.truncated is False
+        item = page.items[0]
+        native_after = journal.callback_receipt(checkpoint["intent_id"], callback_id)
+        assert native_after is not None and native_after.acknowledged is False
+        assert (
+            dict(native_after.evidence_payload) == checkpoint["source_callback_receipt"]["evidence"]
+        )
+        assert item.status in ("APPLIED", "DUPLICATE"), item
+        assert item.blocker_code == "CALLBACK_QUERY_RESTART_NOT_PROVEN"
+        assert journal.callback_query_disposition(native.receipt_id) is None
+        pending = journal.pending_callbacks(limit=16)
+        assert native.receipt_id in tuple(row.receipt_id for row in pending)
+        assert _callback_fill_count(journal, checkpoint["intent_id"]) == 1
+        assert not broker.orders
+        assert api.native_calls == []
+    finally:
+        journal.close()
 
 
 def test_dispatching_without_terminal_query_stays_unresolved_on_grid_replay():

@@ -364,7 +364,12 @@ class FactorExecutionCoordinator:
             gate_context.__exit__(None, None, None)
 
     def reconcile_trade_observations(
-        self, facts: Any, *, limit: int = 128, offset: int = 0
+        self,
+        facts: Any,
+        *,
+        limit: int = 128,
+        offset: int = 0,
+        refresh_receipt: Any = None,
     ) -> ExecutionTradeReconciliationPage:
         """Durably consume one bounded page of complete CTP trade-query rows.
 
@@ -378,7 +383,10 @@ class FactorExecutionCoordinator:
         _validate_page(limit, offset, maximum=512)
         selected = observations[offset : offset + limit]
         items = tuple(
-            self._reconcile_one_trade_observation(facts, observation) for observation in selected
+            self._reconcile_one_trade_observation(
+                facts, observation, refresh_receipt=refresh_receipt
+            )
+            for observation in selected
         )
         next_offset = offset + len(selected)
         truncated = next_offset < len(observations)
@@ -654,11 +662,7 @@ class FactorExecutionCoordinator:
                 facts, observation, intent, refresh_receipt=refresh_receipt
             )
         if intent.state == "KNOWN" and intent.dispatch_state is None:
-            # The only supported KNOWN/NULL combination is the atomic crash
-            # outcome written by record_dispatching_no_fill_terminal.  Its
-            # complete query and owner resolution are replayed below so a
-            # failed Store retirement can be retried without another RPC.
-            return self._reconcile_dispatching_no_fill_terminal(
+            return self._replay_known_dispatching_no_fill_terminal(
                 facts, observation, intent, refresh_receipt=refresh_receipt
             )
         if intent.dispatch_state == "UNKNOWN":
@@ -1238,6 +1242,232 @@ class FactorExecutionCoordinator:
             status="RESOLVED",
             intent_id=intent.intent_id,
             reconciliation_id=reconciliation.reconciliation_id,
+        )
+
+    def _replay_known_dispatching_no_fill_terminal(
+        self,
+        facts: Any,
+        observation: Any,
+        intent: ExecutionIntentRecord,
+        *,
+        refresh_receipt: Any,
+    ) -> ExecutionTerminalReconciliationItem:
+        """Reuse an exact durable no-fill result after Store retirement succeeded.
+
+        The first recovery persists a KNOWN intent with NULL dispatch response,
+        its terminal reconciliation, and the released owner atomically. Later
+        account snapshots often repeat the same CTP terminal order. If the
+        exact local UNKNOWN latch is gone, that read is a no-op replay and must
+        not demand a recovery scope or rewrite the historical proof.
+        """
+
+        try:
+            current = self.journal.intent(intent.intent_id)
+            resolution = self.journal.instrument_resolution(intent.intent_id)
+            if resolution is None:
+                return self._blocked_known_no_fill_replay(
+                    observation, intent, "DISPATCHING_NO_FILL_RESOLUTION_MISSING"
+                )
+            reconciliation = self.journal.reconciliation(resolution.reconciliation_id)
+            if current is None or reconciliation is None:
+                return self._blocked_known_no_fill_replay(
+                    observation, intent, "DISPATCHING_NO_FILL_RECONCILIATION_MISSING"
+                )
+            if not self._known_no_fill_replay_matches(
+                current, intent, resolution, reconciliation, observation
+            ):
+                return self._blocked_known_no_fill_replay(
+                    observation,
+                    intent,
+                    "DISPATCHING_NO_FILL_REPLAY_CONFLICT",
+                    reconciliation_id=resolution.reconciliation_id,
+                )
+            route = self.store.registered_sim_route_eligibility(
+                observation.instrument, observation.exchange
+            )
+            if (
+                route.instrument_id != observation.instrument
+                or route.exchange_id != observation.exchange
+                or route.account_fingerprint != observation.account_fingerprint
+                or route.trading_day != observation.trading_day
+                or route.current_session_account_fingerprint != observation.account_fingerprint
+                or route.current_session_connection_generation != observation.connection_generation
+                or route.current_session_trading_day != observation.trading_day
+                or route.current_session_read_only_ready is not True
+            ):
+                return self._blocked_known_no_fill_replay(
+                    observation,
+                    intent,
+                    "DISPATCHING_UNKNOWN_LATCH_SCOPE_MISMATCH",
+                    reconciliation_id=resolution.reconciliation_id,
+                )
+            unknown_ids = route.unknown_order_ids
+            unknown_count = route.unknown_order_count
+            if (
+                type(unknown_ids) is not tuple
+                or type(unknown_count) is not int
+                or unknown_count != len(unknown_ids)
+                or any(not _exact_identifier(value) for value in unknown_ids)
+                or len(set(unknown_ids)) != len(unknown_ids)
+            ):
+                return self._blocked_known_no_fill_replay(
+                    observation,
+                    intent,
+                    "DISPATCHING_UNKNOWN_LATCH_UNAVAILABLE",
+                    reconciliation_id=resolution.reconciliation_id,
+                )
+            try:
+                local_orders = execution_order_snapshot(self.broker)
+            except Exception:
+                return self._blocked_known_no_fill_replay(
+                    observation,
+                    intent,
+                    "DISPATCHING_LOCAL_UNKNOWN_LATCH_UNAVAILABLE",
+                    reconciliation_id=resolution.reconciliation_id,
+                )
+            exact_local = tuple(
+                row
+                for row in local_orders
+                if row.external_order_ref == observation.order_ref
+                and row.instrument_id == observation.instrument
+                and row.exchange_id == observation.exchange
+            )
+            exact_unknown = tuple(
+                row
+                for row in exact_local
+                if row.owner_intent_id == intent.intent_id and row.execution_unknown is True
+            )
+            if exact_local and len(exact_unknown) != len(exact_local):
+                return self._blocked_known_no_fill_replay(
+                    observation,
+                    intent,
+                    "DISPATCHING_LOCAL_ORDER_STATE_CONFLICT",
+                    reconciliation_id=resolution.reconciliation_id,
+                )
+            has_latch = observation.order_ref in unknown_ids or bool(exact_unknown)
+            if has_latch:
+                if unknown_ids not in ((), (observation.order_ref,)):
+                    return self._blocked_known_no_fill_replay(
+                        observation,
+                        intent,
+                        "DISPATCHING_UNKNOWN_LATCH_SET_CONFLICT",
+                        reconciliation_id=resolution.reconciliation_id,
+                    )
+                # The exact latch remains; the existing gated recovery path
+                # revalidates the same fresh query before asking Store to retire it.
+                return self._reconcile_dispatching_no_fill_terminal(
+                    facts, observation, current, refresh_receipt=refresh_receipt
+                )
+            return ExecutionTerminalReconciliationItem(
+                observation_id=observation.observation_id,
+                status="RESOLVED",
+                intent_id=intent.intent_id,
+                reconciliation_id=resolution.reconciliation_id,
+            )
+        except ExecutionDecisionJournalError as error:
+            code = error.code
+        except Exception as error:
+            observed_code = getattr(error, "code", None)
+            code = (
+                observed_code
+                if _exact_identifier(observed_code)
+                else ("DISPATCHING_NO_FILL_REPLAY_UNAVAILABLE")
+            )
+        return self._blocked_known_no_fill_replay(observation, intent, code)
+
+    def _known_no_fill_replay_matches(
+        self, current, original, resolution, reconciliation, observation
+    ) -> bool:
+        identity = dict(original.original_identity)
+        stored_identity = dict(reconciliation.original_identity)
+        provider = reconciliation.provider_identity
+        expected_state = _terminal_state(observation.terminal_state)
+        if not isinstance(provider, Mapping):
+            return False
+        request = _decimal_optional(original.economic_payload.get("quantity"))
+        observed_volumes = (
+            observation.volume_total_original,
+            observation.volume_traded,
+            observation.volume_total,
+        )
+        stored_volumes = tuple(
+            _decimal_optional(provider.get(name))
+            for name in ("volume_total_original", "volume_traded", "volume_total")
+        )
+        return bool(
+            current.intent_id == original.intent_id
+            and current.key == original.key
+            and dict(current.original_identity) == identity
+            and current.state == "KNOWN"
+            and current.dispatch_state is None
+            and current.provider_identity is None
+            and current.outcome_code is None
+            and original.key.action == "SUBMIT"
+            and original.key.position_effect == "OPEN"
+            and identity.get("operation") == "insert"
+            and resolution.intent_id == original.intent_id
+            and resolution.account_scope == self.account_scope
+            and resolution.instrument == observation.instrument
+            and resolution.terminal_state == expected_state
+            and resolution.terminal_event_id == reconciliation.terminal_event_id
+            and resolution.position_flat is True
+            and reconciliation.intent_id == original.intent_id
+            and reconciliation.state == "KNOWN"
+            and reconciliation.terminal_state == expected_state
+            and reconciliation.terminal_event_id == reconciliation.query_id
+            and reconciliation.outcome_code == "complete_orders_query_dispatching_no_fill_terminal"
+            and reconciliation.position_flat is True
+            and reconciliation.position_snapshot_id == resolution.position_snapshot_id
+            and dict(stored_identity) == identity
+            and provider.get("evidence_kind")
+            == "complete_orders_query_dispatching_no_fill_terminal"
+            and provider.get("intent_id") == original.intent_id
+            and provider.get("account_scope") == self.account_scope
+            and provider.get("strategy_scope") == self.strategy_scope
+            and provider.get("observation_id") == reconciliation.query_id
+            and provider.get("terminal_event_id") == reconciliation.terminal_event_id
+            and provider.get("query_set_id") is not None
+            and provider.get("snapshot_id") == reconciliation.position_snapshot_id
+            and provider.get("position_snapshot_id") == resolution.position_snapshot_id
+            and provider.get("position_flat") is True
+            and provider.get("account_fingerprint") == identity.get("account_fingerprint")
+            and provider.get("original_account_fingerprint") == identity.get("account_fingerprint")
+            and provider.get("original_connection_generation")
+            == identity.get("connection_generation")
+            and provider.get("original_trading_day") == identity.get("trading_day")
+            and provider.get("original_order_ref") == identity.get("order_ref")
+            and provider.get("original_front_id") == identity.get("front_id")
+            and provider.get("original_session_id") == identity.get("session_id")
+            and provider.get("trading_day") == observation.trading_day
+            and observation.trading_day == identity.get("trading_day")
+            and provider.get("order_ref") == observation.order_ref == identity.get("order_ref")
+            and provider.get("instrument")
+            == observation.instrument
+            == identity.get("instrument_id")
+            and provider.get("exchange") == observation.exchange == identity.get("exchange_id")
+            and provider.get("front_id") == observation.front_id == identity.get("front_id")
+            and provider.get("session_id") == observation.session_id == identity.get("session_id")
+            and provider.get("order_sys_id") == observation.order_sys_id
+            and provider.get("terminal_status") == observation.terminal_status
+            and provider.get("terminal_state") == observation.terminal_state
+            and expected_state in ("CANCELLED", "REJECTED")
+            and request is not None
+            and request == stored_volumes[0] == observed_volumes[0]
+            and Decimal(0) == stored_volumes[1] == observed_volumes[1]
+            and stored_volumes[2] == observed_volumes[2] == request
+            and provider.get("matching_trade_count") == 0
+        )
+
+    @staticmethod
+    def _blocked_known_no_fill_replay(
+        observation, intent, code, *, reconciliation_id=None
+    ) -> ExecutionTerminalReconciliationItem:
+        return ExecutionTerminalReconciliationItem(
+            observation_id=observation.observation_id,
+            status="BLOCKED",
+            intent_id=intent.intent_id,
+            reconciliation_id=reconciliation_id,
+            blocker_code=code,
         )
 
     def _current_terminal_recovery_scope(self) -> Optional[_TerminalRecoveryScopeState]:
@@ -2773,7 +3003,7 @@ class FactorExecutionCoordinator:
         )
 
     def _reconcile_one_trade_observation(
-        self, facts: Any, observation: Any
+        self, facts: Any, observation: Any, *, refresh_receipt: Any = None
     ) -> ExecutionTradeReconciliationItem:
         intent = self._intent_for_trade_observation(facts, observation)
         if intent is None:
@@ -2805,7 +3035,7 @@ class FactorExecutionCoordinator:
         try:
             from .factor_position_book import apply_factor_execution_fill
 
-            native_receipt = self.journal.callback_receipt(
+            date_less_native_receipt = self.journal.callback_receipt(
                 intent.intent_id,
                 _native_trade_callback_id(
                     observation.trade_id,
@@ -2814,8 +3044,31 @@ class FactorExecutionCoordinator:
                     observation.exchange,
                 ),
             )
-            if native_receipt is not None and not _unusable_trade_callback_matches_observation(
-                observation, native_receipt.evidence_payload
+            if (
+                date_less_native_receipt is not None
+                and not _unusable_trade_callback_matches_observation(
+                    observation, date_less_native_receipt.evidence_payload
+                )
+            ):
+                return ExecutionTradeReconciliationItem(
+                    observation_id=observation.observation_id,
+                    status="BLOCKED",
+                    intent_id=intent.intent_id,
+                    receipt_id=date_less_native_receipt.receipt_id,
+                    execution_id=payload["execution_id"],
+                    blocker_code="NATIVE_TRADE_CALLBACK_QUERY_CONFLICT",
+                )
+
+            native_receipt = self.journal.callback_receipt(
+                intent.intent_id,
+                _native_execution_trade_callback_id(payload["execution_id"]),
+            )
+            if native_receipt is not None and (
+                native_receipt.evidence_payload.get("event_type") != "execution_fill"
+                or native_receipt.evidence_payload.get("evidence_kind") != "native_trade_callback"
+                or not _trade_observation_matches_evidence(
+                    observation, native_receipt.evidence_payload
+                )
             ):
                 return ExecutionTradeReconciliationItem(
                     observation_id=observation.observation_id,
@@ -2839,19 +3092,91 @@ class FactorExecutionCoordinator:
                     )
                 payload = prior.evidence_payload
 
-            receipt, projection = self.journal.record_callback_projected(
+            disposition_already_persisted = False
+            disposition_proof = None
+            disposition_blocker = None
+            if native_receipt is not None and not native_receipt.acknowledged:
+                existing_disposition = self.journal.callback_query_disposition(
+                    native_receipt.receipt_id
+                )
+                if existing_disposition is not None:
+                    if (
+                        prior is None
+                        or existing_disposition.query_receipt_id != prior.receipt_id
+                        or existing_disposition.intent_id != intent.intent_id
+                        or existing_disposition.execution_id != payload["execution_id"]
+                        or not _callback_query_disposition_matches_observation(
+                            existing_disposition,
+                            intent,
+                            observation,
+                            account_scope=self.account_scope,
+                            strategy_scope=self.strategy_scope,
+                        )
+                    ):
+                        return ExecutionTradeReconciliationItem(
+                            observation_id=observation.observation_id,
+                            status="BLOCKED",
+                            intent_id=intent.intent_id,
+                            receipt_id=native_receipt.receipt_id,
+                            execution_id=payload["execution_id"],
+                            blocker_code="CALLBACK_QUERY_DISPOSITION_CONFLICT",
+                        )
+                    disposition_already_persisted = True
+                else:
+                    try:
+                        disposition_proof = self._callback_query_disposition_proof(
+                            facts,
+                            refresh_receipt,
+                            observation,
+                            intent,
+                        )
+                    except FactorExecutionError as error:
+                        disposition_blocker = error.code
+
+            def project(cursor, receipt_id):
+                result = apply_factor_execution_fill(cursor, receipt_id=receipt_id)
+                if getattr(result, "status", None) not in ("APPLIED", "DUPLICATE"):
+                    return result
+                self.journal.acknowledge_callback_in_transaction(cursor, receipt_id)
+                if native_receipt is not None and not native_receipt.acknowledged:
+                    if disposition_already_persisted:
+                        return result
+                    if disposition_proof is None:
+                        if disposition_blocker is None:
+                            return result, "CALLBACK_QUERY_RESTART_PROOF_UNAVAILABLE"
+                        return result, disposition_blocker
+                    try:
+                        self.journal.record_callback_query_disposition(
+                            cursor,
+                            native_receipt_id=native_receipt.receipt_id,
+                            query_receipt_id=receipt_id,
+                            intent_id=intent.intent_id,
+                            execution_id=payload["execution_id"],
+                            proof_payload=disposition_proof,
+                        )
+                    except ExecutionDecisionJournalError as error:
+                        if error.code in {
+                            "CALLBACK_QUERY_RESTART_NOT_PROVEN",
+                            "CALLBACK_QUERY_RESTART_ORIGIN_UNKNOWN",
+                        }:
+                            return result, error.code
+                        raise
+                return result
+
+            receipt, projected = self.journal.record_callback_projected(
                 intent.intent_id,
                 callback_id,
                 payload,
-                project=lambda cursor, receipt_id: apply_factor_execution_fill(
-                    cursor, receipt_id=receipt_id
-                ),
+                project=project,
             )
+            if isinstance(projected, tuple):
+                projection, disposition_blocker = projected
+            else:
+                projection = projected
             status = getattr(projection, "status", "BLOCKED")
             blocker = getattr(projection, "blocker_code", None)
-            if status in ("APPLIED", "DUPLICATE"):
-                if not receipt.acknowledged:
-                    self.journal.acknowledge_callback(receipt.receipt_id)
+            if blocker is None:
+                blocker = disposition_blocker
             return ExecutionTradeReconciliationItem(
                 observation_id=observation.observation_id,
                 status=status,
@@ -2862,6 +3187,211 @@ class FactorExecutionCoordinator:
             )
         except Exception as error:
             raise FactorExecutionError("TRADE_RECONCILIATION_NOT_DURABLE") from error
+
+    def _callback_query_disposition_proof(
+        self, facts: Any, refresh_receipt: Any, observation: Any, intent: ExecutionIntentRecord
+    ) -> Mapping[str, Any]:
+        """Build a current five-query proof for one exact native callback fill."""
+
+        from .factor_execution_facts import (
+            _BASE_FAMILIES,
+            FactorExecutionRefreshReceipt,
+            _query_set_matches,
+        )
+
+        if type(refresh_receipt) is not FactorExecutionRefreshReceipt:
+            raise FactorExecutionError("CALLBACK_QUERY_REFRESH_RECEIPT_REQUIRED")
+        if (
+            refresh_receipt.cancelled
+            or refresh_receipt.deadline_reached
+            or refresh_receipt.blockers
+            or refresh_receipt.pending_families
+            or tuple(refresh_receipt.requested_families[: len(_BASE_FAMILIES)]) != _BASE_FAMILIES
+            or tuple(refresh_receipt.attempted_families[: len(_BASE_FAMILIES)]) != _BASE_FAMILIES
+            or not _time_not_after(refresh_receipt.started_at, refresh_receipt.completed_at)
+            or facts.available_at is None
+            or not _time_not_after(facts.available_at, refresh_receipt.completed_at)
+        ):
+            raise FactorExecutionError("CALLBACK_QUERY_REFRESH_RECEIPT_INCOMPLETE")
+        receipt_facts = tuple(
+            item for item in refresh_receipt.query_provenance if item.family in _BASE_FAMILIES
+        )
+        facts_facts = tuple(
+            item for item in facts.query_provenance if item.family in _BASE_FAMILIES
+        )
+        if (
+            tuple(item.family for item in receipt_facts) != _BASE_FAMILIES
+            or receipt_facts != facts_facts
+            or any(
+                item.source_owned is not True
+                or item.query_complete is not True
+                or item.scope_complete is not True
+                or type(item.request_id) is not int
+                or item.request_id <= 0
+                or type(item.connection_generation) is not int
+                or item.connection_generation <= 0
+                or not _exact_identifier(item.account_fingerprint)
+                or not _valid_trading_day(item.trading_day)
+                or item.started_at is None
+                or item.completed_at is None
+                or not _time_not_after(item.started_at, item.completed_at)
+                or not _time_not_after(item.completed_at, refresh_receipt.completed_at)
+                for item in receipt_facts
+            )
+        ):
+            raise FactorExecutionError("CALLBACK_QUERY_REFRESH_PROVENANCE_MISMATCH")
+        query_set = refresh_receipt.query_set
+        now = datetime.now(timezone.utc)
+        if (
+            query_set is None
+            or query_set.query_set_id != facts.query_set_id
+            or not _query_set_matches(
+                query_set,
+                receipt_facts,
+                now=now,
+                max_age=timedelta(seconds=60),
+            )
+            or not _time_not_after(refresh_receipt.started_at, query_set.started_at_utc)
+            or not _time_not_after(query_set.started_at_utc, query_set.completed_at_utc)
+            or not _time_not_after(query_set.completed_at_utc, refresh_receipt.completed_at)
+            or not _time_not_after(refresh_receipt.completed_at, now)
+            or now - _aware_utc(refresh_receipt.completed_at) > timedelta(seconds=60)
+            or facts.account is None
+            or query_set.account_fingerprint != facts.account.account_fingerprint
+            or query_set.connection_generation != facts.account.connection_generation
+            or query_set.trading_day != facts.account.trading_day
+        ):
+            raise FactorExecutionError("CALLBACK_QUERY_REFRESH_QUERY_SET_MISMATCH")
+        if (
+            facts.account.account_scope != self.account_scope
+            or facts.strategy_scope != self.strategy_scope
+            or observation.account_fingerprint != query_set.account_fingerprint
+            or observation.connection_generation != query_set.connection_generation
+            or observation.trading_day != query_set.trading_day
+            or not _time_not_after(observation.available_at, query_set.completed_at_utc)
+        ):
+            raise FactorExecutionError("CALLBACK_QUERY_REFRESH_TRADE_SCOPE_MISMATCH")
+        try:
+            route = self.store.registered_sim_route_eligibility(
+                observation.instrument, observation.exchange
+            )
+        except Exception as error:
+            raise FactorExecutionError("CALLBACK_QUERY_CURRENT_SESSION_UNAVAILABLE") from error
+        if (
+            route.instrument_id != observation.instrument
+            or route.exchange_id != observation.exchange
+            or route.account_fingerprint != query_set.account_fingerprint
+            or route.connection_generation != query_set.connection_generation
+            or route.trading_day != query_set.trading_day
+            or route.current_session_account_fingerprint != query_set.account_fingerprint
+            or route.current_session_connection_generation != query_set.connection_generation
+            or route.current_session_trading_day != query_set.trading_day
+            or route.current_session_read_only_ready is not True
+        ):
+            raise FactorExecutionError("CALLBACK_QUERY_CURRENT_SESSION_MISMATCH")
+
+        identity = intent.original_identity
+        original = {
+            "account_scope": self.account_scope,
+            "strategy_scope": self.strategy_scope,
+            "trading_day": identity.get("trading_day"),
+            "instrument": identity.get("instrument_id"),
+            "exchange": identity.get("exchange_id"),
+            "order_ref": identity.get("order_ref"),
+            "front_id": identity.get("front_id"),
+            "session_id": identity.get("session_id"),
+            "order_sys_id": identity.get("order_sys_id"),
+        }
+        if (
+            intent.key.action != "SUBMIT"
+            or intent.key.instrument != observation.instrument
+            or intent.key.side != observation.side
+            or intent.key.position_effect != observation.position_effect
+            or identity.get("operation") != "insert"
+            or identity.get("account_fingerprint") != query_set.account_fingerprint
+            or identity.get("trading_day") != observation.trading_day
+            or identity.get("instrument_id") != observation.instrument
+            or identity.get("exchange_id") != observation.exchange
+            or identity.get("order_ref") != observation.order_ref
+            or not _positive_int(identity.get("front_id"))
+            or not _positive_int(identity.get("session_id"))
+            or (
+                identity.get("order_sys_id") is not None
+                and identity.get("order_sys_id") != observation.order_sys_id
+            )
+        ):
+            raise FactorExecutionError("CALLBACK_QUERY_ORIGINAL_IDENTITY_MISMATCH")
+
+        order_rows = tuple(facts.working_orders) + tuple(facts.terminal_orders)
+        matching_orders = tuple(
+            row
+            for row in order_rows
+            if row.order_ref == observation.order_ref
+            and row.instrument == observation.instrument
+            and row.exchange == observation.exchange
+            and row.front_id == identity["front_id"]
+            and row.session_id == identity["session_id"]
+            and (
+                identity.get("order_sys_id") is None or row.order_sys_id == identity["order_sys_id"]
+            )
+            and (observation.order_sys_id is None or row.order_sys_id == observation.order_sys_id)
+        )
+        if len(matching_orders) != 1:
+            raise FactorExecutionError("CALLBACK_QUERY_ORDER_MATCH_NOT_UNIQUE")
+        matched_order = matching_orders[0]
+        if (
+            not _positive_int(matched_order.front_id)
+            or not _positive_int(matched_order.session_id)
+            or not _exact_identifier(matched_order.order_ref)
+            or not _exact_identifier(matched_order.instrument)
+            or not _exact_identifier(matched_order.exchange)
+            or (
+                matched_order.order_sys_id is not None
+                and not _exact_identifier(matched_order.order_sys_id)
+            )
+        ):
+            raise FactorExecutionError("CALLBACK_QUERY_ORDER_IDENTITY_INVALID")
+
+        return {
+            "original_order": original,
+            "matched_order": {
+                "front_id": matched_order.front_id,
+                "session_id": matched_order.session_id,
+                "order_ref": matched_order.order_ref,
+                "instrument": matched_order.instrument,
+                "exchange": matched_order.exchange,
+                "order_sys_id": matched_order.order_sys_id,
+            },
+            "trade": {
+                "trade_id": observation.trade_id,
+                "trade_date": observation.trade_date,
+                "trade_time": observation.trade_time,
+                "query_set_id": query_set.query_set_id,
+                "observation_id": observation.observation_id,
+                "snapshot_id": observation.snapshot_id,
+                "request_id": observation.request_id,
+                "account_fingerprint": observation.account_fingerprint,
+                "connection_generation": observation.connection_generation,
+                "trading_day": observation.trading_day,
+                "side": observation.side,
+                "position_effect": observation.position_effect,
+                "order_sys_id": observation.order_sys_id,
+                "quantity": observation.volume,
+                "price": observation.price,
+                "fee": observation.fee,
+                "filled_at_ns": _datetime_epoch_ns(observation.trade_time_utc),
+            },
+            "query_set": {
+                "query_set_id": query_set.query_set_id,
+                "account_fingerprint": query_set.account_fingerprint,
+                "connection_generation": query_set.connection_generation,
+                "trading_day": query_set.trading_day,
+                "started_at_utc": _utc_text(query_set.started_at_utc),
+                "completed_at_utc": _utc_text(query_set.completed_at_utc),
+                "available_at_utc": _utc_text(query_set.completed_at_utc),
+                "family_request_ids": query_set.query_ids,
+            },
+        }
 
     def _trade_observation_status(
         self, facts: Any, observation: Any
@@ -3058,6 +3588,7 @@ class FactorExecutionCoordinator:
             "execution_id": execution_id,
             "provider_trade_id": trade_id,
             "order_ref": order_ref,
+            "order_sys_id": _first_text(details.get("OrderSysID")),
             "instrument_id": instrument_id,
             "exchange": exchange_id,
             "quantity": quantity,
@@ -4020,6 +4551,10 @@ def _trade_observation_callback_id(execution_id: str) -> str:
     return "query-trade:" + hashlib.sha256(execution_id.encode("utf-8")).hexdigest()
 
 
+def _native_execution_trade_callback_id(execution_id: str) -> str:
+    return "ctp-trade:" + hashlib.sha256(execution_id.encode("utf-8")).hexdigest()
+
+
 def _native_trade_callback_id(trade_id: str, order_ref: str, instrument: str, exchange: str) -> str:
     """Identify a raw native callback without relying on TradeDate."""
 
@@ -4112,12 +4647,103 @@ def _trade_observation_matches_evidence(observation: Any, evidence: Mapping[str,
         and stored_quantity == observation.volume
         and stored_price == observation.price
         and evidence.get("filled_at_ns") == expected_ns
-        and (observation.fee is None or stored_fee == observation.fee)
+        and (observation.fee is None or stored_fee is None or stored_fee == observation.fee)
         and (
             evidence.get("order_sys_id") is None
             or observation.order_sys_id is None
             or evidence.get("order_sys_id") == observation.order_sys_id
         )
+    )
+
+
+def _callback_query_disposition_matches_observation(
+    disposition: Any,
+    intent: ExecutionIntentRecord,
+    observation: Any,
+    *,
+    account_scope: str,
+    strategy_scope: str,
+) -> bool:
+    """Match a later source row to the immutable first-query disposition."""
+
+    proof = getattr(disposition, "proof_payload", None)
+    if not isinstance(proof, Mapping):
+        return False
+    original = proof.get("original_order")
+    matched = proof.get("matched_order")
+    trade = proof.get("trade")
+    query_set = proof.get("query_set")
+    identity = intent.original_identity
+    expected_execution_id = "ctp:{}:{}".format(observation.trade_date, observation.trade_id)
+    expected_original = {
+        "account_scope": account_scope,
+        "strategy_scope": strategy_scope,
+        "trading_day": identity.get("trading_day"),
+        "instrument": identity.get("instrument_id"),
+        "exchange": identity.get("exchange_id"),
+        "order_ref": identity.get("order_ref"),
+        "front_id": identity.get("front_id"),
+        "session_id": identity.get("session_id"),
+        "order_sys_id": identity.get("order_sys_id"),
+    }
+    if (
+        disposition.disposition_code != "QUERY_MATCHED_BROKER_ACK_UNOBSERVED_AFTER_RESTART"
+        or disposition.intent_id != intent.intent_id
+        or disposition.execution_id != expected_execution_id
+        or proof.get("execution_id") != expected_execution_id
+        or not isinstance(original, Mapping)
+        or dict(original) != expected_original
+        or not isinstance(matched, Mapping)
+        or not isinstance(trade, Mapping)
+        or not isinstance(query_set, Mapping)
+        or intent.key.action != "SUBMIT"
+        or intent.key.instrument != observation.instrument
+        or intent.key.side != observation.side
+        or intent.key.position_effect != observation.position_effect
+        or observation.trading_day != identity.get("trading_day")
+        or observation.account_fingerprint != identity.get("account_fingerprint")
+        or observation.order_ref != identity.get("order_ref")
+        or observation.instrument != identity.get("instrument_id")
+        or observation.exchange != identity.get("exchange_id")
+        or matched.get("order_ref") != identity.get("order_ref")
+        or matched.get("front_id") != identity.get("front_id")
+        or matched.get("session_id") != identity.get("session_id")
+        or matched.get("instrument") != identity.get("instrument_id")
+        or matched.get("exchange") != identity.get("exchange_id")
+        or query_set.get("account_fingerprint") != observation.account_fingerprint
+        or query_set.get("trading_day") != observation.trading_day
+        or trade.get("trade_id") != observation.trade_id
+        or trade.get("trade_date") != observation.trade_date
+        or trade.get("trade_time") != observation.trade_time
+        or trade.get("account_fingerprint") != observation.account_fingerprint
+        or trade.get("trading_day") != observation.trading_day
+        or trade.get("side") != observation.side
+        or trade.get("position_effect") != observation.position_effect
+        or trade.get("filled_at_ns") != _datetime_epoch_ns(observation.trade_time_utc)
+        or query_set.get("query_set_id") != trade.get("query_set_id")
+        or query_set.get("connection_generation") != trade.get("connection_generation")
+    ):
+        return False
+    proof_sys_id = trade.get("order_sys_id")
+    if (
+        proof_sys_id is not None
+        and observation.order_sys_id is not None
+        and proof_sys_id != observation.order_sys_id
+    ):
+        return False
+    if (
+        matched.get("order_sys_id") is not None
+        and observation.order_sys_id is not None
+        and matched.get("order_sys_id") != observation.order_sys_id
+    ):
+        return False
+    stored_quantity = _decimal_optional(trade.get("quantity"))
+    stored_price = _decimal_optional(trade.get("price"))
+    stored_fee = _decimal_optional(trade.get("fee"))
+    return bool(
+        stored_quantity == observation.volume
+        and stored_price == observation.price
+        and (stored_fee is None or observation.fee is None or stored_fee == observation.fee)
     )
 
 
