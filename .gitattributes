@@ -856,3 +856,7 @@ docs/_internal/opts/requirements/迭代42-示例策略模拟盘贯通与四件�
 # Preserve the exact script and raw records used for the full-market diagnostic.
 scripts/profile_factor_examples.py -text
 docs/_internal/opts/requirements/迭代49-因子分析性能优化/measurements/** -text
+
+# Preserve the accepted Alpha101 QBuffer raw pytest records.
+docs/_internal/opts/requirements/迭代50-因子实盘运行与交易接入/evidence/alpha101-qbuffer-20261024/pytest-output.txt -text
+docs/_internal/opts/requirements/迭代50-因子实盘运行与交易接入/evidence/alpha101-qbuffer-20261024/pytest.xml -text
