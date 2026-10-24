@@ -1369,7 +1369,7 @@ def _base_receipt_prefix_equal(
             left_receipt = left_record["receipts"][name]
             right_receipt = right_record["receipts"][name]
             if (
-                left_receipt.bar_id != right_receipt.bar_id
+                left_receipt.envelope.bar_id != right_receipt.envelope.bar_id
                 or left_receipt.member_id != right_receipt.member_id
                 or left_receipt.source_role != right_receipt.source_role
                 or left_receipt.present is not right_receipt.present
