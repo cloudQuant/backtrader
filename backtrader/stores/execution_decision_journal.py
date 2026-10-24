@@ -308,7 +308,8 @@ class ExecutionDecisionJournal:
     failed persistence step.
     """
 
-    _SCHEMA_VERSION = 8
+    _SCHEMA_VERSION = 9
+    _NATIVE_IDENTITY_SCHEMA_VERSION = 8
 
     def __init__(
         self,
@@ -732,23 +733,24 @@ class ExecutionDecisionJournal:
             added_bytes=decision_payload_bytes,
         )
 
-        pending = int(
-            cursor.execute(
-                """SELECT COUNT(*) FROM execution_decision_slots AS s
-                   LEFT JOIN execution_decision_intents AS i ON i.intent_id = s.intent_id
-                   WHERE (i.intent_id IS NULL OR i.state IN ('PREPARED','DISPATCHING','UNKNOWN'))
-                     AND NOT EXISTS (
-                         SELECT 1 FROM execution_intent_abandonments AS a
-                         WHERE a.intent_id = s.intent_id
-                     )
-                     AND NOT EXISTS (
-                         SELECT 1 FROM execution_slot_abandonments AS a
-                         WHERE a.intent_id = s.intent_id
-                     )"""
-            ).fetchone()[0]
-        )
-        if pending + len(normalized_keys) > self.max_pending_intents:
-            raise ExecutionDecisionJournalError("PENDING_INTENT_LIMIT")
+        if normalized_keys:
+            pending = int(
+                cursor.execute(
+                    """SELECT COUNT(*) FROM execution_decision_slots AS s
+                       LEFT JOIN execution_decision_intents AS i ON i.intent_id = s.intent_id
+                       WHERE (i.intent_id IS NULL OR i.state IN ('PREPARED','DISPATCHING','UNKNOWN'))
+                         AND NOT EXISTS (
+                             SELECT 1 FROM execution_intent_abandonments AS a
+                             WHERE a.intent_id = s.intent_id
+                         )
+                         AND NOT EXISTS (
+                             SELECT 1 FROM execution_slot_abandonments AS a
+                             WHERE a.intent_id = s.intent_id
+                         )"""
+                ).fetchone()[0]
+            )
+            if pending + len(normalized_keys) > self.max_pending_intents:
+                raise ExecutionDecisionJournalError("PENDING_INTENT_LIMIT")
         cursor.execute(
             """INSERT INTO execution_decisions
                (decision_id, business_key_json, economic_payload_json,
@@ -756,6 +758,14 @@ class ExecutionDecisionJournal:
                VALUES (?, ?, ?, ?, ?, ?)""",
             (decision_id, key_json, payload_json, keys_json, now_ns, decision_class),
         )
+        cursor.execute(
+            """UPDATE execution_decision_capacity_usage
+               SET record_count=record_count+1,payload_bytes=payload_bytes+?
+               WHERE capacity_class=?""",
+            (decision_payload_bytes, decision_class),
+        )
+        if cursor.rowcount != 1:
+            raise ExecutionDecisionJournalError("DECISION_CAPACITY_USAGE_UNAVAILABLE")
         for intent_key in normalized_keys:
             intent_key_json = _canonical_json(_intent_key_values(intent_key))
             intent_id = _stable_id("intent", decision_id + ":" + intent_key_json)
@@ -774,13 +784,16 @@ class ExecutionDecisionJournal:
         self, cursor: sqlite3.Cursor, *, decision_class: str, added_bytes: int
     ) -> None:
         row = cursor.execute(
-            """SELECT COUNT(*) AS record_count,
-                      COALESCE(SUM(LENGTH(CAST(business_key_json AS BLOB)) +
-                                   LENGTH(CAST(economic_payload_json AS BLOB)) +
-                                   LENGTH(CAST(intent_keys_json AS BLOB))), 0) AS stored_bytes
-               FROM execution_decisions WHERE capacity_class = ?""",
+            """SELECT record_count,payload_bytes
+               FROM execution_decision_capacity_usage WHERE capacity_class=?""",
             (decision_class,),
         ).fetchone()
+        if row is None:
+            raise ExecutionDecisionJournalError("DECISION_CAPACITY_USAGE_UNAVAILABLE")
+        record_count = int(row["record_count"])
+        stored_bytes = int(row["payload_bytes"])
+        if record_count < 0 or stored_bytes < 0:
+            raise ExecutionDecisionJournalError("DECISION_CAPACITY_USAGE_INVALID")
         if decision_class == "SETTLEMENT":
             record_limit = self.settlement_decision_reserve_records
             byte_limit = self.settlement_decision_reserve_bytes
@@ -790,8 +803,10 @@ class ExecutionDecisionJournal:
             byte_limit = self.max_decision_bytes
             error_code = "DECISION_CAPACITY_HIGH_WATER"
         if (
-            int(row["record_count"]) >= record_limit
-            or int(row["stored_bytes"]) + added_bytes > byte_limit
+            record_count >= record_limit
+            or stored_bytes + added_bytes > byte_limit
+            or record_count >= 9223372036854775807
+            or stored_bytes + added_bytes > 9223372036854775807
         ):
             raise ExecutionDecisionJournalError(error_code)
 
@@ -814,17 +829,25 @@ class ExecutionDecisionJournal:
 
         with self._read_lock():
             rows = self._connection.execute(
-                """SELECT capacity_class, COUNT(*) AS record_count,
-                          COALESCE(SUM(LENGTH(CAST(business_key_json AS BLOB)) +
-                                       LENGTH(CAST(economic_payload_json AS BLOB)) +
-                                       LENGTH(CAST(intent_keys_json AS BLOB))), 0)
-                          AS payload_bytes
-                   FROM execution_decisions GROUP BY capacity_class"""
+                """SELECT capacity_class,record_count,payload_bytes
+                   FROM execution_decision_capacity_usage ORDER BY capacity_class"""
             ).fetchall()
-            usage = {
-                row["capacity_class"]: (int(row["record_count"]), int(row["payload_bytes"]))
-                for row in rows
-            }
+            usage = {}
+            for row in rows:
+                count = row["record_count"]
+                payload_bytes = row["payload_bytes"]
+                if (
+                    row["capacity_class"] not in ("BASE", "SETTLEMENT")
+                    or type(count) is not int
+                    or type(payload_bytes) is not int
+                    or count < 0
+                    or payload_bytes < 0
+                    or row["capacity_class"] in usage
+                ):
+                    raise ExecutionDecisionJournalError("DECISION_CAPACITY_USAGE_INVALID")
+                usage[row["capacity_class"]] = (count, payload_bytes)
+            if set(usage) != {"BASE", "SETTLEMENT"}:
+                raise ExecutionDecisionJournalError("DECISION_CAPACITY_USAGE_UNAVAILABLE")
             page_count = int(self._connection.execute("PRAGMA page_count").fetchone()[0])
             page_size = int(self._connection.execute("PRAGMA page_size").fetchone()[0])
             if self.path == ":memory:":
@@ -2055,10 +2078,34 @@ class ExecutionDecisionJournal:
             except (KeyError, TypeError, ValueError) as error:
                 raise ExecutionDecisionJournalError("NATIVE_ORDER_IDENTITY_INVALID") from error
 
+    @staticmethod
+    def _backfill_decision_capacity_usage(cursor: sqlite3.Cursor) -> None:
+        """Rebuild the two bounded capacity rows once during the v9 migration."""
+
+        cursor.execute("DELETE FROM execution_decision_capacity_usage")
+        rows = cursor.execute(
+            """SELECT capacity_class,COUNT(*) AS record_count,
+                      COALESCE(SUM(LENGTH(CAST(business_key_json AS BLOB)) +
+                                   LENGTH(CAST(economic_payload_json AS BLOB)) +
+                                   LENGTH(CAST(intent_keys_json AS BLOB))),0) AS payload_bytes
+               FROM execution_decisions GROUP BY capacity_class"""
+        ).fetchall()
+        usage = {
+            row["capacity_class"]: (int(row["record_count"]), int(row["payload_bytes"]))
+            for row in rows
+        }
+        for capacity_class in ("BASE", "SETTLEMENT"):
+            record_count, payload_bytes = usage.get(capacity_class, (0, 0))
+            cursor.execute(
+                """INSERT INTO execution_decision_capacity_usage
+                   (capacity_class,record_count,payload_bytes) VALUES(?,?,?)""",
+                (capacity_class, record_count, payload_bytes),
+            )
+
     def _create_schema(self) -> None:
         with self._lock:
             version = int(self._connection.execute("PRAGMA user_version").fetchone()[0])
-            if version not in (0, 1, 2, 3, 4, 5, 6, 7, self._SCHEMA_VERSION):
+            if version not in (0, 1, 2, 3, 4, 5, 6, 7, 8, self._SCHEMA_VERSION):
                 raise ExecutionDecisionJournalError("UNSUPPORTED_SCHEMA_VERSION")
             try:
                 self._connection.executescript(
@@ -2080,6 +2127,12 @@ class ExecutionDecisionJournal:
                         max_decision_bytes INTEGER NOT NULL CHECK(max_decision_bytes >= 1024),
                         settlement_decision_reserve_bytes INTEGER NOT NULL
                             CHECK(settlement_decision_reserve_bytes >= 1024)
+                    );
+                    CREATE TABLE IF NOT EXISTS execution_decision_capacity_usage (
+                        capacity_class TEXT PRIMARY KEY
+                            CHECK(capacity_class IN ('BASE','SETTLEMENT')),
+                        record_count INTEGER NOT NULL CHECK(record_count >= 0),
+                        payload_bytes INTEGER NOT NULL CHECK(payload_bytes >= 0)
                     );
                     CREATE TABLE IF NOT EXISTS execution_grid_cursors (
                         account_scope TEXT NOT NULL,
@@ -2238,7 +2291,25 @@ class ExecutionDecisionJournal:
                     ensure_factor_position_book_schema(cursor)
                 finally:
                     cursor.close()
-                if version in (0, 1):
+                self._connection.execute("BEGIN IMMEDIATE")
+                # Multiple processes can read an old user_version before either
+                # obtains the write lock. Re-read under BEGIN IMMEDIATE so a
+                # waiter observes the migration committed by the first opener.
+                locked_version = int(self._connection.execute("PRAGMA user_version").fetchone()[0])
+                if locked_version not in (
+                    0,
+                    1,
+                    2,
+                    3,
+                    4,
+                    5,
+                    6,
+                    7,
+                    8,
+                    self._SCHEMA_VERSION,
+                ):
+                    raise ExecutionDecisionJournalError("UNSUPPORTED_SCHEMA_VERSION")
+                if locked_version in (0, 1):
                     columns = {
                         row["name"]
                         for row in self._connection.execute(
@@ -2274,11 +2345,16 @@ class ExecutionDecisionJournal:
                     """CREATE INDEX IF NOT EXISTS execution_decisions_capacity
                        ON execution_decisions(capacity_class, created_at_ns)"""
                 )
-                self._connection.execute("BEGIN IMMEDIATE")
-                if version < self._SCHEMA_VERSION:
+                if locked_version < self._NATIVE_IDENTITY_SCHEMA_VERSION:
                     cursor = self._connection.cursor()
                     try:
                         self._backfill_native_intent_identities(cursor)
+                    finally:
+                        cursor.close()
+                if locked_version < self._SCHEMA_VERSION:
+                    cursor = self._connection.cursor()
+                    try:
+                        self._backfill_decision_capacity_usage(cursor)
                     finally:
                         cursor.close()
                 self._connection.execute(
@@ -2310,11 +2386,12 @@ class ExecutionDecisionJournal:
                 )
                 if actual_capacity != expected_capacity:
                     raise ExecutionDecisionJournalError("JOURNAL_CAPACITY_CONFIG_MISMATCH")
+                self._connection.execute("PRAGMA user_version = 9")
                 self._connection.execute("COMMIT")
                 # V3 added the grid cursor, V4 the position book, V5 slot
                 # abandonment, V6 native-id recovery, V7 capacity bounds, and
-                # V8 transactional native-identity backfill.
-                self._connection.execute("PRAGMA user_version = 8")
+                # V8 transactional native-identity backfill. V9 materializes
+                # bounded BASE/SETTLEMENT decision-capacity usage.
             except ExecutionDecisionJournalError:
                 if self._connection.in_transaction:
                     self._connection.execute("ROLLBACK")

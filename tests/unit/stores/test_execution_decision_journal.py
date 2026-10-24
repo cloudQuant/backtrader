@@ -8,7 +8,9 @@ import sqlite3
 import subprocess
 import sys
 import time
+from concurrent.futures import ThreadPoolExecutor
 from decimal import Decimal
+from threading import Event, RLock
 
 import pytest
 
@@ -212,10 +214,14 @@ def test_finite_decision_high_water_allows_replay_and_reserved_settlement(tmp_pa
     journal = ExecutionDecisionJournal(path, **limits)
     base = _decision_key("capacity-base")
     first = journal.record_decision(base, {"signal": "flat"})
+    capacity_before_replay = journal.decision_capacity_snapshot()
 
     # Exact replay is idempotent and does not consume another capacity slot.
     replay = journal.record_decision(base, {"signal": "flat"})
     assert replay.decision_id == first.decision_id
+    replay_capacity = journal.decision_capacity_snapshot()
+    assert replay_capacity.base_record_count == capacity_before_replay.base_record_count
+    assert replay_capacity.base_payload_bytes == capacity_before_replay.base_payload_bytes
     with pytest.raises(ExecutionDecisionJournalError, match="DECISION_CAPACITY_HIGH_WATER"):
         journal.record_decision(_decision_key("capacity-base-2"), {"signal": "flat"})
 
@@ -263,6 +269,229 @@ def test_finite_decision_high_water_allows_replay_and_reserved_settlement(tmp_pa
     assert usage.settlement_payload_bytes > 0
     assert usage.physical_bytes >= usage.database_bytes
     reopened.close()
+
+
+def test_capacity_usage_migration_backfills_exact_bytes_once(tmp_path):
+    path = tmp_path / "capacity-v8-migration.sqlite3"
+    journal = ExecutionDecisionJournal(path)
+    journal.record_decision(_decision_key("capacity-migration-base"), {"symbol": "螺纹"})
+    journal.record_decision(
+        _decision_key("capacity-migration-settlement"),
+        {"signal": "reduce"},
+        intent_keys=(_intent_key(action="SUBMIT", effect="CLOSE"),),
+    )
+    journal.close()
+
+    with sqlite3.connect(path) as connection:
+        history = connection.execute(
+            """SELECT capacity_class,business_key_json,economic_payload_json,intent_keys_json
+               FROM execution_decisions"""
+        ).fetchall()
+        expected = {"BASE": [0, 0], "SETTLEMENT": [0, 0]}
+        for capacity_class, business_key, economics, intent_keys in history:
+            expected[capacity_class][0] += 1
+            expected[capacity_class][1] += sum(
+                len(value.encode("utf-8")) for value in (business_key, economics, intent_keys)
+            )
+        connection.execute("DROP TABLE execution_decision_capacity_usage")
+        connection.execute("PRAGMA user_version = 8")
+
+    migrated = ExecutionDecisionJournal(path)
+    assert migrated._connection.execute("PRAGMA user_version").fetchone()[0] == 9
+    usage = migrated._connection.execute(
+        """SELECT capacity_class,record_count,payload_bytes
+           FROM execution_decision_capacity_usage ORDER BY capacity_class"""
+    ).fetchall()
+    assert {
+        row["capacity_class"]: (row["record_count"], row["payload_bytes"]) for row in usage
+    } == {capacity_class: tuple(values) for capacity_class, values in expected.items()}
+    snapshot = migrated.decision_capacity_snapshot()
+    assert snapshot.base_record_count == expected["BASE"][0]
+    assert snapshot.base_payload_bytes == expected["BASE"][1]
+    assert snapshot.settlement_record_count == expected["SETTLEMENT"][0]
+    assert snapshot.settlement_payload_bytes == expected["SETTLEMENT"][1]
+    with migrated._transaction() as cursor:
+        cursor.execute(
+            """CREATE TRIGGER capacity_backfill_runs_once
+               BEFORE DELETE ON execution_decision_capacity_usage
+               BEGIN SELECT RAISE(ABORT,'migration repeated'); END"""
+        )
+    migrated.close()
+
+    reopened = ExecutionDecisionJournal(path)
+    assert reopened.decision_capacity_snapshot().base_record_count == expected["BASE"][0]
+    assert (
+        reopened.decision_capacity_snapshot().settlement_record_count == expected["SETTLEMENT"][0]
+    )
+    reopened.close()
+
+
+def test_capacity_usage_concurrent_v8_openers_backfill_once(tmp_path, monkeypatch):
+    path = tmp_path / "capacity-v8-concurrent-migration.sqlite3"
+    journal = ExecutionDecisionJournal(path)
+    journal.record_decision(_decision_key("capacity-concurrent-migration"), {"signal": "flat"})
+    journal.close()
+
+    with sqlite3.connect(path) as connection:
+        connection.execute("DROP TABLE execution_decision_capacity_usage")
+        connection.execute("PRAGMA user_version = 8")
+
+    def schema_instance(connection):
+        instance = object.__new__(ExecutionDecisionJournal)
+        instance._connection = connection
+        instance._lock = RLock()
+        instance.max_decision_records = 100000
+        instance.settlement_decision_reserve_records = 4096
+        instance.max_decision_bytes = 536870912
+        instance.settlement_decision_reserve_bytes = 67108864
+        return instance
+
+    connections = [
+        sqlite3.connect(path, isolation_level=None, check_same_thread=False) for _ in range(2)
+    ]
+    for connection in connections:
+        connection.row_factory = sqlite3.Row
+        connection.execute("PRAGMA busy_timeout = 5000")
+        connection.execute("PRAGMA journal_mode = WAL")
+        connection.execute("PRAGMA synchronous = FULL")
+        connection.execute("PRAGMA foreign_keys = ON")
+    first, second = (schema_instance(connection) for connection in connections)
+
+    second_pre_migration = Event()
+    allow_second = Event()
+    paused = False
+
+    def pause_second_before_ddl(statement):
+        nonlocal paused
+        normalized = " ".join(statement.upper().split())
+        if not paused and normalized.startswith("CREATE TABLE IF NOT EXISTS EXECUTION_DECISIONS"):
+            paused = True
+            second_pre_migration.set()
+            allow_second.wait(10)
+
+    second._connection.set_trace_callback(pause_second_before_ddl)
+    original_backfill = ExecutionDecisionJournal._backfill_decision_capacity_usage
+    backfill_calls = []
+
+    def count_backfill(cursor):
+        backfill_calls.append("called")
+        return original_backfill(cursor)
+
+    monkeypatch.setattr(
+        ExecutionDecisionJournal,
+        "_backfill_decision_capacity_usage",
+        staticmethod(count_backfill),
+    )
+    try:
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            second_future = pool.submit(second._create_schema)
+            assert second_pre_migration.wait(10)
+            first_future = pool.submit(first._create_schema)
+            first_future.result(timeout=10)
+            allow_second.set()
+            second_future.result(timeout=10)
+    finally:
+        allow_second.set()
+        for connection in connections:
+            connection.close()
+
+    assert len(backfill_calls) == 1
+    with sqlite3.connect(path) as connection:
+        assert connection.execute("PRAGMA user_version").fetchone()[0] == 9
+        usage = connection.execute(
+            """SELECT capacity_class,record_count
+               FROM execution_decision_capacity_usage ORDER BY capacity_class"""
+        ).fetchall()
+    assert usage == [("BASE", 1), ("SETTLEMENT", 0)]
+
+
+def test_capacity_usage_update_rolls_back_with_decision(tmp_path):
+    path = tmp_path / "capacity-rollback.sqlite3"
+    journal = ExecutionDecisionJournal(path)
+    baseline = journal.decision_capacity_snapshot()
+    journal.close()
+    with sqlite3.connect(path) as connection:
+        connection.execute(
+            """CREATE TRIGGER reject_capacity_usage_update
+               BEFORE UPDATE ON execution_decision_capacity_usage
+               BEGIN SELECT RAISE(ABORT,'synthetic capacity failure'); END"""
+        )
+
+    failing = ExecutionDecisionJournal(path)
+    with pytest.raises(ExecutionDecisionJournalError, match="JOURNAL_WRITE_FAILED"):
+        failing.record_decision(_decision_key("capacity-rollback"), {"signal": "flat"})
+    failing.close()
+
+    recovered = ExecutionDecisionJournal(path)
+    usage = recovered.decision_capacity_snapshot()
+    assert usage.base_record_count == baseline.base_record_count == 0
+    assert usage.base_payload_bytes == baseline.base_payload_bytes == 0
+    assert usage.settlement_record_count == baseline.settlement_record_count == 0
+    assert usage.settlement_payload_bytes == baseline.settlement_payload_bytes == 0
+    assert (
+        recovered._connection.execute("SELECT COUNT(*) FROM execution_decisions").fetchone()[0] == 0
+    )
+    recovered.close()
+
+
+def test_noop_capacity_queries_are_bounded_and_indexed(tmp_path):
+    journal = ExecutionDecisionJournal(tmp_path / "capacity-bounded-queries.sqlite3")
+    statements = []
+    journal._connection.set_trace_callback(statements.append)
+    journal.record_decision(_decision_key("capacity-bounded-noop"), {"signal": "flat"})
+    snapshot = journal.decision_capacity_snapshot()
+    journal._connection.set_trace_callback(None)
+
+    traced = [" ".join(statement.upper().split()) for statement in statements]
+    assert any(
+        "SELECT RECORD_COUNT,PAYLOAD_BYTES FROM EXECUTION_DECISION_CAPACITY_USAGE" in statement
+        for statement in traced
+    )
+    assert any("UPDATE EXECUTION_DECISION_CAPACITY_USAGE" in statement for statement in traced)
+    assert not any("EXECUTION_DECISION_SLOTS" in statement for statement in traced)
+    assert not any(
+        ("COUNT(*)" in statement or "SUM(" in statement) and "EXECUTION_DECISIONS" in statement
+        for statement in traced
+    )
+    assert snapshot.base_record_count == 1
+    assert snapshot.settlement_record_count == 0
+
+    plan = journal._connection.execute(
+        """EXPLAIN QUERY PLAN SELECT record_count,payload_bytes
+           FROM execution_decision_capacity_usage WHERE capacity_class=?""",
+        ("BASE",),
+    ).fetchall()
+    details = " ".join(row["detail"].upper() for row in plan)
+    assert "SEARCH EXECUTION_DECISION_CAPACITY_USAGE" in details
+    assert "CAPACITY_CLASS=?" in details
+    assert "SCAN EXECUTION_DECISION_CAPACITY_USAGE" not in details
+    journal.close()
+
+
+def test_capacity_usage_updates_are_serialized_across_connections(tmp_path):
+    path = tmp_path / "capacity-connections.sqlite3"
+    first = ExecutionDecisionJournal(path, max_decision_records=100)
+    second = ExecutionDecisionJournal(path, max_decision_records=100)
+
+    def record(journal, ordinal):
+        return journal.record_decision(
+            _decision_key("capacity-connection-{}".format(ordinal)),
+            {"ordinal": ordinal, "signal": "flat"},
+        )
+
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        futures = [
+            pool.submit(record, first if ordinal % 2 == 0 else second, ordinal)
+            for ordinal in range(40)
+        ]
+        records = [future.result(timeout=30) for future in futures]
+    assert len({record.decision_id for record in records}) == 40
+    for journal in (first, second):
+        usage = journal.decision_capacity_snapshot()
+        assert usage.base_record_count == 40
+        assert usage.settlement_record_count == 0
+    first.close()
+    second.close()
 
 
 def test_decision_byte_high_water_is_transactional_and_replay_free(tmp_path):
@@ -319,7 +548,7 @@ def test_schema_v1_migration_preserves_original_dispatch_outcome(tmp_path):
     assert intent.state == "UNKNOWN"
     assert intent.dispatch_state == "UNKNOWN"
     assert intent.outcome_code == "connection_lost"
-    assert journal._connection.execute("PRAGMA user_version").fetchone()[0] == 8
+    assert journal._connection.execute("PRAGMA user_version").fetchone()[0] == 9
     journal.close()
 
 
@@ -346,7 +575,7 @@ def test_schema_v2_migrates_grid_and_run_budget_tables(tmp_path):
         connection.execute("PRAGMA user_version = 2")
 
     journal = ExecutionDecisionJournal(path)
-    assert journal._connection.execute("PRAGMA user_version").fetchone()[0] == 8
+    assert journal._connection.execute("PRAGMA user_version").fetchone()[0] == 9
     names = {
         row["name"]
         for row in journal._connection.execute(
@@ -405,7 +634,7 @@ def test_schema_v7_startup_backfills_native_ref_without_rewriting_dispatch(tmp_p
     )
     assert indexed == unknown
     assert recovered.intent(intent.intent_id) == unknown
-    assert recovered._connection.execute("PRAGMA user_version").fetchone()[0] == 8
+    assert recovered._connection.execute("PRAGMA user_version").fetchone()[0] == 9
     recovered.close()
 
     with sqlite3.connect(path) as connection:
