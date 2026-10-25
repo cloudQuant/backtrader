@@ -49,10 +49,40 @@ SDK_SELECTOR_MODULE = "bt_api_ctp.ctp_env_selector"
 SDK_SELECTOR_PROFILE = "set1_group1"
 SDK_SELECTOR_EVIDENCE_LEVEL = "INSTALLED_BT_WHEEL_PUBLIC_SDK_SOURCE_FIXTURE"
 SYNTHETIC_WRITE_MAX_ORDER_INTENTS_PER_RUN = 20
+_SYNTHETIC_LIVE_CHECK_IDS = frozenset(
+    {
+        "summary.direct_live_run_shape",
+        "summary.selection_profile_and_routes",
+        "summary.selection_bundle_path",
+        "summary.strategy_order_events",
+        "child.summary_scheduler_clock_label",
+        "child.query_families",
+        "child.subscriptions",
+        "child.planned_slot_count",
+        "summary.decision_tape_counts",
+        "summary.decision_tape_readback",
+        "summary.resource_shutdown",
+        "child.runtime_source_authorization_clock_or_lifecycle",
+        "child.wrapper_scheduler_and_close_receipts",
+        "summary.expected_blocked_status_and_code",
+    }
+)
 
 
 class InstalledFixtureError(RuntimeError):
     """A public installed-wheel CLI check could not prove its contract."""
+
+    def __init__(self, message: str, *, safe_check_ids: Sequence[str] = ()) -> None:
+        super().__init__(message)
+        accepted = []
+        for check_id in safe_check_ids:
+            if (
+                type(check_id) is str
+                and check_id in _SYNTHETIC_LIVE_CHECK_IDS
+                and check_id not in accepted
+            ):
+                accepted.append(check_id)
+        self.safe_check_ids = tuple(accepted)
 
 
 def _sha256(path: Path) -> str:
@@ -1993,11 +2023,211 @@ def run_cli_case(
 
 
 _SYNTHETIC_LIVE_EXPECTATIONS = {
-    "read-only": (0, "LIVE_EPOCH_SEQUENCE_COMPLETE", None, False),
-    "write": (0, "LIVE_EPOCH_SEQUENCE_COMPLETE", None, True),
+    "read-only": (0, "LIVE_RUN_COMPLETE", None, False),
+    "write": (0, "LIVE_RUN_COMPLETE", None, True),
     "write-denied": (2, "BLOCKED", "LIVE_WRITE_GRANT_MISSING_IN_CONFIG", False),
     "tier-escalation": (2, "BLOCKED", "ENTRY_TIER_ESCALATION_DENIED", False),
 }
+
+_SYNTHETIC_QUERY_FAMILIES = [
+    "account_result",
+    "instrument_margin_rate_result",
+    "instruments_result",
+    "orders_result",
+    "positions_result",
+    "trades_result",
+]
+
+
+def _synthetic_live_summary_failure_checks(
+    summary: Mapping[str, Any],
+    child: Mapping[str, Any],
+    *,
+    planned_slot_count: int,
+    expected_writes: bool,
+    expected_selection_path: Path,
+) -> list[str]:
+    """Return finite names for the installed live summary contracts that failed."""
+
+    failures: list[str] = []
+    expected_routes = {"DCE.M": "M2611", "DCE.Y": "Y2611", "DCE.A": "A2611"}
+    expected_targets = ["DCE.M", "DCE.A"]
+
+    direct_summary_ok = (
+        summary.get("status") == "LIVE_RUN_COMPLETE"
+        and summary.get("mode") == "live"
+        and type(summary.get("epoch_id")) is int
+        and summary.get("epoch_id") > 0
+        and "epoch_count" not in summary
+        and "epochs" not in summary
+        and summary.get("selection_source") == "saved_bundle_legacy"
+        and summary.get("scheduler_clock") == "host-utc-plus-monotonic"
+        and summary.get("cleanup_complete") is True
+        and summary.get("shutdown_status") == "PASS"
+        and summary.get("write_mode") is expected_writes
+    )
+    if not direct_summary_ok:
+        failures.append("summary.direct_live_run_shape")
+
+    selection_evidence = summary.get("selection_evidence")
+    simnow_profile = summary.get("simnow_profile")
+    if not (
+        summary.get("routes") == expected_routes
+        and isinstance(selection_evidence, Mapping)
+        and selection_evidence.get("schema") == "backtrader.alpha003_epoch_selection_evidence.v1"
+        and type(selection_evidence.get("epoch_id")) is int
+        and selection_evidence.get("epoch_id") == summary.get("epoch_id")
+        and selection_evidence.get("selection_source") == "saved_bundle_legacy"
+        and selection_evidence.get("routes") == expected_routes
+        and selection_evidence.get("authorized_targets") == expected_targets
+        and isinstance(simnow_profile, Mapping)
+        and dict(simnow_profile)
+        == {
+            "verified": True,
+            "environment": "simnow",
+            "profile": SDK_SELECTOR_PROFILE,
+        }
+    ):
+        failures.append("summary.selection_profile_and_routes")
+    evidence_path_value = (
+        selection_evidence.get("selection_path")
+        if isinstance(selection_evidence, Mapping)
+        else None
+    )
+    if type(evidence_path_value) is not str:
+        failures.append("summary.selection_bundle_path")
+    else:
+        try:
+            evidence_candidate = Path(evidence_path_value)
+            evidence_path = evidence_candidate.resolve(strict=False)
+            expected_path = expected_selection_path.resolve(strict=False)
+            evidence_path_ok = (
+                evidence_candidate.is_absolute()
+                and not evidence_candidate.is_symlink()
+                and evidence_path == expected_path
+                and evidence_path.is_file()
+            )
+        except (OSError, RuntimeError, ValueError):
+            evidence_path_ok = False
+        if not evidence_path_ok:
+            failures.append("summary.selection_bundle_path")
+
+    strategy_order_events = summary.get("strategy_order_events")
+    if not (
+        isinstance(strategy_order_events, Mapping)
+        and strategy_order_events.get("status") == "AVAILABLE"
+        and isinstance(strategy_order_events.get("events"), list)
+    ):
+        failures.append("summary.strategy_order_events")
+
+    if child.get("runner_summary_scheduler_clock_labels") != [
+        {"path": "summary", "value": "host-utc-plus-monotonic"}
+    ] or child.get("runner_summary_scheduler_clock_label_meaning") != (
+        "production summary default identifier; not the injected runtime clock"
+    ):
+        failures.append("child.summary_scheduler_clock_label")
+    if child.get("query_families") != _SYNTHETIC_QUERY_FAMILIES:
+        failures.append("child.query_families")
+    if child.get("subscriptions") != ["A2611", "M2611", "Y2611"]:
+        failures.append("child.subscriptions")
+    if child.get("planned_slot_count") != planned_slot_count:
+        failures.append("child.planned_slot_count")
+
+    decision_tape = summary.get("decision_tape")
+    readback = summary.get("decision_tape_readback")
+    if not isinstance(decision_tape, Mapping):
+        failures.append("summary.decision_tape_counts")
+        failures.append("summary.decision_tape_readback")
+    else:
+        tape_record_count = decision_tape.get("record_count")
+        tape_bytes = decision_tape.get("bytes")
+        tape_max_bytes = decision_tape.get("max_bytes")
+        tape_file_id = decision_tape.get("file_id")
+        tape_last_reference = decision_tape.get("last_record_reference")
+        tape_sha256 = decision_tape.get("sha256")
+        counts_ok = (
+            type(tape_record_count) is int
+            and tape_record_count == planned_slot_count
+            and decision_tape.get("closed") is True
+            and decision_tape.get("failed") is False
+            and type(tape_bytes) is int
+            and tape_bytes > 0
+            and type(tape_max_bytes) is int
+            and tape_max_bytes == 5_000_000
+            and tape_bytes <= tape_max_bytes
+        )
+        if not counts_ok:
+            failures.append("summary.decision_tape_counts")
+        reference_ok = (
+            isinstance(tape_last_reference, Mapping)
+            and type(tape_last_reference.get("record_index")) is int
+            and tape_last_reference.get("record_index") == planned_slot_count
+            and type(tape_file_id) is str
+            and bool(tape_file_id)
+            and tape_last_reference.get("file_id") == tape_file_id
+            and type(tape_last_reference.get("record_id")) is str
+            and bool(tape_last_reference.get("record_id"))
+            and type(tape_last_reference.get("batch_id")) is str
+            and bool(tape_last_reference.get("batch_id"))
+            and type(tape_sha256) is str
+            and len(tape_sha256) == 64
+            and all(char in "0123456789abcdef" for char in tape_sha256)
+        )
+        readback_ok = (
+            isinstance(readback, Mapping)
+            and type(readback.get("record_count")) is int
+            and readback.get("record_count") == tape_record_count
+            and type(readback.get("actual_bytes")) is int
+            and readback.get("actual_bytes") == tape_bytes
+            and readback.get("file_id") == tape_file_id
+            and readback.get("last_record_reference") == tape_last_reference
+            and reference_ok
+        )
+        if not readback_ok:
+            failures.append("summary.decision_tape_readback")
+
+    shutdown_rows = summary.get("resource_shutdown")
+    shutdown_by_resource: dict[str, Mapping[str, Any]] = {}
+    if isinstance(shutdown_rows, list) and all(
+        isinstance(row, Mapping) and type(row.get("resource")) is str
+        for row in shutdown_rows
+    ):
+        for row in shutdown_rows:
+            resource = row["resource"]
+            if resource in shutdown_by_resource:
+                shutdown_by_resource = {}
+                break
+            shutdown_by_resource[resource] = row
+    shutdown_ok = (
+        set(shutdown_by_resource)
+        == {"query_refresh", "decision_tape", "broker", "store", "journal"}
+        and shutdown_by_resource["query_refresh"].get("status") == "RETURNED"
+        and shutdown_by_resource["query_refresh"].get("started") is True
+        and shutdown_by_resource["query_refresh"].get("joined") is True
+        and shutdown_by_resource["broker"].get("status")
+        == ("PASS" if expected_writes else "OBSERVATION_ONLY")
+        and shutdown_by_resource["broker"].get("store_shutdown_state") == "PASS"
+        and shutdown_by_resource["store"].get("status") == "CLOSED_BY_BROKER"
+        and shutdown_by_resource["store"].get("shutdown_state") == "PASS"
+        and shutdown_by_resource["journal"].get("status") == "CLOSED"
+    )
+    tape_shutdown = shutdown_by_resource.get("decision_tape")
+    shutdown_ok = (
+        shutdown_ok
+        and isinstance(tape_shutdown, Mapping)
+        and isinstance(decision_tape, Mapping)
+    )
+    if shutdown_ok:
+        shutdown_ok = (
+            tape_shutdown.get("status") == "CLOSED"
+            and tape_shutdown.get("record_count") == planned_slot_count
+            and tape_shutdown.get("bytes") == decision_tape.get("bytes")
+            and tape_shutdown.get("sha256") == decision_tape.get("sha256")
+        )
+    if not shutdown_ok:
+        failures.append("summary.resource_shutdown")
+
+    return failures
 
 
 def _synthetic_authorization_scope_is_valid(case: str, child: Mapping[str, Any]) -> bool:
@@ -2571,17 +2801,15 @@ def run_synthetic_live_case(
             and child.get("ctp_trader_leaf_wrapper_matches_registered_instance") is True
             and child.get("ctp_md_leaf_wrapper_matches_registered_instance") is True
         )
-        summary_ok = (
-            summary.get("status") == expected_status
-            and summary.get("mode") == "live"
-            and summary.get("cleanup_complete") is True
-            and summary.get("epoch_count") == 1
-            and summary.get("write_mode") is expected_writes
-            and child.get("runner_summary_scheduler_clock_labels")
-            == [{"path": "epochs[0]", "value": "host-utc-plus-monotonic"}]
-            and child.get("runner_summary_scheduler_clock_label_meaning")
-            == ("production summary default identifier; not the injected runtime clock")
-            and child.get("ctp_wrapper_mro_verified") is True
+        summary_failures = _synthetic_live_summary_failure_checks(
+            summary,
+            child,
+            planned_slot_count=planned_slot_count,
+            expected_writes=expected_writes,
+            expected_selection_path=live_config_path.parent / "selection-bundle.json",
+        )
+        success_runtime_ok = (
+            child.get("ctp_wrapper_mro_verified") is True
             and child.get("ctp_trader_leaf_instances") == 1
             and child.get("ctp_md_leaf_instances") == 1
             and child.get("store_write_flags") == [expected_writes]
@@ -2607,38 +2835,7 @@ def run_synthetic_live_case(
                 "wrappers_connected_after_close": [False],
             }
         )
-        epochs = summary.get("epochs")
-        summary_ok = summary_ok and isinstance(epochs, list) and len(epochs) == 1
-        if summary_ok:
-            epoch = epochs[0]
-            summary_ok = (
-                epoch.get("status") == "LIVE_RUN_COMPLETE"
-                and epoch.get("cleanup_complete") is True
-                and epoch.get("simnow_profile")
-                == {
-                    "verified": True,
-                    "environment": "simnow",
-                    "profile": SDK_SELECTOR_PROFILE,
-                }
-                and set(epoch.get("routes", {})) == {"DCE.M", "DCE.Y", "DCE.A"}
-                and epoch.get("selection_source") == "saved_bundle_legacy"
-                and epoch.get("scheduler_clock") == "host-utc-plus-monotonic"
-                and isinstance(epoch.get("selection_evidence"), Mapping)
-                and epoch["selection_evidence"].get("routes")
-                == {
-                    "DCE.M": "M2611",
-                    "DCE.Y": "Y2611",
-                    "DCE.A": "A2611",
-                }
-                and epoch["selection_evidence"].get("authorized_targets") == ["DCE.M", "DCE.A"]
-                and isinstance(epoch.get("strategy_order_events"), Mapping)
-                and epoch["strategy_order_events"].get("status") == "AVAILABLE"
-                and isinstance(epoch["strategy_order_events"].get("events"), list)
-                and set(child.get("subscriptions", ())) == {"M2611", "Y2611", "A2611"}
-                and {"account", "positions", "orders", "trades"}.issubset(
-                    set(child.get("query_families", ()))
-                )
-            )
+        summary_ok = not summary_failures and success_runtime_ok
         if case == "read-only":
             common_ok = (
                 common_ok
@@ -2650,8 +2847,8 @@ def run_synthetic_live_case(
             )
         elif case == "write":
             strategy_events = (
-                epochs[0].get("strategy_order_events", {}).get("events", [])
-                if isinstance(epochs, list) and epochs
+                summary.get("strategy_order_events", {}).get("events", [])
+                if isinstance(summary.get("strategy_order_events"), Mapping)
                 else []
             )
             synthetic_actions = child.get("synthetic_leaf_actions")
@@ -2693,7 +2890,22 @@ def run_synthetic_live_case(
         common_ok = common_ok and child.get("synthetic_leaf_actions") == []
         common_ok = common_ok and child.get("runner_clock_constructor_calls") == 0
     if not common_ok or not summary_ok:
-        raise InstalledFixtureError("synthetic-live case acceptance failed: " + case)
+        failed_checks = []
+        if not common_ok:
+            failed_checks.append("child.runtime_source_authorization_clock_or_lifecycle")
+        if expected_code is None:
+            failed_checks.extend(summary_failures)
+            if not success_runtime_ok:
+                failed_checks.append("child.wrapper_scheduler_and_close_receipts")
+        elif not summary_ok:
+            failed_checks.append("summary.expected_blocked_status_and_code")
+        raise InstalledFixtureError(
+            "synthetic-live case acceptance failed: "
+            + case
+            + "; failed_checks="
+            + ",".join(failed_checks),
+            safe_check_ids=failed_checks,
+        )
     return {
         "case": case,
         "factor_mode": factor_mode,
@@ -2933,7 +3145,10 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         )
         return 0
     except (InstalledFixtureError, OSError, ValueError) as exc:
-        print(json.dumps({"status": "BLOCKED", "error_type": type(exc).__name__}, sort_keys=True))
+        blocked = {"status": "BLOCKED", "error_type": type(exc).__name__}
+        if type(exc) is InstalledFixtureError and exc.safe_check_ids:
+            blocked["failed_checks"] = list(exc.safe_check_ids)
+        print(json.dumps(blocked, sort_keys=True))
         return 2
 
 

@@ -667,6 +667,108 @@ def _synthetic_order_receipt(order_specs: tuple[tuple[str, str], ...]) -> dict[s
     }
 
 
+def _synthetic_live_summary(
+    *,
+    planned_slot_count: int,
+    write_enabled: bool,
+    order_specs: tuple[tuple[str, str], ...],
+    selection_bundle_path: Path,
+    profile_id: str,
+) -> dict[str, object]:
+    routes = {"DCE.M": "M2611", "DCE.Y": "Y2611", "DCE.A": "A2611"}
+    file_id = "iteration51-test-decision-tape-v1"
+    tape_bytes = planned_slot_count * 100
+    tape_sha256 = hashlib.sha256(b"synthetic decision tape receipt").hexdigest()
+    last_reference = {
+        "batch_id": "iteration51-test-batch-" + str(planned_slot_count),
+        "file_id": file_id,
+        "record_id": hashlib.sha256(b"synthetic final record").hexdigest(),
+        "record_index": planned_slot_count,
+    }
+    events = [
+        {
+            "ref": int(order_ref),
+            "target": "DCE.M" if instrument == "M2611" else "DCE.A",
+        }
+        for order_ref, instrument in order_specs
+    ]
+    return {
+        "status": "LIVE_RUN_COMPLETE",
+        "epoch_id": 1,
+        "mode": "live",
+        "selection_source": "saved_bundle_legacy",
+        "scheduler_clock": "host-utc-plus-monotonic",
+        "write_mode": write_enabled,
+        "cleanup_complete": True,
+        "shutdown_status": "PASS",
+        "routes": routes,
+        "selection_evidence": {
+            "schema": "backtrader.alpha003_epoch_selection_evidence.v1",
+            "epoch_id": 1,
+            "selection_path": str(selection_bundle_path.resolve()),
+            "selection_source": "saved_bundle_legacy",
+            "routes": routes,
+            "authorized_targets": ["DCE.M", "DCE.A"],
+        },
+        "simnow_profile": {
+            "verified": True,
+            "environment": "simnow",
+            "profile": profile_id,
+        },
+        "strategy_order_events": {
+            "capacity": 128,
+            "events": events,
+            "reason": None,
+            "retained_count": len(events),
+            "status": "AVAILABLE",
+            "truncated": False,
+        },
+        "decision_tape": {
+            "path": str(selection_bundle_path.parent / "decision-tape.jsonl"),
+            "record_count": planned_slot_count,
+            "closed": True,
+            "failed": False,
+            "bytes": tape_bytes,
+            "max_bytes": 5_000_000,
+            "file_id": file_id,
+            "sha256": tape_sha256,
+            "last_record_reference": last_reference,
+        },
+        "decision_tape_readback": {
+            "record_count": planned_slot_count,
+            "actual_bytes": tape_bytes,
+            "file_id": file_id,
+            "last_record_reference": last_reference,
+        },
+        "resource_shutdown": [
+            {
+                "resource": "query_refresh",
+                "status": "RETURNED",
+                "started": True,
+                "joined": True,
+            },
+            {
+                "resource": "decision_tape",
+                "status": "CLOSED",
+                "record_count": planned_slot_count,
+                "bytes": tape_bytes,
+                "sha256": tape_sha256,
+            },
+            {
+                "resource": "broker",
+                "status": "PASS" if write_enabled else "OBSERVATION_ONLY",
+                "store_shutdown_state": "PASS",
+            },
+            {
+                "resource": "store",
+                "status": "CLOSED_BY_BROKER",
+                "shutdown_state": "PASS",
+            },
+            {"resource": "journal", "status": "CLOSED"},
+        ],
+    }
+
+
 def test_synthetic_order_and_trade_query_ids_match_callback_ids_per_insert() -> None:
     fixture = _load_fixture()
     child = _synthetic_order_receipt((("12", "M2611"), ("13", "A2611")))
@@ -731,6 +833,125 @@ def test_synthetic_order_and_trade_query_ids_match_callback_ids_per_insert() -> 
     assert not fixture._synthetic_order_sys_id_provenance_is_valid(over_limit)
 
 
+def test_synthetic_live_summary_binds_direct_run_query_and_tape_receipts(
+    tmp_path: Path,
+) -> None:
+    fixture = _load_fixture()
+    selection_bundle = tmp_path / "case" / "selection-bundle.json"
+    selection_bundle.parent.mkdir()
+    selection_bundle.write_text("{}\n", encoding="utf-8")
+    summary = _synthetic_live_summary(
+        planned_slot_count=64,
+        write_enabled=False,
+        order_specs=(),
+        selection_bundle_path=selection_bundle,
+        profile_id=fixture.SDK_SELECTOR_PROFILE,
+    )
+    child = {
+        "planned_slot_count": 64,
+        "query_families": list(fixture._SYNTHETIC_QUERY_FAMILIES),
+        "subscriptions": ["A2611", "M2611", "Y2611"],
+        "runner_summary_scheduler_clock_labels": [
+            {"path": "summary", "value": "host-utc-plus-monotonic"}
+        ],
+        "runner_summary_scheduler_clock_label_meaning": (
+            "production summary default identifier; not the injected runtime clock"
+        ),
+    }
+    check = fixture._synthetic_live_summary_failure_checks
+    check_args = {
+        "planned_slot_count": 64,
+        "expected_writes": False,
+        "expected_selection_path": selection_bundle,
+    }
+    assert check(summary, child, **check_args) == []
+
+    wrapped = json.loads(json.dumps(summary))
+    wrapped["epochs"] = [dict(summary)]
+    assert "summary.direct_live_run_shape" in check(wrapped, child, **check_args)
+
+    missing_query = dict(child)
+    missing_query["query_families"] = list(fixture._SYNTHETIC_QUERY_FAMILIES[:-1])
+    assert "child.query_families" in check(summary, missing_query, **check_args)
+
+    wrong_writer_count = json.loads(json.dumps(summary))
+    wrong_writer_count["decision_tape"]["record_count"] = 63
+    wrong_writer_count["decision_tape_readback"]["record_count"] = 63
+    assert "summary.decision_tape_counts" in check(
+        wrong_writer_count, child, **check_args
+    )
+
+    wrong_readback_reference = json.loads(json.dumps(summary))
+    wrong_readback_reference["decision_tape_readback"]["last_record_reference"][
+        "record_index"
+    ] = 63
+    assert "summary.decision_tape_readback" in check(
+        wrong_readback_reference, child, **check_args
+    )
+
+    wrong_write_shutdown = json.loads(json.dumps(summary))
+    wrong_write_shutdown["resource_shutdown"][2]["status"] = "OBSERVATION_ONLY"
+    assert "summary.resource_shutdown" in check(
+        wrong_write_shutdown,
+        child,
+        planned_slot_count=64,
+        expected_writes=True,
+        expected_selection_path=selection_bundle,
+    )
+
+
+def test_main_reports_only_allowlisted_synthetic_check_ids(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    fixture = _load_fixture()
+    wheel = tmp_path / "pinned.whl"
+    wheel.write_bytes(b"wheel placeholder")
+    wheel_hash = hashlib.sha256(wheel.read_bytes()).hexdigest()
+    selector_source = _write_test_selector_source(tmp_path, fixture, monkeypatch)
+    workspace = tmp_path / "external-workspace"
+
+    def fake_copy(_source, destination, offline_config=None):
+        destination.mkdir(parents=True)
+        config_path = destination / "fixture-config.yaml"
+        config_path.write_text("public fixture\n", encoding="utf-8")
+        return destination, config_path, {}
+
+    def fail_matrix(**_kwargs):
+        raise fixture.InstalledFixtureError(
+            "do not expose this arbitrary error detail",
+            safe_check_ids=("child.query_families", "private/path"),
+        )
+
+    monkeypatch.setattr(fixture, "copy_public_example", fake_copy)
+    monkeypatch.setattr(fixture, "run_synthetic_live_matrix", fail_matrix)
+    exit_code = fixture.main(
+        [
+            "--wheel",
+            str(wheel),
+            "--wheel-sha256",
+            wheel_hash,
+            "--workspace",
+            str(workspace),
+            "--example-source",
+            str(tmp_path),
+            "--sdk-selector-source",
+            str(selector_source),
+            "--synthetic-live",
+            "--factor-mode",
+            "native",
+        ]
+    )
+    diagnostic = json.loads(capsys.readouterr().out)
+    assert exit_code == 2
+    assert diagnostic == {
+        "status": "BLOCKED",
+        "error_type": "InstalledFixtureError",
+        "failed_checks": ["child.query_families"],
+    }
+
+
 @pytest.mark.parametrize(
     (
         "case",
@@ -745,7 +966,7 @@ def test_synthetic_order_and_trade_query_ids_match_callback_ids_per_insert() -> 
         (
             "read-only",
             0,
-            "LIVE_EPOCH_SEQUENCE_COMPLETE",
+            "LIVE_RUN_COMPLETE",
             None,
             False,
             64,
@@ -754,7 +975,7 @@ def test_synthetic_order_and_trade_query_ids_match_callback_ids_per_insert() -> 
         (
             "write",
             0,
-            "LIVE_EPOCH_SEQUENCE_COMPLETE",
+            "LIVE_RUN_COMPLETE",
             None,
             True,
             64,
@@ -781,7 +1002,7 @@ def test_synthetic_order_and_trade_query_ids_match_callback_ids_per_insert() -> 
         (
             "read-only",
             0,
-            "LIVE_EPOCH_SEQUENCE_COMPLETE",
+            "LIVE_RUN_COMPLETE",
             None,
             False,
             32,
@@ -811,6 +1032,8 @@ def test_synthetic_live_case_runs_isolated_command_and_checks_finite_outcome(
     live_case_dir.mkdir()
     live_config = live_case_dir / "runner.yaml"
     live_config.write_text("synthetic test config\n", encoding="utf-8")
+    selection_bundle_path = live_case_dir / "selection-bundle.json"
+    selection_bundle_path.write_text("{}\n", encoding="utf-8")
     diagnostic_path = live_case_dir / "live-cohort-exception-diagnostics.json"
     diagnostic_document = {
         "schema": "backtrader.iteration51.synthetic_live_cohort_diagnostics.v1",
@@ -842,46 +1065,13 @@ def test_synthetic_live_case_runs_isolated_command_and_checks_finite_outcome(
     order_specs = (("1", "M2611"), ("2", "A2611")) if case == "write" else ()
     order_receipt = _synthetic_order_receipt(order_specs)
     if error_code is None:
-        summary = {
-            "status": status,
-            "mode": "live",
-            "cleanup_complete": True,
-            "epoch_count": 1,
-            "write_mode": write_enabled,
-            "selection_source": "ctp_query_snapshot_equal_weight_v1",
-            "epochs": [
-                {
-                    "status": "LIVE_RUN_COMPLETE",
-                    "cleanup_complete": True,
-                    "simnow_profile": {
-                        "verified": True,
-                        "environment": "simnow",
-                        "profile": fixture.SDK_SELECTOR_PROFILE,
-                    },
-                    "routes": {"DCE.M": "M2611", "DCE.Y": "Y2611", "DCE.A": "A2611"},
-                    "selection_source": "saved_bundle_legacy",
-                    "scheduler_clock": "host-utc-plus-monotonic",
-                    "selection_evidence": {
-                        "routes": {
-                            "DCE.M": "M2611",
-                            "DCE.Y": "Y2611",
-                            "DCE.A": "A2611",
-                        },
-                        "authorized_targets": ["DCE.M", "DCE.A"],
-                    },
-                    "strategy_order_events": {
-                        "status": "AVAILABLE",
-                        "events": [
-                            {
-                                "ref": int(order_ref),
-                                "target": "DCE.M" if instrument == "M2611" else "DCE.A",
-                            }
-                            for order_ref, instrument in order_specs
-                        ],
-                    },
-                }
-            ],
-        }
+        summary = _synthetic_live_summary(
+            planned_slot_count=planned_slot_count,
+            write_enabled=write_enabled,
+            order_specs=order_specs,
+            selection_bundle_path=selection_bundle_path,
+            profile_id=fixture.SDK_SELECTOR_PROFILE,
+        )
         instances = 1
         flags = [write_enabled]
     else:
@@ -958,12 +1148,12 @@ def test_synthetic_live_case_runs_isolated_command_and_checks_finite_outcome(
             "captured_exception_count": 0,
         },
         "planned_slot_count": planned_slot_count,
-        "query_families": ["account", "orders", "positions", "trades"]
+        "query_families": fixture._SYNTHETIC_QUERY_FAMILIES
         if error_code is None
         else [],
         "subscriptions": ["A2611", "M2611", "Y2611"] if error_code is None else [],
         "runner_summary_scheduler_clock_labels": (
-            [{"path": "epochs[0]", "value": "host-utc-plus-monotonic"}]
+            [{"path": "summary", "value": "host-utc-plus-monotonic"}]
             if error_code is None
             else []
         ),

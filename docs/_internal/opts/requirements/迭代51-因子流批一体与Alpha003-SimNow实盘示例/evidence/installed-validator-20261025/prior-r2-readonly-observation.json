@@ -1,0 +1,42 @@
+{
+  "evidence_level": "INSTALLED_READ_ONLY_CHILD_COMPLETED_PARENT_VALIDATION_FAILED",
+  "package_commit": "31dc70ae280d32f07f3d454c4a023974416910f7",
+  "wheel_sha256": "7c9fe1873462a1a4a9ac75e6f6d02b495fe95cbd1c6b22ae1984cbb1db5e4695",
+  "child_exit": 0,
+  "parent_exit": 2,
+  "child_stdout_sha256": "5aaa43413a78f3d231e50aad3af75439965e0ee13d7745e637c9c6ad4bf59ebe",
+  "status": "LIVE_RUN_COMPLETE",
+  "shutdown_status": "PASS",
+  "strategy_shutdown_post_join_confirmed": true,
+  "cleanup_complete": true,
+  "actual_decision_records": 64,
+  "decision_tape_bytes": 303950,
+  "decision_tape_sha256": "f805f37139769466152d5c02fa5b022b16e00cf58d42c02d5187717c07608832",
+  "loaded_modules_verified": 546,
+  "network_attempts": 0,
+  "writes": 0,
+  "arms": 0,
+  "disarms": 0,
+  "remaining_case_matrix": "NOT_RUN",
+  "actual_schema_observation": {
+    "single_epoch_summary": true,
+    "epoch_count_present": false,
+    "epochs_present": false,
+    "clock_labels": [
+      {
+        "path": "summary",
+        "value": "host-utc-plus-monotonic"
+      }
+    ],
+    "query_families": [
+      "account_result",
+      "instrument_margin_rate_result",
+      "instruments_result",
+      "orders_result",
+      "positions_result",
+      "trades_result"
+    ]
+  },
+  "source_pins_unchanged": true,
+  "limitation": "Public synthetic SDK leaves only; no full installed matrix or account acceptance."
+}
