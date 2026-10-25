@@ -347,6 +347,24 @@ class ExecutionIntentSnapshotPage:
 
 
 @dataclass(frozen=True)
+class DispatchingCancelAbsenceCandidate:
+    """One bounded terminal-CANCEL marker still needing Store absence proof."""
+
+    parent_intent_id: str
+    cancel_intent_id: str
+    parent_reconciliation_id: str
+    cancel_reconciliation_id: str
+
+
+@dataclass(frozen=True)
+class DispatchingCancelAbsenceCandidatePage:
+    """Bounded candidates for the runner's cross-process recovery hint."""
+
+    items: Tuple[DispatchingCancelAbsenceCandidate, ...]
+    truncated: bool
+
+
+@dataclass(frozen=True)
 class ExecutionCallbackProjectionStatus:
     """Read-only projection state for one exact callback receipt."""
 
@@ -444,6 +462,21 @@ class ExecutionDecisionJournal:
             )
             self._connection.row_factory = sqlite3.Row
             self._connection.create_function("sha256_text", 1, _sha256_text, deterministic=True)
+            self._connection.create_function(
+                "dispatching_cancel_absence_ack_id",
+                4,
+                _dispatching_cancel_absence_ack_id_sql,
+                deterministic=True,
+            )
+            self._connection.create_function(
+                "dispatching_cancel_absence_ack_query_id",
+                4,
+                _dispatching_cancel_absence_ack_query_id_sql,
+                deterministic=True,
+            )
+            self._connection.create_function(
+                "journal_identifier", 1, lambda value: int(_identifier(value)), deterministic=True
+            )
             self._connection.execute("PRAGMA busy_timeout = 5000")
             if connect_path != ":memory:":
                 self._connection.execute("PRAGMA journal_mode = WAL")
@@ -3021,6 +3054,367 @@ class ExecutionDecisionJournal:
             truncated=truncated,
         )
 
+    def dispatching_cancel_store_absence_candidates(
+        self, account_scope: str, *, limit: int = 128
+    ) -> DispatchingCancelAbsenceCandidatePage:
+        """Return a bounded page of CAS markers without exact absence acks."""
+
+        _require_identifier(account_scope, "INVALID_ACCOUNT_SCOPE")
+        if type(limit) is not int or not 1 <= limit <= self.max_pending_intents:
+            raise ExecutionDecisionJournalError("INVALID_CANCEL_ABSENCE_CANDIDATE_LIMIT")
+        try:
+            with self._read_lock():
+                rows = self._connection.execute(
+                    """SELECT r.intent_id AS parent_intent_id,r.account_scope,r.instrument,
+                              r.terminal_state AS resolution_terminal_state,
+                              r.terminal_event_id AS resolution_terminal_event_id,
+                              r.reconciliation_id AS resolution_reconciliation_id,
+                              r.position_snapshot_id AS resolution_position_snapshot_id,
+                              r.position_flat AS resolution_position_flat,
+                              p.reconciliation_id AS parent_reconciliation_id,
+                              p.original_identity_json AS parent_original_identity_json,
+                              p.query_id AS parent_query_id,p.state AS parent_state,
+                              p.provider_identity_json AS parent_provider_identity_json,
+                              p.outcome_code AS parent_outcome_code,
+                              p.terminal_state AS parent_terminal_state,
+                              p.terminal_event_id AS parent_terminal_event_id,
+                              p.position_snapshot_id AS parent_position_snapshot_id,
+                              p.position_flat AS parent_position_flat
+                       FROM execution_intent_resolutions AS r
+                       JOIN execution_intent_reconciliations AS p
+                         ON p.reconciliation_id=r.reconciliation_id
+                        AND p.intent_id=r.intent_id
+                       WHERE r.account_scope=? AND r.terminal_state='CANCELLED'
+                         AND p.outcome_code='complete_orders_query_terminal'
+                         AND json_valid(p.provider_identity_json)=1
+                         AND json_extract(p.provider_identity_json,
+                             '$.cancel_recovery_kind')='dispatching_cancel'
+                         AND NOT EXISTS (
+                             SELECT 1 FROM execution_intent_reconciliations AS a
+                             WHERE a.reconciliation_id = dispatching_cancel_absence_ack_id(
+                                 r.intent_id,
+                                 json_extract(p.provider_identity_json,'$.cancel_intent_id'),
+                                 p.reconciliation_id,
+                                 json_extract(p.provider_identity_json,'$.cancel_reconciliation_id')
+                             )
+                               AND a.query_id = dispatching_cancel_absence_ack_query_id(
+                                 r.intent_id,
+                                 json_extract(p.provider_identity_json,'$.cancel_intent_id'),
+                                 p.reconciliation_id,
+                                 json_extract(p.provider_identity_json,'$.cancel_reconciliation_id')
+                             )
+                               AND a.intent_id=r.intent_id
+                               AND a.original_identity_json=p.original_identity_json
+                               AND a.state='KNOWN'
+                               AND a.outcome_code='LOCAL_STORE_ABSENCE'
+                               AND a.terminal_state IS NULL
+                               AND a.terminal_event_id IS NULL
+                               AND a.position_snapshot_id IS NULL
+                               AND a.position_flat IS NULL
+                               AND json_valid(a.provider_identity_json)=1
+                               AND json_extract(a.provider_identity_json,'$.evidence_kind')
+                                   ='LOCAL_STORE_ABSENCE'
+                               AND json_extract(a.provider_identity_json,'$.cancel_recovery_kind')
+                                   ='dispatching_cancel_store_absence_ack'
+                               AND json_extract(a.provider_identity_json,'$.store_assertion')
+                                   ='ALREADY_ABSENT'
+                               AND json_extract(a.provider_identity_json,'$.parent_intent_id')
+                                   =r.intent_id
+                               AND json_extract(a.provider_identity_json,'$.cancel_intent_id')
+                                   =json_extract(p.provider_identity_json,'$.cancel_intent_id')
+                               AND json_extract(a.provider_identity_json,
+                                   '$.parent_reconciliation_id')=p.reconciliation_id
+                               AND json_extract(a.provider_identity_json,
+                                   '$.cancel_reconciliation_id')=json_extract(
+                                       p.provider_identity_json,'$.cancel_reconciliation_id')
+                               AND json_extract(a.provider_identity_json,
+                                   '$.cas_parent_reconciliation_id')=p.reconciliation_id
+                               AND json_extract(a.provider_identity_json,
+                                   '$.cas_cancel_reconciliation_id')=json_extract(
+                                       p.provider_identity_json,'$.cancel_reconciliation_id')
+                               AND json_extract(a.provider_identity_json,
+                                   '$.acknowledgement_query_id')=a.query_id
+                               AND journal_identifier(json_extract(a.provider_identity_json,
+                                   '$.query_observation_id'))=1
+                               AND journal_identifier(json_extract(a.provider_identity_json,
+                                   '$.query_set_id'))=1
+                               AND journal_identifier(json_extract(a.provider_identity_json,
+                                   '$.snapshot_id'))=1
+                               AND json(json_extract(a.provider_identity_json,
+                                   '$.original_identity'))=json(p.original_identity_json)
+                               AND json_extract(a.provider_identity_json,'$.original_order_ref')
+                                   =json_extract(p.original_identity_json,'$.order_ref')
+                               AND json_extract(a.provider_identity_json,'$.instrument')
+                                   =json_extract(p.original_identity_json,'$.instrument_id')
+                               AND json_extract(a.provider_identity_json,'$.exchange')
+                                   =json_extract(p.original_identity_json,'$.exchange_id')
+                               AND json_extract(a.provider_identity_json,
+                                   '$.current_session.account_fingerprint')
+                                   =json_extract(p.original_identity_json,'$.account_fingerprint')
+                               AND json_extract(a.provider_identity_json,
+                                   '$.current_session.trading_day')
+                                   =json_extract(p.original_identity_json,'$.trading_day')
+                               AND json_type(a.provider_identity_json,
+                                   '$.current_session.connection_generation')='integer'
+                               AND json_extract(a.provider_identity_json,
+                                   '$.current_session.connection_generation')>0
+                               AND json_type(a.provider_identity_json,
+                                   '$.current_session.front_id')='integer'
+                               AND json_extract(a.provider_identity_json,
+                                   '$.current_session.front_id')>0
+                               AND json_type(a.provider_identity_json,
+                                   '$.current_session.session_id')='integer'
+                               AND json_extract(a.provider_identity_json,
+                                   '$.current_session.session_id')>0
+                               AND json_type(a.provider_identity_json,
+                                   '$.current_session.read_only_ready')='true'
+                               AND journal_identifier(json_extract(a.provider_identity_json,
+                                   '$.current_session.account_fingerprint'))=1
+                               AND journal_identifier(json_extract(a.provider_identity_json,
+                                   '$.current_session.trading_day'))=1
+                               AND length(json_extract(a.provider_identity_json,
+                                   '$.current_session.trading_day'))=8
+                               AND json_extract(a.provider_identity_json,
+                                   '$.current_session.trading_day') NOT GLOB '*[^0-9]*'
+                               AND EXISTS (
+                                   SELECT 1
+                                   FROM execution_decision_intents AS c
+                                   JOIN execution_intent_reconciliations AS x
+                                     ON x.reconciliation_id=json_extract(
+                                         p.provider_identity_json,'$.cancel_reconciliation_id')
+                                   WHERE c.intent_id=json_extract(
+                                             p.provider_identity_json,'$.cancel_intent_id')
+                                     AND x.intent_id=c.intent_id
+                                     AND x.original_identity_json=c.original_identity_json
+                                     AND x.query_id=p.query_id
+                                     AND x.state='KNOWN'
+                                     AND x.outcome_code=
+                                         'complete_orders_query_cancel_dispatching_terminal'
+                                     AND x.terminal_state='CANCELLED'
+                                     AND x.terminal_event_id=x.query_id
+                                     AND x.position_snapshot_id=p.position_snapshot_id
+                                     AND x.position_flat=p.position_flat
+                                     AND json_valid(x.provider_identity_json)=1
+                                     AND json_extract(x.provider_identity_json,'$.evidence_kind')=
+                                         'complete_orders_query_cancel_dispatching_terminal'
+                                     AND json_extract(x.provider_identity_json,'$.observation_id')=
+                                         json_extract(p.provider_identity_json,'$.observation_id')
+                                     AND json_extract(x.provider_identity_json,'$.query_set_id')=
+                                         json_extract(p.provider_identity_json,'$.query_set_id')
+                                     AND json_extract(x.provider_identity_json,'$.snapshot_id')=
+                                         json_extract(p.provider_identity_json,'$.snapshot_id')
+                                     AND json_extract(x.provider_identity_json,
+                                         '$.position_snapshot_id')=json_extract(
+                                             p.provider_identity_json,'$.position_snapshot_id')
+                                     AND json_extract(x.provider_identity_json,'$.parent_intent_id')=
+                                         r.intent_id
+                                     AND json_extract(x.provider_identity_json,'$.cancel_intent_id')=
+                                         c.intent_id
+                                     AND json_extract(x.provider_identity_json,
+                                         '$.parent_reconciliation_id')=p.reconciliation_id
+                                     AND json_extract(x.provider_identity_json,
+                                         '$.cancel_reconciliation_id')=x.reconciliation_id
+                                     AND c.state='KNOWN'
+                                     AND c.dispatch_state IS NULL
+                                     AND c.provider_identity_json IS NULL
+                                     AND c.outcome_code IS NULL
+                                     AND c.dispatch_result_json IS NULL
+                                     AND c.owner_intent_id=r.intent_id
+                                     AND json_extract(c.intent_key_json,'$.action')='CANCEL'
+                                     AND json_valid(c.original_identity_json)=1
+                                     AND json_extract(p.original_identity_json,'$.operation')='insert'
+                                     AND json_extract(c.original_identity_json,'$.operation')='cancel'
+                                     AND json_extract(c.original_identity_json,'$.owner_intent_id')=
+                                         r.intent_id
+                                     AND json_extract(p.original_identity_json,
+                                         '$.account_fingerprint')=json_extract(
+                                             c.original_identity_json,'$.account_fingerprint')
+                                     AND json_extract(p.original_identity_json,
+                                         '$.connection_generation')=json_extract(
+                                             c.original_identity_json,'$.connection_generation')
+                                     AND json_extract(p.original_identity_json,
+                                         '$.trading_day')=json_extract(
+                                             c.original_identity_json,'$.trading_day')
+                                     AND json_extract(p.original_identity_json,'$.front_id')=
+                                         json_extract(c.original_identity_json,'$.front_id')
+                                     AND json_extract(p.original_identity_json,'$.session_id')=
+                                         json_extract(c.original_identity_json,'$.session_id')
+                                     AND json_extract(p.original_identity_json,'$.order_ref')=
+                                         json_extract(c.original_identity_json,'$.order_ref')
+                                     AND json_extract(p.original_identity_json,'$.instrument_id')=
+                                         json_extract(c.original_identity_json,'$.instrument_id')
+                                     AND json_extract(p.original_identity_json,'$.exchange_id')=
+                                         json_extract(c.original_identity_json,'$.exchange_id')
+                                     AND json_extract(p.original_identity_json,'$.instrument_id')=
+                                         json_extract(c.intent_key_json,'$.instrument')
+                                     AND json_extract(p.original_identity_json,'$.instrument_id')=
+                                         json_extract(p.provider_identity_json,'$.instrument')
+                                     AND json_extract(p.original_identity_json,'$.exchange_id')=
+                                         json_extract(p.provider_identity_json,'$.exchange')
+                               )
+                         )
+                       ORDER BY r.created_at_ns,r.intent_id LIMIT ?""",
+                    (account_scope, limit + 1),
+                ).fetchall()
+        except sqlite3.Error as error:
+            raise ExecutionDecisionJournalError(
+                "DISPATCHING_CANCEL_ABSENCE_SELECTOR_UNAVAILABLE"
+            ) from error
+        truncated = len(rows) > limit
+        candidates = []
+        with self._read_lock():
+            for row in rows[:limit]:
+                parent_id = row["parent_intent_id"]
+                parent_reconciliation_id = row["parent_reconciliation_id"]
+                try:
+                    parent_provider = json.loads(row["parent_provider_identity_json"])
+                except (TypeError, ValueError) as error:
+                    raise ExecutionDecisionJournalError(
+                        "DISPATCHING_CANCEL_ABSENCE_MARKER_CORRUPT"
+                    ) from error
+                child_id = (
+                    parent_provider.get("cancel_intent_id")
+                    if isinstance(parent_provider, Mapping)
+                    else None
+                )
+                child_reconciliation_id = (
+                    parent_provider.get("cancel_reconciliation_id")
+                    if isinstance(parent_provider, Mapping)
+                    else None
+                )
+                if (
+                    not _identifier(parent_id)
+                    or not _identifier(parent_reconciliation_id)
+                    or not _identifier(child_id)
+                    or not _identifier(child_reconciliation_id)
+                    or child_id == parent_id
+                    or child_reconciliation_id == parent_reconciliation_id
+                    or row["resolution_reconciliation_id"] != parent_reconciliation_id
+                    or row["resolution_terminal_state"] != "CANCELLED"
+                    or row["resolution_terminal_event_id"] != row["parent_terminal_event_id"]
+                    or row["resolution_position_snapshot_id"] != row["parent_position_snapshot_id"]
+                    or row["resolution_position_flat"] != row["parent_position_flat"]
+                    or row["parent_state"] != "KNOWN"
+                    or row["parent_outcome_code"] != "complete_orders_query_terminal"
+                    or row["parent_terminal_state"] != "CANCELLED"
+                    or row["parent_terminal_event_id"] != row["parent_query_id"]
+                    or row["parent_position_snapshot_id"] is None
+                    or row["parent_position_flat"] not in (0, 1)
+                    or parent_provider.get("evidence_kind") != "complete_orders_query_observation"
+                    or parent_provider.get("cancel_recovery_kind") != "dispatching_cancel"
+                    or parent_provider.get("parent_intent_id") != parent_id
+                    or parent_provider.get("parent_reconciliation_id") != parent_reconciliation_id
+                    or parent_provider.get("observation_id") != row["parent_query_id"]
+                    or parent_provider.get("position_snapshot_id")
+                    != row["parent_position_snapshot_id"]
+                    or parent_provider.get("position_flat") is not bool(row["parent_position_flat"])
+                ):
+                    raise ExecutionDecisionJournalError("DISPATCHING_CANCEL_ABSENCE_MARKER_CORRUPT")
+                child = self._connection.execute(
+                    """SELECT reconciliation_id,intent_id,original_identity_json,query_id,state,
+                              provider_identity_json,outcome_code,terminal_state,terminal_event_id,
+                              position_snapshot_id,position_flat
+                       FROM execution_intent_reconciliations WHERE reconciliation_id=?""",
+                    (child_reconciliation_id,),
+                ).fetchone()
+                cancel = self._connection.execute(
+                    """SELECT intent_key_json,original_identity_json,state,dispatch_state,
+                              provider_identity_json,outcome_code,dispatch_result_json,
+                              owner_intent_id
+                       FROM execution_decision_intents WHERE intent_id=?""",
+                    (child_id,),
+                ).fetchone()
+                if child is None or cancel is None:
+                    raise ExecutionDecisionJournalError("DISPATCHING_CANCEL_ABSENCE_MARKER_CORRUPT")
+                try:
+                    child_provider = json.loads(child["provider_identity_json"])
+                    parent_identity = json.loads(row["parent_original_identity_json"])
+                    cancel_identity = json.loads(cancel["original_identity_json"])
+                    cancel_key = json.loads(cancel["intent_key_json"])
+                except (TypeError, ValueError) as error:
+                    raise ExecutionDecisionJournalError(
+                        "DISPATCHING_CANCEL_ABSENCE_MARKER_CORRUPT"
+                    ) from error
+                if (
+                    child["intent_id"] != child_id
+                    or child["original_identity_json"] != cancel["original_identity_json"]
+                    or child["query_id"] != row["parent_query_id"]
+                    or child["state"] != "KNOWN"
+                    or child["outcome_code"] != "complete_orders_query_cancel_dispatching_terminal"
+                    or child["terminal_state"] != "CANCELLED"
+                    or child["terminal_event_id"] != child["query_id"]
+                    or child["position_snapshot_id"] != row["parent_position_snapshot_id"]
+                    or child["position_flat"] != row["parent_position_flat"]
+                    or not isinstance(child_provider, Mapping)
+                    or child_provider.get("evidence_kind")
+                    != "complete_orders_query_cancel_dispatching_terminal"
+                    or child_provider.get("parent_intent_id") != parent_id
+                    or child_provider.get("cancel_intent_id") != child_id
+                    or child_provider.get("parent_reconciliation_id") != parent_reconciliation_id
+                    or child_provider.get("cancel_reconciliation_id") != child_reconciliation_id
+                    or not isinstance(parent_identity, Mapping)
+                    or not isinstance(cancel_identity, Mapping)
+                    or not isinstance(cancel_key, Mapping)
+                    or cancel_key.get("action") != "CANCEL"
+                    or parent_identity.get("operation") != "insert"
+                    or cancel_identity.get("operation") != "cancel"
+                    or cancel_identity.get("owner_intent_id") != parent_id
+                    or any(
+                        parent_identity.get(name) != cancel_identity.get(name)
+                        for name in (
+                            "account_fingerprint",
+                            "connection_generation",
+                            "trading_day",
+                            "front_id",
+                            "session_id",
+                        )
+                    )
+                    or any(
+                        parent_identity.get(name) != cancel_identity.get(name)
+                        for name in ("order_ref", "instrument_id", "exchange_id")
+                    )
+                    or cancel["state"] != "KNOWN"
+                    or cancel["dispatch_state"] is not None
+                    or cancel["provider_identity_json"] is not None
+                    or cancel["outcome_code"] is not None
+                    or cancel["dispatch_result_json"] is not None
+                    or cancel["owner_intent_id"] != parent_id
+                ):
+                    raise ExecutionDecisionJournalError("DISPATCHING_CANCEL_ABSENCE_MARKER_CORRUPT")
+                acknowledgement_id, acknowledgement_query_id = _dispatching_cancel_absence_ack_ids(
+                    parent_id,
+                    child_id,
+                    parent_reconciliation_id,
+                    child_reconciliation_id,
+                )
+                acknowledgement = self._connection.execute(
+                    """SELECT reconciliation_id,intent_id,original_identity_json,query_id,state,
+                              provider_identity_json,outcome_code,terminal_state,terminal_event_id,
+                              position_snapshot_id,position_flat
+                       FROM execution_intent_reconciliations WHERE reconciliation_id=?""",
+                    (acknowledgement_id,),
+                ).fetchone()
+                if acknowledgement is not None and _dispatching_cancel_absence_ack_matches(
+                    acknowledgement,
+                    parent_intent_id=parent_id,
+                    cancel_intent_id=child_id,
+                    parent_reconciliation_id=parent_reconciliation_id,
+                    cancel_reconciliation_id=child_reconciliation_id,
+                    original_identity_json=row["parent_original_identity_json"],
+                    acknowledgement_id=acknowledgement_id,
+                    acknowledgement_query_id=acknowledgement_query_id,
+                ):
+                    continue
+                candidates.append(
+                    DispatchingCancelAbsenceCandidate(
+                        parent_intent_id=parent_id,
+                        cancel_intent_id=child_id,
+                        parent_reconciliation_id=parent_reconciliation_id,
+                        cancel_reconciliation_id=child_reconciliation_id,
+                    )
+                )
+        return DispatchingCancelAbsenceCandidatePage(tuple(candidates), truncated)
+
     def record_callback(
         self, intent_id: str, callback_id: str, evidence_payload: Mapping[str, Any]
     ) -> ExecutionCallbackReceipt:
@@ -5548,6 +5942,129 @@ def _dispatching_no_fill_provider_identity_matches(
         and original_identity.get("front_id") is not None
         and original_identity.get("session_id") is not None
         and intent_key.position_effect == "OPEN"
+    )
+
+
+def _dispatching_cancel_absence_ack_ids(
+    parent_intent_id: str,
+    cancel_intent_id: str,
+    parent_reconciliation_id: str,
+    cancel_reconciliation_id: str,
+) -> Tuple[str, str]:
+    material = json.dumps(
+        (
+            parent_intent_id,
+            cancel_intent_id,
+            parent_reconciliation_id,
+            cancel_reconciliation_id,
+        ),
+        ensure_ascii=True,
+        separators=(",", ":"),
+    )
+    return (
+        _stable_id("dispatching-cancel-absence", material),
+        _stable_id("dispatching-cancel-absence-query", material),
+    )
+
+
+def _dispatching_cancel_absence_ack_id_sql(
+    parent_intent_id: Any,
+    cancel_intent_id: Any,
+    parent_reconciliation_id: Any,
+    cancel_reconciliation_id: Any,
+) -> Optional[str]:
+    values = (
+        parent_intent_id,
+        cancel_intent_id,
+        parent_reconciliation_id,
+        cancel_reconciliation_id,
+    )
+    if not all(_identifier(value) for value in values):
+        return None
+    return _dispatching_cancel_absence_ack_ids(*values)[0]
+
+
+def _dispatching_cancel_absence_ack_query_id_sql(
+    parent_intent_id: Any,
+    cancel_intent_id: Any,
+    parent_reconciliation_id: Any,
+    cancel_reconciliation_id: Any,
+) -> Optional[str]:
+    values = (
+        parent_intent_id,
+        cancel_intent_id,
+        parent_reconciliation_id,
+        cancel_reconciliation_id,
+    )
+    if not all(_identifier(value) for value in values):
+        return None
+    return _dispatching_cancel_absence_ack_ids(*values)[1]
+
+
+def _dispatching_cancel_absence_ack_matches(
+    row: sqlite3.Row,
+    *,
+    parent_intent_id: str,
+    cancel_intent_id: str,
+    parent_reconciliation_id: str,
+    cancel_reconciliation_id: str,
+    original_identity_json: str,
+    acknowledgement_id: str,
+    acknowledgement_query_id: str,
+) -> bool:
+    if (
+        row["reconciliation_id"] != acknowledgement_id
+        or row["intent_id"] != parent_intent_id
+        or row["original_identity_json"] != original_identity_json
+        or row["query_id"] != acknowledgement_query_id
+        or row["state"] != "KNOWN"
+        or row["outcome_code"] != "LOCAL_STORE_ABSENCE"
+        or row["terminal_state"] is not None
+        or row["terminal_event_id"] is not None
+        or row["position_snapshot_id"] is not None
+        or row["position_flat"] is not None
+    ):
+        return False
+    try:
+        provider = json.loads(row["provider_identity_json"])
+        original = json.loads(original_identity_json)
+    except (TypeError, ValueError):
+        return False
+    if not isinstance(provider, Mapping) or not isinstance(original, Mapping):
+        return False
+    current_session = provider.get("current_session")
+    if not isinstance(current_session, Mapping):
+        return False
+    return bool(
+        provider.get("evidence_kind") == "LOCAL_STORE_ABSENCE"
+        and provider.get("cancel_recovery_kind") == "dispatching_cancel_store_absence_ack"
+        and provider.get("store_assertion") == "ALREADY_ABSENT"
+        and provider.get("parent_intent_id") == parent_intent_id
+        and provider.get("cancel_intent_id") == cancel_intent_id
+        and provider.get("parent_reconciliation_id") == parent_reconciliation_id
+        and provider.get("cancel_reconciliation_id") == cancel_reconciliation_id
+        and provider.get("cas_parent_reconciliation_id") == parent_reconciliation_id
+        and provider.get("cas_cancel_reconciliation_id") == cancel_reconciliation_id
+        and provider.get("acknowledgement_query_id") == acknowledgement_query_id
+        and _identifier(provider.get("query_observation_id"))
+        and _identifier(provider.get("query_set_id"))
+        and _identifier(provider.get("snapshot_id"))
+        and provider.get("original_identity") == original
+        and provider.get("original_order_ref") == original.get("order_ref")
+        and provider.get("instrument") == original.get("instrument_id")
+        and provider.get("exchange") == original.get("exchange_id")
+        and current_session.get("account_fingerprint") == original.get("account_fingerprint")
+        and current_session.get("trading_day") == original.get("trading_day")
+        and type(current_session.get("connection_generation")) is int
+        and current_session["connection_generation"] > 0
+        and _identifier(current_session.get("trading_day"))
+        and len(current_session["trading_day"]) == 8
+        and current_session["trading_day"].isdigit()
+        and type(current_session.get("front_id")) is int
+        and current_session["front_id"] > 0
+        and type(current_session.get("session_id")) is int
+        and current_session["session_id"] > 0
+        and current_session.get("read_only_ready") is True
     )
 
 
