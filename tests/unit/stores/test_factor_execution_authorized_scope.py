@@ -769,3 +769,58 @@ def test_planner_emits_authorized_reductions_and_cancels_and_blocks_y_exposure()
         assert denied_cancel.actions == ()
     finally:
         journal.close()
+
+
+@pytest.mark.parametrize("position_targets", [(), ("M",)])
+def test_live_planning_input_fails_closed_when_current_positions_are_incomplete(
+    position_targets,
+):
+    now = datetime.now(timezone.utc)
+    (
+        _api,
+        _store,
+        _broker,
+        journal,
+        _coordinator,
+        _targets,
+        _query_set,
+        facts,
+    ) = _production_scope_facts(now)
+    try:
+        positions_by_target = {item.target_id: item for item in facts.positions}
+        incomplete_facts = replace(
+            facts,
+            positions=tuple(positions_by_target[target_id] for target_id in position_targets),
+            blockers=tuple(
+                dict.fromkeys(facts.blockers + ("broker_ctp_position_side_mismatch:M",))
+            ),
+        )
+        planning = _planning_input(
+            incomplete_facts,
+            now,
+            target_decision=_target_decision(facts, ("M", "A")),
+        )
+
+        assert planning.execution_target_ids == ("M", "A")
+        assert "broker_ctp_position_side_mismatch:M" in planning.execution_blockers
+        result = _STRATEGY.plan_alpha003_orders(planning)
+        assert result.status == "BLOCKED"
+        assert result.reason == "EXECUTION_FACT_SET_INVALID"
+        assert result.actions == ()
+    finally:
+        journal.close()
+
+
+def test_planning_input_still_validates_execution_target_configuration_shape():
+    now = datetime.now(timezone.utc)
+    api, store, broker, journal, _coordinator, targets, query_set, facts = _production_scope_facts(
+        now
+    )
+    del api, store, broker, targets, query_set
+    try:
+        planning = _planning_input(facts, now)
+        for invalid_ids in ([], (), ("M", "M")):
+            with pytest.raises(ValueError):
+                replace(planning, execution_target_ids=invalid_ids)
+    finally:
+        journal.close()

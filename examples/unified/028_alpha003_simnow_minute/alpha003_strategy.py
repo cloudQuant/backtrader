@@ -601,9 +601,6 @@ class Alpha003OrderPlanningInput:
         object.__setattr__(self, "dated_close_legs", tuple(self.dated_close_legs))
         if self.execution_target_ids is not None:
             target_ids = self.execution_target_ids
-            observed_target_ids = {
-                item.target_id for item in self.positions if item.target_id is not None
-            }
             if (
                 type(target_ids) is not tuple
                 or not target_ids
@@ -612,10 +609,9 @@ class Alpha003OrderPlanningInput:
                     for target_id in target_ids
                 )
                 or len(set(target_ids)) != len(target_ids)
-                or not set(target_ids).issubset(observed_target_ids)
             ):
                 raise ValueError(
-                    "execution_target_ids must be a non-empty immutable position subset"
+                    "execution_target_ids must be a non-empty immutable unique target tuple"
                 )
         for name in (
             "dated_query_set_id",
