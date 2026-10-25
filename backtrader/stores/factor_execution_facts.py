@@ -910,7 +910,9 @@ class FactorExecutionFacts:
         position-only blocker classification is preserved. The Book's bare
         ``INSTRUMENT_ORDER_UNRESOLVED`` reservation is ignored only when every
         affected target has a complete, owned Broker/CTP order join in this
-        same projection.
+        same projection. A derived unavailable dated-close blocker is ignored
+        only for one matching owned CLOSE leg; multiple dated buckets remain
+        ambiguous because the working-order facts do not carry a close offset.
         """
 
         ignored_prefixes = (
@@ -920,16 +922,58 @@ class FactorExecutionFacts:
             "position_book_",
             "broker_position_",
         )
+        exact_join = _exact_owned_cancel_join_covers_book_blocker(self)
+        ignored_dated_close_blockers = set()
+        if exact_join:
+            unavailable_legs_by_target = {}
+            for leg in self.dated_close_legs:
+                if leg.ready:
+                    continue
+                blocker = "dated_close_leg_unavailable:{}:{}:{}:{}".format(
+                    leg.target_id,
+                    leg.position_side or "unknown",
+                    leg.hedge_flag or "unknown",
+                    leg.position_date or "unknown",
+                )
+                if blocker not in self.blockers:
+                    continue
+                unavailable_legs_by_target.setdefault(leg.target_id, []).append((leg, blocker))
+            for target_legs in unavailable_legs_by_target.values():
+                # The current working-order projection does not carry a close
+                # offset. If multiple dated buckets share a target, do not
+                # guess which bucket the CTP order can reduce.
+                if len(target_legs) != 1:
+                    continue
+                leg, blocker = target_legs[0]
+                position = self._position_for_target(leg.target_id)
+                order_side = {"LONG": "SELL", "SHORT": "BUY"}.get(leg.position_side)
+                if (
+                    position is None
+                    or (leg.instrument, leg.exchange) != (position.instrument, position.exchange)
+                    or order_side is None
+                    or leg.side != order_side
+                    or "DATED_TARGET_HAS_WORKING_ORDER" not in leg.blockers
+                ):
+                    continue
+                matching_orders = tuple(
+                    order
+                    for order in self.working_orders
+                    if order.target_id == leg.target_id
+                    and order.instrument == leg.instrument
+                    and order.exchange == leg.exchange
+                    and order.position_effect == "CLOSE"
+                    and order.side == order_side
+                )
+                if len(matching_orders) == 1:
+                    ignored_dated_close_blockers.add(blocker)
         return tuple(
             code
             for code in self.aggregate_write_blockers
             if not _is_capital_blocker(code)
             and not _is_open_risk_only_blocker(code)
             and not code.startswith(ignored_prefixes)
-            and not (
-                code == "INSTRUMENT_ORDER_UNRESOLVED"
-                and _exact_owned_cancel_join_covers_book_blocker(self)
-            )
+            and code not in ignored_dated_close_blockers
+            and not (code == "INSTRUMENT_ORDER_UNRESOLVED" and exact_join)
         )
 
     @property

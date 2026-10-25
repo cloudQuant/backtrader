@@ -12,7 +12,7 @@ import pytest
 
 from backtrader.brokers.btapibroker import BtApiBroker
 from backtrader.events import TickEvent
-from backtrader.order import BuyOrder, Order
+from backtrader.order import BuyOrder, Order, SellOrder
 from backtrader.stores import execution_decision_journal as execution_decision_journal_module
 from backtrader.stores.execution_decision_journal import ExecutionDecisionJournal
 from backtrader.stores.execution_decision_journal import (
@@ -1006,6 +1006,226 @@ def test_cancel_ignores_book_order_reservation_only_for_exact_owned_join():
     )
     assert "INSTRUMENT_ORDER_UNRESOLVED" not in mismatched_facts.order_cancel_blockers
     assert "remote_broker_order_front_mismatch:94" in mismatched_facts.order_cancel_blockers
+
+
+def _build_source_backed_partial_close_with_working_close_order(
+    *, remote_order_sys_id="native-cancel-19", remote_order_status="3"
+):
+    """Project a live owned CLOSE against a source-backed partial position."""
+
+    _facts, live_inputs = _build_source_backed_dated_close_facts(partial_close=True)
+    api = live_inputs["api"]
+    broker = live_inputs["broker"]
+    journal = live_inputs["journal"]
+    target = live_inputs["target"]
+    now = live_inputs["now"]
+    order = SellOrder(
+        owner=None,
+        data=target.data,
+        size=1,
+        price=101,
+        exectype=Order.Limit,
+        simulated=True,
+    )
+    close_time = (now + timedelta(milliseconds=1)).isoformat().replace("+00:00", "Z")
+    decision_key = ExecutionDecisionKey(
+        account_scope="acct-scope",
+        strategy_scope="alpha003",
+        logical_run_id="run-1",
+        cohort_id="partial-close-cancel",
+        close_time=close_time,
+        decision_kind="alpha003-rebalance",
+    )
+    intent_key = ExecutionIntentKey(
+        action="SUBMIT",
+        instrument=_INSTRUMENT,
+        side="SELL",
+        position_effect="CLOSE",
+        leg=0,
+    )
+    decision = journal.record_decision(
+        decision_key,
+        {"batch_id": "partial-close-cancel-1", "mode": "native"},
+        intent_keys=(intent_key,),
+    )
+    intent = journal.prepare_intent(
+        decision.decision_id,
+        intent_key,
+        {
+            "exchange": _EXCHANGE,
+            "owner_intent_id": live_inputs["intent"].intent_id,
+            "owner_position_effect": "OPEN",
+            "owner_side": "BUY",
+            "quantity": "1",
+            "price": "101",
+        },
+        owner_intent_id=live_inputs["intent"].intent_id,
+        original_identity={
+            "backtrader_order_ref": order.ref,
+            "operation": "insert",
+            "instrument_id": _INSTRUMENT,
+            "exchange_id": _EXCHANGE,
+            "order_ref": "19",
+            "order_sys_id": "native-cancel-19",
+            "front_id": 4,
+            "session_id": 7,
+            "trading_day": _TRADING_DAY,
+        },
+    )
+    assert journal.claim_dispatch(intent.intent_id) is not None
+    journal.record_dispatch_result(
+        intent.intent_id,
+        state="KNOWN",
+        provider_identity={"order_ref": "19", "order_sys_id": "native-cancel-19"},
+        outcome_code="accepted",
+    )
+
+    order.status = Order.Accepted
+    order.info.update(
+        {
+            "external_order_ref": "19",
+            "order_sys_id": "native-cancel-19",
+            "registered_sim_ctp_order_sys_id": "native-cancel-19",
+            "registered_sim_ctp_order_sys_id_source": "ctp_order_callback",
+            "_registered_sim_ctp_identity_binding_captured": True,
+            "_registered_sim_ctp_identity_binding_valid": True,
+            "factor_position_effect": "CLOSE",
+            "factor_strategy_scope": "alpha003",
+            "factor_intent_id": intent.intent_id,
+            "front_id": 4,
+            "session_id": 7,
+            "execution_unknown": False,
+            "cancel_requested_remote": False,
+            "cancel_intent_active": False,
+            "managed_execution_cancel_pending": False,
+        }
+    )
+    broker.orders[order.ref] = order
+
+    api.query_rows["orders_result"] = [
+        {
+            "OrderRef": "17",
+            "OrderSysID": "native-17",
+            "InstrumentID": _INSTRUMENT,
+            "ExchangeID": _EXCHANGE,
+            "OrderStatus": "0",
+            "FrontID": 4,
+            "SessionID": 7,
+            "TradingDay": _TRADING_DAY,
+        },
+        {
+            "OrderRef": "18",
+            "OrderSysID": "native-18",
+            "InstrumentID": _INSTRUMENT,
+            "ExchangeID": _EXCHANGE,
+            "OrderStatus": "0",
+            "FrontID": 4,
+            "SessionID": 7,
+            "TradingDay": _TRADING_DAY,
+        },
+        {
+            "OrderRef": "19",
+            "OrderSysID": remote_order_sys_id,
+            "InstrumentID": _INSTRUMENT,
+            "ExchangeID": _EXCHANGE,
+            "OrderStatus": remote_order_status,
+            "Direction": "1",
+            "CombOffsetFlag": "3",
+            "VolumeTotal": "1",
+            "FrontID": 4,
+            "SessionID": 7,
+            "TradingDay": _TRADING_DAY,
+        },
+    ]
+    receipt, projection_now, _consumed = _refresh_complete_facts_after_callback(
+        api,
+        live_inputs["store"],
+        target,
+        sequence=11,
+        trading_day=_TRADING_DAY,
+    )
+    facts = _project(
+        live_inputs["store"],
+        broker,
+        target,
+        projection_now,
+        query_set=receipt.query_set,
+    )
+    live_inputs.update(
+        {
+            "active_close_intent": intent,
+            "active_close_order": order,
+            "now": projection_now,
+            "query_set": receipt.query_set,
+            "query_receipt": receipt,
+        }
+    )
+    return facts, live_inputs
+
+
+def test_order_cancel_ignores_only_dated_close_unavailable_for_exact_owned_close_join():
+    facts, live_inputs = _build_source_backed_partial_close_with_working_close_order()
+    try:
+        assert len(facts.working_orders) == 1
+        working = facts.working_orders[0]
+        assert (working.side, working.position_effect, working.state) == (
+            "SELL",
+            "CLOSE",
+            "ACCEPTED",
+        )
+        assert facts.positions[0].position_book_status == "UNKNOWN"
+        assert facts.positions[0].position_book_blocker_code == "INSTRUMENT_ORDER_UNRESOLVED"
+        leg = facts.dated_close_legs[0]
+        unavailable = "dated_close_leg_unavailable:rb:LONG:1:TODAY"
+        assert leg.ready is False
+        assert "DATED_TARGET_HAS_WORKING_ORDER" in leg.blockers
+        assert "DATED_GLOBAL_RISK_EVIDENCE_BLOCKED" in leg.blockers
+        assert unavailable in facts.blockers
+        assert "INSTRUMENT_ORDER_UNRESOLVED" in facts.blockers
+        # Cancellation classification does not make the dated leg or global risk
+        # projection ready for another close/open action.
+        assert facts.risk_reduction_ready is False
+        assert facts.order_cancel_blockers == ()
+        assert facts.order_cancel_ready is True, facts.order_cancel_blockers
+    finally:
+        live_inputs["journal"].close()
+
+
+@pytest.mark.parametrize("scenario", ("sysid_mismatch", "missing_join", "unknown_order"))
+def test_order_cancel_keeps_dated_close_blocked_without_valid_owned_join(scenario):
+    if scenario == "sysid_mismatch":
+        facts, live_inputs = _build_source_backed_partial_close_with_working_close_order(
+            remote_order_sys_id="different-native-id"
+        )
+        try:
+            assert "remote_broker_order_sys_id_mismatch:19" in facts.order_cancel_blockers
+            assert "dated_close_leg_unavailable:rb:LONG:1:TODAY" not in facts.order_cancel_blockers
+            assert facts.order_cancel_ready is False
+        finally:
+            live_inputs["journal"].close()
+        return
+
+    status = "a" if scenario == "unknown_order" else "3"
+    facts, live_inputs = _build_source_backed_partial_close_with_working_close_order(
+        remote_order_status=status
+    )
+    try:
+        if scenario == "missing_join":
+            del live_inputs["broker"].orders[live_inputs["active_close_order"].ref]
+            facts = _project(
+                live_inputs["store"],
+                live_inputs["broker"],
+                live_inputs["target"],
+                live_inputs["now"],
+                query_set=live_inputs["query_set"],
+            )
+            assert "remote_working_order_missing_from_broker:19" in facts.order_cancel_blockers
+        else:
+            assert "remote_working_order_status_unknown:19" in facts.order_cancel_blockers
+        assert "dated_close_leg_unavailable:rb:LONG:1:TODAY" in facts.order_cancel_blockers
+        assert facts.order_cancel_ready is False
+    finally:
+        live_inputs["journal"].close()
 
 
 def test_read_only_reconciliation_missing_account_with_dated_rows_fails_closed():
