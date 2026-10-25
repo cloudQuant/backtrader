@@ -904,6 +904,8 @@ class LiveBarCohort:
 
     def seal(self) -> None:
         with self._lock:
+            if self._sealed:
+                return
             if not self._members:
                 raise LiveCohortValidationError("cohort requires at least one registered member")
             expected_members = set(self._members)

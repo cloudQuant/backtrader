@@ -13,6 +13,7 @@ from backtrader.research.live_cohort import (
     LiveCalendarSlot,
     LiveCohortCalendar,
     LiveCohortCapacityError,
+    LiveCohortError,
     LiveCohortFrozenError,
     LiveCohortValidationError,
     LiveInputBinding,
@@ -430,6 +431,92 @@ def test_seal_rejects_missing_or_extra_member_session_evidence(member_sessions, 
         cohort.seal()
     assert expected_fragment in str(raised.value)
     assert cohort._sealed is False
+
+
+def test_successful_seal_is_idempotent_across_capture_and_prepare():
+    session = LiveCalendarMemberSession("2026-10-20", "regular")
+    calendar = LiveCohortCalendar(
+        calendar_id="seal-calendar",
+        version="v1",
+        epoch_id=1,
+        frequency="1m",
+        frequency_seconds=60,
+        timezone_id="UTC",
+        clock_domain_id="source-clock-A",
+        session_semantics="XNYS-regular-v1",
+        slots=(
+            LiveCalendarSlot(
+                slot_id="slot-0",
+                bucket_start=BASE,
+                close_time=BASE + dt.timedelta(minutes=1),
+                trading_day="2026-10-20",
+                session_segment="regular",
+                member_sessions={"asset-0": session, "asset-1": session},
+            ),
+        ),
+    )
+
+    class CountingSlots(tuple):
+        def __new__(cls, values):
+            result = super().__new__(cls, values)
+            result.iterations = 0
+            return result
+
+        def __iter__(self):
+            self.iterations += 1
+            return super().__iter__()
+
+    slots = CountingSlots(calendar.slots)
+    object.__setattr__(calendar, "slots", slots)
+    cohort = LiveBarCohort("seal-cohort", calendar, max_window_bars=2)
+    slots.iterations = 0
+
+    feeds = {member_id: object() for member_id in ("asset-0", "asset-1")}
+    cohort.register_member(
+        "asset-0",
+        feeds["asset-0"],
+        instrument="SYM0",
+        source_ref="source-0",
+        line_fields=LINE_FIELDS,
+        raw_fields=RAW_FIELDS,
+    )
+    with pytest.raises(LiveCohortValidationError, match=r"extra=\('asset-1',\)"):
+        cohort.seal()
+    assert slots.iterations == 1
+    assert cohort._sealed is False
+
+    cohort.register_member(
+        "asset-1",
+        feeds["asset-1"],
+        instrument="SYM1",
+        source_ref="source-1",
+        line_fields=LINE_FIELDS,
+        raw_fields=RAW_FIELDS,
+    )
+    slots.iterations = 0
+    cohort.seal()
+    assert slots.iterations == 1
+
+    slots.iterations = 0
+    cohort.seal()
+    for member_id, feed in feeds.items():
+        cohort.capture_bar(feed, make_event(member_id, 0), source_role="live")
+    prepared = cohort.prepare_round(
+        20_000, source_time_utc=BASE + dt.timedelta(minutes=5)
+    )
+    assert prepared.status == "READY"
+    assert slots.iterations == 0
+
+    with pytest.raises(LiveCohortError, match="registration is sealed"):
+        cohort.register_member(
+            "asset-2",
+            object(),
+            instrument="SYM2",
+            source_ref="source-2",
+            line_fields=LINE_FIELDS,
+            raw_fields=RAW_FIELDS,
+        )
+    assert cohort.member_ids == ("asset-0", "asset-1")
 
 
 def test_capture_rejects_another_slot_members_future_session_metadata():
