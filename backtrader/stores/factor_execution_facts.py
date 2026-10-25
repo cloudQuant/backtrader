@@ -657,6 +657,19 @@ class FactorExecutionFacts:
             return False
         return True
 
+    def _has_canonical_missing_margin_snapshot(self, target_id: str) -> bool:
+        """Return whether this target has exactly one canonical absent margin fact."""
+
+        margin_facts = tuple(
+            fact
+            for fact in self.query_provenance
+            if fact.family == "instrument_margin_rate_result" and fact.target_id == target_id
+        )
+        return bool(
+            len(margin_facts) == 1
+            and margin_facts[0] == _missing_query_fact("instrument_margin_rate_result", target_id)
+        )
+
     @property
     def aggregate_write_blockers(self) -> Tuple[str, ...]:
         """Blockers for authorized writes, retaining the complete raw snapshot."""
@@ -713,10 +726,16 @@ class FactorExecutionFacts:
                     "short_margin_per_hand_unobserved:{}".format(target_id),
                 )
             }
+            safe_missing_margin_snapshot_blockers = {
+                "query_failed:instrument_margin_rate_result:{}:unavailable".format(target_id)
+                for target_id in safe_missing_routes
+                if self._has_canonical_missing_margin_snapshot(target_id)
+            }
             blockers = [
                 blocker
                 for blocker in blockers
                 if blocker not in safe_missing_margin_blockers
+                and blocker not in safe_missing_margin_snapshot_blockers
                 and not any(
                     blocker == "route_ineligible:{}".format(target_id)
                     or blocker == "route_arm_template_missing:{}".format(target_id)

@@ -526,7 +526,9 @@ def _target_decision(facts, target_ids, *, authorized=_AUTHORIZED):
     )
 
 
-def _production_scope_facts(now, *, missing_computed_margin_targets=()):
+def _production_scope_facts(
+    now, *, missing_computed_margin_targets=(), absent_margin_query_targets=()
+):
     target_specs = (
         ("M", "m2511", "DCE"),
         ("Y", "y2511", "DCE"),
@@ -546,6 +548,10 @@ def _production_scope_facts(now, *, missing_computed_margin_targets=()):
         missing_template=(target_specs[1],),
     )
     missing_margin_target_ids = set(missing_computed_margin_targets)
+    absent_margin_target_ids = set(absent_margin_query_targets)
+    assert absent_margin_target_ids.issubset(
+        {target_id for target_id, _instrument, _exchange in target_specs}
+    )
     missing_margin_instruments = {
         instrument
         for target_id, instrument, _exchange in target_specs
@@ -559,7 +565,15 @@ def _production_scope_facts(now, *, missing_computed_margin_targets=()):
             row["LongMarginRatioByVolume"] = "0"
             row["ShortMarginRatioByMoney"] = "0"
             row["ShortMarginRatioByVolume"] = "0"
-    receipt = refresh_factor_execution_queries(store, targets=targets, overall_timeout=4.0)
+    margin_target_ids = tuple(
+        target.target_id for target in targets if target.target_id not in absent_margin_target_ids
+    )
+    receipt = refresh_factor_execution_queries(
+        store,
+        targets=targets,
+        overall_timeout=4.0,
+        margin_target_ids=margin_target_ids,
+    )
     assert receipt.blockers == ()
     assert receipt.pending_families == ()
     assert receipt.query_set is not None
@@ -578,6 +592,39 @@ def _production_scope_facts(now, *, missing_computed_margin_targets=()):
         execution_target_ids=("M", "A"),
     )
     return api, store, broker, journal, coordinator, targets, receipt.query_set, facts
+
+
+def _reproject_with_margin_snapshot_override(
+    store, broker, targets, query_set, now, target_id, mutate
+):
+    original_getter = store.get_registered_sim_query_snapshot
+
+    def get_snapshot(family, **filters):
+        result = original_getter(family, **filters)
+        if family == "instrument_margin_rate_result" and filters.get("instrument_id") == next(
+            instrument for item_id, instrument in _TARGETS if item_id == target_id
+        ):
+            assert result is not None
+            result = dict(result)
+            mutate(result, now)
+        return result
+
+    store.get_registered_sim_query_snapshot = get_snapshot
+    try:
+        return project_factor_execution_facts(
+            store,
+            broker,
+            targets=targets,
+            account_scope="acct-scope",
+            strategy_scope="alpha003",
+            now=now,
+            quote_max_age=timedelta(seconds=2),
+            max_query_age=timedelta(seconds=10),
+            query_set=query_set,
+            execution_target_ids=("M", "A"),
+        )
+    finally:
+        store.get_registered_sim_query_snapshot = original_getter
 
 
 def _planning_input(facts, now, *, target_decision=None, orders=(), run_end=False):
@@ -735,6 +782,306 @@ def test_passive_flat_target_missing_computed_margin_does_not_block_authorized_o
         assert full_pool._scoped_route_permitted() is True
         assert missing_y_margin.issubset(set(full_pool.aggregate_write_blockers))
         assert full_pool.open_risk_ready is False
+    finally:
+        journal.close()
+
+
+def test_absent_margin_snapshot_for_safe_passive_unauthorized_target_is_optional():
+    now = datetime.now(timezone.utc)
+    (
+        api,
+        _store,
+        _broker,
+        journal,
+        _coordinator,
+        _targets,
+        _query_set,
+        facts,
+    ) = _production_scope_facts(now, absent_margin_query_targets=("Y",))
+    try:
+        assert facts.target_ids == ("M", "Y", "A")
+        assert facts.execution_target_ids == ("M", "A")
+        assert not any(
+            family == "instrument_margin_rate_result" and filters.get("instrument_id") == "y2511"
+            for family, filters in api.query_calls
+        )
+        y_margin_facts = tuple(
+            fact
+            for fact in facts.query_provenance
+            if fact.family == "instrument_margin_rate_result" and fact.target_id == "Y"
+        )
+        assert len(y_margin_facts) == 1
+        assert y_margin_facts[0].request_id is None
+        assert y_margin_facts[0].query_complete is False
+
+        unavailable_y = "query_failed:instrument_margin_rate_result:Y:unavailable"
+        passive_margin_codes = {
+            unavailable_y,
+            "long_margin_per_hand_unobserved:Y",
+            "short_margin_per_hand_unobserved:Y",
+        }
+        raw_blockers = facts.blockers
+        raw_provenance = facts.query_provenance
+        assert passive_margin_codes.issubset(set(raw_blockers))
+        assert passive_margin_codes.isdisjoint(facts.aggregate_write_blockers)
+        assert facts.blockers == raw_blockers
+        assert facts.query_provenance == raw_provenance
+        assert facts.open_risk_ready is True
+
+        plan = _STRATEGY.plan_alpha003_orders(
+            _planning_input(
+                facts,
+                now,
+                target_decision=_target_decision(facts, ("M", "A")),
+            )
+        )
+        assert plan.status == "READY", plan.reason
+        assert [(item.action, item.target_id) for item in plan.actions] == [
+            ("SUBMIT", "M"),
+            ("SUBMIT", "A"),
+        ]
+    finally:
+        journal.close()
+
+
+def test_absent_margin_snapshot_for_authorized_target_still_blocks_new_risk():
+    now = datetime.now(timezone.utc)
+    (
+        _api,
+        _store,
+        _broker,
+        journal,
+        _coordinator,
+        _targets,
+        _query_set,
+        facts,
+    ) = _production_scope_facts(now, absent_margin_query_targets=("M",))
+    try:
+        unavailable_m = "query_failed:instrument_margin_rate_result:M:unavailable"
+        assert unavailable_m in facts.blockers
+        assert unavailable_m in facts.aggregate_write_blockers
+        assert facts.open_risk_ready is False
+
+        plan = _STRATEGY.plan_alpha003_orders(
+            _planning_input(
+                facts,
+                now,
+                target_decision=_target_decision(facts, ("M", "A")),
+            )
+        )
+        assert plan.status == "BLOCKED"
+        assert plan.reason.startswith("OPEN_RISK_FACTS_BLOCKED:")
+        assert plan.actions == ()
+    finally:
+        journal.close()
+
+
+@pytest.mark.parametrize("passive_state", ("exposed", "unknown", "working"))
+def test_absent_passive_margin_snapshot_stays_blocked_when_target_is_not_passive(
+    passive_state,
+):
+    now = datetime.now(timezone.utc)
+    (
+        _api,
+        _store,
+        _broker,
+        journal,
+        _coordinator,
+        _targets,
+        _query_set,
+        facts,
+    ) = _production_scope_facts(now, absent_margin_query_targets=("Y",))
+    try:
+        y_position_index = next(
+            index for index, item in enumerate(facts.positions) if item.target_id == "Y"
+        )
+        y_position = facts.positions[y_position_index]
+        if passive_state == "exposed":
+            changed_position = replace(
+                y_position,
+                quantity=Decimal(1),
+                broker_quantity=Decimal(1),
+                long_quantity=Decimal(1),
+                short_quantity=Decimal(0),
+                position_book_status="MATCHED",
+            )
+            changed_facts = replace(
+                facts,
+                positions=facts.positions[:y_position_index]
+                + (changed_position,)
+                + facts.positions[y_position_index + 1 :],
+            )
+            expected_scope_blocker = "execution_scope_observation_not_flat:Y"
+        elif passive_state == "unknown":
+            changed_position = replace(
+                y_position,
+                quantity=None,
+                broker_quantity=None,
+                long_quantity=None,
+                short_quantity=None,
+                position_book_status="UNKNOWN",
+            )
+            changed_facts = replace(
+                facts,
+                positions=facts.positions[:y_position_index]
+                + (changed_position,)
+                + facts.positions[y_position_index + 1 :],
+            )
+            expected_scope_blocker = "execution_scope_observation_position_unavailable:Y"
+        else:
+            changed_facts = replace(
+                facts,
+                working_orders=facts.working_orders + (_active_order("Y", "y2511"),),
+            )
+            expected_scope_blocker = "execution_scope_observation_order_present:Y"
+
+        unavailable_y = "query_failed:instrument_margin_rate_result:Y:unavailable"
+        assert expected_scope_blocker in changed_facts.aggregate_write_blockers
+        assert unavailable_y in changed_facts.blockers
+        assert unavailable_y in changed_facts.aggregate_write_blockers
+        assert changed_facts.open_risk_ready is False
+    finally:
+        journal.close()
+
+
+@pytest.mark.parametrize("route_evidence", ("session_identity", "arm_membership"))
+def test_absent_margin_snapshot_requires_complete_safe_route_evidence(route_evidence):
+    now = datetime.now(timezone.utc)
+    (
+        _api,
+        _store,
+        _broker,
+        journal,
+        _coordinator,
+        _targets,
+        _query_set,
+        facts,
+    ) = _production_scope_facts(now, absent_margin_query_targets=("Y",))
+    try:
+        y_route_index = next(
+            index for index, route in enumerate(facts.route_eligibilities) if route.target_id == "Y"
+        )
+        y_route = facts.route_eligibilities[y_route_index]
+        if route_evidence == "session_identity":
+            changed_route = replace(
+                y_route,
+                current_session_account_fingerprint="foreign-account",
+            )
+        else:
+            changed_route = replace(
+                y_route,
+                arm_template_configured=None,
+                arm_template_membership=None,
+            )
+        changed_facts = replace(
+            facts,
+            route_eligibilities=facts.route_eligibilities[:y_route_index]
+            + (changed_route,)
+            + facts.route_eligibilities[y_route_index + 1 :],
+        )
+
+        unavailable_y = "query_failed:instrument_margin_rate_result:Y:unavailable"
+        assert unavailable_y in changed_facts.blockers
+        assert unavailable_y in changed_facts.aggregate_write_blockers
+        assert "route_arm_template_missing:Y" in changed_facts.aggregate_write_blockers
+        assert changed_facts.open_risk_ready is False
+    finally:
+        journal.close()
+
+
+@pytest.mark.parametrize(
+    ("snapshot_change", "expected_blocker"),
+    (
+        ("stale", "query_facts_invalid:instrument_margin_rate_result:Y"),
+        ("foreign", "margin_query_identity_mismatch:Y"),
+        ("malformed", "query_facts_invalid:instrument_margin_rate_result:Y"),
+    ),
+)
+def test_invalid_margin_snapshot_for_passive_target_is_not_treated_as_absent(
+    snapshot_change, expected_blocker
+):
+    now = datetime.now(timezone.utc)
+    (
+        _api,
+        store,
+        broker,
+        journal,
+        _coordinator,
+        targets,
+        query_set,
+        _facts,
+    ) = _production_scope_facts(now)
+    try:
+
+        def mutate(result, projection_now):
+            if snapshot_change == "stale":
+                result["started_at_utc"] = projection_now - timedelta(seconds=31)
+                result["completed_at_utc"] = projection_now - timedelta(seconds=30)
+            elif snapshot_change == "foreign":
+                result["account_fingerprint"] = "foreign-account"
+            else:
+                result["expected_request_type"] = "unexpected-request"
+
+        changed_facts = _reproject_with_margin_snapshot_override(
+            store, broker, targets, query_set, now, "Y", mutate
+        )
+        assert expected_blocker in changed_facts.blockers
+        assert expected_blocker in changed_facts.aggregate_write_blockers
+        assert (
+            "query_failed:instrument_margin_rate_result:Y:unavailable" not in changed_facts.blockers
+        )
+        assert changed_facts.open_risk_ready is False
+    finally:
+        journal.close()
+
+
+def test_margin_snapshot_read_failure_remains_blocking_for_passive_target():
+    now = datetime.now(timezone.utc)
+    (
+        _api,
+        store,
+        broker,
+        journal,
+        _coordinator,
+        targets,
+        query_set,
+        _facts,
+    ) = _production_scope_facts(now)
+    try:
+        original_getter = store.get_registered_sim_query_snapshot
+
+        def fail_y_margin_read(family, **filters):
+            if (
+                family == "instrument_margin_rate_result"
+                and filters.get("instrument_id") == "y2511"
+            ):
+                raise RuntimeError("synthetic snapshot-read failure")
+            return original_getter(family, **filters)
+
+        store.get_registered_sim_query_snapshot = fail_y_margin_read
+        try:
+            changed_facts = project_factor_execution_facts(
+                store,
+                broker,
+                targets=targets,
+                account_scope="acct-scope",
+                strategy_scope="alpha003",
+                now=now,
+                quote_max_age=timedelta(seconds=2),
+                max_query_age=timedelta(seconds=10),
+                query_set=query_set,
+                execution_target_ids=("M", "A"),
+            )
+        finally:
+            store.get_registered_sim_query_snapshot = original_getter
+
+        read_failure = "query_snapshot_read_failed:instrument_margin_rate_result:Y:RuntimeError"
+        unavailable_y = "query_failed:instrument_margin_rate_result:Y:unavailable"
+        assert read_failure in changed_facts.blockers
+        assert read_failure in changed_facts.aggregate_write_blockers
+        assert unavailable_y in changed_facts.blockers
+        assert unavailable_y not in changed_facts.aggregate_write_blockers
+        assert changed_facts.open_risk_ready is False
     finally:
         journal.close()
 
