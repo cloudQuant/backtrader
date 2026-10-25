@@ -4062,6 +4062,260 @@ class BtApiStore(LiveStoreBase):
             max_snapshot_age_seconds=max_snapshot_age_seconds,
         )
 
+    def registered_sim_assert_original_order_absent(
+        self,
+        *,
+        original_identity: Mapping[str, Any],
+        expected_session: Mapping[str, Any],
+    ) -> str:
+        """Read-only proof that a same-session Store has no local original order.
+
+        ``expected_session`` binds this observation to the currently connected
+        Store/SDK session. ``original_identity`` retains the exact session and
+        provider identifiers of the earlier order; a legitimate reconnect may
+        give the current session a different generation/front/session tuple.
+        The caller must bind both identities to a fresh complete provider query
+        before relying on this local absence assertion. This method does not
+        establish remote terminal state, clear recovery state, publish events,
+        wake callbacks, reconstruct a Backtrader Order, or call a native order
+        method.
+        """
+        from .registered_sim import (
+            RegisteredSimStore,
+            RegisteredSimWrapper,
+            _expected_session,
+            _session_identity,
+            _session_matches,
+        )
+
+        def blocked(code: str) -> None:
+            raise BtApiStoreError("registered-sim order absence blocked: " + code)
+
+        if not isinstance(self, RegisteredSimStore):
+            blocked("REGISTERED_SIM_STORE_REQUIRED")
+        if not isinstance(original_identity, Mapping):
+            blocked("ORIGINAL_IDENTITY_INVALID")
+        try:
+            expected = _expected_session(expected_session)
+        except BtApiStoreError:
+            blocked("EXPECTED_SESSION_INVALID")
+        if expected.get("front_id") is None or expected.get("session_id") is None:
+            blocked("EXPECTED_SESSION_NATIVE_IDS_UNOBSERVED")
+
+        order_ref = original_identity.get("order_ref")
+        order_sys_id = original_identity.get("order_sys_id")
+        backtrader_order_ref = original_identity.get("backtrader_order_ref")
+        instrument = original_identity.get("instrument_id")
+        exchange = original_identity.get("exchange_id")
+        original_account = original_identity.get("account_fingerprint")
+        original_generation = original_identity.get("connection_generation")
+        original_day = original_identity.get("trading_day")
+        original_front = original_identity.get("front_id")
+        original_session_id = original_identity.get("session_id")
+        if (
+            original_identity.get("operation") != "insert"
+            or not isinstance(order_ref, str)
+            or not order_ref
+            or order_ref != order_ref.strip()
+            or type(backtrader_order_ref) is not int
+            or backtrader_order_ref <= 0
+            or not isinstance(instrument, str)
+            or not instrument
+            or instrument != instrument.strip()
+            or not isinstance(exchange, str)
+            or not exchange
+            or exchange != exchange.strip()
+            or not isinstance(original_account, str)
+            or not original_account
+            or original_account != original_account.strip()
+            or original_account != expected["account_fingerprint"]
+            or type(original_generation) is not int
+            or original_generation <= 0
+            or not isinstance(original_day, str)
+            or re.fullmatch(r"[0-9]{8}", original_day) is None
+            or type(original_front) is not int
+            or original_front <= 0
+            or type(original_session_id) is not int
+            or original_session_id <= 0
+            or (
+                order_sys_id is not None and (not isinstance(order_sys_id, str) or not order_sys_id)
+            )
+        ):
+            blocked("ORIGINAL_IDENTITY_INVALID")
+
+        def contains_identity(value: Any) -> Optional[bool]:
+            """Return match, known non-match, or None for an opaque row."""
+            observed = False
+            if isinstance(value, Mapping):
+                values = value
+                nested = value.get("details")
+                if isinstance(nested, Mapping):
+                    values = {**value, **nested}
+            else:
+                values = {
+                    name: getattr(value, name, None)
+                    for name in (
+                        "ref",
+                        "bt_order_ref",
+                        "backtrader_order_ref",
+                        "order_ref",
+                        "OrderRef",
+                        "external_order_ref",
+                        "order_sys_id",
+                        "OrderSysID",
+                    )
+                }
+                info = getattr(value, "info", None)
+                if isinstance(info, Mapping):
+                    values.update(info)
+            for name in ("bt_order_ref", "backtrader_order_ref", "ref"):
+                item = values.get(name)
+                if item is not None:
+                    observed = True
+                    if type(item) is int and item == backtrader_order_ref:
+                        return True
+            for name in ("order_ref", "OrderRef", "external_order_ref", "client_order_id"):
+                item = values.get(name)
+                if item is not None:
+                    observed = True
+                    if isinstance(item, str) and item == order_ref:
+                        return True
+            if order_sys_id is not None:
+                for name in ("order_sys_id", "OrderSysID", "external_order_id"):
+                    item = values.get(name)
+                    if item is not None:
+                        observed = True
+                        if isinstance(item, str) and item == order_sys_id:
+                            return True
+            return False if observed else None
+
+        def pending_queue_has_match(queue: Any) -> bool:
+            if not isinstance(queue, collections.deque):
+                blocked("LOCAL_CALLBACK_QUEUE_UNOBSERVED")
+            for row in tuple(queue):
+                matched = contains_identity(row)
+                if matched is not False:
+                    return True
+            return False
+
+        with self._registered_sim_gate_lock:
+            store_gate = getattr(self, "_registered_sim_gate", None)
+            if (
+                not isinstance(store_gate, Mapping)
+                or store_gate.get("armed") is not False
+                or store_gate.get("frozen") is not False
+            ):
+                blocked("STORE_GATE_NOT_DISARMED")
+            if getattr(self, "_connected", None) is not True:
+                blocked("STORE_NOT_CONNECTED")
+
+            api = getattr(self, "_api", None)
+            if not isinstance(api, RegisteredSimWrapper):
+                blocked("REGISTERED_SIM_WRAPPER_UNAVAILABLE")
+            if getattr(api, "_connected", None) is not True:
+                blocked("WRAPPER_NOT_CONNECTED")
+            client = getattr(api, "trader_client", None)
+            if client is None:
+                blocked("TRADER_SESSION_UNAVAILABLE")
+
+            with api._registered_sim_lock:
+                current = _session_identity(client)
+                if (
+                    not _session_matches(current, expected, require_trading_ready=False)
+                    or current.get("read_only_ready") is not True
+                    or current.get("front_id") != expected.get("front_id")
+                    or current.get("session_id") != expected.get("session_id")
+                ):
+                    blocked("CURRENT_SESSION_IDENTITY_MISMATCH")
+
+                sdk_gate = api._sdk_gate_state_locked()
+                if not isinstance(sdk_gate, Mapping) or sdk_gate.get("armed") is not False:
+                    blocked("SDK_GATE_NOT_OBSERVED_DISARMED")
+                if (
+                    getattr(api, "_registered_sim_capability", None) is not None
+                    or getattr(api, "_registered_sim_armed_key", None) is not None
+                    or getattr(api, "_registered_sim_frozen", None) is not False
+                ):
+                    blocked("WRAPPER_NOT_DISARMED")
+                if getattr(api, "_registered_sim_unknown_dispatch", None) is not None:
+                    blocked("UNKNOWN_LATCH_PRESENT")
+
+                order_state = getattr(api, "_order_state", None)
+                if not isinstance(order_state, Mapping):
+                    blocked("LOCAL_ORDER_STATE_UNOBSERVED")
+                if any(state == "unknown" for state in order_state.values()):
+                    blocked("UNKNOWN_ORDER_IDS_PRESENT")
+                dispatching = getattr(api, "_dispatching_order_ids", None)
+                if not isinstance(dispatching, (set, frozenset)) or dispatching:
+                    blocked("DISPATCHING_ORDER_IDS_PRESENT_OR_UNOBSERVED")
+                if order_ref in order_state:
+                    blocked("LOCAL_ORDER_REFERENCE_PRESENT")
+
+                for attribute, identifier in (
+                    ("_pending_orders", order_ref),
+                    ("_pending_orders_by_sys_id", order_sys_id),
+                ):
+                    rows = getattr(api, attribute, None)
+                    if not isinstance(rows, Mapping):
+                        blocked("LOCAL_PENDING_ORDER_MAP_UNOBSERVED")
+                    if identifier is not None and identifier in rows:
+                        blocked("LOCAL_PENDING_ORDER_PRESENT")
+
+                if pending_queue_has_match(getattr(api, "_order_updates", None)):
+                    blocked("LOCAL_ORDER_CALLBACK_PENDING")
+
+                broker = getattr(self, "_broker", None)
+                broker_orders = getattr(broker, "orders", None)
+                client_refs = getattr(broker, "_orders_by_client_ref", None)
+                external_ids = getattr(broker, "_orders_by_external_id", None)
+                if (
+                    not isinstance(broker_orders, Mapping)
+                    or not isinstance(client_refs, Mapping)
+                    or not isinstance(external_ids, Mapping)
+                ):
+                    blocked("BROKER_ORDER_MAPS_UNOBSERVED")
+                if (
+                    backtrader_order_ref in broker_orders
+                    or str(backtrader_order_ref) in broker_orders
+                ):
+                    blocked("BROKER_ORDER_REFERENCE_PRESENT")
+                for key, order in broker_orders.items():
+                    if contains_identity(order) is True:
+                        blocked("BROKER_ORDER_IDENTITY_PRESENT")
+                    if key == order_ref or (order_sys_id is not None and key == order_sys_id):
+                        blocked("BROKER_ORDER_IDENTITY_PRESENT")
+                for key, order in client_refs.items():
+                    if (
+                        key == order_ref
+                        or (isinstance(key, tuple) and len(key) == 2 and key[1] == order_ref)
+                        or contains_identity(order) is True
+                    ):
+                        blocked("BROKER_CLIENT_REFERENCE_PRESENT")
+                if order_sys_id is not None and order_sys_id in external_ids:
+                    blocked("BROKER_EXTERNAL_REFERENCE_PRESENT")
+                for order in external_ids.values():
+                    if contains_identity(order) is True:
+                        blocked("BROKER_EXTERNAL_REFERENCE_PRESENT")
+
+                for attribute in ("_open_orders_cache", "_remote_open_orders_snapshot"):
+                    rows = getattr(
+                        self if attribute == "_open_orders_cache" else broker, attribute, None
+                    )
+                    if not isinstance(rows, list):
+                        blocked("LOCAL_OPEN_ORDER_SNAPSHOT_UNOBSERVED")
+                    for row in rows:
+                        matched = contains_identity(row)
+                        if matched is not False:
+                            blocked("LOCAL_OPEN_ORDER_SNAPSHOT_PRESENT_OR_AMBIGUOUS")
+
+                pending_trades = getattr(broker, "_pending_trade_updates", None)
+                if not isinstance(pending_trades, collections.deque):
+                    blocked("BROKER_TRADE_CALLBACK_QUEUE_UNOBSERVED")
+                if pending_queue_has_match(pending_trades):
+                    blocked("BROKER_TRADE_CALLBACK_PENDING")
+
+                return "ALREADY_ABSENT"
+
     @property
     def uses_async_commands(self) -> bool:
         """Return whether this SDK exposes the typed asynchronous command contract."""
