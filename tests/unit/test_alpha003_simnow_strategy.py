@@ -2836,6 +2836,21 @@ def _source_backed_read_only_reconciliation_case(scenario="positive"):
         module = importlib.util.module_from_spec(spec)
         sys.modules[module_name] = module
         spec.loader.exec_module(module)
+    if scenario == "owned_nonflat":
+        builder = getattr(module, "_build_source_backed_dated_close_facts", None)
+        if not callable(builder):
+            raise RuntimeError("source-backed nonflat fixture is unavailable")
+        facts, inputs = builder()
+        return SimpleNamespace(
+            facts=facts,
+            target=inputs["target"],
+            broker=inputs["broker"],
+            store=inputs["store"],
+            journal=inputs["journal"],
+            api=inputs["api"],
+            receipt=inputs["query_receipt"],
+            now=inputs["now"],
+        )
     builder = getattr(module, "_build_source_backed_read_only_reconciliation_case", None)
     if not callable(builder):
         raise RuntimeError("read-only reconciliation source fixture is not available yet")
@@ -2860,10 +2875,15 @@ def _shutdown_strategy_for_facts(facts, target, *, policy=None):
 
 def _live_shutdown_strategy_for_case(case, refresh_loop):
     strategy = _shutdown_strategy_for_facts(case.facts, case.target)
-    strategy.p = SimpleNamespace(replay_mode=False, control_refresh_loop=refresh_loop)
+    strategy.p = SimpleNamespace(
+        replay_mode=False,
+        execution_enabled=False,
+        control_refresh_loop=refresh_loop,
+    )
     strategy.broker = case.broker
     strategy._data_by_target = {case.target.target_id: case.target.data}
     strategy._routes = {case.target.target_id: (case.target.instrument, case.target.exchange)}
+    strategy._authorized_targets = frozenset((case.target.target_id,))
     strategy._risk_policy = _risk_policy()
     strategy._quote_max_age_seconds = None
     strategy._max_query_age_seconds = None
@@ -2901,6 +2921,366 @@ def test_read_only_flat_shadow_can_retire_while_trading_plan_is_blocked():
     assert strategy.shutdown_ready is True
     assert strategy.shutdown_blocker is None
     assert strategy._last_shutdown_facts_id == facts.snapshot_id
+
+
+@pytest.mark.parametrize("scenario", ("active_order", "pending_order"))
+def test_null_risk_read_only_stop_preserves_observed_working_orders(scenario):
+    """A complete query can end observation without canceling old remote state."""
+    case = _source_backed_read_only_reconciliation_case(scenario)
+    joined = []
+
+    class _RefreshLoop:
+        last_receipt = case.receipt
+
+        def stop_and_join(self):
+            joined.append(True)
+
+    try:
+        strategy = _live_shutdown_strategy_for_case(case, _RefreshLoop())
+        strategy._risk_policy = None
+        strategy._quote_max_age_seconds = Decimal("2")
+        strategy._max_query_age_seconds = Decimal("10")
+        strategy.broker.set_param("market_data_only", True)
+
+        facts = strategy._live_facts(case.now)
+        assert facts is not None
+        assert facts.read_only_reconciliation_ready is False
+        assert facts.read_only_observation_ready is True, facts.read_only_observation_blockers
+        assert len(facts.working_orders) == 1
+        preserved_order = facts.working_orders[0]
+        before_broker_orders = tuple(strategy.broker.orders)
+
+        strategy.request_shutdown()
+        strategy.stop()
+
+        assert joined == [True]
+        assert strategy.shutdown_ready is True
+        assert strategy.shutdown_post_join_confirmed is True
+        assert strategy.shutdown_post_join_blocker is None
+        assert strategy.last_execution_facts is not None
+        assert tuple(strategy.last_execution_facts.working_orders) == (preserved_order,)
+        assert tuple(strategy.broker.orders) == before_broker_orders
+        assert case.store.allow_writes is False
+        assert strategy.broker.get_market_data_only_audit() == {
+            "submit_rejected": 0,
+            "cancel_rejected": 0,
+            "batch_cancel_rejected": 0,
+            "total_rejected": 0,
+        }
+    finally:
+        case.journal.close()
+
+
+def test_null_risk_retirement_rejects_nonflat_projection_with_writable_store():
+    """A writable Store cannot qualify for passive read-only retirement."""
+    case = _source_backed_read_only_reconciliation_case("owned_nonflat")
+
+    class _RefreshLoop:
+        last_receipt = case.receipt
+
+        def stop_and_join(self):
+            return None
+
+    try:
+        strategy = _live_shutdown_strategy_for_case(case, _RefreshLoop())
+        strategy._risk_policy = None
+        strategy._quote_max_age_seconds = Decimal("2")
+        strategy._max_query_age_seconds = Decimal("10")
+        strategy.broker.set_param("market_data_only", True)
+
+        facts = strategy._live_facts(case.now)
+        assert facts is not None
+        assert facts.positions[0].quantity == Decimal("1")
+        assert facts.read_only_observation_ready is True, facts.read_only_observation_blockers
+        assert case.store.allow_writes is True
+        assert strategy._passive_read_only_retirement_proven(facts) is False
+        strategy.request_shutdown()
+        strategy.stop()
+
+        expected_blocker = "SHUTDOWN_OWNED_POSITION_OPEN:" + case.target.target_id
+        assert strategy.shutdown_ready is False
+        assert strategy.shutdown_blocker == expected_blocker
+        assert strategy.shutdown_post_join_confirmed is False
+        assert strategy.shutdown_post_join_blocker == expected_blocker
+        assert strategy.last_execution_facts.positions[0].quantity == Decimal("1")
+        assert strategy.broker.get_market_data_only_audit()["total_rejected"] == 0
+    finally:
+        case.journal.close()
+
+
+def test_null_risk_read_only_stop_preserves_foreign_target_position_without_attribution():
+    case = _source_backed_read_only_reconciliation_case("foreign_target")
+
+    class _RefreshLoop:
+        last_receipt = case.receipt
+
+        def stop_and_join(self):
+            return None
+
+    try:
+        strategy = _live_shutdown_strategy_for_case(case, _RefreshLoop())
+        strategy._risk_policy = None
+        strategy._quote_max_age_seconds = Decimal("2")
+        strategy._max_query_age_seconds = Decimal("10")
+        strategy.broker.set_param("market_data_only", True)
+
+        facts = strategy._live_facts(case.now)
+        assert facts is not None
+        position = next(row for row in facts.positions if row.target_id == case.target.target_id)
+        assert position.position_book_status == "FOREIGN_OWNER"
+        assert position.owner_strategy_scope is None
+        assert position.owner_intent_id is None
+        assert case.same_day_facts.read_only_observation_ready is False
+        assert any(
+            blocker.startswith("terminal_order_not_reconciled:")
+            for blocker in case.same_day_facts.read_only_observation_blockers
+        )
+        assert any(
+            blocker.startswith("trade_observation_not_reconciled:")
+            for blocker in case.same_day_facts.read_only_observation_blockers
+        )
+        assert case.terminal_page.items[0].status == "RESOLVED"
+        assert case.journal.active_instrument_owner("acct-scope", case.target.instrument) is None
+        assert facts.read_only_observation_ready is True, facts.read_only_observation_blockers
+
+        strategy.request_shutdown()
+        strategy.stop()
+
+        assert strategy.shutdown_ready is True
+        assert strategy.shutdown_post_join_confirmed is True
+        assert strategy.shutdown_post_join_blocker is None
+        retained = next(
+            row
+            for row in strategy.last_execution_facts.positions
+            if row.target_id == case.target.target_id
+        )
+        assert retained.quantity == retained.broker_quantity == Decimal("1")
+        assert retained.owner_strategy_scope is None
+        assert retained.owner_intent_id is None
+        assert case.store.allow_writes is False
+        assert strategy.broker.get_market_data_only_audit()["total_rejected"] == 0
+    finally:
+        case.journal.close()
+
+
+def test_null_risk_read_only_stop_blocks_unreconciled_foreign_order_slot():
+    case = _source_backed_read_only_reconciliation_case("foreign_target_unreconciled")
+
+    class _RefreshLoop:
+        last_receipt = case.receipt
+
+        def stop_and_join(self):
+            return None
+
+    try:
+        strategy = _live_shutdown_strategy_for_case(case, _RefreshLoop())
+        strategy._risk_policy = None
+        strategy._quote_max_age_seconds = Decimal("2")
+        strategy._max_query_age_seconds = Decimal("10")
+        strategy.broker.set_param("market_data_only", True)
+
+        facts = strategy._live_facts(case.now)
+        assert facts is not None
+        assert facts.read_only_observation_ready is False
+        assert any(
+            blocker.startswith("journal_known_intent_not_joined:")
+            for blocker in facts.read_only_observation_blockers
+        )
+        assert case.journal.active_instrument_owner("acct-scope", case.target.instrument) is not None
+
+        strategy.request_shutdown()
+        strategy.stop()
+
+        assert strategy.shutdown_ready is False
+        assert strategy.shutdown_blocker.startswith("SHUTDOWN_RECONCILIATION_BLOCKED:")
+        assert strategy.broker.get_market_data_only_audit() == {
+            "submit_rejected": 0,
+            "cancel_rejected": 0,
+            "batch_cancel_rejected": 0,
+            "total_rejected": 0,
+        }
+    finally:
+        case.journal.close()
+
+
+def test_null_risk_read_only_stop_preserves_typed_external_position_and_order():
+    case = _source_backed_read_only_reconciliation_case("external_state")
+
+    class _RefreshLoop:
+        last_receipt = case.receipt
+
+        def stop_and_join(self):
+            return None
+
+    try:
+        strategy = _live_shutdown_strategy_for_case(case, _RefreshLoop())
+        strategy._risk_policy = None
+        strategy._quote_max_age_seconds = Decimal("2")
+        strategy._max_query_age_seconds = Decimal("10")
+        strategy.broker.set_param("market_data_only", True)
+        initial_orders = tuple(strategy.broker.orders)
+
+        facts = strategy._live_facts(case.now)
+        assert facts is not None
+        assert facts.read_only_reconciliation_ready is False
+        assert facts.read_only_observation_ready is True, facts.read_only_observation_blockers
+        external_position = next(row for row in facts.positions if row.target_id is None)
+        external_order = next(row for row in facts.working_orders if row.target_id is None)
+        assert (external_position.instrument, external_position.exchange) == ("m2501", "DCE")
+        assert external_position.quantity == Decimal("1")
+        assert (external_order.instrument, external_order.exchange) == ("m2501", "DCE")
+        assert external_order.state == "REMOTE_ONLY"
+
+        strategy.request_shutdown()
+        strategy.stop()
+
+        assert strategy.shutdown_ready is True
+        assert strategy.shutdown_post_join_confirmed is True
+        assert strategy.shutdown_post_join_blocker is None
+        assert tuple(strategy.broker.orders) == initial_orders
+        retained_position = next(
+            row for row in strategy.last_execution_facts.positions if row.target_id is None
+        )
+        retained_order = next(
+            row for row in strategy.last_execution_facts.working_orders if row.target_id is None
+        )
+        assert retained_position.quantity == Decimal("1")
+        assert retained_order.state == "REMOTE_ONLY"
+        assert case.store.allow_writes is False
+        assert strategy.broker.get_market_data_only_audit() == {
+            "submit_rejected": 0,
+            "cancel_rejected": 0,
+            "batch_cancel_rejected": 0,
+            "total_rejected": 0,
+        }
+    finally:
+        case.journal.close()
+
+
+def test_null_risk_read_only_facts_require_explicit_freshness_and_current_receipt():
+    case = _source_backed_read_only_reconciliation_case("positive")
+
+    class _RefreshLoop:
+        last_receipt = case.receipt
+
+        def stop_and_join(self):
+            return None
+
+    try:
+        strategy = _live_shutdown_strategy_for_case(case, _RefreshLoop())
+        strategy._risk_policy = None
+        strategy._quote_max_age_seconds = None
+        strategy._max_query_age_seconds = Decimal("10")
+        assert strategy._live_facts(case.now) is None
+        assert strategy.last_execution_block_reason == "LIVE_FACT_AGE_BOUNDS_REQUIRED"
+
+        strategy._quote_max_age_seconds = Decimal("2")
+        strategy.p.control_refresh_loop.last_receipt = None
+        facts = strategy._live_facts(case.now)
+        assert facts is not None
+        assert facts.read_only_observation_ready is False
+        strategy.request_shutdown()
+        strategy._update_shutdown_state(facts, None)
+        assert strategy.shutdown_ready is False
+        assert strategy.shutdown_blocker.startswith("SHUTDOWN_RECONCILIATION_BLOCKED:")
+    finally:
+        case.journal.close()
+
+
+def test_null_risk_read_only_stop_rejects_stale_query_projection():
+    case = _source_backed_read_only_reconciliation_case("stale_query")
+
+    class _RefreshLoop:
+        last_receipt = case.receipt
+
+        def stop_and_join(self):
+            return None
+
+    try:
+        strategy = _live_shutdown_strategy_for_case(case, _RefreshLoop())
+        strategy._risk_policy = None
+        strategy._quote_max_age_seconds = Decimal("2")
+        strategy._max_query_age_seconds = Decimal("10")
+        strategy.broker.set_param("market_data_only", True)
+
+        facts = strategy._live_facts(case.now)
+        assert facts is not None
+        assert facts.read_only_observation_ready is False
+        strategy.request_shutdown()
+        strategy._update_shutdown_state(facts, None)
+        assert strategy.shutdown_ready is False
+        assert strategy.shutdown_blocker.startswith("SHUTDOWN_RECONCILIATION_BLOCKED:")
+    finally:
+        case.journal.close()
+
+
+@pytest.mark.parametrize("replacement", ("broker", "store"))
+def test_passive_retirement_requires_same_projecting_broker_and_store(replacement):
+    case = _source_backed_read_only_reconciliation_case("owned_nonflat")
+
+    class _RefreshLoop:
+        last_receipt = case.receipt
+
+        def stop_and_join(self):
+            return None
+
+    try:
+        strategy = _live_shutdown_strategy_for_case(case, _RefreshLoop())
+        strategy._risk_policy = None
+        strategy._quote_max_age_seconds = Decimal("2")
+        strategy._max_query_age_seconds = Decimal("10")
+        strategy.broker.set_param("market_data_only", True)
+        facts = strategy._live_facts(case.now)
+        assert facts is not None
+        if replacement == "store":
+            strategy.broker.store = SimpleNamespace(allow_writes=False)
+        else:
+            prior_broker = strategy.broker
+            strategy.broker = SimpleNamespace(
+                store=case.store,
+                get_param=prior_broker.get_param,
+                get_market_data_only_audit=prior_broker.get_market_data_only_audit,
+            )
+
+        assert strategy._passive_read_only_retirement_proven(facts) is False
+        strategy.request_shutdown()
+        strategy._update_shutdown_state(facts, None)
+        assert strategy.shutdown_ready is False
+    finally:
+        case.journal.close()
+
+
+@pytest.mark.parametrize("failed_proof", ("execution_enabled", "broker_mode", "store_write"))
+def test_nonflat_read_only_state_needs_all_positive_no_write_proofs(failed_proof):
+    case = _source_backed_read_only_reconciliation_case("owned_nonflat")
+
+    class _RefreshLoop:
+        last_receipt = case.receipt
+
+        def stop_and_join(self):
+            return None
+
+    try:
+        strategy = _live_shutdown_strategy_for_case(case, _RefreshLoop())
+        strategy._risk_policy = None
+        strategy._quote_max_age_seconds = Decimal("2")
+        strategy._max_query_age_seconds = Decimal("10")
+        strategy.broker.set_param("market_data_only", True)
+        facts = strategy._live_facts(case.now)
+        assert facts is not None
+        if failed_proof == "execution_enabled":
+            strategy.p.execution_enabled = True
+        elif failed_proof == "broker_mode":
+            strategy.broker.set_param("market_data_only", False)
+        else:
+            strategy.broker.store._registered_sim_allow_writes = True
+
+        assert strategy._passive_read_only_retirement_proven(facts) is False
+        strategy.request_shutdown()
+        strategy._update_shutdown_state(facts, None)
+        assert strategy.shutdown_ready is False
+    finally:
+        case.journal.close()
 
 
 def test_stop_confirms_fresh_read_only_state_after_refresh_join():

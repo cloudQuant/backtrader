@@ -2794,6 +2794,8 @@ class Alpha003TargetStrategy(bt.Strategy):
         self.order_events = deque(maxlen=128)
         self.trade_events = deque(maxlen=128)
         self.last_execution_facts = None
+        self._last_execution_facts_broker = None
+        self._last_execution_facts_store = None
         self.last_order_plan: Optional[Alpha003OrderPlan] = None
         self.last_execution_block_reason: Optional[str] = None
         self._last_batch_id: Optional[str] = None
@@ -3012,13 +3014,36 @@ class Alpha003TargetStrategy(bt.Strategy):
         # Never leave an older projection visible when this call cannot obtain
         # a coherent current Store/query-set view.
         self.last_execution_facts = None
+        self._last_execution_facts_broker = None
+        self._last_execution_facts_store = None
         self.last_execution_block_reason = None
-        store = getattr(self.broker, "store", None)
+        broker = self.broker
+        store = getattr(broker, "store", None)
         if store is None:
             self.last_execution_block_reason = "EXECUTION_STORE_UNAVAILABLE"
             return None
-        if self._risk_policy is None:
+        if self._risk_policy is None and getattr(self.p, "execution_enabled", None) is not False:
             self.last_execution_block_reason = "RISK_POLICY_REQUIRED"
+            return None
+        quote_max_age_seconds = self._quote_max_age_seconds
+        query_max_age_seconds = self._max_query_age_seconds
+        if self._risk_policy is not None:
+            if quote_max_age_seconds is None:
+                quote_max_age_seconds = self._risk_policy.quote_max_age_seconds
+            if query_max_age_seconds is None:
+                query_max_age_seconds = self._risk_policy.max_state_age_seconds
+        if quote_max_age_seconds is None or query_max_age_seconds is None:
+            self.last_execution_block_reason = "LIVE_FACT_AGE_BOUNDS_REQUIRED"
+            return None
+        try:
+            quote_max_age_seconds = _positive_decimal(
+                quote_max_age_seconds, "quote_max_age_seconds"
+            )
+            query_max_age_seconds = _positive_decimal(
+                query_max_age_seconds, "max_query_age_seconds"
+            )
+        except (TypeError, ValueError):
+            self.last_execution_block_reason = "LIVE_FACT_AGE_BOUNDS_INVALID"
             return None
         targets = tuple(
             FactorExecutionTarget(
@@ -3046,7 +3071,7 @@ class Alpha003TargetStrategy(bt.Strategy):
         def project_current_snapshot():
             return project_factor_execution_facts(
                 store,
-                self.broker,
+                broker,
                 targets=targets,
                 account_scope=self._account_scope,
                 strategy_scope=self._strategy_scope,
@@ -3056,16 +3081,8 @@ class Alpha003TargetStrategy(bt.Strategy):
                     "query_set",
                     None,
                 ),
-                quote_max_age=timedelta(
-                    seconds=float(
-                        self._quote_max_age_seconds or self._risk_policy.quote_max_age_seconds
-                    )
-                ),
-                max_query_age=timedelta(
-                    seconds=float(
-                        self._max_query_age_seconds or self._risk_policy.max_state_age_seconds
-                    )
-                ),
+                quote_max_age=timedelta(seconds=float(quote_max_age_seconds)),
+                max_query_age=timedelta(seconds=float(query_max_age_seconds)),
                 execution_target_ids=execution_target_ids,
             )
 
@@ -3081,10 +3098,12 @@ class Alpha003TargetStrategy(bt.Strategy):
                     facts = project_current_snapshot()
             else:
                 facts = project_current_snapshot()
-        except (TypeError, ValueError, RuntimeError):
+        except (OverflowError, TypeError, ValueError, RuntimeError):
             self.last_execution_block_reason = "EXECUTION_FACT_PROJECTION_UNAVAILABLE"
             return None
         self.last_execution_facts = facts
+        self._last_execution_facts_broker = broker
+        self._last_execution_facts_store = store
         self.last_execution_block_reason = None
         return facts
 
@@ -4124,6 +4143,47 @@ class Alpha003TargetStrategy(bt.Strategy):
 
         return self._shutdown_post_join_blocker_state
 
+    def _passive_read_only_retirement_proven(self, facts: Any) -> bool:
+        """Require this exact Strategy/Broker/Store session to remain read-only."""
+
+        if (
+            getattr(getattr(self, "p", None), "execution_enabled", None) is not False
+            or facts is not getattr(self, "last_execution_facts", None)
+        ):
+            return False
+        broker = getattr(self, "broker", None)
+        store = getattr(broker, "store", None)
+        if (
+            broker is not getattr(self, "_last_execution_facts_broker", None)
+            or store is None
+            or store is not getattr(self, "_last_execution_facts_store", None)
+            or getattr(store, "allow_writes", None) is not False
+        ):
+            return False
+        get_param = getattr(broker, "get_param", None)
+        audit_reader = getattr(broker, "get_market_data_only_audit", None)
+        if not callable(get_param) or not callable(audit_reader):
+            return False
+        try:
+            market_data_only = get_param("market_data_only")
+            audit = audit_reader()
+        except Exception:
+            return False
+        if type(market_data_only) is not bool or market_data_only is not True:
+            return False
+        if not isinstance(audit, Mapping):
+            return False
+        rejected = tuple(
+            audit.get(name)
+            for name in ("submit_rejected", "cancel_rejected", "batch_cancel_rejected")
+        )
+        total = audit.get("total_rejected")
+        return (
+            all(type(count) is int and count == 0 for count in rejected)
+            and type(total) is int
+            and total == 0
+        )
+
     def _update_shutdown_state(self, facts: Any, plan: Optional[Alpha003OrderPlan]) -> None:
         if not self._shutdown_requested.is_set():
             self._shutdown_ready_state = False
@@ -4150,14 +4210,34 @@ class Alpha003TargetStrategy(bt.Strategy):
             self._shutdown_ready_state = False
             self._shutdown_blocker_state = "SHUTDOWN_FACT_SCOPE_MISMATCH"
             return
-        if facts.read_only_reconciliation_ready is not True:
-            blockers = facts.read_only_reconciliation_blockers
+        passive_read_only = self._passive_read_only_retirement_proven(facts)
+        if passive_read_only:
+            blockers = facts.read_only_observation_blockers
+            facts_ready = not blockers
+        else:
+            facts_ready = facts.read_only_reconciliation_ready is True
+            blockers = () if facts_ready else facts.read_only_reconciliation_blockers
+        if not facts_ready:
             self._shutdown_ready_state = False
             self._shutdown_blocker_state = (
                 "SHUTDOWN_RECONCILIATION_BLOCKED:" + blockers[0]
                 if blockers
                 else "SHUTDOWN_RECONCILIATION_UNAVAILABLE"
             )
+            return
+        if passive_read_only:
+            positions = tuple(getattr(facts, "positions", ()))
+            target_positions = tuple(
+                item for item in positions if getattr(item, "target_id", None) is not None
+            )
+            by_target = {item.target_id: item for item in target_positions}
+            if len(by_target) != len(target_positions) or set(by_target) != set(self._target_ids):
+                self._shutdown_ready_state = False
+                self._shutdown_blocker_state = "SHUTDOWN_POSITION_SET_INCOMPLETE"
+                return
+            self._shutdown_ready_state = True
+            self._shutdown_blocker_state = None
+            self._last_shutdown_facts_id = getattr(facts, "snapshot_id", None)
             return
 
         # Retirement is a read-only reconciliation decision. The planner may

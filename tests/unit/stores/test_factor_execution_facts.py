@@ -491,6 +491,294 @@ def _system_under_test(
     return api, store, broker, journal, coordinator, target
 
 
+def _build_source_backed_foreign_owner_case(api, store, broker, journal, target, now, *, reconcile):
+    """Project an exact foreign fill through its own coordinator and CTP rows."""
+    foreign_broker = BtApiBroker(
+        store=store,
+        contract_metadata={_INSTRUMENT: {"instrument_id": _INSTRUMENT, "exchange_id": _EXCHANGE}},
+    )
+    foreign_coordinator = FactorExecutionCoordinator(
+        foreign_broker,
+        journal,
+        account_scope="acct-scope",
+        strategy_scope="other-strategy",
+        logical_run_id="foreign-run",
+        max_order_intents_per_grid=4,
+        max_order_intents_per_run=1000,
+    )
+    foreign_broker.positions[_INSTRUMENT].update(1, 100.0)
+    # Both Broker projections share the account-level CTP position. This is
+    # the ordinary cached position effect of the already observed fill.
+    broker.positions[_INSTRUMENT].update(1, 100.0)
+
+    order = BuyOrder(
+        owner=None,
+        data=target.data,
+        size=1,
+        price=100,
+        exectype=Order.Limit,
+        simulated=True,
+    )
+    external_ref = "94"
+    order_sys_id = "foreign-sys-94"
+    decision_key = ExecutionDecisionKey(
+        account_scope="acct-scope",
+        strategy_scope="other-strategy",
+        logical_run_id="foreign-run",
+        cohort_id="foreign-fixture",
+        close_time=(now - timedelta(seconds=3)).isoformat().replace("+00:00", "Z"),
+        decision_kind="alpha003-rebalance",
+    )
+    intent_key = ExecutionIntentKey(
+        action="SUBMIT",
+        instrument=_INSTRUMENT,
+        side="BUY",
+        position_effect="OPEN",
+        leg=0,
+    )
+    decision = journal.record_decision(
+        decision_key,
+        {"batch_id": "foreign-batch", "mode": "native"},
+        intent_keys=(intent_key,),
+    )
+    intent = journal.prepare_intent(
+        decision.decision_id,
+        intent_key,
+        {
+            "exchange": _EXCHANGE,
+            "quantity": "1",
+            "price": "100",
+            "factor_stop_price": "95",
+            "risk_policy_id": "foreign-risk-v1",
+            "risk_policy": {"stop_loss_ticks": 5, "max_loss_per_position": "25"},
+        },
+        original_identity={
+            "backtrader_order_ref": order.ref,
+            "operation": "insert",
+            "instrument_id": _INSTRUMENT,
+            "exchange_id": _EXCHANGE,
+            "order_ref": external_ref,
+            "order_sys_id": order_sys_id,
+            "front_id": 4,
+            "session_id": 7,
+            "account_fingerprint": _ACCOUNT,
+            "trading_day": _TRADING_DAY,
+        },
+    )
+    assert journal.claim_dispatch(intent.intent_id) is not None
+    journal.record_dispatch_result(
+        intent.intent_id,
+        state="KNOWN",
+        provider_identity={"order_ref": external_ref, "order_sys_id": order_sys_id},
+        outcome_code="accepted",
+    )
+    order.info.update(
+        {
+            "factor_intent_id": intent.intent_id,
+            "factor_strategy_scope": "other-strategy",
+            "external_order_ref": external_ref,
+            "instrument_id": _INSTRUMENT,
+            "exchange_id": _EXCHANGE,
+            "factor_position_effect": "OPEN",
+            "order_sys_id": order_sys_id,
+            "registered_sim_ctp_order_sys_id": order_sys_id,
+            "registered_sim_ctp_order_sys_id_source": "ctp_order_callback",
+            "_registered_sim_ctp_identity_binding_captured": True,
+            "_registered_sim_ctp_identity_binding_valid": True,
+            "front_id": 4,
+            "session_id": 7,
+        }
+    )
+    order.status = Order.Accepted
+    terminal_row = {
+        "OrderRef": external_ref,
+        "OrderSysID": order_sys_id,
+        "InstrumentID": _INSTRUMENT,
+        "ExchangeID": _EXCHANGE,
+        "OrderStatus": "0",
+        "FrontID": 4,
+        "SessionID": 7,
+        "VolumeTotalOriginal": "1",
+        "VolumeTraded": "1",
+        "VolumeTotal": "0",
+        "TradingDay": _TRADING_DAY,
+    }
+    trade_row = _query_trade_for_fill(
+        trade_id="foreign-trade-94",
+        order_ref=external_ref,
+        order_sys_id=order_sys_id,
+        filled_at=now - timedelta(seconds=2),
+        quantity="1",
+        price="100",
+    )
+    native_update = {
+        "trade_id": trade_row["TradeID"],
+        "order_ref": trade_row["OrderRef"],
+        "instrument": trade_row["InstrumentID"],
+        "exchange_id": trade_row["ExchangeID"],
+        "size": Decimal("1"),
+        "price": trade_row["Price"],
+        "details": {
+            "TradeID": trade_row["TradeID"],
+            "OrderRef": trade_row["OrderRef"],
+            "OrderSysID": trade_row["OrderSysID"],
+            "InstrumentID": trade_row["InstrumentID"],
+            "ExchangeID": trade_row["ExchangeID"],
+            "Volume": trade_row["Volume"],
+            "Price": trade_row["Price"],
+            "TradeDate": trade_row["TradeDate"],
+            "TradeTime": trade_row["TradeTime"],
+            "TradingDay": trade_row["TradingDay"],
+        },
+    }
+    callback_receipt, callback_projection, acknowledged = foreign_coordinator.record_trade_callback(
+        native_update, order
+    )
+    assert callback_projection.status == "APPLIED"
+    assert acknowledged is False
+    journal.acknowledge_callback(callback_receipt.receipt_id)
+    api.query_rows["orders_result"] = [terminal_row]
+    api.query_rows["trades_result"] = [trade_row]
+    api._use_observed_query_clock = True
+    # This fixture is the current shadow observer, not the historical owner
+    # writer. Complete read queries and coordinator reconciliation do not need
+    # a write grant, and granting one here would invalidate the read-only
+    # retirement proof being exercised.
+
+    receipt, projection_now, _consumed = _refresh_complete_facts_after_callback(
+        api, store, target, sequence=20, trading_day=_TRADING_DAY
+    )
+    if not reconcile:
+        api.trader_client.is_ready = False
+        api.trader_client.is_trading_ready = False
+        facts = _project(store, broker, target, projection_now, query_set=receipt.query_set)
+        return SimpleNamespace(
+            api=api,
+            store=store,
+            broker=broker,
+            journal=journal,
+            coordinator=foreign_coordinator,
+            target=target,
+            receipt=receipt,
+            query_set=receipt.query_set,
+            now=projection_now,
+            facts=facts,
+            same_day_facts=facts,
+            intent=intent,
+            trade_page=None,
+            dated_page=None,
+            terminal_page=None,
+        )
+
+    owner_facts = _project(
+        store,
+        foreign_broker,
+        target,
+        projection_now,
+        query_set=receipt.query_set,
+        strategy_scope="other-strategy",
+    )
+    trade_page = foreign_coordinator.reconcile_trade_observations(
+        owner_facts, refresh_receipt=receipt, limit=128
+    )
+    assert trade_page.observation_count == 1 and trade_page.truncated is False
+    assert trade_page.items[0].status == "DUPLICATE", trade_page.items[0]
+    dated_page = foreign_coordinator.position_book.reconcile_dated_trade_observations(
+        owner_facts, reconciliation_page=trade_page, limit=128
+    )
+    assert dated_page.observation_count == 1 and dated_page.truncated is False
+    assert dated_page.items[0].status == "APPLIED", dated_page.items[0]
+
+    # The durable dated lot must be visible in a later complete same-day query
+    # before terminal reconciliation can release the original order slot.
+    receipt, projection_now, _consumed = _refresh_complete_facts_after_callback(
+        api, store, target, sequence=21, trading_day=_TRADING_DAY
+    )
+    owner_facts = _project(
+        store,
+        foreign_broker,
+        target,
+        projection_now,
+        query_set=receipt.query_set,
+        strategy_scope="other-strategy",
+    )
+    trade_page = foreign_coordinator.reconcile_trade_observations(
+        owner_facts, refresh_receipt=receipt, limit=128
+    )
+    assert trade_page.observation_count == 1 and trade_page.truncated is False
+    assert trade_page.items[0].status == "DUPLICATE", trade_page.items[0]
+    dated_page = foreign_coordinator.position_book.reconcile_dated_trade_observations(
+        owner_facts, reconciliation_page=trade_page, limit=128
+    )
+    assert dated_page.observation_count == 1 and dated_page.truncated is False
+    assert dated_page.items[0].status == "DUPLICATE", dated_page.items[0]
+    terminal_page = foreign_coordinator.reconcile_terminal_order_observations(
+        owner_facts, refresh_receipt=receipt, limit=128
+    )
+    assert terminal_page.observation_count == 1 and terminal_page.truncated is False
+    assert terminal_page.items[0].status == "RESOLVED", terminal_page.items[0]
+    assert journal.active_instrument_owner("acct-scope", _INSTRUMENT) is None
+
+    # The owning coordinator has durably resolved its own order slot, but this
+    # observer's strategy-scoped proof does not authorize same-day foreign
+    # order/trade rows. Keep those blockers intact. The next-day HISTORY
+    # projection separately observes the retained foreign position after the
+    # current-day order/trade rows have left the query window.
+    api.trader_client.is_ready = False
+    api.trader_client.is_trading_ready = False
+    same_day_facts = _project(store, broker, target, projection_now, query_set=receipt.query_set)
+    assert not any(
+        blocker.startswith("journal_known_intent_not_joined:")
+        for blocker in same_day_facts.blockers
+    ), same_day_facts.blockers
+    assert same_day_facts.read_only_observation_ready is False
+    assert any(
+        blocker.startswith("terminal_order_not_reconciled:")
+        for blocker in same_day_facts.read_only_observation_blockers
+    ), same_day_facts.read_only_observation_blockers
+    assert any(
+        blocker.startswith("trade_observation_not_reconciled:")
+        for blocker in same_day_facts.read_only_observation_blockers
+    ), same_day_facts.read_only_observation_blockers
+
+    history_day = (datetime.strptime(_TRADING_DAY, "%Y%m%d") + timedelta(days=1)).strftime(
+        "%Y%m%d"
+    )
+    api.trader_client._trading_day = history_day
+    api.query_rows["positions_result"] = [
+        _dated_position_row(
+            "1",
+            position_date="HISTORY",
+            trading_day=history_day,
+            today_position="0",
+            yd_position="1",
+        )
+    ]
+    api.query_rows["orders_result"] = []
+    api.query_rows["trades_result"] = []
+    receipt, projection_now, _consumed = _refresh_complete_facts_after_callback(
+        api, store, target, sequence=22, trading_day=history_day
+    )
+    facts = _project(store, broker, target, projection_now, query_set=receipt.query_set)
+    return SimpleNamespace(
+        api=api,
+        store=store,
+        broker=broker,
+        journal=journal,
+        coordinator=foreign_coordinator,
+        target=target,
+        receipt=receipt,
+        query_set=receipt.query_set,
+        now=projection_now,
+        facts=facts,
+        same_day_facts=same_day_facts,
+        intent=intent,
+        trade_page=trade_page,
+        dated_page=dated_page,
+        terminal_page=terminal_page,
+    )
+
+
 def _build_source_backed_read_only_reconciliation_case(scenario="positive"):
     """Build read-only retirement facts through the real Store/Broker/Book path.
 
@@ -505,6 +793,9 @@ def _build_source_backed_read_only_reconciliation_case(scenario="positive"):
         "unknown_order",
         "pending_order",
         "active_order",
+        "external_state",
+        "foreign_target",
+        "foreign_target_unreconciled",
         "frozen",
     }
     if scenario not in scenarios:
@@ -512,8 +803,26 @@ def _build_source_backed_read_only_reconciliation_case(scenario="positive"):
 
     now = datetime.now(timezone.utc)
     query_time = now - timedelta(minutes=1) if scenario == "stale_query" else now
+    external_position = None
     remote_order = None
-    if scenario in {"pending_order", "active_order"}:
+    if scenario == "external_state":
+        external_position = _dated_position_row("1")
+        external_position["InstrumentID"] = "m2501"
+        external_position["ExchangeID"] = "DCE"
+        remote_order = {
+            "OrderRef": "95",
+            "OrderSysID": "sys-external-95",
+            "InstrumentID": "m2501",
+            "ExchangeID": "DCE",
+            "OrderStatus": "3",
+            "Direction": "0",
+            "CombOffsetFlag": "0",
+            "VolumeTotal": "1",
+            "FrontID": 4,
+            "SessionID": 7,
+            "TradingDay": _TRADING_DAY,
+        }
+    elif scenario in {"pending_order", "active_order"}:
         remote_order = {
             "OrderRef": "94",
             "OrderSysID": "sys-active-94",
@@ -527,7 +836,12 @@ def _build_source_backed_read_only_reconciliation_case(scenario="positive"):
             "SessionID": 7,
             "TradingDay": _TRADING_DAY,
         }
-    rows = _query_rows(orders=(remote_order,) if remote_order is not None else ())
+    elif scenario in {"foreign_target", "foreign_target_unreconciled"}:
+        external_position = _dated_position_row("1")
+    rows = _query_rows(
+        positions=(external_position,) if external_position is not None else (),
+        orders=(remote_order,) if remote_order is not None else (),
+    )
     api, store, broker, journal, coordinator, target = _system_under_test(
         now=now,
         rows=rows,
@@ -535,6 +849,19 @@ def _build_source_backed_read_only_reconciliation_case(scenario="positive"):
         tick=None,
         allow_writes=False,
     )
+
+    if scenario in {"foreign_target", "foreign_target_unreconciled"}:
+        case = _build_source_backed_foreign_owner_case(
+            api,
+            store,
+            broker,
+            journal,
+            target,
+            now,
+            reconcile=scenario == "foreign_target",
+        )
+        return case
+
     receipt = _refresh_all(store, target)
 
     intent = None
@@ -593,6 +920,10 @@ def _build_source_backed_read_only_reconciliation_case(scenario="positive"):
             {
                 "external_order_ref": "94",
                 "order_sys_id": "sys-active-94",
+                "registered_sim_ctp_order_sys_id": "sys-active-94",
+                "registered_sim_ctp_order_sys_id_source": "ctp_order_callback",
+                "_registered_sim_ctp_identity_binding_captured": True,
+                "_registered_sim_ctp_identity_binding_valid": True,
                 "instrument_id": _INSTRUMENT,
                 "exchange_id": _EXCHANGE,
                 "factor_position_effect": "OPEN",
@@ -802,13 +1133,14 @@ def _project(
     *,
     query_set=None,
     max_query_age=timedelta(seconds=10),
+    strategy_scope="alpha003",
 ):
     return project_factor_execution_facts(
         store,
         broker,
         targets=(target,),
         account_scope="acct-scope",
-        strategy_scope="alpha003",
+        strategy_scope=strategy_scope,
         now=now,
         quote_max_age=timedelta(seconds=2),
         max_query_age=max_query_age,
@@ -955,6 +1287,209 @@ def test_read_only_reconciliation_keeps_book_blocker_for_joined_active_order():
     assert working.execution_unknown is False
     # Strategy performs its existing no-owned-working-order retirement check.
     assert working.owner_strategy_scope == facts.strategy_scope
+
+
+@pytest.mark.parametrize("scenario", ("pending_order", "active_order"))
+def test_read_only_observation_accepts_complete_unowned_or_joined_working_state(scenario):
+    case = _build_source_backed_read_only_reconciliation_case(scenario=scenario)
+    try:
+        facts = case.facts
+        assert facts.read_only_reconciliation_ready is False
+        assert facts.read_only_observation_ready is True, facts.read_only_observation_blockers
+        assert len(facts.working_orders) == 1
+        order = facts.working_orders[0]
+        assert order.state in {"REMOTE_ONLY", "ACCEPTED"}
+        assert order.side == "BUY"
+        assert order.position_effect == "OPEN"
+        assert order.remaining_quantity == Decimal("1")
+    finally:
+        case.journal.close()
+
+
+def test_read_only_observation_keeps_unknown_or_malformed_order_facts_blocked():
+    unknown = _build_source_backed_read_only_reconciliation_case(scenario="unknown_order")
+    malformed = _build_source_backed_read_only_reconciliation_case(scenario="pending_order")
+    try:
+        assert unknown.facts.read_only_observation_ready is False
+        assert any(
+            blocker.startswith("read_only_unknown_orders_present_or_unobserved:")
+            or blocker.startswith("remote_working_order_status_unknown:")
+            for blocker in unknown.facts.read_only_observation_blockers
+        )
+
+        order = replace(malformed.facts.working_orders[0], remaining_quantity=None)
+        malformed_facts = replace(malformed.facts, working_orders=(order,))
+        assert malformed_facts.read_only_observation_ready is False
+        assert any(
+            blocker.startswith("read_only_working_order_projection_invalid:")
+            for blocker in malformed_facts.read_only_observation_blockers
+        )
+    finally:
+        unknown.journal.close()
+        malformed.journal.close()
+
+
+@pytest.mark.parametrize(
+    "field",
+    ("target_id", "instrument", "exchange", "order_ref", "state", "side", "position_effect"),
+)
+def test_read_only_observation_rejects_unhashable_order_identity(field):
+    case = _build_source_backed_read_only_reconciliation_case(scenario="pending_order")
+    try:
+        order = replace(case.facts.working_orders[0], **{field: []})
+        facts = replace(case.facts, working_orders=(order,))
+        assert facts.read_only_observation_ready is False
+        assert any(
+            blocker.startswith("read_only_working_order_projection_invalid:")
+            for blocker in facts.read_only_observation_blockers
+        )
+    finally:
+        case.journal.close()
+
+
+def test_read_only_observation_accepts_typed_out_of_scope_positions_and_orders():
+    case = _build_source_backed_read_only_reconciliation_case(scenario="external_state")
+    try:
+        facts = case.facts
+        external_positions = tuple(row for row in facts.positions if row.target_id is None)
+        external_orders = tuple(row for row in facts.working_orders if row.target_id is None)
+
+        assert facts.read_only_reconciliation_ready is False
+        assert facts.read_only_observation_ready is True, facts.read_only_observation_blockers
+        assert len(external_positions) == 1
+        assert (
+            external_positions[0].instrument,
+            external_positions[0].exchange,
+            external_positions[0].quantity,
+        ) == ("m2501", "DCE", Decimal("1"))
+        assert external_positions[0].opening_fees_known is None
+        assert external_positions[0].opening_fee_total is None
+        assert len(external_orders) == 1
+        assert (
+            external_orders[0].instrument,
+            external_orders[0].exchange,
+            external_orders[0].state,
+        ) == ("m2501", "DCE", "REMOTE_ONLY")
+        assert tuple(row.target_id for row in facts.positions if row.target_id is not None) == (
+            case.target.target_id,
+        )
+
+        # External rows do not replace the exact configured target row set.
+        incomplete = replace(facts, positions=external_positions)
+        assert incomplete.read_only_observation_ready is False
+
+        target_route_disguised_as_external = replace(
+            external_positions[0], instrument=case.target.instrument, exchange=case.target.exchange
+        )
+        malformed_external = replace(
+            facts,
+            positions=tuple(
+                target_route_disguised_as_external if row is external_positions[0] else row
+                for row in facts.positions
+            ),
+        )
+        assert malformed_external.read_only_observation_ready is False
+    finally:
+        case.journal.close()
+
+
+def test_read_only_observation_accepts_only_exact_producer_foreign_owner_pair():
+    case = _build_source_backed_read_only_reconciliation_case(scenario="foreign_target")
+    try:
+        facts = case.facts
+        position = next(row for row in facts.positions if row.target_id == "rb")
+        assert position.position_book_status == "FOREIGN_OWNER"
+        assert position.position_book_blocker_code == "POSITION_OWNED_BY_OTHER_STRATEGY"
+        assert position.owner_strategy_scope is None
+        assert position.owner_intent_id is None
+        assert position.opening_fees_known is False
+        assert position.opening_fee_total is None
+        assert position.quantity == position.broker_quantity == Decimal("1")
+        assert facts.read_only_reconciliation_ready is False
+        strict_blockers = facts.read_only_reconciliation_blockers
+        assert "POSITION_OWNED_BY_OTHER_STRATEGY" in strict_blockers
+        assert not any(
+            blocker.startswith("journal_known_intent_not_joined:") for blocker in strict_blockers
+        )
+        assert not any(
+            blocker.startswith(
+                (
+                    "dated_position_proof_binding_mismatch:",
+                    "dated_position_source_rows_incomplete:",
+                    "dated_position_buckets_unobserved:",
+                )
+            )
+            for blocker in strict_blockers
+        )
+        assert case.same_day_facts.read_only_observation_ready is False
+        assert any(
+            blocker.startswith("terminal_order_not_reconciled:")
+            for blocker in case.same_day_facts.read_only_observation_blockers
+        )
+        assert any(
+            blocker.startswith("trade_observation_not_reconciled:")
+            for blocker in case.same_day_facts.read_only_observation_blockers
+        )
+        assert case.terminal_page.items[0].status == "RESOLVED"
+        assert case.journal.active_instrument_owner("acct-scope", _INSTRUMENT) is None
+        assert facts.read_only_observation_ready is True, facts.read_only_observation_blockers
+
+        unresolved = replace(
+            facts,
+            blockers=facts.blockers + ("journal_intent_unresolved:UNKNOWN:foreign-intent",),
+        )
+        assert unresolved.read_only_observation_ready is False
+
+        rejected_positions = (
+            replace(position, position_book_status="UNKNOWN"),
+            replace(position, position_book_blocker_code="POSITION_OWNER_EVIDENCE_UNAVAILABLE"),
+            replace(position, broker_quantity=Decimal("2")),
+            replace(position, snapshot_id="other-snapshot"),
+            replace(position, owner_strategy_scope="alpha003"),
+            replace(position, owner_intent_id="untrusted-intent"),
+        )
+        for rejected in rejected_positions:
+            altered = replace(
+                facts,
+                positions=tuple(rejected if row is position else row for row in facts.positions),
+            )
+            assert altered.read_only_observation_ready is False
+        for proof_blocker in (
+            "dated_position_proof_binding_mismatch:rb",
+            "dated_position_source_rows_incomplete:rb",
+            "dated_position_buckets_unobserved:rb",
+        ):
+            altered = replace(facts, blockers=facts.blockers + (proof_blocker,))
+            assert altered.read_only_observation_ready is False
+    finally:
+        case.journal.close()
+
+
+def test_read_only_observation_blocks_unreconciled_foreign_known_intent():
+    case = _build_source_backed_read_only_reconciliation_case(
+        scenario="foreign_target_unreconciled"
+    )
+    try:
+        facts = case.facts
+        position = next(row for row in facts.positions if row.target_id == "rb")
+        assert position.position_book_status == "FOREIGN_OWNER"
+        assert case.journal.active_instrument_owner("acct-scope", _INSTRUMENT) is not None
+        assert any(
+            blocker.startswith("journal_known_intent_not_joined:")
+            for blocker in facts.read_only_observation_blockers
+        ), facts.read_only_observation_blockers
+        assert facts.read_only_observation_ready is False
+    finally:
+        case.journal.close()
+
+
+def test_read_only_observation_keeps_stale_query_facts_blocked():
+    case = _build_source_backed_read_only_reconciliation_case(scenario="stale_query")
+    try:
+        assert case.facts.read_only_observation_ready is False
+        assert any("stale" in blocker for blocker in case.facts.read_only_observation_blockers)
+    finally:
+        case.journal.close()
 
 
 def test_cancel_ignores_book_order_reservation_only_for_exact_owned_join():

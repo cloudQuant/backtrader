@@ -818,6 +818,26 @@ class FactorExecutionFacts:
         return not self.read_only_reconciliation_blockers
 
     @property
+    def read_only_observation_blockers(self) -> Tuple[str, ...]:
+        """Return evidence gaps that prevent passive observation from ending.
+
+        Unlike ``read_only_reconciliation_blockers``, this projection does not
+        require current positions or working orders to be attributed to this
+        Strategy or joined to its local Broker. It still requires complete,
+        fresh, same-session query facts and a fully typed current remote order
+        state. Callers must separately prove that the session is configured
+        read-only before using this property to retire an observation run.
+        """
+
+        return _read_only_reconciliation_blockers(self, allow_unowned_state=True)
+
+    @property
+    def read_only_observation_ready(self) -> bool:
+        """Whether complete current facts support ending observation only."""
+
+        return not self.read_only_observation_blockers
+
+    @property
     def risk_reduction_blockers(self) -> Tuple[str, ...]:
         """Blockers that prevent safely evaluating exits or reducing exposure.
 
@@ -1026,7 +1046,9 @@ class FactorExecutionFacts:
         )
 
 
-def _read_only_reconciliation_blockers(facts: FactorExecutionFacts) -> Tuple[str, ...]:
+def _read_only_reconciliation_blockers(
+    facts: FactorExecutionFacts, *, allow_unowned_state: bool = False
+) -> Tuple[str, ...]:
     """Validate source identity and projections without requiring write facts."""
 
     blockers = set()
@@ -1109,6 +1131,125 @@ def _read_only_reconciliation_blockers(facts: FactorExecutionFacts) -> Tuple[str
     if not positions:
         block("read_only_target_positions_unobserved")
 
+    external_positions = ()
+    target_positions = positions
+    external_position_blockers = set()
+    valid_foreign_target_ids = set()
+    configured_routes = {
+        (instrument, exchange)
+        for route in routes
+        if (instrument := _exact_text(route.instrument)) is not None
+        and (exchange := _exact_text(route.exchange)) is not None
+    }
+    if allow_unowned_state:
+        # The account-wide CTP position query may include other instruments
+        # outside this Strategy's exact target universe. Preserve those rows
+        # only when their source-bound position projection is complete.
+        external_positions = tuple(
+            position for position in positions if position.target_id is None
+        )
+        target_positions = tuple(
+            position for position in positions if position.target_id is not None
+        )
+        external_routes = set()
+        for position in external_positions:
+            instrument = _exact_text(position.instrument)
+            exchange = _exact_text(position.exchange)
+            quantity = position.quantity
+            long_quantity = position.long_quantity
+            short_quantity = position.short_quantity
+            row_valid = (
+                instrument is not None
+                and exchange is not None
+                and isinstance(quantity, Decimal)
+                and quantity.is_finite()
+                and quantity != 0
+                and isinstance(long_quantity, Decimal)
+                and long_quantity.is_finite()
+                and long_quantity >= 0
+                and isinstance(short_quantity, Decimal)
+                and short_quantity.is_finite()
+                and short_quantity >= 0
+                and not (long_quantity and short_quantity)
+                and quantity == long_quantity - short_quantity
+                and (instrument, exchange) not in configured_routes
+                and position.broker_quantity is None
+                and position.owner_strategy_scope is None
+                and position.owner_intent_id is None
+                and position.average_price is None
+                and position.stop_price is None
+                and position.held_eligible_bars is None
+                and position.attributed_signed_quantity is None
+                and position.opening_fee_total is None
+                and position.opening_fees_known is None
+                and position.snapshot_id == facts.snapshot_id
+                and _aware_utc(position.available_at) == available_at
+            )
+            route = (instrument, exchange)
+            if route in external_routes:
+                row_valid = False
+            external_routes.add(route)
+            if row_valid:
+                external_position_blockers.add(
+                    "external_position_outside_target_scope:{}:{}".format(instrument, exchange)
+                )
+            else:
+                block(
+                    "read_only_external_position_projection_invalid:{}:{}".format(
+                        instrument or "unknown", exchange or "unknown"
+                    )
+                )
+
+        # The position book can positively identify a target holding owned by
+        # another Strategy. Its public snapshot intentionally omits the other
+        # owner's identity: this observation never grants attribution or write
+        # authority. Accept only the exact status/code pair after its bound
+        # Broker/CTP quantity and snapshot checks; UNKNOWN and mismatch states
+        # continue to block passive retirement.
+        for position in target_positions:
+            target_id = _exact_text(position.target_id)
+            if position.position_book_status != "FOREIGN_OWNER":
+                continue
+            quantity = position.quantity
+            long_quantity = position.long_quantity
+            short_quantity = position.short_quantity
+            broker_quantity = position.broker_quantity
+            if (
+                target_id is not None
+                and position.position_book_blocker_code == "POSITION_OWNED_BY_OTHER_STRATEGY"
+                and isinstance(quantity, Decimal)
+                and quantity.is_finite()
+                and quantity != 0
+                and isinstance(long_quantity, Decimal)
+                and long_quantity.is_finite()
+                and long_quantity >= 0
+                and isinstance(short_quantity, Decimal)
+                and short_quantity.is_finite()
+                and short_quantity >= 0
+                and not (long_quantity and short_quantity)
+                and quantity == long_quantity - short_quantity
+                and isinstance(broker_quantity, Decimal)
+                and broker_quantity.is_finite()
+                and broker_quantity == quantity
+                and position.owner_strategy_scope is None
+                and position.owner_intent_id is None
+                and position.average_price is None
+                and position.stop_price is None
+                and position.held_eligible_bars is None
+                and position.attributed_signed_quantity is None
+                and position.opening_fee_total is None
+                and position.opening_fees_known is False
+                and position.snapshot_id == facts.snapshot_id
+                and _aware_utc(position.available_at) == available_at
+            ):
+                valid_foreign_target_ids.add(target_id)
+            else:
+                block(
+                    "read_only_foreign_position_projection_invalid:{}".format(
+                        target_id or "unknown"
+                    )
+                )
+
     def target_keys(items: Tuple[Any, ...], label: str) -> set:
         keys = []
         for item in items:
@@ -1123,7 +1264,8 @@ def _read_only_reconciliation_blockers(facts: FactorExecutionFacts) -> Tuple[str
             block("read_only_{}_identity_duplicate".format(label))
         return set(keys)
 
-    position_keys = target_keys(positions, "position")
+    position_keys = target_keys(target_positions, "position")
+    target_routes = {(instrument, exchange) for _target, instrument, exchange in position_keys}
     route_keys = target_keys(routes, "route")
     instrument_keys = target_keys(instruments, "instrument")
     if not routes or route_keys != position_keys:
@@ -1179,12 +1321,17 @@ def _read_only_reconciliation_blockers(facts: FactorExecutionFacts) -> Tuple[str
         target_id = _exact_text(position.target_id)
         prefix = target_id or "unknown"
         quantity = position.quantity
+        broker_quantity_matches = (
+            position.broker_quantity is None
+            if allow_unowned_state and position.target_id is None
+            else position.broker_quantity == quantity
+        )
         if (
             position.snapshot_id != facts.snapshot_id
             or _aware_utc(position.available_at) != available_at
             or not isinstance(quantity, Decimal)
             or not quantity.is_finite()
-            or position.broker_quantity != quantity
+            or not broker_quantity_matches
             or not isinstance(position.long_quantity, Decimal)
             or not isinstance(position.short_quantity, Decimal)
             or not position.long_quantity.is_finite()
@@ -1195,12 +1342,13 @@ def _read_only_reconciliation_blockers(facts: FactorExecutionFacts) -> Tuple[str
             or (position.long_quantity != 0 and position.short_quantity != 0)
         ):
             block("read_only_position_projection_mismatch:{}".format(prefix))
-        if quantity not in (None, Decimal(0)) and (
+        if not allow_unowned_state and quantity not in (None, Decimal(0)) and (
             position.owner_strategy_scope != facts.strategy_scope
             or _exact_text(position.owner_intent_id) is None
         ):
             block("read_only_position_owner_unresolved:{}".format(prefix))
-        if position.exchange.upper() in {"SHFE", "INE"}:
+        exchange = _exact_text(position.exchange)
+        if exchange is not None and exchange.upper() in {"SHFE", "INE"}:
             for row in position.dated_inventory_rows:
                 if (
                     row.blockers
@@ -1221,30 +1369,89 @@ def _read_only_reconciliation_blockers(facts: FactorExecutionFacts) -> Tuple[str
         if instrument.snapshot_id != facts.snapshot_id:
             block("read_only_instrument_snapshot_mismatch:{}".format(instrument.target_id))
 
+    observed_order_keys = set()
+    observed_orders_by_target = {}
     for order in facts.working_orders:
         target_id = _exact_text(order.target_id)
-        if (
-            target_id is None
-            or (target_id, order.instrument, order.exchange) not in position_keys
-            or not order.order_ref
-            or order.state not in {"ACCEPTED", "PARTIAL"}
-            or order.side not in {"BUY", "SELL"}
-            or order.position_effect not in {"OPEN", "CLOSE"}
+        instrument = _exact_text(order.instrument)
+        exchange = _exact_text(order.exchange)
+        is_external_route = bool(
+            allow_unowned_state
+            and target_id is None
+            and order.target_id is None
+            and instrument is not None
+            and exchange is not None
+            and (instrument, exchange) not in target_routes
+        )
+        if allow_unowned_state:
+            target_route_invalid = (
+                not is_external_route
+                if target_id is None
+                else (target_id, instrument, exchange) not in position_keys
+            )
+        else:
+            target_route_invalid = (
+                target_id is None
+                or (target_id, instrument, exchange) not in position_keys
+            )
+        order_ref = _exact_text(order.order_ref)
+        state = _exact_text(order.state)
+        side = _exact_text(order.side)
+        position_effect = _exact_text(order.position_effect)
+        order_key = (target_id, order_ref, instrument, exchange)
+        common_invalid = (
+            target_route_invalid
+            or instrument is None
+            or exchange is None
+            or order_ref is None
+            or order.order_ref != order_ref
+            or side not in {"BUY", "SELL"}
+            or position_effect not in {"OPEN", "CLOSE"}
             or not isinstance(order.remaining_quantity, Decimal)
             or not order.remaining_quantity.is_finite()
             or order.remaining_quantity <= 0
-            or order.owner_strategy_scope != facts.strategy_scope
-            or _exact_text(order.owner_intent_id) is None
-            or order.execution_unknown is not False
-            or order.cancel_pending is not False
-            or type(order.broker_order_ref) is not int
-            or order.broker_order_ref <= 0
             or type(order.front_id) is not int
             or order.front_id <= 0
             or type(order.session_id) is not int
             or order.session_id <= 0
-        ):
+        )
+        if allow_unowned_state:
+            # A complete current orders query may report an active remote
+            # order that is not joined to this process's Broker/order book.
+            # Preserve it as observed state; do not convert that observation
+            # into cancel/close authority or an endless retirement blocker.
+            known_remote_only = (
+                state == "REMOTE_ONLY"
+                and order.broker_order_ref is None
+                and order.execution_unknown is True
+                and order.cancel_pending is None
+            )
+            known_broker_join = (
+                state in {"ACCEPTED", "PARTIAL"}
+                and type(order.broker_order_ref) is int
+                and order.broker_order_ref > 0
+                and order.execution_unknown is False
+                and order.cancel_pending is False
+            )
+            invalid_state = not (known_remote_only or known_broker_join)
+            duplicate = not common_invalid and order_key in observed_order_keys
+            invalid = common_invalid or invalid_state or duplicate
+        else:
+            invalid = (
+                common_invalid
+                or state not in {"ACCEPTED", "PARTIAL"}
+                or order.owner_strategy_scope != facts.strategy_scope
+                or _exact_text(order.owner_intent_id) is None
+                or order.execution_unknown is not False
+                or order.cancel_pending is not False
+                or type(order.broker_order_ref) is not int
+                or order.broker_order_ref <= 0
+            )
+        if invalid:
             block("read_only_working_order_projection_invalid:{}".format(order.order_ref))
+        else:
+            observed_order_keys.add(order_key)
+            observed_orders_by_target.setdefault(target_id, []).append(order)
 
     query_by_family = {fact.family: fact for fact in provenance if fact.family in _BASE_FAMILIES}
     for trade in facts.trade_observations:
@@ -1294,6 +1501,64 @@ def _read_only_reconciliation_blockers(facts: FactorExecutionFacts) -> Tuple[str
         "instrument_not_trading:",
     )
     for code in facts.blockers:
+        if allow_unowned_state and type(code) is str:
+            if code in external_position_blockers:
+                continue
+            # Foreign ownership is a strict reconciliation blocker.  It may
+            # be tolerated only by the passive observation path below; generic
+            # dated-proof blockers remain hard failures because they can also
+            # indicate missing or contradictory source evidence.
+            if code == "POSITION_OWNED_BY_OTHER_STRATEGY" and valid_foreign_target_ids:
+                foreign_target_ids = {
+                    _exact_text(position.target_id)
+                    for position in target_positions
+                    if position.position_book_status == "FOREIGN_OWNER"
+                }
+                if foreign_target_ids == valid_foreign_target_ids:
+                    continue
+            if code.startswith(
+                (
+                    "position_foreign_owner:",
+                    "position_owner_scope_unobserved:",
+                    "position_owner_intent_unobserved:",
+                )
+            ):
+                target_id = code.rpartition(":")[2]
+                if target_id in valid_foreign_target_ids:
+                    continue
+            if code.startswith("remote_working_order_missing_from_broker:"):
+                ref = code.partition(":")[2]
+                if any(
+                    order.order_ref == ref and order.state == "REMOTE_ONLY"
+                    for orders in observed_orders_by_target.values()
+                    for order in orders
+                ):
+                    continue
+            if code.startswith("working_order_owner_unobserved:"):
+                ref = code.partition(":")[2]
+                if any(
+                    order.order_ref == ref
+                    for orders in observed_orders_by_target.values()
+                    for order in orders
+                ):
+                    continue
+            if code == "INSTRUMENT_ORDER_UNRESOLVED":
+                affected = tuple(
+                    position
+                    for position in positions
+                    if position.position_book_status == "UNKNOWN"
+                    and position.position_book_blocker_code == code
+                )
+                if affected and all(
+                    any(
+                        order.target_id == position.target_id
+                        and order.instrument == position.instrument
+                        and order.exchange == position.exchange
+                        for order in observed_orders_by_target.get(position.target_id, ())
+                    )
+                    for position in affected
+                ):
+                    continue
         if (
             type(code) is str
             and not code.startswith(ignored_prefixes)
@@ -3850,6 +4115,14 @@ def _dated_close_legs(
             continue
         position = positions_by_target.get(target.target_id)
         if position is None or position.quantity is None or position.quantity == 0:
+            continue
+        if (
+            position.position_book_status == "FOREIGN_OWNER"
+            and position.position_book_blocker_code == "POSITION_OWNED_BY_OTHER_STRATEGY"
+        ):
+            # This strategy has no authority to close another strategy's lots.
+            # Keep the foreign-owner blocker and validate raw CTP inventory in
+            # the read-only facts path; do not request owner-scoped close legs.
             continue
         if not callable(method):
             blocker = "dated_position_book_projection_unavailable:{}".format(target.target_id)

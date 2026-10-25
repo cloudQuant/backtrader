@@ -1,0 +1,169 @@
+{
+  "head": "5b96b5104e57732a9c4ac03d4550f5f76c60603c",
+  "evidence_level": "SOURCE_COMPONENT_WITH_SYNTHETIC_PROVIDER",
+  "source_sha256": {
+    "backtrader/stores/factor_execution_facts.py": "4b1c1ae3bc3c11f0b176178f084d387f142912b04146af8065792e609a42fe02",
+    "examples/unified/028_alpha003_simnow_minute/alpha003_strategy.py": "b7d65886d10b792af58bf8100a9e94f3da1b1405b2a6d0247315dcaaa8dfa058",
+    "tests/unit/stores/test_factor_execution_facts.py": "7730b20cb6cd564da8b98dac367a51edb6da1f9334fbe14f9151e6898cc3def1",
+    "tests/unit/test_alpha003_simnow_strategy.py": "e39c5fad522c989826db3b56292bcad526ad0cf5ad1094e6473b885620a9f4bd"
+  },
+  "groups": [
+    {
+      "group": "facts",
+      "origin": "D:\\temp\\i51-readonly-retirement-focus-20261025-r2\\facts",
+      "count": 25,
+      "exit_code": 0,
+      "suite_seconds": 2.261,
+      "command": [
+        "C:\\anaconda3\\python.exe",
+        "-m",
+        "pytest",
+        "tests/unit/stores/test_factor_execution_facts.py::test_read_only_reconciliation_accepts_coherent_flat_shadow_without_quote_or_grant",
+        "tests/unit/stores/test_factor_execution_facts.py::test_read_only_reconciliation_keeps_book_blocker_for_joined_active_order",
+        "tests/unit/stores/test_factor_execution_facts.py::test_read_only_observation_accepts_complete_unowned_or_joined_working_state",
+        "tests/unit/stores/test_factor_execution_facts.py::test_read_only_observation_keeps_unknown_or_malformed_order_facts_blocked",
+        "tests/unit/stores/test_factor_execution_facts.py::test_read_only_observation_rejects_unhashable_order_identity",
+        "tests/unit/stores/test_factor_execution_facts.py::test_read_only_observation_accepts_typed_out_of_scope_positions_and_orders",
+        "tests/unit/stores/test_factor_execution_facts.py::test_read_only_observation_accepts_only_exact_producer_foreign_owner_pair",
+        "tests/unit/stores/test_factor_execution_facts.py::test_read_only_observation_blocks_unreconciled_foreign_known_intent",
+        "tests/unit/stores/test_factor_execution_facts.py::test_read_only_observation_keeps_stale_query_facts_blocked",
+        "tests/unit/stores/test_factor_execution_facts.py::test_read_only_reconciliation_missing_account_with_dated_rows_fails_closed",
+        "tests/unit/stores/test_factor_execution_facts.py::test_read_only_reconciliation_rejects_stale_or_unresolved_source",
+        "tests/unit/stores/test_factor_execution_facts.py::test_read_only_reconciliation_does_not_hide_query_or_unknown_blockers",
+        "tests/unit/stores/test_factor_execution_facts.py::test_external_position_and_remote_only_order_are_explicitly_blocked",
+        "-q",
+        "-p",
+        "no:asyncio",
+        "--junitxml=D:\\temp\\i51-readonly-retirement-focus-20261025-r2\\facts\\junit.xml"
+      ],
+      "source_pins_before": {
+        "backtrader/stores/factor_execution_facts.py": {
+          "bytes": 210764,
+          "sha256": "4b1c1ae3bc3c11f0b176178f084d387f142912b04146af8065792e609a42fe02"
+        },
+        "examples/unified/028_alpha003_simnow_minute/alpha003_strategy.py": {
+          "bytes": 198547,
+          "sha256": "b7d65886d10b792af58bf8100a9e94f3da1b1405b2a6d0247315dcaaa8dfa058"
+        },
+        "tests/unit/stores/test_factor_execution_facts.py": {
+          "bytes": 150477,
+          "sha256": "7730b20cb6cd564da8b98dac367a51edb6da1f9334fbe14f9151e6898cc3def1"
+        },
+        "tests/unit/test_alpha003_simnow_strategy.py": {
+          "bytes": 123343,
+          "sha256": "c148aee586ad8d1eb7a4df383576c694f0482fbe6be87aafc44a3f34daefd218"
+        }
+      },
+      "source_pins_after": {
+        "backtrader/stores/factor_execution_facts.py": {
+          "bytes": 210764,
+          "sha256": "4b1c1ae3bc3c11f0b176178f084d387f142912b04146af8065792e609a42fe02"
+        },
+        "examples/unified/028_alpha003_simnow_minute/alpha003_strategy.py": {
+          "bytes": 198547,
+          "sha256": "b7d65886d10b792af58bf8100a9e94f3da1b1405b2a6d0247315dcaaa8dfa058"
+        },
+        "tests/unit/stores/test_factor_execution_facts.py": {
+          "bytes": 150477,
+          "sha256": "7730b20cb6cd564da8b98dac367a51edb6da1f9334fbe14f9151e6898cc3def1"
+        },
+        "tests/unit/test_alpha003_simnow_strategy.py": {
+          "bytes": 123343,
+          "sha256": "c148aee586ad8d1eb7a4df383576c694f0482fbe6be87aafc44a3f34daefd218"
+        }
+      },
+      "junit_sha256": "91d79d019bc59885fc685ed2e73c359b8cf6b9be2872fc9af46c4c1de1f6117a",
+      "stdout_sha256": "4c8bdcb8d84a54be68cc131ef6b4c03500117bf643ad9796c3303aa162afaa6d",
+      "warnings": [
+        "existing unknown asyncio_default_fixture_loop_scope"
+      ]
+    },
+    {
+      "group": "strategy",
+      "origin": "D:\\temp\\i51-readonly-retirement-focus-20261025-r3\\strategy",
+      "count": 24,
+      "exit_code": 0,
+      "suite_seconds": 3.684,
+      "command": [
+        "C:\\anaconda3\\python.exe",
+        "-m",
+        "pytest",
+        "tests/unit/test_alpha003_simnow_strategy.py::test_read_only_flat_shadow_can_retire_while_trading_plan_is_blocked",
+        "tests/unit/test_alpha003_simnow_strategy.py::test_null_risk_read_only_stop_preserves_observed_working_orders",
+        "tests/unit/test_alpha003_simnow_strategy.py::test_null_risk_retirement_rejects_nonflat_projection_with_writable_store",
+        "tests/unit/test_alpha003_simnow_strategy.py::test_null_risk_read_only_stop_preserves_foreign_target_position_without_attribution",
+        "tests/unit/test_alpha003_simnow_strategy.py::test_null_risk_read_only_stop_blocks_unreconciled_foreign_order_slot",
+        "tests/unit/test_alpha003_simnow_strategy.py::test_null_risk_read_only_stop_preserves_typed_external_position_and_order",
+        "tests/unit/test_alpha003_simnow_strategy.py::test_null_risk_read_only_facts_require_explicit_freshness_and_current_receipt",
+        "tests/unit/test_alpha003_simnow_strategy.py::test_null_risk_read_only_stop_rejects_stale_query_projection",
+        "tests/unit/test_alpha003_simnow_strategy.py::test_passive_retirement_requires_same_projecting_broker_and_store",
+        "tests/unit/test_alpha003_simnow_strategy.py::test_nonflat_read_only_state_needs_all_positive_no_write_proofs",
+        "tests/unit/test_alpha003_simnow_strategy.py::test_stop_confirms_fresh_read_only_state_after_refresh_join",
+        "tests/unit/test_alpha003_simnow_strategy.py::test_stop_rejects_readiness_if_query_session_changes_during_join",
+        "tests/unit/test_alpha003_simnow_strategy.py::test_stop_rejects_readiness_if_query_snapshot_ages_during_join",
+        "tests/unit/test_alpha003_simnow_strategy.py::test_read_only_retirement_rejects_missing_facts",
+        "tests/unit/test_alpha003_simnow_strategy.py::test_read_only_retirement_blocks_stale_mixed_session_or_unknown_facts",
+        "tests/unit/test_alpha003_simnow_strategy.py::test_read_only_retirement_blocks_active_order_with_source_book_blocker",
+        "-q",
+        "-p",
+        "no:asyncio",
+        "--junitxml=D:\\temp\\i51-readonly-retirement-focus-20261025-r3\\strategy\\junit.xml"
+      ],
+      "source_pins_before": {
+        "backtrader/stores/factor_execution_facts.py": {
+          "bytes": 210764,
+          "sha256": "4b1c1ae3bc3c11f0b176178f084d387f142912b04146af8065792e609a42fe02"
+        },
+        "examples/unified/028_alpha003_simnow_minute/alpha003_strategy.py": {
+          "bytes": 198547,
+          "sha256": "b7d65886d10b792af58bf8100a9e94f3da1b1405b2a6d0247315dcaaa8dfa058"
+        },
+        "tests/unit/stores/test_factor_execution_facts.py": {
+          "bytes": 150477,
+          "sha256": "7730b20cb6cd564da8b98dac367a51edb6da1f9334fbe14f9151e6898cc3def1"
+        },
+        "tests/unit/test_alpha003_simnow_strategy.py": {
+          "bytes": 123580,
+          "sha256": "e39c5fad522c989826db3b56292bcad526ad0cf5ad1094e6473b885620a9f4bd"
+        }
+      },
+      "source_pins_after": {
+        "backtrader/stores/factor_execution_facts.py": {
+          "bytes": 210764,
+          "sha256": "4b1c1ae3bc3c11f0b176178f084d387f142912b04146af8065792e609a42fe02"
+        },
+        "examples/unified/028_alpha003_simnow_minute/alpha003_strategy.py": {
+          "bytes": 198547,
+          "sha256": "b7d65886d10b792af58bf8100a9e94f3da1b1405b2a6d0247315dcaaa8dfa058"
+        },
+        "tests/unit/stores/test_factor_execution_facts.py": {
+          "bytes": 150477,
+          "sha256": "7730b20cb6cd564da8b98dac367a51edb6da1f9334fbe14f9151e6898cc3def1"
+        },
+        "tests/unit/test_alpha003_simnow_strategy.py": {
+          "bytes": 123580,
+          "sha256": "e39c5fad522c989826db3b56292bcad526ad0cf5ad1094e6473b885620a9f4bd"
+        }
+      },
+      "junit_sha256": "dafe7c48d1d9a2054768b02cfafc12ab3d072ba499116ed60741b97f400d39a1",
+      "stdout_sha256": "e0d34808c0c8a548cb1cf5413dc42df4a20e89fbccac37cc8d6fcf625e9aa569",
+      "warnings": [
+        "existing unknown asyncio_default_fixture_loop_scope"
+      ]
+    }
+  ],
+  "independent_review": "STATIC_GO; Root reviewed final test-only negative correction",
+  "reuse": "Facts R2 reused: subsequent change only renamed and corrected the separate strategy negative test.",
+  "limitations": [
+    "Installed CLI not yet accepted",
+    "No account/provider operation",
+    "Same-day foreign trade/terminal ownership proof still blocks passive retirement"
+  ],
+  "prior_failures": [
+    "D:/temp/i51-readonly-retirement-focus-20261025-r1/facts",
+    ".codex-tmp/i51_readonly_retirement_focus_20261025/facts_r1",
+    ".codex-tmp/i51_readonly_retirement_focus_20261025/facts_r2",
+    ".codex-tmp/i51_readonly_retirement_focus_20261025/facts_r3",
+    "D:/temp/i51-readonly-retirement-focus-20261025-r2/strategy"
+  ]
+}
