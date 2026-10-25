@@ -1088,7 +1088,7 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
                         "bucket_start": start_time,
                         "bucket_end": close_time,
                         "available_at": close_time + timedelta(seconds=2),
-                        "trading_day": member.trading_day.isoformat(),
+                        "trading_day": member.trading_day.strftime("%Y%m%d"),
                         "session_segment": member.session_id,
                         "timezone_id": "UTC",
                         "clock_domain_id": config["cohort"]["clock_domain_id"],
@@ -1433,7 +1433,7 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
         monkeypatch.setattr(RUNNER, "build_ctp_query_market_plan", tracked_query_plan)
     original_make_cohort = RUNNER._make_cohort
 
-    def tracked_make_cohort(epoch_config, grid, *, begin_at=None):
+    def tracked_make_cohort(epoch_config, grid, *, begin_at=None, **kwargs):
         plan = current_plan["value"]
         assert grid is plan["grid"]
         epoch_id = epoch_config["cohort"]["epoch_id"]
@@ -1444,7 +1444,7 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
         else:
             contexts.append(make_context(plan, epoch_id))
         trace.append(("cohort_assembled", epoch_id))
-        return original_make_cohort(epoch_config, grid, begin_at=begin_at)
+        return original_make_cohort(epoch_config, grid, begin_at=begin_at, **kwargs)
 
     monkeypatch.setattr(RUNNER, "_make_cohort", tracked_make_cohort)
     original_run_live = RUNNER.run_live

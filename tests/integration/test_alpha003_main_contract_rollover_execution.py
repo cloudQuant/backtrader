@@ -77,7 +77,7 @@ def _bar_rows(plan, *, epoch_id, clock_domain_id):
                 "bucket_start": start_time,
                 "bucket_end": close_time,
                 "available_at": close_time + timedelta(seconds=2),
-                "trading_day": member.trading_day.isoformat(),
+                "trading_day": member.trading_day.strftime("%Y%m%d"),
                 "session_segment": member.session_id,
                 "timezone_id": "UTC",
                 "clock_domain_id": clock_domain_id,
@@ -484,6 +484,7 @@ def _run_rollover(tmp_path, monkeypatch, *, unknown_dispatch=False):
             nonzero_insert_result_count=0,
             query_families=[],
             fill_count=0,
+            source_tick_samples=[],
         )
         contexts[epoch_id] = context
         return context
@@ -541,6 +542,34 @@ def _run_rollover(tmp_path, monkeypatch, *, unknown_dispatch=False):
             if not callable(callback):
                 raise AssertionError("production CTP wrapper did not bind the tick callback")
             callback(payload, generation)
+            api = self._api
+            instrument = str(getattr(payload, "InstrumentID", ""))
+            queues = getattr(api, "_tick_queues", {})
+            event = None
+            if isinstance(queues, dict):
+                event = next(
+                    (
+                        queue[-1]
+                        for queue in queues.values()
+                        if queue
+                        and str(getattr(queue[-1], "instrument_id", "")) == instrument
+                    ),
+                    None,
+                )
+            if event is not None:
+                raw = getattr(event, "ctp_raw_tick", {})
+                api._context.source_tick_samples.append(
+                    (
+                        instrument,
+                        raw.get("TradingDay"),
+                        raw.get("ActionDay"),
+                        raw.get("UpdateTime"),
+                        raw.get("UpdateMillisec"),
+                        raw.get("Volume"),
+                        raw.get("volume_issue"),
+                        bool(getattr(event, "bar_eligible", False)),
+                    )
+                )
 
         def subscribe(self, instruments):
             context = self._api._context
@@ -583,8 +612,18 @@ def _run_rollover(tmp_path, monkeypatch, *, unknown_dispatch=False):
                 raise AssertionError("winddown quote is not bound to the epoch route")
             _target, _instrument, exchange = route
             api._winddown_scheduled.add(instrument)
-            event_time = query_completed_at + timedelta(milliseconds=5)
-            delivery_at = query_completed_at + timedelta(milliseconds=25)
+            instrument_events = tuple(
+                row for row in api._context.source_events if row["instrument"] == instrument
+            )
+            if not instrument_events:
+                raise AssertionError("winddown quote has no finite source-event schedule")
+            final_source_delivery = max(
+                row["available_at"] + timedelta(milliseconds=200)
+                for row in instrument_events
+            )
+            scheduled_from = max(query_completed_at, clock.utc_now(), final_source_delivery)
+            event_time = scheduled_from + timedelta(milliseconds=5)
+            delivery_at = scheduled_from + timedelta(milliseconds=25)
 
             def deliver():
                 payload = self._raw_tick(
@@ -1443,8 +1482,8 @@ def _run_rollover(tmp_path, monkeypatch, *, unknown_dispatch=False):
 
     original_make_cohort = RUNNER._make_cohort
 
-    def traced_make_cohort(epoch_config, grid, *, begin_at=None):
-        cohort = original_make_cohort(epoch_config, grid, begin_at=begin_at)
+    def traced_make_cohort(epoch_config, grid, *, begin_at=None, **kwargs):
+        cohort = original_make_cohort(epoch_config, grid, begin_at=begin_at, **kwargs)
         trace.append(("cohort_assembled", epoch_config["cohort"]["epoch_id"]))
         return cohort
 
@@ -1567,6 +1606,7 @@ def _run_rollover(tmp_path, monkeypatch, *, unknown_dispatch=False):
                     "query_family_counts": tuple(sorted(family_counts.items())),
                     "margin_query_target_counts": tuple(sorted(margin_target_counts.items())),
                     "fill_count": context.fill_count,
+                    "source_tick_samples": tuple(context.source_tick_samples[-12:]),
                 }
             )
 

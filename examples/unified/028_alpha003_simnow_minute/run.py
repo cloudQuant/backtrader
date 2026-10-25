@@ -119,6 +119,16 @@ def _iso_date(value: Any, label: str) -> date:
     return parsed
 
 
+def _tape_trading_day(value: Any, label: str) -> str:
+    """Serialize a canonical cohort day as ISO, accepting the CTP wire form."""
+    if type(value) is str and len(value) == 8 and value.isascii() and value.isdecimal():
+        try:
+            return datetime.strptime(value, "%Y%m%d").date().isoformat()
+        except ValueError:
+            raise RunnerError("INPUT_DATE_INVALID", label) from None
+    return _iso_date(value, label).isoformat()
+
+
 def _number(value: Any, label: str, *, positive: bool = False, nonnegative: bool = False) -> float:
     if isinstance(value, bool) or value is None:
         raise RunnerError("INPUT_NUMBER_INVALID", label)
@@ -839,7 +849,20 @@ def _member_session_api():
     return cohort_module, slot_parameters, session_cls
 
 
-def _calendar_slots(grid: Any, *, begin_at: Optional[datetime] = None):
+def _calendar_slots(
+    grid: Any,
+    *,
+    begin_at: Optional[datetime] = None,
+    ctp_trading_days: bool = False,
+):
+    if type(ctp_trading_days) is not bool:
+        raise RunnerError("COHORT_CTP_TRADING_DAY_OPTION_INVALID")
+
+    def calendar_day(value):
+        if type(value) is not date:
+            raise RunnerError("COHORT_TRADING_DAY_INVALID")
+        return value.strftime("%Y%m%d") if ctp_trading_days else value.isoformat()
+
     cohort_module, slot_parameters, member_session_cls = _member_session_api()
     slots = []
     for minute in grid.minutes:
@@ -849,14 +872,14 @@ def _calendar_slots(grid: Any, *, begin_at: Optional[datetime] = None):
         members = {
             f"{item.product.exchange_id}.{item.product.product_id}": item for item in minute.members
         }
-        session_pairs = {(item.trading_day.isoformat(), item.session_id) for item in minute.members}
+        session_pairs = {(calendar_day(item.trading_day), item.session_id) for item in minute.members}
         member_sessions = None
         if len(session_pairs) > 1:
             if "member_sessions" not in slot_parameters or member_session_cls is None:
                 raise RunnerError("COHORT_MEMBER_SESSION_API_REQUIRED")
             member_sessions = {
                 target: member_session_cls(
-                    trading_day=member.trading_day.isoformat(),
+                    trading_day=calendar_day(member.trading_day),
                     session_segment=member.session_id,
                 )
                 for target, member in members.items()
@@ -864,7 +887,7 @@ def _calendar_slots(grid: Any, *, begin_at: Optional[datetime] = None):
         elif "member_sessions" in slot_parameters and member_session_cls is not None:
             member_sessions = {
                 target: member_session_cls(
-                    trading_day=member.trading_day.isoformat(),
+                    trading_day=calendar_day(member.trading_day),
                     session_segment=member.session_id,
                 )
                 for target, member in members.items()
@@ -885,7 +908,13 @@ def _calendar_slots(grid: Any, *, begin_at: Optional[datetime] = None):
     return tuple(slots)
 
 
-def _make_cohort(config: Mapping[str, Any], grid: Any, *, begin_at: Optional[datetime] = None):
+def _make_cohort(
+    config: Mapping[str, Any],
+    grid: Any,
+    *,
+    begin_at: Optional[datetime] = None,
+    ctp_trading_days: bool = False,
+):
     from backtrader.research.live_cohort import LiveBarCohort, LiveCohortCalendar
 
     cohort_cfg = config["cohort"]
@@ -903,7 +932,9 @@ def _make_cohort(config: Mapping[str, Any], grid: Any, *, begin_at: Optional[dat
         timezone_id=_text(cohort_cfg["timezone_id"], "timezone_id"),
         clock_domain_id=_text(cohort_cfg["clock_domain_id"], "clock_domain_id"),
         session_semantics=_text(cohort_cfg["session_semantics"], "session_semantics"),
-        slots=_calendar_slots(grid, begin_at=begin_at),
+        slots=_calendar_slots(
+            grid, begin_at=begin_at, ctp_trading_days=ctp_trading_days
+        ),
     )
     kwargs: dict[str, Any] = {
         "max_pending_slots": cohort_cfg["max_pending_slots"],
@@ -1365,7 +1396,9 @@ def _decision_tape_record(
             "bucket_start": _tape_scalar(getattr(envelope, "bucket_start", None), "bucket_start"),
             "close_time": _tape_scalar(getattr(envelope, "close_time", None), "close_time"),
             "available_at": _tape_scalar(getattr(envelope, "available_at", None), "available_at"),
-            "trading_day": _tape_scalar(getattr(envelope, "trading_day", None), "trading_day"),
+            "trading_day": _tape_trading_day(
+                getattr(envelope, "trading_day", None), "trading_day"
+            ),
             "session_segment": _tape_scalar(
                 getattr(envelope, "session_segment", None), "session_segment"
             ),
@@ -3671,7 +3704,12 @@ def run_live(
         )
         cerebro = bt.Cerebro(stdstats=False, runonce=False, preload=False)
         cerebro.setbroker(broker)
-        cohort = _make_cohort(config, plan["grid"], begin_at=clock.utc_now())
+        cohort = _make_cohort(
+            config,
+            plan["grid"],
+            begin_at=clock.utc_now(),
+            ctp_trading_days=True,
+        )
         query_targets = []
         for target in plan["targets"]:
             product = plan["product_by_target"][target]
