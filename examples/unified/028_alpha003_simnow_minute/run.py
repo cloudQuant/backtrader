@@ -2139,6 +2139,10 @@ class QueryRefreshLoop:
                 for target_id in full_target_ids
                 if target_id in requested_execution_targets
             )
+        execution_target_set = set(self.execution_target_ids)
+        self._margin_targets = tuple(
+            target for target in self.targets if target.target_id in execution_target_set
+        )
         self.coordinator = coordinator
         self.account_scope = account_scope
         self.strategy_scope = strategy_scope
@@ -2563,8 +2567,8 @@ class QueryRefreshLoop:
 
         if not self.targets:
             raise RunnerError("LIVE_REFRESH_TARGETS_REQUIRED")
-        margin_target = self.targets[self._margin_index % len(self.targets)]
-        self._margin_index = (self._margin_index + 1) % len(self.targets)
+        margin_target = self._margin_targets[self._margin_index % len(self._margin_targets)]
+        self._margin_index = (self._margin_index + 1) % len(self._margin_targets)
 
         def refresh_snapshot():
             refresh_timeout = self.timeout

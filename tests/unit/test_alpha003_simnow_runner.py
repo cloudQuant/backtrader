@@ -331,6 +331,109 @@ def test_refresh_loop_passes_same_query_set_receipt_to_terminal_coordinator():
         case.journal.close()
 
 
+def test_refresh_loop_rotates_margin_queries_only_over_execution_targets(monkeypatch):
+    """Margin polling is scoped while core account queries retain the full pool."""
+    from types import SimpleNamespace
+
+    from backtrader.stores import factor_execution_facts as facts_module
+
+    targets = tuple(SimpleNamespace(target_id=target_id) for target_id in ("M", "Y", "A"))
+    requests = []
+    core_families = (
+        "account_result",
+        "orders_result",
+        "trades_result",
+        "instruments_result",
+        "positions_result",
+    )
+
+    def capture_refresh(
+        _store,
+        *,
+        targets,
+        timeout,
+        overall_timeout,
+        include_core,
+        margin_target_ids,
+        max_queries,
+        cancel_event,
+    ):
+        target_ids = tuple(target.target_id for target in targets)
+        margin_target_ids = tuple(margin_target_ids)
+        requests.append((target_ids, include_core, margin_target_ids))
+        labels = core_families + tuple(
+            "instrument_margin_rate_result:" + target_id for target_id in margin_target_ids
+        )
+        provenance = []
+        for label in labels:
+            family, separator, target_id = label.partition(":")
+            provenance.append(
+                SimpleNamespace(
+                    family=family,
+                    target_id=target_id if separator else None,
+                    source_owned=True,
+                    query_complete=True,
+                    scope_complete=not separator,
+                )
+            )
+        return SimpleNamespace(
+            blockers=(),
+            pending_families=(),
+            cancelled=False,
+            deadline_reached=False,
+            requested_families=labels,
+            attempted_families=labels,
+            query_provenance=tuple(provenance),
+            query_set=object(),
+        )
+
+    monkeypatch.setattr(facts_module, "refresh_factor_execution_queries", capture_refresh)
+    monkeypatch.setattr(
+        facts_module, "project_factor_execution_facts", lambda *_args, **_kwargs: None
+    )
+
+    def make_loop(execution_target_ids):
+        return RUNNER.QueryRefreshLoop(
+            object(),
+            object(),
+            targets,
+            execution_target_ids=execution_target_ids,
+            coordinator=None,
+            account_scope="fixture-account",
+            strategy_scope="fixture-strategy",
+            clock=SimpleNamespace(utc_now=lambda: datetime.now(UTC)),
+            quote_max_age=timedelta(seconds=1),
+            max_query_age=timedelta(seconds=1),
+            timeout=1,
+            overall_timeout=2,
+            interval=1,
+            cerebro=SimpleNamespace(),
+            shutdown_grace_seconds=1,
+        )
+
+    scoped_loop = make_loop(("A", "M"))
+    for _ in range(4):
+        scoped_loop.refresh_once()
+    assert [request[2] for request in requests] == [("M",), ("A",), ("M",), ("A",)]
+
+    full_pool_start = len(requests)
+    full_pool_loop = make_loop(None)
+    for _ in range(4):
+        full_pool_loop.refresh_once()
+    assert [request[2] for request in requests[full_pool_start:]] == [
+        ("M",),
+        ("Y",),
+        ("A",),
+        ("M",),
+    ]
+
+    assert all(request[0] == ("M", "Y", "A") and request[1] is True for request in requests)
+    call_count = len(requests)
+    with pytest.raises(RUNNER.RunnerError, match="LIVE_EXECUTION_TARGETS_INVALID"):
+        make_loop(("M", "outside"))
+    assert len(requests) == call_count
+
+
 def test_reconcile_all_fails_closed_on_blocked_coordinator_result():
     """A blocked reconciliation page is never converted into success."""
     from types import SimpleNamespace
