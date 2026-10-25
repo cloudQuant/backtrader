@@ -32,6 +32,7 @@ from collections.abc import Mapping, Sequence
 from copy import deepcopy
 from dataclasses import asdict, is_dataclass
 from decimal import Decimal, InvalidOperation
+from types import MappingProxyType
 from typing import Any, Callable, Deque, Dict, Iterable, List, Optional, Tuple, cast
 
 from ..events import OrderBookSnapshot, TickEvent
@@ -6569,9 +6570,9 @@ class BtApiStore(LiveStoreBase):
             self._is_default_history_request(timeframe, compression, since, limit)
             and self._historical_bars[dataname]
         ):
-            return deepcopy(list(self._historical_bars[dataname]))
+            return self._copy_history_bar_sequence(self._historical_bars[dataname])
         if request_key in self._historical_query_cache:
-            return deepcopy(self._historical_query_cache[request_key])
+            return self._copy_history_bar_sequence(self._historical_query_cache[request_key])
 
         api = self._ensure_api_ready()
         bars = []
@@ -6597,7 +6598,7 @@ class BtApiStore(LiveStoreBase):
             )
 
         if not has_history_api and self._historical_bars[dataname]:
-            return deepcopy(list(self._historical_bars[dataname]))
+            return self._copy_history_bar_sequence(self._historical_bars[dataname])
 
         normalized = [self._copy_or_normalize_bar(bar) for bar in bars or []]
         if self._is_default_history_request(timeframe, compression, since, limit):
@@ -6605,7 +6606,7 @@ class BtApiStore(LiveStoreBase):
             self._historical_bars[dataname].extend(normalized)
         else:
             self._historical_query_cache[request_key] = list(normalized)
-        return deepcopy(normalized)
+        return self._copy_history_bar_sequence(normalized)
 
     def fetch_open_orders(
         self,
@@ -17808,8 +17809,25 @@ class BtApiStore(LiveStoreBase):
         if not self._preserve_raw_bars:
             return _normalize_bar(bar)
         if isinstance(bar, Mapping):
-            return deepcopy(dict(bar))
+            source = dict(bar)
+            field_observations = source.get("field_observations")
+            mapping_proxy_type = type(MappingProxyType({}))
+            if type(field_observations) is mapping_proxy_type:
+                memo = {}
+                copied_observations = MappingProxyType(deepcopy(dict(field_observations), memo))
+                memo[id(field_observations)] = copied_observations
+                return {
+                    deepcopy(key, memo): deepcopy(value, memo)
+                    for key, value in source.items()
+                }
+            return deepcopy(source)
         return deepcopy(bar)
+
+    def _copy_history_bar_sequence(self, bars):
+        """Return independent history rows while preserving opted-in immutable PIT maps."""
+        if self._preserve_raw_bars:
+            return [self._copy_or_normalize_bar(bar) for bar in bars]
+        return deepcopy(list(bars))
 
     @property
     def preserve_raw_bars(self) -> bool:

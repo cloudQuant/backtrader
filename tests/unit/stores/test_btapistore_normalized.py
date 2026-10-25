@@ -7,12 +7,14 @@ import time
 from collections import defaultdict, deque
 from copy import deepcopy
 from decimal import Decimal
-from types import SimpleNamespace
+from datetime import datetime, timedelta, timezone
+from types import MappingProxyType, SimpleNamespace
 
 import backtrader as bt
 import pytest
 
 from backtrader.order import OrderBase
+from backtrader.research.live_cohort import LiveFieldObservation
 from backtrader.stores.btapistore import BtApiStore, BtApiStoreError
 from tests.fixtures.fake_btapi import make_bar
 from tests.test_utils.optional_sdk import optional_sdk
@@ -1423,6 +1425,72 @@ def test_noncrypto_mixed_events_become_native_objects_and_keep_queue_order():
         "MT5___FOREX___EURUSD",
         [{"topic": "depth", "symbol": "EURUSD"}],
     ) in sdk.calls
+
+
+def test_raw_bar_mode_copies_immutable_pit_observations_through_poll_and_history(monkeypatch):
+    close_time = datetime(2026, 10, 25, 9, 30, tzinfo=timezone.utc)
+    observation = LiveFieldObservation(
+        source_ref="fixture:X:close:v1",
+        unit="USD/share",
+        effective_at=close_time - timedelta(seconds=1),
+        available_at=close_time,
+        revision="revision-1",
+        valid_until=close_time + timedelta(minutes=5),
+    )
+    source_observations = MappingProxyType({"close": observation})
+    source_payload = {"values": [1, 2, 3]}
+    source_bar = {
+        "timestamp": close_time,
+        "close": 101.5,
+        "field_observations": source_observations,
+        "source_payload": source_payload,
+    }
+
+    class RawPITApi:
+        def poll_bar(self, symbol):
+            assert symbol == "X"
+            return source_bar
+
+        def fetch_bars(self, symbol, **_kwargs):
+            assert symbol == "X"
+            return [source_bar]
+
+    api = RawPITApi()
+    store = BtApiStore(provider="btapi", api=api, preserve_raw_bars=True)
+    monkeypatch.setattr(store, "_ensure_api_ready", lambda: api)
+
+    first_live = store.poll_live("X")
+    second_live = store.poll_live("X")
+    first_history = store.fetch_history("X")[0]
+    second_history = store.fetch_history("X")[0]
+
+    mapping_proxy_type = type(MappingProxyType({}))
+    copies = (first_live, second_live, first_history, second_history)
+    for copied in copies:
+        observations = copied["field_observations"]
+        assert type(observations) is mapping_proxy_type
+        assert observations is not source_observations
+        assert observations["close"] == observation
+        assert isinstance(observations["close"], LiveFieldObservation)
+        assert copied["source_payload"] is not source_payload
+        assert copied["source_payload"]["values"] is not source_payload["values"]
+
+    for index, copied in enumerate(copies):
+        assert all(
+            copied["field_observations"] is not other["field_observations"]
+            for other in copies[index + 1 :]
+        )
+
+    first_live["source_payload"]["values"].append(4)
+    assert source_payload["values"] == [1, 2, 3]
+    assert second_live["source_payload"]["values"] == [1, 2, 3]
+    assert first_history["source_payload"]["values"] == [1, 2, 3]
+    assert second_history["source_payload"]["values"] == [1, 2, 3]
+
+    mutable_observations = store._copy_or_normalize_bar(
+        {**source_bar, "field_observations": {"close": observation}}
+    )
+    assert type(mutable_observations["field_observations"]) is dict
 
 
 def test_open_order_identity_supports_native_cancellation_without_local_order():
