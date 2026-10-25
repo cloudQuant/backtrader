@@ -2452,6 +2452,21 @@ class QueryRefreshLoop:
         if self.coordinator is None:
             return False
         try:
+            cancel_absence_page = self.coordinator.dispatching_cancel_store_absence_candidates(
+                limit=128
+            )
+        except Exception as error:
+            raise RunnerError(
+                "LIVE_CANCEL_DISPATCHING_STORE_ABSENCE_PENDING",
+                self._execution_error_code(error),
+            ) from None
+        cancel_candidates = getattr(cancel_absence_page, "items", None)
+        cancel_truncated = getattr(cancel_absence_page, "truncated", None)
+        if type(cancel_candidates) is not tuple or type(cancel_truncated) is not bool:
+            raise RunnerError("LIVE_CANCEL_DISPATCHING_STORE_ABSENCE_PENDING")
+        if cancel_candidates or cancel_truncated:
+            return True
+        try:
             page = self.coordinator.execution_intent_snapshot(limit=128)
         except Exception as error:
             raise RunnerError(
@@ -2469,6 +2484,31 @@ class QueryRefreshLoop:
             or truncated
             or any(item.state == "DISPATCHING" for item in items)
         )
+
+    def _require_dispatching_cancel_absence_ack(self):
+        """Keep facts unpublished until every durable cancel marker is acked."""
+
+        if self.coordinator is None:
+            return
+        try:
+            page = self.coordinator.dispatching_cancel_store_absence_candidates(limit=128)
+        except Exception as error:
+            self.last_receipt = None
+            self.last_facts = None
+            self.last_error_code = "LIVE_CANCEL_DISPATCHING_STORE_ABSENCE_PENDING"
+            self._dispatching_recovery_retry_pending = True
+            raise RunnerError(
+                self.last_error_code,
+                self._execution_error_code(error),
+            ) from None
+        items = getattr(page, "items", None)
+        truncated = getattr(page, "truncated", None)
+        if type(items) is not tuple or type(truncated) is not bool or items or truncated:
+            self.last_receipt = None
+            self.last_facts = None
+            self.last_error_code = "LIVE_CANCEL_DISPATCHING_STORE_ABSENCE_PENDING"
+            self._dispatching_recovery_retry_pending = True
+            raise RunnerError(self.last_error_code)
 
     def refresh_initial(self, *, wait_timeout):
         """Perform the first refresh, retrying only bounded gate contention.
@@ -2551,7 +2591,16 @@ class QueryRefreshLoop:
             raise RunnerError(self.last_error_code)
         try:
             with self.coordinator.terminal_recovery_scope(timeout_seconds=timeout):
-                receipt = self._refresh_once_body()
+                try:
+                    receipt = self._refresh_once_body()
+                except Exception:
+                    self._require_dispatching_cancel_absence_ack()
+                    raise
+                # This runs under both the cross-process terminal lease and
+                # the fact-snapshot lock, including the body's early returns.
+                # Strategy projection cannot observe a successful refresh until
+                # the durable local-absence acknowledgement is present.
+                self._require_dispatching_cancel_absence_ack()
         except Exception as error:
             self.last_error_code = self._execution_error_code(error)
             raise

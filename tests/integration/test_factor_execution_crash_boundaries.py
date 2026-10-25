@@ -2095,27 +2095,29 @@ def _spawned_check_cancel_dispatching_stays_blocked(journal_path, terminal_row, 
     try:
         recovery_helpers._bind_current_session_identity(api, generation=2, front_id=5, session_id=8)
         api.query_rows["orders_result"] = [terminal_row]
-        (
-            receipt,
-            facts,
-            page,
-            scope_started_at,
-            _stale_page,
-        ) = _refresh_and_reconcile_inside_terminal_scope(
+        # A complete-looking submit-side terminal query is still insufficient
+        # when it began before this process acquired the recovery lease.
+        receipt, facts = recovery_helpers._refresh_five_family_facts(
             api,
             store,
             broker,
             target,
-            coordinator,
             generation=2,
             sequence=21,
         )
         assert receipt.query_set is not None and receipt.blockers == ()
-        assert receipt.query_set.started_at_utc >= scope_started_at
+        assert receipt.pending_families == ()
         assert facts.trade_observations == ()
         assert len(facts.terminal_orders) == 1
         assert not broker.orders
         assert not api.native_calls
+        with coordinator.terminal_recovery_scope(timeout_seconds=5.0) as scope_started_at:
+            assert receipt.query_set.started_at_utc < scope_started_at
+            page = coordinator.reconcile_terminal_order_observations(
+                facts,
+                refresh_receipt=receipt,
+                limit=128,
+            )
         checkpoint_owner = journal.active_instrument_owner(
             recovery_helpers._ACCOUNT_SCOPE,
             recovery_helpers._INSTRUMENT,
@@ -2126,6 +2128,7 @@ def _spawned_check_cancel_dispatching_stays_blocked(journal_path, terminal_row, 
         assert len(page.items) == 1
         item = page.items[0]
         assert item.status == "BLOCKED", item
+        assert item.blocker_code == "DISPATCHING_RECOVERY_QUERY_PREDATES_SCOPE"
         submit_intent = journal.intent(checkpoint_owner.intent_id)
         cancel_intent = journal.intent(cancel_intent_id)
         assert submit_intent is not None and submit_intent.dispatch_state == "KNOWN"

@@ -28,6 +28,7 @@ from .execution_decision_journal import (
     ExecutionDecisionKey,
     ExecutionIntentKey,
     ExecutionIntentRecord,
+    _dispatching_cancel_absence_ack_ids,
 )
 from .factor_position_book import FactorPositionBook
 
@@ -342,6 +343,11 @@ class FactorExecutionCoordinator:
 
     def execution_intent_snapshot(self, *, limit: int = 128):
         return self.journal.execution_intent_snapshot(limit=limit)
+
+    def dispatching_cancel_store_absence_candidates(self, *, limit: int = 128):
+        return self.journal.dispatching_cancel_store_absence_candidates(
+            self.account_scope, limit=limit
+        )
 
     @contextmanager
     def terminal_recovery_scope(self, *, timeout_seconds: float = 5.0) -> Iterator[datetime]:
@@ -735,12 +741,61 @@ class FactorExecutionCoordinator:
             and cancel_intent.state == "DISPATCHING"
             and cancel_intent.dispatch_state is None
         ):
-            return ExecutionTerminalReconciliationItem(
-                observation_id=observation.observation_id,
-                status="BLOCKED",
-                intent_id=intent.intent_id,
-                blocker_code="CANCEL_DISPATCHING_CRASH_RECOVERY_UNSUPPORTED",
+            return self._reconcile_dispatching_cancel_terminal(
+                facts,
+                observation,
+                intent,
+                cancel_intent,
+                refresh_receipt=refresh_receipt,
             )
+        # A dispatching-cancel terminal proof commits before the Store's
+        # read-only local-absence assertion.  If that assertion fails, the
+        # parent resolution is durable and the owner row is already released.
+        # Recognize only this explicit marker here so a later complete query
+        # can retry the absence assertion without adding another proof or
+        # changing any dispatch-result column.  The generic prior-resolution
+        # handling below remains unchanged.
+        try:
+            marker_resolution = self.journal.instrument_resolution(intent.intent_id)
+            marker_reconciliation = (
+                None
+                if marker_resolution is None
+                else self.journal.reconciliation(marker_resolution.reconciliation_id)
+            )
+        except Exception as error:
+            raise FactorExecutionError("CANCEL_DISPATCHING_REPLAY_LOOKUP_FAILED") from error
+        marker_identity = (
+            marker_reconciliation.provider_identity if marker_reconciliation is not None else {}
+        )
+        if (
+            isinstance(marker_identity, Mapping)
+            and marker_identity.get("cancel_recovery_kind") == "dispatching_cancel"
+        ):
+            acknowledgement = self._dispatching_cancel_absence_ack_status(
+                intent,
+                marker_resolution,
+                marker_reconciliation,
+            )
+            if acknowledgement is None:
+                return self._retry_dispatching_cancel_store_absence(
+                    facts,
+                    observation,
+                    intent,
+                    marker_resolution,
+                    marker_reconciliation,
+                    refresh_receipt=refresh_receipt,
+                )
+            if acknowledgement is False:
+                return self._blocked_dispatching_cancel(
+                    observation,
+                    intent,
+                    "CANCEL_DISPATCHING_ABSENCE_ACK_CONFLICT",
+                    reconciliation_id=marker_resolution.reconciliation_id,
+                )
+            # A valid durable absence ack permanently suppresses this special
+            # Store assertion. Continue through the established generic
+            # prior-resolution check below, which validates the current
+            # position projection without rewriting the immutable CAS proof.
         # A provider order can remain visible as terminal in many later full
         # account snapshots.  Its first terminal reconciliation is immutable,
         # while the account position may legitimately change after a later
@@ -1561,6 +1616,64 @@ class FactorExecutionCoordinator:
             and owner_intent.original_identity == intent.original_identity
         )
 
+    def _dispatching_cancel_pending_owner_is_exact(
+        self, submit_intent: ExecutionIntentRecord, cancel_intent_id: str, observation: Any
+    ) -> bool:
+        """Allow the exact pending cancel pair to explain its own Book uncertainty."""
+
+        if (
+            submit_intent.key.action != "SUBMIT"
+            or submit_intent.state != "KNOWN"
+            or submit_intent.dispatch_state != "KNOWN"
+            or submit_intent.key.instrument != observation.instrument
+        ):
+            return False
+        try:
+            owner = self.journal.active_instrument_owner(self.account_scope, observation.instrument)
+            cancel_intent = self.journal.intent(cancel_intent_id)
+        except Exception:
+            return False
+        if owner is None or cancel_intent is None:
+            return False
+        parent_identity = submit_intent.original_identity
+        cancel_identity = cancel_intent.original_identity
+        return bool(
+            owner.account_scope == self.account_scope
+            and owner.instrument == observation.instrument
+            and owner.intent_id == submit_intent.intent_id
+            and owner.state == "KNOWN"
+            and owner.cancel_intent_id == cancel_intent_id
+            and cancel_intent.key.action == "CANCEL"
+            and cancel_intent.key.instrument == observation.instrument
+            and cancel_intent.owner_intent_id == submit_intent.intent_id
+            and cancel_intent.state == "DISPATCHING"
+            and cancel_intent.dispatch_state is None
+            and cancel_intent.provider_identity is None
+            and cancel_intent.outcome_code is None
+            and isinstance(parent_identity, Mapping)
+            and isinstance(cancel_identity, Mapping)
+            and parent_identity.get("operation") == "insert"
+            and cancel_identity.get("operation") == "cancel"
+            and cancel_identity.get("owner_intent_id") == submit_intent.intent_id
+            and all(
+                parent_identity.get(name) == cancel_identity.get(name)
+                for name in (
+                    "account_fingerprint",
+                    "connection_generation",
+                    "trading_day",
+                    "front_id",
+                    "session_id",
+                    "order_ref",
+                    "instrument_id",
+                    "exchange_id",
+                )
+            )
+            and (
+                "order_sys_id" not in cancel_identity
+                or parent_identity.get("order_sys_id") == cancel_identity.get("order_sys_id")
+            )
+        )
+
     def _reconcile_unknown_no_fill_terminal(
         self, facts: Any, observation: Any, intent: ExecutionIntentRecord, *, refresh_receipt: Any
     ) -> ExecutionTerminalReconciliationItem:
@@ -1869,6 +1982,824 @@ class FactorExecutionCoordinator:
             status="RESOLVED",
             intent_id=intent.intent_id,
             reconciliation_id=reconciliation_id,
+        )
+
+    def _reconcile_dispatching_cancel_terminal(
+        self, facts, observation, submit_intent, cancel_intent, *, refresh_receipt
+    ):
+        """Commit exact terminal evidence, then assert fresh Store absence."""
+        try:
+            evidence = self._dispatching_cancel_terminal_evidence(
+                facts,
+                observation,
+                submit_intent,
+                cancel_intent.intent_id,
+                refresh_receipt=refresh_receipt,
+            )
+            owner = self.journal.active_instrument_owner(
+                self.account_scope, submit_intent.key.instrument
+            )
+        except FactorExecutionError as error:
+            return self._blocked_dispatching_cancel(observation, submit_intent, error.code)
+        except Exception as error:
+            code = getattr(error, "code", None)
+            return self._blocked_dispatching_cancel(
+                observation,
+                submit_intent,
+                code if _exact_identifier(code) else "CANCEL_DISPATCHING_EVIDENCE_UNAVAILABLE",
+            )
+
+        parent_identity = submit_intent.original_identity
+        cancel_identity = cancel_intent.original_identity
+        if (
+            owner is None
+            or owner.intent_id != submit_intent.intent_id
+            or owner.cancel_intent_id != cancel_intent.intent_id
+            or submit_intent.key.action != "SUBMIT"
+            or submit_intent.state != "KNOWN"
+            or submit_intent.dispatch_state != "KNOWN"
+            or submit_intent.provider_identity is None
+            or cancel_intent.key.action != "CANCEL"
+            or cancel_intent.owner_intent_id != submit_intent.intent_id
+            or cancel_intent.state != "DISPATCHING"
+            or cancel_intent.dispatch_state is not None
+            or cancel_intent.provider_identity is not None
+            or cancel_intent.outcome_code is not None
+            or not self._dispatching_cancel_original_identity_matches(
+                submit_intent, cancel_intent.intent_id, observation, evidence["query_set"]
+            )
+        ):
+            return self._blocked_dispatching_cancel(
+                observation, submit_intent, "CANCEL_DISPATCHING_LINEAGE_MISMATCH"
+            )
+
+        query_set = evidence["query_set"]
+        position = evidence["position"]
+        parent_reconciliation_id, cancel_reconciliation_id = _dispatching_cancel_reconciliation_ids(
+            submit_intent.intent_id,
+            cancel_intent.intent_id,
+            observation.observation_id,
+            query_set.query_set_id,
+            facts.snapshot_id,
+        )
+        common = evidence["current_identity"]
+        parent_provider_identity = {
+            "evidence_kind": "complete_orders_query_observation",
+            "parent_intent_id": submit_intent.intent_id,
+            "cancel_intent_id": cancel_intent.intent_id,
+            "parent_reconciliation_id": parent_reconciliation_id,
+            "cancel_reconciliation_id": cancel_reconciliation_id,
+            **common,
+        }
+        cancel_provider_identity = {
+            "evidence_kind": "complete_orders_query_cancel_dispatching_terminal",
+            "parent_intent_id": submit_intent.intent_id,
+            "cancel_intent_id": cancel_intent.intent_id,
+            "parent_reconciliation_id": parent_reconciliation_id,
+            "cancel_reconciliation_id": cancel_reconciliation_id,
+            **common,
+        }
+        try:
+            _child, _parent, resolution = self.journal.record_dispatching_cancel_terminal(
+                submit_intent.intent_id,
+                cancel_intent.intent_id,
+                parent_reconciliation_id=parent_reconciliation_id,
+                cancel_reconciliation_id=cancel_reconciliation_id,
+                query_id=observation.observation_id,
+                parent_provider_identity=parent_provider_identity,
+                cancel_provider_identity=cancel_provider_identity,
+                terminal_state="CANCELLED",
+                terminal_event_id=observation.observation_id,
+                position_snapshot_id=position.snapshot_id,
+                position_flat=position.broker_quantity == 0,
+                expected_parent_original_identity=parent_identity,
+                expected_cancel_original_identity=cancel_identity,
+            )
+        except Exception as error:
+            code = getattr(error, "code", None)
+            return self._blocked_dispatching_cancel(
+                observation,
+                submit_intent,
+                code if _exact_identifier(code) else "CANCEL_DISPATCHING_CAS_NOT_COMMITTED",
+            )
+
+        # Do not hold SQLite's transaction while taking Store/wrapper locks.
+        return self._assert_and_record_dispatching_cancel_absence(
+            facts,
+            observation,
+            submit_intent,
+            cancel_intent.intent_id,
+            resolution.reconciliation_id,
+            cancel_reconciliation_id,
+            evidence,
+        )
+
+    def _retry_dispatching_cancel_store_absence(
+        self,
+        facts,
+        observation,
+        submit_intent,
+        resolution,
+        parent_reconciliation,
+        *,
+        refresh_receipt,
+    ):
+        """Validate immutable CAS proof and retry only the read-only absence check."""
+        provider = parent_reconciliation.provider_identity
+        cancel_intent_id = _exact_identifier(provider.get("cancel_intent_id"))
+        cancel_reconciliation_id = _exact_identifier(provider.get("cancel_reconciliation_id"))
+        if cancel_intent_id is None or cancel_reconciliation_id is None:
+            return self._blocked_dispatching_cancel(
+                observation, submit_intent, "CANCEL_DISPATCHING_REPLAY_BINDING_INVALID"
+            )
+        try:
+            cancel_intent = self.journal.intent(cancel_intent_id)
+            child = self.journal.reconciliation(cancel_reconciliation_id)
+            evidence = self._dispatching_cancel_terminal_evidence(
+                facts,
+                observation,
+                submit_intent,
+                cancel_intent_id,
+                refresh_receipt=refresh_receipt,
+            )
+            current_owner = self.journal.active_instrument_owner(
+                self.account_scope, submit_intent.key.instrument
+            )
+        except FactorExecutionError as error:
+            return self._blocked_dispatching_cancel(
+                observation,
+                submit_intent,
+                error.code,
+                reconciliation_id=resolution.reconciliation_id,
+            )
+        except Exception as error:
+            code = getattr(error, "code", None)
+            return self._blocked_dispatching_cancel(
+                observation,
+                submit_intent,
+                code
+                if _exact_identifier(code)
+                else "CANCEL_DISPATCHING_REPLAY_EVIDENCE_UNAVAILABLE",
+                reconciliation_id=resolution.reconciliation_id,
+            )
+
+        child_provider = child.provider_identity if child is not None else {}
+        fields = (
+            "cancel_recovery_kind",
+            "parent_intent_id",
+            "cancel_intent_id",
+            "order_ref",
+            "order_sys_id",
+            "instrument",
+            "exchange",
+            "terminal_status",
+            "terminal_state",
+            "volume_total_original",
+            "volume_traded",
+            "volume_total",
+            "front_id",
+            "session_id",
+            "original_account_fingerprint",
+            "original_connection_generation",
+            "original_trading_day",
+            "original_order_ref",
+            "original_front_id",
+            "original_session_id",
+            "matching_trade_count",
+            "matching_trade_volume",
+            "matching_trade_digest",
+            "broker_quantity",
+            "ctp_long_quantity",
+            "ctp_short_quantity",
+            "attributed_signed_quantity",
+            "position_book_owner_intent_id",
+            "opening_fee_total",
+            "opening_fees_known",
+        )
+        current = evidence["current_identity"]
+        if (
+            cancel_intent is None
+            or cancel_intent.key.action != "CANCEL"
+            or cancel_intent.owner_intent_id != submit_intent.intent_id
+            or cancel_intent.state != "KNOWN"
+            or cancel_intent.dispatch_state is not None
+            or cancel_intent.provider_identity is not None
+            or cancel_intent.outcome_code is not None
+            or child is None
+            or child.intent_id != cancel_intent_id
+            or child.state != "KNOWN"
+            or child.outcome_code != "complete_orders_query_cancel_dispatching_terminal"
+            or child.terminal_state != "CANCELLED"
+            or child.terminal_event_id != child.query_id
+            or child.position_snapshot_id != resolution.position_snapshot_id
+            or child.position_flat is not resolution.position_flat
+            or not isinstance(child_provider, Mapping)
+            or child_provider.get("evidence_kind")
+            != "complete_orders_query_cancel_dispatching_terminal"
+            or child_provider.get("parent_reconciliation_id") != resolution.reconciliation_id
+            or child_provider.get("cancel_reconciliation_id") != cancel_reconciliation_id
+            or resolution.intent_id != submit_intent.intent_id
+            or resolution.account_scope != self.account_scope
+            or resolution.instrument != observation.instrument
+            or resolution.terminal_state != "CANCELLED"
+            or parent_reconciliation.intent_id != submit_intent.intent_id
+            or parent_reconciliation.state != "KNOWN"
+            or parent_reconciliation.outcome_code != "complete_orders_query_terminal"
+            or parent_reconciliation.terminal_state != "CANCELLED"
+            or parent_reconciliation.terminal_event_id != parent_reconciliation.query_id
+            or parent_reconciliation.position_snapshot_id != resolution.position_snapshot_id
+            or parent_reconciliation.position_flat is not resolution.position_flat
+            or not isinstance(provider, Mapping)
+            or provider.get("evidence_kind") != "complete_orders_query_observation"
+            or provider.get("cancel_recovery_kind") != "dispatching_cancel"
+            or provider.get("cancel_reconciliation_id") != cancel_reconciliation_id
+            or provider.get("observation_id") != parent_reconciliation.query_id
+            or provider.get("observation_id") != parent_reconciliation.terminal_event_id
+            or provider.get("position_snapshot_id") != resolution.position_snapshot_id
+            or provider.get("position_flat") is not resolution.position_flat
+            or provider.get("parent_reconciliation_id") != resolution.reconciliation_id
+            or provider.get("cancel_intent_id") != cancel_intent_id
+            or any(provider.get(name) != current.get(name) for name in fields)
+            or any(child_provider.get(name) != current.get(name) for name in fields)
+            or current_owner is not None
+        ):
+            return self._blocked_dispatching_cancel(
+                observation,
+                submit_intent,
+                "CANCEL_DISPATCHING_REPLAY_CONFLICT",
+                reconciliation_id=resolution.reconciliation_id,
+            )
+
+        acknowledgement_id, acknowledgement_query_id = _dispatching_cancel_absence_ack_ids(
+            submit_intent.intent_id,
+            cancel_intent_id,
+            resolution.reconciliation_id,
+            cancel_reconciliation_id,
+        )
+        try:
+            acknowledgement = self.journal.reconciliation(acknowledgement_id)
+        except Exception:
+            return self._blocked_dispatching_cancel(
+                observation,
+                submit_intent,
+                "CANCEL_DISPATCHING_ABSENCE_ACK_LOOKUP_FAILED",
+                reconciliation_id=resolution.reconciliation_id,
+            )
+        if acknowledgement is not None:
+            if not _dispatching_cancel_absence_ack_record_matches(
+                acknowledgement,
+                parent_intent_id=submit_intent.intent_id,
+                cancel_intent_id=cancel_intent_id,
+                parent_reconciliation_id=resolution.reconciliation_id,
+                cancel_reconciliation_id=cancel_reconciliation_id,
+                original_identity=submit_intent.original_identity,
+                acknowledgement_id=acknowledgement_id,
+                acknowledgement_query_id=acknowledgement_query_id,
+            ):
+                return self._blocked_dispatching_cancel(
+                    observation,
+                    submit_intent,
+                    "CANCEL_DISPATCHING_ABSENCE_ACK_CONFLICT",
+                    reconciliation_id=resolution.reconciliation_id,
+                )
+            return ExecutionTerminalReconciliationItem(
+                observation_id=observation.observation_id,
+                status="RESOLVED",
+                intent_id=submit_intent.intent_id,
+                reconciliation_id=resolution.reconciliation_id,
+            )
+
+        return self._assert_and_record_dispatching_cancel_absence(
+            facts,
+            observation,
+            submit_intent,
+            cancel_intent_id,
+            resolution.reconciliation_id,
+            cancel_reconciliation_id,
+            evidence,
+        )
+
+    def _dispatching_cancel_absence_ack_status(
+        self, submit_intent, resolution, parent_reconciliation
+    ):
+        provider = parent_reconciliation.provider_identity
+        if not isinstance(provider, Mapping):
+            return False
+        cancel_intent_id = _exact_identifier(provider.get("cancel_intent_id"))
+        cancel_reconciliation_id = _exact_identifier(provider.get("cancel_reconciliation_id"))
+        parent_reconciliation_id = _exact_identifier(resolution.reconciliation_id)
+        if (
+            cancel_intent_id is None
+            or cancel_reconciliation_id is None
+            or parent_reconciliation_id is None
+            or provider.get("parent_intent_id") != submit_intent.intent_id
+            or provider.get("parent_reconciliation_id") != parent_reconciliation_id
+        ):
+            return False
+        acknowledgement_id, acknowledgement_query_id = _dispatching_cancel_absence_ack_ids(
+            submit_intent.intent_id,
+            cancel_intent_id,
+            parent_reconciliation_id,
+            cancel_reconciliation_id,
+        )
+        try:
+            acknowledgement = self.journal.reconciliation(acknowledgement_id)
+        except Exception:
+            return False
+        if acknowledgement is None:
+            return None
+        return _dispatching_cancel_absence_ack_record_matches(
+            acknowledgement,
+            parent_intent_id=submit_intent.intent_id,
+            cancel_intent_id=cancel_intent_id,
+            parent_reconciliation_id=parent_reconciliation_id,
+            cancel_reconciliation_id=cancel_reconciliation_id,
+            original_identity=submit_intent.original_identity,
+            acknowledgement_id=acknowledgement_id,
+            acknowledgement_query_id=acknowledgement_query_id,
+        )
+
+    def _assert_and_record_dispatching_cancel_absence(
+        self,
+        facts,
+        observation,
+        submit_intent,
+        cancel_intent_id,
+        parent_reconciliation_id,
+        cancel_reconciliation_id,
+        evidence,
+    ):
+        acknowledgement_id, acknowledgement_query_id = _dispatching_cancel_absence_ack_ids(
+            submit_intent.intent_id,
+            cancel_intent_id,
+            parent_reconciliation_id,
+            cancel_reconciliation_id,
+        )
+        try:
+            absence = self.store.registered_sim_assert_original_order_absent(
+                original_identity=submit_intent.original_identity,
+                expected_session=evidence["expected_session"],
+            )
+        except Exception:
+            return self._blocked_dispatching_cancel(
+                observation,
+                submit_intent,
+                "CANCEL_DISPATCHING_STORE_ABSENCE_NOT_PROVEN",
+                reconciliation_id=parent_reconciliation_id,
+            )
+        if absence != "ALREADY_ABSENT":
+            return self._blocked_dispatching_cancel(
+                observation,
+                submit_intent,
+                "CANCEL_DISPATCHING_STORE_ABSENCE_RESULT_INVALID",
+                reconciliation_id=parent_reconciliation_id,
+            )
+        expected_session = evidence["expected_session"]
+        original_identity = dict(submit_intent.original_identity)
+        acknowledgement_provider = {
+            "evidence_kind": "LOCAL_STORE_ABSENCE",
+            "cancel_recovery_kind": "dispatching_cancel_store_absence_ack",
+            "store_assertion": absence,
+            "parent_intent_id": submit_intent.intent_id,
+            "cancel_intent_id": cancel_intent_id,
+            "parent_reconciliation_id": parent_reconciliation_id,
+            "cancel_reconciliation_id": cancel_reconciliation_id,
+            "cas_parent_reconciliation_id": parent_reconciliation_id,
+            "cas_cancel_reconciliation_id": cancel_reconciliation_id,
+            "acknowledgement_query_id": acknowledgement_query_id,
+            "query_observation_id": observation.observation_id,
+            "query_set_id": evidence["query_set"].query_set_id,
+            "snapshot_id": facts.snapshot_id,
+            "original_identity": original_identity,
+            "original_order_ref": original_identity.get("order_ref"),
+            "instrument": observation.instrument,
+            "exchange": observation.exchange,
+            "current_session": dict(expected_session),
+        }
+        try:
+            acknowledgement = self.journal.record_reconciliation(
+                submit_intent.intent_id,
+                reconciliation_id=acknowledgement_id,
+                query_id=acknowledgement_query_id,
+                state="KNOWN",
+                provider_identity=acknowledgement_provider,
+                outcome_code="LOCAL_STORE_ABSENCE",
+            )
+        except Exception:
+            return self._blocked_dispatching_cancel(
+                observation,
+                submit_intent,
+                "CANCEL_DISPATCHING_ABSENCE_ACK_NOT_DURABLE",
+                reconciliation_id=parent_reconciliation_id,
+            )
+        if not _dispatching_cancel_absence_ack_record_matches(
+            acknowledgement,
+            parent_intent_id=submit_intent.intent_id,
+            cancel_intent_id=cancel_intent_id,
+            parent_reconciliation_id=parent_reconciliation_id,
+            cancel_reconciliation_id=cancel_reconciliation_id,
+            original_identity=original_identity,
+            acknowledgement_id=acknowledgement_id,
+            acknowledgement_query_id=acknowledgement_query_id,
+        ):
+            return self._blocked_dispatching_cancel(
+                observation,
+                submit_intent,
+                "CANCEL_DISPATCHING_ABSENCE_ACK_CONFLICT",
+                reconciliation_id=parent_reconciliation_id,
+            )
+        return ExecutionTerminalReconciliationItem(
+            observation_id=observation.observation_id,
+            status="RESOLVED",
+            intent_id=submit_intent.intent_id,
+            reconciliation_id=parent_reconciliation_id,
+        )
+
+    def _dispatching_cancel_terminal_evidence(
+        self, facts, observation, submit_intent, cancel_intent_id, *, refresh_receipt
+    ):
+        """Validate complete fresh query, fill, position, and route proof."""
+
+        scope = self._current_terminal_recovery_scope()
+        if scope is None:
+            raise FactorExecutionError("DISPATCHING_RECOVERY_SCOPE_REQUIRED")
+        expected_session, query_set = self._validate_unknown_recovery_snapshot(
+            facts,
+            refresh_receipt,
+            observation,
+            minimum_query_started_at=scope.started_at,
+        )
+        # The validator above requires this exact current SDK session to be
+        # read-only-ready. Preserve that observed fact in the durable marker
+        # and local-absence acknowledgement session projection.
+        expected_session = {**expected_session, "read_only_ready": True}
+        identity = submit_intent.original_identity
+        if not self._dispatching_cancel_original_identity_matches(
+            submit_intent, cancel_intent_id, observation, query_set
+        ):
+            raise FactorExecutionError("CANCEL_DISPATCHING_ORIGINAL_IDENTITY_MISMATCH")
+        if (
+            observation.evidence_kind != "complete_orders_query_observation"
+            or observation.terminal_status != "5"
+            or observation.terminal_state != "CANCELED"
+            or observation.account_fingerprint != expected_session["account_fingerprint"]
+            or observation.connection_generation != expected_session["connection_generation"]
+            or observation.trading_day != expected_session["trading_day"]
+            or facts.account is None
+            or facts.account.account_fingerprint != expected_session["account_fingerprint"]
+            or facts.account.connection_generation != expected_session["connection_generation"]
+            or facts.account.trading_day != expected_session["trading_day"]
+        ):
+            raise FactorExecutionError("CANCEL_DISPATCHING_TERMINAL_ROW_MISMATCH")
+
+        volume_total_original = observation.volume_total_original
+        volume_traded = observation.volume_traded
+        volume_total = observation.volume_total
+        requested = _decimal_optional(submit_intent.economic_payload.get("quantity"))
+        if (
+            any(
+                not isinstance(value, Decimal)
+                or not value.is_finite()
+                or value != value.to_integral_value()
+                for value in (volume_total_original, volume_traded, volume_total)
+            )
+            or requested is None
+            or requested != volume_total_original
+            or volume_total_original <= 0
+            or volume_traded < 0
+            or volume_traded >= volume_total_original
+            or volume_total <= 0
+            or volume_total_original - volume_traded != volume_total
+        ):
+            raise FactorExecutionError("CANCEL_DISPATCHING_VOLUME_TUPLE_INVALID")
+
+        trade_rows = self._validate_unknown_recovery_row_projection(
+            facts,
+            observation,
+            submit_intent,
+            unresolved_intent_id=cancel_intent_id,
+            unresolved_state="DISPATCHING",
+            cancel_intent_id=cancel_intent_id,
+            allow_exact_local_unknown=False,
+        )
+        matching_trades = tuple(
+            row
+            for row in trade_rows
+            if row.order_ref == observation.order_ref
+            and row.instrument == observation.instrument
+            and row.exchange == observation.exchange
+        )
+        matching_volume = sum((row.volume for row in matching_trades), Decimal(0))
+        if matching_volume != volume_traded or any(
+            row.trading_day != identity.get("trading_day")
+            or row.side != submit_intent.key.side
+            or row.position_effect != submit_intent.key.position_effect
+            or (
+                observation.order_sys_id is not None
+                and row.order_sys_id != observation.order_sys_id
+            )
+            for row in matching_trades
+        ):
+            raise FactorExecutionError("CANCEL_DISPATCHING_TRADE_VOLUME_MISMATCH")
+
+        trade_page = self.trade_reconciliation_snapshot(facts, limit=512, offset=0)
+        if (
+            trade_page.offset != 0
+            or trade_page.truncated
+            or trade_page.next_offset is not None
+            or trade_page.observation_count != len(trade_page.items)
+            or trade_page.observation_count != len(trade_rows)
+        ):
+            raise FactorExecutionError("CANCEL_DISPATCHING_TRADE_PROOF_INCOMPLETE")
+        trade_status = {item.observation_id: item for item in trade_page.items}
+        proof_rows = []
+        for row in matching_trades:
+            status = trade_status.get(row.observation_id)
+            if (
+                status is None
+                or status.status not in ("APPLIED", "DUPLICATE")
+                or status.intent_id != submit_intent.intent_id
+                or not _exact_identifier(status.receipt_id)
+                or not _exact_identifier(status.execution_id)
+            ):
+                raise FactorExecutionError("CANCEL_DISPATCHING_TRADE_NOT_DURABLE")
+            proof_rows.append(
+                (
+                    row.trade_id,
+                    status.execution_id,
+                    row.order_ref,
+                    row.order_sys_id,
+                    row.instrument,
+                    row.exchange,
+                    row.direction,
+                    row.side,
+                    row.offset,
+                    row.position_effect,
+                    row.trading_day,
+                    row.trade_date,
+                    row.trade_time,
+                    row.trade_time_utc.isoformat(),
+                    row.hedge_flag,
+                    row.offset_flag,
+                    str(row.volume),
+                    str(row.price),
+                    None if row.fee is None else str(row.fee),
+                )
+            )
+        # Observation and receipt IDs are query-local. Each current observation
+        # was just joined to its durable receipt/execution above; the replay
+        # digest instead binds the stable exact trade/economics set.
+        trade_digest = hashlib.sha256(
+            json.dumps(
+                sorted(
+                    proof_rows,
+                    key=lambda values: json.dumps(values, ensure_ascii=True, separators=(",", ":")),
+                ),
+                ensure_ascii=True,
+                separators=(",", ":"),
+            ).encode("ascii")
+        ).hexdigest()
+
+        positions = tuple(
+            row
+            for row in facts.positions
+            if row.instrument == observation.instrument and row.exchange == observation.exchange
+        )
+        if len(positions) != 1 or not _terminal_position_consistent(positions[0], facts):
+            raise FactorExecutionError("CANCEL_DISPATCHING_POSITION_RECONCILIATION_MISMATCH")
+        position = positions[0]
+        broker_quantity = position.broker_quantity
+        if position.quantity != broker_quantity:
+            raise FactorExecutionError("CANCEL_DISPATCHING_POSITION_ATTRIBUTION_MISMATCH")
+        if broker_quantity == 0:
+            flat_attribution = (
+                isinstance(position.attributed_signed_quantity, Decimal)
+                and position.attributed_signed_quantity.is_finite()
+                and position.attributed_signed_quantity == Decimal(0)
+            )
+            flat_attribution_missing_or_zero = (
+                position.attributed_signed_quantity is None or flat_attribution
+            )
+            causal_pending_owner = (
+                position.position_book_status == "UNKNOWN"
+                and position.position_book_blocker_code == "INSTRUMENT_ORDER_UNRESOLVED"
+                and self._dispatching_cancel_pending_owner_is_exact(
+                    submit_intent, cancel_intent_id, observation
+                )
+            )
+            is_flat = (
+                position.position_book_status == "FLAT"
+                and position.position_book_blocker_code is None
+                and flat_attribution_missing_or_zero
+            )
+            is_exact_pending_flat = causal_pending_owner and flat_attribution_missing_or_zero
+            if (
+                not (is_flat or is_exact_pending_flat)
+                or position.owner_intent_id is not None
+                or position.owner_strategy_scope is not None
+            ):
+                if not flat_attribution_missing_or_zero:
+                    raise FactorExecutionError("CANCEL_DISPATCHING_POSITION_ATTRIBUTION_MISMATCH")
+                raise FactorExecutionError("CANCEL_DISPATCHING_POSITION_BOOK_FLAT_MISMATCH")
+        else:
+            if position.attributed_signed_quantity != broker_quantity:
+                raise FactorExecutionError("CANCEL_DISPATCHING_POSITION_ATTRIBUTION_MISMATCH")
+            causal_pending_owner = (
+                position.position_book_status == "UNKNOWN"
+                and position.position_book_blocker_code == "INSTRUMENT_ORDER_UNRESOLVED"
+                and self._dispatching_cancel_pending_owner_is_exact(
+                    submit_intent, cancel_intent_id, observation
+                )
+            )
+            if (
+                not (
+                    position.position_book_status == "MATCHED"
+                    and position.position_book_blocker_code is None
+                    or causal_pending_owner
+                )
+                or not _exact_identifier(position.owner_intent_id)
+                or position.owner_strategy_scope != self.strategy_scope
+                or position.opening_fees_known is not True
+                or not isinstance(position.opening_fee_total, Decimal)
+                or not position.opening_fee_total.is_finite()
+                or position.opening_fee_total < 0
+                or (
+                    submit_intent.key.position_effect == "OPEN"
+                    and position.owner_intent_id != submit_intent.intent_id
+                )
+                or (
+                    submit_intent.key.position_effect == "CLOSE"
+                    and (
+                        not _exact_identifier(submit_intent.economic_payload.get("owner_intent_id"))
+                        or position.owner_intent_id
+                        != submit_intent.economic_payload.get("owner_intent_id")
+                    )
+                )
+            ):
+                raise FactorExecutionError("CANCEL_DISPATCHING_POSITION_BOOK_OWNER_MISMATCH")
+            if not _exact_identifier(position.target_id):
+                raise FactorExecutionError("CANCEL_DISPATCHING_POSITION_TARGET_UNAVAILABLE")
+            proof = self.position_book.dated_snapshot(facts, target_id=position.target_id)
+            if (
+                proof.status != "MATCHED"
+                or proof.ready is not True
+                or proof.target_id != position.target_id
+                or proof.instrument != observation.instrument
+                or proof.exchange != observation.exchange
+                or proof.query_set_id != query_set.query_set_id
+                or proof.account_fingerprint != query_set.account_fingerprint
+                or proof.connection_generation != query_set.connection_generation
+                or proof.trading_day != query_set.trading_day
+                or proof.snapshot_id != facts.snapshot_id
+                or not proof.buckets
+                or any(
+                    bucket.ready is not True
+                    or bucket.owner_strategy_scope != self.strategy_scope
+                    or bucket.owner_intent_id != position.owner_intent_id
+                    for bucket in proof.buckets
+                )
+            ):
+                raise FactorExecutionError("CANCEL_DISPATCHING_DATED_POSITION_BOOK_MISMATCH")
+
+        route = self.store.registered_sim_route_eligibility(
+            observation.instrument, observation.exchange
+        )
+        if (
+            route.instrument_id != observation.instrument
+            or route.exchange_id != observation.exchange
+            or route.account_fingerprint != expected_session["account_fingerprint"]
+            or route.connection_generation != expected_session["connection_generation"]
+            or route.trading_day != expected_session["trading_day"]
+            or route.current_session_account_fingerprint != expected_session["account_fingerprint"]
+            or route.current_session_connection_generation
+            != expected_session["connection_generation"]
+            or route.current_session_trading_day != expected_session["trading_day"]
+            or route.current_session_front_id != expected_session["front_id"]
+            or route.current_session_id != expected_session["session_id"]
+            or route.current_session_read_only_ready is not True
+            or route.instrument_query_complete is not True
+            or route.instrument_eligible is not True
+            or route.sdk_capability_armed is not False
+            or route.dispatching_order_ids != ()
+            or route.unknown_order_ids != ()
+        ):
+            raise FactorExecutionError("CANCEL_DISPATCHING_ROUTE_OR_SESSION_MISMATCH")
+
+        current_identity = {
+            "cancel_recovery_kind": "dispatching_cancel",
+            "parent_intent_id": submit_intent.intent_id,
+            "cancel_intent_id": cancel_intent_id,
+            "observation_id": observation.observation_id,
+            "query_set_id": query_set.query_set_id,
+            "snapshot_id": facts.snapshot_id,
+            "connection_generation": observation.connection_generation,
+            "account_fingerprint": observation.account_fingerprint,
+            "trading_day": observation.trading_day,
+            "order_ref": observation.order_ref,
+            "order_sys_id": observation.order_sys_id,
+            "instrument": observation.instrument,
+            "exchange": observation.exchange,
+            "front_id": observation.front_id,
+            "session_id": observation.session_id,
+            "terminal_status": observation.terminal_status,
+            "terminal_state": observation.terminal_state,
+            "volume_total_original": str(volume_total_original),
+            "volume_traded": str(volume_traded),
+            "volume_total": str(volume_total),
+            "current_session": dict(expected_session),
+            "original_account_fingerprint": identity["account_fingerprint"],
+            "original_connection_generation": identity["connection_generation"],
+            "original_trading_day": identity["trading_day"],
+            "original_order_ref": identity["order_ref"],
+            "original_front_id": identity["front_id"],
+            "original_session_id": identity["session_id"],
+            "original_order_sys_id": identity.get("order_sys_id"),
+            "matching_trade_count": len(matching_trades),
+            "matching_trade_volume": str(matching_volume),
+            "matching_trade_digest": trade_digest,
+            "broker_quantity": str(broker_quantity),
+            "ctp_long_quantity": str(position.long_quantity),
+            "ctp_short_quantity": str(position.short_quantity),
+            "attributed_signed_quantity": str(position.attributed_signed_quantity),
+            "position_book_owner_intent_id": position.owner_intent_id,
+            "opening_fee_total": str(position.opening_fee_total),
+            "opening_fees_known": position.opening_fees_known,
+            "position_snapshot_id": position.snapshot_id,
+            "position_flat": broker_quantity == 0,
+        }
+        return {
+            "expected_session": expected_session,
+            "query_set": query_set,
+            "position": position,
+            "current_identity": current_identity,
+        }
+
+    def _dispatching_cancel_original_identity_matches(
+        self, submit_intent, cancel_intent_id, observation, query_set
+    ):
+        identity = submit_intent.original_identity
+        try:
+            cancel_intent = self.journal.intent(cancel_intent_id)
+        except Exception:
+            return False
+        cancel_identity = cancel_intent.original_identity if cancel_intent is not None else None
+        return bool(
+            submit_intent.key.action == "SUBMIT"
+            and submit_intent.state == "KNOWN"
+            and submit_intent.dispatch_state == "KNOWN"
+            and cancel_intent is not None
+            and cancel_intent.key.action == "CANCEL"
+            and cancel_intent.owner_intent_id == submit_intent.intent_id
+            and isinstance(cancel_identity, Mapping)
+            and cancel_identity.get("operation") == "cancel"
+            and cancel_identity.get("owner_intent_id") == submit_intent.intent_id
+            and identity.get("operation") == "insert"
+            and _exact_identifier(identity.get("account_fingerprint"))
+            and identity.get("account_fingerprint") == query_set.account_fingerprint
+            and identity.get("account_fingerprint") == observation.account_fingerprint
+            and identity.get("trading_day") == query_set.trading_day
+            and identity.get("trading_day") == observation.trading_day
+            and _positive_int(identity.get("connection_generation"))
+            and _positive_int(identity.get("front_id"))
+            and _positive_int(identity.get("session_id"))
+            and all(
+                identity.get(name) == cancel_identity.get(name)
+                for name in (
+                    "account_fingerprint",
+                    "connection_generation",
+                    "trading_day",
+                    "front_id",
+                    "session_id",
+                )
+            )
+            and identity.get("instrument_id") == observation.instrument
+            and identity.get("exchange_id") == observation.exchange
+            and identity.get("order_ref") == observation.order_ref
+            and identity.get("instrument_id") == cancel_identity.get("instrument_id")
+            and identity.get("exchange_id") == cancel_identity.get("exchange_id")
+            and identity.get("order_ref") == cancel_identity.get("order_ref")
+            and observation.front_id == identity.get("front_id")
+            and observation.session_id == identity.get("session_id")
+            and (
+                identity.get("order_sys_id") is None
+                or identity.get("order_sys_id") == observation.order_sys_id
+            )
+            and (
+                "order_sys_id" not in cancel_identity
+                or identity.get("order_sys_id") == cancel_identity.get("order_sys_id")
+            )
+            and submit_intent.key.instrument == observation.instrument
+            and submit_intent.key.position_effect in ("OPEN", "CLOSE")
+        )
+
+    @staticmethod
+    def _blocked_dispatching_cancel(observation, submit_intent, code, *, reconciliation_id=None):
+        return ExecutionTerminalReconciliationItem(
+            observation_id=observation.observation_id,
+            status="BLOCKED",
+            intent_id=submit_intent.intent_id,
+            reconciliation_id=reconciliation_id,
+            blocker_code=code,
         )
 
     def _reconcile_unknown_cancel_terminal(
@@ -4846,6 +5777,78 @@ def _unknown_terminal_reconciliation_id(
         separators=(",", ":"),
     )
     return "unknown-terminal:" + hashlib.sha256(material.encode("ascii")).hexdigest()
+
+
+def _dispatching_cancel_reconciliation_ids(
+    parent_intent_id: str,
+    cancel_intent_id: str,
+    observation_id: str,
+    query_set_id: str,
+    snapshot_id: str,
+) -> Tuple[str, str]:
+    material = json.dumps(
+        (parent_intent_id, cancel_intent_id, observation_id, query_set_id, snapshot_id),
+        ensure_ascii=True,
+        separators=(",", ":"),
+    )
+    digest = hashlib.sha256(material.encode("ascii")).hexdigest()
+    return "dispatching-cancel-parent:" + digest, "dispatching-cancel-child:" + digest
+
+
+def _dispatching_cancel_absence_ack_record_matches(
+    record: Any,
+    *,
+    parent_intent_id: str,
+    cancel_intent_id: str,
+    parent_reconciliation_id: str,
+    cancel_reconciliation_id: str,
+    original_identity: Mapping[str, Any],
+    acknowledgement_id: str,
+    acknowledgement_query_id: str,
+) -> bool:
+    provider = getattr(record, "provider_identity", None)
+    current_session = provider.get("current_session") if isinstance(provider, Mapping) else None
+    original = dict(original_identity)
+    return bool(
+        getattr(record, "reconciliation_id", None) == acknowledgement_id
+        and getattr(record, "intent_id", None) == parent_intent_id
+        and dict(getattr(record, "original_identity", {})) == original
+        and getattr(record, "query_id", None) == acknowledgement_query_id
+        and getattr(record, "state", None) == "KNOWN"
+        and getattr(record, "outcome_code", None) == "LOCAL_STORE_ABSENCE"
+        and getattr(record, "terminal_state", None) is None
+        and getattr(record, "terminal_event_id", None) is None
+        and getattr(record, "position_snapshot_id", None) is None
+        and getattr(record, "position_flat", None) is None
+        and isinstance(provider, Mapping)
+        and isinstance(current_session, Mapping)
+        and provider.get("evidence_kind") == "LOCAL_STORE_ABSENCE"
+        and provider.get("cancel_recovery_kind") == "dispatching_cancel_store_absence_ack"
+        and provider.get("store_assertion") == "ALREADY_ABSENT"
+        and provider.get("parent_intent_id") == parent_intent_id
+        and provider.get("cancel_intent_id") == cancel_intent_id
+        and provider.get("parent_reconciliation_id") == parent_reconciliation_id
+        and provider.get("cancel_reconciliation_id") == cancel_reconciliation_id
+        and provider.get("cas_parent_reconciliation_id") == parent_reconciliation_id
+        and provider.get("cas_cancel_reconciliation_id") == cancel_reconciliation_id
+        and provider.get("acknowledgement_query_id") == acknowledgement_query_id
+        and _exact_identifier(provider.get("query_observation_id"))
+        and _exact_identifier(provider.get("query_set_id"))
+        and _exact_identifier(provider.get("snapshot_id"))
+        and provider.get("original_identity") == original
+        and provider.get("original_order_ref") == original.get("order_ref")
+        and provider.get("instrument") == original.get("instrument_id")
+        and provider.get("exchange") == original.get("exchange_id")
+        and current_session.get("account_fingerprint") == original.get("account_fingerprint")
+        and current_session.get("trading_day") == original.get("trading_day")
+        and type(current_session.get("connection_generation")) is int
+        and current_session.get("connection_generation") > 0
+        and type(current_session.get("front_id")) is int
+        and current_session.get("front_id") > 0
+        and type(current_session.get("session_id")) is int
+        and current_session.get("session_id") > 0
+        and current_session.get("read_only_ready") is True
+    )
 
 
 def _unknown_terminal_resolution_matches(

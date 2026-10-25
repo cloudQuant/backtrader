@@ -553,6 +553,13 @@ The actual DCE/CZCE/GFEX end-of-day source coverage is still incomplete.
 registered-sim adapter, execution coordinator, owned-position projection, and
 028 strategy integration must be accepted at their actual composition boundary;
 source or synthetic checks do not establish SimNow account acceptance.
+Registered-sim DISPATCHING-CANCEL recovery requires the current cross-process
+recovery lease, a complete fresh source-bound query, atomic journal terminal
+reconciliation, and a durable acknowledgement of Store read-only local absence
+before publishing refreshed facts. It preserves the original CANCEL RPC result
+as unobserved, never replays that RPC, and preserves the original OPEN owner
+through partial-close recovery; local synthetic-provider acceptance is separate
+from account acceptance.
 The authoritative scope, remaining AC items, and per-round commits are under
 `docs/_internal/opts/requirements/迭代50-因子实盘运行与交易接入/` and
 `docs/_internal/opts/requirements/迭代51-因子流批一体与Alpha003-SimNow实盘示例/`.
