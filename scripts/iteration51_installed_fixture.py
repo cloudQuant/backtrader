@@ -1613,6 +1613,7 @@ _SYNTHETIC_LIVE_EXPECTATIONS = {
 
 def _synthetic_live_child_command(
     *,
+    child_script_path: Path,
     wheel_path: Path,
     wheel_sha256: str,
     example_dir: Path,
@@ -1626,11 +1627,13 @@ def _synthetic_live_child_command(
         raise InstalledFixtureError("synthetic-live case is outside the fixed local set")
     if factor_mode not in {"native", "build"}:
         raise InstalledFixtureError("factor mode must be native or build")
+    child_script = _require_external(child_script_path, label="synthetic-live child script")
+    if not child_script.is_file() or child_script.is_symlink():
+        raise InstalledFixtureError("synthetic-live child script is unavailable")
     return [
         python,
         "-I",
-        "-c",
-        _SYNTHETIC_LIVE_CHILD_CODE,
+        str(child_script.resolve(strict=True)),
         str(Path(__file__).with_name("iteration50_installed_fixture.py").resolve(strict=True)),
         str(Path(wheel_path).resolve(strict=True)),
         wheel_sha256,
@@ -1683,7 +1686,28 @@ def run_synthetic_live_case(
         or _sha256(wheel) != wheel_sha256
     ):
         raise InstalledFixtureError("wheel does not match the supplied SHA-256")
+    child_script = target_workspace / (
+        "iteration51-synthetic-live-child-" + factor_mode + "-" + case + ".py"
+    )
+    if child_script.exists() or child_script.is_symlink():
+        raise InstalledFixtureError("synthetic-live child script destination must be new")
+    child_source = _SYNTHETIC_LIVE_CHILD_CODE.encode("utf-8")
+    try:
+        with child_script.open("xb") as handle:
+            handle.write(child_source)
+    except OSError as exc:
+        raise InstalledFixtureError(
+            "synthetic-live child source could not be materialized"
+        ) from exc
+    child_script = child_script.resolve(strict=True)
+    child_script_sha256 = _sha256(child_script)
+    if (
+        child_script.stat().st_size != len(child_source)
+        or child_script_sha256 != hashlib.sha256(child_source).hexdigest()
+    ):
+        raise InstalledFixtureError("synthetic-live child source changed during materialization")
     command = _synthetic_live_child_command(
+        child_script_path=child_script,
         wheel_path=wheel,
         wheel_sha256=wheel_sha256,
         example_dir=example,
@@ -1706,6 +1730,11 @@ def run_synthetic_live_case(
         )
     except subprocess.TimeoutExpired as exc:
         raise InstalledFixtureError("synthetic-live child exceeded its bounded timeout") from exc
+    if (
+        child_script.stat().st_size != len(child_source)
+        or _sha256(child_script) != child_script_sha256
+    ):
+        raise InstalledFixtureError("synthetic-live child source changed during execution")
     summary = _last_json_object(completed.stdout)
     summary_line = _last_json_object_line(completed.stdout)
     child = _synthetic_live_child_receipt(completed.stdout)
@@ -1915,6 +1944,11 @@ def run_synthetic_live_case(
         "summary": summary,
         "stdout_sha256": hashlib.sha256(completed.stdout.encode("utf-8")).hexdigest(),
         "stderr_sha256": hashlib.sha256(completed.stderr.encode("utf-8")).hexdigest(),
+        "child_launcher": {
+            "path": str(child_script),
+            "size_bytes": len(child_source),
+            "sha256": child_script_sha256,
+        },
         "installed_child": child,
         "sdk_selector_source": selector_source,
         "evidence_level": SDK_SELECTOR_EVIDENCE_LEVEL,

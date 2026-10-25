@@ -274,9 +274,11 @@ def test_synthetic_live_child_is_separate_from_the_offline_allowlist() -> None:
         "write-denied",
         "tier-escalation",
     )
+    assert len(fixture._SYNTHETIC_LIVE_CHILD_CODE) > 32767
     compile(fixture._SYNTHETIC_LIVE_CHILD_CODE, "<synthetic-live-child>", "exec")
     with pytest.raises(fixture.InstalledFixtureError, match="fixed local set"):
         fixture._synthetic_live_child_command(
+            child_script_path=_FIXTURE_PATH,
             wheel_path=_FIXTURE_PATH,
             wheel_sha256="0" * 64,
             example_dir=_FIXTURE_PATH.parent,
@@ -549,9 +551,20 @@ def test_synthetic_live_case_runs_isolated_command_and_checks_finite_outcome(
     assert result["status"] == status
     assert result["evidence_level"] == "INSTALLED_BT_WHEEL_PUBLIC_SDK_SOURCE_FIXTURE"
     assert result["sdk_selector_source"] == selector_source
-    assert observed["command"][1:3] == ["-I", "-c"]
-    assert "iteration50_installed_fixture.py" in observed["command"][4]
-    compile(observed["command"][3], "<synthetic-live-child>", "exec")
+    assert observed["command"][1] == "-I"
+    child_script = Path(observed["command"][2])
+    assert child_script.parent == workspace.resolve()
+    assert child_script.name == "iteration51-synthetic-live-child-native-" + case + ".py"
+    assert "iteration50_installed_fixture.py" in observed["command"][3]
+    child_source = child_script.read_bytes()
+    assert child_source == fixture._SYNTHETIC_LIVE_CHILD_CODE.encode("utf-8")
+    compile(child_source, str(child_script), "exec")
+    assert len(fixture.subprocess.list2cmdline(observed["command"])) < 32767
+    assert result["child_launcher"] == {
+        "path": str(child_script),
+        "size_bytes": len(child_source),
+        "sha256": hashlib.sha256(child_source).hexdigest(),
+    }
     assert observed["command"][-3] == str(selector_source_path.resolve())
     assert observed["command"][-2:] == [case, "native"]
     assert observed["kwargs"]["cwd"] == str(example.resolve())
