@@ -19,6 +19,13 @@ import pytest
 
 _FIXTURE_PATH = Path(__file__).resolve().parents[3] / "scripts" / "iteration51_installed_fixture.py"
 _ITERATION50_FIXTURE_PATH = _FIXTURE_PATH.with_name("iteration50_installed_fixture.py")
+_FACTS_INTEGRATION_HELPER_PATH = (
+    _FIXTURE_PATH.parents[1]
+    / "tests"
+    / "unit"
+    / "stores"
+    / "test_factor_execution_facts.py"
+)
 
 
 def _load_fixture() -> ModuleType:
@@ -35,6 +42,18 @@ def _load_fixture() -> ModuleType:
 def _load_iteration50_fixture() -> ModuleType:
     spec = importlib.util.spec_from_file_location(
         "iteration50_installed_fixture_clock_test", _ITERATION50_FIXTURE_PATH
+    )
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+def _load_factor_execution_facts_test_helpers() -> ModuleType:
+    spec = importlib.util.spec_from_file_location(
+        "iteration51_factor_execution_facts_test_support",
+        _FACTS_INTEGRATION_HELPER_PATH,
     )
     assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)
@@ -698,8 +717,15 @@ def test_synthetic_ctp_leaf_matches_registered_order_and_price_tick_contracts() 
     assert 'fake_state["ctp_order_callback_associations"].append({' in child_source
     assert 'fake_state["arm_scope_observations"].append({' in child_source
     assert 'fake_state["disarm_scope_observations"].append(' in child_source
-    assert 'query_order_row["OrderSysID"] = order_sys_id' in child_source
-    assert 'query_trade_row["OrderSysID"] = order_sys_id' in child_source
+    assert '"order_sys_id": order_sys_id' in child_source
+    assert '"price": price' in child_source
+    assert 'def _order_row(self, order_ref, *, status, filled, remaining):' in child_source
+    assert 'def _trade_row(self, order_ref, trade_id, *, quantity, offset, when, fee):' in child_source
+    assert 'row["OrderSysID"] = identity["order_sys_id"]' in child_source
+    assert 'row["Price"] = str(identity["price"])' in child_source
+    assert '"query_price_matches": query_price_matches' in child_source
+    assert '"callback_price": str(trade_callback.Price)' in child_source
+    assert 'query_trade_row["Price"] =' not in child_source
     assert 'fake_state["ctp_trade_callback_associations"].append({' in child_source
 
     child_tree = ast.parse(child_source, filename="iteration51-synthetic-live-child.py")
@@ -858,6 +884,7 @@ def _synthetic_order_receipt(order_specs: tuple[tuple[str, str], ...]) -> dict[s
     for order_ref, instrument in order_specs:
         order_sys_id = "iteration51-sys-" + order_ref
         trade_id = "iteration51-" + order_ref
+        trade_price = "214" if instrument == "M2611" else "207"
         actions.append(
             {"action": "insert", "order_ref": order_ref, "instrument": instrument, "exchange": "DCE"}
         )
@@ -896,7 +923,12 @@ def _synthetic_order_receipt(order_specs: tuple[tuple[str, str], ...]) -> dict[s
             }
         )
         trade_callbacks.append(
-            {"trade_id": trade_id, "order_ref": order_ref, "order_sys_id": order_sys_id}
+            {
+                "trade_id": trade_id,
+                "order_ref": order_ref,
+                "order_sys_id": order_sys_id,
+                "callback_price": trade_price,
+            }
         )
         trade_queries.append(
             {
@@ -905,6 +937,9 @@ def _synthetic_order_receipt(order_specs: tuple[tuple[str, str], ...]) -> dict[s
                 "callback_order_sys_id": order_sys_id,
                 "query_order_sys_id": order_sys_id,
                 "query_order_sys_id_matches": True,
+                "callback_price": trade_price,
+                "query_price": trade_price,
+                "query_price_matches": True,
             }
         )
     return {
@@ -1031,9 +1066,30 @@ def test_synthetic_order_and_trade_query_ids_match_callback_ids_per_insert() -> 
     fixture = _load_fixture()
     child = _synthetic_order_receipt((("12", "M2611"), ("13", "A2611")))
     assert fixture._synthetic_order_sys_id_provenance_is_valid(child)
+    equivalent_query_price = json.loads(json.dumps(child))
+    equivalent_query_price["ctp_trade_query_associations"][0]["query_price"] = "214.0"
+    assert fixture._synthetic_order_sys_id_provenance_is_valid(equivalent_query_price)
     mismatched_query = json.loads(json.dumps(child))
     mismatched_query["ctp_trade_query_associations"][0]["query_order_sys_id"] = "wrong"
     assert not fixture._synthetic_order_sys_id_provenance_is_valid(mismatched_query)
+    mismatched_query_price = json.loads(json.dumps(child))
+    mismatched_query_price["ctp_trade_query_associations"][0]["query_price"] = "215"
+    assert not fixture._synthetic_order_sys_id_provenance_is_valid(mismatched_query_price)
+    mismatched_query_callback_price = json.loads(json.dumps(child))
+    mismatched_query_callback_price["ctp_trade_query_associations"][0][
+        "callback_price"
+    ] = "215"
+    assert not fixture._synthetic_order_sys_id_provenance_is_valid(
+        mismatched_query_callback_price
+    )
+    false_price_receipt = json.loads(json.dumps(child))
+    false_price_receipt["ctp_trade_query_associations"][0]["query_price_matches"] = False
+    assert not fixture._synthetic_order_sys_id_provenance_is_valid(false_price_receipt)
+    non_finite_callback_price = json.loads(json.dumps(child))
+    non_finite_callback_price["ctp_trade_callback_associations"][0][
+        "callback_price"
+    ] = "NaN"
+    assert not fixture._synthetic_order_sys_id_provenance_is_valid(non_finite_callback_price)
     missing_callback = json.loads(json.dumps(child))
     missing_callback["ctp_order_callback_associations"].pop(1)
     missing_callback["ctp_order_callback_count"] -= 1
@@ -1089,6 +1145,53 @@ def test_synthetic_order_and_trade_query_ids_match_callback_ids_per_insert() -> 
         tuple((str(index), "M2611") for index in range(1, 22))
     )
     assert not fixture._synthetic_order_sys_id_provenance_is_valid(over_limit)
+
+
+def test_source_backed_trade_reconciliation_rejects_query_price_conflict() -> None:
+    support = _load_factor_execution_facts_test_helpers()
+    _facts, live_inputs = support._build_source_backed_dated_close_facts(
+        native_callback_mode="acknowledged"
+    )
+    journal = live_inputs["journal"]
+    try:
+        api = live_inputs["api"]
+        coordinator = live_inputs["coordinator"]
+        target = live_inputs["target"]
+        native_receipt = live_inputs["native_receipt"]
+        query_row = api.query_rows["trades_result"][0]
+        assert str(query_row["Price"]) == str(native_receipt.evidence_payload["price"])
+        assert live_inputs["trade_page"].items[0].blocker_code is None
+
+        # The real RegisteredSim Store, Broker, journal and coordinator have
+        # accepted this exact-price callback/query pair. A one-tick query
+        # mutation must remain a hard native callback conflict.
+        api.query_rows["trades_result"] = [{**query_row, "Price": "101"}]
+        refresh, projection_now, _consumed = support._refresh_complete_facts_after_callback(
+            api,
+            live_inputs["store"],
+            target,
+            sequence=10,
+            trading_day=support._TRADING_DAY,
+        )
+        facts = support._project(
+            live_inputs["store"],
+            live_inputs["broker"],
+            target,
+            projection_now,
+            query_set=refresh.query_set,
+        )
+        trade_page = coordinator.reconcile_trade_observations(
+            facts,
+            refresh_receipt=refresh,
+            limit=128,
+        )
+
+        assert trade_page.observation_count == 1
+        assert trade_page.items[0].status == "BLOCKED"
+        assert trade_page.items[0].blocker_code == "NATIVE_TRADE_CALLBACK_QUERY_CONFLICT"
+        assert journal.callback_query_disposition(native_receipt.receipt_id) is None
+    finally:
+        journal.close()
 
 
 def test_synthetic_live_summary_binds_direct_run_query_and_tape_receipts(

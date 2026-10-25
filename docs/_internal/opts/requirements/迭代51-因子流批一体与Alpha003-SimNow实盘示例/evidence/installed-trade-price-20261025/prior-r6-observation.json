@@ -1,0 +1,740 @@
+{
+  "level": "INSTALLED_READ_ONLY_COMPLETE_WRITE_RECONCILIATION_BLOCKED",
+  "launch": {
+    "head": "a69a494e7b26251703c130c2b9083f9ce196ef2c",
+    "package_commit": "a69a494e7b26251703c130c2b9083f9ce196ef2c",
+    "command": [
+      "D:\\temp\\i5051c-20261025-r6\\venv\\Scripts\\python.exe",
+      "-I",
+      "D:\\source_code\\backtrader\\scripts\\iteration51_installed_fixture.py",
+      "--wheel",
+      "D:\\temp\\i5051b-03852948a7a4\\wheel\\back_trader_python-1.4.0-py3-none-any.whl",
+      "--wheel-sha256",
+      "bc33814b37ab44963ab9a964e689ee7c2665ed9a709b5bcbe0eb0bcd9770b7ee",
+      "--workspace",
+      "D:\\temp\\i51-installed-final-20261025-r6\\native\\case",
+      "--synthetic-live",
+      "--factor-mode",
+      "native",
+      "--sdk-selector-source",
+      "D:\\temp\\iteration50_51_final_consumer_20261025_013224\\selector-source-fixture\\bt_api_ctp\\ctp_env_selector.py",
+      "--timeout-seconds",
+      "300"
+    ],
+    "source_pins": {
+      "D:\\source_code\\backtrader\\scripts\\iteration51_installed_fixture.py": {
+        "sha256": "9afa6755652141e62b16296988c77ced1262b5f0e801289f4dceb26c45abf816",
+        "size": 131809
+      },
+      "D:\\source_code\\backtrader\\scripts\\iteration50_installed_fixture.py": {
+        "sha256": "4f9cd4610a21f6eb5ced5dd824f89501a056f114e0b39deabe94c6da1e33285a",
+        "size": 159625
+      },
+      "D:\\source_code\\backtrader\\examples\\unified\\028_alpha003_simnow_minute\\run.py": {
+        "sha256": "7703d0b4f21205aaf7b90900bcceec2d67461c2e20d70239f2e214540704fc3b",
+        "size": 195092
+      },
+      "D:\\source_code\\backtrader\\examples\\unified\\028_alpha003_simnow_minute\\entry_tier.py": {
+        "sha256": "230ab3ab1bb94313a186fef2bf181f1e1d80e769cd029832bab1614ea659c15e",
+        "size": 4449
+      },
+      "D:\\source_code\\backtrader\\examples\\unified\\028_alpha003_simnow_minute\\alpha003_strategy.py": {
+        "sha256": "b7d65886d10b792af58bf8100a9e94f3da1b1405b2a6d0247315dcaaa8dfa058",
+        "size": 198547
+      },
+      "D:\\source_code\\backtrader\\examples\\unified\\028_alpha003_simnow_minute\\config.yaml": {
+        "sha256": "b9190eb06954d49a8d4402c2b71a9a11e2d6a9739e0fb9c66c76bcf81a1ad4e5",
+        "size": 3674
+      }
+    },
+    "wheel_sha256": "bc33814b37ab44963ab9a964e689ee7c2665ed9a709b5bcbe0eb0bcd9770b7ee",
+    "started_unix": 1792927707.0209174,
+    "evidence_level": "INSTALLED_BT_WHEEL_PUBLIC_SDK_SOURCE_FIXTURE"
+  },
+  "completion": {
+    "exit_code": 2,
+    "ended_unix": 1792927744.6283891,
+    "source_pins_unchanged": true,
+    "receipt_exists": false
+  },
+  "cases": {
+    "read-only": {
+      "summary": {
+        "calendar_evidence_mode": null,
+        "calendar_rules_sha256": null,
+        "cleanup_complete": true,
+        "cli_tier": "live",
+        "config_tier": "live",
+        "decision_tape": {
+          "bytes": 303999,
+          "closed": true,
+          "failed": false,
+          "file_id": "1a389db1-7b32-48e9-bd60-83ec89e24139",
+          "last_record_reference": {
+            "batch_id": "alpha003:iteration51-synthetic-session-rules:1:iteration51-synthetic-session-rules:1:fixture-only-v1:63",
+            "file_id": "1a389db1-7b32-48e9-bd60-83ec89e24139",
+            "record_id": "9f04fc80835489c84985d5bafa53627e211d779f7e3949f4ec28c88d17957ac9",
+            "record_index": 64
+          },
+          "max_bytes": 5000000,
+          "path": "D:\\temp\\i51-installed-final-20261025-r6\\native\\case\\iteration51-live-case-2radh4on\\decision-tape.jsonl",
+          "record_count": 64,
+          "sha256": "e10d87465b8f751c961132ddabb6a1839e7e554b4d070242384de96586f97982"
+        },
+        "decision_tape_readback": {
+          "actual_bytes": 303999,
+          "file_id": "1a389db1-7b32-48e9-bd60-83ec89e24139",
+          "last_record_reference": {
+            "batch_id": "alpha003:iteration51-synthetic-session-rules:1:iteration51-synthetic-session-rules:1:fixture-only-v1:63",
+            "file_id": "1a389db1-7b32-48e9-bd60-83ec89e24139",
+            "record_id": "9f04fc80835489c84985d5bafa53627e211d779f7e3949f4ec28c88d17957ac9",
+            "record_index": 64
+          },
+          "record_count": 64
+        },
+        "effective_tier": "live",
+        "engine_winddown_reason": "runstop_requested",
+        "engine_winddown_status": "STOPPED",
+        "epoch_id": 1,
+        "factor_mode": "native",
+        "journal_enabled": true,
+        "last_signal_block_reason": null,
+        "mode": "live",
+        "refresh_blockers": [],
+        "refresh_error_code": null,
+        "resource_shutdown": [
+          {
+            "joined": true,
+            "resource": "query_refresh",
+            "started": true,
+            "status": "RETURNED"
+          },
+          {
+            "bytes": 303999,
+            "record_count": 64,
+            "resource": "decision_tape",
+            "sha256": "e10d87465b8f751c961132ddabb6a1839e7e554b4d070242384de96586f97982",
+            "status": "CLOSED"
+          },
+          {
+            "resource": "broker",
+            "status": "OBSERVATION_ONLY",
+            "store_shutdown_state": "PASS"
+          },
+          {
+            "resource": "store",
+            "shutdown_state": "PASS",
+            "status": "CLOSED_BY_BROKER"
+          },
+          {
+            "resource": "journal",
+            "status": "CLOSED"
+          }
+        ],
+        "routes": {
+          "DCE.A": "A2611",
+          "DCE.M": "M2611",
+          "DCE.Y": "Y2611"
+        },
+        "scheduler_clock": "host-utc-plus-monotonic",
+        "selection_decision_at": "2026-10-25T11:28:33.694936+00:00",
+        "selection_evidence": {
+          "authorized_targets": [
+            "DCE.M",
+            "DCE.A"
+          ],
+          "binding_sha256": "9b430393099179699ba2f10a49bb946cc28a2bcfcbc0440f910c4fb47c3ec0d9",
+          "epoch_id": 1,
+          "manifest": {
+            "blockers": [],
+            "calendars": [
+              {
+                "available_at": "2026-10-25T11:28:31.694936Z",
+                "complete": true,
+                "coverage_start": "2026-10-23",
+                "coverage_through": "2026-12-10",
+                "evidence_mode": "expected_rule_derived",
+                "exchange_id": "DCE",
+                "retrieved_at": "2026-10-25T11:28:31.694936Z",
+                "sha256": "aa3de76b0d1761ddd349b49f3a547b5ed1b5ab9d508f4aabd043129c689a6f14",
+                "source_id": "iteration51-synthetic-session-rules",
+                "source_manifest_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "trading_days": [
+                  "2026-10-23",
+                  "2026-10-24",
+                  "2026-10-25",
+                  "2026-10-26",
+                  "2026-10-27",
+                  "2026-10-28",
+                  "2026-10-29",
+                  "2026-10-30",
+                  "2026-10-31",
+                  "2026-11-01",
+                  "2026-11-02",
+                  "2026-11-03",
+                  "2026-11-04",
+                  "2026-11-05",
+                  "2026-11-06",
+                  "2026-11-07",
+                  "2026-11-08",
+                  "2026-11-09",
+                  "2026-11-10",
+                  "2026-11-11",
+                  "2026-11-12",
+                  "2026-11-13",
+                  "2026-11-14",
+                  "2026-11-15",
+                  "2026-11-16",
+                  "2026-11-17",
+                  "2026-11-18",
+                  "2026-11-19",
+                  "2026-11-20",
+                  "2026-11-21",
+                  "2026-11-22",
+                  "2026-11-23",
+                  "2026-11-24",
+                  "2026-11-25",
+                  "2026-11-26",
+                  "2026-11-27",
+                  "2026-11-28",
+                  "2026-11-29",
+                  "2026-11-30",
+                  "2026-12-01",
+                  "2026-12-02",
+                  "2026-12-03",
+                  "2026-12-04",
+                  "2026-12-05",
+                  "2026-12-06",
+                  "2026-12-07",
+                  "2026-12-08",
+                  "2026-12-09",
+                  "2026-12-10"
+                ],
+                "version": "fixture-only-v1"
+              }
+            ],
+            "candidates": [
+              {
+                "expiry_date": "2026-12-09",
+                "expiry_distance_exact": true,
+                "instrument_id": "A2611",
+                "open_interest": "402",
+                "product": {
+                  "exchange_id": "DCE",
+                  "product_id": "A"
+                },
+                "rank": 1,
+                "reason": null,
+                "status": "RANKED",
+                "trading_days_to_expiry": 45,
+                "trading_days_to_expiry_lower_bound": 45,
+                "volume": "252"
+              },
+              {
+                "expiry_date": "2027-01-08",
+                "expiry_distance_exact": false,
+                "instrument_id": "A2612",
+                "open_interest": "302",
+                "product": {
+                  "exchange_id": "DCE",
+                  "product_id": "A"
+                },
+                "rank": 2,
+                "reason": null,
+                "status": "RANKED",
+                "trading_days_to_expiry": null,
+                "trading_days_to_expiry_lower_bound": 46,
+                "volume": "202"
+              },
+              {
+                "expiry_date": "2026-12-09",
+                "expiry_distance_exact": true,
+                "instrument_id": "M2611",
+                "open_interest": "400",
+                "product": {
+                  "exchange_id": "DCE",
+                  "product_id": "M"
+                },
+                "rank": 1,
+                "reason": null,
+                "status": "RANKED",
+                "trading_days_to_expiry": 45,
+                "trading_days_to_expiry_lower_bound": 45,
+                "volume": "250"
+              },
+              {
+                "expiry_date": "2027-01-08",
+                "expiry_distance_exact": false,
+                "instrument_id": "M2612",
+                "open_interest": "300",
+                "product": {
+                  "exchange_id": "DCE",
+                  "product_id": "M"
+                },
+                "rank": 2,
+                "reason": null,
+                "status": "RANKED",
+                "trading_days_to_expiry": null,
+                "trading_days_to_expiry_lower_bound": 46,
+                "volume": "200"
+              },
+              {
+                "expiry_date": "2026-12-09",
+                "expiry_distance_exact": true,
+                "instrument_id": "Y2611",
+                "open_interest": "401",
+                "product": {
+                  "exchange_id": "DCE",
+                  "product_id": "Y"
+                },
+                "rank": 1,
+                "reason": null,
+                "status": "RANKED",
+                "trading_days_to_expiry": 45,
+                "trading_days_to_expiry_lower_bound": 45,
+                "volume": "251"
+              },
+              {
+                "expiry_date": "2027-01-08",
+                "expiry_distance_exact": false,
+                "instrument_id": "Y2612",
+                "open_interest": "301",
+                "product": {
+                  "exchange_id": "DCE",
+                  "product_id": "Y"
+                },
+                "rank": 2,
+                "reason": null,
+                "status": "RANKED",
+                "trading_days_to_expiry": null,
+                "trading_days_to_expiry_lower_bound": 46,
+                "volume": "201"
+              }
+            ],
+            "coverage": [
+              {
+                "candidate_count": 2,
+                "candidate_set_complete": true,
+                "expected_instrument_ids": [
+                  "A2611",
+                  "A2612"
+                ],
+                "finalized": true,
+                "latest_available": true,
+                "open_interest_unit": "contracts",
+                "product": {
+                  "exchange_id": "DCE",
+                  "product_id": "A"
+                },
+                "ranking_instrument_ids": [
+                  "A2611",
+                  "A2612"
+                ],
+                "ranking_trading_day": "2026-10-24",
+                "ranking_values_complete": true,
+                "volume_unit": "lots"
+              },
+              {
+                "candidate_count": 2,
+                "candidate_set_complete": true,
+                "expected_instrument_ids": [
+                  "M2611",
+                  "M2612"
+                ],
+                "finalized": true,
+                "latest_available": true,
+                "open_interest_unit": "contracts",
+                "product": {
+                  "exchange_id": "DCE",
+                  "product_id": "M"
+                },
+                "ranking_instrument_ids": [
+                  "M2611",
+                  "M2612"
+                ],
+                "ranking_trading_day": "2026-10-24",
+                "ranking_values_complete": true,
+                "volume_unit": "lots"
+              },
+              {
+                "candidate_count": 2,
+                "candidate_set_complete": true,
+                "expected_instrument_ids": [
+                  "Y2611",
+                  "Y2612"
+                ],
+                "finalized": true,
+                "latest_available": true,
+                "open_interest_unit": "contracts",
+                "product": {
+                  "exchange_id": "DCE",
+                  "product_id": "Y"
+                },
+                "ranking_instrument_ids": [
+                  "Y2611",
+                  "Y2612"
+                ],
+                "ranking_trading_day": "2026-10-24",
+                "ranking_values_complete": true,
+                "volume_unit": "lots"
+              }
+            ],
+            "decision_at": "2026-10-25T11:28:33.694936Z",
+            "policy": {
+              "minimum_trading_days_to_expiry": 5,
+              "policy_id": "iteration51-synthetic-prior-day-ranking-v1",
+              "ranking": [
+                "open_interest_desc",
+                "volume_desc",
+                "expiry_date_asc",
+                "instrument_id_asc"
+              ]
+            },
+            "products": [
+              {
+                "blockers": [],
+                "excluded_instrument_ids": [],
+                "expected_prior_trading_day": "2026-10-24",
+                "in_target_pool": true,
+                "product": {
+                  "exchange_id": "DCE",
+                  "product_id": "A"
+                },
+                "ranked_instrument_ids": [
+                  "A2611",
+                  "A2612"
+                ],
+                "ranking_trading_day": "2026-10-24",
+                "selected_instrument_id": "A2611",
+                "status": "READY"
+              },
+              {
+                "blockers": [],
+                "excluded_instrument_ids": [],
+                "expected_prior_trading_day": "2026-10-24",
+                "in_target_pool": true,
+                "product": {
+                  "exchange_id": "DCE",
+                  "product_id": "M"
+                },
+                "ranked_instrument_ids": [
+                  "M2611",
+                  "M2612"
+                ],
+                "ranking_trading_day": "2026-10-24",
+                "selected_instrument_id": "M2611",
+                "status": "READY"
+              },
+              {
+                "blockers": [],
+                "excluded_instrument_ids": [],
+                "expected_prior_trading_day": "2026-10-24",
+                "in_target_pool": true,
+                "product": {
+                  "exchange_id": "DCE",
+                  "product_id": "Y"
+                },
+                "ranked_instrument_ids": [
+                  "Y2611",
+                  "Y2612"
+                ],
+                "ranking_trading_day": "2026-10-24",
+                "selected_instrument_id": "Y2611",
+                "status": "READY"
+              }
+            ],
+            "schema": "backtrader.futures_main_contract_manifest.v1",
+            "source": {
+              "available_at": "2026-10-25T11:28:31.694936Z",
+              "catalog": {
+                "available_at": "2026-10-25T11:28:31.694936Z",
+                "retrieved_at": "2026-10-25T11:28:31.694936Z",
+                "sha256": "2e18c003bf24fa51fb92b6bce692fe7080638b7d5e0f5a098abf9c4b84f2d177",
+                "snapshot_id": "iteration51-synthetic-catalog-v1",
+                "source_id": "iteration51-synthetic-catalog"
+              },
+              "retrieved_at": "2026-10-25T11:28:31.694936Z",
+              "sha256": "0682a11565fd6c813a5cb12128f99b2946d1f404086f8750a2897b158b538a05",
+              "snapshot_id": "iteration51-synthetic-ranking-v1",
+              "source_id": "iteration51-synthetic-main-contracts"
+            },
+            "status": "READY",
+            "target_products": [
+              {
+                "exchange_id": "DCE",
+                "product_id": "A"
+              },
+              {
+                "exchange_id": "DCE",
+                "product_id": "M"
+              },
+              {
+                "exchange_id": "DCE",
+                "product_id": "Y"
+              }
+            ],
+            "trading_days": [
+              {
+                "current": "2026-10-25",
+                "exchange_id": "DCE",
+                "expected_prior_complete": "2026-10-24"
+              }
+            ]
+          },
+          "manifest_sha256": "10144563caa46b6a209fb88f1816f7df3483b5ccda5ea504bafa8c453196b402",
+          "routes": {
+            "DCE.A": "A2611",
+            "DCE.M": "M2611",
+            "DCE.Y": "Y2611"
+          },
+          "schema": "backtrader.alpha003_epoch_selection_evidence.v1",
+          "selection_path": "D:\\temp\\i51-installed-final-20261025-r6\\native\\case\\iteration51-live-case-2radh4on\\selection-bundle.json",
+          "selection_source": "saved_bundle_legacy",
+          "source_snapshot_id": "iteration51-synthetic-ranking-v1"
+        },
+        "selection_path": "D:\\temp\\i51-installed-final-20261025-r6\\native\\case\\iteration51-live-case-2radh4on\\selection-bundle.json",
+        "selection_source": "saved_bundle_legacy",
+        "shutdown_blocker": null,
+        "shutdown_status": "PASS",
+        "simnow_profile": {
+          "environment": "simnow",
+          "profile": "set1_group1",
+          "verified": true
+        },
+        "source_clock_domain_id": "iteration50-installed-fixture-v1",
+        "source_snapshot_id": "iteration51-synthetic-ranking-v1",
+        "status": "LIVE_RUN_COMPLETE",
+        "strategy_order_events": {
+          "capacity": 128,
+          "events": [],
+          "reason": null,
+          "retained_count": 0,
+          "status": "AVAILABLE",
+          "truncated": false
+        },
+        "strategy_shutdown_blocker": null,
+        "strategy_shutdown_post_join_blocker": null,
+        "strategy_shutdown_post_join_confirmed": true,
+        "strategy_shutdown_ready": true,
+        "tier": "live",
+        "tier_selection_reason": "config_default",
+        "trading_days": {
+          "DCE": "2026-10-25"
+        },
+        "write_mode": false
+      },
+      "child_exit": 0,
+      "raw_stdout": {
+        "size_bytes": 15389,
+        "sha256": "8d305e71c56e8f774f4be5e367cd319ce0f75a21337597301ecba425ccb73ae6"
+      },
+      "arm_calls": 0,
+      "disarm_calls": 0,
+      "synthetic_fill_count": 0,
+      "synthetic_leaf_actions": [],
+      "network_attempts": 0
+    },
+    "write": {
+      "summary": {
+        "cleanup_complete": true,
+        "error_type": "TimeoutError",
+        "live_epoch_evidence": {
+          "cleanup_complete": true,
+          "engine_winddown_reason": "winddown_deadline_expired",
+          "engine_winddown_status": "TIMED_OUT",
+          "epoch_id": 1,
+          "reconciliation_blockers": [
+            [
+              "trade_page",
+              0,
+              "BLOCKED",
+              "NATIVE_TRADE_CALLBACK_QUERY_CONFLICT"
+            ],
+            [
+              "trade_page",
+              0,
+              "BLOCKED",
+              "NATIVE_TRADE_CALLBACK_QUERY_CONFLICT"
+            ]
+          ],
+          "refresh_blocker": "SHUTDOWN_RECONCILIATION_BLOCKED:completed_query_set_receipt_unavailable",
+          "refresh_error_code": "LIVE_TRADE_RECONCILIATION_BLOCKED",
+          "refresh_status": "BLOCKED",
+          "resource_shutdown": [
+            {
+              "joined": true,
+              "resource": "query_refresh",
+              "started": true,
+              "status": "RETURNED"
+            },
+            {
+              "bytes": 300380,
+              "record_count": 64,
+              "resource": "decision_tape",
+              "sha256": "6e57d3350b843cbb3445556ff81cd917c2c6bee4322f8d338cf96ac817fa55c8",
+              "status": "CLOSED"
+            },
+            {
+              "resource": "broker",
+              "status": "PASS",
+              "store_shutdown_state": "PASS"
+            },
+            {
+              "resource": "store",
+              "shutdown_state": "PASS",
+              "status": "CLOSED_BY_BROKER"
+            },
+            {
+              "resource": "journal",
+              "status": "CLOSED"
+            }
+          ],
+          "routes": {
+            "DCE.A": "A2611",
+            "DCE.M": "M2611",
+            "DCE.Y": "Y2611"
+          },
+          "selection_path": "D:\\temp\\i51-installed-final-20261025-r6\\native\\case\\iteration51-live-case-8y85h7hg\\selection-bundle.json",
+          "selection_source": "saved_bundle_legacy",
+          "source_snapshot_id": "iteration51-synthetic-ranking-v1",
+          "strategy_order_events": {
+            "capacity": 128,
+            "events": [
+              {
+                "epoch_id": 1,
+                "exchange": "DCE",
+                "executed_price": "0.0",
+                "executed_size": "0",
+                "instrument": "M2611",
+                "ref": 1,
+                "status": "ACCEPTED",
+                "target": "DCE.M"
+              },
+              {
+                "epoch_id": 1,
+                "exchange": "DCE",
+                "executed_price": "0.0",
+                "executed_size": "0",
+                "instrument": "A2611",
+                "ref": 2,
+                "status": "ACCEPTED",
+                "target": "DCE.A"
+              },
+              {
+                "epoch_id": 1,
+                "exchange": "DCE",
+                "executed_price": "0.0",
+                "executed_size": "0",
+                "instrument": "M2611",
+                "ref": 1,
+                "status": "ACCEPTED",
+                "target": "DCE.M"
+              },
+              {
+                "epoch_id": 1,
+                "exchange": "DCE",
+                "executed_price": "214.0",
+                "executed_size": "1.0",
+                "instrument": "M2611",
+                "ref": 1,
+                "status": "COMPLETED",
+                "target": "DCE.M"
+              },
+              {
+                "epoch_id": 1,
+                "exchange": "DCE",
+                "executed_price": "0.0",
+                "executed_size": "0",
+                "instrument": "A2611",
+                "ref": 2,
+                "status": "ACCEPTED",
+                "target": "DCE.A"
+              },
+              {
+                "epoch_id": 1,
+                "exchange": "DCE",
+                "executed_price": "207.0",
+                "executed_size": "-1.0",
+                "instrument": "A2611",
+                "ref": 2,
+                "status": "COMPLETED",
+                "target": "DCE.A"
+              }
+            ],
+            "reason": null,
+            "retained_count": 6,
+            "status": "AVAILABLE",
+            "truncated": false
+          },
+          "strategy_shutdown_blocker": "SHUTDOWN_RECONCILIATION_BLOCKED:completed_query_set_receipt_unavailable",
+          "strategy_shutdown_post_join_blocker": "SHUTDOWN_RECONCILIATION_BLOCKED:completed_query_set_receipt_unavailable",
+          "strategy_shutdown_post_join_confirmed": false,
+          "strategy_shutdown_ready": false,
+          "strategy_shutdown_requested": true
+        },
+        "resource_shutdown": [
+          {
+            "joined": true,
+            "resource": "query_refresh",
+            "started": true,
+            "status": "RETURNED"
+          },
+          {
+            "bytes": 300380,
+            "record_count": 64,
+            "resource": "decision_tape",
+            "sha256": "6e57d3350b843cbb3445556ff81cd917c2c6bee4322f8d338cf96ac817fa55c8",
+            "status": "CLOSED"
+          },
+          {
+            "resource": "broker",
+            "status": "PASS",
+            "store_shutdown_state": "PASS"
+          },
+          {
+            "resource": "store",
+            "shutdown_state": "PASS",
+            "status": "CLOSED_BY_BROKER"
+          },
+          {
+            "resource": "journal",
+            "status": "CLOSED"
+          }
+        ],
+        "status": "FAILED"
+      },
+      "child_exit": 1,
+      "raw_stdout": {
+        "size_bytes": 10779,
+        "sha256": "9bcfcda26877071a0266592ec7fd1028fb70111a4b5ba5c7d16f6daaeb0892c9"
+      },
+      "arm_calls": 2,
+      "disarm_calls": 1,
+      "synthetic_fill_count": 2,
+      "synthetic_leaf_actions": [
+        {
+          "action": "insert",
+          "exchange": "DCE",
+          "instrument": "M2611",
+          "order_ref": "501"
+        },
+        {
+          "action": "insert",
+          "exchange": "DCE",
+          "instrument": "A2611",
+          "order_ref": "502"
+        }
+      ],
+      "network_attempts": 0
+    }
+  },
+  "not_run": [
+    "native write-denied",
+    "native tier-escalation",
+    "build matrix"
+  ],
+  "limits": [
+    "Public synthetic SDK leaves only; no real account/provider acceptance.",
+    "The four-case native matrix did not pass; the parent stopped after write failed."
+  ]
+}

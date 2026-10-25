@@ -21,6 +21,7 @@ import argparse
 import hashlib
 import json
 import os
+from decimal import Decimal, InvalidOperation
 from pathlib import Path
 import shutil
 import subprocess
@@ -331,7 +332,7 @@ raise SystemExit(exit_code)
 
 _SYNTHETIC_LIVE_CHILD_CODE = r'''import hashlib, importlib.machinery, importlib.util, json, os, runpy, socket, sys, tempfile, types
 from datetime import datetime, timedelta, timezone
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from pathlib import Path
 
 helper_path, wheel_path, wheel_hash, example_dir, template_path, workspace, selector_source_path, case, factor_mode, slot_count_text = sys.argv[1:]
@@ -1177,6 +1178,28 @@ class SyntheticTraderClient(helper._ExecutionProviderLeaf):
         del timeout, filters
         return [self._row(row) for row in self.query_trades_result().records]
 
+    def _order_row(self, order_ref, *, status, filled, remaining):
+        row = super()._order_row(
+            order_ref, status=status, filled=filled, remaining=remaining
+        )
+        identity = self._order_identity[str(order_ref)]
+        row["OrderSysID"] = identity["order_sys_id"]
+        return row
+
+    def _trade_row(self, order_ref, trade_id, *, quantity, offset, when, fee):
+        row = super()._trade_row(
+            order_ref,
+            trade_id,
+            quantity=quantity,
+            offset=offset,
+            when=when,
+            fee=fee,
+        )
+        identity = self._order_identity[str(order_ref)]
+        row["OrderSysID"] = identity["order_sys_id"]
+        row["Price"] = str(identity["price"])
+        return row
+
     def query_instrument(self, instrument_id, exchange_id="", timeout=5, **kwargs):
         del kwargs
         result = self.query_instruments_result(
@@ -1274,6 +1297,8 @@ class SyntheticTraderClient(helper._ExecutionProviderLeaf):
             "side": side,
             "offset": offset,
             "size": quantity,
+            "order_sys_id": order_sys_id,
+            "price": price,
             "front_id": self._front_id,
             "session_id": self._session_id,
         }
@@ -1285,8 +1310,8 @@ class SyntheticTraderClient(helper._ExecutionProviderLeaf):
             query_order_row = self._provider_order_rows.get(order_ref)
             if not isinstance(query_order_row, dict):
                 raise RuntimeError("synthetic order query row was not published")
-            query_order_row["OrderSysID"] = order_sys_id
-            self._query_rows["orders_result"] = list(self._provider_order_rows.values())
+            if query_order_row.get("OrderSysID") != order_sys_id:
+                raise RuntimeError("synthetic CTP order query identity did not match")
             if not callable(self.on_order):
                 raise RuntimeError("synthetic CTP trader lacks the production order callback")
             callback_owner = getattr(self.on_order, "__self__", None)
@@ -1366,8 +1391,22 @@ class SyntheticTraderClient(helper._ExecutionProviderLeaf):
             if len(query_trade_rows) != 1:
                 raise RuntimeError("synthetic trade query row was not published exactly once")
             query_trade_row = query_trade_rows[0]
-            query_trade_row["OrderSysID"] = order_sys_id
-            self._query_rows["trades_result"] = list(self._provider_trade_rows)
+            query_price = query_trade_row.get("Price")
+            try:
+                query_price_decimal = Decimal(str(query_price))
+                callback_price_decimal = Decimal(str(price))
+                query_price_matches = (
+                    query_price_decimal.is_finite()
+                    and callback_price_decimal.is_finite()
+                    and query_price_decimal == callback_price_decimal
+                )
+            except (InvalidOperation, TypeError, ValueError):
+                query_price_matches = False
+            if (
+                query_trade_row.get("OrderSysID") != order_sys_id
+                or not query_price_matches
+            ):
+                raise RuntimeError("synthetic CTP trade query identity/economics did not match")
             fake_state["ctp_trade_query_associations"].append({
                 "trade_id": trade_id,
                 "order_ref": order_ref,
@@ -1376,6 +1415,9 @@ class SyntheticTraderClient(helper._ExecutionProviderLeaf):
                 "query_order_sys_id_matches": (
                     query_trade_row.get("OrderSysID") == order_sys_id
                 ),
+                "callback_price": str(price),
+                "query_price": query_price,
+                "query_price_matches": query_price_matches,
             })
             if not callable(self.on_trade):
                 raise RuntimeError("synthetic CTP trader lacks the production trade callback")
@@ -1401,6 +1443,7 @@ class SyntheticTraderClient(helper._ExecutionProviderLeaf):
                 "trade_id": str(trade_callback.TradeID),
                 "order_ref": str(trade_callback.OrderRef),
                 "order_sys_id": str(trade_callback.OrderSysID),
+                "callback_price": str(trade_callback.Price),
             })
             fake_state["ctp_trade_callback_count"] += 1
             fake_state["synthetic_fill_count"] += 1
@@ -2309,6 +2352,21 @@ def _synthetic_authorization_scope_is_valid(case: str, child: Mapping[str, Any])
     )
 
 
+def _synthetic_positive_prices_match(left: Any, right: Any) -> bool:
+    try:
+        left_price = Decimal(str(left))
+        right_price = Decimal(str(right))
+    except (InvalidOperation, TypeError, ValueError):
+        return False
+    return (
+        left_price.is_finite()
+        and right_price.is_finite()
+        and left_price > 0
+        and right_price > 0
+        and left_price == right_price
+    )
+
+
 def _synthetic_order_sys_id_provenance_is_valid(child: Mapping[str, Any]) -> bool:
     synthetic_actions = child.get("synthetic_leaf_actions")
     order_associations = child.get("ctp_order_callback_associations")
@@ -2421,11 +2479,18 @@ def _synthetic_order_sys_id_provenance_is_valid(child: Mapping[str, Any]) -> boo
             or not order_ref
             or trade_id != "iteration51-" + order_ref
             or order_sys_id != "iteration51-sys-" + order_ref
+            or not _synthetic_positive_prices_match(
+                association.get("callback_price"), association.get("callback_price")
+            )
             or order_ref not in order_targets
             or order_ref in callback_rows
         ):
             return False
-        callback_rows[order_ref] = (trade_id, order_sys_id)
+        callback_rows[order_ref] = (
+            trade_id,
+            order_sys_id,
+            str(association.get("callback_price")),
+        )
     query_rows = {}
     for association in trade_queries:
         if not isinstance(association, Mapping):
@@ -2433,6 +2498,8 @@ def _synthetic_order_sys_id_provenance_is_valid(child: Mapping[str, Any]) -> boo
         trade_id = association.get("trade_id")
         order_ref = association.get("order_ref")
         order_sys_id = "iteration51-sys-" + order_ref if isinstance(order_ref, str) else None
+        callback_price = association.get("callback_price")
+        query_price = association.get("query_price")
         if (
             not isinstance(order_ref, str)
             or not order_ref
@@ -2440,16 +2507,30 @@ def _synthetic_order_sys_id_provenance_is_valid(child: Mapping[str, Any]) -> boo
             or association.get("callback_order_sys_id") != order_sys_id
             or association.get("query_order_sys_id") != order_sys_id
             or association.get("query_order_sys_id_matches") is not True
+            or association.get("query_price_matches") is not True
+            or not _synthetic_positive_prices_match(callback_price, query_price)
             or order_ref not in order_targets
             or order_ref in query_rows
+            or order_ref not in callback_rows
+            or not _synthetic_positive_prices_match(
+                callback_price, callback_rows.get(order_ref, (None, None, None))[2]
+            )
         ):
             return False
-        query_rows[order_ref] = (trade_id, order_sys_id)
+        query_rows[order_ref] = (trade_id, order_sys_id, str(callback_price))
     expected_trades = {
         order_ref: ("iteration51-" + order_ref, "iteration51-sys-" + order_ref)
         for order_ref in insert_refs
     }
-    return callback_rows == query_rows == expected_trades
+    return (
+        {order_ref: row[:2] for order_ref, row in callback_rows.items()}
+        == expected_trades
+        and set(query_rows) == set(expected_trades)
+        and all(
+            query_rows[order_ref][:2] == callback_rows[order_ref][:2]
+            for order_ref in expected_trades
+        )
+    )
 
 
 def _synthetic_live_child_command(
