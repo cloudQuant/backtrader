@@ -1,0 +1,109 @@
+{
+  "parent": "44e475f7b8acc5cf09bc540aead2379ca25f7690",
+  "level": "SOURCE_QUERY_CLOCK_COMPONENT_WITH_SYNTHETIC_PROVIDER",
+  "source_pins_before": {
+    "head": "44e475f7b8acc5cf09bc540aead2379ca25f7690",
+    "phase": "before",
+    "pins": [
+      {
+        "path": "scripts/iteration50_installed_fixture.py",
+        "size_bytes": 159625,
+        "sha256": "4F9CD4610A21F6EB5CED5DD824F89501A056F114E0B39DEABE94C6DA1E33285A"
+      },
+      {
+        "path": "scripts/iteration51_installed_fixture.py",
+        "size_bytes": 131809,
+        "sha256": "9AFA6755652141E62B16296988C77CED1262B5F0E801289F4DCEB26C45ABF816"
+      },
+      {
+        "path": "tests/unit/scripts/test_iteration51_installed_fixture.py",
+        "size_bytes": 61332,
+        "sha256": "373D4365D313FFD27C6AFBAC1DA0A6B2A8762B5266DE740E381CA1D066CBE932"
+      }
+    ]
+  },
+  "source_pins_after": {
+    "head": "44e475f7b8acc5cf09bc540aead2379ca25f7690",
+    "phase": "after",
+    "pins": [
+      {
+        "path": "scripts/iteration50_installed_fixture.py",
+        "size_bytes": 159625,
+        "sha256": "4F9CD4610A21F6EB5CED5DD824F89501A056F114E0B39DEABE94C6DA1E33285A"
+      },
+      {
+        "path": "scripts/iteration51_installed_fixture.py",
+        "size_bytes": 131809,
+        "sha256": "9AFA6755652141E62B16296988C77CED1262B5F0E801289F4DCEB26C45ABF816"
+      },
+      {
+        "path": "tests/unit/scripts/test_iteration51_installed_fixture.py",
+        "size_bytes": 61332,
+        "sha256": "373D4365D313FFD27C6AFBAC1DA0A6B2A8762B5266DE740E381CA1D066CBE932"
+      }
+    ]
+  },
+  "qa": {
+    "count": 25,
+    "exit_code": 0,
+    "seconds": 2.926,
+    "command": [
+      "C:/anaconda3/python.exe",
+      "-m",
+      "pytest",
+      "-p",
+      "no:asyncio",
+      "-q",
+      "tests/unit/scripts/test_iteration51_installed_fixture.py",
+      "--junitxml",
+      "D:\\source_code\\backtrader\\.codex-tmp\\i51_query_clock_focus_r5_20261025\\junit.xml"
+    ],
+    "environment": {
+      "PYTEST_DISABLE_PLUGIN_AUTOLOAD": "1",
+      "PYTHONUTF8": "1"
+    },
+    "warning": "existing unknown asyncio_default_fixture_loop_scope",
+    "artifacts": {
+      "exit.txt": {
+        "size": 2,
+        "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+      },
+      "junit.xml": {
+        "size": 4825,
+        "sha256": "f7040738064e84eb9d0baa94b68f797a944c2190e3678a00285ec6d189def1d0"
+      },
+      "source-pins-after.json": {
+        "size": 675,
+        "sha256": "bddc56f99cc4429412da6f38645cfc60e96bbe97d641b66673de7f21b8361604"
+      },
+      "source-pins-before.json": {
+        "size": 676,
+        "sha256": "358578fee82bbe13f9afdd9813cbbb824b0858d34d42e52c9a9e78980c94b771"
+      },
+      "stderr.txt": {
+        "size": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "stdout.txt": {
+        "size": 657,
+        "sha256": "cc76d7a1568d1c3d0402cbd1bff134f8e429d7b3c1129ebefe07c041c83b720b"
+      }
+    }
+  },
+  "independent_review": "STATIC_GO",
+  "distinguishing_case": {
+    "original_default": "TRADE_FACTS_SCOPE_MISMATCH",
+    "shared_utc": "INITIAL_REFRESH_COMPLETE",
+    "monotonic": "REAL_HOST_CLOCK",
+    "scope": "Real Store/Broker/QueryRefreshLoop with fake provider, isolated future-time contract"
+  },
+  "limitations": [
+    "No new installed matrix in this source round",
+    "No account/provider acceptance",
+    "The focused test isolates query time consistency; no real market/session qualification"
+  ],
+  "history": [
+    "R1 test-loader setup failed before execution; R2 focused node passed",
+    "R3/R4 preserved; R5 binds final test source"
+  ]
+}

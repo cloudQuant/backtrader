@@ -2337,7 +2337,7 @@ class _ExecutionProviderLeaf:
 
     def _query_result(self, request_type, family, *, filters=()):
         self._request_id += 1
-        started = datetime.now(_UTC)
+        started = self._query_utc_now()
         mono_started = time.monotonic()
         rows = self._query_rows.get(family, [])
         if family == "instrument_margin_rate_result":
@@ -2349,7 +2349,7 @@ class _ExecutionProviderLeaf:
                 if row.get("InstrumentID") == instrument and row.get("ExchangeID") == exchange
             ]
         rows = [dict(row) for row in rows]
-        completed = datetime.now(_UTC)
+        completed = self._query_utc_now()
         mono_completed = time.monotonic()
         digest = hashlib.sha256(
             json.dumps(
@@ -2393,6 +2393,24 @@ class _ExecutionProviderLeaf:
             submit_code=0,
             query_source=source,
         )
+
+    def _query_utc_now(self):
+        """Return host UTC by default, or an explicitly bound synthetic UTC."""
+
+        clock = getattr(self, "_query_utc_clock", None)
+        if clock is None:
+            return datetime.now(_UTC)
+        utc_now = getattr(clock, "utc_now", None)
+        if not callable(utc_now):
+            raise RuntimeError("synthetic query clock does not expose utc_now()")
+        value = utc_now()
+        if (
+            not isinstance(value, datetime)
+            or value.tzinfo is None
+            or value.utcoffset() != timedelta(0)
+        ):
+            raise RuntimeError("synthetic query clock must return aware UTC")
+        return value.astimezone(_UTC)
 
     def _query(self, request_type, family, **filters):
         source_filters = ("HedgeFlag",) if family == "instrument_margin_rate_result" else ()

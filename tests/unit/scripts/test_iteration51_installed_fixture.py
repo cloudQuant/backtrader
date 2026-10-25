@@ -6,8 +6,10 @@ import ast
 import hashlib
 import importlib.util
 import json
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 import sys
+import time
 import types
 from types import ModuleType, SimpleNamespace
 from typing import Optional
@@ -16,6 +18,7 @@ import pytest
 
 
 _FIXTURE_PATH = Path(__file__).resolve().parents[3] / "scripts" / "iteration51_installed_fixture.py"
+_ITERATION50_FIXTURE_PATH = _FIXTURE_PATH.with_name("iteration50_installed_fixture.py")
 
 
 def _load_fixture() -> ModuleType:
@@ -27,6 +30,198 @@ def _load_fixture() -> ModuleType:
     sys.modules[spec.name] = module
     spec.loader.exec_module(module)
     return module
+
+
+def _load_iteration50_fixture() -> ModuleType:
+    spec = importlib.util.spec_from_file_location(
+        "iteration50_installed_fixture_clock_test", _ITERATION50_FIXTURE_PATH
+    )
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+class _FixedUTCClock:
+    def __init__(self, now: datetime) -> None:
+        self._now = now
+
+    def utc_now(self) -> datetime:
+        return self._now
+
+
+def _source_loaded_refresh_case(
+    helper: ModuleType,
+    runner: ModuleType,
+    clock: _FixedUTCClock,
+    *,
+    bind_query_clock: bool,
+):
+    from backtrader.brokers.btapibroker import BtApiBroker
+    from backtrader.stores.execution_decision_journal import ExecutionDecisionJournal
+    from backtrader.stores.factor_execution import FactorExecutionCoordinator
+    from backtrader.stores.factor_execution_facts import FactorExecutionTarget
+    from backtrader.stores.registered_sim import RegisteredSimStore, RegisteredSimWrapper
+
+    instrument = "M2611"
+    helper._TARGETS = (instrument,)
+
+    class _SourceLoadedRegisteredSimApi(RegisteredSimWrapper, helper._ExecutionProviderLeaf):
+        pass
+
+    api = _SourceLoadedRegisteredSimApi(
+        registered_sim_allow_writes=False,
+        bars={instrument: ({},)},
+        slot_count=1,
+    )
+    api.is_read_only_ready = True
+    if bind_query_clock:
+        api._query_utc_clock = clock
+    store = RegisteredSimStore(api=api, allow_writes=False)
+    # This source-loaded integration keeps the actual Store and Broker while
+    # replacing only the provider leaves; no connect or account operation runs.
+    store._connected = True
+    broker = BtApiBroker(
+        store=store,
+        contract_metadata={
+            instrument: {"instrument_id": instrument, "exchange_id": "DCE"}
+        },
+    )
+    journal = ExecutionDecisionJournal(":memory:")
+    coordinator = FactorExecutionCoordinator(
+        broker,
+        journal,
+        account_scope=api._account_fingerprint,
+        strategy_scope="fixture-strategy",
+        logical_run_id="fixture-query-clock",
+        max_order_intents_per_grid=4,
+        max_order_intents_per_run=20,
+    )
+    target = FactorExecutionTarget(
+        "DCE.M", instrument, "DCE", SimpleNamespace(_name=instrument)
+    )
+    loop = runner.QueryRefreshLoop(
+        store,
+        broker,
+        (target,),
+        execution_target_ids=(target.target_id,),
+        coordinator=coordinator,
+        account_scope=api._account_fingerprint,
+        strategy_scope="fixture-strategy",
+        clock=clock,
+        quote_max_age=timedelta(seconds=60),
+        max_query_age=timedelta(seconds=60),
+        timeout=0.2,
+        overall_timeout=2.0,
+        interval=1.0,
+        cerebro=SimpleNamespace(),
+        shutdown_grace_seconds=1.0,
+    )
+    return api, store, journal, target, loop
+
+
+def test_initial_query_refresh_uses_shared_synthetic_utc_and_real_monotonic(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from backtrader.stores.factor_execution import FactorExecutionError
+    from backtrader.stores.factor_execution_facts import _BASE_FAMILIES
+
+    runner_path = (
+        _FIXTURE_PATH.parents[1]
+        / "examples"
+        / "unified"
+        / "028_alpha003_simnow_minute"
+        / "run.py"
+    )
+    monkeypatch.syspath_prepend(str(runner_path.parent))
+    runner_spec = importlib.util.spec_from_file_location(
+        "alpha003_simnow_query_clock_source_test", runner_path
+    )
+    assert runner_spec is not None and runner_spec.loader is not None
+    runner = importlib.util.module_from_spec(runner_spec)
+    sys.modules[runner_spec.name] = runner
+    runner_spec.loader.exec_module(runner)
+
+    helper = _load_iteration50_fixture()
+    clock = _FixedUTCClock(datetime.now(timezone.utc) - timedelta(seconds=1))
+    host_api, host_store, host_journal, _host_target, host_loop = (
+        _source_loaded_refresh_case(
+            helper, runner, clock, bind_query_clock=False
+        )
+    )
+    try:
+        assert not hasattr(host_api, "_query_utc_clock")
+        host_before = datetime.now(timezone.utc)
+        monotonic_before = time.monotonic()
+        default_result = host_api.query_account_result()
+        monotonic_after = time.monotonic()
+        host_after = datetime.now(timezone.utc)
+        assert host_before <= default_result.started_at_utc
+        assert default_result.started_at_utc <= default_result.completed_at_utc
+        assert default_result.completed_at_utc <= host_after
+        assert (
+            monotonic_before
+            <= default_result.query_source.started_monotonic
+            <= default_result.query_source.completed_monotonic
+            <= monotonic_after
+        )
+
+        with pytest.raises(FactorExecutionError) as host_error:
+            host_loop.refresh_initial(wait_timeout=2.0)
+        assert host_error.value.code == "TRADE_FACTS_SCOPE_MISMATCH"
+        assert runner.QueryRefreshLoop._execution_error_code(host_error.value) == (
+            host_error.value.code
+        )
+        assert host_loop.last_error_code == "TRADE_FACTS_SCOPE_MISMATCH"
+        assert set(host_store._ctp_query_results) == set(_BASE_FAMILIES) | {
+            "instrument_margin_rate_result"
+        }
+        assert (
+            host_store._ctp_query_results["account_result"]["completed_at_utc"]
+            > clock.utc_now()
+        )
+    finally:
+        host_journal.close()
+
+    aligned_api, aligned_store, aligned_journal, target, aligned_loop = (
+        _source_loaded_refresh_case(
+            helper, runner, clock, bind_query_clock=True
+        )
+    )
+    try:
+        assert aligned_api._query_utc_clock is clock is aligned_loop.clock
+        monotonic_before = time.monotonic()
+        receipt = aligned_loop.refresh_initial(wait_timeout=2.0)
+        monotonic_after = time.monotonic()
+
+        assert receipt is aligned_loop.last_receipt
+        assert aligned_loop.last_error_code is None
+        assert aligned_loop.last_facts.snapshot_id
+        assert aligned_loop.last_facts.query_set_id
+        assert aligned_loop.last_facts.target_ids == (target.target_id,)
+        assert len(aligned_api.native_calls) == 0
+        assert set(aligned_store._ctp_query_results) == set(_BASE_FAMILIES) | {
+            "instrument_margin_rate_result"
+        }
+        for facts in aligned_store._ctp_query_results.values():
+            assert facts["started_at_utc"] == clock.utc_now()
+            assert facts["completed_at_utc"] == clock.utc_now()
+            assert (
+                monotonic_before
+                <= facts["source_started_monotonic"]
+                <= facts["source_completed_monotonic"]
+                <= monotonic_after
+            )
+            assert facts["source_expires_monotonic"] > monotonic_after
+        assert all(
+            fact.source_owned is True
+            and fact.query_complete is True
+            and fact.completed_at <= clock.utc_now()
+            for fact in aligned_loop.last_facts.query_provenance
+        )
+    finally:
+        aligned_journal.close()
 
 
 def _write_example(path: Path) -> dict[str, bytes]:
@@ -417,6 +612,7 @@ def test_synthetic_ctp_leaf_matches_registered_order_and_price_tick_contracts() 
     assert "_synthetic_ctp_payload(payload)" in child_source
     assert child_source.count("_synthetic_ctp_payload(") == 3
     assert "self._req_id = 100" in child_source
+    assert "self._query_utc_clock = virtual_scheduler" in child_source
     assert "wrapper_frame = leaf_frame.f_back" in child_source
     assert 'wrapper_frame.f_code.co_name != "connect"' in child_source
     assert '_emit_order_status("3", 0, quantity)' in child_source

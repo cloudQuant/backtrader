@@ -1,0 +1,60 @@
+{
+  "level": "INSTALLED_WRITE_INITIAL_REFRESH_BLOCKED",
+  "raw_stdout_sha256": "76eda0ea8ea8996a9a792f46d2e57c14df2085c8036e9a24d035d80fe245d0c9",
+  "summary": {
+    "cleanup_complete": true,
+    "code": "LIVE_INITIAL_QUERY_REFRESH_FAILED",
+    "detail": null,
+    "resource_shutdown": [
+      {
+        "joined": true,
+        "resource": "query_refresh",
+        "started": false,
+        "status": "RETURNED"
+      },
+      {
+        "bytes": 458,
+        "record_count": 0,
+        "resource": "decision_tape",
+        "sha256": "2386075546616a815659b228454e389263d667b04a321ab7697abd1e2d0668e3",
+        "status": "CLOSED"
+      },
+      {
+        "resource": "broker",
+        "status": "NOT_RUN",
+        "store_shutdown_state": "UNPROVEN"
+      },
+      {
+        "resource": "store",
+        "shutdown_state": "PASS",
+        "status": "RETURNED"
+      },
+      {
+        "resource": "journal",
+        "status": "CLOSED"
+      }
+    ],
+    "status": "BLOCKED"
+  },
+  "parent_completion": {
+    "exit_code": 2,
+    "ended_unix": 1792924653.8637266,
+    "source_pins_unchanged": true,
+    "receipt_exists": false
+  },
+  "query_families_attempted": [
+    "account_result",
+    "instrument_margin_rate_result",
+    "instruments_result",
+    "orders_result",
+    "positions_result",
+    "trades_result"
+  ],
+  "subscriptions": [],
+  "arms": 0,
+  "writes": 0,
+  "ticks": 0,
+  "network_attempts": 0,
+  "original_underlying_exception": "NOT_CAPTURED",
+  "source_diagnosis": "Focused source-loaded reproduction rejects host-future query timestamps; this does not recover the original swallowed exception."
+}

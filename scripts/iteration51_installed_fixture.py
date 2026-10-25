@@ -1122,6 +1122,10 @@ class SyntheticTraderClient(helper._ExecutionProviderLeaf):
         del kwargs
         self._fixture_wrapper_owner = _wrapper_owner_from_sdk_constructor()
         super().__init__(bars=bars, slot_count=source_slot_count)
+        # Query wall-clock provenance and the runner's decision time must use
+        # the same synthetic UTC domain. The provider leaf keeps its default
+        # host-UTC behavior for other consumers; monotonic expiry remains real.
+        self._query_utc_clock = virtual_scheduler
         self.is_read_only_ready = True
         self._req_id = 100
         self.on_login = None
