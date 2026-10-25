@@ -95,6 +95,8 @@ _RFC3339_TIMESTAMP = re.compile(
 )
 _RUN_ORDER_RESERVATION_FIELD = "_journal_run_order_reservation"
 _DISPATCHING_CRASH_NO_FILL_OUTCOME = "complete_orders_query_dispatching_no_fill_terminal"
+_DISPATCHING_CANCEL_CHILD_OUTCOME = "complete_orders_query_cancel_dispatching_terminal"
+_DISPATCHING_CANCEL_PARENT_OUTCOME = "complete_orders_query_terminal"
 _CALLBACK_QUERY_DISPOSITION = "QUERY_MATCHED_BROKER_ACK_UNOBSERVED_AFTER_RESTART"
 # Shared by journal instances in this OS process, so reopening the same SQLite
 # file does not masquerade as a process restart. PID distinguishes a POSIX fork
@@ -2146,6 +2148,423 @@ class ExecutionDecisionJournal:
                 (reconciliation_id,),
             ).fetchone()
             return _reconciliation_record(reconciliation), resolution
+
+    def record_dispatching_cancel_terminal(
+        self,
+        parent_intent_id: str,
+        cancel_intent_id: str,
+        *,
+        parent_reconciliation_id: str,
+        cancel_reconciliation_id: str,
+        query_id: str,
+        parent_provider_identity: Mapping[str, Any],
+        cancel_provider_identity: Mapping[str, Any],
+        terminal_state: str,
+        terminal_event_id: str,
+        position_snapshot_id: str,
+        position_flat: bool,
+        expected_parent_original_identity: Mapping[str, Any],
+        expected_cancel_original_identity: Mapping[str, Any],
+    ) -> Tuple[
+        ExecutionIntentReconciliation,
+        ExecutionIntentReconciliation,
+        ExecutionInstrumentResolution,
+    ]:
+        """Resolve a crashed CANCEL from one exact original-order terminal query.
+
+        The parent SUBMIT keeps its recorded KNOWN dispatch result. The child
+        CANCEL changes from DISPATCHING to KNOWN while all four dispatch-result
+        columns remain NULL: terminal order evidence does not reconstruct the
+        interrupted cancel RPC response. Both reconciliation proofs, that CAS,
+        the parent resolution, and release of the pending-order owner are one
+        settlement transaction. FactorPositionBook ownership is deliberately
+        independent and is never changed here.
+
+        The provider mappings bind both proofs to the same order observation.
+        Their ``observation_id``, ``query_set_id``, ``snapshot_id`` and
+        ``position_snapshot_id`` values must agree, and the parent proof names
+        the child proof and intent. A caller must validate the complete query,
+        fills, positions, and callback evidence before using this journal CAS.
+        """
+
+        for value, code in (
+            (parent_intent_id, "INVALID_INTENT_ID"),
+            (cancel_intent_id, "INVALID_INTENT_ID"),
+            (parent_reconciliation_id, "INVALID_RECONCILIATION_ID"),
+            (cancel_reconciliation_id, "INVALID_RECONCILIATION_ID"),
+            (query_id, "INVALID_RECONCILIATION_QUERY_ID"),
+            (terminal_event_id, "INVALID_TERMINAL_EVENT_ID"),
+            (position_snapshot_id, "INVALID_POSITION_SNAPSHOT_ID"),
+        ):
+            _require_identifier(value, code)
+        if parent_reconciliation_id == cancel_reconciliation_id:
+            raise ExecutionDecisionJournalError(
+                "DISPATCHING_CANCEL_RECONCILIATION_IDS_NOT_DISTINCT"
+            )
+        if terminal_state != "CANCELLED":
+            raise ExecutionDecisionJournalError("INVALID_TERMINAL_STATE")
+        if type(position_flat) is not bool:
+            raise ExecutionDecisionJournalError("INVALID_POSITION_FLAT_FACT")
+        if terminal_event_id != query_id:
+            raise ExecutionDecisionJournalError("DISPATCHING_CANCEL_EVIDENCE_MISMATCH")
+        try:
+            parent_identity_json = self._payload_json(expected_parent_original_identity)
+            cancel_identity_json = self._payload_json(expected_cancel_original_identity)
+            parent_provider_json = self._payload_json(parent_provider_identity)
+            cancel_provider_json = self._payload_json(cancel_provider_identity)
+        except ExecutionDecisionJournalError:
+            raise
+        except (TypeError, ValueError) as error:
+            raise ExecutionDecisionJournalError("INVALID_JOURNAL_PAYLOAD") from error
+        if not _dispatching_cancel_terminal_providers_match(
+            parent_intent_id=parent_intent_id,
+            cancel_intent_id=cancel_intent_id,
+            parent_reconciliation_id=parent_reconciliation_id,
+            cancel_reconciliation_id=cancel_reconciliation_id,
+            query_id=query_id,
+            position_snapshot_id=position_snapshot_id,
+            parent_provider_identity=parent_provider_identity,
+            cancel_provider_identity=cancel_provider_identity,
+        ):
+            raise ExecutionDecisionJournalError("DISPATCHING_CANCEL_EVIDENCE_MISMATCH")
+
+        now_ns = time.time_ns()
+        with self._transaction() as cursor:
+            parent = cursor.execute(
+                """SELECT i.*,d.business_key_json FROM execution_decision_intents AS i
+                   JOIN execution_decisions AS d ON d.decision_id=i.decision_id
+                   WHERE i.intent_id=?""",
+                (parent_intent_id,),
+            ).fetchone()
+            cancel = cursor.execute(
+                """SELECT i.*,d.business_key_json FROM execution_decision_intents AS i
+                   JOIN execution_decisions AS d ON d.decision_id=i.decision_id
+                   WHERE i.intent_id=?""",
+                (cancel_intent_id,),
+            ).fetchone()
+            if parent is None or cancel is None:
+                raise ExecutionDecisionJournalError("INTENT_NOT_PREPARED")
+
+            try:
+                parent_key = ExecutionIntentKey(**json.loads(parent["intent_key_json"]))
+                cancel_key = ExecutionIntentKey(**json.loads(cancel["intent_key_json"]))
+                parent_business = json.loads(parent["business_key_json"])
+                cancel_business = json.loads(cancel["business_key_json"])
+                parent_identity = json.loads(parent["original_identity_json"])
+                cancel_identity = json.loads(cancel["original_identity_json"])
+            except (TypeError, ValueError) as error:
+                raise ExecutionDecisionJournalError("DISPATCHING_CANCEL_STATE_MISMATCH") from error
+
+            if (
+                parent["original_identity_json"] != parent_identity_json
+                or cancel["original_identity_json"] != cancel_identity_json
+                or parent_key.action != "SUBMIT"
+                or cancel_key.action != "CANCEL"
+                or parent_key.instrument != cancel_key.instrument
+                or parent_key.side != cancel_key.side
+                or parent_key.position_effect != cancel_key.position_effect
+                or parent_business.get("account_scope") != cancel_business.get("account_scope")
+                or parent_business.get("strategy_scope") != cancel_business.get("strategy_scope")
+                or cancel["owner_intent_id"] != parent_intent_id
+                or parent_identity.get("operation") != "insert"
+                or cancel_identity.get("operation") != "cancel"
+                or cancel_identity.get("owner_intent_id") != parent_intent_id
+                or parent_identity.get("order_ref") != cancel_identity.get("order_ref")
+                or not _identifier(parent_identity.get("order_ref"))
+                or parent_identity.get("instrument_id") != parent_key.instrument
+                or cancel_identity.get("instrument_id") != cancel_key.instrument
+                or parent_identity.get("exchange_id") != cancel_identity.get("exchange_id")
+                or not _identifier(parent_identity.get("exchange_id"))
+                or not _identifier(parent_identity.get("account_fingerprint"))
+                or not _identifier(parent_identity.get("trading_day"))
+                or len(parent_identity["trading_day"]) != 8
+                or not parent_identity["trading_day"].isdigit()
+                or type(parent_identity.get("connection_generation")) is not int
+                or parent_identity["connection_generation"] <= 0
+                or type(parent_identity.get("front_id")) is not int
+                or parent_identity["front_id"] <= 0
+                or type(parent_identity.get("session_id")) is not int
+                or parent_identity["session_id"] <= 0
+                or any(
+                    parent_identity.get(name) != cancel_identity.get(name)
+                    for name in (
+                        "account_fingerprint",
+                        "connection_generation",
+                        "trading_day",
+                        "front_id",
+                        "session_id",
+                    )
+                    if name in parent_identity or name in cancel_identity
+                )
+            ):
+                raise ExecutionDecisionJournalError("DISPATCHING_CANCEL_EVIDENCE_MISMATCH")
+
+            if (
+                parent["state"] != "KNOWN"
+                or parent["dispatch_state"] != "KNOWN"
+                or parent["provider_identity_json"] is None
+                or parent["dispatch_result_json"] is None
+            ):
+                raise ExecutionDecisionJournalError("DISPATCHING_CANCEL_PARENT_NOT_KNOWN")
+
+            parent_resolution = cursor.execute(
+                "SELECT * FROM execution_intent_resolutions WHERE intent_id=?",
+                (parent_intent_id,),
+            ).fetchone()
+            cancel_resolution = cursor.execute(
+                "SELECT * FROM execution_intent_resolutions WHERE intent_id=?",
+                (cancel_intent_id,),
+            ).fetchone()
+            stored_parent_proof = cursor.execute(
+                "SELECT * FROM execution_intent_reconciliations WHERE reconciliation_id=?",
+                (parent_reconciliation_id,),
+            ).fetchone()
+            stored_cancel_proof = cursor.execute(
+                "SELECT * FROM execution_intent_reconciliations WHERE reconciliation_id=?",
+                (cancel_reconciliation_id,),
+            ).fetchone()
+
+            if parent_resolution is not None or cancel_resolution is not None:
+                if (
+                    cancel["state"] != "KNOWN"
+                    or cancel["dispatch_state"] is not None
+                    or cancel["provider_identity_json"] is not None
+                    or cancel["outcome_code"] is not None
+                    or cancel["dispatch_result_json"] is not None
+                    or cancel_resolution is not None
+                    or parent_resolution is None
+                    or stored_parent_proof is None
+                    or stored_cancel_proof is None
+                    or not _reconciliation_matches(
+                        stored_cancel_proof,
+                        intent_id=cancel_intent_id,
+                        original_identity_json=cancel_identity_json,
+                        query_id=query_id,
+                        state="KNOWN",
+                        provider_identity_json=cancel_provider_json,
+                        outcome_code=_DISPATCHING_CANCEL_CHILD_OUTCOME,
+                        terminal_state=terminal_state,
+                        terminal_event_id=terminal_event_id,
+                        position_snapshot_id=position_snapshot_id,
+                        position_flat=position_flat,
+                    )
+                    or not _reconciliation_matches(
+                        stored_parent_proof,
+                        intent_id=parent_intent_id,
+                        original_identity_json=parent_identity_json,
+                        query_id=query_id,
+                        state="KNOWN",
+                        provider_identity_json=parent_provider_json,
+                        outcome_code=_DISPATCHING_CANCEL_PARENT_OUTCOME,
+                        terminal_state=terminal_state,
+                        terminal_event_id=terminal_event_id,
+                        position_snapshot_id=position_snapshot_id,
+                        position_flat=position_flat,
+                    )
+                    or (
+                        parent_resolution["account_scope"],
+                        parent_resolution["instrument"],
+                        parent_resolution["terminal_state"],
+                        parent_resolution["terminal_event_id"],
+                        parent_resolution["reconciliation_id"],
+                        parent_resolution["position_snapshot_id"],
+                        int(parent_resolution["position_flat"]),
+                    )
+                    != (
+                        parent_business["account_scope"],
+                        parent_key.instrument,
+                        terminal_state,
+                        terminal_event_id,
+                        parent_reconciliation_id,
+                        position_snapshot_id,
+                        int(position_flat),
+                    )
+                ):
+                    raise ExecutionDecisionJournalError("DISPATCHING_CANCEL_RECOVERY_CONFLICT")
+                current_owner = cursor.execute(
+                    """SELECT owner_intent_id,cancel_intent_id
+                       FROM execution_instrument_owners
+                       WHERE account_scope=? AND instrument=?""",
+                    (parent_business["account_scope"], parent_key.instrument),
+                ).fetchone()
+                if current_owner is None or (
+                    current_owner["owner_intent_id"] == parent_intent_id
+                    or current_owner["cancel_intent_id"] == cancel_intent_id
+                ):
+                    raise ExecutionDecisionJournalError("DISPATCHING_CANCEL_RECOVERY_CONFLICT")
+                return (
+                    _reconciliation_record(stored_cancel_proof),
+                    _reconciliation_record(stored_parent_proof),
+                    _resolution_record(parent_resolution),
+                )
+
+            if (
+                cancel["state"] != "DISPATCHING"
+                or cancel["dispatch_state"] is not None
+                or cancel["provider_identity_json"] is not None
+                or cancel["outcome_code"] is not None
+                or cancel["dispatch_result_json"] is not None
+            ):
+                raise ExecutionDecisionJournalError("DISPATCHING_CANCEL_STATE_MISMATCH")
+
+            owner = cursor.execute(
+                """SELECT owner_intent_id,cancel_intent_id FROM execution_instrument_owners
+                   WHERE account_scope=? AND instrument=?""",
+                (parent_business["account_scope"], parent_key.instrument),
+            ).fetchone()
+            if (
+                owner is None
+                or owner["owner_intent_id"] != parent_intent_id
+                or owner["cancel_intent_id"] != cancel_intent_id
+            ):
+                raise ExecutionDecisionJournalError("INSTRUMENT_OWNER_MISMATCH")
+
+            if stored_parent_proof is not None or stored_cancel_proof is not None:
+                raise ExecutionDecisionJournalError("DISPATCHING_CANCEL_RECOVERY_CONFLICT")
+            for intent_id in (parent_intent_id, cancel_intent_id):
+                same_query = cursor.execute(
+                    """SELECT reconciliation_id FROM execution_intent_reconciliations
+                       WHERE intent_id=? AND query_id=?""",
+                    (intent_id, query_id),
+                ).fetchone()
+                if same_query is not None:
+                    raise ExecutionDecisionJournalError("RECONCILIATION_QUERY_CONFLICT")
+
+            proof_values = (
+                terminal_state,
+                terminal_event_id,
+                position_snapshot_id,
+                int(position_flat),
+                now_ns,
+            )
+            with track_durable_row_change(
+                cursor,
+                "execution_intent_reconciliations",
+                (cancel_reconciliation_id,),
+                "SETTLEMENT",
+            ):
+                inserted = cursor.execute(
+                    """INSERT INTO execution_intent_reconciliations
+                       (reconciliation_id,intent_id,original_identity_json,query_id,state,
+                        provider_identity_json,outcome_code,terminal_state,terminal_event_id,
+                        position_snapshot_id,position_flat,created_at_ns)
+                       VALUES(?,?,?,?,?,?,?,?,?,?,?,?)""",
+                    (
+                        cancel_reconciliation_id,
+                        cancel_intent_id,
+                        cancel_identity_json,
+                        query_id,
+                        "KNOWN",
+                        cancel_provider_json,
+                        _DISPATCHING_CANCEL_CHILD_OUTCOME,
+                    )
+                    + proof_values,
+                )
+            if inserted.rowcount != 1:
+                raise ExecutionDecisionJournalError("DISPATCHING_CANCEL_RECOVERY_CONFLICT")
+            with track_durable_row_change(
+                cursor,
+                "execution_intent_reconciliations",
+                (parent_reconciliation_id,),
+                "SETTLEMENT",
+            ):
+                inserted = cursor.execute(
+                    """INSERT INTO execution_intent_reconciliations
+                       (reconciliation_id,intent_id,original_identity_json,query_id,state,
+                        provider_identity_json,outcome_code,terminal_state,terminal_event_id,
+                        position_snapshot_id,position_flat,created_at_ns)
+                       VALUES(?,?,?,?,?,?,?,?,?,?,?,?)""",
+                    (
+                        parent_reconciliation_id,
+                        parent_intent_id,
+                        parent_identity_json,
+                        query_id,
+                        "KNOWN",
+                        parent_provider_json,
+                        _DISPATCHING_CANCEL_PARENT_OUTCOME,
+                    )
+                    + proof_values,
+                )
+            if inserted.rowcount != 1:
+                raise ExecutionDecisionJournalError("DISPATCHING_CANCEL_RECOVERY_CONFLICT")
+
+            with track_durable_row_change(
+                cursor, "execution_decision_intents", (cancel_intent_id,), "SETTLEMENT"
+            ):
+                updated = cursor.execute(
+                    """UPDATE execution_decision_intents
+                       SET state='KNOWN',updated_at_ns=?
+                       WHERE intent_id=? AND owner_intent_id=? AND state='DISPATCHING'
+                         AND dispatch_state IS NULL AND provider_identity_json IS NULL
+                         AND outcome_code IS NULL AND dispatch_result_json IS NULL""",
+                    (now_ns, cancel_intent_id, parent_intent_id),
+                )
+            if updated.rowcount != 1:
+                raise ExecutionDecisionJournalError("DISPATCHING_CANCEL_STATE_MISMATCH")
+
+            with track_durable_row_change(
+                cursor,
+                "execution_intent_resolutions",
+                (parent_intent_id,),
+                "SETTLEMENT",
+            ):
+                inserted = cursor.execute(
+                    """INSERT INTO execution_intent_resolutions
+                       (intent_id,account_scope,instrument,terminal_state,terminal_event_id,
+                        reconciliation_id,position_snapshot_id,position_flat,created_at_ns)
+                       VALUES(?,?,?,?,?,?,?,?,?)""",
+                    (
+                        parent_intent_id,
+                        parent_business["account_scope"],
+                        parent_key.instrument,
+                        terminal_state,
+                        terminal_event_id,
+                        parent_reconciliation_id,
+                        position_snapshot_id,
+                        int(position_flat),
+                        now_ns,
+                    ),
+                )
+            if inserted.rowcount != 1:
+                raise ExecutionDecisionJournalError("DISPATCHING_CANCEL_RECOVERY_CONFLICT")
+            with track_durable_row_change(
+                cursor,
+                "execution_instrument_owners",
+                (parent_business["account_scope"], parent_key.instrument),
+                "SETTLEMENT",
+            ):
+                updated = cursor.execute(
+                    """UPDATE execution_instrument_owners
+                       SET owner_intent_id=NULL,cancel_intent_id=NULL
+                       WHERE account_scope=? AND instrument=? AND owner_intent_id=?
+                         AND cancel_intent_id=?""",
+                    (
+                        parent_business["account_scope"],
+                        parent_key.instrument,
+                        parent_intent_id,
+                        cancel_intent_id,
+                    ),
+                )
+            if updated.rowcount != 1:
+                raise ExecutionDecisionJournalError("INSTRUMENT_OWNER_MISMATCH")
+
+            cancel_proof = cursor.execute(
+                "SELECT * FROM execution_intent_reconciliations WHERE reconciliation_id=?",
+                (cancel_reconciliation_id,),
+            ).fetchone()
+            parent_proof = cursor.execute(
+                "SELECT * FROM execution_intent_reconciliations WHERE reconciliation_id=?",
+                (parent_reconciliation_id,),
+            ).fetchone()
+            resolution = cursor.execute(
+                "SELECT * FROM execution_intent_resolutions WHERE intent_id=?",
+                (parent_intent_id,),
+            ).fetchone()
+            return (
+                _reconciliation_record(cancel_proof),
+                _reconciliation_record(parent_proof),
+                _resolution_record(resolution),
+            )
 
     def _release_instrument_owner_in_transaction(
         self,
@@ -5129,6 +5548,42 @@ def _dispatching_no_fill_provider_identity_matches(
         and original_identity.get("front_id") is not None
         and original_identity.get("session_id") is not None
         and intent_key.position_effect == "OPEN"
+    )
+
+
+def _dispatching_cancel_terminal_providers_match(
+    *,
+    parent_intent_id: str,
+    cancel_intent_id: str,
+    parent_reconciliation_id: str,
+    cancel_reconciliation_id: str,
+    query_id: str,
+    position_snapshot_id: str,
+    parent_provider_identity: Mapping[str, Any],
+    cancel_provider_identity: Mapping[str, Any],
+) -> bool:
+    """Require both durable proofs to point at one exact terminal observation."""
+
+    query_set_id = cancel_provider_identity.get("query_set_id")
+    snapshot_id = cancel_provider_identity.get("snapshot_id")
+    return bool(
+        parent_provider_identity.get("evidence_kind") == "complete_orders_query_observation"
+        and cancel_provider_identity.get("evidence_kind") == _DISPATCHING_CANCEL_CHILD_OUTCOME
+        and parent_provider_identity.get("observation_id") == query_id
+        and cancel_provider_identity.get("observation_id") == query_id
+        and parent_provider_identity.get("parent_intent_id") == parent_intent_id
+        and parent_provider_identity.get("cancel_intent_id") == cancel_intent_id
+        and parent_provider_identity.get("cancel_reconciliation_id") == cancel_reconciliation_id
+        and cancel_provider_identity.get("parent_intent_id") == parent_intent_id
+        and cancel_provider_identity.get("cancel_intent_id") == cancel_intent_id
+        and cancel_provider_identity.get("parent_reconciliation_id") == parent_reconciliation_id
+        and cancel_provider_identity.get("cancel_reconciliation_id") == cancel_reconciliation_id
+        and _identifier(query_set_id)
+        and parent_provider_identity.get("query_set_id") == query_set_id
+        and _identifier(snapshot_id)
+        and parent_provider_identity.get("snapshot_id") == snapshot_id
+        and parent_provider_identity.get("position_snapshot_id") == position_snapshot_id
+        and cancel_provider_identity.get("position_snapshot_id") == position_snapshot_id
     )
 
 
