@@ -4598,6 +4598,7 @@ def run(args=None):
             "next_query_permitted",
             "query_epoch_attempts",
             "old_route_handling",
+            "live_epoch_evidence",
         ):
             if hasattr(error, name):
                 payload[name] = getattr(error, name)
@@ -4622,6 +4623,7 @@ def run(args=None):
             "next_query_permitted",
             "query_epoch_attempts",
             "old_route_handling",
+            "live_epoch_evidence",
         ):
             if hasattr(error, name):
                 payload[name] = getattr(error, name)

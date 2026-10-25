@@ -1925,6 +1925,59 @@ def test_live_cli_json_never_serializes_private_selection_plan(tmp_path, monkeyp
     assert "manifest" not in result
 
 
+@pytest.mark.parametrize(
+    ("error_kind", "expected_exit", "expected_status"),
+    (
+        ("runner", 2, "BLOCKED"),
+        ("timeout", 1, "FAILED"),
+    ),
+    ids=("runner-error", "timeout-error"),
+)
+def test_live_cli_preserves_finite_epoch_failure_evidence_without_raw_context(
+    tmp_path, monkeypatch, capsys, error_kind, expected_exit, expected_status
+):
+    config = _base_config(tmp_path, "live")
+    config["live"]["account_scope"] = "private-config-marker"
+    config_path = tmp_path / "cli-live-failure.yaml"
+    config_path.write_text(yaml.safe_dump(config, sort_keys=False), encoding="utf-8")
+    plan = {
+        "selection_path": Path(config["selection"]["bundle"]),
+        "selection_source": "bundle",
+        "source_snapshot_id": "synthetic-snapshot-v1",
+        "targets": ("DCE.M",),
+        "product_by_target": {"DCE.M": "DCE.M"},
+        "routes": {"DCE.M": "M2611"},
+    }
+    expected_evidence = RUNNER._live_epoch_failure_evidence(config, plan, None, None, [])
+    raw_exception_marker = "private raw exception text must stay hidden"
+
+    def raise_live_failure(*_args, **_kwargs):
+        if error_kind == "runner":
+            error = RUNNER.RunnerError("LIVE_CORE_WINDDOWN_NOT_CONFIRMED", "TIMED_OUT")
+        else:
+            error = TimeoutError(raw_exception_marker)
+        error.live_epoch_evidence = expected_evidence
+        error.private_config_marker = "private-config-value"
+        raise error
+
+    monkeypatch.setattr(RUNNER, "load_market_plan", lambda *_args, **_kwargs: plan)
+    monkeypatch.setattr(RUNNER, "run_live_epochs", raise_live_failure)
+
+    code, result = _call_runner(capsys, "--config", str(config_path))
+
+    assert code == expected_exit
+    assert result["status"] == expected_status
+    assert result["live_epoch_evidence"] == expected_evidence
+    serialized = json.dumps(result, sort_keys=True)
+    assert raw_exception_marker not in serialized
+    assert "private-config-marker" not in serialized
+    assert "private-config-value" not in serialized
+    if error_kind == "runner":
+        assert result["code"] == "LIVE_CORE_WINDDOWN_NOT_CONFIRMED"
+    else:
+        assert result["error_type"] == "TimeoutError"
+
+
 def test_daily_rollover_loads_next_pit_bundle_only_after_retirement_proof(tmp_path, monkeypatch):
     from types import SimpleNamespace
 

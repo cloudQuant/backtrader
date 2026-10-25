@@ -1,0 +1,45 @@
+{
+  "parent": "e21744952871bea0552a097814ff40c42f6c6269",
+  "source_sha256": {
+    "examples/unified/028_alpha003_simnow_minute/run.py": "1c63d7b159a76a5a250ec6f5f7a3ce3315048649bc8102773e2ad00aae941f4f",
+    "tests/unit/test_alpha003_simnow_runner.py": "6077dc651e1c653f7993c525eff20184ad2b1bf4a8cbcdb47db83b3e5be2f16b"
+  },
+  "qa_evidence_level": "AUTHOR_SOURCE_QA_TRANSCRIPT_ONLY",
+  "qa": {
+    "command": [
+      "python",
+      "-m",
+      "pytest",
+      "-q",
+      "-p",
+      "no:asyncio",
+      "--tb=short",
+      "tests/unit/test_alpha003_simnow_runner.py::test_live_cli_preserves_finite_epoch_failure_evidence_without_raw_context"
+    ],
+    "environment": {
+      "PYTEST_DISABLE_PLUGIN_AUTOLOAD": "1",
+      "PYTHONUTF8": "1"
+    },
+    "tool_completion_chunk_id": "7d92c6",
+    "tests": 2,
+    "exit_code": 0,
+    "seconds": 2.93,
+    "warnings": [
+      "existing unknown asyncio_default_fixture_loop_scope"
+    ],
+    "output_tail": "2 passed, 1 warning in 2.93s\npytest_exit=0",
+    "independent_junit_or_raw_stream_files": false,
+    "stderr_boundary_available": false,
+    "rerun_for_archiving": false
+  },
+  "review": "Independent static GO, Root reviewed exact two whitelist additions and parameterized test",
+  "prior_installed_attempt": {
+    "path": "D:/temp/i51-installed-final-20261025-r4/native",
+    "outcome": "Readonly 64 records completed, TimeoutError, cleanup complete; underlying winddown blocker not captured"
+  },
+  "scope": "Expose already attached live_epoch_evidence on both CLI error handlers; no lifecycle behavior changes",
+  "limitations": [
+    "No installed matrix acceptance",
+    "No provider or account operations"
+  ]
+}
