@@ -2795,6 +2795,7 @@ class FactorPositionBook:
                         fill,
                         callback,
                         original_callback_values,
+                        journal=self._journal,
                         intent_id=intent_id,
                         receipt_id=receipt_id,
                         execution_id=execution_id,
@@ -2823,6 +2824,7 @@ class FactorPositionBook:
                     fill,
                     callback,
                     values,
+                    journal=self._journal,
                     intent_id=intent_id,
                     receipt_id=receipt_id,
                     execution_id=execution_id,
@@ -2955,6 +2957,19 @@ class FactorPositionBook:
                     (account_scope, instrument, exchange, owner_intent_id, owner_intent_id),
                 ).fetchall()
                 fill_rows = tuple(_joined_dated_fill_row(row) for row in fill_rows)
+                for row in fill_rows:
+                    blocker = _dated_persisted_trade_journal_binding_error(
+                        connection,
+                        self._journal,
+                        row,
+                    )
+                    if blocker is not None:
+                        return _empty_dated_proof(
+                            facts,
+                            target_id=target_id,
+                            blocker_code=blocker,
+                            context=context,
+                        )
         except (sqlite3.Error, ValueError, TypeError, FactorPositionBookError):
             return _empty_dated_proof(
                 facts,
@@ -3926,7 +3941,6 @@ _DATED_FILL_MATCH_COLUMNS = (
     "instrument",
     "exchange",
     "execution_id",
-    "receipt_id",
     "intent_id",
     "strategy_scope",
     "position_effect",
@@ -4434,6 +4448,7 @@ def _dated_trade_journal_binding_error(
     callback: Any,
     values: Mapping[str, Any],
     *,
+    journal: Any,
     intent_id: str,
     receipt_id: str,
     execution_id: str,
@@ -4541,7 +4556,6 @@ def _dated_trade_journal_binding_error(
         or fill["instrument"] != values["instrument"]
         or fill["exchange"] != values["exchange"]
         or fill["execution_id"] != execution_id
-        or fill["receipt_id"] != receipt_id
         or fill["intent_id"] != intent_id
         or fill["strategy_scope"] != values["strategy_scope"]
         or fill["position_effect"] != values["position_effect"]
@@ -4596,6 +4610,212 @@ def _dated_trade_journal_binding_error(
         or evidence.get("order_sys_id") != values["order_sys_id"]
     ):
         return "DATED_TRADE_CALLBACK_ECONOMICS_MISMATCH"
+    if fill["receipt_id"] != receipt_id:
+        return _dated_trade_native_receipt_binding_error(
+            cursor,
+            journal,
+            fill,
+            values,
+            query_evidence=evidence,
+            intent_id=intent_id,
+            query_receipt_id=receipt_id,
+            execution_id=execution_id,
+        )
+    return None
+
+
+def _dated_persisted_trade_journal_binding_error(
+    connection: sqlite3.Connection,
+    journal: Any,
+    row: Mapping[str, Any],
+) -> Optional[str]:
+    """Revalidate both receipt origins before reconstructing a dated lot.
+
+    A query observation remains the dated fact's source receipt, while the
+    immutable position fill may retain its earlier native callback receipt.
+    Reuse the same evidence and ACK/disposition checks as insertion so the
+    dated-row reader never relies on receipt IDs being equal.
+    """
+
+    execution_id = row.get("execution_id")
+    trade_date = row.get("trade_date")
+    if (
+        type(execution_id) is not str
+        or not _valid_yyyymmdd(trade_date)
+        or not execution_id.startswith("ctp:" + trade_date + ":")
+    ):
+        return "DATED_TRADE_JOURNAL_FILL_MISMATCH"
+    trade_id = execution_id[len("ctp:" + trade_date + ":") :]
+    if not _is_identifier(trade_id):
+        return "DATED_TRADE_JOURNAL_FILL_MISMATCH"
+    receipt_id = row.get("receipt_id")
+    intent_id = row.get("intent_id")
+    if not _is_identifier(receipt_id) or not _is_identifier(intent_id):
+        return "DATED_TRADE_JOURNAL_FILL_MISMATCH"
+
+    cursor = connection.cursor()
+    try:
+        callback = cursor.execute(
+            """SELECT * FROM execution_decision_callbacks
+               WHERE receipt_id=? AND intent_id=?""",
+            (receipt_id, intent_id),
+        ).fetchone()
+        if callback is None:
+            return "DATED_TRADE_JOURNAL_FILL_NOT_FOUND"
+        fill = {name: row.get("_fill_" + name) for name in _POSITION_FILL_COLUMNS}
+        quantity = _parse_accumulator_decimal(row.get("quantity"), positive=True)
+        price = _parse_accumulator_decimal(row.get("price"), positive=True)
+        if quantity is None or price is None:
+            return "DATED_TRADE_METADATA_INVALID"
+        values = {
+            "account_scope": row.get("account_scope"),
+            "strategy_scope": row.get("strategy_scope"),
+            "instrument": row.get("instrument"),
+            "exchange": row.get("exchange"),
+            "trade_id": trade_id,
+            "execution_id": execution_id,
+            "intent_id": intent_id,
+            "receipt_id": receipt_id,
+            "order_ref": row.get("order_ref"),
+            "order_sys_id": row.get("order_sys_id"),
+            "position_effect": row.get("position_effect"),
+            "order_side": row.get("order_side"),
+            "quantity": quantity,
+            "price": price,
+            "trading_day": row.get("trading_day"),
+            "trade_time_ns": row.get("trade_time_ns"),
+            "observation_id": row.get("observation_id"),
+            "query_set_id": row.get("query_set_id"),
+            "snapshot_id": row.get("snapshot_id"),
+            "request_id": row.get("request_id"),
+            "connection_generation": row.get("connection_generation"),
+            "account_fingerprint": row.get("account_fingerprint"),
+        }
+        return _dated_trade_journal_binding_error(
+            cursor,
+            fill,
+            callback,
+            values,
+            journal=journal,
+            intent_id=intent_id,
+            receipt_id=receipt_id,
+            execution_id=execution_id,
+        )
+    except (sqlite3.Error, TypeError, ValueError, FactorPositionBookError):
+        return "DATED_TRADE_JOURNAL_BINDING_UNAVAILABLE"
+    finally:
+        cursor.close()
+
+
+def _dated_trade_native_receipt_binding_error(
+    cursor: sqlite3.Cursor,
+    journal: Any,
+    fill: Any,
+    values: Mapping[str, Any],
+    *,
+    query_evidence: Mapping[str, Any],
+    intent_id: str,
+    query_receipt_id: str,
+    execution_id: str,
+) -> Optional[str]:
+    """Bind a native-origin fill to the separately ACKed query receipt.
+
+    A native callback remains the immutable origin of its fill. The complete
+    query is independently checked by the caller; this helper verifies the
+    exact native callback and either its ordinary ACK or the journal's durable
+    cross-process query disposition proof.
+    """
+
+    native_callback_id = "ctp-trade:" + hashlib.sha256(execution_id.encode("utf-8")).hexdigest()
+    try:
+        native_receipt = journal.callback_receipt(intent_id, native_callback_id)
+    except Exception:
+        return "DATED_TRADE_NATIVE_RECEIPT_UNAVAILABLE"
+    if (
+        native_receipt is None
+        or native_receipt.receipt_id != fill["receipt_id"]
+        or native_receipt.intent_id != intent_id
+        or native_receipt.callback_id != native_callback_id
+    ):
+        return "DATED_TRADE_NATIVE_RECEIPT_MISMATCH"
+
+    native_row = cursor.execute(
+        """SELECT callback_id,acknowledged,delivery_pending
+           FROM execution_decision_callbacks WHERE receipt_id=? AND intent_id=?""",
+        (fill["receipt_id"], intent_id),
+    ).fetchone()
+    if (
+        native_row is None
+        or native_row["callback_id"] != native_callback_id
+        or type(native_row["acknowledged"]) is not int
+        or type(native_row["delivery_pending"]) is not int
+    ):
+        return "DATED_TRADE_NATIVE_RECEIPT_MISMATCH"
+
+    if native_receipt.acknowledged:
+        if native_row["acknowledged"] != 1 or native_row["delivery_pending"] != 0:
+            return "DATED_TRADE_NATIVE_ACK_STATE_MISMATCH"
+    else:
+        if native_row["acknowledged"] != 0 or native_row["delivery_pending"] != 0:
+            return "DATED_TRADE_NATIVE_ACK_STATE_MISMATCH"
+        try:
+            disposition = journal.callback_query_disposition(fill["receipt_id"])
+        except Exception:
+            return "DATED_TRADE_NATIVE_QUERY_DISPOSITION_INVALID"
+        if (
+            disposition is None
+            or disposition.native_receipt_id != fill["receipt_id"]
+            or disposition.query_receipt_id != query_receipt_id
+            or disposition.intent_id != intent_id
+            or disposition.execution_id != execution_id
+            or disposition.disposition_code != "QUERY_MATCHED_BROKER_ACK_UNOBSERVED_AFTER_RESTART"
+        ):
+            return "DATED_TRADE_NATIVE_QUERY_DISPOSITION_REQUIRED"
+
+    native_evidence = native_receipt.evidence_payload
+    expected_native_evidence = {
+        "event_type": "execution_fill",
+        "execution_id": execution_id,
+        "provider_trade_id": values["trade_id"],
+        "order_ref": values["order_ref"],
+        "instrument_id": values["instrument"],
+        "exchange": values["exchange"],
+        "filled_at_ns": values["trade_time_ns"],
+        "time_source": "CTP_TradeDate_TradeTime_UTC_PLUS_08",
+        "evidence_kind": "native_trade_callback",
+    }
+    if not isinstance(native_evidence, Mapping) or any(
+        native_evidence.get(name) != expected for name, expected in expected_native_evidence.items()
+    ):
+        return "DATED_TRADE_NATIVE_EVIDENCE_MISMATCH"
+    native_order_sys_id = native_evidence.get("order_sys_id")
+    if (
+        native_order_sys_id is not None
+        and values["order_sys_id"] is not None
+        and native_order_sys_id != values["order_sys_id"]
+    ):
+        return "DATED_TRADE_NATIVE_EVIDENCE_MISMATCH"
+    if (
+        _parse_decimal(native_evidence.get("quantity"), positive=True) != values["quantity"]
+        or _parse_decimal(native_evidence.get("price"), positive=True) != values["price"]
+        or _parse_decimal(fill["quantity"], positive=True) != values["quantity"]
+        or _parse_decimal(fill["price"], positive=True) != values["price"]
+        or type(native_evidence.get("filled_at_ns")) is not int
+        or native_evidence.get("filled_at_ns") != fill["filled_at_ns"]
+    ):
+        return "DATED_TRADE_NATIVE_ECONOMICS_MISMATCH"
+
+    native_fee = native_evidence.get("fee")
+    query_fee = query_evidence.get("fee")
+    if native_fee is not None:
+        native_fee = _parse_decimal(native_fee, nonnegative=True)
+        stored_fee = _parse_decimal(fill["fee"], nonnegative=True)
+        if native_fee is None or stored_fee != native_fee:
+            return "DATED_TRADE_NATIVE_ECONOMICS_MISMATCH"
+    if native_evidence.get("fee") is not None and query_fee is not None:
+        parsed_query_fee = _parse_decimal(query_fee, nonnegative=True)
+        if parsed_query_fee is None or parsed_query_fee != native_fee:
+            return "DATED_TRADE_NATIVE_ECONOMICS_MISMATCH"
     return None
 
 

@@ -13,6 +13,7 @@ import pytest
 from backtrader.brokers.btapibroker import BtApiBroker
 from backtrader.events import TickEvent
 from backtrader.order import BuyOrder, Order
+from backtrader.stores import execution_decision_journal as execution_decision_journal_module
 from backtrader.stores.execution_decision_journal import ExecutionDecisionJournal
 from backtrader.stores.execution_decision_journal import (
     ExecutionDecisionKey,
@@ -2055,6 +2056,8 @@ def _build_source_backed_dated_close_facts(
     position_date="TODAY",
     partial_close=False,
     journal_path=":memory:",
+    native_callback_mode=None,
+    monkeypatch=None,
 ):
     """Run real Store/Broker/Coordinator/Book reads and return immutable facts.
 
@@ -2122,6 +2125,9 @@ def _build_source_backed_dated_close_facts(
             "exchange_id": _EXCHANGE,
             "order_ref": "17",
             "order_sys_id": "native-17",
+            "front_id": 4,
+            "session_id": 7,
+            "account_fingerprint": _ACCOUNT,
             "trading_day": _TRADING_DAY,
         },
     )
@@ -2146,6 +2152,8 @@ def _build_source_backed_dated_close_facts(
         "InstrumentID": _INSTRUMENT,
         "ExchangeID": _EXCHANGE,
         "OrderStatus": "0",
+        "FrontID": 4,
+        "SessionID": 7,
         "TradingDay": _TRADING_DAY,
     }
     api.query_rows["orders_result"] = [terminal_row]
@@ -2159,6 +2167,71 @@ def _build_source_backed_dated_close_facts(
         price="100",
     )
     assert open_trade_row["TradingDay"] == _TRADING_DAY
+    native_receipt = None
+    if native_callback_mode is not None:
+        if native_callback_mode not in {
+            "acknowledged",
+            "unacknowledged_restart",
+            "unacknowledged_same_process",
+        }:
+            raise ValueError("unsupported native callback fixture mode")
+        if native_callback_mode != "acknowledged":
+            if monkeypatch is None:
+                raise ValueError("unacknowledged native callback fixture requires monkeypatch")
+            monkeypatch.setattr(
+                execution_decision_journal_module,
+                "_current_process_instance_id",
+                lambda: "native-process",
+            )
+        native_order = SimpleNamespace(
+            info={
+                "factor_intent_id": intent.intent_id,
+                "factor_strategy_scope": "alpha003",
+                "external_order_ref": "17",
+                "instrument_id": _INSTRUMENT,
+                "exchange_id": _EXCHANGE,
+                "factor_position_effect": "OPEN",
+            },
+            isbuy=lambda: True,
+            addinfo=lambda **_values: None,
+        )
+        native_update = {
+            "trade_id": open_trade_row["TradeID"],
+            "order_ref": open_trade_row["OrderRef"],
+            "instrument": open_trade_row["InstrumentID"],
+            "exchange_id": open_trade_row["ExchangeID"],
+            "size": opening_quantity,
+            "price": open_trade_row["Price"],
+            "details": {
+                "TradeID": open_trade_row["TradeID"],
+                "OrderRef": open_trade_row["OrderRef"],
+                "OrderSysID": open_trade_row["OrderSysID"],
+                "InstrumentID": open_trade_row["InstrumentID"],
+                "ExchangeID": open_trade_row["ExchangeID"],
+                "Volume": open_trade_row["Volume"],
+                "Price": open_trade_row["Price"],
+                "TradeDate": open_trade_row["TradeDate"],
+                "TradeTime": open_trade_row["TradeTime"],
+            },
+        }
+        native_receipt, native_projection, native_acknowledged = coordinator.record_trade_callback(
+            native_update, native_order
+        )
+        assert native_projection.status in ("APPLIED", "DUPLICATE")
+        assert native_acknowledged is False
+        if native_callback_mode == "acknowledged":
+            journal.acknowledge_callback(native_receipt.receipt_id)
+        elif native_callback_mode == "unacknowledged_restart":
+            monkeypatch.setattr(
+                execution_decision_journal_module,
+                "_current_process_instance_id",
+                lambda: "query-process",
+            )
+        native_receipt = journal.callback_receipt(
+            intent.intent_id,
+            "ctp-trade:"
+            + sha256(_execution_id_from_trade_row(open_trade_row).encode()).hexdigest(),
+        )
     api.query_rows["trades_result"] = [open_trade_row]
     query_time = datetime.now(timezone.utc) - timedelta(milliseconds=100)
     api.query_time = query_time
@@ -2167,7 +2240,26 @@ def _build_source_backed_dated_close_facts(
         received_at=query_time + timedelta(milliseconds=1),
         sequence=7,
     )
+    if native_callback_mode in {
+        "unacknowledged_restart",
+        "unacknowledged_same_process",
+    }:
+        # The restart-disposition proof binds a real query started after the
+        # native receipt. Use the fake provider's observed clock for these
+        # cases instead of the ordinary planned timestamp, which intentionally
+        # predates the actual refresh call.
+        api._use_observed_query_clock = True
     receipt = _refresh_all(store, target)
+    if native_callback_mode in {
+        "unacknowledged_restart",
+        "unacknowledged_same_process",
+    }:
+        query_time = receipt.query_set.completed_at_utc
+        api.tick = _quote(
+            event_time=query_time,
+            received_at=datetime.now(timezone.utc),
+            sequence=7,
+        )
     _arm(store)
     consumed = _consume_quote(store)
     assert consumed is not None
@@ -2192,10 +2284,41 @@ def _build_source_backed_dated_close_facts(
         facts.account,
         facts.blockers,
     )
-    trade_page = coordinator.reconcile_trade_observations(facts, limit=128)
+    trade_page = coordinator.reconcile_trade_observations(
+        facts,
+        refresh_receipt=receipt,
+        limit=128,
+    )
     assert trade_page.observation_count == 1
     assert trade_page.truncated is False
-    assert trade_page.items[0].status == "APPLIED", trade_page.items[0]
+    if native_callback_mode == "unacknowledged_same_process":
+        assert trade_page.items[0].status == "DUPLICATE", trade_page.items[0]
+        assert trade_page.items[0].blocker_code == "CALLBACK_QUERY_RESTART_NOT_PROVEN"
+        # Without a durable query disposition, the native callback remains
+        # pending delivery and the Book must fail closed on that state.
+        dated_page = coordinator.position_book.reconcile_dated_trade_observations(
+            facts,
+            reconciliation_page=trade_page,
+            limit=128,
+        )
+        assert dated_page.items[0].status == "BLOCKED", dated_page.items[0]
+        assert dated_page.items[0].blocker_code == "DATED_TRADE_NATIVE_ACK_STATE_MISMATCH"
+        return facts, {
+            "api": api,
+            "store": store,
+            "broker": broker,
+            "journal": journal,
+            "coordinator": coordinator,
+            "target": target,
+            "intent": intent,
+            "native_receipt": native_receipt,
+            "trade_page": trade_page,
+            "dated_page": dated_page,
+            "opening_execution_id": _execution_id_from_trade_row(open_trade_row),
+        }
+    assert trade_page.items[0].status == (
+        "DUPLICATE" if native_callback_mode is not None else "APPLIED"
+    ), trade_page.items[0]
     dated_page = coordinator.position_book.reconcile_dated_trade_observations(
         facts,
         reconciliation_page=trade_page,
@@ -2204,6 +2327,8 @@ def _build_source_backed_dated_close_facts(
     assert dated_page.observation_count == 1
     assert dated_page.truncated is False
     assert dated_page.items[0].status == "APPLIED", dated_page.items[0]
+    dated_source_facts = facts
+    dated_source_trade_page = trade_page
     # The trade receipt above updates the durable position book after the
     # source snapshot. Read a new complete core set before treating those
     # positions as current or reconciling a terminal order.
@@ -2215,7 +2340,11 @@ def _build_source_backed_dated_close_facts(
         trading_day=_TRADING_DAY,
     )
     facts = _project(store, broker, target, projection_now, query_set=receipt.query_set)
-    trade_page = coordinator.reconcile_trade_observations(facts, limit=128)
+    trade_page = coordinator.reconcile_trade_observations(
+        facts,
+        refresh_receipt=receipt,
+        limit=128,
+    )
     assert trade_page.observation_count == 1
     assert trade_page.truncated is False
     assert trade_page.items[0].status == "DUPLICATE", trade_page.items[0]
@@ -2337,7 +2466,11 @@ def _build_source_backed_dated_close_facts(
             projection_now,
             query_set=close_receipt.query_set,
         )
-        trade_page = coordinator.reconcile_trade_observations(facts, limit=128)
+        trade_page = coordinator.reconcile_trade_observations(
+            facts,
+            refresh_receipt=close_receipt,
+            limit=128,
+        )
         assert trade_page.observation_count == 2
         assert trade_page.truncated is False
         assert {item.status for item in trade_page.items} == {"APPLIED", "DUPLICATE"}
@@ -2372,7 +2505,11 @@ def _build_source_backed_dated_close_facts(
             projection_now,
             query_set=close_receipt.query_set,
         )
-        trade_page = coordinator.reconcile_trade_observations(facts, limit=128)
+        trade_page = coordinator.reconcile_trade_observations(
+            facts,
+            refresh_receipt=close_receipt,
+            limit=128,
+        )
         assert trade_page.observation_count == 2
         assert trade_page.truncated is False
         assert {item.status for item in trade_page.items} == {"DUPLICATE"}
@@ -2440,7 +2577,11 @@ def _build_source_backed_dated_close_facts(
             projection_now,
             query_set=history_receipt.query_set,
         )
-        trade_page = coordinator.reconcile_trade_observations(facts, limit=128)
+        trade_page = coordinator.reconcile_trade_observations(
+            facts,
+            refresh_receipt=history_receipt,
+            limit=128,
+        )
         assert trade_page.observation_count == 0
         assert trade_page.truncated is False
         dated_page = coordinator.position_book.reconcile_dated_trade_observations(
@@ -2544,11 +2685,214 @@ def _build_source_backed_dated_close_facts(
         "now": projection_now,
         "query_set": receipt.query_set,
         "query_receipt": receipt,
+        "trade_page": trade_page,
+        "dated_page": dated_page,
+        "dated_source_facts": dated_source_facts,
+        "dated_source_trade_page": dated_source_trade_page,
+        "native_receipt": native_receipt,
         "opening_execution_id": _execution_id_from_trade_row(open_trade_row),
         "closing_execution_id": (
             _execution_id_from_trade_row(close_trade_row) if partial_close else None
         ),
     }
+
+
+def test_dated_trade_query_origin_keeps_same_receipt_binding_strict():
+    facts, live_inputs = _build_source_backed_dated_close_facts()
+    journal = live_inputs["journal"]
+    intent = live_inputs["intent"]
+    execution_id = live_inputs["opening_execution_id"]
+    query_callback_id = "query-trade:" + sha256(execution_id.encode()).hexdigest()
+    query_receipt = journal.callback_receipt(intent.intent_id, query_callback_id)
+    fill = journal._connection.execute(
+        "SELECT receipt_id FROM factor_position_fills WHERE execution_id=?",
+        (execution_id,),
+    ).fetchone()
+
+    assert query_receipt is not None and query_receipt.acknowledged is True
+    assert fill["receipt_id"] == query_receipt.receipt_id
+    # The helper returns the final idempotent re-read, after the first page
+    # applied the dated observation and the second correctly reports duplicate.
+    assert live_inputs["dated_page"].items[0].status == "DUPLICATE"
+    assert len(facts.dated_close_legs) == 1
+    assert facts.dated_close_legs[0].ready is True
+
+
+def test_dated_trade_accepts_acknowledged_native_origin_and_separate_query_receipt():
+    _facts, live_inputs = _build_source_backed_dated_close_facts(
+        native_callback_mode="acknowledged"
+    )
+    journal = live_inputs["journal"]
+    intent = live_inputs["intent"]
+    execution_id = live_inputs["opening_execution_id"]
+    native_receipt = live_inputs["native_receipt"]
+    query_receipt = journal.callback_receipt(
+        intent.intent_id,
+        "query-trade:" + sha256(execution_id.encode()).hexdigest(),
+    )
+    fill = journal._connection.execute(
+        "SELECT receipt_id FROM factor_position_fills WHERE execution_id=?",
+        (execution_id,),
+    ).fetchone()
+
+    assert native_receipt.acknowledged is True
+    assert query_receipt is not None and query_receipt.acknowledged is True
+    assert native_receipt.receipt_id != query_receipt.receipt_id
+    assert fill["receipt_id"] == native_receipt.receipt_id
+    assert live_inputs["dated_page"].items[0].status == "DUPLICATE"
+    assert journal.callback_query_disposition(native_receipt.receipt_id) is None
+    assert len(_facts.dated_close_legs) == 1
+    assert _facts.dated_close_legs[0].ready is True
+
+
+def test_dated_snapshot_rejects_native_evidence_tampering_after_reconciliation(monkeypatch):
+    facts, live_inputs = _build_source_backed_dated_close_facts(native_callback_mode="acknowledged")
+    coordinator = live_inputs["coordinator"]
+    journal = live_inputs["journal"]
+    intent = live_inputs["intent"]
+    execution_id = live_inputs["opening_execution_id"]
+    native_callback_id = "ctp-trade:" + sha256(execution_id.encode()).hexdigest()
+    original_callback_receipt = journal.callback_receipt
+    actual_native_receipt = original_callback_receipt(intent.intent_id, native_callback_id)
+    assert actual_native_receipt is not None
+
+    def altered_native_receipt(receipt_intent_id, callback_id):
+        receipt = original_callback_receipt(receipt_intent_id, callback_id)
+        if receipt is None or callback_id != native_callback_id:
+            return receipt
+        evidence = dict(receipt.evidence_payload)
+        evidence["price"] = "101"
+        return replace(receipt, evidence_payload=evidence)
+
+    monkeypatch.setattr(journal, "callback_receipt", altered_native_receipt)
+    proof = coordinator.position_book.dated_snapshot(facts, target_id="rb")
+
+    assert proof.status == "UNKNOWN"
+    assert proof.ready is False
+    assert proof.blocker_code == "DATED_TRADE_NATIVE_ECONOMICS_MISMATCH"
+    assert proof.buckets == ()
+
+
+def test_dated_trade_accepts_unacknowledged_native_fill_only_with_restart_proof(monkeypatch):
+    _facts, live_inputs = _build_source_backed_dated_close_facts(
+        native_callback_mode="unacknowledged_restart",
+        monkeypatch=monkeypatch,
+    )
+    journal = live_inputs["journal"]
+    intent = live_inputs["intent"]
+    execution_id = live_inputs["opening_execution_id"]
+    native_receipt = live_inputs["native_receipt"]
+    query_receipt = journal.callback_receipt(
+        intent.intent_id,
+        "query-trade:" + sha256(execution_id.encode()).hexdigest(),
+    )
+    disposition = journal.callback_query_disposition(native_receipt.receipt_id)
+    native_state = journal._connection.execute(
+        "SELECT acknowledged,delivery_pending FROM execution_decision_callbacks WHERE receipt_id=?",
+        (native_receipt.receipt_id,),
+    ).fetchone()
+
+    assert native_receipt.acknowledged is False
+    assert query_receipt is not None and query_receipt.acknowledged is True
+    assert disposition is not None
+    assert disposition.query_receipt_id == query_receipt.receipt_id
+    assert disposition.execution_id == execution_id
+    assert tuple(native_state) == (0, 0)
+    # The helper returns the second, idempotent dated-page read after the first
+    # query-origin receipt already applied the persisted observation.
+    assert live_inputs["dated_page"].items[0].status == "DUPLICATE"
+    assert len(_facts.dated_close_legs) == 1
+    assert _facts.dated_close_legs[0].ready is True
+
+
+def test_dated_trade_rejects_unacknowledged_native_fill_without_restart_proof(monkeypatch):
+    _facts, live_inputs = _build_source_backed_dated_close_facts(
+        native_callback_mode="unacknowledged_same_process",
+        monkeypatch=monkeypatch,
+    )
+
+    assert live_inputs["trade_page"].items[0].status == "DUPLICATE"
+    assert live_inputs["trade_page"].items[0].blocker_code == ("CALLBACK_QUERY_RESTART_NOT_PROVEN")
+    assert live_inputs["dated_page"].items[0].blocker_code == (
+        "DATED_TRADE_NATIVE_ACK_STATE_MISMATCH"
+    )
+    assert live_inputs["dated_page"].items[0].status == "BLOCKED"
+
+
+@pytest.mark.parametrize(
+    ("evidence_field", "replacement", "expected_blocker"),
+    (
+        ("execution_id", "ctp:wrong:trade", "DATED_TRADE_NATIVE_EVIDENCE_MISMATCH"),
+        ("price", "101", "DATED_TRADE_NATIVE_ECONOMICS_MISMATCH"),
+    ),
+)
+def test_dated_trade_rejects_native_only_execution_or_economics_mismatch(
+    evidence_field, replacement, expected_blocker
+):
+    facts, live_inputs = _build_source_backed_dated_close_facts(native_callback_mode="acknowledged")
+    from backtrader.stores.factor_position_book import (
+        _dated_trade_journal_binding_error,
+        _dated_trade_source_values,
+    )
+
+    trade_page = live_inputs["dated_source_trade_page"]
+    facts = live_inputs["dated_source_facts"]
+    observation = facts.trade_observations[0]
+    source_values, error_code = _dated_trade_source_values(
+        facts,
+        observation,
+        trade_page.items[0],
+        query_set_id=facts.query_set_id,
+    )
+    assert error_code is None
+    execution_id = live_inputs["opening_execution_id"]
+    values = dict(source_values)
+    original_journal = live_inputs["journal"]
+    query_callback_id = "query-trade:" + sha256(execution_id.encode()).hexdigest()
+    query_receipt = original_journal.callback_receipt(
+        live_inputs["intent"].intent_id, query_callback_id
+    )
+    assert query_receipt is not None and query_receipt.acknowledged is True
+    native_callback_id = "ctp-trade:" + sha256(execution_id.encode()).hexdigest()
+
+    class _AlteredNativeReceiptJournal:
+        def callback_receipt(self, intent_id, callback_id):
+            receipt = original_journal.callback_receipt(intent_id, callback_id)
+            if callback_id != native_callback_id or receipt is None:
+                return receipt
+            altered_evidence = dict(receipt.evidence_payload)
+            altered_evidence[evidence_field] = replacement
+            return replace(receipt, evidence_payload=altered_evidence)
+
+        def callback_query_disposition(self, native_receipt_id):
+            return original_journal.callback_query_disposition(native_receipt_id)
+
+    journal = original_journal
+    with journal._read_lock():
+        cursor = journal._connection.cursor()
+        try:
+            fill = cursor.execute(
+                "SELECT * FROM factor_position_fills WHERE execution_id=?",
+                (live_inputs["opening_execution_id"],),
+            ).fetchone()
+            callback = cursor.execute(
+                "SELECT * FROM execution_decision_callbacks WHERE receipt_id=?",
+                (query_receipt.receipt_id,),
+            ).fetchone()
+            blocker = _dated_trade_journal_binding_error(
+                cursor,
+                fill,
+                callback,
+                values,
+                journal=_AlteredNativeReceiptJournal(),
+                intent_id=live_inputs["intent"].intent_id,
+                receipt_id=query_receipt.receipt_id,
+                execution_id=execution_id,
+            )
+        finally:
+            cursor.close()
+
+    assert blocker == expected_blocker
 
 
 @pytest.mark.parametrize(
