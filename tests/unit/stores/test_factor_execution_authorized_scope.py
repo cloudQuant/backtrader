@@ -526,7 +526,7 @@ def _target_decision(facts, target_ids, *, authorized=_AUTHORIZED):
     )
 
 
-def _production_scope_facts(now):
+def _production_scope_facts(now, *, missing_computed_margin_targets=()):
     target_specs = (
         ("M", "m2511", "DCE"),
         ("Y", "y2511", "DCE"),
@@ -545,6 +545,20 @@ def _production_scope_facts(now):
         target_specs=target_specs,
         missing_template=(target_specs[1],),
     )
+    missing_margin_target_ids = set(missing_computed_margin_targets)
+    missing_margin_instruments = {
+        instrument
+        for target_id, instrument, _exchange in target_specs
+        if target_id in missing_margin_target_ids
+    }
+    for row in api.query_rows["instrument_margin_rate_result"]:
+        if row["InstrumentID"] in missing_margin_instruments:
+            # Valid zero ratios exercise the production per-hand calculation's
+            # unobserved-margin result without introducing a query/schema error.
+            row["LongMarginRatioByMoney"] = "0"
+            row["LongMarginRatioByVolume"] = "0"
+            row["ShortMarginRatioByMoney"] = "0"
+            row["ShortMarginRatioByVolume"] = "0"
     receipt = refresh_factor_execution_queries(store, targets=targets, overall_timeout=4.0)
     assert receipt.blockers == ()
     assert receipt.pending_families == ()
@@ -661,6 +675,165 @@ def test_real_store_projection_and_planner_keep_full_pool_but_emit_only_authoriz
         assert "route_arm_template_missing:Y" in malformed_facts.blockers
         assert "route_arm_template_missing:Y" in malformed_facts.aggregate_write_blockers
         assert malformed_facts._scoped_route_permitted() is False
+    finally:
+        journal.close()
+
+
+def test_passive_flat_target_missing_computed_margin_does_not_block_authorized_open():
+    now = datetime.now(timezone.utc)
+    api, store, broker, journal, _coordinator, targets, _query_set, facts = _production_scope_facts(
+        now, missing_computed_margin_targets=("Y",)
+    )
+    try:
+        missing_y_margin = {
+            "long_margin_per_hand_unobserved:Y",
+            "short_margin_per_hand_unobserved:Y",
+        }
+        y_instrument = next(item for item in facts.instruments if item.target_id == "Y")
+        assert y_instrument.long_margin_per_hand is None
+        assert y_instrument.short_margin_per_hand is None
+        assert missing_y_margin.issubset(set(facts.blockers))
+        assert missing_y_margin.isdisjoint(facts.aggregate_write_blockers)
+        assert facts.open_risk_ready is True
+
+        planning = _planning_input(
+            facts,
+            now,
+            target_decision=_target_decision(facts, ("M", "A")),
+        )
+        plan = _STRATEGY.plan_alpha003_orders(planning)
+        assert plan.status == "READY", plan.reason
+        assert [(item.action, item.target_id) for item in plan.actions] == [
+            ("SUBMIT", "M"),
+            ("SUBMIT", "A"),
+        ]
+
+        # Omitting the explicit subset preserves the historical full-pool rule.
+        y_route_blockers = {
+            "route_ineligible:Y",
+            "route_arm_template_missing:Y",
+        }
+        full_pool_routes = tuple(
+            replace(
+                route,
+                eligible=True,
+                arm_template_configured=True,
+                arm_template_membership=True,
+            )
+            if route.target_id == "Y"
+            else route
+            for route in facts.route_eligibilities
+        )
+        full_pool = replace(
+            facts,
+            execution_target_ids=None,
+            route_eligibilities=full_pool_routes,
+            blockers=tuple(
+                blocker for blocker in facts.blockers if blocker not in y_route_blockers
+            ),
+        )
+        assert full_pool._scoped_route_permitted() is True
+        assert missing_y_margin.issubset(set(full_pool.aggregate_write_blockers))
+        assert full_pool.open_risk_ready is False
+    finally:
+        journal.close()
+
+
+def test_authorized_target_missing_computed_margin_blocks_new_risk():
+    now = datetime.now(timezone.utc)
+    (
+        _api,
+        _store,
+        _broker,
+        journal,
+        _coordinator,
+        _targets,
+        _query_set,
+        facts,
+    ) = _production_scope_facts(now, missing_computed_margin_targets=("M",))
+    try:
+        missing_m_margin = {
+            "long_margin_per_hand_unobserved:M",
+            "short_margin_per_hand_unobserved:M",
+        }
+        assert missing_m_margin.issubset(set(facts.blockers))
+        assert missing_m_margin.issubset(set(facts.aggregate_write_blockers))
+        assert facts.open_risk_ready is False
+
+        plan = _STRATEGY.plan_alpha003_orders(
+            _planning_input(
+                facts,
+                now,
+                target_decision=_target_decision(facts, ("M", "A")),
+            )
+        )
+        assert plan.status == "BLOCKED"
+        assert plan.reason.startswith("OPEN_RISK_FACTS_BLOCKED:")
+        assert plan.actions == ()
+    finally:
+        journal.close()
+
+
+def test_passive_margin_is_not_suppressed_for_exposure_or_unknown_position():
+    now = datetime.now(timezone.utc)
+    (
+        _api,
+        _store,
+        _broker,
+        journal,
+        _coordinator,
+        _targets,
+        _query_set,
+        facts,
+    ) = _production_scope_facts(now, missing_computed_margin_targets=("Y",))
+    try:
+        y_position_index = next(
+            index for index, item in enumerate(facts.positions) if item.target_id == "Y"
+        )
+        y_position = facts.positions[y_position_index]
+        exposed = replace(
+            facts,
+            positions=facts.positions[:y_position_index]
+            + (
+                replace(
+                    y_position,
+                    quantity=Decimal(1),
+                    broker_quantity=Decimal(1),
+                    long_quantity=Decimal(1),
+                    short_quantity=Decimal(0),
+                    position_book_status="MATCHED",
+                ),
+            )
+            + facts.positions[y_position_index + 1 :],
+        )
+        margin_codes = {
+            "long_margin_per_hand_unobserved:Y",
+            "short_margin_per_hand_unobserved:Y",
+        }
+        assert "execution_scope_observation_not_flat:Y" in exposed.aggregate_write_blockers
+        assert margin_codes.issubset(set(exposed.aggregate_write_blockers))
+        assert exposed.open_risk_ready is False
+
+        unknown = replace(
+            facts,
+            positions=facts.positions[:y_position_index]
+            + (
+                replace(
+                    y_position,
+                    quantity=None,
+                    broker_quantity=None,
+                    long_quantity=None,
+                    short_quantity=None,
+                    position_book_status="UNKNOWN",
+                ),
+            )
+            + facts.positions[y_position_index + 1 :],
+        )
+        assert (
+            "execution_scope_observation_position_unavailable:Y" in unknown.aggregate_write_blockers
+        )
+        assert margin_codes.issubset(set(unknown.aggregate_write_blockers))
+        assert unknown.open_risk_ready is False
     finally:
         journal.close()
 

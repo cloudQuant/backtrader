@@ -702,10 +702,22 @@ class FactorExecutionFacts:
             if self._safe_missing_template_route(route)
         }
         if safe_missing_routes:
+            # These two derived capital blockers apply only to opening risk.
+            # A proven passive route needs no per-hand opening margin, while
+            # the original blockers remain available on ``self.blockers``.
+            safe_missing_margin_blockers = {
+                blocker
+                for target_id in safe_missing_routes
+                for blocker in (
+                    "long_margin_per_hand_unobserved:{}".format(target_id),
+                    "short_margin_per_hand_unobserved:{}".format(target_id),
+                )
+            }
             blockers = [
                 blocker
                 for blocker in blockers
-                if not any(
+                if blocker not in safe_missing_margin_blockers
+                and not any(
                     blocker == "route_ineligible:{}".format(target_id)
                     or blocker == "route_arm_template_missing:{}".format(target_id)
                     for target_id in safe_missing_routes
@@ -849,6 +861,10 @@ class FactorExecutionFacts:
     def open_risk_ready(self) -> bool:
         """True only when the live state is complete for a new-risk decision."""
 
+        authorized_ids = self._authorized_target_id_set
+        authorized_instruments = tuple(
+            item for item in self.instruments if item.target_id in authorized_ids
+        )
         return bool(
             self.risk_reduction_ready
             and not self.aggregate_write_blockers
@@ -857,11 +873,12 @@ class FactorExecutionFacts:
             and self.account.used_margin is not None
             and self.account.current_notional is not None
             and self.account.current_worst_case_loss is not None
+            and len(authorized_instruments) == len(authorized_ids)
             and all(
                 item.multiplier is not None
                 and item.long_margin_per_hand is not None
                 and item.short_margin_per_hand is not None
-                for item in self.instruments
+                for item in authorized_instruments
             )
         )
 
