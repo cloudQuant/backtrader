@@ -799,6 +799,32 @@ def test_alpha101_stream_fixture_and_factor_selection_cover_all_fixed_fields(
         assert set(build.field_policies) == set(build.indicator.formula_fields)
 
 
+def test_varied_stream_extra_field_checks_follow_fixture_contract(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fixture = _load_fixture(monkeypatch)
+    base_bars, _ = fixture._fixture_bars(5, varied_stream=True, include_extra_fields=False)
+    assert all(
+        not set(fixture._EXTRA_FIELDS).intersection(row)
+        for rows in base_bars.values()
+        for row in rows
+    )
+    fixture._validate_varied_stream_generation(base_bars, include_extra_fields=False)
+
+    extra_bars, _ = fixture._fixture_bars(5, varied_stream=True, include_extra_fields=True)
+    for field_name in fixture._ALPHA101_GROUP_VALUES:
+        groups = [extra_bars[target][0][field_name] for target in fixture._TARGETS]
+        assert len(set(groups)) < len(groups)
+    fixture._validate_varied_stream_generation(extra_bars, include_extra_fields=True)
+
+    missing_extra = {target: list(rows) for target, rows in extra_bars.items()}
+    missing_row = dict(missing_extra[fixture._TARGETS[0]][0])
+    del missing_row["vwap"]
+    missing_extra[fixture._TARGETS[0]][0] = missing_row
+    with pytest.raises(RuntimeError, match="missing required extra field: vwap"):
+        fixture._validate_varied_stream_generation(missing_extra, include_extra_fields=True)
+
+
 def _valid_alpha101_witness_fixture(fixture):
     expected_points = 9
     expected_evaluation_points = 6

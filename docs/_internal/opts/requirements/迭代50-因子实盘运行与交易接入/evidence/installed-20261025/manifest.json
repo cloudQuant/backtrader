@@ -1,0 +1,56 @@
+{
+  "source_commit": "a025256eba3362661768c39dd958dc678ecb4a5f",
+  "wheel_sha256": "b662f16faee4e1e7e320cdd59c04bcba1935a137f98770a08a3764b60e395b63",
+  "evidence_level": "INSTALLED_WHEEL_PUBLIC_FIXTURE_ONLY",
+  "execution_exit": 0,
+  "alpha101_exit": 0,
+  "alpha101_executed_script_sha256": "f23f7d0cd5fcd6d0c41a64ceee17883fefe2129f3933ffbc2a220da8f6866422",
+  "delivered_script_sha256": "069608a2d44a2fdd2427351c0d8deffd2915e7ed465a273a710fb4bc723ed868",
+  "post_run_change": "Explicit extra-field flag in fixture validation; data and calculation unchanged. One focused regression passed. No installed rerun claimed for this guard-only change.",
+  "all101_compared_points_each": 960,
+  "zero_finite_factor_ids": [
+    68,
+    71,
+    75,
+    79,
+    88,
+    92,
+    94,
+    96,
+    97,
+    98,
+    100
+  ],
+  "artifacts": {
+    "execution-receipt.json": {
+      "size": 12077,
+      "sha256": "8f9d312ed034abf4b4c10d73c42fddfad6d84cd45002369401f6997b7e9c35e4",
+      "original": "D:\\temp\\i5051c-20261025-r2\\installed50-r1\\execution-console.txt"
+    },
+    "alpha101-receipt.json": {
+      "size": 65026,
+      "sha256": "4f9d915121ec7aedb322469883197b50aa7214b698eabd203453bf2eccc67d89",
+      "original": "D:\\temp\\i5051c-20261025-r2\\installed50-r2-data\\alpha101-console.txt"
+    },
+    "wheel-verification.json": {
+      "size": 740,
+      "sha256": "ccda84c2e9411043a4e5ee774fd2b9ebd83ae42eed2a07d76f3f6f1aef8494c8",
+      "original": "D:\\temp\\i5051b-41a256d78a1a\\wheel-verification.json"
+    },
+    "consumer-verification.json": {
+      "size": 773,
+      "sha256": "5dc7ba0fd84d29bece419d02b80740d97e792b1165259694184225f78ed0ecb8",
+      "original": "D:\\temp\\i5051b-41a256d78a1a\\consumer-verification.json"
+    },
+    "executed-alpha101-fixture.txt": {
+      "size": 158486,
+      "sha256": "f23f7d0cd5fcd6d0c41a64ceee17883fefe2129f3933ffbc2a220da8f6866422",
+      "original": "Exact executed F23 source recovered by reversing the later explicit extra-field guard only; SHA verified."
+    }
+  },
+  "limits": [
+    "Synthetic public provider data only; no account or provider acceptance.",
+    "The 11 zero-finite formulas retain their unavailable reasons; not 101 finite factors.",
+    "Not the 100000-grid or two-hour performance acceptance."
+  ]
+}

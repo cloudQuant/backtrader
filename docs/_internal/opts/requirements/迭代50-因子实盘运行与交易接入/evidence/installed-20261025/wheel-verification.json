@@ -1,0 +1,16 @@
+{
+  "archive_sha256": "08728dc7ca1b79b4ec5f9aa962b8caf93e68c0f1839b8fd9b8836b4b31dde00f",
+  "commit": "a025256eba3362661768c39dd958dc678ecb4a5f",
+  "declared_package_data_match": true,
+  "python_payload_match": true,
+  "schema": 1,
+  "source_file_count": 671,
+  "source_python_file_count": 662,
+  "source_tree_sha256": "3fa24cf72f77158c43e8e48ecb96822bc0710159833b221d2183a6dca020999b",
+  "stage": "WHEEL_BUILT_AND_SOURCE_RECORD_VERIFIED",
+  "wheel_filename": "back_trader_python-1.4.0-py3-none-any.whl",
+  "wheel_record_file_count": 673,
+  "wheel_record_path": "back_trader_python-1.4.0.dist-info/RECORD",
+  "wheel_record_valid": true,
+  "wheel_sha256": "b662f16faee4e1e7e320cdd59c04bcba1935a137f98770a08a3764b60e395b63"
+}

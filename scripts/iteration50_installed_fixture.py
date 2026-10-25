@@ -32,6 +32,7 @@ import json
 import math
 import os
 from pathlib import Path, PurePosixPath
+import random
 import site
 import subprocess
 import sys
@@ -239,6 +240,11 @@ from backtrader.stores.btapistore import BtApiStore  # noqa: E402
 
 _UTC = timezone.utc
 _TARGETS = ("IF2611", "IC2611", "IM2611")
+_ALPHA101_GROUP_VALUES = {
+    "sector": (0.0, 0.0, 1.0),
+    "industry": (10.0, 10.0, 11.0),
+    "subindustry": (100.0, 100.0, 101.0),
+}
 _SLOT_COUNT = 12
 _FIELDS = ("open", "high", "low", "close", "volume", "openinterest")
 _EXTRA_FIELDS = ("vwap", "cap", "sector", "industry", "subindustry", "dollar_volume")
@@ -923,6 +929,74 @@ def _validate_alpha101_field_provenance(
         )
 
 
+def _validate_varied_stream_generation(
+    bars: Mapping[str, Sequence[Mapping[str, Any]]], *, include_extra_fields: bool
+) -> None:
+    """Keep the fixed stream positive and cross-sectionally non-degenerate."""
+
+    sample_count = min(len(bars[_TARGETS[0]]), 10)
+    _require(sample_count >= 2, "varied Alpha101 stream needs at least two rank observations")
+
+    for target in _TARGETS:
+        for row in bars[target]:
+            open_price = float(row["open"])
+            high_price = float(row["high"])
+            low_price = float(row["low"])
+            close_price = float(row["close"])
+            volume = float(row["volume"])
+            _require(
+                all(
+                    math.isfinite(value)
+                    for value in (open_price, high_price, low_price, close_price, volume)
+                ),
+                "varied Alpha101 bar contains a non-finite OHLCV value",
+            )
+            _require(
+                0.0
+                < low_price
+                <= min(open_price, close_price)
+                <= max(open_price, close_price)
+                <= high_price,
+                "varied Alpha101 bar violates positive OHLC ordering",
+            )
+            _require(volume > 0.0, "varied Alpha101 bar has non-positive volume")
+
+    for field_name in ("open", "volume"):
+        orders = tuple(
+            tuple(
+                sorted(
+                    _TARGETS,
+                    key=lambda target: float(bars[target][index][field_name]),
+                )
+            )
+            for index in range(sample_count)
+        )
+        _require(
+            len(set(orders)) > 1,
+            "varied Alpha101 %s ranks do not change in the representative window" % field_name,
+        )
+        if sample_count == 10:
+            _require(
+                all(len({order.index(target) for order in orders}) > 1 for target in _TARGETS),
+                "varied Alpha101 %s rank is constant for a target" % field_name,
+            )
+
+    if include_extra_fields:
+        for target in _TARGETS:
+            for row in bars[target]:
+                for field_name in _EXTRA_FIELDS:
+                    _require(
+                        field_name in row,
+                        "varied Alpha101 bar is missing required extra field: " + field_name,
+                    )
+        for field_name in _ALPHA101_GROUP_VALUES:
+            group_values = {float(bars[target][0][field_name]) for target in _TARGETS}
+            _require(
+                len(group_values) < len(_TARGETS),
+                "varied Alpha101 %s groups have no multi-member group" % field_name,
+            )
+
+
 def _fixture_bars(
     slot_count: int = _SLOT_COUNT,
     *,
@@ -934,6 +1008,19 @@ def _fixture_bars(
     member_ids = {target: "member-" + target for target in _TARGETS}
     slots = []
     bars: Dict[str, list] = {target: [] for target in _TARGETS}
+    varied_randoms = (
+        tuple(
+            (
+                random.Random(45_101 + asset_index),
+                random.Random(45_201 + asset_index),
+                random.Random(45_301 + asset_index),
+                random.Random(45_401 + asset_index),
+            )
+            for asset_index in range(len(_TARGETS))
+        )
+        if varied_stream
+        else ()
+    )
 
     for index in range(slot_count):
         close_time = first_close + timedelta(minutes=index)
@@ -958,32 +1045,25 @@ def _fixture_bars(
 
         for asset_index, target in enumerate(_TARGETS):
             if varied_stream:
-                phase = index + 1
-                wave = math.sin(phase * (0.071 + asset_index * 0.009)) + 0.37 * math.cos(
-                    phase * (0.037 + asset_index * 0.006)
-                )
-                open_price = 82.0 + asset_index * 13.0 + phase * 0.021 + wave * 2.2
-                move = (
-                    math.sin(phase * (0.113 + asset_index * 0.017)) * 0.72
-                    + math.cos(phase * (0.053 + asset_index * 0.011)) * 0.19
-                )
-                close_price = open_price + move
+                close_rng, open_rng, volume_rng, vwap_rng = varied_randoms[asset_index]
+                base_price = (2.20, 2.24, 2.28)[asset_index]
+                close_price = base_price + 0.0003 * index + close_rng.uniform(-0.35, 0.35)
+                # Recreate the accepted full-Alpha101 source fixture's independent
+                # deterministic streams.  The three close bases are close enough
+                # for each asset's price noise to cross-sectionally reorder them.
+                open_price = close_price + open_rng.uniform(-0.29, 0.29)
                 high_price = (
                     max(open_price, close_price)
-                    + 0.31
-                    + abs(math.sin(phase * 0.17 + asset_index)) * 0.22
+                    + 0.28
+                    + 0.015 * math.cos(0.11 * index + asset_index)
                 )
                 low_price = (
                     min(open_price, close_price)
-                    - 0.29
-                    - abs(math.cos(phase * 0.13 + asset_index)) * 0.18
+                    - 0.20
+                    - 0.012 * math.sin(0.13 * index + asset_index)
                 )
-                volume = (
-                    1_500.0
-                    + asset_index * 211.0
-                    + (phase * 37 + asset_index * 83) % 997
-                    + 91.0 * math.sin(phase * 0.083 + asset_index)
-                )
+                volume = 4_200.0 + 130.0 * asset_index + volume_rng.uniform(-850.0, 850.0)
+                vwap_price = base_price + 0.0004 * index + vwap_rng.uniform(-0.36, 0.36)
             else:
                 open_rank = (asset_index + index) % len(_TARGETS)
                 volume_rank = (asset_index + 2 * index) % len(_TARGETS)
@@ -1028,15 +1108,17 @@ def _fixture_bars(
                 row.update(
                     {
                         "vwap": (
-                            (open_price + high_price + low_price + close_price) / 4.0
+                            vwap_price
+                            if varied_stream
+                            else (open_price + high_price + low_price + close_price) / 4.0
                             + 0.173
                             + asset_index * 0.031
                             + index * 0.002
                         ),
                         "cap": 1_000_000.0 + asset_index * 72_000.0 + index * 1_237.0,
-                        "sector": float(asset_index % 3),
-                        "industry": float(10 + asset_index % 5),
-                        "subindustry": float(100 + asset_index % 7),
+                        "sector": _ALPHA101_GROUP_VALUES["sector"][asset_index],
+                        "industry": _ALPHA101_GROUP_VALUES["industry"][asset_index],
+                        "subindustry": _ALPHA101_GROUP_VALUES["subindustry"][asset_index],
                         "dollar_volume": (
                             25_000.0
                             + asset_index * 3_700.0
@@ -1059,6 +1141,9 @@ def _fixture_bars(
                     }
                 )
             bars[target].append(MappingProxyType(row))
+
+    if varied_stream:
+        _validate_varied_stream_generation(bars, include_extra_fields=include_extra_fields)
 
     calendar = LiveCohortCalendar(
         calendar_id=(
