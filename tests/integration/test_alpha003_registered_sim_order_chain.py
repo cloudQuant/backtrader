@@ -1,8 +1,8 @@
 """Source-backed ordinary Alpha003 live order path over RegisteredSim.
 
-Only the provider SDK leaves are synthetic.  The 028 Runner, Alpha003 Strategy,
-cohort, Broker, Store, query refresh, execution coordinator, and journal are
-the production implementations.
+Only provider SDK leaves and the bounded source bar/tick tape are synthetic.
+The 028 Runner, Alpha003 Strategy, cohort, Broker, Store, query refresh,
+execution coordinator, and journal are the production implementations.
 """
 
 from __future__ import annotations
@@ -20,8 +20,9 @@ from types import SimpleNamespace
 import threading
 import time
 
+import pytest
+
 from tests.unit import test_alpha003_simnow_runner as runner_fixtures
-from tests.unit.stores import test_factor_execution as execution_fixtures
 from tests.unit.stores import test_factor_execution_facts as facts_fixtures
 
 
@@ -35,6 +36,7 @@ def test_alpha003_live_strategy_submits_and_cancels_through_registered_sim(tmp_p
     import backtrader.stores.registered_sim as registered_sim_module
     import backtrader.brokers.btapibroker as broker_module
     import backtrader.stores.factor_execution as factor_execution_module
+    import backtrader.stores.factor_position_book as factor_position_book_module
 
     start_day = runner_fixtures.CURRENT_DAY
     decision_at = runner_fixtures.DECISION_AT
@@ -52,9 +54,6 @@ def test_alpha003_live_strategy_submits_and_cancels_through_registered_sim(tmp_p
     plan = dict(full_plan)
     plan["grid"] = replace(full_plan["grid"], minutes=full_plan["grid"].minutes[:minute_count])
     planned_closes = {minute.close_time for minute in plan["grid"].minutes}
-    target_by_instrument = {
-        plan["routes"][plan["product_by_target"][target]]: target for target in plan["targets"]
-    }
     bars_by_instrument = defaultdict(deque)
 
     def refill_bars():
@@ -122,6 +121,7 @@ def test_alpha003_live_strategy_submits_and_cancels_through_registered_sim(tmp_p
         def __init__(self, times):
             self._times = tuple(times)
             self._index = 0
+            self._scheduled = []
             # Keep the first close inside the Runner's cohort window; its
             # bucket begins about one minute before event availability.
             self._now = self._times[0] - timedelta(seconds=65)
@@ -134,15 +134,43 @@ def test_alpha003_live_strategy_submits_and_cancels_through_registered_sim(tmp_p
         def monotonic_ns(self):
             return time.monotonic_ns()
 
+        def time(self):
+            return self.utc_now().timestamp()
+
+        def schedule_at(self, when, callback):
+            if not isinstance(when, datetime) or when.tzinfo is None or not callable(callback):
+                raise TypeError("scheduled source events need an aware time and callback")
+            with self._lock:
+                self._scheduled.append((when, callback))
+                self._scheduled.sort(key=lambda item: item[0])
+                ready = self._take_due_locked()
+            self._dispatch(ready)
+
+        def _take_due_locked(self):
+            ready = []
+            while self._scheduled and self._scheduled[0][0] <= self._now:
+                _when, callback = self._scheduled.pop(0)
+                ready.append(callback)
+            return ready
+
+        @staticmethod
+        def _dispatch(callbacks):
+            for callback in callbacks:
+                callback()
+
         def advance(self, delta):
             with self._lock:
                 self._now += delta
-                return self._now
+                now = self._now
+                ready = self._take_due_locked()
+            self._dispatch(ready)
+            return now
 
         def reset(self, times):
             with self._lock:
                 self._times = tuple(times)
                 self._index = 0
+                self._scheduled.clear()
                 self._now = self._times[0] - timedelta(seconds=65)
 
         def time_ns(self):
@@ -157,11 +185,22 @@ def test_alpha003_live_strategy_submits_and_cancels_through_registered_sim(tmp_p
             with self._lock:
                 while self._index < len(self._times) and self._times[self._index] <= self._now:
                     self._index += 1
-                if self._index < len(self._times):
-                    self._now = max(self._now, self._times[self._index])
-                    self._index += 1
-                    return False
-            return wait_for_event(min(float(timeout_seconds), 0.01))
+                next_bar = self._times[self._index] if self._index < len(self._times) else None
+                next_provider = self._scheduled[0][0] if self._scheduled else None
+                candidates = [item for item in (next_bar, next_provider) if item is not None]
+                if candidates:
+                    next_event = min(candidates)
+                    self._now = max(self._now, next_event)
+                    if next_bar == next_event:
+                        self._index += 1
+                    ready = self._take_due_locked()
+                has_event = bool(candidates)
+                if not has_event:
+                    ready = []
+            if not has_event:
+                return wait_for_event(min(float(timeout_seconds), 0.01))
+            self._dispatch(ready)
+            return False
 
     clock = SourceClock(event_times)
     refresh_condition = threading.Condition()
@@ -191,12 +230,313 @@ def test_alpha003_live_strategy_submits_and_cancels_through_registered_sim(tmp_p
     store_write_calls = []
     broker_rejections = []
     reconciliation_observations = []
+    dated_page_failure_recorded = {"value": False}
     broker_position_observations = []
     book_position_observations = []
     broker_update_observations = []
+    terminal_position_trace = {
+        "next_sequence": 0,
+        "records": [],
+        "record_indexes": {},
+        "call_order": [],
+        "dropped_unique_inputs": 0,
+        "dropped_call_order": 0,
+        "observer_errors": 0,
+        "first_mismatch": None,
+        "last_mismatch": None,
+        "first_mismatch_after_broker_update": None,
+        "last_broker_update": None,
+    }
+    active_terminal_observations = []
+    terminal_position_event_lock = threading.Lock()
 
     original_terminal_reconcile = (
         factor_execution_module.FactorExecutionCoordinator.reconcile_terminal_order_observations
+    )
+    original_one_terminal_reconcile = (
+        factor_execution_module.FactorExecutionCoordinator._reconcile_one_terminal_order
+    )
+    original_terminal_position_consistent = factor_execution_module._terminal_position_consistent
+
+    def begin_terminal_position_event():
+        with terminal_position_event_lock:
+            terminal_position_trace["next_sequence"] += 1
+            return (
+                terminal_position_trace["next_sequence"],
+                terminal_position_trace["last_broker_update"],
+            )
+
+    def record_broker_update_event(event):
+        with terminal_position_event_lock:
+            terminal_position_trace["next_sequence"] += 1
+            event["sequence"] = terminal_position_trace["next_sequence"]
+            terminal_position_trace["last_broker_update"] = event
+            return event["sequence"]
+
+    def diagnostic_value(value):
+        return {
+            "type": "{}.{}".format(type(value).__module__, type(value).__qualname__),
+            "value": repr(value),
+        }
+
+    def terminal_position_inputs(position, facts, observation):
+        if position is None:
+            return None
+        broker_quantity = getattr(position, "broker_quantity", None)
+        long_quantity = getattr(position, "long_quantity", None)
+        short_quantity = getattr(position, "short_quantity", None)
+        broker_is_decimal = isinstance(broker_quantity, Decimal)
+        long_is_decimal = isinstance(long_quantity, Decimal)
+        short_is_decimal = isinstance(short_quantity, Decimal)
+        broker_is_finite = broker_is_decimal and broker_quantity.is_finite()
+        long_is_finite = long_is_decimal and long_quantity.is_finite()
+        short_is_finite = short_is_decimal and short_quantity.is_finite()
+        long_nonnegative = long_is_finite and long_quantity >= 0
+        short_nonnegative = short_is_finite and short_quantity >= 0
+        sides_consistent = bool(
+            long_is_finite and short_is_finite and not (long_quantity > 0 and short_quantity > 0)
+        )
+        net_quantity_matches = bool(
+            broker_is_finite
+            and long_is_finite
+            and short_is_finite
+            and broker_quantity == long_quantity - short_quantity
+        )
+        try:
+            same_time = bool(
+                factor_execution_module._same_time(
+                    getattr(position, "available_at", None),
+                    getattr(facts, "available_at", None),
+                )
+            )
+        except Exception:
+            same_time = None
+        checks = {
+            "snapshot_matches": getattr(position, "snapshot_id", None)
+            == getattr(facts, "snapshot_id", None),
+            "available_at_matches": same_time,
+            "broker_is_finite_decimal": broker_is_finite,
+            "long_is_finite_decimal": long_is_finite,
+            "long_is_nonnegative": long_nonnegative,
+            "short_is_finite_decimal": short_is_finite,
+            "short_is_nonnegative": short_nonnegative,
+            "sides_are_consistent": sides_consistent,
+            "net_quantity_matches_sides": net_quantity_matches,
+        }
+        comparison_result = (
+            all(value is True for value in checks.values()) if None not in checks.values() else None
+        )
+        return {
+            "target": {
+                "target_id": getattr(position, "target_id", None),
+                "instrument": getattr(position, "instrument", None),
+                "exchange": getattr(position, "exchange", None),
+                "observation_id": getattr(observation, "observation_id", None),
+                "observation_instrument": getattr(observation, "instrument", None),
+                "observation_exchange": getattr(observation, "exchange", None),
+            },
+            "snapshot": {
+                "position": diagnostic_value(getattr(position, "snapshot_id", None)),
+                "facts": diagnostic_value(getattr(facts, "snapshot_id", None)),
+            },
+            "available_at": {
+                "position": diagnostic_value(getattr(position, "available_at", None)),
+                "facts": diagnostic_value(getattr(facts, "available_at", None)),
+            },
+            "quantities": {
+                "broker": diagnostic_value(broker_quantity),
+                "long": diagnostic_value(long_quantity),
+                "short": diagnostic_value(short_quantity),
+            },
+            "checks": checks,
+            "comparison_result": comparison_result,
+        }
+
+    def record_terminal_position_check(
+        *,
+        sequence,
+        source,
+        position,
+        facts,
+        observation,
+        result,
+        blocker_code=None,
+        broker_update_before_check=None,
+    ):
+        try:
+            inputs = terminal_position_inputs(position, facts, observation)
+            input_key = json.dumps(
+                inputs,
+                default=str,
+                sort_keys=True,
+                separators=(",", ":"),
+            )
+            if isinstance(result, bool):
+                result_projection = result
+            else:
+                result_projection = {
+                    "type": "{}.{}".format(type(result).__module__, type(result).__qualname__),
+                    "status": getattr(result, "status", None),
+                    "blocker_code": getattr(result, "blocker_code", None),
+                }
+            is_mismatch = (
+                result is False or blocker_code == "TERMINAL_POSITION_RECONCILIATION_MISMATCH"
+            )
+            with terminal_position_event_lock:
+                row_index = terminal_position_trace["record_indexes"].get(input_key)
+                if row_index is None and len(terminal_position_trace["records"]) < 16:
+                    row_index = len(terminal_position_trace["records"])
+                    terminal_position_trace["record_indexes"][input_key] = row_index
+                    terminal_position_trace["records"].append(
+                        {"input": inputs, "first_sequence": sequence, "sources": [], "calls": []}
+                    )
+                elif row_index is None:
+                    terminal_position_trace["dropped_unique_inputs"] += 1
+
+                call = {
+                    "sequence": sequence,
+                    "source": source,
+                    "input_index": row_index,
+                    "result": result_projection,
+                    "blocker_code": blocker_code,
+                    "broker_update_before_check": (
+                        None
+                        if broker_update_before_check is None
+                        else broker_update_before_check["sequence"]
+                    ),
+                }
+                if len(terminal_position_trace["call_order"]) < 256:
+                    terminal_position_trace["call_order"].append(call)
+                else:
+                    terminal_position_trace["dropped_call_order"] += 1
+                if row_index is not None:
+                    row = terminal_position_trace["records"][row_index]
+                    if source not in row["sources"]:
+                        row["sources"].append(source)
+                    if len(row["calls"]) < 32:
+                        row["calls"].append(call)
+                if is_mismatch:
+                    mismatch = {
+                        "sequence": sequence,
+                        "source": source,
+                        "input_index": row_index,
+                        "input": inputs,
+                        "result": result_projection,
+                        "blocker_code": blocker_code,
+                        "broker_update_before_check": broker_update_before_check,
+                    }
+                    current = terminal_position_trace["first_mismatch"]
+                    if current is None or sequence < current["sequence"]:
+                        terminal_position_trace["first_mismatch"] = mismatch
+                    current_last = terminal_position_trace["last_mismatch"]
+                    if current_last is None or sequence > current_last["sequence"]:
+                        terminal_position_trace["last_mismatch"] = mismatch
+                    current_after_update = terminal_position_trace[
+                        "first_mismatch_after_broker_update"
+                    ]
+                    if (
+                        broker_update_before_check is not None
+                        and sequence > broker_update_before_check["sequence"]
+                        and (
+                            current_after_update is None
+                            or sequence < current_after_update["sequence"]
+                        )
+                    ):
+                        terminal_position_trace["first_mismatch_after_broker_update"] = mismatch
+        except Exception:
+            # Diagnostics must never change a production predicate or callback path.
+            with terminal_position_event_lock:
+                terminal_position_trace["observer_errors"] += 1
+
+    def traced_terminal_position_consistent(position, facts):
+        sequence, broker_update_before_check = begin_terminal_position_event()
+        observation = active_terminal_observations[-1] if active_terminal_observations else None
+        result = original_terminal_position_consistent(position, facts)
+        record_terminal_position_check(
+            sequence=sequence,
+            source="_terminal_position_consistent",
+            position=position,
+            facts=facts,
+            observation=observation,
+            result=result,
+            broker_update_before_check=broker_update_before_check,
+        )
+        return result
+
+    monkeypatch.setattr(
+        factor_execution_module,
+        "_terminal_position_consistent",
+        traced_terminal_position_consistent,
+    )
+
+    def traced_one_terminal_reconcile(coordinator, facts, observation, **kwargs):
+        sequence, broker_update_before_check = begin_terminal_position_event()
+        active_terminal_observations.append(observation)
+        try:
+            result = original_one_terminal_reconcile(coordinator, facts, observation, **kwargs)
+        finally:
+            active_terminal_observations.pop()
+        blocker_code = getattr(result, "blocker_code", None)
+        if blocker_code == "TERMINAL_POSITION_RECONCILIATION_MISMATCH":
+            matches = tuple(
+                position
+                for position in getattr(facts, "positions", ())
+                if getattr(position, "instrument", None) == getattr(observation, "instrument", None)
+                and getattr(position, "exchange", None) == getattr(observation, "exchange", None)
+            )
+            record_terminal_position_check(
+                sequence=sequence,
+                source="_reconcile_one_terminal_order_inline",
+                position=matches[0] if len(matches) == 1 else None,
+                facts=facts,
+                observation=observation,
+                result=result,
+                blocker_code=blocker_code,
+                broker_update_before_check=broker_update_before_check,
+            )
+        return result
+
+    monkeypatch.setattr(
+        factor_execution_module.FactorExecutionCoordinator,
+        "_reconcile_one_terminal_order",
+        traced_one_terminal_reconcile,
+    )
+
+    original_dated_trade_reconcile = (
+        factor_position_book_module.FactorPositionBook.reconcile_dated_trade_observations
+    )
+
+    def traced_dated_trade_reconcile(position_book, *args, **kwargs):
+        page = original_dated_trade_reconcile(position_book, *args, **kwargs)
+        api = api_instances[-1] if api_instances else None
+        items = tuple(getattr(page, "items", ()))
+        item_states = tuple(
+            (getattr(item, "status", None), getattr(item, "blocker_code", None))
+            for item in items[:16]
+        )
+        has_blocker = any(
+            status not in {"APPLIED", "DUPLICATE", "EXTERNAL_FLAT"} or blocker_code is not None
+            for status, blocker_code in item_states
+        )
+        if (
+            api is not None
+            and api._phase == 1
+            and has_blocker
+            and not dated_page_failure_recorded["value"]
+        ):
+            dated_page_failure_recorded["value"] = True
+            note_fill_event(
+                "dated_trade_reconciliation_failure_page",
+                offset=getattr(page, "offset", None),
+                observation_count=getattr(page, "observation_count", None),
+                item_states=item_states,
+            )
+        return page
+
+    monkeypatch.setattr(
+        factor_position_book_module.FactorPositionBook,
+        "reconcile_dated_trade_observations",
+        traced_dated_trade_reconcile,
     )
 
     def traced_terminal_reconcile(coordinator, facts, **kwargs):
@@ -275,6 +615,16 @@ def test_alpha003_live_strategy_submits_and_cancels_through_registered_sim(tmp_p
             position_after = tuple(
                 (key, getattr(position, "size", None)) for key, position in broker.positions.items()
             )
+            last_broker_update = {
+                "method": _method.__name__,
+                "update_kind": update.get("kind"),
+                "status": update.get("status"),
+                "order_ref": update.get("order_ref"),
+                "trade_id": update.get("trade_id"),
+                "position_before": position_before[-8:],
+                "position_after": position_after[-8:],
+            }
+            update_sequence = record_broker_update_event(last_broker_update)
             broker_update_observations.append(
                 (
                     _method.__name__,
@@ -289,6 +639,7 @@ def test_alpha003_live_strategy_submits_and_cancels_through_registered_sim(tmp_p
             note_fill_event(
                 "broker_update_applied",
                 method=_method.__name__,
+                observer_sequence=update_sequence,
                 update_kind=update.get("kind"),
                 status=update.get("status"),
                 order_ref=update.get("order_ref"),
@@ -353,89 +704,278 @@ def test_alpha003_live_strategy_submits_and_cancels_through_registered_sim(tmp_p
         registered_sim_module.RegisteredSimStore, "submit_order", traced_store_submit
     )
 
-    class Alpha003Provider(execution_fixtures._FakeProviderClient):
-        """Synthetic CTP query/order/tick leaves under the production wrapper."""
+    ctp_client_module = None
+    for module_name in ("bt_api_ctp.ctp.client", "bt_api_py.ctp.client"):
+        try:
+            ctp_client_module = __import__(module_name, fromlist=["MdClient", "TraderClient"])
+            break
+        except ImportError:
+            continue
+    if ctp_client_module is None:
+        pytest.skip("CTP SDK client module is unavailable")
 
-        def __init__(self, **kwargs):
-            super().__init__(
-                query_rows=query_rows,
-                query_time=clock.utc_now(),
-                ticks={},
-                **kwargs,
+    import backtrader.stores.btapistore as btapistore_module
+
+    # Preserve the generated CTP wrapper's callback timestamps while binding
+    # its wall clock to the explicit provider schedule used by this fixture.
+    # Monotonic time remains real for query TTLs and bounded waits.
+    monkeypatch.setattr(
+        btapistore_module,
+        "time",
+        SimpleNamespace(
+            time=clock.time,
+            monotonic=time.monotonic,
+            monotonic_ns=time.monotonic_ns,
+            sleep=time.sleep,
+        ),
+    )
+
+    class Alpha003MdClient:
+        """Synthetic MD SDK leaf; production wrapper owns callback binding/normalization."""
+
+        def __init__(self, **_kwargs):
+            self._state_lock = threading.RLock()
+            self._connection_generation = 1
+            self.on_tick = None
+            self.on_tick_with_generation = None
+            self.on_disconnect = None
+            self.on_disconnect_with_generation = None
+            self.on_error = None
+            self._subscribed = set()
+            self._scheduled_bar_ids = set()
+            self.stopped = False
+            self._api = api_instances[-1]
+
+        @property
+        def connection_generation(self):
+            with self._state_lock:
+                return self._connection_generation
+
+        def start(self, block=False):
+            assert block is False
+
+        def wait_ready(self, timeout=20):
+            del timeout
+            return True
+
+        @staticmethod
+        def _raw_tick(instrument, exchange, trading_day, event_time):
+            local = event_time.astimezone(timezone(timedelta(hours=8)))
+            return SimpleNamespace(
+                InstrumentID=instrument,
+                ExchangeID=exchange,
+                LastPrice=100.0,
+                Volume=0,
+                BidPrice1=99.9,
+                AskPrice1=100.1,
+                BidVolume1=5,
+                AskVolume1=6,
+                OpenInterest=0.0,
+                Turnover=0.0,
+                TradingDay=trading_day.replace("-", ""),
+                ActionDay=local.strftime("%Y%m%d"),
+                UpdateTime=local.strftime("%H:%M:%S"),
+                UpdateMillisec=local.microsecond // 1000,
             )
-            client = self.trader_client
-            client._account_fingerprint = "alpha003-factor-chain-account"
-            client._trading_day = start_day.strftime("%Y%m%d")
-            client._front_id = 4
-            client._session_id = 7
-            # The production wrapper grants one exact native instrument at a
-            # time.  Model the SDK's public opaque-capability revoke boundary
-            # so a later factor-selected target can be armed through the real
-            # multi-route switch path.
-            client._fake_active_capability = None
-            original_arm = client.arm_execution_for_registered_sim
 
-            def arm_execution_for_registered_sim(**arm_kwargs):
-                result = original_arm(**arm_kwargs)
-                client._fake_active_capability = result[0]
-                return result
+        def _dispatch_tick(self, payload):
+            # Match the SDK's generation-aware callback contract: capture the
+            # callback and source generation together, then invoke outside the
+            # client lock. The production wrapper owns normalization/queueing.
+            with self._state_lock:
+                callback = self.on_tick_with_generation
+                generation = self._connection_generation
+            if not callable(callback):
+                raise AssertionError("production wrapper did not bind generation tick callback")
+            callback(payload, generation)
+            return generation
 
-            def disarm_execution_gate(capability, reason):
-                if capability is not client._fake_active_capability:
-                    raise AssertionError("fake SDK disarm must name the active capability")
-                client._fake_active_capability = None
-                state = dict(client._gate_state)
-                state.update(
-                    managed=False,
-                    armed=False,
-                    instrument=None,
-                    authorized_instruments=[],
-                    revocation_reason=reason,
+        def subscribe(self, instruments):
+            with self._state_lock:
+                self._subscribed.update(str(item) for item in instruments)
+            for instrument in tuple(str(item) for item in instruments):
+                rows = self._api._source_bars.get(instrument)
+                if rows is None:
+                    continue
+                for row in tuple(rows):
+                    bar_id = row["bar_id"]
+                    if bar_id in self._scheduled_bar_ids:
+                        continue
+                    self._scheduled_bar_ids.add(bar_id)
+                    delivery_at = row["available_at"] + timedelta(milliseconds=200)
+
+                    def deliver(instrument=instrument, row=row, bar_id=bar_id):
+                        event_time = row["bucket_end"] + timedelta(seconds=2, milliseconds=10)
+                        payload = self._raw_tick(
+                            instrument,
+                            row["exchange"],
+                            row["trading_day"],
+                            event_time,
+                        )
+                        callback_generation = self._dispatch_tick(payload)
+                        self._api.tick_observations.append(
+                            (
+                                instrument,
+                                bar_id,
+                                callback_generation,
+                                row["connection_generation"],
+                            )
+                        )
+                        if (
+                            self._api._phase == 1
+                            and not any(self._api._source_bars.values())
+                            and self._api._pending_close_instrument == instrument
+                            and self._api._pending_close_callback is not None
+                        ):
+                            order_ref = self._api._pending_close_callback
+                            self._api._pending_close_callback = None
+                            self._api._pending_close_instrument = None
+                            self._api.trader_client.emit_fill(order_ref)
+
+                    clock.schedule_at(delivery_at, deliver)
+
+        def schedule_winddown_quote(self, instrument, query_set_id, query_completed_at):
+            api = self._api
+            if instrument in api._winddown_scheduled_instruments:
+                return
+            route = next(
+                ((item, exchange) for item, exchange in route_rows if item == instrument), None
+            )
+            if route is None:
+                raise AssertionError("winddown quote route was not configured")
+            _instrument, exchange = route
+            event_time = query_completed_at + timedelta(milliseconds=5)
+            delivery_at = query_completed_at + timedelta(milliseconds=25)
+            api._winddown_scheduled_instruments.add(instrument)
+            api._winddown_query_set_for[instrument] = query_set_id
+            api._winddown_metadata[instrument] = {
+                "query_set_id": query_set_id,
+                "query_completed_at": query_completed_at.isoformat(),
+                "event_time": event_time.isoformat(),
+                "delivery_at": delivery_at.isoformat(),
+            }
+
+            def deliver():
+                payload = self._raw_tick(
+                    instrument,
+                    exchange,
+                    start_day.strftime("%Y%m%d"),
+                    event_time,
                 )
-                client._gate_state = state
-                return {"revoked": True}
+                generation = self._dispatch_tick(payload)
+                api.tick_observations.append(
+                    (instrument, "winddown:" + query_set_id, generation, "provider-scheduled")
+                )
+                if (
+                    api._phase == 1
+                    and api._pending_close_instrument == instrument
+                    and api._pending_close_callback is not None
+                ):
+                    order_ref = api._pending_close_callback
+                    api._pending_close_callback = None
+                    api._pending_close_instrument = None
+                    api.trader_client.emit_fill(order_ref)
 
-            client.arm_execution_for_registered_sim = arm_execution_for_registered_sim
-            client.disarm_execution_gate = disarm_execution_gate
-            client.is_ready = True
-            client.is_read_only_ready = True
-            client.is_trading_ready = True
-            client.wait_ready = lambda timeout: True
-            client._gate_state.update(
-                connection_generation=client._connection_generation,
-                trading_day=client._trading_day,
+            clock.schedule_at(delivery_at, deliver)
+
+        def stop(self):
+            self.stopped = True
+
+        def capture_tick_callback(self, payload):
+            """Capture generation with callback under SDK lock, invoke outside it."""
+            with self._state_lock:
+                callback = self.on_tick_with_generation
+                generation = self._connection_generation
+            if not callable(callback):
+                raise AssertionError("production wrapper did not bind generation tick callback")
+            return lambda: callback(payload, generation)
+
+        def dispatch_disconnect(self, reason, generation=None):
+            with self._state_lock:
+                callback = self.on_disconnect_with_generation
+                captured_generation = (
+                    self._connection_generation if generation is None else generation
+                )
+            if callable(callback):
+                callback(reason, captured_generation)
+
+    class Alpha003TraderClient(facts_fixtures._ProviderLeaves):
+        """Synthetic typed-query/trader SDK leaf under the real CTP wrapper."""
+
+        def __init__(self, **_kwargs):
+            super().__init__(query_rows=query_rows, query_time=clock.utc_now(), ticks={})
+            self._api = api_instances[-1]
+            self.trader_client._account_fingerprint = "alpha003-factor-chain-account"
+            self.trader_client._trading_day = start_day.strftime("%Y%m%d")
+            self.trader_client._connection_generation = 1
+            self._front_id = 4
+            self._session_id = 7
+            self._req_id = 0
+            self._next_order_ref_value = 100
+            self.is_ready = True
+            self.is_read_only_ready = True
+            self.is_trading_ready = True
+            self.stopped = False
+            self.native_calls = self._api.native_calls
+            self._provider_orders = {}
+            self._fake_active_capability = None
+
+        def start(self, block=False):
+            assert block is False
+
+        def wait_ready(self, timeout=20):
+            del timeout
+            return True
+
+        def stop(self):
+            self.stopped = True
+
+        def next_order_ref(self):
+            self._next_order_ref_value += 1
+            return str(self._next_order_ref_value)
+
+        def get_query_session_scope(self):
+            return self.trader_client.get_query_session_scope()
+
+        def get_execution_gate_state(self):
+            return dict(self.trader_client.get_execution_gate_state())
+
+        def get_session_state(self):
+            state = self.trader_client.get_session_state()
+            state.update(
+                front_id=self._front_id,
+                session_id=self._session_id,
+                read_only_ready=self.is_read_only_ready,
+                trading_ready=self.is_trading_ready,
             )
-            self._source_bars = bars_by_instrument
-            self._phase = len(api_instances)
-            self._sent_tick_for = {}
-            self._winddown_metadata = {
-                instrument: dict(rows[-1]) for instrument, rows in self._source_bars.items() if rows
-            }
-            self._winddown_sequences = {
-                instrument: max(int(row["bar_sequence"]) for row in rows)
-                for instrument, rows in self._source_bars.items()
-                if rows
-            }
-            self._winddown_query_set_for = {}
-            self._pending_fill_callback = None
-            self._pending_fill_instrument = None
-            self._applied_fill_query = False
-            self.broker_callback_events = []
-            self.tick_observations = []
-            self.winddown_tick_observations = []
-            self.winddown_poll_attempts = 0
-            self.winddown_poll_blockers = []
-            self._required_refresh_start = None
-            self.closed = False
-            api_instances.append(self)
+            return state
+
+        def arm_execution_for_registered_sim(self, **kwargs):
+            capability, state = self.trader_client.arm_execution_for_registered_sim(**kwargs)
+            self._fake_active_capability = capability
+            return capability, state
+
+        def disarm_execution_gate(self, capability, reason):
+            if capability is not self._fake_active_capability:
+                raise AssertionError("fake SDK disarm must name the active capability")
+            self._fake_active_capability = None
+            state = dict(self.trader_client._gate_state)
+            state.update(
+                managed=False,
+                armed=False,
+                instrument=None,
+                authorized_instruments=[],
+                revocation_reason=reason,
+            )
+            self.trader_client._gate_state = state
+            return {"revoked": True}
 
         def _query_family(self, family, request_type, **filters):
-            # QueryResult completion is observed after any preceding journal
-            # receipt, in the same injected source clock used by the Strategy.
+            self.query_rows = dict(query_rows)
             started_at = clock.utc_now()
-            clock.advance(timedelta(milliseconds=5))
-            self.query_time = clock.utc_now()
+            self.query_time = started_at + timedelta(milliseconds=2)
             result = super()._query_family(family, request_type, **filters)
+            clock.advance(timedelta(milliseconds=2))
             note_fill_event(
                 "query_completed",
                 family=family,
@@ -449,117 +989,284 @@ def test_alpha003_live_strategy_submits_and_cancels_through_registered_sim(tmp_p
             )
             return result
 
-        def get_balance(self):
-            return {"cash": 1_000_000.0, "value": 1_000_000.0}
+        def query_account(self, timeout=5):
+            del timeout
+            return dict(query_rows["account_result"][0])
 
-        def get_positions(self):
-            """Project the same exact CTP position rows used by query facts."""
-            normalized = []
-            for row in query_rows["positions_result"]:
-                instrument_id = row["InstrumentID"]
-                exchange_id = row["ExchangeID"]
-                target = target_by_instrument.get(instrument_id)
-                if target is None:
-                    raise AssertionError(
-                        f"position row is outside the configured feed scope: {instrument_id}"
-                    )
-                if exchange_id != plan["product_by_target"][target].exchange_id:
-                    raise AssertionError(
-                        f"position exchange does not match its configured feed: {row!r}"
-                    )
+        def query_positions(self, timeout=5):
+            del timeout
+            return [dict(row) for row in query_rows["positions_result"]]
 
-                quantity = Decimal(str(row["Position"]))
-                if quantity <= 0:
-                    continue
-                position_direction = str(row["PosiDirection"])
-                if position_direction == "2":
-                    direction = "long"
-                    ctp_direction = "0"
-                elif position_direction == "3":
-                    direction = "short"
-                    ctp_direction = "1"
-                else:
-                    raise AssertionError(f"position row has no explicit CTP side: {row!r}")
+        def query_instrument(self, instrument, exchange_id="", timeout=5):
+            del timeout
+            return next(
+                (
+                    dict(row)
+                    for row in query_rows["instruments_result"]
+                    if row.get("InstrumentID") == instrument
+                    and (not exchange_id or row.get("ExchangeID") == exchange_id)
+                ),
+                None,
+            )
 
-                opening_trades = [
-                    trade
-                    for trade in query_rows["trades_result"]
-                    if trade["InstrumentID"] == instrument_id
-                    and trade["ExchangeID"] == exchange_id
-                    and str(trade["Direction"]) == ctp_direction
-                    and str(trade["OffsetFlag"]) == "0"
-                    and str(trade["HedgeFlag"]) == str(row["HedgeFlag"])
+        def query_instrument_margin_rate(self, instrument, exchange_id="", timeout=5):
+            del timeout
+            return next(
+                (
+                    dict(row)
+                    for row in query_rows["instrument_margin_rate_result"]
+                    if row.get("InstrumentID") == instrument
+                    and (not exchange_id or row.get("ExchangeID") == exchange_id)
+                ),
+                None,
+            )
+
+        def query_instrument_commission_rate(self, instrument, exchange_id="", timeout=5):
+            del timeout
+            return {
+                "InstrumentID": instrument,
+                "ExchangeID": exchange_id,
+                "OpenRatioByMoney": "0",
+                "OpenRatioByVolume": "0",
+                "CloseRatioByMoney": "0",
+                "CloseRatioByVolume": "0",
+                "CloseTodayRatioByMoney": "0",
+                "CloseTodayRatioByVolume": "0",
+            }
+
+        def submit_order_insert(self, field, request_id, *, execution_capability):
+            if execution_capability is not self._fake_active_capability:
+                raise AssertionError("native insert did not receive the exact SDK grant")
+            order_ref = str(field.OrderRef)
+            offset_flag = str(field.CombOffsetFlag)
+            identity = {
+                "order_ref": order_ref,
+                "order_sys_id": "sys-" + order_ref,
+                "instrument_id": str(field.InstrumentID),
+                "exchange_id": str(field.ExchangeID),
+                "side": "buy" if str(field.Direction) == "0" else "sell",
+                "offset_flag": offset_flag,
+                "offset": {
+                    "0": "open",
+                    "1": "close",
+                    "3": "close_today",
+                    "4": "close_yesterday",
+                }.get(offset_flag),
+                "size": int(field.VolumeTotalOriginal),
+                "price": float(field.LimitPrice),
+                "front_id": self._front_id,
+                "session_id": self._session_id,
+            }
+            if identity["offset"] is None:
+                raise AssertionError("unexpected CTP offset in source-backed order")
+            self._provider_orders[order_ref] = identity
+            self.native_calls.append(
+                (
+                    "insert",
+                    identity["instrument_id"],
+                    identity["exchange_id"],
+                    order_ref,
+                    request_id,
+                )
+            )
+            self._publish_order(identity, status="3", filled=0, remaining=identity["size"])
+            order_callback = self.on_order
+            if not callable(order_callback):
+                raise AssertionError("production wrapper did not bind the CTP order callback")
+            order_callback(self._ctp_order_event(identity, "3", 0, identity["size"]))
+            if (
+                self._api._phase == 1
+                and identity["offset"] == "open"
+                and self._api._pending_fill_callback is None
+                and not self._api._applied_fill_query
+            ):
+                self._api._pending_fill_callback = order_ref
+                self._api._pending_fill_instrument = identity["instrument_id"]
+            elif self._api._phase == 1 and identity["offset"].startswith("close"):
+                self._api._pending_close_callback = order_ref
+                self._api._pending_close_instrument = identity["instrument_id"]
+            self._api._mark_refresh_required()
+            return 0
+
+        def submit_order_action(self, field, request_id, *, execution_capability):
+            if execution_capability is not self._fake_active_capability:
+                raise AssertionError("native cancel did not receive the exact SDK grant")
+            order_ref = str(field.OrderRef)
+            identity = self._provider_orders[order_ref]
+            self.native_calls.append(
+                (
+                    "cancel",
+                    identity["instrument_id"],
+                    identity["exchange_id"],
+                    order_ref,
+                    request_id,
+                )
+            )
+            self._publish_order(identity, status="5", filled=0, remaining=identity["size"])
+            self.on_order(self._ctp_order_event(identity, "5", 0, identity["size"]))
+            self._api._mark_refresh_required()
+            return 0
+
+        def _ctp_order_event(self, identity, status, filled, remaining):
+            local = clock.utc_now().astimezone(timezone(timedelta(hours=8)))
+            return SimpleNamespace(
+                OrderRef=identity["order_ref"],
+                OrderSysID=identity["order_sys_id"],
+                InstrumentID=identity["instrument_id"],
+                ExchangeID=identity["exchange_id"],
+                FrontID=identity["front_id"],
+                SessionID=identity["session_id"],
+                OrderStatus=status,
+                OrderSubmitStatus="3",
+                Direction="0" if identity["side"] == "buy" else "1",
+                CombOffsetFlag=identity["offset_flag"],
+                VolumeTotalOriginal=identity["size"],
+                VolumeTraded=filled,
+                VolumeTotal=remaining,
+                LimitPrice=identity["price"],
+                TradingDay=start_day.strftime("%Y%m%d"),
+                InsertTime=local.strftime("%H:%M:%S"),
+                UpdateTime=local.strftime("%H:%M:%S"),
+            )
+
+        def _publish_order(self, identity, *, status, filled, remaining):
+            row = {
+                "OrderRef": identity["order_ref"],
+                "OrderSysID": identity["order_sys_id"],
+                "InstrumentID": identity["instrument_id"],
+                "ExchangeID": identity["exchange_id"],
+                "TradingDay": start_day.strftime("%Y%m%d"),
+                "FrontID": identity["front_id"],
+                "SessionID": identity["session_id"],
+                "OrderStatus": status,
+                "OrderSubmitStatus": "3",
+                "Direction": "0" if identity["side"] == "buy" else "1",
+                "CombOffsetFlag": identity["offset_flag"],
+                "VolumeTotalOriginal": identity["size"],
+                "VolumeTraded": filled,
+                "VolumeTotal": remaining,
+                "LimitPrice": identity["price"],
+            }
+            rows = query_rows["orders_result"]
+            rows[:] = [item for item in rows if str(item.get("OrderRef")) != identity["order_ref"]]
+            rows.append(row)
+
+        def emit_fill(self, order_ref):
+            identity = self._provider_orders[str(order_ref)]
+            quantity = identity["size"]
+            self._publish_order(identity, status="0", filled=quantity, remaining=0)
+            self.on_order(self._ctp_order_event(identity, "0", quantity, 0))
+            local = clock.utc_now().astimezone(timezone(timedelta(hours=8)))
+            trade_id = "alpha003-{}-{}".format(identity["offset"], identity["order_ref"])
+            offset_flag = identity["offset_flag"]
+            trade = SimpleNamespace(
+                TradeID=trade_id,
+                OrderRef=identity["order_ref"],
+                OrderSysID=identity["order_sys_id"],
+                InstrumentID=identity["instrument_id"],
+                ExchangeID=identity["exchange_id"],
+                Direction="0" if identity["side"] == "buy" else "1",
+                OffsetFlag=offset_flag,
+                HedgeFlag="1",
+                Volume=quantity,
+                Price=100.0,
+                TradeDate=local.strftime("%Y%m%d"),
+                TradeTime=local.strftime("%H:%M:%S"),
+                TradingDay=start_day.strftime("%Y%m%d"),
+            )
+            self.on_trade(trade)
+            query_rows["trades_result"].append(
+                {
+                    "TradeID": trade_id,
+                    "OrderRef": identity["order_ref"],
+                    "OrderSysID": identity["order_sys_id"],
+                    "InstrumentID": identity["instrument_id"],
+                    "ExchangeID": identity["exchange_id"],
+                    "Direction": trade.Direction,
+                    "OffsetFlag": offset_flag,
+                    "HedgeFlag": "1",
+                    "Volume": str(quantity),
+                    "Price": "100",
+                    "TradeDate": trade.TradeDate,
+                    "TradeTime": trade.TradeTime,
+                    "TradingDay": start_day.strftime("%Y%m%d"),
+                }
+            )
+            if identity["offset"] == "open":
+                position = facts_fixtures._dated_position_row(
+                    quantity,
+                    side="LONG" if identity["side"] == "buy" else "SHORT",
+                    trading_day=start_day.strftime("%Y%m%d"),
+                    PositionCost=str(Decimal(quantity) * Decimal("1000")),
+                )
+                position.update(
+                    InstrumentID=identity["instrument_id"], ExchangeID=identity["exchange_id"]
+                )
+                query_rows["positions_result"][:] = [
+                    row
+                    for row in query_rows["positions_result"]
+                    if row.get("InstrumentID") != identity["instrument_id"]
                 ]
-                opening_quantity = sum(
-                    (Decimal(str(trade["Volume"])) for trade in opening_trades),
-                    Decimal("0"),
-                )
-                if opening_quantity < quantity:
-                    raise AssertionError(
-                        "provider position exceeds its query-backed OPEN trades: "
-                        f"instrument={instrument_id!r}, position={quantity!r}, "
-                        f"opening_quantity={opening_quantity!r}"
-                    )
-                if opening_quantity <= 0:
-                    raise AssertionError(
-                        f"position has no query-backed OPEN trade: {instrument_id}"
-                    )
-                average_price = (
-                    sum(
-                        (
-                            Decimal(str(trade["Volume"])) * Decimal(str(trade["Price"]))
-                            for trade in opening_trades
-                        ),
-                        Decimal("0"),
-                    )
-                    / opening_quantity
-                )
-                product = plan["product_by_target"][target]
-                data_name = f"{exchange_id}.{product.product_id}"
-                normalized.append(
-                    {
-                        "data_name": data_name,
-                        "instrument": data_name,
-                        "symbol": data_name,
-                        "instrument_id": instrument_id,
-                        "exchange_id": exchange_id,
-                        "direction": direction,
-                        "volume": float(quantity),
-                        "size": float(quantity if direction == "long" else -quantity),
-                        "price": float(average_price),
-                        "avg_price": float(average_price),
-                    }
-                )
-            return normalized
+                query_rows["positions_result"].append(position)
+            else:
+                query_rows["positions_result"][:] = [
+                    row
+                    for row in query_rows["positions_result"]
+                    if row.get("InstrumentID") != identity["instrument_id"]
+                ]
+            note_fill_event(
+                "provider_callback_fill",
+                order_ref=identity["order_ref"],
+                trade_id=trade_id,
+                offset=identity["offset"],
+                query_position_rows=tuple(
+                    (row.get("InstrumentID"), row.get("Position"))
+                    for row in query_rows["positions_result"]
+                ),
+            )
+            self._api._mark_refresh_required()
+            if identity["offset"] == "open":
+                self._api._pending_fill_callback = None
+                self._api._pending_fill_instrument = None
+                self._api._applied_fill_query = True
 
-        def fetch_open_orders(self):
-            return []
+    monkeypatch.setattr(ctp_client_module, "MdClient", Alpha003MdClient)
+    monkeypatch.setattr(ctp_client_module, "TraderClient", Alpha003TraderClient)
 
-        def get_open_orders(self):
-            return []
+    CtpClientWrapper = btapistore_module._create_ctp_wrapper_class()
 
-        def subscribe(self, _symbols):
-            return None
+    class Alpha003BarTapeMixin(CtpClientWrapper):
+        """Only the completed-bar tape is fake; all live CTP paths stay real."""
 
-        def connect(self):
-            return None
+        def __init__(self, **kwargs):
+            super().__init__(**kwargs)
+            self._source_bars = bars_by_instrument
+            self._phase = len(api_instances)
+            self._sent_tick_for = set()
+            self._winddown_metadata = {}
+            self._winddown_query_set_for = {}
+            self._winddown_scheduled_instruments = set()
+            self._pending_fill_callback = None
+            self._pending_fill_instrument = None
+            self._pending_close_callback = None
+            self._pending_close_instrument = None
+            self._applied_fill_query = False
+            self.native_calls = []
+            self.tick_observations = []
+            self.winddown_tick_observations = []
+            self.winddown_poll_attempts = 0
+            self.winddown_poll_blockers = []
+            self._required_refresh_start = None
+            api_instances.append(self)
 
-        def disconnect(self):
-            self.closed = True
-
-        def poll_broker_update(self):
-            update = super().poll_broker_update()
-            if update is not None:
-                self.broker_callback_events.append(dict(update))
-                note_fill_event(
-                    "callback_dequeued",
-                    update_kind=update.get("kind"),
-                    status=update.get("status"),
-                    order_ref=update.get("order_ref"),
-                    trade_id=update.get("trade_id"),
-                    details=dict(update.get("details") or {}),
-                )
-            return update
+        @property
+        def closed(self):
+            return bool(
+                self.md_client is not None
+                and self.trader_client is not None
+                and self.md_client.stopped
+                and self.trader_client.stopped
+            )
 
         def _mark_refresh_required(self):
             with refresh_condition:
@@ -579,268 +1286,6 @@ def test_alpha003_live_strategy_submits_and_cancels_through_registered_sim(tmp_p
                     )
                 self._required_refresh_start = None
 
-        def submit_order(self, payload):
-            result = super().submit_order(payload)
-            identity = self._provider_orders[str(result["order_ref"])]
-            day_text = start_day.strftime("%Y%m%d")
-            order_ref = str(result["order_ref"])
-            query_rows["orders_result"][:] = [
-                row for row in query_rows["orders_result"] if str(row.get("OrderRef")) != order_ref
-            ]
-            query_rows["orders_result"].append(
-                {
-                    "OrderRef": order_ref,
-                    "InstrumentID": identity["instrument_id"],
-                    "ExchangeID": identity["exchange_id"],
-                    "TradingDay": day_text,
-                    "FrontID": 4,
-                    "SessionID": 7,
-                    "OrderStatus": "3",
-                    "Direction": "0" if identity["side"] == "buy" else "1",
-                    "CombOffsetFlag": "0",
-                    "VolumeTotalOriginal": str(identity["size"]),
-                    "VolumeTraded": "0",
-                    "VolumeTotal": str(identity["size"]),
-                }
-            )
-            if (
-                self._phase == 1
-                and self._pending_fill_callback is None
-                and not self._applied_fill_query
-                and identity["offset"] == "open"
-            ):
-                self._pending_fill_callback = order_ref
-                self._pending_fill_instrument = identity["instrument_id"]
-            elif self._phase == 1 and identity["offset"] == "close":
-                close_time = clock.utc_now() + timedelta(milliseconds=1)
-                ctp_time = close_time.astimezone(timezone(timedelta(hours=8)))
-                trade_id = "alpha003-close-{}".format(order_ref)
-                self.emit_provider_order_callback(
-                    order_ref, status="completed", filled=identity["size"], remaining=0
-                )
-                self._order_updates[-1]["details"]["OrderStatus"] = "0"
-                self.emit_provider_trade_callback(
-                    order_ref,
-                    trade_id=trade_id,
-                    quantity=identity["size"],
-                    offset="close",
-                    when=close_time,
-                )
-                self._order_updates[-1]["details"].update(
-                    TradingDay=day_text,
-                    TradeDate=ctp_time.strftime("%Y%m%d"),
-                    TradeTime=ctp_time.strftime("%H:%M:%S.%f"),
-                    HedgeFlag="1",
-                )
-                query_rows["orders_result"][-1].update(
-                    OrderStatus="0",
-                    CombOffsetFlag="1",
-                    VolumeTraded=str(identity["size"]),
-                    VolumeTotal="0",
-                )
-                query_rows["trades_result"].append(
-                    {
-                        "TradeID": trade_id,
-                        "OrderRef": order_ref,
-                        "OrderSysID": "",
-                        "InstrumentID": identity["instrument_id"],
-                        "ExchangeID": identity["exchange_id"],
-                        "Direction": "1" if identity["side"] == "sell" else "0",
-                        "OffsetFlag": "1",
-                        "HedgeFlag": "1",
-                        "Volume": str(identity["size"]),
-                        "Price": "100",
-                        "TradeDate": ctp_time.strftime("%Y%m%d"),
-                        "TradeTime": ctp_time.strftime("%H:%M:%S.%f"),
-                        "TradingDay": day_text,
-                    }
-                )
-                query_rows["positions_result"][:] = [
-                    row
-                    for row in query_rows["positions_result"]
-                    if row.get("InstrumentID") != identity["instrument_id"]
-                ]
-            self._mark_refresh_required()
-            return result
-
-        def cancel_order(self, order_ref, dataname=None):
-            result = super().cancel_order(order_ref, dataname=dataname)
-            identity = self._provider_orders[str(order_ref)]
-            query_rows["orders_result"][:] = [
-                row
-                for row in query_rows["orders_result"]
-                if str(row.get("OrderRef")) != str(order_ref)
-            ]
-            query_rows["orders_result"].append(
-                {
-                    "OrderRef": str(order_ref),
-                    "InstrumentID": identity["instrument_id"],
-                    "ExchangeID": identity["exchange_id"],
-                    "TradingDay": start_day.strftime("%Y%m%d"),
-                    "FrontID": 4,
-                    "SessionID": 7,
-                    "OrderStatus": "5",
-                    "Direction": "0" if identity["side"] == "buy" else "1",
-                    "CombOffsetFlag": "0",
-                    "VolumeTotalOriginal": str(identity["size"]),
-                    "VolumeTraded": "0",
-                    "VolumeTotal": "0",
-                }
-            )
-            self.emit_provider_order_callback(order_ref, status="canceled", filled=0, remaining=0)
-            # The generated CTP wrapper keeps the raw numeric status in the
-            # source details but normalizes the callback's top-level status
-            # before Store.poll_broker_update() hands it to Broker.
-            self._order_updates[-1]["details"]["OrderStatus"] = "5"
-            self._mark_refresh_required()
-            return result
-
-        def poll_tick(self, instrument):
-            rows = self._source_bars.get(instrument)
-            if not rows:
-                # Successful cohort winddown polls the same provider tick
-                # method through BtApiFeed's bounded quote-only drain. Emit a
-                # typed source event only after a complete current query set
-                # has finished; never relabel an old bar or processing time as
-                # a fresh quote.
-                if self._phase != 1:
-                    return None
-                self.winddown_poll_attempts += 1
-                with refresh_condition:
-                    if (
-                        refresh_state["started"] == 0
-                        or refresh_state["started"] != refresh_state["completed"]
-                        or not refresh_receipts
-                    ):
-                        self.winddown_poll_blockers.append("refresh_not_quiescent")
-                        return None
-                    receipt = dict(refresh_receipts[-1])
-                    if receipt["attempt"] != refresh_state["completed"]:
-                        self.winddown_poll_blockers.append("receipt_attempt_not_current")
-                        return None
-
-                if (
-                    not receipt["query_set_id"]
-                    or receipt["blockers"]
-                    or receipt["pending_families"]
-                    or receipt["cancelled"]
-                    or receipt["deadline_reached"]
-                    or tuple(receipt["attempted_families"]) != tuple(receipt["requested_families"])
-                ):
-                    self.winddown_poll_blockers.append("latest_receipt_incomplete")
-                    return None
-                provenance = tuple(receipt["provenance"])
-                if len(provenance) != len(receipt["requested_families"]):
-                    return None
-                if any(
-                    query_complete is not True
-                    or source_owned is not True
-                    or (target_id is None and scope_complete is not True)
-                    or not request_id
-                    or completed_at is None
-                    for (
-                        _family,
-                        target_id,
-                        query_complete,
-                        source_owned,
-                        scope_complete,
-                        request_id,
-                        completed_at,
-                    ) in provenance
-                ):
-                    self.winddown_poll_blockers.append("query_provenance_incomplete")
-                    return None
-                query_set_id = receipt["query_set_id"]
-                if self._winddown_query_set_for.get(instrument) == query_set_id:
-                    self.winddown_poll_blockers.append("quote_already_sent_for_query_set")
-                    return None
-                row = self._winddown_metadata.get(instrument)
-                if row is None:
-                    self.winddown_poll_blockers.append("source_bar_metadata_missing")
-                    return None
-
-                completed_times = []
-                for item in provenance:
-                    value = item[-1]
-                    if isinstance(value, datetime):
-                        completed_at = value
-                    else:
-                        completed_at = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
-                    if completed_at.tzinfo is None or completed_at.utcoffset() != timedelta(0):
-                        self.winddown_poll_blockers.append("query_time_not_utc")
-                        return None
-                    completed_times.append(completed_at)
-                if not completed_times:
-                    self.winddown_poll_blockers.append("query_completion_time_missing")
-                    return None
-
-                source_now = clock.utc_now()
-                latest_query_time = max(completed_times)
-                if source_now < latest_query_time:
-                    clock.advance(latest_query_time - source_now)
-                event_time = clock.advance(timedelta(milliseconds=1))
-                sequence = self._winddown_sequences.get(instrument, 0) + 1
-                self._winddown_sequences[instrument] = sequence
-                tick = facts_fixtures._quote(
-                    event_time=event_time,
-                    received_at=event_time,
-                    symbol=instrument,
-                    exchange=row["exchange"],
-                    generation=client_generation(self),
-                    sequence=sequence,
-                    trading_day=row["trading_day"].replace("-", ""),
-                )
-                tick.clock_domain_id = row["clock_domain_id"]
-                tick.session_segment = row["session_segment"]
-                tick.timezone_id = row["timezone_id"]
-                tick.volume = 0.0
-                self._winddown_query_set_for[instrument] = query_set_id
-                observation = {
-                    "instrument": instrument,
-                    "instrument_id": tick.instrument_id,
-                    "query_set_id": query_set_id,
-                    "query_completed_at": latest_query_time,
-                    "event_time": event_time,
-                    "received_at": event_time,
-                    "sequence": sequence,
-                    "event_id": tick.event_id,
-                }
-                self.winddown_tick_observations.append(observation)
-                note_fill_event("quote_only_tick_returned", **observation)
-                return tick
-            row = rows[0]
-            if row["available_at"] > clock.utc_now():
-                return None
-            bar_id = row["bar_id"]
-            if self._sent_tick_for.get(instrument) == bar_id:
-                return None
-            self._sent_tick_for[instrument] = bar_id
-            close = row["bucket_end"]
-            tick = facts_fixtures._quote(
-                event_time=close + timedelta(seconds=2, milliseconds=10),
-                received_at=close + timedelta(seconds=2, milliseconds=20),
-                symbol=instrument,
-                exchange="DCE",
-                generation=client_generation(self),
-                sequence=row["bar_sequence"],
-                # Provider ticks carry CTP's compact TradingDay; the separate
-                # completed-bar tape uses the cohort's ISO calendar day.
-                trading_day=row["trading_day"].replace("-", ""),
-            )
-            # The cohort only accepts quote provenance from the same declared
-            # clock/session contract as its completed member bar.
-            tick.clock_domain_id = row["clock_domain_id"]
-            tick.session_segment = row["session_segment"]
-            tick.timezone_id = row["timezone_id"]
-            # This leaf delivers the trade-backed bar separately through
-            # poll_bar; the consumed event here is a quote observation, not a
-            # second trade contribution that could create a conflicting bar.
-            tick.volume = 0.0
-            self.tick_observations.append(
-                (instrument, bar_id, tick.connection_generation, row["connection_generation"])
-            )
-            return tick
-
         def poll_bar(self, instrument):
             self._wait_for_refresh()
             if (
@@ -850,112 +1295,61 @@ def test_alpha003_live_strategy_submits_and_cancels_through_registered_sim(tmp_p
                 and not self._applied_fill_query
             ):
                 order_ref = self._pending_fill_callback
-                identity = self._provider_orders[order_ref]
-                fill_time = clock.utc_now() + timedelta(milliseconds=1)
-                ctp_time = fill_time.astimezone(timezone(timedelta(hours=8)))
-                trade_id = "alpha003-open-{}".format(order_ref)
                 note_fill_event(
-                    "callback_emitted",
+                    "provider_fill_scheduled_from_bar_tape",
                     order_ref=order_ref,
-                    trade_id=trade_id,
-                    trade_event_time=fill_time.isoformat(),
+                    instrument=instrument,
                     query_position_before=tuple(
                         (row.get("InstrumentID"), row.get("Position"))
                         for row in query_rows["positions_result"]
                     ),
                 )
-                self.emit_provider_order_callback(
-                    order_ref, status="completed", filled=identity["size"], remaining=0
-                )
-                self._order_updates[-1]["details"]["OrderStatus"] = "0"
-                self.emit_provider_trade_callback(
-                    order_ref,
-                    trade_id=trade_id,
-                    quantity=identity["size"],
-                    offset="open",
-                    when=fill_time,
-                )
-                self._order_updates[-1]["details"].update(
-                    TradingDay=start_day.strftime("%Y%m%d"),
-                    TradeDate=ctp_time.strftime("%Y%m%d"),
-                    TradeTime=ctp_time.strftime("%H:%M:%S.%f"),
-                    HedgeFlag="1",
-                )
-                for row in query_rows["orders_result"]:
-                    if str(row.get("OrderRef")) == order_ref:
-                        row.update(
-                            OrderStatus="0",
-                            VolumeTraded=str(identity["size"]),
-                            VolumeTotal="0",
-                        )
-                query_rows["trades_result"].append(
-                    {
-                        "TradeID": trade_id,
-                        "OrderRef": order_ref,
-                        "OrderSysID": "",
-                        "InstrumentID": identity["instrument_id"],
-                        "ExchangeID": identity["exchange_id"],
-                        "Direction": "0" if identity["side"] == "buy" else "1",
-                        "OffsetFlag": "0",
-                        "HedgeFlag": "1",
-                        "Volume": str(identity["size"]),
-                        "Price": "100",
-                        "TradeDate": ctp_time.strftime("%Y%m%d"),
-                        "TradeTime": ctp_time.strftime("%H:%M:%S.%f"),
-                        "TradingDay": start_day.strftime("%Y%m%d"),
-                    }
-                )
-                position = facts_fixtures._dated_position_row(
-                    identity["size"],
-                    side="LONG" if identity["side"] == "buy" else "SHORT",
-                    trading_day=start_day.strftime("%Y%m%d"),
-                )
-                position.update(InstrumentID=identity["instrument_id"], ExchangeID="DCE")
-                query_rows["positions_result"][:] = [
-                    row
-                    for row in query_rows["positions_result"]
-                    if row.get("InstrumentID") != identity["instrument_id"]
-                ]
-                query_rows["positions_result"].append(position)
-                note_fill_event(
-                    "fill_rows_published",
-                    order_ref=order_ref,
-                    trade_id=trade_id,
-                    order_status=query_rows["orders_result"][-1].get("OrderStatus"),
-                    trade_count=len(query_rows["trades_result"]),
-                    position_rows=tuple(
-                        (row.get("InstrumentID"), row.get("Position"))
-                        for row in query_rows["positions_result"]
-                    ),
-                )
-                self._pending_fill_callback = None
-                self._pending_fill_instrument = None
-                self._applied_fill_query = True
-                self._mark_refresh_required()
+                self.trader_client.emit_fill(order_ref)
             rows = self._source_bars.get(instrument)
-            if not rows:
-                return None
-            if rows[0]["available_at"] > clock.utc_now():
+            if not rows or rows[0]["available_at"] > clock.utc_now():
                 return None
             row = rows.popleft()
-            self._sent_tick_for.pop(instrument, None)
+            self._sent_tick_for.discard(row["bar_id"])
             return row
 
     def client_generation(api):
-        return api.trader_client._connection_generation
+        return api.md_client.connection_generation
 
     original_factory = registered_sim_module._make_api_factory
     monkeypatch.setattr(
         registered_sim_module,
         "_make_api_factory",
         lambda allow_writes, history_limit, terminal_limit, api_cls: original_factory(
-            allow_writes, history_limit, terminal_limit, Alpha003Provider
+            allow_writes, history_limit, terminal_limit, Alpha003BarTapeMixin
         ),
     )
-    monkeypatch.setattr(RUNNER, "_live_env_config", lambda _config: ({}, {}))
+    first_source_bar = tape["bars"][0]
+    synthetic_store_config, synthetic_api_kwargs = runner_fixtures._official_simnow_store_config()
+    synthetic_store_config.update(
+        {
+            "environment": "simnow",
+            "broker_id": "9999",
+            "investor_id": "fixture",
+            "password": "unused",
+        }
+    )
+    synthetic_api_kwargs = {
+        **synthetic_api_kwargs,
+        "live_tick_provenance": {
+            "clock_domain_id": first_source_bar["clock_domain_id"],
+            "rules_hash": "a" * 64,
+            "session_segment": first_source_bar["session_segment"],
+        },
+    }
+    monkeypatch.setattr(
+        RUNNER,
+        "_live_env_config",
+        lambda _config: (dict(synthetic_store_config), dict(synthetic_api_kwargs)),
+    )
     monkeypatch.setattr(RUNNER, "RunnerWallClock", lambda: clock)
 
     captured_strategies = []
+    trade_notify_observations = []
     strategy_decision_trace = []
     idle_decision_trace = []
     store_tick_trace = []
@@ -1082,8 +1476,13 @@ def test_alpha003_live_strategy_submits_and_cancels_through_registered_sim(tmp_p
                         dict(event) if hasattr(event, "items") else str(event)[:512]
                         for event in tuple(getattr(strategy, "order_events", ()) or ())[-16:]
                     ),
+                    "trade_events": tuple(
+                        dict(event)
+                        for event in tuple(getattr(strategy, "trade_events", ()) or ())[-16:]
+                    ),
                 }
             ),
+            "trade_notify_observations": tuple(trade_notify_observations[-32:]),
             "apis": tuple(
                 {
                     "phase": current_api._phase,
@@ -1112,6 +1511,34 @@ def test_alpha003_live_strategy_submits_and_cancels_through_registered_sim(tmp_p
             "risk_scopes": tuple(risk_scope_trace[-64:]),
             "risk_dispatch": tuple(risk_dispatch_trace[-32:]),
             "reconciliation": tuple(reconciliation_observations[-32:]),
+            "terminal_position_checks": tuple(
+                {
+                    "input": record["input"],
+                    "first_sequence": record["first_sequence"],
+                    "sources": tuple(record["sources"]),
+                    "calls": tuple(record["calls"]),
+                }
+                for record in sorted(
+                    terminal_position_trace["records"], key=lambda item: item["first_sequence"]
+                )
+            ),
+            "terminal_position_call_order": tuple(
+                sorted(terminal_position_trace["call_order"], key=lambda item: item["sequence"])
+            ),
+            "terminal_position_trace_bounds": {
+                "unique_inputs_limit": 16,
+                "unique_inputs_dropped": terminal_position_trace["dropped_unique_inputs"],
+                "call_order_limit": 256,
+                "call_order_dropped": terminal_position_trace["dropped_call_order"],
+                "observer_errors": terminal_position_trace["observer_errors"],
+            },
+            "terminal_position_first_mismatch": terminal_position_trace["first_mismatch"],
+            "terminal_position_last_mismatch": terminal_position_trace["last_mismatch"],
+            "terminal_position_first_mismatch_after_broker_update": terminal_position_trace[
+                "first_mismatch_after_broker_update"
+            ],
+            "terminal_position_last_broker_update": terminal_position_trace["last_broker_update"],
+            "broker_position_observations": tuple(broker_position_observations[-16:]),
             "store_write_calls": tuple(store_write_calls[-64:]),
             "broker_rejections": tuple(broker_rejections[-64:]),
             "result": result_summary(result_value),
@@ -1170,6 +1597,32 @@ def test_alpha003_live_strategy_submits_and_cancels_through_registered_sim(tmp_p
         original_next = strategy.next
         original_notify_idle = strategy.notify_idle
         original_run_live = strategy._run_live
+        original_notify_trade = strategy.notify_trade
+        strategy_index = len(captured_strategies) - 1
+
+        def observe_notify_trade(trade):
+            result = original_notify_trade(trade)
+            event = dict(strategy.trade_events[-1])
+            assert event["ref"] == trade.ref
+            trade_notify_observations.append(
+                {
+                    "strategy_index": strategy_index,
+                    "event": event,
+                    "trade_ref": trade.ref,
+                    "instrument_id": getattr(trade.data, "_dataname", None),
+                    "data_name": getattr(trade.data, "_name", None),
+                    "long": trade.long,
+                    "size": str(trade.size),
+                    "price": str(trade.price),
+                    "pnl": str(trade.pnl),
+                    "pnlcomm": str(trade.pnlcomm),
+                    "commission": str(trade.commission),
+                    "isclosed": bool(trade.isclosed),
+                }
+            )
+            return result
+
+        strategy.notify_trade = observe_notify_trade
 
         def trace_strategy_turn(callback_name, callback, *args, **kwargs):
             with fact_turn_lock:
@@ -1413,6 +1866,20 @@ def test_alpha003_live_strategy_submits_and_cancels_through_registered_sim(tmp_p
                     }
                     store_tick_trace.append(observation)
                     chain_trace.append(observation)
+                    query_set_id = api._winddown_query_set_for.get(dataname)
+                    if query_set_id is not None:
+                        api.winddown_tick_observations.append(
+                            {
+                                "instrument": dataname,
+                                "query_set_id": query_set_id,
+                                "event_id": getattr(tick, "event_id", None),
+                                "event_time": getattr(tick, "event_time", None),
+                                "received_wall_time": getattr(tick, "received_wall_time", None),
+                                "source": getattr(tick, "source", None),
+                            }
+                        )
+                        api._winddown_query_set_for.pop(dataname, None)
+                        api._winddown_scheduled_instruments.discard(dataname)
                     if len(store_tick_trace) > 128:
                         del store_tick_trace[:-128]
                     if len(chain_trace) > 128:
@@ -1466,8 +1933,31 @@ def test_alpha003_live_strategy_submits_and_cancels_through_registered_sim(tmp_p
                         ),
                     }
                 )
+                query_set = getattr(receipt, "query_set", None)
+                api = api_instances[-1] if api_instances else None
+                if (
+                    api is not None
+                    and api._phase == 1
+                    and query_set is not None
+                    and not getattr(receipt, "blockers", ())
+                    and not getattr(receipt, "pending_families", ())
+                    and getattr(receipt, "cancelled", False) is False
+                    and getattr(receipt, "deadline_reached", False) is False
+                    and all(not rows for rows in bars_by_instrument.values())
+                    and api.md_client is not None
+                ):
+                    query_completed_at = query_set.completed_at_utc
+                    for instrument, _exchange in route_rows:
+                        api.md_client.schedule_winddown_quote(
+                            instrument,
+                            query_set.query_set_id,
+                            query_completed_at,
+                        )
                 return receipt
             except Exception as exc:
+                reconciliation_blockers = tuple(
+                    getattr(loop, "last_reconciliation_blockers", ())[:16]
+                )
                 with refresh_condition:
                     refresh_state["errors"].append(
                         (
@@ -1475,6 +1965,7 @@ def test_alpha003_live_strategy_submits_and_cancels_through_registered_sim(tmp_p
                             type(exc).__name__,
                             getattr(exc, "code", None),
                             str(exc)[:512],
+                            reconciliation_blockers,
                         )
                     )
                 note_fill_event(
@@ -1482,6 +1973,7 @@ def test_alpha003_live_strategy_submits_and_cancels_through_registered_sim(tmp_p
                     exception_type=type(exc).__name__,
                     code=getattr(exc, "code", None),
                     message=str(exc)[:512],
+                    runner_reconciliation_blockers=reconciliation_blockers,
                 )
                 raise
             finally:
@@ -1514,7 +2006,7 @@ def test_alpha003_live_strategy_submits_and_cancels_through_registered_sim(tmp_p
         arm_templates=[
             {
                 "target": target,
-                "md_front": "tcp://127.0.0.1:1",
+                "md_front": synthetic_store_config["md_address"],
                 "strategy_identity_sha256": "a" * 64,
                 "execution_cycle_id": "alpha003-factor-chain-" + target,
                 "preflight_sha256": "b" * 64,
@@ -1723,7 +2215,7 @@ def test_alpha003_live_strategy_submits_and_cancels_through_registered_sim(tmp_p
             (
                 index
                 for index, event in enumerate(fill_timeline)
-                if event["kind"] == "callback_emitted"
+                if event["kind"] == "provider_callback_fill"
             ),
             0,
         )
@@ -1891,6 +2383,7 @@ def test_alpha003_live_strategy_submits_and_cancels_through_registered_sim(tmp_p
             f"terminal_tail={terminal_tail!r}; "
             f"first_bad_terminal_reconciliation={first_bad_reconciliation!r}; "
             f"broker_updates={tuple(broker_update_observations[-8:])!r}; "
+            f"runner_reconciliation_blockers={tuple(getattr(refresh_loop, 'last_reconciliation_blockers', ())[-16:])!r}; "
             f"strategy_state={strategy_state!r}; "
             f"strategy_plan={plan_summary!r}; strategy_fact={fact_summary!r}; "
             f"live_failure={live_failure_summary!r}; "
@@ -1961,6 +2454,38 @@ def test_alpha003_live_strategy_submits_and_cancels_through_registered_sim(tmp_p
         fill_close_result["decision_tape"]["record_count"]
     )
 
+    # Observe the original Strategy notify_trade events and the actual
+    # Backtrader Trade object passed by Broker.  The strategy event intentionally
+    # publishes aggregate PnL (gross/net), while the real Trade object carries
+    # the aggregate commission used to derive the net value.
+    fill_close_strategy_index = len(captured_strategies) - 1
+    strategy_trade_events = tuple(dict(event) for event in captured_strategies[-1].trade_events)
+    trade_observations = tuple(
+        observation
+        for observation in trade_notify_observations
+        if observation["strategy_index"] == fill_close_strategy_index
+    )
+    assert tuple(event["status"] for event in strategy_trade_events) == ("OPEN", "CLOSED"), (
+        strategy_trade_events,
+        trade_observations,
+    )
+    assert len(trade_observations) == len(strategy_trade_events) == 2
+    assert tuple(observation["event"] for observation in trade_observations) == (
+        strategy_trade_events
+    )
+    assert tuple(observation["isclosed"] for observation in trade_observations) == (
+        False,
+        True,
+    )
+    for event, observation in zip(strategy_trade_events, trade_observations):
+        assert event["ref"] == observation["trade_ref"]
+        for field in ("size", "price", "pnl", "pnlcomm"):
+            assert Decimal(event[field]) == Decimal(observation[field]), (
+                event,
+                observation,
+                field,
+            )
+
     close_submissions = [
         call
         for call in submissions
@@ -1978,6 +2503,68 @@ def test_alpha003_live_strategy_submits_and_cancels_through_registered_sim(tmp_p
     ]
     assert len(close_trades) == 1, close_trades
     close_trade = close_trades[0]
+    open_trades = [
+        row
+        for row in query_rows["trades_result"]
+        if str(row.get("InstrumentID")) == str(close_identity["info"].get("instrument_id"))
+        and str(row.get("OffsetFlag")) == "0"
+    ]
+    assert len(open_trades) == 1, open_trades
+    open_trade = open_trades[0]
+
+    open_event, closed_event = strategy_trade_events
+    open_observation, closed_observation = trade_observations
+    assert open_observation["instrument_id"] == closed_observation["instrument_id"]
+    assert open_observation["instrument_id"] == str(open_trade["InstrumentID"])
+    assert closed_observation["instrument_id"] == str(close_trade["InstrumentID"])
+    assert open_event["ref"] == closed_event["ref"]
+    assert open_event["status"] == "OPEN" and closed_event["status"] == "CLOSED"
+
+    open_quantity = Decimal(str(open_trade["Volume"]))
+    open_direction = str(open_trade["Direction"])
+    assert open_direction in {"0", "1"}, open_trade
+    signed_open_quantity = open_quantity if open_direction == "0" else -open_quantity
+    assert Decimal(open_event["size"]) == signed_open_quantity, (open_event, open_trade)
+    assert open_observation["long"] is (signed_open_quantity > 0), (
+        open_observation,
+        open_trade,
+    )
+    assert Decimal(closed_event["size"]) == 0, (closed_event, close_trade)
+    assert closed_observation["long"] is open_observation["long"]
+
+    open_price = Decimal(str(open_trade["Price"]))
+    close_price = Decimal(str(close_trade["Price"]))
+    close_direction = str(close_trade["Direction"])
+    assert close_direction in {"0", "1"}, close_trade
+    assert close_direction != open_direction, (open_trade, close_trade)
+    assert Decimal(str(close_trade["Volume"])) == open_quantity, (open_trade, close_trade)
+    assert Decimal(open_event["price"]) == open_price, (open_event, open_trade)
+    # A closed Backtrader Trade retains its average entry price.  Its realized
+    # closing execution price and quantity are reported by the completed order
+    # projection and the source-backed CTP trade row below.
+    assert Decimal(closed_event["price"]) == open_price, (closed_event, open_trade)
+    assert close_price == open_price
+    instrument_row = next(
+        row
+        for row in query_rows["instruments_result"]
+        if str(row.get("InstrumentID")) == str(open_trade["InstrumentID"])
+        and str(row.get("ExchangeID")) == str(open_trade["ExchangeID"])
+    )
+    expected_gross_pnl = (
+        (close_price - open_price)
+        * signed_open_quantity
+        * Decimal(str(instrument_row["VolumeMultiple"]))
+    )
+    assert Decimal(open_event["pnl"]) == 0
+    assert Decimal(closed_event["pnl"]) == expected_gross_pnl
+    for event, observation in zip(strategy_trade_events, trade_observations):
+        event_commission = Decimal(event["pnl"]) - Decimal(event["pnlcomm"])
+        trade_commission = Decimal(observation["commission"])
+        assert abs(event_commission - trade_commission) <= Decimal("0.00000001"), (
+            event,
+            observation,
+        )
+    assert Decimal(closed_observation["commission"]) >= Decimal(open_observation["commission"]) >= 0
 
     # Reopen the exact run journal only after Runner reports it CLOSED.  The
     # archive verifier and the read-only SQL below bind the provider callback,
@@ -2005,6 +2592,15 @@ def test_alpha003_live_strategy_submits_and_cancels_through_registered_sim(tmp_p
     )
     with closing(sqlite3.connect(archive_path.as_uri() + "?mode=ro", uri=True)) as archived:
         archived.execute("PRAGMA query_only = ON")
+        callback_bindings = archived.execute(
+            """SELECT i.intent_id,n.order_ref,n.instrument,n.exchange,n.trading_day,
+                      c.receipt_id,c.callback_id,c.acknowledged,c.evidence_payload_json
+               FROM execution_decision_callbacks AS c
+               JOIN execution_decision_intents AS i ON i.intent_id=c.intent_id
+               JOIN execution_native_intent_identities AS n ON n.intent_id=i.intent_id
+               WHERE c.acknowledged=1
+               ORDER BY c.created_at_ns"""
+        ).fetchall()
         terminal_chain = archived.execute(
             """SELECT n.order_ref,n.instrument,n.exchange,n.trading_day,
                       c.callback_id,c.acknowledged,c.evidence_payload_json,
@@ -2014,11 +2610,12 @@ def test_alpha003_live_strategy_submits_and_cancels_through_registered_sim(tmp_p
                       z.position_snapshot_id,z.position_flat
                FROM execution_decision_intents AS i
                JOIN execution_native_intent_identities AS n ON n.intent_id=i.intent_id
-               JOIN execution_decision_callbacks AS c ON c.intent_id=i.intent_id
+               JOIN execution_decision_callbacks AS c
+                 ON c.intent_id=i.intent_id AND c.callback_id LIKE 'ctp-trade:%'
                JOIN execution_intent_reconciliations AS r ON r.intent_id=i.intent_id
                JOIN execution_intent_resolutions AS z ON z.intent_id=i.intent_id
                WHERE i.intent_id=?
-               ORDER BY r.created_at_ns DESC LIMIT 1""",
+               ORDER BY r.created_at_ns DESC,c.created_at_ns DESC,c.callback_id ASC LIMIT 1""",
             (close_intent_id,),
         ).fetchone()
     assert terminal_chain is not None, close_intent_id
@@ -2048,6 +2645,7 @@ def test_alpha003_live_strategy_submits_and_cancels_through_registered_sim(tmp_p
     assert native_exchange == str(close_trade["ExchangeID"]), terminal_chain
     assert native_trading_day == str(close_trade["TradingDay"]), terminal_chain
     assert callback_id and callback_acknowledged == 1, terminal_chain
+    assert callback_payload.get("evidence_kind") == "native_trade_callback", terminal_chain
     assert callback_payload["provider_trade_id"] == str(close_trade["TradeID"]), (
         callback_payload,
         close_trade,
@@ -2066,6 +2664,202 @@ def test_alpha003_live_strategy_submits_and_cancels_through_registered_sim(tmp_p
         and call[3] == native_order_ref
         for call in fill_close_api.native_calls
     ), (fill_close_api.native_calls, terminal_chain)
+
+    callbacks_by_trade_id = defaultdict(list)
+    for row in callback_bindings:
+        payload = json.loads(row[8])
+        trade_id = payload.get("provider_trade_id")
+        if trade_id in {str(open_trade["TradeID"]), str(close_trade["TradeID"])}:
+            callbacks_by_trade_id[trade_id].append((row, payload))
+    assert set(callbacks_by_trade_id) == {
+        str(open_trade["TradeID"]),
+        str(close_trade["TradeID"]),
+    }, callbacks_by_trade_id
+    open_native_rows = [
+        row
+        for row, payload in callbacks_by_trade_id[str(open_trade["TradeID"])]
+        if payload.get("evidence_kind") == "native_trade_callback"
+    ]
+    assert len(open_native_rows) == 1, open_native_rows
+    open_intent_id = open_native_rows[0][0]
+
+    completed_order_events = [
+        event
+        for event in fill_close_result["strategy_order_events"]["events"]
+        if event["status"] == "COMPLETED"
+    ]
+    for trade_row, effect, trade_observation in (
+        (open_trade, "OPEN", open_observation),
+        (close_trade, "CLOSE", closed_observation),
+    ):
+        native_ref = str(trade_row["OrderRef"])
+        trade_id = str(trade_row["TradeID"])
+        callback_pair = callbacks_by_trade_id[trade_id]
+        assert len(callback_pair) == 2, (trade_id, callback_pair)
+        callback_by_kind = {}
+        for callback_row, callback_payload in callback_pair:
+            evidence_kind = callback_payload.get("evidence_kind")
+            assert evidence_kind in {
+                "native_trade_callback",
+                "complete_trades_query_observation",
+            }, (trade_id, callback_row, callback_payload)
+            assert evidence_kind not in callback_by_kind, (trade_id, callback_pair)
+            callback_by_kind[evidence_kind] = (callback_row, callback_payload)
+            assert callback_row[7] == 1, (trade_id, callback_row)
+        assert set(callback_by_kind) == {
+            "native_trade_callback",
+            "complete_trades_query_observation",
+        }, (trade_id, callback_by_kind)
+        native_callback_row, native_callback_payload = callback_by_kind["native_trade_callback"]
+        query_callback_row, query_callback_payload = callback_by_kind[
+            "complete_trades_query_observation"
+        ]
+        assert native_callback_row[:5] == query_callback_row[:5], (
+            native_callback_row,
+            query_callback_row,
+        )
+        native_receipt_id, native_callback_id = native_callback_row[5:7]
+        query_receipt_id, query_callback_id = query_callback_row[5:7]
+        assert native_receipt_id != query_receipt_id, callback_pair
+        assert native_callback_id.startswith("ctp-trade:"), native_callback_row
+        assert query_callback_id.startswith("query-trade:"), query_callback_row
+        native_digest = native_callback_id[len("ctp-trade:") :]
+        query_digest = query_callback_id[len("query-trade:") :]
+        assert len(native_digest) == len(query_digest) == 64, callback_pair
+        assert native_digest == query_digest and all(
+            char in "0123456789abcdef" for char in native_digest
+        ), callback_pair
+        intent_id, observed_native_ref, instrument, exchange, trading_day = native_callback_row[:5]
+        assert observed_native_ref == native_ref, (native_callback_row, trade_row)
+        assert instrument == str(trade_row["InstrumentID"]), (native_callback_row, trade_row)
+        assert exchange == str(trade_row["ExchangeID"]), (native_callback_row, trade_row)
+        assert trading_day == str(trade_row["TradingDay"]), (native_callback_row, trade_row)
+        expected_execution_id = "ctp:{}:{}".format(trade_row["TradeDate"], trade_id)
+        local_fill_time = datetime.strptime(
+            "{} {}".format(trade_row["TradeDate"], trade_row["TradeTime"]),
+            "%Y%m%d %H:%M:%S",
+        ).replace(tzinfo=timezone(timedelta(hours=8)))
+        utc_fill_time = local_fill_time.astimezone(UTC)
+        utc_epoch = datetime(1970, 1, 1, tzinfo=UTC)
+        elapsed = utc_fill_time - utc_epoch
+        expected_filled_at_ns = (
+            elapsed.days * 86400 + elapsed.seconds
+        ) * 1_000_000_000 + elapsed.microseconds * 1_000
+        expected_common_payload = {
+            "event_type": "execution_fill",
+            "exchange": exchange,
+            "execution_id": expected_execution_id,
+            "fee": None,
+            "filled_at_ns": expected_filled_at_ns,
+            "instrument_id": instrument,
+            "order_ref": native_ref,
+            "order_sys_id": str(trade_row["OrderSysID"]),
+            "price": str(Decimal(str(trade_row["Price"]))),
+            "provider_trade_id": trade_id,
+            "quantity": str(Decimal(str(trade_row["Volume"]))),
+            "time_source": "CTP_TradeDate_TradeTime_UTC_PLUS_08",
+        }
+        for field, expected in expected_common_payload.items():
+            assert native_callback_payload.get(field) == expected, (
+                trade_id,
+                field,
+                native_callback_payload,
+            )
+            assert query_callback_payload.get(field) == expected, (
+                trade_id,
+                field,
+                query_callback_payload,
+            )
+        assert query_callback_payload.get("evidence_kind") == ("complete_trades_query_observation")
+        assert query_callback_payload.get("query_observation_id")
+        assert query_callback_payload.get("snapshot_id")
+        assert query_callback_payload.get("request_id", 0) > 0
+        assert query_callback_payload.get("connection_generation", 0) > 0
+        assert query_callback_payload.get("account_fingerprint") == (
+            "alpha003-factor-chain-account"
+        )
+        assert query_callback_payload.get("account_scope") == ("alpha003-factor-chain-account")
+        assert query_callback_payload.get("strategy_scope") == "alpha003-factor-chain"
+        assert query_callback_payload.get("trading_day") == trading_day
+        assert native_callback_row[0] == query_callback_row[0] == intent_id
+        if effect == "OPEN":
+            assert str(trade_row["OffsetFlag"]) == "0", trade_row
+            assert str(trade_row["Direction"]) in {"0", "1"}, trade_row
+        else:
+            assert str(trade_row["OffsetFlag"]) == "1", trade_row
+        matching_submissions = [
+            call
+            for call in submissions
+            if call["identity"]["info"].get("factor_intent_id") == intent_id
+            and call["identity"]["info"].get("factor_position_effect") == effect
+        ]
+        assert len(matching_submissions) == 1, (trade_row, native_callback_row, submissions)
+        submission = matching_submissions[0]["identity"]
+        assert Decimal(str(abs(submission["size"]))) == Decimal(str(trade_row["Volume"]))
+        assert trade_observation["instrument_id"] == instrument
+        order_events = [
+            event for event in completed_order_events if event["ref"] == submission["ref"]
+        ]
+        assert len(order_events) == 1, (submission, completed_order_events)
+        assert Decimal(order_events[0]["executed_size"]) == Decimal(str(submission["size"]))
+        assert Decimal(order_events[0]["executed_price"]) == Decimal(str(trade_row["Price"]))
+        assert any(
+            call[0] == "insert"
+            and call[1] == str(trade_row["InstrumentID"])
+            and call[2] == str(trade_row["ExchangeID"])
+            and call[3] == native_ref
+            for call in fill_close_api.native_calls
+        ), (trade_row, fill_close_api.native_calls)
+        with closing(sqlite3.connect(archive_path.as_uri() + "?mode=ro", uri=True)) as archived:
+            archived.execute("PRAGMA query_only = ON")
+            position_fills = archived.execute(
+                """SELECT account_scope,instrument,exchange,execution_id,receipt_id,
+                          intent_id,strategy_scope,position_effect,order_side,
+                          owner_intent_id,quantity,price,fee,filled_at_ns
+                   FROM factor_position_fills WHERE intent_id=?""",
+                (intent_id,),
+            ).fetchall()
+        assert len(position_fills) == 1, (trade_id, position_fills)
+        (
+            account_scope,
+            fill_instrument,
+            fill_exchange,
+            fill_execution_id,
+            fill_receipt_id,
+            fill_intent_id,
+            strategy_scope,
+            position_effect,
+            order_side,
+            owner_intent_id,
+            fill_quantity,
+            fill_price,
+            fill_fee,
+            fill_filled_at_ns,
+        ) = position_fills[0]
+        expected_side = "BUY" if str(trade_row["Direction"]) == "0" else "SELL"
+        expected_owner_intent = None if effect == "OPEN" else open_intent_id
+        assert account_scope == "alpha003-factor-chain-account", position_fills
+        assert fill_instrument == instrument and fill_exchange == exchange, position_fills
+        assert fill_execution_id == expected_execution_id, position_fills
+        assert fill_receipt_id in {native_receipt_id, query_receipt_id}, position_fills
+        assert fill_intent_id == intent_id, position_fills
+        assert strategy_scope == "alpha003-factor-chain", position_fills
+        assert position_effect == effect and order_side == expected_side, position_fills
+        assert owner_intent_id == expected_owner_intent, position_fills
+        assert Decimal(fill_quantity) == Decimal(str(trade_row["Volume"])), position_fills
+        assert Decimal(fill_price) == Decimal(str(trade_row["Price"])), position_fills
+        assert fill_fee is None, position_fills
+        assert fill_filled_at_ns == expected_filled_at_ns, position_fills
+    with closing(sqlite3.connect(archive_path.as_uri() + "?mode=ro", uri=True)) as archived:
+        archived.execute("PRAGMA query_only = ON")
+        all_position_fills = archived.execute(
+            "SELECT execution_id,intent_id FROM factor_position_fills ORDER BY execution_id"
+        ).fetchall()
+    assert len(all_position_fills) == 2, all_position_fills
+    assert {row[0] for row in all_position_fills} == {
+        "ctp:{}:{}".format(open_trade["TradeDate"], open_trade["TradeID"]),
+        "ctp:{}:{}".format(close_trade["TradeDate"], close_trade["TradeID"]),
+    }, all_position_fills
     persist_diagnostic(
         "complete",
         result_value={"phase1": result, "phase2": fill_close_result},
@@ -2077,5 +2871,7 @@ def test_alpha003_live_strategy_submits_and_cancels_through_registered_sim(tmp_p
             "verified": True,
             "terminal_chain": terminal_chain,
             "provider_trade_id": close_trade.get("TradeID"),
+            "strategy_trade_events": strategy_trade_events,
+            "trade_notify_observations": trade_observations,
         },
     )
