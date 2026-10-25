@@ -6733,33 +6733,171 @@ class BtApiBroker(BrokerBase):
             current.update(size, price)
 
     def _tracked_position_alias_map(self):
-        """Return aliases for symbols that belong to this broker instance."""
-        tracked_keys = []
+        """Bind feed/native symbols and provider identities to Broker position keys."""
+        identities_by_route: "collections.defaultdict[str, set[tuple[str, str]]]" = (
+            collections.defaultdict(set)
+        )
+        alias_routes: "collections.defaultdict[str, set[str]]" = collections.defaultdict(set)
+        identity_routes: "collections.defaultdict[tuple[str, str], set[str]]" = (
+            collections.defaultdict(set)
+        )
+        conflicted_routes = set()
 
-        def add_symbol(value):
-            if value in (None, ""):
+        def add_route(route, symbols, identities=()):
+            if route in (None, ""):
                 return
-            symbol = str(value).strip()
-            if symbol and symbol not in tracked_keys:
-                tracked_keys.append(symbol)
+            route = str(route).strip()
+            if not route:
+                return
+            for value in symbols:
+                if value in (None, ""):
+                    continue
+                symbol = str(value).strip()
+                if not symbol:
+                    continue
+                for alias in self._symbol_aliases(symbol):
+                    alias_routes[alias].add(route)
+            for identity in identities:
+                if identity is None:
+                    continue
+                exchange, instrument = identity
+                normalized = (str(exchange).strip().upper(), str(instrument).strip().upper())
+                if all(normalized):
+                    identities_by_route[route].add(normalized)
+
+        def metadata_identities(symbols, route_exchanges):
+            """Read cached contract identities only; never issue a Store query here."""
+            symbol_aliases = {
+                alias
+                for symbol in symbols
+                if symbol not in (None, "")
+                for alias in self._symbol_aliases(symbol)
+            }
+            identities = set()
+            metadata_symbols = []
+            store_metadata = getattr(self.store, "contract_metadata", {}) if self.store else {}
+            for metadata_map in (self._contract_metadata, store_metadata):
+                if not isinstance(metadata_map, Mapping):
+                    continue
+                for metadata_key, metadata in metadata_map.items():
+                    if metadata_key == "__broker__" or not isinstance(metadata, Mapping):
+                        continue
+                    instrument = self._extract_update_value(
+                        metadata,
+                        "instrument_id",
+                        "InstrumentID",
+                        "instrument",
+                        "symbol",
+                    )
+                    exchange = self._extract_update_value(
+                        metadata, "exchange_id", "ExchangeID", "exchange"
+                    )
+                    key_aliases = set(self._symbol_aliases(metadata_key))
+                    instrument_aliases = (
+                        set(self._symbol_aliases(instrument)) if instrument else set()
+                    )
+                    if not (symbol_aliases & (key_aliases | instrument_aliases)):
+                        continue
+
+                    metadata_key_exchange = self._position_exchange_from_symbol(metadata_key)
+                    normalized_exchange = (
+                        str(exchange or metadata_key_exchange or "").strip().upper()
+                    )
+                    normalized_instrument = str(instrument or "").strip().upper()
+                    if (
+                        normalized_exchange
+                        and route_exchanges
+                        and normalized_exchange not in route_exchanges
+                    ):
+                        # A same-instrument metadata row for another exchange is a different
+                        # route. An exact route-key contradiction is retained as conflict.
+                        exact_key = str(metadata_key).strip().casefold() in {
+                            str(symbol).strip().casefold() for symbol in symbols if symbol
+                        }
+                        if exact_key:
+                            identities.add((normalized_exchange, normalized_instrument or "?"))
+                        continue
+                    if instrument:
+                        metadata_symbols.append(instrument)
+                    if normalized_instrument and normalized_exchange:
+                        identities.add((normalized_exchange, normalized_instrument))
+            return identities, metadata_symbols
+
+        def add_data_route(data, extra_identities=()):
+            route = self._position_key(data)
+            native_symbols = [
+                getattr(data, "_dataname", None),
+                getattr(getattr(data, "p", None), "dataname", None),
+            ]
+            symbols = [route, *native_symbols]
+            route_exchanges = {
+                exchange
+                for value in symbols
+                if (exchange := self._position_exchange_from_symbol(value)) is not None
+            }
+            if len(route_exchanges) > 1:
+                conflicted_routes.add(str(route))
+            identities, metadata_symbols = metadata_identities(symbols, route_exchanges)
+            identities.update(
+                identity
+                for symbol in native_symbols
+                if (identity := self._position_symbol_identity(symbol, route_exchanges)) is not None
+            )
+            identities.update(extra_identities)
+            add_route(route, [*symbols, *metadata_symbols], identities)
 
         store = self.store
         if store is not None:
             for data in getattr(store, "_data_feeds", []) or []:
-                add_symbol(self._position_key(data))
-            for dataname in getattr(store, "_subscribed_datanames", set()) or set():
-                add_symbol(dataname)
+                add_data_route(data)
 
         for order in self.orders.values():
             data = getattr(order, "data", None)
             if data is not None:
-                add_symbol(self._position_key(data))
+                instrument = self._order_info_get(order, "instrument_id") or self._order_info_get(
+                    order, "ctp_instrument_id"
+                )
+                exchange = self._order_info_get(order, "exchange_id")
+                identity = (
+                    (str(exchange).strip().upper(), str(instrument).strip().upper())
+                    if exchange not in (None, "") and instrument not in (None, "")
+                    else None
+                )
+                add_data_route(data, (identity,))
 
-        alias_map: dict[str, str] = {}
-        for key in tracked_keys:
-            for alias in self._symbol_aliases(key):
-                alias_map.setdefault(alias, key)
-        return alias_map
+        if store is not None:
+            for dataname in getattr(store, "_subscribed_datanames", set()) or set():
+                aliases = set(self._symbol_aliases(dataname))
+                existing_routes = {
+                    route for alias in aliases for route in alias_routes.get(alias, ())
+                }
+                if len(existing_routes) == 1:
+                    add_route(next(iter(existing_routes)), (dataname,))
+                elif not existing_routes:
+                    exchange = self._position_exchange_from_symbol(dataname)
+                    identity = self._position_symbol_identity(
+                        dataname, {exchange} if exchange else set()
+                    )
+                    add_route(dataname, (dataname,), (identity,))
+
+        for route, identities in identities_by_route.items():
+            if len(identities) > 1:
+                conflicted_routes.add(route)
+            for identity in identities:
+                identity_routes[identity].add(route)
+
+        if not alias_routes:
+            return {}
+        return {
+            "aliases": {alias: frozenset(routes) for alias, routes in alias_routes.items()},
+            "identities": {
+                identity: frozenset(routes) for identity, routes in identity_routes.items()
+            },
+            "route_identities": {
+                route: frozenset(identities) for route, identities in identities_by_route.items()
+            },
+            "conflicted_routes": frozenset(conflicted_routes),
+        }
 
     @classmethod
     def _position_row_canonical_key(cls, item, alias_map):
@@ -6768,10 +6906,44 @@ class BtApiBroker(BrokerBase):
             return key
         if key in (None, ""):
             return None
-        for alias in cls._symbol_aliases(key):
-            if alias in alias_map:
-                return alias_map[alias]
-        return None
+
+        row_identity = cls._position_row_contract_identity(item, key)
+        candidates = {
+            route
+            for alias in cls._symbol_aliases(key)
+            for route in alias_map["aliases"].get(alias, ())
+        }
+        qualified_exchange = cls._position_exchange_from_symbol(key)
+        if (
+            row_identity is not None
+            and qualified_exchange is not None
+            and row_identity[0] != qualified_exchange
+            and (candidates or row_identity in alias_map["identities"])
+        ):
+            raise ValueError("remote position symbol conflicts with provider exchange")
+        if row_identity is not None:
+            exact_routes = alias_map["identities"].get(row_identity)
+            if exact_routes is not None:
+                if len(exact_routes) != 1:
+                    raise ValueError("remote position identity matches multiple tracked routes")
+                route = next(iter(exact_routes))
+                if candidates and route not in candidates:
+                    raise ValueError("remote position symbol conflicts with provider identity route")
+                if route in alias_map["conflicted_routes"]:
+                    raise ValueError("tracked position route has conflicting contract identities")
+                return route
+
+        if not candidates:
+            return None
+        if len(candidates) != 1:
+            raise ValueError("remote position symbol matches multiple tracked routes")
+        route = next(iter(candidates))
+        if route in alias_map["conflicted_routes"]:
+            raise ValueError("tracked position route has conflicting contract identities")
+        route_identities = alias_map["route_identities"].get(route, ())
+        if row_identity is not None and route_identities and row_identity not in route_identities:
+            raise ValueError("remote position identity conflicts with tracked route")
+        return route
 
     @staticmethod
     def _position_row_key(item):
@@ -6899,6 +7071,68 @@ class BtApiBroker(BrokerBase):
             or getattr(getattr(data, "p", None), "dataname", None)
             or repr(data)
         )
+
+    @staticmethod
+    def _position_exchange_from_symbol(symbol):
+        """Extract a CTP exchange prefix/suffix from a qualified symbol."""
+        raw = str(symbol or "").strip()
+        for separator in (".", "_"):
+            if separator not in raw:
+                continue
+            head, tail = (part.strip() for part in raw.split(separator, 1))
+            if head.upper() in _CTP_EXCHANGES:
+                return head.upper()
+            if tail.upper() in _CTP_EXCHANGES:
+                return tail.upper()
+        return None
+
+    @classmethod
+    def _position_symbol_identity(cls, symbol, route_exchanges):
+        """Return a provider identity when a native instrument has one exchange route."""
+        raw = str(symbol or "").strip()
+        if not raw:
+            return None
+        for separator in (".", "_"):
+            if separator not in raw:
+                continue
+            head, tail = (part.strip() for part in raw.split(separator, 1))
+            if head.upper() in _CTP_EXCHANGES and tail:
+                return head.upper(), tail.upper()
+            if tail.upper() in _CTP_EXCHANGES and head:
+                return tail.upper(), head.upper()
+        if (
+            len(route_exchanges) == 1
+            and re.fullmatch(r"[A-Za-z][A-Za-z0-9]{2,30}", raw)
+        ):
+            return next(iter(route_exchanges)), raw.upper()
+        return None
+
+    @classmethod
+    def _position_row_contract_identity(cls, item, key):
+        """Extract the exchange/instrument identity carried by a provider row."""
+        instrument = cls._extract_update_value(
+            item,
+            "instrument_id",
+            "InstrumentID",
+            "instrument",
+            "instId",
+            "inst_id",
+        )
+        exchange = cls._extract_update_value(item, "exchange_id", "ExchangeID", "exchange")
+        qualified = cls._position_symbol_identity(key, set())
+        if instrument in (None, ""):
+            instrument = qualified[1] if qualified is not None else key
+        if exchange in (None, "") and qualified is not None:
+            exchange = qualified[0]
+        if instrument not in (None, ""):
+            qualified_instrument = cls._position_symbol_identity(instrument, set())
+            if qualified_instrument is not None:
+                if exchange in (None, ""):
+                    exchange = qualified_instrument[0]
+                instrument = qualified_instrument[1]
+        if instrument in (None, "") or exchange in (None, ""):
+            return None
+        return str(exchange).strip().upper(), str(instrument).strip().upper()
 
     @staticmethod
     def _symbol_aliases(symbol):

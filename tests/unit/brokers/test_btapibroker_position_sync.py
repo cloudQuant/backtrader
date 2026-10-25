@@ -1,10 +1,11 @@
 """Explicit startup position baselines cannot overlap later execution callbacks."""
 
+import collections
+from decimal import Decimal
+from types import SimpleNamespace
+
 import backtrader as bt
 import pytest
-
-from types import SimpleNamespace
-import collections
 
 from backtrader.brokers.btapibroker import BtApiBroker
 from backtrader.position import Position
@@ -51,6 +52,26 @@ def position(broker, data, side):
         if broker.p.position_mode == "dual_side"
         else broker.getposition(data)
     )
+
+
+def make_position_sync_broker(data_feeds, rows, *, subscribed=(), contract_metadata=None):
+    store = SimpleNamespace(
+        is_connected=True,
+        _service_read_only=False,
+        _data_feeds=list(data_feeds),
+        _subscribed_datanames=set(subscribed),
+        contract_metadata=dict(contract_metadata or {}),
+        get_positions=lambda **kwargs: list(rows),
+    )
+    broker = BtApiBroker(
+        store=store,
+        position_sync_policy="periodic",
+        force_refresh_queries=False,
+        validation_enabled=False,
+        contract_metadata=contract_metadata,
+    )
+    broker._live_started = True
+    return broker
 
 
 def test_net_snapshot_aggregates_multiple_same_side_rows_with_weighted_price():
@@ -219,6 +240,245 @@ def test_periodic_policy_preserves_existing_forced_remote_refresh():
         assert client.position_queries == 2
     finally:
         broker.stop()
+
+
+def test_periodic_refresh_keeps_current_contract_position_bound_to_named_feed():
+    """A contract-keyed position row must resolve to the feed's execution key."""
+    data = SimpleNamespace(
+        _name="DCE.M",
+        _dataname="M2612",
+        p=SimpleNamespace(dataname="M2612"),
+    )
+    store = SimpleNamespace(
+        is_connected=True,
+        _service_read_only=False,
+        _data_feeds=[data],
+        _subscribed_datanames={"M2612"},
+        get_positions=lambda **kwargs: [
+            {
+                "symbol": "M2612",
+                "instrument": "M2612",
+                "exchange_id": "DCE",
+                "direction": "long",
+                "volume": 1,
+                "price": 100,
+            }
+        ],
+    )
+    broker = BtApiBroker(
+        store=store,
+        position_sync_policy="periodic",
+        force_refresh_queries=False,
+        validation_enabled=False,
+        contract_metadata={"DCE.M": {"instrument_id": "M2612", "exchange_id": "DCE"}},
+    )
+    broker._live_started = True
+    broker.positions["DCE.M"].update(1, 100)
+
+    before_refresh = broker.execution_position_snapshot(data)
+    assert before_refresh.data_name == "DCE.M"
+    assert before_refresh.instrument_id == "M2612"
+    assert before_refresh.exchange_id == "DCE"
+    assert before_refresh.quantity == Decimal("1")
+
+    broker._sync_positions(force=True, raise_errors=True)
+
+    after_refresh = broker.execution_position_snapshot(data)
+    assert after_refresh.quantity == Decimal("1")
+
+
+def test_periodic_refresh_routes_same_instrument_by_exchange_without_merging():
+    dce_data = SimpleNamespace(
+        _name="DCE.M",
+        _dataname="M2612",
+        p=SimpleNamespace(dataname="M2612"),
+    )
+    shfe_data = SimpleNamespace(
+        _name="SHFE.M",
+        _dataname="M2612",
+        p=SimpleNamespace(dataname="M2612"),
+    )
+    metadata = {
+        "DCE.M": {"instrument_id": "M2612", "exchange_id": "DCE"},
+        "SHFE.M": {"instrument_id": "M2612", "exchange_id": "SHFE"},
+    }
+    rows = [
+        {
+            "symbol": "M2612",
+            "instrument_id": "M2612",
+            "exchange_id": "DCE",
+            "direction": "long",
+            "volume": 1,
+            "price": 100,
+        },
+        {
+            "symbol": "M2612",
+            "instrument_id": "M2612",
+            "exchange_id": "SHFE",
+            "direction": "long",
+            "volume": 2,
+            "price": 101,
+        },
+    ]
+    broker = make_position_sync_broker(
+        [dce_data, shfe_data],
+        rows,
+        subscribed={"M2612"},
+        contract_metadata=metadata,
+    )
+
+    broker._sync_positions(force=True, raise_errors=True)
+
+    assert broker.execution_position_snapshot(dce_data).quantity == Decimal("1")
+    assert broker.execution_position_snapshot(shfe_data).quantity == Decimal("2")
+    assert set(broker.positions) == {"DCE.M", "SHFE.M"}
+
+
+def test_ambiguous_position_route_keeps_existing_cache_and_raises():
+    dce_data = SimpleNamespace(
+        _name="DCE.M",
+        _dataname="M2612",
+        p=SimpleNamespace(dataname="M2612"),
+    )
+    shfe_data = SimpleNamespace(
+        _name="SHFE.M",
+        _dataname="M2612",
+        p=SimpleNamespace(dataname="M2612"),
+    )
+    metadata = {
+        "DCE.M": {"instrument_id": "M2612", "exchange_id": "DCE"},
+        "SHFE.M": {"instrument_id": "M2612", "exchange_id": "SHFE"},
+    }
+    broker = make_position_sync_broker(
+        [dce_data, shfe_data],
+        [{"symbol": "M2612", "volume": 1, "price": 100, "direction": "long"}],
+        subscribed={"M2612"},
+        contract_metadata=metadata,
+    )
+    broker.positions["DCE.M"].update(3, 100)
+    broker.positions["SHFE.M"].update(4, 101)
+
+    with pytest.raises(ValueError, match="matches multiple tracked routes"):
+        broker._sync_positions(force=True, raise_errors=True)
+
+    assert broker.positions["DCE.M"].size == 3
+    assert broker.positions["SHFE.M"].size == 4
+
+
+def test_position_exchange_mismatch_does_not_replace_tracked_cache():
+    data = SimpleNamespace(
+        _name="DCE.M",
+        _dataname="M2612",
+        p=SimpleNamespace(dataname="M2612"),
+    )
+    broker = make_position_sync_broker(
+        [data],
+        [
+            {
+                "symbol": "M2612",
+                "instrument_id": "M2612",
+                "exchange_id": "SHFE",
+                "volume": 1,
+                "price": 100,
+                "direction": "long",
+            }
+        ],
+        subscribed={"M2612"},
+        contract_metadata={"DCE.M": {"instrument_id": "M2612", "exchange_id": "DCE"}},
+    )
+    broker.positions["DCE.M"].update(3, 100)
+
+    with pytest.raises(ValueError, match="identity conflicts with tracked route"):
+        broker._sync_positions(force=True, raise_errors=True)
+
+    assert broker.positions["DCE.M"].size == 3
+
+
+def test_position_identity_cannot_override_contradictory_symbol_route():
+    matching_data = SimpleNamespace(
+        _name="DCE.M",
+        _dataname="M2612",
+        p=SimpleNamespace(dataname="M2612"),
+    )
+    conflicting_data = SimpleNamespace(
+        _name="DCE.B",
+        _dataname="B",
+        p=SimpleNamespace(dataname="B"),
+    )
+    broker = make_position_sync_broker(
+        [matching_data, conflicting_data],
+        [
+            {
+                "symbol": "DCE.B",
+                "instrument_id": "M2612",
+                "exchange_id": "DCE",
+                "volume": 1,
+                "price": 100,
+                "direction": "long",
+            }
+        ],
+        contract_metadata={
+            "DCE.M": {"instrument_id": "M2612", "exchange_id": "DCE"},
+            "DCE.B": {"instrument_id": "B", "exchange_id": "DCE"},
+        },
+    )
+    broker.positions["DCE.M"].update(3, 100)
+    broker.positions["DCE.B"].update(4, 101)
+
+    with pytest.raises(ValueError, match="symbol conflicts with provider identity route"):
+        broker._sync_positions(force=True, raise_errors=True)
+
+    assert broker.positions["DCE.M"].size == 3
+    assert broker.positions["DCE.B"].size == 4
+
+
+def test_unnamed_feed_keeps_its_original_position_key():
+    data = SimpleNamespace(
+        _name=None,
+        _dataname="M2612",
+        p=SimpleNamespace(dataname="M2612"),
+    )
+    broker = make_position_sync_broker(
+        [data],
+        [
+            {"symbol": "M2612", "volume": 2, "price": 100, "direction": "long"},
+            {"symbol": "UNTRACKED", "volume": 9, "price": 100, "direction": "long"},
+        ],
+        subscribed={"M2612"},
+    )
+
+    broker._sync_positions(force=True, raise_errors=True)
+
+    assert broker.positions["M2612"].size == 2
+    assert "UNTRACKED" not in broker.positions
+
+
+def test_tracked_order_data_binds_native_instrument_to_feed_position_key():
+    data = SimpleNamespace(
+        _name="DCE.M",
+        _dataname="M2612",
+        p=SimpleNamespace(dataname="M2612"),
+    )
+    broker = make_position_sync_broker(
+        [],
+        [
+            {
+                "symbol": "M2612",
+                "instrument_id": "M2612",
+                "exchange_id": "DCE",
+                "volume": 1,
+                "price": 100,
+                "direction": "long",
+            }
+        ],
+        contract_metadata={"DCE.M": {"instrument_id": "M2612", "exchange_id": "DCE"}},
+    )
+    broker.orders[101] = SimpleNamespace(data=data, info={})
+
+    broker._sync_positions(force=True, raise_errors=True)
+
+    assert broker.positions["DCE.M"].size == 1
+    assert "M2612" not in broker.positions
 
 
 def test_sdk_startup_reconcile_uses_position_audit_interval_only():
