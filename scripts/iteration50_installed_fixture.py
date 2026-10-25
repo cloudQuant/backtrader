@@ -1997,6 +1997,10 @@ class _ExecutionProviderLeaf:
         self.is_ready = True
         self.is_trading_ready = True
         self._connection_generation = 1
+        self._stream_revision = 0
+        self._stream_stale = True
+        self._stream_stale_reason = "ctp_front_disconnected"
+        self._ever_connected = False
         self._account_fingerprint = _EXECUTION_ACCOUNT
         self._trading_day = _EXECUTION_TRADING_DAY
         self._front_id = 4
@@ -2047,11 +2051,34 @@ class _ExecutionProviderLeaf:
         }
 
     def connect(self):
+        if self._ever_connected:
+            self._connection_generation += 1
+            self._stream_revision += 1
         self.connected = True
+        self._ever_connected = True
+        self._stream_stale = False
+        self._stream_stale_reason = ""
 
     def disconnect(self):
+        if self.connected:
+            self._stream_revision += 1
         self.connected = False
+        self._stream_stale = True
+        self._stream_stale_reason = "ctp_front_disconnected"
         self.stop_bar_source()
+
+    def _get_live_ctp_stream_health(self):
+        """Expose the synthetic leaf's bounded generation-aware stream state."""
+        return {
+            "generation_callbacks_supported": True,
+            "source_generation": self._connection_generation,
+            "source_revision": self._stream_revision,
+            "stale": self._stream_stale,
+            "stale_reason": self._stream_stale_reason,
+            "stale_tick_drop_count": 0,
+            "stale_tick_drop_reason": "",
+            "symbols": tuple(sorted(self._bars)),
+        }
 
     def subscribe(self, symbol):
         self.subscriptions.append(symbol)
