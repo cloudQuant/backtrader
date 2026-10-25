@@ -8,6 +8,7 @@ Alpha003 formula and never turns an observed-bar intersection into a calendar.
 from __future__ import annotations
 
 import argparse
+from contextlib import contextmanager
 from copy import deepcopy
 from collections import defaultdict, deque
 from datetime import date, datetime, timedelta, timezone
@@ -2134,6 +2135,12 @@ class QueryRefreshLoop:
         self._interrupt_refresh = threading.Event()
         self._refresh_start_lock = threading.Lock()
         self._strategy_lock = threading.RLock()
+        # Store query snapshots and Strategy projections share one
+        # non-reentrant consistency boundary.  Strategy only probes it
+        # nonblocking so an engine turn never waits for provider I/O.
+        self._fact_snapshot_lock = threading.Lock()
+        self._fact_projection_waiting = threading.Event()
+        self._projection_wake_error = None
         self._strategy = None
         self._shutdown_forwarded = False
         self._shutdown_deadline = None
@@ -2148,15 +2155,59 @@ class QueryRefreshLoop:
         self.last_facts = None
         self.last_error_code = None
         self.last_reconciliation_blockers = ()
+        self._reconciliation_blockers_work = []
         self.joined = False
         self.started = False
         self._margin_index = 0
+        self._startup_recovery_scope_timeout = None
+        self._startup_refresh_deadline = None
+        # A scoped pass that does not complete must be retried under the same
+        # durable dispatch fence.  This is only a bounded in-process hint;
+        # durable DISPATCHING rows remain the source of truth after restart.
+        self._dispatching_recovery_retry_pending = False
 
     def bind_strategy(self, strategy):
         with self._strategy_lock:
             if self._strategy is not None and self._strategy is not strategy:
                 raise RunnerError("LIVE_STRATEGY_BINDING_CONFLICT")
             self._strategy = strategy
+
+    @contextmanager
+    def strategy_fact_projection_scope(self):
+        """Try to pin one complete Store/query-set view without blocking."""
+
+        if not self._fact_snapshot_lock.acquire(blocking=False):
+            self._fact_projection_waiting.set()
+            yield False
+            return
+        # A successful reader is itself the retry after a previously busy
+        # projection, so it can consume the pending wake request.
+        self._fact_projection_waiting.clear()
+        try:
+            yield True
+        finally:
+            self._fact_snapshot_lock.release()
+
+    def _wake_waiting_strategy_projection(self):
+        if not self._fact_projection_waiting.is_set():
+            return
+        if not (self._thread.is_alive() or self._shutdown_event.is_set()):
+            return
+        # Clear before calling the wake API. A new failed projection racing
+        # this wake sets the event again and will be signaled by the next pass.
+        self._fact_projection_waiting.clear()
+        wake = getattr(self.cerebro, "wake_live_bar_cohort", None)
+        if not callable(wake):
+            self._projection_wake_error = "LIVE_COHORT_WAKE_API_UNAVAILABLE"
+            self._fact_projection_waiting.set()
+            return
+        try:
+            wake()
+        except Exception as error:
+            self._projection_wake_error = "LIVE_COHORT_WAKE_FAILED:" + type(error).__name__
+            self._fact_projection_waiting.set()
+            return
+        self._projection_wake_error = None
 
     def request_shutdown(self):
         """Publish a winddown request for the serialized refresh loop."""
@@ -2250,7 +2301,15 @@ class QueryRefreshLoop:
         return False
 
     @staticmethod
-    def _reconcile_all(method, facts, allowed_statuses, label, *, refresh_receipt=None):
+    def _reconcile_all(
+        method,
+        facts,
+        allowed_statuses,
+        label,
+        *,
+        refresh_receipt=None,
+        diagnostic_sink=None,
+    ):
         offset = 0
         total = 0
         while True:
@@ -2264,7 +2323,13 @@ class QueryRefreshLoop:
             page = method(facts, **page_kwargs)
             if page.offset != offset or page.observation_count > 512:
                 raise RunnerError("LIVE_RECONCILIATION_PAGE_INVALID", label)
-            if any(item.status not in allowed_statuses for item in page.items):
+            blocked_items = tuple(
+                item for item in page.items if getattr(item, "status", None) not in allowed_statuses
+            )
+            if blocked_items:
+                QueryRefreshLoop._record_reconciliation_blockers(
+                    diagnostic_sink, label, offset, blocked_items
+                )
                 raise RunnerError("LIVE_RECONCILIATION_BLOCKED", label)
             total += len(page.items)
             if total > 512:
@@ -2280,6 +2345,43 @@ class QueryRefreshLoop:
             ):
                 raise RunnerError("LIVE_RECONCILIATION_PAGE_INVALID", label)
             offset = page.next_offset
+
+    @staticmethod
+    def _append_reconciliation_blocker(diagnostic_sink, label, offset, status, blocker_code):
+        """Append one bounded, identifier-only reconciliation diagnostic."""
+
+        if type(diagnostic_sink) is not list or len(diagnostic_sink) >= 16:
+            return
+        if (
+            type(status) is not str
+            or not status
+            or len(status) > 64
+            or any(not (char.isalnum() or char in "_:-.") for char in status)
+        ):
+            status = "UNOBSERVED"
+        if (
+            type(blocker_code) is not str
+            or not blocker_code
+            or len(blocker_code) > 128
+            or any(not (char.isalnum() or char in "_:-.") for char in blocker_code)
+        ):
+            blocker_code = None
+        diagnostic_sink.append((label, offset, status, blocker_code))
+
+    @staticmethod
+    def _record_reconciliation_blockers(diagnostic_sink, label, offset, items):
+        if type(diagnostic_sink) is not list:
+            return
+        for item in items:
+            if len(diagnostic_sink) >= 16:
+                break
+            QueryRefreshLoop._append_reconciliation_blocker(
+                diagnostic_sink,
+                label,
+                offset,
+                getattr(item, "status", None),
+                getattr(item, "blocker_code", None),
+            )
 
     @staticmethod
     def _receipt_complete(receipt):
@@ -2306,7 +2408,133 @@ class QueryRefreshLoop:
                 return False
         return True
 
+    @staticmethod
+    def _execution_error_code(error):
+        code = getattr(error, "code", None)
+        if type(code) is str and code and code == code.strip():
+            return code
+        return type(error).__name__
+
+    def _dispatching_recovery_candidate(self):
+        """Return whether this refresh must hold the durable recovery gate.
+
+        The journal projection is intentionally bounded.  A truncated page is
+        ambiguous, so it takes the gate conservatively.  The coordinator then
+        validates each exact source observation against the durable journal;
+        this hint never resolves or selects an intent itself.
+        """
+
+        if self.coordinator is None:
+            return False
+        try:
+            page = self.coordinator.execution_intent_snapshot(limit=128)
+        except Exception as error:
+            raise RunnerError(
+                "LIVE_RECOVERY_INTENT_SNAPSHOT_UNAVAILABLE",
+                self._execution_error_code(error),
+            ) from None
+        items = getattr(page, "items", None)
+        truncated = getattr(page, "truncated", None)
+        if type(items) is not tuple or type(truncated) is not bool:
+            raise RunnerError("LIVE_RECOVERY_INTENT_SNAPSHOT_INVALID")
+        if any(type(getattr(item, "state", None)) is not str for item in items):
+            raise RunnerError("LIVE_RECOVERY_INTENT_SNAPSHOT_INVALID")
+        return bool(
+            self._dispatching_recovery_retry_pending
+            or truncated
+            or any(item.state == "DISPATCHING" for item in items)
+        )
+
+    def refresh_initial(self, *, wait_timeout):
+        """Perform the first refresh, retrying only bounded gate contention.
+
+        A competing live process may still own the dispatch gate.  Retry that
+        admission briefly without querying or holding the gate during the
+        wait; other incomplete refreshes retain the existing startup behavior.
+        """
+
+        deadline = time.monotonic() + wait_timeout
+        self._startup_refresh_deadline = deadline
+        try:
+            while True:
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    if self.last_error_code is None:
+                        self.last_error_code = "LIVE_INITIAL_QUERY_READY_TIMEOUT"
+                    return None
+                self._startup_recovery_scope_timeout = remaining
+                try:
+                    receipt = self.refresh_once()
+                except Exception as error:
+                    self.last_error_code = self._execution_error_code(error)
+                    if self.last_error_code != "DISPATCH_SERIALIZATION_BUSY":
+                        raise
+                    receipt = None
+                finally:
+                    self._startup_recovery_scope_timeout = None
+                if self.last_error_code != "DISPATCH_SERIALIZATION_BUSY":
+                    return receipt
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    return receipt
+                time.sleep(min(0.05, remaining))
+        finally:
+            self._startup_refresh_deadline = None
+
     def refresh_once(self):
+        # Clear, refresh, reconcile and republish as one unit with respect to
+        # Strategy fact projection. Readers fail fast while this lock is held.
+        try:
+            with self._fact_snapshot_lock:
+                self._reconciliation_blockers_work = []
+                self.last_reconciliation_blockers = ()
+                try:
+                    return self._refresh_once_locked()
+                except Exception:
+                    self.last_reconciliation_blockers = tuple(
+                        self._reconciliation_blockers_work[:16]
+                    )
+                    raise
+        finally:
+            self._wake_waiting_strategy_projection()
+
+    def _refresh_once_locked(self):
+        # Clear the previously published proof before inspecting durable
+        # intents.  No reader may use an older query set if recovery admission
+        # is busy, unsupported, or the bounded journal projection is invalid.
+        self.last_receipt = None
+        self.last_facts = None
+        self.last_error_code = None
+        needs_recovery_scope = self._dispatching_recovery_candidate()
+        if not needs_recovery_scope:
+            return self._refresh_once_body()
+
+        journal = getattr(self.coordinator, "journal", None)
+        serialization_path = getattr(journal, "dispatch_serialization_path", None)
+        if serialization_path is None:
+            self.last_error_code = "DISPATCHING_RECOVERY_REQUIRES_CROSS_PROCESS_GATE"
+            self._dispatching_recovery_retry_pending = True
+            raise RunnerError(self.last_error_code)
+
+        self._dispatching_recovery_retry_pending = True
+        timeout = min(5.0, self.overall_timeout)
+        startup_timeout = self._startup_recovery_scope_timeout
+        if startup_timeout is not None:
+            timeout = min(timeout, startup_timeout)
+        if timeout <= 0:
+            self.last_error_code = "DISPATCH_SERIALIZATION_BUSY"
+            raise RunnerError(self.last_error_code)
+        try:
+            with self.coordinator.terminal_recovery_scope(timeout_seconds=timeout):
+                receipt = self._refresh_once_body()
+        except Exception as error:
+            self.last_error_code = self._execution_error_code(error)
+            raise
+        if self.last_error_code is None:
+            self._dispatching_recovery_retry_pending = False
+        return receipt
+
+    def _refresh_once_body(self):
         from backtrader.stores.factor_execution_facts import (
             project_factor_execution_facts,
             refresh_factor_execution_queries,
@@ -2316,19 +2544,23 @@ class QueryRefreshLoop:
             raise RunnerError("LIVE_REFRESH_TARGETS_REQUIRED")
         margin_target = self.targets[self._margin_index % len(self.targets)]
         self._margin_index = (self._margin_index + 1) % len(self.targets)
-        # Invalidate the published snapshot while any family is being
-        # refreshed. Strategy projection must never combine the preceding
-        # query-set receipt with Store rows from this in-progress pass.
-        self.last_receipt = None
-        self.last_facts = None
-        self.last_error_code = None
 
         def refresh_snapshot():
+            refresh_timeout = self.timeout
+            refresh_overall_timeout = self.overall_timeout
+            startup_deadline = self._startup_refresh_deadline
+            if startup_deadline is not None:
+                remaining = startup_deadline - time.monotonic()
+                if remaining <= 0:
+                    self.last_error_code = "LIVE_INITIAL_QUERY_READY_TIMEOUT"
+                    return None, None, None
+                refresh_overall_timeout = min(refresh_overall_timeout, remaining)
+                refresh_timeout = min(refresh_timeout, refresh_overall_timeout)
             receipt = refresh_factor_execution_queries(
                 self.store,
                 targets=self.targets,
-                timeout=self.timeout,
-                overall_timeout=self.overall_timeout,
+                timeout=refresh_timeout,
+                overall_timeout=refresh_overall_timeout,
                 include_core=True,
                 margin_target_ids=(margin_target.target_id,),
                 max_queries=6,
@@ -2361,12 +2593,17 @@ class QueryRefreshLoop:
             return receipt
 
         if self.coordinator is not None:
-            self._reconcile_dated_trades(facts)
+            self._reconcile_dated_trades(
+                facts,
+                refresh_receipt=receipt,
+                diagnostic_sink=self._reconciliation_blockers_work,
+            )
             self._reconcile_all(
                 self.coordinator.trade_reconciliation_snapshot,
                 facts,
                 {"APPLIED", "DUPLICATE", "EXTERNAL_FLAT"},
                 "trade_proof",
+                diagnostic_sink=self._reconciliation_blockers_work,
             )
             # Trade receipts and dated position-book rows are committed after
             # the first position query. A fresh complete account query-set is
@@ -2382,6 +2619,7 @@ class QueryRefreshLoop:
                 {"RESOLVED", "DUPLICATE", "EXTERNAL_TERMINAL_FLAT"},
                 "terminal_orders",
                 refresh_receipt=receipt,
+                diagnostic_sink=self._reconciliation_blockers_work,
             )
             # Strategy and the proof reads both consume the exact second query
             # set, which postdates the durable trade/dated-book writes.
@@ -2402,12 +2640,14 @@ class QueryRefreshLoop:
                 facts,
                 {"APPLIED", "DUPLICATE", "EXTERNAL_FLAT"},
                 "trade_proof",
+                diagnostic_sink=self._reconciliation_blockers_work,
             )
             self._reconcile_all(
                 self.coordinator.terminal_order_reconciliation_snapshot,
                 facts,
                 {"RESOLVED", "DUPLICATE", "EXTERNAL_TERMINAL_FLAT"},
                 "terminal_order_proof",
+                diagnostic_sink=self._reconciliation_blockers_work,
             )
             # Dated rows are part of the strategy's source-backed risk facts.
             # A fill that cannot be bound to the position book remains a hard
@@ -2422,23 +2662,29 @@ class QueryRefreshLoop:
         self.last_error_code = None
         return receipt
 
-    def _reconcile_dated_trades(self, facts):
+    def _reconcile_dated_trades(self, facts, *, refresh_receipt, diagnostic_sink=None):
         """Apply complete trade pages to the durable execution and dated books."""
 
         offset = 0
         total = 0
         while True:
             trade_page = self.coordinator.reconcile_trade_observations(
-                facts, limit=128, offset=offset
+                facts, limit=128, offset=offset, refresh_receipt=refresh_receipt
             )
-            if (
-                trade_page.offset != offset
-                or trade_page.observation_count > 512
-                or any(
-                    item.status not in {"APPLIED", "DUPLICATE", "EXTERNAL_FLAT"}
-                    for item in trade_page.items
+            if trade_page.offset != offset or trade_page.observation_count > 512:
+                self._append_reconciliation_blocker(
+                    diagnostic_sink, "trade_page", offset, "PAGE_INVALID", "TRADE_PAGE_SHAPE"
                 )
-            ):
+                raise RunnerError("LIVE_TRADE_RECONCILIATION_BLOCKED")
+            blocked_trade_items = tuple(
+                item
+                for item in trade_page.items
+                if getattr(item, "status", None) not in {"APPLIED", "DUPLICATE", "EXTERNAL_FLAT"}
+            )
+            if blocked_trade_items:
+                self._record_reconciliation_blockers(
+                    diagnostic_sink, "trade_page", offset, blocked_trade_items
+                )
                 raise RunnerError("LIVE_TRADE_RECONCILIATION_BLOCKED")
             dated_page = self.coordinator.position_book.reconcile_dated_trade_observations(
                 facts,
@@ -2452,15 +2698,31 @@ class QueryRefreshLoop:
                 or tuple(item.observation_id for item in dated_page.items)
                 != tuple(item.observation_id for item in trade_page.items)
             ):
+                self._append_reconciliation_blocker(
+                    diagnostic_sink, "dated_page", offset, "PAGE_INVALID", "DATED_PAGE_SHAPE"
+                )
                 raise RunnerError("LIVE_DATED_TRADE_RECONCILIATION_PAGE_INVALID")
             for trade_item, dated_item in zip(trade_page.items, dated_page.items):
                 if trade_item.status in {"APPLIED", "DUPLICATE"}:
                     if dated_item.status not in {"APPLIED", "DUPLICATE"}:
+                        self._record_reconciliation_blockers(
+                            diagnostic_sink, "dated_page", offset, (dated_item,)
+                        )
                         raise RunnerError("LIVE_DATED_TRADE_RECONCILIATION_BLOCKED")
                 elif dated_item.status != "EXTERNAL_FLAT":
+                    self._record_reconciliation_blockers(
+                        diagnostic_sink, "dated_page", offset, (dated_item,)
+                    )
                     raise RunnerError("LIVE_DATED_TRADE_RECONCILIATION_BLOCKED")
             total += len(trade_page.items)
             if total > 512:
+                self._append_reconciliation_blocker(
+                    diagnostic_sink,
+                    "trade_page",
+                    offset,
+                    "LIMIT_EXCEEDED",
+                    "TRADE_OBSERVATION_LIMIT",
+                )
                 raise RunnerError("LIVE_RECONCILIATION_LIMIT_EXCEEDED", "dated_trades")
             if not trade_page.truncated:
                 if (
@@ -2469,6 +2731,13 @@ class QueryRefreshLoop:
                     or dated_page.next_offset is not None
                     or total != trade_page.observation_count
                 ):
+                    self._append_reconciliation_blocker(
+                        diagnostic_sink,
+                        "dated_page",
+                        offset,
+                        "PAGE_INVALID",
+                        "DATED_PAGE_SHAPE",
+                    )
                     raise RunnerError("LIVE_DATED_TRADE_RECONCILIATION_PAGE_INVALID")
                 return
             if (
@@ -2478,6 +2747,13 @@ class QueryRefreshLoop:
                 or not dated_page.truncated
                 or dated_page.next_offset != trade_page.next_offset
             ):
+                self._append_reconciliation_blocker(
+                    diagnostic_sink,
+                    "dated_page",
+                    offset,
+                    "PAGE_INVALID",
+                    "DATED_PAGE_SHAPE",
+                )
                 raise RunnerError("LIVE_DATED_TRADE_RECONCILIATION_PAGE_INVALID")
             offset = trade_page.next_offset
 
@@ -2512,7 +2788,7 @@ class QueryRefreshLoop:
                 try:
                     self.refresh_once()
                 except Exception as error:
-                    self.last_error_code = type(error).__name__
+                    self.last_error_code = self._execution_error_code(error)
                 next_refresh_at = time.monotonic() + self.interval
                 if self._shutdown_event.is_set():
                     # The first forwarded request wakes the engine. Subsequent
@@ -3292,9 +3568,9 @@ def run_live(
             shutdown_grace_seconds=shutdown_grace,
         )
         try:
-            refresh_loop.refresh_once()
+            refresh_loop.refresh_initial(wait_timeout=ready_timeout)
         except Exception as error:
-            refresh_loop.last_error_code = type(error).__name__
+            refresh_loop.last_error_code = refresh_loop._execution_error_code(error)
             if write_enabled:
                 raise RunnerError("LIVE_INITIAL_QUERY_REFRESH_FAILED") from None
         if write_enabled and refresh_loop.last_error_code is not None:

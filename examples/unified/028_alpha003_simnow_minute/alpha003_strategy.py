@@ -2890,8 +2890,13 @@ class Alpha003TargetStrategy(bt.Strategy):
             project_factor_execution_facts,
         )
 
+        # Never leave an older projection visible when this call cannot obtain
+        # a coherent current Store/query-set view.
+        self.last_execution_facts = None
+        self.last_execution_block_reason = None
         store = getattr(self.broker, "store", None)
         if store is None:
+            self.last_execution_block_reason = "EXECUTION_STORE_UNAVAILABLE"
             return None
         if self._risk_policy is None:
             self.last_execution_block_reason = "RISK_POLICY_REQUIRED"
@@ -2909,8 +2914,9 @@ class Alpha003TargetStrategy(bt.Strategy):
         if len(targets) != len(self._target_ids):
             self.last_execution_block_reason = "LIVE_ROUTE_SET_INCOMPLETE"
             return None
-        try:
-            facts = project_factor_execution_facts(
+
+        def project_current_snapshot():
+            return project_factor_execution_facts(
                 store,
                 self.broker,
                 targets=targets,
@@ -2933,6 +2939,19 @@ class Alpha003TargetStrategy(bt.Strategy):
                     )
                 ),
             )
+
+        try:
+            projection_scope = getattr(
+                self.p.control_refresh_loop, "strategy_fact_projection_scope", None
+            )
+            if callable(projection_scope):
+                with projection_scope() as acquired:
+                    if acquired is not True:
+                        self.last_execution_block_reason = "EXECUTION_FACT_REFRESH_IN_PROGRESS"
+                        return None
+                    facts = project_current_snapshot()
+            else:
+                facts = project_current_snapshot()
         except (TypeError, ValueError, RuntimeError):
             self.last_execution_block_reason = "EXECUTION_FACT_PROJECTION_UNAVAILABLE"
             return None
