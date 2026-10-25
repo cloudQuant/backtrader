@@ -1,0 +1,325 @@
+{
+  "source_revision": "a025256eba3362661768c39dd958dc678ecb4a5f",
+  "package_root": "D:/temp/i5051c-20261025-r2/venv/Lib/site-packages",
+  "script_sha256": "75ca8866f6adb7fb8fc2dd361107d7749170d2cb453ba4cff4754a334567c2db",
+  "test_sha256": "60a7a9093daf552396bb7b36ed866eea9eae157f84d4ec520c26ccba6001cc57",
+  "loaded_backtrader_source_pins": {
+    "module_count": 31,
+    "post_run": [
+      {
+        "module": "backtrader._cerebro.channel",
+        "path": "_cerebro/channel.py",
+        "sha256": "e8f8eb04edc2b836c1ec0591c4972a33953bb785e0705b1e6663536c487057e8"
+      },
+      {
+        "module": "backtrader._cerebro.execution",
+        "path": "_cerebro/execution.py",
+        "sha256": "7ce6073823a373cb73b34577eebb3c541fe56661ebe185e72b078ed5e5fc7b57"
+      },
+      {
+        "module": "backtrader._cerebro.lifecycle",
+        "path": "_cerebro/lifecycle.py",
+        "sha256": "964d65cb7f4a708f621b91b5128c58303ae343517c0262f0a6d4418bb3536828"
+      },
+      {
+        "module": "backtrader._cerebro.notifications",
+        "path": "_cerebro/notifications.py",
+        "sha256": "a4ff91c3ea91da3b47c5a0f0a4cf51b489ca886391dde63ea2a094ecdaf211d6"
+      },
+      {
+        "module": "backtrader._cerebro.presentation",
+        "path": "_cerebro/presentation.py",
+        "sha256": "caf5a53dea7c04b70f91a279bb75fd9076b9ffa95026139df93e3788cb1b8288"
+      },
+      {
+        "module": "backtrader._cerebro.registry",
+        "path": "_cerebro/registry.py",
+        "sha256": "b593418871df47df7696f0b92fdcbcc7f7af6f957965fa81fd9b325e2b363179"
+      },
+      {
+        "module": "backtrader._cerebro.runnext",
+        "path": "_cerebro/runnext.py",
+        "sha256": "d0a12a6558f3418249cc0ff9d9f35336698b5be7330929c05d02c2d1921511b9"
+      },
+      {
+        "module": "backtrader._cerebro.runonce",
+        "path": "_cerebro/runonce.py",
+        "sha256": "b2225ea9d7547741f6aef7898d7659318c10edfeae49fe2d90fe3c89f17ef905"
+      },
+      {
+        "module": "backtrader.broker",
+        "path": "broker.py",
+        "sha256": "ff0c1f3f0aade720cfb578882a2bae75949d7f5c2b8751fe817044fc52b61cab"
+      },
+      {
+        "module": "backtrader.brokers.bbroker",
+        "path": "brokers/bbroker.py",
+        "sha256": "6f1bc3e05810325d5e6a65d435f7b62678f82e1ee75b6b63e0d2424a95aaf669"
+      },
+      {
+        "module": "backtrader.cerebro",
+        "path": "cerebro.py",
+        "sha256": "efc293f196ccb2c690c15476f97aa922fc7272440a478a628a9fdaf9c415e076"
+      },
+      {
+        "module": "backtrader.dataseries",
+        "path": "dataseries.py",
+        "sha256": "34e894eeb286b10182e1600fe6bbd5702f0a23687ecfdc95c97156a6a4a5f967"
+      },
+      {
+        "module": "backtrader.feed",
+        "path": "feed.py",
+        "sha256": "cb43784e877fb73ca7747c415a00a22454a46cf60fb1b6295657d6a8f96f6503"
+      },
+      {
+        "module": "backtrader.feeds.btapifeed",
+        "path": "feeds/btapifeed.py",
+        "sha256": "7758f038988e679ed0b8463c5b637ede55d65441ffba3b650800d4b9c844bc47"
+      },
+      {
+        "module": "backtrader.feeds.livefeed",
+        "path": "feeds/livefeed.py",
+        "sha256": "a41287d909038cdc9f9b17ca4b43d3c02d19e6d32db612cb46806bbfae77a725"
+      },
+      {
+        "module": "backtrader.feeds.service_recovery_quotes",
+        "path": "feeds/service_recovery_quotes.py",
+        "sha256": "507bd78dc05dbd2ec1ea6ed5a661cdb1bf1f12c6bd88088901647e27634a85d8"
+      },
+      {
+        "module": "backtrader.indicator",
+        "path": "indicator.py",
+        "sha256": "f89c92fb7150da24bf9de0a2b7d4dd24eb44d1bad5c39be5d4dc3f01c642e364"
+      },
+      {
+        "module": "backtrader.linebuffer",
+        "path": "linebuffer.py",
+        "sha256": "e898cb6b81d580fd03c0a6f9cad5272a3651a6787b32c009da017f5a014f2bc3"
+      },
+      {
+        "module": "backtrader.lineiterator",
+        "path": "lineiterator.py",
+        "sha256": "3ec9c5b0b041000743b152c078c14b4b7c00c45c42a08534b12036fafc55854e"
+      },
+      {
+        "module": "backtrader.lineroot",
+        "path": "lineroot.py",
+        "sha256": "d5034755681e9a55025bf0072ad1a5662e9395eb5158586d8b05794c26495e64"
+      },
+      {
+        "module": "backtrader.lineseries",
+        "path": "lineseries.py",
+        "sha256": "c5b478c889d2ecacf3e93a9e7cc218c4830b92a213c4eb32391d0634c18140c2"
+      },
+      {
+        "module": "backtrader.metabase",
+        "path": "metabase.py",
+        "sha256": "3b0375333fafe5538f40a6e419d2dcd14c9223ee690c5e9af978f837198a5847"
+      },
+      {
+        "module": "backtrader.parameters",
+        "path": "parameters.py",
+        "sha256": "a6e5af8356b6e042bca0a8700424275f34c4fc09904909e5960fa5664e0b8618"
+      },
+      {
+        "module": "backtrader.research.alpha101.alpha003",
+        "path": "research/alpha101/alpha003.py",
+        "sha256": "108966393560c22da47eb3fd924c997280d851d47ad24f7cc0e66792bea8cf53"
+      },
+      {
+        "module": "backtrader.research.factor_indicator",
+        "path": "research/factor_indicator.py",
+        "sha256": "2fb3d2f5404691ba876983965adb78ecca7d87bd718819a44710716f13de275e"
+      },
+      {
+        "module": "backtrader.research.live",
+        "path": "research/live.py",
+        "sha256": "778654019646ee87884547202a4177bde5de17f24d6be4e19a18a2133223529a"
+      },
+      {
+        "module": "backtrader.research.live_cohort",
+        "path": "research/live_cohort.py",
+        "sha256": "b71b24d60c34de20767c6b23bfeb724e48880a659086e416eb28cecc7f5aee96"
+      },
+      {
+        "module": "backtrader.research.operators",
+        "path": "research/operators.py",
+        "sha256": "fbf6d142f40564ade20a0a4f160fffde6876c343d9943f4e74671dbac70dfb42"
+      },
+      {
+        "module": "backtrader.research.specs",
+        "path": "research/specs.py",
+        "sha256": "0b14ce92d0d747c38951a993d4d9dd526c37cef4476cc78a9279b849402c5208"
+      },
+      {
+        "module": "backtrader.stores.execution_decision_journal",
+        "path": "stores/execution_decision_journal.py",
+        "sha256": "b5b1ba708a4c18c324315a454ae3d3dbc09d43793743cf327a037d5a69266b79"
+      },
+      {
+        "module": "backtrader.strategy",
+        "path": "strategy.py",
+        "sha256": "b24dd6f4d401760a0a64d15934a01c36ca6bb3636c205eb42273c87a31e44d76"
+      }
+    ],
+    "pre_post_match": true,
+    "pre_run": [
+      {
+        "module": "backtrader._cerebro.channel",
+        "path": "_cerebro/channel.py",
+        "sha256": "e8f8eb04edc2b836c1ec0591c4972a33953bb785e0705b1e6663536c487057e8"
+      },
+      {
+        "module": "backtrader._cerebro.execution",
+        "path": "_cerebro/execution.py",
+        "sha256": "7ce6073823a373cb73b34577eebb3c541fe56661ebe185e72b078ed5e5fc7b57"
+      },
+      {
+        "module": "backtrader._cerebro.lifecycle",
+        "path": "_cerebro/lifecycle.py",
+        "sha256": "964d65cb7f4a708f621b91b5128c58303ae343517c0262f0a6d4418bb3536828"
+      },
+      {
+        "module": "backtrader._cerebro.notifications",
+        "path": "_cerebro/notifications.py",
+        "sha256": "a4ff91c3ea91da3b47c5a0f0a4cf51b489ca886391dde63ea2a094ecdaf211d6"
+      },
+      {
+        "module": "backtrader._cerebro.presentation",
+        "path": "_cerebro/presentation.py",
+        "sha256": "caf5a53dea7c04b70f91a279bb75fd9076b9ffa95026139df93e3788cb1b8288"
+      },
+      {
+        "module": "backtrader._cerebro.registry",
+        "path": "_cerebro/registry.py",
+        "sha256": "b593418871df47df7696f0b92fdcbcc7f7af6f957965fa81fd9b325e2b363179"
+      },
+      {
+        "module": "backtrader._cerebro.runnext",
+        "path": "_cerebro/runnext.py",
+        "sha256": "d0a12a6558f3418249cc0ff9d9f35336698b5be7330929c05d02c2d1921511b9"
+      },
+      {
+        "module": "backtrader._cerebro.runonce",
+        "path": "_cerebro/runonce.py",
+        "sha256": "b2225ea9d7547741f6aef7898d7659318c10edfeae49fe2d90fe3c89f17ef905"
+      },
+      {
+        "module": "backtrader.broker",
+        "path": "broker.py",
+        "sha256": "ff0c1f3f0aade720cfb578882a2bae75949d7f5c2b8751fe817044fc52b61cab"
+      },
+      {
+        "module": "backtrader.brokers.bbroker",
+        "path": "brokers/bbroker.py",
+        "sha256": "6f1bc3e05810325d5e6a65d435f7b62678f82e1ee75b6b63e0d2424a95aaf669"
+      },
+      {
+        "module": "backtrader.cerebro",
+        "path": "cerebro.py",
+        "sha256": "efc293f196ccb2c690c15476f97aa922fc7272440a478a628a9fdaf9c415e076"
+      },
+      {
+        "module": "backtrader.dataseries",
+        "path": "dataseries.py",
+        "sha256": "34e894eeb286b10182e1600fe6bbd5702f0a23687ecfdc95c97156a6a4a5f967"
+      },
+      {
+        "module": "backtrader.feed",
+        "path": "feed.py",
+        "sha256": "cb43784e877fb73ca7747c415a00a22454a46cf60fb1b6295657d6a8f96f6503"
+      },
+      {
+        "module": "backtrader.feeds.btapifeed",
+        "path": "feeds/btapifeed.py",
+        "sha256": "7758f038988e679ed0b8463c5b637ede55d65441ffba3b650800d4b9c844bc47"
+      },
+      {
+        "module": "backtrader.feeds.livefeed",
+        "path": "feeds/livefeed.py",
+        "sha256": "a41287d909038cdc9f9b17ca4b43d3c02d19e6d32db612cb46806bbfae77a725"
+      },
+      {
+        "module": "backtrader.feeds.service_recovery_quotes",
+        "path": "feeds/service_recovery_quotes.py",
+        "sha256": "507bd78dc05dbd2ec1ea6ed5a661cdb1bf1f12c6bd88088901647e27634a85d8"
+      },
+      {
+        "module": "backtrader.indicator",
+        "path": "indicator.py",
+        "sha256": "f89c92fb7150da24bf9de0a2b7d4dd24eb44d1bad5c39be5d4dc3f01c642e364"
+      },
+      {
+        "module": "backtrader.linebuffer",
+        "path": "linebuffer.py",
+        "sha256": "e898cb6b81d580fd03c0a6f9cad5272a3651a6787b32c009da017f5a014f2bc3"
+      },
+      {
+        "module": "backtrader.lineiterator",
+        "path": "lineiterator.py",
+        "sha256": "3ec9c5b0b041000743b152c078c14b4b7c00c45c42a08534b12036fafc55854e"
+      },
+      {
+        "module": "backtrader.lineroot",
+        "path": "lineroot.py",
+        "sha256": "d5034755681e9a55025bf0072ad1a5662e9395eb5158586d8b05794c26495e64"
+      },
+      {
+        "module": "backtrader.lineseries",
+        "path": "lineseries.py",
+        "sha256": "c5b478c889d2ecacf3e93a9e7cc218c4830b92a213c4eb32391d0634c18140c2"
+      },
+      {
+        "module": "backtrader.metabase",
+        "path": "metabase.py",
+        "sha256": "3b0375333fafe5538f40a6e419d2dcd14c9223ee690c5e9af978f837198a5847"
+      },
+      {
+        "module": "backtrader.parameters",
+        "path": "parameters.py",
+        "sha256": "a6e5af8356b6e042bca0a8700424275f34c4fc09904909e5960fa5664e0b8618"
+      },
+      {
+        "module": "backtrader.research.alpha101.alpha003",
+        "path": "research/alpha101/alpha003.py",
+        "sha256": "108966393560c22da47eb3fd924c997280d851d47ad24f7cc0e66792bea8cf53"
+      },
+      {
+        "module": "backtrader.research.factor_indicator",
+        "path": "research/factor_indicator.py",
+        "sha256": "2fb3d2f5404691ba876983965adb78ecca7d87bd718819a44710716f13de275e"
+      },
+      {
+        "module": "backtrader.research.live",
+        "path": "research/live.py",
+        "sha256": "778654019646ee87884547202a4177bde5de17f24d6be4e19a18a2133223529a"
+      },
+      {
+        "module": "backtrader.research.live_cohort",
+        "path": "research/live_cohort.py",
+        "sha256": "b71b24d60c34de20767c6b23bfeb724e48880a659086e416eb28cecc7f5aee96"
+      },
+      {
+        "module": "backtrader.research.operators",
+        "path": "research/operators.py",
+        "sha256": "fbf6d142f40564ade20a0a4f160fffde6876c343d9943f4e74671dbac70dfb42"
+      },
+      {
+        "module": "backtrader.research.specs",
+        "path": "research/specs.py",
+        "sha256": "0b14ce92d0d747c38951a993d4d9dd526c37cef4476cc78a9279b849402c5208"
+      },
+      {
+        "module": "backtrader.stores.execution_decision_journal",
+        "path": "stores/execution_decision_journal.py",
+        "sha256": "b5b1ba708a4c18c324315a454ae3d3dbc09d43793743cf327a037d5a69266b79"
+      },
+      {
+        "module": "backtrader.strategy",
+        "path": "strategy.py",
+        "sha256": "b24dd6f4d401760a0a64d15934a01c36ca6bb3636c205eb42273c87a31e44d76"
+      }
+    ],
+    "scope": "Backtrader Python modules reached from the active Cerebro/Strategy/feed/broker/cohort/factor/journal object graph"
+  }
+}

@@ -537,6 +537,79 @@ def test_alpha003_profile_does_not_require_deferred_feed_extra_lines():
     assert not set(module._source_fields_for("alpha003")).intersection(module.EXTRA_FACTOR_FIELDS)
 
 
+def test_synthetic_store_waits_when_next_calendar_grid_is_polled_early(tmp_path):
+    module = _load_benchmark_module()
+    args = module._parse_args(
+        ["--mode", "native", "--smoke", "--output", str(tmp_path / "prefetch.json")]
+    )
+    runtime = module._make_runtime(
+        args,
+        grids=2,
+        warmup_bars=64,
+        rss_sampler=None,
+        selected_root=REPOSITORY_ROOT,
+    )
+    clock, store = runtime[3], runtime[4]
+    targets = tuple(store.cursors)
+
+    try:
+        store.cursors[targets[0]] = 1
+        with pytest.raises(
+            module.BenchmarkFailure, match="feed_poll_escaped_current_calendar_grid"
+        ):
+            store.poll_live(targets[0])
+        store.cursors[targets[0]] = 0
+
+        for grid_index in range(2):
+            assert clock.grid_index == grid_index
+            events = [store.poll_live(target) for target in targets]
+            assert len(events) == module.ASSET_COUNT
+            assert all(event["bar_sequence"] == grid_index + 1 for event in events)
+            assert len(store.current_rows) == module.ASSET_COUNT
+            if grid_index == 0:
+                store.finish_grid(grid_index)
+                clock.advance_grid()
+
+        rows_before_prefetch = dict(store.current_rows)
+        arrivals_before_prefetch = dict(store.current_arrivals)
+        cursor_before_prefetch = store.cursors[targets[0]]
+        returned_before_prefetch = store.events_returned
+        polls_before_prefetch = store.poll_calls
+
+        assert clock.grid_index == 1
+        assert cursor_before_prefetch == 2
+        for prefetch_index in range(2):
+            assert store.poll_live(targets[0]) is None
+            assert store.poll_calls == polls_before_prefetch + prefetch_index + 1
+            assert store.cursors[targets[0]] == cursor_before_prefetch
+            assert store.events_returned == returned_before_prefetch
+            assert store.current_grid_index == 1
+            assert store.current_rows == rows_before_prefetch
+            assert store.current_arrivals == arrivals_before_prefetch
+        assert store.cursors[targets[0]] == cursor_before_prefetch
+
+        store.finish_grid(1)
+        clock.advance_grid()
+        next_event = store.poll_live(targets[0])
+        assert next_event["bar_sequence"] == 3
+        assert store.cursors[targets[0]] == 3
+        assert store.events_returned == returned_before_prefetch + 1
+
+        store.cursors[targets[0]] = 4
+        with pytest.raises(
+            module.BenchmarkFailure, match="feed_poll_escaped_current_calendar_grid"
+        ):
+            store.poll_live(targets[0])
+
+        store.cursors[targets[0]] = 1
+        with pytest.raises(
+            module.BenchmarkFailure, match="feed_poll_escaped_current_calendar_grid"
+        ):
+            store.poll_live(targets[0])
+    finally:
+        store.close()
+
+
 def test_six_factor_streaming_oracle_has_finite_nontrivial_fixture_witnesses():
     module = _load_benchmark_module()
     targets = tuple("ASSET%02d" % index for index in range(module.ASSET_COUNT))

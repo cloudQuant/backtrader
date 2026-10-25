@@ -1748,6 +1748,16 @@ def _make_runtime(
             grid_index = self.cursors[dataname]
             if grid_index >= total_slots:
                 return None
+            if (
+                grid_index == clock.grid_index + 1
+                and self.current_grid_index == clock.grid_index
+                and dataname in self.current_rows
+            ):
+                # Cerebro's cohort collector may poll again after this member's
+                # current-grid row has been captured.  The following calendar
+                # slot is not available until the strategy advances the source
+                # clock, so keep the cursor and current-grid evidence intact.
+                return None
             if grid_index != clock.grid_index:
                 wait_state = cohort.next_wait_timeout(
                     clock.utc_now(), clock.monotonic_ns()
