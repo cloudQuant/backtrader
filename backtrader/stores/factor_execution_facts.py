@@ -23,7 +23,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass, replace
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal, InvalidOperation
-from typing import Any, List, Optional, Tuple
+from typing import Any, Callable, List, Optional, Tuple
 
 from .registered_sim import RegisteredSimStore
 
@@ -2547,6 +2547,7 @@ def refresh_factor_execution_queries(
     margin_target_ids: Optional[Tuple[str, ...]] = None,
     max_queries: Optional[int] = None,
     cancel_event: Optional[threading.Event] = None,
+    utc_now: Optional[Callable[[], datetime]] = None,
 ) -> FactorExecutionRefreshReceipt:
     """Refresh typed CTP query evidence from a runner-owned control path.
 
@@ -2557,7 +2558,11 @@ def refresh_factor_execution_queries(
     prevents further calls after the current synchronous query returns. Each
     call receives at most ``timeout`` and the remaining overall budget. The
     SDK query method must honor that timeout; the receipt retains pending work
-    if the budget/cancellation stops the batch. This must not run from
+    if the budget/cancellation stops the batch. ``utc_now`` supplies the UTC
+    domain used to timestamp and seal the refresh receipt; when omitted, host
+    UTC remains the default. It must return aware, nondecreasing datetimes.
+    Query deadlines and source-expiry checks continue to use real monotonic
+    time and are not controlled by ``utc_now``. This must not run from
     ``Strategy.next``.
     """
 
@@ -2575,6 +2580,8 @@ def refresh_factor_execution_queries(
         raise ValueError("include_core must be bool")
     if cancel_event is not None and not isinstance(cancel_event, _THREADING_EVENT_TYPE):
         raise TypeError("cancel_event must be a threading.Event")
+    if utc_now is not None and not callable(utc_now):
+        raise TypeError("utc_now must be callable")
     targets_by_id = {target.target_id: target for target in bound_targets}
     selected_margin_ids = (
         tuple(targets_by_id) if margin_target_ids is None else tuple(margin_target_ids)
@@ -2586,7 +2593,7 @@ def refresh_factor_execution_queries(
     if max_queries is not None and (type(max_queries) is not int or max_queries <= 0):
         raise ValueError("max_queries must be a positive int")
 
-    started_at = datetime.now(timezone.utc)
+    started_at = _refresh_utc_now(utc_now)
     start_mono = time.monotonic()
     deadline = start_mono + float(overall_timeout)
     requested = list(_BASE_FAMILIES) if include_core else []
@@ -2666,7 +2673,9 @@ def refresh_factor_execution_queries(
             provenance.append(
                 _query_fact(family, result, target_id=target.target_id if target else None)
             )
-    completed_at = datetime.now(timezone.utc)
+    completed_at = _refresh_utc_now(utc_now)
+    if completed_at < started_at:
+        raise ValueError("utc_now must not move backwards during refresh")
     deadline_reached = time.monotonic() >= deadline
     if deadline_reached:
         blockers.append("query_refresh_overall_deadline_reached")
@@ -2689,6 +2698,20 @@ def refresh_factor_execution_queries(
         cancelled=cancelled,
         query_set=query_set,
     )
+
+
+def _refresh_utc_now(utc_now: Optional[Callable[[], datetime]]) -> datetime:
+    """Read the refresh envelope in the caller's UTC domain, defaulting to host UTC."""
+
+    value = datetime.now(timezone.utc) if utc_now is None else utc_now()
+    if not isinstance(value, datetime) or value.tzinfo is None:
+        raise ValueError("utc_now must return an aware datetime")
+    try:
+        if value.utcoffset() is None:
+            raise ValueError("utc_now must return an aware datetime")
+        return value.astimezone(timezone.utc)
+    except Exception:
+        raise ValueError("utc_now must return an aware datetime") from None
 
 
 def _route_fact(

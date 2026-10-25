@@ -2672,6 +2672,7 @@ class QueryRefreshLoop:
                 margin_target_ids=(margin_target.target_id,),
                 max_queries=6,
                 cancel_event=self._interrupt_refresh,
+                utc_now=self.clock.utc_now,
             )
             if not self._receipt_complete(receipt):
                 self.last_error_code = "LIVE_QUERY_REFRESH_INCOMPLETE"

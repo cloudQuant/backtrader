@@ -2735,6 +2735,60 @@ def test_future_query_completion_stays_blocked_against_injected_decision_clock()
     assert tuple(api.query_calls) == calls_before_projection
 
 
+def test_refresh_utc_envelope_defaults_to_host_and_validates_injected_clock():
+    wall_now = datetime.now(timezone.utc)
+    api, store, _broker, journal, _coordinator, target = _system_under_test(
+        now=wall_now,
+        query_time=wall_now - timedelta(seconds=1),
+    )
+    try:
+        host_before = datetime.now(timezone.utc)
+        receipt = refresh_factor_execution_queries(
+            store, targets=(target,), overall_timeout=4.0
+        )
+        host_after = datetime.now(timezone.utc)
+        assert host_before <= receipt.started_at <= receipt.completed_at <= host_after
+        assert receipt.query_set is not None
+        assert receipt.blockers == ()
+
+        with pytest.raises(TypeError, match="utc_now must be callable"):
+            refresh_factor_execution_queries(
+                store, targets=(target,), utc_now=wall_now  # type: ignore[arg-type]
+            )
+        assert len(api.query_calls) == 6
+
+        with pytest.raises(ValueError, match="aware datetime"):
+            refresh_factor_execution_queries(
+                store,
+                targets=(target,),
+                utc_now=lambda: datetime.now(timezone.utc).replace(tzinfo=None),
+            )
+        assert len(api.query_calls) == 6
+
+        with pytest.raises(ValueError, match="aware datetime"):
+            refresh_factor_execution_queries(
+                store,
+                targets=(target,),
+                utc_now=lambda: "not a datetime",  # type: ignore[return-value]
+            )
+        assert len(api.query_calls) == 6
+
+        clock_times = iter(
+            (wall_now + timedelta(seconds=2), wall_now + timedelta(seconds=1))
+        )
+        with pytest.raises(ValueError, match="must not move backwards"):
+            refresh_factor_execution_queries(
+                store,
+                targets=(target,),
+                include_core=False,
+                margin_target_ids=(target.target_id,),
+                utc_now=lambda: next(clock_times),
+            )
+        assert len(api.query_calls) == 7
+    finally:
+        journal.close()
+
+
 def test_old_consumed_quote_is_blocked_after_current_store_stream_gap():
     now = datetime.now(timezone.utc)
     _api, store, broker, _journal, _coordinator, target = _system_under_test(now=now)

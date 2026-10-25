@@ -357,7 +357,9 @@ def test_refresh_loop_rotates_margin_queries_only_over_execution_targets(monkeyp
         margin_target_ids,
         max_queries,
         cancel_event,
+        utc_now,
     ):
+        assert callable(utc_now)
         target_ids = tuple(target.target_id for target in targets)
         margin_target_ids = tuple(margin_target_ids)
         requests.append((target_ids, include_core, margin_target_ids))
@@ -3085,6 +3087,7 @@ def test_real_cerebro_live_strategy_winddown_is_ready_or_times_out(tmp_path, mon
         margin_target_ids,
         max_queries,
         cancel_event,
+        utc_now,
     ):
         del timeout, overall_timeout, include_core, max_queries, cancel_event
         from backtrader.stores.factor_execution_facts import (
@@ -3092,7 +3095,7 @@ def test_real_cerebro_live_strategy_winddown_is_ready_or_times_out(tmp_path, mon
             FactorExecutionRefreshReceipt,
         )
 
-        now = clock.utc_now()
+        now = utc_now()
         base = (
             ("account_result", "account"),
             ("orders_result", "orders"),

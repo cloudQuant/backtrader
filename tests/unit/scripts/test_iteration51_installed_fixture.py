@@ -124,7 +124,6 @@ def _source_loaded_refresh_case(
 def test_initial_query_refresh_uses_shared_synthetic_utc_and_real_monotonic(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from backtrader.stores.factor_execution import FactorExecutionError
     from backtrader.stores.factor_execution_facts import _BASE_FAMILIES
 
     runner_path = (
@@ -167,13 +166,11 @@ def test_initial_query_refresh_uses_shared_synthetic_utc_and_real_monotonic(
             <= monotonic_after
         )
 
-        with pytest.raises(FactorExecutionError) as host_error:
-            host_loop.refresh_initial(wait_timeout=2.0)
-        assert host_error.value.code == "TRADE_FACTS_SCOPE_MISMATCH"
-        assert runner.QueryRefreshLoop._execution_error_code(host_error.value) == (
-            host_error.value.code
-        )
-        assert host_loop.last_error_code == "TRADE_FACTS_SCOPE_MISMATCH"
+        receipt = host_loop.refresh_initial(wait_timeout=2.0)
+        assert receipt is host_loop.last_receipt
+        assert host_loop.last_error_code == "LIVE_QUERY_SET_UNAVAILABLE"
+        assert host_loop.last_facts is None
+        assert receipt.query_set is None
         assert set(host_store._ctp_query_results) == set(_BASE_FAMILIES) | {
             "instrument_margin_rate_result"
         }
@@ -183,6 +180,71 @@ def test_initial_query_refresh_uses_shared_synthetic_utc_and_real_monotonic(
         )
     finally:
         host_journal.close()
+
+    from backtrader.stores.factor_execution_facts import refresh_factor_execution_queries
+
+    future_clock = _FixedUTCClock(datetime.now(timezone.utc) + timedelta(hours=1))
+    future_api, future_store, future_journal, future_target, future_loop = (
+        _source_loaded_refresh_case(
+            helper, runner, future_clock, bind_query_clock=True
+        )
+    )
+    try:
+        assert future_api._query_utc_clock is future_clock is future_loop.clock
+        default_monotonic_before = time.monotonic()
+        default_receipt = refresh_factor_execution_queries(
+            future_store, targets=(future_target,), overall_timeout=2.0
+        )
+        default_monotonic_after = time.monotonic()
+        assert default_receipt.query_set is None
+        assert default_receipt.deadline_reached is False
+        assert default_receipt.completed_at < future_clock.utc_now()
+        assert all(
+            fact.completed_at is not None
+            and fact.completed_at > default_receipt.completed_at
+            for fact in default_receipt.query_provenance
+        )
+        assert all(
+            default_monotonic_before
+            <= result["source_started_monotonic"]
+            <= result["source_completed_monotonic"]
+            <= default_monotonic_after
+            < result["source_expires_monotonic"]
+            for result in future_store._ctp_query_results.values()
+        )
+
+        monotonic_before = time.monotonic()
+        receipt = future_loop.refresh_initial(wait_timeout=2.0)
+        monotonic_after = time.monotonic()
+        assert receipt is future_loop.last_receipt
+        assert future_loop.last_error_code is None
+        assert future_loop.last_facts.snapshot_id
+        assert future_loop.last_facts.query_set_id
+        assert receipt.query_set is not None
+        assert receipt.query_set.started_at_utc == future_clock.utc_now()
+        assert receipt.query_set.completed_at_utc == future_clock.utc_now()
+        assert len(future_api.native_calls) == 0
+        assert set(future_store._ctp_query_results) == set(_BASE_FAMILIES) | {
+            "instrument_margin_rate_result"
+        }
+        for result in future_store._ctp_query_results.values():
+            assert result["started_at_utc"] == future_clock.utc_now()
+            assert result["completed_at_utc"] == future_clock.utc_now()
+            assert monotonic_before <= result["source_started_monotonic"]
+            assert (
+                result["source_started_monotonic"]
+                <= result["source_completed_monotonic"]
+                <= monotonic_after
+            )
+            assert result["source_expires_monotonic"] > monotonic_after
+        assert all(
+            fact.source_owned is True
+            and fact.query_complete is True
+            and fact.completed_at <= future_clock.utc_now()
+            for fact in future_loop.last_facts.query_provenance
+        )
+    finally:
+        future_journal.close()
 
     aligned_api, aligned_store, aligned_journal, target, aligned_loop = (
         _source_loaded_refresh_case(
