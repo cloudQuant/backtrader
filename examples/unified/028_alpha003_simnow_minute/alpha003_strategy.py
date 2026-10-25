@@ -572,6 +572,7 @@ class Alpha003OrderPlanningInput:
     dated_connection_generation: Optional[int] = None
     dated_trading_day: Optional[str] = None
     dated_available_at: Optional[datetime] = None
+    execution_target_ids: Optional[Tuple[str, ...]] = None
 
     def __post_init__(self) -> None:
         _require_text(self.strategy_scope, "strategy_scope")
@@ -598,6 +599,24 @@ class Alpha003OrderPlanningInput:
                 raise TypeError("{} contains an unsupported fact type".format(name))
             object.__setattr__(self, name, items)
         object.__setattr__(self, "dated_close_legs", tuple(self.dated_close_legs))
+        if self.execution_target_ids is not None:
+            target_ids = self.execution_target_ids
+            observed_target_ids = {
+                item.target_id for item in self.positions if item.target_id is not None
+            }
+            if (
+                type(target_ids) is not tuple
+                or not target_ids
+                or any(
+                    type(target_id) is not str or not target_id or target_id != target_id.strip()
+                    for target_id in target_ids
+                )
+                or len(set(target_ids)) != len(target_ids)
+                or not set(target_ids).issubset(observed_target_ids)
+            ):
+                raise ValueError(
+                    "execution_target_ids must be a non-empty immutable position subset"
+                )
         for name in (
             "dated_query_set_id",
             "dated_snapshot_id",
@@ -1151,6 +1170,30 @@ def _quote_for_order(
     return None
 
 
+def _execution_route_authorized(
+    inputs: Alpha003OrderPlanningInput,
+    target_id: Optional[str],
+    *,
+    instrument: Optional[str] = None,
+    exchange: Optional[str] = None,
+) -> bool:
+    """Check the grant and that target's own route before emitting an action."""
+
+    if inputs.execution_target_ids is None:
+        return True
+    if target_id is None or target_id not in inputs.execution_target_ids:
+        return False
+    matches = tuple(item for item in inputs.instruments if item.target_id == target_id)
+    if len(matches) != 1 or matches[0].route_permitted is not True:
+        return False
+    route = matches[0]
+    if instrument is not None and route.instrument != instrument:
+        return False
+    if exchange is not None and route.exchange != exchange:
+        return False
+    return True
+
+
 def plan_alpha003_orders(inputs: Alpha003OrderPlanningInput) -> Alpha003OrderPlan:
     """Plan closes/cancels before opening, from exact actual fact projections.
 
@@ -1208,6 +1251,27 @@ def plan_alpha003_orders(inputs: Alpha003OrderPlanningInput) -> Alpha003OrderPla
     if target_candidate and target.available_at > inputs.evaluated_at:
         return blocked("TARGET_AVAILABILITY_INVALID")
 
+    if inputs.execution_target_ids is not None:
+        position_ids = tuple(item.target_id for item in inputs.positions)
+        instrument_ids = tuple(item.target_id for item in inputs.instruments)
+        if (
+            any(target_id is None for target_id in position_ids)
+            or len(set(position_ids)) != len(position_ids)
+            or len(set(instrument_ids)) != len(instrument_ids)
+            or set(position_ids) != set(instrument_ids)
+            or not set(inputs.execution_target_ids).issubset(set(position_ids))
+        ):
+            return blocked("EXECUTION_FACT_SET_INVALID")
+        authorized_targets = set(inputs.execution_target_ids)
+        if any(
+            position.target_id not in authorized_targets
+            and (position.quantity is None or position.quantity != 0)
+            for position in inputs.positions
+        ):
+            return blocked("UNAUTHORIZED_POSITION_SCOPE")
+        if any(order.target_id not in authorized_targets for order in inputs.working_orders):
+            return blocked("UNAUTHORIZED_WORKING_ORDER_SCOPE")
+
     preclose = bool(
         inputs.session_close_at is not None
         and inputs.evaluated_at
@@ -1245,6 +1309,13 @@ def plan_alpha003_orders(inputs: Alpha003OrderPlanningInput) -> Alpha003OrderPla
             if order.state in {"PREPARED", "DISPATCHING", "UNKNOWN", "CANCEL_PENDING"}:
                 unresolved_exit_order = True
                 continue
+            if not _execution_route_authorized(
+                inputs,
+                order.target_id,
+                instrument=order.instrument,
+                exchange=order.exchange,
+            ):
+                return blocked("ORDER_CANCEL_ROUTE_NOT_AUTHORIZED")
             if not inputs.order_cancel_ready:
                 detail = (
                     ":" + inputs.order_cancel_blockers[0] if inputs.order_cancel_blockers else ""
@@ -1411,6 +1482,18 @@ def plan_alpha003_orders(inputs: Alpha003OrderPlanningInput) -> Alpha003OrderPla
                 continue
             if reason is None:
                 continue
+            if not _execution_route_authorized(
+                inputs,
+                active.target_id,
+                instrument=position.instrument,
+                exchange=position.exchange,
+            ):
+                return blocked("ORDER_CANCEL_ROUTE_NOT_AUTHORIZED")
+            if inputs.execution_target_ids is not None and not inputs.order_cancel_ready:
+                detail = (
+                    ":" + inputs.order_cancel_blockers[0] if inputs.order_cancel_blockers else ""
+                )
+                return blocked("ORDER_CANCEL_FACTS_UNAVAILABLE" + detail)
             if active.state not in {"ACCEPTED", "PARTIAL"}:
                 return blocked("OPEN_ORDER_NOT_CANCELLABLE")
             reduce_actions.append(
@@ -1437,6 +1520,13 @@ def plan_alpha003_orders(inputs: Alpha003OrderPlanningInput) -> Alpha003OrderPla
         if reason is None:
             continue
         close_side = "SELL" if position.quantity > 0 else "BUY"
+        if not _execution_route_authorized(
+            inputs,
+            position.target_id,
+            instrument=position.instrument,
+            exchange=position.exchange,
+        ):
+            return blocked("REDUCTION_ROUTE_NOT_AUTHORIZED")
         if risk.trading_permitted is not True or risk.route_permitted is not True or quote is None:
             continue
         limit_price = _quote_for_order(
@@ -1501,6 +1591,18 @@ def plan_alpha003_orders(inputs: Alpha003OrderPlanningInput) -> Alpha003OrderPla
                 continue
             if order.state not in {"ACCEPTED", "PARTIAL"}:
                 return blocked("OPEN_ORDER_NOT_CANCELLABLE")
+            if not _execution_route_authorized(
+                inputs,
+                order.target_id,
+                instrument=order.instrument,
+                exchange=order.exchange,
+            ):
+                return blocked("ORDER_CANCEL_ROUTE_NOT_AUTHORIZED")
+            if inputs.execution_target_ids is not None and not inputs.order_cancel_ready:
+                detail = (
+                    ":" + inputs.order_cancel_blockers[0] if inputs.order_cancel_blockers else ""
+                )
+                return blocked("ORDER_CANCEL_FACTS_UNAVAILABLE" + detail)
             reduce_actions.append(
                 Alpha003OrderAction(
                     action="CANCEL",
@@ -1622,6 +1724,21 @@ def plan_alpha003_orders(inputs: Alpha003OrderPlanningInput) -> Alpha003OrderPla
 
     desired_open = []
     for signal in target.targets:
+        if not _execution_route_authorized(
+            inputs,
+            signal.target_id,
+            instrument=(
+                positions_by_target[signal.target_id].instrument
+                if signal.target_id in positions_by_target
+                else None
+            ),
+            exchange=(
+                positions_by_target[signal.target_id].exchange
+                if signal.target_id in positions_by_target
+                else None
+            ),
+        ):
+            return blocked("OPEN_TARGET_ROUTE_NOT_AUTHORIZED")
         position = positions_by_target.get(signal.target_id)
         if position is None:
             return blocked("TARGET_POSITION_SNAPSHOT_MISSING")
@@ -2420,7 +2537,8 @@ def _live_planning_input(
             current_notional=account_fact.current_notional,
             current_worst_case_loss=account_fact.current_worst_case_loss,
         )
-    blockers = tuple(dict.fromkeys(tuple(facts.blockers) + tuple(mapper_blockers)))
+    aggregate_blockers = tuple(getattr(facts, "aggregate_write_blockers", tuple(facts.blockers)))
+    blockers = tuple(dict.fromkeys(aggregate_blockers + tuple(mapper_blockers)))
     return Alpha003OrderPlanningInput(
         strategy_scope=strategy_scope,
         evaluated_at=evaluated_at,
@@ -2440,7 +2558,7 @@ def _live_planning_input(
         risk_reduction_ready=facts.risk_reduction_ready,
         risk_reduction_blockers=tuple(facts.risk_reduction_blockers),
         open_risk_ready=facts.open_risk_ready,
-        open_risk_blockers=tuple(facts.blockers),
+        open_risk_blockers=aggregate_blockers,
         order_cancel_ready=getattr(facts, "order_cancel_ready", False) is True,
         order_cancel_blockers=tuple(getattr(facts, "order_cancel_blockers", ())),
         evidence_source="REGISTERED_SIM",
@@ -2459,6 +2577,11 @@ def _live_planning_input(
             getattr(account_fact, "trading_day", None) if account_fact is not None else None
         ),
         dated_available_at=getattr(facts, "available_at", None),
+        execution_target_ids=(
+            tuple(facts.execution_target_ids)
+            if isinstance(getattr(facts, "execution_target_ids", None), tuple)
+            else None
+        ),
     )
 
 
@@ -2914,6 +3037,15 @@ class Alpha003TargetStrategy(bt.Strategy):
         if len(targets) != len(self._target_ids):
             self.last_execution_block_reason = "LIVE_ROUTE_SET_INCOMPLETE"
             return None
+        execution_target_ids = tuple(
+            target_id for target_id in self._target_ids if target_id in self._authorized_targets
+        )
+        refresh_loop_execution_ids = getattr(
+            self.p.control_refresh_loop, "execution_target_ids", execution_target_ids
+        )
+        if tuple(refresh_loop_execution_ids) != execution_target_ids:
+            self.last_execution_block_reason = "LIVE_EXECUTION_TARGET_SET_MISMATCH"
+            return None
 
         def project_current_snapshot():
             return project_factor_execution_facts(
@@ -2938,6 +3070,7 @@ class Alpha003TargetStrategy(bt.Strategy):
                         self._max_query_age_seconds or self._risk_policy.max_state_age_seconds
                     )
                 ),
+                execution_target_ids=execution_target_ids,
             )
 
         try:

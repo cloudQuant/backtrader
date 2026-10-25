@@ -161,6 +161,7 @@ class RegisteredSimRouteEligibility:
     current_session_id: Optional[int] = None
     current_session_read_only_ready: Optional[bool] = None
     native_admission_required: bool = True
+    arm_template_membership: Optional[bool] = None
 
 
 def _exact_text(value: Any, field: str) -> str:
@@ -2208,6 +2209,20 @@ class RegisteredSimStore(BtApiStore):
         arm_templates_configured = (
             templates_configured_value if type(templates_configured_value) is bool else None
         )
+        arm_template_membership = None
+        if arm_templates_configured is True:
+            keys = wrapper_facts.get("arm_template_keys")
+            if type(keys) is tuple:
+                exact_keys = tuple(keys)
+                if all(
+                    type(key) is tuple
+                    and len(key) == 2
+                    and all(
+                        type(value) is str and value and value == value.strip() for value in key
+                    )
+                    for key in exact_keys
+                ) and len(set(exact_keys)) == len(exact_keys):
+                    arm_template_membership = (instrument, exchange) in exact_keys
         if arm_templates_configured is False:
             arm_template_configured = False
         elif arm_templates_configured is True:
@@ -2301,6 +2316,7 @@ class RegisteredSimStore(BtApiStore):
             reason_codes=tuple(reason_codes),
             arm_template_configured=arm_template_configured,
             arm_templates_configured=arm_templates_configured,
+            arm_template_membership=arm_template_membership,
             arm_api_available=arm_api_available,
             current_session_account_fingerprint=current_session_account,
             current_session_connection_generation=current_session_generation,

@@ -450,6 +450,7 @@ class FactorExecutionRouteFacts:
     current_session_connection_generation: Optional[int] = None
     current_session_trading_day: Optional[str] = None
     current_session_trading_ready: Optional[bool] = None
+    arm_template_membership: Optional[bool] = None
 
 
 @dataclass(frozen=True)
@@ -473,6 +474,292 @@ class FactorExecutionFacts:
     diagnostics: Tuple[str, ...] = ()
     query_set_id: Optional[str] = None
     dated_close_legs: Tuple[FactorExecutionDatedCloseLegFacts, ...] = ()
+    # Execution grants are narrower than the complete observed factor/risk
+    # universe.  ``None`` preserves the historical all-targets behavior for
+    # callers that construct this value directly.
+    target_ids: Optional[Tuple[str, ...]] = None
+    execution_target_ids: Optional[Tuple[str, ...]] = None
+
+    def __post_init__(self) -> None:
+        for name in ("target_ids", "execution_target_ids"):
+            value = getattr(self, name)
+            if value is not None and type(value) is not tuple:
+                raise TypeError("{} must be an immutable tuple or None".format(name))
+        if self.target_ids is not None and (
+            not self.target_ids
+            or any(
+                type(target_id) is not str or not target_id or target_id != target_id.strip()
+                for target_id in self.target_ids
+            )
+            or len(set(self.target_ids)) != len(self.target_ids)
+        ):
+            raise ValueError("target_ids must contain unique non-empty text")
+        if self.execution_target_ids is not None:
+            full_target_ids = set(
+                self.target_ids
+                if self.target_ids is not None
+                else tuple(item.target_id for item in self.route_eligibilities)
+            )
+            if (
+                not self.execution_target_ids
+                or any(
+                    type(target_id) is not str or not target_id or target_id != target_id.strip()
+                    for target_id in self.execution_target_ids
+                )
+                or len(set(self.execution_target_ids)) != len(self.execution_target_ids)
+                or not set(self.execution_target_ids).issubset(full_target_ids)
+            ):
+                raise ValueError("execution_target_ids must be a non-empty immutable target subset")
+
+    @property
+    def _full_target_ids(self) -> Tuple[str, ...]:
+        if self.target_ids is not None:
+            return self.target_ids
+        return tuple(item.target_id for item in self.route_eligibilities)
+
+    @property
+    def _authorized_target_id_set(self) -> frozenset:
+        if self.execution_target_ids is None:
+            return frozenset(self._full_target_ids)
+        return frozenset(self.execution_target_ids)
+
+    def _position_for_target(self, target_id: str):
+        matches = tuple(item for item in self.positions if item.target_id == target_id)
+        return matches[0] if len(matches) == 1 else None
+
+    def _passive_observation_flat_state(self, target_id: str) -> Optional[bool]:
+        """Prove that an unarmed observation-only target has no exposure/order."""
+
+        route = next(
+            (item for item in self.route_eligibilities if item.target_id == target_id), None
+        )
+        if any(
+            order.target_id == target_id
+            or (
+                route is not None
+                and (order.instrument, order.exchange) == (route.instrument, route.exchange)
+            )
+            for order in self.working_orders
+        ):
+            return False
+        position = self._position_for_target(target_id)
+        if (
+            position is None
+            or self.snapshot_id is None
+            or position.snapshot_id != self.snapshot_id
+            or self.available_at is None
+            or position.available_at != self.available_at
+        ):
+            return None
+        if (
+            position.quantity is None
+            or position.broker_quantity is None
+            or position.long_quantity is None
+            or position.short_quantity is None
+        ):
+            return None
+        if any(
+            value != 0
+            for value in (
+                position.quantity,
+                position.broker_quantity,
+                position.long_quantity,
+                position.short_quantity,
+            )
+        ):
+            return False
+        if position.position_book_status != "FLAT":
+            return None
+        for row in position.dated_inventory_rows:
+            if row.position is None:
+                return None
+            if row.position != 0:
+                return False
+        instrument = next((item for item in self.instruments if item.target_id == target_id), None)
+        instrument_queries = tuple(
+            fact for fact in self.query_provenance if fact.family == "instruments_result"
+        )
+        if (
+            instrument is None
+            or instrument.snapshot_id != self.snapshot_id
+            or _aware_utc(instrument.available_at) is None
+            or instrument.trading_permitted is not True
+            or instrument.multiplier is None
+            or instrument.tick_size is None
+            or instrument.lower_limit is None
+            or instrument.upper_limit is None
+            or len(instrument_queries) != 1
+            or not _base_query_provenance_complete(self.query_provenance, self.available_at)
+        ):
+            return None
+        if (
+            route is None
+            or (route.instrument, route.exchange) != (position.instrument, position.exchange)
+            or (instrument.instrument, instrument.exchange) != (route.instrument, route.exchange)
+        ):
+            return None
+        return True
+
+    def _safe_missing_template_route(self, route: FactorExecutionRouteFacts) -> bool:
+        """Allow only a same-snapshot, flat, unarmed rank-only route."""
+
+        target_id = route.target_id
+        account = self.account
+        if (
+            target_id in self._authorized_target_id_set
+            or account is None
+            or self.snapshot_id is None
+            or self.query_set_id is None
+            or self.available_at is None
+            or account.snapshot_id != self.snapshot_id
+            or account.available_at != self.available_at
+            or account.account_fingerprint is None
+            or account.connection_generation is None
+            or account.trading_day is None
+            or not _base_query_provenance_complete(self.query_provenance, self.available_at)
+            or self._passive_observation_flat_state(target_id) is not True
+        ):
+            return False
+        if (
+            route.route_name != "ctp/direct/registered-sim"
+            or route.allow_writes is not True
+            or route.frozen is not False
+            or route.sdk_frozen is not False
+            or route.capability_observed is not True
+            or route.instrument_query_complete is not True
+            or route.instrument_eligible is not True
+            or route.unknown_order_count != 0
+            or route.dispatching_order_count != 0
+            or route.connection_generation != account.connection_generation
+            or route.trading_day != account.trading_day
+            or route.current_session_account_fingerprint != account.account_fingerprint
+            or route.current_session_connection_generation != account.connection_generation
+            or route.current_session_trading_day != account.trading_day
+            or route.current_session_trading_ready is not True
+            or route.arm_templates_configured is not True
+            or route.arm_template_membership is not False
+            or route.arm_template_configured is True
+            or route.arm_api_available is not True
+            or route.eligible is not False
+            or "query_snapshot_invalid_or_stale:instruments_result" in self.blockers
+        ):
+            return False
+        permitted_route_blockers = {
+            "route_ineligible:{}".format(target_id),
+            "route_arm_template_missing:{}".format(target_id),
+        }
+        if any(
+            blocker.startswith("route_")
+            and blocker.endswith(":" + target_id)
+            and blocker not in permitted_route_blockers
+            for blocker in self.blockers
+        ):
+            return False
+        return True
+
+    @property
+    def aggregate_write_blockers(self) -> Tuple[str, ...]:
+        """Blockers for authorized writes, retaining the complete raw snapshot."""
+
+        full_ids = self._full_target_ids
+        authorized_ids = self._authorized_target_id_set
+        blockers = list(self.blockers)
+        if (
+            not full_ids
+            or len(set(full_ids)) != len(full_ids)
+            or not authorized_ids
+            or not authorized_ids.issubset(set(full_ids))
+        ):
+            blockers.append("execution_scope_target_set_invalid")
+            return tuple(sorted(set(blockers)))
+
+        for target_id in full_ids:
+            if target_id in authorized_ids:
+                continue
+            state = self._passive_observation_flat_state(target_id)
+            route = next(
+                (item for item in self.route_eligibilities if item.target_id == target_id), None
+            )
+            if any(
+                order.target_id == target_id
+                or (
+                    route is not None
+                    and (order.instrument, order.exchange) == (route.instrument, route.exchange)
+                )
+                for order in self.working_orders
+            ):
+                blockers.append("execution_scope_observation_order_present:{}".format(target_id))
+            elif state is None:
+                blockers.append(
+                    "execution_scope_observation_position_unavailable:{}".format(target_id)
+                )
+            elif state is False:
+                blockers.append("execution_scope_observation_not_flat:{}".format(target_id))
+
+        safe_missing_routes = {
+            route.target_id
+            for route in self.route_eligibilities
+            if self._safe_missing_template_route(route)
+        }
+        if safe_missing_routes:
+            blockers = [
+                blocker
+                for blocker in blockers
+                if not any(
+                    blocker == "route_ineligible:{}".format(target_id)
+                    or blocker == "route_arm_template_missing:{}".format(target_id)
+                    for target_id in safe_missing_routes
+                )
+            ]
+        return tuple(sorted(set(blockers)))
+
+    def _scoped_route_permitted(self) -> Optional[bool]:
+        full_ids = self._full_target_ids
+        authorized_ids = self._authorized_target_id_set
+        if (
+            not full_ids
+            or len(set(full_ids)) != len(full_ids)
+            or not authorized_ids
+            or not authorized_ids.issubset(set(full_ids))
+        ):
+            return None
+        routes = tuple(self.route_eligibilities)
+        route_by_id = {item.target_id: item for item in routes}
+        if len(route_by_id) != len(routes) or set(route_by_id) != set(full_ids):
+            return None
+        position_ids = tuple(item.target_id for item in self.positions)
+        instrument_ids = tuple(item.target_id for item in self.instruments)
+        if (
+            any(target_id is None for target_id in position_ids)
+            or len(set(position_ids)) != len(position_ids)
+            or set(position_ids) != set(full_ids)
+            or len(set(instrument_ids)) != len(instrument_ids)
+            or set(instrument_ids) != set(full_ids)
+        ):
+            return None
+        unknown = False
+        for target_id in full_ids:
+            route = route_by_id[target_id]
+            if target_id in authorized_ids:
+                if route.eligible is False:
+                    return False
+                if route.eligible is not True:
+                    unknown = True
+                continue
+            passive_flat = self._passive_observation_flat_state(target_id)
+            if passive_flat is False:
+                return False
+            if passive_flat is not True:
+                unknown = True
+                continue
+            if route.eligible is True:
+                continue
+            if self._safe_missing_template_route(route):
+                continue
+            if route.eligible is False:
+                return False
+            unknown = True
+        return None if unknown else True
 
     @property
     def dated_inventory_rows(self) -> Tuple[FactorExecutionDatedInventoryRow, ...]:
@@ -511,7 +798,7 @@ class FactorExecutionFacts:
 
         return tuple(
             code
-            for code in self.blockers
+            for code in self.aggregate_write_blockers
             if not _is_capital_blocker(code) and not _is_open_risk_only_blocker(code)
         )
 
@@ -522,6 +809,7 @@ class FactorExecutionFacts:
             and self.available_at is not None
             and self.account is not None
             and self.account.route_permitted is True
+            and self._scoped_route_permitted() is True
             and _base_query_provenance_complete(self.query_provenance, self.available_at)
             and not self.risk_reduction_blockers
             and self.positions
@@ -552,7 +840,7 @@ class FactorExecutionFacts:
                 and item.upper_limit is not None
                 for item in self.instruments
             )
-            and all(item.eligible is True for item in self.route_eligibilities)
+            and all(item.target_id is not None for item in self.route_eligibilities)
             and len(self.route_eligibilities) == len(self.positions)
             and _dated_close_positions_ready(self)
         )
@@ -563,7 +851,7 @@ class FactorExecutionFacts:
 
         return bool(
             self.risk_reduction_ready
-            and not self.blockers
+            and not self.aggregate_write_blockers
             and self.account is not None
             and self.account.available_margin is not None
             and self.account.used_margin is not None
@@ -598,7 +886,7 @@ class FactorExecutionFacts:
         )
         return tuple(
             code
-            for code in self.blockers
+            for code in self.aggregate_write_blockers
             if not _is_capital_blocker(code)
             and not _is_open_risk_only_blocker(code)
             and not code.startswith(ignored_prefixes)
@@ -612,15 +900,20 @@ class FactorExecutionFacts:
     def order_cancel_ready(self) -> bool:
         """Whether exact owned active orders can be cancelled without a quote."""
 
+        routes_by_target = {item.target_id: item for item in self.route_eligibilities}
         return bool(
             self.snapshot_id is not None
             and self.query_set_id is not None
             and self.available_at is not None
             and self.account is not None
             and self.account.route_permitted is True
+            and self._scoped_route_permitted() is True
             and _base_query_provenance_complete(self.query_provenance, self.available_at)
             and not self.order_cancel_blockers
             and self.working_orders
+            and all(
+                item.target_id in self._authorized_target_id_set for item in self.working_orders
+            )
             and all(
                 item.target_id is not None
                 and item.instrument
@@ -644,7 +937,11 @@ class FactorExecutionFacts:
                 for item in self.working_orders
             )
             and self.route_eligibilities
-            and all(item.eligible is True for item in self.route_eligibilities)
+            and all(
+                routes_by_target.get(item.target_id) is not None
+                and routes_by_target[item.target_id].eligible is True
+                for item in self.working_orders
+            )
             and len(self.route_eligibilities) == len(self.positions)
         )
 
@@ -2084,6 +2381,7 @@ def _route_fact(
             sdk_frozen=None,
             arm_template_configured=None,
             arm_templates_configured=None,
+            arm_template_membership=None,
             arm_api_available=None,
             current_session_account_fingerprint=None,
             current_session_connection_generation=None,
@@ -2112,6 +2410,7 @@ def _route_fact(
 
     template_configured = optional_bool("arm_template_configured")
     templates_configured = optional_bool("arm_templates_configured")
+    template_membership = optional_bool("arm_template_membership")
     arm_api_available = optional_bool("arm_api_available")
     current_session_account = _exact_text(_field(route, "current_session_account_fingerprint"))
     current_session_generation = _field(route, "current_session_connection_generation")
@@ -2248,6 +2547,7 @@ def _route_fact(
         sdk_frozen=optional_bool("sdk_frozen"),
         arm_template_configured=template_configured,
         arm_templates_configured=templates_configured,
+        arm_template_membership=template_membership,
         arm_api_available=arm_api_available,
         current_session_account_fingerprint=current_session_account,
         current_session_connection_generation=(
@@ -3720,6 +4020,7 @@ def project_factor_execution_facts(
     quote_max_age: timedelta,
     max_query_age: timedelta,
     query_set: Optional[FactorExecutionQuerySetFacts] = None,
+    execution_target_ids: Optional[Tuple[str, ...]] = None,
 ) -> FactorExecutionFacts:
     """Project cached live facts without running any SDK query.
 
@@ -3751,6 +4052,27 @@ def project_factor_execution_facts(
         if not isinstance(value, timedelta) or value <= timedelta(0):
             raise ValueError("{} must be a positive timedelta".format(name))
     bound_targets = _valid_targets(tuple(targets))
+    full_target_ids = tuple(target.target_id for target in bound_targets)
+    if execution_target_ids is None:
+        bound_execution_target_ids = full_target_ids
+    else:
+        if (
+            type(execution_target_ids) is not tuple
+            or not execution_target_ids
+            or any(
+                type(target_id) is not str or not target_id or target_id != target_id.strip()
+                for target_id in execution_target_ids
+            )
+            or len(set(execution_target_ids)) != len(execution_target_ids)
+            or not set(execution_target_ids).issubset(set(full_target_ids))
+        ):
+            raise ValueError("execution_target_ids must be a non-empty immutable target subset")
+        requested_execution_target_ids = set(execution_target_ids)
+        bound_execution_target_ids = tuple(
+            target_id
+            for target_id in full_target_ids
+            if target_id in requested_execution_target_ids
+        )
 
     blockers: List[str] = []
     diagnostics: List[str] = []
@@ -3927,6 +4249,8 @@ def project_factor_execution_facts(
             route_eligibilities=(),
             query_provenance=tuple(provenance),
             blockers=tuple(sorted(set(blockers))),
+            target_ids=full_target_ids,
+            execution_target_ids=bound_execution_target_ids,
         )
 
     assert query_set is not None
@@ -3955,6 +4279,8 @@ def project_factor_execution_facts(
             route_eligibilities=(),
             query_provenance=tuple(provenance),
             blockers=tuple(sorted(set(blockers))),
+            target_ids=full_target_ids,
+            execution_target_ids=bound_execution_target_ids,
         )
     valid_margin_target_ids = tuple(
         target.target_id
@@ -4269,6 +4595,8 @@ def project_factor_execution_facts(
         blockers=tuple(sorted(set(blockers))),
         diagnostics=tuple(sorted(set(diagnostics))),
         query_set_id=query_set.query_set_id,
+        target_ids=full_target_ids,
+        execution_target_ids=bound_execution_target_ids,
     )
     trade_blockers = _trade_reconciliation_blockers(coordinator, facts)
     terminal_blockers = _terminal_order_reconciliation_blockers(coordinator, facts)
@@ -4284,6 +4612,12 @@ def project_factor_execution_facts(
             facts,
             dated_close_legs=dated_legs,
             blockers=tuple(sorted(set(facts.blockers + tuple(dated_blockers)))),
+        )
+    scoped_route_permitted = facts._scoped_route_permitted()
+    if facts.account.route_permitted is not scoped_route_permitted:
+        facts = replace(
+            facts,
+            account=replace(facts.account, route_permitted=scoped_route_permitted),
         )
     return facts
 

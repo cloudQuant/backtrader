@@ -438,11 +438,7 @@ def build_ctp_query_market_plan(store, config, *, clock):
         raise RunnerError("CTP_FUTURES_SNAPSHOT_TYPE_INVALID")
     products = tuple(
         sorted(
-            {
-                row.product
-                for row in snapshot.catalog_records
-                if row.product_class == "1"
-            },
+            {row.product for row in snapshot.catalog_records if row.product_class == "1"},
             key=lambda product: (product.exchange_id, product.product_id),
         )
     )
@@ -503,9 +499,7 @@ def build_ctp_query_market_plan(store, config, *, clock):
                 policy=CTP_QUERY_SNAPSHOT_EQUAL_WEIGHT_POLICY,
             )
             if manifest.status != "READY":
-                raise RunnerError(
-                    "POINT_IN_TIME_SELECTION_BLOCKED", ",".join(manifest.blockers)
-                )
+                raise RunnerError("POINT_IN_TIME_SELECTION_BLOCKED", ",".join(manifest.blockers))
             routes = dict(manifest.selected_mapping())
         product_days = dict.fromkeys(products, (trading_day,))
         grid = build_common_minute_grid(
@@ -2103,6 +2097,7 @@ class QueryRefreshLoop:
         broker,
         targets,
         *,
+        execution_target_ids=None,
         coordinator,
         account_scope,
         strategy_scope,
@@ -2118,6 +2113,32 @@ class QueryRefreshLoop:
         self.store = store
         self.broker = broker
         self.targets = tuple(targets)
+        full_target_ids = tuple(getattr(target, "target_id", None) for target in self.targets)
+        if any(
+            type(target_id) is not str or not target_id or target_id != target_id.strip()
+            for target_id in full_target_ids
+        ) or len(set(full_target_ids)) != len(full_target_ids):
+            raise RunnerError("LIVE_REFRESH_TARGETS_INVALID")
+        if execution_target_ids is None:
+            self.execution_target_ids = full_target_ids
+        elif (
+            type(execution_target_ids) is not tuple
+            or not execution_target_ids
+            or any(
+                type(target_id) is not str or not target_id or target_id != target_id.strip()
+                for target_id in execution_target_ids
+            )
+            or len(set(execution_target_ids)) != len(execution_target_ids)
+            or not set(execution_target_ids).issubset(set(full_target_ids))
+        ):
+            raise RunnerError("LIVE_EXECUTION_TARGETS_INVALID")
+        else:
+            requested_execution_targets = set(execution_target_ids)
+            self.execution_target_ids = tuple(
+                target_id
+                for target_id in full_target_ids
+                if target_id in requested_execution_targets
+            )
         self.coordinator = coordinator
         self.account_scope = account_scope
         self.strategy_scope = strategy_scope
@@ -2584,6 +2605,7 @@ class QueryRefreshLoop:
                 quote_max_age=self.quote_max_age,
                 max_query_age=self.max_query_age,
                 query_set=query_set,
+                execution_target_ids=self.execution_target_ids,
             )
             return receipt, query_set, facts
 
@@ -2634,6 +2656,7 @@ class QueryRefreshLoop:
                 quote_max_age=self.quote_max_age,
                 max_query_age=self.max_query_age,
                 query_set=query_set,
+                execution_target_ids=self.execution_target_ids,
             )
             self._reconcile_all(
                 self.coordinator.trade_reconciliation_snapshot,
@@ -3065,9 +3088,8 @@ def _project_strategy_order_events(strategy, plan, epoch_id):
         else:
             instrument = raw_instrument
         matches = target_by_instrument.get(instrument, ())
-        if (
-            not isinstance(instrument, str)
-            or (event_exchange is not None and not isinstance(event_exchange, str))
+        if not isinstance(instrument, str) or (
+            event_exchange is not None and not isinstance(event_exchange, str)
         ):
             matches = ()
         elif event_exchange is not None:
@@ -3555,6 +3577,7 @@ def run_live(
             store,
             broker,
             tuple(query_targets),
+            execution_target_ids=tuple(plan["authorized_targets"]),
             coordinator=coordinator,
             account_scope=scopes["account_scope"],
             strategy_scope=scopes["strategy_scope"],
