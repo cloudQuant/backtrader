@@ -4,12 +4,15 @@
 The default profile copies the four public example files to a fresh directory
 outside the checkout and runs only dry, research, or local replay.  A separate
 ``--synthetic-live`` profile runs the actual live CLI with in-memory CTP SDK
-leaf modules under the installed Store, Broker, feed, and Cerebro path. The
-installed ``btapistore`` CTP factory and its ``RegisteredSimWrapper`` /
-``CtpClientWrapper`` composition stay intact. The child binds its causal
-virtual UTC scheduler through the copied ``run.py`` function globals and keeps
-real monotonic lifecycle bounds. It does not enable live in the offline
-allowlist or change the four copied example files.
+native/client leaves under the installed Store, Broker, feed, and Cerebro
+path. Its official profile selector is the exact public source blob pinned at
+``48b476ea90665791c7d2f86935720ce238931520``; this is not a complete installed
+CTP wheel. The installed ``btapistore`` CTP factory and its
+``RegisteredSimWrapper`` / ``CtpClientWrapper`` composition stay intact. The
+child binds its causal virtual UTC scheduler through the copied ``run.py``
+function globals and keeps real monotonic lifecycle bounds. Offline profiles
+do not require this selector. No profile enables live in the offline
+allowlist or changes the four copied example files.
 """
 
 from __future__ import annotations
@@ -38,6 +41,13 @@ EXPECTED_STATUSES = {
 RECEIPT_NAME = "iteration51-installed-cli-fixture.json"
 _CHILD_MARKER = "ITERATION51_INSTALLED_CHILD="
 _LIVE_CHILD_MARKER = "ITERATION51_SYNTHETIC_LIVE_CHILD="
+SDK_SELECTOR_SOURCE_COMMIT = "48b476ea90665791c7d2f86935720ce238931520"
+SDK_SELECTOR_SOURCE_RELATIVE_PATH = "src/bt_api_ctp/ctp_env_selector.py"
+SDK_SELECTOR_SOURCE_SIZE_BYTES = 21403
+SDK_SELECTOR_SOURCE_SHA256 = "ca8fa2b48293e7c5d79c1a0cfc20fd229879693290b99b56440b84c72cae12c3"
+SDK_SELECTOR_MODULE = "bt_api_ctp.ctp_env_selector"
+SDK_SELECTOR_PROFILE = "set1_group1"
+SDK_SELECTOR_EVIDENCE_LEVEL = "INSTALLED_BT_WHEEL_PUBLIC_SDK_SOURCE_FIXTURE"
 
 
 class InstalledFixtureError(RuntimeError):
@@ -50,6 +60,39 @@ def _sha256(path: Path) -> str:
         for chunk in iter(lambda: handle.read(1024 * 1024), b""):
             digest.update(chunk)
     return digest.hexdigest()
+
+
+def _pinned_sdk_selector_source(path: Path) -> dict[str, Any]:
+    """Validate the one public SDK selector source admitted to synthetic live."""
+
+    requested = Path(path).expanduser()
+    if any(component.is_symlink() for component in (requested, *requested.parents)):
+        raise InstalledFixtureError("SDK selector source must not be a symlink")
+    try:
+        resolved = requested.resolve(strict=True)
+    except OSError as exc:
+        raise InstalledFixtureError("pinned SDK selector source is unavailable") from exc
+    if _is_within(resolved, REPOSITORY_ROOT):
+        raise InstalledFixtureError("SDK selector source must be outside the checkout")
+    if not resolved.is_file():
+        raise InstalledFixtureError("SDK selector source must be a regular file")
+    try:
+        payload = resolved.read_bytes()
+    except OSError as exc:
+        raise InstalledFixtureError("pinned SDK selector source is unavailable") from exc
+    if len(payload) != SDK_SELECTOR_SOURCE_SIZE_BYTES:
+        raise InstalledFixtureError("SDK selector source does not match the fixed public size")
+    digest = hashlib.sha256(payload).hexdigest()
+    if digest != SDK_SELECTOR_SOURCE_SHA256:
+        raise InstalledFixtureError("SDK selector source does not match the fixed public pin")
+    return {
+        "source_commit": SDK_SELECTOR_SOURCE_COMMIT,
+        "source_path": SDK_SELECTOR_SOURCE_RELATIVE_PATH,
+        "path": str(resolved),
+        "module": SDK_SELECTOR_MODULE,
+        "size_bytes": SDK_SELECTOR_SOURCE_SIZE_BYTES,
+        "sha256": SDK_SELECTOR_SOURCE_SHA256,
+    }
 
 
 def _is_within(path: Path, root: Path) -> bool:
@@ -255,12 +298,18 @@ raise SystemExit(exit_code)
 """
 
 
-_SYNTHETIC_LIVE_CHILD_CODE = r'''import hashlib, importlib.util, json, os, runpy, socket, sys, tempfile
+_SYNTHETIC_LIVE_CHILD_CODE = r'''import hashlib, importlib.machinery, importlib.util, json, os, runpy, socket, sys, tempfile, types
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from pathlib import Path
 
-helper_path, wheel_path, wheel_hash, example_dir, template_path, workspace, case, factor_mode = sys.argv[1:]
+helper_path, wheel_path, wheel_hash, example_dir, template_path, workspace, selector_source_path, case, factor_mode = sys.argv[1:]
+SDK_SELECTOR_SOURCE_COMMIT = "48b476ea90665791c7d2f86935720ce238931520"
+SDK_SELECTOR_SOURCE_RELATIVE_PATH = "src/bt_api_ctp/ctp_env_selector.py"
+SDK_SELECTOR_SOURCE_SIZE_BYTES = 21403
+SDK_SELECTOR_SOURCE_SHA256 = "ca8fa2b48293e7c5d79c1a0cfc20fd229879693290b99b56440b84c72cae12c3"
+SDK_SELECTOR_MODULE = "bt_api_ctp.ctp_env_selector"
+SDK_SELECTOR_PROFILE = "set1_group1"
 cache = tempfile.TemporaryDirectory(prefix="iteration51-installed-pycache-")
 cache_path = Path(cache.name).resolve()
 if any(cache_path.iterdir()):
@@ -286,6 +335,71 @@ else:
     raise RuntimeError("synthetic live workspace must be outside the checkout")
 if workspace.is_symlink():
     raise RuntimeError("synthetic live workspace must not be a symlink")
+requested_selector_path = Path(selector_source_path).expanduser()
+if any(
+    component.is_symlink()
+    for component in (requested_selector_path, *requested_selector_path.parents)
+):
+    raise RuntimeError("pinned SDK selector source must not be a symlink")
+selector_path = requested_selector_path.resolve(strict=True)
+try:
+    selector_path.relative_to(repository_root)
+except ValueError:
+    pass
+else:
+    raise RuntimeError("pinned SDK selector source must be outside the checkout")
+if not selector_path.is_file():
+    raise RuntimeError("pinned SDK selector source is not a regular file")
+selector_source_bytes = selector_path.read_bytes()
+selector_source_sha256 = hashlib.sha256(selector_source_bytes).hexdigest()
+if (
+    len(selector_source_bytes) != SDK_SELECTOR_SOURCE_SIZE_BYTES
+    or selector_source_sha256 != SDK_SELECTOR_SOURCE_SHA256
+):
+    raise RuntimeError("pinned SDK selector source does not match the fixed public pin")
+if "bt_api_ctp" in sys.modules or SDK_SELECTOR_MODULE in sys.modules:
+    raise RuntimeError("SDK selector package was unexpectedly preloaded")
+sdk_package = types.ModuleType("bt_api_ctp")
+sdk_package.__package__ = "bt_api_ctp"
+sdk_package.__path__ = [str(selector_path.parent)]
+sdk_package.__spec__ = importlib.machinery.ModuleSpec(
+    "bt_api_ctp", loader=None, is_package=True
+)
+sdk_package.__spec__.submodule_search_locations = [str(selector_path.parent)]
+sys.modules["bt_api_ctp"] = sdk_package
+selector_module = types.ModuleType(SDK_SELECTOR_MODULE)
+selector_module.__file__ = str(selector_path)
+selector_module.__package__ = "bt_api_ctp"
+selector_module.__spec__ = importlib.machinery.ModuleSpec(
+    SDK_SELECTOR_MODULE, loader=None, origin=str(selector_path)
+)
+sys.modules[SDK_SELECTOR_MODULE] = selector_module
+setattr(sdk_package, "ctp_env_selector", selector_module)
+exec(compile(selector_source_bytes, str(selector_path), "exec"), selector_module.__dict__)
+selector_td_front, selector_md_front = selector_module.official_simnow_fronts(
+    SDK_SELECTOR_PROFILE
+)
+selector_inferred_profile = selector_module.official_simnow_profile_for_td_front(
+    selector_td_front
+)
+selector_profile_verified = selector_module.verify_official_simnow_profile(
+    selector_td_front, selector_md_front, SDK_SELECTOR_PROFILE
+)
+if selector_inferred_profile != SDK_SELECTOR_PROFILE or selector_profile_verified is not True:
+    raise RuntimeError("pinned SDK selector did not verify the fixed synthetic profile")
+selector_source_receipt = {
+    "source_commit": SDK_SELECTOR_SOURCE_COMMIT,
+    "source_path": SDK_SELECTOR_SOURCE_RELATIVE_PATH,
+    "path": str(selector_path),
+    "module": SDK_SELECTOR_MODULE,
+    "module_origin": selector_module.__file__,
+    "size_bytes": len(selector_source_bytes),
+    "sha256": selector_source_sha256,
+    "profile_id": SDK_SELECTOR_PROFILE,
+    "official_fronts_lookup": True,
+    "td_front_profile_lookup": True,
+    "official_profile_verification": True,
+}
 import yaml
 config = yaml.safe_load(template_path.read_text(encoding="utf-8"))
 
@@ -500,7 +614,7 @@ if case == "write":
     config["live"]["arm_templates"] = [
         {
             "target": "DCE." + product.product_id,
-            "md_front": "tcp://180.168.146.187:10211",
+            "md_front": selector_md_front,
             "strategy_identity_sha256": "a" * 64,
             "execution_cycle_id": "iteration51-cycle-" + product.product_id,
             "preflight_sha256": "b" * 64,
@@ -534,8 +648,9 @@ config_path.write_text(yaml.safe_dump(config, sort_keys=False), encoding="utf-8"
 # CtpClientWrapper factory imports these synthetic SDK leaf modules.
 os.environ["BT_SIMNOW_CONFIG_JSON"] = json.dumps({
     "config": {
-        "td_address": "tcp://180.168.146.187:10201",
-        "md_address": "tcp://180.168.146.187:10211",
+        "td_address": selector_td_front,
+        "md_address": selector_md_front,
+        "ctp_env_profile": SDK_SELECTOR_PROFILE,
         "broker_id": "9999",
         "investor_id": "ITERATION51_SYNTHETIC_ONLY",
         "password": "FIXTURE_ONLY_NOT_A_CREDENTIAL",
@@ -797,7 +912,8 @@ def _sdk_module(name):
     return module
 
 
-_sdk_package("bt_api_ctp")
+if sys.modules.get("bt_api_ctp") is not sdk_package:
+    raise RuntimeError("pinned SDK selector package binding changed before CTP leaves")
 _sdk_package("bt_api_ctp.ctp")
 _sdk_client_module = _sdk_module("bt_api_ctp.ctp.client")
 _sdk_md_module = _sdk_module("bt_api_ctp.ctp.ctp_md_api")
@@ -1291,15 +1407,20 @@ print("ITERATION51_SYNTHETIC_LIVE_CHILD=" + json.dumps({
     "ctp_trade_callback_count": fake_state["ctp_trade_callback_count"],
     "synthetic_leaf_close_receipt": leaf_close_receipt,
     "synthetic_sdk_modules": [
-        "bt_api_ctp", "bt_api_ctp.ctp", "bt_api_ctp.ctp.client",
+        "bt_api_ctp.ctp", "bt_api_ctp.ctp.client",
         "bt_api_ctp.ctp.ctp_md_api", "bt_api_ctp.ctp.ctp_structs_order",
         "bt_api_ctp.ctp.ctp_trader_api",
     ],
     "installed_wrapper_origin": "backtrader.stores.btapistore._create_ctp_wrapper_class",
-    "synthetic_sdk_module_origin": "in-memory synthetic leaf modules; no external SDK files",
+    "synthetic_sdk_module_origin": (
+        "pinned public selector source plus in-memory native/client leaves; no SDK wheel"
+    ),
+    "sdk_selector_source": selector_source_receipt,
     "raw_cli_stdout_sha256": hashlib.sha256(raw_cli_stdout.encode("utf-8")).hexdigest(),
     "raw_cli_summary_sha256": hashlib.sha256(summary_line.encode("utf-8")).hexdigest(),
     "authorized_products": list(authorized_targets),
+    "sdk_selector_profile_id": SDK_SELECTOR_PROFILE,
+    "sdk_selector_profile_verified": selector_profile_verified,
     "selection_bundle_sha256": bundle_sha256,
     "synthetic_only": True,
 }, sort_keys=True, separators=(",", ":")))
@@ -1496,6 +1617,7 @@ def _synthetic_live_child_command(
     wheel_sha256: str,
     example_dir: Path,
     workspace: Path,
+    selector_source_path: Path,
     case: str,
     factor_mode: str,
     python: str = sys.executable,
@@ -1515,6 +1637,7 @@ def _synthetic_live_child_command(
         str(Path(example_dir).resolve(strict=True)),
         str((Path(example_dir).resolve(strict=True) / "config.yaml").resolve(strict=True)),
         str(Path(workspace).resolve(strict=True)),
+        str(Path(selector_source_path).resolve(strict=True)),
         case,
         factor_mode,
     ]
@@ -1526,6 +1649,7 @@ def run_synthetic_live_case(
     workspace: Path,
     wheel_path: Path,
     wheel_sha256: str,
+    selector_source_path: Path,
     case: str,
     factor_mode: str = "native",
     timeout_seconds: float = 300.0,
@@ -1546,6 +1670,7 @@ def run_synthetic_live_case(
         raise InstalledFixtureError("copied public runner is unavailable")
     if not (example / "config.yaml").is_file():
         raise InstalledFixtureError("copied public live config template is unavailable")
+    selector_source = _pinned_sdk_selector_source(selector_source_path)
     target_workspace = _require_external(workspace, label="synthetic-live workspace")
     target_workspace.mkdir(parents=True, exist_ok=True)
     wheel = Path(wheel_path).expanduser().resolve(strict=True)
@@ -1563,6 +1688,7 @@ def run_synthetic_live_case(
         wheel_sha256=wheel_sha256,
         example_dir=example,
         workspace=target_workspace,
+        selector_source_path=Path(selector_source["path"]),
         case=case,
         factor_mode=factor_mode,
         python=python,
@@ -1588,6 +1714,8 @@ def run_synthetic_live_case(
         != hashlib.sha256(summary_line.encode("utf-8")).hexdigest()
     ):
         raise InstalledFixtureError("production CLI summary bytes changed in the fixture")
+    if _pinned_sdk_selector_source(selector_source_path) != selector_source:
+        raise InstalledFixtureError("pinned SDK selector source changed during the child run")
     expected_exit, expected_status, expected_code, expected_writes = _SYNTHETIC_LIVE_EXPECTATIONS[
         case
     ]
@@ -1623,6 +1751,17 @@ def run_synthetic_live_case(
         and child.get("case") == case
         and child.get("cli_argv") == cli_argv
         and child.get("wheel_sha256") == wheel_sha256
+        and child.get("sdk_selector_source")
+        == {
+            **selector_source,
+            "module_origin": selector_source["path"],
+            "profile_id": SDK_SELECTOR_PROFILE,
+            "official_fronts_lookup": True,
+            "td_front_profile_lookup": True,
+            "official_profile_verification": True,
+        }
+        and child.get("sdk_selector_profile_id") == SDK_SELECTOR_PROFILE
+        and child.get("sdk_selector_profile_verified") is True
         and child.get("loaded_modules_verified", 0) > 0
         and child.get("fresh_bytecode_cache") is True
         and child.get("ctp_wrapper_factory_unchanged") is True
@@ -1694,6 +1833,12 @@ def run_synthetic_live_case(
             summary_ok = (
                 epoch.get("status") == "LIVE_RUN_COMPLETE"
                 and epoch.get("cleanup_complete") is True
+                and epoch.get("simnow_profile")
+                == {
+                    "verified": True,
+                    "environment": "simnow",
+                    "profile": SDK_SELECTOR_PROFILE,
+                }
                 and set(epoch.get("routes", {})) == {"DCE.M", "DCE.Y", "DCE.A"}
                 and epoch.get("selection_source") == "saved_bundle_legacy"
                 and epoch.get("scheduler_clock") == "host-utc-plus-monotonic"
@@ -1771,7 +1916,8 @@ def run_synthetic_live_case(
         "stdout_sha256": hashlib.sha256(completed.stdout.encode("utf-8")).hexdigest(),
         "stderr_sha256": hashlib.sha256(completed.stderr.encode("utf-8")).hexdigest(),
         "installed_child": child,
-        "evidence_level": ("INSTALLED_WHEEL_LOCAL_SYNTHETIC_CTP_SDK_LEAF_VIRTUAL_SCHEDULER_ONLY"),
+        "sdk_selector_source": selector_source,
+        "evidence_level": SDK_SELECTOR_EVIDENCE_LEVEL,
     }
 
 
@@ -1781,6 +1927,7 @@ def run_synthetic_live_matrix(
     workspace: Path,
     wheel_path: Path,
     wheel_sha256: str,
+    selector_source_path: Path,
     factor_mode: str = "native",
     timeout_seconds: float = 300.0,
     python: str = sys.executable,
@@ -1793,6 +1940,7 @@ def run_synthetic_live_matrix(
             workspace=workspace,
             wheel_path=wheel_path,
             wheel_sha256=wheel_sha256,
+            selector_source_path=selector_source_path,
             case=case,
             factor_mode=factor_mode,
             timeout_seconds=timeout_seconds,
@@ -1848,6 +1996,11 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     parser.add_argument("--workspace", required=True, type=Path)
     parser.add_argument("--example-source", type=Path, default=DEFAULT_EXAMPLE)
     parser.add_argument("--config", type=Path, help="public offline YAML config inside workspace")
+    parser.add_argument(
+        "--sdk-selector-source",
+        type=Path,
+        help="external source file matching the fixed public bt_api_ctp selector pin",
+    )
     parser.add_argument("--mode", choices=SAFE_MODES)
     parser.add_argument(
         "--synthetic-live",
@@ -1882,6 +2035,17 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             raise InstalledFixtureError("wheel does not match the supplied SHA-256")
         if not (0 < args.timeout_seconds <= 1800):
             raise InstalledFixtureError("timeout must be finite and at most 1800 seconds")
+        selector_source = None
+        if args.synthetic_live:
+            if args.sdk_selector_source is None:
+                raise InstalledFixtureError(
+                    "synthetic-live requires the externally pinned SDK selector source"
+                )
+            selector_source = _pinned_sdk_selector_source(args.sdk_selector_source)
+        elif args.sdk_selector_source is not None:
+            raise InstalledFixtureError(
+                "SDK selector source is only used by the synthetic-live matrix"
+            )
         workspace = _require_external(args.workspace, label="workspace")
         workspace.mkdir(parents=True, exist_ok=True)
         config_source = args.config
@@ -1901,15 +2065,15 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                 workspace=workspace,
                 wheel_path=wheel,
                 wheel_sha256=wheel_hash,
+                selector_source_path=Path(selector_source["path"]),
                 factor_mode=args.factor_mode,
                 timeout_seconds=args.timeout_seconds,
             )
             receipt = {
                 "schema": "backtrader.iteration51.installed_synthetic_live_fixture.v1",
                 "status": "PASS_INSTALLED_SYNTHETIC_LIVE_FIXTURE",
-                "evidence_level": (
-                    "INSTALLED_WHEEL_LOCAL_SYNTHETIC_CTP_SDK_LEAF_VIRTUAL_SCHEDULER_ONLY"
-                ),
+                "evidence_level": SDK_SELECTOR_EVIDENCE_LEVEL,
+                "sdk_selector_source": selector_source,
                 "source_files": file_pins,
                 "workspace": str(workspace),
                 "copied_example": str(copied_dir),

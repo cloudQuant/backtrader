@@ -40,6 +40,20 @@ def _write_example(path: Path) -> dict[str, bytes]:
     return payloads
 
 
+def _write_test_selector_source(
+    path: Path,
+    fixture: ModuleType,
+    monkeypatch: pytest.MonkeyPatch,
+) -> Path:
+    source = path / "sdk-source" / "ctp_env_selector.py"
+    source.parent.mkdir(parents=True)
+    payload = b"test-only pinned selector source bytes"
+    source.write_bytes(payload)
+    monkeypatch.setattr(fixture, "SDK_SELECTOR_SOURCE_SIZE_BYTES", len(payload))
+    monkeypatch.setattr(fixture, "SDK_SELECTOR_SOURCE_SHA256", hashlib.sha256(payload).hexdigest())
+    return source
+
+
 def test_copy_public_example_pins_exact_four_files_and_separate_config(
     tmp_path: Path,
 ) -> None:
@@ -267,9 +281,69 @@ def test_synthetic_live_child_is_separate_from_the_offline_allowlist() -> None:
             wheel_sha256="0" * 64,
             example_dir=_FIXTURE_PATH.parent,
             workspace=_FIXTURE_PATH.parent,
+            selector_source_path=_FIXTURE_PATH,
             case="live",
             factor_mode="native",
         )
+
+
+def test_sdk_selector_source_uses_the_fixed_public_pin_and_external_path(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    fixture = _load_fixture()
+    assert fixture.SDK_SELECTOR_SOURCE_COMMIT == "48b476ea90665791c7d2f86935720ce238931520"
+    assert fixture.SDK_SELECTOR_SOURCE_SIZE_BYTES == 21403
+    assert fixture.SDK_SELECTOR_SOURCE_SHA256 == (
+        "ca8fa2b48293e7c5d79c1a0cfc20fd229879693290b99b56440b84c72cae12c3"
+    )
+    source = _write_test_selector_source(tmp_path, fixture, monkeypatch)
+
+    evidence = fixture._pinned_sdk_selector_source(source)
+
+    assert evidence == {
+        "source_commit": fixture.SDK_SELECTOR_SOURCE_COMMIT,
+        "source_path": fixture.SDK_SELECTOR_SOURCE_RELATIVE_PATH,
+        "path": str(source.resolve()),
+        "module": "bt_api_ctp.ctp_env_selector",
+        "size_bytes": len(source.read_bytes()),
+        "sha256": hashlib.sha256(source.read_bytes()).hexdigest(),
+    }
+    with pytest.raises(fixture.InstalledFixtureError, match="outside the checkout"):
+        fixture._pinned_sdk_selector_source(_FIXTURE_PATH)
+
+    source.write_bytes(b"changed")
+    with pytest.raises(fixture.InstalledFixtureError, match="fixed public size"):
+        fixture._pinned_sdk_selector_source(source)
+    source.write_bytes(b"x" * fixture.SDK_SELECTOR_SOURCE_SIZE_BYTES)
+    with pytest.raises(fixture.InstalledFixtureError, match="fixed public pin"):
+        fixture._pinned_sdk_selector_source(source)
+
+
+def test_live_child_loads_pinned_selector_before_run_and_runner_uses_official_api() -> None:
+    fixture = _load_fixture()
+    child_source = fixture._SYNTHETIC_LIVE_CHILD_CODE
+    assert "component.is_symlink()" in child_source
+    assert "selector_path.relative_to(repository_root)" in child_source
+    assert "len(selector_source_bytes) != SDK_SELECTOR_SOURCE_SIZE_BYTES" in child_source
+    assert 'compile(selector_source_bytes, str(selector_path), "exec")' in child_source
+    assert child_source.index(
+        "sys.modules[SDK_SELECTOR_MODULE] = selector_module"
+    ) < child_source.index("runpy.run_path(")
+    for function_name in (
+        "official_simnow_fronts",
+        "official_simnow_profile_for_td_front",
+        "verify_official_simnow_profile",
+    ):
+        assert function_name in child_source
+
+    runner_path = (
+        _FIXTURE_PATH.parents[1] / "examples" / "unified" / "028_alpha003_simnow_minute" / "run.py"
+    )
+    runner_source = runner_path.read_text(encoding="utf-8")
+    assert "import bt_api_ctp.ctp_env_selector as selector" in runner_source
+    assert "validate_official_simnow_store_profile(store_config, api_kwargs)" in runner_source
+    assert "official_simnow_profile_for_td_front(td_front)" in runner_source
 
 
 @pytest.mark.parametrize(
@@ -303,6 +377,8 @@ def test_synthetic_live_case_runs_isolated_command_and_checks_finite_outcome(
     wheel = tmp_path / "pinned.whl"
     wheel.write_bytes(b"wheel placeholder for synthetic live command")
     wheel_hash = hashlib.sha256(wheel.read_bytes()).hexdigest()
+    selector_source_path = _write_test_selector_source(tmp_path, fixture, monkeypatch)
+    selector_source = fixture._pinned_sdk_selector_source(selector_source_path)
     cli_argv = [
         str((example / "run.py").resolve()),
         "--config",
@@ -326,6 +402,11 @@ def test_synthetic_live_case_runs_isolated_command_and_checks_finite_outcome(
                 {
                     "status": "LIVE_RUN_COMPLETE",
                     "cleanup_complete": True,
+                    "simnow_profile": {
+                        "verified": True,
+                        "environment": "simnow",
+                        "profile": fixture.SDK_SELECTOR_PROFILE,
+                    },
                     "routes": {"DCE.M": "M2611", "DCE.Y": "Y2611", "DCE.A": "A2611"},
                     "selection_source": "saved_bundle_legacy",
                     "scheduler_clock": "host-utc-plus-monotonic",
@@ -379,6 +460,16 @@ def test_synthetic_live_case_runs_isolated_command_and_checks_finite_outcome(
         "ctp_order_callback_count": 1 if case == "write" else 0,
         "ctp_trade_callback_count": 1 if case == "write" else 0,
         "selection_bundle_sha256": "a" * 64,
+        "sdk_selector_source": {
+            **selector_source,
+            "module_origin": selector_source["path"],
+            "profile_id": fixture.SDK_SELECTOR_PROFILE,
+            "official_fronts_lookup": True,
+            "td_front_profile_lookup": True,
+            "official_profile_verification": True,
+        },
+        "sdk_selector_profile_id": fixture.SDK_SELECTOR_PROFILE,
+        "sdk_selector_profile_verified": True,
         "synthetic_only": True,
         "virtual_scheduler": True,
         "virtual_scheduler_monotonic_is_real": True,
@@ -450,17 +541,18 @@ def test_synthetic_live_case_runs_isolated_command_and_checks_finite_outcome(
         workspace=workspace,
         wheel_path=wheel,
         wheel_sha256=wheel_hash,
+        selector_source_path=selector_source_path,
         case=case,
     )
 
     assert result["case"] == case
     assert result["status"] == status
-    assert result["evidence_level"] == (
-        "INSTALLED_WHEEL_LOCAL_SYNTHETIC_CTP_SDK_LEAF_VIRTUAL_SCHEDULER_ONLY"
-    )
+    assert result["evidence_level"] == "INSTALLED_BT_WHEEL_PUBLIC_SDK_SOURCE_FIXTURE"
+    assert result["sdk_selector_source"] == selector_source
     assert observed["command"][1:3] == ["-I", "-c"]
     assert "iteration50_installed_fixture.py" in observed["command"][4]
     compile(observed["command"][3], "<synthetic-live-child>", "exec")
+    assert observed["command"][-3] == str(selector_source_path.resolve())
     assert observed["command"][-2:] == [case, "native"]
     assert observed["kwargs"]["cwd"] == str(example.resolve())
     assert "PYTHONPATH" not in observed["kwargs"]["env"]
