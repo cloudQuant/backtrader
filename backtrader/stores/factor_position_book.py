@@ -21,6 +21,8 @@ from decimal import Decimal, InvalidOperation, localcontext
 from types import MappingProxyType
 from typing import Any, Mapping, Optional, Sequence, Tuple
 
+from .execution_durable_capacity import track_durable_row_change
+
 
 _IDENTIFIER = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.:/@+-]{0,255}$")
 _DECIMAL_TEXT = re.compile(r"^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$")
@@ -382,17 +384,20 @@ def _ensure_grid_time_index(cursor: sqlite3.Cursor) -> None:
         cursor.execute("ALTER TABLE factor_position_grid_history ADD COLUMN close_time_ns INTEGER")
     read_cursor = cursor.connection.cursor()
     rows = read_cursor.execute(
-        "SELECT rowid, close_time FROM factor_position_grid_history WHERE close_time_ns IS NULL"
+        """SELECT rowid,account_scope,strategy_scope,cohort_id,ordinal,close_time
+           FROM factor_position_grid_history WHERE close_time_ns IS NULL"""
     )
     for row in rows:
         try:
             close_time_ns = _close_time_to_ns(row["close_time"])
         except (TypeError, ValueError, OverflowError):
             continue
-        cursor.execute(
-            "UPDATE factor_position_grid_history SET close_time_ns=? WHERE rowid=?",
-            (close_time_ns, row["rowid"]),
-        )
+        key = (row["account_scope"], row["strategy_scope"], row["cohort_id"], row["ordinal"])
+        with track_durable_row_change(cursor, "factor_position_grid_history", key, "SETTLEMENT"):
+            cursor.execute(
+                "UPDATE factor_position_grid_history SET close_time_ns=? WHERE rowid=?",
+                (close_time_ns, row["rowid"]),
+            )
     read_cursor.close()
     cursor.execute(
         """CREATE INDEX IF NOT EXISTS factor_position_grid_by_time
@@ -587,29 +592,32 @@ def _migrate_open_intent_fill_totals(cursor: sqlite3.Cursor) -> None:
                 final_blocker = "OPEN_INTENT_QUANTITY_UNAVAILABLE"
             elif final_complete and total > requested:
                 final_blocker = "OPEN_INTENT_QUANTITY_EXCEEDED"
-        cursor.execute(
-            """INSERT INTO factor_position_open_intent_totals
-               (intent_id,account_scope,strategy_scope,instrument,exchange,filled_quantity,
-                quantity_complete,blocker_code,updated_at_ns)
-               VALUES(?,?,?,?,?,?,?,?,?)
-               ON CONFLICT(intent_id) DO UPDATE SET
-                 account_scope=excluded.account_scope,strategy_scope=excluded.strategy_scope,
-                 instrument=excluded.instrument,exchange=excluded.exchange,
-                 filled_quantity=excluded.filled_quantity,
-                 quantity_complete=excluded.quantity_complete,
-                 blocker_code=excluded.blocker_code,updated_at_ns=excluded.updated_at_ns""",
-            (
-                current_id,
-                account_scope,
-                strategy_scope,
-                instrument,
-                exchange,
-                _serialize_decimal(total),
-                int(final_complete),
-                final_blocker,
-                updated_at_ns,
-            ),
-        )
+        with track_durable_row_change(
+            cursor, "factor_position_open_intent_totals", (current_id,), "SETTLEMENT"
+        ):
+            cursor.execute(
+                """INSERT INTO factor_position_open_intent_totals
+                   (intent_id,account_scope,strategy_scope,instrument,exchange,filled_quantity,
+                    quantity_complete,blocker_code,updated_at_ns)
+                   VALUES(?,?,?,?,?,?,?,?,?)
+                   ON CONFLICT(intent_id) DO UPDATE SET
+                     account_scope=excluded.account_scope,strategy_scope=excluded.strategy_scope,
+                     instrument=excluded.instrument,exchange=excluded.exchange,
+                     filled_quantity=excluded.filled_quantity,
+                     quantity_complete=excluded.quantity_complete,
+                     blocker_code=excluded.blocker_code,updated_at_ns=excluded.updated_at_ns""",
+                (
+                    current_id,
+                    account_scope,
+                    strategy_scope,
+                    instrument,
+                    exchange,
+                    _serialize_decimal(total),
+                    int(final_complete),
+                    final_blocker,
+                    updated_at_ns,
+                ),
+            )
         if final_blocker is not None:
             position = cursor.execute(
                 """SELECT state FROM factor_position_current
@@ -618,20 +626,24 @@ def _migrate_open_intent_fill_totals(cursor: sqlite3.Cursor) -> None:
                 (account_scope, instrument, exchange, current_id),
             ).fetchone()
             if position is not None and position["state"] == "ACTIVE":
-                cursor.execute(
-                    """UPDATE factor_position_current
-                       SET state='UNKNOWN',blocker_code=?,updated_at_ns=?
-                       WHERE account_scope=? AND instrument=? AND exchange=?
-                         AND owner_intent_id=? AND state='ACTIVE'""",
-                    (
-                        final_blocker,
-                        updated_at_ns,
-                        account_scope,
-                        instrument,
-                        exchange,
-                        current_id,
-                    ),
-                )
+                position_key = (account_scope, instrument, exchange)
+                with track_durable_row_change(
+                    cursor, "factor_position_current", position_key, "SETTLEMENT"
+                ):
+                    cursor.execute(
+                        """UPDATE factor_position_current
+                           SET state='UNKNOWN',blocker_code=?,updated_at_ns=?
+                           WHERE account_scope=? AND instrument=? AND exchange=?
+                             AND owner_intent_id=? AND state='ACTIVE'""",
+                        (
+                            final_blocker,
+                            updated_at_ns,
+                            account_scope,
+                            instrument,
+                            exchange,
+                            current_id,
+                        ),
+                    )
 
     for row in rows:
         row_binding = (
@@ -675,14 +687,23 @@ def _invalidate_legacy_active_risk_facts(cursor: sqlite3.Cursor) -> None:
     anchor become unavailable until a fresh, provably bound epoch is opened.
     """
 
-    cursor.execute(
-        """UPDATE factor_position_current
-           SET opening_fee_unknown_count=MAX(opening_fee_unknown_count,1),
-               fill_time_complete=0,
-               fill_time_unknown_count=MAX(fill_time_unknown_count,1),
-               first_fill_at_ns=NULL,first_fill_grid_ordinal=NULL
+    rows = cursor.execute(
+        """SELECT account_scope,instrument,exchange FROM factor_position_current
            WHERE owner_intent_id IS NOT NULL AND state IN ('ACTIVE','UNKNOWN')"""
-    )
+    ).fetchall()
+    for row in rows:
+        key = (row["account_scope"], row["instrument"], row["exchange"])
+        with track_durable_row_change(cursor, "factor_position_current", key, "SETTLEMENT"):
+            cursor.execute(
+                """UPDATE factor_position_current
+                   SET opening_fee_unknown_count=MAX(opening_fee_unknown_count,1),
+                       fill_time_complete=0,
+                       fill_time_unknown_count=MAX(fill_time_unknown_count,1),
+                       first_fill_at_ns=NULL,first_fill_grid_ordinal=NULL
+                   WHERE account_scope=? AND instrument=? AND exchange=?
+                     AND owner_intent_id IS NOT NULL AND state IN ('ACTIVE','UNKNOWN')""",
+                key,
+            )
 
 
 def _create_position_history_guards(cursor: sqlite3.Cursor) -> None:
@@ -739,12 +760,16 @@ def _seed_legacy_projection_as_unknown(cursor: sqlite3.Cursor) -> None:
              WHERE exchange IS NOT NULL"""
     )
     for row in keys.fetchall():
-        cursor.execute(
-            """INSERT OR IGNORE INTO factor_position_current
-               (account_scope,instrument,exchange,state,blocker_code,epoch,updated_at_ns)
-               VALUES(?,?,?,'UNKNOWN','POSITION_PROJECTION_REQUIRES_RECONCILIATION',0,0)""",
-            (row["account_scope"], row["instrument"], row["exchange"]),
-        )
+        position_key = (row["account_scope"], row["instrument"], row["exchange"])
+        with track_durable_row_change(
+            cursor, "factor_position_current", position_key, "SETTLEMENT"
+        ):
+            cursor.execute(
+                """INSERT OR IGNORE INTO factor_position_current
+                   (account_scope,instrument,exchange,state,blocker_code,epoch,updated_at_ns)
+                   VALUES(?,?,?,'UNKNOWN','POSITION_PROJECTION_REQUIRES_RECONCILIATION',0,0)""",
+                position_key,
+            )
     issue_keys = cursor.execute(
         """SELECT account_scope,instrument,exchange FROM factor_position_evidence_issues
            GROUP BY account_scope,instrument,exchange"""
@@ -760,19 +785,23 @@ def _seed_legacy_projection_as_unknown(cursor: sqlite3.Cursor) -> None:
         ).fetchone()
         if issue is None:
             continue
-        cursor.execute(
-            """INSERT OR IGNORE INTO factor_position_active_issues
-               (account_scope,instrument,exchange_key,receipt_id,blocker_code,created_at_ns)
-               VALUES(?,?,?,?,?,?)""",
-            (
-                row["account_scope"],
-                row["instrument"],
-                exchange_key,
-                issue["receipt_id"],
-                issue["blocker_code"],
-                issue["created_at_ns"],
-            ),
-        )
+        issue_key = (row["account_scope"], row["instrument"], exchange_key)
+        with track_durable_row_change(
+            cursor, "factor_position_active_issues", issue_key, "SETTLEMENT"
+        ):
+            cursor.execute(
+                """INSERT OR IGNORE INTO factor_position_active_issues
+                   (account_scope,instrument,exchange_key,receipt_id,blocker_code,created_at_ns)
+                   VALUES(?,?,?,?,?,?)""",
+                (
+                    row["account_scope"],
+                    row["instrument"],
+                    exchange_key,
+                    issue["receipt_id"],
+                    issue["blocker_code"],
+                    issue["created_at_ns"],
+                ),
+            )
 
 
 def record_factor_position_grid(
@@ -784,6 +813,7 @@ def record_factor_position_grid(
     batch_id: str,
     close_time: str,
     ordinal: int,
+    capacity_class: str = "BASE",
 ) -> bool:
     """Append one newly committed eligible grid in the journal transaction.
 
@@ -831,13 +861,27 @@ def record_factor_position_grid(
         raise FactorPositionBookError("GRID_ORDINAL_NOT_CONTIGUOUS")
     if latest is None and ordinal != 1:
         raise FactorPositionBookError("GRID_HISTORY_MUST_START_AT_ONE")
-    cursor.execute(
-        """INSERT INTO factor_position_grid_history
-           (account_scope, strategy_scope, cohort_id, ordinal, batch_id, close_time,
-            close_time_ns)
-           VALUES (?, ?, ?, ?, ?, ?, ?)""",
-        (account_scope, strategy_scope, cohort_id, ordinal, batch_id, close_time, close_time_ns),
-    )
+    with track_durable_row_change(
+        cursor,
+        "factor_position_grid_history",
+        (account_scope, strategy_scope, cohort_id, ordinal),
+        capacity_class,
+    ):
+        cursor.execute(
+            """INSERT INTO factor_position_grid_history
+               (account_scope, strategy_scope, cohort_id, ordinal, batch_id, close_time,
+                close_time_ns)
+               VALUES (?, ?, ?, ?, ?, ?, ?)""",
+            (
+                account_scope,
+                strategy_scope,
+                cohort_id,
+                ordinal,
+                batch_id,
+                close_time,
+                close_time_ns,
+            ),
+        )
     return True
 
 
@@ -1048,47 +1092,56 @@ def record_factor_position_flat_checkpoint(
         (account_scope, instrument, exchange),
     ).fetchone()
     if active_issue is not None and int(active_issue["created_at_ns"]) < created_at_ns:
-        cursor.execute(
-            """DELETE FROM factor_position_active_issues
-               WHERE account_scope=? AND instrument=? AND exchange_key=?""",
+        with track_durable_row_change(
+            cursor,
+            "factor_position_active_issues",
             (account_scope, instrument, exchange),
-        )
+            "SETTLEMENT",
+        ):
+            cursor.execute(
+                """DELETE FROM factor_position_active_issues
+                   WHERE account_scope=? AND instrument=? AND exchange_key=?""",
+                (account_scope, instrument, exchange),
+            )
         active_issue = None
     next_epoch = 1 if current is None else int(current["epoch"]) + 1
     state = "UNKNOWN" if active_issue is not None else "FLAT"
     blocker = active_issue["blocker_code"] if active_issue is not None else None
-    cursor.execute(
-        """INSERT INTO factor_position_current
-           (account_scope,instrument,exchange,state,blocker_code,epoch,
-            owner_intent_id,strategy_scope,cohort_id,position_side,open_quantity,
-            close_quantity,open_notional,opening_fee_total,opening_fee_unknown_count,
-            first_fill_at_ns,first_fill_grid_ordinal,fill_time_complete,
-            fill_time_unknown_count,last_callback_at_ns,flat_checkpoint_ns,
-            flat_reconciliation_id,updated_at_ns)
-           VALUES(?,?,?,?,?,?,NULL,NULL,NULL,NULL,'0','0','0','0',0,NULL,NULL,1,
-                  0,NULL,?,?,?)
-           ON CONFLICT(account_scope,instrument,exchange) DO UPDATE SET
-             state=excluded.state,blocker_code=excluded.blocker_code,
-             epoch=excluded.epoch,owner_intent_id=NULL,strategy_scope=NULL,
-             cohort_id=NULL,position_side=NULL,open_quantity='0',close_quantity='0',
-             open_notional='0',opening_fee_total='0',opening_fee_unknown_count=0,
-             first_fill_at_ns=NULL,first_fill_grid_ordinal=NULL,fill_time_complete=1,
-             fill_time_unknown_count=0,
-             last_callback_at_ns=NULL,flat_checkpoint_ns=excluded.flat_checkpoint_ns,
-             flat_reconciliation_id=excluded.flat_reconciliation_id,
-             updated_at_ns=excluded.updated_at_ns""",
-        (
-            account_scope,
-            instrument,
-            exchange,
-            state,
-            blocker,
-            next_epoch,
-            created_at_ns,
-            reconciliation_id,
-            created_at_ns,
-        ),
-    )
+    with track_durable_row_change(
+        cursor, "factor_position_current", (account_scope, instrument, exchange), "SETTLEMENT"
+    ):
+        cursor.execute(
+            """INSERT INTO factor_position_current
+               (account_scope,instrument,exchange,state,blocker_code,epoch,
+                owner_intent_id,strategy_scope,cohort_id,position_side,open_quantity,
+                close_quantity,open_notional,opening_fee_total,opening_fee_unknown_count,
+                first_fill_at_ns,first_fill_grid_ordinal,fill_time_complete,
+                fill_time_unknown_count,last_callback_at_ns,flat_checkpoint_ns,
+                flat_reconciliation_id,updated_at_ns)
+               VALUES(?,?,?,?,?,?,NULL,NULL,NULL,NULL,'0','0','0','0',0,NULL,NULL,1,
+                      0,NULL,?,?,?)
+               ON CONFLICT(account_scope,instrument,exchange) DO UPDATE SET
+                 state=excluded.state,blocker_code=excluded.blocker_code,
+                 epoch=excluded.epoch,owner_intent_id=NULL,strategy_scope=NULL,
+                 cohort_id=NULL,position_side=NULL,open_quantity='0',close_quantity='0',
+                 open_notional='0',opening_fee_total='0',opening_fee_unknown_count=0,
+                 first_fill_at_ns=NULL,first_fill_grid_ordinal=NULL,fill_time_complete=1,
+                 fill_time_unknown_count=0,
+                 last_callback_at_ns=NULL,flat_checkpoint_ns=excluded.flat_checkpoint_ns,
+                 flat_reconciliation_id=excluded.flat_reconciliation_id,
+                 updated_at_ns=excluded.updated_at_ns""",
+            (
+                account_scope,
+                instrument,
+                exchange,
+                state,
+                blocker,
+                next_epoch,
+                created_at_ns,
+                reconciliation_id,
+                created_at_ns,
+            ),
+        )
 
 
 def validate_factor_position_close_owner(
@@ -1601,14 +1654,17 @@ def apply_factor_execution_fill(
             "SELECT * FROM factor_position_openings WHERE intent_id=?", (intent["intent_id"],)
         ).fetchone()
         if existing_open is None:
-            cursor.execute(
-                """INSERT INTO factor_position_openings
-                   (intent_id, account_scope, strategy_scope, instrument, exchange,
-                    position_side, stop_price, risk_policy_id, risk_policy_json,
-                    cohort_id, batch_id, close_time, decision_grid_ordinal, created_at_ns)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-                (intent["intent_id"],) + opening_values + (int(intent["created_at_ns"]),),
-            )
+            with track_durable_row_change(
+                cursor, "factor_position_openings", (intent["intent_id"],), "SETTLEMENT"
+            ):
+                cursor.execute(
+                    """INSERT INTO factor_position_openings
+                       (intent_id, account_scope, strategy_scope, instrument, exchange,
+                        position_side, stop_price, risk_policy_id, risk_policy_json,
+                        cohort_id, batch_id, close_time, decision_grid_ordinal, created_at_ns)
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                    (intent["intent_id"],) + opening_values + (int(intent["created_at_ns"]),),
+                )
         elif _opening_values(existing_open) != opening_values:
             return _record_position_issue(
                 cursor,
@@ -1784,32 +1840,37 @@ def apply_factor_execution_fill(
                 blocker_code="CLOSE_FILL_EXCEEDS_OWNED_QUANTITY",
                 execution_id=execution_id,
             )
-    cursor.execute(
-        """INSERT INTO factor_position_fills
-           (account_scope, instrument, exchange, execution_id, receipt_id, intent_id,
-            strategy_scope, position_effect, order_side, owner_intent_id, quantity,
-            price, fee, filled_at_ns, payload_sha256)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-        fill_values,
-    )
-    cursor.execute(
-        """INSERT INTO factor_position_fill_attributes
-           (account_scope,instrument,exchange,execution_id,intent_id,position_effect,
-            position_epoch,fee,filled_at_ns,last_receipt_id,payload_sha256)
-           VALUES(?,?,?,?,?,?,NULL,?,?,?,?)""",
-        (
-            account_scope,
-            instrument,
-            exchange,
-            execution_id,
-            intent["intent_id"],
-            position_effect,
-            normalized_fee,
-            filled_at_ns,
-            receipt_id,
-            payload_digest,
-        ),
-    )
+    fill_key = (account_scope, instrument, exchange, execution_id)
+    with track_durable_row_change(cursor, "factor_position_fills", fill_key, "SETTLEMENT"):
+        cursor.execute(
+            """INSERT INTO factor_position_fills
+               (account_scope, instrument, exchange, execution_id, receipt_id, intent_id,
+                strategy_scope, position_effect, order_side, owner_intent_id, quantity,
+                price, fee, filled_at_ns, payload_sha256)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            fill_values,
+        )
+    with track_durable_row_change(
+        cursor, "factor_position_fill_attributes", fill_key, "SETTLEMENT"
+    ):
+        cursor.execute(
+            """INSERT INTO factor_position_fill_attributes
+               (account_scope,instrument,exchange,execution_id,intent_id,position_effect,
+                position_epoch,fee,filled_at_ns,last_receipt_id,payload_sha256)
+               VALUES(?,?,?,?,?,?,NULL,?,?,?,?)""",
+            (
+                account_scope,
+                instrument,
+                exchange,
+                execution_id,
+                intent["intent_id"],
+                position_effect,
+                normalized_fee,
+                filled_at_ns,
+                receipt_id,
+                payload_digest,
+            ),
+        )
     open_total_blocker = None
     if position_effect == "OPEN":
         open_total_blocker = _record_open_intent_fill_total(
@@ -1854,17 +1915,20 @@ def apply_factor_execution_fill(
         if current is None:
             blocker = "POSITION_EPOCH_BINDING_UNAVAILABLE"
         else:
-            cursor.execute(
-                """UPDATE factor_position_fill_attributes SET position_epoch=?
-                   WHERE account_scope=? AND instrument=? AND exchange=? AND execution_id=?""",
-                (
-                    int(current["epoch"]),
-                    account_scope,
-                    instrument,
-                    exchange,
-                    execution_id,
-                ),
-            )
+            with track_durable_row_change(
+                cursor, "factor_position_fill_attributes", fill_key, "SETTLEMENT"
+            ):
+                cursor.execute(
+                    """UPDATE factor_position_fill_attributes SET position_epoch=?
+                       WHERE account_scope=? AND instrument=? AND exchange=? AND execution_id=?""",
+                    (
+                        int(current["epoch"]),
+                        account_scope,
+                        instrument,
+                        exchange,
+                        execution_id,
+                    ),
+                )
     if blocker is not None:
         return _record_position_issue(
             cursor,
@@ -1945,29 +2009,32 @@ def _record_open_intent_fill_total(
             blocker = "OPEN_INTENT_QUANTITY_UNAVAILABLE"
         elif total > requested:
             blocker = "OPEN_INTENT_QUANTITY_EXCEEDED"
-    cursor.execute(
-        """INSERT INTO factor_position_open_intent_totals
-           (intent_id,account_scope,strategy_scope,instrument,exchange,filled_quantity,
-            quantity_complete,blocker_code,updated_at_ns)
-           VALUES(?,?,?,?,?,?,?,?,?)
-           ON CONFLICT(intent_id) DO UPDATE SET
-             account_scope=excluded.account_scope,strategy_scope=excluded.strategy_scope,
-             instrument=excluded.instrument,exchange=excluded.exchange,
-             filled_quantity=excluded.filled_quantity,
-             quantity_complete=excluded.quantity_complete,
-             blocker_code=excluded.blocker_code,updated_at_ns=excluded.updated_at_ns""",
-        (
-            intent_id,
-            account_scope,
-            strategy_scope,
-            instrument,
-            exchange,
-            _serialize_decimal(total),
-            int(complete),
-            blocker,
-            updated_at_ns,
-        ),
-    )
+    with track_durable_row_change(
+        cursor, "factor_position_open_intent_totals", (intent_id,), "SETTLEMENT"
+    ):
+        cursor.execute(
+            """INSERT INTO factor_position_open_intent_totals
+               (intent_id,account_scope,strategy_scope,instrument,exchange,filled_quantity,
+                quantity_complete,blocker_code,updated_at_ns)
+               VALUES(?,?,?,?,?,?,?,?,?)
+               ON CONFLICT(intent_id) DO UPDATE SET
+                 account_scope=excluded.account_scope,strategy_scope=excluded.strategy_scope,
+                 instrument=excluded.instrument,exchange=excluded.exchange,
+                 filled_quantity=excluded.filled_quantity,
+                 quantity_complete=excluded.quantity_complete,
+                 blocker_code=excluded.blocker_code,updated_at_ns=excluded.updated_at_ns""",
+            (
+                intent_id,
+                account_scope,
+                strategy_scope,
+                instrument,
+                exchange,
+                _serialize_decimal(total),
+                int(complete),
+                blocker,
+                updated_at_ns,
+            ),
+        )
     return blocker
 
 
@@ -2024,21 +2091,24 @@ def _enrich_duplicate_fill(
             "filled_at_ns": existing_fill["filled_at_ns"],
             "position_epoch": None,
         }
-        cursor.execute(
-            """INSERT INTO factor_position_fill_attributes
-               (account_scope,instrument,exchange,execution_id,intent_id,position_effect,
-                position_epoch,fee,filled_at_ns,last_receipt_id,payload_sha256)
-               VALUES(?,?,?,?,?,?,NULL,?,?,?,?)""",
-            identity
-            + (
-                existing_fill["intent_id"],
-                existing_fill["position_effect"],
-                existing_fill["fee"],
-                existing_fill["filled_at_ns"],
-                existing_fill["receipt_id"],
-                existing_fill["payload_sha256"],
-            ),
-        )
+        with track_durable_row_change(
+            cursor, "factor_position_fill_attributes", identity, "SETTLEMENT"
+        ):
+            cursor.execute(
+                """INSERT INTO factor_position_fill_attributes
+                   (account_scope,instrument,exchange,execution_id,intent_id,position_effect,
+                    position_epoch,fee,filled_at_ns,last_receipt_id,payload_sha256)
+                   VALUES(?,?,?,?,?,?,NULL,?,?,?,?)""",
+                identity
+                + (
+                    existing_fill["intent_id"],
+                    existing_fill["position_effect"],
+                    existing_fill["fee"],
+                    existing_fill["filled_at_ns"],
+                    existing_fill["receipt_id"],
+                    existing_fill["payload_sha256"],
+                ),
+            )
     old_fee = attributes["fee"]
     old_time = attributes["filled_at_ns"]
     if fee is not None and old_fee is not None and fee != old_fee:
@@ -2050,12 +2120,15 @@ def _enrich_duplicate_fill(
     payload_digest = hashlib.sha256(_canonical_json(fill_identity).encode("utf-8")).hexdigest()
     changed = next_fee != old_fee or next_time != old_time
     if changed:
-        cursor.execute(
-            """UPDATE factor_position_fill_attributes
-               SET fee=?,filled_at_ns=?,last_receipt_id=?,payload_sha256=?
-               WHERE account_scope=? AND instrument=? AND exchange=? AND execution_id=?""",
-            (next_fee, next_time, receipt["receipt_id"], payload_digest) + identity,
-        )
+        with track_durable_row_change(
+            cursor, "factor_position_fill_attributes", identity, "SETTLEMENT"
+        ):
+            cursor.execute(
+                """UPDATE factor_position_fill_attributes
+                   SET fee=?,filled_at_ns=?,last_receipt_id=?,payload_sha256=?
+                   WHERE account_scope=? AND instrument=? AND exchange=? AND execution_id=?""",
+                (next_fee, next_time, receipt["receipt_id"], payload_digest) + identity,
+            )
     current = cursor.execute(
         """SELECT * FROM factor_position_current
            WHERE account_scope=? AND instrument=? AND exchange=?""",
@@ -2138,24 +2211,25 @@ def _enrich_duplicate_fill(
     last_callback_at_ns = (
         callback_at_ns if previous_callback is None else max(int(previous_callback), callback_at_ns)
     )
-    cursor.execute(
-        """UPDATE factor_position_current
-           SET opening_fee_total=?,opening_fee_unknown_count=?,
-               fill_time_unknown_count=?,fill_time_complete=?,first_fill_at_ns=?,
-               first_fill_grid_ordinal=?,last_callback_at_ns=?,updated_at_ns=?
-           WHERE account_scope=? AND instrument=? AND exchange=?""",
-        (
-            _serialize_decimal(fee_total),
-            fee_unknown,
-            time_unknown,
-            int(time_unknown == 0),
-            first_fill_at_ns,
-            first_fill_grid_ordinal,
-            last_callback_at_ns,
-            callback_at_ns,
+    with track_durable_row_change(cursor, "factor_position_current", identity[:3], "SETTLEMENT"):
+        cursor.execute(
+            """UPDATE factor_position_current
+               SET opening_fee_total=?,opening_fee_unknown_count=?,
+                   fill_time_unknown_count=?,fill_time_complete=?,first_fill_at_ns=?,
+                   first_fill_grid_ordinal=?,last_callback_at_ns=?,updated_at_ns=?
+               WHERE account_scope=? AND instrument=? AND exchange=?""",
+            (
+                _serialize_decimal(fee_total),
+                fee_unknown,
+                time_unknown,
+                int(time_unknown == 0),
+                first_fill_at_ns,
+                first_fill_grid_ordinal,
+                last_callback_at_ns,
+                callback_at_ns,
+            )
+            + identity[:3],
         )
-        + identity[:3],
-    )
     return None
 
 
@@ -2309,55 +2383,58 @@ def _project_new_fill(
             last_callback_at_ns = callback_at_ns
         else:
             last_callback_at_ns = max(int(last_callback_at_ns), callback_at_ns)
-        cursor.execute(
-            """INSERT INTO factor_position_current
-               (account_scope,instrument,exchange,state,blocker_code,epoch,
-                owner_intent_id,strategy_scope,cohort_id,position_side,open_quantity,
-                close_quantity,open_notional,opening_fee_total,opening_fee_unknown_count,
-                first_fill_at_ns,first_fill_grid_ordinal,fill_time_complete,
-                fill_time_unknown_count,last_callback_at_ns,flat_checkpoint_ns,
-                flat_reconciliation_id,updated_at_ns)
-               VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
-               ON CONFLICT(account_scope,instrument,exchange) DO UPDATE SET
-                 state=excluded.state,blocker_code=excluded.blocker_code,
-                 epoch=excluded.epoch,owner_intent_id=excluded.owner_intent_id,
-                 strategy_scope=excluded.strategy_scope,cohort_id=excluded.cohort_id,
-                 position_side=excluded.position_side,open_quantity=excluded.open_quantity,
-                 close_quantity=excluded.close_quantity,open_notional=excluded.open_notional,
-                 opening_fee_total=excluded.opening_fee_total,
-                 opening_fee_unknown_count=excluded.opening_fee_unknown_count,
-                 first_fill_at_ns=excluded.first_fill_at_ns,
-                 first_fill_grid_ordinal=excluded.first_fill_grid_ordinal,
-                 fill_time_complete=excluded.fill_time_complete,
-                 fill_time_unknown_count=excluded.fill_time_unknown_count,
-                 last_callback_at_ns=excluded.last_callback_at_ns,
-                 updated_at_ns=excluded.updated_at_ns""",
-            (
-                account_scope,
-                instrument,
-                exchange,
-                state,
-                blocker,
-                epoch,
-                intent["intent_id"],
-                strategy_scope,
-                cohort_id,
-                opening["position_side"],
-                _serialize_decimal(open_quantity),
-                _serialize_decimal(close_quantity),
-                _serialize_decimal(open_notional),
-                _serialize_decimal(opening_fee_total),
-                opening_fee_unknown_count,
-                first_fill_at_ns,
-                first_fill_grid_ordinal,
-                int(fill_time_unknown_count == 0),
-                fill_time_unknown_count,
-                last_callback_at_ns,
-                None if current is None else current["flat_checkpoint_ns"],
-                None if current is None else current["flat_reconciliation_id"],
-                callback_at_ns,
-            ),
-        )
+        with track_durable_row_change(
+            cursor, "factor_position_current", (account_scope, instrument, exchange), "SETTLEMENT"
+        ):
+            cursor.execute(
+                """INSERT INTO factor_position_current
+                   (account_scope,instrument,exchange,state,blocker_code,epoch,
+                    owner_intent_id,strategy_scope,cohort_id,position_side,open_quantity,
+                    close_quantity,open_notional,opening_fee_total,opening_fee_unknown_count,
+                    first_fill_at_ns,first_fill_grid_ordinal,fill_time_complete,
+                    fill_time_unknown_count,last_callback_at_ns,flat_checkpoint_ns,
+                    flat_reconciliation_id,updated_at_ns)
+                   VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                   ON CONFLICT(account_scope,instrument,exchange) DO UPDATE SET
+                     state=excluded.state,blocker_code=excluded.blocker_code,
+                     epoch=excluded.epoch,owner_intent_id=excluded.owner_intent_id,
+                     strategy_scope=excluded.strategy_scope,cohort_id=excluded.cohort_id,
+                     position_side=excluded.position_side,open_quantity=excluded.open_quantity,
+                     close_quantity=excluded.close_quantity,open_notional=excluded.open_notional,
+                     opening_fee_total=excluded.opening_fee_total,
+                     opening_fee_unknown_count=excluded.opening_fee_unknown_count,
+                     first_fill_at_ns=excluded.first_fill_at_ns,
+                     first_fill_grid_ordinal=excluded.first_fill_grid_ordinal,
+                     fill_time_complete=excluded.fill_time_complete,
+                     fill_time_unknown_count=excluded.fill_time_unknown_count,
+                     last_callback_at_ns=excluded.last_callback_at_ns,
+                     updated_at_ns=excluded.updated_at_ns""",
+                (
+                    account_scope,
+                    instrument,
+                    exchange,
+                    state,
+                    blocker,
+                    epoch,
+                    intent["intent_id"],
+                    strategy_scope,
+                    cohort_id,
+                    opening["position_side"],
+                    _serialize_decimal(open_quantity),
+                    _serialize_decimal(close_quantity),
+                    _serialize_decimal(open_notional),
+                    _serialize_decimal(opening_fee_total),
+                    opening_fee_unknown_count,
+                    first_fill_at_ns,
+                    first_fill_grid_ordinal,
+                    int(fill_time_unknown_count == 0),
+                    fill_time_unknown_count,
+                    last_callback_at_ns,
+                    None if current is None else current["flat_checkpoint_ns"],
+                    None if current is None else current["flat_reconciliation_id"],
+                    callback_at_ns,
+                ),
+            )
         return None
 
     if current is None or current["state"] == "FLAT":
@@ -2379,19 +2456,22 @@ def _project_new_fill(
         if current["last_callback_at_ns"] is None
         else max(int(current["last_callback_at_ns"]), callback_at_ns)
     )
-    cursor.execute(
-        """UPDATE factor_position_current
-           SET close_quantity=?,last_callback_at_ns=?,updated_at_ns=?
-           WHERE account_scope=? AND instrument=? AND exchange=?""",
-        (
-            _serialize_decimal(_decimal_add(closed, quantity)),
-            next_callback,
-            callback_at_ns,
-            account_scope,
-            instrument,
-            exchange,
-        ),
-    )
+    with track_durable_row_change(
+        cursor, "factor_position_current", (account_scope, instrument, exchange), "SETTLEMENT"
+    ):
+        cursor.execute(
+            """UPDATE factor_position_current
+               SET close_quantity=?,last_callback_at_ns=?,updated_at_ns=?
+               WHERE account_scope=? AND instrument=? AND exchange=?""",
+            (
+                _serialize_decimal(_decimal_add(closed, quantity)),
+                next_callback,
+                callback_at_ns,
+                account_scope,
+                instrument,
+                exchange,
+            ),
+        )
     return None
 
 
@@ -2774,12 +2854,21 @@ class FactorPositionBook:
                 inserts = []
             for _observation_id, insert_values in inserts:
                 columns = tuple(insert_values)
-                cursor.execute(
-                    "INSERT INTO factor_position_dated_trade_facts ({}) VALUES ({})".format(
-                        ",".join(columns), ",".join("?" for _ in columns)
-                    ),
-                    tuple(insert_values[name] for name in columns),
+                dated_key = (
+                    insert_values["account_scope"],
+                    insert_values["instrument"],
+                    insert_values["exchange"],
+                    insert_values["execution_id"],
                 )
+                with track_durable_row_change(
+                    cursor, "factor_position_dated_trade_facts", dated_key, "SETTLEMENT"
+                ):
+                    cursor.execute(
+                        "INSERT INTO factor_position_dated_trade_facts ({}) VALUES ({})".format(
+                            ",".join(columns), ",".join("?" for _ in columns)
+                        ),
+                        tuple(insert_values[name] for name in columns),
+                    )
 
         return FactorDatedTradeReconciliationPage(
             items=tuple(by_observation[item.observation_id] for item in result_items),
@@ -3240,13 +3329,16 @@ def _record_position_issue(
         (receipt["receipt_id"],),
     ).fetchone()
     if existing is None:
-        cursor.execute(
-            """INSERT INTO factor_position_evidence_issues
-               (receipt_id, intent_id, account_scope, instrument, exchange,
-                blocker_code, evidence_sha256, created_at_ns)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
-            values,
-        )
+        with track_durable_row_change(
+            cursor, "factor_position_evidence_issues", (receipt["receipt_id"],), "SETTLEMENT"
+        ):
+            cursor.execute(
+                """INSERT INTO factor_position_evidence_issues
+                   (receipt_id, intent_id, account_scope, instrument, exchange,
+                    blocker_code, evidence_sha256, created_at_ns)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+                values,
+            )
     elif (
         tuple(
             existing[name]
@@ -3289,30 +3381,42 @@ def _record_position_issue(
             (account_scope, instrument, exchange_key),
         ).fetchone()
     if activate and (current_issue is None or int(current_issue["created_at_ns"]) <= created_at_ns):
-        cursor.execute(
-            """INSERT INTO factor_position_active_issues
-               (account_scope,instrument,exchange_key,receipt_id,blocker_code,created_at_ns)
-               VALUES(?,?,?,?,?,?)
-               ON CONFLICT(account_scope,instrument,exchange_key) DO UPDATE SET
-                 receipt_id=excluded.receipt_id,blocker_code=excluded.blocker_code,
-                 created_at_ns=excluded.created_at_ns""",
-            (
-                account_scope,
-                instrument,
-                exchange_key,
-                receipt["receipt_id"],
-                blocker_code,
-                created_at_ns,
-            ),
-        )
+        with track_durable_row_change(
+            cursor,
+            "factor_position_active_issues",
+            (account_scope, instrument, exchange_key),
+            "SETTLEMENT",
+        ):
+            cursor.execute(
+                """INSERT INTO factor_position_active_issues
+                   (account_scope,instrument,exchange_key,receipt_id,blocker_code,created_at_ns)
+                   VALUES(?,?,?,?,?,?)
+                   ON CONFLICT(account_scope,instrument,exchange_key) DO UPDATE SET
+                     receipt_id=excluded.receipt_id,blocker_code=excluded.blocker_code,
+                     created_at_ns=excluded.created_at_ns""",
+                (
+                    account_scope,
+                    instrument,
+                    exchange_key,
+                    receipt["receipt_id"],
+                    blocker_code,
+                    created_at_ns,
+                ),
+            )
     if exchange is not None and activate:
         if current is None:
-            cursor.execute(
-                """INSERT INTO factor_position_current
-                   (account_scope,instrument,exchange,state,blocker_code,epoch,updated_at_ns)
-                   VALUES(?,?,?,'UNKNOWN',?,0,?)""",
-                (account_scope, instrument, exchange, blocker_code, created_at_ns),
-            )
+            with track_durable_row_change(
+                cursor,
+                "factor_position_current",
+                (account_scope, instrument, exchange),
+                "SETTLEMENT",
+            ):
+                cursor.execute(
+                    """INSERT INTO factor_position_current
+                       (account_scope,instrument,exchange,state,blocker_code,epoch,updated_at_ns)
+                       VALUES(?,?,?,'UNKNOWN',?,0,?)""",
+                    (account_scope, instrument, exchange, blocker_code, created_at_ns),
+                )
         elif current["flat_checkpoint_ns"] is None or created_at_ns >= int(
             current["flat_checkpoint_ns"]
         ):
@@ -3321,18 +3425,24 @@ def _record_position_issue(
                    WHERE account_scope=? AND instrument=? AND exchange_key=?""",
                 (account_scope, instrument, exchange_key),
             ).fetchone()
-            cursor.execute(
-                """UPDATE factor_position_current SET state='UNKNOWN',blocker_code=?,
-                          updated_at_ns=?
-                   WHERE account_scope=? AND instrument=? AND exchange=?""",
-                (
-                    blocker_code if active is None else active["blocker_code"],
-                    created_at_ns,
-                    account_scope,
-                    instrument,
-                    exchange,
-                ),
-            )
+            with track_durable_row_change(
+                cursor,
+                "factor_position_current",
+                (account_scope, instrument, exchange),
+                "SETTLEMENT",
+            ):
+                cursor.execute(
+                    """UPDATE factor_position_current SET state='UNKNOWN',blocker_code=?,
+                              updated_at_ns=?
+                       WHERE account_scope=? AND instrument=? AND exchange=?""",
+                    (
+                        blocker_code if active is None else active["blocker_code"],
+                        created_at_ns,
+                        account_scope,
+                        instrument,
+                        exchange,
+                    ),
+                )
     return _blocked_apply(receipt["receipt_id"], receipt["intent_id"], blocker_code, execution_id)
 
 

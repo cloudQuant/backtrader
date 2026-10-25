@@ -48,6 +48,20 @@ from .execution_dispatch_gate import (
     dispatch_gate_path,
     validate_dispatch_gate_timeout,
 )
+from .execution_durable_capacity import (
+    DEFAULT_MAX_DURABLE_BASE_BYTES,
+    DEFAULT_MAX_DURABLE_BASE_RECORDS,
+    DEFAULT_MAX_DURABLE_SETTLEMENT_BYTES,
+    DEFAULT_MAX_DURABLE_SETTLEMENT_RECORDS,
+    DurableCapacityError,
+    DurableCapacityLimits,
+    DurableCapacityUsage,
+    canonical_sql_row_bytes,
+    durable_capacity_transaction,
+    ensure_durable_capacity_usage_schema,
+    read_durable_capacity_usage,
+    track_durable_row_change,
+)
 
 
 _ECONOMIC_DECIMAL_FIELDS = frozenset(
@@ -351,7 +365,7 @@ class ExecutionDecisionJournal:
     failed persistence step.
     """
 
-    _SCHEMA_VERSION = 11
+    _SCHEMA_VERSION = 12
     _NATIVE_IDENTITY_SCHEMA_VERSION = 8
     _DECISION_CAPACITY_SCHEMA_VERSION = 9
 
@@ -366,6 +380,10 @@ class ExecutionDecisionJournal:
         settlement_decision_reserve_records: int = 4096,
         max_decision_bytes: int = 536870912,
         settlement_decision_reserve_bytes: int = 67108864,
+        max_durable_base_records: int = DEFAULT_MAX_DURABLE_BASE_RECORDS,
+        max_durable_base_bytes: int = DEFAULT_MAX_DURABLE_BASE_BYTES,
+        max_durable_settlement_records: int = DEFAULT_MAX_DURABLE_SETTLEMENT_RECORDS,
+        max_durable_settlement_bytes: int = DEFAULT_MAX_DURABLE_SETTLEMENT_BYTES,
     ) -> None:
         if (
             type(max_pending_intents) is not int
@@ -391,6 +409,15 @@ class ExecutionDecisionJournal:
         self.settlement_decision_reserve_records = settlement_decision_reserve_records
         self.max_decision_bytes = max_decision_bytes
         self.settlement_decision_reserve_bytes = settlement_decision_reserve_bytes
+        try:
+            self.durable_capacity_limits = DurableCapacityLimits(
+                max_durable_base_records=max_durable_base_records,
+                max_durable_base_bytes=max_durable_base_bytes,
+                max_durable_settlement_records=max_durable_settlement_records,
+                max_durable_settlement_bytes=max_durable_settlement_bytes,
+            )
+        except DurableCapacityError as error:
+            raise ExecutionDecisionJournalError(error.code) from error
         self._lock = RLock()
         # Dispatch serialization is deliberately non-reentrant. The file
         # sidecar already rejects nested acquisition; keep the in-memory
@@ -702,6 +729,7 @@ class ExecutionDecisionJournal:
                     self._apply_run_order_budget(
                         db_cursor,
                         key,
+                        capacity_class=_decision_capacity_class(normalized_keys),
                         max_order_intents_per_run=max_order_intents_per_run,
                         added_count=0,
                         created=False,
@@ -722,6 +750,7 @@ class ExecutionDecisionJournal:
                 self._apply_run_order_budget(
                     db_cursor,
                     key,
+                    capacity_class=_decision_capacity_class(normalized_keys),
                     max_order_intents_per_run=max_order_intents_per_run,
                     added_count=0,
                     created=False,
@@ -755,6 +784,7 @@ class ExecutionDecisionJournal:
             self._apply_run_order_budget(
                 db_cursor,
                 key,
+                capacity_class=_decision_capacity_class(normalized_keys),
                 max_order_intents_per_run=max_order_intents_per_run,
                 added_count=len(normalized_keys),
                 created=True,
@@ -764,20 +794,24 @@ class ExecutionDecisionJournal:
             )
 
             ordinal = 1 if current is None else int(current["ordinal"]) + 1
-            db_cursor.execute(
-                """INSERT INTO execution_grid_cursors
-                   (account_scope, strategy_scope, cohort_id, ordinal, epoch_id,
-                    batch_id, close_time, decision_id, updated_at_ns)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                   ON CONFLICT(account_scope, strategy_scope, cohort_id) DO UPDATE SET
-                     ordinal = excluded.ordinal,
-                     epoch_id = excluded.epoch_id,
-                     batch_id = excluded.batch_id,
-                     close_time = excluded.close_time,
-                     decision_id = excluded.decision_id,
-                     updated_at_ns = excluded.updated_at_ns""",
-                cursor_key + (ordinal, epoch_id, batch_id, key.close_time, decision_id, now_ns),
-            )
+            decision_class = _decision_capacity_class(normalized_keys)
+            with track_durable_row_change(
+                db_cursor, "execution_grid_cursors", cursor_key, decision_class
+            ):
+                db_cursor.execute(
+                    """INSERT INTO execution_grid_cursors
+                       (account_scope, strategy_scope, cohort_id, ordinal, epoch_id,
+                        batch_id, close_time, decision_id, updated_at_ns)
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                       ON CONFLICT(account_scope, strategy_scope, cohort_id) DO UPDATE SET
+                         ordinal = excluded.ordinal,
+                         epoch_id = excluded.epoch_id,
+                         batch_id = excluded.batch_id,
+                         close_time = excluded.close_time,
+                         decision_id = excluded.decision_id,
+                         updated_at_ns = excluded.updated_at_ns""",
+                    cursor_key + (ordinal, epoch_id, batch_id, key.close_time, decision_id, now_ns),
+                )
             saved_cursor = db_cursor.execute(
                 """SELECT * FROM execution_grid_cursors
                    WHERE account_scope = ? AND strategy_scope = ? AND cohort_id = ?""",
@@ -793,26 +827,31 @@ class ExecutionDecisionJournal:
                 batch_id=batch_id,
                 close_time=key.close_time,
                 ordinal=ordinal,
+                capacity_class=decision_class,
             )
-            db_cursor.execute(
-                """INSERT INTO execution_grid_highwaters
-                   (account_scope, strategy_scope, close_time, cohort_id, decision_id,
-                    updated_at_ns)
-                   VALUES (?, ?, ?, ?, ?, ?)
-                   ON CONFLICT(account_scope, strategy_scope) DO UPDATE SET
-                     close_time = excluded.close_time,
-                     cohort_id = excluded.cohort_id,
-                     decision_id = excluded.decision_id,
-                     updated_at_ns = excluded.updated_at_ns""",
-                (
-                    key.account_scope,
-                    key.strategy_scope,
-                    key.close_time,
-                    key.cohort_id,
-                    decision_id,
-                    now_ns,
-                ),
-            )
+            highwater_key = (key.account_scope, key.strategy_scope)
+            with track_durable_row_change(
+                db_cursor, "execution_grid_highwaters", highwater_key, decision_class
+            ):
+                db_cursor.execute(
+                    """INSERT INTO execution_grid_highwaters
+                       (account_scope, strategy_scope, close_time, cohort_id, decision_id,
+                        updated_at_ns)
+                       VALUES (?, ?, ?, ?, ?, ?)
+                       ON CONFLICT(account_scope, strategy_scope) DO UPDATE SET
+                         close_time = excluded.close_time,
+                         cohort_id = excluded.cohort_id,
+                         decision_id = excluded.decision_id,
+                         updated_at_ns = excluded.updated_at_ns""",
+                    (
+                        key.account_scope,
+                        key.strategy_scope,
+                        key.close_time,
+                        key.cohort_id,
+                        decision_id,
+                        now_ns,
+                    ),
+                )
             return ExecutionGridDecision(
                 decision=decision,
                 cursor=_grid_cursor_record(saved_cursor),
@@ -877,6 +916,7 @@ class ExecutionDecisionJournal:
             self._apply_run_order_budget(
                 cursor,
                 key,
+                capacity_class=_decision_capacity_class(normalized_keys),
                 max_order_intents_per_run=max_order_intents_per_run,
                 added_count=len(normalized_keys),
                 created=created,
@@ -926,6 +966,7 @@ class ExecutionDecisionJournal:
         cursor: sqlite3.Cursor,
         key: ExecutionDecisionKey,
         *,
+        capacity_class: str,
         max_order_intents_per_run: Optional[int],
         added_count: int,
         created: bool,
@@ -947,13 +988,16 @@ class ExecutionDecisionJournal:
             if not created:
                 raise ExecutionDecisionJournalError("RUN_ORDER_BUDGET_MISSING")
             count = 0
-            cursor.execute(
-                """INSERT INTO execution_run_order_budgets
-                   (account_scope, strategy_scope, logical_run_id, max_intents,
-                    intent_count, created_at_ns)
-                   VALUES (?, ?, ?, ?, 0, ?)""",
-                budget_key + (max_order_intents_per_run, time.time_ns()),
-            )
+            with track_durable_row_change(
+                cursor, "execution_run_order_budgets", budget_key, capacity_class
+            ):
+                cursor.execute(
+                    """INSERT INTO execution_run_order_budgets
+                       (account_scope, strategy_scope, logical_run_id, max_intents,
+                        intent_count, created_at_ns)
+                       VALUES (?, ?, ?, ?, 0, ?)""",
+                    budget_key + (max_order_intents_per_run, time.time_ns()),
+                )
         else:
             if int(row["max_intents"]) != max_order_intents_per_run:
                 raise ExecutionDecisionJournalError("RUN_ORDER_BUDGET_CONFLICT")
@@ -969,11 +1013,14 @@ class ExecutionDecisionJournal:
         reserve_count = remaining_exit_intent_reserve or 0
         if count + added_count + reserve_count > max_order_intents_per_run:
             raise ExecutionDecisionJournalError("RUN_ORDER_BUDGET_EXCEEDED")
-        cursor.execute(
-            """UPDATE execution_run_order_budgets SET intent_count = ?
-               WHERE account_scope = ? AND strategy_scope = ? AND logical_run_id = ?""",
-            (count + added_count,) + budget_key,
-        )
+        with track_durable_row_change(
+            cursor, "execution_run_order_budgets", budget_key, capacity_class
+        ):
+            cursor.execute(
+                """UPDATE execution_run_order_budgets SET intent_count = ?
+                   WHERE account_scope = ? AND strategy_scope = ? AND logical_run_id = ?""",
+                (count + added_count,) + budget_key,
+            )
 
     @staticmethod
     def _validate_run_order_reservation(
@@ -1090,13 +1137,20 @@ class ExecutionDecisionJournal:
             )
             if pending + len(normalized_keys) > self.max_pending_intents:
                 raise ExecutionDecisionJournalError("PENDING_INTENT_LIMIT")
-        cursor.execute(
-            """INSERT INTO execution_decisions
-               (decision_id, business_key_json, economic_payload_json,
-                 intent_keys_json, created_at_ns, capacity_class)
-               VALUES (?, ?, ?, ?, ?, ?)""",
-            (decision_id, key_json, payload_json, keys_json, now_ns, decision_class),
-        )
+        if any(
+            item.action == "SUBMIT" and item.position_effect == "OPEN" for item in normalized_keys
+        ):
+            self._ensure_new_open_capacity(cursor)
+        with track_durable_row_change(
+            cursor, "execution_decisions", (decision_id,), decision_class
+        ):
+            cursor.execute(
+                """INSERT INTO execution_decisions
+                   (decision_id, business_key_json, economic_payload_json,
+                     intent_keys_json, created_at_ns, capacity_class)
+                   VALUES (?, ?, ?, ?, ?, ?)""",
+                (decision_id, key_json, payload_json, keys_json, now_ns, decision_class),
+            )
         cursor.execute(
             """UPDATE execution_decision_capacity_usage
                SET record_count=record_count+1,payload_bytes=payload_bytes+?
@@ -1108,16 +1162,36 @@ class ExecutionDecisionJournal:
         for intent_key in normalized_keys:
             intent_key_json = _canonical_json(_intent_key_values(intent_key))
             intent_id = _stable_id("intent", decision_id + ":" + intent_key_json)
-            cursor.execute(
-                """INSERT INTO execution_decision_slots
-                   (intent_id, decision_id, intent_key_json, leg)
-                   VALUES (?, ?, ?, ?)""",
-                (intent_id, decision_id, intent_key_json, intent_key.leg),
-            )
+            with track_durable_row_change(
+                cursor, "execution_decision_slots", (intent_id,), decision_class
+            ):
+                cursor.execute(
+                    """INSERT INTO execution_decision_slots
+                       (intent_id, decision_id, intent_key_json, leg)
+                       VALUES (?, ?, ?, ?)""",
+                    (intent_id, decision_id, intent_key_json, intent_key.leg),
+                )
         row = cursor.execute(
             "SELECT * FROM execution_decisions WHERE decision_id = ?", (decision_id,)
         ).fetchone()
         return _decision_record(row), True
+
+    def _ensure_new_open_capacity(self, cursor: sqlite3.Cursor) -> None:
+        """Require room in both cumulative classes before admitting new OPEN risk."""
+
+        try:
+            usage = read_durable_capacity_usage(cursor)
+        except DurableCapacityError as error:
+            raise ExecutionDecisionJournalError(error.code) from error
+        limits = self.durable_capacity_limits
+        if usage.base_records >= limits.max_durable_base_records:
+            raise ExecutionDecisionJournalError("DURABLE_BASE_RECORDS_EXHAUSTED")
+        if usage.base_bytes >= limits.max_durable_base_bytes:
+            raise ExecutionDecisionJournalError("DURABLE_BASE_BYTES_EXHAUSTED")
+        if usage.settlement_records >= limits.max_durable_settlement_records:
+            raise ExecutionDecisionJournalError("DURABLE_SETTLEMENT_RECORDS_EXHAUSTED")
+        if usage.settlement_bytes >= limits.max_durable_settlement_bytes:
+            raise ExecutionDecisionJournalError("DURABLE_SETTLEMENT_BYTES_EXHAUSTED")
 
     def _check_decision_capacity(
         self, cursor: sqlite3.Cursor, *, decision_class: str, added_bytes: int
@@ -1249,7 +1323,7 @@ class ExecutionDecisionJournal:
 
         with self._transaction() as cursor:
             decision_row = cursor.execute(
-                "SELECT business_key_json FROM execution_decisions WHERE decision_id = ?",
+                "SELECT business_key_json,capacity_class FROM execution_decisions WHERE decision_id = ?",
                 (decision_id,),
             ).fetchone()
             slot = cursor.execute(
@@ -1275,10 +1349,20 @@ class ExecutionDecisionJournal:
                     strategy_scope=json.loads(decision_row["business_key_json"])["strategy_scope"],
                     intent_key=intent_key,
                     original_identity=json.loads(identity_json),
+                    capacity_class=(
+                        "SETTLEMENT"
+                        if intent_key.action == "CANCEL" or intent_key.position_effect == "CLOSE"
+                        else self._durable_decision_class(decision_row["capacity_class"])
+                    ),
                 )
                 return _intent_record(row)
 
             account_scope = json.loads(decision_row["business_key_json"])["account_scope"]
+            intent_capacity_class = (
+                "SETTLEMENT"
+                if intent_key.action == "CANCEL" or intent_key.position_effect == "CLOSE"
+                else self._durable_decision_class(decision_row["capacity_class"])
+            )
             owner = cursor.execute(
                 """SELECT * FROM execution_instrument_owners
                    WHERE account_scope = ? AND instrument = ?""",
@@ -1297,6 +1381,7 @@ class ExecutionDecisionJournal:
                 if intent_key.position_effect == "OPEN":
                     if owner_intent_id is not None:
                         raise ExecutionDecisionJournalError("UNEXPECTED_OWNER_INTENT")
+                    self._ensure_new_open_capacity(cursor)
                 elif intent_key.position_effect == "CLOSE":
                     if factor_owned_close and owner_intent_id is None:
                         raise ExecutionDecisionJournalError("CLOSE_OWNER_REQUIRED")
@@ -1322,20 +1407,32 @@ class ExecutionDecisionJournal:
                 else:
                     raise ExecutionDecisionJournalError("INVALID_POSITION_EFFECT")
                 if owner is None:
-                    cursor.execute(
-                        """INSERT INTO execution_instrument_owners
-                           (account_scope, instrument, owner_intent_id, cancel_intent_id)
-                           VALUES (?, ?, ?, NULL)""",
-                        (account_scope, intent_key.instrument, intent_id),
-                    )
+                    with track_durable_row_change(
+                        cursor,
+                        "execution_instrument_owners",
+                        (account_scope, intent_key.instrument),
+                        intent_capacity_class,
+                    ):
+                        cursor.execute(
+                            """INSERT INTO execution_instrument_owners
+                               (account_scope, instrument, owner_intent_id, cancel_intent_id)
+                               VALUES (?, ?, ?, NULL)""",
+                            (account_scope, intent_key.instrument, intent_id),
+                        )
                 else:
-                    cursor.execute(
-                        """UPDATE execution_instrument_owners
-                           SET owner_intent_id = ?, cancel_intent_id = NULL
-                           WHERE account_scope = ? AND instrument = ?
-                             AND owner_intent_id IS NULL""",
-                        (intent_id, account_scope, intent_key.instrument),
-                    )
+                    with track_durable_row_change(
+                        cursor,
+                        "execution_instrument_owners",
+                        (account_scope, intent_key.instrument),
+                        intent_capacity_class,
+                    ):
+                        cursor.execute(
+                            """UPDATE execution_instrument_owners
+                               SET owner_intent_id = ?, cancel_intent_id = NULL
+                               WHERE account_scope = ? AND instrument = ?
+                                 AND owner_intent_id IS NULL""",
+                            (intent_id, account_scope, intent_key.instrument),
+                        )
             else:
                 if owner_intent_id is None:
                     raise ExecutionDecisionJournalError("CANCEL_OWNER_REQUIRED")
@@ -1350,29 +1447,38 @@ class ExecutionDecisionJournal:
                     raise ExecutionDecisionJournalError("CANCEL_OWNER_NOT_KNOWN")
                 if owner["cancel_intent_id"] not in (None, intent_id):
                     raise ExecutionDecisionJournalError("CANCEL_ALREADY_PREPARED")
+                with track_durable_row_change(
+                    cursor,
+                    "execution_instrument_owners",
+                    (account_scope, intent_key.instrument),
+                    intent_capacity_class,
+                ):
+                    cursor.execute(
+                        """UPDATE execution_instrument_owners SET cancel_intent_id = ?
+                           WHERE account_scope = ? AND instrument = ?
+                             AND owner_intent_id = ?""",
+                        (intent_id, account_scope, intent_key.instrument, owner_intent_id),
+                    )
+            with track_durable_row_change(
+                cursor, "execution_decision_intents", (intent_id,), intent_capacity_class
+            ):
                 cursor.execute(
-                    """UPDATE execution_instrument_owners SET cancel_intent_id = ?
-                       WHERE account_scope = ? AND instrument = ?
-                         AND owner_intent_id = ?""",
-                    (intent_id, account_scope, intent_key.instrument, owner_intent_id),
+                    """INSERT INTO execution_decision_intents
+                       (intent_id, decision_id, intent_key_json, economic_payload_json,
+                        original_identity_json, owner_intent_id, state, provider_identity_json,
+                        outcome_code, dispatch_result_json, created_at_ns, updated_at_ns)
+                       VALUES (?, ?, ?, ?, ?, ?, 'PREPARED', NULL, NULL, NULL, ?, ?)""",
+                    (
+                        intent_id,
+                        decision_id,
+                        intent_key_json,
+                        payload_json,
+                        identity_json,
+                        owner_intent_id,
+                        now_ns,
+                        now_ns,
+                    ),
                 )
-            cursor.execute(
-                """INSERT INTO execution_decision_intents
-                   (intent_id, decision_id, intent_key_json, economic_payload_json,
-                    original_identity_json, owner_intent_id, state, provider_identity_json,
-                    outcome_code, dispatch_result_json, created_at_ns, updated_at_ns)
-                   VALUES (?, ?, ?, ?, ?, ?, 'PREPARED', NULL, NULL, NULL, ?, ?)""",
-                (
-                    intent_id,
-                    decision_id,
-                    intent_key_json,
-                    payload_json,
-                    identity_json,
-                    owner_intent_id,
-                    now_ns,
-                    now_ns,
-                ),
-            )
             self._index_native_intent_identity(
                 cursor,
                 intent_id=intent_id,
@@ -1380,6 +1486,7 @@ class ExecutionDecisionJournal:
                 strategy_scope=json.loads(decision_row["business_key_json"])["strategy_scope"],
                 intent_key=intent_key,
                 original_identity=json.loads(identity_json),
+                capacity_class=intent_capacity_class,
             )
             row = cursor.execute(
                 "SELECT * FROM execution_decision_intents WHERE intent_id = ?", (intent_id,)
@@ -1740,33 +1847,39 @@ class ExecutionDecisionJournal:
             if same_query is not None:
                 raise ExecutionDecisionJournalError("RECONCILIATION_QUERY_CONFLICT")
 
-            cursor.execute(
-                """INSERT INTO execution_intent_reconciliations
-                   (reconciliation_id, intent_id, original_identity_json, query_id,
-                    state, provider_identity_json, outcome_code, terminal_state,
-                    terminal_event_id, position_snapshot_id, position_flat, created_at_ns)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-                (
-                    reconciliation_id,
-                    intent_id,
-                    intent_row["original_identity_json"],
-                    query_id,
-                    state,
-                    identity_json,
-                    outcome_code,
-                    terminal_json,
-                    terminal_event_id,
-                    position_snapshot_id,
-                    None if position_flat is None else int(position_flat),
-                    now_ns,
-                ),
-            )
-            if state == "KNOWN" and intent_row["state"] == "UNKNOWN":
+            with track_durable_row_change(
+                cursor, "execution_intent_reconciliations", (reconciliation_id,), "SETTLEMENT"
+            ):
                 cursor.execute(
-                    """UPDATE execution_decision_intents SET state = 'KNOWN', updated_at_ns = ?
-                       WHERE intent_id = ? AND state = 'UNKNOWN'""",
-                    (now_ns, intent_id),
+                    """INSERT INTO execution_intent_reconciliations
+                       (reconciliation_id, intent_id, original_identity_json, query_id,
+                        state, provider_identity_json, outcome_code, terminal_state,
+                        terminal_event_id, position_snapshot_id, position_flat, created_at_ns)
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                    (
+                        reconciliation_id,
+                        intent_id,
+                        intent_row["original_identity_json"],
+                        query_id,
+                        state,
+                        identity_json,
+                        outcome_code,
+                        terminal_json,
+                        terminal_event_id,
+                        position_snapshot_id,
+                        None if position_flat is None else int(position_flat),
+                        now_ns,
+                    ),
                 )
+            if state == "KNOWN" and intent_row["state"] == "UNKNOWN":
+                with track_durable_row_change(
+                    cursor, "execution_decision_intents", (intent_id,), "SETTLEMENT"
+                ):
+                    cursor.execute(
+                        """UPDATE execution_decision_intents SET state = 'KNOWN', updated_at_ns = ?
+                           WHERE intent_id = ? AND state = 'UNKNOWN'""",
+                        (now_ns, intent_id),
+                    )
             row = cursor.execute(
                 "SELECT * FROM execution_intent_reconciliations WHERE reconciliation_id = ?",
                 (reconciliation_id,),
@@ -1985,33 +2098,39 @@ class ExecutionDecisionJournal:
             ).fetchone()
             if same_query is not None:
                 raise ExecutionDecisionJournalError("RECONCILIATION_QUERY_CONFLICT")
-            cursor.execute(
-                """INSERT INTO execution_intent_reconciliations
-                   (reconciliation_id,intent_id,original_identity_json,query_id,state,
-                    provider_identity_json,outcome_code,terminal_state,terminal_event_id,
-                    position_snapshot_id,position_flat,created_at_ns)
-                   VALUES(?,?,?,?,?,?,?,?,?,?,1,?)""",
-                (
-                    reconciliation_id,
-                    intent_id,
-                    intent_row["original_identity_json"],
-                    query_id,
-                    "KNOWN",
-                    provider_json,
-                    _DISPATCHING_CRASH_NO_FILL_OUTCOME,
-                    terminal_state,
-                    terminal_event_id,
-                    position_snapshot_id,
-                    now_ns,
-                ),
-            )
-            updated = cursor.execute(
-                """UPDATE execution_decision_intents SET state='KNOWN',updated_at_ns=?
-                   WHERE intent_id=? AND state='DISPATCHING' AND dispatch_state IS NULL
-                     AND provider_identity_json IS NULL AND outcome_code IS NULL
-                     AND dispatch_result_json IS NULL""",
-                (now_ns, intent_id),
-            )
+            with track_durable_row_change(
+                cursor, "execution_intent_reconciliations", (reconciliation_id,), "SETTLEMENT"
+            ):
+                cursor.execute(
+                    """INSERT INTO execution_intent_reconciliations
+                       (reconciliation_id,intent_id,original_identity_json,query_id,state,
+                        provider_identity_json,outcome_code,terminal_state,terminal_event_id,
+                        position_snapshot_id,position_flat,created_at_ns)
+                       VALUES(?,?,?,?,?,?,?,?,?,?,1,?)""",
+                    (
+                        reconciliation_id,
+                        intent_id,
+                        intent_row["original_identity_json"],
+                        query_id,
+                        "KNOWN",
+                        provider_json,
+                        _DISPATCHING_CRASH_NO_FILL_OUTCOME,
+                        terminal_state,
+                        terminal_event_id,
+                        position_snapshot_id,
+                        now_ns,
+                    ),
+                )
+            with track_durable_row_change(
+                cursor, "execution_decision_intents", (intent_id,), "SETTLEMENT"
+            ):
+                updated = cursor.execute(
+                    """UPDATE execution_decision_intents SET state='KNOWN',updated_at_ns=?
+                       WHERE intent_id=? AND state='DISPATCHING' AND dispatch_state IS NULL
+                         AND provider_identity_json IS NULL AND outcome_code IS NULL
+                         AND dispatch_result_json IS NULL""",
+                    (now_ns, intent_id),
+                )
             if updated.rowcount != 1:
                 raise ExecutionDecisionJournalError("DISPATCHING_NO_FILL_STATE_MISMATCH")
             resolution = self._release_instrument_owner_in_transaction(
@@ -2116,19 +2235,28 @@ class ExecutionDecisionJournal:
         ).fetchone()
         if owner is None or owner["owner_intent_id"] != intent_id:
             raise ExecutionDecisionJournalError("INSTRUMENT_OWNER_MISMATCH")
-        cursor.execute(
-            """INSERT INTO execution_intent_resolutions
-               (intent_id,account_scope,instrument,terminal_state,terminal_event_id,
-                reconciliation_id,position_snapshot_id,position_flat,created_at_ns)
-               VALUES(?,?,?,?,?,?,?,?,?)""",
-            (intent_id,) + values + (now_ns,),
-        )
-        cursor.execute(
-            """UPDATE execution_instrument_owners
-               SET owner_intent_id=NULL,cancel_intent_id=NULL
-               WHERE account_scope=? AND instrument=? AND owner_intent_id=?""",
-            (account_scope, intent_key.instrument, intent_id),
-        )
+        with track_durable_row_change(
+            cursor, "execution_intent_resolutions", (intent_id,), "SETTLEMENT"
+        ):
+            cursor.execute(
+                """INSERT INTO execution_intent_resolutions
+                   (intent_id,account_scope,instrument,terminal_state,terminal_event_id,
+                    reconciliation_id,position_snapshot_id,position_flat,created_at_ns)
+                   VALUES(?,?,?,?,?,?,?,?,?)""",
+                (intent_id,) + values + (now_ns,),
+            )
+        with track_durable_row_change(
+            cursor,
+            "execution_instrument_owners",
+            (account_scope, intent_key.instrument),
+            "SETTLEMENT",
+        ):
+            cursor.execute(
+                """UPDATE execution_instrument_owners
+                   SET owner_intent_id=NULL,cancel_intent_id=NULL
+                   WHERE account_scope=? AND instrument=? AND owner_intent_id=?""",
+                (account_scope, intent_key.instrument, intent_id),
+            )
         if bool(reconciliation["position_flat"]) and _factor_book_checkpoint_required(
             intent_key, intent_row["economic_payload_json"]
         ):
@@ -2181,24 +2309,39 @@ class ExecutionDecisionJournal:
             intent_key = ExecutionIntentKey(**json.loads(row["intent_key_json"]))
             account_scope = json.loads(row["business_key_json"])["account_scope"]
             if intent_key.action == "SUBMIT":
-                cursor.execute(
-                    """UPDATE execution_instrument_owners
-                       SET owner_intent_id = NULL, cancel_intent_id = NULL
-                       WHERE account_scope = ? AND instrument = ? AND owner_intent_id = ?""",
-                    (account_scope, intent_key.instrument, intent_id),
-                )
+                with track_durable_row_change(
+                    cursor,
+                    "execution_instrument_owners",
+                    (account_scope, intent_key.instrument),
+                    "SETTLEMENT",
+                ):
+                    cursor.execute(
+                        """UPDATE execution_instrument_owners
+                           SET owner_intent_id = NULL, cancel_intent_id = NULL
+                           WHERE account_scope = ? AND instrument = ? AND owner_intent_id = ?""",
+                        (account_scope, intent_key.instrument, intent_id),
+                    )
             else:
+                with track_durable_row_change(
+                    cursor,
+                    "execution_instrument_owners",
+                    (account_scope, intent_key.instrument),
+                    "SETTLEMENT",
+                ):
+                    cursor.execute(
+                        """UPDATE execution_instrument_owners SET cancel_intent_id = NULL
+                           WHERE account_scope = ? AND instrument = ? AND cancel_intent_id = ?""",
+                        (account_scope, intent_key.instrument, intent_id),
+                    )
+            with track_durable_row_change(
+                cursor, "execution_intent_abandonments", (abandonment_id,), "SETTLEMENT"
+            ):
                 cursor.execute(
-                    """UPDATE execution_instrument_owners SET cancel_intent_id = NULL
-                       WHERE account_scope = ? AND instrument = ? AND cancel_intent_id = ?""",
-                    (account_scope, intent_key.instrument, intent_id),
+                    """INSERT INTO execution_intent_abandonments
+                       (abandonment_id, intent_id, reason_code, created_at_ns)
+                       VALUES (?, ?, ?, ?)""",
+                    (abandonment_id, intent_id, reason_code, now_ns),
                 )
-            cursor.execute(
-                """INSERT INTO execution_intent_abandonments
-                   (abandonment_id, intent_id, reason_code, created_at_ns)
-                   VALUES (?, ?, ?, ?)""",
-                (abandonment_id, intent_id, reason_code, now_ns),
-            )
             abandonment = cursor.execute(
                 "SELECT * FROM execution_intent_abandonments WHERE intent_id = ?", (intent_id,)
             ).fetchone()
@@ -2247,12 +2390,15 @@ class ExecutionDecisionJournal:
                 if existing["reason_code"] != reason_code:
                     raise ExecutionDecisionJournalError("INTENT_ABANDONMENT_CONFLICT")
                 return _slot_abandonment_record(existing)
-            cursor.execute(
-                """INSERT INTO execution_slot_abandonments
-                   (abandonment_id, intent_id, reason_code, created_at_ns)
-                   VALUES (?, ?, ?, ?)""",
-                (abandonment_id, intent_id, reason_code, now_ns),
-            )
+            with track_durable_row_change(
+                cursor, "execution_slot_abandonments", (abandonment_id,), "SETTLEMENT"
+            ):
+                cursor.execute(
+                    """INSERT INTO execution_slot_abandonments
+                       (abandonment_id, intent_id, reason_code, created_at_ns)
+                       VALUES (?, ?, ?, ?)""",
+                    (abandonment_id, intent_id, reason_code, now_ns),
+                )
             return _slot_abandonment_record(
                 cursor.execute(
                     "SELECT * FROM execution_slot_abandonments WHERE intent_id=?", (intent_id,)
@@ -2317,13 +2463,29 @@ class ExecutionDecisionJournal:
             )
             if prior_unresolved:
                 raise ExecutionDecisionJournalError("PRIOR_INTENT_NOT_KNOWN")
-            now_ns = time.time_ns()
-            cursor.execute(
-                """UPDATE execution_decision_intents
-                   SET state = 'DISPATCHING', updated_at_ns = ?
-                   WHERE intent_id = ? AND state = 'PREPARED'""",
-                (now_ns, intent_id),
+            decision_row = cursor.execute(
+                "SELECT capacity_class FROM execution_decisions WHERE decision_id = ?",
+                (row["decision_id"],),
+            ).fetchone()
+            if decision_row is None:
+                raise ExecutionDecisionJournalError("DECISION_NOT_FOUND")
+            intent_capacity_class = (
+                "SETTLEMENT"
+                if intent_key.action == "CANCEL" or intent_key.position_effect == "CLOSE"
+                else self._durable_decision_class(decision_row["capacity_class"])
             )
+            if intent_key.action == "SUBMIT" and intent_key.position_effect == "OPEN":
+                self._ensure_new_open_capacity(cursor)
+            now_ns = time.time_ns()
+            with track_durable_row_change(
+                cursor, "execution_decision_intents", (intent_id,), intent_capacity_class
+            ):
+                cursor.execute(
+                    """UPDATE execution_decision_intents
+                       SET state = 'DISPATCHING', updated_at_ns = ?
+                       WHERE intent_id = ? AND state = 'PREPARED'""",
+                    (now_ns, intent_id),
+                )
             if cursor.rowcount != 1:
                 raise ExecutionDecisionJournalError("DISPATCH_CLAIM_LOST")
             claimed = cursor.execute(
@@ -2368,13 +2530,18 @@ class ExecutionDecisionJournal:
                 raise ExecutionDecisionJournalError("DISPATCH_RESULT_CONFLICT")
             if row["state"] != "DISPATCHING":
                 raise ExecutionDecisionJournalError("DISPATCH_NOT_CLAIMED")
-            cursor.execute(
-                """UPDATE execution_decision_intents
-                   SET state = ?, dispatch_state = ?, provider_identity_json = ?, outcome_code = ?,
-                       dispatch_result_json = ?, updated_at_ns = ?
-                   WHERE intent_id = ? AND state = 'DISPATCHING'""",
-                (state, state, identity_json, outcome_code, result_json, now_ns, intent_id),
-            )
+            # This is durable provider-outcome settlement even when the
+            # original decision consumed BASE capacity.
+            with track_durable_row_change(
+                cursor, "execution_decision_intents", (intent_id,), "SETTLEMENT"
+            ):
+                cursor.execute(
+                    """UPDATE execution_decision_intents
+                       SET state = ?, dispatch_state = ?, provider_identity_json = ?, outcome_code = ?,
+                           dispatch_result_json = ?, updated_at_ns = ?
+                       WHERE intent_id = ? AND state = 'DISPATCHING'""",
+                    (state, state, identity_json, outcome_code, result_json, now_ns, intent_id),
+                )
             if cursor.rowcount != 1:
                 raise ExecutionDecisionJournalError("DISPATCH_RESULT_CONFLICT")
             row = cursor.execute(
@@ -2471,20 +2638,23 @@ class ExecutionDecisionJournal:
             )
             if pending >= self.max_pending_callbacks:
                 raise ExecutionDecisionJournalError("PENDING_CALLBACK_LIMIT")
-            cursor.execute(
-                """INSERT INTO execution_decision_callbacks
-                   (receipt_id, intent_id, callback_id, evidence_payload_json,
-                    acknowledged, created_at_ns, process_instance_id, delivery_pending)
-                   VALUES (?, ?, ?, ?, 0, ?, ?, 1)""",
-                (
-                    receipt_id,
-                    intent_id,
-                    callback_id,
-                    payload_json,
-                    now_ns,
-                    _current_process_instance_id(),
-                ),
-            )
+            with track_durable_row_change(
+                cursor, "execution_decision_callbacks", (receipt_id,), "SETTLEMENT"
+            ):
+                cursor.execute(
+                    """INSERT INTO execution_decision_callbacks
+                       (receipt_id, intent_id, callback_id, evidence_payload_json,
+                        acknowledged, created_at_ns, process_instance_id, delivery_pending)
+                       VALUES (?, ?, ?, ?, 0, ?, ?, 1)""",
+                    (
+                        receipt_id,
+                        intent_id,
+                        callback_id,
+                        payload_json,
+                        now_ns,
+                        _current_process_instance_id(),
+                    ),
+                )
             row = cursor.execute(
                 "SELECT * FROM execution_decision_callbacks WHERE receipt_id = ?",
                 (receipt_id,),
@@ -2544,20 +2714,23 @@ class ExecutionDecisionJournal:
                 )
                 if pending >= self.max_pending_callbacks:
                     raise ExecutionDecisionJournalError("PENDING_CALLBACK_LIMIT")
-                cursor.execute(
-                    """INSERT INTO execution_decision_callbacks
-                       (receipt_id, intent_id, callback_id, evidence_payload_json,
-                        acknowledged, created_at_ns, process_instance_id, delivery_pending)
-                       VALUES (?, ?, ?, ?, 0, ?, ?, 1)""",
-                    (
-                        receipt_id,
-                        intent_id,
-                        callback_id,
-                        payload_json,
-                        now_ns,
-                        _current_process_instance_id(),
-                    ),
-                )
+                with track_durable_row_change(
+                    cursor, "execution_decision_callbacks", (receipt_id,), "SETTLEMENT"
+                ):
+                    cursor.execute(
+                        """INSERT INTO execution_decision_callbacks
+                           (receipt_id, intent_id, callback_id, evidence_payload_json,
+                            acknowledged, created_at_ns, process_instance_id, delivery_pending)
+                           VALUES (?, ?, ?, ?, 0, ?, ?, 1)""",
+                        (
+                            receipt_id,
+                            intent_id,
+                            callback_id,
+                            payload_json,
+                            now_ns,
+                            _current_process_instance_id(),
+                        ),
+                    )
                 row = cursor.execute(
                     "SELECT * FROM execution_decision_callbacks WHERE receipt_id = ?",
                     (receipt_id,),
@@ -2721,34 +2894,43 @@ class ExecutionDecisionJournal:
         query_process_instance_id = _current_process_instance_id()
         proof_json = self._payload_json(proof_payload)
         proof_sha256 = hashlib.sha256(proof_json.encode("utf-8")).hexdigest()
-        cursor.execute(
-            """INSERT INTO execution_callback_query_dispositions
-               (native_receipt_id,query_receipt_id,intent_id,execution_id,
-                disposition_code,query_process_instance_id,proof_payload_json,
-                proof_sha256,created_at_ns)
-               VALUES (?,?,?,?,?,?,?,?,?)""",
-            (
-                native_receipt_id,
-                query_receipt_id,
-                intent_id,
-                execution_id,
-                _CALLBACK_QUERY_DISPOSITION,
-                query_process_instance_id,
-                proof_json,
-                proof_sha256,
-                time.time_ns(),
-            ),
-        )
+        with track_durable_row_change(
+            cursor,
+            "execution_callback_query_dispositions",
+            (native_receipt_id,),
+            "SETTLEMENT",
+        ):
+            cursor.execute(
+                """INSERT INTO execution_callback_query_dispositions
+                   (native_receipt_id,query_receipt_id,intent_id,execution_id,
+                    disposition_code,query_process_instance_id,proof_payload_json,
+                    proof_sha256,created_at_ns)
+                   VALUES (?,?,?,?,?,?,?,?,?)""",
+                (
+                    native_receipt_id,
+                    query_receipt_id,
+                    intent_id,
+                    execution_id,
+                    _CALLBACK_QUERY_DISPOSITION,
+                    query_process_instance_id,
+                    proof_json,
+                    proof_sha256,
+                    time.time_ns(),
+                ),
+            )
         row = cursor.execute(
             """SELECT * FROM execution_callback_query_dispositions
                WHERE native_receipt_id=?""",
             (native_receipt_id,),
         ).fetchone()
-        cursor.execute(
-            """UPDATE execution_decision_callbacks SET delivery_pending=0
-               WHERE receipt_id=? AND acknowledged=0 AND delivery_pending=1""",
-            (native_receipt_id,),
-        )
+        with track_durable_row_change(
+            cursor, "execution_decision_callbacks", (native_receipt_id,), "SETTLEMENT"
+        ):
+            cursor.execute(
+                """UPDATE execution_decision_callbacks SET delivery_pending=0
+                   WHERE receipt_id=? AND acknowledged=0 AND delivery_pending=1""",
+                (native_receipt_id,),
+            )
         if cursor.rowcount != 1:
             raise ExecutionDecisionJournalError("CALLBACK_QUERY_DELIVERY_STATE_MISMATCH")
         return _callback_query_disposition_record(row)
@@ -3222,11 +3404,14 @@ class ExecutionDecisionJournal:
         if row is None:
             raise ExecutionDecisionJournalError("CALLBACK_NOT_FOUND")
         if not row["acknowledged"]:
-            cursor.execute(
-                """UPDATE execution_decision_callbacks
-                   SET acknowledged=1,delivery_pending=0 WHERE receipt_id=?""",
-                (receipt_id,),
-            )
+            with track_durable_row_change(
+                cursor, "execution_decision_callbacks", (receipt_id,), "SETTLEMENT"
+            ):
+                cursor.execute(
+                    """UPDATE execution_decision_callbacks
+                       SET acknowledged=1,delivery_pending=0 WHERE receipt_id=?""",
+                    (receipt_id,),
+                )
 
     def _payload_json(self, value: Mapping[str, Any]) -> str:
         if not isinstance(value, Mapping):
@@ -3248,6 +3433,7 @@ class ExecutionDecisionJournal:
         strategy_scope: str,
         intent_key: ExecutionIntentKey,
         original_identity: Mapping[str, Any],
+        capacity_class: str = "BASE",
     ) -> None:
         """Persist an exact CTP insert identity for bounded restart lookup.
 
@@ -3320,12 +3506,15 @@ class ExecutionDecisionJournal:
         ).fetchone()
         if claimed is not None and claimed["intent_id"] != intent_id:
             raise ExecutionDecisionJournalError("NATIVE_ORDER_IDENTITY_CONFLICT")
-        cursor.execute(
-            """INSERT INTO execution_native_intent_identities
-               (intent_id,account_scope,strategy_scope,trading_day,instrument,exchange,order_ref)
-               VALUES(?,?,?,?,?,?,?)""",
-            (intent_id,) + values,
-        )
+        with track_durable_row_change(
+            cursor, "execution_native_intent_identities", (intent_id,), capacity_class
+        ):
+            cursor.execute(
+                """INSERT INTO execution_native_intent_identities
+                   (intent_id,account_scope,strategy_scope,trading_day,instrument,exchange,order_ref)
+                   VALUES(?,?,?,?,?,?,?)""",
+                (intent_id,) + values,
+            )
 
     def _backfill_native_intent_identities(self, cursor: sqlite3.Cursor) -> None:
         """Rebuild the bounded CTP lookup index from immutable v7 intent rows.
@@ -3441,10 +3630,357 @@ class ExecutionDecisionJournal:
                SET delivery_pending=CASE WHEN acknowledged=0 THEN 1 ELSE 0 END"""
         )
 
+    def _durable_capacity_config_values(self) -> Tuple[int, int, int, int]:
+        limits = self.durable_capacity_limits
+        return (
+            limits.max_durable_base_records,
+            limits.max_durable_base_bytes,
+            limits.max_durable_settlement_records,
+            limits.max_durable_settlement_bytes,
+        )
+
+    def _validate_durable_capacity_tables(self, cursor: sqlite3.Cursor) -> DurableCapacityUsage:
+        tables = {
+            row[0]
+            for row in cursor.execute(
+                "SELECT name FROM sqlite_master WHERE type='table' AND name IN (?,?)",
+                ("execution_durable_capacity_limits", "execution_durable_capacity_usage"),
+            ).fetchall()
+        }
+        if tables != {
+            "execution_durable_capacity_limits",
+            "execution_durable_capacity_usage",
+        }:
+            raise ExecutionDecisionJournalError("DURABLE_CAPACITY_SCHEMA_CORRUPT")
+
+        config_columns = [
+            (row["name"], row["type"].upper(), int(row["pk"]))
+            for row in cursor.execute(
+                "PRAGMA table_info(execution_durable_capacity_limits)"
+            ).fetchall()
+        ]
+        expected_config_columns = [
+            ("singleton", "INTEGER", 1),
+            ("max_durable_base_records", "INTEGER", 0),
+            ("max_durable_base_bytes", "INTEGER", 0),
+            ("max_durable_settlement_records", "INTEGER", 0),
+            ("max_durable_settlement_bytes", "INTEGER", 0),
+        ]
+        usage_columns = [
+            (row["name"], row["type"].upper(), int(row["pk"]))
+            for row in cursor.execute(
+                "PRAGMA table_info(execution_durable_capacity_usage)"
+            ).fetchall()
+        ]
+        expected_usage_columns = [
+            ("capacity_class", "TEXT", 1),
+            ("record_count", "INTEGER", 0),
+            ("payload_bytes", "INTEGER", 0),
+        ]
+        if config_columns != expected_config_columns or usage_columns != expected_usage_columns:
+            raise ExecutionDecisionJournalError("DURABLE_CAPACITY_SCHEMA_CORRUPT")
+        try:
+            config_rows = cursor.execute(
+                "SELECT * FROM execution_durable_capacity_limits ORDER BY singleton"
+            ).fetchall()
+            usage = read_durable_capacity_usage(cursor)
+        except DurableCapacityError as error:
+            raise ExecutionDecisionJournalError(error.code) from error
+        if len(config_rows) != 1 or type(config_rows[0]["singleton"]) is not int:
+            raise ExecutionDecisionJournalError("DURABLE_CAPACITY_CONFIG_INVALID")
+        actual = tuple(
+            config_rows[0][name]
+            for name in (
+                "max_durable_base_records",
+                "max_durable_base_bytes",
+                "max_durable_settlement_records",
+                "max_durable_settlement_bytes",
+            )
+        )
+        if any(type(value) is not int for value in actual):
+            raise ExecutionDecisionJournalError("DURABLE_CAPACITY_CONFIG_INVALID")
+        if actual != self._durable_capacity_config_values():
+            raise ExecutionDecisionJournalError("DURABLE_CAPACITY_CONFIG_MISMATCH")
+        return usage
+
+    @staticmethod
+    def _durable_decision_class(value: Any) -> str:
+        if value not in ("BASE", "SETTLEMENT"):
+            raise ExecutionDecisionJournalError("DURABLE_CAPACITY_CLASSIFICATION_INVALID")
+        return value
+
+    def _backfill_durable_capacity_usage(self, cursor: sqlite3.Cursor) -> None:
+        """Count present v11 payload rows once using typed canonical row bytes."""
+
+        decision_classes = {}
+        grid_candidates = {}
+        run_classes = {}
+        try:
+            decisions = cursor.execute(
+                "SELECT decision_id,business_key_json,capacity_class FROM execution_decisions"
+            )
+            while rows := decisions.fetchmany(256):
+                for row in rows:
+                    capacity_class = self._durable_decision_class(row["capacity_class"])
+                    try:
+                        key = json.loads(row["business_key_json"])
+                    except (TypeError, ValueError) as error:
+                        raise ExecutionDecisionJournalError(
+                            "DURABLE_CAPACITY_CLASSIFICATION_INVALID"
+                        ) from error
+                    if not isinstance(key, Mapping):
+                        raise ExecutionDecisionJournalError(
+                            "DURABLE_CAPACITY_CLASSIFICATION_INVALID"
+                        )
+                    decision_classes[row["decision_id"]] = capacity_class
+                    identity = (
+                        key.get("account_scope"),
+                        key.get("strategy_scope"),
+                        key.get("cohort_id"),
+                        key.get("close_time"),
+                    )
+                    if all(type(value) is str and value for value in identity):
+                        grid_candidates.setdefault(identity, []).append(
+                            (row["decision_id"], capacity_class)
+                        )
+                    run_identity = (
+                        key.get("account_scope"),
+                        key.get("strategy_scope"),
+                        key.get("logical_run_id"),
+                    )
+                    if any(type(value) is not str or not value for value in run_identity):
+                        raise ExecutionDecisionJournalError(
+                            "DURABLE_CAPACITY_CLASSIFICATION_INVALID"
+                        )
+                    classes = run_classes.setdefault(run_identity, set())
+                    classes.add(capacity_class)
+        except sqlite3.Error as error:
+            raise ExecutionDecisionJournalError("DURABLE_CAPACITY_BACKFILL_FAILED") from error
+
+        intent_preparation_classes = {}
+        try:
+            intents = cursor.execute(
+                """SELECT i.intent_id,i.decision_id,i.intent_key_json,i.state,
+                          i.dispatch_state,i.dispatch_result_json
+                   FROM execution_decision_intents AS i"""
+            )
+            while rows := intents.fetchmany(256):
+                for row in rows:
+                    decision_class = decision_classes.get(row["decision_id"])
+                    ambiguous_dispatch = (
+                        row["state"] in ("DISPATCHING", "KNOWN", "UNKNOWN")
+                        or row["dispatch_state"] in ("KNOWN", "UNKNOWN")
+                        or row["dispatch_result_json"] is not None
+                    )
+                    try:
+                        intent_key_data = json.loads(row["intent_key_json"])
+                        if not isinstance(intent_key_data, Mapping):
+                            raise ValueError("intent key is not an object")
+                        intent_key = ExecutionIntentKey(**intent_key_data)
+                        if (
+                            _canonical_json(_intent_key_values(intent_key))
+                            != row["intent_key_json"]
+                        ):
+                            raise ValueError("intent key is not canonical")
+                    except (TypeError, ValueError, ExecutionDecisionJournalError) as error:
+                        raise ExecutionDecisionJournalError(
+                            "DURABLE_CAPACITY_CLASSIFICATION_INVALID"
+                        ) from error
+                    if intent_key.action == "CANCEL" or intent_key.position_effect == "CLOSE":
+                        preparation_class = "SETTLEMENT"
+                    elif intent_key.action == "SUBMIT" and intent_key.position_effect == "OPEN":
+                        if decision_class is None and not ambiguous_dispatch:
+                            raise ExecutionDecisionJournalError(
+                                "DURABLE_CAPACITY_CLASSIFICATION_INVALID"
+                            )
+                        # A legacy ambiguous OPEN with no usable parent is
+                        # conservatively classified as settlement.
+                        preparation_class = decision_class or "SETTLEMENT"
+                    else:
+                        raise ExecutionDecisionJournalError(
+                            "DURABLE_CAPACITY_CLASSIFICATION_INVALID"
+                        )
+                    intent_preparation_classes[row["intent_id"]] = preparation_class
+        except sqlite3.Error as error:
+            raise ExecutionDecisionJournalError("DURABLE_CAPACITY_BACKFILL_FAILED") from error
+
+        book_meta = cursor.execute(
+            "SELECT version FROM factor_position_book_meta WHERE singleton=1"
+        ).fetchone()
+        if book_meta is None or type(book_meta["version"]) is not int or book_meta["version"] != 6:
+            raise ExecutionDecisionJournalError("POSITION_BOOK_SCHEMA_UNAVAILABLE")
+
+        totals = {"BASE": [0, 0], "SETTLEMENT": [0, 0]}
+
+        def account_rows(table: str, classifier: Callable[[sqlite3.Row], str]) -> None:
+            try:
+                source = cursor.execute("SELECT * FROM {}".format(table))
+                while rows := source.fetchmany(256):
+                    for row in rows:
+                        capacity_class = self._durable_decision_class(classifier(row))
+                        totals[capacity_class][0] += 1
+                        totals[capacity_class][1] += len(canonical_sql_row_bytes(row))
+                        if any(
+                            value > 9_223_372_036_854_775_807 for value in totals[capacity_class]
+                        ):
+                            raise ExecutionDecisionJournalError(
+                                "DURABLE_CAPACITY_BACKFILL_OVERFLOW"
+                            )
+            except DurableCapacityError as error:
+                raise ExecutionDecisionJournalError(error.code) from error
+            except sqlite3.Error as error:
+                raise ExecutionDecisionJournalError("DURABLE_CAPACITY_BACKFILL_FAILED") from error
+
+        account_rows(
+            "execution_decisions", lambda row: self._durable_decision_class(row["capacity_class"])
+        )
+        account_rows(
+            "execution_decision_slots",
+            lambda row: decision_classes.get(row["decision_id"])
+            or self._raise_capacity_classification_invalid(),
+        )
+        account_rows(
+            "execution_run_order_budgets",
+            lambda row: self._classify_run_budget_row(row, run_classes),
+        )
+        account_rows(
+            "execution_grid_cursors",
+            lambda row: decision_classes.get(row["decision_id"])
+            or self._raise_capacity_classification_invalid(),
+        )
+        account_rows(
+            "execution_grid_highwaters",
+            lambda row: decision_classes.get(row["decision_id"])
+            or self._raise_capacity_classification_invalid(),
+        )
+
+        def history_class(row: sqlite3.Row) -> str:
+            identity = (
+                row["account_scope"],
+                row["strategy_scope"],
+                row["cohort_id"],
+                row["close_time"],
+            )
+            candidates = grid_candidates.get(identity, ())
+            if len(candidates) != 1:
+                return self._raise_capacity_classification_invalid()
+            return candidates[0][1]
+
+        account_rows("factor_position_grid_history", history_class)
+
+        def intent_class(row: sqlite3.Row) -> str:
+            if (
+                row["state"] in ("DISPATCHING", "KNOWN", "UNKNOWN")
+                or row["dispatch_state"] in ("KNOWN", "UNKNOWN")
+                or row["dispatch_result_json"] is not None
+            ):
+                return "SETTLEMENT"
+            return (
+                intent_preparation_classes.get(row["intent_id"])
+                or self._raise_capacity_classification_invalid()
+            )
+
+        account_rows("execution_decision_intents", intent_class)
+        account_rows(
+            "execution_native_intent_identities",
+            lambda row: intent_preparation_classes.get(row["intent_id"])
+            or self._raise_capacity_classification_invalid(),
+        )
+
+        def owner_class(row: sqlite3.Row) -> str:
+            if row["owner_intent_id"] is None or row["cancel_intent_id"] is not None:
+                return "SETTLEMENT"
+            return (
+                intent_preparation_classes.get(row["owner_intent_id"])
+                or self._raise_capacity_classification_invalid()
+            )
+
+        account_rows("execution_instrument_owners", owner_class)
+
+        for table in (
+            "execution_decision_callbacks",
+            "execution_intent_resolutions",
+            "execution_intent_reconciliations",
+            "execution_callback_query_dispositions",
+            "execution_intent_abandonments",
+            "execution_slot_abandonments",
+            "factor_position_openings",
+            "factor_position_fills",
+            "factor_position_evidence_issues",
+            "factor_position_dated_trade_facts",
+            "factor_position_current",
+            "factor_position_active_issues",
+            "factor_position_fill_attributes",
+            "factor_position_open_intent_totals",
+        ):
+            account_rows(table, lambda _row: "SETTLEMENT")
+
+        for capacity_class in ("BASE", "SETTLEMENT"):
+            changed = cursor.execute(
+                """UPDATE execution_durable_capacity_usage
+                   SET record_count=?,payload_bytes=? WHERE capacity_class=?""",
+                (totals[capacity_class][0], totals[capacity_class][1], capacity_class),
+            )
+            if changed.rowcount != 1:
+                raise ExecutionDecisionJournalError("DURABLE_CAPACITY_USAGE_UNAVAILABLE")
+
+    @staticmethod
+    def _raise_capacity_classification_invalid() -> str:
+        raise ExecutionDecisionJournalError("DURABLE_CAPACITY_CLASSIFICATION_INVALID")
+
+    @classmethod
+    def _classify_run_budget_row(cls, row: sqlite3.Row, run_classes: Mapping[Any, set]) -> str:
+        key = (row["account_scope"], row["strategy_scope"], row["logical_run_id"])
+        classes = run_classes.get(key)
+        if not classes:
+            return cls._raise_capacity_classification_invalid()
+        # A pre-v12 aggregate row records only its current canonical value,
+        # not the historical split of prior growth. Use this deterministic
+        # one-time migration convention; future growth is charged by the
+        # operation's live capacity class.
+        return "BASE" if "BASE" in classes else "SETTLEMENT"
+
+    def _migrate_durable_capacity_v12(self, cursor: sqlite3.Cursor, version: int) -> None:
+        existing = {
+            row[0]
+            for row in cursor.execute(
+                """SELECT name FROM sqlite_master WHERE type='table'
+                   AND name IN ('execution_durable_capacity_limits',
+                                'execution_durable_capacity_usage')"""
+            ).fetchall()
+        }
+        if version < self._SCHEMA_VERSION:
+            if existing:
+                raise ExecutionDecisionJournalError("DURABLE_CAPACITY_SCHEMA_CORRUPT")
+            cursor.execute(
+                """CREATE TABLE execution_durable_capacity_limits (
+                    singleton INTEGER PRIMARY KEY CHECK(singleton=1),
+                    max_durable_base_records INTEGER NOT NULL CHECK(max_durable_base_records>0),
+                    max_durable_base_bytes INTEGER NOT NULL CHECK(max_durable_base_bytes>0),
+                    max_durable_settlement_records INTEGER NOT NULL
+                        CHECK(max_durable_settlement_records>0),
+                    max_durable_settlement_bytes INTEGER NOT NULL
+                        CHECK(max_durable_settlement_bytes>0)
+                )"""
+            )
+            cursor.execute(
+                """INSERT INTO execution_durable_capacity_limits
+                   (singleton,max_durable_base_records,max_durable_base_bytes,
+                    max_durable_settlement_records,max_durable_settlement_bytes)
+                   VALUES(1,?,?,?,?)""",
+                self._durable_capacity_config_values(),
+            )
+            try:
+                ensure_durable_capacity_usage_schema(cursor)
+            except DurableCapacityError as error:
+                raise ExecutionDecisionJournalError(error.code) from error
+            self._backfill_durable_capacity_usage(cursor)
+        self._validate_durable_capacity_tables(cursor)
+
     def _create_schema(self) -> None:
         with self._lock:
             version = int(self._connection.execute("PRAGMA user_version").fetchone()[0])
-            if version not in (0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, self._SCHEMA_VERSION):
+            if version not in (0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, self._SCHEMA_VERSION):
                 raise ExecutionDecisionJournalError("UNSUPPORTED_SCHEMA_VERSION")
             if version == self._SCHEMA_VERSION:
                 required_tables = {
@@ -3482,6 +4018,11 @@ class ExecutionDecisionJournal:
                     <= disposition_columns
                 ):
                     raise ExecutionDecisionJournalError("CALLBACK_DELIVERY_SCHEMA_CORRUPT")
+                cursor = self._connection.cursor()
+                try:
+                    self._validate_durable_capacity_tables(cursor)
+                finally:
+                    cursor.close()
             try:
                 self._connection.executescript(
                     """
@@ -3720,6 +4261,7 @@ class ExecutionDecisionJournal:
                     8,
                     9,
                     10,
+                    11,
                     self._SCHEMA_VERSION,
                 ):
                     raise ExecutionDecisionJournalError("UNSUPPORTED_SCHEMA_VERSION")
@@ -3889,13 +4431,19 @@ class ExecutionDecisionJournal:
                 )
                 if actual_capacity != expected_capacity:
                     raise ExecutionDecisionJournalError("JOURNAL_CAPACITY_CONFIG_MISMATCH")
+                cursor = self._connection.cursor()
+                try:
+                    self._migrate_durable_capacity_v12(cursor, locked_version)
+                finally:
+                    cursor.close()
                 self._connection.execute("PRAGMA user_version = {}".format(self._SCHEMA_VERSION))
                 self._connection.execute("COMMIT")
                 # V3 added the cohort grid cursor, V4 the position book, V5 slot
                 # abandonment, V6 native-id recovery, V7 capacity bounds, V8
                 # transactional native-identity backfill, V9 materialized bounded
                 # decision-capacity usage, V10 the cross-cohort grid highwater,
-                # V11 callback query dispositions and indexed delivery state.
+                # V11 callback query dispositions and indexed delivery state,
+                # V12 cumulative typed payload budgets across journal and book rows.
             except ExecutionDecisionJournalError:
                 if self._connection.in_transaction:
                     self._connection.execute("ROLLBACK")
@@ -3913,8 +4461,17 @@ class ExecutionDecisionJournal:
             cursor = self._connection.cursor()
             try:
                 cursor.execute("BEGIN IMMEDIATE")
-                yield cursor
+                with durable_capacity_transaction(cursor, self.durable_capacity_limits):
+                    yield cursor
                 cursor.execute("COMMIT")
+            except DurableCapacityError as error:
+                try:
+                    cursor.execute("ROLLBACK")
+                except sqlite3.Error:
+                    self._failed_closed = True
+                if not error.code.endswith("_EXHAUSTED"):
+                    self._failed_closed = True
+                raise ExecutionDecisionJournalError(error.code) from error
             except sqlite3.Error as error:
                 self._failed_closed = True
                 try:
@@ -3926,7 +4483,7 @@ class ExecutionDecisionJournal:
                 try:
                     cursor.execute("ROLLBACK")
                 except sqlite3.Error:
-                    pass
+                    self._failed_closed = True
                 raise
             finally:
                 cursor.close()

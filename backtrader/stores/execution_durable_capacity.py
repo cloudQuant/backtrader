@@ -13,13 +13,59 @@ from __future__ import annotations
 import json
 import math
 import sqlite3
+from contextlib import contextmanager
+from contextvars import ContextVar
 from dataclasses import dataclass
-from typing import Any, Optional
+from typing import Any, Iterator, Optional
 
 
 _MAX_SQLITE_INTEGER = 9_223_372_036_854_775_807
 _CAPACITY_CLASSES = ("BASE", "SETTLEMENT")
 _USAGE_TABLE = "execution_durable_capacity_usage"
+_ACTIVE_RECORDER: ContextVar[Optional["DurableCapacityRecorder"]] = ContextVar(
+    "backtrader_durable_capacity_recorder", default=None
+)
+
+_DURABLE_ROW_KEYS = {
+    "execution_decisions": ("decision_id",),
+    "execution_decision_slots": ("intent_id",),
+    "execution_run_order_budgets": ("account_scope", "strategy_scope", "logical_run_id"),
+    "execution_grid_cursors": ("account_scope", "strategy_scope", "cohort_id"),
+    "execution_grid_highwaters": ("account_scope", "strategy_scope"),
+    "execution_decision_intents": ("intent_id",),
+    "execution_native_intent_identities": ("intent_id",),
+    "execution_decision_callbacks": ("receipt_id",),
+    "execution_instrument_owners": ("account_scope", "instrument"),
+    "execution_intent_resolutions": ("intent_id",),
+    "execution_intent_reconciliations": ("reconciliation_id",),
+    "execution_callback_query_dispositions": ("native_receipt_id",),
+    "execution_intent_abandonments": ("abandonment_id",),
+    "execution_slot_abandonments": ("abandonment_id",),
+    "factor_position_grid_history": (
+        "account_scope",
+        "strategy_scope",
+        "cohort_id",
+        "ordinal",
+    ),
+    "factor_position_openings": ("intent_id",),
+    "factor_position_fills": ("account_scope", "instrument", "exchange", "execution_id"),
+    "factor_position_evidence_issues": ("receipt_id",),
+    "factor_position_dated_trade_facts": (
+        "account_scope",
+        "instrument",
+        "exchange",
+        "execution_id",
+    ),
+    "factor_position_current": ("account_scope", "instrument", "exchange"),
+    "factor_position_active_issues": ("account_scope", "instrument", "exchange_key"),
+    "factor_position_fill_attributes": (
+        "account_scope",
+        "instrument",
+        "exchange",
+        "execution_id",
+    ),
+    "factor_position_open_intent_totals": ("intent_id",),
+}
 
 DEFAULT_MAX_DURABLE_BASE_RECORDS = 500_000
 DEFAULT_MAX_DURABLE_BASE_BYTES = 1_073_741_824
@@ -128,6 +174,103 @@ class DurableCapacityUsage:
     base_bytes: int
     settlement_records: int
     settlement_bytes: int
+
+
+class DurableCapacityRecorder:
+    """Collect explicit row changes for one journal write transaction."""
+
+    def __init__(self, connection: sqlite3.Connection, limits: DurableCapacityLimits) -> None:
+        self.connection = connection
+        self.limits = limits
+        self.charge = DurableCapacityCharge()
+        self.active = True
+
+    def add(self, capacity_class: str, before: Any, after: Any) -> None:
+        if not self.active:
+            raise DurableCapacityError("DURABLE_CAPACITY_TRANSACTION_REQUIRED")
+        self.charge = DurableCapacityCharge.combine(
+            self.charge,
+            DurableCapacityCharge.for_row_change(capacity_class, before, after),
+        )
+
+
+@contextmanager
+def durable_capacity_transaction(
+    cursor: sqlite3.Cursor, limits: DurableCapacityLimits
+) -> Iterator[DurableCapacityRecorder]:
+    """Bind a transaction-local recorder and charge its aggregate before commit."""
+
+    if (
+        not isinstance(cursor, sqlite3.Cursor)
+        or not cursor.connection.in_transaction
+        or not isinstance(limits, DurableCapacityLimits)
+    ):
+        raise DurableCapacityError("DURABLE_CAPACITY_TRANSACTION_REQUIRED")
+    active = _ACTIVE_RECORDER.get()
+    if active is not None and active.active and active.connection is cursor.connection:
+        raise DurableCapacityError("DURABLE_CAPACITY_TRANSACTION_NESTED")
+    recorder = DurableCapacityRecorder(cursor.connection, limits)
+    token = _ACTIVE_RECORDER.set(recorder)
+    try:
+        yield recorder
+        if recorder.charge != DurableCapacityCharge():
+            charge_durable_capacity(cursor, limits, recorder.charge)
+    finally:
+        # Context copies retain the same recorder object even after this
+        # context resets its own ContextVar token. Invalidate the object before
+        # returning so a copied context cannot append an unflushed charge.
+        recorder.active = False
+        _ACTIVE_RECORDER.reset(token)
+
+
+@contextmanager
+def track_durable_row_change(
+    cursor: sqlite3.Cursor,
+    table: str,
+    key_values: tuple[Any, ...],
+    capacity_class: str,
+) -> Iterator[None]:
+    """Measure one explicit keyed payload-row write without parsing its SQL."""
+
+    if not isinstance(cursor, sqlite3.Cursor) or not cursor.connection.in_transaction:
+        raise DurableCapacityError("DURABLE_CAPACITY_TRANSACTION_REQUIRED")
+    key_columns = _DURABLE_ROW_KEYS.get(table)
+    if key_columns is None or len(key_values) != len(key_columns):
+        raise DurableCapacityError("DURABLE_ROW_KEY_INVALID")
+    if capacity_class not in _CAPACITY_CLASSES:
+        raise DurableCapacityError("INVALID_DURABLE_CAPACITY_CLASS")
+    recorder = _ACTIVE_RECORDER.get()
+    if recorder is None or not recorder.active or recorder.connection is not cursor.connection:
+        # Standalone position-book fixtures/databases have no journal budget.
+        # A journal-owned v12 database must never let a book mutation bypass it.
+        exists = cursor.execute(
+            "SELECT 1 FROM sqlite_master WHERE type='table' AND name=?", (_USAGE_TABLE,)
+        ).fetchone()
+        if exists is not None:
+            raise DurableCapacityError("DURABLE_CAPACITY_TRANSACTION_REQUIRED")
+        yield
+        return
+
+    predicate = " AND ".join("{}=?".format(column) for column in key_columns)
+
+    def snapshot() -> Any:
+        # Read through a separate cursor so this observation cannot replace
+        # the caller's DML rowcount before its optimistic-concurrency check.
+        read_cursor = cursor.connection.cursor()
+        try:
+            return read_cursor.execute(
+                "SELECT * FROM {} WHERE {}".format(table, predicate), key_values
+            ).fetchone()
+        finally:
+            read_cursor.close()
+
+    before = snapshot()
+    try:
+        yield
+    except BaseException:
+        raise
+    else:
+        recorder.add(capacity_class, before, snapshot())
 
 
 def canonical_sql_row_bytes(row: Any) -> bytes:
@@ -346,6 +489,8 @@ __all__ = [
     "DurableCapacityUsage",
     "canonical_sql_row_bytes",
     "charge_durable_capacity",
+    "durable_capacity_transaction",
     "ensure_durable_capacity_usage_schema",
     "read_durable_capacity_usage",
+    "track_durable_row_change",
 ]

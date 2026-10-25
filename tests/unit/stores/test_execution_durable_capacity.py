@@ -1,6 +1,7 @@
 """Focused contracts for the finite logical journal-payload budget helper."""
 
 import sqlite3
+from contextvars import copy_context
 
 import pytest
 
@@ -15,8 +16,10 @@ from backtrader.stores.execution_durable_capacity import (
     DurableCapacityUsage,
     canonical_sql_row_bytes,
     charge_durable_capacity,
+    durable_capacity_transaction,
     ensure_durable_capacity_usage_schema,
     read_durable_capacity_usage,
+    track_durable_row_change,
 )
 
 
@@ -375,6 +378,79 @@ def test_two_connections_serialize_capacity_updates_and_prevent_overspend(tmp_pa
     finally:
         first.close()
         second.close()
+
+
+def test_copied_context_cannot_append_after_capacity_transaction_exits():
+    connection = _memory_connection()
+    limits = DurableCapacityLimits()
+    connection.execute(
+        "CREATE TABLE execution_decision_callbacks (receipt_id TEXT PRIMARY KEY, payload TEXT)"
+    )
+    connection.execute("BEGIN IMMEDIATE")
+    cursor = connection.cursor()
+    ensure_durable_capacity_usage_schema(cursor)
+    try:
+        with durable_capacity_transaction(cursor, limits):
+            stale_context = copy_context()
+            with track_durable_row_change(
+                cursor, "execution_decision_callbacks", ("receipt-1",), "BASE"
+            ):
+                cursor.execute(
+                    "INSERT INTO execution_decision_callbacks VALUES(?,?)",
+                    ("receipt-1", "recorded while active"),
+                )
+        connection.commit()
+
+        charged = read_durable_capacity_usage(cursor)
+        assert charged.base_records == 1
+
+        connection.execute("BEGIN IMMEDIATE")
+
+        def stale_insert():
+            with track_durable_row_change(
+                cursor, "execution_decision_callbacks", ("receipt-2",), "BASE"
+            ):
+                cursor.execute(
+                    "INSERT INTO execution_decision_callbacks VALUES(?,?)",
+                    ("receipt-2", "must not commit"),
+                )
+
+        with pytest.raises(DurableCapacityError) as error:
+            stale_context.run(stale_insert)
+        assert error.value.code == "DURABLE_CAPACITY_TRANSACTION_REQUIRED"
+        assert (
+            connection.execute(
+                "SELECT 1 FROM execution_decision_callbacks WHERE receipt_id='receipt-2'"
+            ).fetchone()
+            is None
+        )
+        assert read_durable_capacity_usage(cursor) == charged
+        connection.rollback()
+
+        def fresh_transaction():
+            connection.execute("BEGIN IMMEDIATE")
+            with durable_capacity_transaction(cursor, limits), track_durable_row_change(
+                cursor, "execution_decision_callbacks", ("receipt-2",), "BASE"
+            ):
+                cursor.execute(
+                    "INSERT INTO execution_decision_callbacks VALUES(?,?)",
+                    ("receipt-2", "new active transaction"),
+                )
+            connection.commit()
+
+        stale_context.run(fresh_transaction)
+        usage_after_fresh_transaction = read_durable_capacity_usage(cursor)
+        assert usage_after_fresh_transaction.base_records == 2
+        assert (
+            connection.execute(
+                "SELECT 1 FROM execution_decision_callbacks WHERE receipt_id='receipt-2'"
+            ).fetchone()
+            is not None
+        )
+    finally:
+        if connection.in_transaction:
+            connection.rollback()
+        connection.close()
 
 
 def test_missing_usage_class_fails_closed():

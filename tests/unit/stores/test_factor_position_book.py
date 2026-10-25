@@ -8,6 +8,7 @@ import subprocess
 import sys
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
+from itertools import count
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Optional
@@ -40,6 +41,20 @@ _INSTRUMENT = "rb2701"
 _EXCHANGE = "SHFE"
 _COHORT = "rb-cohort"
 _AVAILABLE = datetime(2026, 10, 24, 10, 0, tzinfo=timezone.utc)
+
+
+@pytest.fixture(autouse=True)
+def _fixed_journal_clock(monkeypatch):
+    real_time = execution_decision_journal_module.time
+    offset = count()
+    monkeypatch.setattr(
+        execution_decision_journal_module,
+        "time",
+        SimpleNamespace(
+            monotonic=real_time.monotonic,
+            time_ns=lambda: _timestamp_ns(59, 59) + next(offset),
+        ),
+    )
 
 
 def _close_time(minute: int) -> str:
@@ -271,9 +286,9 @@ def test_snapshot_rejects_grid_history_ahead_of_available_time(tmp_path, monkeyp
     # this test runs later in the day. The grid cursor remains independently
     # ahead of that boundary and must be the reported blocker.
     monkeypatch.setattr(
-        execution_decision_journal_module,
-        "time",
-        SimpleNamespace(time_ns=lambda: _timestamp_ns(0, 40)),
+        execution_decision_journal_module.time,
+        "time_ns",
+        lambda: _timestamp_ns(0, 40),
     )
     journal = ExecutionDecisionJournal(tmp_path / "positions.sqlite3")
     _key, intent = _new_open(journal)
@@ -827,6 +842,12 @@ def test_v4_upgrade_preserves_fills_and_leaves_epoch_unproven(tmp_path):
     connection.execute("ALTER TABLE factor_position_fill_attributes DROP COLUMN position_epoch")
     connection.execute("DROP TABLE factor_position_open_intent_totals")
     connection.execute("UPDATE factor_position_book_meta SET version=4 WHERE singleton=1")
+    # A v4 position-book schema can only coexist with a pre-v12 journal.
+    # Model that supported upgrade sequence instead of retaining a v12 ledger
+    # beside an impossible old book schema.
+    connection.execute("DROP TABLE execution_durable_capacity_usage")
+    connection.execute("DROP TABLE execution_durable_capacity_limits")
+    connection.execute("PRAGMA user_version=11")
     connection.commit()
     connection.close()
 

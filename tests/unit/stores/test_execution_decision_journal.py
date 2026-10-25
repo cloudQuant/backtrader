@@ -23,6 +23,13 @@ from backtrader.stores.execution_decision_journal import (
 from backtrader.stores.factor_position_book import apply_factor_execution_fill
 
 
+def _drop_v12_durable_capacity_tables(connection: sqlite3.Connection) -> None:
+    """Restore a pre-v12 schema before exercising an older migration path."""
+
+    connection.execute("DROP TABLE IF EXISTS execution_durable_capacity_usage")
+    connection.execute("DROP TABLE IF EXISTS execution_durable_capacity_limits")
+
+
 def _decision_key(
     run_id: str = "run-a", *, close_time: str = "2026-10-20T10:00:00Z", kind: str = "bar"
 ) -> ExecutionDecisionKey:
@@ -326,10 +333,11 @@ def test_capacity_usage_migration_backfills_exact_bytes_once(tmp_path):
                 len(value.encode("utf-8")) for value in (business_key, economics, intent_keys)
             )
         connection.execute("DROP TABLE execution_decision_capacity_usage")
+        _drop_v12_durable_capacity_tables(connection)
         connection.execute("PRAGMA user_version = 8")
 
     migrated = ExecutionDecisionJournal(path)
-    assert migrated._connection.execute("PRAGMA user_version").fetchone()[0] == 11
+    assert migrated._connection.execute("PRAGMA user_version").fetchone()[0] == 12
     usage = migrated._connection.execute(
         """SELECT capacity_class,record_count,payload_bytes
            FROM execution_decision_capacity_usage ORDER BY capacity_class"""
@@ -362,20 +370,25 @@ def test_capacity_usage_concurrent_v8_openers_backfill_once(tmp_path, monkeypatc
     path = tmp_path / "capacity-v8-concurrent-migration.sqlite3"
     journal = ExecutionDecisionJournal(path)
     journal.record_decision(_decision_key("capacity-concurrent-migration"), {"signal": "flat"})
+    capacity_limits = journal.durable_capacity_limits
     journal.close()
 
     with sqlite3.connect(path) as connection:
         connection.execute("DROP TABLE execution_decision_capacity_usage")
+        _drop_v12_durable_capacity_tables(connection)
         connection.execute("PRAGMA user_version = 8")
 
     def schema_instance(connection):
         instance = object.__new__(ExecutionDecisionJournal)
         instance._connection = connection
         instance._lock = RLock()
+        instance._closed = False
+        instance._failed_closed = False
         instance.max_decision_records = 100000
         instance.settlement_decision_reserve_records = 4096
         instance.max_decision_bytes = 536870912
         instance.settlement_decision_reserve_bytes = 67108864
+        instance.durable_capacity_limits = capacity_limits
         return instance
 
     connections = [
@@ -429,7 +442,7 @@ def test_capacity_usage_concurrent_v8_openers_backfill_once(tmp_path, monkeypatc
 
     assert len(backfill_calls) == 1
     with sqlite3.connect(path) as connection:
-        assert connection.execute("PRAGMA user_version").fetchone()[0] == 11
+        assert connection.execute("PRAGMA user_version").fetchone()[0] == 12
         usage = connection.execute(
             """SELECT capacity_class,record_count
                FROM execution_decision_capacity_usage ORDER BY capacity_class"""
@@ -580,7 +593,7 @@ def test_schema_v1_migration_preserves_original_dispatch_outcome(tmp_path):
     assert intent.state == "UNKNOWN"
     assert intent.dispatch_state == "UNKNOWN"
     assert intent.outcome_code == "connection_lost"
-    assert journal._connection.execute("PRAGMA user_version").fetchone()[0] == 11
+    assert journal._connection.execute("PRAGMA user_version").fetchone()[0] == 12
     journal.close()
 
 
@@ -607,7 +620,7 @@ def test_schema_v2_migrates_grid_and_run_budget_tables(tmp_path):
         connection.execute("PRAGMA user_version = 2")
 
     journal = ExecutionDecisionJournal(path)
-    assert journal._connection.execute("PRAGMA user_version").fetchone()[0] == 11
+    assert journal._connection.execute("PRAGMA user_version").fetchone()[0] == 12
     names = {
         row["name"]
         for row in journal._connection.execute(
@@ -653,6 +666,7 @@ def test_schema_v7_startup_backfills_native_ref_without_rewriting_dispatch(tmp_p
             "DELETE FROM execution_native_intent_identities WHERE intent_id=?",
             (intent.intent_id,),
         )
+        _drop_v12_durable_capacity_tables(connection)
         connection.execute("PRAGMA user_version = 7")
 
     recovered = ExecutionDecisionJournal(path)
@@ -666,7 +680,7 @@ def test_schema_v7_startup_backfills_native_ref_without_rewriting_dispatch(tmp_p
     )
     assert indexed == unknown
     assert recovered.intent(intent.intent_id) == unknown
-    assert recovered._connection.execute("PRAGMA user_version").fetchone()[0] == 11
+    assert recovered._connection.execute("PRAGMA user_version").fetchone()[0] == 12
     recovered.close()
 
     with sqlite3.connect(path) as connection:
@@ -689,6 +703,7 @@ def test_legacy_order_ref_without_ctp_identity_stays_unindexed(tmp_path):
     journal.close()
 
     with sqlite3.connect(path) as connection:
+        _drop_v12_durable_capacity_tables(connection)
         connection.execute("PRAGMA user_version = 7")
 
     recovered = ExecutionDecisionJournal(path)
@@ -811,6 +826,7 @@ def test_v7_native_ref_collision_aborts_backfill_without_mutating_intents(tmp_pa
             (json.dumps(second_identity, sort_keys=True, separators=(",", ":")), second.intent_id),
         )
         connection.execute("DELETE FROM execution_native_intent_identities")
+        _drop_v12_durable_capacity_tables(connection)
         connection.execute("PRAGMA user_version = 7")
         raw_conflict = connection.execute(
             """SELECT intent_id, original_identity_json, state, dispatch_state,
@@ -1827,10 +1843,11 @@ def test_grid_highwater_migration_backfills_maximum_from_v9_cohort_cursors(tmp_p
     # stream highwater does not.
     with sqlite3.connect(path) as connection:
         connection.execute("DROP TABLE execution_grid_highwaters")
+        _drop_v12_durable_capacity_tables(connection)
         connection.execute("PRAGMA user_version = 9")
 
     migrated = ExecutionDecisionJournal(path)
-    assert migrated._connection.execute("PRAGMA user_version").fetchone()[0] == 11
+    assert migrated._connection.execute("PRAGMA user_version").fetchone()[0] == 12
     highwater = migrated._connection.execute(
         """SELECT close_time,cohort_id,decision_id FROM execution_grid_highwaters
            WHERE account_scope='account-a' AND strategy_scope='strategy-a'"""
@@ -1888,6 +1905,7 @@ def test_grid_highwater_migration_rejects_noncanonical_legacy_cursor_time(tmp_pa
                WHERE cohort_id=?""",
             (second.cohort_id,),
         )
+        _drop_v12_durable_capacity_tables(connection)
         connection.execute("PRAGMA user_version = 9")
 
     with pytest.raises(ExecutionDecisionJournalError, match="INVALID_STORED_GRID_CLOSE_TIME"):
