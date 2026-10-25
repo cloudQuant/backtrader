@@ -48,6 +48,7 @@ SDK_SELECTOR_SOURCE_SHA256 = "ca8fa2b48293e7c5d79c1a0cfc20fd229879693290b99b5644
 SDK_SELECTOR_MODULE = "bt_api_ctp.ctp_env_selector"
 SDK_SELECTOR_PROFILE = "set1_group1"
 SDK_SELECTOR_EVIDENCE_LEVEL = "INSTALLED_BT_WHEEL_PUBLIC_SDK_SOURCE_FIXTURE"
+SYNTHETIC_WRITE_MAX_ORDER_INTENTS_PER_RUN = 20
 
 
 class InstalledFixtureError(RuntimeError):
@@ -303,7 +304,7 @@ from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from pathlib import Path
 
-helper_path, wheel_path, wheel_hash, example_dir, template_path, workspace, selector_source_path, case, factor_mode = sys.argv[1:]
+helper_path, wheel_path, wheel_hash, example_dir, template_path, workspace, selector_source_path, case, factor_mode, slot_count_text = sys.argv[1:]
 SDK_SELECTOR_SOURCE_COMMIT = "48b476ea90665791c7d2f86935720ce238931520"
 SDK_SELECTOR_SOURCE_RELATIVE_PATH = "src/bt_api_ctp/ctp_env_selector.py"
 SDK_SELECTOR_SOURCE_SIZE_BYTES = 21403
@@ -408,7 +409,9 @@ config = yaml.safe_load(template_path.read_text(encoding="utf-8"))
 # CtpClientWrapper and RegisteredSimWrapper remain in the runtime MRO.
 targets = ("M2611", "Y2611", "A2611")
 helper._TARGETS = targets
-slot_count = 64
+slot_count = int(slot_count_text)
+if not 30 <= slot_count <= 64:
+    raise RuntimeError("synthetic planned slot count is outside the fixture bounds")
 source_slot_count = slot_count + 1
 utc = timezone.utc
 china = timezone(timedelta(hours=8))
@@ -417,8 +420,44 @@ first_close = created_at.replace(second=0, microsecond=0) + timedelta(minutes=3)
 last_close = first_close + timedelta(minutes=slot_count - 1)
 source_first_close = first_close - timedelta(minutes=1)
 bars, _unused_calendar = helper._fixture_bars(
-    slot_count=source_slot_count, varied_stream=True, first_close=source_first_close
+    slot_count=source_slot_count,
+    include_extra_fields=False,
+    varied_stream=True,
+    first_close=source_first_close,
 )
+# The shared execution helper intentionally exposes immutable bar rows.  Add
+# synthetic session metadata only to fixture-owned mutable copies.
+bars = {
+    target: [dict(row) for row in target_rows]
+    for target, target_rows in bars.items()
+}
+
+# Reuse the same synthetic contract metadata exposed by the execution leaf;
+# its PriceTick is 1 and its price range is 1..1000.
+contract_leaf = object.__new__(helper._ExecutionProviderLeaf)
+contract_leaf._provider_available = 100_000.0
+contract_rows = contract_leaf._execution_query_rows()
+contract_by_target = {
+    str(row["InstrumentID"]): row for row in contract_rows["instruments_result"]
+}
+margin_by_target = {
+    str(row["InstrumentID"]): row
+    for row in contract_rows["instrument_margin_rate_result"]
+}
+if set(contract_by_target) != set(targets) or set(margin_by_target) != set(targets):
+    raise RuntimeError("synthetic contract metadata does not cover the three targets")
+price_tick_by_target = {
+    target: Decimal(str(row["PriceTick"])) for target, row in contract_by_target.items()
+}
+if any(tick <= 0 for tick in price_tick_by_target.values()):
+    raise RuntimeError("synthetic contract PriceTick must be positive")
+price_scale = Decimal("100")
+for target_rows in bars.values():
+    for target_row in target_rows:
+        for field_name in ("open", "high", "low", "close"):
+            target_row[field_name] = float(
+                Decimal(str(target_row[field_name])) * price_scale
+            )
 
 from backtrader.feeds.futures_main_contract import (
     ExchangeTradingDay,
@@ -441,8 +480,16 @@ products = tuple(ProductKey("DCE", product_id) for product_id in ("M", "Y", "A")
 instruments = dict(zip(products, targets))
 authorized_targets = ("DCE.M", "DCE.A")
 trading_day = last_close.astimezone(china).date()
-for target_rows in bars.values():
+for target, target_rows in bars.items():
+    contract = contract_by_target[target]
+    lower_limit = Decimal(str(contract["LowerLimitPrice"]))
+    upper_limit = Decimal(str(contract["UpperLimitPrice"]))
     for target_row in target_rows:
+        if (
+            Decimal(str(target_row["low"])) < lower_limit
+            or Decimal(str(target_row["high"])) > upper_limit
+        ):
+            raise RuntimeError("scaled synthetic OHLC exceeds its contract price limits")
         target_row["trading_day"] = trading_day.isoformat()
         target_row["session_segment"] = "regular"
 expiry_day = trading_day + timedelta(days=45)
@@ -609,6 +656,40 @@ write_risk = {
     "max_order_intents_per_grid": 2,
     "max_order_intents_per_run": 20,
 }
+authorized_contract_notional = Decimal("0")
+authorized_contract_margin = Decimal("0")
+authorized_instruments = {
+    instruments[product]
+    for product in products
+    if "DCE." + product.product_id in authorized_targets
+}
+for target in targets:
+    if target not in authorized_instruments:
+        continue
+    contract = contract_by_target[target]
+    price_tick = price_tick_by_target[target]
+    max_ask_price = max(
+        (Decimal(str(row["high"])) / price_tick).quantize(Decimal("1")) * price_tick
+        + price_tick
+        for row in bars[target]
+    )
+    max_contract_notional = max_ask_price * Decimal(str(contract["VolumeMultiple"]))
+    max_contract_margin = max_contract_notional * Decimal(
+        str(margin_by_target[target]["LongMarginRatioByMoney"])
+    )
+    if (
+        max_contract_notional > Decimal(write_risk["max_notional_per_position"])
+        or max_contract_margin > Decimal(write_risk["max_margin_per_position"])
+    ):
+        raise RuntimeError("synthetic contract price exceeds the write-risk per-position budget")
+    authorized_contract_notional += max_contract_notional
+    authorized_contract_margin += max_contract_margin
+if (
+    authorized_contract_notional > Decimal(write_risk["max_total_notional"])
+    or authorized_contract_margin > Decimal(write_risk["max_total_margin"])
+    or authorized_contract_margin > Decimal(str(contract_leaf._provider_available))
+):
+    raise RuntimeError("synthetic contract prices exceed the total write-risk budget")
 if case == "write":
     config["risk"].update(write_risk)
     config["live"]["arm_templates"] = [
@@ -658,7 +739,14 @@ os.environ["BT_SIMNOW_CONFIG_JSON"] = json.dumps({
         "auth_code": "FIXTURE_ONLY_NOT_A_CREDENTIAL",
         "bar_watermark_ms": 0,
     },
-    "api_kwargs": {"fixture_marker": "iteration51-synthetic-ctp-leaf"},
+    "api_kwargs": {
+        "fixture_marker": "iteration51-synthetic-ctp-leaf",
+        "live_tick_provenance": {
+            "clock_domain_id": helper._CLOCK_DOMAIN,
+            "rules_hash": "a" * 64,
+            "session_segment": "regular",
+        },
+    },
 }, sort_keys=True, separators=(",", ":"))
 store_environment = json.loads(os.environ["BT_SIMNOW_CONFIG_JSON"])
 if (
@@ -671,11 +759,13 @@ if (
 fake_state = {
     "trader_clients": [], "md_clients": [], "query_families": [],
     "subscriptions": [], "arm_calls": 0, "disarm_calls": 0,
+    "arm_scope_observations": [], "disarm_scope_observations": [],
     "synthetic_leaf_actions": [], "disconnect_calls": 0,
     "trader_stop_calls": 0, "md_stop_calls": 0, "wrapper_mros": [],
     "wrapper_write_flags": [], "wrapper_api_instances": [],
     "synthetic_fill_count": 0, "ctp_order_callback_count": 0,
-    "ctp_trade_callback_count": 0,
+    "ctp_trade_callback_count": 0, "ctp_order_callback_associations": [],
+    "ctp_trade_callback_associations": [], "ctp_trade_query_associations": [],
 }
 helper._EXECUTION_TRADING_DAY = trading_day.strftime("%Y%m%d")
 
@@ -683,35 +773,75 @@ helper._EXECUTION_TRADING_DAY = trading_day.strftime("%Y%m%d")
 # that the installed CTP feed intentionally discards as its cumulative-volume
 # baseline.  Each later source minute maps one planned cohort slot; one final
 # boundary tick closes the last planned minute.
+def _synthetic_quote_fields(target, price, cumulative_volume):
+    price_tick = price_tick_by_target[target]
+    tick_units = (Decimal(str(price)) / price_tick).quantize(Decimal("1"))
+    last_price = tick_units * price_tick
+    bid_price = last_price - price_tick
+    ask_price = last_price + price_tick
+    contract = contract_by_target[target]
+    if (
+        bid_price < Decimal(str(contract["LowerLimitPrice"]))
+        or ask_price > Decimal(str(contract["UpperLimitPrice"]))
+    ):
+        raise RuntimeError("synthetic quote exceeds its contract price limits")
+    return {
+        "LastPrice": float(last_price),
+        "BidPrice1": float(bid_price),
+        "AskPrice1": float(ask_price),
+        "Turnover": float(last_price) * cumulative_volume,
+    }
+
+
+def _synthetic_ctp_payload(fields):
+    """Build the attribute-backed leaf shape used by native CTP callbacks."""
+    if not isinstance(fields, dict):
+        raise TypeError("synthetic CTP payload fields must be a dict")
+    return types.SimpleNamespace(**fields)
+
+
 synthetic_events = []
 for target in targets:
     cumulative_volume = 0
     for row_index, row in enumerate(bars[target]):
         bucket_start = row["bucket_start"]
         values = (row["open"], row["high"], row["low"], row["close"])
+        bar_volume_decimal = Decimal(str(row["volume"]))
+        if not bar_volume_decimal.is_finite() or bar_volume_decimal <= 0:
+            raise RuntimeError("synthetic source bar volume must be finite and positive")
+        bar_volume = int(bar_volume_decimal.to_integral_value())
+        if bar_volume < 4:
+            raise RuntimeError("synthetic source bar needs positive volume at all four ticks")
+        tick_volume_base, tick_volume_remainder = divmod(bar_volume, len(values))
         for tick_index, (offset_seconds, price) in enumerate(
             zip((1, 15, 30, 50), values)
         ):
-            cumulative_volume += 1
+            tick_volume = tick_volume_base + int(tick_index < tick_volume_remainder)
+            cumulative_volume += tick_volume
             event_time = bucket_start + timedelta(seconds=offset_seconds)
             local_time = event_time.astimezone(china)
             payload = {
                 "InstrumentID": target,
                 "ExchangeID": "DCE",
-                "LastPrice": float(price),
+                **_synthetic_quote_fields(target, price, cumulative_volume),
                 "Volume": cumulative_volume,
                 "OpenInterest": 0,
                 "TradingDay": trading_day.strftime("%Y%m%d"),
                 "ActionDay": local_time.strftime("%Y%m%d"),
                 "UpdateTime": local_time.strftime("%H:%M:%S"),
                 "UpdateMillisec": 0,
-                "BidPrice1": float(price) - 1.0,
-                "AskPrice1": float(price) + 1.0,
                 "BidVolume1": 5,
                 "AskVolume1": 6,
-                "Turnover": float(price) * cumulative_volume,
             }
-            synthetic_events.append((event_time, target, row_index, tick_index, payload))
+            synthetic_events.append(
+                (
+                    event_time,
+                    target,
+                    row_index,
+                    tick_index,
+                    _synthetic_ctp_payload(payload),
+                )
+            )
     cumulative_volume += 1
     sentinel_time = last_close + timedelta(seconds=1)
     local_time = sentinel_time.astimezone(china)
@@ -720,22 +850,21 @@ for target in targets:
         target,
         source_slot_count,
         0,
-        {
+        _synthetic_ctp_payload({
             "InstrumentID": target,
             "ExchangeID": "DCE",
-            "LastPrice": float(bars[target][-1]["close"]),
+            **_synthetic_quote_fields(
+                target, bars[target][-1]["close"], cumulative_volume
+            ),
             "Volume": cumulative_volume,
             "OpenInterest": 0,
             "TradingDay": trading_day.strftime("%Y%m%d"),
             "ActionDay": local_time.strftime("%Y%m%d"),
             "UpdateTime": local_time.strftime("%H:%M:%S"),
             "UpdateMillisec": 0,
-            "BidPrice1": float(bars[target][-1]["close"]) - 1.0,
-            "AskPrice1": float(bars[target][-1]["close"]) + 1.0,
             "BidVolume1": 5,
             "AskVolume1": 6,
-            "Turnover": float(bars[target][-1]["close"]) * cumulative_volume,
-        },
+        }),
     ))
 synthetic_events.sort(key=lambda item: (item[0], item[1], item[2], item[3]))
 
@@ -928,14 +1057,24 @@ _sdk_client_module._TraderSpi = type("SyntheticSdkTraderSpi", (), {})
 
 
 def _wrapper_owner_from_sdk_constructor():
-    # The SDK constructor is called directly by CtpClientWrapper.connect(); its
-    # immediate Python caller is the real installed wrapper instance.
-    caller = sys._getframe(1)
-    wrapper = caller.f_locals.get("self")
+    # The synthetic leaf constructor is called by the real installed wrapper's
+    # connect() method. Its own frame is one level above this helper; the next
+    # frame owns the actual CtpClientWrapper/RegisteredSimWrapper instance.
+    leaf_frame = sys._getframe(1)
+    wrapper_frame = leaf_frame.f_back
+    if wrapper_frame is None or wrapper_frame.f_code.co_name != "connect":
+        raise RuntimeError("synthetic SDK leaf was not constructed by CTP connect()")
+    wrapper = wrapper_frame.f_locals.get("self")
     if wrapper is None:
         raise RuntimeError("synthetic SDK leaf was not constructed by CtpClientWrapper")
-    mro_names = [base.__name__ for base in type(wrapper).__mro__]
-    if "CtpClientWrapper" not in mro_names or "RegisteredSimWrapper" not in mro_names:
+    mro = type(wrapper).__mro__
+    mro_names = [base.__name__ for base in mro]
+    ctp_wrapper = next((base for base in mro if base.__name__ == "CtpClientWrapper"), None)
+    if (
+        ctp_wrapper is None
+        or ctp_wrapper.connect.__code__ is not wrapper_frame.f_code
+        or "RegisteredSimWrapper" not in mro_names
+    ):
         raise RuntimeError("installed RegisteredSim/Ctp wrapper composition is missing")
     if not any(existing is wrapper for existing in fake_state["wrapper_api_instances"]):
         fake_state["wrapper_mros"].append(mro_names)
@@ -943,6 +1082,7 @@ def _wrapper_owner_from_sdk_constructor():
             getattr(wrapper, "_registered_sim_allow_writes", None)
         )
         fake_state["wrapper_api_instances"].append(wrapper)
+    return wrapper
 
 
 class SyntheticTraderClient(helper._ExecutionProviderLeaf):
@@ -950,7 +1090,7 @@ class SyntheticTraderClient(helper._ExecutionProviderLeaf):
 
     def __init__(self, **kwargs):
         del kwargs
-        _wrapper_owner_from_sdk_constructor()
+        self._fixture_wrapper_owner = _wrapper_owner_from_sdk_constructor()
         super().__init__(bars=bars, slot_count=source_slot_count)
         self.is_read_only_ready = True
         self._req_id = 100
@@ -1042,12 +1182,29 @@ class SyntheticTraderClient(helper._ExecutionProviderLeaf):
 
     def arm_execution_for_registered_sim(self, **kwargs):
         fake_state["arm_calls"] += 1
-        return super().arm_execution_for_registered_sim(**kwargs)
+        grant = super().arm_execution_for_registered_sim(**kwargs)
+        gate_state = grant[1] if isinstance(grant, tuple) and len(grant) == 2 else None
+        authorized = (
+            gate_state.get("authorized_instruments")
+            if isinstance(gate_state, dict)
+            else None
+        )
+        fake_state["arm_scope_observations"].append({
+            "requested_instrument_id": str(kwargs.get("instrument_id", "")),
+            "authorized_instruments": list(authorized) if isinstance(authorized, list) else None,
+        })
+        return grant
 
     def disarm_execution_gate(self, capability, reason):
         if capability is None:
             raise RuntimeError("synthetic disarm requires the issued capability")
         fake_state["disarm_calls"] += 1
+        authorized = self._gate_state.get("authorized_instruments")
+        fake_state["disarm_scope_observations"].append(
+            [str(instrument) for instrument in authorized]
+            if isinstance(authorized, list)
+            else None
+        )
         self._gate_state = {
             **self._gate_state,
             "managed": True,
@@ -1060,6 +1217,7 @@ class SyntheticTraderClient(helper._ExecutionProviderLeaf):
     def submit_order_insert(self, field, request_id, *, execution_capability):
         fake_state["synthetic_leaf_actions"].append({
             "action": "insert",
+            "order_ref": str(field.OrderRef),
             "instrument": str(field.InstrumentID),
             "exchange": str(field.ExchangeID),
         })
@@ -1069,6 +1227,7 @@ class SyntheticTraderClient(helper._ExecutionProviderLeaf):
         order_ref = str(field.OrderRef)
         instrument = str(field.InstrumentID)
         exchange = str(field.ExchangeID)
+        order_sys_id = "iteration51-sys-" + order_ref
         quantity = int(field.VolumeTotalOriginal)
         direction_flag = str(field.Direction)
         offset_flag = str(field.CombOffsetFlag)
@@ -1085,57 +1244,132 @@ class SyntheticTraderClient(helper._ExecutionProviderLeaf):
             "session_id": self._session_id,
         }
 
-        def _complete_synthetic_fill():
+        def _emit_order_status(ctp_status, filled, remaining):
             self.observe_order(
-                order_ref, ctp_status="0", filled=quantity, remaining=0
+                order_ref, ctp_status=ctp_status, filled=filled, remaining=remaining
             )
+            query_order_row = self._provider_order_rows.get(order_ref)
+            if not isinstance(query_order_row, dict):
+                raise RuntimeError("synthetic order query row was not published")
+            query_order_row["OrderSysID"] = order_sys_id
+            self._query_rows["orders_result"] = list(self._provider_order_rows.values())
+            if not callable(self.on_order):
+                raise RuntimeError("synthetic CTP trader lacks the production order callback")
+            callback_owner = getattr(self.on_order, "__self__", None)
+            local_time = virtual_scheduler.utc_now().astimezone(china)
+            self.on_order(types.SimpleNamespace(
+                OrderRef=order_ref,
+                OrderSysID=order_sys_id,
+                InstrumentID=instrument,
+                ExchangeID=exchange,
+                OrderStatus=ctp_status,
+                OrderSubmitStatus="3",
+                Direction=direction_flag,
+                CombOffsetFlag=offset_flag,
+                LimitPrice=price,
+                VolumeTotalOriginal=quantity,
+                VolumeTraded=filled,
+                VolumeTotal=remaining,
+                FrontID=self._front_id,
+                SessionID=self._session_id,
+                UpdateTime=local_time.strftime("%H:%M:%S"),
+                TradingDay=self._trading_day,
+            ))
+            pending = (
+                callback_owner._pending_orders.get(order_ref)
+                if callback_owner is not None
+                else None
+            )
+            pending_by_sys_id = (
+                callback_owner._pending_orders_by_sys_id.get(order_sys_id)
+                if callback_owner is not None
+                else None
+            )
+            fake_state["ctp_order_callback_associations"].append({
+                "order_ref": order_ref,
+                "status": ctp_status,
+                "callback_order_sys_id": order_sys_id,
+                "query_order_sys_id": query_order_row.get("OrderSysID"),
+                "query_order_sys_id_matches": (
+                    query_order_row.get("OrderSysID") == order_sys_id
+                ),
+                "callback_owner_is_wrapper": any(
+                    wrapper is callback_owner
+                    for wrapper in fake_state["wrapper_api_instances"]
+                ),
+                "pending_order_present": pending is not None,
+                "pending_order_ref_matches": (
+                    pending is not None and pending.get("order_ref") == order_ref
+                ),
+                "system_id_order_ref_matches": (
+                    isinstance(pending_by_sys_id, dict)
+                    and pending_by_sys_id.get("order_ref") == order_ref
+                ),
+                "system_id_uses_full_pending_order": (
+                    pending is not None and pending_by_sys_id is pending
+                ),
+            })
+            fake_state["ctp_order_callback_count"] += 1
+
+        # The production wrapper observes the CTP accepted state before the
+        # later synthetic fill callback, matching the ordinary order lifecycle.
+        _emit_order_status("3", 0, quantity)
+
+        def _complete_synthetic_fill():
+            _emit_order_status("0", quantity, 0)
+            trade_id = "iteration51-" + order_ref
             self.observe_trade_fill(
                 order_ref,
-                "iteration51-" + order_ref,
+                trade_id,
                 quantity=quantity,
                 offset=offset,
                 when=virtual_scheduler.utc_now(),
                 fee=0.0,
             )
-            if callable(self.on_order):
-                self.on_order(types.SimpleNamespace(
-                    OrderRef=order_ref,
-                    OrderSysID="",
-                    InstrumentID=instrument,
-                    ExchangeID=exchange,
-                    OrderStatus="0",
-                    OrderSubmitStatus="0",
-                    Direction=direction_flag,
-                    CombOffsetFlag=offset_flag,
-                    LimitPrice=price,
-                    VolumeTotalOriginal=quantity,
-                    VolumeTraded=quantity,
-                    VolumeTotal=0,
-                    FrontID=self._front_id,
-                    SessionID=self._session_id,
-                    UpdateTime=virtual_scheduler.utc_now()
-                    .astimezone(china)
-                    .strftime("%H:%M:%S"),
-                    TradingDay=self._trading_day,
-                ))
-            if callable(self.on_trade):
-                local_time = virtual_scheduler.utc_now().astimezone(china)
-                self.on_trade(types.SimpleNamespace(
-                    TradeID="iteration51-" + order_ref,
-                    OrderRef=order_ref,
-                    OrderSysID="",
-                    InstrumentID=instrument,
-                    ExchangeID=exchange,
-                    Direction=direction_flag,
-                    OffsetFlag=offset_flag,
-                    HedgeFlag="1",
-                    Volume=quantity,
-                    Price=price,
-                    Commission=0.0,
-                    TradeDate=local_time.strftime("%Y%m%d"),
-                    TradeTime=local_time.strftime("%H:%M:%S.%f"),
-                    TradingDay=self._trading_day,
-                ))
+            query_trade_rows = [
+                row for row in self._provider_trade_rows if row.get("TradeID") == trade_id
+            ]
+            if len(query_trade_rows) != 1:
+                raise RuntimeError("synthetic trade query row was not published exactly once")
+            query_trade_row = query_trade_rows[0]
+            query_trade_row["OrderSysID"] = order_sys_id
+            self._query_rows["trades_result"] = list(self._provider_trade_rows)
+            fake_state["ctp_trade_query_associations"].append({
+                "trade_id": trade_id,
+                "order_ref": order_ref,
+                "callback_order_sys_id": order_sys_id,
+                "query_order_sys_id": query_trade_row.get("OrderSysID"),
+                "query_order_sys_id_matches": (
+                    query_trade_row.get("OrderSysID") == order_sys_id
+                ),
+            })
+            if not callable(self.on_trade):
+                raise RuntimeError("synthetic CTP trader lacks the production trade callback")
+            local_time = virtual_scheduler.utc_now().astimezone(china)
+            trade_callback = types.SimpleNamespace(
+                TradeID=trade_id,
+                OrderRef=order_ref,
+                OrderSysID=order_sys_id,
+                InstrumentID=instrument,
+                ExchangeID=exchange,
+                Direction=direction_flag,
+                OffsetFlag=offset_flag,
+                HedgeFlag="1",
+                Volume=quantity,
+                Price=price,
+                Commission=0.0,
+                TradeDate=local_time.strftime("%Y%m%d"),
+                TradeTime=local_time.strftime("%H:%M:%S.%f"),
+                TradingDay=self._trading_day,
+            )
+            self.on_trade(trade_callback)
+            fake_state["ctp_trade_callback_associations"].append({
+                "trade_id": str(trade_callback.TradeID),
+                "order_ref": str(trade_callback.OrderRef),
+                "order_sys_id": str(trade_callback.OrderSysID),
+            })
+            fake_state["ctp_trade_callback_count"] += 1
+            fake_state["synthetic_fill_count"] += 1
 
         _schedule_synthetic_callback(
             virtual_scheduler.utc_now() + timedelta(seconds=1),
@@ -1147,6 +1381,7 @@ class SyntheticTraderClient(helper._ExecutionProviderLeaf):
         field = args[0] if args else None
         fake_state["synthetic_leaf_actions"].append({
             "action": "cancel",
+            "order_ref": str(getattr(field, "OrderRef", "")),
             "instrument": str(getattr(field, "InstrumentID", "")),
             "exchange": str(getattr(field, "ExchangeID", "")),
         })
@@ -1160,7 +1395,7 @@ class SyntheticMdClient:
 
     def __init__(self, **kwargs):
         del kwargs
-        _wrapper_owner_from_sdk_constructor()
+        self._fixture_wrapper_owner = _wrapper_owner_from_sdk_constructor()
         self.connection_generation = 1
         self.on_tick = None
         self.on_tick_with_generation = None
@@ -1221,6 +1456,84 @@ runner_globals = None
 runner_clock_original = None
 runner_clock_constructor_calls_before = None
 cli_stdout = __import__("io").StringIO()
+live_cohort_exception_diagnostics = []
+live_cohort_exception_indices = {}
+live_cohort_exception_refs = []
+previous_system_trace = sys.gettrace()
+
+def _bounded_diagnostic_value(value, depth=0):
+    if value is None or type(value) in (bool, int, float):
+        return value
+    if isinstance(value, str):
+        return value[:256]
+    if depth >= 2:
+        return {"type": type(value).__name__}
+    if isinstance(value, dict):
+        return {
+            str(key)[:80]: _bounded_diagnostic_value(item, depth + 1)
+            for key, item in list(value.items())[:16]
+        }
+    if isinstance(value, (tuple, list)):
+        return [_bounded_diagnostic_value(item, depth + 1) for item in value[:16]]
+    return {"type": type(value).__name__}
+
+def _trace_live_cohort_exception(frame, event, arg):
+    if event == "call":
+        if frame.f_globals.get("__name__") == "backtrader.research.live_cohort":
+            return _trace_live_cohort_exception
+        return None
+    if event == "exception":
+        error_type, error, traceback_value = arg
+        error_module = getattr(error_type, "__module__", "")
+        error_name = getattr(error_type, "__name__", "")
+        if error_module == "backtrader.research.live_cohort" and error_name.startswith(
+            "LiveCohort"
+        ):
+            identity = id(error)
+            existing_index = live_cohort_exception_indices.get(identity)
+            existing_error_is_same = (
+                existing_index is not None
+                and live_cohort_exception_refs[existing_index] is error
+            )
+            frames = []
+            current = traceback_value
+            while current is not None and len(frames) < 32:
+                code = current.tb_frame.f_code
+                frames.append(
+                    {
+                        "file": code.co_filename[:320],
+                        "function": code.co_name[:160],
+                        "line": current.tb_lineno,
+                    }
+                )
+                current = current.tb_next
+            if existing_error_is_same:
+                prior = live_cohort_exception_diagnostics[existing_index]
+                if len(frames) > len(prior["traceback"]):
+                    prior["traceback"] = frames
+            elif len(live_cohort_exception_diagnostics) < 8:
+                try:
+                    message = str(error)[:512]
+                except Exception:
+                    message = "<message-unavailable>"
+                report = getattr(error, "report", None)
+                live_cohort_exception_indices[identity] = len(
+                    live_cohort_exception_diagnostics
+                )
+                live_cohort_exception_refs.append(error)
+                live_cohort_exception_diagnostics.append(
+                    {
+                        "module": error_module,
+                        "type": error_name,
+                        "code": _bounded_diagnostic_value(getattr(error, "code", None)),
+                        "detail": _bounded_diagnostic_value(getattr(error, "detail", None)),
+                        "report": _bounded_diagnostic_value(report),
+                        "message": message,
+                        "traceback": frames,
+                    }
+                )
+    return _trace_live_cohort_exception
+
 try:
     runner_namespace = runpy.run_path(
         str(example / "run.py"), run_name="iteration51_synthetic_live_cli"
@@ -1242,6 +1555,7 @@ try:
         SyntheticVirtualScheduler._runner_clock_constructor_calls
     )
     from contextlib import redirect_stdout
+    sys.settrace(_trace_live_cohort_exception)
     with redirect_stdout(cli_stdout):
         exit_code = runner_run()
     if type(exit_code) is not int:
@@ -1254,6 +1568,7 @@ except SystemExit as result:
     else:
         exit_code = 1
 finally:
+    sys.settrace(previous_system_trace)
     socket.socket.connect = original_socket_connect
     socket.socket.connect_ex = original_socket_connect_ex
     socket.socket.sendto = original_socket_sendto
@@ -1274,6 +1589,33 @@ for line_index in reversed(range(len(cli_lines))):
         summary = candidate
         summary_line_index = line_index
         break
+diagnostic_payload = {
+    "schema": "backtrader.iteration51.synthetic_live_cohort_diagnostics.v1",
+    "capture": "installed live_cohort exception events during copied public CLI run",
+    "captured_exception_count": len(live_cohort_exception_diagnostics),
+    "exceptions": live_cohort_exception_diagnostics,
+    "runner_summary": (
+        {
+            key: _bounded_diagnostic_value(summary.get(key))
+            for key in ("status", "code", "detail", "error_code")
+            if key in summary
+        }
+        if isinstance(summary, dict)
+        else None
+    ),
+}
+diagnostic_bytes = json.dumps(
+    diagnostic_payload, sort_keys=True, separators=(",", ":")
+).encode("utf-8")
+diagnostic_path = case_root / "live-cohort-exception-diagnostics.json"
+with diagnostic_path.open("xb") as diagnostic_handle:
+    diagnostic_handle.write(diagnostic_bytes)
+diagnostic_receipt = {
+    "path": str(diagnostic_path),
+    "size_bytes": len(diagnostic_bytes),
+    "sha256": hashlib.sha256(diagnostic_bytes).hexdigest(),
+    "captured_exception_count": len(live_cohort_exception_diagnostics),
+}
 if summary is None:
     raise RuntimeError("actual public CLI did not emit a JSON summary")
 summary_line = cli_lines[summary_line_index]
@@ -1348,15 +1690,32 @@ print("ITERATION51_SYNTHETIC_LIVE_CHILD=" + json.dumps({
     "ctp_wrapper_mros": fake_state["wrapper_mros"],
     "ctp_trader_leaf_instances": len(fake_state["trader_clients"]),
     "ctp_md_leaf_instances": len(fake_state["md_clients"]),
+    "ctp_trader_leaf_wrapper_matches_registered_instance": (
+        len(fake_state["trader_clients"]) == 1
+        and len(fake_state["wrapper_api_instances"]) == 1
+        and fake_state["trader_clients"][0]._fixture_wrapper_owner
+        is fake_state["wrapper_api_instances"][0]
+    ),
+    "ctp_md_leaf_wrapper_matches_registered_instance": (
+        len(fake_state["md_clients"]) == 1
+        and len(fake_state["wrapper_api_instances"]) == 1
+        and fake_state["md_clients"][0]._fixture_wrapper_owner
+        is fake_state["wrapper_api_instances"][0]
+    ),
     "store_write_flags": fake_state["wrapper_write_flags"],
     "query_families": sorted(set(fake_state["query_families"])),
     "subscriptions": sorted(fake_state["subscriptions"]),
     "arm_calls": fake_state["arm_calls"],
     "disarm_calls": fake_state["disarm_calls"],
+    "arm_scope_observations": fake_state["arm_scope_observations"],
+    "disarm_scope_observations": fake_state["disarm_scope_observations"],
     "disconnect_calls": fake_state["disconnect_calls"],
     "synthetic_leaf_actions": list(fake_state["synthetic_leaf_actions"]),
     "store_environment_shape_valid": True,
     "store_environment_api_kwargs_keys": sorted(store_environment["api_kwargs"]),
+    "store_live_tick_provenance": store_environment["api_kwargs"]["live_tick_provenance"],
+    "live_cohort_exception_diagnostics": diagnostic_receipt,
+    "planned_slot_count": slot_count,
     "network_attempts": len(network_attempts),
     "virtual_scheduler": True,
     "virtual_scheduler_advance_count": virtual_scheduler._advance_count,
@@ -1404,7 +1763,11 @@ print("ITERATION51_SYNTHETIC_LIVE_CHILD=" + json.dumps({
     },
     "synthetic_fill_count": fake_state["synthetic_fill_count"],
     "ctp_order_callback_count": fake_state["ctp_order_callback_count"],
+    "ctp_order_callback_associations": fake_state["ctp_order_callback_associations"],
     "ctp_trade_callback_count": fake_state["ctp_trade_callback_count"],
+    "ctp_trade_callback_associations": fake_state["ctp_trade_callback_associations"],
+    "ctp_trade_query_associations": fake_state["ctp_trade_query_associations"],
+    "max_order_intents_per_run": write_risk["max_order_intents_per_run"],
     "synthetic_leaf_close_receipt": leaf_close_receipt,
     "synthetic_sdk_modules": [
         "bt_api_ctp.ctp", "bt_api_ctp.ctp.client",
@@ -1569,7 +1932,33 @@ def run_cli_case(
             check=False,
         )
     except subprocess.TimeoutExpired as exc:
-        raise InstalledFixtureError("public CLI exceeded its bounded timeout") from exc
+        timeout_stdout = exc.stdout if exc.stdout is not None else b""
+        timeout_stderr = exc.stderr if exc.stderr is not None else b""
+        if isinstance(timeout_stdout, str):
+            timeout_stdout = timeout_stdout.encode("utf-8")
+        if isinstance(timeout_stderr, str):
+            timeout_stderr = timeout_stderr.encode("utf-8")
+        if type(timeout_stdout) is not bytes or type(timeout_stderr) is not bytes:
+            raise InstalledFixtureError(
+                "public CLI timed out with an unsupported partial-output type"
+            ) from exc
+        timeout_workspace = _require_external(
+            Path(example_dir).resolve().parent,
+            label="installed CLI timeout workspace",
+        )
+        timeout_output = _preserve_synthetic_child_output(
+            timeout_workspace,
+            "iteration51-installed-cli-" + mode + "-" + factor_mode,
+            stdout_bytes=timeout_stdout,
+            stderr_bytes=timeout_stderr,
+            exit_record=b"UNKNOWN_TIMEOUT\n",
+            exit_code=None,
+            exit_status="unknown_timeout",
+        )
+        raise InstalledFixtureError(
+            "public CLI exceeded its bounded timeout; exit status is unknown; "
+            "raw output was preserved at " + timeout_output["stdout_path"]
+        ) from exc
     summary = _last_json_object(completed.stdout)
     child = _child_receipt(completed.stdout)
     expected_status = EXPECTED_STATUSES[mode]
@@ -1611,6 +2000,224 @@ _SYNTHETIC_LIVE_EXPECTATIONS = {
 }
 
 
+def _synthetic_authorization_scope_is_valid(case: str, child: Mapping[str, Any]) -> bool:
+    arm_calls = child.get("arm_calls")
+    disarm_calls = child.get("disarm_calls")
+    arm_observations = child.get("arm_scope_observations")
+    disarm_observations = child.get("disarm_scope_observations")
+    if (
+        type(arm_calls) is not int
+        or type(disarm_calls) is not int
+        or not isinstance(arm_observations, list)
+        or not isinstance(disarm_observations, list)
+    ):
+        return False
+    if case != "write":
+        return (
+            arm_calls == 0
+            and disarm_calls == 0
+            and arm_observations == []
+            and disarm_observations == []
+        )
+    if (
+        arm_calls <= 0
+        or arm_calls != disarm_calls
+        or arm_calls != len(arm_observations)
+        or disarm_calls != len(disarm_observations)
+    ):
+        return False
+    synthetic_actions = child.get("synthetic_leaf_actions")
+    if not isinstance(synthetic_actions, list):
+        return False
+    insert_targets = []
+    for action in synthetic_actions:
+        if not isinstance(action, Mapping):
+            return False
+        if action.get("action") != "insert":
+            continue
+        target = action.get("instrument")
+        if (
+            action.get("exchange") != "DCE"
+            or not isinstance(target, str)
+            or target not in {"M2611", "A2611"}
+        ):
+            return False
+        insert_targets.append(target)
+    allowed_targets = {"M2611", "A2611"}
+    arm_targets = []
+    for observation in arm_observations:
+        if (
+            not isinstance(observation, Mapping)
+            or set(observation) != {"requested_instrument_id", "authorized_instruments"}
+        ):
+            return False
+        target = observation.get("requested_instrument_id")
+        if (
+            not isinstance(target, str)
+            or target not in allowed_targets
+            or observation.get("authorized_instruments") != [target]
+        ):
+            return False
+        arm_targets.append(target)
+    disarm_targets = []
+    for observation in disarm_observations:
+        if (
+            not isinstance(observation, list)
+            or len(observation) != 1
+            or not isinstance(observation[0], str)
+            or observation[0] not in allowed_targets
+        ):
+            return False
+        disarm_targets.append(observation[0])
+    return (
+        sorted(arm_targets) == sorted(disarm_targets)
+        and sorted(arm_targets) == sorted(insert_targets)
+    )
+
+
+def _synthetic_order_sys_id_provenance_is_valid(child: Mapping[str, Any]) -> bool:
+    synthetic_actions = child.get("synthetic_leaf_actions")
+    order_associations = child.get("ctp_order_callback_associations")
+    trade_callbacks = child.get("ctp_trade_callback_associations")
+    trade_queries = child.get("ctp_trade_query_associations")
+    order_callback_count = child.get("ctp_order_callback_count")
+    trade_callback_count = child.get("ctp_trade_callback_count")
+    synthetic_fill_count = child.get("synthetic_fill_count")
+    max_order_intents = child.get("max_order_intents_per_run")
+    if (
+        not isinstance(synthetic_actions, list)
+        or not all(
+            isinstance(rows, list)
+            for rows in (order_associations, trade_callbacks, trade_queries)
+        )
+        or type(order_callback_count) is not int
+        or type(trade_callback_count) is not int
+        or type(synthetic_fill_count) is not int
+        or type(max_order_intents) is not int
+        or max_order_intents != SYNTHETIC_WRITE_MAX_ORDER_INTENTS_PER_RUN
+        or len(order_associations) != order_callback_count
+        or len(trade_callbacks) != trade_callback_count
+        or len(trade_queries) != trade_callback_count
+        or trade_callback_count != synthetic_fill_count
+    ):
+        return False
+    order_targets = {}
+    insert_refs = []
+    for action in synthetic_actions:
+        if (
+            not isinstance(action, Mapping)
+            or not isinstance(action.get("action"), str)
+            or action.get("action") not in {"insert", "cancel"}
+            or not isinstance(action.get("exchange"), str)
+            or action.get("exchange") != "DCE"
+            or not isinstance(action.get("instrument"), str)
+            or action.get("instrument") not in {"M2611", "A2611"}
+        ):
+            return False
+        order_ref = action.get("order_ref")
+        if not isinstance(order_ref, str) or not order_ref:
+            return False
+        instrument = action["instrument"]
+        if action["action"] == "insert":
+            if order_ref in order_targets or len(insert_refs) >= max_order_intents:
+                return False
+            order_targets[order_ref] = (action["exchange"], instrument)
+            insert_refs.append(order_ref)
+        elif order_targets.get(order_ref) != (action["exchange"], instrument):
+            return False
+
+    if not insert_refs:
+        return (
+            not synthetic_actions
+            and not order_associations
+            and not trade_callbacks
+            and not trade_queries
+            and order_callback_count == 0
+            and trade_callback_count == 0
+            and synthetic_fill_count == 0
+        )
+
+    if (
+        len(order_associations) != 2 * len(insert_refs)
+        or trade_callback_count != len(insert_refs)
+        or len(trade_queries) != len(insert_refs)
+    ):
+        return False
+    callback_states = {order_ref: 0 for order_ref in insert_refs}
+    for association in order_associations:
+        if not isinstance(association, Mapping):
+            return False
+        order_ref = association.get("order_ref")
+        if not isinstance(order_ref, str) or order_ref not in callback_states:
+            return False
+        state = callback_states.get(order_ref)
+        expected_sys_id = "iteration51-sys-" + order_ref
+        if state == 0:
+            expected = ("3", False, False, False)
+        elif state == 1:
+            expected = ("0", True, True, True)
+        else:
+            return False
+        status, pending_present, pending_ref_matches, full_pending = expected
+        if (
+            association.get("status") != status
+            or association.get("callback_order_sys_id") != expected_sys_id
+            or association.get("query_order_sys_id") != expected_sys_id
+            or association.get("query_order_sys_id_matches") is not True
+            or association.get("callback_owner_is_wrapper") is not True
+            or association.get("pending_order_present") is not pending_present
+            or association.get("pending_order_ref_matches") is not pending_ref_matches
+            or association.get("system_id_order_ref_matches") is not True
+            or association.get("system_id_uses_full_pending_order") is not full_pending
+        ):
+            return False
+        callback_states[order_ref] = state + 1
+    if any(state != 2 for state in callback_states.values()):
+        return False
+
+    callback_rows = {}
+    for association in trade_callbacks:
+        if not isinstance(association, Mapping):
+            return False
+        trade_id = association.get("trade_id")
+        order_ref = association.get("order_ref")
+        order_sys_id = association.get("order_sys_id")
+        if (
+            not isinstance(order_ref, str)
+            or not order_ref
+            or trade_id != "iteration51-" + order_ref
+            or order_sys_id != "iteration51-sys-" + order_ref
+            or order_ref not in order_targets
+            or order_ref in callback_rows
+        ):
+            return False
+        callback_rows[order_ref] = (trade_id, order_sys_id)
+    query_rows = {}
+    for association in trade_queries:
+        if not isinstance(association, Mapping):
+            return False
+        trade_id = association.get("trade_id")
+        order_ref = association.get("order_ref")
+        order_sys_id = "iteration51-sys-" + order_ref if isinstance(order_ref, str) else None
+        if (
+            not isinstance(order_ref, str)
+            or not order_ref
+            or trade_id != "iteration51-" + order_ref
+            or association.get("callback_order_sys_id") != order_sys_id
+            or association.get("query_order_sys_id") != order_sys_id
+            or association.get("query_order_sys_id_matches") is not True
+            or order_ref not in order_targets
+            or order_ref in query_rows
+        ):
+            return False
+        query_rows[order_ref] = (trade_id, order_sys_id)
+    expected_trades = {
+        order_ref: ("iteration51-" + order_ref, "iteration51-sys-" + order_ref)
+        for order_ref in insert_refs
+    }
+    return callback_rows == query_rows == expected_trades
+
+
 def _synthetic_live_child_command(
     *,
     child_script_path: Path,
@@ -1621,12 +2228,15 @@ def _synthetic_live_child_command(
     selector_source_path: Path,
     case: str,
     factor_mode: str,
+    planned_slot_count: int = 64,
     python: str = sys.executable,
 ) -> list[str]:
     if case not in SYNTHETIC_LIVE_CASES:
         raise InstalledFixtureError("synthetic-live case is outside the fixed local set")
     if factor_mode not in {"native", "build"}:
         raise InstalledFixtureError("factor mode must be native or build")
+    if type(planned_slot_count) is not int or not 30 <= planned_slot_count <= 64:
+        raise InstalledFixtureError("synthetic planned slot count is outside the fixture bounds")
     child_script = _require_external(child_script_path, label="synthetic-live child script")
     if not child_script.is_file() or child_script.is_symlink():
         raise InstalledFixtureError("synthetic-live child script is unavailable")
@@ -1643,7 +2253,51 @@ def _synthetic_live_child_command(
         str(Path(selector_source_path).resolve(strict=True)),
         case,
         factor_mode,
+        str(planned_slot_count),
     ]
+
+
+def _preserve_synthetic_child_output(
+    workspace: Path,
+    stem: str,
+    *,
+    stdout_bytes: bytes,
+    stderr_bytes: bytes,
+    exit_record: bytes,
+    exit_code: Optional[int],
+    exit_status: str,
+) -> dict[str, Any]:
+    if any(type(payload) is not bytes for payload in (stdout_bytes, stderr_bytes, exit_record)):
+        raise InstalledFixtureError("synthetic-live child output must remain raw bytes")
+    stdout_path = workspace / (stem + ".stdout.bin")
+    stderr_path = workspace / (stem + ".stderr.bin")
+    exit_path = workspace / (stem + ".exit.txt")
+    for path in (stdout_path, stderr_path, exit_path):
+        if path.exists() or path.is_symlink():
+            raise InstalledFixtureError("synthetic-live child output destination must be new")
+    for path, payload in (
+        (stdout_path, stdout_bytes),
+        (stderr_path, stderr_bytes),
+        (exit_path, exit_record),
+    ):
+        try:
+            with path.open("xb") as handle:
+                handle.write(payload)
+        except OSError as exc:
+            raise InstalledFixtureError(
+                "synthetic-live child output could not be preserved"
+            ) from exc
+    return {
+        "stdout_path": str(stdout_path),
+        "stdout_size_bytes": len(stdout_bytes),
+        "stdout_sha256": hashlib.sha256(stdout_bytes).hexdigest(),
+        "stderr_path": str(stderr_path),
+        "stderr_size_bytes": len(stderr_bytes),
+        "stderr_sha256": hashlib.sha256(stderr_bytes).hexdigest(),
+        "exit_path": str(exit_path),
+        "exit_code": exit_code,
+        "exit_status": exit_status,
+    }
 
 
 def run_synthetic_live_case(
@@ -1655,6 +2309,7 @@ def run_synthetic_live_case(
     selector_source_path: Path,
     case: str,
     factor_mode: str = "native",
+    planned_slot_count: int = 64,
     timeout_seconds: float = 300.0,
     python: str = sys.executable,
 ) -> dict[str, Any]:
@@ -1664,6 +2319,8 @@ def run_synthetic_live_case(
         raise InstalledFixtureError("synthetic-live case is outside the fixed local set")
     if factor_mode not in {"native", "build"}:
         raise InstalledFixtureError("factor mode must be native or build")
+    if type(planned_slot_count) is not int or not 30 <= planned_slot_count <= 64:
+        raise InstalledFixtureError("synthetic planned slot count is outside the fixture bounds")
     if not (0 < timeout_seconds <= 1800):
         raise InstalledFixtureError(
             "synthetic-live timeout must be finite and at most 1800 seconds"
@@ -1715,29 +2372,69 @@ def run_synthetic_live_case(
         selector_source_path=Path(selector_source["path"]),
         case=case,
         factor_mode=factor_mode,
+        planned_slot_count=planned_slot_count,
         python=python,
     )
+    child_log_stem = "iteration51-synthetic-live-child-" + factor_mode + "-" + case
+    child_output_paths = (
+        target_workspace / (child_log_stem + ".stdout.bin"),
+        target_workspace / (child_log_stem + ".stderr.bin"),
+        target_workspace / (child_log_stem + ".exit.txt"),
+    )
+    if any(path.exists() or path.is_symlink() for path in child_output_paths):
+        raise InstalledFixtureError("synthetic-live child output destination must be new")
     try:
         completed = subprocess.run(
             command,
             cwd=str(example),
             env=_sanitized_environment(),
             capture_output=True,
-            text=True,
-            encoding="utf-8",
             timeout=timeout_seconds,
             check=False,
         )
     except subprocess.TimeoutExpired as exc:
-        raise InstalledFixtureError("synthetic-live child exceeded its bounded timeout") from exc
+        timeout_stdout = exc.stdout if exc.stdout is not None else b""
+        timeout_stderr = exc.stderr if exc.stderr is not None else b""
+        timeout_output = _preserve_synthetic_child_output(
+            target_workspace,
+            child_log_stem,
+            stdout_bytes=timeout_stdout,
+            stderr_bytes=timeout_stderr,
+            exit_record=b"UNKNOWN_TIMEOUT\n",
+            exit_code=None,
+            exit_status="unknown_timeout",
+        )
+        raise InstalledFixtureError(
+            "synthetic-live child exceeded its bounded timeout; exit status is unknown; "
+            "raw output was preserved at " + timeout_output["stdout_path"]
+        ) from exc
+    child_stdout_bytes = completed.stdout
+    child_stderr_bytes = completed.stderr
+    if type(child_stdout_bytes) is not bytes or type(child_stderr_bytes) is not bytes:
+        raise InstalledFixtureError("synthetic-live child did not return binary output")
+    child_output = _preserve_synthetic_child_output(
+        target_workspace,
+        child_log_stem,
+        stdout_bytes=child_stdout_bytes,
+        stderr_bytes=child_stderr_bytes,
+        exit_record=(str(completed.returncode) + "\n").encode("ascii"),
+        exit_code=completed.returncode,
+        exit_status="returned",
+    )
     if (
         child_script.stat().st_size != len(child_source)
         or _sha256(child_script) != child_script_sha256
     ):
         raise InstalledFixtureError("synthetic-live child source changed during execution")
-    summary = _last_json_object(completed.stdout)
-    summary_line = _last_json_object_line(completed.stdout)
-    child = _synthetic_live_child_receipt(completed.stdout)
+    try:
+        child_stdout = child_stdout_bytes.decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise InstalledFixtureError(
+            "synthetic-live child output is not valid UTF-8; raw bytes were preserved"
+        ) from exc
+    summary = _last_json_object(child_stdout)
+    summary_line = _last_json_object_line(child_stdout)
+    child = _synthetic_live_child_receipt(child_stdout)
     if (
         child.get("raw_cli_summary_sha256")
         != hashlib.sha256(summary_line.encode("utf-8")).hexdigest()
@@ -1774,6 +2471,45 @@ def run_synthetic_live_case(
     ]
     if case in {"write", "write-denied"}:
         cli_argv.append("--allow-write")
+    diagnostic_receipt = child.get("live_cohort_exception_diagnostics")
+    if not isinstance(diagnostic_receipt, dict):
+        raise InstalledFixtureError("live cohort exception diagnostic receipt is missing")
+    diagnostic_requested_path = Path(diagnostic_receipt.get("path", ""))
+    if diagnostic_requested_path.is_symlink():
+        raise InstalledFixtureError("live cohort diagnostic path must not be a symlink")
+    diagnostic_path = diagnostic_requested_path.resolve(strict=True)
+    expected_diagnostic_path = live_config_path.parent / "live-cohort-exception-diagnostics.json"
+    if (
+        diagnostic_path != expected_diagnostic_path.resolve(strict=True)
+        or diagnostic_path.is_symlink()
+        or not _is_within(diagnostic_path, target_workspace)
+        or diagnostic_path.stat().st_size > 65536
+    ):
+        raise InstalledFixtureError("live cohort diagnostic escaped its bounded case workspace")
+    diagnostic_bytes = diagnostic_path.read_bytes()
+    if (
+        diagnostic_receipt.get("size_bytes") != len(diagnostic_bytes)
+        or diagnostic_receipt.get("sha256") != hashlib.sha256(diagnostic_bytes).hexdigest()
+    ):
+        raise InstalledFixtureError("live cohort diagnostic bytes do not match their receipt")
+    try:
+        diagnostic_document = json.loads(diagnostic_bytes.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise InstalledFixtureError("live cohort diagnostic JSON is malformed") from exc
+    if (
+        not isinstance(diagnostic_document, dict)
+        or diagnostic_document.get("schema")
+        != "backtrader.iteration51.synthetic_live_cohort_diagnostics.v1"
+        or diagnostic_document.get("capture")
+        != "installed live_cohort exception events during copied public CLI run"
+        or not isinstance(diagnostic_document.get("exceptions"), list)
+        or len(diagnostic_document["exceptions"]) > 8
+        or diagnostic_document.get("captured_exception_count")
+        != len(diagnostic_document["exceptions"])
+        or diagnostic_receipt.get("captured_exception_count")
+        != diagnostic_document.get("captured_exception_count")
+    ):
+        raise InstalledFixtureError("live cohort diagnostic schema or count is invalid")
     common_ok = (
         completed.returncode == expected_exit
         and child.get("exit_code") == expected_exit
@@ -1794,6 +2530,8 @@ def run_synthetic_live_case(
         and child.get("loaded_modules_verified", 0) > 0
         and child.get("fresh_bytecode_cache") is True
         and child.get("ctp_wrapper_factory_unchanged") is True
+        and _synthetic_authorization_scope_is_valid(case, child)
+        and _synthetic_order_sys_id_provenance_is_valid(child)
         and child.get("network_attempts") == 0
         and child.get("synthetic_only") is True
         and child.get("virtual_scheduler") is True
@@ -1813,12 +2551,26 @@ def run_synthetic_live_case(
             ),
         }
         and child.get("store_environment_shape_valid") is True
-        and child.get("store_environment_api_kwargs_keys") == ["fixture_marker"]
+        and child.get("store_environment_api_kwargs_keys")
+        == ["fixture_marker", "live_tick_provenance"]
+        and child.get("store_live_tick_provenance")
+        == {
+            "clock_domain_id": "iteration50-installed-fixture-v1",
+            "rules_hash": "a" * 64,
+            "session_segment": "regular",
+        }
+        and diagnostic_document.get("captured_exception_count") == 0
+        and child.get("planned_slot_count") == planned_slot_count
         and type(child.get("selection_bundle_sha256")) is str
         and len(child["selection_bundle_sha256"]) == 64
         and child.get("authorized_products") == ["DCE.M", "DCE.A"]
     )
     if expected_code is None:
+        common_ok = (
+            common_ok
+            and child.get("ctp_trader_leaf_wrapper_matches_registered_instance") is True
+            and child.get("ctp_md_leaf_wrapper_matches_registered_instance") is True
+        )
         summary_ok = (
             summary.get("status") == expected_status
             and summary.get("mode") == "live"
@@ -1893,6 +2645,7 @@ def run_synthetic_live_case(
                 and child.get("synthetic_leaf_actions") == []
                 and child.get("synthetic_fill_count") == 0
                 and child.get("ctp_order_callback_count") == 0
+                and child.get("ctp_order_callback_associations") == []
                 and child.get("ctp_trade_callback_count") == 0
             )
         elif case == "write":
@@ -1927,6 +2680,11 @@ def run_synthetic_live_case(
                 == child.get("synthetic_fill_count")
             )
     else:
+        common_ok = (
+            common_ok
+            and child.get("ctp_trader_leaf_wrapper_matches_registered_instance") is False
+            and child.get("ctp_md_leaf_wrapper_matches_registered_instance") is False
+        )
         summary_ok = (
             summary.get("status") == expected_status and summary.get("code") == expected_code
         )
@@ -1939,19 +2697,37 @@ def run_synthetic_live_case(
     return {
         "case": case,
         "factor_mode": factor_mode,
+        "planned_slot_count": planned_slot_count,
+        "acceptance_status": (
+            "SYNTHETIC_64_SLOT_CASE_ACCEPTED"
+            if planned_slot_count == 64
+            else "SYNTHETIC_DIAGNOSTIC_ONLY"
+        ),
+        "formal_64_slot_acceptance": planned_slot_count == 64,
         "exit_code": completed.returncode,
         "status": summary["status"],
         "summary": summary,
-        "stdout_sha256": hashlib.sha256(completed.stdout.encode("utf-8")).hexdigest(),
-        "stderr_sha256": hashlib.sha256(completed.stderr.encode("utf-8")).hexdigest(),
+        "stdout_sha256": hashlib.sha256(child_stdout_bytes).hexdigest(),
+        "stderr_sha256": hashlib.sha256(child_stderr_bytes).hexdigest(),
+        "child_process_output": child_output,
         "child_launcher": {
             "path": str(child_script),
             "size_bytes": len(child_source),
             "sha256": child_script_sha256,
         },
         "installed_child": child,
+        "live_cohort_exception_diagnostics": {
+            "path": str(diagnostic_path),
+            "size_bytes": len(diagnostic_bytes),
+            "sha256": hashlib.sha256(diagnostic_bytes).hexdigest(),
+            "captured_exception_count": diagnostic_document["captured_exception_count"],
+        },
         "sdk_selector_source": selector_source,
-        "evidence_level": SDK_SELECTOR_EVIDENCE_LEVEL,
+        "evidence_level": (
+            SDK_SELECTOR_EVIDENCE_LEVEL
+            if planned_slot_count == 64
+            else "SYNTHETIC_DIAGNOSTIC_ONLY"
+        ),
     }
 
 
@@ -1968,7 +2744,7 @@ def run_synthetic_live_matrix(
 ) -> list[dict[str, Any]]:
     """Run all fixed read/write admission profiles in separate isolated children."""
 
-    return [
+    results = [
         run_synthetic_live_case(
             example_dir=example_dir,
             workspace=workspace,
@@ -1977,11 +2753,21 @@ def run_synthetic_live_matrix(
             selector_source_path=selector_source_path,
             case=case,
             factor_mode=factor_mode,
+            planned_slot_count=64,
             timeout_seconds=timeout_seconds,
             python=python,
         )
         for case in SYNTHETIC_LIVE_CASES
     ]
+    if any(
+        not isinstance(result, Mapping)
+        or result.get("planned_slot_count") != 64
+        or result.get("formal_64_slot_acceptance") is not True
+        or result.get("acceptance_status") != "SYNTHETIC_64_SLOT_CASE_ACCEPTED"
+        for result in results
+    ):
+        raise InstalledFixtureError("synthetic-live matrix did not preserve the fixed 64-slot gate")
+    return results
 
 
 _INPUT_FILE_LABELS = (

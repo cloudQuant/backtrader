@@ -1,0 +1,42 @@
+{
+  "schema": "backtrader.iteration51.fixture_multi_order_focused_qa.v1",
+  "command": "PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 PYTHONUTF8=1 python -m pytest -p no:asyncio tests/unit/scripts/test_iteration51_installed_fixture.py -q --junitxml .codex-tmp/iteration51_fixture_multi_order_focus_r2_20261025/pytest.junit.xml",
+  "environment": {
+    "PYTEST_DISABLE_PLUGIN_AUTOLOAD": "1",
+    "PYTHONUTF8": "1",
+    "plugin": "-p no:asyncio"
+  },
+  "result": "22 passed, 1 config warning, exit 0",
+  "artifacts": [
+    {
+      "path": "pytest.stdout.txt",
+      "size_bytes": 680,
+      "sha256": "73c8c46ef1623a918227a57e39433affc19dc2e914f66728f304b87f682edead"
+    },
+    {
+      "path": "pytest.stderr.txt",
+      "size_bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "pytest.junit.xml",
+      "size_bytes": 4368,
+      "sha256": "d94ad36085d98930461096160adfb433dc8cff3b23e94e879e62b1be314f5467"
+    },
+    {
+      "path": "pytest.exit.txt",
+      "size_bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "source-pins-before.json",
+      "size_bytes": 550,
+      "sha256": "2c941186a5c983067a845aa2d1dd8113c999d94e77e0140eac512a45089aa279"
+    },
+    {
+      "path": "source-pins-after.json",
+      "size_bytes": 550,
+      "sha256": "2c941186a5c983067a845aa2d1dd8113c999d94e77e0140eac512a45089aa279"
+    }
+  ]
+}
