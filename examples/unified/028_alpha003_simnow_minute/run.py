@@ -24,7 +24,7 @@ import sys
 import threading
 import time
 from types import MappingProxyType
-from typing import Any, Mapping, Optional
+from typing import Any, Callable, Mapping, Optional, Tuple
 import uuid
 
 import yaml
@@ -3212,6 +3212,105 @@ def _live_env_config(config):
     return config_values, api_kwargs
 
 
+class SimNowProfileValidationError(ValueError):
+    """A safe, value-free reason that the live CTP profile was not admitted."""
+
+    def __init__(self, reason: str) -> None:
+        self.reason = reason
+        super().__init__(reason)
+
+
+def _sdk_profile_contract() -> (
+    Tuple[Callable[..., Any], Optional[Callable[..., Any]], Callable[..., Any]]
+):
+    try:
+        import bt_api_ctp.ctp_env_selector as selector
+    except ImportError:
+        raise SimNowProfileValidationError("SDK_PROFILE_SELECTOR_UNAVAILABLE") from None
+    official_simnow_fronts = getattr(selector, "official_simnow_fronts", None)
+    verify_official_simnow_profile = getattr(selector, "verify_official_simnow_profile", None)
+    official_simnow_profile_for_td_front = getattr(
+        selector, "official_simnow_profile_for_td_front", None
+    )
+    if not callable(official_simnow_fronts) or not callable(verify_official_simnow_profile):
+        raise SimNowProfileValidationError("SDK_PROFILE_SELECTOR_UNAVAILABLE")
+    return (
+        official_simnow_fronts,
+        official_simnow_profile_for_td_front,
+        verify_official_simnow_profile,
+    )
+
+
+def _resolve_ctp_front(options: Mapping[str, Any], address_key: str, front_key: str) -> str:
+    # Match the CTP wrapper: a truthy address takes precedence over its legacy alias.
+    value = options.get(address_key) or options.get(front_key)
+    if value is None or value == "":
+        raise SimNowProfileValidationError("CTP_FRONT_MISSING")
+    if type(value) is not str:
+        raise SimNowProfileValidationError("CTP_FRONT_INVALID")
+    return value
+
+
+def _claimed_ctp_profile(options: Mapping[str, Any]) -> str:
+    claims = []
+    for key in ("ctp_env_profile", "environment_profile"):
+        if key not in options:
+            continue
+        value = options[key]
+        if type(value) is not str or not value.strip():
+            raise SimNowProfileValidationError("CTP_PROFILE_INVALID")
+        claims.append(value.strip().lower())
+    if len(set(claims)) > 1:
+        raise SimNowProfileValidationError("CTP_PROFILE_CLAIMS_CONFLICT")
+    return claims[0] if claims else ""
+
+
+def validate_official_simnow_store_profile(
+    config: Mapping[str, Any], api_kwargs: Mapping[str, Any]
+) -> Mapping[str, Any]:
+    """Validate the Store's effective fronts using the SDK's registered profile."""
+
+    if not isinstance(config, Mapping) or not isinstance(api_kwargs, Mapping):
+        raise SimNowProfileValidationError("CTP_CONFIG_MAPPINGS_REQUIRED")
+
+    # BtApiStore applies api_kwargs after config. The CTP wrapper then selects
+    # address before front aliases; resolve only that effective pair.
+    options = dict(config)
+    options.update(api_kwargs)
+    td_front = _resolve_ctp_front(options, "td_address", "td_front")
+    md_front = _resolve_ctp_front(options, "md_address", "md_front")
+    profile = _claimed_ctp_profile(options)
+    for key in ("environment", "ctp_environment"):
+        if key in options:
+            value = options[key]
+            if type(value) is not str or value.strip().lower() != "simnow":
+                raise SimNowProfileValidationError("CTP_ENVIRONMENT_NOT_SIMNOW")
+
+    (
+        official_simnow_fronts,
+        official_simnow_profile_for_td_front,
+        verify_official_simnow_profile,
+    ) = _sdk_profile_contract()
+    if not profile:
+        if not callable(official_simnow_profile_for_td_front):
+            raise SimNowProfileValidationError("CTP_PROFILE_LOOKUP_UNAVAILABLE")
+        profile = official_simnow_profile_for_td_front(td_front)
+    if not profile:
+        raise SimNowProfileValidationError("CTP_PROFILE_NOT_OFFICIAL_SIMNOW")
+
+    try:
+        expected_td, expected_md = official_simnow_fronts(profile)
+    except (KeyError, ValueError):
+        raise SimNowProfileValidationError("CTP_PROFILE_NOT_OFFICIAL_SIMNOW") from None
+    if (
+        td_front != expected_td
+        or md_front != expected_md
+        or not verify_official_simnow_profile(td_front, md_front, profile)
+    ):
+        raise SimNowProfileValidationError("CTP_PROFILE_FRONT_MISMATCH")
+    return {"verified": True, "environment": "simnow", "profile": profile}
+
+
 def _write_requested(config, allow_write_flag, decision):
     write_cfg = config["live"]["allow_writes"]
     if type(write_cfg) is not bool:
@@ -3412,6 +3511,7 @@ def run_live(
         )
     )
     store_config, api_kwargs = _live_env_config(config)
+    simnow_profile = validate_official_simnow_store_profile(store_config, api_kwargs)
     store = None
     broker = None
     journal = None
@@ -3840,6 +3940,11 @@ def run_live(
         "selection_source": plan["selection_source"],
         "source_snapshot_id": plan.get("source_snapshot_id"),
         "selection_evidence": selection_evidence,
+        "simnow_profile": {
+            "verified": simnow_profile["verified"],
+            "environment": simnow_profile["environment"],
+            "profile": simnow_profile["profile"],
+        },
         "calendar_evidence_mode": plan.get("calendar_evidence_mode"),
         "calendar_rules_sha256": plan.get("calendar_rules_sha256"),
         "selection_decision_at": plan["manifest"].decision_at.isoformat(),
@@ -4034,6 +4139,7 @@ def _run_ctp_query_live_epochs(
                 "selection_path": str(plan["selection_path"]),
                 "source_snapshot_id": plan.get("source_snapshot_id"),
                 "selection_evidence": result["selection_evidence"],
+                "simnow_profile": result["simnow_profile"],
                 "selection_decision_at": plan["manifest"].decision_at.isoformat(),
                 "calendar_evidence_mode": result.get("calendar_evidence_mode"),
                 "calendar_rules_sha256": result.get("calendar_rules_sha256"),
@@ -4224,6 +4330,7 @@ def run_live_epochs(
                 "epoch_id": epoch_config["cohort"]["epoch_id"],
                 "selection_path": str(plan["selection_path"]),
                 "selection_evidence": result.get("selection_evidence"),
+                "simnow_profile": result.get("simnow_profile"),
                 "selection_decision_at": plan["manifest"].decision_at.isoformat(),
                 "trading_days": {
                     row.exchange_id: row.current_trading_day.isoformat()

@@ -64,6 +64,17 @@ def _load_runner():
 RUNNER = _load_runner()
 
 
+def _official_simnow_store_config():
+    selector = pytest.importorskip("bt_api_ctp.ctp_env_selector")
+    profile = "set1_group1"
+    td_front, md_front = selector.official_simnow_fronts(profile)
+    return {
+        "td_address": td_front,
+        "md_address": md_front,
+        "ctp_env_profile": profile,
+    }, {}
+
+
 def test_runner_wall_clock_wait_is_interrupted_by_public_cerebro_wake():
     from backtrader import Cerebro
     from backtrader._cerebro.runnext import _LiveBarCohortWake
@@ -1194,6 +1205,18 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
                 "trading_day": client._trading_day,
             }
 
+        def _get_live_ctp_stream_health(self):
+            return {
+                "generation_callbacks_supported": True,
+                "source_generation": self.trader_client._connection_generation,
+                "source_revision": 0,
+                "stale": False,
+                "stale_reason": "",
+                "symbols": (),
+                "stale_tick_drop_count": 0,
+                "stale_tick_drop_reason": "",
+            }
+
         def _selection_query_result(self, request_type, records):
             self._selection_request_id += 1
             retrieved_at = clock.utc_now()
@@ -1238,9 +1261,7 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
                 **filters,
             )
 
-        def query_depth_market_data_result(
-            self, instrument_id="", exchange_id="", timeout=5.0
-        ):
+        def query_depth_market_data_result(self, instrument_id="", exchange_id="", timeout=5.0):
             assert instrument_id == exchange_id == ""
             trace.append(("selection_depth_query", self.context.epoch_id))
             return self._selection_query_result("depth_market_data", self.context.quote_rows)
@@ -1278,7 +1299,7 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
             allow_writes, history_limit, terminal_limit, FakeCtpWrapper
         ),
     )
-    monkeypatch.setattr(RUNNER, "_live_env_config", lambda _config: ({}, {}))
+    monkeypatch.setattr(RUNNER, "_live_env_config", lambda _config: _official_simnow_store_config())
     if selection_source == "ctp_query":
         monkeypatch.setattr(futures_ctp_snapshot, "_now_utc", clock.utc_now)
         contexts.append(make_query_context(1, first_day))
@@ -1495,13 +1516,16 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
         for epoch_index, epoch in enumerate(result["epochs"]):
             expected_day = first_day if epoch_index == 0 else second_day
             expected_instruments = (
-                {"M2612", "Y2612", "A2612"}
-                if epoch_index == 0
-                else {"M2611", "Y2611", "A2611"}
+                {"M2612", "Y2612", "A2612"} if epoch_index == 0 else {"M2611", "Y2611", "A2611"}
             )
             assert epoch["epoch_id"] == epoch_index + 1
             assert epoch["retirement_proven"] is True
             assert epoch["selection_source"] == "ctp_query_snapshot_equal_weight_v1"
+            assert epoch["simnow_profile"] == {
+                "verified": True,
+                "environment": "simnow",
+                "profile": "set1_group1",
+            }
             assert epoch["calendar_evidence_mode"] == "expected_rule_derived"
             calendar_rules_hash = epoch["calendar_rules_sha256"]
             assert isinstance(calendar_rules_hash, str) and len(calendar_rules_hash) == 64
@@ -1771,9 +1795,7 @@ def test_public_config_defaults_to_dry_and_cli_cannot_escalate(tmp_path, capsys)
     config["entry"]["tier"] = "replay"
     offline_config_path = tmp_path / "query-source-offline.yaml"
     offline_config_path.write_text(yaml.safe_dump(config, sort_keys=False), encoding="utf-8")
-    code, result = _call_runner(
-        capsys, "--mode", "research", "--config", str(offline_config_path)
-    )
+    code, result = _call_runner(capsys, "--mode", "research", "--config", str(offline_config_path))
     assert code == 2
     assert result["code"] == "OFFLINE_MODE_REQUIRES_SAVED_SELECTION_BUNDLE"
     code, result = _call_runner(
@@ -2349,6 +2371,7 @@ def test_live_setup_failures_close_every_created_resource(
         store_config_env="BT_ALPHA003_TEST_CONFIG_JSON",
     )
     config["live"]["allow_writes"] = write_enabled
+    store_config, api_kwargs = _official_simnow_store_config()
     config["output"].update(
         decision_tape_path=str(tmp_path / f"{failure}-decisions.jsonl"),
         decision_tape_max_bytes=1_000_000,
@@ -2375,7 +2398,7 @@ def test_live_setup_failures_close_every_created_resource(
         config["live"]["arm_templates"] = [
             {
                 "target": target,
-                "md_front": "tcp://fixture.invalid:1",
+                "md_front": store_config["md_address"],
                 "strategy_identity_sha256": "a" * 64,
                 "execution_cycle_id": f"cycle-{target}",
                 "preflight_sha256": "b" * 64,
@@ -2386,7 +2409,7 @@ def test_live_setup_failures_close_every_created_resource(
     plan = RUNNER.load_market_plan(config, config_path)
     monkeypatch.setenv(
         "BT_ALPHA003_TEST_CONFIG_JSON",
-        json.dumps({"config": {}, "api_kwargs": {}}),
+        json.dumps({"config": store_config, "api_kwargs": api_kwargs}),
     )
 
     closed = []
@@ -2490,6 +2513,13 @@ def test_live_setup_failures_close_every_created_resource(
             if failure == "refresh":
                 raise RuntimeError("fake query refresh failure")
             self.last_error_code = None
+
+        def _execution_error_code(self, error):
+            return type(error).__name__
+
+        def refresh_initial(self, *, wait_timeout):
+            del wait_timeout
+            return self.refresh_once()
 
         def start(self):
             self.started = True
