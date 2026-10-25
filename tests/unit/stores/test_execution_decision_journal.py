@@ -225,6 +225,62 @@ def test_noop_and_canonical_economics_are_durable_and_immutable(tmp_path):
     invalid.close()
 
 
+def test_decision_for_key_reads_after_reopen_without_mutating_journal(tmp_path):
+    path = tmp_path / "decision-for-key.sqlite3"
+    journal = ExecutionDecisionJournal(path)
+    key = _grid_key()
+    grid = _record_grid_noop(
+        journal,
+        key,
+        epoch_id="epoch-a",
+        batch_id="batch-a",
+    )
+    assert grid.decision is not None
+    assert grid.cursor is not None
+    expected = grid.decision
+    journal.close()
+
+    reopened = ExecutionDecisionJournal(path)
+    cursor_before = reopened.grid_cursor(
+        key.account_scope, key.strategy_scope, key.cohort_id
+    )
+    capacity_before = reopened.decision_capacity_snapshot()
+    changes_before = reopened._connection.total_changes
+
+    assert reopened.decision_for_key(key) == expected
+    equivalent_time_key = _grid_key(close_time="2026-10-20T18:00:00+08:00")
+    assert reopened.decision_for_key(equivalent_time_key) == expected
+    for missing_key in (
+        _grid_key(account_scope="account-other"),
+        _grid_key(strategy_scope="strategy-other"),
+        _grid_key(close_time="2026-10-20T10:00:01Z"),
+        _grid_key(kind="tick"),
+        _grid_key(run_id="run-other"),
+    ):
+        assert reopened.decision_for_key(missing_key) is None
+
+    with pytest.raises(ExecutionDecisionJournalError, match="INVALID_DECISION_KEY"):
+        reopened.decision_for_key(None)
+
+    assert reopened.grid_cursor(key.account_scope, key.strategy_scope, key.cohort_id) == (
+        cursor_before
+    )
+    capacity_after = reopened.decision_capacity_snapshot()
+    assert (
+        capacity_after.base_record_count,
+        capacity_after.base_payload_bytes,
+        capacity_after.settlement_record_count,
+        capacity_after.settlement_payload_bytes,
+    ) == (
+        capacity_before.base_record_count,
+        capacity_before.base_payload_bytes,
+        capacity_before.settlement_record_count,
+        capacity_before.settlement_payload_bytes,
+    )
+    assert reopened._connection.total_changes == changes_before
+    reopened.close()
+
+
 def test_equivalent_close_times_normalize_to_one_business_key(tmp_path):
     journal = ExecutionDecisionJournal(tmp_path / "time.sqlite3")
     utc_key = _decision_key(close_time="2026-10-20T10:00:00Z")

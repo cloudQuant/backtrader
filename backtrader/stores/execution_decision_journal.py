@@ -1266,6 +1266,16 @@ class ExecutionDecisionJournal:
             ).fetchone()
         return None if row is None else _decision_record(row)
 
+    def decision_for_key(
+        self, key: ExecutionDecisionKey
+    ) -> Optional[ExecutionDecisionRecord]:
+        """Read one durable decision by its canonical business key."""
+
+        if not isinstance(key, ExecutionDecisionKey):
+            raise ExecutionDecisionJournalError("INVALID_DECISION_KEY")
+        key_json = _canonical_json(_decision_key_values(key))
+        return self.decision(_stable_id("decision", key_json))
+
     def decision_capacity_snapshot(self) -> ExecutionDecisionCapacitySnapshot:
         """Return bounded decision usage plus a read-only SQLite size sample.
 

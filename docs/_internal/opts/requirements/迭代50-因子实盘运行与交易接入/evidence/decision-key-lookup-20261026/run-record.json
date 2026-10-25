@@ -1,0 +1,46 @@
+{
+  "command": "C:/anaconda3/python.exe -m pytest -p no:asyncio -q --tb=short --junitxml=<artifact>/junit.xml tests/unit/stores/test_execution_decision_journal.py::test_decision_for_key_reads_after_reopen_without_mutating_journal",
+  "environment": {
+    "PYTEST_DISABLE_PLUGIN_AUTOLOAD": "1",
+    "PYTHONUTF8": "1"
+  },
+  "timeout_seconds": 180,
+  "timed_out": false,
+  "exit_code": 0,
+  "pre": {
+    "head": "05318d3044543aee5d5237595892aee21c2430d6",
+    "files": [
+      {
+        "path": "backtrader/stores/execution_decision_journal.py",
+        "size_bytes": 298039,
+        "sha256": "E60E9C1E353CE9DEA39C3F6461CE1F9AADBB48308FF45C72C19796CF10DADADF"
+      },
+      {
+        "path": "tests/unit/stores/test_execution_decision_journal.py",
+        "size_bytes": 101102,
+        "sha256": "ABCBEE1D8DB61897A3A474BF8AA04EDBA7E3B68EC1EAA9728441C805F7ABAA7D"
+      }
+    ]
+  },
+  "post": {
+    "head": "05318d3044543aee5d5237595892aee21c2430d6",
+    "files": [
+      {
+        "path": "backtrader/stores/execution_decision_journal.py",
+        "size_bytes": 298039,
+        "sha256": "E60E9C1E353CE9DEA39C3F6461CE1F9AADBB48308FF45C72C19796CF10DADADF"
+      },
+      {
+        "path": "tests/unit/stores/test_execution_decision_journal.py",
+        "size_bytes": 101102,
+        "sha256": "ABCBEE1D8DB61897A3A474BF8AA04EDBA7E3B68EC1EAA9728441C805F7ABAA7D"
+      }
+    ]
+  },
+  "artifacts": {
+    "stdout": ".codex-tmp\\decision_for_key_lookup_20261026T001632752\\stdout.txt",
+    "stderr": ".codex-tmp\\decision_for_key_lookup_20261026T001632752\\stderr.txt",
+    "junit": ".codex-tmp\\decision_for_key_lookup_20261026T001632752\\junit.xml",
+    "exit_code": ".codex-tmp\\decision_for_key_lookup_20261026T001632752\\exit-code.txt"
+  }
+}
