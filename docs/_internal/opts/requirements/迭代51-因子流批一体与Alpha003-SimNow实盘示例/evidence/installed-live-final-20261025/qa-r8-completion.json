@@ -1,0 +1,24 @@
+{
+  "exit_code": 0,
+  "elapsed_recording": "pytest wall time not independently timed",
+  "command": [
+    "C:\\anaconda3\\python.exe",
+    "-m",
+    "pytest",
+    "-q",
+    "-p",
+    "no:asyncio",
+    "--junitxml=D:\\temp\\i51-causal-refresh-focus-20261025-r8\\focused\\junit.xml",
+    "tests/unit/scripts/test_iteration51_installed_fixture.py::test_source_loaded_registered_sim_reuses_switches_and_stop_revokes_grants",
+    "tests/unit/scripts/test_iteration51_installed_fixture.py::test_synthetic_live_case_runs_isolated_command_and_checks_finite_outcome[read-only-0-LIVE_RUN_COMPLETE-None-False-64-INSTALLED_BT_WHEEL_PUBLIC_SDK_SOURCE_FIXTURE]",
+    "tests/unit/scripts/test_iteration51_installed_fixture.py::test_synthetic_live_case_runs_isolated_command_and_checks_finite_outcome[write-0-LIVE_RUN_COMPLETE-None-True-64-INSTALLED_BT_WHEEL_PUBLIC_SDK_SOURCE_FIXTURE]",
+    "tests/unit/scripts/test_iteration51_installed_fixture.py::test_synthetic_live_case_runs_isolated_command_and_checks_finite_outcome[write-denied-2-BLOCKED-LIVE_WRITE_GRANT_MISSING_IN_CONFIG-False-64-INSTALLED_BT_WHEEL_PUBLIC_SDK_SOURCE_FIXTURE]",
+    "tests/unit/scripts/test_iteration51_installed_fixture.py::test_synthetic_live_case_runs_isolated_command_and_checks_finite_outcome[tier-escalation-2-BLOCKED-ENTRY_TIER_ESCALATION_DENIED-False-64-INSTALLED_BT_WHEEL_PUBLIC_SDK_SOURCE_FIXTURE]",
+    "tests/unit/scripts/test_iteration51_installed_fixture.py::test_synthetic_live_case_runs_isolated_command_and_checks_finite_outcome[read-only-0-LIVE_RUN_COMPLETE-None-False-32-SYNTHETIC_DIAGNOSTIC_ONLY]"
+  ],
+  "test_count": 6,
+  "environment": {
+    "PYTEST_DISABLE_PLUGIN_AUTOLOAD": "1",
+    "PYTHONUTF8": "1"
+  }
+}

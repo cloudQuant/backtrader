@@ -1,0 +1,3589 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites><testsuite name="pytest" errors="0" failures="6" skipped="0" tests="32" time="10.739" timestamp="2026-10-25T23:09:21.052069" hostname="yun"><testcase classname="tests.unit.scripts.test_iteration51_installed_fixture" name="test_initial_query_refresh_uses_shared_synthetic_utc_and_real_monotonic" time="7.450" /><testcase classname="tests.unit.scripts.test_iteration51_installed_fixture" name="test_write_refresh_barrier_waits_on_the_real_query_refresh_thread" time="0.201" /><testcase classname="tests.unit.scripts.test_iteration51_installed_fixture" name="test_refresh_barrier_rejects_missing_or_future_query_sets_and_noquote_preclose" time="0.056" /><testcase classname="tests.unit.scripts.test_iteration51_installed_fixture" name="test_copy_public_example_pins_exact_four_files_and_separate_config" time="0.050" /><testcase classname="tests.unit.scripts.test_iteration51_installed_fixture" name="test_copy_public_example_rejects_incomplete_or_reused_destination" time="0.031" /><testcase classname="tests.unit.scripts.test_iteration51_installed_fixture" name="test_offline_paths_must_be_staged_and_confined_to_external_workspace" time="0.063" /><testcase classname="tests.unit.scripts.test_iteration51_installed_fixture" name="test_replay_config_requires_all_inputs_and_new_confined_outputs" time="0.059" /><testcase classname="tests.unit.scripts.test_iteration51_installed_fixture" name="test_cli_case_uses_isolated_child_and_reused_installed_origin_verifier" time="0.025" /><testcase classname="tests.unit.scripts.test_iteration51_installed_fixture" name="test_cli_timeout_preserves_partial_output_and_unknown_exit" time="0.023" /><testcase classname="tests.unit.scripts.test_iteration51_installed_fixture" name="test_cli_fixture_rejects_live_and_write_options" time="0.009" /><testcase classname="tests.unit.scripts.test_iteration51_installed_fixture" name="test_synthetic_live_child_is_separate_from_the_offline_allowlist" time="0.040" /><testcase classname="tests.unit.scripts.test_iteration51_installed_fixture" name="test_write_scheduler_barriers_run_after_delivery_outside_scheduler_lock" time="0.041" /><testcase classname="tests.unit.scripts.test_iteration51_installed_fixture" name="test_strategy_fill_delivery_binds_named_feed_to_instrument_route" time="0.047" /><testcase classname="tests.unit.scripts.test_iteration51_installed_fixture" name="test_sdk_selector_source_uses_the_fixed_public_pin_and_external_path" time="0.033" /><testcase classname="tests.unit.scripts.test_iteration51_installed_fixture" name="test_live_child_loads_pinned_selector_before_run_and_runner_uses_official_api" time="0.005" /><testcase classname="tests.unit.scripts.test_iteration51_installed_fixture" name="test_synthetic_ctp_leaf_matches_registered_order_and_price_tick_contracts" time="0.108" /><testcase classname="tests.unit.scripts.test_iteration51_installed_fixture" name="test_synthetic_ctp_payload_matches_attribute_backed_sdk_leaf_contract" time="0.027" /><testcase classname="tests.unit.scripts.test_iteration51_installed_fixture" name="test_synthetic_authorization_scope_receipt_is_exact_and_disarmed" time="0.003" /><testcase classname="tests.unit.scripts.test_iteration51_installed_fixture" name="test_source_loaded_registered_sim_reuses_switches_and_stop_revokes_grants" time="0.031"><failure message="AssertionError: Regex pattern did not match.&#10; Regex: 'arm template is missing'&#10; Input: 'outbound leg has no exact registered-sim arm template'">def test_source_loaded_registered_sim_reuses_switches_and_stop_revokes_grants() -&gt; None:
+        from backtrader.stores.registered_sim import BtApiStoreError, RegisteredSimWrapper
+    
+        fixture = _load_fixture()
+        helper = _load_iteration50_fixture()
+        child_tree = ast.parse(fixture._SYNTHETIC_LIVE_CHILD_CODE)
+        source_class = next(
+            node
+            for node in child_tree.body
+            if isinstance(node, ast.ClassDef) and node.name == "SyntheticTraderClient"
+        )
+        selected_names = {
+            "arm_execution_for_registered_sim",
+            "disarm_execution_gate",
+            "stop",
+            "disconnect",
+            "_synthetic_native_authorization",
+        }
+        methods = [
+            node
+            for node in source_class.body
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+            and node.name in selected_names
+        ]
+        assert {method.name for method in methods} == selected_names
+        synthetic_class_module = ast.parse(
+            "class SyntheticAuthorizationLeaf(_ExecutionProviderLeaf):\n    pass\n"
+        )
+        synthetic_class = synthetic_class_module.body[0]
+        assert isinstance(synthetic_class, ast.ClassDef)
+        synthetic_class.body = methods
+        namespace = {
+            "_ExecutionProviderLeaf": helper._ExecutionProviderLeaf,
+            "fake_state": {
+                "arm_calls": 0,
+                "disarm_calls": 0,
+                "arm_scope_observations": [],
+                "disarm_scope_observations": [],
+                "synthetic_leaf_actions": [],
+                "trader_stop_calls": 0,
+                "disconnect_calls": 0,
+            },
+        }
+        code = compile(ast.fix_missing_locations(synthetic_class_module), "&lt;source-loaded-r51-leaf&gt;", "exec")
+        exec(code, namespace)
+        leaf_class = namespace["SyntheticAuthorizationLeaf"]
+        client = leaf_class(bars={"M2611": ({},), "A2611": ({},)}, slot_count=1)
+        client._synthetic_capability_generation = 0
+        client._synthetic_active_grant = None
+        client.is_read_only_ready = True
+        client.connect()
+    
+        native_calls = []
+    
+        def submit_order_insert(field, request_id, *, execution_capability):
+            client._synthetic_native_authorization(
+                "insert", field, execution_capability
+            )
+            native_calls.append((field.InstrumentID, field.ExchangeID, field.OrderRef))
+            return helper._ExecutionProviderLeaf.submit_order_insert(
+                client, field, request_id, execution_capability=execution_capability
+            )
+    
+        client.submit_order_insert = submit_order_insert
+        api_class = type("SourceLoadedRegisteredSimApi", (RegisteredSimWrapper,), {})
+        api = api_class(registered_sim_allow_writes=True)
+        api.trader_client = client
+        api.configure_registered_sim_arm_templates(
+            {
+                (instrument, "DCE"): {
+                    "md_front": "tcp://md:1",
+                    "strategy_identity_sha256": "a" * 64,
+                    "execution_cycle_id": "iteration51-source-test",
+                    "preflight_sha256": "b" * 64,
+                }
+                for instrument in ("M2611", "A2611")
+            }
+        )
+    
+        def order_field(instrument: str, order_ref: str, request_id: int) -&gt; SimpleNamespace:
+            return SimpleNamespace(
+                InstrumentID=instrument,
+                ExchangeID="DCE",
+                OrderRef=order_ref,
+                RequestID=request_id,
+                LimitPrice=214.0 if instrument == "M2611" else 207.0,
+                VolumeTotalOriginal=1,
+                Direction="0",
+                CombOffsetFlag="0",
+            )
+    
+        expected = client.get_session_state()
+        with api.registered_sim_expected_session_scope(expected):
+            assert api._send_native_order_insert(order_field("M2611", "501", 1), 1) == 0
+            assert api._send_native_order_insert(order_field("M2611", "502", 2), 2) == 0
+            assert api._send_native_order_insert(order_field("A2611", "503", 3), 3) == 0
+            with pytest.raises(BtApiStoreError, match="arm template is missing"):
+&gt;               api._send_native_order_insert(order_field("Y2611", "504", 4), 4)
+
+tests\unit\scripts\test_iteration51_installed_fixture.py:1638: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+backtrader\stores\registered_sim.py:1510: in _send_native_order_insert
+    return self._send_registered_sim_native("insert", field, req_id)
+backtrader\stores\registered_sim.py:1455: in _send_registered_sim_native
+    key = self._outbound_key_locked(field)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = &lt;test_iteration51_installed_fixture.SourceLoadedRegisteredSimApi object at 0x000001649D343C90&gt;
+field = namespace(InstrumentID='Y2611', ExchangeID='DCE', OrderRef='504', RequestID=4, LimitPrice=207.0, VolumeTotalOriginal=1, Direction='0', CombOffsetFlag='0')
+
+    def _outbound_key_locked(self, field: Any) -&gt; Tuple[str, str]:
+        key = (
+            _exact_text(getattr(field, "InstrumentID", None), "outbound InstrumentID"),
+            _exact_text(getattr(field, "ExchangeID", None), "outbound ExchangeID"),
+        )
+        expected = self._require_expected_session_locked()
+        if self._registered_sim_arm_templates_sealed and expected is None:
+            raise BtApiStoreError(
+                "template-bound native dispatch requires decision session identity"
+            )
+        if self._registered_sim_arm_templates_sealed:
+            template = self._registered_sim_arm_templates.get(key)
+            if template is None:
+&gt;               raise BtApiStoreError("outbound leg has no exact registered-sim arm template")
+E               backtrader.stores.btapistore.BtApiStoreError: outbound leg has no exact registered-sim arm template
+
+backtrader\stores\registered_sim.py:1359: BtApiStoreError
+
+During handling of the above exception, another exception occurred:
+
+    def test_source_loaded_registered_sim_reuses_switches_and_stop_revokes_grants() -&gt; None:
+        from backtrader.stores.registered_sim import BtApiStoreError, RegisteredSimWrapper
+    
+        fixture = _load_fixture()
+        helper = _load_iteration50_fixture()
+        child_tree = ast.parse(fixture._SYNTHETIC_LIVE_CHILD_CODE)
+        source_class = next(
+            node
+            for node in child_tree.body
+            if isinstance(node, ast.ClassDef) and node.name == "SyntheticTraderClient"
+        )
+        selected_names = {
+            "arm_execution_for_registered_sim",
+            "disarm_execution_gate",
+            "stop",
+            "disconnect",
+            "_synthetic_native_authorization",
+        }
+        methods = [
+            node
+            for node in source_class.body
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+            and node.name in selected_names
+        ]
+        assert {method.name for method in methods} == selected_names
+        synthetic_class_module = ast.parse(
+            "class SyntheticAuthorizationLeaf(_ExecutionProviderLeaf):\n    pass\n"
+        )
+        synthetic_class = synthetic_class_module.body[0]
+        assert isinstance(synthetic_class, ast.ClassDef)
+        synthetic_class.body = methods
+        namespace = {
+            "_ExecutionProviderLeaf": helper._ExecutionProviderLeaf,
+            "fake_state": {
+                "arm_calls": 0,
+                "disarm_calls": 0,
+                "arm_scope_observations": [],
+                "disarm_scope_observations": [],
+                "synthetic_leaf_actions": [],
+                "trader_stop_calls": 0,
+                "disconnect_calls": 0,
+            },
+        }
+        code = compile(ast.fix_missing_locations(synthetic_class_module), "&lt;source-loaded-r51-leaf&gt;", "exec")
+        exec(code, namespace)
+        leaf_class = namespace["SyntheticAuthorizationLeaf"]
+        client = leaf_class(bars={"M2611": ({},), "A2611": ({},)}, slot_count=1)
+        client._synthetic_capability_generation = 0
+        client._synthetic_active_grant = None
+        client.is_read_only_ready = True
+        client.connect()
+    
+        native_calls = []
+    
+        def submit_order_insert(field, request_id, *, execution_capability):
+            client._synthetic_native_authorization(
+                "insert", field, execution_capability
+            )
+            native_calls.append((field.InstrumentID, field.ExchangeID, field.OrderRef))
+            return helper._ExecutionProviderLeaf.submit_order_insert(
+                client, field, request_id, execution_capability=execution_capability
+            )
+    
+        client.submit_order_insert = submit_order_insert
+        api_class = type("SourceLoadedRegisteredSimApi", (RegisteredSimWrapper,), {})
+        api = api_class(registered_sim_allow_writes=True)
+        api.trader_client = client
+        api.configure_registered_sim_arm_templates(
+            {
+                (instrument, "DCE"): {
+                    "md_front": "tcp://md:1",
+                    "strategy_identity_sha256": "a" * 64,
+                    "execution_cycle_id": "iteration51-source-test",
+                    "preflight_sha256": "b" * 64,
+                }
+                for instrument in ("M2611", "A2611")
+            }
+        )
+    
+        def order_field(instrument: str, order_ref: str, request_id: int) -&gt; SimpleNamespace:
+            return SimpleNamespace(
+                InstrumentID=instrument,
+                ExchangeID="DCE",
+                OrderRef=order_ref,
+                RequestID=request_id,
+                LimitPrice=214.0 if instrument == "M2611" else 207.0,
+                VolumeTotalOriginal=1,
+                Direction="0",
+                CombOffsetFlag="0",
+            )
+    
+        expected = client.get_session_state()
+        with api.registered_sim_expected_session_scope(expected):
+            assert api._send_native_order_insert(order_field("M2611", "501", 1), 1) == 0
+            assert api._send_native_order_insert(order_field("M2611", "502", 2), 2) == 0
+            assert api._send_native_order_insert(order_field("A2611", "503", 3), 3) == 0
+&gt;           with pytest.raises(BtApiStoreError, match="arm template is missing"):
+E           AssertionError: Regex pattern did not match.
+E            Regex: 'arm template is missing'
+E            Input: 'outbound leg has no exact registered-sim arm template'
+
+tests\unit\scripts\test_iteration51_installed_fixture.py:1637: AssertionError</failure></testcase><testcase classname="tests.unit.scripts.test_iteration51_installed_fixture" name="test_synthetic_order_and_trade_query_ids_match_callback_ids_per_insert" time="0.005" /><testcase classname="tests.unit.scripts.test_iteration51_installed_fixture" name="test_source_backed_trade_reconciliation_rejects_query_price_conflict" time="0.085" /><testcase classname="tests.unit.scripts.test_iteration51_installed_fixture" name="test_synthetic_live_summary_binds_direct_run_query_and_tape_receipts" time="0.020" /><testcase classname="tests.unit.scripts.test_iteration51_installed_fixture" name="test_write_summary_requires_new_complete_refresh_per_fill_and_calendar_preclose" time="0.045" /><testcase classname="tests.unit.scripts.test_iteration51_installed_fixture" name="test_main_reports_only_allowlisted_synthetic_check_ids" time="0.028" /><testcase classname="tests.unit.scripts.test_iteration51_installed_fixture" name="test_synthetic_live_case_runs_isolated_command_and_checks_finite_outcome[read-only-0-LIVE_RUN_COMPLETE-None-False-64-INSTALLED_BT_WHEEL_PUBLIC_SDK_SOURCE_FIXTURE]" time="0.079"><failure message="iteration51_installed_fixture_test.InstalledFixtureError: synthetic-live case acceptance failed: read-only; failed_checks=child.runtime_source_authorization_clock_or_lifecycle">monkeypatch = &lt;_pytest.monkeypatch.MonkeyPatch object at 0x000001649EC8B250&gt;
+tmp_path = WindowsPath('C:/Users/yunji/AppData/Local/Temp/pytest-of-yunji/pytest-999/test_synthetic_live_case_runs_0')
+case = 'read-only', exit_code = 0, status = 'LIVE_RUN_COMPLETE'
+error_code = None, write_enabled = False, planned_slot_count = 64
+expected_evidence_level = 'INSTALLED_BT_WHEEL_PUBLIC_SDK_SOURCE_FIXTURE'
+
+    @pytest.mark.parametrize(
+        (
+            "case",
+            "exit_code",
+            "status",
+            "error_code",
+            "write_enabled",
+            "planned_slot_count",
+            "expected_evidence_level",
+        ),
+        (
+            (
+                "read-only",
+                0,
+                "LIVE_RUN_COMPLETE",
+                None,
+                False,
+                64,
+                "INSTALLED_BT_WHEEL_PUBLIC_SDK_SOURCE_FIXTURE",
+            ),
+            (
+                "write",
+                0,
+                "LIVE_RUN_COMPLETE",
+                None,
+                True,
+                64,
+                "INSTALLED_BT_WHEEL_PUBLIC_SDK_SOURCE_FIXTURE",
+            ),
+            (
+                "write-denied",
+                2,
+                "BLOCKED",
+                "LIVE_WRITE_GRANT_MISSING_IN_CONFIG",
+                False,
+                64,
+                "INSTALLED_BT_WHEEL_PUBLIC_SDK_SOURCE_FIXTURE",
+            ),
+            (
+                "tier-escalation",
+                2,
+                "BLOCKED",
+                "ENTRY_TIER_ESCALATION_DENIED",
+                False,
+                64,
+                "INSTALLED_BT_WHEEL_PUBLIC_SDK_SOURCE_FIXTURE",
+            ),
+            (
+                "read-only",
+                0,
+                "LIVE_RUN_COMPLETE",
+                None,
+                False,
+                32,
+                "SYNTHETIC_DIAGNOSTIC_ONLY",
+            ),
+        ),
+    )
+    def test_synthetic_live_case_runs_isolated_command_and_checks_finite_outcome(
+        monkeypatch: pytest.MonkeyPatch,
+        tmp_path: Path,
+        case: str,
+        exit_code: int,
+        status: str,
+        error_code: Optional[str],
+        write_enabled: bool,
+        planned_slot_count: int,
+        expected_evidence_level: str,
+    ) -&gt; None:
+        fixture = _load_fixture()
+        example = tmp_path / "copied-example"
+        example.mkdir()
+        (example / "run.py").write_text("# copied public runner\n", encoding="utf-8")
+        (example / "alpha003_strategy.py").write_text(
+            "# copied public strategy\n", encoding="utf-8"
+        )
+        (example / "config.yaml").write_text("schema: public-template\n", encoding="utf-8")
+        workspace = tmp_path / "external-workspace"
+        workspace.mkdir()
+        live_case_dir = workspace / "iteration51-live-case-test"
+        live_case_dir.mkdir()
+        live_config = live_case_dir / "runner.yaml"
+        live_config.write_text("synthetic test config\n", encoding="utf-8")
+        selection_bundle_path = live_case_dir / "selection-bundle.json"
+        selection_bundle_path.write_text("{}\n", encoding="utf-8")
+        diagnostic_path = live_case_dir / "live-cohort-exception-diagnostics.json"
+        diagnostic_document = {
+            "schema": "backtrader.iteration51.synthetic_live_cohort_diagnostics.v1",
+            "capture": "installed live_cohort exception events during copied public CLI run",
+            "captured_exception_count": 0,
+            "exceptions": [],
+            "runner_summary": None,
+        }
+        diagnostic_bytes = json.dumps(
+            diagnostic_document, sort_keys=True, separators=(",", ":")
+        ).encode("utf-8")
+        diagnostic_path.write_bytes(diagnostic_bytes)
+        wheel = tmp_path / "pinned.whl"
+        wheel.write_bytes(b"wheel placeholder for synthetic live command")
+        wheel_hash = hashlib.sha256(wheel.read_bytes()).hexdigest()
+        selector_source_path = _write_test_selector_source(tmp_path, fixture, monkeypatch)
+        selector_source = fixture._pinned_sdk_selector_source(selector_source_path)
+        cli_argv = [
+            str((example / "run.py").resolve()),
+            "--config",
+            str(live_config.resolve()),
+            "--mode",
+            "live",
+            "--factor-mode",
+            "native",
+        ]
+        if case in {"write", "write-denied"}:
+            cli_argv.append("--allow-write")
+        order_specs = (("1", "M2611"), ("2", "A2611")) if case == "write" else ()
+        order_receipt = _synthetic_order_receipt(order_specs)
+        if error_code is None and write_enabled:
+            barrier_receipt = _synthetic_refresh_barrier_receipt(
+                order_specs=order_specs
+            )
+            barrier_receipt["query_refresh_barrier_origin"] = str(
+                (example / "run.py").resolve()
+            )
+            barrier_receipt["strategy_notify_barrier_origin"] = str(
+                (_FIXTURE_PATH.parents[1] / "backtrader" / "strategy.py").resolve()
+            )
+            barrier_receipt["strategy_notify_class_origin"] = str(
+                (example / "alpha003_strategy.py").resolve()
+            )
+            barrier_receipt["max_order_intents_per_run"] = 20
+        elif error_code is None:
+            barrier_receipt = {
+                "synthetic_refresh_barrier": {
+                    "enabled": False,
+                    "barrier_count": 0,
+                    "fill_barrier_count": 0,
+                    "preclose_barrier_count": 0,
+                    "engine_delivery_failure_codes": [],
+                    "records": [],
+                },
+                "query_refresh_barrier_binding": None,
+                "strategy_notify_barrier_binding": None,
+                "strategy_notify_class_origin": None,
+                "strategy_notify_barrier_origin": None,
+                "strategy_notify_barrier_delegates_original": False,
+            }
+        else:
+            barrier_receipt = {}
+        if error_code is None:
+            summary = _synthetic_live_summary(
+                planned_slot_count=planned_slot_count,
+                write_enabled=write_enabled,
+                order_specs=order_specs,
+                selection_bundle_path=selection_bundle_path,
+                profile_id=fixture.SDK_SELECTOR_PROFILE,
+            )
+            instances = 1
+            flags = [write_enabled]
+        else:
+            summary = {"status": status, "code": error_code}
+            instances = 0
+            flags = []
+        child = {
+            "case": case,
+            "exit_code": exit_code,
+            "cli_argv": cli_argv,
+            "wheel_sha256": wheel_hash,
+            "loaded_modules_verified": 12,
+            "fresh_bytecode_cache": True,
+            "ctp_wrapper_factory_unchanged": True,
+            "ctp_wrapper_mro_verified": bool(instances),
+            "ctp_trader_leaf_instances": instances,
+            "ctp_md_leaf_instances": instances,
+            "ctp_trader_leaf_wrapper_matches_registered_instance": bool(instances),
+            "ctp_md_leaf_wrapper_matches_registered_instance": bool(instances),
+            "ctp_wrapper_mros": (
+                [["RegisteredSimClient", "RegisteredSimWrapper", "CtpClientWrapper", "object"]]
+                if instances
+                else []
+            ),
+            "store_write_flags": flags,
+            "network_attempts": 0,
+            **order_receipt,
+            **barrier_receipt,
+            "selection_bundle_sha256": "a" * 64,
+            "sdk_selector_source": {
+                **selector_source,
+                "module_origin": selector_source["path"],
+                "profile_id": fixture.SDK_SELECTOR_PROFILE,
+                "official_fronts_lookup": True,
+                "td_front_profile_lookup": True,
+                "official_profile_verification": True,
+            },
+            "sdk_selector_profile_id": fixture.SDK_SELECTOR_PROFILE,
+            "sdk_selector_profile_verified": True,
+            "synthetic_only": True,
+            "virtual_scheduler": True,
+            "virtual_scheduler_monotonic_is_real": True,
+            "virtual_scheduler_advance_count": 1 if error_code is None else 0,
+            "virtual_scheduler_delivered_ticks": 1 if error_code is None else 0,
+            "virtual_scheduler_callback_delivery_count": len(order_specs),
+            "virtual_scheduler_pending_callbacks": 0,
+            "virtual_scheduler_late_callback_schedule_count": 0,
+            "virtual_scheduler_final_utc": "2026-10-25T00:01:00+00:00",
+            "runner_clock_patch_binding": "run.__globals__['RunnerWallClock']",
+            "runner_clock_patch_target_is_function_globals": True,
+            "runner_clock_patch_origin": str((example / "run.py").resolve()),
+            "clock_origins": {
+                "runner_wall_clock_binding": "copied run.py run.__globals__['RunnerWallClock']",
+                "ctp_receive_wall_clock": (
+                    "backtrader.stores.btapistore.time.time -&gt; synthetic virtual UTC"
+                ),
+                "monotonic_clock": "host time.monotonic_ns forwarded without virtualization",
+                "scheduler_shared_state": (
+                    "RunnerWallClock and CTP leaves share one child-local instance"
+                ),
+            },
+            "runner_clock_constructor_calls": 1 if error_code is None else 0,
+            "runner_clock_shared_with_virtual_scheduler": error_code is None,
+            "store_environment_shape_valid": True,
+            "store_environment_api_kwargs_keys": ["fixture_marker", "live_tick_provenance"],
+            "store_live_tick_provenance": {
+                "clock_domain_id": "iteration50-installed-fixture-v1",
+                "rules_hash": "a" * 64,
+                "session_segment": "regular",
+            },
+            "live_cohort_exception_diagnostics": {
+                "path": str(diagnostic_path),
+                "size_bytes": len(diagnostic_bytes),
+                "sha256": hashlib.sha256(diagnostic_bytes).hexdigest(),
+                "captured_exception_count": 0,
+            },
+            "planned_slot_count": planned_slot_count,
+            "query_families": fixture._SYNTHETIC_QUERY_FAMILIES
+            if error_code is None
+            else [],
+            "subscriptions": ["A2611", "M2611", "Y2611"] if error_code is None else [],
+            "runner_summary_scheduler_clock_labels": (
+                [{"path": "summary", "value": "host-utc-plus-monotonic"}]
+                if error_code is None
+                else []
+            ),
+            "runner_summary_scheduler_clock_label_meaning": (
+                "production summary default identifier; not the injected runtime clock"
+            ),
+            "synthetic_leaf_close_receipt": {
+                "trader_client_count": instances,
+                "md_client_count": instances,
+                "trader_stop_calls": instances,
+                "trader_disconnect_calls": instances,
+                "md_stop_calls": instances,
+                "trader_connected_after_close": [False] if instances else [],
+                "trader_ready_after_close": [False] if instances else [],
+                "md_started_after_close": [False] if instances else [],
+                "wrappers_connected_after_close": [False] if instances else [],
+            },
+            "authorized_products": ["DCE.M", "DCE.A"],
+        }
+        child["raw_cli_summary_sha256"] = hashlib.sha256(
+            json.dumps(summary).encode("utf-8")
+        ).hexdigest()
+        observed = {}
+    
+        def fake_run(command, **kwargs):
+            observed["command"] = command
+            observed["kwargs"] = kwargs
+            stdout = json.dumps(summary) + "\n"
+            stdout += fixture._LIVE_CHILD_MARKER + json.dumps(child) + "\n"
+            observed["stdout"] = stdout.encode("utf-8")
+            observed["stderr"] = b""
+            return SimpleNamespace(returncode=exit_code, stdout=observed["stdout"], stderr=b"")
+    
+        monkeypatch.setenv("PYTHONPATH", "checkout-shadow")
+        monkeypatch.setenv("BT_SIMNOW_CONFIG_JSON", "ambient-must-not-reach-child")
+        monkeypatch.setattr(fixture.subprocess, "run", fake_run)
+&gt;       result = fixture.run_synthetic_live_case(
+            example_dir=example,
+            workspace=workspace,
+            wheel_path=wheel,
+            wheel_sha256=wheel_hash,
+            selector_source_path=selector_source_path,
+            case=case,
+            planned_slot_count=planned_slot_count,
+        )
+
+tests\unit\scripts\test_iteration51_installed_fixture.py:2674: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+    def run_synthetic_live_case(
+        *,
+        example_dir: Path,
+        workspace: Path,
+        wheel_path: Path,
+        wheel_sha256: str,
+        selector_source_path: Path,
+        case: str,
+        factor_mode: str = "native",
+        planned_slot_count: int = 64,
+        timeout_seconds: float = 300.0,
+        python: str = sys.executable,
+    ) -&gt; dict[str, Any]:
+        """Run one explicit live profile with the installed CTP SDK leaf faked locally."""
+    
+        if case not in SYNTHETIC_LIVE_CASES:
+            raise InstalledFixtureError("synthetic-live case is outside the fixed local set")
+        if factor_mode not in {"native", "build"}:
+            raise InstalledFixtureError("factor mode must be native or build")
+        if type(planned_slot_count) is not int or not 30 &lt;= planned_slot_count &lt;= 64:
+            raise InstalledFixtureError("synthetic planned slot count is outside the fixture bounds")
+        if not (0 &lt; timeout_seconds &lt;= 1800):
+            raise InstalledFixtureError(
+                "synthetic-live timeout must be finite and at most 1800 seconds"
+            )
+        example = _require_external(example_dir, label="synthetic-live example")
+        if not example.is_dir() or not (example / "run.py").is_file():
+            raise InstalledFixtureError("copied public runner is unavailable")
+        if not (example / "config.yaml").is_file():
+            raise InstalledFixtureError("copied public live config template is unavailable")
+        selector_source = _pinned_sdk_selector_source(selector_source_path)
+        target_workspace = _require_external(workspace, label="synthetic-live workspace")
+        target_workspace.mkdir(parents=True, exist_ok=True)
+        wheel = Path(wheel_path).expanduser().resolve(strict=True)
+        if (
+            not wheel.is_file()
+            or wheel.suffix.lower() != ".whl"
+            or type(wheel_sha256) is not str
+            or len(wheel_sha256) != 64
+            or any(value not in "0123456789abcdef" for value in wheel_sha256)
+            or _sha256(wheel) != wheel_sha256
+        ):
+            raise InstalledFixtureError("wheel does not match the supplied SHA-256")
+        child_script = target_workspace / (
+            "iteration51-synthetic-live-child-" + factor_mode + "-" + case + ".py"
+        )
+        if child_script.exists() or child_script.is_symlink():
+            raise InstalledFixtureError("synthetic-live child script destination must be new")
+        child_source = _SYNTHETIC_LIVE_CHILD_CODE.encode("utf-8")
+        try:
+            with child_script.open("xb") as handle:
+                handle.write(child_source)
+        except OSError as exc:
+            raise InstalledFixtureError(
+                "synthetic-live child source could not be materialized"
+            ) from exc
+        child_script = child_script.resolve(strict=True)
+        child_script_sha256 = _sha256(child_script)
+        if (
+            child_script.stat().st_size != len(child_source)
+            or child_script_sha256 != hashlib.sha256(child_source).hexdigest()
+        ):
+            raise InstalledFixtureError("synthetic-live child source changed during materialization")
+        command = _synthetic_live_child_command(
+            child_script_path=child_script,
+            wheel_path=wheel,
+            wheel_sha256=wheel_sha256,
+            example_dir=example,
+            workspace=target_workspace,
+            selector_source_path=Path(selector_source["path"]),
+            case=case,
+            factor_mode=factor_mode,
+            planned_slot_count=planned_slot_count,
+            python=python,
+        )
+        child_log_stem = "iteration51-synthetic-live-child-" + factor_mode + "-" + case
+        child_output_paths = (
+            target_workspace / (child_log_stem + ".stdout.bin"),
+            target_workspace / (child_log_stem + ".stderr.bin"),
+            target_workspace / (child_log_stem + ".exit.txt"),
+        )
+        if any(path.exists() or path.is_symlink() for path in child_output_paths):
+            raise InstalledFixtureError("synthetic-live child output destination must be new")
+        try:
+            completed = subprocess.run(
+                command,
+                cwd=str(example),
+                env=_sanitized_environment(),
+                capture_output=True,
+                timeout=timeout_seconds,
+                check=False,
+            )
+        except subprocess.TimeoutExpired as exc:
+            timeout_stdout = exc.stdout if exc.stdout is not None else b""
+            timeout_stderr = exc.stderr if exc.stderr is not None else b""
+            timeout_output = _preserve_synthetic_child_output(
+                target_workspace,
+                child_log_stem,
+                stdout_bytes=timeout_stdout,
+                stderr_bytes=timeout_stderr,
+                exit_record=b"UNKNOWN_TIMEOUT\n",
+                exit_code=None,
+                exit_status="unknown_timeout",
+            )
+            raise InstalledFixtureError(
+                "synthetic-live child exceeded its bounded timeout; exit status is unknown; "
+                "raw output was preserved at " + timeout_output["stdout_path"]
+            ) from exc
+        child_stdout_bytes = completed.stdout
+        child_stderr_bytes = completed.stderr
+        if type(child_stdout_bytes) is not bytes or type(child_stderr_bytes) is not bytes:
+            raise InstalledFixtureError("synthetic-live child did not return binary output")
+        child_output = _preserve_synthetic_child_output(
+            target_workspace,
+            child_log_stem,
+            stdout_bytes=child_stdout_bytes,
+            stderr_bytes=child_stderr_bytes,
+            exit_record=(str(completed.returncode) + "\n").encode("ascii"),
+            exit_code=completed.returncode,
+            exit_status="returned",
+        )
+        if (
+            child_script.stat().st_size != len(child_source)
+            or _sha256(child_script) != child_script_sha256
+        ):
+            raise InstalledFixtureError("synthetic-live child source changed during execution")
+        try:
+            child_stdout = child_stdout_bytes.decode("utf-8")
+        except UnicodeDecodeError as exc:
+            raise InstalledFixtureError(
+                "synthetic-live child output is not valid UTF-8; raw bytes were preserved"
+            ) from exc
+        summary = _last_json_object(child_stdout)
+        summary_line = _last_json_object_line(child_stdout)
+        child = _synthetic_live_child_receipt(child_stdout)
+        if (
+            child.get("raw_cli_summary_sha256")
+            != hashlib.sha256(summary_line.encode("utf-8")).hexdigest()
+        ):
+            raise InstalledFixtureError("production CLI summary bytes changed in the fixture")
+        if _pinned_sdk_selector_source(selector_source_path) != selector_source:
+            raise InstalledFixtureError("pinned SDK selector source changed during the child run")
+        expected_exit, expected_status, expected_code, expected_writes = _SYNTHETIC_LIVE_EXPECTATIONS[
+            case
+        ]
+        reported_argv = child.get("cli_argv")
+        if (
+            type(reported_argv) is not list
+            or len(reported_argv) not in {7, 8}
+            or reported_argv[0] != str((example / "run.py").resolve())
+            or reported_argv[1] != "--config"
+        ):
+            raise InstalledFixtureError("synthetic-live child command receipt is malformed")
+        live_config_path = Path(reported_argv[2]).resolve(strict=False)
+        if (
+            not _is_within(live_config_path, target_workspace)
+            or live_config_path.name != "runner.yaml"
+            or live_config_path.is_symlink()
+        ):
+            raise InstalledFixtureError("synthetic-live config escaped its external workspace")
+        cli_argv = [
+            str((example / "run.py").resolve()),
+            "--config",
+            str(live_config_path),
+            "--mode",
+            "live",
+            "--factor-mode",
+            factor_mode,
+        ]
+        if case in {"write", "write-denied"}:
+            cli_argv.append("--allow-write")
+        diagnostic_receipt = child.get("live_cohort_exception_diagnostics")
+        if not isinstance(diagnostic_receipt, dict):
+            raise InstalledFixtureError("live cohort exception diagnostic receipt is missing")
+        diagnostic_requested_path = Path(diagnostic_receipt.get("path", ""))
+        if diagnostic_requested_path.is_symlink():
+            raise InstalledFixtureError("live cohort diagnostic path must not be a symlink")
+        diagnostic_path = diagnostic_requested_path.resolve(strict=True)
+        expected_diagnostic_path = live_config_path.parent / "live-cohort-exception-diagnostics.json"
+        if (
+            diagnostic_path != expected_diagnostic_path.resolve(strict=True)
+            or diagnostic_path.is_symlink()
+            or not _is_within(diagnostic_path, target_workspace)
+            or diagnostic_path.stat().st_size &gt; 65536
+        ):
+            raise InstalledFixtureError("live cohort diagnostic escaped its bounded case workspace")
+        diagnostic_bytes = diagnostic_path.read_bytes()
+        if (
+            diagnostic_receipt.get("size_bytes") != len(diagnostic_bytes)
+            or diagnostic_receipt.get("sha256") != hashlib.sha256(diagnostic_bytes).hexdigest()
+        ):
+            raise InstalledFixtureError("live cohort diagnostic bytes do not match their receipt")
+        try:
+            diagnostic_document = json.loads(diagnostic_bytes.decode("utf-8"))
+        except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+            raise InstalledFixtureError("live cohort diagnostic JSON is malformed") from exc
+        if (
+            not isinstance(diagnostic_document, dict)
+            or diagnostic_document.get("schema")
+            != "backtrader.iteration51.synthetic_live_cohort_diagnostics.v1"
+            or diagnostic_document.get("capture")
+            != "installed live_cohort exception events during copied public CLI run"
+            or not isinstance(diagnostic_document.get("exceptions"), list)
+            or len(diagnostic_document["exceptions"]) &gt; 8
+            or diagnostic_document.get("captured_exception_count")
+            != len(diagnostic_document["exceptions"])
+            or diagnostic_receipt.get("captured_exception_count")
+            != diagnostic_document.get("captured_exception_count")
+        ):
+            raise InstalledFixtureError("live cohort diagnostic schema or count is invalid")
+        common_ok = (
+            completed.returncode == expected_exit
+            and child.get("exit_code") == expected_exit
+            and child.get("case") == case
+            and child.get("cli_argv") == cli_argv
+            and child.get("wheel_sha256") == wheel_sha256
+            and child.get("sdk_selector_source")
+            == {
+                **selector_source,
+                "module_origin": selector_source["path"],
+                "profile_id": SDK_SELECTOR_PROFILE,
+                "official_fronts_lookup": True,
+                "td_front_profile_lookup": True,
+                "official_profile_verification": True,
+            }
+            and child.get("sdk_selector_profile_id") == SDK_SELECTOR_PROFILE
+            and child.get("sdk_selector_profile_verified") is True
+            and child.get("loaded_modules_verified", 0) &gt; 0
+            and child.get("fresh_bytecode_cache") is True
+            and child.get("ctp_wrapper_factory_unchanged") is True
+            and _synthetic_authorization_scope_is_valid(case, child)
+            and _synthetic_order_sys_id_provenance_is_valid(child)
+            and child.get("network_attempts") == 0
+            and child.get("synthetic_only") is True
+            and child.get("virtual_scheduler") is True
+            and child.get("virtual_scheduler_monotonic_is_real") is True
+            and child.get("runner_clock_patch_binding") == "run.__globals__['RunnerWallClock']"
+            and child.get("runner_clock_patch_target_is_function_globals") is True
+            and child.get("runner_clock_patch_origin") == str((example / "run.py").resolve())
+            and child.get("clock_origins")
+            == {
+                "runner_wall_clock_binding": "copied run.py run.__globals__['RunnerWallClock']",
+                "ctp_receive_wall_clock": (
+                    "backtrader.stores.btapistore.time.time -&gt; synthetic virtual UTC"
+                ),
+                "monotonic_clock": "host time.monotonic_ns forwarded without virtualization",
+                "scheduler_shared_state": (
+                    "RunnerWallClock and CTP leaves share one child-local instance"
+                ),
+            }
+            and child.get("store_environment_shape_valid") is True
+            and child.get("store_environment_api_kwargs_keys")
+            == ["fixture_marker", "live_tick_provenance"]
+            and child.get("store_live_tick_provenance")
+            == {
+                "clock_domain_id": "iteration50-installed-fixture-v1",
+                "rules_hash": "a" * 64,
+                "session_segment": "regular",
+            }
+            and diagnostic_document.get("captured_exception_count") == 0
+            and child.get("planned_slot_count") == planned_slot_count
+            and type(child.get("selection_bundle_sha256")) is str
+            and len(child["selection_bundle_sha256"]) == 64
+            and child.get("authorized_products") == ["DCE.M", "DCE.A"]
+        )
+        if expected_code is None:
+            common_ok = (
+                common_ok
+                and child.get("ctp_trader_leaf_wrapper_matches_registered_instance") is True
+                and child.get("ctp_md_leaf_wrapper_matches_registered_instance") is True
+            )
+            summary_failures = _synthetic_live_summary_failure_checks(
+                summary,
+                child,
+                planned_slot_count=planned_slot_count,
+                expected_writes=expected_writes,
+                expected_selection_path=live_config_path.parent / "selection-bundle.json",
+            )
+            success_runtime_ok = (
+                child.get("ctp_wrapper_mro_verified") is True
+                and child.get("ctp_trader_leaf_instances") == 1
+                and child.get("ctp_md_leaf_instances") == 1
+                and child.get("store_write_flags") == [expected_writes]
+                and child.get("runner_clock_constructor_calls") == 1
+                and child.get("runner_clock_shared_with_virtual_scheduler") is True
+                and child.get("virtual_scheduler_advance_count", 0) &gt; 0
+                and child.get("virtual_scheduler_delivered_ticks", 0) &gt; 0
+                and child.get("virtual_scheduler_callback_delivery_count", 0)
+                == child.get("synthetic_fill_count", 0)
+                and child.get("virtual_scheduler_pending_callbacks") == 0
+                and child.get("virtual_scheduler_late_callback_schedule_count") == 0
+                and child.get("virtual_scheduler_final_utc")
+                and child.get("synthetic_leaf_close_receipt")
+                == {
+                    "trader_client_count": 1,
+                    "md_client_count": 1,
+                    "trader_stop_calls": 1,
+                    "trader_disconnect_calls": 1,
+                    "md_stop_calls": 1,
+                    "trader_connected_after_close": [False],
+                    "trader_ready_after_close": [False],
+                    "md_started_after_close": [False],
+                    "wrappers_connected_after_close": [False],
+                }
+            )
+            summary_ok = not summary_failures and success_runtime_ok
+            if case == "read-only":
+                common_ok = (
+                    common_ok
+                    and child.get("synthetic_leaf_actions") == []
+                    and child.get("synthetic_fill_count") == 0
+                    and child.get("ctp_order_callback_count") == 0
+                    and child.get("ctp_order_callback_associations") == []
+                    and child.get("ctp_trade_callback_count") == 0
+                )
+            elif case == "write":
+                strategy_events = (
+                    summary.get("strategy_order_events", {}).get("events", [])
+                    if isinstance(summary.get("strategy_order_events"), Mapping)
+                    else []
+                )
+                synthetic_actions = child.get("synthetic_leaf_actions")
+                common_ok = (
+                    common_ok
+                    and isinstance(synthetic_actions, list)
+                    and bool(synthetic_actions)
+                    and any(
+                        isinstance(action, Mapping) and action.get("action") == "insert"
+                        for action in synthetic_actions
+                    )
+                    and all(
+                        isinstance(action, Mapping)
+                        and action.get("action") in {
+                            "arm", "disarm", "insert", "cancel", "sdk_stop_revoke"
+                        }
+                        for action in synthetic_actions
+                    )
+                    and child.get("arm_calls", 0) &gt; 0
+                    and child.get("disarm_calls", 0) &gt; 0
+                    and child.get("synthetic_fill_count", 0) &gt; 0
+                    and child.get("ctp_order_callback_count", 0) &gt; 0
+                    and child.get("ctp_trade_callback_count", 0) &gt; 0
+                    and bool(strategy_events)
+                    and child.get("virtual_scheduler_callback_delivery_count", 0)
+                    == child.get("synthetic_fill_count")
+                )
+        else:
+            common_ok = (
+                common_ok
+                and child.get("ctp_trader_leaf_wrapper_matches_registered_instance") is False
+                and child.get("ctp_md_leaf_wrapper_matches_registered_instance") is False
+            )
+            summary_ok = (
+                summary.get("status") == expected_status and summary.get("code") == expected_code
+            )
+            common_ok = common_ok and child.get("ctp_trader_leaf_instances") == 0
+            common_ok = common_ok and child.get("ctp_md_leaf_instances") == 0
+            common_ok = common_ok and child.get("synthetic_leaf_actions") == []
+            common_ok = common_ok and child.get("runner_clock_constructor_calls") == 0
+        if not common_ok or not summary_ok:
+            failed_checks = []
+            if not common_ok:
+                failed_checks.append("child.runtime_source_authorization_clock_or_lifecycle")
+            if expected_code is None:
+                failed_checks.extend(summary_failures)
+                if not success_runtime_ok:
+                    failed_checks.append("child.wrapper_scheduler_and_close_receipts")
+            elif not summary_ok:
+                failed_checks.append("summary.expected_blocked_status_and_code")
+&gt;           raise InstalledFixtureError(
+                "synthetic-live case acceptance failed: "
+                + case
+                + "; failed_checks="
+                + ",".join(failed_checks),
+                safe_check_ids=failed_checks,
+            )
+E           iteration51_installed_fixture_test.InstalledFixtureError: synthetic-live case acceptance failed: read-only; failed_checks=child.runtime_source_authorization_clock_or_lifecycle
+
+scripts\iteration51_installed_fixture.py:4467: InstalledFixtureError</failure></testcase><testcase classname="tests.unit.scripts.test_iteration51_installed_fixture" name="test_synthetic_live_case_runs_isolated_command_and_checks_finite_outcome[write-0-LIVE_RUN_COMPLETE-None-True-64-INSTALLED_BT_WHEEL_PUBLIC_SDK_SOURCE_FIXTURE]" time="0.078"><failure message="iteration51_installed_fixture_test.InstalledFixtureError: synthetic-live case acceptance failed: write; failed_checks=child.runtime_source_authorization_clock_or_lifecycle">monkeypatch = &lt;_pytest.monkeypatch.MonkeyPatch object at 0x000001649EC89550&gt;
+tmp_path = WindowsPath('C:/Users/yunji/AppData/Local/Temp/pytest-of-yunji/pytest-999/test_synthetic_live_case_runs_1')
+case = 'write', exit_code = 0, status = 'LIVE_RUN_COMPLETE', error_code = None
+write_enabled = True, planned_slot_count = 64
+expected_evidence_level = 'INSTALLED_BT_WHEEL_PUBLIC_SDK_SOURCE_FIXTURE'
+
+    @pytest.mark.parametrize(
+        (
+            "case",
+            "exit_code",
+            "status",
+            "error_code",
+            "write_enabled",
+            "planned_slot_count",
+            "expected_evidence_level",
+        ),
+        (
+            (
+                "read-only",
+                0,
+                "LIVE_RUN_COMPLETE",
+                None,
+                False,
+                64,
+                "INSTALLED_BT_WHEEL_PUBLIC_SDK_SOURCE_FIXTURE",
+            ),
+            (
+                "write",
+                0,
+                "LIVE_RUN_COMPLETE",
+                None,
+                True,
+                64,
+                "INSTALLED_BT_WHEEL_PUBLIC_SDK_SOURCE_FIXTURE",
+            ),
+            (
+                "write-denied",
+                2,
+                "BLOCKED",
+                "LIVE_WRITE_GRANT_MISSING_IN_CONFIG",
+                False,
+                64,
+                "INSTALLED_BT_WHEEL_PUBLIC_SDK_SOURCE_FIXTURE",
+            ),
+            (
+                "tier-escalation",
+                2,
+                "BLOCKED",
+                "ENTRY_TIER_ESCALATION_DENIED",
+                False,
+                64,
+                "INSTALLED_BT_WHEEL_PUBLIC_SDK_SOURCE_FIXTURE",
+            ),
+            (
+                "read-only",
+                0,
+                "LIVE_RUN_COMPLETE",
+                None,
+                False,
+                32,
+                "SYNTHETIC_DIAGNOSTIC_ONLY",
+            ),
+        ),
+    )
+    def test_synthetic_live_case_runs_isolated_command_and_checks_finite_outcome(
+        monkeypatch: pytest.MonkeyPatch,
+        tmp_path: Path,
+        case: str,
+        exit_code: int,
+        status: str,
+        error_code: Optional[str],
+        write_enabled: bool,
+        planned_slot_count: int,
+        expected_evidence_level: str,
+    ) -&gt; None:
+        fixture = _load_fixture()
+        example = tmp_path / "copied-example"
+        example.mkdir()
+        (example / "run.py").write_text("# copied public runner\n", encoding="utf-8")
+        (example / "alpha003_strategy.py").write_text(
+            "# copied public strategy\n", encoding="utf-8"
+        )
+        (example / "config.yaml").write_text("schema: public-template\n", encoding="utf-8")
+        workspace = tmp_path / "external-workspace"
+        workspace.mkdir()
+        live_case_dir = workspace / "iteration51-live-case-test"
+        live_case_dir.mkdir()
+        live_config = live_case_dir / "runner.yaml"
+        live_config.write_text("synthetic test config\n", encoding="utf-8")
+        selection_bundle_path = live_case_dir / "selection-bundle.json"
+        selection_bundle_path.write_text("{}\n", encoding="utf-8")
+        diagnostic_path = live_case_dir / "live-cohort-exception-diagnostics.json"
+        diagnostic_document = {
+            "schema": "backtrader.iteration51.synthetic_live_cohort_diagnostics.v1",
+            "capture": "installed live_cohort exception events during copied public CLI run",
+            "captured_exception_count": 0,
+            "exceptions": [],
+            "runner_summary": None,
+        }
+        diagnostic_bytes = json.dumps(
+            diagnostic_document, sort_keys=True, separators=(",", ":")
+        ).encode("utf-8")
+        diagnostic_path.write_bytes(diagnostic_bytes)
+        wheel = tmp_path / "pinned.whl"
+        wheel.write_bytes(b"wheel placeholder for synthetic live command")
+        wheel_hash = hashlib.sha256(wheel.read_bytes()).hexdigest()
+        selector_source_path = _write_test_selector_source(tmp_path, fixture, monkeypatch)
+        selector_source = fixture._pinned_sdk_selector_source(selector_source_path)
+        cli_argv = [
+            str((example / "run.py").resolve()),
+            "--config",
+            str(live_config.resolve()),
+            "--mode",
+            "live",
+            "--factor-mode",
+            "native",
+        ]
+        if case in {"write", "write-denied"}:
+            cli_argv.append("--allow-write")
+        order_specs = (("1", "M2611"), ("2", "A2611")) if case == "write" else ()
+        order_receipt = _synthetic_order_receipt(order_specs)
+        if error_code is None and write_enabled:
+            barrier_receipt = _synthetic_refresh_barrier_receipt(
+                order_specs=order_specs
+            )
+            barrier_receipt["query_refresh_barrier_origin"] = str(
+                (example / "run.py").resolve()
+            )
+            barrier_receipt["strategy_notify_barrier_origin"] = str(
+                (_FIXTURE_PATH.parents[1] / "backtrader" / "strategy.py").resolve()
+            )
+            barrier_receipt["strategy_notify_class_origin"] = str(
+                (example / "alpha003_strategy.py").resolve()
+            )
+            barrier_receipt["max_order_intents_per_run"] = 20
+        elif error_code is None:
+            barrier_receipt = {
+                "synthetic_refresh_barrier": {
+                    "enabled": False,
+                    "barrier_count": 0,
+                    "fill_barrier_count": 0,
+                    "preclose_barrier_count": 0,
+                    "engine_delivery_failure_codes": [],
+                    "records": [],
+                },
+                "query_refresh_barrier_binding": None,
+                "strategy_notify_barrier_binding": None,
+                "strategy_notify_class_origin": None,
+                "strategy_notify_barrier_origin": None,
+                "strategy_notify_barrier_delegates_original": False,
+            }
+        else:
+            barrier_receipt = {}
+        if error_code is None:
+            summary = _synthetic_live_summary(
+                planned_slot_count=planned_slot_count,
+                write_enabled=write_enabled,
+                order_specs=order_specs,
+                selection_bundle_path=selection_bundle_path,
+                profile_id=fixture.SDK_SELECTOR_PROFILE,
+            )
+            instances = 1
+            flags = [write_enabled]
+        else:
+            summary = {"status": status, "code": error_code}
+            instances = 0
+            flags = []
+        child = {
+            "case": case,
+            "exit_code": exit_code,
+            "cli_argv": cli_argv,
+            "wheel_sha256": wheel_hash,
+            "loaded_modules_verified": 12,
+            "fresh_bytecode_cache": True,
+            "ctp_wrapper_factory_unchanged": True,
+            "ctp_wrapper_mro_verified": bool(instances),
+            "ctp_trader_leaf_instances": instances,
+            "ctp_md_leaf_instances": instances,
+            "ctp_trader_leaf_wrapper_matches_registered_instance": bool(instances),
+            "ctp_md_leaf_wrapper_matches_registered_instance": bool(instances),
+            "ctp_wrapper_mros": (
+                [["RegisteredSimClient", "RegisteredSimWrapper", "CtpClientWrapper", "object"]]
+                if instances
+                else []
+            ),
+            "store_write_flags": flags,
+            "network_attempts": 0,
+            **order_receipt,
+            **barrier_receipt,
+            "selection_bundle_sha256": "a" * 64,
+            "sdk_selector_source": {
+                **selector_source,
+                "module_origin": selector_source["path"],
+                "profile_id": fixture.SDK_SELECTOR_PROFILE,
+                "official_fronts_lookup": True,
+                "td_front_profile_lookup": True,
+                "official_profile_verification": True,
+            },
+            "sdk_selector_profile_id": fixture.SDK_SELECTOR_PROFILE,
+            "sdk_selector_profile_verified": True,
+            "synthetic_only": True,
+            "virtual_scheduler": True,
+            "virtual_scheduler_monotonic_is_real": True,
+            "virtual_scheduler_advance_count": 1 if error_code is None else 0,
+            "virtual_scheduler_delivered_ticks": 1 if error_code is None else 0,
+            "virtual_scheduler_callback_delivery_count": len(order_specs),
+            "virtual_scheduler_pending_callbacks": 0,
+            "virtual_scheduler_late_callback_schedule_count": 0,
+            "virtual_scheduler_final_utc": "2026-10-25T00:01:00+00:00",
+            "runner_clock_patch_binding": "run.__globals__['RunnerWallClock']",
+            "runner_clock_patch_target_is_function_globals": True,
+            "runner_clock_patch_origin": str((example / "run.py").resolve()),
+            "clock_origins": {
+                "runner_wall_clock_binding": "copied run.py run.__globals__['RunnerWallClock']",
+                "ctp_receive_wall_clock": (
+                    "backtrader.stores.btapistore.time.time -&gt; synthetic virtual UTC"
+                ),
+                "monotonic_clock": "host time.monotonic_ns forwarded without virtualization",
+                "scheduler_shared_state": (
+                    "RunnerWallClock and CTP leaves share one child-local instance"
+                ),
+            },
+            "runner_clock_constructor_calls": 1 if error_code is None else 0,
+            "runner_clock_shared_with_virtual_scheduler": error_code is None,
+            "store_environment_shape_valid": True,
+            "store_environment_api_kwargs_keys": ["fixture_marker", "live_tick_provenance"],
+            "store_live_tick_provenance": {
+                "clock_domain_id": "iteration50-installed-fixture-v1",
+                "rules_hash": "a" * 64,
+                "session_segment": "regular",
+            },
+            "live_cohort_exception_diagnostics": {
+                "path": str(diagnostic_path),
+                "size_bytes": len(diagnostic_bytes),
+                "sha256": hashlib.sha256(diagnostic_bytes).hexdigest(),
+                "captured_exception_count": 0,
+            },
+            "planned_slot_count": planned_slot_count,
+            "query_families": fixture._SYNTHETIC_QUERY_FAMILIES
+            if error_code is None
+            else [],
+            "subscriptions": ["A2611", "M2611", "Y2611"] if error_code is None else [],
+            "runner_summary_scheduler_clock_labels": (
+                [{"path": "summary", "value": "host-utc-plus-monotonic"}]
+                if error_code is None
+                else []
+            ),
+            "runner_summary_scheduler_clock_label_meaning": (
+                "production summary default identifier; not the injected runtime clock"
+            ),
+            "synthetic_leaf_close_receipt": {
+                "trader_client_count": instances,
+                "md_client_count": instances,
+                "trader_stop_calls": instances,
+                "trader_disconnect_calls": instances,
+                "md_stop_calls": instances,
+                "trader_connected_after_close": [False] if instances else [],
+                "trader_ready_after_close": [False] if instances else [],
+                "md_started_after_close": [False] if instances else [],
+                "wrappers_connected_after_close": [False] if instances else [],
+            },
+            "authorized_products": ["DCE.M", "DCE.A"],
+        }
+        child["raw_cli_summary_sha256"] = hashlib.sha256(
+            json.dumps(summary).encode("utf-8")
+        ).hexdigest()
+        observed = {}
+    
+        def fake_run(command, **kwargs):
+            observed["command"] = command
+            observed["kwargs"] = kwargs
+            stdout = json.dumps(summary) + "\n"
+            stdout += fixture._LIVE_CHILD_MARKER + json.dumps(child) + "\n"
+            observed["stdout"] = stdout.encode("utf-8")
+            observed["stderr"] = b""
+            return SimpleNamespace(returncode=exit_code, stdout=observed["stdout"], stderr=b"")
+    
+        monkeypatch.setenv("PYTHONPATH", "checkout-shadow")
+        monkeypatch.setenv("BT_SIMNOW_CONFIG_JSON", "ambient-must-not-reach-child")
+        monkeypatch.setattr(fixture.subprocess, "run", fake_run)
+&gt;       result = fixture.run_synthetic_live_case(
+            example_dir=example,
+            workspace=workspace,
+            wheel_path=wheel,
+            wheel_sha256=wheel_hash,
+            selector_source_path=selector_source_path,
+            case=case,
+            planned_slot_count=planned_slot_count,
+        )
+
+tests\unit\scripts\test_iteration51_installed_fixture.py:2674: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+    def run_synthetic_live_case(
+        *,
+        example_dir: Path,
+        workspace: Path,
+        wheel_path: Path,
+        wheel_sha256: str,
+        selector_source_path: Path,
+        case: str,
+        factor_mode: str = "native",
+        planned_slot_count: int = 64,
+        timeout_seconds: float = 300.0,
+        python: str = sys.executable,
+    ) -&gt; dict[str, Any]:
+        """Run one explicit live profile with the installed CTP SDK leaf faked locally."""
+    
+        if case not in SYNTHETIC_LIVE_CASES:
+            raise InstalledFixtureError("synthetic-live case is outside the fixed local set")
+        if factor_mode not in {"native", "build"}:
+            raise InstalledFixtureError("factor mode must be native or build")
+        if type(planned_slot_count) is not int or not 30 &lt;= planned_slot_count &lt;= 64:
+            raise InstalledFixtureError("synthetic planned slot count is outside the fixture bounds")
+        if not (0 &lt; timeout_seconds &lt;= 1800):
+            raise InstalledFixtureError(
+                "synthetic-live timeout must be finite and at most 1800 seconds"
+            )
+        example = _require_external(example_dir, label="synthetic-live example")
+        if not example.is_dir() or not (example / "run.py").is_file():
+            raise InstalledFixtureError("copied public runner is unavailable")
+        if not (example / "config.yaml").is_file():
+            raise InstalledFixtureError("copied public live config template is unavailable")
+        selector_source = _pinned_sdk_selector_source(selector_source_path)
+        target_workspace = _require_external(workspace, label="synthetic-live workspace")
+        target_workspace.mkdir(parents=True, exist_ok=True)
+        wheel = Path(wheel_path).expanduser().resolve(strict=True)
+        if (
+            not wheel.is_file()
+            or wheel.suffix.lower() != ".whl"
+            or type(wheel_sha256) is not str
+            or len(wheel_sha256) != 64
+            or any(value not in "0123456789abcdef" for value in wheel_sha256)
+            or _sha256(wheel) != wheel_sha256
+        ):
+            raise InstalledFixtureError("wheel does not match the supplied SHA-256")
+        child_script = target_workspace / (
+            "iteration51-synthetic-live-child-" + factor_mode + "-" + case + ".py"
+        )
+        if child_script.exists() or child_script.is_symlink():
+            raise InstalledFixtureError("synthetic-live child script destination must be new")
+        child_source = _SYNTHETIC_LIVE_CHILD_CODE.encode("utf-8")
+        try:
+            with child_script.open("xb") as handle:
+                handle.write(child_source)
+        except OSError as exc:
+            raise InstalledFixtureError(
+                "synthetic-live child source could not be materialized"
+            ) from exc
+        child_script = child_script.resolve(strict=True)
+        child_script_sha256 = _sha256(child_script)
+        if (
+            child_script.stat().st_size != len(child_source)
+            or child_script_sha256 != hashlib.sha256(child_source).hexdigest()
+        ):
+            raise InstalledFixtureError("synthetic-live child source changed during materialization")
+        command = _synthetic_live_child_command(
+            child_script_path=child_script,
+            wheel_path=wheel,
+            wheel_sha256=wheel_sha256,
+            example_dir=example,
+            workspace=target_workspace,
+            selector_source_path=Path(selector_source["path"]),
+            case=case,
+            factor_mode=factor_mode,
+            planned_slot_count=planned_slot_count,
+            python=python,
+        )
+        child_log_stem = "iteration51-synthetic-live-child-" + factor_mode + "-" + case
+        child_output_paths = (
+            target_workspace / (child_log_stem + ".stdout.bin"),
+            target_workspace / (child_log_stem + ".stderr.bin"),
+            target_workspace / (child_log_stem + ".exit.txt"),
+        )
+        if any(path.exists() or path.is_symlink() for path in child_output_paths):
+            raise InstalledFixtureError("synthetic-live child output destination must be new")
+        try:
+            completed = subprocess.run(
+                command,
+                cwd=str(example),
+                env=_sanitized_environment(),
+                capture_output=True,
+                timeout=timeout_seconds,
+                check=False,
+            )
+        except subprocess.TimeoutExpired as exc:
+            timeout_stdout = exc.stdout if exc.stdout is not None else b""
+            timeout_stderr = exc.stderr if exc.stderr is not None else b""
+            timeout_output = _preserve_synthetic_child_output(
+                target_workspace,
+                child_log_stem,
+                stdout_bytes=timeout_stdout,
+                stderr_bytes=timeout_stderr,
+                exit_record=b"UNKNOWN_TIMEOUT\n",
+                exit_code=None,
+                exit_status="unknown_timeout",
+            )
+            raise InstalledFixtureError(
+                "synthetic-live child exceeded its bounded timeout; exit status is unknown; "
+                "raw output was preserved at " + timeout_output["stdout_path"]
+            ) from exc
+        child_stdout_bytes = completed.stdout
+        child_stderr_bytes = completed.stderr
+        if type(child_stdout_bytes) is not bytes or type(child_stderr_bytes) is not bytes:
+            raise InstalledFixtureError("synthetic-live child did not return binary output")
+        child_output = _preserve_synthetic_child_output(
+            target_workspace,
+            child_log_stem,
+            stdout_bytes=child_stdout_bytes,
+            stderr_bytes=child_stderr_bytes,
+            exit_record=(str(completed.returncode) + "\n").encode("ascii"),
+            exit_code=completed.returncode,
+            exit_status="returned",
+        )
+        if (
+            child_script.stat().st_size != len(child_source)
+            or _sha256(child_script) != child_script_sha256
+        ):
+            raise InstalledFixtureError("synthetic-live child source changed during execution")
+        try:
+            child_stdout = child_stdout_bytes.decode("utf-8")
+        except UnicodeDecodeError as exc:
+            raise InstalledFixtureError(
+                "synthetic-live child output is not valid UTF-8; raw bytes were preserved"
+            ) from exc
+        summary = _last_json_object(child_stdout)
+        summary_line = _last_json_object_line(child_stdout)
+        child = _synthetic_live_child_receipt(child_stdout)
+        if (
+            child.get("raw_cli_summary_sha256")
+            != hashlib.sha256(summary_line.encode("utf-8")).hexdigest()
+        ):
+            raise InstalledFixtureError("production CLI summary bytes changed in the fixture")
+        if _pinned_sdk_selector_source(selector_source_path) != selector_source:
+            raise InstalledFixtureError("pinned SDK selector source changed during the child run")
+        expected_exit, expected_status, expected_code, expected_writes = _SYNTHETIC_LIVE_EXPECTATIONS[
+            case
+        ]
+        reported_argv = child.get("cli_argv")
+        if (
+            type(reported_argv) is not list
+            or len(reported_argv) not in {7, 8}
+            or reported_argv[0] != str((example / "run.py").resolve())
+            or reported_argv[1] != "--config"
+        ):
+            raise InstalledFixtureError("synthetic-live child command receipt is malformed")
+        live_config_path = Path(reported_argv[2]).resolve(strict=False)
+        if (
+            not _is_within(live_config_path, target_workspace)
+            or live_config_path.name != "runner.yaml"
+            or live_config_path.is_symlink()
+        ):
+            raise InstalledFixtureError("synthetic-live config escaped its external workspace")
+        cli_argv = [
+            str((example / "run.py").resolve()),
+            "--config",
+            str(live_config_path),
+            "--mode",
+            "live",
+            "--factor-mode",
+            factor_mode,
+        ]
+        if case in {"write", "write-denied"}:
+            cli_argv.append("--allow-write")
+        diagnostic_receipt = child.get("live_cohort_exception_diagnostics")
+        if not isinstance(diagnostic_receipt, dict):
+            raise InstalledFixtureError("live cohort exception diagnostic receipt is missing")
+        diagnostic_requested_path = Path(diagnostic_receipt.get("path", ""))
+        if diagnostic_requested_path.is_symlink():
+            raise InstalledFixtureError("live cohort diagnostic path must not be a symlink")
+        diagnostic_path = diagnostic_requested_path.resolve(strict=True)
+        expected_diagnostic_path = live_config_path.parent / "live-cohort-exception-diagnostics.json"
+        if (
+            diagnostic_path != expected_diagnostic_path.resolve(strict=True)
+            or diagnostic_path.is_symlink()
+            or not _is_within(diagnostic_path, target_workspace)
+            or diagnostic_path.stat().st_size &gt; 65536
+        ):
+            raise InstalledFixtureError("live cohort diagnostic escaped its bounded case workspace")
+        diagnostic_bytes = diagnostic_path.read_bytes()
+        if (
+            diagnostic_receipt.get("size_bytes") != len(diagnostic_bytes)
+            or diagnostic_receipt.get("sha256") != hashlib.sha256(diagnostic_bytes).hexdigest()
+        ):
+            raise InstalledFixtureError("live cohort diagnostic bytes do not match their receipt")
+        try:
+            diagnostic_document = json.loads(diagnostic_bytes.decode("utf-8"))
+        except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+            raise InstalledFixtureError("live cohort diagnostic JSON is malformed") from exc
+        if (
+            not isinstance(diagnostic_document, dict)
+            or diagnostic_document.get("schema")
+            != "backtrader.iteration51.synthetic_live_cohort_diagnostics.v1"
+            or diagnostic_document.get("capture")
+            != "installed live_cohort exception events during copied public CLI run"
+            or not isinstance(diagnostic_document.get("exceptions"), list)
+            or len(diagnostic_document["exceptions"]) &gt; 8
+            or diagnostic_document.get("captured_exception_count")
+            != len(diagnostic_document["exceptions"])
+            or diagnostic_receipt.get("captured_exception_count")
+            != diagnostic_document.get("captured_exception_count")
+        ):
+            raise InstalledFixtureError("live cohort diagnostic schema or count is invalid")
+        common_ok = (
+            completed.returncode == expected_exit
+            and child.get("exit_code") == expected_exit
+            and child.get("case") == case
+            and child.get("cli_argv") == cli_argv
+            and child.get("wheel_sha256") == wheel_sha256
+            and child.get("sdk_selector_source")
+            == {
+                **selector_source,
+                "module_origin": selector_source["path"],
+                "profile_id": SDK_SELECTOR_PROFILE,
+                "official_fronts_lookup": True,
+                "td_front_profile_lookup": True,
+                "official_profile_verification": True,
+            }
+            and child.get("sdk_selector_profile_id") == SDK_SELECTOR_PROFILE
+            and child.get("sdk_selector_profile_verified") is True
+            and child.get("loaded_modules_verified", 0) &gt; 0
+            and child.get("fresh_bytecode_cache") is True
+            and child.get("ctp_wrapper_factory_unchanged") is True
+            and _synthetic_authorization_scope_is_valid(case, child)
+            and _synthetic_order_sys_id_provenance_is_valid(child)
+            and child.get("network_attempts") == 0
+            and child.get("synthetic_only") is True
+            and child.get("virtual_scheduler") is True
+            and child.get("virtual_scheduler_monotonic_is_real") is True
+            and child.get("runner_clock_patch_binding") == "run.__globals__['RunnerWallClock']"
+            and child.get("runner_clock_patch_target_is_function_globals") is True
+            and child.get("runner_clock_patch_origin") == str((example / "run.py").resolve())
+            and child.get("clock_origins")
+            == {
+                "runner_wall_clock_binding": "copied run.py run.__globals__['RunnerWallClock']",
+                "ctp_receive_wall_clock": (
+                    "backtrader.stores.btapistore.time.time -&gt; synthetic virtual UTC"
+                ),
+                "monotonic_clock": "host time.monotonic_ns forwarded without virtualization",
+                "scheduler_shared_state": (
+                    "RunnerWallClock and CTP leaves share one child-local instance"
+                ),
+            }
+            and child.get("store_environment_shape_valid") is True
+            and child.get("store_environment_api_kwargs_keys")
+            == ["fixture_marker", "live_tick_provenance"]
+            and child.get("store_live_tick_provenance")
+            == {
+                "clock_domain_id": "iteration50-installed-fixture-v1",
+                "rules_hash": "a" * 64,
+                "session_segment": "regular",
+            }
+            and diagnostic_document.get("captured_exception_count") == 0
+            and child.get("planned_slot_count") == planned_slot_count
+            and type(child.get("selection_bundle_sha256")) is str
+            and len(child["selection_bundle_sha256"]) == 64
+            and child.get("authorized_products") == ["DCE.M", "DCE.A"]
+        )
+        if expected_code is None:
+            common_ok = (
+                common_ok
+                and child.get("ctp_trader_leaf_wrapper_matches_registered_instance") is True
+                and child.get("ctp_md_leaf_wrapper_matches_registered_instance") is True
+            )
+            summary_failures = _synthetic_live_summary_failure_checks(
+                summary,
+                child,
+                planned_slot_count=planned_slot_count,
+                expected_writes=expected_writes,
+                expected_selection_path=live_config_path.parent / "selection-bundle.json",
+            )
+            success_runtime_ok = (
+                child.get("ctp_wrapper_mro_verified") is True
+                and child.get("ctp_trader_leaf_instances") == 1
+                and child.get("ctp_md_leaf_instances") == 1
+                and child.get("store_write_flags") == [expected_writes]
+                and child.get("runner_clock_constructor_calls") == 1
+                and child.get("runner_clock_shared_with_virtual_scheduler") is True
+                and child.get("virtual_scheduler_advance_count", 0) &gt; 0
+                and child.get("virtual_scheduler_delivered_ticks", 0) &gt; 0
+                and child.get("virtual_scheduler_callback_delivery_count", 0)
+                == child.get("synthetic_fill_count", 0)
+                and child.get("virtual_scheduler_pending_callbacks") == 0
+                and child.get("virtual_scheduler_late_callback_schedule_count") == 0
+                and child.get("virtual_scheduler_final_utc")
+                and child.get("synthetic_leaf_close_receipt")
+                == {
+                    "trader_client_count": 1,
+                    "md_client_count": 1,
+                    "trader_stop_calls": 1,
+                    "trader_disconnect_calls": 1,
+                    "md_stop_calls": 1,
+                    "trader_connected_after_close": [False],
+                    "trader_ready_after_close": [False],
+                    "md_started_after_close": [False],
+                    "wrappers_connected_after_close": [False],
+                }
+            )
+            summary_ok = not summary_failures and success_runtime_ok
+            if case == "read-only":
+                common_ok = (
+                    common_ok
+                    and child.get("synthetic_leaf_actions") == []
+                    and child.get("synthetic_fill_count") == 0
+                    and child.get("ctp_order_callback_count") == 0
+                    and child.get("ctp_order_callback_associations") == []
+                    and child.get("ctp_trade_callback_count") == 0
+                )
+            elif case == "write":
+                strategy_events = (
+                    summary.get("strategy_order_events", {}).get("events", [])
+                    if isinstance(summary.get("strategy_order_events"), Mapping)
+                    else []
+                )
+                synthetic_actions = child.get("synthetic_leaf_actions")
+                common_ok = (
+                    common_ok
+                    and isinstance(synthetic_actions, list)
+                    and bool(synthetic_actions)
+                    and any(
+                        isinstance(action, Mapping) and action.get("action") == "insert"
+                        for action in synthetic_actions
+                    )
+                    and all(
+                        isinstance(action, Mapping)
+                        and action.get("action") in {
+                            "arm", "disarm", "insert", "cancel", "sdk_stop_revoke"
+                        }
+                        for action in synthetic_actions
+                    )
+                    and child.get("arm_calls", 0) &gt; 0
+                    and child.get("disarm_calls", 0) &gt; 0
+                    and child.get("synthetic_fill_count", 0) &gt; 0
+                    and child.get("ctp_order_callback_count", 0) &gt; 0
+                    and child.get("ctp_trade_callback_count", 0) &gt; 0
+                    and bool(strategy_events)
+                    and child.get("virtual_scheduler_callback_delivery_count", 0)
+                    == child.get("synthetic_fill_count")
+                )
+        else:
+            common_ok = (
+                common_ok
+                and child.get("ctp_trader_leaf_wrapper_matches_registered_instance") is False
+                and child.get("ctp_md_leaf_wrapper_matches_registered_instance") is False
+            )
+            summary_ok = (
+                summary.get("status") == expected_status and summary.get("code") == expected_code
+            )
+            common_ok = common_ok and child.get("ctp_trader_leaf_instances") == 0
+            common_ok = common_ok and child.get("ctp_md_leaf_instances") == 0
+            common_ok = common_ok and child.get("synthetic_leaf_actions") == []
+            common_ok = common_ok and child.get("runner_clock_constructor_calls") == 0
+        if not common_ok or not summary_ok:
+            failed_checks = []
+            if not common_ok:
+                failed_checks.append("child.runtime_source_authorization_clock_or_lifecycle")
+            if expected_code is None:
+                failed_checks.extend(summary_failures)
+                if not success_runtime_ok:
+                    failed_checks.append("child.wrapper_scheduler_and_close_receipts")
+            elif not summary_ok:
+                failed_checks.append("summary.expected_blocked_status_and_code")
+&gt;           raise InstalledFixtureError(
+                "synthetic-live case acceptance failed: "
+                + case
+                + "; failed_checks="
+                + ",".join(failed_checks),
+                safe_check_ids=failed_checks,
+            )
+E           iteration51_installed_fixture_test.InstalledFixtureError: synthetic-live case acceptance failed: write; failed_checks=child.runtime_source_authorization_clock_or_lifecycle
+
+scripts\iteration51_installed_fixture.py:4467: InstalledFixtureError</failure></testcase><testcase classname="tests.unit.scripts.test_iteration51_installed_fixture" name="test_synthetic_live_case_runs_isolated_command_and_checks_finite_outcome[write-denied-2-BLOCKED-LIVE_WRITE_GRANT_MISSING_IN_CONFIG-False-64-INSTALLED_BT_WHEEL_PUBLIC_SDK_SOURCE_FIXTURE]" time="0.074"><failure message="iteration51_installed_fixture_test.InstalledFixtureError: synthetic-live case acceptance failed: write-denied; failed_checks=child.runtime_source_authorization_clock_or_lifecycle">monkeypatch = &lt;_pytest.monkeypatch.MonkeyPatch object at 0x000001649EC88A90&gt;
+tmp_path = WindowsPath('C:/Users/yunji/AppData/Local/Temp/pytest-of-yunji/pytest-999/test_synthetic_live_case_runs_2')
+case = 'write-denied', exit_code = 2, status = 'BLOCKED'
+error_code = 'LIVE_WRITE_GRANT_MISSING_IN_CONFIG', write_enabled = False
+planned_slot_count = 64
+expected_evidence_level = 'INSTALLED_BT_WHEEL_PUBLIC_SDK_SOURCE_FIXTURE'
+
+    @pytest.mark.parametrize(
+        (
+            "case",
+            "exit_code",
+            "status",
+            "error_code",
+            "write_enabled",
+            "planned_slot_count",
+            "expected_evidence_level",
+        ),
+        (
+            (
+                "read-only",
+                0,
+                "LIVE_RUN_COMPLETE",
+                None,
+                False,
+                64,
+                "INSTALLED_BT_WHEEL_PUBLIC_SDK_SOURCE_FIXTURE",
+            ),
+            (
+                "write",
+                0,
+                "LIVE_RUN_COMPLETE",
+                None,
+                True,
+                64,
+                "INSTALLED_BT_WHEEL_PUBLIC_SDK_SOURCE_FIXTURE",
+            ),
+            (
+                "write-denied",
+                2,
+                "BLOCKED",
+                "LIVE_WRITE_GRANT_MISSING_IN_CONFIG",
+                False,
+                64,
+                "INSTALLED_BT_WHEEL_PUBLIC_SDK_SOURCE_FIXTURE",
+            ),
+            (
+                "tier-escalation",
+                2,
+                "BLOCKED",
+                "ENTRY_TIER_ESCALATION_DENIED",
+                False,
+                64,
+                "INSTALLED_BT_WHEEL_PUBLIC_SDK_SOURCE_FIXTURE",
+            ),
+            (
+                "read-only",
+                0,
+                "LIVE_RUN_COMPLETE",
+                None,
+                False,
+                32,
+                "SYNTHETIC_DIAGNOSTIC_ONLY",
+            ),
+        ),
+    )
+    def test_synthetic_live_case_runs_isolated_command_and_checks_finite_outcome(
+        monkeypatch: pytest.MonkeyPatch,
+        tmp_path: Path,
+        case: str,
+        exit_code: int,
+        status: str,
+        error_code: Optional[str],
+        write_enabled: bool,
+        planned_slot_count: int,
+        expected_evidence_level: str,
+    ) -&gt; None:
+        fixture = _load_fixture()
+        example = tmp_path / "copied-example"
+        example.mkdir()
+        (example / "run.py").write_text("# copied public runner\n", encoding="utf-8")
+        (example / "alpha003_strategy.py").write_text(
+            "# copied public strategy\n", encoding="utf-8"
+        )
+        (example / "config.yaml").write_text("schema: public-template\n", encoding="utf-8")
+        workspace = tmp_path / "external-workspace"
+        workspace.mkdir()
+        live_case_dir = workspace / "iteration51-live-case-test"
+        live_case_dir.mkdir()
+        live_config = live_case_dir / "runner.yaml"
+        live_config.write_text("synthetic test config\n", encoding="utf-8")
+        selection_bundle_path = live_case_dir / "selection-bundle.json"
+        selection_bundle_path.write_text("{}\n", encoding="utf-8")
+        diagnostic_path = live_case_dir / "live-cohort-exception-diagnostics.json"
+        diagnostic_document = {
+            "schema": "backtrader.iteration51.synthetic_live_cohort_diagnostics.v1",
+            "capture": "installed live_cohort exception events during copied public CLI run",
+            "captured_exception_count": 0,
+            "exceptions": [],
+            "runner_summary": None,
+        }
+        diagnostic_bytes = json.dumps(
+            diagnostic_document, sort_keys=True, separators=(",", ":")
+        ).encode("utf-8")
+        diagnostic_path.write_bytes(diagnostic_bytes)
+        wheel = tmp_path / "pinned.whl"
+        wheel.write_bytes(b"wheel placeholder for synthetic live command")
+        wheel_hash = hashlib.sha256(wheel.read_bytes()).hexdigest()
+        selector_source_path = _write_test_selector_source(tmp_path, fixture, monkeypatch)
+        selector_source = fixture._pinned_sdk_selector_source(selector_source_path)
+        cli_argv = [
+            str((example / "run.py").resolve()),
+            "--config",
+            str(live_config.resolve()),
+            "--mode",
+            "live",
+            "--factor-mode",
+            "native",
+        ]
+        if case in {"write", "write-denied"}:
+            cli_argv.append("--allow-write")
+        order_specs = (("1", "M2611"), ("2", "A2611")) if case == "write" else ()
+        order_receipt = _synthetic_order_receipt(order_specs)
+        if error_code is None and write_enabled:
+            barrier_receipt = _synthetic_refresh_barrier_receipt(
+                order_specs=order_specs
+            )
+            barrier_receipt["query_refresh_barrier_origin"] = str(
+                (example / "run.py").resolve()
+            )
+            barrier_receipt["strategy_notify_barrier_origin"] = str(
+                (_FIXTURE_PATH.parents[1] / "backtrader" / "strategy.py").resolve()
+            )
+            barrier_receipt["strategy_notify_class_origin"] = str(
+                (example / "alpha003_strategy.py").resolve()
+            )
+            barrier_receipt["max_order_intents_per_run"] = 20
+        elif error_code is None:
+            barrier_receipt = {
+                "synthetic_refresh_barrier": {
+                    "enabled": False,
+                    "barrier_count": 0,
+                    "fill_barrier_count": 0,
+                    "preclose_barrier_count": 0,
+                    "engine_delivery_failure_codes": [],
+                    "records": [],
+                },
+                "query_refresh_barrier_binding": None,
+                "strategy_notify_barrier_binding": None,
+                "strategy_notify_class_origin": None,
+                "strategy_notify_barrier_origin": None,
+                "strategy_notify_barrier_delegates_original": False,
+            }
+        else:
+            barrier_receipt = {}
+        if error_code is None:
+            summary = _synthetic_live_summary(
+                planned_slot_count=planned_slot_count,
+                write_enabled=write_enabled,
+                order_specs=order_specs,
+                selection_bundle_path=selection_bundle_path,
+                profile_id=fixture.SDK_SELECTOR_PROFILE,
+            )
+            instances = 1
+            flags = [write_enabled]
+        else:
+            summary = {"status": status, "code": error_code}
+            instances = 0
+            flags = []
+        child = {
+            "case": case,
+            "exit_code": exit_code,
+            "cli_argv": cli_argv,
+            "wheel_sha256": wheel_hash,
+            "loaded_modules_verified": 12,
+            "fresh_bytecode_cache": True,
+            "ctp_wrapper_factory_unchanged": True,
+            "ctp_wrapper_mro_verified": bool(instances),
+            "ctp_trader_leaf_instances": instances,
+            "ctp_md_leaf_instances": instances,
+            "ctp_trader_leaf_wrapper_matches_registered_instance": bool(instances),
+            "ctp_md_leaf_wrapper_matches_registered_instance": bool(instances),
+            "ctp_wrapper_mros": (
+                [["RegisteredSimClient", "RegisteredSimWrapper", "CtpClientWrapper", "object"]]
+                if instances
+                else []
+            ),
+            "store_write_flags": flags,
+            "network_attempts": 0,
+            **order_receipt,
+            **barrier_receipt,
+            "selection_bundle_sha256": "a" * 64,
+            "sdk_selector_source": {
+                **selector_source,
+                "module_origin": selector_source["path"],
+                "profile_id": fixture.SDK_SELECTOR_PROFILE,
+                "official_fronts_lookup": True,
+                "td_front_profile_lookup": True,
+                "official_profile_verification": True,
+            },
+            "sdk_selector_profile_id": fixture.SDK_SELECTOR_PROFILE,
+            "sdk_selector_profile_verified": True,
+            "synthetic_only": True,
+            "virtual_scheduler": True,
+            "virtual_scheduler_monotonic_is_real": True,
+            "virtual_scheduler_advance_count": 1 if error_code is None else 0,
+            "virtual_scheduler_delivered_ticks": 1 if error_code is None else 0,
+            "virtual_scheduler_callback_delivery_count": len(order_specs),
+            "virtual_scheduler_pending_callbacks": 0,
+            "virtual_scheduler_late_callback_schedule_count": 0,
+            "virtual_scheduler_final_utc": "2026-10-25T00:01:00+00:00",
+            "runner_clock_patch_binding": "run.__globals__['RunnerWallClock']",
+            "runner_clock_patch_target_is_function_globals": True,
+            "runner_clock_patch_origin": str((example / "run.py").resolve()),
+            "clock_origins": {
+                "runner_wall_clock_binding": "copied run.py run.__globals__['RunnerWallClock']",
+                "ctp_receive_wall_clock": (
+                    "backtrader.stores.btapistore.time.time -&gt; synthetic virtual UTC"
+                ),
+                "monotonic_clock": "host time.monotonic_ns forwarded without virtualization",
+                "scheduler_shared_state": (
+                    "RunnerWallClock and CTP leaves share one child-local instance"
+                ),
+            },
+            "runner_clock_constructor_calls": 1 if error_code is None else 0,
+            "runner_clock_shared_with_virtual_scheduler": error_code is None,
+            "store_environment_shape_valid": True,
+            "store_environment_api_kwargs_keys": ["fixture_marker", "live_tick_provenance"],
+            "store_live_tick_provenance": {
+                "clock_domain_id": "iteration50-installed-fixture-v1",
+                "rules_hash": "a" * 64,
+                "session_segment": "regular",
+            },
+            "live_cohort_exception_diagnostics": {
+                "path": str(diagnostic_path),
+                "size_bytes": len(diagnostic_bytes),
+                "sha256": hashlib.sha256(diagnostic_bytes).hexdigest(),
+                "captured_exception_count": 0,
+            },
+            "planned_slot_count": planned_slot_count,
+            "query_families": fixture._SYNTHETIC_QUERY_FAMILIES
+            if error_code is None
+            else [],
+            "subscriptions": ["A2611", "M2611", "Y2611"] if error_code is None else [],
+            "runner_summary_scheduler_clock_labels": (
+                [{"path": "summary", "value": "host-utc-plus-monotonic"}]
+                if error_code is None
+                else []
+            ),
+            "runner_summary_scheduler_clock_label_meaning": (
+                "production summary default identifier; not the injected runtime clock"
+            ),
+            "synthetic_leaf_close_receipt": {
+                "trader_client_count": instances,
+                "md_client_count": instances,
+                "trader_stop_calls": instances,
+                "trader_disconnect_calls": instances,
+                "md_stop_calls": instances,
+                "trader_connected_after_close": [False] if instances else [],
+                "trader_ready_after_close": [False] if instances else [],
+                "md_started_after_close": [False] if instances else [],
+                "wrappers_connected_after_close": [False] if instances else [],
+            },
+            "authorized_products": ["DCE.M", "DCE.A"],
+        }
+        child["raw_cli_summary_sha256"] = hashlib.sha256(
+            json.dumps(summary).encode("utf-8")
+        ).hexdigest()
+        observed = {}
+    
+        def fake_run(command, **kwargs):
+            observed["command"] = command
+            observed["kwargs"] = kwargs
+            stdout = json.dumps(summary) + "\n"
+            stdout += fixture._LIVE_CHILD_MARKER + json.dumps(child) + "\n"
+            observed["stdout"] = stdout.encode("utf-8")
+            observed["stderr"] = b""
+            return SimpleNamespace(returncode=exit_code, stdout=observed["stdout"], stderr=b"")
+    
+        monkeypatch.setenv("PYTHONPATH", "checkout-shadow")
+        monkeypatch.setenv("BT_SIMNOW_CONFIG_JSON", "ambient-must-not-reach-child")
+        monkeypatch.setattr(fixture.subprocess, "run", fake_run)
+&gt;       result = fixture.run_synthetic_live_case(
+            example_dir=example,
+            workspace=workspace,
+            wheel_path=wheel,
+            wheel_sha256=wheel_hash,
+            selector_source_path=selector_source_path,
+            case=case,
+            planned_slot_count=planned_slot_count,
+        )
+
+tests\unit\scripts\test_iteration51_installed_fixture.py:2674: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+    def run_synthetic_live_case(
+        *,
+        example_dir: Path,
+        workspace: Path,
+        wheel_path: Path,
+        wheel_sha256: str,
+        selector_source_path: Path,
+        case: str,
+        factor_mode: str = "native",
+        planned_slot_count: int = 64,
+        timeout_seconds: float = 300.0,
+        python: str = sys.executable,
+    ) -&gt; dict[str, Any]:
+        """Run one explicit live profile with the installed CTP SDK leaf faked locally."""
+    
+        if case not in SYNTHETIC_LIVE_CASES:
+            raise InstalledFixtureError("synthetic-live case is outside the fixed local set")
+        if factor_mode not in {"native", "build"}:
+            raise InstalledFixtureError("factor mode must be native or build")
+        if type(planned_slot_count) is not int or not 30 &lt;= planned_slot_count &lt;= 64:
+            raise InstalledFixtureError("synthetic planned slot count is outside the fixture bounds")
+        if not (0 &lt; timeout_seconds &lt;= 1800):
+            raise InstalledFixtureError(
+                "synthetic-live timeout must be finite and at most 1800 seconds"
+            )
+        example = _require_external(example_dir, label="synthetic-live example")
+        if not example.is_dir() or not (example / "run.py").is_file():
+            raise InstalledFixtureError("copied public runner is unavailable")
+        if not (example / "config.yaml").is_file():
+            raise InstalledFixtureError("copied public live config template is unavailable")
+        selector_source = _pinned_sdk_selector_source(selector_source_path)
+        target_workspace = _require_external(workspace, label="synthetic-live workspace")
+        target_workspace.mkdir(parents=True, exist_ok=True)
+        wheel = Path(wheel_path).expanduser().resolve(strict=True)
+        if (
+            not wheel.is_file()
+            or wheel.suffix.lower() != ".whl"
+            or type(wheel_sha256) is not str
+            or len(wheel_sha256) != 64
+            or any(value not in "0123456789abcdef" for value in wheel_sha256)
+            or _sha256(wheel) != wheel_sha256
+        ):
+            raise InstalledFixtureError("wheel does not match the supplied SHA-256")
+        child_script = target_workspace / (
+            "iteration51-synthetic-live-child-" + factor_mode + "-" + case + ".py"
+        )
+        if child_script.exists() or child_script.is_symlink():
+            raise InstalledFixtureError("synthetic-live child script destination must be new")
+        child_source = _SYNTHETIC_LIVE_CHILD_CODE.encode("utf-8")
+        try:
+            with child_script.open("xb") as handle:
+                handle.write(child_source)
+        except OSError as exc:
+            raise InstalledFixtureError(
+                "synthetic-live child source could not be materialized"
+            ) from exc
+        child_script = child_script.resolve(strict=True)
+        child_script_sha256 = _sha256(child_script)
+        if (
+            child_script.stat().st_size != len(child_source)
+            or child_script_sha256 != hashlib.sha256(child_source).hexdigest()
+        ):
+            raise InstalledFixtureError("synthetic-live child source changed during materialization")
+        command = _synthetic_live_child_command(
+            child_script_path=child_script,
+            wheel_path=wheel,
+            wheel_sha256=wheel_sha256,
+            example_dir=example,
+            workspace=target_workspace,
+            selector_source_path=Path(selector_source["path"]),
+            case=case,
+            factor_mode=factor_mode,
+            planned_slot_count=planned_slot_count,
+            python=python,
+        )
+        child_log_stem = "iteration51-synthetic-live-child-" + factor_mode + "-" + case
+        child_output_paths = (
+            target_workspace / (child_log_stem + ".stdout.bin"),
+            target_workspace / (child_log_stem + ".stderr.bin"),
+            target_workspace / (child_log_stem + ".exit.txt"),
+        )
+        if any(path.exists() or path.is_symlink() for path in child_output_paths):
+            raise InstalledFixtureError("synthetic-live child output destination must be new")
+        try:
+            completed = subprocess.run(
+                command,
+                cwd=str(example),
+                env=_sanitized_environment(),
+                capture_output=True,
+                timeout=timeout_seconds,
+                check=False,
+            )
+        except subprocess.TimeoutExpired as exc:
+            timeout_stdout = exc.stdout if exc.stdout is not None else b""
+            timeout_stderr = exc.stderr if exc.stderr is not None else b""
+            timeout_output = _preserve_synthetic_child_output(
+                target_workspace,
+                child_log_stem,
+                stdout_bytes=timeout_stdout,
+                stderr_bytes=timeout_stderr,
+                exit_record=b"UNKNOWN_TIMEOUT\n",
+                exit_code=None,
+                exit_status="unknown_timeout",
+            )
+            raise InstalledFixtureError(
+                "synthetic-live child exceeded its bounded timeout; exit status is unknown; "
+                "raw output was preserved at " + timeout_output["stdout_path"]
+            ) from exc
+        child_stdout_bytes = completed.stdout
+        child_stderr_bytes = completed.stderr
+        if type(child_stdout_bytes) is not bytes or type(child_stderr_bytes) is not bytes:
+            raise InstalledFixtureError("synthetic-live child did not return binary output")
+        child_output = _preserve_synthetic_child_output(
+            target_workspace,
+            child_log_stem,
+            stdout_bytes=child_stdout_bytes,
+            stderr_bytes=child_stderr_bytes,
+            exit_record=(str(completed.returncode) + "\n").encode("ascii"),
+            exit_code=completed.returncode,
+            exit_status="returned",
+        )
+        if (
+            child_script.stat().st_size != len(child_source)
+            or _sha256(child_script) != child_script_sha256
+        ):
+            raise InstalledFixtureError("synthetic-live child source changed during execution")
+        try:
+            child_stdout = child_stdout_bytes.decode("utf-8")
+        except UnicodeDecodeError as exc:
+            raise InstalledFixtureError(
+                "synthetic-live child output is not valid UTF-8; raw bytes were preserved"
+            ) from exc
+        summary = _last_json_object(child_stdout)
+        summary_line = _last_json_object_line(child_stdout)
+        child = _synthetic_live_child_receipt(child_stdout)
+        if (
+            child.get("raw_cli_summary_sha256")
+            != hashlib.sha256(summary_line.encode("utf-8")).hexdigest()
+        ):
+            raise InstalledFixtureError("production CLI summary bytes changed in the fixture")
+        if _pinned_sdk_selector_source(selector_source_path) != selector_source:
+            raise InstalledFixtureError("pinned SDK selector source changed during the child run")
+        expected_exit, expected_status, expected_code, expected_writes = _SYNTHETIC_LIVE_EXPECTATIONS[
+            case
+        ]
+        reported_argv = child.get("cli_argv")
+        if (
+            type(reported_argv) is not list
+            or len(reported_argv) not in {7, 8}
+            or reported_argv[0] != str((example / "run.py").resolve())
+            or reported_argv[1] != "--config"
+        ):
+            raise InstalledFixtureError("synthetic-live child command receipt is malformed")
+        live_config_path = Path(reported_argv[2]).resolve(strict=False)
+        if (
+            not _is_within(live_config_path, target_workspace)
+            or live_config_path.name != "runner.yaml"
+            or live_config_path.is_symlink()
+        ):
+            raise InstalledFixtureError("synthetic-live config escaped its external workspace")
+        cli_argv = [
+            str((example / "run.py").resolve()),
+            "--config",
+            str(live_config_path),
+            "--mode",
+            "live",
+            "--factor-mode",
+            factor_mode,
+        ]
+        if case in {"write", "write-denied"}:
+            cli_argv.append("--allow-write")
+        diagnostic_receipt = child.get("live_cohort_exception_diagnostics")
+        if not isinstance(diagnostic_receipt, dict):
+            raise InstalledFixtureError("live cohort exception diagnostic receipt is missing")
+        diagnostic_requested_path = Path(diagnostic_receipt.get("path", ""))
+        if diagnostic_requested_path.is_symlink():
+            raise InstalledFixtureError("live cohort diagnostic path must not be a symlink")
+        diagnostic_path = diagnostic_requested_path.resolve(strict=True)
+        expected_diagnostic_path = live_config_path.parent / "live-cohort-exception-diagnostics.json"
+        if (
+            diagnostic_path != expected_diagnostic_path.resolve(strict=True)
+            or diagnostic_path.is_symlink()
+            or not _is_within(diagnostic_path, target_workspace)
+            or diagnostic_path.stat().st_size &gt; 65536
+        ):
+            raise InstalledFixtureError("live cohort diagnostic escaped its bounded case workspace")
+        diagnostic_bytes = diagnostic_path.read_bytes()
+        if (
+            diagnostic_receipt.get("size_bytes") != len(diagnostic_bytes)
+            or diagnostic_receipt.get("sha256") != hashlib.sha256(diagnostic_bytes).hexdigest()
+        ):
+            raise InstalledFixtureError("live cohort diagnostic bytes do not match their receipt")
+        try:
+            diagnostic_document = json.loads(diagnostic_bytes.decode("utf-8"))
+        except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+            raise InstalledFixtureError("live cohort diagnostic JSON is malformed") from exc
+        if (
+            not isinstance(diagnostic_document, dict)
+            or diagnostic_document.get("schema")
+            != "backtrader.iteration51.synthetic_live_cohort_diagnostics.v1"
+            or diagnostic_document.get("capture")
+            != "installed live_cohort exception events during copied public CLI run"
+            or not isinstance(diagnostic_document.get("exceptions"), list)
+            or len(diagnostic_document["exceptions"]) &gt; 8
+            or diagnostic_document.get("captured_exception_count")
+            != len(diagnostic_document["exceptions"])
+            or diagnostic_receipt.get("captured_exception_count")
+            != diagnostic_document.get("captured_exception_count")
+        ):
+            raise InstalledFixtureError("live cohort diagnostic schema or count is invalid")
+        common_ok = (
+            completed.returncode == expected_exit
+            and child.get("exit_code") == expected_exit
+            and child.get("case") == case
+            and child.get("cli_argv") == cli_argv
+            and child.get("wheel_sha256") == wheel_sha256
+            and child.get("sdk_selector_source")
+            == {
+                **selector_source,
+                "module_origin": selector_source["path"],
+                "profile_id": SDK_SELECTOR_PROFILE,
+                "official_fronts_lookup": True,
+                "td_front_profile_lookup": True,
+                "official_profile_verification": True,
+            }
+            and child.get("sdk_selector_profile_id") == SDK_SELECTOR_PROFILE
+            and child.get("sdk_selector_profile_verified") is True
+            and child.get("loaded_modules_verified", 0) &gt; 0
+            and child.get("fresh_bytecode_cache") is True
+            and child.get("ctp_wrapper_factory_unchanged") is True
+            and _synthetic_authorization_scope_is_valid(case, child)
+            and _synthetic_order_sys_id_provenance_is_valid(child)
+            and child.get("network_attempts") == 0
+            and child.get("synthetic_only") is True
+            and child.get("virtual_scheduler") is True
+            and child.get("virtual_scheduler_monotonic_is_real") is True
+            and child.get("runner_clock_patch_binding") == "run.__globals__['RunnerWallClock']"
+            and child.get("runner_clock_patch_target_is_function_globals") is True
+            and child.get("runner_clock_patch_origin") == str((example / "run.py").resolve())
+            and child.get("clock_origins")
+            == {
+                "runner_wall_clock_binding": "copied run.py run.__globals__['RunnerWallClock']",
+                "ctp_receive_wall_clock": (
+                    "backtrader.stores.btapistore.time.time -&gt; synthetic virtual UTC"
+                ),
+                "monotonic_clock": "host time.monotonic_ns forwarded without virtualization",
+                "scheduler_shared_state": (
+                    "RunnerWallClock and CTP leaves share one child-local instance"
+                ),
+            }
+            and child.get("store_environment_shape_valid") is True
+            and child.get("store_environment_api_kwargs_keys")
+            == ["fixture_marker", "live_tick_provenance"]
+            and child.get("store_live_tick_provenance")
+            == {
+                "clock_domain_id": "iteration50-installed-fixture-v1",
+                "rules_hash": "a" * 64,
+                "session_segment": "regular",
+            }
+            and diagnostic_document.get("captured_exception_count") == 0
+            and child.get("planned_slot_count") == planned_slot_count
+            and type(child.get("selection_bundle_sha256")) is str
+            and len(child["selection_bundle_sha256"]) == 64
+            and child.get("authorized_products") == ["DCE.M", "DCE.A"]
+        )
+        if expected_code is None:
+            common_ok = (
+                common_ok
+                and child.get("ctp_trader_leaf_wrapper_matches_registered_instance") is True
+                and child.get("ctp_md_leaf_wrapper_matches_registered_instance") is True
+            )
+            summary_failures = _synthetic_live_summary_failure_checks(
+                summary,
+                child,
+                planned_slot_count=planned_slot_count,
+                expected_writes=expected_writes,
+                expected_selection_path=live_config_path.parent / "selection-bundle.json",
+            )
+            success_runtime_ok = (
+                child.get("ctp_wrapper_mro_verified") is True
+                and child.get("ctp_trader_leaf_instances") == 1
+                and child.get("ctp_md_leaf_instances") == 1
+                and child.get("store_write_flags") == [expected_writes]
+                and child.get("runner_clock_constructor_calls") == 1
+                and child.get("runner_clock_shared_with_virtual_scheduler") is True
+                and child.get("virtual_scheduler_advance_count", 0) &gt; 0
+                and child.get("virtual_scheduler_delivered_ticks", 0) &gt; 0
+                and child.get("virtual_scheduler_callback_delivery_count", 0)
+                == child.get("synthetic_fill_count", 0)
+                and child.get("virtual_scheduler_pending_callbacks") == 0
+                and child.get("virtual_scheduler_late_callback_schedule_count") == 0
+                and child.get("virtual_scheduler_final_utc")
+                and child.get("synthetic_leaf_close_receipt")
+                == {
+                    "trader_client_count": 1,
+                    "md_client_count": 1,
+                    "trader_stop_calls": 1,
+                    "trader_disconnect_calls": 1,
+                    "md_stop_calls": 1,
+                    "trader_connected_after_close": [False],
+                    "trader_ready_after_close": [False],
+                    "md_started_after_close": [False],
+                    "wrappers_connected_after_close": [False],
+                }
+            )
+            summary_ok = not summary_failures and success_runtime_ok
+            if case == "read-only":
+                common_ok = (
+                    common_ok
+                    and child.get("synthetic_leaf_actions") == []
+                    and child.get("synthetic_fill_count") == 0
+                    and child.get("ctp_order_callback_count") == 0
+                    and child.get("ctp_order_callback_associations") == []
+                    and child.get("ctp_trade_callback_count") == 0
+                )
+            elif case == "write":
+                strategy_events = (
+                    summary.get("strategy_order_events", {}).get("events", [])
+                    if isinstance(summary.get("strategy_order_events"), Mapping)
+                    else []
+                )
+                synthetic_actions = child.get("synthetic_leaf_actions")
+                common_ok = (
+                    common_ok
+                    and isinstance(synthetic_actions, list)
+                    and bool(synthetic_actions)
+                    and any(
+                        isinstance(action, Mapping) and action.get("action") == "insert"
+                        for action in synthetic_actions
+                    )
+                    and all(
+                        isinstance(action, Mapping)
+                        and action.get("action") in {
+                            "arm", "disarm", "insert", "cancel", "sdk_stop_revoke"
+                        }
+                        for action in synthetic_actions
+                    )
+                    and child.get("arm_calls", 0) &gt; 0
+                    and child.get("disarm_calls", 0) &gt; 0
+                    and child.get("synthetic_fill_count", 0) &gt; 0
+                    and child.get("ctp_order_callback_count", 0) &gt; 0
+                    and child.get("ctp_trade_callback_count", 0) &gt; 0
+                    and bool(strategy_events)
+                    and child.get("virtual_scheduler_callback_delivery_count", 0)
+                    == child.get("synthetic_fill_count")
+                )
+        else:
+            common_ok = (
+                common_ok
+                and child.get("ctp_trader_leaf_wrapper_matches_registered_instance") is False
+                and child.get("ctp_md_leaf_wrapper_matches_registered_instance") is False
+            )
+            summary_ok = (
+                summary.get("status") == expected_status and summary.get("code") == expected_code
+            )
+            common_ok = common_ok and child.get("ctp_trader_leaf_instances") == 0
+            common_ok = common_ok and child.get("ctp_md_leaf_instances") == 0
+            common_ok = common_ok and child.get("synthetic_leaf_actions") == []
+            common_ok = common_ok and child.get("runner_clock_constructor_calls") == 0
+        if not common_ok or not summary_ok:
+            failed_checks = []
+            if not common_ok:
+                failed_checks.append("child.runtime_source_authorization_clock_or_lifecycle")
+            if expected_code is None:
+                failed_checks.extend(summary_failures)
+                if not success_runtime_ok:
+                    failed_checks.append("child.wrapper_scheduler_and_close_receipts")
+            elif not summary_ok:
+                failed_checks.append("summary.expected_blocked_status_and_code")
+&gt;           raise InstalledFixtureError(
+                "synthetic-live case acceptance failed: "
+                + case
+                + "; failed_checks="
+                + ",".join(failed_checks),
+                safe_check_ids=failed_checks,
+            )
+E           iteration51_installed_fixture_test.InstalledFixtureError: synthetic-live case acceptance failed: write-denied; failed_checks=child.runtime_source_authorization_clock_or_lifecycle
+
+scripts\iteration51_installed_fixture.py:4467: InstalledFixtureError</failure></testcase><testcase classname="tests.unit.scripts.test_iteration51_installed_fixture" name="test_synthetic_live_case_runs_isolated_command_and_checks_finite_outcome[tier-escalation-2-BLOCKED-ENTRY_TIER_ESCALATION_DENIED-False-64-INSTALLED_BT_WHEEL_PUBLIC_SDK_SOURCE_FIXTURE]" time="0.046"><failure message="iteration51_installed_fixture_test.InstalledFixtureError: synthetic-live case acceptance failed: tier-escalation; failed_checks=child.runtime_source_authorization_clock_or_lifecycle">monkeypatch = &lt;_pytest.monkeypatch.MonkeyPatch object at 0x000001649D0AB990&gt;
+tmp_path = WindowsPath('C:/Users/yunji/AppData/Local/Temp/pytest-of-yunji/pytest-999/test_synthetic_live_case_runs_3')
+case = 'tier-escalation', exit_code = 2, status = 'BLOCKED'
+error_code = 'ENTRY_TIER_ESCALATION_DENIED', write_enabled = False
+planned_slot_count = 64
+expected_evidence_level = 'INSTALLED_BT_WHEEL_PUBLIC_SDK_SOURCE_FIXTURE'
+
+    @pytest.mark.parametrize(
+        (
+            "case",
+            "exit_code",
+            "status",
+            "error_code",
+            "write_enabled",
+            "planned_slot_count",
+            "expected_evidence_level",
+        ),
+        (
+            (
+                "read-only",
+                0,
+                "LIVE_RUN_COMPLETE",
+                None,
+                False,
+                64,
+                "INSTALLED_BT_WHEEL_PUBLIC_SDK_SOURCE_FIXTURE",
+            ),
+            (
+                "write",
+                0,
+                "LIVE_RUN_COMPLETE",
+                None,
+                True,
+                64,
+                "INSTALLED_BT_WHEEL_PUBLIC_SDK_SOURCE_FIXTURE",
+            ),
+            (
+                "write-denied",
+                2,
+                "BLOCKED",
+                "LIVE_WRITE_GRANT_MISSING_IN_CONFIG",
+                False,
+                64,
+                "INSTALLED_BT_WHEEL_PUBLIC_SDK_SOURCE_FIXTURE",
+            ),
+            (
+                "tier-escalation",
+                2,
+                "BLOCKED",
+                "ENTRY_TIER_ESCALATION_DENIED",
+                False,
+                64,
+                "INSTALLED_BT_WHEEL_PUBLIC_SDK_SOURCE_FIXTURE",
+            ),
+            (
+                "read-only",
+                0,
+                "LIVE_RUN_COMPLETE",
+                None,
+                False,
+                32,
+                "SYNTHETIC_DIAGNOSTIC_ONLY",
+            ),
+        ),
+    )
+    def test_synthetic_live_case_runs_isolated_command_and_checks_finite_outcome(
+        monkeypatch: pytest.MonkeyPatch,
+        tmp_path: Path,
+        case: str,
+        exit_code: int,
+        status: str,
+        error_code: Optional[str],
+        write_enabled: bool,
+        planned_slot_count: int,
+        expected_evidence_level: str,
+    ) -&gt; None:
+        fixture = _load_fixture()
+        example = tmp_path / "copied-example"
+        example.mkdir()
+        (example / "run.py").write_text("# copied public runner\n", encoding="utf-8")
+        (example / "alpha003_strategy.py").write_text(
+            "# copied public strategy\n", encoding="utf-8"
+        )
+        (example / "config.yaml").write_text("schema: public-template\n", encoding="utf-8")
+        workspace = tmp_path / "external-workspace"
+        workspace.mkdir()
+        live_case_dir = workspace / "iteration51-live-case-test"
+        live_case_dir.mkdir()
+        live_config = live_case_dir / "runner.yaml"
+        live_config.write_text("synthetic test config\n", encoding="utf-8")
+        selection_bundle_path = live_case_dir / "selection-bundle.json"
+        selection_bundle_path.write_text("{}\n", encoding="utf-8")
+        diagnostic_path = live_case_dir / "live-cohort-exception-diagnostics.json"
+        diagnostic_document = {
+            "schema": "backtrader.iteration51.synthetic_live_cohort_diagnostics.v1",
+            "capture": "installed live_cohort exception events during copied public CLI run",
+            "captured_exception_count": 0,
+            "exceptions": [],
+            "runner_summary": None,
+        }
+        diagnostic_bytes = json.dumps(
+            diagnostic_document, sort_keys=True, separators=(",", ":")
+        ).encode("utf-8")
+        diagnostic_path.write_bytes(diagnostic_bytes)
+        wheel = tmp_path / "pinned.whl"
+        wheel.write_bytes(b"wheel placeholder for synthetic live command")
+        wheel_hash = hashlib.sha256(wheel.read_bytes()).hexdigest()
+        selector_source_path = _write_test_selector_source(tmp_path, fixture, monkeypatch)
+        selector_source = fixture._pinned_sdk_selector_source(selector_source_path)
+        cli_argv = [
+            str((example / "run.py").resolve()),
+            "--config",
+            str(live_config.resolve()),
+            "--mode",
+            "live",
+            "--factor-mode",
+            "native",
+        ]
+        if case in {"write", "write-denied"}:
+            cli_argv.append("--allow-write")
+        order_specs = (("1", "M2611"), ("2", "A2611")) if case == "write" else ()
+        order_receipt = _synthetic_order_receipt(order_specs)
+        if error_code is None and write_enabled:
+            barrier_receipt = _synthetic_refresh_barrier_receipt(
+                order_specs=order_specs
+            )
+            barrier_receipt["query_refresh_barrier_origin"] = str(
+                (example / "run.py").resolve()
+            )
+            barrier_receipt["strategy_notify_barrier_origin"] = str(
+                (_FIXTURE_PATH.parents[1] / "backtrader" / "strategy.py").resolve()
+            )
+            barrier_receipt["strategy_notify_class_origin"] = str(
+                (example / "alpha003_strategy.py").resolve()
+            )
+            barrier_receipt["max_order_intents_per_run"] = 20
+        elif error_code is None:
+            barrier_receipt = {
+                "synthetic_refresh_barrier": {
+                    "enabled": False,
+                    "barrier_count": 0,
+                    "fill_barrier_count": 0,
+                    "preclose_barrier_count": 0,
+                    "engine_delivery_failure_codes": [],
+                    "records": [],
+                },
+                "query_refresh_barrier_binding": None,
+                "strategy_notify_barrier_binding": None,
+                "strategy_notify_class_origin": None,
+                "strategy_notify_barrier_origin": None,
+                "strategy_notify_barrier_delegates_original": False,
+            }
+        else:
+            barrier_receipt = {}
+        if error_code is None:
+            summary = _synthetic_live_summary(
+                planned_slot_count=planned_slot_count,
+                write_enabled=write_enabled,
+                order_specs=order_specs,
+                selection_bundle_path=selection_bundle_path,
+                profile_id=fixture.SDK_SELECTOR_PROFILE,
+            )
+            instances = 1
+            flags = [write_enabled]
+        else:
+            summary = {"status": status, "code": error_code}
+            instances = 0
+            flags = []
+        child = {
+            "case": case,
+            "exit_code": exit_code,
+            "cli_argv": cli_argv,
+            "wheel_sha256": wheel_hash,
+            "loaded_modules_verified": 12,
+            "fresh_bytecode_cache": True,
+            "ctp_wrapper_factory_unchanged": True,
+            "ctp_wrapper_mro_verified": bool(instances),
+            "ctp_trader_leaf_instances": instances,
+            "ctp_md_leaf_instances": instances,
+            "ctp_trader_leaf_wrapper_matches_registered_instance": bool(instances),
+            "ctp_md_leaf_wrapper_matches_registered_instance": bool(instances),
+            "ctp_wrapper_mros": (
+                [["RegisteredSimClient", "RegisteredSimWrapper", "CtpClientWrapper", "object"]]
+                if instances
+                else []
+            ),
+            "store_write_flags": flags,
+            "network_attempts": 0,
+            **order_receipt,
+            **barrier_receipt,
+            "selection_bundle_sha256": "a" * 64,
+            "sdk_selector_source": {
+                **selector_source,
+                "module_origin": selector_source["path"],
+                "profile_id": fixture.SDK_SELECTOR_PROFILE,
+                "official_fronts_lookup": True,
+                "td_front_profile_lookup": True,
+                "official_profile_verification": True,
+            },
+            "sdk_selector_profile_id": fixture.SDK_SELECTOR_PROFILE,
+            "sdk_selector_profile_verified": True,
+            "synthetic_only": True,
+            "virtual_scheduler": True,
+            "virtual_scheduler_monotonic_is_real": True,
+            "virtual_scheduler_advance_count": 1 if error_code is None else 0,
+            "virtual_scheduler_delivered_ticks": 1 if error_code is None else 0,
+            "virtual_scheduler_callback_delivery_count": len(order_specs),
+            "virtual_scheduler_pending_callbacks": 0,
+            "virtual_scheduler_late_callback_schedule_count": 0,
+            "virtual_scheduler_final_utc": "2026-10-25T00:01:00+00:00",
+            "runner_clock_patch_binding": "run.__globals__['RunnerWallClock']",
+            "runner_clock_patch_target_is_function_globals": True,
+            "runner_clock_patch_origin": str((example / "run.py").resolve()),
+            "clock_origins": {
+                "runner_wall_clock_binding": "copied run.py run.__globals__['RunnerWallClock']",
+                "ctp_receive_wall_clock": (
+                    "backtrader.stores.btapistore.time.time -&gt; synthetic virtual UTC"
+                ),
+                "monotonic_clock": "host time.monotonic_ns forwarded without virtualization",
+                "scheduler_shared_state": (
+                    "RunnerWallClock and CTP leaves share one child-local instance"
+                ),
+            },
+            "runner_clock_constructor_calls": 1 if error_code is None else 0,
+            "runner_clock_shared_with_virtual_scheduler": error_code is None,
+            "store_environment_shape_valid": True,
+            "store_environment_api_kwargs_keys": ["fixture_marker", "live_tick_provenance"],
+            "store_live_tick_provenance": {
+                "clock_domain_id": "iteration50-installed-fixture-v1",
+                "rules_hash": "a" * 64,
+                "session_segment": "regular",
+            },
+            "live_cohort_exception_diagnostics": {
+                "path": str(diagnostic_path),
+                "size_bytes": len(diagnostic_bytes),
+                "sha256": hashlib.sha256(diagnostic_bytes).hexdigest(),
+                "captured_exception_count": 0,
+            },
+            "planned_slot_count": planned_slot_count,
+            "query_families": fixture._SYNTHETIC_QUERY_FAMILIES
+            if error_code is None
+            else [],
+            "subscriptions": ["A2611", "M2611", "Y2611"] if error_code is None else [],
+            "runner_summary_scheduler_clock_labels": (
+                [{"path": "summary", "value": "host-utc-plus-monotonic"}]
+                if error_code is None
+                else []
+            ),
+            "runner_summary_scheduler_clock_label_meaning": (
+                "production summary default identifier; not the injected runtime clock"
+            ),
+            "synthetic_leaf_close_receipt": {
+                "trader_client_count": instances,
+                "md_client_count": instances,
+                "trader_stop_calls": instances,
+                "trader_disconnect_calls": instances,
+                "md_stop_calls": instances,
+                "trader_connected_after_close": [False] if instances else [],
+                "trader_ready_after_close": [False] if instances else [],
+                "md_started_after_close": [False] if instances else [],
+                "wrappers_connected_after_close": [False] if instances else [],
+            },
+            "authorized_products": ["DCE.M", "DCE.A"],
+        }
+        child["raw_cli_summary_sha256"] = hashlib.sha256(
+            json.dumps(summary).encode("utf-8")
+        ).hexdigest()
+        observed = {}
+    
+        def fake_run(command, **kwargs):
+            observed["command"] = command
+            observed["kwargs"] = kwargs
+            stdout = json.dumps(summary) + "\n"
+            stdout += fixture._LIVE_CHILD_MARKER + json.dumps(child) + "\n"
+            observed["stdout"] = stdout.encode("utf-8")
+            observed["stderr"] = b""
+            return SimpleNamespace(returncode=exit_code, stdout=observed["stdout"], stderr=b"")
+    
+        monkeypatch.setenv("PYTHONPATH", "checkout-shadow")
+        monkeypatch.setenv("BT_SIMNOW_CONFIG_JSON", "ambient-must-not-reach-child")
+        monkeypatch.setattr(fixture.subprocess, "run", fake_run)
+&gt;       result = fixture.run_synthetic_live_case(
+            example_dir=example,
+            workspace=workspace,
+            wheel_path=wheel,
+            wheel_sha256=wheel_hash,
+            selector_source_path=selector_source_path,
+            case=case,
+            planned_slot_count=planned_slot_count,
+        )
+
+tests\unit\scripts\test_iteration51_installed_fixture.py:2674: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+    def run_synthetic_live_case(
+        *,
+        example_dir: Path,
+        workspace: Path,
+        wheel_path: Path,
+        wheel_sha256: str,
+        selector_source_path: Path,
+        case: str,
+        factor_mode: str = "native",
+        planned_slot_count: int = 64,
+        timeout_seconds: float = 300.0,
+        python: str = sys.executable,
+    ) -&gt; dict[str, Any]:
+        """Run one explicit live profile with the installed CTP SDK leaf faked locally."""
+    
+        if case not in SYNTHETIC_LIVE_CASES:
+            raise InstalledFixtureError("synthetic-live case is outside the fixed local set")
+        if factor_mode not in {"native", "build"}:
+            raise InstalledFixtureError("factor mode must be native or build")
+        if type(planned_slot_count) is not int or not 30 &lt;= planned_slot_count &lt;= 64:
+            raise InstalledFixtureError("synthetic planned slot count is outside the fixture bounds")
+        if not (0 &lt; timeout_seconds &lt;= 1800):
+            raise InstalledFixtureError(
+                "synthetic-live timeout must be finite and at most 1800 seconds"
+            )
+        example = _require_external(example_dir, label="synthetic-live example")
+        if not example.is_dir() or not (example / "run.py").is_file():
+            raise InstalledFixtureError("copied public runner is unavailable")
+        if not (example / "config.yaml").is_file():
+            raise InstalledFixtureError("copied public live config template is unavailable")
+        selector_source = _pinned_sdk_selector_source(selector_source_path)
+        target_workspace = _require_external(workspace, label="synthetic-live workspace")
+        target_workspace.mkdir(parents=True, exist_ok=True)
+        wheel = Path(wheel_path).expanduser().resolve(strict=True)
+        if (
+            not wheel.is_file()
+            or wheel.suffix.lower() != ".whl"
+            or type(wheel_sha256) is not str
+            or len(wheel_sha256) != 64
+            or any(value not in "0123456789abcdef" for value in wheel_sha256)
+            or _sha256(wheel) != wheel_sha256
+        ):
+            raise InstalledFixtureError("wheel does not match the supplied SHA-256")
+        child_script = target_workspace / (
+            "iteration51-synthetic-live-child-" + factor_mode + "-" + case + ".py"
+        )
+        if child_script.exists() or child_script.is_symlink():
+            raise InstalledFixtureError("synthetic-live child script destination must be new")
+        child_source = _SYNTHETIC_LIVE_CHILD_CODE.encode("utf-8")
+        try:
+            with child_script.open("xb") as handle:
+                handle.write(child_source)
+        except OSError as exc:
+            raise InstalledFixtureError(
+                "synthetic-live child source could not be materialized"
+            ) from exc
+        child_script = child_script.resolve(strict=True)
+        child_script_sha256 = _sha256(child_script)
+        if (
+            child_script.stat().st_size != len(child_source)
+            or child_script_sha256 != hashlib.sha256(child_source).hexdigest()
+        ):
+            raise InstalledFixtureError("synthetic-live child source changed during materialization")
+        command = _synthetic_live_child_command(
+            child_script_path=child_script,
+            wheel_path=wheel,
+            wheel_sha256=wheel_sha256,
+            example_dir=example,
+            workspace=target_workspace,
+            selector_source_path=Path(selector_source["path"]),
+            case=case,
+            factor_mode=factor_mode,
+            planned_slot_count=planned_slot_count,
+            python=python,
+        )
+        child_log_stem = "iteration51-synthetic-live-child-" + factor_mode + "-" + case
+        child_output_paths = (
+            target_workspace / (child_log_stem + ".stdout.bin"),
+            target_workspace / (child_log_stem + ".stderr.bin"),
+            target_workspace / (child_log_stem + ".exit.txt"),
+        )
+        if any(path.exists() or path.is_symlink() for path in child_output_paths):
+            raise InstalledFixtureError("synthetic-live child output destination must be new")
+        try:
+            completed = subprocess.run(
+                command,
+                cwd=str(example),
+                env=_sanitized_environment(),
+                capture_output=True,
+                timeout=timeout_seconds,
+                check=False,
+            )
+        except subprocess.TimeoutExpired as exc:
+            timeout_stdout = exc.stdout if exc.stdout is not None else b""
+            timeout_stderr = exc.stderr if exc.stderr is not None else b""
+            timeout_output = _preserve_synthetic_child_output(
+                target_workspace,
+                child_log_stem,
+                stdout_bytes=timeout_stdout,
+                stderr_bytes=timeout_stderr,
+                exit_record=b"UNKNOWN_TIMEOUT\n",
+                exit_code=None,
+                exit_status="unknown_timeout",
+            )
+            raise InstalledFixtureError(
+                "synthetic-live child exceeded its bounded timeout; exit status is unknown; "
+                "raw output was preserved at " + timeout_output["stdout_path"]
+            ) from exc
+        child_stdout_bytes = completed.stdout
+        child_stderr_bytes = completed.stderr
+        if type(child_stdout_bytes) is not bytes or type(child_stderr_bytes) is not bytes:
+            raise InstalledFixtureError("synthetic-live child did not return binary output")
+        child_output = _preserve_synthetic_child_output(
+            target_workspace,
+            child_log_stem,
+            stdout_bytes=child_stdout_bytes,
+            stderr_bytes=child_stderr_bytes,
+            exit_record=(str(completed.returncode) + "\n").encode("ascii"),
+            exit_code=completed.returncode,
+            exit_status="returned",
+        )
+        if (
+            child_script.stat().st_size != len(child_source)
+            or _sha256(child_script) != child_script_sha256
+        ):
+            raise InstalledFixtureError("synthetic-live child source changed during execution")
+        try:
+            child_stdout = child_stdout_bytes.decode("utf-8")
+        except UnicodeDecodeError as exc:
+            raise InstalledFixtureError(
+                "synthetic-live child output is not valid UTF-8; raw bytes were preserved"
+            ) from exc
+        summary = _last_json_object(child_stdout)
+        summary_line = _last_json_object_line(child_stdout)
+        child = _synthetic_live_child_receipt(child_stdout)
+        if (
+            child.get("raw_cli_summary_sha256")
+            != hashlib.sha256(summary_line.encode("utf-8")).hexdigest()
+        ):
+            raise InstalledFixtureError("production CLI summary bytes changed in the fixture")
+        if _pinned_sdk_selector_source(selector_source_path) != selector_source:
+            raise InstalledFixtureError("pinned SDK selector source changed during the child run")
+        expected_exit, expected_status, expected_code, expected_writes = _SYNTHETIC_LIVE_EXPECTATIONS[
+            case
+        ]
+        reported_argv = child.get("cli_argv")
+        if (
+            type(reported_argv) is not list
+            or len(reported_argv) not in {7, 8}
+            or reported_argv[0] != str((example / "run.py").resolve())
+            or reported_argv[1] != "--config"
+        ):
+            raise InstalledFixtureError("synthetic-live child command receipt is malformed")
+        live_config_path = Path(reported_argv[2]).resolve(strict=False)
+        if (
+            not _is_within(live_config_path, target_workspace)
+            or live_config_path.name != "runner.yaml"
+            or live_config_path.is_symlink()
+        ):
+            raise InstalledFixtureError("synthetic-live config escaped its external workspace")
+        cli_argv = [
+            str((example / "run.py").resolve()),
+            "--config",
+            str(live_config_path),
+            "--mode",
+            "live",
+            "--factor-mode",
+            factor_mode,
+        ]
+        if case in {"write", "write-denied"}:
+            cli_argv.append("--allow-write")
+        diagnostic_receipt = child.get("live_cohort_exception_diagnostics")
+        if not isinstance(diagnostic_receipt, dict):
+            raise InstalledFixtureError("live cohort exception diagnostic receipt is missing")
+        diagnostic_requested_path = Path(diagnostic_receipt.get("path", ""))
+        if diagnostic_requested_path.is_symlink():
+            raise InstalledFixtureError("live cohort diagnostic path must not be a symlink")
+        diagnostic_path = diagnostic_requested_path.resolve(strict=True)
+        expected_diagnostic_path = live_config_path.parent / "live-cohort-exception-diagnostics.json"
+        if (
+            diagnostic_path != expected_diagnostic_path.resolve(strict=True)
+            or diagnostic_path.is_symlink()
+            or not _is_within(diagnostic_path, target_workspace)
+            or diagnostic_path.stat().st_size &gt; 65536
+        ):
+            raise InstalledFixtureError("live cohort diagnostic escaped its bounded case workspace")
+        diagnostic_bytes = diagnostic_path.read_bytes()
+        if (
+            diagnostic_receipt.get("size_bytes") != len(diagnostic_bytes)
+            or diagnostic_receipt.get("sha256") != hashlib.sha256(diagnostic_bytes).hexdigest()
+        ):
+            raise InstalledFixtureError("live cohort diagnostic bytes do not match their receipt")
+        try:
+            diagnostic_document = json.loads(diagnostic_bytes.decode("utf-8"))
+        except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+            raise InstalledFixtureError("live cohort diagnostic JSON is malformed") from exc
+        if (
+            not isinstance(diagnostic_document, dict)
+            or diagnostic_document.get("schema")
+            != "backtrader.iteration51.synthetic_live_cohort_diagnostics.v1"
+            or diagnostic_document.get("capture")
+            != "installed live_cohort exception events during copied public CLI run"
+            or not isinstance(diagnostic_document.get("exceptions"), list)
+            or len(diagnostic_document["exceptions"]) &gt; 8
+            or diagnostic_document.get("captured_exception_count")
+            != len(diagnostic_document["exceptions"])
+            or diagnostic_receipt.get("captured_exception_count")
+            != diagnostic_document.get("captured_exception_count")
+        ):
+            raise InstalledFixtureError("live cohort diagnostic schema or count is invalid")
+        common_ok = (
+            completed.returncode == expected_exit
+            and child.get("exit_code") == expected_exit
+            and child.get("case") == case
+            and child.get("cli_argv") == cli_argv
+            and child.get("wheel_sha256") == wheel_sha256
+            and child.get("sdk_selector_source")
+            == {
+                **selector_source,
+                "module_origin": selector_source["path"],
+                "profile_id": SDK_SELECTOR_PROFILE,
+                "official_fronts_lookup": True,
+                "td_front_profile_lookup": True,
+                "official_profile_verification": True,
+            }
+            and child.get("sdk_selector_profile_id") == SDK_SELECTOR_PROFILE
+            and child.get("sdk_selector_profile_verified") is True
+            and child.get("loaded_modules_verified", 0) &gt; 0
+            and child.get("fresh_bytecode_cache") is True
+            and child.get("ctp_wrapper_factory_unchanged") is True
+            and _synthetic_authorization_scope_is_valid(case, child)
+            and _synthetic_order_sys_id_provenance_is_valid(child)
+            and child.get("network_attempts") == 0
+            and child.get("synthetic_only") is True
+            and child.get("virtual_scheduler") is True
+            and child.get("virtual_scheduler_monotonic_is_real") is True
+            and child.get("runner_clock_patch_binding") == "run.__globals__['RunnerWallClock']"
+            and child.get("runner_clock_patch_target_is_function_globals") is True
+            and child.get("runner_clock_patch_origin") == str((example / "run.py").resolve())
+            and child.get("clock_origins")
+            == {
+                "runner_wall_clock_binding": "copied run.py run.__globals__['RunnerWallClock']",
+                "ctp_receive_wall_clock": (
+                    "backtrader.stores.btapistore.time.time -&gt; synthetic virtual UTC"
+                ),
+                "monotonic_clock": "host time.monotonic_ns forwarded without virtualization",
+                "scheduler_shared_state": (
+                    "RunnerWallClock and CTP leaves share one child-local instance"
+                ),
+            }
+            and child.get("store_environment_shape_valid") is True
+            and child.get("store_environment_api_kwargs_keys")
+            == ["fixture_marker", "live_tick_provenance"]
+            and child.get("store_live_tick_provenance")
+            == {
+                "clock_domain_id": "iteration50-installed-fixture-v1",
+                "rules_hash": "a" * 64,
+                "session_segment": "regular",
+            }
+            and diagnostic_document.get("captured_exception_count") == 0
+            and child.get("planned_slot_count") == planned_slot_count
+            and type(child.get("selection_bundle_sha256")) is str
+            and len(child["selection_bundle_sha256"]) == 64
+            and child.get("authorized_products") == ["DCE.M", "DCE.A"]
+        )
+        if expected_code is None:
+            common_ok = (
+                common_ok
+                and child.get("ctp_trader_leaf_wrapper_matches_registered_instance") is True
+                and child.get("ctp_md_leaf_wrapper_matches_registered_instance") is True
+            )
+            summary_failures = _synthetic_live_summary_failure_checks(
+                summary,
+                child,
+                planned_slot_count=planned_slot_count,
+                expected_writes=expected_writes,
+                expected_selection_path=live_config_path.parent / "selection-bundle.json",
+            )
+            success_runtime_ok = (
+                child.get("ctp_wrapper_mro_verified") is True
+                and child.get("ctp_trader_leaf_instances") == 1
+                and child.get("ctp_md_leaf_instances") == 1
+                and child.get("store_write_flags") == [expected_writes]
+                and child.get("runner_clock_constructor_calls") == 1
+                and child.get("runner_clock_shared_with_virtual_scheduler") is True
+                and child.get("virtual_scheduler_advance_count", 0) &gt; 0
+                and child.get("virtual_scheduler_delivered_ticks", 0) &gt; 0
+                and child.get("virtual_scheduler_callback_delivery_count", 0)
+                == child.get("synthetic_fill_count", 0)
+                and child.get("virtual_scheduler_pending_callbacks") == 0
+                and child.get("virtual_scheduler_late_callback_schedule_count") == 0
+                and child.get("virtual_scheduler_final_utc")
+                and child.get("synthetic_leaf_close_receipt")
+                == {
+                    "trader_client_count": 1,
+                    "md_client_count": 1,
+                    "trader_stop_calls": 1,
+                    "trader_disconnect_calls": 1,
+                    "md_stop_calls": 1,
+                    "trader_connected_after_close": [False],
+                    "trader_ready_after_close": [False],
+                    "md_started_after_close": [False],
+                    "wrappers_connected_after_close": [False],
+                }
+            )
+            summary_ok = not summary_failures and success_runtime_ok
+            if case == "read-only":
+                common_ok = (
+                    common_ok
+                    and child.get("synthetic_leaf_actions") == []
+                    and child.get("synthetic_fill_count") == 0
+                    and child.get("ctp_order_callback_count") == 0
+                    and child.get("ctp_order_callback_associations") == []
+                    and child.get("ctp_trade_callback_count") == 0
+                )
+            elif case == "write":
+                strategy_events = (
+                    summary.get("strategy_order_events", {}).get("events", [])
+                    if isinstance(summary.get("strategy_order_events"), Mapping)
+                    else []
+                )
+                synthetic_actions = child.get("synthetic_leaf_actions")
+                common_ok = (
+                    common_ok
+                    and isinstance(synthetic_actions, list)
+                    and bool(synthetic_actions)
+                    and any(
+                        isinstance(action, Mapping) and action.get("action") == "insert"
+                        for action in synthetic_actions
+                    )
+                    and all(
+                        isinstance(action, Mapping)
+                        and action.get("action") in {
+                            "arm", "disarm", "insert", "cancel", "sdk_stop_revoke"
+                        }
+                        for action in synthetic_actions
+                    )
+                    and child.get("arm_calls", 0) &gt; 0
+                    and child.get("disarm_calls", 0) &gt; 0
+                    and child.get("synthetic_fill_count", 0) &gt; 0
+                    and child.get("ctp_order_callback_count", 0) &gt; 0
+                    and child.get("ctp_trade_callback_count", 0) &gt; 0
+                    and bool(strategy_events)
+                    and child.get("virtual_scheduler_callback_delivery_count", 0)
+                    == child.get("synthetic_fill_count")
+                )
+        else:
+            common_ok = (
+                common_ok
+                and child.get("ctp_trader_leaf_wrapper_matches_registered_instance") is False
+                and child.get("ctp_md_leaf_wrapper_matches_registered_instance") is False
+            )
+            summary_ok = (
+                summary.get("status") == expected_status and summary.get("code") == expected_code
+            )
+            common_ok = common_ok and child.get("ctp_trader_leaf_instances") == 0
+            common_ok = common_ok and child.get("ctp_md_leaf_instances") == 0
+            common_ok = common_ok and child.get("synthetic_leaf_actions") == []
+            common_ok = common_ok and child.get("runner_clock_constructor_calls") == 0
+        if not common_ok or not summary_ok:
+            failed_checks = []
+            if not common_ok:
+                failed_checks.append("child.runtime_source_authorization_clock_or_lifecycle")
+            if expected_code is None:
+                failed_checks.extend(summary_failures)
+                if not success_runtime_ok:
+                    failed_checks.append("child.wrapper_scheduler_and_close_receipts")
+            elif not summary_ok:
+                failed_checks.append("summary.expected_blocked_status_and_code")
+&gt;           raise InstalledFixtureError(
+                "synthetic-live case acceptance failed: "
+                + case
+                + "; failed_checks="
+                + ",".join(failed_checks),
+                safe_check_ids=failed_checks,
+            )
+E           iteration51_installed_fixture_test.InstalledFixtureError: synthetic-live case acceptance failed: tier-escalation; failed_checks=child.runtime_source_authorization_clock_or_lifecycle
+
+scripts\iteration51_installed_fixture.py:4467: InstalledFixtureError</failure></testcase><testcase classname="tests.unit.scripts.test_iteration51_installed_fixture" name="test_synthetic_live_case_runs_isolated_command_and_checks_finite_outcome[read-only-0-LIVE_RUN_COMPLETE-None-False-32-SYNTHETIC_DIAGNOSTIC_ONLY]" time="0.043"><failure message="iteration51_installed_fixture_test.InstalledFixtureError: synthetic-live case acceptance failed: read-only; failed_checks=child.runtime_source_authorization_clock_or_lifecycle">monkeypatch = &lt;_pytest.monkeypatch.MonkeyPatch object at 0x000001649E5E9290&gt;
+tmp_path = WindowsPath('C:/Users/yunji/AppData/Local/Temp/pytest-of-yunji/pytest-999/test_synthetic_live_case_runs_4')
+case = 'read-only', exit_code = 0, status = 'LIVE_RUN_COMPLETE'
+error_code = None, write_enabled = False, planned_slot_count = 32
+expected_evidence_level = 'SYNTHETIC_DIAGNOSTIC_ONLY'
+
+    @pytest.mark.parametrize(
+        (
+            "case",
+            "exit_code",
+            "status",
+            "error_code",
+            "write_enabled",
+            "planned_slot_count",
+            "expected_evidence_level",
+        ),
+        (
+            (
+                "read-only",
+                0,
+                "LIVE_RUN_COMPLETE",
+                None,
+                False,
+                64,
+                "INSTALLED_BT_WHEEL_PUBLIC_SDK_SOURCE_FIXTURE",
+            ),
+            (
+                "write",
+                0,
+                "LIVE_RUN_COMPLETE",
+                None,
+                True,
+                64,
+                "INSTALLED_BT_WHEEL_PUBLIC_SDK_SOURCE_FIXTURE",
+            ),
+            (
+                "write-denied",
+                2,
+                "BLOCKED",
+                "LIVE_WRITE_GRANT_MISSING_IN_CONFIG",
+                False,
+                64,
+                "INSTALLED_BT_WHEEL_PUBLIC_SDK_SOURCE_FIXTURE",
+            ),
+            (
+                "tier-escalation",
+                2,
+                "BLOCKED",
+                "ENTRY_TIER_ESCALATION_DENIED",
+                False,
+                64,
+                "INSTALLED_BT_WHEEL_PUBLIC_SDK_SOURCE_FIXTURE",
+            ),
+            (
+                "read-only",
+                0,
+                "LIVE_RUN_COMPLETE",
+                None,
+                False,
+                32,
+                "SYNTHETIC_DIAGNOSTIC_ONLY",
+            ),
+        ),
+    )
+    def test_synthetic_live_case_runs_isolated_command_and_checks_finite_outcome(
+        monkeypatch: pytest.MonkeyPatch,
+        tmp_path: Path,
+        case: str,
+        exit_code: int,
+        status: str,
+        error_code: Optional[str],
+        write_enabled: bool,
+        planned_slot_count: int,
+        expected_evidence_level: str,
+    ) -&gt; None:
+        fixture = _load_fixture()
+        example = tmp_path / "copied-example"
+        example.mkdir()
+        (example / "run.py").write_text("# copied public runner\n", encoding="utf-8")
+        (example / "alpha003_strategy.py").write_text(
+            "# copied public strategy\n", encoding="utf-8"
+        )
+        (example / "config.yaml").write_text("schema: public-template\n", encoding="utf-8")
+        workspace = tmp_path / "external-workspace"
+        workspace.mkdir()
+        live_case_dir = workspace / "iteration51-live-case-test"
+        live_case_dir.mkdir()
+        live_config = live_case_dir / "runner.yaml"
+        live_config.write_text("synthetic test config\n", encoding="utf-8")
+        selection_bundle_path = live_case_dir / "selection-bundle.json"
+        selection_bundle_path.write_text("{}\n", encoding="utf-8")
+        diagnostic_path = live_case_dir / "live-cohort-exception-diagnostics.json"
+        diagnostic_document = {
+            "schema": "backtrader.iteration51.synthetic_live_cohort_diagnostics.v1",
+            "capture": "installed live_cohort exception events during copied public CLI run",
+            "captured_exception_count": 0,
+            "exceptions": [],
+            "runner_summary": None,
+        }
+        diagnostic_bytes = json.dumps(
+            diagnostic_document, sort_keys=True, separators=(",", ":")
+        ).encode("utf-8")
+        diagnostic_path.write_bytes(diagnostic_bytes)
+        wheel = tmp_path / "pinned.whl"
+        wheel.write_bytes(b"wheel placeholder for synthetic live command")
+        wheel_hash = hashlib.sha256(wheel.read_bytes()).hexdigest()
+        selector_source_path = _write_test_selector_source(tmp_path, fixture, monkeypatch)
+        selector_source = fixture._pinned_sdk_selector_source(selector_source_path)
+        cli_argv = [
+            str((example / "run.py").resolve()),
+            "--config",
+            str(live_config.resolve()),
+            "--mode",
+            "live",
+            "--factor-mode",
+            "native",
+        ]
+        if case in {"write", "write-denied"}:
+            cli_argv.append("--allow-write")
+        order_specs = (("1", "M2611"), ("2", "A2611")) if case == "write" else ()
+        order_receipt = _synthetic_order_receipt(order_specs)
+        if error_code is None and write_enabled:
+            barrier_receipt = _synthetic_refresh_barrier_receipt(
+                order_specs=order_specs
+            )
+            barrier_receipt["query_refresh_barrier_origin"] = str(
+                (example / "run.py").resolve()
+            )
+            barrier_receipt["strategy_notify_barrier_origin"] = str(
+                (_FIXTURE_PATH.parents[1] / "backtrader" / "strategy.py").resolve()
+            )
+            barrier_receipt["strategy_notify_class_origin"] = str(
+                (example / "alpha003_strategy.py").resolve()
+            )
+            barrier_receipt["max_order_intents_per_run"] = 20
+        elif error_code is None:
+            barrier_receipt = {
+                "synthetic_refresh_barrier": {
+                    "enabled": False,
+                    "barrier_count": 0,
+                    "fill_barrier_count": 0,
+                    "preclose_barrier_count": 0,
+                    "engine_delivery_failure_codes": [],
+                    "records": [],
+                },
+                "query_refresh_barrier_binding": None,
+                "strategy_notify_barrier_binding": None,
+                "strategy_notify_class_origin": None,
+                "strategy_notify_barrier_origin": None,
+                "strategy_notify_barrier_delegates_original": False,
+            }
+        else:
+            barrier_receipt = {}
+        if error_code is None:
+            summary = _synthetic_live_summary(
+                planned_slot_count=planned_slot_count,
+                write_enabled=write_enabled,
+                order_specs=order_specs,
+                selection_bundle_path=selection_bundle_path,
+                profile_id=fixture.SDK_SELECTOR_PROFILE,
+            )
+            instances = 1
+            flags = [write_enabled]
+        else:
+            summary = {"status": status, "code": error_code}
+            instances = 0
+            flags = []
+        child = {
+            "case": case,
+            "exit_code": exit_code,
+            "cli_argv": cli_argv,
+            "wheel_sha256": wheel_hash,
+            "loaded_modules_verified": 12,
+            "fresh_bytecode_cache": True,
+            "ctp_wrapper_factory_unchanged": True,
+            "ctp_wrapper_mro_verified": bool(instances),
+            "ctp_trader_leaf_instances": instances,
+            "ctp_md_leaf_instances": instances,
+            "ctp_trader_leaf_wrapper_matches_registered_instance": bool(instances),
+            "ctp_md_leaf_wrapper_matches_registered_instance": bool(instances),
+            "ctp_wrapper_mros": (
+                [["RegisteredSimClient", "RegisteredSimWrapper", "CtpClientWrapper", "object"]]
+                if instances
+                else []
+            ),
+            "store_write_flags": flags,
+            "network_attempts": 0,
+            **order_receipt,
+            **barrier_receipt,
+            "selection_bundle_sha256": "a" * 64,
+            "sdk_selector_source": {
+                **selector_source,
+                "module_origin": selector_source["path"],
+                "profile_id": fixture.SDK_SELECTOR_PROFILE,
+                "official_fronts_lookup": True,
+                "td_front_profile_lookup": True,
+                "official_profile_verification": True,
+            },
+            "sdk_selector_profile_id": fixture.SDK_SELECTOR_PROFILE,
+            "sdk_selector_profile_verified": True,
+            "synthetic_only": True,
+            "virtual_scheduler": True,
+            "virtual_scheduler_monotonic_is_real": True,
+            "virtual_scheduler_advance_count": 1 if error_code is None else 0,
+            "virtual_scheduler_delivered_ticks": 1 if error_code is None else 0,
+            "virtual_scheduler_callback_delivery_count": len(order_specs),
+            "virtual_scheduler_pending_callbacks": 0,
+            "virtual_scheduler_late_callback_schedule_count": 0,
+            "virtual_scheduler_final_utc": "2026-10-25T00:01:00+00:00",
+            "runner_clock_patch_binding": "run.__globals__['RunnerWallClock']",
+            "runner_clock_patch_target_is_function_globals": True,
+            "runner_clock_patch_origin": str((example / "run.py").resolve()),
+            "clock_origins": {
+                "runner_wall_clock_binding": "copied run.py run.__globals__['RunnerWallClock']",
+                "ctp_receive_wall_clock": (
+                    "backtrader.stores.btapistore.time.time -&gt; synthetic virtual UTC"
+                ),
+                "monotonic_clock": "host time.monotonic_ns forwarded without virtualization",
+                "scheduler_shared_state": (
+                    "RunnerWallClock and CTP leaves share one child-local instance"
+                ),
+            },
+            "runner_clock_constructor_calls": 1 if error_code is None else 0,
+            "runner_clock_shared_with_virtual_scheduler": error_code is None,
+            "store_environment_shape_valid": True,
+            "store_environment_api_kwargs_keys": ["fixture_marker", "live_tick_provenance"],
+            "store_live_tick_provenance": {
+                "clock_domain_id": "iteration50-installed-fixture-v1",
+                "rules_hash": "a" * 64,
+                "session_segment": "regular",
+            },
+            "live_cohort_exception_diagnostics": {
+                "path": str(diagnostic_path),
+                "size_bytes": len(diagnostic_bytes),
+                "sha256": hashlib.sha256(diagnostic_bytes).hexdigest(),
+                "captured_exception_count": 0,
+            },
+            "planned_slot_count": planned_slot_count,
+            "query_families": fixture._SYNTHETIC_QUERY_FAMILIES
+            if error_code is None
+            else [],
+            "subscriptions": ["A2611", "M2611", "Y2611"] if error_code is None else [],
+            "runner_summary_scheduler_clock_labels": (
+                [{"path": "summary", "value": "host-utc-plus-monotonic"}]
+                if error_code is None
+                else []
+            ),
+            "runner_summary_scheduler_clock_label_meaning": (
+                "production summary default identifier; not the injected runtime clock"
+            ),
+            "synthetic_leaf_close_receipt": {
+                "trader_client_count": instances,
+                "md_client_count": instances,
+                "trader_stop_calls": instances,
+                "trader_disconnect_calls": instances,
+                "md_stop_calls": instances,
+                "trader_connected_after_close": [False] if instances else [],
+                "trader_ready_after_close": [False] if instances else [],
+                "md_started_after_close": [False] if instances else [],
+                "wrappers_connected_after_close": [False] if instances else [],
+            },
+            "authorized_products": ["DCE.M", "DCE.A"],
+        }
+        child["raw_cli_summary_sha256"] = hashlib.sha256(
+            json.dumps(summary).encode("utf-8")
+        ).hexdigest()
+        observed = {}
+    
+        def fake_run(command, **kwargs):
+            observed["command"] = command
+            observed["kwargs"] = kwargs
+            stdout = json.dumps(summary) + "\n"
+            stdout += fixture._LIVE_CHILD_MARKER + json.dumps(child) + "\n"
+            observed["stdout"] = stdout.encode("utf-8")
+            observed["stderr"] = b""
+            return SimpleNamespace(returncode=exit_code, stdout=observed["stdout"], stderr=b"")
+    
+        monkeypatch.setenv("PYTHONPATH", "checkout-shadow")
+        monkeypatch.setenv("BT_SIMNOW_CONFIG_JSON", "ambient-must-not-reach-child")
+        monkeypatch.setattr(fixture.subprocess, "run", fake_run)
+&gt;       result = fixture.run_synthetic_live_case(
+            example_dir=example,
+            workspace=workspace,
+            wheel_path=wheel,
+            wheel_sha256=wheel_hash,
+            selector_source_path=selector_source_path,
+            case=case,
+            planned_slot_count=planned_slot_count,
+        )
+
+tests\unit\scripts\test_iteration51_installed_fixture.py:2674: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+    def run_synthetic_live_case(
+        *,
+        example_dir: Path,
+        workspace: Path,
+        wheel_path: Path,
+        wheel_sha256: str,
+        selector_source_path: Path,
+        case: str,
+        factor_mode: str = "native",
+        planned_slot_count: int = 64,
+        timeout_seconds: float = 300.0,
+        python: str = sys.executable,
+    ) -&gt; dict[str, Any]:
+        """Run one explicit live profile with the installed CTP SDK leaf faked locally."""
+    
+        if case not in SYNTHETIC_LIVE_CASES:
+            raise InstalledFixtureError("synthetic-live case is outside the fixed local set")
+        if factor_mode not in {"native", "build"}:
+            raise InstalledFixtureError("factor mode must be native or build")
+        if type(planned_slot_count) is not int or not 30 &lt;= planned_slot_count &lt;= 64:
+            raise InstalledFixtureError("synthetic planned slot count is outside the fixture bounds")
+        if not (0 &lt; timeout_seconds &lt;= 1800):
+            raise InstalledFixtureError(
+                "synthetic-live timeout must be finite and at most 1800 seconds"
+            )
+        example = _require_external(example_dir, label="synthetic-live example")
+        if not example.is_dir() or not (example / "run.py").is_file():
+            raise InstalledFixtureError("copied public runner is unavailable")
+        if not (example / "config.yaml").is_file():
+            raise InstalledFixtureError("copied public live config template is unavailable")
+        selector_source = _pinned_sdk_selector_source(selector_source_path)
+        target_workspace = _require_external(workspace, label="synthetic-live workspace")
+        target_workspace.mkdir(parents=True, exist_ok=True)
+        wheel = Path(wheel_path).expanduser().resolve(strict=True)
+        if (
+            not wheel.is_file()
+            or wheel.suffix.lower() != ".whl"
+            or type(wheel_sha256) is not str
+            or len(wheel_sha256) != 64
+            or any(value not in "0123456789abcdef" for value in wheel_sha256)
+            or _sha256(wheel) != wheel_sha256
+        ):
+            raise InstalledFixtureError("wheel does not match the supplied SHA-256")
+        child_script = target_workspace / (
+            "iteration51-synthetic-live-child-" + factor_mode + "-" + case + ".py"
+        )
+        if child_script.exists() or child_script.is_symlink():
+            raise InstalledFixtureError("synthetic-live child script destination must be new")
+        child_source = _SYNTHETIC_LIVE_CHILD_CODE.encode("utf-8")
+        try:
+            with child_script.open("xb") as handle:
+                handle.write(child_source)
+        except OSError as exc:
+            raise InstalledFixtureError(
+                "synthetic-live child source could not be materialized"
+            ) from exc
+        child_script = child_script.resolve(strict=True)
+        child_script_sha256 = _sha256(child_script)
+        if (
+            child_script.stat().st_size != len(child_source)
+            or child_script_sha256 != hashlib.sha256(child_source).hexdigest()
+        ):
+            raise InstalledFixtureError("synthetic-live child source changed during materialization")
+        command = _synthetic_live_child_command(
+            child_script_path=child_script,
+            wheel_path=wheel,
+            wheel_sha256=wheel_sha256,
+            example_dir=example,
+            workspace=target_workspace,
+            selector_source_path=Path(selector_source["path"]),
+            case=case,
+            factor_mode=factor_mode,
+            planned_slot_count=planned_slot_count,
+            python=python,
+        )
+        child_log_stem = "iteration51-synthetic-live-child-" + factor_mode + "-" + case
+        child_output_paths = (
+            target_workspace / (child_log_stem + ".stdout.bin"),
+            target_workspace / (child_log_stem + ".stderr.bin"),
+            target_workspace / (child_log_stem + ".exit.txt"),
+        )
+        if any(path.exists() or path.is_symlink() for path in child_output_paths):
+            raise InstalledFixtureError("synthetic-live child output destination must be new")
+        try:
+            completed = subprocess.run(
+                command,
+                cwd=str(example),
+                env=_sanitized_environment(),
+                capture_output=True,
+                timeout=timeout_seconds,
+                check=False,
+            )
+        except subprocess.TimeoutExpired as exc:
+            timeout_stdout = exc.stdout if exc.stdout is not None else b""
+            timeout_stderr = exc.stderr if exc.stderr is not None else b""
+            timeout_output = _preserve_synthetic_child_output(
+                target_workspace,
+                child_log_stem,
+                stdout_bytes=timeout_stdout,
+                stderr_bytes=timeout_stderr,
+                exit_record=b"UNKNOWN_TIMEOUT\n",
+                exit_code=None,
+                exit_status="unknown_timeout",
+            )
+            raise InstalledFixtureError(
+                "synthetic-live child exceeded its bounded timeout; exit status is unknown; "
+                "raw output was preserved at " + timeout_output["stdout_path"]
+            ) from exc
+        child_stdout_bytes = completed.stdout
+        child_stderr_bytes = completed.stderr
+        if type(child_stdout_bytes) is not bytes or type(child_stderr_bytes) is not bytes:
+            raise InstalledFixtureError("synthetic-live child did not return binary output")
+        child_output = _preserve_synthetic_child_output(
+            target_workspace,
+            child_log_stem,
+            stdout_bytes=child_stdout_bytes,
+            stderr_bytes=child_stderr_bytes,
+            exit_record=(str(completed.returncode) + "\n").encode("ascii"),
+            exit_code=completed.returncode,
+            exit_status="returned",
+        )
+        if (
+            child_script.stat().st_size != len(child_source)
+            or _sha256(child_script) != child_script_sha256
+        ):
+            raise InstalledFixtureError("synthetic-live child source changed during execution")
+        try:
+            child_stdout = child_stdout_bytes.decode("utf-8")
+        except UnicodeDecodeError as exc:
+            raise InstalledFixtureError(
+                "synthetic-live child output is not valid UTF-8; raw bytes were preserved"
+            ) from exc
+        summary = _last_json_object(child_stdout)
+        summary_line = _last_json_object_line(child_stdout)
+        child = _synthetic_live_child_receipt(child_stdout)
+        if (
+            child.get("raw_cli_summary_sha256")
+            != hashlib.sha256(summary_line.encode("utf-8")).hexdigest()
+        ):
+            raise InstalledFixtureError("production CLI summary bytes changed in the fixture")
+        if _pinned_sdk_selector_source(selector_source_path) != selector_source:
+            raise InstalledFixtureError("pinned SDK selector source changed during the child run")
+        expected_exit, expected_status, expected_code, expected_writes = _SYNTHETIC_LIVE_EXPECTATIONS[
+            case
+        ]
+        reported_argv = child.get("cli_argv")
+        if (
+            type(reported_argv) is not list
+            or len(reported_argv) not in {7, 8}
+            or reported_argv[0] != str((example / "run.py").resolve())
+            or reported_argv[1] != "--config"
+        ):
+            raise InstalledFixtureError("synthetic-live child command receipt is malformed")
+        live_config_path = Path(reported_argv[2]).resolve(strict=False)
+        if (
+            not _is_within(live_config_path, target_workspace)
+            or live_config_path.name != "runner.yaml"
+            or live_config_path.is_symlink()
+        ):
+            raise InstalledFixtureError("synthetic-live config escaped its external workspace")
+        cli_argv = [
+            str((example / "run.py").resolve()),
+            "--config",
+            str(live_config_path),
+            "--mode",
+            "live",
+            "--factor-mode",
+            factor_mode,
+        ]
+        if case in {"write", "write-denied"}:
+            cli_argv.append("--allow-write")
+        diagnostic_receipt = child.get("live_cohort_exception_diagnostics")
+        if not isinstance(diagnostic_receipt, dict):
+            raise InstalledFixtureError("live cohort exception diagnostic receipt is missing")
+        diagnostic_requested_path = Path(diagnostic_receipt.get("path", ""))
+        if diagnostic_requested_path.is_symlink():
+            raise InstalledFixtureError("live cohort diagnostic path must not be a symlink")
+        diagnostic_path = diagnostic_requested_path.resolve(strict=True)
+        expected_diagnostic_path = live_config_path.parent / "live-cohort-exception-diagnostics.json"
+        if (
+            diagnostic_path != expected_diagnostic_path.resolve(strict=True)
+            or diagnostic_path.is_symlink()
+            or not _is_within(diagnostic_path, target_workspace)
+            or diagnostic_path.stat().st_size &gt; 65536
+        ):
+            raise InstalledFixtureError("live cohort diagnostic escaped its bounded case workspace")
+        diagnostic_bytes = diagnostic_path.read_bytes()
+        if (
+            diagnostic_receipt.get("size_bytes") != len(diagnostic_bytes)
+            or diagnostic_receipt.get("sha256") != hashlib.sha256(diagnostic_bytes).hexdigest()
+        ):
+            raise InstalledFixtureError("live cohort diagnostic bytes do not match their receipt")
+        try:
+            diagnostic_document = json.loads(diagnostic_bytes.decode("utf-8"))
+        except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+            raise InstalledFixtureError("live cohort diagnostic JSON is malformed") from exc
+        if (
+            not isinstance(diagnostic_document, dict)
+            or diagnostic_document.get("schema")
+            != "backtrader.iteration51.synthetic_live_cohort_diagnostics.v1"
+            or diagnostic_document.get("capture")
+            != "installed live_cohort exception events during copied public CLI run"
+            or not isinstance(diagnostic_document.get("exceptions"), list)
+            or len(diagnostic_document["exceptions"]) &gt; 8
+            or diagnostic_document.get("captured_exception_count")
+            != len(diagnostic_document["exceptions"])
+            or diagnostic_receipt.get("captured_exception_count")
+            != diagnostic_document.get("captured_exception_count")
+        ):
+            raise InstalledFixtureError("live cohort diagnostic schema or count is invalid")
+        common_ok = (
+            completed.returncode == expected_exit
+            and child.get("exit_code") == expected_exit
+            and child.get("case") == case
+            and child.get("cli_argv") == cli_argv
+            and child.get("wheel_sha256") == wheel_sha256
+            and child.get("sdk_selector_source")
+            == {
+                **selector_source,
+                "module_origin": selector_source["path"],
+                "profile_id": SDK_SELECTOR_PROFILE,
+                "official_fronts_lookup": True,
+                "td_front_profile_lookup": True,
+                "official_profile_verification": True,
+            }
+            and child.get("sdk_selector_profile_id") == SDK_SELECTOR_PROFILE
+            and child.get("sdk_selector_profile_verified") is True
+            and child.get("loaded_modules_verified", 0) &gt; 0
+            and child.get("fresh_bytecode_cache") is True
+            and child.get("ctp_wrapper_factory_unchanged") is True
+            and _synthetic_authorization_scope_is_valid(case, child)
+            and _synthetic_order_sys_id_provenance_is_valid(child)
+            and child.get("network_attempts") == 0
+            and child.get("synthetic_only") is True
+            and child.get("virtual_scheduler") is True
+            and child.get("virtual_scheduler_monotonic_is_real") is True
+            and child.get("runner_clock_patch_binding") == "run.__globals__['RunnerWallClock']"
+            and child.get("runner_clock_patch_target_is_function_globals") is True
+            and child.get("runner_clock_patch_origin") == str((example / "run.py").resolve())
+            and child.get("clock_origins")
+            == {
+                "runner_wall_clock_binding": "copied run.py run.__globals__['RunnerWallClock']",
+                "ctp_receive_wall_clock": (
+                    "backtrader.stores.btapistore.time.time -&gt; synthetic virtual UTC"
+                ),
+                "monotonic_clock": "host time.monotonic_ns forwarded without virtualization",
+                "scheduler_shared_state": (
+                    "RunnerWallClock and CTP leaves share one child-local instance"
+                ),
+            }
+            and child.get("store_environment_shape_valid") is True
+            and child.get("store_environment_api_kwargs_keys")
+            == ["fixture_marker", "live_tick_provenance"]
+            and child.get("store_live_tick_provenance")
+            == {
+                "clock_domain_id": "iteration50-installed-fixture-v1",
+                "rules_hash": "a" * 64,
+                "session_segment": "regular",
+            }
+            and diagnostic_document.get("captured_exception_count") == 0
+            and child.get("planned_slot_count") == planned_slot_count
+            and type(child.get("selection_bundle_sha256")) is str
+            and len(child["selection_bundle_sha256"]) == 64
+            and child.get("authorized_products") == ["DCE.M", "DCE.A"]
+        )
+        if expected_code is None:
+            common_ok = (
+                common_ok
+                and child.get("ctp_trader_leaf_wrapper_matches_registered_instance") is True
+                and child.get("ctp_md_leaf_wrapper_matches_registered_instance") is True
+            )
+            summary_failures = _synthetic_live_summary_failure_checks(
+                summary,
+                child,
+                planned_slot_count=planned_slot_count,
+                expected_writes=expected_writes,
+                expected_selection_path=live_config_path.parent / "selection-bundle.json",
+            )
+            success_runtime_ok = (
+                child.get("ctp_wrapper_mro_verified") is True
+                and child.get("ctp_trader_leaf_instances") == 1
+                and child.get("ctp_md_leaf_instances") == 1
+                and child.get("store_write_flags") == [expected_writes]
+                and child.get("runner_clock_constructor_calls") == 1
+                and child.get("runner_clock_shared_with_virtual_scheduler") is True
+                and child.get("virtual_scheduler_advance_count", 0) &gt; 0
+                and child.get("virtual_scheduler_delivered_ticks", 0) &gt; 0
+                and child.get("virtual_scheduler_callback_delivery_count", 0)
+                == child.get("synthetic_fill_count", 0)
+                and child.get("virtual_scheduler_pending_callbacks") == 0
+                and child.get("virtual_scheduler_late_callback_schedule_count") == 0
+                and child.get("virtual_scheduler_final_utc")
+                and child.get("synthetic_leaf_close_receipt")
+                == {
+                    "trader_client_count": 1,
+                    "md_client_count": 1,
+                    "trader_stop_calls": 1,
+                    "trader_disconnect_calls": 1,
+                    "md_stop_calls": 1,
+                    "trader_connected_after_close": [False],
+                    "trader_ready_after_close": [False],
+                    "md_started_after_close": [False],
+                    "wrappers_connected_after_close": [False],
+                }
+            )
+            summary_ok = not summary_failures and success_runtime_ok
+            if case == "read-only":
+                common_ok = (
+                    common_ok
+                    and child.get("synthetic_leaf_actions") == []
+                    and child.get("synthetic_fill_count") == 0
+                    and child.get("ctp_order_callback_count") == 0
+                    and child.get("ctp_order_callback_associations") == []
+                    and child.get("ctp_trade_callback_count") == 0
+                )
+            elif case == "write":
+                strategy_events = (
+                    summary.get("strategy_order_events", {}).get("events", [])
+                    if isinstance(summary.get("strategy_order_events"), Mapping)
+                    else []
+                )
+                synthetic_actions = child.get("synthetic_leaf_actions")
+                common_ok = (
+                    common_ok
+                    and isinstance(synthetic_actions, list)
+                    and bool(synthetic_actions)
+                    and any(
+                        isinstance(action, Mapping) and action.get("action") == "insert"
+                        for action in synthetic_actions
+                    )
+                    and all(
+                        isinstance(action, Mapping)
+                        and action.get("action") in {
+                            "arm", "disarm", "insert", "cancel", "sdk_stop_revoke"
+                        }
+                        for action in synthetic_actions
+                    )
+                    and child.get("arm_calls", 0) &gt; 0
+                    and child.get("disarm_calls", 0) &gt; 0
+                    and child.get("synthetic_fill_count", 0) &gt; 0
+                    and child.get("ctp_order_callback_count", 0) &gt; 0
+                    and child.get("ctp_trade_callback_count", 0) &gt; 0
+                    and bool(strategy_events)
+                    and child.get("virtual_scheduler_callback_delivery_count", 0)
+                    == child.get("synthetic_fill_count")
+                )
+        else:
+            common_ok = (
+                common_ok
+                and child.get("ctp_trader_leaf_wrapper_matches_registered_instance") is False
+                and child.get("ctp_md_leaf_wrapper_matches_registered_instance") is False
+            )
+            summary_ok = (
+                summary.get("status") == expected_status and summary.get("code") == expected_code
+            )
+            common_ok = common_ok and child.get("ctp_trader_leaf_instances") == 0
+            common_ok = common_ok and child.get("ctp_md_leaf_instances") == 0
+            common_ok = common_ok and child.get("synthetic_leaf_actions") == []
+            common_ok = common_ok and child.get("runner_clock_constructor_calls") == 0
+        if not common_ok or not summary_ok:
+            failed_checks = []
+            if not common_ok:
+                failed_checks.append("child.runtime_source_authorization_clock_or_lifecycle")
+            if expected_code is None:
+                failed_checks.extend(summary_failures)
+                if not success_runtime_ok:
+                    failed_checks.append("child.wrapper_scheduler_and_close_receipts")
+            elif not summary_ok:
+                failed_checks.append("summary.expected_blocked_status_and_code")
+&gt;           raise InstalledFixtureError(
+                "synthetic-live case acceptance failed: "
+                + case
+                + "; failed_checks="
+                + ",".join(failed_checks),
+                safe_check_ids=failed_checks,
+            )
+E           iteration51_installed_fixture_test.InstalledFixtureError: synthetic-live case acceptance failed: read-only; failed_checks=child.runtime_source_authorization_clock_or_lifecycle
+
+scripts\iteration51_installed_fixture.py:4467: InstalledFixtureError</failure></testcase><testcase classname="tests.unit.scripts.test_iteration51_installed_fixture" name="test_synthetic_live_child_output_is_preserved_before_parse_failure" time="0.054" /><testcase classname="tests.unit.scripts.test_iteration51_installed_fixture" name="test_synthetic_live_timeout_preserves_partial_output_and_unknown_exit" time="0.028" /><testcase classname="tests.unit.scripts.test_iteration51_installed_fixture" name="test_synthetic_live_matrix_requires_fixed_64_slot_results" time="0.003" /></testsuite></testsuites>

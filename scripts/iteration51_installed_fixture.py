@@ -21,6 +21,7 @@ import argparse
 import hashlib
 import json
 import os
+from datetime import datetime
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 import shutil
@@ -48,6 +49,11 @@ SDK_SELECTOR_SOURCE_SIZE_BYTES = 21403
 SDK_SELECTOR_SOURCE_SHA256 = "ca8fa2b48293e7c5d79c1a0cfc20fd229879693290b99b56440b84c72cae12c3"
 SDK_SELECTOR_MODULE = "bt_api_ctp.ctp_env_selector"
 SDK_SELECTOR_PROFILE = "set1_group1"
+_SYNTHETIC_TARGET_BY_INSTRUMENT = {
+    "M2611": "DCE.M",
+    "Y2611": "DCE.Y",
+    "A2611": "DCE.A",
+}
 SDK_SELECTOR_EVIDENCE_LEVEL = "INSTALLED_BT_WHEEL_PUBLIC_SDK_SOURCE_FIXTURE"
 SYNTHETIC_WRITE_MAX_ORDER_INTENTS_PER_RUN = 20
 _SYNTHETIC_LIVE_CHECK_IDS = frozenset(
@@ -64,6 +70,7 @@ _SYNTHETIC_LIVE_CHECK_IDS = frozenset(
         "summary.decision_tape_readback",
         "summary.resource_shutdown",
         "child.runtime_source_authorization_clock_or_lifecycle",
+        "child.query_refresh_barriers",
         "child.wrapper_scheduler_and_close_receipts",
         "summary.expected_blocked_status_and_code",
     }
@@ -331,6 +338,7 @@ raise SystemExit(exit_code)
 
 
 _SYNTHETIC_LIVE_CHILD_CODE = r'''import hashlib, importlib.machinery, importlib.util, json, os, runpy, socket, sys, tempfile, types
+from collections.abc import Mapping
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
@@ -342,6 +350,27 @@ SDK_SELECTOR_SOURCE_SIZE_BYTES = 21403
 SDK_SELECTOR_SOURCE_SHA256 = "ca8fa2b48293e7c5d79c1a0cfc20fd229879693290b99b56440b84c72cae12c3"
 SDK_SELECTOR_MODULE = "bt_api_ctp.ctp_env_selector"
 SDK_SELECTOR_PROFILE = "set1_group1"
+_SYNTHETIC_TARGET_BY_INSTRUMENT = {
+    "M2611": "DCE.M",
+    "Y2611": "DCE.Y",
+    "A2611": "DCE.A",
+}
+_SYNTHETIC_ENGINE_DELIVERY_FAILURE_CODE_BY_MESSAGE = {
+    "synthetic fill callback identity is malformed": "CALLBACK_IDENTITY_MALFORMED",
+    "synthetic fill did not bind one real Broker order": "BROKER_ORDER_UNBOUND",
+    "synthetic fill Broker data route does not match the target mapping": "BROKER_DATA_ROUTE_MISMATCH",
+    "synthetic fill did not bind the callback to its native CTP identity": "NATIVE_ORDER_IDENTITY_MISMATCH",
+    "synthetic fill Broker order reached an unexpected terminal state": "BROKER_TERMINAL_STATE_INVALID",
+    "synthetic fill Broker execution does not match its callback": "BROKER_EXECUTION_MISMATCH",
+    "synthetic full-fill callback did not produce one execution bit": "EXECUTION_BIT_MISSING",
+    "synthetic fill execution bit does not match its callback": "EXECUTION_BIT_MISMATCH",
+    "synthetic fill Broker position is unavailable": "BROKER_POSITION_UNAVAILABLE",
+    "synthetic fill Broker position did not consume the callback": "BROKER_POSITION_UNCONSUMED",
+    "synthetic Strategy has no production refresh loop": "REFRESH_LOOP_UNAVAILABLE",
+}
+_SYNTHETIC_ENGINE_DELIVERY_FAILURE_CODES = frozenset(
+    _SYNTHETIC_ENGINE_DELIVERY_FAILURE_CODE_BY_MESSAGE.values()
+)
 cache = tempfile.TemporaryDirectory(prefix="iteration51-installed-pycache-")
 cache_path = Path(cache.name).resolve()
 if any(cache_path.iterdir()):
@@ -795,6 +824,7 @@ fake_state = {
     "trader_stop_calls": 0, "md_stop_calls": 0, "wrapper_mros": [],
     "wrapper_write_flags": [], "wrapper_api_instances": [],
     "synthetic_fill_count": 0, "ctp_order_callback_count": 0,
+    "synthetic_engine_fills": [],
     "ctp_trade_callback_count": 0, "ctp_order_callback_associations": [],
     "ctp_trade_callback_associations": [], "ctp_trade_query_associations": [],
 }
@@ -904,6 +934,731 @@ import time as _real_time
 import types
 import heapq
 
+
+class SyntheticQueryRefreshBarrier:
+    """Pause the synthetic clock until the production refresh thread publishes new facts."""
+
+    def __init__(self, *, enabled, max_order_intents_per_run, per_barrier_timeout=8.0):
+        if type(max_order_intents_per_run) is not int or max_order_intents_per_run < 1:
+            raise ValueError("synthetic refresh barrier needs the configured run intent cap")
+        if type(per_barrier_timeout) not in (int, float) or per_barrier_timeout <= 0:
+            raise ValueError("synthetic refresh barrier timeout must be positive")
+        self.enabled = enabled is True
+        self.max_order_intents_per_run = max_order_intents_per_run
+        self.max_barrier_count = max_order_intents_per_run + 1
+        self.per_barrier_timeout_seconds = float(per_barrier_timeout)
+        self.max_total_wait_seconds = self.max_barrier_count * self.per_barrier_timeout_seconds
+        self._condition = threading.Condition()
+        self._loop = None
+        self._started_generation = 0
+        self._generation_requirements = {}
+        self._results = {}
+        self._records = []
+        self._fill_barrier_count = 0
+        self._preclose_barrier_count = 0
+        self._total_wait_seconds = 0.0
+        self._pending_engine_wait_seconds = 0.0
+        self.last_completed_at_utc = None
+        self._last_query_set_id = None
+        self._original_refresh_once = None
+        self._installed_wrapper = None
+        self._loop_class = None
+        self._active_refreshes = 0
+        self._waiting_refreshes = 0
+        self._callback_pending = False
+        self._engine_fill_pending = None
+        self._engine_fill_sequence = 0
+        self._engine_delivery_failure_codes = []
+        self._expected_broker_positions = {}
+        self._strategy_class = None
+        self._original_strategy_notify = None
+        self._strategy_notify_was_local = False
+        self._installed_strategy_notify = None
+
+    @staticmethod
+    def _aware(value):
+        return (
+            isinstance(value, datetime)
+            and value.tzinfo is not None
+            and value.utcoffset() is not None
+        )
+
+    def _completed_refresh_record(
+        self, loop, result, error, *, requested_at_utc=None, previous_query_set_id=None
+    ):
+        failure_code = None
+        receipt = getattr(loop, "last_receipt", None)
+        facts = getattr(loop, "last_facts", None)
+        query_set = getattr(receipt, "query_set", None)
+        if error is not None:
+            failure_code = "REFRESH_EXCEPTION"
+        elif requested_at_utc is not None and not self._aware(requested_at_utc):
+            failure_code = "BARRIER_REQUEST_TIME_INVALID"
+        elif result is not receipt:
+            failure_code = "RETURNED_RECEIPT_MISMATCH"
+        elif getattr(loop, "last_error_code", None) is not None:
+            failure_code = "REFRESH_ERROR_CODE_PRESENT"
+        elif receipt is None:
+            failure_code = "PRODUCTION_RECEIPT_UNAVAILABLE"
+        elif not callable(getattr(loop, "_receipt_complete", None)) or not loop._receipt_complete(receipt):
+            failure_code = "RECEIPT_INCOMPLETE"
+        elif query_set is None:
+            failure_code = "PRODUCTION_QUERY_SET_UNAVAILABLE"
+        elif facts is None:
+            failure_code = "PRODUCTION_FACTS_UNAVAILABLE"
+        elif getattr(loop, "last_reconciliation_blockers", None) != ():
+            failure_code = "RECONCILIATION_BLOCKERS_PRESENT"
+        elif getattr(facts, "query_set_id", None) != getattr(query_set, "query_set_id", None):
+            failure_code = "FACTS_QUERY_SET_ID_MISMATCH"
+        elif type(getattr(query_set, "query_set_id", None)) is not str or not query_set.query_set_id:
+            failure_code = "QUERY_SET_ID_INVALID"
+        elif (
+            previous_query_set_id is not None
+            and getattr(query_set, "query_set_id", None) == previous_query_set_id
+        ):
+            failure_code = "QUERY_SET_NOT_NEW"
+        else:
+            started_at = getattr(receipt, "started_at", None)
+            completed_at = getattr(receipt, "completed_at", None)
+            query_started_at = getattr(query_set, "started_at_utc", None)
+            query_completed_at = getattr(query_set, "completed_at_utc", None)
+            try:
+                now = loop.clock.utc_now()
+                time_ok = (
+                    self._aware(started_at)
+                    and self._aware(completed_at)
+                    and self._aware(query_started_at)
+                    and self._aware(query_completed_at)
+                    and self._aware(now)
+                    and started_at <= completed_at
+                    and started_at <= query_started_at
+                    and query_started_at <= query_completed_at
+                    and query_completed_at <= completed_at <= now
+                )
+            except Exception:
+                time_ok = False
+            if not time_ok:
+                failure_code = "QUERY_SET_TIME_INVALID"
+            elif requested_at_utc is not None and requested_at_utc > query_started_at:
+                failure_code = "QUERY_SET_BEFORE_BARRIER_REQUEST"
+        return {
+            "complete": failure_code is None,
+            "failure_code": failure_code,
+            "query_set_id": (
+                getattr(query_set, "query_set_id", None)
+                if type(getattr(query_set, "query_set_id", None)) is str
+                else None
+            ),
+            "facts_query_set_id": (
+                getattr(facts, "query_set_id", None)
+                if type(getattr(facts, "query_set_id", None)) is str
+                else None
+            ),
+            "query_set_completed_at_utc": (
+                query_set.completed_at_utc.isoformat()
+                if self._aware(getattr(query_set, "completed_at_utc", None))
+                else None
+            ),
+            "query_set_started_at_utc": (
+                query_set.started_at_utc.isoformat()
+                if self._aware(getattr(query_set, "started_at_utc", None))
+                else None
+            ),
+            "query_set_completed_at_utc_value": (
+                getattr(query_set, "completed_at_utc", None)
+                if self._aware(getattr(query_set, "completed_at_utc", None))
+                else None
+            ),
+            "receipt_is_last_published": receipt is not None and receipt is getattr(loop, "last_receipt", None),
+            "query_set_is_receipt_bound": receipt is not None and query_set is getattr(receipt, "query_set", None),
+            "facts_query_set_matches": (
+                facts is not None
+                and query_set is not None
+                and getattr(facts, "query_set_id", None) == getattr(query_set, "query_set_id", None)
+            ),
+        }
+
+    def _wait_budget_remaining(self, started_at, *, per_call=True):
+        elapsed = max(0.0, _real_time.monotonic() - started_at)
+        accounted_wait = self._total_wait_seconds + self._pending_engine_wait_seconds
+        total_remaining = max(0.0, self.max_total_wait_seconds - accounted_wait)
+        per_remaining = max(
+            0.0,
+            self.per_barrier_timeout_seconds - self._pending_engine_wait_seconds - elapsed,
+        )
+        return min(total_remaining, per_remaining) if per_call else total_remaining
+
+    def _record_fill_gate_wait(self, elapsed, failure_code):
+        elapsed = max(0.0, float(elapsed))
+        pending_total = self._pending_engine_wait_seconds + elapsed
+        if (
+            pending_total > self.per_barrier_timeout_seconds
+            or self._total_wait_seconds + pending_total > self.max_total_wait_seconds
+        ):
+            self._records.append({
+                "reason": "engine_delivery",
+                "refresh_generation": None,
+                "status": "BLOCKED",
+                "failure_code": failure_code,
+                "wait_seconds": round(pending_total, 6),
+            })
+            raise RuntimeError("synthetic production-refresh barrier failed: " + failure_code)
+        self._pending_engine_wait_seconds = pending_total
+
+    def _wait_before_refresh(self, loop):
+        """Keep a real refresh outside provider callbacks and engine delivery."""
+
+        started_at = _real_time.monotonic()
+        waited = False
+        with self._condition:
+            fill_sequence_at_wait = self._engine_fill_sequence
+            waiting_for_fill = self._engine_fill_pending is not None
+        with self._condition:
+            try:
+                while self._callback_pending or self._engine_fill_pending is not None:
+                    waiting_for_fill = waiting_for_fill or self._engine_fill_pending is not None
+                    if not waited:
+                        self._waiting_refreshes += 1
+                        waited = True
+                        self._condition.notify_all()
+                    remaining = self._wait_budget_remaining(started_at)
+                    if remaining <= 0:
+                        self._append_blocked(
+                            "engine_delivery",
+                            None,
+                            started_at,
+                            "ENGINE_CALLBACK_CONSUMPTION_TIMEOUT",
+                        )
+                    self._condition.wait(remaining)
+            finally:
+                if waited:
+                    self._waiting_refreshes -= 1
+                    self._condition.notify_all()
+            if waited and (
+                waiting_for_fill or self._engine_fill_sequence > fill_sequence_at_wait
+            ):
+                self._record_fill_gate_wait(
+                    _real_time.monotonic() - started_at,
+                    "ENGINE_CALLBACK_CONSUMPTION_TIMEOUT",
+                )
+            self._started_generation += 1
+            generation = self._started_generation
+            self._active_refreshes += 1
+            self._loop = loop
+            return generation, self._generation_requirements.get(generation)
+
+    def _finish_refresh(self):
+        with self._condition:
+            self._active_refreshes -= 1
+            if self._active_refreshes < 0:
+                self._active_refreshes = 0
+                raise RuntimeError("synthetic refresh activity count underflow")
+            self._condition.notify_all()
+
+    def deliver_synthetic_callback(self, callback):
+        """Serialize synthetic native mutations against whole real Store refreshes."""
+
+        if not callable(callback):
+            raise RuntimeError("synthetic provider callback is unavailable")
+        started_at = _real_time.monotonic()
+        wait_started = None
+        with self._condition:
+            if self._callback_pending or self._engine_fill_pending is not None:
+                raise RuntimeError("synthetic callback overtook unconsumed engine delivery")
+            self._callback_pending = True
+            fill_count_before = fake_state["synthetic_fill_count"]
+            while self._active_refreshes:
+                if wait_started is None:
+                    wait_started = _real_time.monotonic()
+                remaining = self._wait_budget_remaining(started_at)
+                if remaining <= 0:
+                    self._append_blocked(
+                        "engine_delivery",
+                        None,
+                        started_at,
+                        "REFRESH_DID_NOT_DRAIN_BEFORE_CALLBACK",
+                    )
+                self._condition.wait(remaining)
+            drain_wait_seconds = (
+                max(0.0, _real_time.monotonic() - wait_started)
+                if wait_started is not None
+                else 0.0
+            )
+
+        try:
+            callback()
+        except BaseException:
+            with self._condition:
+                self._callback_pending = False
+                self._condition.notify_all()
+            raise
+
+        fill_count_after = fake_state["synthetic_fill_count"]
+        if fill_count_after not in (fill_count_before, fill_count_before + 1):
+            with self._condition:
+                self._callback_pending = False
+                self._condition.notify_all()
+            raise RuntimeError("synthetic callback changed the fill count unexpectedly")
+        with self._condition:
+            if fill_count_after == fill_count_before + 1:
+                fills = fake_state.get("synthetic_engine_fills")
+                if not isinstance(fills, list) or len(fills) != fill_count_after:
+                    self._callback_pending = False
+                    self._condition.notify_all()
+                    raise RuntimeError("synthetic fill provenance is incomplete")
+                try:
+                    self._record_fill_gate_wait(
+                        drain_wait_seconds, "REFRESH_DID_NOT_DRAIN_BEFORE_CALLBACK"
+                    )
+                except BaseException:
+                    self._callback_pending = False
+                    self._condition.notify_all()
+                    raise
+                self._engine_fill_pending = dict(fills[-1])
+                self._engine_fill_sequence += 1
+            self._callback_pending = False
+            self._condition.notify_all()
+        return fill_count_after != fill_count_before
+
+    def _strategy_engine_fill_delivery(self, strategy, pending):
+        if (
+            not isinstance(pending, Mapping)
+            or any(
+                type(pending.get(key)) is not str or not pending.get(key)
+                for key in ("order_ref", "trade_id", "order_sys_id", "instrument", "exchange")
+            )
+            or type(pending.get("quantity")) is not int
+            or pending.get("quantity") <= 0
+            or pending.get("side") not in {"BUY", "SELL"}
+        ):
+            raise RuntimeError("synthetic fill callback identity is malformed")
+        broker = getattr(strategy, "broker", None)
+        orders = getattr(broker, "orders", None)
+        order_values = tuple(orders.values()) if isinstance(orders, Mapping) else ()
+        matches = tuple(
+            order
+            for order in order_values
+            if getattr(getattr(order, "info", None), "get", lambda *_: None)(
+                "ctp_order_ref"
+            ) == pending.get("order_ref")
+        )
+        if len(matches) != 1:
+            raise RuntimeError("synthetic fill did not bind one real Broker order")
+        order = matches[0]
+        info = getattr(order, "info", None)
+        data = getattr(order, "data", None)
+        data_name = getattr(data, "_name", None)
+        data_instrument = getattr(getattr(data, "p", None), "dataname", None)
+        routes = getattr(strategy, "_routes", None)
+        route = routes.get(data_name) if isinstance(routes, Mapping) and type(data_name) is str else None
+        expected_target = _SYNTHETIC_TARGET_BY_INSTRUMENT.get(pending.get("instrument"))
+        if (
+            type(data_name) is not str
+            or data_name != expected_target
+            or data_instrument != pending.get("instrument")
+            or route != (pending.get("instrument"), pending.get("exchange"))
+        ):
+            raise RuntimeError("synthetic fill Broker data route does not match the target mapping")
+        if (
+            not callable(getattr(info, "get", None))
+            or info.get("registered_sim_ctp_order_sys_id") != pending.get("order_sys_id")
+            or info.get("registered_sim_ctp_order_sys_id_conflict") is True
+            or info.get("exchange_id") != pending.get("exchange")
+        ):
+            raise RuntimeError("synthetic fill did not bind the callback to its native CTP identity")
+        status = order.getstatusname().upper()
+        if status != "COMPLETED":
+            if status in {"SUBMITTED", "ACCEPTED", "PARTIAL"}:
+                return None
+            raise RuntimeError("synthetic fill Broker order reached an unexpected terminal state")
+
+        events = tuple(getattr(strategy, "order_events", ()))
+        completed_events = tuple(
+            event
+            for event in events
+            if isinstance(event, Mapping)
+            and event.get("ref") == order.ref
+            and event.get("status") == "COMPLETED"
+        )
+        if not completed_events:
+            return None
+
+        quantity = pending.get("quantity")
+        side = pending.get("side")
+        expected_signed_size = quantity if side == "BUY" else -quantity if side == "SELL" else None
+        try:
+            executed_size = order.executed.size
+            executed_price = Decimal(str(order.executed.price))
+            callback_price = Decimal(str(pending.get("price")))
+            price_matches = (
+                executed_price.is_finite()
+                and callback_price.is_finite()
+                and executed_price == callback_price
+            )
+        except (AttributeError, InvalidOperation, TypeError, ValueError):
+            executed_size = None
+            executed_price = Decimal("NaN")
+            callback_price = Decimal("NaN")
+            price_matches = False
+        if (
+            type(expected_signed_size) is not int
+            or type(executed_size) not in (int, float)
+            or executed_size != expected_signed_size
+            or not price_matches
+        ):
+            raise RuntimeError("synthetic fill Broker execution does not match its callback")
+        execution_bits = tuple(getattr(order.executed, "exbits", ()))
+        if not execution_bits:
+            return None
+        if len(execution_bits) != 1:
+            raise RuntimeError("synthetic full-fill callback did not produce one execution bit")
+        execution_bit = execution_bits[0]
+        try:
+            bit_size = execution_bit.size
+            bit_price = Decimal(str(execution_bit.price))
+            bit_matches = (
+                type(bit_size) in (int, float)
+                and bit_size == expected_signed_size
+                and bit_price.is_finite()
+                and bit_price == callback_price
+            )
+        except (AttributeError, InvalidOperation, TypeError, ValueError):
+            bit_size = None
+            bit_price = Decimal("NaN")
+            bit_matches = False
+        if not bit_matches:
+            raise RuntimeError("synthetic fill execution bit does not match its callback")
+
+        positions = self._expected_broker_positions
+        expected_position = positions.get(pending.get("instrument"), 0) + expected_signed_size
+        try:
+            broker_position = broker.getposition(order.data).size
+        except Exception as error:
+            raise RuntimeError("synthetic fill Broker position is unavailable") from error
+        if broker_position != expected_position:
+            raise RuntimeError("synthetic fill Broker position did not consume the callback")
+        positions[pending["instrument"]] = expected_position
+        return {
+            "order_ref": pending.get("order_ref"),
+            "trade_id": pending.get("trade_id"),
+            "order_sys_id": pending.get("order_sys_id"),
+            "instrument": pending.get("instrument"),
+            "exchange": pending.get("exchange"),
+            "side": side,
+            "quantity": quantity,
+            "broker_order_ref": order.ref,
+            "broker_data_name": data_name,
+            "broker_data_instrument": data_instrument,
+            "broker_strategy_route": [route[0], route[1]],
+            "broker_ctp_order_ref": info.get("ctp_order_ref"),
+            "broker_order_sys_id": info.get("registered_sim_ctp_order_sys_id"),
+            "broker_exchange_id": info.get("exchange_id"),
+            "broker_status": status,
+            "strategy_completed_event_count": len(completed_events),
+            "executed_size": str(executed_size),
+            "callback_price": str(callback_price),
+            "executed_price": str(executed_price),
+            "execution_bit_size": str(bit_size),
+            "execution_bit_price": str(bit_price),
+            "broker_position_size": str(broker_position),
+            "expected_position_size": str(expected_position),
+        }
+
+    def install(self, loop_class, strategy_class=None):
+        if not self.enabled:
+            return False
+        original = getattr(loop_class, "refresh_once", None)
+        if not callable(original) or self._original_refresh_once is not None:
+            raise RuntimeError("synthetic query refresh hook cannot bind the production loop")
+        barrier = self
+
+        def observed_refresh_once(loop):
+            generation, requirement = barrier._wait_before_refresh(loop)
+            error = None
+            result = None
+            try:
+                result = original(loop)
+            except BaseException as caught:
+                error = caught
+                raise
+            finally:
+                try:
+                    record = barrier._completed_refresh_record(
+                        loop,
+                        result,
+                        error,
+                        requested_at_utc=(
+                            requirement["requested_at_utc"] if requirement else None
+                        ),
+                        previous_query_set_id=(
+                            requirement["previous_query_set_id"] if requirement else None
+                        ),
+                    )
+                    if requirement is not None:
+                        record["engine_delivery"] = requirement.get("engine_delivery")
+                except Exception:
+                    record = {
+                        "complete": False,
+                        "failure_code": "RECEIPT_PROJECTION_INVALID",
+                        "query_set_id": None,
+                        "facts_query_set_id": None,
+                        "query_set_started_at_utc": None,
+                        "query_set_completed_at_utc": None,
+                        "query_set_completed_at_utc_value": None,
+                        "receipt_is_last_published": False,
+                        "query_set_is_receipt_bound": False,
+                        "facts_query_set_matches": False,
+                        "engine_delivery": (
+                            requirement.get("engine_delivery") if requirement else None
+                        ),
+                    }
+                with barrier._condition:
+                    barrier._generation_requirements.pop(generation, None)
+                    barrier._results[generation] = record
+                    if record.get("complete") is True:
+                        barrier._last_query_set_id = record.get("query_set_id")
+                    if len(barrier._results) > 64:
+                        del barrier._results[min(barrier._results)]
+                    barrier._condition.notify_all()
+                barrier._finish_refresh()
+            return result
+
+        loop_class.refresh_once = observed_refresh_once
+        self._loop_class = loop_class
+        self._original_refresh_once = original
+        self._installed_wrapper = observed_refresh_once
+
+        if strategy_class is not None:
+            original_notify = getattr(strategy_class, "_notify", None)
+            if not callable(original_notify):
+                loop_class.refresh_once = original
+                self._original_refresh_once = None
+                self._installed_wrapper = None
+                raise RuntimeError("synthetic Strategy notification method is unavailable")
+            barrier = self
+            had_local_notify = "_notify" in getattr(strategy_class, "__dict__", {})
+
+            def observed_strategy_notify(strategy, *args, **kwargs):
+                result = original_notify(strategy, *args, **kwargs)
+                with barrier._condition:
+                    pending = (
+                        dict(barrier._engine_fill_pending)
+                        if barrier._engine_fill_pending is not None
+                        else None
+                    )
+                if pending is None:
+                    return result
+                try:
+                    delivery = barrier._strategy_engine_fill_delivery(strategy, pending)
+                    if delivery is None:
+                        return result
+                    loop = getattr(getattr(strategy, "p", None), "control_refresh_loop", None)
+                    if loop is None:
+                        raise RuntimeError("synthetic Strategy has no production refresh loop")
+                except RuntimeError as error:
+                    failure_code = _SYNTHETIC_ENGINE_DELIVERY_FAILURE_CODE_BY_MESSAGE.get(
+                        str(error)
+                    )
+                    if (
+                        failure_code in _SYNTHETIC_ENGINE_DELIVERY_FAILURE_CODES
+                        and failure_code not in barrier._engine_delivery_failure_codes
+                    ):
+                        barrier._engine_delivery_failure_codes.append(failure_code)
+                    raise
+                barrier.wait_for_complete_refresh(
+                    "fill",
+                    requested_at_utc=loop.clock.utc_now(),
+                    engine_delivery=delivery,
+                    consumed_fill_ref=pending.get("order_ref"),
+                )
+                return result
+
+            strategy_class._notify = observed_strategy_notify
+            self._strategy_class = strategy_class
+            self._original_strategy_notify = original_notify
+            self._strategy_notify_was_local = had_local_notify
+            self._installed_strategy_notify = observed_strategy_notify
+        return True
+
+    def restore(self):
+        if (
+            self._loop_class is not None
+            and self._installed_wrapper is not None
+            and getattr(self._loop_class, "refresh_once", None) is self._installed_wrapper
+        ):
+            self._loop_class.refresh_once = self._original_refresh_once
+        self._loop_class = None
+        if self._strategy_class is not None and self._installed_strategy_notify is not None:
+            if getattr(self._strategy_class, "_notify", None) is self._installed_strategy_notify:
+                if self._strategy_notify_was_local:
+                    self._strategy_class._notify = self._original_strategy_notify
+                else:
+                    delattr(self._strategy_class, "_notify")
+        self._strategy_class = None
+        self._original_strategy_notify = None
+        self._installed_strategy_notify = None
+
+    def _append_blocked(
+        self, reason, generation, started_at, failure_code, *, wait_already_counted=False
+    ):
+        elapsed = max(0.0, _real_time.monotonic() - started_at)
+        if not wait_already_counted:
+            self._total_wait_seconds += elapsed
+        self._records.append({
+            "reason": reason,
+            "refresh_generation": generation,
+            "status": "BLOCKED",
+            "failure_code": failure_code,
+            "wait_seconds": round(elapsed, 6),
+        })
+        raise RuntimeError("synthetic production-refresh barrier failed: " + failure_code)
+
+    def wait_for_complete_refresh(
+        self,
+        reason,
+        requested_at_utc,
+        *,
+        engine_delivery=None,
+        consumed_fill_ref=None,
+    ):
+        if not self.enabled or reason not in {"fill", "preclose"}:
+            raise RuntimeError("synthetic production-refresh barrier request is invalid")
+        if not self._aware(requested_at_utc):
+            raise RuntimeError("synthetic production-refresh barrier request time is invalid")
+        if reason == "fill" and (
+            not isinstance(engine_delivery, Mapping)
+            or type(consumed_fill_ref) is not str
+            or not consumed_fill_ref
+            or engine_delivery.get("order_ref") != consumed_fill_ref
+        ):
+            raise RuntimeError("synthetic fill barrier lacks exact engine delivery evidence")
+        if reason == "preclose" and (engine_delivery is not None or consumed_fill_ref is not None):
+            raise RuntimeError("synthetic preclose barrier cannot carry fill delivery evidence")
+        loop = self._loop
+        if (
+            loop is None
+            or getattr(loop, "started", None) is not True
+            or not getattr(getattr(loop, "_thread", None), "is_alive", lambda: False)()
+        ):
+            self._append_blocked(reason, None, _real_time.monotonic(), "REFRESH_THREAD_UNAVAILABLE")
+
+        with self._condition:
+            if len(self._records) >= self.max_barrier_count:
+                self._append_blocked(reason, None, _real_time.monotonic(), "BARRIER_COUNT_EXCEEDED")
+            if reason == "fill" and self._fill_barrier_count >= self.max_order_intents_per_run:
+                self._append_blocked(reason, None, _real_time.monotonic(), "RUN_INTENT_LIMIT_EXCEEDED")
+            if reason == "preclose" and self._preclose_barrier_count:
+                self._append_blocked(reason, None, _real_time.monotonic(), "PRE-CLOSE_BARRIER_REPEATED")
+            if self._total_wait_seconds >= self.max_total_wait_seconds:
+                self._append_blocked(reason, None, _real_time.monotonic(), "WAIT_BUDGET_EXCEEDED")
+            previous_query_set_id = self._last_query_set_id
+            if type(previous_query_set_id) is not str or not previous_query_set_id:
+                self._append_blocked(
+                    reason, None, _real_time.monotonic(), "PREVIOUS_QUERY_SET_UNAVAILABLE"
+                )
+            if reason == "fill":
+                pending = self._engine_fill_pending
+                if (
+                    not isinstance(pending, dict)
+                    or pending.get("order_ref") != consumed_fill_ref
+                    or pending.get("trade_id") != engine_delivery.get("trade_id")
+                    or any(
+                        engine_delivery.get(key) != pending.get(key)
+                        for key in (
+                            "order_sys_id",
+                            "instrument",
+                            "exchange",
+                            "side",
+                            "quantity",
+                        )
+                    )
+                ):
+                    raise RuntimeError("synthetic fill notification does not match pending callback")
+            prior_fill_wait = (
+                self._pending_engine_wait_seconds if reason == "fill" else 0.0
+            )
+            available_wait = min(
+                self.per_barrier_timeout_seconds - prior_fill_wait,
+                self.max_total_wait_seconds - self._total_wait_seconds - prior_fill_wait,
+            )
+            if available_wait <= 0:
+                self._append_blocked(reason, None, _real_time.monotonic(), "WAIT_BUDGET_EXCEEDED")
+            required_generation = self._started_generation + 1
+            self._generation_requirements[required_generation] = {
+                "requested_at_utc": requested_at_utc,
+                "previous_query_set_id": previous_query_set_id,
+                "engine_delivery": engine_delivery,
+            }
+            if reason == "fill":
+                self._engine_fill_pending = None
+                self._condition.notify_all()
+            request_started = _real_time.monotonic()
+            deadline = request_started + available_wait
+            loop._refresh_wakeup.set()
+            while required_generation not in self._results:
+                remaining = deadline - _real_time.monotonic()
+                if remaining <= 0:
+                    self._append_blocked(
+                        reason,
+                        required_generation,
+                        request_started,
+                        "REFRESH_WAIT_TIMEOUT",
+                    )
+                self._condition.wait(remaining)
+            completed = self._results.pop(required_generation)
+            refresh_wait = max(0.0, _real_time.monotonic() - request_started)
+            elapsed = prior_fill_wait + refresh_wait
+            self._total_wait_seconds += elapsed
+            if reason == "fill":
+                self._pending_engine_wait_seconds = 0.0
+            record = {
+                "reason": reason,
+                "refresh_generation": required_generation,
+                "status": "PASS" if completed.get("complete") is True else "BLOCKED",
+                "failure_code": completed.get("failure_code"),
+                "receipt_is_last_published": completed.get("receipt_is_last_published") is True,
+                "query_set_is_receipt_bound": completed.get("query_set_is_receipt_bound") is True,
+                "facts_query_set_matches": completed.get("facts_query_set_matches") is True,
+                "query_set_id": completed.get("query_set_id"),
+                "facts_query_set_id": completed.get("facts_query_set_id"),
+                "previous_query_set_id": previous_query_set_id,
+                "requested_at_utc": requested_at_utc.isoformat(),
+                "query_set_started_at_utc": completed.get("query_set_started_at_utc"),
+                "query_set_completed_at_utc": completed.get("query_set_completed_at_utc"),
+                "wait_seconds": round(elapsed, 6),
+                "engine_delivery": engine_delivery,
+            }
+            self.last_completed_at_utc = completed.get("query_set_completed_at_utc_value")
+            self._records.append(record)
+            if reason == "fill":
+                self._fill_barrier_count += 1
+            else:
+                self._preclose_barrier_count += 1
+            if record["status"] != "PASS":
+                raise RuntimeError(
+                    "synthetic production-refresh barrier failed: "
+                    + str(record["failure_code"] or "REFRESH_INCOMPLETE")
+                )
+            if self._total_wait_seconds > self.max_total_wait_seconds:
+                raise RuntimeError("synthetic production-refresh barrier failed: WAIT_BUDGET_EXCEEDED")
+            return record
+
+    def receipt(self):
+        return {
+            "enabled": self.enabled,
+            "max_order_intents_per_run": self.max_order_intents_per_run,
+            "max_barrier_count": self.max_barrier_count,
+            "per_barrier_timeout_seconds": self.per_barrier_timeout_seconds,
+            "max_total_wait_seconds": self.max_total_wait_seconds,
+            "barrier_count": len(self._records),
+            "fill_barrier_count": self._fill_barrier_count,
+            "preclose_barrier_count": self._preclose_barrier_count,
+            "total_wait_seconds": round(self._total_wait_seconds, 6),
+            "engine_delivery_failure_codes": list(self._engine_delivery_failure_codes),
+            "records": list(self._records),
+        }
+
+
 synthetic_callback_events = []
 synthetic_callback_sequence = [0]
 
@@ -944,11 +1699,15 @@ class SyntheticVirtualScheduler:
         self._delivered_ticks = 0
         self._callback_delivery_count = 0
         self._late_callback_schedule_count = 0
+        self._observed_fill_count = 0
+        self._preclose_barrier_at = None
+        self._preclose_barrier_done = False
+        self._post_refresh_quotes = {}
         self._initialized = True
 
     def utc_now(self):
         with self._lock:
-            return self._now
+            return self._now.astimezone(timezone.utc)
 
     def monotonic_ns(self):
         return _real_time.monotonic_ns()
@@ -966,9 +1725,18 @@ class SyntheticVirtualScheduler:
             candidates = [
                 value for value in (next_market, next_callback) if value is not None
             ]
-            if not candidates:
+            event_time = min(candidates) if candidates else None
+            if (
+                not self._preclose_barrier_done
+                and self._preclose_barrier_at is not None
+                and self._now < self._preclose_barrier_at <= target
+                and (event_time is None or self._preclose_barrier_at <= event_time)
+            ):
+                self._now = self._preclose_barrier_at
+                self._preclose_barrier_done = True
+                return "preclose"
+            if event_time is None:
                 break
-            event_time = min(candidates)
             if event_time > target:
                 break
             self._now = event_time
@@ -991,13 +1759,32 @@ class SyntheticVirtualScheduler:
                         delivered = True
                 if delivered:
                     self._delivered_ticks += 1
+                    required_time = self._post_refresh_quotes.get(symbol)
+                    if required_time is not None and event_time >= required_time[0]:
+                        self._post_refresh_quotes.pop(symbol, None)
                 continue
             if next_callback is not None and next_callback == event_time:
                 _when, _sequence, callback = heapq.heappop(synthetic_callback_events)
-                callback()
-                self._callback_delivery_count += 1
-                continue
+                return ("callback", callback)
             raise RuntimeError("synthetic scheduler event ordering is inconsistent")
+
+    def _next_authorized_quote_requirements(self, completed_at):
+        if not isinstance(completed_at, datetime) or completed_at.tzinfo is None:
+            return None
+        required = {}
+        for instrument in authorized_instruments:
+            next_quote = next(
+                (
+                    event[0]
+                    for event in synthetic_events[self._event_index:]
+                    if event[1] == instrument and event[0] > completed_at
+                ),
+                None,
+            )
+            if next_quote is None:
+                return None
+            required[instrument] = next_quote
+        return required
 
     def _advance(self, timeout_seconds):
         if isinstance(timeout_seconds, bool) or not isinstance(timeout_seconds, (int, float)):
@@ -1006,9 +1793,49 @@ class SyntheticVirtualScheduler:
             raise ValueError("virtual scheduler timeout must be nonnegative")
         with self._lock:
             target = self._now + timedelta(seconds=float(timeout_seconds))
-            self._deliver_through(target)
-            self._now = target
-            self._advance_count += 1
+        while True:
+            with self._lock:
+                barrier_reason = self._deliver_through(target)
+                if barrier_reason is None:
+                    if self._post_refresh_quotes:
+                        raise RuntimeError("synthetic post-query authorized quote was not delivered")
+                    self._now = target
+                    self._advance_count += 1
+                    return
+            if (
+                isinstance(barrier_reason, tuple)
+                and len(barrier_reason) == 2
+                and barrier_reason[0] == "callback"
+            ):
+                fill_delivered = refresh_barrier.deliver_synthetic_callback(
+                    barrier_reason[1]
+                )
+                self._callback_delivery_count += 1
+                if fill_delivered:
+                    fill_count = fake_state["synthetic_fill_count"]
+                    if fill_count != self._observed_fill_count + 1:
+                        raise RuntimeError("synthetic fill barrier count skipped a callback")
+                    self._observed_fill_count = fill_count
+                    return
+                continue
+            # The production QueryRefreshLoop owns every Store query. Never
+            # wait on it while holding the scheduler lock or inside a tick /
+            # native callback. A preclose refresh is followed by real queued
+            # quotes for every authorized instrument before the engine resumes.
+            refresh_barrier.wait_for_complete_refresh(
+                barrier_reason, requested_at_utc=self.utc_now()
+            )
+            if barrier_reason == "preclose":
+                requirements = self._next_authorized_quote_requirements(
+                    refresh_barrier.last_completed_at_utc
+                )
+                if not requirements:
+                    raise RuntimeError("synthetic preclose refresh has no later authorized quotes")
+                self._post_refresh_quotes = {
+                    instrument: (event_time, refresh_barrier.last_completed_at_utc)
+                    for instrument, event_time in requirements.items()
+                }
+                target = max(target, *requirements.values())
 
     def wait(self, timeout_seconds):
         self._advance(timeout_seconds)
@@ -1022,6 +1849,20 @@ class SyntheticVirtualScheduler:
 
 virtual_scheduler = SyntheticVirtualScheduler()
 SyntheticVirtualScheduler._shared_instance = virtual_scheduler
+write_intent_cap = (
+    config["risk"]["max_order_intents_per_run"]
+    if case == "write"
+    else write_risk["max_order_intents_per_run"]
+)
+refresh_barrier = SyntheticQueryRefreshBarrier(
+    enabled=case == "write",
+    max_order_intents_per_run=write_intent_cap,
+    per_barrier_timeout=8.0,
+)
+if case == "write":
+    virtual_scheduler._preclose_barrier_at = session_end - timedelta(
+        seconds=int(config["risk"]["preclose_grace_seconds"])
+    )
 
 
 class SyntheticBtApiTime:
@@ -1133,6 +1974,8 @@ class SyntheticTraderClient(helper._ExecutionProviderLeaf):
         self.on_order = None
         self.on_trade = None
         self.on_error = None
+        self._synthetic_capability_generation = 0
+        self._synthetic_active_grant = None
         fake_state["trader_clients"].append(self)
 
     def start(self, *, block=False):
@@ -1150,8 +1993,44 @@ class SyntheticTraderClient(helper._ExecutionProviderLeaf):
 
     def stop(self):
         fake_state["trader_stop_calls"] += 1
+        grant = self._synthetic_active_grant
+        if grant is not None and self._gate_state.get("armed") is True:
+            # Mirror public bt_api_ctp client.py at 48b476ea90665791c7d2f86935720ce238931520:
+            # _on_front_disconnected revokes the SDK proof with this exact reason.
+            generation, instrument, exchange, capability = grant
+            before = self.get_execution_gate_state()
+            if before.get("authorized_instruments") != [instrument]:
+                raise RuntimeError("synthetic SDK stop found a mismatched active grant")
+            self._gate_state = {
+                **self._gate_state,
+                "managed": True,
+                "armed": False,
+                "connection_generation": None,
+                "trading_day": None,
+                "instrument": None,
+                "scope_version": None,
+                "authorized_instruments": None,
+                "proof_sha256": None,
+                "environment_profile": None,
+                "revocation_reason": "ctp_execution_gate_disconnected",
+            }
+            fake_state["synthetic_leaf_actions"].append({
+                "action": "sdk_stop_revoke",
+                "generation": generation,
+                "instrument": instrument,
+                "exchange": exchange,
+                "capability_matches_current": self._synthetic_active_grant[3] is capability,
+                "revocation_source": "ctp_execution_gate_disconnected",
+                "armed_before": before.get("armed") is True,
+                "armed_after": self._gate_state.get("armed") is True,
+                "proof_present_after": self._gate_state.get("proof_sha256") is not None,
+            })
+            self._synthetic_active_grant = None
+            self.is_trading_ready = False
+            self._trading_day = ""
         self.disconnect()
         self.is_ready = False
+        self.is_trading_ready = False
 
     def _query_result(self, request_type, family, *, filters=()):
         fake_state["query_families"].append(family)
@@ -1240,6 +2119,12 @@ class SyntheticTraderClient(helper._ExecutionProviderLeaf):
     def arm_execution_for_registered_sim(self, **kwargs):
         fake_state["arm_calls"] += 1
         grant = super().arm_execution_for_registered_sim(**kwargs)
+        capability, gate_state = grant
+        instrument = str(kwargs.get("instrument_id", ""))
+        exchange = str(kwargs.get("exchange_id", ""))
+        self._synthetic_capability_generation += 1
+        generation = self._synthetic_capability_generation
+        self._synthetic_active_grant = (generation, instrument, exchange, capability)
         gate_state = grant[1] if isinstance(grant, tuple) and len(grant) == 2 else None
         authorized = (
             gate_state.get("authorized_instruments")
@@ -1247,37 +2132,100 @@ class SyntheticTraderClient(helper._ExecutionProviderLeaf):
             else None
         )
         fake_state["arm_scope_observations"].append({
-            "requested_instrument_id": str(kwargs.get("instrument_id", "")),
+            "generation": generation,
+            "requested_instrument_id": instrument,
             "authorized_instruments": list(authorized) if isinstance(authorized, list) else None,
+        })
+        fake_state["synthetic_leaf_actions"].append({
+            "action": "arm",
+            "generation": generation,
+            "instrument": instrument,
+            "exchange": exchange,
+            "authorized_instruments": list(authorized) if isinstance(authorized, list) else None,
+            "capability_issued": capability is not None,
+            "armed_after": isinstance(gate_state, dict) and gate_state.get("armed") is True,
         })
         return grant
 
     def disarm_execution_gate(self, capability, reason):
-        if capability is None:
-            raise RuntimeError("synthetic disarm requires the issued capability")
+        grant = self._synthetic_active_grant
+        if (
+            capability is None
+            or grant is None
+            or capability is not grant[3]
+            or self._gate_state.get("armed") is not True
+        ):
+            raise RuntimeError("synthetic disarm requires the current issued capability")
         fake_state["disarm_calls"] += 1
         authorized = self._gate_state.get("authorized_instruments")
-        fake_state["disarm_scope_observations"].append(
-            [str(instrument) for instrument in authorized]
-            if isinstance(authorized, list)
-            else None
-        )
+        generation, instrument, exchange, _capability = grant
+        authorized_copy = list(authorized) if isinstance(authorized, list) else None
+        fake_state["disarm_scope_observations"].append({
+            "generation": generation,
+            "authorized_instruments": authorized_copy,
+        })
         self._gate_state = {
             **self._gate_state,
             "managed": True,
             "armed": False,
-            "authorized_instruments": [],
+            "connection_generation": None,
+            "trading_day": None,
+            "instrument": None,
+            "scope_version": None,
+            "authorized_instruments": None,
+            "proof_sha256": None,
+            "environment_profile": None,
             "revocation_reason": str(reason),
         }
+        fake_state["synthetic_leaf_actions"].append({
+            "action": "disarm",
+            "generation": generation,
+            "instrument": instrument,
+            "exchange": exchange,
+            "authorized_instruments": authorized_copy,
+            "capability_matches_current": capability is grant[3],
+            "reason": str(reason),
+            "armed_before": True,
+            "armed_after": False,
+            "proof_present_after": False,
+        })
+        self._synthetic_active_grant = None
         return dict(self._gate_state)
 
-    def submit_order_insert(self, field, request_id, *, execution_capability):
+    def _synthetic_native_authorization(self, action, field, execution_capability):
+        grant = self._synthetic_active_grant
+        instrument = str(getattr(field, "InstrumentID", ""))
+        exchange = str(getattr(field, "ExchangeID", ""))
+        order_ref = str(getattr(field, "OrderRef", ""))
+        state = self.get_execution_gate_state()
+        generation = grant[0] if grant is not None else None
+        authorized = state.get("authorized_instruments")
+        valid = bool(
+            grant is not None
+            and execution_capability is grant[3]
+            and grant[1] == instrument
+            and grant[2] == exchange == "DCE"
+            and state.get("armed") is True
+            and state.get("instrument") == instrument
+            and authorized == [instrument]
+            and state.get("connection_generation") == self._connection_generation
+            and state.get("trading_day") == self._trading_day
+        )
         fake_state["synthetic_leaf_actions"].append({
-            "action": "insert",
-            "order_ref": str(field.OrderRef),
-            "instrument": str(field.InstrumentID),
-            "exchange": str(field.ExchangeID),
+            "action": action,
+            "order_ref": order_ref,
+            "instrument": instrument,
+            "exchange": exchange,
+            "generation": generation,
+            "authorized_instruments": list(authorized) if isinstance(authorized, list) else None,
+            "capability_matches_current": bool(grant is not None and execution_capability is grant[3]),
+            "authorization_valid": valid,
         })
+        if not valid:
+            raise RuntimeError("synthetic native action is outside the current exact grant")
+
+    def submit_order_insert(self, field, request_id, *, execution_capability):
+        self._synthetic_native_authorization("insert", field, execution_capability)
         result = super().submit_order_insert(
             field, request_id, execution_capability=execution_capability
         )
@@ -1446,6 +2394,16 @@ class SyntheticTraderClient(helper._ExecutionProviderLeaf):
                 "callback_price": str(trade_callback.Price),
             })
             fake_state["ctp_trade_callback_count"] += 1
+            fake_state["synthetic_engine_fills"].append({
+                "order_ref": order_ref,
+                "trade_id": trade_id,
+                "order_sys_id": order_sys_id,
+                "instrument": instrument,
+                "exchange": exchange,
+                "side": "BUY" if direction_flag == "0" else "SELL",
+                "quantity": quantity,
+                "price": str(price),
+            })
             fake_state["synthetic_fill_count"] += 1
 
         _schedule_synthetic_callback(
@@ -1456,12 +2414,9 @@ class SyntheticTraderClient(helper._ExecutionProviderLeaf):
 
     def submit_order_action(self, *args, **kwargs):
         field = args[0] if args else None
-        fake_state["synthetic_leaf_actions"].append({
-            "action": "cancel",
-            "order_ref": str(getattr(field, "OrderRef", "")),
-            "instrument": str(getattr(field, "InstrumentID", "")),
-            "exchange": str(getattr(field, "ExchangeID", "")),
-        })
+        self._synthetic_native_authorization(
+            "cancel", field, kwargs.get("execution_capability")
+        )
         return super().submit_order_action(*args, **kwargs)
     def disconnect(self):
         fake_state["disconnect_calls"] += 1
@@ -1532,6 +2487,16 @@ runner_namespace = None
 runner_globals = None
 runner_clock_original = None
 runner_clock_constructor_calls_before = None
+query_refresh_loop_class = None
+query_refresh_method_original = None
+query_refresh_method_origin = None
+query_refresh_barrier_installed = False
+query_refresh_barrier_delegates_original = False
+strategy_notify_barrier_installed = False
+strategy_notify_barrier_delegates_original = False
+strategy_notify_module_origin = None
+strategy_notify_delegate_origin = None
+strategy_class = None
 cli_stdout = __import__("io").StringIO()
 live_cohort_exception_diagnostics = []
 live_cohort_exception_indices = {}
@@ -1628,6 +2593,71 @@ try:
     # runpy returns a namespace snapshot; functions resolve globals through
     # function.__globals__, so patch only that exact copied-source binding.
     runner_globals["RunnerWallClock"] = SyntheticVirtualScheduler
+    query_refresh_loop_class = runner_globals.get("QueryRefreshLoop")
+    query_refresh_method_original = getattr(query_refresh_loop_class, "refresh_once", None)
+    query_refresh_method_origin = (
+        query_refresh_method_original.__code__.co_filename
+        if callable(query_refresh_method_original)
+        and hasattr(query_refresh_method_original, "__code__")
+        else None
+    )
+    if case == "write":
+        strategy_module = __import__("alpha003_strategy", fromlist=["Alpha003TargetStrategy"])
+        strategy_module_path = Path(getattr(strategy_module, "__file__", "")).resolve(strict=True)
+        expected_strategy_path = (example / "alpha003_strategy.py").resolve(strict=True)
+        if strategy_module_path != expected_strategy_path:
+            raise RuntimeError("synthetic Strategy hook is not bound to the copied example source")
+        strategy_class = getattr(strategy_module, "Alpha003TargetStrategy", None)
+        strategy_notify_method = getattr(strategy_class, "_notify", None)
+        strategy_notify_origin = (
+            strategy_notify_method.__code__.co_filename
+            if callable(strategy_notify_method) and hasattr(strategy_notify_method, "__code__")
+            else None
+        )
+        strategy_notify_owner = next(
+            (
+                base
+                for base in getattr(strategy_class, "__mro__", ())[1:]
+                if "_notify" in getattr(base, "__dict__", {})
+            ),
+            None,
+        )
+        if (
+            not isinstance(strategy_class, type)
+            or "_notify" in getattr(strategy_class, "__dict__", {})
+            or getattr(strategy_notify_owner, "__name__", None) != "Strategy"
+            or getattr(strategy_notify_owner, "__module__", None) != "backtrader.strategy"
+            or type(strategy_notify_origin) is not str
+            or not Path(strategy_notify_origin).resolve().is_file()
+        ):
+            raise RuntimeError("synthetic Strategy notification source is unavailable")
+        strategy_notify_module_origin = str(strategy_module_path)
+        strategy_notify_delegate_origin = str(Path(strategy_notify_origin).resolve(strict=True))
+        if (
+            not isinstance(query_refresh_loop_class, type)
+            or type(query_refresh_method_origin) is not str
+            or Path(query_refresh_method_origin).resolve() != runner_file
+            or not refresh_barrier.install(query_refresh_loop_class, strategy_class)
+        ):
+            raise RuntimeError("production refresh or copied Strategy binding is unavailable")
+        query_refresh_barrier_installed = (
+            refresh_barrier._installed_wrapper is not None
+            and getattr(query_refresh_loop_class, "refresh_once", None)
+            is refresh_barrier._installed_wrapper
+        )
+        query_refresh_barrier_delegates_original = (
+            refresh_barrier._original_refresh_once is query_refresh_method_original
+            and query_refresh_barrier_installed
+        )
+        strategy_notify_barrier_installed = (
+            refresh_barrier._installed_strategy_notify is not None
+            and getattr(strategy_class, "_notify", None)
+            is refresh_barrier._installed_strategy_notify
+        )
+        strategy_notify_barrier_delegates_original = (
+            refresh_barrier._original_strategy_notify is strategy_notify_method
+            and strategy_notify_barrier_installed
+        )
     runner_clock_constructor_calls_before = (
         SyntheticVirtualScheduler._runner_clock_constructor_calls
     )
@@ -1646,6 +2676,7 @@ except SystemExit as result:
         exit_code = 1
 finally:
     sys.settrace(previous_system_trace)
+    refresh_barrier.restore()
     socket.socket.connect = original_socket_connect
     socket.socket.connect_ex = original_socket_connect_ex
     socket.socket.sendto = original_socket_sendto
@@ -1736,6 +2767,22 @@ leaf_close_receipt = {
         for wrapper in fake_state["wrapper_api_instances"]
     ],
 }
+native_gate_after_close = []
+for client in fake_state["trader_clients"]:
+    gate_state = client.get_execution_gate_state()
+    native_gate_after_close.append({
+        "managed": gate_state.get("managed") is True,
+        "armed": gate_state.get("armed") is True,
+        "instrument": gate_state.get("instrument"),
+        "authorized_instruments": (
+            list(gate_state["authorized_instruments"])
+            if isinstance(gate_state.get("authorized_instruments"), list)
+            else None
+        ),
+        "proof_present": gate_state.get("proof_sha256") is not None,
+        "revocation_reason": gate_state.get("revocation_reason"),
+        "trading_ready": bool(client.is_trading_ready),
+    })
 
 after = helper._snapshot_loaded_package_modules(
     binding["install_root"], binding["record_hashes"], binding["wheel_payload_hashes"],
@@ -1788,6 +2835,7 @@ print("ITERATION51_SYNTHETIC_LIVE_CHILD=" + json.dumps({
     "disarm_scope_observations": fake_state["disarm_scope_observations"],
     "disconnect_calls": fake_state["disconnect_calls"],
     "synthetic_leaf_actions": list(fake_state["synthetic_leaf_actions"]),
+    "native_gate_after_close": native_gate_after_close,
     "store_environment_shape_valid": True,
     "store_environment_api_kwargs_keys": sorted(store_environment["api_kwargs"]),
     "store_live_tick_provenance": store_environment["api_kwargs"]["live_tick_provenance"],
@@ -1839,6 +2887,27 @@ print("ITERATION51_SYNTHETIC_LIVE_CHILD=" + json.dumps({
         "scheduler_shared_state": "RunnerWallClock and CTP leaves share one child-local instance",
     },
     "synthetic_fill_count": fake_state["synthetic_fill_count"],
+    "synthetic_engine_fills": list(fake_state["synthetic_engine_fills"]),
+    "synthetic_refresh_barrier": refresh_barrier.receipt(),
+    "query_refresh_barrier_binding": (
+        "copied run.py QueryRefreshLoop.refresh_once"
+        if query_refresh_barrier_installed
+        else None
+    ),
+    "query_refresh_barrier_origin": query_refresh_method_origin,
+    "query_refresh_barrier_delegates_original": query_refresh_barrier_delegates_original,
+    "strategy_notify_barrier_binding": (
+        "copied Alpha003TargetStrategy hook after inherited backtrader.strategy.Strategy._notify"
+        if strategy_notify_barrier_installed
+        else None
+    ),
+    "strategy_notify_class_origin": strategy_notify_module_origin,
+    "strategy_notify_barrier_origin": (
+        strategy_notify_delegate_origin
+        if strategy_notify_barrier_installed
+        else None
+    ),
+    "strategy_notify_barrier_delegates_original": strategy_notify_barrier_delegates_original,
     "ctp_order_callback_count": fake_state["ctp_order_callback_count"],
     "ctp_order_callback_associations": fake_state["ctp_order_callback_associations"],
     "ctp_trade_callback_count": fake_state["ctp_trade_callback_count"],
@@ -2179,6 +3248,8 @@ def _synthetic_live_summary_failure_checks(
         failures.append("child.subscriptions")
     if child.get("planned_slot_count") != planned_slot_count:
         failures.append("child.planned_slot_count")
+    if not _synthetic_refresh_barrier_is_valid(child, expected_writes=expected_writes):
+        failures.append("child.query_refresh_barriers")
 
     decision_tape = summary.get("decision_tape")
     readback = summary.get("decision_tape_readback")
@@ -2277,6 +3348,298 @@ def _synthetic_live_summary_failure_checks(
     return failures
 
 
+def _synthetic_refresh_barrier_is_valid(
+    child: Mapping[str, Any], *, expected_writes: bool
+) -> bool:
+    """Bind write-case pauses to complete, new production refresh receipts."""
+
+    barrier = child.get("synthetic_refresh_barrier")
+    if not isinstance(barrier, Mapping):
+        return False
+    if not expected_writes:
+        return (
+            barrier.get("enabled") is False
+            and barrier.get("barrier_count") == 0
+            and barrier.get("fill_barrier_count") == 0
+            and barrier.get("preclose_barrier_count") == 0
+            and barrier.get("engine_delivery_failure_codes") == []
+            and barrier.get("records") == []
+            and child.get("synthetic_fill_count") == 0
+            and child.get("synthetic_engine_fills") == []
+            and child.get("query_refresh_barrier_binding") is None
+            and child.get("strategy_notify_barrier_binding") is None
+            and child.get("strategy_notify_class_origin") is None
+            and child.get("strategy_notify_barrier_origin") is None
+            and child.get("strategy_notify_barrier_delegates_original") is False
+        )
+
+    fill_count = child.get("synthetic_fill_count")
+    fills = child.get("synthetic_engine_fills")
+    run_cap = child.get("max_order_intents_per_run")
+    records = barrier.get("records")
+    per_wait = barrier.get("per_barrier_timeout_seconds")
+    total_wait = barrier.get("total_wait_seconds")
+    total_budget = barrier.get("max_total_wait_seconds")
+    if (
+        type(fill_count) is not int
+        or type(run_cap) is not int
+        or run_cap != SYNTHETIC_WRITE_MAX_ORDER_INTENTS_PER_RUN
+        or fill_count < 1
+        or fill_count > run_cap
+        or not isinstance(fills, list)
+        or len(fills) != fill_count
+        or barrier.get("enabled") is not True
+        or barrier.get("max_order_intents_per_run") != run_cap
+        or barrier.get("max_barrier_count") != run_cap + 1
+        or type(per_wait) not in (int, float)
+        or isinstance(per_wait, bool)
+        or per_wait != 8.0
+        or type(total_budget) not in (int, float)
+        or isinstance(total_budget, bool)
+        or total_budget != per_wait * (run_cap + 1)
+        or type(total_wait) not in (int, float)
+        or isinstance(total_wait, bool)
+        or not 0 <= total_wait <= total_budget
+        or not isinstance(records, list)
+        or len(records) != fill_count + 1
+        or barrier.get("barrier_count") != len(records)
+        or barrier.get("fill_barrier_count") != fill_count
+        or barrier.get("preclose_barrier_count") != 1
+        or barrier.get("engine_delivery_failure_codes") != []
+        or child.get("query_refresh_barrier_binding")
+        != "copied run.py QueryRefreshLoop.refresh_once"
+        or child.get("query_refresh_barrier_delegates_original") is not True
+        or type(child.get("query_refresh_barrier_origin")) is not str
+        or child.get("query_refresh_barrier_origin")
+        != child.get("runner_clock_patch_origin")
+        or child.get("strategy_notify_barrier_binding")
+        != "copied Alpha003TargetStrategy hook after inherited backtrader.strategy.Strategy._notify"
+        or child.get("strategy_notify_barrier_delegates_original") is not True
+        or type(child.get("strategy_notify_class_origin")) is not str
+        or type(child.get("strategy_notify_barrier_origin")) is not str
+    ):
+        return False
+
+    try:
+        runner_origin = Path(child["runner_clock_patch_origin"]).resolve(strict=True)
+        expected_strategy_class_origin = str(
+            (runner_origin.parent / "alpha003_strategy.py").resolve(strict=True)
+        )
+        strategy_class_origin = str(
+            Path(child["strategy_notify_class_origin"]).resolve(strict=True)
+        )
+        strategy_notify_origin = Path(
+            child["strategy_notify_barrier_origin"]
+        ).resolve(strict=True)
+    except (KeyError, OSError, TypeError, ValueError):
+        return False
+    if (
+        strategy_class_origin != expected_strategy_class_origin
+        or not strategy_notify_origin.is_file()
+        or strategy_notify_origin.name != "strategy.py"
+        or strategy_notify_origin.parent.name != "backtrader"
+    ):
+        return False
+
+    fill_refs = set()
+    fill_trade_ids = set()
+    fill_sys_ids = set()
+    for fill in fills:
+        if not isinstance(fill, Mapping):
+            return False
+        order_ref = fill.get("order_ref")
+        trade_id = fill.get("trade_id")
+        order_sys_id = fill.get("order_sys_id")
+        instrument = fill.get("instrument")
+        exchange = fill.get("exchange")
+        side = fill.get("side")
+        quantity = fill.get("quantity")
+        if (
+            any(type(value) is not str or not value for value in (
+                order_ref, trade_id, order_sys_id, instrument, exchange
+            ))
+            or type(quantity) is not int
+            or quantity <= 0
+            or side not in {"BUY", "SELL"}
+            or instrument not in {"M2611", "A2611"}
+            or exchange != "DCE"
+            or not _synthetic_positive_prices_match(fill.get("price"), fill.get("price"))
+            or order_ref in fill_refs
+            or trade_id in fill_trade_ids
+            or order_sys_id in fill_sys_ids
+        ):
+            return False
+        fill_refs.add(order_ref)
+        fill_trade_ids.add(trade_id)
+        fill_sys_ids.add(order_sys_id)
+
+    if not _synthetic_order_sys_id_provenance_is_valid(child):
+        return False
+    insert_targets = {
+        action.get("order_ref"): (action.get("exchange"), action.get("instrument"))
+        for action in child.get("synthetic_leaf_actions", ())
+        if isinstance(action, Mapping) and action.get("action") == "insert"
+    }
+    callback_rows = {
+        row.get("order_ref"): row
+        for row in child.get("ctp_trade_callback_associations", ())
+        if isinstance(row, Mapping)
+    }
+    if set(insert_targets) != fill_refs or set(callback_rows) != fill_refs:
+        return False
+    for fill in fills:
+        order_ref = fill["order_ref"]
+        callback = callback_rows.get(order_ref)
+        if (
+            insert_targets.get(order_ref) != (fill["exchange"], fill["instrument"])
+            or callback is None
+            or callback.get("trade_id") != fill.get("trade_id")
+            or callback.get("order_sys_id") != fill.get("order_sys_id")
+            or not _synthetic_positive_prices_match(
+                callback.get("callback_price"), fill.get("price")
+            )
+        ):
+            return False
+
+    reasons = [record.get("reason") for record in records if isinstance(record, Mapping)]
+    if (
+        len(reasons) != len(records)
+        or reasons.count("fill") != fill_count
+        or reasons.count("preclose") != 1
+    ):
+        return False
+    generations = []
+    wait_total = 0.0
+    positions = {}
+    broker_order_refs = set()
+    fill_index = 0
+    for record in records:
+        wait_seconds = record.get("wait_seconds")
+        query_set_id = record.get("query_set_id")
+        previous_query_set_id = record.get("previous_query_set_id")
+        requested_at = record.get("requested_at_utc")
+        query_started = record.get("query_set_started_at_utc")
+        completed_at = record.get("query_set_completed_at_utc")
+        if (
+            record.get("status") != "PASS"
+            or record.get("failure_code") is not None
+            or record.get("receipt_is_last_published") is not True
+            or record.get("query_set_is_receipt_bound") is not True
+            or record.get("facts_query_set_matches") is not True
+            or type(query_set_id) is not str
+            or not query_set_id
+            or type(previous_query_set_id) is not str
+            or not previous_query_set_id
+            or previous_query_set_id == query_set_id
+            or record.get("facts_query_set_id") != query_set_id
+            or type(requested_at) is not str
+            or type(query_started) is not str
+            or type(completed_at) is not str
+            or type(wait_seconds) not in (int, float)
+            or isinstance(wait_seconds, bool)
+            or not 0 <= wait_seconds <= per_wait
+            or type(record.get("refresh_generation")) is not int
+            or record.get("refresh_generation") <= 1
+        ):
+            return False
+        try:
+            required_at = datetime.fromisoformat(requested_at)
+            started_at = datetime.fromisoformat(query_started)
+            finished_at = datetime.fromisoformat(completed_at)
+            if (
+                required_at.tzinfo is None
+                or started_at.tzinfo is None
+                or finished_at.tzinfo is None
+                or not required_at <= started_at <= finished_at
+            ):
+                return False
+        except ValueError:
+            return False
+        if record.get("reason") == "preclose":
+            if record.get("engine_delivery") is not None:
+                return False
+        else:
+            delivery = record.get("engine_delivery")
+            if not isinstance(delivery, Mapping) or fill_index >= len(fills):
+                return False
+            fill = fills[fill_index]
+            identity_fields = (
+                "order_ref",
+                "trade_id",
+                "order_sys_id",
+                "instrument",
+                "exchange",
+                "side",
+                "quantity",
+            )
+            if any(delivery.get(key) != fill.get(key) for key in identity_fields):
+                return False
+            broker_ref = delivery.get("broker_order_ref")
+            completed_event_count = delivery.get("strategy_completed_event_count")
+            if (
+                type(broker_ref) is not int
+                or broker_ref <= 0
+                or broker_ref in broker_order_refs
+                or delivery.get("broker_data_name")
+                != _SYNTHETIC_TARGET_BY_INSTRUMENT.get(fill.get("instrument"))
+                or delivery.get("broker_data_instrument") != fill.get("instrument")
+                or delivery.get("broker_strategy_route")
+                != [fill.get("instrument"), fill.get("exchange")]
+                or delivery.get("broker_ctp_order_ref") != fill.get("order_ref")
+                or delivery.get("broker_order_sys_id") != fill.get("order_sys_id")
+                or delivery.get("broker_exchange_id") != fill.get("exchange")
+                or delivery.get("broker_status") != "COMPLETED"
+                or type(completed_event_count) is not int
+                or completed_event_count < 1
+            ):
+                return False
+            sign = 1 if fill["side"] == "BUY" else -1
+            expected_size = sign * fill["quantity"]
+            position = positions.get(fill["instrument"], 0) + expected_size
+            try:
+                numeric_fields = {
+                    key: Decimal(str(delivery.get(key)))
+                    for key in (
+                        "executed_size",
+                        "execution_bit_size",
+                        "broker_position_size",
+                        "expected_position_size",
+                    )
+                }
+                if any(not value.is_finite() for value in numeric_fields.values()):
+                    return False
+                position_ok = (
+                    numeric_fields["executed_size"] == expected_size
+                    and numeric_fields["execution_bit_size"] == expected_size
+                    and numeric_fields["broker_position_size"] == position
+                    and numeric_fields["expected_position_size"] == position
+                )
+            except (InvalidOperation, TypeError, ValueError):
+                return False
+            if (
+                not position_ok
+                or not _synthetic_positive_prices_match(
+                    delivery.get("callback_price"), fill.get("price")
+                )
+                or not _synthetic_positive_prices_match(
+                    delivery.get("executed_price"), fill.get("price")
+                )
+                or not _synthetic_positive_prices_match(
+                    delivery.get("execution_bit_price"), fill.get("price")
+                )
+            ):
+                return False
+            broker_order_refs.add(broker_ref)
+            positions[fill["instrument"]] = position
+            fill_index += 1
+        generations.append(record["refresh_generation"])
+        wait_total += wait_seconds
+    if fill_index != fill_count:
+        return False
+    rounding_bound = (len(records) + 1) * 0.5e-6 + 1e-9
+    return generations == sorted(set(generations)) and abs(wait_total - total_wait) <= rounding_bound
+
+
 def _synthetic_authorization_scope_is_valid(case: str, child: Mapping[str, Any]) -> bool:
     arm_calls = child.get("arm_calls")
     disarm_calls = child.get("disarm_calls")
@@ -2289,66 +3652,179 @@ def _synthetic_authorization_scope_is_valid(case: str, child: Mapping[str, Any])
         or not isinstance(disarm_observations, list)
     ):
         return False
+    synthetic_actions = child.get("synthetic_leaf_actions")
+    if not isinstance(synthetic_actions, list):
+        return False
     if case != "write":
+        gates = child.get("native_gate_after_close")
+        trader_leaf_count = child.get("ctp_trader_leaf_instances")
         return (
             arm_calls == 0
             and disarm_calls == 0
             and arm_observations == []
             and disarm_observations == []
+            and synthetic_actions == []
+            and isinstance(gates, list)
+            and type(trader_leaf_count) is int
+            and trader_leaf_count >= 0
+            and len(gates) == trader_leaf_count
+            and all(
+                isinstance(gate, Mapping)
+                and gate.get("armed") is False
+                and gate.get("trading_ready") is False
+                for gate in gates
+            )
         )
     if (
         arm_calls <= 0
-        or arm_calls != disarm_calls
         or arm_calls != len(arm_observations)
         or disarm_calls != len(disarm_observations)
     ):
         return False
-    synthetic_actions = child.get("synthetic_leaf_actions")
-    if not isinstance(synthetic_actions, list):
-        return False
+
+    active_generation = None
+    active_target = None
+    active_exchange = None
+    next_generation = 1
+    arm_events = []
+    disarm_events = []
     insert_targets = []
+    stop_events = []
+    stop_seen = False
     for action in synthetic_actions:
-        if not isinstance(action, Mapping):
+        if not isinstance(action, Mapping) or not isinstance(action.get("action"), str):
             return False
-        if action.get("action") != "insert":
+        action_kind = action["action"]
+        if action_kind == "arm":
+            target = action.get("instrument")
+            generation = action.get("generation")
+            if (
+                active_generation is not None
+                or stop_seen
+                or type(generation) is not int
+                or generation != next_generation
+                or not isinstance(target, str)
+                or target not in {"M2611", "A2611"}
+                or action.get("exchange") != "DCE"
+                or action.get("authorized_instruments") != [target]
+                or action.get("capability_issued") is not True
+                or action.get("armed_after") is not True
+            ):
+                return False
+            active_generation = generation
+            active_target = target
+            active_exchange = "DCE"
+            next_generation += 1
+            arm_events.append(action)
             continue
-        target = action.get("instrument")
+        if action_kind == "disarm":
+            if (
+                active_generation is None
+                or action.get("generation") != active_generation
+                or action.get("instrument") != active_target
+                or action.get("exchange") != active_exchange
+                or action.get("authorized_instruments") != [active_target]
+                or action.get("capability_matches_current") is not True
+                or action.get("reason") != "registered_sim_instrument_switch"
+                or action.get("armed_before") is not True
+                or action.get("armed_after") is not False
+                or action.get("proof_present_after") is not False
+                or stop_seen
+            ):
+                return False
+            disarm_events.append(action)
+            active_generation = None
+            active_target = None
+            active_exchange = None
+            continue
+        if action_kind == "sdk_stop_revoke":
+            if (
+                active_generation is None
+                or action.get("generation") != active_generation
+                or action.get("instrument") != active_target
+                or action.get("exchange") != active_exchange
+                or action.get("capability_matches_current") is not True
+                or action.get("revocation_source") != "ctp_execution_gate_disconnected"
+                or action.get("armed_before") is not True
+                or action.get("armed_after") is not False
+                or action.get("proof_present_after") is not False
+                or stop_seen
+            ):
+                return False
+            stop_seen = True
+            stop_events.append(action)
+            active_generation = None
+            active_target = None
+            active_exchange = None
+            continue
+        if action_kind not in {"insert", "cancel"}:
+            return False
         if (
-            action.get("exchange") != "DCE"
-            or not isinstance(target, str)
-            or target not in {"M2611", "A2611"}
+            active_generation is None
+            or action.get("generation") != active_generation
+            or action.get("instrument") != active_target
+            or action.get("exchange") != active_exchange
+            or action.get("authorized_instruments") != [active_target]
+            or action.get("capability_matches_current") is not True
+            or action.get("authorization_valid") is not True
+            or stop_seen
         ):
             return False
-        insert_targets.append(target)
-    allowed_targets = {"M2611", "A2611"}
-    arm_targets = []
-    for observation in arm_observations:
-        if (
-            not isinstance(observation, Mapping)
-            or set(observation) != {"requested_instrument_id", "authorized_instruments"}
-        ):
+        order_ref = action.get("order_ref")
+        if not isinstance(order_ref, str) or not order_ref:
             return False
-        target = observation.get("requested_instrument_id")
-        if (
-            not isinstance(target, str)
-            or target not in allowed_targets
-            or observation.get("authorized_instruments") != [target]
-        ):
-            return False
-        arm_targets.append(target)
-    disarm_targets = []
-    for observation in disarm_observations:
-        if (
-            not isinstance(observation, list)
-            or len(observation) != 1
-            or not isinstance(observation[0], str)
-            or observation[0] not in allowed_targets
-        ):
-            return False
-        disarm_targets.append(observation[0])
+        if action_kind == "insert":
+            if action.get("exchange") != "DCE" or action.get("instrument") not in {
+                "M2611", "A2611"
+            }:
+                return False
+            insert_targets.append(action["instrument"])
+
+    if (
+        active_generation is not None
+        or not stop_seen
+        or len(stop_events) != 1
+        or len(arm_events) != arm_calls
+        or len(disarm_events) != disarm_calls
+        or not insert_targets
+        or len(insert_targets) > SYNTHETIC_WRITE_MAX_ORDER_INTENTS_PER_RUN
+    ):
+        return False
+    projected_arms = [
+        {
+            "generation": event["generation"],
+            "requested_instrument_id": event["instrument"],
+            "authorized_instruments": event["authorized_instruments"],
+        }
+        for event in arm_events
+    ]
+    projected_disarms = [
+        {
+            "generation": event["generation"],
+            "authorized_instruments": event["authorized_instruments"],
+        }
+        for event in disarm_events
+    ]
+    final_gates = child.get("native_gate_after_close")
+    trader_leaf_count = child.get("ctp_trader_leaf_instances")
     return (
-        sorted(arm_targets) == sorted(disarm_targets)
-        and sorted(arm_targets) == sorted(insert_targets)
+        arm_observations == projected_arms
+        and disarm_observations == projected_disarms
+        and isinstance(final_gates, list)
+        and type(trader_leaf_count) is int
+        and trader_leaf_count > 0
+        and len(final_gates) == trader_leaf_count
+        and final_gates == [
+            {
+                "managed": True,
+                "armed": False,
+                "instrument": None,
+                "authorized_instruments": None,
+                "proof_present": False,
+                "revocation_reason": "ctp_execution_gate_disconnected",
+                "trading_ready": False,
+            }
+        ]
     )
 
 
@@ -2396,6 +3872,10 @@ def _synthetic_order_sys_id_provenance_is_valid(child: Mapping[str, Any]) -> boo
     order_targets = {}
     insert_refs = []
     for action in synthetic_actions:
+        if isinstance(action, Mapping) and action.get("action") in {
+            "arm", "disarm", "sdk_stop_revoke"
+        }:
+            continue
         if (
             not isinstance(action, Mapping)
             or not isinstance(action.get("action"), str)
@@ -2947,9 +4427,9 @@ def run_synthetic_live_case(
                 )
                 and all(
                     isinstance(action, Mapping)
-                    and action.get("action") in {"insert", "cancel"}
-                    and action.get("exchange") == "DCE"
-                    and action.get("instrument") in {"M2611", "A2611"}
+                    and action.get("action") in {
+                        "arm", "disarm", "insert", "cancel", "sdk_stop_revoke"
+                    }
                     for action in synthetic_actions
                 )
                 and child.get("arm_calls", 0) > 0

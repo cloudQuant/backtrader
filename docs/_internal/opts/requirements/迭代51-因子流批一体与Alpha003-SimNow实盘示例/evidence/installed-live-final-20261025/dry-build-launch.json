@@ -1,0 +1,20 @@
+{
+  "command": [
+    "D:/temp/i5051c-20261025-r6/venv/Scripts/python.exe",
+    "-I",
+    "D:\\source_code\\backtrader\\scripts\\iteration51_installed_fixture.py",
+    "--wheel",
+    "D:\\temp\\i5051b-03852948a7a4\\wheel\\back_trader_python-1.4.0-py3-none-any.whl",
+    "--wheel-sha256",
+    "bc33814b37ab44963ab9a964e689ee7c2665ed9a709b5bcbe0eb0bcd9770b7ee",
+    "--workspace",
+    "D:\\temp\\i51-offline-a69\\dry-build",
+    "--mode",
+    "dry",
+    "--factor-mode",
+    "build"
+  ],
+  "helper_sha256": "6b7ecf3f19ec7617c56cc13849ec4dfe0973b244c5e5594233bebc9aa42cf5ae",
+  "wheel_sha256": "bc33814b37ab44963ab9a964e689ee7c2665ed9a709b5bcbe0eb0bcd9770b7ee",
+  "head": "a22f38601793df082086b06687f9abaf21d8554a"
+}

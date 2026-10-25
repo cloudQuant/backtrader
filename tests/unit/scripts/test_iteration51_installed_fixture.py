@@ -3,12 +3,16 @@
 from __future__ import annotations
 
 import ast
+from dataclasses import replace
+from decimal import Decimal, InvalidOperation
 import hashlib
 import importlib.util
 import json
 from datetime import datetime, timedelta, timezone
+from collections.abc import Mapping
 from pathlib import Path
 import sys
+import threading
 import time
 import types
 from types import ModuleType, SimpleNamespace
@@ -303,6 +307,328 @@ def test_initial_query_refresh_uses_shared_synthetic_utc_and_real_monotonic(
         )
     finally:
         aligned_journal.close()
+
+
+def test_write_refresh_barrier_waits_on_the_real_query_refresh_thread(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    runner_path = (
+        _FIXTURE_PATH.parents[1]
+        / "examples"
+        / "unified"
+        / "028_alpha003_simnow_minute"
+        / "run.py"
+    )
+    monkeypatch.syspath_prepend(str(runner_path.parent))
+    runner_spec = importlib.util.spec_from_file_location(
+        "alpha003_simnow_refresh_barrier_source_test", runner_path
+    )
+    assert runner_spec is not None and runner_spec.loader is not None
+    runner = importlib.util.module_from_spec(runner_spec)
+    sys.modules[runner_spec.name] = runner
+    runner_spec.loader.exec_module(runner)
+
+    fixture = _load_fixture()
+    helper = _load_iteration50_fixture()
+    clock = _FixedUTCClock(datetime.now(timezone.utc) - timedelta(seconds=1))
+    api, _store, journal, _target, loop = _source_loaded_refresh_case(
+        helper, runner, clock, bind_query_clock=True
+    )
+    child_tree = ast.parse(fixture._SYNTHETIC_LIVE_CHILD_CODE)
+    barrier_node = next(
+        node
+        for node in child_tree.body
+        if isinstance(node, ast.ClassDef) and node.name == "SyntheticQueryRefreshBarrier"
+    )
+    fake_state = {"synthetic_fill_count": 0, "synthetic_engine_fills": []}
+    namespace = {
+        "threading": threading,
+        "_real_time": time,
+        "datetime": datetime,
+        "Mapping": Mapping,
+        "Decimal": Decimal,
+        "InvalidOperation": InvalidOperation,
+        "fake_state": fake_state,
+    }
+    exec(
+        compile(ast.Module(body=[barrier_node], type_ignores=[]), "<refresh-barrier>", "exec"),
+        namespace,
+    )
+    barrier = namespace["SyntheticQueryRefreshBarrier"](
+        enabled=True,
+        max_order_intents_per_run=20,
+        per_barrier_timeout=8.0,
+    )
+    loop_class = type(loop)
+    original_refresh_once = loop_class.refresh_once
+    assert barrier.install(loop_class) is True
+    try:
+        initial = loop.refresh_initial(wait_timeout=2.0)
+        assert initial is loop.last_receipt
+        assert loop.last_error_code is None
+        assert initial.query_set is not None
+        assert loop.last_facts.query_set_id == initial.query_set.query_set_id
+
+        loop.interval = 0.05
+        loop.start()
+        with barrier._condition:
+            assert barrier._condition.wait_for(
+                lambda: barrier._started_generation >= 2
+                and barrier._active_refreshes == 0,
+                timeout=3.0,
+            )
+        gate_boundary = {}
+        pending_fill = {
+            "order_ref": "501",
+            "trade_id": "iteration51-test-trade-501",
+            "order_sys_id": "iteration51-test-sys-501",
+            "instrument": "M2611",
+            "exchange": "DCE",
+            "side": "BUY",
+            "quantity": 1,
+            "price": "214",
+        }
+
+        def publish_fill() -> None:
+            with barrier._condition:
+                # deliver_synthetic_callback has drained all active refreshes
+                # and left _callback_pending set, so no query can begin while
+                # this exact pre-fill boundary is captured.
+                assert barrier._active_refreshes == 0
+                gate_boundary["generation"] = barrier._started_generation
+                gate_boundary["request_id"] = api._request_id
+                gate_boundary["query_set_id"] = barrier._last_query_set_id
+                latest_receipt = loop.last_receipt
+                latest_query_set = getattr(latest_receipt, "query_set", None)
+                latest_facts = loop.last_facts
+                gate_boundary["receipt_query_set_id"] = getattr(
+                    latest_query_set, "query_set_id", None
+                )
+                gate_boundary["facts_query_set_id"] = getattr(
+                    latest_facts, "query_set_id", None
+                )
+                gate_boundary["last_error_code"] = loop.last_error_code
+                fake_state["synthetic_engine_fills"].append(pending_fill)
+                fake_state["synthetic_fill_count"] += 1
+
+        assert barrier.deliver_synthetic_callback(publish_fill) is True
+        generation_before_fill = gate_boundary["generation"]
+        request_id_before_fill = gate_boundary["request_id"]
+        previous_query_set_id_before_fill = gate_boundary["query_set_id"]
+        assert type(previous_query_set_id_before_fill) is str
+        assert previous_query_set_id_before_fill
+        assert previous_query_set_id_before_fill == gate_boundary["receipt_query_set_id"]
+        assert previous_query_set_id_before_fill == gate_boundary["facts_query_set_id"]
+        assert gate_boundary["last_error_code"] is None
+        assert previous_query_set_id_before_fill != initial.query_set.query_set_id
+        loop._refresh_wakeup.set()
+        with barrier._condition:
+            assert barrier._condition.wait_for(
+                lambda: barrier._waiting_refreshes == 1,
+                timeout=3.0,
+            )
+        assert barrier._engine_fill_pending == pending_fill
+        assert barrier._started_generation == generation_before_fill
+        assert api._request_id == request_id_before_fill
+
+        requested_at = clock.utc_now()
+        wrong_delivery = {
+            **pending_fill,
+            "order_ref": "502",
+        }
+        with pytest.raises(RuntimeError, match="does not match pending callback"):
+            barrier.wait_for_complete_refresh(
+                "fill",
+                requested_at_utc=requested_at,
+                engine_delivery=wrong_delivery,
+                consumed_fill_ref="502",
+            )
+        assert barrier._engine_fill_pending == pending_fill
+        assert api._request_id == request_id_before_fill
+
+        engine_delivery = {
+            **pending_fill,
+            "broker_order_ref": 1,
+            "broker_data_name": "DCE.M",
+            "broker_data_instrument": "M2611",
+            "broker_strategy_route": ["M2611", "DCE"],
+            "broker_ctp_order_ref": "501",
+            "broker_order_sys_id": "iteration51-test-sys-501",
+            "broker_exchange_id": "DCE",
+            "broker_status": "COMPLETED",
+            "strategy_completed_event_count": 2,
+            "executed_size": "1",
+            "callback_price": "214",
+            "executed_price": "214.0",
+            "execution_bit_size": "1",
+            "execution_bit_price": "214.00",
+            "broker_position_size": "1",
+            "expected_position_size": "1",
+        }
+        record = barrier.wait_for_complete_refresh(
+            "fill",
+            requested_at_utc=requested_at,
+            engine_delivery=engine_delivery,
+            consumed_fill_ref=pending_fill["order_ref"],
+        )
+        assert loop._thread.is_alive()
+        assert loop._thread.ident != threading.get_ident()
+        assert record["status"] == "PASS"
+        assert record["refresh_generation"] == generation_before_fill + 1
+        assert record["receipt_is_last_published"] is True
+        assert record["query_set_is_receipt_bound"] is True
+        assert record["facts_query_set_matches"] is True
+        assert record["query_set_id"] == record["facts_query_set_id"]
+        assert record["previous_query_set_id"] == previous_query_set_id_before_fill
+        assert record["query_set_id"] != record["previous_query_set_id"]
+        assert record["engine_delivery"] == engine_delivery
+        assert api._request_id > request_id_before_fill
+        assert datetime.fromisoformat(record["requested_at_utc"]) == requested_at
+        assert datetime.fromisoformat(record["requested_at_utc"]) <= datetime.fromisoformat(
+            record["query_set_started_at_utc"]
+        ) <= datetime.fromisoformat(record["query_set_completed_at_utc"])
+        assert barrier.receipt()["fill_barrier_count"] == 1
+        assert api._query_utc_clock is loop.clock is clock
+    finally:
+        with barrier._condition:
+            barrier._engine_fill_pending = None
+            barrier._callback_pending = False
+            barrier._condition.notify_all()
+        if loop.started:
+            loop.stop_and_join()
+        barrier.restore()
+        loop_class.refresh_once = original_refresh_once
+        journal.close()
+
+
+def test_refresh_barrier_rejects_missing_or_future_query_sets_and_noquote_preclose(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fixture = _load_fixture()
+    helper = _load_iteration50_fixture()
+    runner_path = (
+        _FIXTURE_PATH.parents[1]
+        / "examples"
+        / "unified"
+        / "028_alpha003_simnow_minute"
+        / "run.py"
+    )
+    runner_spec = importlib.util.spec_from_file_location(
+        "alpha003_simnow_refresh_barrier_negative_source_test", runner_path
+    )
+    monkeypatch.syspath_prepend(str(runner_path.parent))
+    assert runner_spec is not None and runner_spec.loader is not None
+    runner = importlib.util.module_from_spec(runner_spec)
+    sys.modules[runner_spec.name] = runner
+    runner_spec.loader.exec_module(runner)
+    clock = _FixedUTCClock(datetime.now(timezone.utc) - timedelta(seconds=1))
+    _api, _store, journal, _target, loop = _source_loaded_refresh_case(
+        helper, runner, clock, bind_query_clock=True
+    )
+    child_tree = ast.parse(fixture._SYNTHETIC_LIVE_CHILD_CODE)
+    barrier_node = next(
+        node
+        for node in child_tree.body
+        if isinstance(node, ast.ClassDef) and node.name == "SyntheticQueryRefreshBarrier"
+    )
+    namespace = {"threading": threading, "_real_time": time, "datetime": datetime}
+    exec(
+        compile(ast.Module(body=[barrier_node], type_ignores=[]), "<refresh-barrier>", "exec"),
+        namespace,
+    )
+    barrier = namespace["SyntheticQueryRefreshBarrier"](
+        enabled=True,
+        max_order_intents_per_run=20,
+    )
+    try:
+        receipt = loop.refresh_initial(wait_timeout=2.0)
+        assert receipt is not None and receipt.query_set is not None
+        loop.last_receipt = replace(receipt, query_set=None)
+        previous_query_set_id = "prior-query-set"
+        missing = barrier._completed_refresh_record(
+            loop,
+            loop.last_receipt,
+            None,
+            requested_at_utc=clock.utc_now(),
+            previous_query_set_id=previous_query_set_id,
+        )
+        assert missing["complete"] is False
+        assert missing["failure_code"] == "PRODUCTION_QUERY_SET_UNAVAILABLE"
+
+        loop.last_receipt = receipt
+        older_than_request = barrier._completed_refresh_record(
+            loop,
+            receipt,
+            None,
+            requested_at_utc=receipt.query_set.completed_at_utc + timedelta(seconds=1),
+            previous_query_set_id=previous_query_set_id,
+        )
+        assert older_than_request["complete"] is False
+        assert older_than_request["failure_code"] == "QUERY_SET_BEFORE_BARRIER_REQUEST"
+
+        reused_query_set = barrier._completed_refresh_record(
+            loop,
+            receipt,
+            None,
+            requested_at_utc=receipt.query_set.started_at_utc,
+            previous_query_set_id=receipt.query_set.query_set_id,
+        )
+        assert reused_query_set["complete"] is False
+        assert reused_query_set["failure_code"] == "QUERY_SET_NOT_NEW"
+
+        clock._now = receipt.query_set.completed_at_utc - timedelta(seconds=1)
+        future = barrier._completed_refresh_record(
+            loop,
+            receipt,
+            None,
+            requested_at_utc=receipt.query_set.started_at_utc,
+            previous_query_set_id=previous_query_set_id,
+        )
+        assert future["complete"] is False
+        assert future["failure_code"] == "QUERY_SET_TIME_INVALID"
+    finally:
+        journal.close()
+
+    scheduler_class = next(
+        node
+        for node in child_tree.body
+        if isinstance(node, ast.ClassDef) and node.name == "SyntheticVirtualScheduler"
+    )
+    quote_method = next(
+        node
+        for node in scheduler_class.body
+        if isinstance(node, ast.FunctionDef)
+        and node.name == "_next_authorized_quote_requirements"
+    )
+    quote_globals = {
+        "datetime": datetime,
+        "authorized_instruments": {"M2611", "A2611"},
+        "synthetic_events": [],
+    }
+    exec(
+        compile(ast.Module(body=[quote_method], type_ignores=[]), "<quote-requirements>", "exec"),
+        quote_globals,
+    )
+    scheduler = SimpleNamespace(_event_index=0)
+    query_at = datetime(2026, 10, 25, 12, 0, tzinfo=timezone.utc)
+    quote_globals["synthetic_events"] = [
+        (query_at, "M2611", 0, 0, None),
+        (query_at + timedelta(seconds=1), "M2611", 0, 1, None),
+    ]
+    assert quote_globals["_next_authorized_quote_requirements"](
+        scheduler, query_at
+    ) is None
+    quote_globals["synthetic_events"] = [
+        (query_at + timedelta(seconds=1), "M2611", 0, 0, None),
+        (query_at + timedelta(seconds=2), "A2611", 0, 0, None),
+    ]
+    requirements = quote_globals["_next_authorized_quote_requirements"](
+        scheduler, query_at
+    )
+    assert requirements == {
+        "M2611": query_at + timedelta(seconds=1),
+        "A2611": query_at + timedelta(seconds=2),
+    }
 
 
 def _write_example(path: Path) -> dict[str, bytes]:
@@ -613,6 +939,253 @@ def test_synthetic_live_child_is_separate_from_the_offline_allowlist() -> None:
         )
 
 
+def test_write_scheduler_barriers_run_after_delivery_outside_scheduler_lock() -> None:
+    fixture = _load_fixture()
+    tree = ast.parse(
+        fixture._SYNTHETIC_LIVE_CHILD_CODE,
+        filename="iteration51-synthetic-live-child.py",
+    )
+    cap_assignment = next(
+        node
+        for node in tree.body
+        if isinstance(node, ast.Assign)
+        and any(
+            isinstance(target, ast.Name) and target.id == "write_intent_cap"
+            for target in node.targets
+        )
+    )
+    for case, configured_cap, expected_cap in (("readonly", None, 20), ("write", 7, 7)):
+        namespace = {
+            "case": case,
+            "config": {"risk": {"max_order_intents_per_run": configured_cap}},
+            "write_risk": {"max_order_intents_per_run": 20},
+        }
+        exec(
+            compile(ast.Module(body=[cap_assignment], type_ignores=[]), "<fixture-cap>", "exec"),
+            namespace,
+        )
+        assert namespace["write_intent_cap"] == expected_cap
+    scheduler = next(
+        node
+        for node in tree.body
+        if isinstance(node, ast.ClassDef) and node.name == "SyntheticVirtualScheduler"
+    )
+    callback_at = datetime(2026, 10, 25, 12, 0, tzinfo=timezone.utc)
+    callbacks = []
+    fake_state = {"synthetic_fill_count": 0}
+    lock_depth_observations = []
+    wait_lock_depths = []
+    wait_requested_at = []
+
+    class TrackingLock:
+        def __init__(self) -> None:
+            self.depth = 0
+
+        def __enter__(self):
+            self.depth += 1
+            return self
+
+        def __exit__(self, _error_type, _error, _traceback):
+            self.depth -= 1
+
+    class RefreshBarrier:
+        last_completed_at_utc = callback_at
+
+        def deliver_synthetic_callback(self, callback) -> bool:
+            lock_depth_observations.append(scheduler._lock.depth)
+            assert scheduler._lock.depth == 0
+            assert callbacks == []  # _deliver_through popped it before yielding.
+            assert callback is fill_callback
+            callback()
+            return True
+
+        def wait_for_complete_refresh(self, reason, *, requested_at_utc=None):
+            wait_lock_depths.append(scheduler._lock.depth)
+            wait_requested_at.append((reason, requested_at_utc))
+            raise RefreshWaitObserved
+
+    class RefreshWaitObserved(Exception):
+        pass
+
+    def fill_callback() -> None:
+        assert scheduler._lock.depth == 0
+        assert scheduler._now == callback_at
+        assert callbacks == []
+        fake_state["synthetic_fill_count"] += 1
+
+    callbacks.append((callback_at, 1, fill_callback))
+    namespace = {
+        "datetime": datetime,
+        "timedelta": timedelta,
+        "timezone": timezone,
+        "threading": SimpleNamespace(RLock=TrackingLock),
+        "created_at": callback_at,
+        "synthetic_events": [],
+        "synthetic_callback_events": callbacks,
+        "heapq": __import__("heapq"),
+        "fake_state": fake_state,
+        "refresh_barrier": RefreshBarrier(),
+        "authorized_instruments": (),
+        "_real_time": time,
+    }
+    exec(
+        compile(ast.Module(body=[scheduler], type_ignores=[]), "<scheduler-behavior>", "exec"),
+        namespace,
+    )
+    scheduler = namespace["SyntheticVirtualScheduler"]()
+    scheduler._advance(0)
+
+    assert lock_depth_observations == [0]
+    assert fake_state["synthetic_fill_count"] == scheduler._observed_fill_count == 1
+    assert scheduler._callback_delivery_count == 1
+    assert scheduler._now == callback_at
+    assert scheduler._advance_count == 0  # Return to the engine at the fill instant.
+    assert callbacks == []
+
+    preclose_at = callback_at + timedelta(seconds=5)
+    scheduler._preclose_barrier_at = preclose_at
+    with pytest.raises(RefreshWaitObserved):
+        scheduler._advance(5)
+    assert wait_lock_depths == [0]
+    assert wait_requested_at == [("preclose", preclose_at)]
+    assert scheduler._now == preclose_at
+
+    # The example's session end is Asia/Shanghai-aware. The scheduler may
+    # retain that local timestamp for event ordering, but its query clock must
+    # expose the same instant in canonical UTC for the installed query leaf.
+    local_preclose_at = (callback_at + timedelta(seconds=10)).astimezone(
+        timezone(timedelta(hours=8))
+    )
+    scheduler._preclose_barrier_at = local_preclose_at
+    scheduler._preclose_barrier_done = False
+    with pytest.raises(RefreshWaitObserved):
+        scheduler._advance(5)
+    expected_utc = local_preclose_at.astimezone(timezone.utc)
+    assert scheduler._now == local_preclose_at
+    assert scheduler.utc_now() == expected_utc
+    assert scheduler.utc_now().utcoffset() == timedelta(0)
+    assert wait_lock_depths == [0, 0]
+    assert wait_requested_at == [("preclose", preclose_at), ("preclose", expected_utc)]
+
+
+def test_strategy_fill_delivery_binds_named_feed_to_instrument_route() -> None:
+    fixture = _load_fixture()
+    tree = ast.parse(fixture._SYNTHETIC_LIVE_CHILD_CODE)
+    barrier_node = next(
+        node
+        for node in tree.body
+        if isinstance(node, ast.ClassDef) and node.name == "SyntheticQueryRefreshBarrier"
+    )
+    namespace = {
+        "threading": threading,
+        "_real_time": time,
+        "datetime": datetime,
+        "Mapping": Mapping,
+        "Decimal": Decimal,
+        "InvalidOperation": InvalidOperation,
+        "fake_state": {"synthetic_fill_count": 1},
+        "_SYNTHETIC_TARGET_BY_INSTRUMENT": {
+            "M2611": "DCE.M",
+            "Y2611": "DCE.Y",
+            "A2611": "DCE.A",
+        },
+        "_SYNTHETIC_ENGINE_DELIVERY_FAILURE_CODE_BY_MESSAGE": {
+            "synthetic fill Broker data route does not match the target mapping": (
+                "BROKER_DATA_ROUTE_MISMATCH"
+            )
+        },
+        "_SYNTHETIC_ENGINE_DELIVERY_FAILURE_CODES": frozenset(
+            {"BROKER_DATA_ROUTE_MISMATCH"}
+        ),
+    }
+    exec(
+        compile(ast.Module(body=[barrier_node], type_ignores=[]), "<delivery-route>", "exec"),
+        namespace,
+    )
+    barrier = namespace["SyntheticQueryRefreshBarrier"](
+        enabled=True,
+        max_order_intents_per_run=20,
+        per_barrier_timeout=8.0,
+    )
+    barrier._expected_broker_positions = {"M2611": 0}
+    pending = {
+        "order_ref": "501",
+        "trade_id": "iteration51-test-trade-501",
+        "order_sys_id": "iteration51-test-sys-501",
+        "instrument": "M2611",
+        "exchange": "DCE",
+        "side": "BUY",
+        "quantity": 1,
+        "price": "214",
+    }
+    data = SimpleNamespace(_name="DCE.M", p=SimpleNamespace(dataname="M2611"))
+    order = SimpleNamespace(
+        info={
+            "ctp_order_ref": "501",
+            "registered_sim_ctp_order_sys_id": "iteration51-test-sys-501",
+            "registered_sim_ctp_order_sys_id_conflict": False,
+            "exchange_id": "DCE",
+        },
+        data=data,
+        ref=17,
+        getstatusname=lambda: "Completed",
+        executed=SimpleNamespace(
+            size=1,
+            price=214,
+            exbits=(SimpleNamespace(size=1, price=214),),
+        ),
+    )
+    broker = SimpleNamespace(
+        orders={17: order},
+        getposition=lambda _data: SimpleNamespace(size=1),
+    )
+    strategy = SimpleNamespace(
+        broker=broker,
+        _routes={"DCE.M": ("M2611", "DCE")},
+        order_events=[{"ref": 17, "status": "COMPLETED"}],
+    )
+
+    delivery = barrier._strategy_engine_fill_delivery(strategy, pending)
+
+    assert delivery["broker_data_name"] == "DCE.M"
+    assert delivery["broker_data_instrument"] == "M2611"
+    assert delivery["broker_strategy_route"] == ["M2611", "DCE"]
+    assert delivery["broker_position_size"] == "1"
+
+    barrier._expected_broker_positions = {"M2611": 0}
+    data.p.dataname = "A2611"
+    with pytest.raises(RuntimeError, match="data route does not match the target mapping"):
+        barrier._strategy_engine_fill_delivery(strategy, pending)
+    data.p.dataname = "M2611"
+
+    class Loop:
+        def refresh_once(self):
+            pass
+
+    class Strategy:
+        def __init__(self):
+            self.broker = broker
+            self._routes = {"DCE.M": ("A2611", "DCE")}
+            self.order_events = [{"ref": 17, "status": "COMPLETED"}]
+
+        def _notify(self):
+            return None
+
+    barrier._engine_fill_pending = dict(pending)
+    assert barrier.install(Loop, Strategy) is True
+    try:
+        with pytest.raises(RuntimeError, match="data route does not match the target mapping"):
+            Strategy()._notify()
+        assert barrier.receipt()["engine_delivery_failure_codes"] == [
+            "BROKER_DATA_ROUTE_MISMATCH"
+        ]
+    finally:
+        barrier.restore()
+
+    strategy._routes = {"DCE.M": ("A2611", "DCE")}
+    assert barrier._expected_broker_positions == {"M2611": 0}
+
+
 def test_sdk_selector_source_uses_the_fixed_public_pin_and_external_path(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
@@ -823,6 +1396,9 @@ def test_synthetic_authorization_scope_receipt_is_exact_and_disarmed() -> None:
         "disarm_calls": 0,
         "arm_scope_observations": [],
         "disarm_scope_observations": [],
+        "synthetic_leaf_actions": [],
+        "ctp_trader_leaf_instances": 1,
+        "native_gate_after_close": [{"armed": False, "trading_ready": False}],
     }
     assert fixture._synthetic_authorization_scope_is_valid("read-only", read_only)
     assert not fixture._synthetic_authorization_scope_is_valid(
@@ -841,59 +1417,349 @@ def test_synthetic_authorization_scope_receipt_is_exact_and_disarmed() -> None:
 
     write = {
         "arm_calls": 2,
-        "disarm_calls": 2,
+        "disarm_calls": 1,
         "synthetic_leaf_actions": [
-            {"action": "insert", "order_ref": "1", "exchange": "DCE", "instrument": "M2611"},
-            {"action": "insert", "order_ref": "2", "exchange": "DCE", "instrument": "A2611"},
+            {
+                "action": "arm", "generation": 1, "instrument": "M2611",
+                "exchange": "DCE", "authorized_instruments": ["M2611"],
+                "capability_issued": True, "armed_after": True,
+            },
+            {
+                "action": "insert", "order_ref": "1", "exchange": "DCE",
+                "instrument": "M2611", "generation": 1,
+                "authorized_instruments": ["M2611"],
+                "capability_matches_current": True, "authorization_valid": True,
+            },
+            {
+                "action": "insert", "order_ref": "2", "exchange": "DCE",
+                "instrument": "M2611", "generation": 1,
+                "authorized_instruments": ["M2611"],
+                "capability_matches_current": True, "authorization_valid": True,
+            },
+            {
+                "action": "disarm", "generation": 1, "instrument": "M2611",
+                "exchange": "DCE", "authorized_instruments": ["M2611"],
+                "capability_matches_current": True,
+                "reason": "registered_sim_instrument_switch", "armed_before": True,
+                "armed_after": False, "proof_present_after": False,
+            },
+            {
+                "action": "arm", "generation": 2, "instrument": "A2611",
+                "exchange": "DCE", "authorized_instruments": ["A2611"],
+                "capability_issued": True, "armed_after": True,
+            },
+            {
+                "action": "insert", "order_ref": "3", "exchange": "DCE",
+                "instrument": "A2611", "generation": 2,
+                "authorized_instruments": ["A2611"],
+                "capability_matches_current": True, "authorization_valid": True,
+            },
+            {
+                "action": "sdk_stop_revoke", "generation": 2,
+                "instrument": "A2611", "exchange": "DCE",
+                "capability_matches_current": True,
+                "revocation_source": "ctp_execution_gate_disconnected",
+                "armed_before": True, "armed_after": False,
+                "proof_present_after": False,
+            },
         ],
         "arm_scope_observations": [
             {
+                "generation": 1,
                 "requested_instrument_id": "M2611",
                 "authorized_instruments": ["M2611"],
             },
             {
+                "generation": 2,
                 "requested_instrument_id": "A2611",
                 "authorized_instruments": ["A2611"],
             },
         ],
-        "disarm_scope_observations": [["A2611"], ["M2611"]],
+        "disarm_scope_observations": [
+            {"generation": 1, "authorized_instruments": ["M2611"]}
+        ],
+        "ctp_trader_leaf_instances": 1,
+        "native_gate_after_close": [
+            {
+                "managed": True,
+                "armed": False,
+                "instrument": None,
+                "authorized_instruments": None,
+                "proof_present": False,
+                "revocation_reason": "ctp_execution_gate_disconnected",
+                "trading_ready": False,
+            }
+        ],
     }
     assert fixture._synthetic_authorization_scope_is_valid("write", write)
     wrong_target = {
         **write,
-        "arm_scope_observations": [
-            write["arm_scope_observations"][0],
+        "synthetic_leaf_actions": [
+            *write["synthetic_leaf_actions"][:2],
             {
-                "requested_instrument_id": "Y2611",
+                **write["synthetic_leaf_actions"][2],
+                "instrument": "Y2611",
                 "authorized_instruments": ["Y2611"],
             },
+            *write["synthetic_leaf_actions"][3:],
         ],
     }
     assert not fixture._synthetic_authorization_scope_is_valid("write", wrong_target)
-    unmatched_disarm = {**write, "disarm_scope_observations": [["A2611"], ["Y2611"]]}
+    unmatched_disarm = {
+        **write,
+        "synthetic_leaf_actions": [
+            *write["synthetic_leaf_actions"][:3],
+            {
+                **write["synthetic_leaf_actions"][3],
+                "generation": 2,
+                "instrument": "A2611",
+                "authorized_instruments": ["A2611"],
+            },
+            *write["synthetic_leaf_actions"][4:],
+        ],
+    }
     assert not fixture._synthetic_authorization_scope_is_valid("write", unmatched_disarm)
+    missing_stop_revoke = {
+        **write,
+        "synthetic_leaf_actions": write["synthetic_leaf_actions"][:-1],
+    }
+    assert not fixture._synthetic_authorization_scope_is_valid("write", missing_stop_revoke)
+    stale_capability = {
+        **write,
+        "synthetic_leaf_actions": [
+            *write["synthetic_leaf_actions"][:1],
+            {
+                **write["synthetic_leaf_actions"][1],
+                "capability_matches_current": False,
+            },
+            *write["synthetic_leaf_actions"][2:],
+        ],
+    }
+    assert not fixture._synthetic_authorization_scope_is_valid("write", stale_capability)
+
+
+def test_source_loaded_registered_sim_reuses_switches_and_stop_revokes_grants() -> None:
+    from backtrader.stores.registered_sim import BtApiStoreError, RegisteredSimWrapper
+
+    fixture = _load_fixture()
+    helper = _load_iteration50_fixture()
+    child_tree = ast.parse(fixture._SYNTHETIC_LIVE_CHILD_CODE)
+    source_class = next(
+        node
+        for node in child_tree.body
+        if isinstance(node, ast.ClassDef) and node.name == "SyntheticTraderClient"
+    )
+    selected_names = {
+        "arm_execution_for_registered_sim",
+        "disarm_execution_gate",
+        "stop",
+        "disconnect",
+        "_synthetic_native_authorization",
+    }
+    methods = [
+        node
+        for node in source_class.body
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+        and node.name in selected_names
+    ]
+    assert {method.name for method in methods} == selected_names
+    synthetic_class_module = ast.parse(
+        "class SyntheticAuthorizationLeaf(_ExecutionProviderLeaf):\n    pass\n"
+    )
+    synthetic_class = synthetic_class_module.body[0]
+    assert isinstance(synthetic_class, ast.ClassDef)
+    synthetic_class.body = methods
+    namespace = {
+        "_ExecutionProviderLeaf": helper._ExecutionProviderLeaf,
+        "fake_state": {
+            "arm_calls": 0,
+            "disarm_calls": 0,
+            "arm_scope_observations": [],
+            "disarm_scope_observations": [],
+            "synthetic_leaf_actions": [],
+            "trader_stop_calls": 0,
+            "disconnect_calls": 0,
+        },
+    }
+    code = compile(ast.fix_missing_locations(synthetic_class_module), "<source-loaded-r51-leaf>", "exec")
+    exec(code, namespace)
+    leaf_class = namespace["SyntheticAuthorizationLeaf"]
+    client = leaf_class(bars={"M2611": ({},), "A2611": ({},)}, slot_count=1)
+    client._synthetic_capability_generation = 0
+    client._synthetic_active_grant = None
+    client.is_read_only_ready = True
+    client.connect()
+
+    native_calls = []
+
+    def submit_order_insert(field, request_id, *, execution_capability):
+        client._synthetic_native_authorization(
+            "insert", field, execution_capability
+        )
+        native_calls.append((field.InstrumentID, field.ExchangeID, field.OrderRef))
+        return helper._ExecutionProviderLeaf.submit_order_insert(
+            client, field, request_id, execution_capability=execution_capability
+        )
+
+    client.submit_order_insert = submit_order_insert
+    api_class = type("SourceLoadedRegisteredSimApi", (RegisteredSimWrapper,), {})
+    api = api_class(registered_sim_allow_writes=True)
+    api.trader_client = client
+    api.configure_registered_sim_arm_templates(
+        {
+            (instrument, "DCE"): {
+                "md_front": "tcp://md:1",
+                "strategy_identity_sha256": "a" * 64,
+                "execution_cycle_id": "iteration51-source-test",
+                "preflight_sha256": "b" * 64,
+            }
+            for instrument in ("M2611", "A2611")
+        }
+    )
+
+    def order_field(instrument: str, order_ref: str, request_id: int) -> SimpleNamespace:
+        return SimpleNamespace(
+            InstrumentID=instrument,
+            ExchangeID="DCE",
+            OrderRef=order_ref,
+            RequestID=request_id,
+            LimitPrice=214.0 if instrument == "M2611" else 207.0,
+            VolumeTotalOriginal=1,
+            Direction="0",
+            CombOffsetFlag="0",
+        )
+
+    expected = client.get_session_state()
+    with api.registered_sim_expected_session_scope(expected):
+        assert api._send_native_order_insert(order_field("M2611", "501", 1), 1) == 0
+        assert api._send_native_order_insert(order_field("M2611", "502", 2), 2) == 0
+        assert api._send_native_order_insert(order_field("A2611", "503", 3), 3) == 0
+        with pytest.raises(
+            BtApiStoreError,
+            match="outbound leg has no exact registered-sim arm template",
+        ):
+            api._send_native_order_insert(order_field("Y2611", "504", 4), 4)
+
+    events = namespace["fake_state"]["synthetic_leaf_actions"]
+    assert [event["action"] for event in events] == [
+        "arm", "insert", "insert", "disarm", "arm", "insert"
+    ]
+    assert [event.get("generation") for event in events] == [1, 1, 1, 1, 2, 2]
+    assert native_calls == [
+        ("M2611", "DCE", "501"),
+        ("M2611", "DCE", "502"),
+        ("A2611", "DCE", "503"),
+    ]
+    client.stop()
+    assert client.get_execution_gate_state()["armed"] is False
+    assert client.get_execution_gate_state()["proof_sha256"] is None
+    assert namespace["fake_state"]["disconnect_calls"] == 1
+    assert events[-1]["action"] == "sdk_stop_revoke"
+    assert events[-1]["revocation_source"] == "ctp_execution_gate_disconnected"
+    gate_state = client.get_execution_gate_state()
+    child = {
+        "arm_calls": namespace["fake_state"]["arm_calls"],
+        "disarm_calls": namespace["fake_state"]["disarm_calls"],
+        "arm_scope_observations": namespace["fake_state"]["arm_scope_observations"],
+        "disarm_scope_observations": namespace["fake_state"]["disarm_scope_observations"],
+        "synthetic_leaf_actions": events,
+        "ctp_trader_leaf_instances": 1,
+        "native_gate_after_close": [{
+            "managed": gate_state.get("managed") is True,
+            "armed": gate_state.get("armed") is True,
+            "instrument": gate_state.get("instrument"),
+            "authorized_instruments": gate_state.get("authorized_instruments"),
+            "proof_present": gate_state.get("proof_sha256") is not None,
+            "revocation_reason": gate_state.get("revocation_reason"),
+            "trading_ready": bool(client.is_trading_ready),
+        }],
+    }
+    assert fixture._synthetic_authorization_scope_is_valid("write", child)
+
+    stale = order_field("Y2611", "505", 5)
+    with pytest.raises(RuntimeError, match="outside the current exact grant"):
+        client.submit_order_insert(
+            stale, 5, execution_capability=api._registered_sim_capability
+        )
+    assert len(native_calls) == 3
+    assert events[-1]["action"] == "insert"
+    assert events[-1]["authorization_valid"] is False
+    assert not fixture._synthetic_authorization_scope_is_valid("write", child)
 
 
 def _synthetic_order_receipt(order_specs: tuple[tuple[str, str], ...]) -> dict[str, object]:
     actions = []
     arm_observations = []
+    disarm_observations = []
     accepted_associations = []
     filled_associations = []
     trade_callbacks = []
     trade_queries = []
+    engine_fills = []
+    active_instrument = None
+    active_generation = None
+    generation = 0
     for order_ref, instrument in order_specs:
+        if instrument != active_instrument:
+            if active_instrument is not None:
+                actions.append({
+                    "action": "disarm",
+                    "generation": active_generation,
+                    "instrument": active_instrument,
+                    "exchange": "DCE",
+                    "authorized_instruments": [active_instrument],
+                    "capability_matches_current": True,
+                    "reason": "registered_sim_instrument_switch",
+                    "armed_before": True,
+                    "armed_after": False,
+                    "proof_present_after": False,
+                })
+                disarm_observations.append({
+                    "generation": active_generation,
+                    "authorized_instruments": [active_instrument],
+                })
+            generation += 1
+            active_instrument = instrument
+            active_generation = generation
+            actions.append({
+                "action": "arm",
+                "generation": generation,
+                "instrument": instrument,
+                "exchange": "DCE",
+                "authorized_instruments": [instrument],
+                "capability_issued": True,
+                "armed_after": True,
+            })
+            arm_observations.append({
+                "generation": generation,
+                "requested_instrument_id": instrument,
+                "authorized_instruments": [instrument],
+            })
         order_sys_id = "iteration51-sys-" + order_ref
         trade_id = "iteration51-" + order_ref
         trade_price = "214" if instrument == "M2611" else "207"
-        actions.append(
-            {"action": "insert", "order_ref": order_ref, "instrument": instrument, "exchange": "DCE"}
-        )
-        arm_observations.append(
+        engine_fills.append(
             {
-                "requested_instrument_id": instrument,
-                "authorized_instruments": [instrument],
+                "order_ref": order_ref,
+                "trade_id": trade_id,
+                "order_sys_id": order_sys_id,
+                "instrument": instrument,
+                "exchange": "DCE",
+                "side": "BUY",
+                "quantity": 1,
+                "price": trade_price,
             }
         )
+        actions.append({
+            "action": "insert",
+            "order_ref": order_ref,
+            "instrument": instrument,
+            "exchange": "DCE",
+            "generation": generation,
+            "authorized_instruments": [instrument],
+            "capability_matches_current": True,
+            "authorization_valid": True,
+        })
         accepted_associations.append(
             {
                 "order_ref": order_ref,
@@ -942,16 +1808,40 @@ def _synthetic_order_receipt(order_specs: tuple[tuple[str, str], ...]) -> dict[s
                 "query_price_matches": True,
             }
         )
+    if active_instrument is not None:
+        actions.append({
+            "action": "sdk_stop_revoke",
+            "generation": active_generation,
+            "instrument": active_instrument,
+            "exchange": "DCE",
+            "capability_matches_current": True,
+            "revocation_source": "ctp_execution_gate_disconnected",
+            "armed_before": True,
+            "armed_after": False,
+            "proof_present_after": False,
+        })
     return {
         "max_order_intents_per_run": 20,
         "synthetic_leaf_actions": actions,
-        "arm_calls": len(order_specs),
-        "disarm_calls": len(order_specs),
+        "arm_calls": generation,
+        "disarm_calls": len(disarm_observations),
         "arm_scope_observations": arm_observations,
-        "disarm_scope_observations": [
-            [instrument] for _order_ref, instrument in order_specs
-        ],
+        "disarm_scope_observations": disarm_observations,
+        "native_gate_after_close": (
+            [{
+                "managed": True,
+                "armed": False,
+                "instrument": None,
+                "authorized_instruments": None,
+                "proof_present": False,
+                "revocation_reason": "ctp_execution_gate_disconnected",
+                "trading_ready": False,
+            }]
+            if order_specs
+            else []
+        ),
         "synthetic_fill_count": len(order_specs),
+        "synthetic_engine_fills": engine_fills,
         "ctp_order_callback_count": len(accepted_associations) + len(filled_associations),
         "ctp_order_callback_associations": accepted_associations + filled_associations,
         "ctp_trade_callback_count": len(trade_callbacks),
@@ -1218,6 +2108,20 @@ def test_synthetic_live_summary_binds_direct_run_query_and_tape_receipts(
         "runner_summary_scheduler_clock_label_meaning": (
             "production summary default identifier; not the injected runtime clock"
         ),
+        **_synthetic_order_receipt(()),
+        "synthetic_refresh_barrier": {
+            "enabled": False,
+            "barrier_count": 0,
+            "fill_barrier_count": 0,
+            "preclose_barrier_count": 0,
+            "records": [],
+            "engine_delivery_failure_codes": [],
+        },
+        "query_refresh_barrier_binding": None,
+        "strategy_notify_barrier_binding": None,
+        "strategy_notify_class_origin": None,
+        "strategy_notify_barrier_origin": None,
+        "strategy_notify_barrier_delegates_original": False,
     }
     check = fixture._synthetic_live_summary_failure_checks
     check_args = {
@@ -1234,6 +2138,12 @@ def test_synthetic_live_summary_binds_direct_run_query_and_tape_receipts(
     missing_query = dict(child)
     missing_query["query_families"] = list(fixture._SYNTHETIC_QUERY_FAMILIES[:-1])
     assert "child.query_families" in check(summary, missing_query, **check_args)
+
+    missing_barrier = dict(child)
+    missing_barrier.pop("synthetic_refresh_barrier")
+    assert "child.query_refresh_barriers" in check(
+        summary, missing_barrier, **check_args
+    )
 
     wrong_writer_count = json.loads(json.dumps(summary))
     wrong_writer_count["decision_tape"]["record_count"] = 63
@@ -1258,6 +2168,246 @@ def test_synthetic_live_summary_binds_direct_run_query_and_tape_receipts(
         planned_slot_count=64,
         expected_writes=True,
         expected_selection_path=selection_bundle,
+    )
+
+
+def _synthetic_refresh_barrier_receipt(
+    *,
+    order_specs: tuple[tuple[str, str], ...],
+    run_cap: int = 20,
+    wait_seconds: float = 0.25,
+) -> dict[str, object]:
+    origin = str(
+        (_FIXTURE_PATH.parents[1] / "examples" / "unified" / "028_alpha003_simnow_minute" / "run.py").resolve()
+    )
+    fill_count = len(order_specs)
+    strategy_origin = str(
+        (_FIXTURE_PATH.parents[1] / "examples" / "unified" / "028_alpha003_simnow_minute" / "alpha003_strategy.py").resolve()
+    )
+    strategy_notify_origin = str(
+        (_FIXTURE_PATH.parents[1] / "backtrader" / "strategy.py").resolve()
+    )
+    records = []
+    positions = {}
+    for index in range(fill_count + 1):
+        query_set_id = "iteration51-query-set-{}".format(index + 2)
+        is_fill = index < fill_count
+        delivery = None
+        if is_fill:
+            order_ref, instrument = order_specs[index]
+            trade_id = "iteration51-" + order_ref
+            order_sys_id = "iteration51-sys-" + order_ref
+            side = "BUY"
+            quantity = 1
+            price = "214" if instrument == "M2611" else "207"
+            position = positions.get(instrument, 0) + quantity
+            positions[instrument] = position
+            delivery = {
+                "order_ref": order_ref,
+                "trade_id": trade_id,
+                "order_sys_id": order_sys_id,
+                "instrument": instrument,
+                "exchange": "DCE",
+                "side": side,
+                "quantity": quantity,
+                "broker_order_ref": index + 1,
+                "broker_data_name": {"M2611": "DCE.M", "A2611": "DCE.A"}[instrument],
+                "broker_data_instrument": instrument,
+                "broker_strategy_route": [instrument, "DCE"],
+                "broker_ctp_order_ref": order_ref,
+                "broker_order_sys_id": order_sys_id,
+                "broker_exchange_id": "DCE",
+                "broker_status": "COMPLETED",
+                # Backtrader may issue duplicate COMPLETED status notifications;
+                # the receipt binds the actual completed order, not a single call.
+                "strategy_completed_event_count": 2 if index == 0 else 1,
+                "executed_size": str(quantity),
+                "callback_price": price,
+                "executed_price": price,
+                "execution_bit_size": str(quantity),
+                "execution_bit_price": price,
+                "broker_position_size": str(position),
+                "expected_position_size": str(position),
+            }
+        records.append(
+            {
+                "reason": "fill" if is_fill else "preclose",
+                "refresh_generation": index + 2,
+                "status": "PASS",
+                "failure_code": None,
+                "receipt_is_last_published": True,
+                "query_set_is_receipt_bound": True,
+                "facts_query_set_matches": True,
+                "query_set_id": query_set_id,
+                "facts_query_set_id": query_set_id,
+                "previous_query_set_id": "iteration51-query-set-{}".format(index + 1),
+                "requested_at_utc": "2026-10-25T11:59:59+00:00",
+                "query_set_started_at_utc": "2026-10-25T12:00:00+00:00",
+                "query_set_completed_at_utc": "2026-10-25T12:00:00+00:00",
+                "wait_seconds": round(wait_seconds, 6),
+                "engine_delivery": delivery,
+            }
+        )
+    barrier = {
+        "enabled": True,
+        "max_order_intents_per_run": run_cap,
+        "max_barrier_count": run_cap + 1,
+        "per_barrier_timeout_seconds": 8.0,
+        "max_total_wait_seconds": 8.0 * (run_cap + 1),
+        "barrier_count": len(records),
+        "fill_barrier_count": fill_count,
+        "preclose_barrier_count": 1,
+        "engine_delivery_failure_codes": [],
+        "total_wait_seconds": round(wait_seconds * len(records), 6),
+        "records": records,
+    }
+    return {
+        "synthetic_refresh_barrier": barrier,
+        "synthetic_fill_count": fill_count,
+        "query_refresh_barrier_binding": "copied run.py QueryRefreshLoop.refresh_once",
+        "query_refresh_barrier_origin": origin,
+        "query_refresh_barrier_delegates_original": True,
+        "strategy_notify_barrier_binding": (
+            "copied Alpha003TargetStrategy hook after inherited backtrader.strategy.Strategy._notify"
+        ),
+        "strategy_notify_class_origin": strategy_origin,
+        "strategy_notify_barrier_origin": strategy_notify_origin,
+        "strategy_notify_barrier_delegates_original": True,
+        "runner_clock_patch_origin": origin,
+    }
+
+
+def test_write_summary_requires_new_complete_refresh_per_fill_and_calendar_preclose(
+    tmp_path: Path,
+) -> None:
+    fixture = _load_fixture()
+    selection_bundle = tmp_path / "case" / "selection-bundle.json"
+    selection_bundle.parent.mkdir()
+    selection_bundle.write_text("{}\n", encoding="utf-8")
+    summary = _synthetic_live_summary(
+        planned_slot_count=64,
+        write_enabled=True,
+        order_specs=(("12", "M2611"),),
+        selection_bundle_path=selection_bundle,
+        profile_id=fixture.SDK_SELECTOR_PROFILE,
+    )
+    child = {
+        "planned_slot_count": 64,
+        "query_families": list(fixture._SYNTHETIC_QUERY_FAMILIES),
+        "subscriptions": ["A2611", "M2611", "Y2611"],
+        "runner_summary_scheduler_clock_labels": [
+            {"path": "summary", "value": "host-utc-plus-monotonic"}
+        ],
+        "runner_summary_scheduler_clock_label_meaning": (
+            "production summary default identifier; not the injected runtime clock"
+        ),
+        "max_order_intents_per_run": 20,
+        **_synthetic_order_receipt((("12", "M2611"),)),
+        **_synthetic_refresh_barrier_receipt(order_specs=(("12", "M2611"),)),
+    }
+    args = {
+        "planned_slot_count": 64,
+        "expected_writes": True,
+        "expected_selection_path": selection_bundle,
+    }
+    check = fixture._synthetic_live_summary_failure_checks
+    assert check(summary, child, **args) == []
+
+    full_risk_specs = tuple(
+        (str(index + 1), "M2611" if index % 2 == 0 else "A2611")
+        for index in range(20)
+    )
+    full_risk_budget = {
+        **_synthetic_order_receipt(full_risk_specs),
+        "max_order_intents_per_run": 20,
+        **_synthetic_refresh_barrier_receipt(
+            order_specs=full_risk_specs, wait_seconds=0.1234567
+        ),
+    }
+    assert fixture._synthetic_refresh_barrier_is_valid(
+        full_risk_budget, expected_writes=True
+    )
+
+    missing_preclose = json.loads(json.dumps(child))
+    missing_preclose["synthetic_refresh_barrier"]["records"].pop()
+    missing_preclose["synthetic_refresh_barrier"]["barrier_count"] -= 1
+    missing_preclose["synthetic_refresh_barrier"]["preclose_barrier_count"] = 0
+    assert "child.query_refresh_barriers" in check(
+        summary, missing_preclose, **args
+    )
+
+    stale_facts = json.loads(json.dumps(child))
+    stale_facts["synthetic_refresh_barrier"]["records"][0][
+        "facts_query_set_id"
+    ] = "prior-query-set"
+    assert "child.query_refresh_barriers" in check(summary, stale_facts, **args)
+
+    stale_query_set = json.loads(json.dumps(child))
+    stale_query_set["synthetic_refresh_barrier"]["records"][0][
+        "requested_at_utc"
+    ] = "2026-10-25T12:00:01+00:00"
+    assert "child.query_refresh_barriers" in check(summary, stale_query_set, **args)
+
+    reused_query_set = json.loads(json.dumps(child))
+    reused_query_set["synthetic_refresh_barrier"]["records"][0][
+        "previous_query_set_id"
+    ] = reused_query_set["synthetic_refresh_barrier"]["records"][0]["query_set_id"]
+    assert "child.query_refresh_barriers" in check(summary, reused_query_set, **args)
+
+    duplicate_generation = json.loads(json.dumps(child))
+    duplicate_generation["synthetic_refresh_barrier"]["records"][1][
+        "refresh_generation"
+    ] = duplicate_generation["synthetic_refresh_barrier"]["records"][0][
+        "refresh_generation"
+    ]
+    assert "child.query_refresh_barriers" in check(
+        summary, duplicate_generation, **args
+    )
+
+    over_budget = json.loads(json.dumps(child))
+    over_budget["synthetic_refresh_barrier"]["total_wait_seconds"] = 169.0
+    assert "child.query_refresh_barriers" in check(summary, over_budget, **args)
+
+    missing_delivery = json.loads(json.dumps(child))
+    missing_delivery["synthetic_refresh_barrier"]["records"][0].pop("engine_delivery")
+    assert "child.query_refresh_barriers" in check(summary, missing_delivery, **args)
+
+    wrong_fill_ref = json.loads(json.dumps(child))
+    wrong_fill_ref["synthetic_refresh_barrier"]["records"][0]["engine_delivery"][
+        "order_ref"
+    ] = "13"
+    assert "child.query_refresh_barriers" in check(summary, wrong_fill_ref, **args)
+
+    wrong_broker_route = json.loads(json.dumps(child))
+    wrong_broker_route["synthetic_refresh_barrier"]["records"][0][
+        "engine_delivery"
+    ]["broker_data_name"] = "M2611"
+    assert "child.query_refresh_barriers" in check(
+        summary, wrong_broker_route, **args
+    )
+
+    wrong_callback_trade = json.loads(json.dumps(child))
+    wrong_callback_trade["ctp_trade_callback_associations"][0]["trade_id"] = (
+        "iteration51-uninserted"
+    )
+    assert "child.query_refresh_barriers" in check(
+        summary, wrong_callback_trade, **args
+    )
+
+    missing_execution_bit = json.loads(json.dumps(child))
+    missing_execution_bit["synthetic_refresh_barrier"]["records"][0][
+        "engine_delivery"
+    ].pop("execution_bit_size")
+    assert "child.query_refresh_barriers" in check(
+        summary, missing_execution_bit, **args
+    )
+
+    wrong_consumed_position = json.loads(json.dumps(child))
+    wrong_consumed_position["synthetic_refresh_barrier"]["records"][0][
+        "engine_delivery"
+    ]["broker_position_size"] = "0"
+    assert "child.query_refresh_barriers" in check(
+        summary, wrong_consumed_position, **args
     )
 
 
@@ -1386,6 +2536,9 @@ def test_synthetic_live_case_runs_isolated_command_and_checks_finite_outcome(
     example = tmp_path / "copied-example"
     example.mkdir()
     (example / "run.py").write_text("# copied public runner\n", encoding="utf-8")
+    (example / "alpha003_strategy.py").write_text(
+        "# copied public strategy\n", encoding="utf-8"
+    )
     (example / "config.yaml").write_text("schema: public-template\n", encoding="utf-8")
     workspace = tmp_path / "external-workspace"
     workspace.mkdir()
@@ -1425,6 +2578,38 @@ def test_synthetic_live_case_runs_isolated_command_and_checks_finite_outcome(
         cli_argv.append("--allow-write")
     order_specs = (("1", "M2611"), ("2", "A2611")) if case == "write" else ()
     order_receipt = _synthetic_order_receipt(order_specs)
+    if error_code is None and write_enabled:
+        barrier_receipt = _synthetic_refresh_barrier_receipt(
+            order_specs=order_specs
+        )
+        barrier_receipt["query_refresh_barrier_origin"] = str(
+            (example / "run.py").resolve()
+        )
+        barrier_receipt["strategy_notify_barrier_origin"] = str(
+            (_FIXTURE_PATH.parents[1] / "backtrader" / "strategy.py").resolve()
+        )
+        barrier_receipt["strategy_notify_class_origin"] = str(
+            (example / "alpha003_strategy.py").resolve()
+        )
+        barrier_receipt["max_order_intents_per_run"] = 20
+    elif error_code is None:
+        barrier_receipt = {
+            "synthetic_refresh_barrier": {
+                "enabled": False,
+                "barrier_count": 0,
+                "fill_barrier_count": 0,
+                "preclose_barrier_count": 0,
+                "engine_delivery_failure_codes": [],
+                "records": [],
+            },
+            "query_refresh_barrier_binding": None,
+            "strategy_notify_barrier_binding": None,
+            "strategy_notify_class_origin": None,
+            "strategy_notify_barrier_origin": None,
+            "strategy_notify_barrier_delegates_original": False,
+        }
+    else:
+        barrier_receipt = {}
     if error_code is None:
         summary = _synthetic_live_summary(
             planned_slot_count=planned_slot_count,
@@ -1460,6 +2645,7 @@ def test_synthetic_live_case_runs_isolated_command_and_checks_finite_outcome(
         "store_write_flags": flags,
         "network_attempts": 0,
         **order_receipt,
+        **barrier_receipt,
         "selection_bundle_sha256": "a" * 64,
         "sdk_selector_source": {
             **selector_source,
@@ -1532,6 +2718,19 @@ def test_synthetic_live_case_runs_isolated_command_and_checks_finite_outcome(
             "md_started_after_close": [False] if instances else [],
             "wrappers_connected_after_close": [False] if instances else [],
         },
+        "native_gate_after_close": (
+            order_receipt["native_gate_after_close"]
+            if order_specs
+            else ([{
+                "managed": False,
+                "armed": False,
+                "instrument": None,
+                "authorized_instruments": [],
+                "proof_present": True,
+                "revocation_reason": None,
+                "trading_ready": False,
+            }] if instances else [])
+        ),
         "authorized_products": ["DCE.M", "DCE.A"],
     }
     child["raw_cli_summary_sha256"] = hashlib.sha256(
