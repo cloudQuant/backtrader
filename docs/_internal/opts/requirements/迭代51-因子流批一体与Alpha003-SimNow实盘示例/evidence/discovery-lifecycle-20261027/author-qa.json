@@ -1,0 +1,67 @@
+{
+  "schema": 1,
+  "recorded_date": "2026-10-27",
+  "evidence_level": "AUTHOR_FOCUSED_UNIT_TEST_ONLY",
+  "repository": "D:/source_code/backtrader",
+  "target": "tests/unit/test_alpha003_discovery_lifecycle.py",
+  "command": {
+    "shell": "PowerShell",
+    "invocation": "$oldPytestDisable = $env:PYTEST_DISABLE_PLUGIN_AUTOLOAD\n$oldPythonUtf8 = $env:PYTHONUTF8\n$oldPythonPath = $env:PYTHONPATH\n$env:PYTEST_DISABLE_PLUGIN_AUTOLOAD = '1'\n$env:PYTHONUTF8 = '1'\nRemove-Item Env:PYTHONPATH -ErrorAction SilentlyContinue\npytest -p no:asyncio tests/unit/test_alpha003_discovery_lifecycle.py -q\n$testExit = $LASTEXITCODE\nif ($null -eq $oldPytestDisable) { Remove-Item Env:PYTEST_DISABLE_PLUGIN_AUTOLOAD -ErrorAction SilentlyContinue } else { $env:PYTEST_DISABLE_PLUGIN_AUTOLOAD = $oldPytestDisable }\nif ($null -eq $oldPythonUtf8) { Remove-Item Env:PYTHONUTF8 -ErrorAction SilentlyContinue } else { $env:PYTHONUTF8 = $oldPythonUtf8 }\nif ($null -eq $oldPythonPath) { Remove-Item Env:PYTHONPATH -ErrorAction SilentlyContinue } else { $env:PYTHONPATH = $oldPythonPath }\nexit $testExit",
+    "effective_environment": {
+      "PYTEST_DISABLE_PLUGIN_AUTOLOAD": "1",
+      "PYTHONUTF8": "1",
+      "PYTHONPATH": "unset for the test invocation"
+    }
+  },
+  "result": {
+    "exit_code": 0,
+    "passed": 8,
+    "failed": 0,
+    "skipped": 0,
+    "duration_seconds": 1.73,
+    "warning_count": 1,
+    "warning": "PytestConfigWarning: Unknown config option: asyncio_default_fixture_loop_scope (pytest asyncio plugin autoload was disabled as requested).",
+    "stdout_excerpt": "........ [100%]\n============================== warnings summary ===============================\nC:\\anaconda3\\Lib\\site-packages\\_pytest\\config\\__init__.py:1394: PytestConfigWarning: Unknown config option: asyncio_default_fixture_loop_scope\n8 passed, 1 warning in 1.73s"
+  },
+  "output_persistence": {
+    "standalone_stdout_or_result_file_from_execution": false,
+    "captured_output": "Inline tools.exec_command output; the essential summary is preserved in this record.",
+    "tool_chunk_id": null,
+    "tool_chunk_id_note": "The command completed in one call; the wrapper did not retain or emit an execution chunk identifier. No identifier is inferred."
+  },
+  "source_pins_at_test": {
+    "examples/unified/028_alpha003_simnow_minute/discovery_lifecycle.py": {
+      "bytes": 23914,
+      "sha256": "9cf046246e803eec81002b8152307ac78825cbef351facb26e2c4739e0e4607f"
+    },
+    "tests/unit/test_alpha003_discovery_lifecycle.py": {
+      "bytes": 14433,
+      "sha256": "550f2ba57c7fd4ef394518f6b00cd7bdc508b387052af5b665b1edb9aa4e72e9"
+    }
+  },
+  "preserved_diagnostics": [
+    {
+      "attempt": "initial plugin-autoload attempt",
+      "command": "pytest tests/unit/test_alpha003_discovery_lifecycle.py -q",
+      "collected": 0,
+      "outcome": "pytest_asyncio initialization failed before collection: Package object had no attribute obj."
+    },
+    {
+      "attempt": "plugin-disabled loader attempt",
+      "command": "pytest -p no:asyncio tests/unit/test_alpha003_discovery_lifecycle.py -q",
+      "collected": 0,
+      "outcome": "Collection failed because the importlib-loaded dataclass module had not yet been registered in sys.modules. The test loader was corrected before the final run."
+    },
+    {
+      "attempt": "focused candidate run before health-shape correction",
+      "command": "pytest -p no:asyncio tests/unit/test_alpha003_discovery_lifecycle.py -q",
+      "passed": 2,
+      "failed": 6,
+      "outcome": "The common failure was Store health parsing: public funding_inflight is boolean, but the helper treated it as an integer count. The helper was corrected to validate it as a boolean before the final run."
+    }
+  ],
+  "scope_limits": [
+    "Fake-client unit evidence only; no provider, private input, SDK native client, account, or real Store lifecycle was exercised.",
+    "No QA was rerun while writing this record."
+  ]
+}

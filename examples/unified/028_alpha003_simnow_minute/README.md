@@ -296,3 +296,8 @@ provider, or native-write acceptance.
 在上下文内调用 `handoff.for_runner()` 可得到用于 `run(..., _live_store_config_override=...)` 的只读映射。每次取得映射都复核凭据密封；句柄和映射的 repr 隐去内容，退出后共享映射清空且句柄不可复用。调用方必须在上下文结束前正常关闭使用它的全部 Store，单独保持 shadow 配置及已有写入许可门槛。禁止把映射转换为日志、文件、环境变量、子进程参数或验收回执；只允许向本进程 Store 移交。安装来源不符合固定 pin 时直接拒绝，不回退到其他 SDK。
 
 本地最终 13 项合成配置测试及独立静态审阅通过；真实隔离消费者的公开 SDK artifact 校验通过。该组件本轮未执行新 helper 的真实受保护凭据移交、provider 或账户验收。
+
+
+### 只读发现连接的正常关闭
+
+`discovery_lifecycle.close_discovery_store(store, timeout=...)` 只用于尚未启动 Feed/Broker/Cerebro 的零写入 `RegisteredSimStore` 发现连接。它核对 Store 静默状态及同一 MD/trader 客户端的 SDK 回执；成功才可结束受保护配置上下文。关闭未确认时抛出脱敏 `DiscoveryStoreCloseError`，其 custody 保留原对象，禁止把异常对象或 custody 序列化。不得重复 stop、手动 Release 或以退出进程替代关闭证明。MD generation 0 普通回执不足以证明启动资源处置，保持未完成。该组件的本地测试不构成实际账户或原生关闭验收。

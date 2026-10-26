@@ -1,0 +1,49 @@
+{
+  "schema": 1,
+  "recorded_date": "2026-10-27",
+  "evidence_level": "AUTHOR_FOCUSED_UNIT_TEST_ONLY",
+  "repository": "D:/source_code/backtrader",
+  "review_disposition_addressed": "HOLD: startup-path generation-zero MD stop receipt cannot prove native API disposition",
+  "correction": {
+    "startup_success_fixture": "MD normal stop receipt has positive generation 1; trader startup receipt is generation-zero preflight_no_owner.",
+    "generation_zero_md_case": "A typed MD normal receipt with generation 0 and complete=true is preserved as observed, but the overall close is INCOMPLETE with reason md_startup_disposition_unproven and all exact Store/wrapper/client references retained."
+  },
+  "command": {
+    "shell": "PowerShell",
+    "pytest": "pytest -p no:asyncio tests/unit/test_alpha003_discovery_lifecycle.py::test_startup_failure_uses_typed_client_stops_without_store_early_return tests/unit/test_alpha003_discovery_lifecycle.py::test_zero_generation_md_receipt_does_not_prove_startup_disposition -q",
+    "effective_environment": {
+      "PYTEST_DISABLE_PLUGIN_AUTOLOAD": "1",
+      "PYTHONUTF8": "1",
+      "PYTHONPATH": "unset for the test invocation"
+    }
+  },
+  "result": {
+    "exit_code": 0,
+    "passed": 2,
+    "failed": 0,
+    "skipped": 0,
+    "duration_seconds": 1.72,
+    "warning_count": 1,
+    "warning": "PytestConfigWarning: Unknown config option: asyncio_default_fixture_loop_scope (asyncio plugin autoload was disabled as requested)."
+  },
+  "stdout_artifact": {
+    "path": ".codex-tmp/i51_discovery_lifecycle_repair_qa_20261027.stdout.txt",
+    "bytes": 550,
+    "sha256": "4072d56247b4ba42770e341b01a55bf04dad39985d97af159d0652b4cf7ec8b9"
+  },
+  "source_pins_at_test": {
+    "examples/unified/028_alpha003_simnow_minute/discovery_lifecycle.py": {
+      "bytes": 24256,
+      "sha256": "305ecf7cb89ccf8aee15179312fbf4b311f41ead7e65a97b01e19c0e3ccb3f3d"
+    },
+    "tests/unit/test_alpha003_discovery_lifecycle.py": {
+      "bytes": 15770,
+      "sha256": "35bb0e992f5560930f0bd6d5379075dad808e39418e80abe2a1f1570ea21d715"
+    }
+  },
+  "scope_limits": [
+    "Only the two changed/new startup-focused unit nodes ran; the other six tests from the earlier focused run were not repeated.",
+    "Fake-client unit evidence only; no provider, private input, installed SDK client, native API, account, or real Store lifecycle was exercised.",
+    "The observed MD receipt fields are not falsified: generation 0 and complete=true remain present in the result projection; only overall lifecycle acceptance is denied."
+  ]
+}
