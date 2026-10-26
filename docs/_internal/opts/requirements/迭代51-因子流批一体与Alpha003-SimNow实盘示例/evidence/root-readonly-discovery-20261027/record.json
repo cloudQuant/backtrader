@@ -1,0 +1,36 @@
+{
+  "schema": 1,
+  "parent": "321044931980da9067edb72bcda16454e0ca4742",
+  "branch": "dev",
+  "status": "BLOCKED_MD_READINESS_AND_NATIVE_CLOSE",
+  "evidence_level": "ROOT_ACTUAL_READONLY_ATTEMPT_AND_RETAINED_CLOSE_FACTS_ONLY",
+  "root_host_session": 86857,
+  "root_actual_tool_chunk": "c335cd",
+  "metadata_tool_chunk": "6405a3",
+  "actual_command": "D:/temp/i51cal-consumer-20261027-r1/consumer/Scripts/python.exe -I -i .codex-tmp/i51_root_readonly_discovery_20261027.py",
+  "private_temp_owner_only_acl_verified_tool": "8bb09b",
+  "selected_config_index": 0,
+  "readiness": "MD_LOGIN_NOT_READY_20S",
+  "full_market_query_entered": false,
+  "closed": false,
+  "private_context_closed": false,
+  "original_result_preserved": true,
+  "timing_policy_applies_to_this_failure": false,
+  "full_ac_or_account_pass_claimed": false,
+  "payload_pins": {
+    "docs/_internal/opts/requirements/迭代51-因子流批一体与Alpha003-SimNow实盘示例/evidence/root-readonly-discovery-20261027/root-caller.py": "2057b6b4180e3ccc70f760c8b696122071b9cb3d9049f2a358c3de17b907d260",
+    "docs/_internal/opts/requirements/迭代51-因子流批一体与Alpha003-SimNow实盘示例/evidence/root-readonly-discovery-20261027/caller-review-initial.md": "43deb5a4fe6f3a468d32d38b26e7ce1ce26f275a76a82b46ecbb4ff6ba40e124",
+    "docs/_internal/opts/requirements/迭代51-因子流批一体与Alpha003-SimNow实盘示例/evidence/root-readonly-discovery-20261027/caller-review-final.md": "37b81d9d0d01974188d589f2063aaad9e9425147913e10c86ea16fc38c953e62",
+    "docs/_internal/opts/requirements/迭代51-因子流批一体与Alpha003-SimNow实盘示例/evidence/root-readonly-discovery-20261027/result.json": "4bd5d832813443af294eb778e68796e51b4f52ecb0dabfc12c37071cea38a472",
+    "docs/_internal/opts/requirements/迭代51-因子流批一体与Alpha003-SimNow实盘示例/evidence/root-readonly-discovery-20261027/readonly-metadata.py": "67f664722080b4dae4c1ea5251e9bd21a2df33c4659ee5fb552db824b5521a97",
+    "docs/_internal/opts/requirements/迭代51-因子流批一体与Alpha003-SimNow实盘示例/evidence/root-readonly-discovery-20261027/readonly-metadata.json": "d4a5eba5f4d847205725146cbd586e7412430670e18d87c960e971478520be70",
+    "docs/_internal/opts/requirements/迭代51-因子流批一体与Alpha003-SimNow实盘示例/evidence/root-readonly-discovery-20261027/native-close-diagnosis.md": "93150eaeb2d14972e4a4173154a9418fe99c3a8d06583c5f60120003cbcf7732"
+  },
+  "retained_state": [
+    "Original host, Store, wrapper, exact MD/trader clients, saved native APIs, exceptions and protected context remain held.",
+    "No repeated stop, manual Release, host exit/kill or unchanged connection retry.",
+    "Raw provider output was discarded during the provider window; no raw capture was retained or subsequently read.",
+    "No endpoint/credential value, account identifier or credential-derived digest is in this public archive."
+  ],
+  "next_action": "Resolve the SDK normal shutdown contract in a separate public-source round; do not operate original retained native custody using an unreviewed workaround."
+}

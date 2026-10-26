@@ -1,0 +1,26 @@
+{
+  "schema": 1,
+  "observation_at": "2026-10-26T17:29:14.639808+00:00",
+  "reason": "MD_LOGIN_NOT_READY_20S",
+  "original_result_unchanged": true,
+  "private_context_retained": true,
+  "cleanup_or_provider_called": false,
+  "clients": {
+    "md": {
+      "published_api_absent": true,
+      "saved_stopped_api_present": true,
+      "join_thread_alive": true,
+      "generation": 1,
+      "join_phase": "pending",
+      "join_finished": false
+    },
+    "trader": {
+      "published_api_absent": true,
+      "saved_stopped_api_present": true,
+      "join_thread_alive": true,
+      "generation": 1,
+      "join_phase": "pending",
+      "join_finished": false
+    }
+  }
+}
