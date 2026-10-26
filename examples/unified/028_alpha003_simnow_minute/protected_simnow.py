@@ -48,15 +48,15 @@ _SDK_PINS = MappingProxyType(
             version="0.15.8",
             wheel_filename="bt_api_base-0.15.8-py3-none-any.whl",
             wheel_sha256="b579a73531281d74f6e1630d447717b9f87e38bf507d82178d9ad46745017f39",
-            record_sha256="6b2aa14316c60497fb4eb7489e798fc26637be13d9a114adefd0703155b62fb3",
+            record_sha256="6284d7236b283cbcc5599d2ad14e5ab81d83d93ee641392ef612acbe1df54dda",
         ),
         "bt_api_ctp": CtpSdkArtifactPin(
             distribution="bt_api_ctp",
             module="bt_api_ctp",
             version="2.0.4+iteration41.i9",
             wheel_filename="bt_api_ctp-2.0.4+iteration41.i9-cp311-cp311-win_amd64.whl",
-            wheel_sha256="b72a48d09c80420ffdaaa7eadb51a135287ac4313caaa235d749e3b39b52796f",
-            record_sha256="89f9aeed267c256260969c8f69a2f30c8a68f1fb9845d7a4118f3a0717da278f",
+            wheel_sha256="32811ab303cd875274fc9d69ee3ca3f29d83c33d9d5217f4eadd037cb07123d7",
+            record_sha256="928671c3cb7f211f2157b183e9d033e7afdddfbea153d6f4eba995e87956e8a1",
         ),
     }
 )

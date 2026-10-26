@@ -1063,3 +1063,14 @@ docs/_internal/opts/requirements/迭代50-因子实盘运行与交易接入/evid
 "docs/_internal/opts/requirements/迭代51-因子流批一体与Alpha003-SimNow实盘示例/evidence/ctp-nojoin-integration-20261027/wrapper-qa-eight-pre.json" -text
 "docs/_internal/opts/requirements/迭代51-因子流批一体与Alpha003-SimNow实盘示例/evidence/ctp-nojoin-integration-20261027/wrapper-qa-eight.txt" -text
 "docs/_internal/opts/requirements/迭代51-因子流批一体与Alpha003-SimNow实盘示例/evidence/ctp-nojoin-integration-20261027/wrapper-review.md" -text
+"docs/_internal/opts/requirements/迭代51-因子流批一体与Alpha003-SimNow实盘示例/evidence/nojoin-installed-handoff-20261027/build-backtrader.py" -text
+"docs/_internal/opts/requirements/迭代51-因子流批一体与Alpha003-SimNow实盘示例/evidence/nojoin-installed-handoff-20261027/build-install.json" -text
+"docs/_internal/opts/requirements/迭代51-因子流批一体与Alpha003-SimNow实盘示例/evidence/nojoin-installed-handoff-20261027/installed-verification.json" -text
+"docs/_internal/opts/requirements/迭代51-因子流批一体与Alpha003-SimNow实盘示例/evidence/nojoin-installed-handoff-20261027/pin-review.md" -text
+"docs/_internal/opts/requirements/迭代51-因子流批一体与Alpha003-SimNow实盘示例/evidence/nojoin-installed-handoff-20261027/public-profile-probes.json" -text
+"docs/_internal/opts/requirements/迭代51-因子流批一体与Alpha003-SimNow实盘示例/evidence/nojoin-installed-handoff-20261027/record.json" -text
+"docs/_internal/opts/requirements/迭代51-因子流批一体与Alpha003-SimNow实盘示例/evidence/nojoin-installed-handoff-20261027/root-profile-metadata-r1.json" -text
+"docs/_internal/opts/requirements/迭代51-因子流批一体与Alpha003-SimNow实盘示例/evidence/nojoin-installed-handoff-20261027/root-profile-metadata-r1.py" -text
+"docs/_internal/opts/requirements/迭代51-因子流批一体与Alpha003-SimNow实盘示例/evidence/nojoin-installed-handoff-20261027/root-profile-metadata-r2.json" -text
+"docs/_internal/opts/requirements/迭代51-因子流批一体与Alpha003-SimNow实盘示例/evidence/nojoin-installed-handoff-20261027/root-profile-metadata-r2.py" -text
+"docs/_internal/opts/requirements/迭代51-因子流批一体与Alpha003-SimNow实盘示例/evidence/nojoin-installed-handoff-20261027/verify-installed.py" -text
