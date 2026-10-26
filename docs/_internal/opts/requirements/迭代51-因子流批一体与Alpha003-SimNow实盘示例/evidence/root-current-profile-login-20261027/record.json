@@ -1,0 +1,55 @@
+{
+  "parent": "e29aff79ad0a5f74a641eb7f9e4c116f9c1e69e1",
+  "repository": "D:\\source_code\\backtrader",
+  "branch": "dev",
+  "accepted_scope": "PASS_ROOT_READONLY_PROFILE_LOGIN_ONLY",
+  "originals": {
+    "root-caller.py": {
+      "path": "D:\\source_code\\backtrader\\.codex-tmp\\i51_root_current_profile_login_r1_20261027.py",
+      "bytes": 11631,
+      "sha256": "6f5755d2e2455e3492f0337c38635861b719dbee0c2358cf599edc93104af589"
+    },
+    "static-review.md": {
+      "path": "D:\\source_code\\backtrader\\.codex-tmp\\i51_root_current_profile_login_r1_review_20261027.md",
+      "bytes": 3341,
+      "sha256": "4882a9528033fec470175426c46264510603e1e890e46e5762a305ee7834bbc4"
+    },
+    "observation.json": {
+      "path": "D:\\temp\\i51-root-current-profile-login-20261027-r1.json",
+      "bytes": 2454,
+      "sha256": "8f884f107bbe209f31d64fcdaf9806d5a6d76b4045e1bc79a27cafbf7285c0a4"
+    },
+    "preexit.json": {
+      "path": "D:\\temp\\i51-root-current-profile-preexit-20261027-r1.json",
+      "bytes": 304,
+      "sha256": "91749492654c82b021d6cd7c893bd230f5dc89bf84a8f730666e3627a2108488"
+    },
+    "private-temp-acl-observation.json": {
+      "path": "D:\\temp\\i51-root-current-profile-login-20261027-r1-acl.json",
+      "bytes": 190,
+      "sha256": "59a7f8ba3a4454009ebb089495bb4340ba3a775ad8b5acbe0a73e94ae0fd06a9"
+    }
+  },
+  "host": 47585,
+  "normal_exit_code": 0,
+  "root_tools": {
+    "acl": "12d770",
+    "invocation_and_completion": "f24f2a",
+    "preexit": "a08832",
+    "normal_exit": "b5088a"
+  },
+  "selected_config_index": 0,
+  "profile_category": "set1_group1_vpn",
+  "md_disposition": "read_only_accepted",
+  "authenticated_md_identity_present": false,
+  "trader_read_only_ready": true,
+  "trading_day": "20261027",
+  "connection_generation": 1,
+  "native_close": "Both generation-one native clients released, Store workers/queues quiescent, protected context closed, same-host release markers and zero Python workers checked before normal exit.",
+  "full_market_query_requested": false,
+  "private_values_exported": false,
+  "limitations": [
+    "Login and TradingDay only; no market snapshot, live tick/cohort, shadow, trading, cancellation, restart, complete formal case or 50-A acceptance.",
+    "Original retained host 86857 and all prior results untouched; do not repeat this accepted login solely for delivery."
+  ]
+}
