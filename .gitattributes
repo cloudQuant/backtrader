@@ -1121,3 +1121,5 @@ docs/_internal/opts/requirements/迭代50-因子实盘运行与交易接入/evid
 "docs/_internal/opts/requirements/迭代51-因子流批一体与Alpha003-SimNow实盘示例/evidence/rawtick-cerebro-20261027/evidence.zip" -text
 "docs/_internal/opts/requirements/迭代51-因子流批一体与Alpha003-SimNow实盘示例/evidence/golden-subset-20261027/record.json" -text
 "docs/_internal/opts/requirements/迭代51-因子流批一体与Alpha003-SimNow实盘示例/evidence/golden-subset-20261027/evidence.zip" -text
+"docs/_internal/opts/requirements/迭代51-因子流批一体与Alpha003-SimNow实盘示例/evidence/preopen-baseline-20261027/record.json" -text
+"docs/_internal/opts/requirements/迭代51-因子流批一体与Alpha003-SimNow实盘示例/evidence/preopen-baseline-20261027/evidence.zip" -text

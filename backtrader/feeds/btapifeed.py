@@ -522,6 +522,7 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
             self._ctp_factor_source_binding = None
             self._ctp_factor_source_projector = None
             self._ctp_factor_source_error_type = None
+            self._ctp_factor_source_first_planned_bucket_start = None
         else:
             # Import only for this explicit live-source mode so a normal
             # BtApiFeed import remains compatible with Python 3.8 and does
@@ -541,6 +542,21 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
             self._ctp_factor_source_projector = project_ctp_factor_tick
             self._ctp_factor_source_error_type = CtpFactorSourceError
             self._ctp_factor_source_time_contract = CTP_FACTOR_SOURCE_TIME_CONTRACT
+            first_planned_close = min(
+                (
+                    close_time
+                    for close_time, members in source_binding.calendar.members_by_close.items()
+                    if source_binding.product in members
+                    and members[source_binding.product].trading_day
+                    == source_binding.trader_trading_day
+                ),
+                default=None,
+            )
+            self._ctp_factor_source_first_planned_bucket_start = (
+                first_planned_close - _dt.timedelta(minutes=1)
+                if first_planned_close is not None
+                else None
+            )
         self._ctp_factor_source_last_callback_sequence = 0
         if cohort_source_mode:
             if type(history_source) is not tuple or type(live_source) is not tuple:
@@ -1753,6 +1769,8 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
             drained = True
             drained_count += 1
             ctp_factor_planned_minute = True
+            ctp_preplanned_bucket = None
+            ctp_preplanned_watermark_before = None
 
             if self._ctp_factor_source_binding is not None:
                 try:
@@ -1790,6 +1808,21 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
                 tick.exchange_id_source = projection.exchange_id_source
                 if ctp_factor_planned_minute:
                     tick.session_segment = projection.session_segment
+                elif not quote_only:
+                    preplanned_context = self._ctp_preplanned_bucket_context(
+                        tick, projection
+                    )
+                    if preplanned_context is not None:
+                        # _prepare_tick advances the event-time watermark for
+                        # quote-only observations. Keep a rejected candidate
+                        # from poisoning the first planned minute's ordering.
+                        ctp_preplanned_watermark_before = (
+                            self._max_event_timestamp,
+                            self._last_ingest_monotonic_ns,
+                        )
+                        ctp_preplanned_bucket = self._ctp_preplanned_bucket_candidate(
+                            preplanned_context
+                        )
 
             if self._validate_raw_cohort_tick_price(tick) is False:
                 self._mark_event_dropped(tick, "invalid_ctp_source_tick")
@@ -1801,6 +1834,11 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
             expired_after_normalize = self._cohort_prepare_deadline_expired(deadline_ns)
 
             if self._handle_event_health(tick):
+                if ctp_preplanned_watermark_before is not None:
+                    (
+                        self._max_event_timestamp,
+                        self._last_ingest_monotonic_ns,
+                    ) = ctp_preplanned_watermark_before
                 if self._live_bar_cohort is not None:
                     self._freeze_cohort_source(
                         "unhealthy_source_tick", "unhealthy tick cannot continue a live cohort"
@@ -1820,6 +1858,22 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
                 ):
                     break
                 continue
+
+            if ctp_preplanned_bucket is not None and not self._seed_ctp_first_bucket(
+                tick, projection, ctp_preplanned_bucket
+            ):
+                (
+                    self._max_event_timestamp,
+                    self._last_ingest_monotonic_ns,
+                ) = ctp_preplanned_watermark_before
+            elif ctp_preplanned_bucket is None and ctp_preplanned_watermark_before is not None:
+                # Structurally in-scope preplanned observations with invalid
+                # price/volume/session evidence are quote-only rejects. Their
+                # event times must not make a later valid baseline look stale.
+                (
+                    self._max_event_timestamp,
+                    self._last_ingest_monotonic_ns,
+                ) = ctp_preplanned_watermark_before
 
             if self.p.dispatch_ticks:
                 self._dispatch_event(
@@ -1853,6 +1907,110 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
             ):
                 break
         return drained_count if quote_only else drained
+
+    def _ctp_preplanned_bucket_context(self, tick, projection):
+        """Return route/time context for a possible pre-plan CTP observation."""
+        binding = self._ctp_factor_source_binding
+        raw = _tick_value(tick, "ctp_raw_tick", default=None)
+        first_bucket_start = self._ctp_factor_source_first_planned_bucket_start
+        if (
+            binding is None
+            or projection.planned_close_time is not None
+            or first_bucket_start is None
+            or self._timeframe != TimeFrame.Minutes
+            or self._compression != 1
+            or not isinstance(raw, Mapping)
+            or self._ctp_first_bucket_scope is not None
+            or self._ctp_first_bucket_start is not None
+        ):
+            return None
+
+        trading_day = binding.trader_trading_day.strftime("%Y%m%d")
+        generation = binding.expected_md_generation
+        if (
+            raw.get("InstrumentID") != binding.instrument_id
+            or str(raw.get("ExchangeID") or "").strip().upper()
+            not in {"", binding.exchange_id}
+            or raw.get("connection_generation") != generation
+            or raw.get("TradingDay") != trading_day
+            or getattr(tick, "connection_generation", None) != generation
+        ):
+            return None
+
+        event_time = projection.event_time_utc
+        if not isinstance(event_time, _dt.datetime) or event_time.tzinfo is None:
+            return None
+        event_time = event_time.astimezone(_UTC)
+        if event_time >= first_bucket_start:
+            return None
+
+        try:
+            action_day = _dt.datetime.strptime(raw.get("ActionDay"), "%Y%m%d").date()
+        except (TypeError, ValueError):
+            return None
+        selected_session = binding.calendar.session_for(
+            binding.product, event_time, binding.trader_trading_day
+        )
+        bucket_start = self._get_bucket_start(event_time.replace(tzinfo=None))
+        session_date = selected_session[0] if selected_session is not None else None
+        return (generation, trading_day), bucket_start, raw, action_day, session_date, event_time
+
+    def _ctp_preplanned_bucket_candidate(self, context):
+        """Return the actual pre-plan minute eligible to seed the CTP guard.
+
+        This records only the first accepted out-of-grid observation seen by
+        this Feed for its bound generation/trading day. It does not infer
+        Store history or volume and never creates a bar.
+        """
+        scope, bucket_start, raw, action_day, session_date, event_time = context
+        binding = self._ctp_factor_source_binding
+        if (
+            binding is None
+            or raw.get("volume_issue") is not None
+            or _tick_price_category(*_raw_tick_field(raw, ("LastPrice",))[1:]) is not None
+            or _raw_ctp_volume_category(*_raw_tick_field(raw, ("Volume",))[1:]) is not None
+        ):
+            return None
+        selected_action_days = binding.calendar.action_days_by_product_day.get(
+            (binding.product, binding.trader_trading_day), frozenset()
+        )
+        if session_date is None:
+            return None
+        local_event_day = event_time.astimezone(
+            _dt.timezone(_dt.timedelta(hours=8))
+        ).date()
+        if (
+            action_day not in selected_action_days
+            or action_day not in {session_date, local_event_day}
+        ):
+            return None
+        return scope, bucket_start
+
+    def _seed_ctp_first_bucket(self, tick, projection, candidate):
+        """Seed only the first-bucket discard guard from a healthy real quote."""
+        if (
+            self._ctp_factor_source_binding is None
+            or self._continuity_degraded
+            or _tick_value(tick, "quality", default=None) != "GOOD"
+        ):
+            return False
+
+        received_wall = projection.callback_received_wall_time
+        event_age = float(received_wall) - projection.event_time_utc.timestamp()
+        maximum_event_age = max(float(self.p.event_time_max_age or 0.0), 0.0)
+        if event_age < -0.5 or (maximum_event_age and event_age > maximum_event_age):
+            return False
+
+        received_monotonic_ns = projection.callback_received_monotonic_ns
+        receive_age = max(_time.monotonic_ns() - received_monotonic_ns, 0) / 1_000_000_000.0
+        maximum_receive_age = max(float(self.p.receive_time_max_age or 0.0), 0.0)
+        if maximum_receive_age and receive_age > maximum_receive_age:
+            return False
+
+        if self._ctp_first_bucket_scope is not None or self._ctp_first_bucket_start is not None:
+            return False
+        self._ctp_first_bucket_scope, self._ctp_first_bucket_start = candidate
+        return True
 
     def _cohort_drain_winddown_quotes(self, *, limit, deadline_ns):
         """Consume a bounded source-backed quote prefix without bar work."""

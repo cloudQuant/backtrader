@@ -1,0 +1,99 @@
+{
+  "schema": "iteration51.accepted-source-round.v1",
+  "round": "preopen-baseline-20261027",
+  "repository": "D:\\source_code\\backtrader",
+  "branch": "dev",
+  "acceptance_parent": "e918a93e545d2fae6acec70fca9dfc7797fe5249",
+  "source_pins": {
+    "backtrader/feeds/btapifeed.py": "e6f2efc5c5922de8d96b7c56d113b30fe087b86f1bdba8963f37bec7bbddc9c0",
+    "tests/integration/test_ctp_factor_preopen_baseline.py": "76c14170c5b51315636e876e5ef8ee880414bd8e2b251f6f9bc89056cf20e539"
+  },
+  "qa_results": [
+    {
+      "command": [
+        "C:\\anaconda3\\python.exe",
+        "-m",
+        "pytest",
+        "-p",
+        "no:asyncio",
+        "-q",
+        "--tb=short",
+        "--junitxml=D:\\temp\\i51-preopen-baseline-root-qa-20261027-r1\\junit.xml",
+        "tests/integration/test_ctp_factor_preopen_baseline.py",
+        "tests/integration/test_ctp_factor_source_cohort.py",
+        "tests/integration/test_ctp_factor_source_cerebro.py"
+      ],
+      "exit_code": 1,
+      "elapsed_seconds": 5.172000000020489,
+      "counts": {
+        "tests": 23,
+        "failures": 1,
+        "errors": 0,
+        "skipped": 0
+      },
+      "pins_before": {
+        "backtrader/feeds/btapifeed.py": "e6f2efc5c5922de8d96b7c56d113b30fe087b86f1bdba8963f37bec7bbddc9c0",
+        "tests/integration/test_ctp_factor_preopen_baseline.py": "56aaf8c7d642e246ad57498ff3803d73b33ba4241576c24df584b53ff16e43ad",
+        "tests/integration/test_ctp_factor_source_cohort.py": "3ec4493afc9186e32e5e1804580067cd390c899fa4c26310d8f92a6deb6ec4c9",
+        "tests/integration/test_ctp_factor_source_cerebro.py": "e092de7905d39b2c19640c67a5a0eff064df5942d94b36ddb1668f78cdcb3370",
+        "examples/unified/028_alpha003_simnow_minute/run.py": "405c998d2dc2f7a140cd23ed8c8aedbdcc5f09bffd6f284bbc4267bd859f8bc9"
+      },
+      "pins_after": {
+        "backtrader/feeds/btapifeed.py": "e6f2efc5c5922de8d96b7c56d113b30fe087b86f1bdba8963f37bec7bbddc9c0",
+        "tests/integration/test_ctp_factor_preopen_baseline.py": "56aaf8c7d642e246ad57498ff3803d73b33ba4241576c24df584b53ff16e43ad",
+        "tests/integration/test_ctp_factor_source_cohort.py": "3ec4493afc9186e32e5e1804580067cd390c899fa4c26310d8f92a6deb6ec4c9",
+        "tests/integration/test_ctp_factor_source_cerebro.py": "e092de7905d39b2c19640c67a5a0eff064df5942d94b36ddb1668f78cdcb3370",
+        "examples/unified/028_alpha003_simnow_minute/run.py": "405c998d2dc2f7a140cd23ed8c8aedbdcc5f09bffd6f284bbc4267bd859f8bc9"
+      },
+      "source_pins_unchanged": true,
+      "evidence_level": "PUBLIC_SOURCE_SYNTHETIC_LEAVES_ONLY"
+    },
+    {
+      "command": [
+        "C:\\anaconda3\\python.exe",
+        "-m",
+        "pytest",
+        "-p",
+        "no:asyncio",
+        "-q",
+        "--tb=short",
+        "--junitxml=D:\\temp\\i51-preopen-baseline-root-qa-20261027-r2\\junit.xml",
+        "tests/integration/test_ctp_factor_preopen_baseline.py::test_invalid_preplanned_source_inputs_cannot_seed_the_first_bucket[invalid-cumulative-volume]"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 2.4219999999622814,
+      "counts": {
+        "tests": 1,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "pins_before": {
+        "backtrader/feeds/btapifeed.py": "e6f2efc5c5922de8d96b7c56d113b30fe087b86f1bdba8963f37bec7bbddc9c0",
+        "tests/integration/test_ctp_factor_preopen_baseline.py": "76c14170c5b51315636e876e5ef8ee880414bd8e2b251f6f9bc89056cf20e539",
+        "tests/integration/test_ctp_factor_source_cohort.py": "3ec4493afc9186e32e5e1804580067cd390c899fa4c26310d8f92a6deb6ec4c9",
+        "examples/unified/028_alpha003_simnow_minute/run.py": "405c998d2dc2f7a140cd23ed8c8aedbdcc5f09bffd6f284bbc4267bd859f8bc9"
+      },
+      "pins_after": {
+        "backtrader/feeds/btapifeed.py": "e6f2efc5c5922de8d96b7c56d113b30fe087b86f1bdba8963f37bec7bbddc9c0",
+        "tests/integration/test_ctp_factor_preopen_baseline.py": "76c14170c5b51315636e876e5ef8ee880414bd8e2b251f6f9bc89056cf20e539",
+        "tests/integration/test_ctp_factor_source_cohort.py": "3ec4493afc9186e32e5e1804580067cd390c899fa4c26310d8f92a6deb6ec4c9",
+        "examples/unified/028_alpha003_simnow_minute/run.py": "405c998d2dc2f7a140cd23ed8c8aedbdcc5f09bffd6f284bbc4267bd859f8bc9"
+      },
+      "source_pins_unchanged": true,
+      "evidence_level": "PUBLIC_SOURCE_SYNTHETIC_LEAVES_ONLY"
+    }
+  ],
+  "accepted_distinct_cases": 23,
+  "evidence_level": "SOURCE_AND_PUBLIC_SYNTHETIC_STORE_FEED_CEREBRO_ONLY",
+  "scope": "Seed existing first partial-minute guard from a validated healthy earlier actual CTP observation in the selected exchange session; select first grid close for the bound Trader day. No invented volume/bar; no-baseline/same-bucket/winddown exclusions retained.",
+  "qa_summary": "R1: 22 passed, one new invalid-volume test failed because production correctly raises CUMULATIVE_VOLUME_INVALID. R2: only that corrected test passed, production source unchanged. One existing pytest-config warning each. No all-green 23-case invocation claimed.",
+  "limits": [
+    "Synthetic SDK leaves; actual pre-open callback availability and full live session are not accepted.",
+    "Reviewer found/fixed canonical YYYYMMDD and bound-day grid lookup before first QA."
+  ],
+  "archive": {
+    "sha256": "eac7931961457e6308dee98cdba326486dd3eb06cd37d2db3582840389cf8ea7",
+    "size_bytes": 8673
+  }
+}
