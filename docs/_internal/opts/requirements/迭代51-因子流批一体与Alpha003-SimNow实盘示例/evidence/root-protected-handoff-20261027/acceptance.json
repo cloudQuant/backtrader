@@ -1,0 +1,26 @@
+{
+  "schema": 1,
+  "parent": "2bfaac6bacab1f91746352e1db2da8554cbdc5f6",
+  "evidence_level": "PASS_ROOT_LOCAL_PROTECTED_HANDOFF_ONLY",
+  "tool_chunk": "2215b1",
+  "command": "D:/temp/i51cal-consumer-20261027-r1/consumer/Scripts/python.exe -I .codex-tmp/i51_root_actual_protected_handoff_20261027.py",
+  "python_exit": 0,
+  "helper_sha256": "6d411641a2cf5cafd1ead5fa530c7cd145a138adb84d579e7dcffaaa805847ec",
+  "runtime_package_source": "installed ae218 wheel; example helper from committed 2bfaac6b checkout",
+  "selected_config_index": 0,
+  "root_only": true,
+  "private_values_or_credential_hashes_exported": false,
+  "provider_or_store_created": false,
+  "assertions": [
+    "registered bounded reader and credential seals passed in installed runtime",
+    "official configured pair validated inside pinned SDK fence",
+    "two in-process mapping acquisitions rechecked credential seals",
+    "context exit cleared shared mapping and later access failed",
+    "helper source pin unchanged"
+  ],
+  "archive": {
+    "docs/_internal/opts/requirements/\u8fed\u4ee351-\u56e0\u5b50\u6d41\u6279\u4e00\u4f53\u4e0eAlpha003-SimNow\u5b9e\u76d8\u793a\u4f8b/evidence/root-protected-handoff-20261027/root-check.py": "4afaea3c8e2d6b4cbe9932d7e3147b622b5e19797a67563fbfffe10d31af2785",
+    "docs/_internal/opts/requirements/\u8fed\u4ee351-\u56e0\u5b50\u6d41\u6279\u4e00\u4f53\u4e0eAlpha003-SimNow\u5b9e\u76d8\u793a\u4f8b/evidence/root-protected-handoff-20261027/result.json": "fd66d1215f672becc68cc0b9da1e127a58d53658c8b12ab74a6e8c0f489a6587"
+  },
+  "formal_account_acceptance": false
+}

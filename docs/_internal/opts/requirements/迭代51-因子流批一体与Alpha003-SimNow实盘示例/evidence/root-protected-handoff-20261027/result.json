@@ -1,0 +1,10 @@
+{
+  "schema": 1,
+  "provider_invoked": false,
+  "store_created": false,
+  "credential_values_exported": false,
+  "selected_config_index": 0,
+  "sealed_inprocess_mapping_verified": true,
+  "status": "PASS_ROOT_LOCAL_PROTECTED_HANDOFF_ONLY",
+  "context_closed": true
+}
