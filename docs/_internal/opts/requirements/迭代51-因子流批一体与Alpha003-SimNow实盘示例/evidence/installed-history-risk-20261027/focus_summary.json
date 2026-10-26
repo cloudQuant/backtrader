@@ -1,0 +1,27 @@
+{
+  "backtrader_distribution": "back-trader-python",
+  "backtrader_file": "D:\\temp\\i51cal-consumer-20261027-r1\\consumer\\Lib\\site-packages\\backtrader\\__init__.py",
+  "backtrader_module_origin_count": 548,
+  "backtrader_module_origins_valid": true,
+  "backtrader_package_root": "D:\\temp\\i51cal-consumer-20261027-r1\\consumer\\Lib\\site-packages\\backtrader",
+  "backtrader_version": "1.4.0",
+  "bad_backtrader_origins": [],
+  "collected": 3,
+  "consumer_prefix": "D:\\temp\\i51cal-consumer-20261027-r1\\consumer",
+  "elapsed_seconds": 2.937,
+  "evidence_level": "INSTALLED_BT_CURRENT_EXAMPLE_FOCUSED_FAKE_ONLY",
+  "exit_code": 1,
+  "failed": 1,
+  "fixture_file_count": 12,
+  "fixture_root": "D:\\temp\\i51-installed-focus-20261027-r1\\fixture-root",
+  "network_attempts": [],
+  "passed": 2,
+  "pytest_version": "8.4.2",
+  "repository_head": "db28ae4bd2b9a1a0df1e8ccadd5c1063b6fff11b",
+  "selected_nodes": [
+    "D:\\temp\\i51-installed-focus-20261027-r1\\fixture-root\\tests\\unit\\test_alpha003_simnow_runner.py::test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bundle[saved-query-history-three-epoch-restart]",
+    "D:\\temp\\i51-installed-focus-20261027-r1\\fixture-root\\tests\\integration\\test_live_alpha003_history_catchup_execution.py::test_alpha003_prenext_history_warmup_dispatches_owned_risk_cancel"
+  ],
+  "setup_errors": 0,
+  "skipped": 0
+}
