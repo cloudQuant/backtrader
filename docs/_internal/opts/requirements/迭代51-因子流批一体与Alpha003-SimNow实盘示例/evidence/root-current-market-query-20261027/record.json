@@ -1,0 +1,75 @@
+{
+  "schema": 1,
+  "parent": "0a168557d3c23ea2327195b924d4b78dcb20f80c",
+  "repository": "D:\\source_code\\backtrader",
+  "branch": "dev",
+  "accepted_scope": "CURRENT_DAY_READONLY_MARKET_QUERY_AND_SAVED_SCORE_RECOMPUTATION",
+  "host": 20144,
+  "normal_exit_code": 0,
+  "tools": {
+    "launch": "f184f6",
+    "completion": "d5b075",
+    "preexit": "eb0482",
+    "normal_exit": "569e5e"
+  },
+  "trading_day": "2026-10-27",
+  "selected_profile": "set1_group1_vpn",
+  "selected_config_index": 0,
+  "allow_writes": false,
+  "product_count": 87,
+  "catalog_and_quote_rows_each": 16324,
+  "ranked_candidates": 844,
+  "common_minutes": 195,
+  "source_time_preserved": true,
+  "checks": {
+    "status": "PASS_SAVED_PUBLIC_MARKET_RECOMPUTATION",
+    "candidate_scores_checked": 844,
+    "product_rank_orders_checked": 87,
+    "exact_quote_coverage_products": 87,
+    "formula": "0.5*OI+0.5*Volume; Decimal from saved public values",
+    "provider_called": false
+  },
+  "originals": {
+    "root-caller.py": {
+      "original": "D:\\source_code\\backtrader\\.codex-tmp\\i51_root_current_market_query_r1_20261027.py",
+      "bytes": 15322,
+      "sha256": "8cf856d6055d9246dc7c8089ff3f80b18e4a2d203ae8f2b9b05ac80a0f2ded93"
+    },
+    "static-review.md": {
+      "original": "D:\\source_code\\backtrader\\.codex-tmp\\i51_root_current_market_query_r1_review_20261027.md",
+      "bytes": 3033,
+      "sha256": "3f18dbc8e9da42f66ae3420c1113f675d2d4db79900b3420c5cad10286bacb01"
+    },
+    "observation.json": {
+      "original": "D:\\temp\\i51-root-current-market-query-20261027-r1.json",
+      "bytes": 12510,
+      "sha256": "9eb1837c86898c6b13b0cc24d84f942c6c5b39ac9f1f8c824dc7a87a601dd9b2"
+    },
+    "selection-evidence.json": {
+      "original": "D:\\temp\\i51-root-current-market-selection-20261027-r1.json",
+      "bytes": 15131359,
+      "sha256": "34293bb33b2d88f37b32600889c741885b0b2f3de23e68fc1b55f092b842cf63"
+    },
+    "preexit.json": {
+      "original": "D:\\temp\\i51-root-current-market-preexit-20261027-r1.json",
+      "bytes": 394,
+      "sha256": "ed19f133d3139a8fcd6104875573f347992a88ec6c8bb835deb1883fb1ebe52a"
+    },
+    "private-temp-acl-observation.json": {
+      "original": "D:\\temp\\i51-root-current-market-query-20261027-r1-acl.json",
+      "bytes": 177,
+      "sha256": "53281fe1d01889b09db3220afa652d904a956f21d290f692ad17dcf798abd292"
+    },
+    "saved-market-check.json": {
+      "original": "D:\\source_code\\backtrader\\.codex-tmp\\i51_current_market_saved_check_20261027.json",
+      "bytes": 272,
+      "sha256": "9546e521e6ba85ebe071ed0d8f1a8fcabe672253292fb0c975573b42ebdbc995"
+    }
+  },
+  "limitations": [
+    "No live subscription, minute cohort, factor, trading, cancellation or restart was executed in this query.",
+    "Source query completion does not refresh individual quote event time; observed old ActionDay fields remain unchanged.",
+    "Full AC51-18 still requires golden small-pool actual run and subsequent full live profile; AC51-19/20/21/23/24 remain unaccepted.",
+    "Earlier consumed queries and retained host86857 are unchanged."
+  ]
+}
