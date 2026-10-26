@@ -1,0 +1,10 @@
+{
+  "bt_api_base": {
+    "record_verified": true,
+    "payloads_verified": 103
+  },
+  "bt_api_ctp": {
+    "record_verified": true,
+    "payloads_verified": 96
+  }
+}

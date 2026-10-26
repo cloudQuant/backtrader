@@ -1030,3 +1030,13 @@ docs/_internal/opts/requirements/迭代50-因子实盘运行与交易接入/evid
 "docs/_internal/opts/requirements/迭代50-因子实盘运行与交易接入/evidence/formal-27b-build-20261027/checklist.md" -text
 "docs/_internal/opts/requirements/迭代50-因子实盘运行与交易接入/evidence/formal-27b-build-20261027/launch-wrapper.py" -text
 "docs/_internal/opts/requirements/迭代50-因子实盘运行与交易接入/evidence/formal-27b-build-20261027/record.json" -text
+"docs/_internal/opts/requirements/迭代51-因子流批一体与Alpha003-SimNow实盘示例/evidence/ctp-nojoin-native-20261027/gate-r1.py" -text
+"docs/_internal/opts/requirements/迭代51-因子流批一体与Alpha003-SimNow实盘示例/evidence/ctp-nojoin-native-20261027/review-r1.md" -text
+"docs/_internal/opts/requirements/迭代51-因子流批一体与Alpha003-SimNow实盘示例/evidence/ctp-nojoin-native-20261027/result-r1.json" -text
+"docs/_internal/opts/requirements/迭代51-因子流批一体与Alpha003-SimNow实盘示例/evidence/ctp-nojoin-native-20261027/preexit-r1.json" -text
+"docs/_internal/opts/requirements/迭代51-因子流批一体与Alpha003-SimNow实盘示例/evidence/ctp-nojoin-native-20261027/gate-r2.py" -text
+"docs/_internal/opts/requirements/迭代51-因子流批一体与Alpha003-SimNow实盘示例/evidence/ctp-nojoin-native-20261027/review-r2.md" -text
+"docs/_internal/opts/requirements/迭代51-因子流批一体与Alpha003-SimNow实盘示例/evidence/ctp-nojoin-native-20261027/result-r2.json" -text
+"docs/_internal/opts/requirements/迭代51-因子流批一体与Alpha003-SimNow实盘示例/evidence/ctp-nojoin-native-20261027/preexit-r2.json" -text
+"docs/_internal/opts/requirements/迭代51-因子流批一体与Alpha003-SimNow实盘示例/evidence/ctp-nojoin-native-20261027/installed-preflight.json" -text
+"docs/_internal/opts/requirements/迭代51-因子流批一体与Alpha003-SimNow实盘示例/evidence/ctp-nojoin-native-20261027/record.json" -text

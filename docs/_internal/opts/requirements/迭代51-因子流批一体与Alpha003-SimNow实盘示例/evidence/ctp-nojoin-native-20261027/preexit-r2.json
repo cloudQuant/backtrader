@@ -1,0 +1,1 @@
+{"status": "NORMAL_EXIT_PRECONDITIONS_PASSED", "apis": 2, "release_calls_each": 1, "join_calls": 0, "managed_release_workers_alive": 0, "observed_callbacks": 0, "isolated": 1, "interactive": 1, "client_source_unchanged": true, "general_callback_quiescence_claimed": false}

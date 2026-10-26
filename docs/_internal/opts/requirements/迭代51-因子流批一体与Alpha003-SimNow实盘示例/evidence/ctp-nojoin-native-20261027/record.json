@@ -1,0 +1,56 @@
+{
+  "schema": 1,
+  "parent": "d72fcc2bc865d8fc64156eb6e6e87665aeab0703",
+  "repository": "D:\\source_code\\backtrader",
+  "branch": "dev",
+  "status": "PASS_ROOT_NATIVE_PRIMITIVE_OBSERVED_WINDOW_ONLY",
+  "installed_consumer": "D:/temp/i51cal-consumer-20261027-r1/consumer/Scripts/python.exe",
+  "r1": {
+    "host": 58169,
+    "launch": "780c69",
+    "metadata": "56a32f",
+    "status": "PREFLIGHT_FAILED_BEFORE_API_FACTORY",
+    "normal_exit": "d0aaad",
+    "exit_code": 0
+  },
+  "r2": {
+    "host": 34284,
+    "launch": "9ced0b",
+    "readback": "eca18f",
+    "normal_exit": "a82c9a",
+    "exit_code": 0
+  },
+  "socket_only_diagnostic": {
+    "tool_chunk": "6eb044",
+    "connect_ex_code": 10061,
+    "elapsed_seconds": 2.0469999999622814,
+    "timeout_seconds": 5.0
+  },
+  "r1_cause_boundary": "The original 0.5s probe return code was not retained; the separate diagnostic supports timeout sensitivity, not recovery of the original code.",
+  "r2_delta": [
+    "fresh output suffix r2",
+    "socket preflight timeout 0.5 to 5.0 seconds"
+  ],
+  "native_release_ms": {
+    "md": 4300.033,
+    "td": 4293.347
+  },
+  "installed_preflight_tool": "d4cd76",
+  "observed_callbacks": 0,
+  "scope_limits": [
+    "No credentials, Store, provider front, authentication, login, query or trading.",
+    "No claim of general callback quiescence, native thread enumeration, production client stop receipts or account acceptance.",
+    "Old account host 86857 and all other retained hosts were not operated by these gates."
+  ],
+  "payload_sha256": {
+    "docs/_internal/opts/requirements/迭代51-因子流批一体与Alpha003-SimNow实盘示例/evidence/ctp-nojoin-native-20261027/gate-r1.py": "6841e813cbfa38cab6e5272addf4e14ec29aa006c00621290ddb907249e7976f",
+    "docs/_internal/opts/requirements/迭代51-因子流批一体与Alpha003-SimNow实盘示例/evidence/ctp-nojoin-native-20261027/review-r1.md": "299398e188161bc040814c2463a1dd3bde86fe1014ca7c0d6f47034be6a8cd78",
+    "docs/_internal/opts/requirements/迭代51-因子流批一体与Alpha003-SimNow实盘示例/evidence/ctp-nojoin-native-20261027/result-r1.json": "a7eeea61edbf2ec3b0c0347bab8457a247608319682a64c9dd8ffa7630582552",
+    "docs/_internal/opts/requirements/迭代51-因子流批一体与Alpha003-SimNow实盘示例/evidence/ctp-nojoin-native-20261027/preexit-r1.json": "07702bc7f791fcd601d4ff6a789e4a6628075f2bdff9d75f098144196e0204fc",
+    "docs/_internal/opts/requirements/迭代51-因子流批一体与Alpha003-SimNow实盘示例/evidence/ctp-nojoin-native-20261027/gate-r2.py": "2be081a0eca708452685603ed9c90e318e9aecafecfa2ef10ce296dc194c3776",
+    "docs/_internal/opts/requirements/迭代51-因子流批一体与Alpha003-SimNow实盘示例/evidence/ctp-nojoin-native-20261027/review-r2.md": "448c1568755c34a5d101e1f1973c91a11e1f67c5ded0b94af84d8422bce4c020",
+    "docs/_internal/opts/requirements/迭代51-因子流批一体与Alpha003-SimNow实盘示例/evidence/ctp-nojoin-native-20261027/result-r2.json": "164a6e56552aa3d454b9032a0bf140bad5d285aa5c3726c469032538006fb757",
+    "docs/_internal/opts/requirements/迭代51-因子流批一体与Alpha003-SimNow实盘示例/evidence/ctp-nojoin-native-20261027/preexit-r2.json": "86a8d78f6405329b4fa574f240c8692117f55b5e5b0c5859d0af0cf8503dad9a",
+    "docs/_internal/opts/requirements/迭代51-因子流批一体与Alpha003-SimNow实盘示例/evidence/ctp-nojoin-native-20261027/installed-preflight.json": "19508febc6d8e85cfbf51a24f8a92092268ddcbebd1cee7b85b3837cb0a3251b"
+  }
+}
