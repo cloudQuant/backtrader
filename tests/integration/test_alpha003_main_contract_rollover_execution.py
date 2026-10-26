@@ -507,8 +507,9 @@ def _run_rollover(tmp_path, monkeypatch, *, unknown_dispatch=False):
         def connection_generation(self):
             return self._connection_generation
 
-        def start(self, block=False):
+        def start(self, *, block, join_observer):
             assert block is False
+            assert join_observer is False
 
         def wait_ready(self, timeout=20):
             del timeout
@@ -684,8 +685,9 @@ def _run_rollover(tmp_path, monkeypatch, *, unknown_dispatch=False):
             self._provider_orders = {}
             self._fake_active_capability = None
 
-        def start(self, block=False):
+        def start(self, *, block, join_observer):
             assert block is False
+            assert join_observer is False
 
         def wait_ready(self, timeout=20):
             del timeout
@@ -1064,24 +1066,39 @@ def _run_rollover(tmp_path, monkeypatch, *, unknown_dispatch=False):
         ),
     )
     monkeypatch.setattr(RUNNER, "RunnerWallClock", lambda: clock)
-    monkeypatch.setattr(
-        RUNNER,
-        "_live_env_config",
-        lambda _config: (
-            {
+
+    def protected_store_config(_config, *, override=None):
+        if override is None:
+            resolved_config = {
                 **simnow_store_config,
                 "broker_id": "9999",
                 "investor_id": "fixture",
                 "password": "unused",
-            },
-            {
-                "live_tick_provenance": {
-                    "clock_domain_id": config["cohort"]["clock_domain_id"],
-                    "rules_hash": "a" * 64,
-                    "session_segment": current_context["value"].source_events[0]["session_segment"],
-                }
-            },
-        ),
+            }
+            resolved_api_kwargs = {"ctp_join_observer": True}
+        else:
+            resolved_config, resolved_api_kwargs = RUNNER._validated_live_store_config(override)
+            resolved_api_kwargs = dict(resolved_api_kwargs)
+        resolved_api_kwargs["live_tick_provenance"] = {
+            "clock_domain_id": config["cohort"]["clock_domain_id"],
+            "rules_hash": "a" * 64,
+            "session_segment": current_context["value"].source_events[0]["session_segment"],
+        }
+        return resolved_config, resolved_api_kwargs
+
+    monkeypatch.setattr(
+        RUNNER,
+        "_live_env_config",
+        protected_store_config,
+    )
+    monkeypatch.setattr(
+        RUNNER,
+        "validate_official_simnow_store_profile",
+        lambda _config, _api_kwargs: {
+            "verified": True,
+            "environment": "simnow",
+            "profile": "simnow",
+        },
     )
     monkeypatch.setattr(
         journal_module,
@@ -1768,6 +1785,15 @@ def _run_rollover(tmp_path, monkeypatch, *, unknown_dispatch=False):
             1,
             decision=SimpleNamespace(effective_tier="live"),
             allow_write_flag=True,
+            _live_store_config_override={
+                "config": {
+                    **simnow_store_config,
+                    "broker_id": "9999",
+                    "investor_id": "fixture",
+                    "password": "unused",
+                },
+                "api_kwargs": {"ctp_join_observer": True},
+            },
         )
     except BaseException as error:
         diagnostic = failure_facts(error)

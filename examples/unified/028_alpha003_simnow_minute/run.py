@@ -4514,13 +4514,15 @@ def run_live(
         nonlocal store
         if store is not None:
             return store
+        wrapper_api_kwargs = dict(api_kwargs)
+        wrapper_api_kwargs["ctp_join_observer"] = False
         store = RegisteredSimStore(
             provider="ctp",
             backend="direct",
             allow_writes=write_enabled,
             preserve_raw_bars=True,
             config=store_config,
-            api_kwargs=api_kwargs,
+            api_kwargs=wrapper_api_kwargs,
         )
         if store.registered_sim_route_id != "simnow-registered-v1" or store.sdk_api is not None:
             raise RunnerError("REGISTERED_SIM_STORE_CONTRACT_INVALID")

@@ -1,0 +1,435 @@
+{
+  "bytecode_exceptions": [
+    {
+      "distribution": "numpy",
+      "path": "numpy/distutils/__pycache__/conv_template.cpython-311.pyc",
+      "source": {
+        "path": "D:\\temp\\i51-ctp-nojoin-consumer-20261027-r1\\consumer\\Lib\\site-packages\\numpy\\distutils\\conv_template.py",
+        "size_bytes": 9865,
+        "sha256": "84bd030f2eed309fb923eeb70669169282cd5f67391a241d4218fe5cd1b74e6f"
+      },
+      "cache": {
+        "path": "D:\\temp\\i51-ctp-nojoin-consumer-20261027-r1\\consumer\\Lib\\site-packages\\numpy\\distutils\\__pycache__\\conv_template.cpython-311.pyc",
+        "size_bytes": 14237,
+        "sha256": "b364b0be3abc2c68b30db40a3cdc1dc96531f7dfae8ca9abe098d3450d836bc7"
+      },
+      "compiled_source_code_equality": true,
+      "original_record_matches": false
+    }
+  ],
+  "status": "PASS_INSTALLED_ARTIFACT_ONLY",
+  "consumer": "D:\\temp\\i51-ctp-nojoin-consumer-20261027-r1\\consumer",
+  "executable": "D:\\temp\\i51-ctp-nojoin-consumer-20261027-r1\\consumer\\Scripts\\python.exe",
+  "isolated": true,
+  "client": {
+    "path": "D:\\temp\\i51-ctp-nojoin-consumer-20261027-r1\\consumer\\Lib\\site-packages\\bt_api_ctp\\ctp\\client.py",
+    "size_bytes": 505552,
+    "sha256": "14a8f80d0ee0f14d8e57affefdaf850a255d31ff6fa478962060d7b37e8b3264"
+  },
+  "distributions": [
+    {
+      "name": "PyYAML",
+      "version": "6.0.3",
+      "record": {
+        "path": "D:\\temp\\i51-ctp-nojoin-consumer-20261027-r1\\consumer\\Lib\\site-packages\\pyyaml-6.0.3.dist-info\\RECORD",
+        "size_bytes": 2693,
+        "sha256": "5502bf031eeaa2a389656b0c0a6175c8a01a766a9328f53600e59229a662c0a4"
+      },
+      "hashed_entries_verified": 24
+    },
+    {
+      "name": "aiohappyeyeballs",
+      "version": "2.7.1",
+      "record": {
+        "path": "D:\\temp\\i51-ctp-nojoin-consumer-20261027-r1\\consumer\\Lib\\site-packages\\aiohappyeyeballs-2.7.1.dist-info\\RECORD",
+        "size_bytes": 1218,
+        "sha256": "45f18d48ff8e52ffbe79f01cacbb0a53773e364dab9658a2ad91325045fe7937"
+      },
+      "hashed_entries_verified": 10
+    },
+    {
+      "name": "aiohttp",
+      "version": "3.14.5",
+      "record": {
+        "path": "D:\\temp\\i51-ctp-nojoin-consumer-20261027-r1\\consumer\\Lib\\site-packages\\aiohttp-3.14.5.dist-info\\RECORD",
+        "size_bytes": 8897,
+        "sha256": "7b069e3f8f6a995183ce714a9d1bad8de9afc1987da0b5a21f34f9113fe769e0"
+      },
+      "hashed_entries_verified": 73
+    },
+    {
+      "name": "aiosignal",
+      "version": "1.4.0",
+      "record": {
+        "path": "D:\\temp\\i51-ctp-nojoin-consumer-20261027-r1\\consumer\\Lib\\site-packages\\aiosignal-1.4.0.dist-info\\RECORD",
+        "size_bytes": 703,
+        "sha256": "d3e57df9e057ca8644294c218c0578bb19b43e5b2c6e254c57eba9389128b911"
+      },
+      "hashed_entries_verified": 7
+    },
+    {
+      "name": "annotated-types",
+      "version": "0.8.0",
+      "record": {
+        "path": "D:\\temp\\i51-ctp-nojoin-consumer-20261027-r1\\consumer\\Lib\\site-packages\\annotated_types-0.8.0.dist-info\\RECORD",
+        "size_bytes": 802,
+        "sha256": "7019741c16d7c811aa59c4305c47e85bfb62c1a9925e83f16fb69f4a66b63fff"
+      },
+      "hashed_entries_verified": 7
+    },
+    {
+      "name": "anyio",
+      "version": "4.15.1",
+      "record": {
+        "path": "D:\\temp\\i51-ctp-nojoin-consumer-20261027-r1\\consumer\\Lib\\site-packages\\anyio-4.15.1.dist-info\\RECORD",
+        "size_bytes": 6796,
+        "sha256": "b0bf832444c3e07a552f27b779db650c6e3a23c1e6a5bf2fd670ab04da6475ba"
+      },
+      "hashed_entries_verified": 53
+    },
+    {
+      "name": "attrs",
+      "version": "26.1.0",
+      "record": {
+        "path": "D:\\temp\\i51-ctp-nojoin-consumer-20261027-r1\\consumer\\Lib\\site-packages\\attrs-26.1.0.dist-info\\RECORD",
+        "size_bytes": 3556,
+        "sha256": "8f04447f4570c82492a9e989da7bae92bb7242e3996cea3a21602ed09c73295b"
+      },
+      "hashed_entries_verified": 35
+    },
+    {
+      "name": "bt_api_base",
+      "version": "0.15.8",
+      "record": {
+        "path": "D:\\temp\\i51-ctp-nojoin-consumer-20261027-r1\\consumer\\Lib\\site-packages\\bt_api_base-0.15.8.dist-info\\RECORD",
+        "size_bytes": 15821,
+        "sha256": "6284d7236b283cbcc5599d2ad14e5ab81d83d93ee641392ef612acbe1df54dda"
+      },
+      "hashed_entries_verified": 103,
+      "wheel": {
+        "path": "D:\\temp\\ac51-r0-sdk-20261026-r2\\offline-wheelhouse\\bt_api_base-0.15.8-py3-none-any.whl",
+        "size_bytes": 153051,
+        "sha256": "b579a73531281d74f6e1630d447717b9f87e38bf507d82178d9ad46745017f39"
+      },
+      "wheel_payload_entries_verified": 96
+    },
+    {
+      "name": "bt_api_ctp",
+      "version": "2.0.4+iteration41.i9",
+      "record": {
+        "path": "D:\\temp\\i51-ctp-nojoin-consumer-20261027-r1\\consumer\\Lib\\site-packages\\bt_api_ctp-2.0.4+iteration41.i9.dist-info\\RECORD",
+        "size_bytes": 14197,
+        "sha256": "928671c3cb7f211f2157b183e9d033e7afdddfbea153d6f4eba995e87956e8a1"
+      },
+      "hashed_entries_verified": 96,
+      "wheel": {
+        "path": "D:\\temp\\i51-ctp-nojoin-wheel-20261027-r1\\wheelhouse\\bt_api_ctp-2.0.4+iteration41.i9-cp311-cp311-win_amd64.whl",
+        "size_bytes": 5484867,
+        "sha256": "32811ab303cd875274fc9d69ee3ca3f29d83c33d9d5217f4eadd037cb07123d7"
+      },
+      "wheel_payload_entries_verified": 89
+    },
+    {
+      "name": "certifi",
+      "version": "2026.10.23",
+      "record": {
+        "path": "D:\\temp\\i51-ctp-nojoin-consumer-20261027-r1\\consumer\\Lib\\site-packages\\certifi-2026.10.23.dist-info\\RECORD",
+        "size_bytes": 1307,
+        "sha256": "a2a5c62a48a9735bdff81893282809924a9a1f66f8a89d71bc37f9b422057d34"
+      },
+      "hashed_entries_verified": 12
+    },
+    {
+      "name": "charset-normalizer",
+      "version": "3.5.2",
+      "record": {
+        "path": "D:\\temp\\i51-ctp-nojoin-consumer-20261027-r1\\consumer\\Lib\\site-packages\\charset_normalizer-3.5.2.dist-info\\RECORD",
+        "size_bytes": 2769,
+        "sha256": "7d971f2f6bf9a45e5b997a02c5c30b2ebd90efee4f1b0deee9e067eaa6c25cf9"
+      },
+      "hashed_entries_verified": 22
+    },
+    {
+      "name": "frozenlist",
+      "version": "1.8.0",
+      "record": {
+        "path": "D:\\temp\\i51-ctp-nojoin-consumer-20261027-r1\\consumer\\Lib\\site-packages\\frozenlist-1.8.0.dist-info\\RECORD",
+        "size_bytes": 980,
+        "sha256": "c511cce27a5b5f0f7efb57f3faec2dd7c048d7eb124bc6d2bedaefb3e1269195"
+      },
+      "hashed_entries_verified": 10
+    },
+    {
+      "name": "h11",
+      "version": "0.16.0",
+      "record": {
+        "path": "D:\\temp\\i51-ctp-nojoin-consumer-20261027-r1\\consumer\\Lib\\site-packages\\h11-0.16.0.dist-info\\RECORD",
+        "size_bytes": 1830,
+        "sha256": "8e391456f4e0da0be0a48c231c89bcdf4f4ac33237f03a9b247b3fc2458f1983"
+      },
+      "hashed_entries_verified": 17
+    },
+    {
+      "name": "httpcore",
+      "version": "1.0.9",
+      "record": {
+        "path": "D:\\temp\\i51-ctp-nojoin-consumer-20261027-r1\\consumer\\Lib\\site-packages\\httpcore-1.0.9.dist-info\\RECORD",
+        "size_bytes": 4762,
+        "sha256": "36bec67b7063830936845ab96e5ea8340673e25414860e865929e465f7d00175"
+      },
+      "hashed_entries_verified": 36
+    },
+    {
+      "name": "httpx",
+      "version": "0.28.1",
+      "record": {
+        "path": "D:\\temp\\i51-ctp-nojoin-consumer-20261027-r1\\consumer\\Lib\\site-packages\\httpx-0.28.1.dist-info\\RECORD",
+        "size_bytes": 3530,
+        "sha256": "dcae9cb31d2a117504300fb5d0174ad6047e6cdbc636fa60be43afeeaf852fce"
+      },
+      "hashed_entries_verified": 30
+    },
+    {
+      "name": "idna",
+      "version": "3.20",
+      "record": {
+        "path": "D:\\temp\\i51-ctp-nojoin-consumer-20261027-r1\\consumer\\Lib\\site-packages\\idna-3.20.dist-info\\RECORD",
+        "size_bytes": 1793,
+        "sha256": "cd2aa33d8339023db33c3e7a5da9cf0f9f83b9f6974e4787ee161a8bb375928c"
+      },
+      "hashed_entries_verified": 17
+    },
+    {
+      "name": "multidict",
+      "version": "7.2.1",
+      "record": {
+        "path": "D:\\temp\\i51-ctp-nojoin-consumer-20261027-r1\\consumer\\Lib\\site-packages\\multidict-7.2.1.dist-info\\RECORD",
+        "size_bytes": 1546,
+        "sha256": "106398c4efeae54498daad3c2e2fc461ba6998a5b0f39ce948ea9f5f75c33a24"
+      },
+      "hashed_entries_verified": 15
+    },
+    {
+      "name": "numpy",
+      "version": "1.26.4",
+      "record": {
+        "path": "D:\\temp\\i51-ctp-nojoin-consumer-20261027-r1\\consumer\\Lib\\site-packages\\numpy-1.26.4.dist-info\\RECORD",
+        "size_bytes": 117116,
+        "sha256": "4f04551aa1d9ae3628bd455acc475ddbe396963b9361e2d8ddbbc870ed1a31ad"
+      },
+      "hashed_entries_verified": 934
+    },
+    {
+      "name": "packaging",
+      "version": "26.3",
+      "record": {
+        "path": "D:\\temp\\i51-ctp-nojoin-consumer-20261027-r1\\consumer\\Lib\\site-packages\\packaging-26.3.dist-info\\RECORD",
+        "size_bytes": 3581,
+        "sha256": "d809e069eb5ed0248f046e18502bd4ccd13a417d8e1112079952ddf4433a213d"
+      },
+      "hashed_entries_verified": 29
+    },
+    {
+      "name": "pandas",
+      "version": "3.0.6",
+      "record": {
+        "path": "D:\\temp\\i51-ctp-nojoin-consumer-20261027-r1\\consumer\\Lib\\site-packages\\pandas-3.0.6.dist-info\\RECORD",
+        "size_bytes": 249327,
+        "sha256": "125171de90e4a1f5064e65ebad98f1e68566616aa66d18380458bcb7621bfb43"
+      },
+      "hashed_entries_verified": 1568
+    },
+    {
+      "name": "pip",
+      "version": "23.2.1",
+      "record": {
+        "path": "D:\\temp\\i51-ctp-nojoin-consumer-20261027-r1\\consumer\\Lib\\site-packages\\pip-23.2.1.dist-info\\RECORD",
+        "size_bytes": 77283,
+        "sha256": "f83a5ba40f8a90eadeadc3395b72fa8c8b17a5569fd173493d42d9f9e5a41080"
+      },
+      "hashed_entries_verified": 511
+    },
+    {
+      "name": "propcache",
+      "version": "0.5.4",
+      "record": {
+        "path": "D:\\temp\\i51-ctp-nojoin-consumer-20261027-r1\\consumer\\Lib\\site-packages\\propcache-0.5.4.dist-info\\RECORD",
+        "size_bytes": 1366,
+        "sha256": "df80b358268fb34c6b327f842d9009a0d4c8db6e8a663e9be30cbc2617c232c1"
+      },
+      "hashed_entries_verified": 13
+    },
+    {
+      "name": "pyarrow",
+      "version": "25.0.1",
+      "record": {
+        "path": "D:\\temp\\i51-ctp-nojoin-consumer-20261027-r1\\consumer\\Lib\\site-packages\\pyarrow-25.0.1.dist-info\\RECORD",
+        "size_bytes": 78480,
+        "sha256": "fb609eb96c242698f23c25bb21ead61e4d3b626e581e7b26147e236534e9e519"
+      },
+      "hashed_entries_verified": 760
+    },
+    {
+      "name": "pydantic",
+      "version": "2.14.1",
+      "record": {
+        "path": "D:\\temp\\i51-ctp-nojoin-consumer-20261027-r1\\consumer\\Lib\\site-packages\\pydantic-2.14.1.dist-info\\RECORD",
+        "size_bytes": 15439,
+        "sha256": "d64f68d7d3ae1eba2b28fa030a452c08c841c52e1c8195d00c98c5205ecd73fe"
+      },
+      "hashed_entries_verified": 111
+    },
+    {
+      "name": "pydantic_core",
+      "version": "2.50.1",
+      "record": {
+        "path": "D:\\temp\\i51-ctp-nojoin-consumer-20261027-r1\\consumer\\Lib\\site-packages\\pydantic_core-2.50.1.dist-info\\RECORD",
+        "size_bytes": 1228,
+        "sha256": "c4d89cc09e6cb3a5ad70339853277a54ff6470591bed670500f53dca8eeacc8c"
+      },
+      "hashed_entries_verified": 11
+    },
+    {
+      "name": "python-dateutil",
+      "version": "3.0.0",
+      "record": {
+        "path": "D:\\temp\\i51-ctp-nojoin-consumer-20261027-r1\\consumer\\Lib\\site-packages\\python_dateutil-3.0.0.dist-info\\RECORD",
+        "size_bytes": 3389,
+        "sha256": "d67decdc87c8aa39b367d423241a3de5723aa174e8cb3808aa90620a22875613"
+      },
+      "hashed_entries_verified": 27
+    },
+    {
+      "name": "python-dotenv",
+      "version": "1.2.4",
+      "record": {
+        "path": "D:\\temp\\i51-ctp-nojoin-consumer-20261027-r1\\consumer\\Lib\\site-packages\\python_dotenv-1.2.4.dist-info\\RECORD",
+        "size_bytes": 1739,
+        "sha256": "eca5c1bcca3d54811ac1f51e6f5ad318365b5a2885b06d67b062be3f62c6f4cd"
+      },
+      "hashed_entries_verified": 16
+    },
+    {
+      "name": "python-rapidjson",
+      "version": "1.25",
+      "record": {
+        "path": "D:\\temp\\i51-ctp-nojoin-consumer-20261027-r1\\consumer\\Lib\\site-packages\\python_rapidjson-1.25.dist-info\\RECORD",
+        "size_bytes": 1057,
+        "sha256": "48b79b8cdb67fe65bb05b3ddad64638c995fafa9e25e8ea42ce59f68f4fb60c2"
+      },
+      "hashed_entries_verified": 10
+    },
+    {
+      "name": "pytz",
+      "version": "2026.5",
+      "record": {
+        "path": "D:\\temp\\i51-ctp-nojoin-consumer-20261027-r1\\consumer\\Lib\\site-packages\\pytz-2026.5.dist-info\\RECORD",
+        "size_bytes": 53012,
+        "sha256": "d6d2cc7be530fb5a6916fb205bf7bd2b2c94184a06405cad1974cedeccf6974f"
+      },
+      "hashed_entries_verified": 616
+    },
+    {
+      "name": "requests",
+      "version": "2.34.2",
+      "record": {
+        "path": "D:\\temp\\i51-ctp-nojoin-consumer-20261027-r1\\consumer\\Lib\\site-packages\\requests-2.34.2.dist-info\\RECORD",
+        "size_bytes": 3063,
+        "sha256": "95f5b02ec24d1187982de368c0f5cafc8006fb2c409d624fc7140a184c6040a8"
+      },
+      "hashed_entries_verified": 26
+    },
+    {
+      "name": "setuptools",
+      "version": "65.5.0",
+      "record": {
+        "path": "D:\\temp\\i51-ctp-nojoin-consumer-20261027-r1\\consumer\\Lib\\site-packages\\setuptools-65.5.0.dist-info\\RECORD",
+        "size_bytes": 37694,
+        "sha256": "bfb77a968e06417bd37023bf1a2d7f1aae9d8e74231665d6699d5bb82bdbd7b0"
+      },
+      "hashed_entries_verified": 242
+    },
+    {
+      "name": "six",
+      "version": "1.17.0",
+      "record": {
+        "path": "D:\\temp\\i51-ctp-nojoin-consumer-20261027-r1\\consumer\\Lib\\site-packages\\six-1.17.0.dist-info\\RECORD",
+        "size_bytes": 561,
+        "sha256": "6eca8f3767a4e15a8317acec57d36e1248342e307b4a20bebbbfa713befaa539"
+      },
+      "hashed_entries_verified": 6
+    },
+    {
+      "name": "typing-inspection",
+      "version": "0.4.4",
+      "record": {
+        "path": "D:\\temp\\i51-ctp-nojoin-consumer-20261027-r1\\consumer\\Lib\\site-packages\\typing_inspection-0.4.4.dist-info\\RECORD",
+        "size_bytes": 1076,
+        "sha256": "8f9b37d93c3d625c0fdd46a3e93f9ce54ffbb29006a0a43678e509f419f63ce0"
+      },
+      "hashed_entries_verified": 9
+    },
+    {
+      "name": "typing_extensions",
+      "version": "4.16.0",
+      "record": {
+        "path": "D:\\temp\\i51-ctp-nojoin-consumer-20261027-r1\\consumer\\Lib\\site-packages\\typing_extensions-4.16.0.dist-info\\RECORD",
+        "size_bytes": 580,
+        "sha256": "61d86db5843e537a7a8d095771289016a5bbfe26fdeace2b655dd0c7503f042a"
+      },
+      "hashed_entries_verified": 5
+    },
+    {
+      "name": "tzdata",
+      "version": "2026.5",
+      "record": {
+        "path": "D:\\temp\\i51-ctp-nojoin-consumer-20261027-r1\\consumer\\Lib\\site-packages\\tzdata-2026.5.dist-info\\RECORD",
+        "size_bytes": 56828,
+        "sha256": "ad4461e35e22f73c8ec720efcfb698df8ed321422b8a2bf6afdda5179575a9da"
+      },
+      "hashed_entries_verified": 633
+    },
+    {
+      "name": "urllib3",
+      "version": "2.8.0",
+      "record": {
+        "path": "D:\\temp\\i51-ctp-nojoin-consumer-20261027-r1\\consumer\\Lib\\site-packages\\urllib3-2.8.0.dist-info\\RECORD",
+        "size_bytes": 5528,
+        "sha256": "f87d8c54005fc26bbff3946861e1f8876e8af9c5c2024716a4f041022a527f70"
+      },
+      "hashed_entries_verified": 42
+    },
+    {
+      "name": "websocket-client",
+      "version": "1.9.2",
+      "record": {
+        "path": "D:\\temp\\i51-ctp-nojoin-consumer-20261027-r1\\consumer\\Lib\\site-packages\\websocket_client-1.9.2.dist-info\\RECORD",
+        "size_bytes": 5763,
+        "sha256": "7183ec91a83d048bd77b6d0f67a311f3124937af03320b01bd6a0e5c4c4188b3"
+      },
+      "hashed_entries_verified": 44
+    },
+    {
+      "name": "websockets",
+      "version": "17.3",
+      "record": {
+        "path": "D:\\temp\\i51-ctp-nojoin-consumer-20261027-r1\\consumer\\Lib\\site-packages\\websockets-17.3.dist-info\\RECORD",
+        "size_bytes": 8173,
+        "sha256": "8487089483404f92005ed1caedf883af84e8aeeeae74924a0e704e1288ce1f6a"
+      },
+      "hashed_entries_verified": 63
+    },
+    {
+      "name": "yarl",
+      "version": "1.25.1",
+      "record": {
+        "path": "D:\\temp\\i51-ctp-nojoin-consumer-20261027-r1\\consumer\\Lib\\site-packages\\yarl-1.25.1.dist-info\\RECORD",
+        "size_bytes": 1750,
+        "sha256": "872731f88e8258b8d9a91e6accfa335efa1463c1df38d3fc5f907f2fdae5e42c"
+      },
+      "hashed_entries_verified": 17
+    }
+  ],
+  "native_import_or_api_creation": false,
+  "formal_account_acceptance": false
+}

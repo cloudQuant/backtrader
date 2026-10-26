@@ -1954,6 +1954,29 @@ def _create_ctp_wrapper_class():
     _patch_spi_callbacks(ctp_client_module._MdSpi)
     _patch_spi_callbacks(ctp_client_module._TraderSpi)
 
+    def _supports_explicit_keyword(method, name):
+        if not callable(method):
+            return False
+        try:
+            parameter = inspect.signature(method).parameters.get(name)
+        except (TypeError, ValueError):
+            return False
+        return parameter is not None and parameter.kind in (
+            inspect.Parameter.POSITIONAL_OR_KEYWORD,
+            inspect.Parameter.KEYWORD_ONLY,
+        )
+
+    def _require_nojoin_start_support():
+        for client_cls in (MdClient, TraderClient):
+            start = getattr(client_cls, "start", None)
+            supports_start_contract = all(
+                _supports_explicit_keyword(start, name) for name in ("block", "join_observer")
+            )
+            if not supports_start_contract:
+                raise BtApiStoreError(
+                    "CTP SDK start methods must explicitly support block and join_observer"
+                )
+
     class CtpClientWrapper:
         """Wrapper for CTP market and trade clients."""
 
@@ -1969,7 +1992,14 @@ def _create_ctp_wrapper_class():
                     - password: Account password
                     - app_id: Application identifier (default: simnow_client_test)
                     - auth_code: Authentication code (default: 0000000000000000)
+                    - ctp_join_observer: Join each SDK startup observer (default: True)
             """
+            ctp_join_observer = kwargs.get("ctp_join_observer", True)
+            if type(ctp_join_observer) is not bool:
+                raise TypeError("ctp_join_observer must be bool")
+            if not ctp_join_observer:
+                _require_nojoin_start_support()
+            self._ctp_join_observer = ctp_join_observer
             self.md_front = kwargs.get("md_address") or kwargs.get("md_front")
             self.td_front = kwargs.get("td_address") or kwargs.get("td_front")
             self.broker_id = kwargs.get("broker_id", "")
@@ -2041,6 +2071,11 @@ def _create_ctp_wrapper_class():
             # EXCHANGE.INSTRUMENT identity resolved during admission, reused
             # so order fields carry the exchange the gate authorized.
             self._execution_instrument_exchanges = {}
+
+        @property
+        def ctp_join_observer(self):
+            """Return the immutable startup observer-join option."""
+            return self._ctp_join_observer
 
         def _resolve_gate_exchange(self, instrument, exchange_id):
             """Reuse the exchange resolved during registered-sim admission."""
@@ -2348,9 +2383,14 @@ def _create_ctp_wrapper_class():
             self.trader_client.on_trade = self._handle_trade
             self.trader_client.on_error = self._handle_trader_error
 
-            # Start clients in non-blocking mode
-            self.md_client.start(block=False)
-            self.trader_client.start(block=False)
+            # Keep the legacy call shape by default. The opt-out is only
+            # enabled after both SDK start signatures were checked explicitly.
+            if self.ctp_join_observer:
+                self.md_client.start(block=False)
+                self.trader_client.start(block=False)
+            else:
+                self.md_client.start(block=False, join_observer=False)
+                self.trader_client.start(block=False, join_observer=False)
 
             if not self.md_client.wait_ready(timeout=20):
                 raise BtApiStoreError("CTP market data login did not become ready within 20s")

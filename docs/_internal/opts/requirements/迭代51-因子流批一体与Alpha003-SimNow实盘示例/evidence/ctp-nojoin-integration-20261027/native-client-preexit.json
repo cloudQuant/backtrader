@@ -1,0 +1,1 @@
+{"clients_released": 2, "gate_status": "PASS_LOCAL_LOOPBACK_NOJOIN_LIFECYCLE_ONLY", "host_exit_observed": false, "managed_worker_count": 0, "result_sha256": "cc8eea90b0fda068d7583f49e24c74ae4144638c2a46a25ac41a33d37bfc3b0e", "source_and_records_reverified": true, "status": "PASS_PREEXIT"}

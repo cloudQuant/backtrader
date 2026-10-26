@@ -1,0 +1,8 @@
+{
+  "commit": "574cd2dd495a3c675d7cd23fcbf23a797a08c04d",
+  "source_zip_sha256": "69224282a262221a864a28dea2300ae4a902e1b45dd3e7c57fb1b0e1f2737960",
+  "client_export_sha256": "14a8f80d0ee0f14d8e57affefdaf850a255d31ff6fa478962060d7b37e8b3264",
+  "client_git_lf_sha256": "ab11ec060c5f447e1fb70ce462f4add2753cf6b9c5c017b1a1b6bf3fa97518b8",
+  "git_archive_only": true,
+  "precheck_correction": "Initial raw equality assertion stopped before build because git archive exports CRLF under configured attributes; normalized exact equality verified without changing exported bytes."
+}

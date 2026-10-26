@@ -138,13 +138,23 @@ def _datetime_proxy(clock):
 
 
 def _source_bars(tape, plan):
-    planned_closes = {minute.close_time for minute in plan["grid"].minutes}
+    planned_by_close = {minute.close_time: minute for minute in plan["grid"].minutes}
     bars = defaultdict(deque)
     for source in tape["bars"]:
         end = datetime.fromisoformat(source["bucket_end"].replace("Z", "+00:00"))
-        if end not in planned_closes:
+        minute = planned_by_close.get(end)
+        if minute is None:
             continue
         row = dict(source)
+        # The offline source tape writes ISO dates, while the direct CTP live
+        # cohort's planned member sessions use the compact CTP TradingDay form.
+        product = plan["product_by_target"][row["target"]]
+        member = next((item for item in minute.members if item.product == product), None)
+        assert member is not None
+        row_day = datetime.fromisoformat(row["trading_day"]).date()
+        row["trading_day"] = row_day.strftime("%Y%m%d")
+        assert row["trading_day"] == member.trading_day.strftime("%Y%m%d")
+        assert row["session_segment"] == member.session_id
         for name in ("bucket_start", "bucket_end", "available_at"):
             row[name] = datetime.fromisoformat(row[name].replace("Z", "+00:00"))
         bars[row["instrument"]].append(row)
@@ -365,8 +375,9 @@ def test_run_live_scopes_dispatch_recovery_before_queries_and_replays_after_rest
         def connection_generation(self):
             return self._connection_generation
 
-        def start(self, block=False):
+        def start(self, *, block, join_observer):
             assert block is False
+            assert join_observer is False
 
         def wait_ready(self, timeout=20):
             del timeout
@@ -487,8 +498,9 @@ def test_run_live_scopes_dispatch_recovery_before_queries_and_replays_after_rest
             self._session_id = 7
             self.stopped = False
 
-        def start(self, block=False):
+        def start(self, *, block, join_observer):
             assert block is False
+            assert join_observer is False
 
         def wait_ready(self, timeout=20):
             del timeout
@@ -592,6 +604,7 @@ def test_run_live_scopes_dispatch_recovery_before_queries_and_replays_after_rest
         "password": "synthetic-only",
     }
     api_kwargs = {
+        "ctp_join_observer": True,
         "live_tick_provenance": {
             "clock_domain_id": first_bar["clock_domain_id"],
             "rules_hash": "a" * 64,
@@ -599,6 +612,15 @@ def test_run_live_scopes_dispatch_recovery_before_queries_and_replays_after_rest
         }
     }
     monkeypatch.setattr(RUNNER, "_live_env_config", lambda _config: (store_config, api_kwargs))
+    monkeypatch.setattr(
+        RUNNER,
+        "validate_official_simnow_store_profile",
+        lambda _config, _api_kwargs: {
+            "verified": True,
+            "environment": "simnow",
+            "profile": "simnow",
+        },
+    )
     monkeypatch.setattr(RUNNER, "RunnerWallClock", lambda: current_clock())
 
     real_datetime_proxy = _datetime_proxy
