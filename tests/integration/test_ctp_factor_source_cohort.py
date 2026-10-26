@@ -53,6 +53,36 @@ _INSTRUMENTS = {
 }
 
 
+class _FakeCtpNativeStopReceipt:
+    __module__ = "bt_api_ctp.ctp.client"
+
+    def __init__(
+        self,
+        connection_generation,
+        *,
+        join_required=False,
+        join_completed=True,
+        native_released=True,
+        thread_alive=False,
+        timed_out=False,
+    ):
+        self.connection_generation = connection_generation
+        self.join_required = join_required
+        self.join_completed = join_completed
+        self.native_released = native_released
+        self.thread_alive = thread_alive
+        self.timed_out = timed_out
+
+    @property
+    def complete(self):
+        return (
+            self.native_released is True
+            and (self.join_required is False or self.join_completed is True)
+            and self.thread_alive is False
+            and self.timed_out is False
+        )
+
+
 def _target_id(product):
     return "{}-{}".format(product.exchange_id, product.product_id)
 
@@ -73,6 +103,9 @@ def _install_fake_ctp_sdk(monkeypatch):
             self.start_calls = []
             self.subscriptions = []
             self.stop_count = 0
+            self.stop_wait_count = 0
+            self.join_observer = False
+            self.stop_receipt_override = _AUTO
             instances["md"].append(self)
 
         @property
@@ -80,10 +113,11 @@ def _install_fake_ctp_sdk(monkeypatch):
             with self._state_lock:
                 return self._connection_generation
 
-        def start(self, *, block, join_observer):
+        def start(self, *, block, join_observer=True):
             self.start_calls.append((block, join_observer))
             assert block is False
-            assert join_observer is False
+            assert type(join_observer) is bool
+            self.join_observer = join_observer
 
         def wait_ready(self, timeout=20):
             del timeout
@@ -116,6 +150,16 @@ def _install_fake_ctp_sdk(monkeypatch):
         def stop(self):
             self.stop_count += 1
 
+        def stop_and_wait(self, timeout=2.0):
+            self.stop_wait_count += 1
+            assert 0.0 <= timeout <= 2.0
+            if self.stop_receipt_override is not _AUTO:
+                return self.stop_receipt_override
+            return _FakeCtpNativeStopReceipt(
+                self.connection_generation,
+                join_required=self.join_observer,
+            )
+
     class FakeTraderClient:
         def __init__(self, **_kwargs):
             self.on_login = None
@@ -132,12 +176,16 @@ def _install_fake_ctp_sdk(monkeypatch):
             self.start_calls = []
             self.order_writes = []
             self.stop_count = 0
+            self.stop_wait_count = 0
+            self.join_observer = False
+            self.stop_receipt_override = _AUTO
             instances["trader"].append(self)
 
-        def start(self, *, block, join_observer):
+        def start(self, *, block, join_observer=True):
             self.start_calls.append((block, join_observer))
             assert block is False
-            assert join_observer is False
+            assert type(join_observer) is bool
+            self.join_observer = join_observer
 
         def wait_ready(self, timeout=20):
             del timeout
@@ -149,6 +197,7 @@ def _install_fake_ctp_sdk(monkeypatch):
                 "ready": self.is_ready,
                 "auth_state": "unknown",
                 "login_state": "unknown",
+                "connection_generation": self._connection_generation,
             }
 
         def login_read_only(self, trading_day):
@@ -163,6 +212,16 @@ def _install_fake_ctp_sdk(monkeypatch):
         def stop(self):
             self.stop_count += 1
 
+        def stop_and_wait(self, timeout=2.0):
+            self.stop_wait_count += 1
+            assert 0.0 <= timeout <= 2.0
+            if self.stop_receipt_override is not _AUTO:
+                return self.stop_receipt_override
+            return _FakeCtpNativeStopReceipt(
+                self._connection_generation,
+                join_required=self.join_observer,
+            )
+
     package = types.ModuleType("bt_api_ctp")
     package.__path__ = []
     ctp_package = types.ModuleType("bt_api_ctp.ctp")
@@ -170,6 +229,7 @@ def _install_fake_ctp_sdk(monkeypatch):
     client_module = types.ModuleType("bt_api_ctp.ctp.client")
     client_module.MdClient = FakeMdClient
     client_module.TraderClient = FakeTraderClient
+    client_module.CtpNativeStopReceipt = _FakeCtpNativeStopReceipt
     client_module._MdSpi = type("_MdSpi", (), {})
     client_module._TraderSpi = type("_TraderSpi", (), {})
     package.ctp = ctp_package

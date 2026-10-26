@@ -3536,11 +3536,133 @@ def _cleanup_live_resource(cleanup, name, operation, *, project=None):
     return row
 
 
-def _store_stop_evidence(result):
+def _store_stop_evidence(result, *, ctp_factor_source_required=False):
     state = result.get("shutdown_state") if isinstance(result, Mapping) else None
     if type(state) is not str or state not in {"PASS", "FAIL", "INCOMPLETE", "NOT_STARTED"}:
         state = "UNPROVEN"
-    return {"shutdown_state": state}
+    evidence = {"shutdown_state": state}
+    if isinstance(result, Mapping) and "ctp_factor_source_shutdown" in result:
+        evidence["ctp_factor_source_shutdown"] = _ctp_factor_source_shutdown_evidence(
+            result.get("ctp_factor_source_shutdown")
+        )
+    elif ctp_factor_source_required:
+        evidence["ctp_factor_source_shutdown"] = {
+            "required": True,
+            "status": "UNPROVEN",
+        }
+    if ctp_factor_source_required and evidence.get("ctp_factor_source_shutdown", {}).get(
+        "required"
+    ) is not True:
+        evidence["ctp_factor_source_shutdown"] = {
+            "required": True,
+            "status": "UNPROVEN",
+        }
+    return evidence
+
+
+def _ctp_factor_source_shutdown_evidence(value):
+    """Allowlist the opted-in CTP lifecycle receipts used by cleanup gates."""
+    if not isinstance(value, Mapping):
+        return {"required": None, "status": "UNPROVEN"}
+    required = value.get("required")
+    if required is False and value.get("status") == "NOT_REQUIRED":
+        return {"required": False, "status": "NOT_REQUIRED"}
+    if required is not True:
+        return {"required": required if type(required) is bool else None, "status": "UNPROVEN"}
+
+    expected_md = value.get("expected_md_generation")
+    expected_trader = value.get("expected_trader_generation")
+    join_required = value.get("join_required")
+    reasons = value.get("reason_codes")
+    if isinstance(reasons, (tuple, list)) and all(type(reason) is str for reason in reasons):
+        reason_codes = tuple(reasons)
+    else:
+        reason_codes = ("reason_codes_unproven",)
+    projected = {
+        "required": True,
+        "status": "INCOMPLETE",
+        "expected_md_generation": expected_md if type(expected_md) is int else None,
+        "expected_trader_generation": expected_trader if type(expected_trader) is int else None,
+        "join_required": join_required if type(join_required) is bool else None,
+        "md_receipt": None,
+        "trader_receipt": None,
+        "reason_codes": reason_codes,
+    }
+
+    def project_receipt(receipt, generation):
+        if not isinstance(receipt, Mapping):
+            return None
+        fields = (
+            "connection_generation",
+            "join_required",
+            "join_completed",
+            "native_released",
+            "thread_alive",
+            "timed_out",
+            "complete",
+        )
+        row = {name: receipt.get(name) for name in fields}
+        if (
+            type(row["connection_generation"]) is not int
+            or type(generation) is not int
+            or row["connection_generation"] != generation
+            or type(row["join_required"]) is not bool
+            or type(row["join_completed"]) is not bool
+            or type(row["native_released"]) is not bool
+            or type(row["thread_alive"]) is not bool
+            or type(row["timed_out"]) is not bool
+            or type(row["complete"]) is not bool
+        ):
+            return None
+        return row
+
+    md_receipt = project_receipt(value.get("md_receipt"), expected_md)
+    trader_receipt = project_receipt(value.get("trader_receipt"), expected_trader)
+    projected["md_receipt"] = md_receipt
+    projected["trader_receipt"] = trader_receipt
+    md_complete = (
+        md_receipt is not None
+        and md_receipt["join_required"] is join_required
+        and md_receipt["native_released"] is True
+        and md_receipt["thread_alive"] is False
+        and md_receipt["timed_out"] is False
+        and md_receipt["complete"] is True
+        and (join_required is False or md_receipt["join_completed"] is True)
+    )
+    trader_complete = (
+        trader_receipt is not None
+        and trader_receipt["join_required"] is join_required
+        and trader_receipt["native_released"] is True
+        and trader_receipt["thread_alive"] is False
+        and trader_receipt["timed_out"] is False
+        and trader_receipt["complete"] is True
+        and (join_required is False or trader_receipt["join_completed"] is True)
+    )
+    if (
+        type(expected_md) is int
+        and expected_md > 0
+        and type(expected_trader) is int
+        and expected_trader > 0
+        and type(join_required) is bool
+        and md_complete
+        and trader_complete
+        and value.get("status") == "PASS"
+        and projected["reason_codes"] == ()
+    ):
+        projected["status"] = "PASS"
+    elif not projected["reason_codes"]:
+        projected["reason_codes"] = ("native_shutdown_receipt_incomplete",)
+    return projected
+
+
+def _ctp_factor_source_shutdown_complete(value):
+    """Require exact generation-bound native receipts only after source opt-in."""
+    if value is None:
+        return True
+    if isinstance(value, Mapping) and value.get("required") is False:
+        return value.get("status") == "NOT_REQUIRED"
+    projected = _ctp_factor_source_shutdown_evidence(value)
+    return projected.get("required") is True and projected.get("status") == "PASS"
 
 
 def _broker_shutdown_evidence(broker):
@@ -3817,6 +3939,9 @@ def _cleanup_complete(cleanup):
     store_state = store.get("shutdown_state")
     store_ok = (store.get("status") == "NOT_CREATED" and store_state == "NOT_CREATED") or (
         store.get("status") in {"RETURNED", "CLOSED_BY_BROKER"} and store_state == "PASS"
+    )
+    store_ok = store_ok and _ctp_factor_source_shutdown_complete(
+        store.get("ctp_factor_source_shutdown")
     )
     broker_status = broker.get("status")
     if broker_status in {"PASS", "OBSERVATION_ONLY", "OBSERVATION_ONLY_NONFLAT"}:
@@ -4523,6 +4648,7 @@ def run_live(
     clock = None
     query_session_ready = False
     selection_snapshot_id = None
+    ctp_factor_source_shutdown_required = False
 
     def create_store():
         nonlocal store
@@ -4647,6 +4773,7 @@ def run_live(
 
         if store is None:
             raise RunnerError("LIVE_CTP_STORE_UNAVAILABLE_FOR_FACTOR_SOURCE")
+        ctp_factor_source_shutdown_required = True
         expected_md_generation = store.enable_ctp_factor_tick_source()
         source_login = store.registered_sim_login_facts()
         source_trading_day_text = source_login.get("trading_day")
@@ -4935,27 +5062,45 @@ def run_live(
                 }
             )
         elif engine_ran:
-            if (
+            try:
+                store_health = store.get_command_health()
+                store_projection = _store_stop_evidence(
+                    store_health,
+                    ctp_factor_source_required=ctp_factor_source_shutdown_required,
+                )
+            except BaseException:
+                store_projection = {
+                    "shutdown_state": "UNPROVEN",
+                    "ctp_factor_source_shutdown": {
+                        "required": True,
+                        "status": "UNPROVEN",
+                    },
+                }
+            broker_closed = (
                 broker_evidence is not None
                 and broker_evidence.get("status")
                 in {"PASS", "OBSERVATION_ONLY", "OBSERVATION_ONLY_NONFLAT"}
                 and broker_evidence.get("store_shutdown_state") == "PASS"
+            )
+            source_closed = _ctp_factor_source_shutdown_complete(
+                store_projection.get("ctp_factor_source_shutdown")
+            )
+            if (
+                broker_closed
+                and store_projection.get("shutdown_state") == "PASS"
+                and source_closed
             ):
                 # Cerebro has already stopped the Broker, which owns this
                 # Store's lifecycle. Do not make a second stop call.
                 cleanup.append(
-                    {
-                        "resource": "store",
-                        "status": "CLOSED_BY_BROKER",
-                        "shutdown_state": "PASS",
-                    }
+                    {"resource": "store", "status": "CLOSED_BY_BROKER", **store_projection}
                 )
             else:
                 cleanup.append(
                     {
                         "resource": "store",
                         "status": "SKIPPED_BROKER_SHUTDOWN_UNPROVEN",
-                        "shutdown_state": "UNPROVEN",
+                        **store_projection,
                     }
                 )
         else:
@@ -4963,7 +5108,10 @@ def run_live(
                 cleanup,
                 "store",
                 store.stop,
-                project=_store_stop_evidence,
+                project=lambda summary: _store_stop_evidence(
+                    summary,
+                    ctp_factor_source_required=ctp_factor_source_shutdown_required,
+                ),
             )
 
         if journal is None:

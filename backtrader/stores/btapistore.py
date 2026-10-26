@@ -2063,7 +2063,18 @@ def _create_ctp_wrapper_class():
             # It is not a CTP wire sequence and does not certify continuity.
             self._ctp_factor_tick_source_enabled = False
             self._ctp_factor_expected_md_generation = None
+            self._ctp_factor_expected_trader_generation = None
+            self._ctp_factor_md_client = None
+            self._ctp_factor_trader_client = None
+            self._ctp_factor_join_required = None
             self._ctp_factor_callback_sequence = 0
+            self._ctp_factor_shutdown_attempted = False
+            self._ctp_factor_shutdown_lock = threading.Lock()
+            self._ctp_factor_unowned_replacement_refs = []
+            self._ctp_factor_shutdown_summary = {
+                "required": False,
+                "status": "NOT_REQUIRED",
+            }
             self._price_tick_cache = {}
             self._symbol_specs = {}
             self._order_updates: collections.deque = collections.deque()
@@ -2408,6 +2419,9 @@ def _create_ctp_wrapper_class():
             after client readiness, so a quote is not required before binding.
             """
 
+            if self._ctp_factor_tick_source_enabled and self._ctp_factor_shutdown_attempted:
+                raise BtApiStoreError("CTP_FACTOR_SOURCE_TERMINAL")
+
             with self._ctp_stream_health_lock:
                 client = self.md_client
                 generation = self._ctp_stream_source_generation
@@ -2427,17 +2441,192 @@ def _create_ctp_wrapper_class():
                     or client_generation != generation
                 ):
                     raise BtApiStoreError("CTP_FACTOR_MD_CALLBACK_SOURCE_UNAVAILABLE")
+                trader = self.trader_client
+                trader_state = trader.get_session_state() if trader is not None else None
+                trader_generation = (
+                    trader_state.get("connection_generation")
+                    if isinstance(trader_state, Mapping)
+                    else None
+                )
+                join_required = self.ctp_join_observer
+                if (
+                    type(trader_generation) is not int
+                    or trader_generation <= 0
+                    or type(join_required) is not bool
+                ):
+                    raise BtApiStoreError("CTP_FACTOR_TRADER_SOURCE_UNAVAILABLE")
                 if self._ctp_factor_tick_source_enabled:
-                    if self._ctp_factor_expected_md_generation != generation:
+                    if (
+                        client is not self._ctp_factor_md_client
+                        or trader is not self._ctp_factor_trader_client
+                        or self._ctp_factor_expected_md_generation != generation
+                        or self._ctp_factor_expected_trader_generation != trader_generation
+                        or self._ctp_factor_join_required is not join_required
+                    ):
                         raise BtApiStoreError("CTP_FACTOR_MD_CALLBACK_SOURCE_CHANGED")
                     return generation
                 self._ctp_factor_tick_source_enabled = True
+                self._ctp_factor_md_client = client
+                self._ctp_factor_trader_client = trader
                 self._ctp_factor_expected_md_generation = generation
+                self._ctp_factor_expected_trader_generation = trader_generation
+                self._ctp_factor_join_required = join_required
                 self._ctp_factor_callback_sequence = 0
+                self._ctp_factor_shutdown_summary = {
+                    "required": True,
+                    "status": "PENDING",
+                    "expected_md_generation": generation,
+                    "expected_trader_generation": trader_generation,
+                    "join_required": join_required,
+                    "md_receipt": None,
+                    "trader_receipt": None,
+                    "reason_codes": ("shutdown_not_observed",),
+                }
                 return generation
+
+        def _snapshot_ctp_native_stop_receipt(self, receipt, *, client_name, generation):
+            """Validate and project one exact SDK receipt without retaining SDK objects."""
+            receipt_type = getattr(ctp_client_module, "CtpNativeStopReceipt", None)
+            if receipt_type is None or type(receipt) is not receipt_type:
+                return None, (f"{client_name}_receipt_missing_or_untyped",), False
+            try:
+                receipt_generation = receipt.connection_generation
+                join_required = receipt.join_required
+                join_completed = receipt.join_completed
+                native_released = receipt.native_released
+                thread_alive = receipt.thread_alive
+                timed_out = receipt.timed_out
+                complete = receipt.complete
+            except Exception:
+                return None, (f"{client_name}_receipt_invalid",), False
+            if (
+                type(receipt_generation) is not int
+                or type(join_required) is not bool
+                or type(join_completed) is not bool
+                or type(native_released) is not bool
+                or type(thread_alive) not in (bool, type(None))
+                or type(timed_out) is not bool
+                or type(complete) is not bool
+            ):
+                return None, (f"{client_name}_receipt_invalid",), False
+            snapshot = {
+                "connection_generation": receipt_generation,
+                "join_required": join_required,
+                "join_completed": join_completed,
+                "native_released": native_released,
+                "thread_alive": thread_alive,
+                "timed_out": timed_out,
+                "complete": complete,
+            }
+            reasons = []
+            if receipt_generation != generation:
+                reasons.append(f"{client_name}_generation_mismatch")
+            if join_required is not self._ctp_factor_join_required:
+                reasons.append(f"{client_name}_join_policy_mismatch")
+            if complete is not True:
+                reasons.append(f"{client_name}_receipt_incomplete")
+            return snapshot, tuple(reasons), not reasons
+
+        def _collect_ctp_factor_source_shutdown(self):
+            """Observe Release receipts for the two clients bound to this run."""
+            if not self._ctp_factor_tick_source_enabled:
+                return
+            with self._ctp_factor_shutdown_lock:
+                if self._ctp_factor_shutdown_attempted:
+                    return
+                self._ctp_factor_shutdown_attempted = True
+
+            clients = (
+                ("md", self._ctp_factor_md_client, self._ctp_factor_expected_md_generation),
+                (
+                    "trader",
+                    self._ctp_factor_trader_client,
+                    self._ctp_factor_expected_trader_generation,
+                ),
+            )
+            reasons = []
+
+            def record_client_identity_drift():
+                for name, client, _generation in clients:
+                    current = getattr(self, f"{name}_client", None)
+                    if current is client:
+                        continue
+                    reasons.append(f"{name}_client_identity_changed")
+                    if current is not None and all(
+                        current is not retained
+                        for retained in self._ctp_factor_unowned_replacement_refs
+                    ):
+                        self._ctp_factor_unowned_replacement_refs.append(current)
+
+            record_client_identity_drift()
+            for name, client, _generation in clients:
+                if client is None:
+                    reasons.append(f"{name}_client_missing")
+                    continue
+                try:
+                    client.stop()
+                except Exception:
+                    reasons.append(f"{name}_stop_failed")
+
+            receipts = {}
+            for name, client, generation in clients:
+                if client is None:
+                    receipts[name] = None
+                    continue
+                try:
+                    stop_and_wait = getattr(client, "stop_and_wait", None)
+                except Exception:
+                    reasons.append(f"{name}_stop_wait_unavailable")
+                    receipts[name] = None
+                    continue
+                if not callable(stop_and_wait):
+                    reasons.append(f"{name}_stop_wait_unavailable")
+                    receipts[name] = None
+                    continue
+                try:
+                    receipt = stop_and_wait(timeout=2.0)
+                except Exception:
+                    reasons.append(f"{name}_stop_wait_failed")
+                    receipts[name] = None
+                    continue
+                snapshot, receipt_reasons, valid = self._snapshot_ctp_native_stop_receipt(
+                    receipt, client_name=name, generation=generation
+                )
+                receipts[name] = snapshot
+                reasons.extend(receipt_reasons)
+                if not valid and not receipt_reasons:
+                    reasons.append(f"{name}_receipt_invalid")
+
+            record_client_identity_drift()
+            status = (
+                "PASS"
+                if not reasons
+                and all(receipts.get(name) is not None for name in ("md", "trader"))
+                else "INCOMPLETE"
+            )
+            self._ctp_factor_shutdown_summary = {
+                "required": True,
+                "status": status,
+                "expected_md_generation": self._ctp_factor_expected_md_generation,
+                "expected_trader_generation": self._ctp_factor_expected_trader_generation,
+                "join_required": self._ctp_factor_join_required,
+                "md_receipt": receipts.get("md"),
+                "trader_receipt": receipts.get("trader"),
+                "reason_codes": tuple(dict.fromkeys(reasons)),
+            }
+
+        def get_ctp_factor_source_shutdown_health(self):
+            """Return a bounded, secret-free CTP native shutdown projection."""
+            summary = self._ctp_factor_shutdown_summary
+            return {
+                key: (dict(value) if isinstance(value, dict) else value)
+                for key, value in summary.items()
+            }
 
         def connect(self):
             """Connect to CTP servers."""
+            if self._ctp_factor_tick_source_enabled:
+                raise BtApiStoreError("CTP_FACTOR_SOURCE_TERMINAL")
             if self.auto_settlement_confirm is not False:
                 raise BtApiStoreError(
                     "auto_settlement_confirm=True is not permitted by the CTP direct wrapper"
@@ -2517,10 +2706,13 @@ def _create_ctp_wrapper_class():
         def disconnect(self):
             """Disconnect from CTP servers."""
             self._notify_live_bar_event()
-            if self.md_client:
-                self.md_client.stop()
-            if self.trader_client:
-                self.trader_client.stop()
+            if self._ctp_factor_tick_source_enabled:
+                self._collect_ctp_factor_source_shutdown()
+            else:
+                if self.md_client:
+                    self.md_client.stop()
+                if self.trader_client:
+                    self.trader_client.stop()
             self._connected = False
             self._pending_orders.clear()
             self._pending_orders_by_sys_id.clear()
@@ -4077,6 +4269,14 @@ class BtApiStore(LiveStoreBase):
         )
         self._command_last_error = ""
         self._shutdown_state = "NOT_STARTED"
+        self._ctp_factor_tick_source_enabled = False
+        self._ctp_factor_expected_md_generation = None
+        self._ctp_factor_expected_trader_generation = None
+        self._ctp_factor_join_required = None
+        self._ctp_factor_source_shutdown_health = {
+            "required": False,
+            "status": "NOT_REQUIRED",
+        }
         self._sdk_command_types: Dict[str, Any] = {}
         self._cash = _coerce_float(cash)
         self._value = _coerce_float(value, self._cash)
@@ -4194,6 +4394,12 @@ class BtApiStore(LiveStoreBase):
         login_facts = self.registered_sim_login_facts()
         if not isinstance(login_facts, Mapping) or login_facts.get("read_only_ready") is not True:
             raise BtApiStoreError("CTP_FACTOR_TRADER_NOT_READY")
+        trader_generation = login_facts.get("connection_generation")
+        join_required = getattr(api, "ctp_join_observer", None)
+        if type(trader_generation) is not int or trader_generation <= 0:
+            raise BtApiStoreError("CTP_FACTOR_TRADER_SOURCE_UNAVAILABLE")
+        if type(join_required) is not bool:
+            raise BtApiStoreError("CTP_FACTOR_JOIN_POLICY_UNAVAILABLE")
 
         enable = getattr(api, "enable_ctp_factor_tick_source", None)
         if not callable(enable):
@@ -4201,7 +4407,116 @@ class BtApiStore(LiveStoreBase):
         generation = enable()
         if type(generation) is not int or generation <= 0:
             raise BtApiStoreError("CTP_FACTOR_MD_CALLBACK_SOURCE_UNAVAILABLE")
+        self._ctp_factor_tick_source_enabled = True
+        self._ctp_factor_expected_md_generation = generation
+        self._ctp_factor_expected_trader_generation = trader_generation
+        self._ctp_factor_join_required = join_required
+        self._ctp_factor_source_shutdown_health = {
+            "required": True,
+            "status": "PENDING",
+            "expected_md_generation": generation,
+            "expected_trader_generation": trader_generation,
+            "join_required": join_required,
+            "md_receipt": None,
+            "trader_receipt": None,
+            "reason_codes": ("shutdown_not_observed",),
+        }
         return generation
+
+    @staticmethod
+    def _ctp_stop_receipt_projection_valid(receipt, *, generation, join_required):
+        if not isinstance(receipt, Mapping):
+            return False
+        return (
+            type(receipt.get("connection_generation")) is int
+            and receipt.get("connection_generation") == generation
+            and type(receipt.get("join_required")) is bool
+            and receipt.get("join_required") is join_required
+            and type(receipt.get("join_completed")) is bool
+            and type(receipt.get("native_released")) is bool
+            and receipt.get("native_released") is True
+            and receipt.get("thread_alive") is False
+            and type(receipt.get("timed_out")) is bool
+            and receipt.get("timed_out") is False
+            and type(receipt.get("complete")) is bool
+            and receipt.get("complete") is True
+            and (join_required is False or receipt.get("join_completed") is True)
+        )
+
+    def _refresh_ctp_factor_source_shutdown_health(self) -> Dict[str, Any]:
+        """Project and enforce the opt-in wrapper's exact native receipts."""
+        if not self._ctp_factor_tick_source_enabled:
+            self._ctp_factor_source_shutdown_health = {
+                "required": False,
+                "status": "NOT_REQUIRED",
+            }
+            return self._ctp_factor_source_shutdown_health
+        api = self._api
+        try:
+            getter = getattr(api, "get_ctp_factor_source_shutdown_health", None)
+            raw = getter() if callable(getter) else None
+        except Exception:
+            raw = None
+        status = "INCOMPLETE"
+        md_receipt = trader_receipt = None
+        reasons = ["native_shutdown_projection_unavailable"]
+        if isinstance(raw, Mapping):
+            md_receipt = raw.get("md_receipt")
+            trader_receipt = raw.get("trader_receipt")
+            raw_reasons = raw.get("reason_codes", ())
+            if isinstance(raw_reasons, (tuple, list)) and all(
+                type(reason) is str for reason in raw_reasons
+            ):
+                reasons = list(raw_reasons)
+            else:
+                reasons = ["native_shutdown_projection_invalid"]
+            expected_fields_match = (
+                raw.get("required") is True
+                and raw.get("expected_md_generation") == self._ctp_factor_expected_md_generation
+                and type(raw.get("expected_md_generation")) is int
+                and raw.get("expected_trader_generation")
+                == self._ctp_factor_expected_trader_generation
+                and type(raw.get("expected_trader_generation")) is int
+                and raw.get("join_required") is self._ctp_factor_join_required
+                and type(raw.get("join_required")) is bool
+            )
+            receipts_valid = (
+                self._ctp_stop_receipt_projection_valid(
+                    md_receipt,
+                    generation=self._ctp_factor_expected_md_generation,
+                    join_required=self._ctp_factor_join_required,
+                )
+                and self._ctp_stop_receipt_projection_valid(
+                    trader_receipt,
+                    generation=self._ctp_factor_expected_trader_generation,
+                    join_required=self._ctp_factor_join_required,
+                )
+            )
+            if (
+                expected_fields_match
+                and receipts_valid
+                and raw.get("status") == "PASS"
+                and not reasons
+            ):
+                status = "PASS"
+            elif not reasons:
+                reasons = ["native_shutdown_receipt_incomplete"]
+        projected = {
+            "required": True,
+            "status": status,
+            "expected_md_generation": self._ctp_factor_expected_md_generation,
+            "expected_trader_generation": self._ctp_factor_expected_trader_generation,
+            "join_required": self._ctp_factor_join_required,
+            "md_receipt": dict(md_receipt) if isinstance(md_receipt, Mapping) else None,
+            "trader_receipt": (
+                dict(trader_receipt) if isinstance(trader_receipt, Mapping) else None
+            ),
+            "reason_codes": tuple(reasons),
+        }
+        self._ctp_factor_source_shutdown_health = projected
+        if status != "PASS" and self._shutdown_state != "FAIL":
+            self._shutdown_state = "INCOMPLETE"
+        return projected
 
     @property
     def is_connected(self) -> bool:
@@ -6315,6 +6630,7 @@ class BtApiStore(LiveStoreBase):
             and not partial_owned_sdk
             and not command_activity
         ):
+            self._refresh_ctp_factor_source_shutdown_health()
             return self.get_command_health()
 
         worker_stopped = True
@@ -6368,6 +6684,7 @@ class BtApiStore(LiveStoreBase):
                 elif worker_stopped and hasattr(self._api, "stop"):
                     self._api.stop()
         finally:
+            self._refresh_ctp_factor_source_shutdown_health()
             if self._sdk_mode:
                 # An owned SDK that failed while closing is in an unknown
                 # transport state and must never be reused on a later start.
@@ -8805,6 +9122,21 @@ class BtApiStore(LiveStoreBase):
                 "funding_last_refresh_error": funding_health["last_refresh_error"],
             }
         )
+        if self._ctp_factor_tick_source_enabled:
+            source_shutdown = self._ctp_factor_source_shutdown_health
+            result["ctp_factor_source_shutdown"] = {
+                **source_shutdown,
+                "md_receipt": (
+                    dict(source_shutdown["md_receipt"])
+                    if isinstance(source_shutdown.get("md_receipt"), Mapping)
+                    else source_shutdown.get("md_receipt")
+                ),
+                "trader_receipt": (
+                    dict(source_shutdown["trader_receipt"])
+                    if isinstance(source_shutdown.get("trader_receipt"), Mapping)
+                    else source_shutdown.get("trader_receipt")
+                ),
+            }
         return result
 
     def submit_order(self, order):

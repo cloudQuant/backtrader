@@ -1567,10 +1567,10 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
     class CtpNativeStopReceipt:
         __module__ = "bt_api_ctp.ctp.client"
 
-        def __init__(self, connection_generation):
+        def __init__(self, connection_generation, join_required=False):
             self.connection_generation = connection_generation
             self.native_released = True
-            self.join_required = False
+            self.join_required = join_required
             self.join_completed = True
             self.thread_alive = False
             self.timed_out = False
@@ -1579,8 +1579,7 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
         def complete(self):
             return (
                 self.native_released is True
-                and self.join_required is False
-                and self.join_completed is True
+                and (self.join_required is False or self.join_completed is True)
                 and self.thread_alive is False
                 and self.timed_out is False
             )
@@ -1623,6 +1622,9 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
 
         def stop(self):
             self.stop_calls += 1
+
+        def stop_and_wait(self, timeout=2.0):
+            assert 0.0 <= timeout <= 2.0
             receipt = CtpNativeStopReceipt(self.connection_generation)
             self.stop_receipts.append(receipt)
             return receipt
@@ -1690,6 +1692,9 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
 
         def stop(self):
             self.stop_calls += 1
+
+        def stop_and_wait(self, timeout=2.0):
+            assert 0.0 <= timeout <= 2.0
             receipt = CtpNativeStopReceipt(self._connection_generation)
             self.stop_receipts.append(receipt)
             return receipt
@@ -2996,20 +3001,26 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
         for client in (api.md_client, api.trader_client):
             assert client.start_calls == [{"block": False, "join_observer": False}]
             assert client.stop_calls == 1
-            assert len(client.stop_receipts) == 1
-            receipt = client.stop_receipts[0]
-            assert receipt.complete is True
-            assert receipt.native_released is True
-            assert receipt.join_required is False
-            assert receipt.join_completed is True
-            assert receipt.thread_alive is False
-            assert receipt.timed_out is False
-            expected_generation = (
-                api.md_client.connection_generation
-                if client is api.md_client
-                else api.trader_client._connection_generation
-            )
-            assert receipt.connection_generation == expected_generation
+            if api._ctp_factor_tick_source_enabled is True:
+                assert len(client.stop_receipts) == 1
+                receipt = client.stop_receipts[0]
+                assert receipt.complete is True
+                assert receipt.native_released is True
+                assert receipt.join_required is False
+                assert receipt.join_completed is True
+                assert receipt.thread_alive is False
+                assert receipt.timed_out is False
+                expected_generation = (
+                    api.md_client.connection_generation
+                    if client is api.md_client
+                    else api.trader_client._connection_generation
+                )
+                assert receipt.connection_generation == expected_generation
+            else:
+                # Query/history validation may close a successfully started
+                # Store before the factor-source opt-in point. Those attempts
+                # retain the legacy stop-only cleanup contract.
+                assert client.stop_receipts == []
         assert api.live_tick_provenance is None
         health = api._get_live_ctp_stream_health()
         assert health["generation_callbacks_supported"] is True
@@ -3620,8 +3631,8 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
     assert (
         trace.index(("run_live_returned", 1))
         < trace.index(("second_bundle_loaded", second_bundle.name))
-        < trace.index(("cohort_assembled", 2))
         < trace.index(("api_created", 2))
+        < trace.index(("cohort_assembled", 2))
     )
     assert trace.index(("api_closed", 1)) < trace.index(
         ("second_bundle_loaded", second_bundle.name)

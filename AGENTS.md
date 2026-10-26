@@ -553,6 +553,12 @@ not exchange wire sequences or authentication proof. Valid native quotes on
 the selected product-day's source dates remain available outside the common
 factor grid, without assigning a trading session or forming factor bars.
 Ordinary feeds do not enable this adapter.
+The explicit CTP factor-source opt-in also binds the original MD/Trader client
+objects, generations, and Join policy for shutdown. Store cleanup requires
+typed SDK stop receipts and propagates incomplete release to the 028 runner;
+the opted-in wrapper cannot reconnect or reuse a past receipt for new clients.
+Sixteen focused source/fake cases passed; native account cleanup remains a
+separate acceptance step. Non-opt-in routes retain their existing stop path.
 Store event wakers share a generation-checked engine condition. An injected
 clock may implement `wait_interruptibly` to support external wake/runstop;
 legacy clocks retain their own `wait` semantics and observe those signals only
