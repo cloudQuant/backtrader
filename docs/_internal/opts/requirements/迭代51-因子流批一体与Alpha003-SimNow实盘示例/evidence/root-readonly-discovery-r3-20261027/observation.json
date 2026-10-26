@@ -1,0 +1,531 @@
+{
+  "schema": 1,
+  "status": "PASS_ROOT_READONLY_MARKET_DISCOVERY",
+  "phase": "complete",
+  "started_at": "2026-10-26T18:54:35.903679+00:00",
+  "selected_config_index": 3,
+  "store_created": true,
+  "provider_attempted": true,
+  "allow_writes": false,
+  "source_pins": {
+    "run.py": "3373140b1e68f3f4871ce821220117883edb0af85640bb723de19c75a1012e62",
+    "protected_simnow.py": "c4269bb9b78e40fd60843e32af5616dece5052d621258add12ba82f9696c1982",
+    "discovery_lifecycle.py": "305ecf7cb89ccf8aee15179312fbf4b311f41ead7e65a97b01e19c0e3ccb3f3d"
+  },
+  "private_values_exported": false,
+  "md_login_mode": "read_only_accepted",
+  "authenticated_md_identity_present": false,
+  "md_zero_response_readonly_compatibility": true,
+  "login": {
+    "trading_day": "20261023",
+    "connection_generation": 1,
+    "read_only_ready": true
+  },
+  "market_plan": {
+    "status": "READY",
+    "product_count": 87,
+    "selected_count": 87,
+    "catalog_rows": 17502,
+    "quote_rows": 17502,
+    "query_coverage_products": 87,
+    "blocker_count": 0,
+    "routes": [
+      {
+        "exchange": "CFFEX",
+        "product": "IC",
+        "instrument": "IC2612"
+      },
+      {
+        "exchange": "CFFEX",
+        "product": "IF",
+        "instrument": "IF2612"
+      },
+      {
+        "exchange": "CFFEX",
+        "product": "IH",
+        "instrument": "IH2612"
+      },
+      {
+        "exchange": "CFFEX",
+        "product": "IM",
+        "instrument": "IM2612"
+      },
+      {
+        "exchange": "CFFEX",
+        "product": "T",
+        "instrument": "T2612"
+      },
+      {
+        "exchange": "CFFEX",
+        "product": "TF",
+        "instrument": "TF2612"
+      },
+      {
+        "exchange": "CFFEX",
+        "product": "TL",
+        "instrument": "TL2612"
+      },
+      {
+        "exchange": "CFFEX",
+        "product": "TS",
+        "instrument": "TS2612"
+      },
+      {
+        "exchange": "CZCE",
+        "product": "AP",
+        "instrument": "AP701"
+      },
+      {
+        "exchange": "CZCE",
+        "product": "CF",
+        "instrument": "CF701"
+      },
+      {
+        "exchange": "CZCE",
+        "product": "CJ",
+        "instrument": "CJ701"
+      },
+      {
+        "exchange": "CZCE",
+        "product": "CY",
+        "instrument": "CY701"
+      },
+      {
+        "exchange": "CZCE",
+        "product": "FG",
+        "instrument": "FG701"
+      },
+      {
+        "exchange": "CZCE",
+        "product": "JR",
+        "instrument": "JR611"
+      },
+      {
+        "exchange": "CZCE",
+        "product": "MA",
+        "instrument": "MA701"
+      },
+      {
+        "exchange": "CZCE",
+        "product": "OI",
+        "instrument": "OI701"
+      },
+      {
+        "exchange": "CZCE",
+        "product": "PF",
+        "instrument": "PF612"
+      },
+      {
+        "exchange": "CZCE",
+        "product": "PK",
+        "instrument": "PK612"
+      },
+      {
+        "exchange": "CZCE",
+        "product": "PL",
+        "instrument": "PL612"
+      },
+      {
+        "exchange": "CZCE",
+        "product": "PM",
+        "instrument": "PM611"
+      },
+      {
+        "exchange": "CZCE",
+        "product": "PR",
+        "instrument": "PR612"
+      },
+      {
+        "exchange": "CZCE",
+        "product": "PX",
+        "instrument": "PX612"
+      },
+      {
+        "exchange": "CZCE",
+        "product": "RI",
+        "instrument": "RI611"
+      },
+      {
+        "exchange": "CZCE",
+        "product": "RM",
+        "instrument": "RM701"
+      },
+      {
+        "exchange": "CZCE",
+        "product": "RS",
+        "instrument": "RS701"
+      },
+      {
+        "exchange": "CZCE",
+        "product": "SA",
+        "instrument": "SA701"
+      },
+      {
+        "exchange": "CZCE",
+        "product": "SF",
+        "instrument": "SF701"
+      },
+      {
+        "exchange": "CZCE",
+        "product": "SH",
+        "instrument": "SH701"
+      },
+      {
+        "exchange": "CZCE",
+        "product": "SM",
+        "instrument": "SM701"
+      },
+      {
+        "exchange": "CZCE",
+        "product": "SR",
+        "instrument": "SR701"
+      },
+      {
+        "exchange": "CZCE",
+        "product": "TA",
+        "instrument": "TA701"
+      },
+      {
+        "exchange": "CZCE",
+        "product": "UR",
+        "instrument": "UR701"
+      },
+      {
+        "exchange": "CZCE",
+        "product": "WH",
+        "instrument": "WH611"
+      },
+      {
+        "exchange": "CZCE",
+        "product": "ZC",
+        "instrument": "ZC611"
+      },
+      {
+        "exchange": "DCE",
+        "product": "A",
+        "instrument": "a2701"
+      },
+      {
+        "exchange": "DCE",
+        "product": "B",
+        "instrument": "b2611"
+      },
+      {
+        "exchange": "DCE",
+        "product": "BB",
+        "instrument": "bb2701"
+      },
+      {
+        "exchange": "DCE",
+        "product": "BZ",
+        "instrument": "bz2611"
+      },
+      {
+        "exchange": "DCE",
+        "product": "C",
+        "instrument": "c2701"
+      },
+      {
+        "exchange": "DCE",
+        "product": "CS",
+        "instrument": "cs2701"
+      },
+      {
+        "exchange": "DCE",
+        "product": "EB",
+        "instrument": "eb2611"
+      },
+      {
+        "exchange": "DCE",
+        "product": "EG",
+        "instrument": "eg2701"
+      },
+      {
+        "exchange": "DCE",
+        "product": "FB",
+        "instrument": "fb2612"
+      },
+      {
+        "exchange": "DCE",
+        "product": "I",
+        "instrument": "i2701"
+      },
+      {
+        "exchange": "DCE",
+        "product": "J",
+        "instrument": "j2701"
+      },
+      {
+        "exchange": "DCE",
+        "product": "JD",
+        "instrument": "jd2612"
+      },
+      {
+        "exchange": "DCE",
+        "product": "JM",
+        "instrument": "jm2701"
+      },
+      {
+        "exchange": "DCE",
+        "product": "L",
+        "instrument": "l2701"
+      },
+      {
+        "exchange": "DCE",
+        "product": "LG",
+        "instrument": "lg2701"
+      },
+      {
+        "exchange": "DCE",
+        "product": "LH",
+        "instrument": "lh2701"
+      },
+      {
+        "exchange": "DCE",
+        "product": "M",
+        "instrument": "m2701"
+      },
+      {
+        "exchange": "DCE",
+        "product": "P",
+        "instrument": "p2701"
+      },
+      {
+        "exchange": "DCE",
+        "product": "PG",
+        "instrument": "pg2612"
+      },
+      {
+        "exchange": "DCE",
+        "product": "PP",
+        "instrument": "pp2701"
+      },
+      {
+        "exchange": "DCE",
+        "product": "RR",
+        "instrument": "rr2611"
+      },
+      {
+        "exchange": "DCE",
+        "product": "V",
+        "instrument": "v2701"
+      },
+      {
+        "exchange": "DCE",
+        "product": "Y",
+        "instrument": "y2701"
+      },
+      {
+        "exchange": "GFEX",
+        "product": "LC",
+        "instrument": "lc2701"
+      },
+      {
+        "exchange": "GFEX",
+        "product": "PD",
+        "instrument": "pd2612"
+      },
+      {
+        "exchange": "GFEX",
+        "product": "PS",
+        "instrument": "ps2612"
+      },
+      {
+        "exchange": "GFEX",
+        "product": "PT",
+        "instrument": "pt2612"
+      },
+      {
+        "exchange": "GFEX",
+        "product": "SI",
+        "instrument": "si2612"
+      },
+      {
+        "exchange": "INE",
+        "product": "BC",
+        "instrument": "bc2611"
+      },
+      {
+        "exchange": "INE",
+        "product": "EC",
+        "instrument": "ec2611"
+      },
+      {
+        "exchange": "INE",
+        "product": "LU",
+        "instrument": "lu2612"
+      },
+      {
+        "exchange": "INE",
+        "product": "NR",
+        "instrument": "nr2612"
+      },
+      {
+        "exchange": "INE",
+        "product": "SC",
+        "instrument": "sc2612"
+      },
+      {
+        "exchange": "SHFE",
+        "product": "AD",
+        "instrument": "ad2612"
+      },
+      {
+        "exchange": "SHFE",
+        "product": "AG",
+        "instrument": "ag2612"
+      },
+      {
+        "exchange": "SHFE",
+        "product": "AL",
+        "instrument": "al2612"
+      },
+      {
+        "exchange": "SHFE",
+        "product": "AO",
+        "instrument": "ao2701"
+      },
+      {
+        "exchange": "SHFE",
+        "product": "AU",
+        "instrument": "au2612"
+      },
+      {
+        "exchange": "SHFE",
+        "product": "BR",
+        "instrument": "br2612"
+      },
+      {
+        "exchange": "SHFE",
+        "product": "BU",
+        "instrument": "bu2701"
+      },
+      {
+        "exchange": "SHFE",
+        "product": "CU",
+        "instrument": "cu2612"
+      },
+      {
+        "exchange": "SHFE",
+        "product": "FU",
+        "instrument": "fu2701"
+      },
+      {
+        "exchange": "SHFE",
+        "product": "HC",
+        "instrument": "hc2701"
+      },
+      {
+        "exchange": "SHFE",
+        "product": "NI",
+        "instrument": "ni2612"
+      },
+      {
+        "exchange": "SHFE",
+        "product": "OP",
+        "instrument": "op2612"
+      },
+      {
+        "exchange": "SHFE",
+        "product": "PB",
+        "instrument": "pb2612"
+      },
+      {
+        "exchange": "SHFE",
+        "product": "RB",
+        "instrument": "rb2701"
+      },
+      {
+        "exchange": "SHFE",
+        "product": "RU",
+        "instrument": "ru2701"
+      },
+      {
+        "exchange": "SHFE",
+        "product": "SN",
+        "instrument": "sn2611"
+      },
+      {
+        "exchange": "SHFE",
+        "product": "SP",
+        "instrument": "sp2701"
+      },
+      {
+        "exchange": "SHFE",
+        "product": "SS",
+        "instrument": "ss2612"
+      },
+      {
+        "exchange": "SHFE",
+        "product": "WR",
+        "instrument": "wr2701"
+      },
+      {
+        "exchange": "SHFE",
+        "product": "ZN",
+        "instrument": "zn2612"
+      }
+    ],
+    "decision_at": "2026-10-26T18:57:51.173018+00:00",
+    "grid_status": "READY",
+    "grid_minutes": 195,
+    "first_close": "2026-10-23T01:31:00+00:00",
+    "last_close": "2026-10-23T07:00:00+00:00",
+    "calendar_rules_sha256": "dc53ae4255c7fdf3fc1bde3213c1bd8cf75f564da369efd4c8ef077ac825a06e",
+    "ranking_mode": "ctp_query_snapshot_equal_weight_v1",
+    "minimum_trading_days_to_expiry": 5
+  },
+  "operation_phase": "query_full_market",
+  "close": {
+    "status": "CLOSED",
+    "reason_code": "complete",
+    "complete": true,
+    "already_attempted": false,
+    "store_stop_attempted": true,
+    "store_stop_returned": true,
+    "store_connected_before": true,
+    "store_connected_after": false,
+    "wrapper_connected_after": false,
+    "shutdown_state": "PASS",
+    "store_workers_quiescent": true,
+    "worker_alive": false,
+    "funding_worker_alive": false,
+    "close_thread_alive": false,
+    "queue_depth": 0,
+    "inflight": 0,
+    "publications_pending": 0,
+    "broker_update_queue_depth": 0,
+    "funding_queue_depth": 0,
+    "funding_inflight": false,
+    "funding_pending": 0,
+    "read_only_metadata_probe_active": false,
+    "md_client": {
+      "present": true,
+      "receipt_present": true,
+      "complete": true,
+      "connection_generation": 1,
+      "native_released": true,
+      "join_required": false,
+      "join_completed": true,
+      "thread_alive": false,
+      "timed_out": false,
+      "startup_outcome": null
+    },
+    "trader_client": {
+      "present": true,
+      "receipt_present": true,
+      "complete": true,
+      "connection_generation": 1,
+      "native_released": true,
+      "join_required": false,
+      "join_completed": true,
+      "thread_alive": false,
+      "timed_out": false,
+      "startup_outcome": null
+    }
+  },
+  "native_close_confirmed": true,
+  "private_context_closed": true,
+  "source_pins_unchanged": true,
+  "finished_at": "2026-10-26T18:57:52.965170+00:00"
+}

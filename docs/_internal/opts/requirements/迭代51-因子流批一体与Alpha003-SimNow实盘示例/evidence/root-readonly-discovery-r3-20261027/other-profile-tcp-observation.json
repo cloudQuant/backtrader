@@ -1,0 +1,25 @@
+{
+  "status": "TCP_OBSERVATION_ONLY",
+  "started_at": "2026-10-26T18:57:00.492169+00:00",
+  "profiles": [
+    {
+      "category": "set1_group1_vpn",
+      "td_reachable": true,
+      "md_reachable": true
+    },
+    {
+      "category": "set1_group2_vpn",
+      "td_reachable": true,
+      "md_reachable": true
+    },
+    {
+      "category": "set1_group3_vpn",
+      "td_reachable": true,
+      "md_reachable": true
+    }
+  ],
+  "credentials_read": false,
+  "native_api_created": false,
+  "account_login": false,
+  "finished_at": "2026-10-26T18:57:01.461526+00:00"
+}

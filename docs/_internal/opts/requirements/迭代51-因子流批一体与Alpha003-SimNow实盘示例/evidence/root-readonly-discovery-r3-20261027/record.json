@@ -1,0 +1,75 @@
+{
+  "parent": "b32937096112f1ecac8d8cdebf2bf67ad7a36679",
+  "repository": "D:\\source_code\\backtrader",
+  "branch": "dev",
+  "accepted_scope": "PASS_ROOT_READONLY_MARKET_DISCOVERY_ONLY",
+  "originals": {
+    "root-caller.py": {
+      "path": "D:\\source_code\\backtrader\\.codex-tmp\\i51_root_readonly_discovery_r3_20261027.py",
+      "bytes": 14316,
+      "sha256": "0fbd847844d0073b3a89867e2a9f449a3beeef32f93f7e74b31061b043723313"
+    },
+    "static-review.md": {
+      "path": "D:\\source_code\\backtrader\\.codex-tmp\\i51_root_readonly_discovery_r3_review_20261027.md",
+      "bytes": 1629,
+      "sha256": "8388780a2cf3fb481c09fbc9418df4f12e5ab92b4446c45c1c1b26b6708e99d0"
+    },
+    "compatibility-scope.md": {
+      "path": "D:\\source_code\\backtrader\\.codex-tmp\\i51_zero_response_readonly_scope_20261027.md",
+      "bytes": 6891,
+      "sha256": "2ec7bc78a3db932efd20ef62e54edda80ad331627cdc6308995bba5ec0119a88"
+    },
+    "observation.json": {
+      "path": "D:\\temp\\i51-root-discovery-20261027-r3.json",
+      "bytes": 12248,
+      "sha256": "0045af86b368c56ed9816190553d4cb0478b2e01929a3ebb248d8920bfb23839"
+    },
+    "preexit.json": {
+      "path": "D:\\temp\\i51-root-discovery-preexit-20261027-r3.json",
+      "bytes": 306,
+      "sha256": "b18731bb89821b0d1aa363167a7847949db1ba04e9b5787949f187d41306285d"
+    },
+    "private-temp-acl-observation.json": {
+      "path": "D:\\temp\\i51-root-discovery-20261027-r3-acl.json",
+      "bytes": 190,
+      "sha256": "615f82c7a0614ccdd1a5e3d08b217409fd03e26fdcff396206518ae1d8364cd1"
+    },
+    "other-profile-tcp-observation.json": {
+      "path": "D:\\temp\\i51-root-public-set1-probes-20261027-r1.json",
+      "bytes": 590,
+      "sha256": "1ab1400514f2820cd3ba6b8ff408a5afb2693322806dd30d31cefb2bac170bae"
+    }
+  },
+  "host": 52543,
+  "normal_exit_code": 0,
+  "root_tools": {
+    "acl": "8a886a",
+    "invocation": "b1303a",
+    "completion": "3d4730",
+    "preexit": "82f2d8",
+    "normal_exit": "c1f6a7",
+    "other_public_tcp_probes": "0e8abd"
+  },
+  "selected_config_index": 3,
+  "md_disposition": "read_only_accepted",
+  "authenticated_md_identity_present": false,
+  "trader_read_only_ready": true,
+  "trading_day": "20261023",
+  "catalog_rows": 17502,
+  "quote_rows": 17502,
+  "selected_products": 87,
+  "exchange_count": 6,
+  "selection_blockers": 0,
+  "policy": "ctp_query_snapshot_equal_weight_v1",
+  "minimum_trading_days_to_expiry": 5,
+  "native_close": "Both generation-one SDK receipts complete, native released, no Join required; normal Store stop, empty worker/queue state, closed protected context, same-host API markers and zero Python workers verified before normal exit.",
+  "limitations": [
+    "Full market means the instruments visible through this authenticated SimNow Trader session and TradingDay, not a claim about all production exchange listings.",
+    "The entire 195-minute expected grid is on 2026-10-23 and precedes the 2026-10-26 decision. READY describes the generated grid, not current live availability.",
+    "No live tick/cohort, shadow factor run, trading, order/cancel, OS restart, complete formal case or 50-A acceptance is established.",
+    "Other profile results are public TCP reachability only, not account login.",
+    "Original retained host 86857 and prior results remain untouched; accepted R3 is not to be repeated for delivery."
+  ],
+  "private_values_exported": false,
+  "performance_gate_deferred": true
+}
