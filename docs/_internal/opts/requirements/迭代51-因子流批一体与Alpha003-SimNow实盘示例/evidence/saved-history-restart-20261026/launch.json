@@ -1,0 +1,46 @@
+{
+  "head": "3599d0eb261027421ce2863f9ae46635f85dfbb0",
+  "python": "3.11.5 | packaged by Anaconda, Inc. | (main, Sep 11 2023, 13:26:23) [MSC v.1916 64 bit (AMD64)]",
+  "command": [
+    "C:\\anaconda3\\python.exe",
+    "-m",
+    "pytest",
+    "-p",
+    "no:asyncio",
+    "-q",
+    "--tb=short",
+    "-o",
+    "faulthandler_timeout=45",
+    "--junitxml=D:\\temp\\i51-history-restart-accepted-20261026\\junit.xml",
+    "tests/unit/test_alpha003_simnow_runner.py::test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bundle[saved-history-real-live-restart]"
+  ],
+  "env": {
+    "PYTEST_DISABLE_PLUGIN_AUTOLOAD": "1",
+    "PYTHONUTF8": "1",
+    "PYTHONPATH": null
+  },
+  "pre": {
+    "examples/unified/028_alpha003_simnow_minute/run.py": {
+      "size": 226749,
+      "sha256": "77fd71922f3bef350cd1fcb71396424cae9156263244a2805f0e06cea80a32ec"
+    },
+    "tests/unit/test_alpha003_simnow_runner.py": {
+      "size": 171843,
+      "sha256": "00249d4c60bf92985f347600b6317fdcaa6ee326e3a4121cde7609270f2687e2"
+    },
+    "backtrader/stores/execution_decision_journal.py": {
+      "size": 298039,
+      "sha256": "e60e9c1e353ce9dea39c3f6461ce1f9aadbb48308ff45c72c19796cf10dadadf"
+    },
+    "examples/unified/028_alpha003_simnow_minute/alpha003_strategy.py": {
+      "size": 198547,
+      "sha256": "b7d65886d10b792af58bf8100a9e94f3da1b1405b2a6d0247315dcaaa8dfa058"
+    },
+    "backtrader/research/live_cohort.py": {
+      "size": 116603,
+      "sha256": "69f31733ad0fedc126837f6595b752cf2e2b180471da2352ab98ccb2e825b0d6"
+    }
+  },
+  "timeout_seconds": 180,
+  "change": "Assert epoch-local cohort slot IDs separately from source-tape journal cursor IDs"
+}

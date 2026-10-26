@@ -1,0 +1,218 @@
+{
+  "schema": 1,
+  "status": "PASS_SOURCE_FAKE_COMPOSITION_ONLY",
+  "repository": "D:\\source_code\\backtrader",
+  "branch": "dev",
+  "parent_commit": "3599d0eb261027421ce2863f9ae46635f85dfbb0",
+  "scope": [
+    "examples/unified/028_alpha003_simnow_minute/run.py",
+    "tests/unit/test_alpha003_simnow_runner.py",
+    "example README and Iteration50/51 status/acceptance documentation",
+    "this compact evidence archive"
+  ],
+  "final_test": {
+    "passed": 1,
+    "failed": 0,
+    "seconds_junit": 4.412,
+    "process_seconds": 5.797000000020489,
+    "warnings": 1,
+    "warning": "existing unknown asyncio_default_fixture_loop_scope pytest option"
+  },
+  "source_pins": {
+    "examples/unified/028_alpha003_simnow_minute/run.py": {
+      "size": 226749,
+      "sha256": "77fd71922f3bef350cd1fcb71396424cae9156263244a2805f0e06cea80a32ec"
+    },
+    "tests/unit/test_alpha003_simnow_runner.py": {
+      "size": 171843,
+      "sha256": "00249d4c60bf92985f347600b6317fdcaa6ee326e3a4121cde7609270f2687e2"
+    },
+    "backtrader/stores/execution_decision_journal.py": {
+      "size": 298039,
+      "sha256": "e60e9c1e353ce9dea39c3f6461ce1f9aadbb48308ff45c72c19796cf10dadadf"
+    },
+    "examples/unified/028_alpha003_simnow_minute/alpha003_strategy.py": {
+      "size": 198547,
+      "sha256": "b7d65886d10b792af58bf8100a9e94f3da1b1405b2a6d0247315dcaaa8dfa058"
+    },
+    "backtrader/research/live_cohort.py": {
+      "size": 116603,
+      "sha256": "69f31733ad0fedc126837f6595b752cf2e2b180471da2352ab98ccb2e825b0d6"
+    }
+  },
+  "prior_passes_reused": [
+    {
+      "original_directory": "D:/temp/i51-history-restart-diagnostic-20261025-r4",
+      "junit": {
+        "size": 2062,
+        "sha256": "76200dfeb0fdd72a531cad47318105969d1bf7178a73e804e2cb289f18529791"
+      },
+      "suite": [
+        {
+          "name": "pytest",
+          "errors": "0",
+          "failures": "1",
+          "skipped": "0",
+          "tests": "6",
+          "time": "19.484",
+          "timestamp": "2026-10-25T23:45:57.387702",
+          "hostname": "yun"
+        }
+      ],
+      "reused_passed_cases": [
+        "test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bundle[same-store-query-live]",
+        "test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bundle[nonflat-winddown-timeout]",
+        "test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bundle[flat-two-epoch-positive]",
+        "test_saved_live_history_is_rejected_outside_live_mode",
+        "test_saved_live_history_rejects_unsupported_selection_before_provider"
+      ]
+    },
+    {
+      "original_directory": "D:/temp/i51-history-restart-diagnostic-20261025-r7",
+      "junit": {
+        "size": 41879,
+        "sha256": "2d871fc34eed86af00ad4b328d30ebaca8a3b2c3ca6818f42eac95040ccbb968"
+      },
+      "suite": [
+        {
+          "name": "pytest",
+          "errors": "0",
+          "failures": "1",
+          "skipped": "0",
+          "tests": "10",
+          "time": "4.115",
+          "timestamp": "2026-10-25T23:56:24.719259",
+          "hostname": "yun"
+        }
+      ],
+      "reused_passed_cases": [
+        "test_controlled_application_stop_requires_exact_post_join_proof[engine-reason-drift]",
+        "test_controlled_application_stop_requires_exact_post_join_proof[engine-status-drift]",
+        "test_controlled_application_stop_requires_exact_post_join_proof[refresh-not-joined]",
+        "test_controlled_application_stop_requires_exact_post_join_proof[refresh-blocked]",
+        "test_controlled_application_stop_requires_exact_post_join_proof[post-join-blocker]",
+        "test_controlled_application_stop_requires_exact_post_join_proof[post-join-unconfirmed]",
+        "test_controlled_application_stop_requires_exact_post_join_proof[strategy-blocker]",
+        "test_controlled_application_stop_requires_exact_post_join_proof[nonflat-or-unready]",
+        "test_controlled_application_stop_requires_exact_post_join_proof[not-requested]"
+      ]
+    }
+  ],
+  "reuse_impact": "The nine shutdown-proof cases are unchanged. The five other runner cases do not use saved history. Later clock/ordinal changes are confined to saved-history fixture behavior. The final production history change accepts its legitimate empty event_source string. No combined green 15-case invocation is claimed.",
+  "observations": [
+    "Three epochs with two saved-history restarts through ordinary three-route Store/Feed/cohort/Cerebro/Strategy components.",
+    "Each restart restores 20 retained bars; first epoch ends at 40 live bars, second adds 28 live bars, third adds 8.",
+    "Same journal, account/strategy/logical-run identity, original bar source identities and cumulative run budget are retained.",
+    "Each Store closes and fresh complete queries precede new live bars; no OPEN intents occur.",
+    "Truncated records, identity/cursor/role/sequence drift, price edits with recomputed row hash, and mismatching durable decision anchors are rejected."
+  ],
+  "limits": [
+    "Synthetic CTP query/bar leaves; no provider/account or all-market acceptance.",
+    "Bundle selection only, same current grid/session, unchanged routes; query selection and daily bundles remain unsupported.",
+    "Per-record hashes are not a hash chain; original durable journal references anchor the retained window.",
+    "This test does not prove same-scenario working-order risk cancellation during historical warmup.",
+    "No installed validation of this new history entry; AC51-22 evidence applies to the earlier pinned entry."
+  ],
+  "preserved_later_failures": [
+    {
+      "directory": "D:/temp/i51-history-restart-diagnostic-20261026-r8",
+      "reason": "The first cut retained only 13 LIVE_READY rows; the required preheat window is 20. The fixture cut moved from 32 to 40; the readiness rule remained unchanged.",
+      "artifacts": {
+        "junit.xml": {
+          "size": 45044,
+          "sha256": "dfcb42db442e70d7a24a1e57c6739235ebf9f039bb7d5c5ea6fbacac2a75188f"
+        }
+      }
+    },
+    {
+      "directory": "D:/temp/i51-history-restart-final-20261026",
+      "reason": "Synthetic market clock advanced before the previous complete batch reached Strategy. Fix gates the next minute on actual prenext/next consumption; production freshness and timeouts were unchanged.",
+      "artifacts": {
+        "launch.json": {
+          "size": 1613,
+          "sha256": "6f7d0a23a8379c2997cae67ad92952c612def1e90e1e8789ea294461181695eb"
+        },
+        "completion.json": {
+          "size": 1244,
+          "sha256": "d4d5923cf30a1c6f7a14a0f174826fc70d3bb6f8251a856aa54bd971b8ae5563"
+        },
+        "junit.xml": {
+          "size": 1034,
+          "sha256": "9d02dd86525906c212fe56b19987c87a76b0f0b25c6ce9024a02ade2473d3c19"
+        },
+        "stdout.txt": {
+          "size": 1483,
+          "sha256": "626ee29ae3abd2cbb3ff7abb99755d662dccfc721d51172f679c81d7343b771b"
+        },
+        "stderr.txt": {
+          "size": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      }
+    },
+    {
+      "directory": "D:/temp/i51-history-restart-final-20261026-clockfix",
+      "reason": "Three epochs ran, but a test expected the original grid ordinal instead of the epoch-local cohort ordinal. The expectation now distinguishes cohort slots from original tape/journal batch IDs.",
+      "artifacts": {
+        "launch.json": {
+          "size": 1744,
+          "sha256": "564a717df5ad31e0b5f89eb5c14d86dfb6f0d1600f892778d09452c5e712920a"
+        },
+        "completion.json": {
+          "size": 1232,
+          "sha256": "03e92d38d195b22f68895e86bdd45e801c89323782dc246cb33ea74aca328b10"
+        },
+        "junit.xml": {
+          "size": 1584,
+          "sha256": "a4db898f9e0e91924245885539f941cfeb37a00dcce007976f308442a627bb20"
+        },
+        "stdout.txt": {
+          "size": 1761,
+          "sha256": "eea873108bbf9d20da4235245f774abd235cf862740d6b2147a8d323c703377d"
+        },
+        "stderr.txt": {
+          "size": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      }
+    }
+  ],
+  "artifact_pins": {
+    ".gitattributes": {
+      "size": 9,
+      "sha256": "8b9c3028d6467ff3be7c793141927841d70f47f52d0590677438f488ca154992"
+    },
+    "completion.json": {
+      "size": 1244,
+      "sha256": "8195b6b20ca7abe103110ccd8997037106b3cab15a63bc6cb9e18c5046373edb"
+    },
+    "junit.xml": {
+      "size": 409,
+      "sha256": "d2862b25a9019c5a57b31239089270e87902f7923a476741e8e2c0c37d7a419f"
+    },
+    "launch.json": {
+      "size": 1714,
+      "sha256": "b5e5c504aa9be5fab6f3ce2de16f77e00e64d9fb9aa5a4cee6c8d385ba2e0478"
+    },
+    "r4-junit.xml": {
+      "size": 2062,
+      "sha256": "76200dfeb0fdd72a531cad47318105969d1bf7178a73e804e2cb289f18529791"
+    },
+    "r7-junit.xml": {
+      "size": 41879,
+      "sha256": "2d871fc34eed86af00ad4b328d30ebaca8a3b2c3ca6818f42eac95040ccbb968"
+    },
+    "review.md": {
+      "size": 1097,
+      "sha256": "3295f132679c4f936bb07014eb7f72814696fa39f98c9ae8e8e979aac9d961a2"
+    },
+    "stderr.txt": {
+      "size": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "stdout.txt": {
+      "size": 631,
+      "sha256": "d8b538487dc16866ccb24422aa32460f633db7f698f91a7d8f766ad71ac07992"
+    }
+  }
+}

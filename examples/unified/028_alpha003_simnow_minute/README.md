@@ -121,6 +121,30 @@ dispatch orders. Set `live.journal_path`, `account_scope`, `strategy_scope`,
 and `logical_run_id` for either shadow or write mode; use a new logical run ID
 when starting a distinct run because the journal's run budget is durable.
 
+To resume the same live run from its saved bars, set
+`inputs.history_decision_tape` to that run's previous decision tape, retain
+the same journal and account/strategy/logical-run scopes, increase
+`cohort.epoch_id`, and choose a new output tape path. This continuation
+currently supports an unchanged saved selection bundle in one session;
+query-based selection and automatic daily rollover reject this input.
+The final `factor.preheat_bars` records must be contiguous, complete,
+live-role `LIVE_READY` batches ending at the latest eligible planned minute.
+Each reused record must match the tape reference persisted in the original
+journal. Missing minutes, altered prices, a changed route/profile, or a
+missing journal decision prevent startup. The loader reads the bounded file
+through EOF and retains only this warmup window.
+
+The normal Feed/cohort path restores those bars with their original source
+generation and sequence before accepting new live bars. Historical factor
+signals do not create opening orders, and old grid decisions are not
+dispatched again. Independently authorized cancellation or risk reduction
+still uses current query and quote evidence. A further restart can consume a
+tape containing a history prefix followed by a live suffix, provided its
+final eligible window meets the same checks. A controlled application stop
+preserves the engine's unfinished-grid status and requires the Strategy's
+reconciliation, refresh-thread join, and resource-cleanup proofs; it does not
+retire an automatic daily epoch.
+
 Journal decision storage is finite per database: defaults allow 100,000 BASE
 decisions (including NOOPs) and 512 MiB of canonical decision JSON, plus a
 separate settlement reserve of 4,096 CLOSE/CANCEL-only decisions and 64 MiB.

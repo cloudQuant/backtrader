@@ -201,7 +201,7 @@ _SECTION_KEYS = {
         "daily_bundles",
         "max_epochs",
     },
-    "inputs": {"minute_tape", "execution_quotes", "instrument_metadata"},
+    "inputs": {"minute_tape", "execution_quotes", "instrument_metadata", "history_decision_tape"},
     "research": {"start", "end", "source_timezone", "price_basis"},
     "cohort": {
         "calendar_id",
@@ -271,6 +271,10 @@ def load_config(config_path: Path) -> dict[str, Any]:
             row.setdefault("source", "bundle")
             row.setdefault("daily_bundles", [])
             row.setdefault("max_epochs", 1)
+        elif section == "inputs":
+            # Existing copied configurations remain valid; saved-history
+            # continuation is an explicit live-only opt-in.
+            row.setdefault("history_decision_tape", None)
         extra = set(row).difference(expected)
         missing_section = expected.difference(row)
         if extra or missing_section:
@@ -1599,6 +1603,7 @@ class DecisionTapeWriter:
         calendar_id: str,
         grid_sha256: Optional[str],
         source_snapshot_id: Optional[str],
+        restart_identity: Optional[Mapping[str, Any]] = None,
     ) -> None:
         if type(max_bytes) is not int or max_bytes < 1:
             raise RunnerError("DECISION_TAPE_BYTE_BUDGET_INVALID")
@@ -1635,6 +1640,9 @@ class DecisionTapeWriter:
             "grid_sha256": grid_sha256,
             "source_snapshot_id": source_snapshot_id,
         }
+        if restart_identity is not None:
+            _canonical_json_bytes(restart_identity)
+            header["restart_identity"] = dict(restart_identity)
         canonical = _canonical_json_bytes(header)
         header["record_id"] = hashlib.sha256(canonical.rstrip(b"\n")).hexdigest()
         try:
@@ -1806,7 +1814,15 @@ def iter_decision_tape(path: Path, *, max_bytes: int):
 
 
 def _new_decision_tape(
-    config, config_path, plan, *, mode, factor_mode, direction, source_snapshot_id
+    config,
+    config_path,
+    plan,
+    *,
+    mode,
+    factor_mode,
+    direction,
+    source_snapshot_id,
+    restart_identity=None,
 ):
     raw_path = config["output"]["decision_tape_path"]
     raw_budget = config["output"]["decision_tape_max_bytes"]
@@ -1825,7 +1841,402 @@ def _new_decision_tape(
         calendar_id=config["cohort"]["calendar_id"],
         grid_sha256=getattr(plan["grid"], "evidence_sha256", None),
         source_snapshot_id=source_snapshot_id,
+        restart_identity=restart_identity,
     )
+
+
+def _live_restart_identity(config, config_path, plan, *, factor_mode, direction, simnow_profile):
+    """Bind a saved live tape to the exact public run/journal continuation scope."""
+    cohort = config["cohort"]
+    live = config["live"]
+    risk = config["risk"]
+    epoch_id = cohort["epoch_id"]
+    if type(epoch_id) is not int or epoch_id < 1:
+        raise RunnerError("LIVE_HISTORY_EPOCH_INVALID")
+    scope_hashes = {
+        name: hashlib.sha256(_text(live[name], "live." + name).encode("utf-8")).hexdigest()
+        for name in ("account_scope", "strategy_scope", "logical_run_id")
+    }
+    journal_path = _resolve_path(config_path, live["journal_path"], "live.journal_path")
+    identity = {
+        "schema": "backtrader.alpha003.live_restart_identity.v1",
+        "epoch_id": epoch_id,
+        "mode": "live",
+        "factor_mode": factor_mode,
+        "direction": direction,
+        "scope_sha256": scope_hashes,
+        "journal_path_sha256": hashlib.sha256(str(journal_path).encode("utf-8")).hexdigest(),
+        "selection_source": plan.get("selection_source"),
+        "source_snapshot_id": plan.get("source_snapshot_id"),
+        "targets": sorted(plan["targets"]),
+        "authorized_targets": sorted(plan["authorized_targets"]),
+        "routes": {
+            target: plan["routes"][plan["product_by_target"][target]]
+            for target in sorted(plan["targets"])
+        },
+        "calendar": {
+            "calendar_id": _text(cohort["calendar_id"], "cohort.calendar_id"),
+            "calendar_version": _text(cohort["calendar_version"], "cohort.calendar_version"),
+            "calendar_rules_sha256": plan.get("calendar_rules_sha256"),
+            "grid_sha256": getattr(plan["grid"], "evidence_sha256", None),
+            "clock_domain_id": _text(cohort["clock_domain_id"], "cohort.clock_domain_id"),
+            "timezone_id": _text(cohort["timezone_id"], "cohort.timezone_id"),
+            "session_semantics": _text(cohort["session_semantics"], "cohort.session_semantics"),
+            "frequency": "1min",
+        },
+        "simnow_profile": {
+            "verified": simnow_profile.get("verified"),
+            "environment": simnow_profile.get("environment"),
+            "profile": simnow_profile.get("profile"),
+        },
+        "risk": {name: risk[name] for name in ("policy_id", *RISK_FIELDS)},
+    }
+    _canonical_json_bytes(identity)
+    return identity
+
+
+def _load_saved_live_history(config, config_path, plan, *, restart_identity, now):
+    """Stream-verify a prior decision tape and retain only one bounded warmup window."""
+    raw_path = config["inputs"].get("history_decision_tape")
+    if raw_path is None:
+        return None
+    if config["selection"]["source"] != "bundle" or config["selection"]["daily_bundles"]:
+        raise RunnerError("LIVE_HISTORY_SELECTION_UNSUPPORTED")
+    source_path = _resolve_path(config_path, raw_path, "inputs.history_decision_tape")
+    output_path = _resolve_path(
+        config_path, config["output"]["decision_tape_path"], "output.decision_tape_path"
+    )
+    journal_path = _resolve_path(config_path, config["live"]["journal_path"], "live.journal_path")
+    if source_path in {output_path, journal_path}:
+        raise RunnerError("LIVE_HISTORY_PATH_CONFLICT")
+    preheat_bars = config["factor"]["preheat_bars"]
+    if type(preheat_bars) is not int or preheat_bars < 1:
+        raise RunnerError("LIVE_HISTORY_WARMUP_INVALID")
+    now = _aware_datetime(now, "live history cutover time")
+    future_slots = tuple(minute for minute in plan["grid"].minutes if minute.close_time > now)
+    eligible_slots = tuple(minute for minute in plan["grid"].minutes if minute.close_time <= now)
+    if len(eligible_slots) < preheat_bars or not future_slots:
+        raise RunnerError("LIVE_HISTORY_GRID_WINDOW_UNAVAILABLE")
+    expected_history_slots = eligible_slots[-preheat_bars:]
+    expected_closes = tuple(minute.close_time for minute in expected_history_slots)
+    slot_by_close = {minute.close_time: minute for minute in plan["grid"].minutes}
+    target_set = tuple(sorted(plan["targets"]))
+    tail = deque(maxlen=preheat_bars)
+    previous_close = None
+    previous_slot_index = None
+    previous_batch_id = None
+    previous_sequences = {}
+    generations = {}
+    previous_source_roles = {}
+    source_cohort_id = None
+    source_epoch_id = None
+    header = None
+    record_count = 0
+    iterator = iter_decision_tape(
+        source_path, max_bytes=config["output"]["decision_tape_max_bytes"]
+    )
+    for row in iterator:
+        if header is None:
+            header = row
+            identity = row.get("restart_identity")
+            if not isinstance(identity, Mapping):
+                raise RunnerError("LIVE_HISTORY_IDENTITY_REQUIRED")
+            try:
+                _exact_keys(identity, set(restart_identity), "live history identity")
+            except RunnerError:
+                raise RunnerError("LIVE_HISTORY_IDENTITY_INVALID") from None
+            old_epoch = identity.get("epoch_id")
+            current_epoch = restart_identity["epoch_id"]
+            if type(old_epoch) is not int or old_epoch < 1 or old_epoch >= current_epoch:
+                raise RunnerError("LIVE_HISTORY_EPOCH_INVALID")
+            if (
+                row.get("mode") != "live"
+                or row.get("factor_mode") != restart_identity["factor_mode"]
+            ):
+                raise RunnerError("LIVE_HISTORY_MODE_MISMATCH")
+            header_targets = row.get("targets")
+            if (
+                type(header_targets) is not list
+                or tuple(header_targets) != target_set
+                or row.get("calendar_id") != config["cohort"]["calendar_id"]
+                or row.get("direction") != identity.get("direction")
+                or row.get("source_snapshot_id") != identity.get("source_snapshot_id")
+                or row.get("grid_sha256") != identity.get("calendar", {}).get("grid_sha256")
+            ):
+                raise RunnerError("LIVE_HISTORY_HEADER_MISMATCH")
+            for name, expected in restart_identity.items():
+                if name == "epoch_id":
+                    continue
+                if _canonical_json_bytes(identity[name]) != _canonical_json_bytes(expected):
+                    raise RunnerError("LIVE_HISTORY_IDENTITY_MISMATCH")
+            source_epoch_id = old_epoch
+            source_cohort_id = "alpha003:{}:{}".format(config["cohort"]["calendar_id"], old_epoch)
+            continue
+
+        record_count += 1
+        close_time = _aware_datetime(row.get("close_time"), "saved decision close_time")
+        if previous_close is not None and close_time <= previous_close:
+            raise RunnerError("LIVE_HISTORY_ORDER_INVALID")
+        previous_close = close_time
+        if close_time > now or close_time not in slot_by_close:
+            raise RunnerError("LIVE_HISTORY_OUTSIDE_CURRENT_GRID")
+        minute = slot_by_close[close_time]
+        slot_index = row.get("slot_index")
+        batch_id = row.get("batch_id")
+        decision_available_at = _aware_datetime(
+            row.get("available_at"), "saved decision available_at"
+        )
+        if type(slot_index) is not int or slot_index < 0:
+            raise RunnerError("LIVE_HISTORY_SLOT_IDENTITY_INVALID")
+        if previous_slot_index is not None and slot_index != previous_slot_index + 1:
+            raise RunnerError("LIVE_HISTORY_SLOT_SEQUENCE_INVALID")
+        expected_batch_id = "{}:{}:{}:{}:{}".format(
+            source_cohort_id,
+            config["cohort"]["calendar_id"],
+            source_epoch_id,
+            config["cohort"]["calendar_version"],
+            slot_index,
+        )
+        if type(batch_id) is not str or batch_id != expected_batch_id:
+            raise RunnerError("LIVE_HISTORY_BATCH_ID_INVALID")
+        if batch_id == previous_batch_id:
+            raise RunnerError("LIVE_HISTORY_BATCH_ID_INVALID")
+        if decision_available_at < close_time or decision_available_at > now:
+            raise RunnerError("LIVE_HISTORY_AVAILABILITY_INVALID")
+        previous_slot_index = slot_index
+        previous_batch_id = batch_id
+        readiness = row.get("readiness")
+        if (
+            row.get("epoch_id") != source_epoch_id
+            or type(row.get("epoch_id")) is not int
+            or row.get("cohort_id") != source_cohort_id
+            or row.get("calendar_id") != config["cohort"]["calendar_id"]
+            or row.get("calendar_version") != config["cohort"]["calendar_version"]
+            or type(readiness) is not str
+            or readiness not in {
+                "INITIALIZING", "WARMUP", "CATCHING_UP", "LIVE_READY", "DEGRADED"
+            }
+        ):
+            raise RunnerError("LIVE_HISTORY_RECORD_IDENTITY_INVALID")
+        members = row.get("members")
+        if not isinstance(members, Mapping) or set(members) != set(target_set):
+            raise RunnerError("LIVE_HISTORY_MEMBER_SET_INVALID")
+        event_rows = {}
+        event_source_roles = {}
+        for target in target_set:
+            member = members[target]
+            expected_member_keys = {
+                "cohort_id", "calendar_id", "epoch_id", "slot_index", "slot_id", "instrument",
+                "source_ref", "source_role", "connection_generation", "feed_sequence",
+                "bucket_start", "close_time", "available_at", "trading_day", "session_segment",
+                "timezone_id", "clock_domain_id", "bar_id", "complete", "quality", "present",
+                "quality_flags", "event_source", "received_monotonic_ns", "raw_values",
+            }
+            try:
+                _exact_keys(member, expected_member_keys, "saved history member")
+            except RunnerError:
+                raise RunnerError("LIVE_HISTORY_MEMBER_INVALID") from None
+            instrument = plan["routes"][plan["product_by_target"][target]]
+            source_ref = "ctp-live:{}:{}".format(target, instrument)
+            product = plan["product_by_target"][target]
+            planned_member = next(item for item in minute.members if item.product == product)
+            bucket_start = _aware_datetime(member["bucket_start"], "saved history bucket_start")
+            member_close = _aware_datetime(member["close_time"], "saved history member close_time")
+            available_at = _aware_datetime(member["available_at"], "saved history available_at")
+            day = _iso_date(member["trading_day"], "saved history trading_day")
+            source_role = member["source_role"]
+            generation = member["connection_generation"]
+            sequence = member["feed_sequence"]
+            bar_id = member["bar_id"]
+            if source_role not in ("history", "live"):
+                raise RunnerError("LIVE_HISTORY_SOURCE_ROLE_INVALID", target)
+            if (
+                member["cohort_id"] != source_cohort_id
+                or member["calendar_id"] != config["cohort"]["calendar_id"]
+                or member["epoch_id"] != source_epoch_id
+                or type(member["slot_index"]) is not int
+                or member["slot_index"] != slot_index
+                or member["slot_id"] != f"minute:{close_time.isoformat()}"
+                or member["instrument"] != instrument
+                or member["source_ref"] != source_ref
+                or isinstance(generation, bool)
+                or not isinstance(generation, (str, int))
+                or generation in ("", 0)
+                or type(sequence) is not int
+                or sequence < 1
+                or type(bar_id) is not str
+                or not bar_id
+                or member_close != close_time
+                or bucket_start != minute.close_time - timedelta(minutes=1)
+                or close_time != minute.close_time
+                or available_at < close_time
+                or available_at > decision_available_at
+                or day != planned_member.trading_day
+                or member["session_segment"] != planned_member.session_id
+                or member["timezone_id"] != config["cohort"]["timezone_id"]
+                or member["clock_domain_id"] != config["cohort"]["clock_domain_id"]
+                or member["complete"] is not True
+                or member["present"] is not True
+                or member["quality"] != "GOOD"
+                or type(member["quality_flags"]) is not list
+                or member["quality_flags"] not in ([], ["LEGACY_SCHEMA"])
+                or type(member["event_source"]) is not str
+                or type(member["raw_values"]) is not dict
+                or set(member["raw_values"]) != set(OHLCV_FIELDS)
+            ):
+                raise RunnerError("LIVE_HISTORY_MEMBER_INVALID", target)
+            previous_role = previous_source_roles.get(target)
+            if previous_role == "live" and source_role != "live":
+                raise RunnerError("LIVE_HISTORY_SOURCE_ROLE_ORDER_INVALID", target)
+            role_key = (target, source_role)
+            if role_key in generations and generations[role_key] != generation:
+                raise RunnerError("LIVE_HISTORY_GENERATION_CHANGED", target)
+            prior_sequence = previous_sequences.get(role_key)
+            if prior_sequence is not None and sequence <= prior_sequence:
+                raise RunnerError("LIVE_HISTORY_SEQUENCE_INVALID", target)
+            generations[role_key] = generation
+            previous_sequences[role_key] = sequence
+            previous_source_roles[target] = source_role
+            values = {
+                name: _number(member["raw_values"][name], "saved history " + target + "." + name)
+                for name in OHLCV_FIELDS
+            }
+            if (
+                min(values["open"], values["high"], values["low"], values["close"]) <= 0
+                or values["high"] < max(values["open"], values["close"], values["low"])
+                or values["low"] > min(values["open"], values["close"], values["high"])
+                or values["volume"] < 0
+                or values["openinterest"] < 0
+            ):
+                raise RunnerError("LIVE_HISTORY_OHLCV_INVALID", target)
+            event_rows[target] = MappingProxyType(
+                {
+                    "instrument": instrument,
+                    "symbol": instrument,
+                    "exchange": product.exchange_id,
+                    "timestamp": close_time.timestamp(),
+                    "datetime": close_time,
+                    "bucket_start": bucket_start,
+                    "bucket_end": close_time,
+                    "available_at": available_at,
+                    "trading_day": day.strftime("%Y%m%d"),
+                    "session_segment": member["session_segment"],
+                    "timezone_id": member["timezone_id"],
+                    "clock_domain_id": member["clock_domain_id"],
+                    "connection_generation": generation,
+                    "bar_sequence": sequence,
+                    "bar_id": bar_id,
+                    "present": True,
+                    "complete": True,
+                    "quality": "GOOD",
+                    "quality_flags": tuple(member["quality_flags"]),
+                    "source": member["event_source"],
+                    **values,
+                }
+            )
+            event_source_roles[target] = source_role
+        decision_reference = MappingProxyType(
+            {
+                "file_id": row["file_id"],
+                "record_id": row["record_id"],
+                "record_index": row["record_index"],
+                "batch_id": batch_id,
+                "close_time": close_time,
+                "cohort_id": source_cohort_id,
+                "epoch_id": source_epoch_id,
+            }
+        )
+        tail.append(
+            (
+                close_time,
+                readiness,
+                slot_index,
+                batch_id,
+                event_rows,
+                event_source_roles,
+                decision_reference,
+            )
+        )
+
+    if header is None or not record_count:
+        raise RunnerError("LIVE_HISTORY_RECORDS_MISSING")
+    if len(tail) != preheat_bars or tuple(item[0] for item in tail) != expected_closes:
+        raise RunnerError("LIVE_HISTORY_WARMUP_NOT_CONTIGUOUS")
+    if any(item[1] != "LIVE_READY" for item in tail):
+        raise RunnerError("LIVE_HISTORY_WARMUP_NOT_READY")
+    if any(role != "live" for item in tail for role in item[5].values()):
+        raise RunnerError("LIVE_HISTORY_TAIL_NOT_LIVE")
+    for target in target_set:
+        events = tuple(item[4][target] for item in tail)
+        if any(
+            events[index]["bucket_end"] - events[index - 1]["bucket_end"] != timedelta(minutes=1)
+            for index in range(1, len(events))
+        ):
+            raise RunnerError("LIVE_HISTORY_WARMUP_NOT_CONTIGUOUS", target)
+        if len({(event["trading_day"], event["session_segment"]) for event in events}) != 1:
+            raise RunnerError("LIVE_HISTORY_SESSION_CHANGED", target)
+    return {
+        "source_path": source_path,
+        "source_file_id": header["file_id"],
+        "source_epoch_id": source_epoch_id,
+        "source_cohort_id": source_cohort_id,
+        "record_count": record_count,
+        "bar_count": preheat_bars,
+        "first_bucket_start": tail[0][4][target_set[0]]["bucket_start"],
+        "last_close_time": tail[-1][0],
+        "last_batch_id": tail[-1][3],
+        "decision_anchors": tuple(item[6] for item in tail),
+        "bars_by_target": {
+            target: tuple(item[4][target] for item in tail) for target in target_set
+        },
+    }
+
+
+def _verify_saved_history_decision_anchors(journal, scopes, saved_history):
+    """Bind each restored tail row to its original durable strategy decision."""
+    from backtrader.stores.execution_decision_journal import (
+        ExecutionDecisionKey,
+        ExecutionDecisionRecord,
+    )
+
+    expected_references = (
+        ("decision_tape_file_id", "file_id"),
+        ("decision_tape_record_id", "record_id"),
+        ("decision_tape_record_index", "record_index"),
+        ("decision_tape_batch_id", "batch_id"),
+    )
+    for anchor in saved_history["decision_anchors"]:
+        close_time = anchor["close_time"].isoformat().replace("+00:00", "Z")
+        key = ExecutionDecisionKey(
+            account_scope=scopes["account_scope"],
+            strategy_scope=scopes["strategy_scope"],
+            logical_run_id=scopes["logical_run_id"],
+            cohort_id=anchor["cohort_id"],
+            close_time=close_time,
+            decision_kind="ALPHA003_GRID",
+        )
+        record = journal.decision_for_key(key)
+        if (
+            not isinstance(record, ExecutionDecisionRecord)
+            or record.key != key
+            or not isinstance(record.economic_payload, Mapping)
+        ):
+            raise RunnerError("LIVE_HISTORY_JOURNAL_DECISION_ANCHOR_MISMATCH")
+        payload = record.economic_payload
+        if (
+            type(payload.get("batch_id")) is not str
+            or payload["batch_id"] != anchor["batch_id"]
+            or type(payload.get("epoch_id")) is not int
+            or payload["epoch_id"] != anchor["epoch_id"]
+            or type(payload.get("decision_tape_status")) is not str
+            or payload["decision_tape_status"] != "DURABLE"
+            or any(
+                type(payload.get(payload_key)) is not type(anchor[reference_key])
+                or payload[payload_key] != anchor[reference_key]
+                for payload_key, reference_key in expected_references
+            )
+        ):
+            raise RunnerError("LIVE_HISTORY_JOURNAL_DECISION_ANCHOR_MISMATCH")
 
 
 def _decision_tape_readback(
@@ -3526,6 +3937,34 @@ def _selection_evidence(plan, epoch_id, *, max_bytes):
     return evidence
 
 
+def _live_shutdown_path(cerebro, result, refresh_loop):
+    """Return the lifecycle path only when its corresponding proof is complete."""
+
+    winddown_status = getattr(cerebro, "live_bar_cohort_winddown_status", None)
+    winddown_reason = getattr(cerebro, "live_bar_cohort_winddown_reason", None)
+    if winddown_status == "STOPPED":
+        return "final_grid_winddown"
+
+    controlled_stop_proven = (
+        winddown_status == "NOT_REACHED"
+        and winddown_reason == "final_batch_not_reached"
+        and getattr(result, "shutdown_requested", False) is True
+        and getattr(result, "shutdown_ready", False) is True
+        and getattr(result, "shutdown_blocker", None) is None
+        and getattr(result, "shutdown_post_join_confirmed", False) is True
+        and getattr(result, "shutdown_post_join_blocker", None) is None
+        and getattr(refresh_loop, "shutdown_status", None) == "PASS"
+        and getattr(refresh_loop, "joined", False) is True
+    )
+    if controlled_stop_proven:
+        return "controlled_application_stop"
+
+    raise RunnerError(
+        "LIVE_CORE_WINDDOWN_NOT_CONFIRMED",
+        f"{winddown_status}:{winddown_reason}",
+    )
+
+
 def run_live(
     config,
     config_path,
@@ -3615,12 +4054,11 @@ def run_live(
     clock = None
     query_session_ready = False
     selection_snapshot_id = None
-    try:
-        from backtrader.stores.execution_decision_journal import ExecutionDecisionJournal
-        from backtrader.stores.factor_execution import FactorExecutionCoordinator
 
-        if not callable(getattr(bt.Cerebro, "wake_live_bar_cohort", None)):
-            raise RunnerError("LIVE_COHORT_WAKE_API_UNAVAILABLE")
+    def create_store():
+        nonlocal store
+        if store is not None:
+            return store
         store = RegisteredSimStore(
             provider="ctp",
             backend="direct",
@@ -3631,8 +4069,22 @@ def run_live(
         )
         if store.registered_sim_route_id != "simnow-registered-v1" or store.sdk_api is not None:
             raise RunnerError("REGISTERED_SIM_STORE_CONTRACT_INVALID")
+        return store
+
+    try:
+        from backtrader.stores.execution_decision_journal import ExecutionDecisionJournal
+        from backtrader.stores.factor_execution import FactorExecutionCoordinator
+
+        if not callable(getattr(bt.Cerebro, "wake_live_bar_cohort", None)):
+            raise RunnerError("LIVE_COHORT_WAKE_API_UNAVAILABLE")
         clock = RunnerWallClock()
+        history_input = config["inputs"].get("history_decision_tape")
+        if history_input is not None and query_selection:
+            raise RunnerError("LIVE_HISTORY_SELECTION_UNSUPPORTED")
+        if history_input is not None and config["selection"]["daily_bundles"]:
+            raise RunnerError("LIVE_HISTORY_SELECTION_UNSUPPORTED")
         if query_selection:
+            create_store()
             if not store.registered_sim_wait_ready(ready_timeout):
                 raise RunnerError("LIVE_CTP_SESSION_NOT_READY")
             login_before_selection = store.registered_sim_login_facts()
@@ -3655,6 +4107,23 @@ def run_live(
             selection_snapshot_id = plan["source_snapshot_id"]
         elif plan is None:
             raise RunnerError("LIVE_SELECTION_PLAN_REQUIRED")
+        elif history_input is None:
+            create_store()
+        restart_identity = _live_restart_identity(
+            config,
+            config_path,
+            plan,
+            factor_mode=factor_mode,
+            direction=direction,
+            simnow_profile=simnow_profile,
+        )
+        saved_history = _load_saved_live_history(
+            config,
+            config_path,
+            plan,
+            restart_identity=restart_identity,
+            now=clock.utc_now(),
+        )
         arm_templates = _arm_templates(config, plan) if write_enabled else None
         tape_path = config["output"]["decision_tape_path"]
         tape_budget = config["output"]["decision_tape_max_bytes"]
@@ -3667,6 +4136,29 @@ def run_live(
             config["cohort"]["epoch_id"],
             max_bytes=tape_budget,
         )
+        journal = ExecutionDecisionJournal(journal_path)
+        if saved_history is not None:
+            history_cursor = journal.grid_cursor(
+                scopes["account_scope"],
+                scopes["strategy_scope"],
+                saved_history["source_cohort_id"],
+            )
+            if (
+                history_cursor is None
+                or _aware_datetime(history_cursor.close_time, "history journal cursor")
+                != saved_history["last_close_time"]
+                or history_cursor.batch_id != saved_history["last_batch_id"]
+                or history_cursor.epoch_id != str(saved_history["source_epoch_id"])
+            ):
+                raise RunnerError("LIVE_HISTORY_JOURNAL_HIGHWATER_MISMATCH")
+            saved_history["prior_grid_cursor_close_time"] = history_cursor.close_time
+            saved_history["prior_grid_cursor_batch_id"] = history_cursor.batch_id
+            _verify_saved_history_decision_anchors(journal, scopes, saved_history)
+            saved_history["prior_run_order_intents"] = journal.run_order_count(
+                scopes["account_scope"], scopes["strategy_scope"], scopes["logical_run_id"]
+            )
+        if store is None:
+            create_store()
         decision_tape = _new_decision_tape(
             config,
             config_path,
@@ -3675,6 +4167,7 @@ def run_live(
             factor_mode=factor_mode,
             direction=direction,
             source_snapshot_id=plan.get("source_snapshot_id"),
+            restart_identity=restart_identity,
         )
         broker = BtApiBroker(
             store=store,
@@ -3691,7 +4184,6 @@ def run_live(
                 for target in plan["targets"]
             },
         )
-        journal = ExecutionDecisionJournal(journal_path)
         grid_budget = risk_policy.max_order_intents_per_grid if risk_policy is not None else 0
         run_budget = risk_policy.max_order_intents_per_run if risk_policy is not None else 0
         coordinator = FactorExecutionCoordinator(
@@ -3708,13 +4200,39 @@ def run_live(
         cohort = _make_cohort(
             config,
             plan["grid"],
-            begin_at=clock.utc_now(),
+            begin_at=(
+                saved_history["first_bucket_start"]
+                if saved_history is not None
+                else clock.utc_now()
+            ),
             ctp_trading_days=True,
         )
         query_targets = []
         for target in plan["targets"]:
             product = plan["product_by_target"][target]
             instrument = plan["routes"][product]
+            history_origin = None
+            feed_options = {}
+            if saved_history is not None:
+                from backtrader.research.live_cohort import LiveSourceOrigin
+
+                history_bars = saved_history["bars_by_target"][target]
+                first_history = history_bars[0]
+                source_ref = f"ctp-live:{target}:{instrument}"
+                history_origin = LiveSourceOrigin(
+                    member_id=target,
+                    epoch_id=config["cohort"]["epoch_id"],
+                    source_ref=source_ref,
+                    source_role="history",
+                    connection_generation=first_history["connection_generation"],
+                    bar_id=first_history["bar_id"],
+                    feed_sequence=first_history["bar_sequence"],
+                    close_time=first_history["bucket_end"],
+                )
+                feed_options = {
+                    "historical_bars": history_bars,
+                    "cohort_source_origin": history_origin,
+                }
             data = store.getdata(
                 dataname=instrument,
                 backfill_start=False,
@@ -3723,6 +4241,7 @@ def run_live(
                 clock=clock,
                 cohort_source_mode=True,
                 bar_watermark_ms=int(store_config.get("bar_watermark_ms", 500)),
+                **feed_options,
             )
             cerebro.adddata(data, name=target)
             cohort.register_member(
@@ -3736,6 +4255,7 @@ def run_live(
                 timezone_id=config["cohort"]["timezone_id"],
                 session_semantics=config["cohort"]["session_semantics"],
                 numeric_fields=OHLCV_FIELDS,
+                source_origin=history_origin,
             )
             query_targets.append(
                 FactorExecutionTarget(
@@ -3819,11 +4339,10 @@ def run_live(
             result = cerebro.run(runonce=False, preload=False)[0]
             winddown_status = getattr(cerebro, "live_bar_cohort_winddown_status", None)
             winddown_reason = getattr(cerebro, "live_bar_cohort_winddown_reason", None)
-            if winddown_status != "STOPPED":
-                raise RunnerError(
-                    "LIVE_CORE_WINDDOWN_NOT_CONFIRMED",
-                    f"{winddown_status}:{winddown_reason}",
-                )
+            shutdown_path = _live_shutdown_path(cerebro, result, refresh_loop)
+            strategy_shutdown_requested = (
+                getattr(result, "shutdown_requested", False) is True
+            )
             strategy_ready = getattr(result, "shutdown_ready", False) is True
             strategy_blocker = getattr(result, "shutdown_blocker", None)
             if not strategy_ready or strategy_blocker is not None:
@@ -3942,6 +4461,12 @@ def run_live(
         elif not refresh_joined:
             cleanup.append({"resource": "journal", "status": "SKIPPED_REFRESH_UNJOINED"})
         else:
+            if saved_history is not None:
+                saved_history["run_order_intents_after"] = journal.run_order_count(
+                    scopes["account_scope"],
+                    scopes["strategy_scope"],
+                    scopes["logical_run_id"],
+                )
             _cleanup_live_resource(
                 cleanup,
                 "journal",
@@ -4061,13 +4586,31 @@ def run_live(
         "shutdown_status": refresh_loop.shutdown_status if refresh_loop else "NOT_REQUESTED",
         "shutdown_blocker": refresh_loop.shutdown_blocker if refresh_loop else None,
         "strategy_shutdown_ready": strategy_ready,
+        "strategy_shutdown_requested": strategy_shutdown_requested,
         "strategy_shutdown_blocker": strategy_blocker,
         "strategy_shutdown_post_join_confirmed": strategy_post_join_confirmed,
         "strategy_shutdown_post_join_blocker": strategy_post_join_blocker,
         "engine_winddown_status": getattr(cerebro, "live_bar_cohort_winddown_status", None),
         "engine_winddown_reason": getattr(cerebro, "live_bar_cohort_winddown_reason", None),
+        "shutdown_path": shutdown_path,
         "decision_tape": decision_tape.summary(),
         "decision_tape_readback": decision_tape_readback,
+        "history_resume": (
+            None
+            if saved_history is None
+            else {
+                "source_file_id": saved_history["source_file_id"],
+                "source_epoch_id": saved_history["source_epoch_id"],
+                "source_cohort_id": saved_history["source_cohort_id"],
+                "restored_bar_count": saved_history["bar_count"],
+                "first_bucket_start": _json_time(saved_history["first_bucket_start"]),
+                "last_close_time": _json_time(saved_history["last_close_time"]),
+                "prior_grid_cursor_close_time": saved_history["prior_grid_cursor_close_time"],
+                "prior_grid_cursor_batch_id": saved_history["prior_grid_cursor_batch_id"],
+                "prior_run_order_intents": saved_history["prior_run_order_intents"],
+                "run_order_intents_after": saved_history["run_order_intents_after"],
+            }
+        ),
         "strategy_order_events": _project_strategy_order_events(
             result, plan, config["cohort"]["epoch_id"]
         ),
@@ -4312,6 +4855,10 @@ def run_live_epochs(
     strategy-owned winddown and its local resources have closed with proof.
     """
 
+    if config["inputs"].get("history_decision_tape") is not None and (
+        config["selection"]["source"] != "bundle" or config["selection"]["daily_bundles"]
+    ):
+        raise RunnerError("LIVE_HISTORY_SELECTION_UNSUPPORTED")
     if config["selection"]["source"] == "ctp_query":
         if config["selection"]["daily_bundles"]:
             raise RunnerError("QUERY_SELECTION_DAILY_BUNDLES_UNSUPPORTED")
@@ -4517,6 +5064,8 @@ def run(args=None):
         factor_mode, direction, _preheat, _cadence = _factor_parameters(config, ns.factor_mode)
         daily_bundles = config["selection"]["daily_bundles"]
         selection_source = config["selection"]["source"]
+        if config["inputs"].get("history_decision_tape") is not None and mode != "live":
+            raise RunnerError("LIVE_HISTORY_LIVE_MODE_REQUIRED")
         if selection_source == "ctp_query" and mode in {"research", "replay"}:
             raise RunnerError("OFFLINE_MODE_REQUIRES_SAVED_SELECTION_BUNDLE")
         if selection_source == "ctp_query" and daily_bundles:

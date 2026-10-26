@@ -866,12 +866,22 @@ def _daily_test_inputs(tmp_path):
 
 
 @pytest.mark.parametrize(
-    ("selection_source", "unresolved_position"),
-    (("bundle", False), ("bundle", True), ("ctp_query", False)),
-    ids=("flat-two-epoch-positive", "nonflat-winddown-timeout", "same-store-query-live"),
+    ("selection_source", "unresolved_position", "saved_history_restart"),
+    (
+        ("bundle", False, False),
+        ("bundle", True, False),
+        ("ctp_query", False, False),
+        ("bundle", False, True),
+    ),
+    ids=(
+        "flat-two-epoch-positive",
+        "nonflat-winddown-timeout",
+        "same-store-query-live",
+        "saved-history-real-live-restart",
+    ),
 )
 def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bundle(
-    tmp_path, monkeypatch, selection_source, unresolved_position
+    tmp_path, monkeypatch, selection_source, unresolved_position, saved_history_restart
 ):
     """Exercise daily assembly through the real Store/Broker/Cerebro stack.
 
@@ -953,6 +963,8 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
             max_order_intents_per_grid=2,
             max_order_intents_per_run=100,
         )
+    elif saved_history_restart:
+        config["selection"]["daily_bundles"] = []
     else:
         config["selection"]["daily_bundles"] = [str(second_bundle)]
     config["live"].update(
@@ -984,6 +996,22 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
         if selection_source == "ctp_query"
         else first_plan["grid"].minutes[0].close_time - timedelta(minutes=1)
     )
+    # The prior tape must retain one full LIVE_READY window after the initial
+    # warmup; those rows are the journal-anchored values restored next epoch.
+    restart_cut = 2 * config["factor"]["preheat_bars"]
+    restart_cut_2 = restart_cut + config["factor"]["preheat_bars"] + 8
+    restart_cut_3 = restart_cut_2 + 8
+    assert restart_cut_3 < len(first_plan["grid"].minutes)
+    for cutoff in (restart_cut, restart_cut_2):
+        assert len(
+            {
+                (member.trading_day, member.session_id)
+                for minute in first_plan["grid"].minutes[
+                    cutoff - config["factor"]["preheat_bars"] : cutoff
+                ]
+                for member in minute.members
+            }
+        ) == 1
     trace = []
     api_clients = []
     contexts = deque()
@@ -997,6 +1025,9 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
             self._lock = threading.RLock()
             self._availability = ()
             self._availability_index = 0
+            self._close_by_availability = {}
+            self._required_completed_close = None
+            self._completed_close = None
 
         def utc_now(self):
             with self._lock:
@@ -1010,11 +1041,15 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
         def wait(self, timeout_seconds):
             del timeout_seconds
             with self._lock:
+                # The fixture's virtual market clock advances only through the
+                # Cerebro/feed wait path, never through background query waits.
+                if saved_history_restart:
+                    return
                 if self._availability_index < len(self._availability):
                     self._now = max(self._now, self._availability[self._availability_index])
                     self._availability_index += 1
 
-        def set_epoch_events(self, events):
+        def set_epoch_events(self, events, *, start_at=None):
             with self._lock:
                 self._availability = tuple(
                     sorted(
@@ -1030,14 +1065,35 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
                     )
                 )
                 self._availability_index = 0
+                self._close_by_availability = {
+                    row["available_at"]: row["bucket_end"]
+                    for rows in events.values()
+                    for row in rows
+                }
+                self._completed_close = None
+                self._required_completed_close = (
+                    min(row["bucket_start"] for rows in events.values() for row in rows)
+                    if saved_history_restart and start_at is not None
+                    else None
+                )
                 # Startup facts are queried at the first planned bucket start.
-                # The fixture has 119 closes so the last bar remains inside
-                # the explicit two-hour query/state age.
-                self._now = self._availability[0] - timedelta(seconds=62)
+                # A restart resumes after the last saved history receipt instead
+                # of rewinding the shared virtual clock.
+                self._now = (
+                    start_at
+                    if start_at is not None
+                    else self._availability[0] - timedelta(seconds=62)
+                )
 
         def set_utc_now(self, value):
             with self._lock:
                 self._now = value
+
+        def record_completed_batch(self, batch):
+            if not saved_history_restart or batch is None or batch.status != "COMPLETE":
+                return
+            with self._lock:
+                self._completed_close = batch.close_time
 
         def wait_interruptibly(self, timeout_seconds, wait_for_event):
             # Check an actual Cerebro/Store wake first. During an epoch, move
@@ -1046,13 +1102,30 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
             if wait_for_event(0.0):
                 return True
             with self._lock:
+                if (
+                    saved_history_restart
+                    and self._required_completed_close is not None
+                    and (
+                        self._completed_close is None
+                        or self._completed_close < self._required_completed_close
+                    )
+                ):
+                    # A preparation-budget wait is not a new market minute.
+                    # Keep the current source timestamp until Strategy has
+                    # consumed its complete batch, including restored history.
+                    return False
                 while (
                     self._availability_index < len(self._availability)
                     and self._availability[self._availability_index] <= self._now
                 ):
                     self._availability_index += 1
                 if self._availability_index < len(self._availability):
-                    self._now = max(self._now, self._availability[self._availability_index])
+                    next_availability = self._availability[self._availability_index]
+                    self._now = max(self._now, next_availability)
+                    if saved_history_restart:
+                        self._required_completed_close = self._close_by_availability[
+                            next_availability
+                        ]
                     self._availability_index += 1
                     return False
             return wait_for_event(min(float(timeout_seconds), 0.01))
@@ -1065,6 +1138,15 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
     def make_context(plan, epoch_id, *, context=None):
         bar_rows = defaultdict(list)
         for ordinal, minute in enumerate(plan["grid"].minutes, 1):
+            if saved_history_restart:
+                if epoch_id == 1 and ordinal > restart_cut:
+                    continue
+                if epoch_id == 2 and not restart_cut < ordinal <= restart_cut_2:
+                    continue
+                if epoch_id == 3 and not restart_cut_2 < ordinal <= restart_cut_3:
+                    continue
+                if epoch_id not in (1, 2, 3):
+                    raise AssertionError("unexpected saved-history epoch")
             member_by_product = {member.product: member for member in minute.members}
             for target_index, target in enumerate(plan["targets"]):
                 product = plan["product_by_target"][target]
@@ -1095,7 +1177,16 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
                         "timezone_id": "UTC",
                         "clock_domain_id": config["cohort"]["clock_domain_id"],
                         "connection_generation": f"epoch-{epoch_id}-generation-1",
-                        "bar_sequence": ordinal,
+                        # A new provider generation starts its own sequence at
+                        # one. History and live therefore must be validated
+                        # independently by source role.
+                        "bar_sequence": (
+                            ordinal - restart_cut
+                            if saved_history_restart and epoch_id == 2
+                            else ordinal - restart_cut_2
+                            if saved_history_restart and epoch_id == 3
+                            else ordinal
+                        ),
                         "bar_id": f"epoch-{epoch_id}:{target}:{ordinal}",
                         "timestamp": close_time.timestamp(),
                         "present": True,
@@ -1177,7 +1268,10 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
         context.trading_day = context_day
         context.rows = rows
         context.bars = {instrument: deque(events) for instrument, events in bar_rows.items()}
-        clock.set_epoch_events(bar_rows)
+        clock.set_epoch_events(
+            bar_rows,
+            start_at=(clock.utc_now() if saved_history_restart and epoch_id > 1 else None),
+        )
         return context
 
     def make_query_context(epoch_id, trading_day):
@@ -1253,7 +1347,7 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
             history_limit = kwargs.pop("registered_sim_history_limit", 64)
             terminal_limit = kwargs.pop("registered_sim_terminal_order_limit", 512)
             context = contexts.popleft()
-            if context.epoch_id > 1:
+            if context.epoch_id > 1 and not saved_history_restart:
                 clock.set_utc_now(datetime(2026, 10, 23, 1, 0, tzinfo=UTC))
             super().__init__(
                 *args,
@@ -1289,6 +1383,7 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
                 "trading_day": client._trading_day,
             }
             self.closed = False
+            self._first_bar_logged = False
             api_clients.append(self)
             trace.append(("api_created", context.epoch_id))
 
@@ -1394,6 +1489,9 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
             if event["available_at"] > clock.utc_now():
                 return None
             row = queue.popleft()
+            if saved_history_restart and not self._first_bar_logged:
+                self._first_bar_logged = True
+                trace.append(("first_provider_bar", self.context.epoch_id, row["bar_sequence"]))
             return row
 
     original_factory = registered_sim_module._make_api_factory
@@ -1405,6 +1503,15 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
         ),
     )
     monkeypatch.setattr(RUNNER, "_live_env_config", lambda _config: _official_simnow_store_config())
+    original_refresh_initial = RUNNER.QueryRefreshLoop.refresh_initial
+
+    def tracked_refresh_initial(refresh_loop, *args, **kwargs):
+        result = original_refresh_initial(refresh_loop, *args, **kwargs)
+        if saved_history_restart:
+            trace.append(("initial_refresh_complete", config["cohort"]["epoch_id"]))
+        return result
+
+    monkeypatch.setattr(RUNNER.QueryRefreshLoop, "refresh_initial", tracked_refresh_initial)
     if selection_source == "ctp_query":
         monkeypatch.setattr(futures_ctp_snapshot, "_now_utc", clock.utc_now)
         contexts.append(make_query_context(1, first_day))
@@ -1458,7 +1565,74 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
 
     monkeypatch.setattr(RUNNER, "run_live", tracked_run_live)
     strategy_module = importlib.import_module("alpha003_strategy")
+    original_prenext = strategy_module.Alpha003TargetStrategy.prenext
+    original_next = strategy_module.Alpha003TargetStrategy.next
     original_notify_idle = strategy_module.Alpha003TargetStrategy.notify_idle
+
+    def request_restart_after_final_batch(strategy):
+        if not saved_history_restart or strategy.shutdown_requested:
+            return
+        epoch_id = strategy.p.cohort.epoch_id
+        final_ordinal = {
+            1: restart_cut,
+            2: restart_cut_2,
+            3: restart_cut_3,
+        }.get(epoch_id)
+        if final_ordinal is None:
+            return
+        final_close = first_plan["grid"].minutes[final_ordinal - 1].close_time
+        batch = strategy.p.cohort.current_batch()
+        context = api_clients[-1].context if api_clients else None
+        receipts = tuple(batch.members.values()) if batch is not None else ()
+        complete_final_batch = (
+            batch is not None
+            and batch.status == "COMPLETE"
+            and batch.epoch_id == epoch_id
+            and batch.close_time == final_close
+            and set(batch.members) == set(first_plan["targets"])
+            and all(
+                receipt.epoch_id == epoch_id
+                and receipt.close_time == final_close
+                and receipt.source_role == "live"
+                and receipt.complete is True
+                and receipt.present is True
+                and receipt.quality == "GOOD"
+                and not receipt.missing_fields
+                for receipt in receipts
+            )
+        )
+        provider_exhausted = (
+            context is not None
+            and context.epoch_id == epoch_id
+            and all(not queue for queue in context.bars.values())
+        )
+        tape_committed = (
+            strategy._last_decision_tape_batch_id == getattr(batch, "batch_id", None)
+            and strategy._last_decision_tape_reference is not None
+            and strategy._last_decision_tape_error is None
+        )
+        if complete_final_batch and provider_exhausted and tape_committed:
+            refresh_loop = strategy.p.control_refresh_loop
+            assert refresh_loop.request_shutdown() is True
+            trace.append(
+                (
+                    "fixture_restart_requested",
+                    epoch_id,
+                    batch.batch_id,
+                    batch.close_time.isoformat(),
+                )
+            )
+
+    def tracked_prenext(strategy):
+        result = original_prenext(strategy)
+        clock.record_completed_batch(strategy.p.cohort.current_batch())
+        return result
+
+    def tracked_next(strategy):
+        result = original_next(strategy)
+        clock.record_completed_batch(strategy.p.cohort.current_batch())
+        request_restart_after_final_batch(strategy)
+        return result
 
     def tracked_notify_idle(strategy):
         original_notify_idle(strategy)
@@ -1480,20 +1654,390 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
             if strategy not in strategy_instances:
                 strategy_instances.append(strategy)
 
+    monkeypatch.setattr(strategy_module.Alpha003TargetStrategy, "prenext", tracked_prenext)
+    monkeypatch.setattr(strategy_module.Alpha003TargetStrategy, "next", tracked_next)
     monkeypatch.setattr(strategy_module.Alpha003TargetStrategy, "notify_idle", tracked_notify_idle)
 
     failure = None
     result = None
     try:
-        result = RUNNER.run_live_epochs(
-            config,
-            config_path,
-            None if selection_source == "ctp_query" else first_plan,
-            "native",
-            1,
-            decision=SimpleNamespace(effective_tier="live"),
-            allow_write_flag=False,
-        )
+        if saved_history_restart:
+            config["risk"].update(
+                policy_id="saved-history-budget-v1",
+                max_hold_eligible_bars=12,
+                preclose_grace_seconds=300,
+                run_end_policy="CLOSE_ALL",
+                quote_max_age_seconds=60,
+                max_state_age_seconds=7200,
+                max_notional_per_position=100_000,
+                max_total_notional=300_000,
+                max_margin_per_position=10_000,
+                max_total_margin=30_000,
+                max_loss_per_position=10_000,
+                max_total_loss=20_000,
+                round_trip_fee_upper_bound_per_contract="1.00",
+                stop_loss_ticks=1,
+                max_order_intents_per_grid=2,
+                max_order_intents_per_run=100,
+            )
+            config["cohort"]["epoch_id"] = 1
+            first_result = RUNNER.run_live(
+                config,
+                config_path,
+                first_plan,
+                "native",
+                1,
+                decision=SimpleNamespace(effective_tier="live"),
+                allow_write_flag=False,
+            )
+            assert first_result["status"] == "LIVE_RUN_COMPLETE"
+            assert first_result["cleanup_complete"] is True
+            first_tape_path = Path(first_result["decision_tape"]["path"])
+            first_tape_rows = tuple(
+                RUNNER.iter_decision_tape(first_tape_path, max_bytes=50_000_000)
+            )
+            first_decisions = first_tape_rows[1:]
+            assert len(first_decisions) == restart_cut
+            assert first_tape_rows[0]["restart_identity"]["epoch_id"] == 1
+            assert first_tape_rows[0]["targets"] == sorted(first_plan["targets"])
+            assert first_decisions[0]["readiness"] == "WARMUP"
+            assert all(
+                member["quality_flags"] == []
+                for row in first_decisions
+                for member in row["members"].values()
+            )
+            first_slot_indexes = [row["slot_index"] for row in first_decisions]
+            assert all(
+                right == left + 1
+                for left, right in zip(first_slot_indexes, first_slot_indexes[1:])
+            )
+            assert all(
+                member["slot_index"] == row["slot_index"]
+                and member["slot_id"] == "minute:" + RUNNER._aware_datetime(
+                    row["close_time"], "tape slot close"
+                ).isoformat()
+                for row in first_decisions
+                for member in row["members"].values()
+            )
+            assert all(row["epoch_id"] == 1 for row in first_decisions)
+
+            config["cohort"]["epoch_id"] = 2
+            config["inputs"]["history_decision_tape"] = str(first_tape_path)
+            config["output"]["decision_tape_path"] = str(tmp_path / "live-decisions-resumed.jsonl")
+            truncated_path = tmp_path / "history-truncated.jsonl"
+            truncated_path.write_bytes(first_tape_path.read_bytes()[:-1])
+            config["inputs"]["history_decision_tape"] = str(truncated_path)
+            with pytest.raises(RUNNER.RunnerError) as truncated_error:
+                RUNNER.run_live(
+                    config,
+                    config_path,
+                    first_plan,
+                    "native",
+                    1,
+                    decision=SimpleNamespace(effective_tier="live"),
+                    allow_write_flag=False,
+                )
+            assert truncated_error.value.code == "DECISION_TAPE_RECORD_INVALID"
+            assert len(api_clients) == 1
+
+            malformed_path = tmp_path / "history-wrong-identity.jsonl"
+            raw_lines = first_tape_path.read_bytes().splitlines(keepends=True)
+            bad_header = json.loads(raw_lines[0])
+            bad_header["restart_identity"]["scope_sha256"]["logical_run_id"] = "0" * 64
+            bad_header.pop("record_id")
+            bad_header["record_id"] = hashlib.sha256(
+                RUNNER._canonical_json_bytes(bad_header).rstrip(b"\n")
+            ).hexdigest()
+            malformed_path.write_bytes(
+                RUNNER._canonical_json_bytes(bad_header) + b"".join(raw_lines[1:])
+            )
+            config["inputs"]["history_decision_tape"] = str(malformed_path)
+            with pytest.raises(RUNNER.RunnerError) as identity_error:
+                RUNNER.run_live(
+                    config,
+                    config_path,
+                    first_plan,
+                    "native",
+                    1,
+                    decision=SimpleNamespace(effective_tier="live"),
+                    allow_write_flag=False,
+                )
+            assert identity_error.value.code == "LIVE_HISTORY_IDENTITY_MISMATCH"
+            assert len(api_clients) == 1
+
+            bad_batch_path = tmp_path / "history-wrong-batch.jsonl"
+            bad_batch_rows = [json.loads(line) for line in raw_lines]
+            bad_batch_rows[1]["batch_id"] = "nonempty-but-not-produced"
+            bad_batch_rows[1].pop("record_id")
+            bad_batch_rows[1]["record_id"] = hashlib.sha256(
+                RUNNER._canonical_json_bytes(bad_batch_rows[1]).rstrip(b"\n")
+            ).hexdigest()
+            bad_batch_path.write_bytes(
+                b"".join(RUNNER._canonical_json_bytes(row) for row in bad_batch_rows)
+            )
+            config["inputs"]["history_decision_tape"] = str(bad_batch_path)
+            with pytest.raises(RUNNER.RunnerError) as batch_error:
+                RUNNER.run_live(
+                    config,
+                    config_path,
+                    first_plan,
+                    "native",
+                    1,
+                    decision=SimpleNamespace(effective_tier="live"),
+                    allow_write_flag=False,
+                )
+            assert batch_error.value.code == "LIVE_HISTORY_BATCH_ID_INVALID"
+            assert len(api_clients) == 1
+
+            config["inputs"]["history_decision_tape"] = str(first_tape_path)
+            from backtrader.stores.execution_decision_journal import ExecutionDecisionJournal
+
+            history_cohort_id = "alpha003:{}:1".format(config["cohort"]["calendar_id"])
+            journal_path = Path(config["live"]["journal_path"])
+            journal = ExecutionDecisionJournal(journal_path)
+            try:
+                cursor = journal.grid_cursor(
+                    config["live"]["account_scope"],
+                    config["live"]["strategy_scope"],
+                    history_cohort_id,
+                )
+                assert cursor is not None
+                source_cursor_epoch = cursor.epoch_id
+                journal._connection.execute(
+                    "UPDATE execution_grid_cursors SET epoch_id = ? "
+                    "WHERE account_scope = ? AND strategy_scope = ? AND cohort_id = ?",
+                    (
+                        "9",
+                        config["live"]["account_scope"],
+                        config["live"]["strategy_scope"],
+                        history_cohort_id,
+                    ),
+                )
+                journal._connection.commit()
+            finally:
+                journal.close()
+            try:
+                with pytest.raises(RUNNER.RunnerError) as cursor_epoch_error:
+                    RUNNER.run_live(
+                        config,
+                        config_path,
+                        first_plan,
+                        "native",
+                        1,
+                        decision=SimpleNamespace(effective_tier="live"),
+                        allow_write_flag=False,
+                    )
+                assert cursor_epoch_error.value.code == "LIVE_HISTORY_JOURNAL_HIGHWATER_MISMATCH"
+                assert len(api_clients) == 1
+            finally:
+                journal = ExecutionDecisionJournal(journal_path)
+                try:
+                    journal._connection.execute(
+                        "UPDATE execution_grid_cursors SET epoch_id = ? "
+                        "WHERE account_scope = ? AND strategy_scope = ? AND cohort_id = ?",
+                        (
+                            source_cursor_epoch,
+                            config["live"]["account_scope"],
+                            config["live"]["strategy_scope"],
+                            history_cohort_id,
+                        ),
+                    )
+                    journal._connection.commit()
+                finally:
+                    journal.close()
+
+            from dataclasses import replace
+
+            original_decision_for_key = ExecutionDecisionJournal.decision_for_key
+
+            def run_with_anchor_lookup(lookup):
+                with monkeypatch.context() as patcher:
+                    patcher.setattr(ExecutionDecisionJournal, "decision_for_key", lookup)
+                    with pytest.raises(RUNNER.RunnerError) as anchor_error:
+                        RUNNER.run_live(
+                            config,
+                            config_path,
+                            first_plan,
+                            "native",
+                            1,
+                            decision=SimpleNamespace(effective_tier="live"),
+                            allow_write_flag=False,
+                        )
+                assert anchor_error.value.code == (
+                    "LIVE_HISTORY_JOURNAL_DECISION_ANCHOR_MISMATCH"
+                )
+                assert len(api_clients) == 1
+                assert not Path(config["output"]["decision_tape_path"]).exists()
+
+            run_with_anchor_lookup(lambda _journal, _key: None)
+
+            def wrong_anchor_reference(journal, key):
+                record = original_decision_for_key(journal, key)
+                assert record is not None
+                payload = dict(record.economic_payload)
+                payload["decision_tape_record_id"] = "0" * 64
+                return replace(record, economic_payload=payload)
+
+            run_with_anchor_lookup(wrong_anchor_reference)
+
+            result = RUNNER.run_live(
+                config,
+                config_path,
+                first_plan,
+                "native",
+                1,
+                decision=SimpleNamespace(effective_tier="live"),
+                allow_write_flag=False,
+            )
+            epoch2_result = result
+            assert epoch2_result["status"] == "LIVE_RUN_COMPLETE"
+            assert epoch2_result["epoch_id"] == 2
+            assert epoch2_result["cleanup_complete"] is True
+            epoch2_tape_path = Path(epoch2_result["decision_tape"]["path"])
+            epoch2_tape_rows = tuple(
+                RUNNER.iter_decision_tape(epoch2_tape_path, max_bytes=50_000_000)
+            )
+            epoch2_decisions = epoch2_tape_rows[1:]
+
+            # Exercise structural tampering against the actual epoch-2 tape.
+            # Recompute row IDs so each negative proves the semantic validator,
+            # rather than only the JSONL integrity check, rejects the change.
+            def write_tampered_history(name, mutate):
+                rows = [json.loads(raw) for raw in epoch2_tape_path.read_bytes().splitlines()]
+                mutate(rows)
+                for row in rows:
+                    row.pop("record_id", None)
+                    row["record_id"] = hashlib.sha256(
+                        RUNNER._canonical_json_bytes(row).rstrip(b"\n")
+                    ).hexdigest()
+                path = tmp_path / name
+                path.write_bytes(
+                    b"".join(RUNNER._canonical_json_bytes(row) for row in rows)
+                )
+                return path
+
+            first_target = sorted(epoch2_decisions[0]["members"])[0]
+
+            def make_unknown_role(rows):
+                rows[1]["members"][first_target]["source_role"] = "warmup"
+
+            def make_role_bounce(rows):
+                for member in rows[-1]["members"].values():
+                    member["source_role"] = "history"
+
+            def make_history_generation_drift(rows):
+                rows[2]["members"][first_target]["connection_generation"] = "tampered-history"
+
+            warmup_bars = config["factor"]["preheat_bars"]
+            first_live_record_index = warmup_bars + 1  # includes the tape header
+
+            def make_live_generation_drift(rows):
+                rows[first_live_record_index + 1]["members"][first_target][
+                    "connection_generation"
+                ] = "tampered-live"
+
+            def make_history_sequence_rollback(rows):
+                rows[2]["members"][first_target]["feed_sequence"] = rows[1]["members"][
+                    first_target
+                ]["feed_sequence"]
+
+            def make_live_sequence_rollback(rows):
+                rows[first_live_record_index + 1]["members"][first_target][
+                    "feed_sequence"
+                ] = rows[first_live_record_index]["members"][first_target]["feed_sequence"]
+
+            def make_source_ref_drift(rows):
+                rows[1]["members"][first_target]["source_ref"] = "ctp-live:wrong:route"
+
+            def make_non_string_event_source(rows):
+                rows[1]["members"][first_target]["event_source"] = 7
+
+            def make_valid_price_change(rows):
+                member = rows[-1]["members"][first_target]
+                raw_values = member["raw_values"]
+                raw_values["close"] += 0.01
+                assert raw_values["low"] < raw_values["close"] < raw_values["high"]
+
+            tampering_cases = (
+                ("unknown-role", make_unknown_role, "LIVE_HISTORY_SOURCE_ROLE_INVALID"),
+                (
+                    "live-then-history",
+                    make_role_bounce,
+                    "LIVE_HISTORY_SOURCE_ROLE_ORDER_INVALID",
+                ),
+                (
+                    "history-generation-drift",
+                    make_history_generation_drift,
+                    "LIVE_HISTORY_GENERATION_CHANGED",
+                ),
+                (
+                    "live-generation-drift",
+                    make_live_generation_drift,
+                    "LIVE_HISTORY_GENERATION_CHANGED",
+                ),
+                (
+                    "history-sequence-rollback",
+                    make_history_sequence_rollback,
+                    "LIVE_HISTORY_SEQUENCE_INVALID",
+                ),
+                (
+                    "live-sequence-rollback",
+                    make_live_sequence_rollback,
+                    "LIVE_HISTORY_SEQUENCE_INVALID",
+                ),
+                ("source-ref-drift", make_source_ref_drift, "LIVE_HISTORY_MEMBER_INVALID"),
+                (
+                    "valid-price-change",
+                    make_valid_price_change,
+                    "LIVE_HISTORY_JOURNAL_DECISION_ANCHOR_MISMATCH",
+                ),
+                (
+                    "non-string-event-source",
+                    make_non_string_event_source,
+                    "LIVE_HISTORY_MEMBER_INVALID",
+                ),
+            )
+            config["cohort"]["epoch_id"] = 3
+            config["output"]["decision_tape_path"] = str(
+                tmp_path / "live-decisions-epoch-3.jsonl"
+            )
+            for name, mutate, expected_code in tampering_cases:
+                tampered_path = write_tampered_history("history-{}.jsonl".format(name), mutate)
+                config["inputs"]["history_decision_tape"] = str(tampered_path)
+                with pytest.raises(RUNNER.RunnerError) as tampering_error:
+                    RUNNER.run_live(
+                        config,
+                        config_path,
+                        first_plan,
+                        "native",
+                        1,
+                        decision=SimpleNamespace(effective_tier="live"),
+                        allow_write_flag=False,
+                    )
+                assert tampering_error.value.code == expected_code
+                assert len(api_clients) == 2
+                assert not Path(config["output"]["decision_tape_path"]).exists()
+
+            config["inputs"]["history_decision_tape"] = str(epoch2_tape_path)
+            result = RUNNER.run_live(
+                config,
+                config_path,
+                first_plan,
+                "native",
+                1,
+                decision=SimpleNamespace(effective_tier="live"),
+                allow_write_flag=False,
+            )
+        else:
+            result = RUNNER.run_live_epochs(
+                config,
+                config_path,
+                None if selection_source == "ctp_query" else first_plan,
+                "native",
+                1,
+                decision=SimpleNamespace(effective_tier="live"),
+                allow_write_flag=False,
+            )
     except TimeoutError as error:
         if unresolved_position:
             failure = error
@@ -1598,6 +2142,226 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
         return
 
     assert failure is None
+
+    if saved_history_restart:
+        assert result["status"] == "LIVE_RUN_COMPLETE"
+        assert result["epoch_id"] == 3
+        assert result["cleanup_complete"] is True
+        assert len(api_clients) == 3 and all(client.closed for client in api_clients)
+        for epoch_result in (first_result, epoch2_result, result):
+            assert epoch_result["engine_winddown_status"] == "NOT_REACHED"
+            assert epoch_result["engine_winddown_reason"] == "final_batch_not_reached"
+            assert epoch_result["shutdown_path"] == "controlled_application_stop"
+            assert epoch_result["strategy_shutdown_requested"] is True
+            assert epoch_result["strategy_shutdown_ready"] is True
+            assert epoch_result["strategy_shutdown_blocker"] is None
+            assert epoch_result["strategy_shutdown_post_join_confirmed"] is True
+            assert epoch_result["strategy_shutdown_post_join_blocker"] is None
+            assert epoch_result["shutdown_status"] == "PASS"
+            assert epoch_result["cleanup_complete"] is True
+            query_refresh = next(
+                row for row in epoch_result["resource_shutdown"]
+                if row["resource"] == "query_refresh"
+            )
+            assert query_refresh["joined"] is True
+        assert [row for row in trace if row[0] == "run_live_returned"] == [
+            ("run_live_returned", 1),
+            ("run_live_returned", 2),
+            ("run_live_returned", 3),
+        ]
+        assert [row for row in trace if row[0] == "fixture_restart_requested"] == [
+            (
+                "fixture_restart_requested",
+                epoch_id,
+                "{}:{}:{}:{}:{}".format(
+                    "alpha003:{}:{}".format(
+                        config["cohort"]["calendar_id"], epoch_id
+                    ),
+                    config["cohort"]["calendar_id"],
+                    epoch_id,
+                    config["cohort"]["calendar_version"],
+                    final_ordinal - window_start - 1,
+                ),
+                first_plan["grid"].minutes[final_ordinal - 1].close_time.isoformat(),
+            )
+            for epoch_id, final_ordinal, window_start in (
+                (1, restart_cut, 0),
+                (2, restart_cut_2, restart_cut - config["factor"]["preheat_bars"]),
+                (3, restart_cut_3, restart_cut_2 - config["factor"]["preheat_bars"]),
+            )
+        ]
+        assert trace.index(("initial_refresh_complete", 2)) < next(
+            index for index, row in enumerate(trace)
+            if row[0] == "first_provider_bar" and row[1] == 2
+        )
+        assert trace.index(("initial_refresh_complete", 3)) < next(
+            index for index, row in enumerate(trace)
+            if row[0] == "first_provider_bar" and row[1] == 3
+        )
+        old_decisions = first_decisions
+        old_header = first_tape_rows[0]
+        assert old_header["restart_identity"]["epoch_id"] == 1
+        assert all(
+            member["source_role"] == "live"
+            for row in old_decisions
+            for member in row["members"].values()
+        )
+        warmup_bars = config["factor"]["preheat_bars"]
+        assert epoch2_result["status"] == "LIVE_RUN_COMPLETE"
+        assert epoch2_result["epoch_id"] == 2
+        assert epoch2_result["cleanup_complete"] is True
+        assert epoch2_tape_rows[0]["restart_identity"]["epoch_id"] == 2
+        assert len(epoch2_decisions) == warmup_bars + restart_cut_2 - restart_cut
+        assert all(row["epoch_id"] == 2 for row in epoch2_decisions)
+        history_decisions = epoch2_decisions[:warmup_bars]
+        live_decisions = epoch2_decisions[warmup_bars:]
+        assert all(
+            member["source_role"] == "history"
+            and member["connection_generation"] == "epoch-1-generation-1"
+            and member["epoch_id"] == 2
+            and member["source_ref"] == "ctp-live:{}:{}".format(
+                target, first_plan["routes"][first_plan["product_by_target"][target]]
+            )
+            for row in history_decisions
+            for target, member in row["members"].items()
+        )
+        assert all(
+            member["source_role"] == "live"
+            and member["connection_generation"] == "epoch-2-generation-1"
+            for row in live_decisions
+            for member in row["members"].values()
+        )
+        assert all(
+            row["readiness"] == "LIVE_READY"
+            and all(member["source_role"] == "live" for member in row["members"].values())
+            for row in epoch2_decisions[-warmup_bars:]
+        )
+        assert [
+            next(iter(row["members"].values()))["feed_sequence"] for row in live_decisions
+        ] == list(range(1, len(live_decisions) + 1))
+        expected_history = first_plan["grid"].minutes[
+            restart_cut - warmup_bars : restart_cut
+        ]
+        assert [row["close_time"] for row in history_decisions] == [
+            minute.close_time.isoformat().replace("+00:00", "Z") for minute in expected_history
+        ]
+        assert live_decisions[0]["close_time"] == (
+            first_plan["grid"].minutes[restart_cut].close_time.isoformat().replace("+00:00", "Z")
+        )
+        assert epoch2_result["history_resume"]["source_epoch_id"] == 1
+        assert epoch2_result["history_resume"]["restored_bar_count"] == warmup_bars
+        assert epoch2_result["history_resume"]["last_close_time"] == history_decisions[-1][
+            "close_time"
+        ]
+        assert epoch2_result["history_resume"]["prior_run_order_intents"] == 0
+        assert (
+            epoch2_result["history_resume"]["prior_grid_cursor_batch_id"]
+            == first_decisions[-1]["batch_id"]
+        )
+        assert epoch2_result["history_resume"]["run_order_intents_after"] == 0
+
+        epoch3_rows = tuple(
+            RUNNER.iter_decision_tape(
+                Path(result["decision_tape"]["path"]), max_bytes=50_000_000
+            )
+        )
+        assert epoch3_rows[0]["restart_identity"]["epoch_id"] == 3
+        epoch3_decisions = epoch3_rows[1:]
+        assert len(epoch3_decisions) == warmup_bars + restart_cut_3 - restart_cut_2
+        assert all(row["epoch_id"] == 3 for row in epoch3_decisions)
+        epoch3_history = epoch3_decisions[:warmup_bars]
+        epoch3_live = epoch3_decisions[warmup_bars:]
+        assert all(
+            member["source_role"] == "history"
+            and member["connection_generation"] == "epoch-2-generation-1"
+            and member["epoch_id"] == 3
+            and member["source_ref"] == "ctp-live:{}:{}".format(
+                target, first_plan["routes"][first_plan["product_by_target"][target]]
+            )
+            for row in epoch3_history
+            for target, member in row["members"].items()
+        )
+        assert all(
+            member["source_role"] == "live"
+            and member["connection_generation"] == "epoch-3-generation-1"
+            for row in epoch3_live
+            for member in row["members"].values()
+        )
+        assert all(
+            member["feed_sequence"] == index
+            for index, row in enumerate(epoch3_live, 1)
+            for member in row["members"].values()
+        )
+        expected_epoch3_history = first_plan["grid"].minutes[
+            restart_cut_2 - warmup_bars : restart_cut_2
+        ]
+        assert [row["close_time"] for row in epoch3_history] == [
+            minute.close_time.isoformat().replace("+00:00", "Z")
+            for minute in expected_epoch3_history
+        ]
+        assert epoch3_live[0]["close_time"] == (
+            first_plan["grid"].minutes[restart_cut_2]
+            .close_time.isoformat()
+            .replace("+00:00", "Z")
+        )
+        assert result["history_resume"]["source_epoch_id"] == 2
+        assert result["history_resume"]["restored_bar_count"] == warmup_bars
+        assert result["history_resume"]["last_close_time"] == epoch3_history[-1]["close_time"]
+        assert result["history_resume"]["prior_grid_cursor_batch_id"] == epoch2_decisions[-1][
+            "batch_id"
+        ]
+        assert result["history_resume"]["prior_run_order_intents"] == 0
+        assert result["history_resume"]["run_order_intents_after"] == 0
+
+        from backtrader.stores.execution_decision_journal import ExecutionDecisionJournal
+
+        journal = ExecutionDecisionJournal(Path(config["live"]["journal_path"]))
+        try:
+            old_cursor = journal.grid_cursor(
+                config["live"]["account_scope"],
+                config["live"]["strategy_scope"],
+                "alpha003:{}:1".format(config["cohort"]["calendar_id"]),
+            )
+            new_cursor = journal.grid_cursor(
+                config["live"]["account_scope"],
+                config["live"]["strategy_scope"],
+                "alpha003:{}:2".format(config["cohort"]["calendar_id"]),
+            )
+            newest_cursor = journal.grid_cursor(
+                config["live"]["account_scope"],
+                config["live"]["strategy_scope"],
+                "alpha003:{}:3".format(config["cohort"]["calendar_id"]),
+            )
+            assert old_cursor is not None and new_cursor is not None and newest_cursor is not None
+            assert RUNNER._aware_datetime(old_cursor.close_time, "old cursor") == (
+                first_plan["grid"].minutes[restart_cut - 1].close_time
+            )
+            assert RUNNER._aware_datetime(new_cursor.close_time, "new cursor") == (
+                first_plan["grid"].minutes[restart_cut_2 - 1].close_time
+            )
+            assert new_cursor.ordinal == restart_cut_2 - restart_cut
+            assert RUNNER._aware_datetime(newest_cursor.close_time, "newest cursor") == (
+                first_plan["grid"].minutes[restart_cut_3 - 1].close_time
+            )
+            assert newest_cursor.ordinal == restart_cut_3 - restart_cut_2
+            assert journal.run_order_count(
+                config["live"]["account_scope"],
+                config["live"]["strategy_scope"],
+                config["live"]["logical_run_id"],
+            ) == 0
+            budget = journal._connection.execute(
+                "SELECT max_intents, intent_count FROM execution_run_order_budgets "
+                "WHERE account_scope = ? AND strategy_scope = ? AND logical_run_id = ?",
+                (
+                    config["live"]["account_scope"],
+                    config["live"]["strategy_scope"],
+                    config["live"]["logical_run_id"],
+                ),
+            ).fetchone()
+            assert budget is not None and tuple(budget) == (100, 0)
+        finally:
+            journal.close()
+        return
 
     if selection_source == "ctp_query":
         assert result["status"] == "LIVE_EPOCH_SEQUENCE_COMPLETE"
@@ -1879,10 +2643,108 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
         )
 
 
+@pytest.mark.parametrize(
+    ("evidence_owner", "field", "bad_value"),
+    (
+        ("strategy", "shutdown_requested", False),
+        ("strategy", "shutdown_ready", False),
+        ("strategy", "shutdown_blocker", "SHUTDOWN_OWNED_POSITION_OPEN:DCE.M"),
+        ("strategy", "shutdown_post_join_confirmed", False),
+        ("strategy", "shutdown_post_join_blocker", "SHUTDOWN_REFRESH_NOT_JOINED"),
+        ("refresh", "shutdown_status", "BLOCKED"),
+        ("refresh", "joined", False),
+        ("engine", "live_bar_cohort_winddown_status", "TIMED_OUT"),
+        ("engine", "live_bar_cohort_winddown_reason", "shutdown_deadline_expired"),
+    ),
+    ids=(
+        "not-requested",
+        "nonflat-or-unready",
+        "strategy-blocker",
+        "post-join-unconfirmed",
+        "post-join-blocker",
+        "refresh-blocked",
+        "refresh-not-joined",
+        "engine-status-drift",
+        "engine-reason-drift",
+    ),
+)
+def test_controlled_application_stop_requires_exact_post_join_proof(
+    evidence_owner, field, bad_value
+):
+    from types import SimpleNamespace
+
+    engine = SimpleNamespace(
+        live_bar_cohort_winddown_status="NOT_REACHED",
+        live_bar_cohort_winddown_reason="final_batch_not_reached",
+    )
+    strategy = SimpleNamespace(
+        shutdown_requested=True,
+        shutdown_ready=True,
+        shutdown_blocker=None,
+        shutdown_post_join_confirmed=True,
+        shutdown_post_join_blocker=None,
+    )
+    refresh = SimpleNamespace(shutdown_status="PASS", joined=True)
+    assert RUNNER._live_shutdown_path(engine, strategy, refresh) == (
+        "controlled_application_stop"
+    )
+
+    owner = {"engine": engine, "strategy": strategy, "refresh": refresh}[evidence_owner]
+    setattr(owner, field, bad_value)
+    with pytest.raises(RUNNER.RunnerError) as error:
+        RUNNER._live_shutdown_path(engine, strategy, refresh)
+    assert error.value.code == "LIVE_CORE_WINDDOWN_NOT_CONFIRMED"
+    assert error.value.detail == "{}:{}".format(
+        engine.live_bar_cohort_winddown_status,
+        engine.live_bar_cohort_winddown_reason,
+    )
+
+
 def _call_runner(capsys, *arguments):
     code = RUNNER.run(list(arguments))
     stdout = capsys.readouterr().out.strip().splitlines()[-1]
     return code, json.loads(stdout)
+
+
+def test_saved_live_history_is_rejected_outside_live_mode(tmp_path, capsys):
+    config = _base_config(tmp_path, "replay")
+    config_path, config, _plan, minute_tape, _quotes = _write_source_inputs(tmp_path, config)
+    config["inputs"]["history_decision_tape"] = str(minute_tape)
+    config_path.write_text(yaml.safe_dump(config, sort_keys=False), encoding="utf-8")
+
+    code, result = _call_runner(
+        capsys, "--config", str(config_path), "--mode", "replay"
+    )
+
+    assert code == 2
+    assert result["status"] == "BLOCKED"
+    assert result["code"] == "LIVE_HISTORY_LIVE_MODE_REQUIRED"
+
+
+def test_saved_live_history_rejects_unsupported_selection_before_provider(
+    tmp_path,
+):
+    from types import SimpleNamespace
+
+    for selection_source, daily_bundles in (
+        ("ctp_query", []),
+        ("bundle", ["unused-next-day.json"]),
+    ):
+        config = {
+            "inputs": {"history_decision_tape": str(tmp_path / "prior.jsonl")},
+            "selection": {"source": selection_source, "daily_bundles": daily_bundles},
+        }
+        with pytest.raises(RUNNER.RunnerError) as error:
+            RUNNER.run_live_epochs(
+                config,
+                tmp_path / "unused.yaml",
+                None,
+                "native",
+                1,
+                decision=SimpleNamespace(effective_tier="live"),
+                allow_write_flag=False,
+            )
+        assert error.value.code == "LIVE_HISTORY_SELECTION_UNSUPPORTED"
 
 
 def test_public_config_defaults_to_dry_and_cli_cannot_escalate(tmp_path, capsys):
