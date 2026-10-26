@@ -1951,6 +1951,12 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
         selected_session = binding.calendar.session_for(
             binding.product, event_time, binding.trader_trading_day
         )
+        if selected_session is None:
+            # CFFEX index call-auction quotes may seed the real first-minute
+            # cumulative baseline, but remain outside continuous bar sessions.
+            selected_session = binding.calendar.opening_auction_baseline_for(
+                binding.product, event_time, binding.trader_trading_day
+            )
         bucket_start = self._get_bucket_start(event_time.replace(tzinfo=None))
         session_date = selected_session[0] if selected_session is not None else None
         return (generation, trading_day), bucket_start, raw, action_day, session_date, event_time

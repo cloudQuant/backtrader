@@ -11,10 +11,11 @@ from __future__ import annotations
 import math
 import re
 from dataclasses import dataclass, field
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime, time, timedelta, timezone
 from types import MappingProxyType
 from typing import Any, Mapping, Optional
 
+from .futures_expected_calendar import CFFEX_INDEX_PRODUCTS
 from .futures_main_contract import ProductKey
 from .futures_sessions import (
     CommonMinuteGrid,
@@ -25,6 +26,8 @@ from .futures_sessions import (
 
 _UTC = timezone.utc
 _CTP_ASIA_SHANGHAI = timezone(timedelta(hours=8))
+_CFFEX_INDEX_OPENING_AUCTION_START = time(9, 25)
+_CFFEX_INDEX_OPENING_AUCTION_END = time(9, 30)
 CTP_FACTOR_SOURCE_TIME_CONTRACT = "ctp-asia-shanghai-fixed-utc8-v1"
 _DATE_RE = re.compile(r"^[0-9]{8}$")
 _TIME_RE = re.compile(r"^[0-9]{2}:[0-9]{2}:[0-9]{2}$")
@@ -266,6 +269,48 @@ class CtpFactorSourceCalendar:
         if start <= event_time_utc < end and window_trading_day == trading_day:
             return session_date, session_id
         return None
+
+    def opening_auction_baseline_for(
+        self, product: ProductKey, event_time_utc: datetime, trading_day: date
+    ):
+        """Resolve an eligible CFFEX index opening-auction baseline time.
+
+        The CFFEX IF, IH, IC, and IM contract rules specify an opening auction
+        from 09:25 to 09:30, followed by continuous trading from 09:30. This
+        method identifies that interval only for the first cumulative-volume
+        baseline; it does not add auction minutes to the continuous sessions or
+        the common bar grid. Official rule PDFs are linked from
+        ``futures_expected_calendar.EXCHANGE_RULE_SOURCE_URLS['CFFEX']``.
+        """
+
+        if (
+            not isinstance(product, ProductKey)
+            or product.exchange_id != "CFFEX"
+            or product.product_id not in CFFEX_INDEX_PRODUCTS
+        ):
+            return None
+
+        product_days = self.trading_days_by_product.get(product)
+        if (
+            product_days is None
+            or type(trading_day) is not date
+            or trading_day not in product_days
+            or type(event_time_utc) is not datetime
+            or event_time_utc.tzinfo is None
+            or event_time_utc.utcoffset() is None
+        ):
+            return None
+
+        local_time = event_time_utc.astimezone(_CTP_ASIA_SHANGHAI)
+        local_clock = local_time.timetz().replace(tzinfo=None)
+        if (
+            local_time.date() != trading_day
+            or not _CFFEX_INDEX_OPENING_AUCTION_START
+            <= local_clock
+            < _CFFEX_INDEX_OPENING_AUCTION_END
+        ):
+            return None
+        return local_time.date(), "opening-auction-baseline"
 
     @property
     def source_time_contract(self) -> str:

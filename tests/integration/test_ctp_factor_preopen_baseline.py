@@ -37,8 +37,36 @@ def _system_for_first_common_minute(monkeypatch):
     return system, cu, first_bucket_start, first_close
 
 
+def _system_for_cffex_index_first_common_minute(monkeypatch):
+    cu, if_product = session_fixtures.PRODUCTS[0], session_fixtures.PRODUCTS[4]
+    products = (cu, if_product)
+    grid, _calendars = source_fixture._selected_grid(products)
+    first_close = min(minute.close_time for minute in grid.minutes)
+    first_bucket_start = first_close - timedelta(minutes=1)
+    system = source_fixture._system(
+        monkeypatch,
+        products=products,
+        feed_products=(if_product,),
+        cohort_close=first_close,
+    )
+    return system, cu, if_product, first_bucket_start, first_close
+
+
 def _local_text(utc_datetime):
     return utc_datetime.astimezone(_SHANGHAI).replace(tzinfo=None).isoformat(timespec="seconds")
+
+
+def _local_instant_utc(reference_utc, hour, minute, second=0):
+    local_day = reference_utc.astimezone(_SHANGHAI).date()
+    return datetime(
+        local_day.year,
+        local_day.month,
+        local_day.day,
+        hour,
+        minute,
+        second,
+        tzinfo=_SHANGHAI,
+    ).astimezone(_UTC)
 
 
 def _emit_at_source_time(
@@ -321,5 +349,128 @@ def test_explicit_quote_only_winddown_does_not_seed_the_first_bucket(monkeypatch
         assert not isinstance(feed._cohort_completed_lookahead, BarEvent)
         assert system.cohort.current_batch() is None
         assert first_close > first_start
+    finally:
+        source_fixture._close_system(system)
+
+
+@pytest.mark.integration
+def test_actual_cffex_index_opening_auction_quote_seeds_baseline_without_auction_bar(
+    monkeypatch,
+):
+    system, _cu, if_product, first_start, first_close = (
+        _system_for_cffex_index_first_common_minute(monkeypatch)
+    )
+    try:
+        feed = system.feeds[if_product]
+        auction_quote = first_start - timedelta(seconds=30)
+        expected_auction_bucket = auction_quote.replace(second=0, microsecond=0).replace(
+            tzinfo=None
+        )
+
+        assert _emit_and_drain(monkeypatch, system, if_product, auction_quote, 100) is True
+        assert feed._ctp_first_bucket_scope == (system.md_generation, "20261022")
+        assert feed._ctp_first_bucket_start == expected_auction_bucket
+        _assert_no_published_first_bar(system, if_product, first_close)
+
+        rows = (
+            (first_start + timedelta(seconds=5), 103, 100.2),
+            (first_start + timedelta(seconds=35), 107, 100.4),
+            (first_close + timedelta(seconds=5), 108, 100.6),
+        )
+        for timestamp, total, price in rows:
+            assert _emit_and_drain(
+                monkeypatch, system, if_product, timestamp, total, price
+            ) is True
+
+        bar = feed._cohort_completed_lookahead
+        assert isinstance(bar, BarEvent)
+        assert bar.bucket_start == first_start
+        assert bar.bucket_end == first_close
+        assert bar.volume == 7.0
+        assert (bar.open, bar.high, bar.low, bar.close) == (100.2, 100.4, 100.2, 100.4)
+        assert feed._bar_sequence == 1
+    finally:
+        source_fixture._close_system(system)
+
+
+@pytest.mark.integration
+def test_opening_auction_baseline_is_limited_to_cffex_index_products_and_times(
+    monkeypatch,
+):
+    system, cu, if_product, first_start, first_close = (
+        _system_for_cffex_index_first_common_minute(monkeypatch)
+    )
+    try:
+        feed = system.feeds[if_product]
+        trading_day = system.trader_client._trading_day
+        trading_day_date = datetime.strptime(trading_day, "%Y%m%d").date()
+        before_auction = _local_instant_utc(first_start, 9, 24, 59)
+        auction_start = _local_instant_utc(first_start, 9, 25)
+        auction_time = _local_instant_utc(first_start, 9, 29, 30)
+        auction_end = _local_instant_utc(first_start, 9, 30)
+        assert system.source_calendar.opening_auction_baseline_for(
+            if_product, auction_start, trading_day_date
+        ) == (trading_day_date, "opening-auction-baseline")
+        assert system.source_calendar.opening_auction_baseline_for(
+            if_product, auction_time, trading_day_date
+        ) == (trading_day_date, "opening-auction-baseline")
+        assert (
+            system.source_calendar.opening_auction_baseline_for(
+                cu, auction_time, trading_day_date
+            )
+            is None
+        )
+        assert (
+            system.source_calendar.opening_auction_baseline_for(
+                if_product, before_auction, trading_day_date
+            )
+            is None
+        )
+        assert (
+            system.source_calendar.opening_auction_baseline_for(
+                if_product, auction_end, trading_day_date
+            )
+            is None
+        )
+
+        assert _emit_and_drain(
+            monkeypatch, system, if_product, before_auction, 100
+        ) is True
+        assert feed._ctp_first_bucket_scope is None
+        assert feed._ctp_first_bucket_start is None
+        _assert_no_published_first_bar(system, if_product, first_close)
+    finally:
+        source_fixture._close_system(system)
+
+
+@pytest.mark.integration
+def test_cffex_first_minute_without_an_actual_auction_quote_keeps_normal_guard(
+    monkeypatch,
+):
+    system, _cu, if_product, first_start, first_close = (
+        _system_for_cffex_index_first_common_minute(monkeypatch)
+    )
+    try:
+        feed = system.feeds[if_product]
+        assert feed._ctp_first_bucket_scope is None
+        assert feed._ctp_first_bucket_start is None
+
+        assert _emit_and_drain(
+            monkeypatch,
+            system,
+            if_product,
+            first_start + timedelta(seconds=5),
+            100,
+        ) is True
+        assert feed._ctp_first_bucket_scope == (system.md_generation, "20261022")
+        assert feed._ctp_first_bucket_start == first_start.replace(tzinfo=None)
+        assert _emit_and_drain(
+            monkeypatch,
+            system,
+            if_product,
+            first_close + timedelta(seconds=5),
+            103,
+        ) is True
+        _assert_no_published_first_bar(system, if_product, first_close)
     finally:
         source_fixture._close_system(system)
