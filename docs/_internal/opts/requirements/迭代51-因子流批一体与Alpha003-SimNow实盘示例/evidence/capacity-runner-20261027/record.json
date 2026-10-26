@@ -1,0 +1,149 @@
+{
+  "status": "PASS_RUNNER_SOURCE_AND_SMOKE_ONLY",
+  "evidence_level": "SYNTHETIC_COMPONENT_ONLY",
+  "source_parent": "53cd39b80634fd9328361d7de55c7f4781235297",
+  "sources": {
+    "scripts/run_iteration50_live_factor_benchmark.py": "386e1aeed36bcebe636c622ce52f9409917e5143f119abbeb9c5ab875d52592c",
+    "tests/unit/test_iteration51_capacity_assets.py": "56a427428c269e7fd077bae53d4ee9bcb276314111c6416dec45b688ab22fb7d"
+  },
+  "root_qa": {
+    "passed": 13,
+    "warnings": 1,
+    "exception": "existing unknown asyncio config warning",
+    "result": {
+      "argv": [
+        "C:/anaconda3/python.exe",
+        "-m",
+        "pytest",
+        "tests/unit/test_iteration51_capacity_assets.py",
+        "-q",
+        "-p",
+        "no:asyncio",
+        "--junitxml=D:\\temp\\i51-capacity87-root-qa-20261027-r2\\junit.xml"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 1.094,
+      "pins": {
+        "scripts/run_iteration50_live_factor_benchmark.py": "386e1aeed36bcebe636c622ce52f9409917e5143f119abbeb9c5ab875d52592c",
+        "tests/unit/test_iteration51_capacity_assets.py": "56a427428c269e7fd077bae53d4ee9bcb276314111c6416dec45b688ab22fb7d"
+      },
+      "source_unchanged": true
+    }
+  },
+  "smoke": {
+    "package_revision": "7b3d45ed13ba722755b4f481fde573b7d51bd670",
+    "runner_predates_final_multiplier_fix": true,
+    "final_87_value_preservation_tested": true,
+    "native_build_evaluation_grids_each": 24,
+    "warmup_bars": 64,
+    "only_p99_failures_waived": true
+  },
+  "formal_87_100000_run": "NOT_RUN",
+  "limits": [
+    "Synthetic count capacity does not prove actual market product identity coverage.",
+    "RSS samples are current-process measurements and may miss transient peaks.",
+    "SQLite/WAL physical disk quota is not enforced.",
+    "Original failed smoke reports are unchanged."
+  ],
+  "archive": {
+    "sha256": "4e33c5ea16ec9b9b4a63f969fb8f8cc99164a97bd016c0725f74c0f09886add8",
+    "files": {
+      "root-qa/junit.xml": {
+        "size": 2169,
+        "sha256": "dcae738eabd0a775c1eb1bd67c2156a2a68c50b8b75db62e260b799715ea89e2"
+      },
+      "root-qa/result.json": {
+        "size": 595,
+        "sha256": "3c8fa02cf1139fe0e210bbbe8edcd30f39e8db273d48c8a592cf05d7dc049bea"
+      },
+      "root-qa/stderr.txt": {
+        "size": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "root-qa/stdout.txt": {
+        "size": 632,
+        "sha256": "8bb733aa8ec61dd2aa6844fb2b7877463d5dd11595b441c3408cee912e16084b"
+      },
+      "review.md": {
+        "size": 4666,
+        "sha256": "1fbb474aadf270204571f2cd8192e991e24f6e5c076963a6c140f89057fc9aff"
+      },
+      "author-history.json": {
+        "size": 20578,
+        "sha256": "37a2ebe0207c3047b738a825cfb6108f00e1d7a57642621e4ab65e4c6039bfe9"
+      },
+      "smoke-r1/build.stderr.txt": {
+        "size": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "smoke-r1/build.stdout.txt": {
+        "size": 127,
+        "sha256": "ec6a7e767c3c0627fe0b6e31fe7d58c694f9b1a99c8f2fb475f4130dc98af555"
+      },
+      "smoke-r1/native.stderr.txt": {
+        "size": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "smoke-r1/native.stdout.txt": {
+        "size": 128,
+        "sha256": "b9132dd5aaaa922b594eb41d0b4b998defefd4d0babc11898d2d10b740e6b64f"
+      },
+      "smoke-r1/build/result.json": {
+        "size": 34517,
+        "sha256": "e1db4ff34e2d04dff4cb17bd53ac9012d77812224959f13b67a44640d871ce18"
+      },
+      "smoke-r1/native/result.json": {
+        "size": 34561,
+        "sha256": "832000afb1d700d6e243f8c2cd09e9395d13891f6b61c198a71a30dbad0dec18"
+      },
+      "smoke-r2/native/result.json": {
+        "size": 35852,
+        "sha256": "1040c6788656c2523a6d8b1ea133825ae8c594e5f2184dab0616f3eac232059a"
+      },
+      "smoke-r2/native/stderr.txt": {
+        "size": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "smoke-r2/native/stdout.txt": {
+        "size": 128,
+        "sha256": "22438dd350bfd2f0be258a59561f10c4f11048b33f723d2e96ff7dc1e7991ffd"
+      },
+      "smoke-r3/native/result.json": {
+        "size": 35803,
+        "sha256": "4bff5c13b4cdb9c5d21a1e4cb974202142be9d77874a1d141383b7ae229c738f"
+      },
+      "smoke-r3/native/stderr.txt": {
+        "size": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "smoke-r3/native/stdout.txt": {
+        "size": 128,
+        "sha256": "a69b6c49fb1ff3f53203f4a421b8f7d4a5a9b17aed16c2166d4dd982a3689275"
+      },
+      "smoke-r4/build/result.json": {
+        "size": 35856,
+        "sha256": "7ff51ca550fd11fb09a8d63ca24cd8c94ab57eb17410ddb445dea5c49268149e"
+      },
+      "smoke-r4/build/stderr.txt": {
+        "size": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "smoke-r4/build/stdout.txt": {
+        "size": 127,
+        "sha256": "a3bf9223266da3f546489dac59549965d80bed530b936238dd0e9b7320b224ac"
+      },
+      "smoke-r4/native/result.json": {
+        "size": 35814,
+        "sha256": "4659ee9779f250c97fd4cb85891e4a0ce03b37d73348548c5e0bb06bcd2d3656"
+      },
+      "smoke-r4/native/stderr.txt": {
+        "size": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "smoke-r4/native/stdout.txt": {
+        "size": 128,
+        "sha256": "54e942370b97fb4d86f1949a7d68b1703c1a4a44dfdf76aa3c5356eb0097ebd4"
+      }
+    }
+  }
+}

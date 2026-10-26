@@ -39,6 +39,7 @@ import uuid
 
 
 ASSET_COUNT = 20
+MAX_ASSET_COUNT = 256
 FACTOR_NAME = "alpha003"
 CORRELATION_WINDOW = 10
 DEFAULT_WARMUP_BARS = 30
@@ -489,19 +490,23 @@ def _source_pin_identity(pins: Any) -> Optional[Tuple[Tuple[str, str, str], ...]
 
 
 def _source_generator_sha256(
-    factor_profile: str, scenario: str = "standard", recovery_mode: str = "same-generation"
+    factor_profile: str,
+    scenario: str = "standard",
+    recovery_mode: str = "same-generation",
+    target_count: int = ASSET_COUNT,
 ) -> str:
     """Hash generator source together with its profile-specific input contract."""
+    event_generator = _event_values if target_count == ASSET_COUNT else _event_values_for_count
     generator_source = "\n\n".join(
         inspect.getsource(function).replace("\r\n", "\n").replace("\r", "\n")
-        for function in (_make_slots, _event_values)
+        for function in (_make_slots, event_generator)
     )
     payload = json.dumps(
         {
             "generator_source": generator_source,
             "factor_profile": factor_profile,
             "factor_ids": FACTOR_IDS[factor_profile],
-            "targets": ["ASSET%02d" % index for index in range(ASSET_COUNT)],
+            "targets": _target_ids(target_count),
             "source_fields": _source_fields_for(factor_profile),
             "scenario": scenario,
             "recovery_mode": recovery_mode,
@@ -621,12 +626,12 @@ def _validate_cli(args: argparse.Namespace) -> Tuple[int, int, str]:
     # histogram. The recovery scenario includes a real engine wake, so use 100
     # smoke samples there to exercise the p99 percentile meaningfully while
     # retaining the unchanged 100 ms p99 and 500 ms maximum gates.
-    smoke_grids = (
-        DEFAULT_27B_SMOKE_GRIDS if args.scenario == "27b" else DEFAULT_SMOKE_GRIDS
-    )
+    smoke_grids = DEFAULT_27B_SMOKE_GRIDS if args.scenario == "27b" else DEFAULT_SMOKE_GRIDS
     grids = smoke_grids if args.smoke else args.grids
     if type(grids) is not int or not 1 <= grids <= MAX_FORMAL_GRIDS:
         raise BenchmarkFailure("evaluation_grid_count_out_of_range")
+    if type(args.assets) is not int or not 2 <= args.assets <= MAX_ASSET_COUNT:
+        raise BenchmarkFailure("asset_count_out_of_range")
     if args.factors not in FACTOR_IDS:
         raise BenchmarkFailure("unsupported_factor_profile")
     if args.scenario not in ("standard", "27b"):
@@ -966,6 +971,12 @@ def _check_gates(report: Dict[str, Any]) -> Tuple[bool, Tuple[str, ...]]:
         failures.append(str(error))
 
     profile = report.get("profile", {})
+    # Reports predating --assets used the fixed 20-target profile; keep their
+    # gate interpretation while every new report writes target_count explicitly.
+    target_count = profile.get("target_count", ASSET_COUNT)
+    if type(target_count) is not int or not 2 <= target_count <= MAX_ASSET_COUNT:
+        failures.append("profile_target_count_out_of_range")
+        target_count = 0
     durable = report.get("durable_noop_journal", {})
     provenance = report.get("provenance", {})
     environment = report.get("environment", {})
@@ -1176,14 +1187,14 @@ def _check_gates(report: Dict[str, Any]) -> Tuple[bool, Tuple[str, ...]]:
     capacities = report.get("capacities", {})
     if capacities.get("configured_pending_slots") != 1:
         failures.append("source_pending_slot_capacity_is_not_one")
-    if capacities.get("source_rows_retained_max", ASSET_COUNT + 1) > ASSET_COUNT:
+    if capacities.get("source_rows_retained_max", target_count + 1) > target_count:
         failures.append("source_leaf_retained_more_than_one_member_row_per_asset")
     if (
         capacities.get("cohort_pending_slots_at_end") != 0
         or capacities.get("source_rows_retained_at_end") != 0
     ):
         failures.append("source_buffers_were_not_empty_after_finite_stream")
-    window_limit = ASSET_COUNT * capacities.get("configured_window_bars_per_member", 0)
+    window_limit = target_count * capacities.get("configured_window_bars_per_member", 0)
     if (
         type(capacities.get("retained_receipts_at_end")) is not int
         or capacities.get("retained_receipts_at_end", window_limit + 1) > window_limit
@@ -1238,7 +1249,7 @@ def _check_gates(report: Dict[str, Any]) -> Tuple[bool, Tuple[str, ...]]:
         source = report.get("source", {})
         recovery = runtime.get("source_recovery", {})
         order = runtime.get("broker_order_lifecycle", {})
-        expected_events = ASSET_COUNT * profile.get("total_grid_slots", 0)
+        expected_events = target_count * profile.get("total_grid_slots", 0)
         if source.get("events_returned") != expected_events:
             failures.append("27b_source_trace_did_not_resume_every_planned_member")
         if (
@@ -1351,8 +1362,20 @@ def _read_windows_working_set_bytes() -> int:
 
     counters = _PROCESS_MEMORY_COUNTERS()
     counters.cb = ctypes.sizeof(counters)
-    process = ctypes.windll.kernel32.GetCurrentProcess()
-    ok = ctypes.windll.psapi.GetProcessMemoryInfo(process, ctypes.byref(counters), counters.cb)
+    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    psapi = ctypes.WinDLL("psapi", use_last_error=True)
+    get_current_process = kernel32.GetCurrentProcess
+    get_current_process.argtypes = []
+    get_current_process.restype = wintypes.HANDLE
+    get_process_memory_info = psapi.GetProcessMemoryInfo
+    get_process_memory_info.argtypes = [
+        wintypes.HANDLE,
+        ctypes.POINTER(_PROCESS_MEMORY_COUNTERS),
+        wintypes.DWORD,
+    ]
+    get_process_memory_info.restype = wintypes.BOOL
+    process = get_current_process()
+    ok = get_process_memory_info(process, ctypes.byref(counters), counters.cb)
     if not ok:
         raise BenchmarkFailure("rss_sampling_failed")
     return int(counters.WorkingSetSize)
@@ -1477,6 +1500,73 @@ def _event_values(asset_index: int, grid_index: int) -> Dict[str, float]:
     }
 
 
+def _event_values_for_count(
+    asset_index: int, grid_index: int, asset_count: int
+) -> Dict[str, float]:
+    """Scale the crossing recipe without changing the frozen 20-target path."""
+
+    def asset_multiplier(preferred: int, used: Tuple[int, ...] = ()) -> int:
+        preferred_position = preferred % asset_count
+        for offset in range(asset_count):
+            candidate = (preferred_position + offset) % asset_count
+            if (
+                candidate != 0
+                and math.gcd(candidate, asset_count) == 1
+                and candidate not in used
+            ):
+                return candidate
+        # A two-target universe has only one nonzero multiplier; reusing it is
+        # still a permutation and is the only valid fallback.
+        for offset in range(asset_count):
+            candidate = (preferred_position + offset) % asset_count
+            if candidate != 0 and math.gcd(candidate, asset_count) == 1:
+                return candidate
+        raise BenchmarkFailure("asset_multiplier_not_found")
+
+    def nonzero_grid_step(preferred: int) -> int:
+        step = preferred % asset_count
+        return step if step else 1
+
+    open_multiplier = asset_multiplier(7)
+    volume_multiplier = asset_multiplier(13, (open_multiplier,))
+    open_step = nonzero_grid_step(3)
+    volume_step = nonzero_grid_step(7)
+    open_position = (asset_index * open_multiplier + grid_index * open_step) % asset_count
+    volume_position = (
+        asset_index * volume_multiplier + grid_index * volume_step
+    ) % asset_count
+    open_value = 100.0 + open_position
+    phase = (asset_index + 1) * (grid_index + 1) * 0.08
+    close_value = (
+        100.0
+        + asset_index * 0.6
+        + grid_index * 0.015
+        + 0.03 * math.sin(phase)
+        + 0.012 * math.cos(phase * 0.61)
+    )
+    high_value = max(open_value, close_value) + 0.25
+    low_value = min(open_value, close_value) - 0.25
+    return {
+        "open": open_value,
+        "high": high_value,
+        "low": low_value,
+        "close": close_value,
+        "volume": 1000.0 + volume_position + 0.05 * math.sin(phase * 0.73),
+        "openinterest": 0.0,
+        "vwap": (
+            98.5 + asset_index * 0.37 + (grid_index % 29) * 0.013 + 0.02 * math.sin(phase * 0.37)
+        ),
+        "cap": 1_000_000.0 + asset_index * 50_000.0 + grid_index * 100.0,
+        "sector": float(asset_index // 10),
+        "industry": float(asset_index // 5),
+        "subindustry": float(asset_index // 5),
+    }
+
+
+def _target_ids(target_count: int) -> Tuple[str, ...]:
+    return tuple("ASSET%02d" % index for index in range(target_count))
+
+
 def _cohort_diagnostics(cohort: Any, feed_mapping: Mapping[str, Any]) -> Dict[str, Any]:
     """Return finite counters useful when a synthetic composition fails."""
     return {
@@ -1519,7 +1609,8 @@ def _make_runtime(
         ExecutionDecisionKey,
     )
 
-    targets = tuple("ASSET%02d" % index for index in range(ASSET_COUNT))
+    target_count = args.assets
+    targets = _target_ids(target_count)
     factor_ids = FACTOR_IDS[args.factors]
     factor_names = tuple(FACTOR_NAMES[alpha_id] for alpha_id in factor_ids)
     source_fields = _source_fields_for(args.factors)
@@ -1620,9 +1711,7 @@ def _make_runtime(
             self.subscribed = set()
             self.scenario = args.scenario
             self.recovery_mode = args.recovery_mode
-            self.disconnect_grid_index = (
-                disconnect_grid_index if self.scenario == "27b" else None
-            )
+            self.disconnect_grid_index = disconnect_grid_index if self.scenario == "27b" else None
             self.disconnected = False
             self.source_connected = True
             self.connection_generation = "synthetic-generation-1"
@@ -1656,9 +1745,7 @@ def _make_runtime(
                 # pass. Wait for the ordinary engine's actual interruptible
                 # cohort wait; otherwise some feeds can already hold the
                 # recovered row while the engine still awaits missing peers.
-                if not clock.wait_entered_event.wait(
-                    SCENARIO27B_RESUME_WAIT_ENTRY_TIMEOUT_SECONDS
-                ):
+                if not clock.wait_entered_event.wait(SCENARIO27B_RESUME_WAIT_ENTRY_TIMEOUT_SECONDS):
                     self.resume_barrier_timed_out = True
                     return
                 if self._resume_cancel.wait(SCENARIO27B_RESUME_DELAY_SECONDS):
@@ -1759,9 +1846,7 @@ def _make_runtime(
                 # clock, so keep the cursor and current-grid evidence intact.
                 return None
             if grid_index != clock.grid_index:
-                wait_state = cohort.next_wait_timeout(
-                    clock.utc_now(), clock.monotonic_ns()
-                )
+                wait_state = cohort.next_wait_timeout(clock.utc_now(), clock.monotonic_ns())
                 raise BenchmarkFailure(
                     "feed_poll_escaped_current_calendar_grid:%s:cursor=%d:clock=%d:rows=%d:cohort=%s/%s"
                     % (
@@ -1803,7 +1888,11 @@ def _make_runtime(
                 self._verify_progress_stalled(grid_index)
 
             asset_index = self.target_indices[dataname]
-            generated_values = _event_values(asset_index, grid_index)
+            generated_values = (
+                _event_values(asset_index, grid_index)
+                if target_count == ASSET_COUNT
+                else _event_values_for_count(asset_index, grid_index, target_count)
+            )
             values = {field: generated_values[field] for field in source_fields}
             available_monotonic_ns = time.monotonic_ns()
             self.current_rows[dataname] = values
@@ -1845,7 +1934,7 @@ def _make_runtime(
         def finish_grid(self, grid_index):
             if self.current_grid_index != grid_index:
                 raise BenchmarkFailure("strategy_completed_a_different_store_grid")
-            if len(self.current_rows) != ASSET_COUNT or len(self.current_arrivals) != ASSET_COUNT:
+            if len(self.current_rows) != target_count or len(self.current_arrivals) != target_count:
                 raise BenchmarkFailure("incomplete_synthetic_source_grid")
             self.current_rows = {}
             self.current_arrivals = {}
@@ -1862,7 +1951,9 @@ def _make_runtime(
                 "resume_grid_index": self.recovery_grid_index,
                 "recovery_mode": self.recovery_mode,
                 "initial_generation": "synthetic-generation-1",
-                "resume_generation": self.connection_generation if self.recovery_monotonic_ns else None,
+                "resume_generation": self.connection_generation
+                if self.recovery_monotonic_ns
+                else None,
                 "same_generation": self.connection_generation == "synthetic-generation-1",
                 "poll_calls_while_disconnected": self.disconnected_poll_calls,
                 "member_poll_counts_while_disconnected": dict(
@@ -1876,8 +1967,7 @@ def _make_runtime(
                 "disconnect_to_recovery_ms": (
                     None
                     if self.disconnect_monotonic_ns is None or self.recovery_monotonic_ns is None
-                    else (self.recovery_monotonic_ns - self.disconnect_monotonic_ns)
-                    / 1_000_000.0
+                    else (self.recovery_monotonic_ns - self.disconnect_monotonic_ns) / 1_000_000.0
                 ),
                 "wake_wait_count": clock.interruptible_wait_calls,
                 "wake_wait_count_interrupted": clock.interruptible_wait_woken,
@@ -2117,12 +2207,8 @@ def _make_runtime(
                         type(owner).__name__,
                         getattr(owner, "_idx", None),
                         owner_length,
-                        diagnostics.get("call_count")
-                        if isinstance(diagnostics, Mapping)
-                        else None,
-                        diagnostics.get("once_count")
-                        if isinstance(diagnostics, Mapping)
-                        else None,
+                        diagnostics.get("call_count") if isinstance(diagnostics, Mapping) else None,
+                        diagnostics.get("once_count") if isinstance(diagnostics, Mapping) else None,
                     )
                 )
                 for children in getattr(owner, "_lineiterators", {}).values():
@@ -2334,7 +2420,7 @@ def _make_runtime(
 
         def _oracle_grid(self, batch, snapshot, *, evaluation_grid):
             rows = self.p.store.current_rows
-            if len(rows) != ASSET_COUNT:
+            if len(rows) != target_count:
                 raise BenchmarkFailure("oracle_did_not_receive_the_complete_source_grid")
             ordered_rows = tuple(rows[target] for target in self.p.targets)
             expected_factors = self._reference_oracle.update(rows)
@@ -2419,7 +2505,7 @@ def _make_runtime(
                 return expected_factors.get(FACTOR_NAME)
 
             actual_correlation_nodes = tuple(
-                self._factor._nodes["correlation10_%d" % index] for index in range(ASSET_COUNT)
+                self._factor._nodes["correlation10_%d" % index] for index in range(target_count)
             )
             expected_factor_values = []
             factor_result = snapshot.factors[FACTOR_NAME]
@@ -2504,7 +2590,7 @@ def _make_runtime(
             if batch.available_at < batch.close_time:
                 raise BenchmarkFailure("source_availability_precedes_bar_close")
             arrivals = self.p.store.current_arrivals
-            if len(arrivals) != ASSET_COUNT:
+            if len(arrivals) != target_count:
                 raise BenchmarkFailure("last_member_source_availability_is_unobserved")
             source_available_ns = max(arrivals.values())
             first_source_available_ns = min(arrivals.values())
@@ -2538,7 +2624,7 @@ def _make_runtime(
                     "factor_profile": self.p.factor_profile,
                     "factors": list(self.p.factor_names),
                     "mode": self.p.mode,
-                    "finite_target_count": ASSET_COUNT,
+                    "finite_target_count": target_count,
                     "sample_factor_values": {
                         name: float(factor_results[name].values[self.p.targets[0]].value)
                         for name in self.p.factor_names
@@ -2716,11 +2802,11 @@ def _make_runtime(
                     ),
                     "receipt_window_full_at_last_sample": (
                         sum(len(receipts) for receipts in self.p.cohort._window_receipts.values())
-                        == ASSET_COUNT * self.p.cohort.max_window_bars
+                        == target_count * self.p.cohort.max_window_bars
                     ),
                     "retained_receipts_at_first_sample": self._receipt_count_first,
                     "receipt_window_full_at_first_sample": (
-                        self._receipt_count_first == ASSET_COUNT * self.p.cohort.max_window_bars
+                        self._receipt_count_first == target_count * self.p.cohort.max_window_bars
                     ),
                     "max_pending_source_slots": self.p.store.max_pending_source_slots,
                     "source_rows_retained_max": self.p.store.max_current_rows,
@@ -2800,7 +2886,8 @@ def _make_runtime(
                         ),
                         "next_without_bar_capability": getattr(
                             self.broker, "next_without_bar", False
-                        ) is True,
+                        )
+                        is True,
                         "submit_calls": self._order_submit_calls,
                         "cancel_calls": self._order_cancel_calls,
                         "cancelled_during_idle": self._order_cancelled_during_idle,
@@ -2818,11 +2905,7 @@ def _make_runtime(
                         "position_size": (
                             0.0
                             if self._target_order is None
-                            else float(
-                                self.broker.getposition(
-                                    self._feeds[self.p.targets[0]]
-                                ).size
-                            )
+                            else float(self.broker.getposition(self._feeds[self.p.targets[0]]).size)
                         ),
                         "fill_notifications": sum(
                             status in ("Partial", "Completed")
@@ -2950,7 +3033,8 @@ def _build_report(args: argparse.Namespace, grids: int, warmup_bars: int, profil
             "factor_ids": list(FACTOR_IDS[args.factors]),
             "factor_names": [FACTOR_NAMES[alpha_id] for alpha_id in FACTOR_IDS[args.factors]],
             "mode": args.mode,
-            "target_count": ASSET_COUNT,
+            "target_count": args.assets,
+            "target_ids": list(_target_ids(args.assets)),
             "evaluation_grids": grids,
             "warmup_bars": warmup_bars,
             "total_grid_slots": warmup_bars + grids,
@@ -2982,12 +3066,14 @@ def _build_report(args: argparse.Namespace, grids: int, warmup_bars: int, profil
             "script_sha256": _sha256_file(Path(__file__).resolve()),
             "input_generation_hash_kind": "sha256_of_normalized_calendar_row_generator_source_and_profile_input_contract",
             "input_generation_sha256": _source_generator_sha256(
-                args.factors, args.scenario, args.recovery_mode
+                args.factors, args.scenario, args.recovery_mode, args.assets
             ),
             "source_revision_binding": (
                 "explicit full SHA-1/SHA-256 supplied by caller or BT_BENCHMARK_SOURCE_REVISION"
             ),
-            "calendar_and_event_fixture": "finite deterministic 20-target local synthetic source",
+            "calendar_and_event_fixture": (
+                "finite deterministic %d-target local synthetic source" % args.assets
+            ),
             "fault_fixture": (
                 "one bounded planned-slot source disconnect and explicit recovery contract"
                 if args.scenario == "27b"
@@ -3129,6 +3215,12 @@ def _fresh_output_paths(path_text: str):
 def _parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--mode", required=True, choices=("native", "build"))
+    parser.add_argument(
+        "--assets",
+        type=int,
+        default=ASSET_COUNT,
+        help="synthetic cohort target count (2..256; defaults to the accepted 20-target profile)",
+    )
     parser.add_argument(
         "--factors",
         choices=tuple(FACTOR_IDS),

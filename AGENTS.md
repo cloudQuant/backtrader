@@ -520,6 +520,15 @@ single/multi-factor examples and 027 is the native Alpha003 demonstration.
 
 ### Incremental factor components (Iterations 50–51, in progress)
 
+`scripts/run_iteration50_live_factor_benchmark.py` accepts `--assets 2..256`
+(default 20). The 20-target generator is unchanged; scaled profiles include
+the target count in their input fingerprint and resource gates. Use explicit
+`--warmup-bars 64` for Alpha003 capacity runs. The Windows RSS fallback uses
+pointer-sized native handle declarations. Focused checks passed 13; short
+87-target native/build smoke results only exceeded waived latency thresholds.
+This does not establish 100,000-grid or real-market acceptance.
+
+
 `research/live.py` exposes `LiveFactorPlan` and `LiveFactorSet` for composition
 inside an ordinary `bt.Strategy`. They reuse `FactorSpec`, production native/build
 classes, and the existing indicator lifecycle. A snapshot reads a completed
