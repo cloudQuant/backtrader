@@ -1,0 +1,49 @@
+{
+  "head": "fab06cdbb4539c8b00e253a01834727004a3f9b6",
+  "python": "3.11.5 | packaged by Anaconda, Inc. | (main, Sep 11 2023, 13:26:23) [MSC v.1916 64 bit (AMD64)]",
+  "command": [
+    "C:\\anaconda3\\python.exe",
+    "-m",
+    "pytest",
+    "-p",
+    "no:asyncio",
+    "-q",
+    "--tb=short",
+    "-o",
+    "faulthandler_timeout=45",
+    "--junitxml=D:\\temp\\i51-replay-clock-focus-20261026-r1\\junit.xml",
+    "tests/unit/test_alpha003_simnow_runner.py::test_replay_clock_deadline_samples_and_partial_waits_do_not_skip_slots",
+    "tests/unit/test_alpha003_simnow_runner.py::test_replay_executes_real_cerebro_orders_only_on_causal_later_bars",
+    "tests/unit/test_alpha003_simnow_runner.py::test_replay_rejects_late_quote_for_original_decision_and_tape_detects_tamper",
+    "tests/unit/test_alpha003_simnow_runner.py::test_real_cerebro_live_strategy_winddown_is_ready_or_times_out"
+  ],
+  "pre": {
+    "examples/unified/028_alpha003_simnow_minute/run.py": {
+      "size": 248505,
+      "sha256": "dc0319a85e0fe62addbc6b0c0c06a97cc6b33f94a88c50a3764411455872a92c"
+    },
+    "tests/unit/test_alpha003_simnow_runner.py": {
+      "size": 206243,
+      "sha256": "e1b3907d0d0b6985e4de4e4e7eb7d98c44bec51e60e24699fff710426afb12a7"
+    },
+    "backtrader/stores/execution_decision_journal.py": {
+      "size": 298039,
+      "sha256": "e60e9c1e353ce9dea39c3f6461ce1f9aadbb48308ff45c72c19796cf10dadadf"
+    },
+    "examples/unified/028_alpha003_simnow_minute/alpha003_strategy.py": {
+      "size": 198547,
+      "sha256": "b7d65886d10b792af58bf8100a9e94f3da1b1405b2a6d0247315dcaaa8dfa058"
+    },
+    "backtrader/research/live_cohort.py": {
+      "size": 116603,
+      "sha256": "69f31733ad0fedc126837f6595b752cf2e2b180471da2352ab98ccb2e825b0d6"
+    }
+  },
+  "timeout_seconds": 180,
+  "evidence_level": "SOURCE_FAKE_COMPOSITION_ONLY",
+  "env": {
+    "PYTEST_DISABLE_PLUGIN_AUTOLOAD": "1",
+    "PYTHONUTF8": "1",
+    "PYTHONPATH": null
+  }
+}

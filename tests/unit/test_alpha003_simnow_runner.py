@@ -64,6 +64,57 @@ def _load_runner():
 RUNNER = _load_runner()
 
 
+def test_replay_clock_deadline_samples_and_partial_waits_do_not_skip_slots():
+    from types import SimpleNamespace
+
+    times = tuple(DECISION_AT + timedelta(minutes=index) for index in range(3))
+    cohort = SimpleNamespace(batch=None)
+    cohort.current_batch = lambda: cohort.batch
+    clock = RUNNER.ReplayTapeClock(times, cohort=cohort)
+    previous = 0
+    for _ in range(100):
+        sample = clock.monotonic_ns()
+        assert sample > previous
+        previous = sample
+        clock.wait(0.01)
+        assert clock.utc_now() == times[0]
+
+    cohort.batch = SimpleNamespace(status="COMPLETE", slot_index=0)
+    # Delivery itself does not move Strategy's decision availability time.
+    assert clock.utc_now() == times[0]
+    clock.wait(0.01)
+    assert clock.utc_now() == times[1]
+    for _ in range(100):
+        clock.monotonic_ns()
+        clock.wait(0.01)
+        assert clock.utc_now() == times[1]
+    for status, slot in (("WAITING", 1), ("COMPLETE", True)):
+        cohort.batch = SimpleNamespace(status=status, slot_index=slot)
+        clock.wait(0.01)
+        assert clock.utc_now() == times[1]
+    cohort.batch = SimpleNamespace(status="COMPLETE", slot_index=1)
+    clock.wait(0.01)
+    assert clock.utc_now() == times[2]
+    cohort.batch = SimpleNamespace(status="COMPLETE", slot_index=2)
+    clock.wait(0.01)
+    assert clock.utc_now() == times[2]
+
+    # Prefetched bars can publish the next complete batch without a wait.
+    # Its decision must still observe that slot's planned quote availability.
+    prefetched = RUNNER.ReplayTapeClock(times, cohort=cohort)
+    cohort.batch = None
+    prefetched.monotonic_ns()
+    assert prefetched.utc_now() == times[0]
+    cohort.batch = SimpleNamespace(status="COMPLETE", slot_index=0)
+    assert prefetched.utc_now() == times[0]
+    cohort.batch = SimpleNamespace(status="WAITING", slot_index=1)
+    assert prefetched.utc_now() == times[0]
+    cohort.batch = SimpleNamespace(status="COMPLETE", slot_index=1)
+    for _ in range(3):
+        prefetched.monotonic_ns()
+        assert prefetched.utc_now() == times[1]
+
+
 def _official_simnow_store_config():
     selector = pytest.importorskip("bt_api_ctp.ctp_env_selector")
     profile = "set1_group1"
@@ -872,12 +923,14 @@ def _daily_test_inputs(tmp_path):
         ("bundle", True, False),
         ("ctp_query", False, False),
         ("bundle", False, True),
+        ("ctp_query", False, True),
     ),
     ids=(
         "flat-two-epoch-positive",
         "nonflat-winddown-timeout",
         "same-store-query-live",
         "saved-history-real-live-restart",
+        "saved-query-history-three-epoch-restart",
     ),
 )
 def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bundle(
@@ -899,6 +952,7 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
     from tests.test_utils.optional_sdk import optional_sdk
 
     query_result_type = optional_sdk("bt_api_ctp.query").QueryResult
+    query_saved_history = selection_source == "ctp_query" and saved_history_restart
 
     # Keep the controlled source/session timestamps historical relative to the
     # host query collector's completion time. This exercises strict causal
@@ -940,6 +994,9 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
             source="ctp_query",
             bundle=None,
             daily_bundles=[],
+            # Saved-history runs request a second query epoch so the
+            # controlled application stop must prove it halts before that
+            # epoch's Store or plan is created.
             max_epochs=2,
             # Keep the complete three-product mapping for selection and
             # evidence, while authorizing only a strict trading subset.
@@ -1015,6 +1072,10 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
     trace = []
     api_clients = []
     contexts = deque()
+    live_run_results = []
+    query_run_attempts = {"value": 0}
+    query_context_serial = {"value": 0}
+    pending_query_context_options = {}
 
     class CausalFixtureClock:
         """Virtual UTC follows tape availability; monotonic drives deadlines."""
@@ -1133,6 +1194,8 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
     clock = CausalFixtureClock(now)
     monkeypatch.setattr(RUNNER, "RunnerWallClock", lambda: clock)
     current_plan = {"value": first_plan}
+    plans_by_epoch = {}
+    query_plans_by_snapshot_id = {}
     strategy_instances = []
 
     def make_context(plan, epoch_id, *, context=None):
@@ -1274,7 +1337,22 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
         )
         return context
 
-    def make_query_context(epoch_id, trading_day):
+    def make_query_context(
+        epoch_id,
+        trading_day,
+        *,
+        snapshot_serial=None,
+        selected_contract_index=None,
+        stale_seconds=0,
+        catalog_order_variant=False,
+        catalog_semantic_change=False,
+    ):
+        if snapshot_serial is None:
+            snapshot_serial = epoch_id
+        if selected_contract_index is None:
+            selected_contract_index = (
+                1 if query_saved_history or epoch_id == 1 else 0
+            )
         day_text = trading_day.strftime("%Y%m%d")
         rows = facts_fixture._query_rows()
         catalog_rows = []
@@ -1284,24 +1362,35 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
         for product in PRODUCTS:
             for contract_index, month in enumerate(("11", "12")):
                 instrument = f"{product.product_id}{str(trading_day.year)[-2:]}{month}"
-                catalog_rows.append(
-                    {
-                        "InstrumentID": instrument,
-                        "ExchangeID": product.exchange_id,
-                        "ProductID": product.product_id.lower(),
-                        "ProductClass": "1",
-                        "IsTrading": 1,
-                        "ExpireDate": "20261116" if month == "11" else "20261214",
-                    }
-                )
-                selected = contract_index == (1 if epoch_id == 1 else 0)
+                catalog_row = {
+                    "InstrumentID": instrument,
+                    "ExchangeID": product.exchange_id,
+                    "ProductID": product.product_id.lower(),
+                    "ProductClass": "1",
+                    "IsTrading": 1,
+                    "ExpireDate": "20261116" if month == "11" else "20261214",
+                }
+                if catalog_order_variant:
+                    # InstrumentName is a real native catalog field but does
+                    # not change contract identity, eligibility or routing.
+                    catalog_row["InstrumentName"] = "Fixture label {}".format(snapshot_serial)
+                if (
+                    catalog_semantic_change
+                    and product == PRODUCTS[0]
+                    and contract_index == 0
+                ):
+                    catalog_row["ExpireDate"] = "20261117"
+                catalog_rows.append(catalog_row)
+                selected = contract_index == selected_contract_index
                 quote_rows.append(
                     {
                         "InstrumentID": instrument,
                         "ExchangeID": product.exchange_id,
                         "TradingDay": day_text,
-                        "OpenInterest": 2000 if selected else 1000,
-                        "Volume": 1500 if selected else 1000,
+                        "OpenInterest": (
+                            2000 + snapshot_serial * 10 if selected else 1000
+                        ),
+                        "Volume": 1500 + snapshot_serial * 10 if selected else 1000,
                     }
                 )
                 all_instrument_rows.append(
@@ -1329,6 +1418,8 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
                         "ShortMarginRatioByVolume": "0",
                     }
                 )
+        if catalog_order_variant:
+            catalog_rows.reverse()
         rows["instruments_result"] = all_instrument_rows
         rows["instrument_margin_rate_result"] = all_margin_rows
         return SimpleNamespace(
@@ -1339,6 +1430,30 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
             catalog_rows=tuple(catalog_rows),
             quote_rows=tuple(quote_rows),
             all_catalog_facts=True,
+            connection_generation=5000 + snapshot_serial,
+            snapshot_serial=snapshot_serial,
+            stale_seconds=stale_seconds,
+        )
+
+    def queue_query_context(
+        epoch_id,
+        *,
+        selected_contract_index=None,
+        stale_seconds=0,
+        catalog_order_variant=False,
+        catalog_semantic_change=False,
+    ):
+        query_context_serial["value"] += 1
+        contexts.append(
+            make_query_context(
+                epoch_id,
+                first_day,
+                snapshot_serial=query_context_serial["value"],
+                selected_contract_index=selected_contract_index,
+                stale_seconds=stale_seconds,
+                catalog_order_variant=catalog_order_variant,
+                catalog_semantic_change=catalog_semantic_change,
+            )
         )
 
     class FakeCtpWrapper(facts_fixture._FakeRegisteredSimWrapper):
@@ -1364,6 +1479,8 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
             client = self.trader_client
             client._account_fingerprint = "alpha003-two-epoch-account"
             client._trading_day = context.trading_day
+            if selection_source == "ctp_query":
+                client._connection_generation = context.connection_generation
             client._front_id = 100 + context.epoch_id
             client._session_id = 10 + context.epoch_id
             client.is_ready = True
@@ -1386,15 +1503,39 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
             self._first_bar_logged = False
             api_clients.append(self)
             trace.append(("api_created", context.epoch_id))
+            if selection_source == "ctp_query":
+                trace.append(
+                    (
+                        "api_created_snapshot",
+                        context.snapshot_serial,
+                        context.connection_generation,
+                    )
+                )
 
         def connect(self):
             self._connected = True
             trace.append(("api_connected", self.context.epoch_id))
+            if selection_source == "ctp_query":
+                trace.append(
+                    (
+                        "api_connected_snapshot",
+                        self.context.snapshot_serial,
+                        self.context.connection_generation,
+                    )
+                )
 
         def disconnect(self):
             self._connected = False
             self.closed = True
             trace.append(("api_closed", self.context.epoch_id))
+            if selection_source == "ctp_query":
+                trace.append(
+                    (
+                        "api_closed_snapshot",
+                        self.context.snapshot_serial,
+                        self.context.connection_generation,
+                    )
+                )
 
         def get_session_state(self):
             client = self.trader_client
@@ -1420,13 +1561,16 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
         def _selection_query_result(self, request_type, records):
             self._selection_request_id += 1
             retrieved_at = clock.utc_now()
+            completed_at = retrieved_at - timedelta(
+                milliseconds=1, seconds=self.context.stale_seconds
+            )
             return query_result_type(
                 request_type=request_type,
                 request_id=self._selection_request_id,
                 connection_generation=self.trader_client._connection_generation,
                 account_fingerprint=self.trader_client._account_fingerprint,
-                started_at_utc=retrieved_at - timedelta(milliseconds=2),
-                completed_at_utc=retrieved_at - timedelta(milliseconds=1),
+                started_at_utc=completed_at - timedelta(milliseconds=1),
+                completed_at_utc=completed_at,
                 is_last_seen=True,
                 error_code=None,
                 error_message="",
@@ -1452,6 +1596,10 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
                 assert instrument_id == exchange_id == product_id == ""
                 assert not filters
                 trace.append(("selection_catalog_query", self.context.epoch_id))
+                if selection_source == "ctp_query":
+                    trace.append(
+                        ("selection_catalog_query_snapshot", self.context.snapshot_serial)
+                    )
                 return self._selection_query_result("instruments", self.context.catalog_rows)
             return super().query_instruments_result(
                 timeout=timeout,
@@ -1464,6 +1612,10 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
         def query_depth_market_data_result(self, instrument_id="", exchange_id="", timeout=5.0):
             assert instrument_id == exchange_id == ""
             trace.append(("selection_depth_query", self.context.epoch_id))
+            if selection_source == "ctp_query":
+                trace.append(
+                    ("selection_depth_query_snapshot", self.context.snapshot_serial)
+                )
             return self._selection_query_result("depth_market_data", self.context.quote_rows)
 
         def get_balance(self):
@@ -1503,6 +1655,31 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
         ),
     )
     monkeypatch.setattr(RUNNER, "_live_env_config", lambda _config: _official_simnow_store_config())
+    original_store_wait_ready = registered_sim_module.RegisteredSimStore.registered_sim_wait_ready
+    original_store_login_facts = registered_sim_module.RegisteredSimStore.registered_sim_login_facts
+
+    def tracked_store_wait_ready(store, *args, **kwargs):
+        result = original_store_wait_ready(store, *args, **kwargs)
+        if selection_source == "ctp_query":
+            trace.append(("store_ready_snapshot", api_clients[-1].context.snapshot_serial))
+        return result
+
+    def tracked_store_login_facts(store, *args, **kwargs):
+        result = original_store_login_facts(store, *args, **kwargs)
+        if selection_source == "ctp_query":
+            trace.append(("store_login_facts_snapshot", api_clients[-1].context.snapshot_serial))
+        return result
+
+    monkeypatch.setattr(
+        registered_sim_module.RegisteredSimStore,
+        "registered_sim_wait_ready",
+        tracked_store_wait_ready,
+    )
+    monkeypatch.setattr(
+        registered_sim_module.RegisteredSimStore,
+        "registered_sim_login_facts",
+        tracked_store_login_facts,
+    )
     original_refresh_initial = RUNNER.QueryRefreshLoop.refresh_initial
 
     def tracked_refresh_initial(refresh_loop, *args, **kwargs):
@@ -1514,8 +1691,9 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
     monkeypatch.setattr(RUNNER.QueryRefreshLoop, "refresh_initial", tracked_refresh_initial)
     if selection_source == "ctp_query":
         monkeypatch.setattr(futures_ctp_snapshot, "_now_utc", clock.utc_now)
-        contexts.append(make_query_context(1, first_day))
-        contexts.append(make_query_context(2, second_day))
+        if not query_saved_history:
+            contexts.append(make_query_context(1, first_day))
+            contexts.append(make_query_context(2, second_day))
 
     original_load = RUNNER.load_market_plan
 
@@ -1536,7 +1714,22 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
         def tracked_query_plan(*args, **kwargs):
             plan = original_query_plan(*args, **kwargs)
             current_plan["value"] = plan
+            query_plans_by_snapshot_id[plan["source_snapshot_id"]] = plan
             trace.append(("query_plan_ready", plan["source_snapshot_id"]))
+            trace.append(
+                (
+                    "query_plan_ready_epoch",
+                    config["cohort"]["epoch_id"],
+                    plan["source_snapshot_id"],
+                )
+            )
+            trace.append(
+                (
+                    "query_plan_ready_snapshot",
+                    plan["source_snapshot_id"],
+                    api_clients[-1].context.snapshot_serial,
+                )
+            )
             return plan
 
         monkeypatch.setattr(RUNNER, "build_ctp_query_market_plan", tracked_query_plan)
@@ -1546,6 +1739,7 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
         plan = current_plan["value"]
         assert grid is plan["grid"]
         epoch_id = epoch_config["cohort"]["epoch_id"]
+        plans_by_epoch[epoch_id] = plan
         if selection_source == "ctp_query":
             context = api_clients[-1].context
             assert context.all_catalog_facts is True
@@ -1556,14 +1750,95 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
         return original_make_cohort(epoch_config, grid, begin_at=begin_at, **kwargs)
 
     monkeypatch.setattr(RUNNER, "_make_cohort", tracked_make_cohort)
+    original_load_history = RUNNER._load_saved_live_history
+
+    def tracked_load_history(epoch_config, *args, **kwargs):
+        if epoch_config["inputs"].get("history_decision_tape") is not None:
+            evidence = kwargs.get("selection_evidence")
+            trace.append(
+                (
+                    "history_load",
+                    epoch_config["cohort"]["epoch_id"],
+                    evidence.get("source_snapshot_id") if isinstance(evidence, dict) else None,
+                )
+            )
+        return original_load_history(epoch_config, *args, **kwargs)
+
+    monkeypatch.setattr(RUNNER, "_load_saved_live_history", tracked_load_history)
     original_run_live = RUNNER.run_live
 
     def tracked_run_live(epoch_config, *args, **kwargs):
         result = original_run_live(epoch_config, *args, **kwargs)
+        live_run_results.append(result)
         trace.append(("run_live_returned", epoch_config["cohort"]["epoch_id"]))
         return result
 
     monkeypatch.setattr(RUNNER, "run_live", tracked_run_live)
+
+    def run_saved_history_epoch():
+        if not query_saved_history:
+            return RUNNER.run_live(
+                config,
+                config_path,
+                first_plan,
+                "native",
+                1,
+                decision=SimpleNamespace(effective_tier="live"),
+                allow_write_flag=False,
+            )
+        query_run_attempts["value"] += 1
+        options = dict(pending_query_context_options)
+        pending_query_context_options.clear()
+        if query_run_attempts["value"] > 1:
+            # Rebuild each fresh query plan at a later decision time while
+            # staying inside the next-bar boundary of the shared live grid.
+            clock.set_utc_now(clock.utc_now() + timedelta(seconds=1))
+        queue_query_context(config["cohort"]["epoch_id"], **options)
+        previous_success_count = len(live_run_results)
+        previous_api_count = len(api_clients)
+        previous_trace_count = len(trace)
+        sequence = RUNNER.run_live_epochs(
+            config,
+            config_path,
+            None,
+            "native",
+            1,
+            decision=SimpleNamespace(effective_tier="live"),
+            allow_write_flag=False,
+        )
+        epoch_id = config["cohort"]["epoch_id"]
+        assert sequence["status"] == "LIVE_EPOCH_SEQUENCE_STOPPED"
+        assert sequence["stop_reason"] == "controlled_application_stop"
+        assert sequence["epoch_count"] == 1
+        assert sequence["query_epoch_attempts"] == [epoch_id]
+        assert sequence["assembly_attempts"] == [epoch_id]
+        assert sequence["next_epoch_loaded"] is False
+        assert sequence["cleanup_complete"] is True
+        stopped_epoch = sequence["epochs"][0]
+        assert stopped_epoch["epoch_id"] == epoch_id
+        assert stopped_epoch["status"] == "LIVE_RUN_COMPLETE"
+        assert stopped_epoch["retirement_proven"] is False
+        assert stopped_epoch["shutdown_path"] == "controlled_application_stop"
+        assert stopped_epoch["shutdown_status"] == "PASS"
+        assert stopped_epoch["strategy_shutdown_ready"] is True
+        assert stopped_epoch["strategy_shutdown_post_join_confirmed"] is True
+        assert stopped_epoch["engine_winddown_status"] == "NOT_REACHED"
+        assert stopped_epoch["cleanup_complete"] is True
+        assert stopped_epoch["decision_tape"]["closed"] is True
+        assert len(api_clients) == previous_api_count + 1
+        assert api_clients[-1].closed is True
+        sequence_trace = trace[previous_trace_count:]
+        assert [row for row in sequence_trace if row[0] == "api_created"] == [
+            ("api_created", epoch_id)
+        ]
+        assert not any(
+            row[0] in {"selection_catalog_query", "selection_depth_query"}
+            and row[1] == epoch_id + 1
+            for row in sequence_trace
+        )
+        assert len(live_run_results) == previous_success_count + 1
+        return live_run_results[-1]
+
     strategy_module = importlib.import_module("alpha003_strategy")
     original_prenext = strategy_module.Alpha003TargetStrategy.prenext
     original_next = strategy_module.Alpha003TargetStrategy.next
@@ -1580,7 +1855,8 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
         }.get(epoch_id)
         if final_ordinal is None:
             return
-        final_close = first_plan["grid"].minutes[final_ordinal - 1].close_time
+        epoch_plan = current_plan["value"]
+        final_close = epoch_plan["grid"].minutes[final_ordinal - 1].close_time
         batch = strategy.p.cohort.current_batch()
         context = api_clients[-1].context if api_clients else None
         receipts = tuple(batch.members.values()) if batch is not None else ()
@@ -1589,7 +1865,7 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
             and batch.status == "COMPLETE"
             and batch.epoch_id == epoch_id
             and batch.close_time == final_close
-            and set(batch.members) == set(first_plan["targets"])
+            and set(batch.members) == set(epoch_plan["targets"])
             and all(
                 receipt.epoch_id == epoch_id
                 and receipt.close_time == final_close
@@ -1681,15 +1957,7 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
                 max_order_intents_per_run=100,
             )
             config["cohort"]["epoch_id"] = 1
-            first_result = RUNNER.run_live(
-                config,
-                config_path,
-                first_plan,
-                "native",
-                1,
-                decision=SimpleNamespace(effective_tier="live"),
-                allow_write_flag=False,
-            )
+            first_result = run_saved_history_epoch()
             assert first_result["status"] == "LIVE_RUN_COMPLETE"
             assert first_result["cleanup_complete"] is True
             first_tape_path = Path(first_result["decision_tape"]["path"])
@@ -1697,6 +1965,87 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
                 RUNNER.iter_decision_tape(first_tape_path, max_bytes=50_000_000)
             )
             first_decisions = first_tape_rows[1:]
+            assert all(
+                row["header_record_id"] == first_tape_rows[0]["record_id"]
+                for row in first_decisions
+            )
+            if selection_source == "bundle":
+                legacy_rows = [dict(row) for row in first_tape_rows]
+                for row in legacy_rows[1:]:
+                    row.pop("header_record_id")
+                legacy_rows = [
+                    {
+                        **{key: value for key, value in row.items() if key != "record_id"},
+                        "record_id": hashlib.sha256(
+                            RUNNER._canonical_json_bytes(
+                                {key: value for key, value in row.items() if key != "record_id"}
+                            ).rstrip(b"\n")
+                        ).hexdigest(),
+                    }
+                    for row in legacy_rows
+                ]
+                legacy_tape_path = tmp_path / "saved-bundle-history-legacy-header-binding.jsonl"
+                legacy_tape_path.write_bytes(
+                    b"".join(RUNNER._canonical_json_bytes(row) for row in legacy_rows)
+                )
+                legacy_readback = tuple(
+                    RUNNER.iter_decision_tape(legacy_tape_path, max_bytes=50_000_000)
+                )
+                assert len(legacy_readback) == len(first_tape_rows)
+                assert legacy_readback[0]["selection_evidence"]["selection_source"] == (
+                    "saved_bundle_legacy"
+                )
+                assert all("header_record_id" not in row for row in legacy_readback[1:])
+            if query_saved_history:
+                old_evidence = first_tape_rows[0]["selection_evidence"]
+                old_manifest = old_evidence["manifest"]
+                assert old_evidence["schema"] == (
+                    "backtrader.alpha003_epoch_selection_evidence.v1"
+                )
+                assert old_evidence["manifest_sha256"] == hashlib.sha256(
+                    RUNNER._canonical_json_bytes(old_manifest).rstrip(b"\n")
+                ).hexdigest()
+                evidence_binding = {
+                    key: old_evidence[key]
+                    for key in (
+                        "schema",
+                        "epoch_id",
+                        "selection_source",
+                        "selection_path",
+                        "source_snapshot_id",
+                        "manifest_sha256",
+                        "routes",
+                        "authorized_targets",
+                        "grid_semantics_sha256",
+                    )
+                }
+                grid_semantics = current_plan["value"]["grid"].to_dict()
+                grid_semantics.pop("decision_at")
+                grid_semantics.pop("calendar_hashes")
+                assert old_evidence["grid_semantics_sha256"] == hashlib.sha256(
+                    RUNNER._canonical_json_bytes(grid_semantics).rstrip(b"\n")
+                ).hexdigest()
+                assert old_evidence["binding_sha256"] == hashlib.sha256(
+                    RUNNER._canonical_json_bytes(evidence_binding).rstrip(b"\n")
+                ).hexdigest()
+                assert set(old_evidence["routes"]) == {"DCE.M", "DCE.Y", "DCE.A"}
+                assert old_evidence["source_snapshot_id"] == first_tape_rows[0][
+                    "restart_identity"
+                ]["source_snapshot_id"]
+                assert first_tape_rows[0]["grid_sha256"] == first_tape_rows[0][
+                    "restart_identity"
+                ]["calendar"]["grid_sha256"]
+                assert len(RUNNER._canonical_json_bytes(old_evidence)) <= 50_000_000
+                assert all(
+                    row["selection_evidence_sha256"] == old_evidence["binding_sha256"]
+                    and row["record_id"]
+                    == hashlib.sha256(
+                        RUNNER._canonical_json_bytes(
+                            {key: value for key, value in row.items() if key != "record_id"}
+                        ).rstrip(b"\n")
+                    ).hexdigest()
+                    for row in first_decisions
+                )
             assert len(first_decisions) == restart_cut
             assert first_tape_rows[0]["restart_identity"]["epoch_id"] == 1
             assert first_tape_rows[0]["targets"] == sorted(first_plan["targets"])
@@ -1724,21 +2073,214 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
             config["cohort"]["epoch_id"] = 2
             config["inputs"]["history_decision_tape"] = str(first_tape_path)
             config["output"]["decision_tape_path"] = str(tmp_path / "live-decisions-resumed.jsonl")
+
+            if query_saved_history:
+                configured_daily_bundles = config["selection"]["daily_bundles"]
+                config["selection"]["daily_bundles"] = [str(second_bundle)]
+                with pytest.raises(RUNNER.RunnerError) as daily_history_error:
+                    RUNNER.run_live_epochs(
+                        config,
+                        config_path,
+                        None,
+                        "native",
+                        1,
+                        decision=SimpleNamespace(effective_tier="live"),
+                        allow_write_flag=False,
+                    )
+                assert daily_history_error.value.code == "LIVE_HISTORY_SELECTION_UNSUPPORTED"
+                config["selection"]["daily_bundles"] = configured_daily_bundles
+
+                api_count_before_stale_plan = len(api_clients)
+                with pytest.raises(RUNNER.RunnerError) as stale_plan_error:
+                    RUNNER.run_live(
+                        config,
+                        config_path,
+                        first_plan,
+                        "native",
+                        1,
+                        decision=SimpleNamespace(effective_tier="live"),
+                        allow_write_flag=False,
+                    )
+                assert stale_plan_error.value.code == "LIVE_HISTORY_FRESH_SELECTION_REQUIRED"
+                assert len(api_clients) == api_count_before_stale_plan
+
+                pending_query_context_options.update(stale_seconds=301)
+                with pytest.raises(RUNNER.RunnerError) as stale_query_error:
+                    run_saved_history_epoch()
+                assert stale_query_error.value.code == "CTP_FUTURES_SNAPSHOT_COLLECTION_FAILED"
+                assert api_clients[-1].closed is True
+                assert not any(
+                    row[0] == "history_load" and row[1] == 2 for row in trace
+                )
+                assert trace.count(("selection_catalog_query", 2)) == 1
+                assert trace.count(("selection_depth_query", 2)) == 1
+
+                config["cohort"]["epoch_id"] = 1
+                with pytest.raises(RUNNER.RunnerError) as same_run_error:
+                    run_saved_history_epoch()
+                assert same_run_error.value.code == "LIVE_HISTORY_EPOCH_INVALID"
+                assert api_clients[-1].closed is True
+                config["cohort"]["epoch_id"] = 2
+
+                def write_first_tape_tamper(name, mutate):
+                    rows = [
+                        json.loads(raw)
+                        for raw in first_tape_path.read_bytes().splitlines()
+                    ]
+                    mutate(rows)
+                    for row in rows:
+                        row.pop("record_id", None)
+                        row["record_id"] = hashlib.sha256(
+                            RUNNER._canonical_json_bytes(row).rstrip(b"\n")
+                        ).hexdigest()
+                    path = tmp_path / name
+                    path.write_bytes(
+                        b"".join(RUNNER._canonical_json_bytes(row) for row in rows)
+                    )
+                    return path
+
+                evidence_tamper_path = write_first_tape_tamper(
+                    "history-selection-evidence-tampered.jsonl",
+                    lambda rows: rows[0]["selection_evidence"]["manifest"].update(
+                        status="BLOCKED"
+                    ),
+                )
+                config["inputs"]["history_decision_tape"] = str(evidence_tamper_path)
+                with pytest.raises(RUNNER.RunnerError) as evidence_tamper_error:
+                    run_saved_history_epoch()
+                assert evidence_tamper_error.value.code == (
+                    "LIVE_HISTORY_SELECTION_EVIDENCE_INVALID"
+                )
+                assert api_clients[-1].closed is True
+
+                row_binding_tamper_path = write_first_tape_tamper(
+                    "history-selection-row-binding-tampered.jsonl",
+                    lambda rows: rows[1].update(selection_evidence_sha256="0" * 64),
+                )
+                config["inputs"]["history_decision_tape"] = str(row_binding_tamper_path)
+                with pytest.raises(RUNNER.RunnerError) as row_binding_error:
+                    run_saved_history_epoch()
+                assert row_binding_error.value.code == (
+                    "DECISION_TAPE_SELECTION_EVIDENCE_MISMATCH"
+                )
+                assert api_clients[-1].closed is True
+
+                original_stop_loss_ticks = config["risk"]["stop_loss_ticks"]
+                changed_stop_loss_ticks = original_stop_loss_ticks + 1
+                unchanged_run_intent_limit = config["risk"]["max_order_intents_per_run"]
+                config["risk"]["stop_loss_ticks"] = changed_stop_loss_ticks
+
+                def mutate_header_risk(rows, *, update_row_bindings):
+                    header = rows[0]
+                    header["restart_identity"]["risk"][
+                        "stop_loss_ticks"
+                    ] = changed_stop_loss_ticks
+                    assert (
+                        header["restart_identity"]["risk"]["max_order_intents_per_run"]
+                        == unchanged_run_intent_limit
+                    )
+                    header.pop("record_id", None)
+                    header["record_id"] = hashlib.sha256(
+                        RUNNER._canonical_json_bytes(header).rstrip(b"\n")
+                    ).hexdigest()
+                    if update_row_bindings:
+                        for row in rows[1:]:
+                            row["header_record_id"] = header["record_id"]
+
+                try:
+                    header_risk_tamper_path = write_first_tape_tamper(
+                        "history-header-risk-tampered.jsonl",
+                        lambda rows: mutate_header_risk(rows, update_row_bindings=False),
+                    )
+                    header_risk_tamper_rows = [
+                        json.loads(raw)
+                        for raw in header_risk_tamper_path.read_bytes().splitlines()
+                    ]
+                    assert config["risk"]["stop_loss_ticks"] == (
+                        header_risk_tamper_rows[0]["restart_identity"]["risk"][
+                            "stop_loss_ticks"
+                        ]
+                    )
+                    assert header_risk_tamper_rows[0]["record_id"] != first_tape_rows[0][
+                        "record_id"
+                    ]
+                    assert all(
+                        tampered["record_id"] == original["record_id"]
+                        and tampered["header_record_id"] == first_tape_rows[0]["record_id"]
+                        for tampered, original in zip(
+                            header_risk_tamper_rows[1:], first_decisions
+                        )
+                    )
+                    config["inputs"]["history_decision_tape"] = str(
+                        header_risk_tamper_path
+                    )
+                    with pytest.raises(RUNNER.RunnerError) as header_binding_error:
+                        run_saved_history_epoch()
+                    assert header_binding_error.value.code == (
+                        "DECISION_TAPE_HEADER_BINDING_MISMATCH"
+                    )
+                    assert api_clients[-1].closed is True
+                    assert not Path(config["output"]["decision_tape_path"]).exists()
+
+                    journal_anchor_tamper_path = write_first_tape_tamper(
+                        "history-header-risk-and-row-bindings-tampered.jsonl",
+                        lambda rows: mutate_header_risk(rows, update_row_bindings=True),
+                    )
+                    journal_anchor_tamper_rows = [
+                        json.loads(raw)
+                        for raw in journal_anchor_tamper_path.read_bytes().splitlines()
+                    ]
+                    assert all(
+                        row["header_record_id"] == journal_anchor_tamper_rows[0]["record_id"]
+                        for row in journal_anchor_tamper_rows[1:]
+                    )
+                    assert all(
+                        tampered["record_id"] != original["record_id"]
+                        for tampered, original in zip(
+                            journal_anchor_tamper_rows[1:], first_decisions
+                        )
+                    )
+                    config["inputs"]["history_decision_tape"] = str(
+                        journal_anchor_tamper_path
+                    )
+                    with pytest.raises(RUNNER.RunnerError) as rebound_anchor_error:
+                        run_saved_history_epoch()
+                    assert rebound_anchor_error.value.code == (
+                        "LIVE_HISTORY_JOURNAL_DECISION_ANCHOR_MISMATCH"
+                    )
+                    assert api_clients[-1].closed is True
+                    assert not Path(config["output"]["decision_tape_path"]).exists()
+                finally:
+                    config["risk"]["stop_loss_ticks"] = original_stop_loss_ticks
+
+                missing_header_binding_path = write_first_tape_tamper(
+                    "history-header-binding-missing.jsonl",
+                    lambda rows: [row.pop("header_record_id", None) for row in rows[1:]],
+                )
+                config["inputs"]["history_decision_tape"] = str(
+                    missing_header_binding_path
+                )
+                with pytest.raises(RUNNER.RunnerError) as missing_header_binding_error:
+                    run_saved_history_epoch()
+                assert missing_header_binding_error.value.code == (
+                    "DECISION_TAPE_HEADER_BINDING_REQUIRED"
+                )
+                assert api_clients[-1].closed is True
+
+                config["inputs"]["history_decision_tape"] = str(first_tape_path)
+                pending_query_context_options.update(selected_contract_index=0)
+                with pytest.raises(RUNNER.RunnerError) as route_error:
+                    run_saved_history_epoch()
+                assert route_error.value.code == "LIVE_HISTORY_SELECTION_MISMATCH"
+                assert api_clients[-1].closed is True
+
             truncated_path = tmp_path / "history-truncated.jsonl"
             truncated_path.write_bytes(first_tape_path.read_bytes()[:-1])
             config["inputs"]["history_decision_tape"] = str(truncated_path)
             with pytest.raises(RUNNER.RunnerError) as truncated_error:
-                RUNNER.run_live(
-                    config,
-                    config_path,
-                    first_plan,
-                    "native",
-                    1,
-                    decision=SimpleNamespace(effective_tier="live"),
-                    allow_write_flag=False,
-                )
+                run_saved_history_epoch()
             assert truncated_error.value.code == "DECISION_TAPE_RECORD_INVALID"
-            assert len(api_clients) == 1
+            assert len(api_clients) == (query_run_attempts["value"] if query_saved_history else 1)
 
             malformed_path = tmp_path / "history-wrong-identity.jsonl"
             raw_lines = first_tape_path.read_bytes().splitlines(keepends=True)
@@ -1753,17 +2295,9 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
             )
             config["inputs"]["history_decision_tape"] = str(malformed_path)
             with pytest.raises(RUNNER.RunnerError) as identity_error:
-                RUNNER.run_live(
-                    config,
-                    config_path,
-                    first_plan,
-                    "native",
-                    1,
-                    decision=SimpleNamespace(effective_tier="live"),
-                    allow_write_flag=False,
-                )
+                run_saved_history_epoch()
             assert identity_error.value.code == "LIVE_HISTORY_IDENTITY_MISMATCH"
-            assert len(api_clients) == 1
+            assert len(api_clients) == (query_run_attempts["value"] if query_saved_history else 1)
 
             bad_batch_path = tmp_path / "history-wrong-batch.jsonl"
             bad_batch_rows = [json.loads(line) for line in raw_lines]
@@ -1777,17 +2311,9 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
             )
             config["inputs"]["history_decision_tape"] = str(bad_batch_path)
             with pytest.raises(RUNNER.RunnerError) as batch_error:
-                RUNNER.run_live(
-                    config,
-                    config_path,
-                    first_plan,
-                    "native",
-                    1,
-                    decision=SimpleNamespace(effective_tier="live"),
-                    allow_write_flag=False,
-                )
+                run_saved_history_epoch()
             assert batch_error.value.code == "LIVE_HISTORY_BATCH_ID_INVALID"
-            assert len(api_clients) == 1
+            assert len(api_clients) == (query_run_attempts["value"] if query_saved_history else 1)
 
             config["inputs"]["history_decision_tape"] = str(first_tape_path)
             from backtrader.stores.execution_decision_journal import ExecutionDecisionJournal
@@ -1818,17 +2344,11 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
                 journal.close()
             try:
                 with pytest.raises(RUNNER.RunnerError) as cursor_epoch_error:
-                    RUNNER.run_live(
-                        config,
-                        config_path,
-                        first_plan,
-                        "native",
-                        1,
-                        decision=SimpleNamespace(effective_tier="live"),
-                        allow_write_flag=False,
-                    )
+                    run_saved_history_epoch()
                 assert cursor_epoch_error.value.code == "LIVE_HISTORY_JOURNAL_HIGHWATER_MISMATCH"
-                assert len(api_clients) == 1
+                assert len(api_clients) == (
+                    query_run_attempts["value"] if query_saved_history else 1
+                )
             finally:
                 journal = ExecutionDecisionJournal(journal_path)
                 try:
@@ -1854,19 +2374,13 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
                 with monkeypatch.context() as patcher:
                     patcher.setattr(ExecutionDecisionJournal, "decision_for_key", lookup)
                     with pytest.raises(RUNNER.RunnerError) as anchor_error:
-                        RUNNER.run_live(
-                            config,
-                            config_path,
-                            first_plan,
-                            "native",
-                            1,
-                            decision=SimpleNamespace(effective_tier="live"),
-                            allow_write_flag=False,
-                        )
+                        run_saved_history_epoch()
                 assert anchor_error.value.code == (
                     "LIVE_HISTORY_JOURNAL_DECISION_ANCHOR_MISMATCH"
                 )
-                assert len(api_clients) == 1
+                assert len(api_clients) == (
+                    query_run_attempts["value"] if query_saved_history else 1
+                )
                 assert not Path(config["output"]["decision_tape_path"]).exists()
 
             run_with_anchor_lookup(lambda _journal, _key: None)
@@ -1880,15 +2394,9 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
 
             run_with_anchor_lookup(wrong_anchor_reference)
 
-            result = RUNNER.run_live(
-                config,
-                config_path,
-                first_plan,
-                "native",
-                1,
-                decision=SimpleNamespace(effective_tier="live"),
-                allow_write_flag=False,
-            )
+            if query_saved_history:
+                pending_query_context_options.update(catalog_order_variant=True)
+            result = run_saved_history_epoch()
             epoch2_result = result
             assert epoch2_result["status"] == "LIVE_RUN_COMPLETE"
             assert epoch2_result["epoch_id"] == 2
@@ -1898,6 +2406,100 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
                 RUNNER.iter_decision_tape(epoch2_tape_path, max_bytes=50_000_000)
             )
             epoch2_decisions = epoch2_tape_rows[1:]
+            assert all(
+                row["header_record_id"] == epoch2_tape_rows[0]["record_id"]
+                for row in epoch2_decisions
+            )
+
+            if query_saved_history:
+                old_query_snapshot = old_evidence["manifest"]["query_snapshot"]
+                epoch2_evidence = epoch2_tape_rows[0]["selection_evidence"]
+                epoch2_query_snapshot = epoch2_evidence["manifest"]["query_snapshot"]
+
+                def normalized_catalog_records(evidence):
+                    fields = (
+                        "product",
+                        "instrument_id",
+                        "asset_type",
+                        "is_trading",
+                        "expiry_date",
+                        "product_class",
+                    )
+                    return sorted(
+                        RUNNER._canonical_json_bytes(
+                            {field: row[field] for field in fields}
+                        )
+                        for row in evidence["manifest"]["query_snapshot"][
+                            "catalog_records"
+                        ]
+                    )
+
+                def actual_query_grid_hashes(evidence):
+                    plan = query_plans_by_snapshot_id[evidence["source_snapshot_id"]]
+                    grid_row = plan["grid"].to_dict()
+                    raw_grid_sha256 = hashlib.sha256(
+                        RUNNER._canonical_json_bytes(grid_row).rstrip(b"\n")
+                    ).hexdigest()
+                    stable_grid = {
+                        key: value
+                        for key, value in grid_row.items()
+                        if key not in {"decision_at", "calendar_hashes"}
+                    }
+                    stable_grid_sha256 = hashlib.sha256(
+                        RUNNER._canonical_json_bytes(stable_grid).rstrip(b"\n")
+                    ).hexdigest()
+                    return raw_grid_sha256, stable_grid_sha256
+
+                assert old_evidence["routes"] == epoch2_evidence["routes"]
+                assert (
+                    old_query_snapshot["catalog_source"]["sha256"]
+                    != epoch2_query_snapshot["catalog_source"]["sha256"]
+                )
+                assert (
+                    old_query_snapshot["quote_source"]["sha256"]
+                    != epoch2_query_snapshot["quote_source"]["sha256"]
+                )
+                assert normalized_catalog_records(old_evidence) == normalized_catalog_records(
+                    epoch2_evidence
+                )
+                old_ranking = {
+                    row["instrument_id"]: row["ranking_score"]
+                    for row in old_evidence["manifest"]["candidates"]
+                }
+                epoch2_ranking = {
+                    row["instrument_id"]: row["ranking_score"]
+                    for row in epoch2_evidence["manifest"]["candidates"]
+                }
+                assert old_ranking != epoch2_ranking
+                assert (
+                    old_evidence["manifest"]["decision_at"]
+                    != epoch2_evidence["manifest"]["decision_at"]
+                )
+                assert (
+                    old_evidence["manifest"]["calendars"][0]["sha256"]
+                    != epoch2_evidence["manifest"]["calendars"][0]["sha256"]
+                )
+                old_grid_sha256, old_grid_semantics_sha256 = actual_query_grid_hashes(
+                    old_evidence
+                )
+                epoch2_grid_sha256, epoch2_grid_semantics_sha256 = (
+                    actual_query_grid_hashes(epoch2_evidence)
+                )
+                assert (
+                    old_grid_sha256 != epoch2_grid_sha256
+                )
+                assert old_grid_semantics_sha256 == old_evidence["grid_semantics_sha256"]
+                assert (
+                    epoch2_grid_semantics_sha256
+                    == epoch2_evidence["grid_semantics_sha256"]
+                )
+                assert epoch2_tape_rows[0]["grid_sha256"] == epoch2_tape_rows[0][
+                    "restart_identity"
+                ]["calendar"]["grid_sha256"]
+                assert (
+                    old_evidence["grid_semantics_sha256"]
+                    == epoch2_evidence["grid_semantics_sha256"]
+                )
 
             # Exercise structural tampering against the actual epoch-2 tape.
             # Recompute row IDs so each negative proves the semantic validator,
@@ -2001,33 +2603,31 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
             config["output"]["decision_tape_path"] = str(
                 tmp_path / "live-decisions-epoch-3.jsonl"
             )
+            if query_saved_history:
+                # The query-history comparison must use the latest successful
+                # tape as its baseline, not keep consulting epoch 1.
+                config["inputs"]["history_decision_tape"] = str(epoch2_tape_path)
+                pending_query_context_options.update(catalog_semantic_change=True)
+                with pytest.raises(RUNNER.RunnerError) as catalog_error:
+                    run_saved_history_epoch()
+                assert catalog_error.value.code == "LIVE_HISTORY_SELECTION_MISMATCH"
+                assert RUNNER._route_summary(current_plan["value"]) == epoch2_evidence[
+                    "routes"
+                ]
+                assert api_clients[-1].closed is True
             for name, mutate, expected_code in tampering_cases:
                 tampered_path = write_tampered_history("history-{}.jsonl".format(name), mutate)
                 config["inputs"]["history_decision_tape"] = str(tampered_path)
                 with pytest.raises(RUNNER.RunnerError) as tampering_error:
-                    RUNNER.run_live(
-                        config,
-                        config_path,
-                        first_plan,
-                        "native",
-                        1,
-                        decision=SimpleNamespace(effective_tier="live"),
-                        allow_write_flag=False,
-                    )
+                    run_saved_history_epoch()
                 assert tampering_error.value.code == expected_code
-                assert len(api_clients) == 2
+                assert len(api_clients) == (
+                    query_run_attempts["value"] if query_saved_history else 2
+                )
                 assert not Path(config["output"]["decision_tape_path"]).exists()
 
             config["inputs"]["history_decision_tape"] = str(epoch2_tape_path)
-            result = RUNNER.run_live(
-                config,
-                config_path,
-                first_plan,
-                "native",
-                1,
-                decision=SimpleNamespace(effective_tier="live"),
-                allow_write_flag=False,
-            )
+            result = run_saved_history_epoch()
         else:
             result = RUNNER.run_live_epochs(
                 config,
@@ -2147,7 +2747,10 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
         assert result["status"] == "LIVE_RUN_COMPLETE"
         assert result["epoch_id"] == 3
         assert result["cleanup_complete"] is True
-        assert len(api_clients) == 3 and all(client.closed for client in api_clients)
+        assert len(api_clients) == (
+            query_run_attempts["value"] if query_saved_history else 3
+        )
+        assert all(client.closed for client in api_clients)
         for epoch_result in (first_result, epoch2_result, result):
             assert epoch_result["engine_winddown_status"] == "NOT_REACHED"
             assert epoch_result["engine_winddown_reason"] == "final_batch_not_reached"
@@ -2169,6 +2772,82 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
             ("run_live_returned", 2),
             ("run_live_returned", 3),
         ]
+        if query_saved_history:
+            successful_evidence = (
+                first_result["selection_evidence"],
+                epoch2_tape_rows[0]["selection_evidence"],
+                result["selection_evidence"],
+            )
+            assert len(
+                {evidence["source_snapshot_id"] for evidence in successful_evidence}
+            ) == 3
+            assert len(
+                {
+                    evidence["manifest"]["query_snapshot"]["catalog_source"][
+                        "connection_generation"
+                    ]
+                    for evidence in successful_evidence
+                }
+            ) == 3
+            assert query_run_attempts["value"] == len(api_clients)
+            snapshots = [
+                (client.context.snapshot_serial, client.context.connection_generation)
+                for client in api_clients
+            ]
+            assert len({serial for serial, _generation in snapshots}) == len(snapshots)
+            assert len({generation for _serial, generation in snapshots}) == len(snapshots)
+            for previous, current in zip(snapshots, snapshots[1:]):
+                assert trace.index(("api_closed_snapshot", *previous)) < trace.index(
+                    ("api_created_snapshot", *current)
+                )
+            for history_event in (row for row in trace if row[0] == "history_load"):
+                _label, _epoch_id, snapshot_id = history_event
+                assert snapshot_id is not None
+                plan_ready_index = trace.index(("query_plan_ready", snapshot_id))
+                catalog_index = trace.index(
+                    (
+                        "selection_catalog_query_snapshot",
+                        next(
+                            row[2]
+                            for row in trace
+                            if row[0] == "query_plan_ready_snapshot"
+                            and row[1] == snapshot_id
+                        ),
+                    )
+                )
+                depth_index = trace.index(
+                    (
+                        "selection_depth_query_snapshot",
+                        next(
+                            row[2]
+                            for row in trace
+                            if row[0] == "query_plan_ready_snapshot"
+                            and row[1] == snapshot_id
+                        ),
+                    )
+                )
+                history_index = trace.index(history_event)
+                snapshot_serial = next(
+                    row[2]
+                    for row in trace
+                    if row[0] == "query_plan_ready_snapshot" and row[1] == snapshot_id
+                )
+                ready_index = trace.index(("store_ready_snapshot", snapshot_serial))
+                login_indexes = [
+                    index
+                    for index, row in enumerate(trace)
+                    if row == ("store_login_facts_snapshot", snapshot_serial)
+                ]
+                assert len(login_indexes) >= 2
+                assert (
+                    ready_index
+                    < login_indexes[0]
+                    < catalog_index
+                    < depth_index
+                    < plan_ready_index
+                    < login_indexes[1]
+                    < history_index
+                )
         assert [row for row in trace if row[0] == "fixture_restart_requested"] == [
             (
                 "fixture_restart_requested",
@@ -2182,7 +2861,9 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
                     config["cohort"]["calendar_version"],
                     final_ordinal - window_start - 1,
                 ),
-                first_plan["grid"].minutes[final_ordinal - 1].close_time.isoformat(),
+                plans_by_epoch[epoch_id]["grid"].minutes[
+                    final_ordinal - 1
+                ].close_time.isoformat(),
             )
             for epoch_id, final_ordinal, window_start in (
                 (1, restart_cut, 0),
@@ -2190,6 +2871,10 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
                 (3, restart_cut_3, restart_cut_2 - config["factor"]["preheat_bars"]),
             )
         ]
+        if query_saved_history:
+            assert plans_by_epoch[3]["grid"].minutes[
+                restart_cut_3 - 1
+            ].close_time != first_plan["grid"].minutes[restart_cut_3 - 1].close_time
         assert trace.index(("initial_refresh_complete", 2)) < next(
             index for index, row in enumerate(trace)
             if row[0] == "first_provider_bar" and row[1] == 2
@@ -2267,6 +2952,17 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
         )
         assert epoch3_rows[0]["restart_identity"]["epoch_id"] == 3
         epoch3_decisions = epoch3_rows[1:]
+        assert all(
+            row["header_record_id"] == epoch3_rows[0]["record_id"]
+            for row in epoch3_decisions
+        )
+        if query_saved_history:
+            assert all(
+                action.get("action") != "OPEN"
+                for tape_rows in (first_tape_rows, epoch2_tape_rows, epoch3_rows)
+                for decision_row in tape_rows[1:]
+                for action in (decision_row.get("order_plan") or {}).get("actions", ())
+            )
         assert len(epoch3_decisions) == warmup_bars + restart_cut_3 - restart_cut_2
         assert all(row["epoch_id"] == 3 for row in epoch3_decisions)
         epoch3_history = epoch3_decisions[:warmup_bars]
@@ -2300,7 +2996,7 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
             for minute in expected_epoch3_history
         ]
         assert epoch3_live[0]["close_time"] == (
-            first_plan["grid"].minutes[restart_cut_2]
+            plans_by_epoch[3]["grid"].minutes[restart_cut_2]
             .close_time.isoformat()
             .replace("+00:00", "Z")
         )
@@ -2341,7 +3037,7 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
             )
             assert new_cursor.ordinal == restart_cut_2 - restart_cut
             assert RUNNER._aware_datetime(newest_cursor.close_time, "newest cursor") == (
-                first_plan["grid"].minutes[restart_cut_3 - 1].close_time
+                plans_by_epoch[3]["grid"].minutes[restart_cut_3 - 1].close_time
             )
             assert newest_cursor.ordinal == restart_cut_3 - restart_cut_2
             assert journal.run_order_count(
@@ -2438,8 +3134,16 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
                     "manifest_sha256",
                     "routes",
                     "authorized_targets",
+                    "grid_semantics_sha256",
                 )
             }
+            selection_plan = query_plans_by_snapshot_id[evidence["source_snapshot_id"]]
+            grid_semantics = selection_plan["grid"].to_dict()
+            grid_semantics.pop("decision_at")
+            grid_semantics.pop("calendar_hashes")
+            assert evidence["grid_semantics_sha256"] == hashlib.sha256(
+                RUNNER._canonical_json_bytes(grid_semantics).rstrip(b"\n")
+            ).hexdigest()
             assert (
                 evidence["binding_sha256"]
                 == hashlib.sha256(RUNNER._canonical_json_bytes(binding).rstrip(b"\n")).hexdigest()
@@ -3260,6 +3964,7 @@ def test_replay_executes_real_cerebro_orders_only_on_causal_later_bars(tmp_path,
     assert tape_rows[0]["record_type"] == "HEADER"
     decisions = tape_rows[1:]
     assert len(decisions) == len(plan["grid"].minutes)
+    assert all(row["header_record_id"] == tape_rows[0]["record_id"] for row in decisions)
     assert [row["close_time"] for row in decisions] == [
         minute.close_time.isoformat().replace("+00:00", "Z") for minute in plan["grid"].minutes
     ]
@@ -3874,8 +4579,8 @@ def test_real_cerebro_live_strategy_winddown_is_ready_or_times_out(tmp_path, mon
                 # Runner-owned refresh may run before Cerebro's first sample.
                 return clock_times[0]
 
-    clock = LocalFixtureClock(clock_times)
     cohort = RUNNER._make_cohort(config, plan["grid"])
+    clock = LocalFixtureClock(clock_times, cohort=cohort)
 
     class LocalProjectionStore:
         _cerebro_managed_lifecycle = True

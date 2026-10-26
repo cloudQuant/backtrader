@@ -1,0 +1,79 @@
+{
+  "schema": "iteration41.i51_query_history_fix_qa.v1",
+  "date": "2026-10-26",
+  "evidence_level": "SOURCE_FAKE_COMPOSITION_ONLY",
+  "scope": "One focused saved-query-history three-epoch restart node; no other pytest node was run by this task.",
+  "command": "C:\\anaconda3\\python.exe -m pytest -p no:asyncio -q --tb=short --basetemp=D:\\temp\\i51-query-history-restart-fix-20261026-run1 -o faulthandler_timeout=45 'tests/unit/test_alpha003_simnow_runner.py::test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bundle[saved-query-history-three-epoch-restart]'",
+  "execution": {
+    "tool_chunk_id": "9693b3",
+    "process_session_id": null,
+    "exit_code": 0,
+    "wall_time_seconds": 9.9304317,
+    "pytest_result": "1 passed, 1 warning in 4.87s",
+    "warning": "PytestConfigWarning: unknown config option asyncio_default_fixture_loop_scope",
+    "output_recording": "The functions.exec tool returned the pytest output summary. Raw stdout and JUnit XML were not saved."
+  },
+  "source_pins_at_qa": {
+    "examples/unified/028_alpha003_simnow_minute/run.py": {
+      "pre_sha256": "079CCDC672460DEE18627DF6D5874512C4C9B88589ABAC70DE1D8019AF2003B7",
+      "post_sha256": "079CCDC672460DEE18627DF6D5874512C4C9B88589ABAC70DE1D8019AF2003B7"
+    },
+    "tests/unit/test_alpha003_simnow_runner.py": {
+      "pre_sha256": "BDDDFBA54FB881A4197522E1A19F931DE268E3262880C28ACF8F2DD7C1D6C876",
+      "post_sha256": "BDDDFBA54FB881A4197522E1A19F931DE268E3262880C28ACF8F2DD7C1D6C876",
+      "prior_test_hash_before_this_fixture_fix": "9DA0F13FA5606C59A1730FB8AE57FE4B9140DA548511529DA17657534E3CCE35"
+    }
+  },
+  "fixture_root": "D:\\temp\\i51-query-history-restart-fix-20261026-run1\\test_live_two_epoch_uses_real_0",
+  "decision_tapes": [
+    {
+      "file": "live-decisions.jsonl",
+      "epoch_id": 1,
+      "rows_including_header": 41,
+      "decision_rows": 40,
+      "query_connection_generation": 5001,
+      "final_bar_id": "epoch-1:DCE.A:40",
+      "final_close_utc": "2026-10-22T01:40:00Z"
+    },
+    {
+      "file": "live-decisions-resumed.jsonl",
+      "epoch_id": 2,
+      "rows_including_header": 49,
+      "decision_rows": 48,
+      "query_connection_generation": 5016,
+      "final_bar_id": "epoch-2:DCE.A:68",
+      "final_close_utc": "2026-10-22T02:08:00Z"
+    },
+    {
+      "file": "live-decisions-epoch-3.jsonl",
+      "epoch_id": 3,
+      "rows_including_header": 29,
+      "decision_rows": 28,
+      "query_connection_generation": 5027,
+      "final_slot_index": 27,
+      "final_bar_id": "epoch-3:DCE.A:76",
+      "final_close_utc": "2026-10-22T02:31:00Z"
+    }
+  ],
+  "restart_close_diagnosis": {
+    "epoch_3_final_ordinal": 76,
+    "initial_bundle_grid_close_utc": "2026-10-22T02:16:00Z",
+    "fresh_query_plan_close_utc": "2026-10-22T02:31:00Z",
+    "tape_final_batch_close_utc": "2026-10-22T02:31:00Z",
+    "cause": "The fixture compared the completed query epoch's final batch against ordinal 76 in the initial bundle grid. The grids differ across the exchange-session break, so the controlled stop predicate was false after all epoch-3 provider bars had been consumed.",
+    "repair": "Use the current epoch's fresh plan for the restart close and targets, retain plans by epoch for the expected tape/cursor close assertions, and assert the epoch-3 query close differs from the initial bundle close."
+  },
+  "sequence_assertions": {
+    "status": "LIVE_EPOCH_SEQUENCE_STOPPED",
+    "stop_reason": "controlled_application_stop",
+    "epoch_count": 1,
+    "next_epoch_loaded": false,
+    "cleanup_complete": true,
+    "three_fresh_query_snapshots_and_generations": true,
+    "history_restored_before_first_live_provider_bar": true
+  },
+  "limitations": [
+    "This is one local source-fake test result, not OS-process restart or account/provider acceptance.",
+    "The test ran against run.py SHA-256 079CCDC672460DEE18627DF6D5874512C4C9B88589ABAC70DE1D8019AF2003B7; later source edits are outside this QA record."
+  ]
+}

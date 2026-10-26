@@ -124,9 +124,42 @@ when starting a distinct run because the journal's run budget is durable.
 To resume the same live run from its saved bars, set
 `inputs.history_decision_tape` to that run's previous decision tape, retain
 the same journal and account/strategy/logical-run scopes, increase
-`cohort.epoch_id`, and choose a new output tape path. This continuation
-currently supports an unchanged saved selection bundle in one session;
-query-based selection and automatic daily rollover reject this input.
+`cohort.epoch_id`, and choose a new output tape path. For the default
+`ctp_query` source, resume with the automatic query path (`plan=None`) so the
+runner opens a fresh Store, verifies login/session readiness, and collects a
+new catalog/depth snapshot before it reads the prior history. Passing an old
+in-memory plan with history is rejected. Each query tape retains its original
+snapshot ID, source generations, raw catalog/quote digests, grid digest, and
+calendar collection timestamps as provenance. Across runs, the runner compares
+the normalized semantic catalog (sorted by exchange/product/instrument and
+including asset type, trading status, expiry, and product class), selected
+routes and authorized targets, policy/coverage, calendar semantics, and grid
+slots/members/sessions. Per-query IDs, generation/timing facts, raw digest
+fields, and raw quote observations remain in each saved manifest as provenance
+and are not cross-run equality keys. A semantic change, including a different
+selected route or calendar/grid meaning, blocks reuse. The original selection
+evidence hash is recorded in each decision row, and each new row is also bound
+to its tape header; query history requires both bindings. Legacy
+bundle tapes without the header binding remain readable for compatibility,
+but their old header identity is not authenticated by that binding. Daily
+bundle rotation remains unsupported with a history input.
+
+The first resumed query epoch consumes the history tape; later epochs within
+the same finite `selection.max_epochs` call do not reuse it. The saved history
+supplies numerical warmup only: old decisions and historical factor signals
+are not replayed or dispatched, and history never authorizes a new opening
+order. This local runner support does not establish an OS-process restart or
+real-account acceptance.
+
+A controlled application stop with confirmed reconciliation, thread joins,
+and resource closure returns `LIVE_EPOCH_SEQUENCE_STOPPED`. It does not start
+another query epoch even when `selection.max_epochs` is larger than one.
+Automatic daily rollover still requires normal epoch retirement.
+
+Replay UTC follows the published complete cohort batch and its planned quote
+availability; repeated monotonic budget samples do not advance simulated
+minutes. The ordinary BackBroker keeps the existing causal fill rules.
+
 The final `factor.preheat_bars` records must be contiguous, complete,
 live-role `LIVE_READY` batches ending at the latest eligible planned minute.
 Each reused record must match the tape reference persisted in the original

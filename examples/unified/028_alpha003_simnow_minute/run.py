@@ -1138,45 +1138,67 @@ def _replay_instruments(path: Path, plan: Mapping[str, Any]):
 
 
 class ReplayTapeClock:
-    """Monotone simulation clock advanced once per Cerebro cohort round.
+    """Replay time stays on a slot until its cohort batch completes.
 
-    Cerebro samples ``monotonic_ns`` and then ``utc_now`` at the start of a
-    round. The Strategy may sample ``utc_now`` again after delivery, so UTC
-    time advances on the monotonic sample and remains fixed for that entire
-    decision round.
+    Cerebro and its feeds may sample ``monotonic_ns`` several times within a
+    round, so those samples advance only the monotonic clock. When bound to a
+    cohort, ``utc_now`` follows a published completed batch and ``wait`` moves
+    to the next slot. An unbound clock remains at its first UTC slot.
     """
 
-    def __init__(self, times):
+    def __init__(self, times, *, cohort=None):
         ordered = tuple(times)
         if not ordered or any(not isinstance(item, datetime) for item in ordered):
             raise ValueError("ReplayTapeClock requires explicit availability times")
         utc_times = tuple(_aware_datetime(item, "replay clock time") for item in ordered)
         if tuple(sorted(utc_times)) != utc_times:
             raise ValueError("ReplayTapeClock times must be monotone")
+        if cohort is not None and not callable(getattr(cohort, "current_batch", None)):
+            raise ValueError("ReplayTapeClock cohort must expose current_batch")
         self._times = utc_times
-        self._index = -1
+        self._cohort = cohort
+        self._index = 0
+        self._started = False
         self._mono = 1_000_000_000
         self._lock = threading.Lock()
 
     def utc_now(self):
         with self._lock:
-            if self._index < 0:
+            if not self._started:
                 raise RuntimeError("ReplayTapeClock has not entered a Cerebro round")
-            index = min(self._index, len(self._times) - 1)
-            value = self._times[index]
-            return value
+        batch = self._cohort.current_batch() if self._cohort is not None else None
+        slot_index = getattr(batch, "slot_index", None)
+        batch_complete = getattr(batch, "status", None) == "COMPLETE"
+        with self._lock:
+            if (
+                batch_complete
+                and type(slot_index) is int
+                and 0 <= slot_index < len(self._times)
+                and slot_index > self._index
+            ):
+                self._index = slot_index
+            return self._times[self._index]
 
     def monotonic_ns(self):
         with self._lock:
-            if self._index < len(self._times) - 1:
-                self._index += 1
             self._mono += 1_000_000
+            self._started = True
             return self._mono
 
     def wait(self, timeout_seconds):
         del timeout_seconds
+        batch = self._cohort.current_batch() if self._cohort is not None else None
+        slot_index = getattr(batch, "slot_index", None)
+        batch_complete = getattr(batch, "status", None) == "COMPLETE"
         with self._lock:
             self._mono += 1_000_000
+            if (
+                batch_complete
+                and type(slot_index) is int
+                and 0 <= slot_index < len(self._times)
+                and slot_index >= self._index
+            ):
+                self._index = min(slot_index + 1, len(self._times) - 1)
 
 
 def _replay_clock_schedule(grid, tape, quotes):
@@ -1604,6 +1626,7 @@ class DecisionTapeWriter:
         grid_sha256: Optional[str],
         source_snapshot_id: Optional[str],
         restart_identity: Optional[Mapping[str, Any]] = None,
+        selection_evidence: Optional[Mapping[str, Any]] = None,
     ) -> None:
         if type(max_bytes) is not int or max_bytes < 1:
             raise RunnerError("DECISION_TAPE_BYTE_BUDGET_INVALID")
@@ -1622,6 +1645,17 @@ class DecisionTapeWriter:
         self._failed = False
         self._lock = threading.RLock()
         self._last_record_reference = None
+        self._header_record_id = None
+        self._selection_evidence = (
+            _validate_selection_evidence(selection_evidence)
+            if selection_evidence is not None
+            else None
+        )
+        self._selection_evidence_sha256 = (
+            self._selection_evidence["binding_sha256"]
+            if self._selection_evidence is not None
+            else None
+        )
         try:
             self.path.parent.mkdir(parents=True, exist_ok=True)
             self._handle = self.path.open("xb")
@@ -1643,8 +1677,11 @@ class DecisionTapeWriter:
         if restart_identity is not None:
             _canonical_json_bytes(restart_identity)
             header["restart_identity"] = dict(restart_identity)
+        if self._selection_evidence is not None:
+            header["selection_evidence"] = dict(self._selection_evidence)
         canonical = _canonical_json_bytes(header)
-        header["record_id"] = hashlib.sha256(canonical.rstrip(b"\n")).hexdigest()
+        self._header_record_id = hashlib.sha256(canonical.rstrip(b"\n")).hexdigest()
+        header["record_id"] = self._header_record_id
         try:
             self._append(_canonical_json_bytes(header), count_record=False)
         except BaseException:
@@ -1702,6 +1739,9 @@ class DecisionTapeWriter:
                 index=index,
                 targets=self.targets,
             )
+            if self._selection_evidence_sha256 is not None:
+                row["selection_evidence_sha256"] = self._selection_evidence_sha256
+            row["header_record_id"] = self._header_record_id
             digest = hashlib.sha256(_canonical_json_bytes(row).rstrip(b"\n")).hexdigest()
             row["record_id"] = digest
             raw = _canonical_json_bytes(row)
@@ -1770,6 +1810,9 @@ def iter_decision_tape(path: Path, *, max_bytes: int):
         header_seen = False
         file_id = None
         targets = None
+        header_record_id = None
+        selection_evidence_sha256 = None
+        require_header_binding = False
         while True:
             raw = handle.readline(max_bytes - total + 1)
             if not raw:
@@ -1793,10 +1836,20 @@ def iter_decision_tape(path: Path, *, max_bytes: int):
                     raise RunnerError("DECISION_TAPE_HEADER_INVALID")
                 file_id = row.get("file_id")
                 targets = row.get("targets")
+                header_record_id = record_id
                 if type(file_id) is not str or type(targets) is not list or not targets:
                     raise RunnerError("DECISION_TAPE_HEADER_INVALID")
                 if len(targets) != len(set(targets)) or tuple(targets) != tuple(sorted(targets)):
                     raise RunnerError("DECISION_TAPE_HEADER_INVALID")
+                if "selection_evidence" in row:
+                    selection_evidence = _validate_selection_evidence(row["selection_evidence"])
+                    if row.get("source_snapshot_id") != selection_evidence["source_snapshot_id"]:
+                        raise RunnerError("DECISION_TAPE_HEADER_INVALID")
+                    selection_evidence_sha256 = selection_evidence["binding_sha256"]
+                    require_header_binding = (
+                        selection_evidence["selection_source"]
+                        == "ctp_query_snapshot_equal_weight_v1"
+                    )
                 header_seen = True
             else:
                 index += 1
@@ -1808,6 +1861,16 @@ def iter_decision_tape(path: Path, *, max_bytes: int):
                     or set(row.get("members", {})) != set(targets)
                 ):
                     raise RunnerError("DECISION_TAPE_RECORD_INVALID")
+                if "header_record_id" in row:
+                    if row["header_record_id"] != header_record_id:
+                        raise RunnerError("DECISION_TAPE_HEADER_BINDING_MISMATCH")
+                elif require_header_binding:
+                    raise RunnerError("DECISION_TAPE_HEADER_BINDING_REQUIRED")
+                if selection_evidence_sha256 is None:
+                    if "selection_evidence_sha256" in row:
+                        raise RunnerError("DECISION_TAPE_SELECTION_EVIDENCE_MISMATCH")
+                elif row.get("selection_evidence_sha256") != selection_evidence_sha256:
+                    raise RunnerError("DECISION_TAPE_SELECTION_EVIDENCE_MISMATCH")
             yield MappingProxyType(row)
     if not header_seen:
         raise RunnerError("DECISION_TAPE_HEADER_MISSING")
@@ -1823,6 +1886,7 @@ def _new_decision_tape(
     direction,
     source_snapshot_id,
     restart_identity=None,
+    selection_evidence=None,
 ):
     raw_path = config["output"]["decision_tape_path"]
     raw_budget = config["output"]["decision_tape_max_bytes"]
@@ -1842,6 +1906,7 @@ def _new_decision_tape(
         grid_sha256=getattr(plan["grid"], "evidence_sha256", None),
         source_snapshot_id=source_snapshot_id,
         restart_identity=restart_identity,
+        selection_evidence=selection_evidence,
     )
 
 
@@ -1895,13 +1960,47 @@ def _live_restart_identity(config, config_path, plan, *, factor_mode, direction,
     return identity
 
 
-def _load_saved_live_history(config, config_path, plan, *, restart_identity, now):
+def _selection_evidence_matches_identity(evidence, identity):
+    return bool(
+        evidence["epoch_id"] == identity.get("epoch_id")
+        and evidence["selection_source"] == identity.get("selection_source")
+        and evidence["source_snapshot_id"] == identity.get("source_snapshot_id")
+        and evidence["routes"] == identity.get("routes")
+        and sorted(evidence["routes"]) == identity.get("targets")
+        and sorted(evidence["authorized_targets"]) == identity.get("authorized_targets")
+    )
+
+
+def _load_saved_live_history(
+    config,
+    config_path,
+    plan,
+    *,
+    restart_identity,
+    selection_evidence=None,
+    now,
+):
     """Stream-verify a prior decision tape and retain only one bounded warmup window."""
     raw_path = config["inputs"].get("history_decision_tape")
     if raw_path is None:
         return None
-    if config["selection"]["source"] != "bundle" or config["selection"]["daily_bundles"]:
+    selection_source = config["selection"]["source"]
+    query_selection = selection_source == "ctp_query"
+    if selection_source not in {"bundle", "ctp_query"} or config["selection"]["daily_bundles"]:
         raise RunnerError("LIVE_HISTORY_SELECTION_UNSUPPORTED")
+    if query_selection:
+        if selection_evidence is None:
+            raise RunnerError("LIVE_HISTORY_SELECTION_EVIDENCE_INVALID")
+        selection_evidence = _validate_selection_evidence(selection_evidence)
+        if (
+            selection_evidence["selection_source"] != "ctp_query_snapshot_equal_weight_v1"
+            or not _selection_evidence_matches_identity(selection_evidence, restart_identity)
+        ):
+            raise RunnerError("LIVE_HISTORY_SELECTION_EVIDENCE_INVALID")
+    elif selection_evidence is not None:
+        selection_evidence = _validate_selection_evidence(selection_evidence)
+        if not _selection_evidence_matches_identity(selection_evidence, restart_identity):
+            raise RunnerError("LIVE_HISTORY_SELECTION_EVIDENCE_INVALID")
     source_path = _resolve_path(config_path, raw_path, "inputs.history_decision_tape")
     output_path = _resolve_path(
         config_path, config["output"]["decision_tape_path"], "output.decision_tape_path"
@@ -1954,6 +2053,23 @@ def _load_saved_live_history(config, config_path, plan, *, restart_identity, now
                 or row.get("factor_mode") != restart_identity["factor_mode"]
             ):
                 raise RunnerError("LIVE_HISTORY_MODE_MISMATCH")
+            old_selection_evidence = row.get("selection_evidence")
+            if query_selection and old_selection_evidence is None:
+                raise RunnerError("LIVE_HISTORY_SELECTION_EVIDENCE_INVALID")
+            if old_selection_evidence is not None:
+                old_selection_evidence = _validate_selection_evidence(old_selection_evidence)
+                if not _selection_evidence_matches_identity(old_selection_evidence, identity):
+                    raise RunnerError("LIVE_HISTORY_SELECTION_EVIDENCE_INVALID")
+                if query_selection:
+                    if (
+                        old_selection_evidence["selection_source"]
+                        != "ctp_query_snapshot_equal_weight_v1"
+                    ):
+                        raise RunnerError("LIVE_HISTORY_SELECTION_EVIDENCE_INVALID")
+                    if _query_history_selection_projection(
+                        old_selection_evidence
+                    ) != _query_history_selection_projection(selection_evidence):
+                        raise RunnerError("LIVE_HISTORY_SELECTION_MISMATCH")
             header_targets = row.get("targets")
             if (
                 type(header_targets) is not list
@@ -1964,8 +2080,24 @@ def _load_saved_live_history(config, config_path, plan, *, restart_identity, now
                 or row.get("grid_sha256") != identity.get("calendar", {}).get("grid_sha256")
             ):
                 raise RunnerError("LIVE_HISTORY_HEADER_MISMATCH")
+            same_query_source = (
+                query_selection
+                and identity.get("selection_source") == "ctp_query_snapshot_equal_weight_v1"
+                and restart_identity.get("selection_source")
+                == "ctp_query_snapshot_equal_weight_v1"
+            )
             for name, expected in restart_identity.items():
-                if name == "epoch_id":
+                if name == "epoch_id" or (name == "source_snapshot_id" and same_query_source):
+                    continue
+                if name == "calendar" and same_query_source:
+                    old_calendar = dict(identity[name])
+                    current_calendar = dict(expected)
+                    old_calendar.pop("grid_sha256", None)
+                    current_calendar.pop("grid_sha256", None)
+                    if _canonical_json_bytes(old_calendar) != _canonical_json_bytes(
+                        current_calendar
+                    ):
+                        raise RunnerError("LIVE_HISTORY_IDENTITY_MISMATCH")
                     continue
                 if _canonical_json_bytes(identity[name]) != _canonical_json_bytes(expected):
                     raise RunnerError("LIVE_HISTORY_IDENTITY_MISMATCH")
@@ -2379,7 +2511,7 @@ def run_replay(config, config_path, plan, factor_mode, direction):
     availability_by_slot, late_quote_count = _replay_clock_schedule(
         plan["grid"], tape, replay_quotes
     )
-    clock = ReplayTapeClock(availability_by_slot)
+    clock = ReplayTapeClock(availability_by_slot, cohort=cohort)
     cerebro.add_live_bar_cohort(cohort, clock=clock, winddown_timeout_seconds=0.0)
     run_id = f"replay-{tape['snapshot_id']}"
     decision_tape = _new_decision_tape(
@@ -3921,6 +4053,29 @@ def _selection_evidence(plan, epoch_id, *, max_bytes):
             "routes": _route_summary(plan),
             "authorized_targets": authorized_targets,
         }
+        if binding["selection_source"] == "ctp_query_snapshot_equal_weight_v1":
+            grid_to_dict = getattr(plan.get("grid"), "to_dict", None)
+            if not callable(grid_to_dict):
+                raise RunnerError("SELECTION_EVIDENCE_GRID_UNAVAILABLE")
+            grid_row = grid_to_dict()
+            if type(grid_row) is not dict or set(grid_row) != {
+                "schema",
+                "status",
+                "decision_at",
+                "target_products",
+                "product_trading_days",
+                "calendar_hashes",
+                "minutes",
+            }:
+                raise RunnerError("SELECTION_EVIDENCE_GRID_INVALID")
+            stable_grid = {
+                key: value
+                for key, value in grid_row.items()
+                if key not in {"decision_at", "calendar_hashes"}
+            }
+            binding["grid_semantics_sha256"] = hashlib.sha256(
+                _canonical_json_bytes(stable_grid).rstrip(b"\n")
+            ).hexdigest()
         binding_sha256 = hashlib.sha256(_canonical_json_bytes(binding).rstrip(b"\n")).hexdigest()
         evidence = {
             **binding,
@@ -3935,6 +4090,286 @@ def _selection_evidence(plan, epoch_id, *, max_bytes):
     if len(encoded_evidence) > max_bytes:
         raise RunnerError("SELECTION_EVIDENCE_BYTE_BUDGET_EXCEEDED")
     return evidence
+
+
+def _validate_selection_evidence(value):
+    """Verify the public hashes and shape of saved epoch selection evidence."""
+
+    expected_keys = {
+        "schema",
+        "epoch_id",
+        "selection_source",
+        "selection_path",
+        "source_snapshot_id",
+        "manifest_sha256",
+        "routes",
+        "authorized_targets",
+        "binding_sha256",
+        "manifest",
+    }
+    try:
+        if not isinstance(value, Mapping):
+            raise TypeError("selection evidence is not a mapping")
+        if value.get("selection_source") == "ctp_query_snapshot_equal_weight_v1":
+            expected_keys.add("grid_semantics_sha256")
+        _exact_keys(value, expected_keys, "selection evidence")
+        if (
+            value.get("schema") != "backtrader.alpha003_epoch_selection_evidence.v1"
+            or type(value.get("epoch_id")) is not int
+            or value["epoch_id"] < 1
+            or type(value.get("selection_source")) is not str
+            or not value["selection_source"]
+            or type(value.get("selection_path")) is not str
+            or not value["selection_path"]
+            or type(value.get("source_snapshot_id")) not in (str, type(None))
+            or type(value.get("manifest_sha256")) is not str
+            or type(value.get("binding_sha256")) is not str
+            or not isinstance(value.get("manifest"), dict)
+            or not isinstance(value.get("routes"), dict)
+            or type(value.get("authorized_targets")) is not list
+            or (
+                value["selection_source"] == "ctp_query_snapshot_equal_weight_v1"
+                and (
+                    type(value.get("grid_semantics_sha256")) is not str
+                    or len(value["grid_semantics_sha256"]) != 64
+                    or any(
+                        character not in "0123456789abcdef"
+                        for character in value["grid_semantics_sha256"]
+                    )
+                )
+            )
+        ):
+            raise TypeError("selection evidence fields are invalid")
+        if value["selection_source"] not in {
+            "saved_bundle_legacy",
+            "ctp_query_snapshot_equal_weight_v1",
+        }:
+            raise TypeError("selection evidence source is unsupported")
+        if value["selection_source"] == "ctp_query_snapshot_equal_weight_v1":
+            if type(value["source_snapshot_id"]) is not str or not value["source_snapshot_id"]:
+                raise TypeError("query selection snapshot is missing")
+        routes = value["routes"]
+        if not routes or any(
+            type(target) is not str
+            or not target
+            or type(instrument) is not str
+            or not instrument
+            for target, instrument in routes.items()
+        ):
+            raise TypeError("selection routes are invalid")
+        authorized = value["authorized_targets"]
+        if (
+            not authorized
+            or any(type(target) is not str or not target for target in authorized)
+            or len(authorized) != len(set(authorized))
+            or not set(authorized).issubset(routes)
+        ):
+            raise TypeError("authorized selection targets are invalid")
+        manifest_digest = hashlib.sha256(
+            _canonical_json_bytes(value["manifest"]).rstrip(b"\n")
+        ).hexdigest()
+        if value["manifest_sha256"] != manifest_digest:
+            raise TypeError("selection manifest digest is invalid")
+        binding_keys = (
+            "schema",
+            "epoch_id",
+            "selection_source",
+            "selection_path",
+            "source_snapshot_id",
+            "manifest_sha256",
+            "routes",
+            "authorized_targets",
+        )
+        binding = {key: value[key] for key in binding_keys}
+        if "grid_semantics_sha256" in value:
+            binding["grid_semantics_sha256"] = value["grid_semantics_sha256"]
+        binding_digest = hashlib.sha256(_canonical_json_bytes(binding).rstrip(b"\n")).hexdigest()
+        if value["binding_sha256"] != binding_digest:
+            raise TypeError("selection binding digest is invalid")
+        return dict(value)
+    except Exception:
+        raise RunnerError("LIVE_HISTORY_SELECTION_EVIDENCE_INVALID") from None
+
+
+def _query_history_selection_projection(evidence):
+    """Project stable query scope while excluding per-collection observations."""
+
+    manifest = evidence["manifest"]
+    query_snapshot = manifest.get("query_snapshot")
+    if (
+        manifest.get("schema") != "backtrader.futures_main_contract_manifest.v2"
+        or manifest.get("status") != "READY"
+        or type(manifest.get("policy")) is not dict
+        or type(manifest.get("target_products")) is not list
+        or type(manifest.get("trading_days")) is not list
+        or type(manifest.get("calendars")) is not list
+        or type(manifest.get("coverage")) is not list
+        or type(manifest.get("products")) is not list
+        or type(manifest.get("query_coverage")) is not list
+        or type(manifest.get("source")) is not dict
+        or type(query_snapshot) is not dict
+        or type(query_snapshot.get("catalog_records")) is not list
+    ):
+        raise RunnerError("LIVE_HISTORY_SELECTION_EVIDENCE_INVALID")
+    source = manifest["source"]
+    catalog = source.get("catalog")
+    if (
+        type(catalog) is not dict
+        or type(source.get("source_id")) is not str
+        or type(catalog.get("source_id")) is not str
+    ):
+        raise RunnerError("LIVE_HISTORY_SELECTION_EVIDENCE_INVALID")
+
+    def select_rows(rows, keys):
+        if any(type(row) is not dict or not set(keys).issubset(row) for row in rows):
+            raise RunnerError("LIVE_HISTORY_SELECTION_EVIDENCE_INVALID")
+        return [{key: row[key] for key in keys} for row in rows]
+
+    if any(
+        type(row) is not dict
+        for name in (
+            "target_products",
+            "trading_days",
+            "calendars",
+            "coverage",
+            "products",
+            "query_coverage",
+        )
+        for row in manifest[name]
+    ):
+        raise RunnerError("LIVE_HISTORY_SELECTION_EVIDENCE_INVALID")
+    stable_calendars = [
+        {
+            key: value
+            for key, value in row.items()
+            if key not in {"available_at", "retrieved_at", "sha256"}
+        }
+        for row in manifest["calendars"]
+    ]
+    calendar_keys = {
+        "exchange_id",
+        "source_id",
+        "version",
+        "coverage_start",
+        "coverage_through",
+        "complete",
+        "trading_days",
+    }
+    if any(not calendar_keys.issubset(row) for row in stable_calendars):
+        raise RunnerError("LIVE_HISTORY_SELECTION_EVIDENCE_INVALID")
+    stable_catalog_records = []
+    seen_catalog_instruments = set()
+    catalog_record_keys = {
+        "product",
+        "instrument_id",
+        "asset_type",
+        "is_trading",
+        "expiry_date",
+        "product_class",
+    }
+    for row in query_snapshot["catalog_records"]:
+        if (
+            type(row) is not dict
+            or set(row) != catalog_record_keys
+            or type(row.get("product")) is not dict
+            or set(row["product"]) != {"exchange_id", "product_id"}
+            or type(row.get("instrument_id")) is not str
+            or not row["instrument_id"]
+        ):
+            raise RunnerError("LIVE_HISTORY_SELECTION_EVIDENCE_INVALID")
+        product = row["product"]
+        if (
+            type(product.get("exchange_id")) is not str
+            or not product["exchange_id"]
+            or type(product.get("product_id")) is not str
+            or not product["product_id"]
+            or row.get("asset_type") is not None
+            and type(row["asset_type"]) is not str
+            or row.get("is_trading") is not None
+            and type(row["is_trading"]) is not bool
+            or row.get("expiry_date") is not None
+            and type(row["expiry_date"]) is not str
+            or row.get("product_class") is not None
+            and type(row["product_class"]) is not str
+        ):
+            raise RunnerError("LIVE_HISTORY_SELECTION_EVIDENCE_INVALID")
+        key = (product["exchange_id"], product["product_id"], row["instrument_id"])
+        if key in seen_catalog_instruments:
+            raise RunnerError("LIVE_HISTORY_SELECTION_EVIDENCE_INVALID")
+        seen_catalog_instruments.add(key)
+        stable_catalog_records.append(
+            {
+                "exchange_id": product["exchange_id"],
+                "product_id": product["product_id"],
+                "instrument_id": row["instrument_id"],
+                "asset_type": row["asset_type"],
+                "is_trading": row["is_trading"],
+                "expiry_date": row["expiry_date"],
+                "product_class": row["product_class"],
+            }
+        )
+    stable_catalog_records.sort(
+        key=lambda row: (row["exchange_id"], row["product_id"], row["instrument_id"])
+    )
+    grid_semantics_sha256 = evidence.get("grid_semantics_sha256")
+    if type(grid_semantics_sha256) is not str:
+        raise RunnerError("LIVE_HISTORY_SELECTION_EVIDENCE_INVALID")
+    projection = {
+        "selection_source": evidence["selection_source"],
+        "routes": evidence["routes"],
+        "authorized_targets": sorted(evidence["authorized_targets"]),
+        "grid_semantics_sha256": grid_semantics_sha256,
+        "manifest": {
+            "schema": manifest["schema"],
+            "policy": manifest["policy"],
+            "target_products": manifest["target_products"],
+            "source_ids": {
+                "source_id": source["source_id"],
+                "catalog_source_id": catalog["source_id"],
+            },
+            "trading_days": manifest["trading_days"],
+            "calendars": stable_calendars,
+            "catalog_records": stable_catalog_records,
+            "coverage": select_rows(
+                manifest["coverage"],
+                (
+                    "product",
+                    "candidate_count",
+                    "expected_instrument_ids",
+                    "candidate_set_complete",
+                    "ranking_values_complete",
+                    "finalized",
+                    "ranking_trading_day",
+                    "open_interest_unit",
+                    "volume_unit",
+                ),
+            ),
+            "products": select_rows(
+                manifest["products"],
+                (
+                    "product",
+                    "in_target_pool",
+                    "status",
+                    "expected_prior_trading_day",
+                    "ranking_trading_day",
+                    "selected_instrument_id",
+                ),
+            ),
+            "query_coverage": select_rows(
+                manifest["query_coverage"],
+                (
+                    "product",
+                    "catalog_instrument_ids",
+                    "expected_quote_instrument_ids",
+                    "metric_unit",
+                ),
+            ),
+        },
+    }
+    try:
+        return _canonical_json_bytes(projection)
+    except RunnerError:
+        raise RunnerError("LIVE_HISTORY_SELECTION_EVIDENCE_INVALID") from None
 
 
 def _live_shutdown_path(cerebro, result, refresh_loop):
@@ -4079,8 +4514,12 @@ def run_live(
             raise RunnerError("LIVE_COHORT_WAKE_API_UNAVAILABLE")
         clock = RunnerWallClock()
         history_input = config["inputs"].get("history_decision_tape")
-        if history_input is not None and query_selection:
-            raise RunnerError("LIVE_HISTORY_SELECTION_UNSUPPORTED")
+        if (
+            history_input is not None
+            and config["selection"]["source"] == "ctp_query"
+            and not query_selection
+        ):
+            raise RunnerError("LIVE_HISTORY_FRESH_SELECTION_REQUIRED")
         if history_input is not None and config["selection"]["daily_bundles"]:
             raise RunnerError("LIVE_HISTORY_SELECTION_UNSUPPORTED")
         if query_selection:
@@ -4117,14 +4556,6 @@ def run_live(
             direction=direction,
             simnow_profile=simnow_profile,
         )
-        saved_history = _load_saved_live_history(
-            config,
-            config_path,
-            plan,
-            restart_identity=restart_identity,
-            now=clock.utc_now(),
-        )
-        arm_templates = _arm_templates(config, plan) if write_enabled else None
         tape_path = config["output"]["decision_tape_path"]
         tape_budget = config["output"]["decision_tape_max_bytes"]
         if tape_path is None or tape_budget is None:
@@ -4136,6 +4567,15 @@ def run_live(
             config["cohort"]["epoch_id"],
             max_bytes=tape_budget,
         )
+        saved_history = _load_saved_live_history(
+            config,
+            config_path,
+            plan,
+            restart_identity=restart_identity,
+            selection_evidence=selection_evidence,
+            now=clock.utc_now(),
+        )
+        arm_templates = _arm_templates(config, plan) if write_enabled else None
         journal = ExecutionDecisionJournal(journal_path)
         if saved_history is not None:
             history_cursor = journal.grid_cursor(
@@ -4168,6 +4608,7 @@ def run_live(
             direction=direction,
             source_snapshot_id=plan.get("source_snapshot_id"),
             restart_identity=restart_identity,
+            selection_evidence=selection_evidence,
         )
         broker = BtApiBroker(
             store=store,
@@ -4694,6 +5135,38 @@ def _live_epoch_retired(summary):
     )
 
 
+def _live_epoch_controlled_stopped(summary):
+    """Accept an explicit app stop only after the same strict cleanup proof."""
+
+    if not isinstance(summary, Mapping):
+        return False
+    resources = summary.get("resource_shutdown")
+    if not isinstance(resources, list) or not all(
+        isinstance(row, Mapping) for row in resources
+    ):
+        return False
+    rows = {row.get("resource"): row for row in resources}
+    loop = rows.get("query_refresh", {})
+    store = rows.get("store", {})
+    return bool(
+        summary.get("status") == "LIVE_RUN_COMPLETE"
+        and summary.get("shutdown_path") == "controlled_application_stop"
+        and summary.get("engine_winddown_status") == "NOT_REACHED"
+        and summary.get("engine_winddown_reason") == "final_batch_not_reached"
+        and summary.get("strategy_shutdown_requested") is True
+        and summary.get("strategy_shutdown_ready") is True
+        and summary.get("strategy_shutdown_blocker") is None
+        and summary.get("strategy_shutdown_post_join_confirmed") is True
+        and summary.get("strategy_shutdown_post_join_blocker") is None
+        and summary.get("shutdown_status") == "PASS"
+        and summary.get("shutdown_blocker") is None
+        and summary.get("cleanup_complete") is True
+        and _cleanup_complete(resources)
+        and loop.get("joined") is True
+        and store.get("shutdown_state") == "PASS"
+    )
+
+
 def _run_ctp_query_live_epochs(
     config,
     config_path,
@@ -4722,6 +5195,8 @@ def _run_ctp_query_live_epochs(
     previous_plan = None
     previous_result = None
     failed_epoch = None
+    sequence_status = "LIVE_EPOCH_SEQUENCE_COMPLETE"
+    stop_reason = None
     try:
         for index in range(count):
             epoch_config = deepcopy(config)
@@ -4729,6 +5204,8 @@ def _run_ctp_query_live_epochs(
             epoch_config["output"]["decision_tape_path"] = str(
                 _daily_epoch_tape_path(config, config_path, epoch_index=index)
             )
+            if index:
+                epoch_config["inputs"]["history_decision_tape"] = None
             epoch_id = epoch_config["cohort"]["epoch_id"]
             assembly_attempts.append(epoch_id)
             query_attempts.append(epoch_id)
@@ -4747,7 +5224,9 @@ def _run_ctp_query_live_epochs(
                 _include_plan=True,
             )
             plan = result.pop("_plan")
-            if not _live_epoch_retired(result):
+            retired = _live_epoch_retired(result)
+            controlled_stop = _live_epoch_controlled_stopped(result)
+            if not retired and not controlled_stop:
                 failed_epoch = {
                     "epoch_id": epoch_id,
                     "selection_path": result.get("selection_path"),
@@ -4784,7 +5263,8 @@ def _run_ctp_query_live_epochs(
                 },
                 "routes": _route_summary(plan),
                 "status": result["status"],
-                "retirement_proven": True,
+                "retirement_proven": retired,
+                "shutdown_path": result.get("shutdown_path"),
                 "shutdown_status": result["shutdown_status"],
                 "strategy_shutdown_ready": result["strategy_shutdown_ready"],
                 "strategy_shutdown_post_join_confirmed": result[
@@ -4799,6 +5279,10 @@ def _run_ctp_query_live_epochs(
             summaries.append(row)
             previous_plan = plan
             previous_result = result
+            if controlled_stop:
+                sequence_status = "LIVE_EPOCH_SEQUENCE_STOPPED"
+                stop_reason = "controlled_application_stop"
+                break
     except BaseException as error:
         failed_epoch = failed_epoch or getattr(error, "live_epoch_evidence", None)
         try:
@@ -4823,7 +5307,7 @@ def _run_ctp_query_live_epochs(
         raise
 
     return {
-        "status": "LIVE_EPOCH_SEQUENCE_COMPLETE",
+        "status": sequence_status,
         "mode": "live",
         "tier": decision.effective_tier,
         "write_mode": bool(allow_write_flag),
@@ -4836,6 +5320,7 @@ def _run_ctp_query_live_epochs(
         "assembly_attempts": assembly_attempts,
         "cleanup_complete": all(row["cleanup_complete"] for row in summaries),
         "next_epoch_loaded": len(summaries) > 1,
+        "stop_reason": stop_reason,
     }
 
 
@@ -4855,8 +5340,9 @@ def run_live_epochs(
     strategy-owned winddown and its local resources have closed with proof.
     """
 
-    if config["inputs"].get("history_decision_tape") is not None and (
-        config["selection"]["source"] != "bundle" or config["selection"]["daily_bundles"]
+    if (
+        config["inputs"].get("history_decision_tape") is not None
+        and config["selection"]["daily_bundles"]
     ):
         raise RunnerError("LIVE_HISTORY_SELECTION_UNSUPPORTED")
     if config["selection"]["source"] == "ctp_query":

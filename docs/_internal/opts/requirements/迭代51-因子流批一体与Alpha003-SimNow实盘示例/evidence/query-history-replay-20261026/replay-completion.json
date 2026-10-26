@@ -1,0 +1,40 @@
+{
+  "exit_code": 0,
+  "timed_out": false,
+  "seconds": 5.23399999999674,
+  "pins_unchanged": true,
+  "post": {
+    "examples/unified/028_alpha003_simnow_minute/run.py": {
+      "size": 248505,
+      "sha256": "dc0319a85e0fe62addbc6b0c0c06a97cc6b33f94a88c50a3764411455872a92c"
+    },
+    "tests/unit/test_alpha003_simnow_runner.py": {
+      "size": 206243,
+      "sha256": "e1b3907d0d0b6985e4de4e4e7eb7d98c44bec51e60e24699fff710426afb12a7"
+    },
+    "backtrader/stores/execution_decision_journal.py": {
+      "size": 298039,
+      "sha256": "e60e9c1e353ce9dea39c3f6461ce1f9aadbb48308ff45c72c19796cf10dadadf"
+    },
+    "examples/unified/028_alpha003_simnow_minute/alpha003_strategy.py": {
+      "size": 198547,
+      "sha256": "b7d65886d10b792af58bf8100a9e94f3da1b1405b2a6d0247315dcaaa8dfa058"
+    },
+    "backtrader/research/live_cohort.py": {
+      "size": 116603,
+      "sha256": "69f31733ad0fedc126837f6595b752cf2e2b180471da2352ab98ccb2e825b0d6"
+    }
+  },
+  "junit_suites": [
+    {
+      "name": "pytest",
+      "errors": "0",
+      "failures": "0",
+      "skipped": "0",
+      "tests": "5",
+      "time": "4.683",
+      "timestamp": "2026-10-26T23:04:03.760648",
+      "hostname": "yun"
+    }
+  ]
+}
