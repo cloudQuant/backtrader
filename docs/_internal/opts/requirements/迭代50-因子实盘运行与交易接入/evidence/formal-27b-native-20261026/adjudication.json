@@ -1,0 +1,44 @@
+{
+  "policy_date": "2026-10-26",
+  "user_instruction": "性能失败暂时忽略，只要不出现报错，就认为成功，后续会专门优化性能",
+  "adjudication": "PASS_FUNCTIONAL_LONGSTREAM_NATIVE_ONLY",
+  "evidence_level": "COMPOSITION_SYNTHETIC_SOURCE_STREAM_ONLY",
+  "original_status": "FAIL",
+  "original_exit_code": 3,
+  "performance_observations_deferred": [
+    "durable_decision_max_latency_exceeded_500ms",
+    "durable_decision_p99_latency_exceeded_100ms"
+  ],
+  "functional_failures": [],
+  "both_mode_ac50_27b_complete": false,
+  "build_status_at_adjudication": "NOT_RUN",
+  "account_or_execution_claimed": false,
+  "raw_reports_rewritten": false,
+  "runtime_freshness_risk_durability_limits_changed": false,
+  "payload_pins": {
+    "launch.json": {
+      "bytes": 1092,
+      "sha256": "7ee197161f30eb67544f9977ced3b8c97ec8a0c82cda6ebc8a1f729a1c309b3a"
+    },
+    "completion.json": {
+      "bytes": 174,
+      "sha256": "8c085a9dc768e28da51bb0ec38612d8e05601516e576179e6915175b48486597"
+    },
+    "result.json": {
+      "bytes": 37847,
+      "sha256": "e5e7d78adc75b71213568b94ee2507d0d0c100bb6d63c201bfe4a1b1142e1c4c"
+    },
+    "stdout.bin": {
+      "bytes": 87,
+      "sha256": "5130370547345cb4e094e96770862a24c5349849690620d3ca939ba1d9108978"
+    },
+    "stderr.bin": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "launch-wrapper.py": {
+      "bytes": 2961,
+      "sha256": "505358404cee8b82d25508c7ff52a733f9a95a5a878bef222452b33a479cd0a3"
+    }
+  }
+}
