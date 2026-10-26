@@ -872,10 +872,8 @@ def _calendar_slots(
 
     cohort_module, slot_parameters, member_session_cls = _member_session_api()
     slots = []
-    for minute in grid.minutes:
+    for minute in _remaining_live_grid_minutes(grid, begin_at):
         start = minute.close_time - timedelta(minutes=1)
-        if begin_at is not None and start < begin_at:
-            continue
         members = {
             f"{item.product.exchange_id}.{item.product.product_id}": item for item in minute.members
         }
@@ -913,6 +911,22 @@ def _calendar_slots(
     if not slots:
         raise RunnerError("COHORT_HAS_NO_PLANNED_SLOTS")
     return tuple(slots)
+
+
+def _remaining_live_grid_minutes(grid: Any, begin_at: Optional[datetime]):
+    """Return planned minutes whose bucket start is not before live startup."""
+
+    from backtrader.feeds.futures_sessions import PlannedCommonMinute
+
+    remaining = []
+    for minute in grid.minutes:
+        if not isinstance(minute, PlannedCommonMinute):
+            raise RunnerError("PLANNED_GRID_RECORD_INVALID")
+        start = minute.close_time - timedelta(minutes=1)
+        if begin_at is not None and start < begin_at:
+            continue
+        remaining.append(minute)
+    return tuple(remaining)
 
 
 def _make_cohort(
@@ -4570,6 +4584,8 @@ def run_live(
             raise RunnerError("LIVE_SELECTION_PLAN_REQUIRED")
         elif history_input is None:
             create_store()
+        if not _remaining_live_grid_minutes(plan["grid"], clock.utc_now()):
+            raise RunnerError("LIVE_GRID_HAS_NO_REMAINING_COMMON_MINUTES")
         restart_identity = _live_restart_identity(
             config,
             config_path,

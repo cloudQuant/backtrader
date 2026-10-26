@@ -1,0 +1,1 @@
+C:/anaconda3/python.exe -m pytest -q -p no:asyncio --tb=short tests/unit/test_alpha003_simnow_runner.py::test_live_setup_failures_close_every_created_resource --junitxml=D:\temp\i51-live-grid-preflight-20261027-r3\live-grid-preflight.xml

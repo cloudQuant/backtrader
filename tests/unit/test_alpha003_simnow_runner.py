@@ -4079,6 +4079,10 @@ def test_decision_tape_requires_fresh_exclusive_bounded_destination(tmp_path):
     (
         ("ready", "LIVE_CTP_SESSION_NOT_READY", False, True),
         ("ready_store_stop", "LIVE_CTP_SESSION_NOT_READY", False, False),
+        ("grid_expired", "LIVE_GRID_HAS_NO_REMAINING_COMMON_MINUTES", False, True),
+        ("grid_boundary", "LIVE_CTP_SESSION_NOT_READY", False, True),
+        ("grid_remaining", "LIVE_CTP_SESSION_NOT_READY", False, True),
+        ("grid_crossing", "COHORT_HAS_NO_PLANNED_SLOTS", False, True),
         ("refresh", "LIVE_INITIAL_QUERY_REFRESH_FAILED", True, True),
         ("arm", "RuntimeError", True, True),
     ),
@@ -4152,9 +4156,30 @@ def test_live_setup_failures_close_every_created_resource(
         "BT_ALPHA003_TEST_CONFIG_JSON",
         json.dumps({"config": store_config, "api_kwargs": api_kwargs}),
     )
+    last_bucket_start = plan["grid"].minutes[-1].close_time - timedelta(minutes=1)
+    later_bucket_start = last_bucket_start + timedelta(microseconds=1)
+    if failure == "grid_expired":
+        clock_now = later_bucket_start
+    elif failure == "grid_boundary":
+        clock_now = last_bucket_start
+    elif failure == "grid_remaining":
+        clock_now = last_bucket_start - timedelta(minutes=1)
+    else:
+        clock_now = DECISION_AT
+    clock_calls = {"count": 0}
+
+    class FixedClock:
+        def utc_now(self):
+            if failure == "grid_crossing":
+                clock_calls["count"] += 1
+                return last_bucket_start if clock_calls["count"] == 1 else later_bucket_start
+            return clock_now
+
+    monkeypatch.setattr(RUNNER, "RunnerWallClock", FixedClock)
 
     closed = []
     lifecycle = []
+    constructed = []
 
     class FakeStore:
         registered_sim_route_id = "simnow-registered-v1"
@@ -4168,7 +4193,12 @@ def test_live_setup_failures_close_every_created_resource(
 
         def registered_sim_wait_ready(self, timeout):
             lifecycle.append("session_ready")
-            return failure not in {"ready", "ready_store_stop"}
+            return failure not in {
+                "ready",
+                "ready_store_stop",
+                "grid_boundary",
+                "grid_remaining",
+            }
 
         def registered_sim_login_facts(self):
             lifecycle.append("login_facts")
@@ -4187,6 +4217,7 @@ def test_live_setup_failures_close_every_created_resource(
 
     class FakeBroker:
         def __init__(self, *, store, **kwargs):
+            constructed.append("broker")
             self.store = store
 
         def get_shutdown_summary(self):
@@ -4194,6 +4225,7 @@ def test_live_setup_failures_close_every_created_resource(
 
     class FakeJournal:
         def __init__(self, path):
+            constructed.append("journal")
             self.path = path
 
         def close(self):
@@ -4276,7 +4308,14 @@ def test_live_setup_failures_close_every_created_resource(
     monkeypatch.setattr(coordinator_module, "FactorExecutionCoordinator", FakeCoordinator)
     monkeypatch.setattr(bt, "Cerebro", FakeCerebro)
     monkeypatch.setattr(RUNNER, "QueryRefreshLoop", FakeRefreshLoop)
-    monkeypatch.setattr(RUNNER, "_make_cohort", lambda *args, **kwargs: FakeCohort())
+    original_make_cohort = RUNNER._make_cohort
+
+    def make_cohort(*args, **kwargs):
+        if failure == "grid_crossing":
+            return original_make_cohort(*args, **kwargs)
+        return FakeCohort()
+
+    monkeypatch.setattr(RUNNER, "_make_cohort", make_cohort)
     monkeypatch.setattr(RUNNER, "_make_strategy_kwargs", lambda *args, **kwargs: {})
     decision = SimpleNamespace(effective_tier="live")
 
@@ -4298,26 +4337,51 @@ def test_live_setup_failures_close_every_created_resource(
     cleanup = error.value.cleanup_results
     assert RUNNER._cleanup_complete(cleanup) is cleanup_complete
     by_resource = {row["resource"]: row for row in cleanup}
-    assert by_resource["decision_tape"]["status"] == "CLOSED"
-    assert by_resource["journal"]["status"] == "CLOSED"
+    if failure == "grid_expired":
+        assert by_resource["decision_tape"]["status"] == "NOT_CREATED"
+        assert by_resource["journal"]["status"] == "NOT_CREATED"
+        assert by_resource["broker"]["status"] == "NOT_CREATED"
+        assert constructed == []
+        assert not Path(config["output"]["decision_tape_path"]).exists()
+    else:
+        assert by_resource["decision_tape"]["status"] == "CLOSED"
+        assert by_resource["journal"]["status"] == "CLOSED"
+        assert "journal" in constructed
     if failure == "ready_store_stop":
         assert by_resource["store"]["status"] == "FAILED"
     else:
         assert by_resource["store"]["shutdown_state"] == "PASS"
-    assert by_resource["broker"]["status"] == "NOT_RUN"
-    if failure in {"ready", "ready_store_stop", "arm"}:
+    if failure == "grid_expired":
+        assert "store" in closed
+        assert lifecycle == []
+    else:
+        assert by_resource["broker"]["status"] == "NOT_RUN"
+    if failure in {
+        "ready",
+        "ready_store_stop",
+        "grid_expired",
+        "grid_boundary",
+        "grid_remaining",
+        "grid_crossing",
+        "arm",
+    }:
         assert by_resource["query_refresh"]["status"] == "NOT_CREATED"
     else:
         assert by_resource["query_refresh"]["joined"] is True
         assert by_resource["query_refresh"]["status"] == "RETURNED"
         assert "query_refresh" in closed
     assert "store" in closed
-    assert "journal" in closed
-    if failure in {"ready", "ready_store_stop"}:
+    if failure != "grid_expired":
+        assert "journal" in closed
+    if failure in {"ready", "ready_store_stop", "grid_boundary", "grid_remaining"}:
         assert lifecycle == ["session_ready"]
+    elif failure in {"grid_expired", "grid_crossing"}:
+        assert lifecycle == []
+    if failure == "grid_crossing":
+        assert clock_calls["count"] >= 3
     elif failure == "arm":
         assert lifecycle == ["session_ready", "login_facts", "arm_templates"]
-    else:
+    elif failure == "refresh":
         assert lifecycle == [
             "session_ready",
             "login_facts",
