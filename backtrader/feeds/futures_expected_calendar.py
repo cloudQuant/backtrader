@@ -26,7 +26,8 @@ from .futures_sessions import (
 
 
 EXPECTED_RULE_EVIDENCE_MODE = "expected_rule_derived"
-RULE_REVIEW_VERSION = "public-rule-review-2026-10-24"
+RULE_REVIEW_VERSION = "public-rule-review-2026-10-26"
+RULE_REVIEW_RETRIEVED_AT_UTC = datetime(2026, 10, 26, 15, 23, 19, tzinfo=timezone.utc)
 SUPPORTED_START = date(2026, 1, 1)
 SUPPORTED_END = date(2026, 12, 31)
 CHINA_TIME = timezone(timedelta(hours=8), "China Standard Time")
@@ -60,6 +61,9 @@ STATE_COUNCIL_2026_MAKEUP_WEEKENDS = (
 STATE_COUNCIL_HOLIDAY_URL = (
     "https://big5.www.gov.cn/gate/big5/www.gov.cn/zhengce/zhengceku/" "202511/content_7047091.htm"
 )
+STATE_COUNCIL_HOLIDAY_REPRODUCTION_URL = (
+    "https://www.beijing.gov.cn/cs/gncs/zcwj/202603/t20260327_4568275.html"
+)
 
 EXCHANGE_RULE_SOURCE_URLS = {
     "SHFE": (
@@ -75,6 +79,9 @@ EXCHANGE_RULE_SOURCE_URLS = {
     "DCE": (
         "https://www.dce.com.cn/dceg/file/2025-05-29/"
         "1748480876704ff80808197162e7128701971994e0a01313.pdf",
+        "https://neris.csrc.gov.cn/falvfagui/rdqsHeader/mainbody?navbarId=2&"
+        "secFutrsLawId=2805291336fd4780a93b6268d93caad0",
+        "https://finance.eastmoney.com/a/202512173594230398.html",
     ),
     "CZCE": (
         "https://www.czce.com.cn/cn/content_file/flfg/zcjywgz/zcjjygz/2026/3/"
@@ -82,23 +89,58 @@ EXCHANGE_RULE_SOURCE_URLS = {
         "https://www.czce.com.cn/cn/content_file/flfg/zcjywgz/ywbf/2026/5/"
         "a5ad00e02e484498abdbac8ddbfd5c35.pdf",
         "https://www.czce.com.cn/cn/flfg/zcjywgz/pzxz/webinfo/2024/02/" "1708568084281851.htm",
+        "https://finance.eastmoney.com/a/202512173594248238.html",
+        "https://www.founderfu.com/fzzqqh_2019/details_247_85034.html",
     ),
     "CFFEX": (
         "https://www.cffex.com.cn/u/cms/www/202003/27155912c7m4.pdf",
         "https://www.cffex.com.cn/u/cms/www/202003/27165505w3j5.pdf",
         "https://www.cffex.com.cn/u/cms/www/202207/182020307zry.pdf",
+        "https://www.cffex.com.cn/u/cms/www/202003/27165822h30l.pdf",
+        "https://www.cffex.com.cn/u/cms/www/202003/27165958okn6.pdf",
         "https://www.e-cffex.com.cn/u/cms/www/202007/08152522nwhg.pdf",
         "https://www.e-cffex.com.cn/u/cms/www/202007/08152340rnz2.pdf",
         "https://e-cffex.com.cn/u/cms/www/202007/08152235b2ys.pdf",
         "https://oa.hicend.com.cn/ftpfile/static/file/upload/file/202304/17/"
         "kmaiwuEFxlDM8cuu.pdf",
         "https://www.cffex.com.cn/u/cms/www/202405/31111942nrka.pdf",
+        "https://news.bjd.com.cn/2025/12/17/11469627.shtml",
     ),
     "GFEX": (
         "https://www.gfex.com.cn/gfex/sspzb/sspz.shtml",
         "https://www.gfex.com.cn/gfex/sytslqhhy/202307/" "9ad927b8ec4c458594e172fd1ada2a9b.shtml",
         "https://www.gfex.com.cn/en/Notices/202601/ecd5e39ce8a04d2eb0a88d47ba2abd26.shtml",
     ),
+}
+
+EXCHANGE_ANNUAL_NOTICE_METADATA = {
+    "DCE": {
+        "issuer": "大连商品交易所",
+        "notice_id": "大商所发〔2025〕437号",
+        "issued_on": "2025-12-17",
+        "source_urls": ("https://finance.eastmoney.com/a/202512173594230398.html",),
+        "provenance": "issuer-attributed notice text reproduced by a third-party portal",
+        "byte_identity_limit": "not exchange-served bytes; raw notice digest not captured",
+    },
+    "CZCE": {
+        "issuer": "郑州商品交易所",
+        "notice_id": "郑商函〔2025〕939号",
+        "issued_on": "2025-12-17",
+        "source_urls": (
+            "https://finance.eastmoney.com/a/202512173594248238.html",
+            "https://www.founderfu.com/fzzqqh_2019/details_247_85034.html",
+        ),
+        "provenance": "issuer-attributed notice text reproduced by third-party portals",
+        "byte_identity_limit": "not exchange-served bytes; raw notice digest not captured",
+    },
+    "CFFEX": {
+        "issuer": "中国金融期货交易所",
+        "notice_id": "中金所发〔2025〕55号",
+        "issued_on": "2025-12-17",
+        "source_urls": ("https://news.bjd.com.cn/2025/12/17/11469627.shtml",),
+        "provenance": "issuer-attributed notice text reproduced by a third-party portal",
+        "byte_identity_limit": "not exchange-served bytes; raw notice digest not captured",
+    },
 }
 
 EXCHANGE_IDS = tuple(sorted(EXCHANGE_RULE_SOURCE_URLS))
@@ -119,8 +161,10 @@ CFFEX_TREASURY_PRODUCTS = frozenset(("TS", "TF", "T", "TL"))
 CFFEX_INDEX_PRODUCTS = frozenset(("IF", "IH", "IC", "IM"))
 
 _LIMITATIONS = (
-    "DCE, CZCE, and CFFEX 2026 annual closure notices were not verified in the 2026-10-24 source review; caller-supplied exchange closures are applied as overlays.",
-    "Exchange URLs are public rule references, not captured response bytes; exchange-specific closure dates are included only when supplied in exchange_closures.",
+    "DCE, CZCE, and CFFEX 2026 annual closure notices were reviewed as issuer-attributed mirror text on 2026-10-26; exchange-served byte identity and raw notice digests were not captured.",
+    "The 2026 State Council schedule was cross-checked against a Beijing municipal portal reproduction with an unrelated test breadcrumb; the Gazette PDF was not byte-retrieved in the 2026-10-26 capture.",
+    "Rule URLs are public references rather than captured response bytes; indexed rule text was used where direct DCE, CZCE, or CFFEX document retrieval failed.",
+    "Exchange-specific exceptional closure dates beyond the annual holiday schedule are included only when supplied in exchange_closures.",
     "The CFFEX TL rule is exchange-authored text hosted by a broker mirror; no exchange-served byte identity or latest-revision claim is made.",
     "CFFEX Treasury final-trading-day afternoon is removed only when the caller supplies the selected contract's exact final-day overlay; the five-session expiry rule excludes such a contract from normal main selection.",
     "The calendar is expected under cited weekday rules and known holiday closures; later exchange notices can change it.",
@@ -423,12 +467,20 @@ def build_expected_daytime_calendars(
         "version": RULE_REVIEW_VERSION,
         "supported_range": [SUPPORTED_START.isoformat(), SUPPORTED_END.isoformat()],
         "state_council_holiday_url": STATE_COUNCIL_HOLIDAY_URL,
+        "state_council_holiday_reproduction_url": STATE_COUNCIL_HOLIDAY_REPRODUCTION_URL,
         "state_council_holiday_ranges": holidays_payload,
         "state_council_makeup_weekends_closed": [
             day.isoformat() for day in STATE_COUNCIL_2026_MAKEUP_WEEKENDS
         ],
         "exchange_sources": {
             exchange: list(EXCHANGE_RULE_SOURCE_URLS[exchange]) for exchange in EXCHANGE_IDS
+        },
+        "exchange_annual_notice_metadata": {
+            exchange: {
+                key: list(value) if key == "source_urls" else value
+                for key, value in EXCHANGE_ANNUAL_NOTICE_METADATA[exchange].items()
+            }
+            for exchange in sorted(EXCHANGE_ANNUAL_NOTICE_METADATA)
         },
         "exchange_closures": {
             exchange: [day.isoformat() for day in closures.get(exchange, ())]
@@ -503,7 +555,11 @@ def build_expected_daytime_calendars(
         source_id = "{}.expected-daytime-2026".format(exchange)
         source = ExpectedRuleEvidence(
             source_id=source_id,
-            source_urls=(STATE_COUNCIL_HOLIDAY_URL,) + EXCHANGE_RULE_SOURCE_URLS[exchange],
+            source_urls=(
+                STATE_COUNCIL_HOLIDAY_URL,
+                STATE_COUNCIL_HOLIDAY_REPRODUCTION_URL,
+            )
+            + EXCHANGE_RULE_SOURCE_URLS[exchange],
             version=RULE_REVIEW_VERSION,
             available_at=retrieved_value,
             retrieved_at=retrieved_value,
@@ -550,11 +606,15 @@ def build_expected_daytime_calendars(
 __all__ = [
     "CFFEX_INDEX_PRODUCTS",
     "CFFEX_TREASURY_PRODUCTS",
+    "EXCHANGE_ANNUAL_NOTICE_METADATA",
     "EXCHANGE_IDS",
+    "EXCHANGE_RULE_SOURCE_URLS",
     "EXPECTED_RULE_EVIDENCE_MODE",
     "ExpectedCalendarBuild",
     "ExpectedCalendarError",
     "RULE_REVIEW_VERSION",
+    "RULE_REVIEW_RETRIEVED_AT_UTC",
+    "STATE_COUNCIL_HOLIDAY_REPRODUCTION_URL",
     "STATE_COUNCIL_2026_HOLIDAY_RANGES",
     "STATE_COUNCIL_2026_MAKEUP_WEEKENDS",
     "build_expected_daytime_calendars",

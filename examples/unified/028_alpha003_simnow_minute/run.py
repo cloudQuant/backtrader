@@ -428,7 +428,10 @@ def build_ctp_query_market_plan(store, config, *, clock):
     shared selector has checked classification and complete depth coverage.
     """
 
-    from backtrader.feeds.futures_expected_calendar import build_expected_daytime_calendars
+    from backtrader.feeds.futures_expected_calendar import (
+        RULE_REVIEW_RETRIEVED_AT_UTC,
+        build_expected_daytime_calendars,
+    )
     from backtrader.feeds.futures_main_contract import (
         CTP_QUERY_SNAPSHOT_EQUAL_WEIGHT_POLICY,
         ExchangeTradingDay,
@@ -471,7 +474,7 @@ def build_ctp_query_market_plan(store, config, *, clock):
             products,
             current_days,
             as_of=decision_at,
-            retrieved_at=decision_at,
+            retrieved_at=RULE_REVIEW_RETRIEVED_AT_UTC,
         )
         manifest = select_main_contracts(
             snapshot,
@@ -501,7 +504,7 @@ def build_ctp_query_market_plan(store, config, *, clock):
                 products,
                 current_days,
                 as_of=decision_at,
-                retrieved_at=decision_at,
+                retrieved_at=RULE_REVIEW_RETRIEVED_AT_UTC,
                 selected_contract_last_trading_days=selected_last_days,
             )
             manifest = select_main_contracts(

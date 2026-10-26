@@ -6,8 +6,12 @@ import hashlib
 import pytest
 
 from backtrader.feeds.futures_expected_calendar import (
+    EXCHANGE_ANNUAL_NOTICE_METADATA,
+    EXCHANGE_RULE_SOURCE_URLS,
     EXPECTED_RULE_EVIDENCE_MODE,
     RULE_REVIEW_VERSION,
+    RULE_REVIEW_RETRIEVED_AT_UTC,
+    STATE_COUNCIL_HOLIDAY_REPRODUCTION_URL,
     STATE_COUNCIL_2026_HOLIDAY_RANGES,
     STATE_COUNCIL_2026_MAKEUP_WEEKENDS,
     ExpectedCalendarError,
@@ -40,8 +44,9 @@ from backtrader.feeds.futures_sessions import (
 
 CHINA = timezone(timedelta(hours=8), "Asia/Shanghai")
 UTC = timezone.utc
-AS_OF = datetime(2026, 10, 24, 0, 0, tzinfo=UTC)
-RETRIEVED_AT = datetime(2026, 10, 23, 23, 55, tzinfo=UTC)
+# Historical timestamps below are synthetic fixtures, not source-review facts.
+SYNTHETIC_AS_OF = datetime(2026, 10, 24, 0, 0, tzinfo=UTC)
+SYNTHETIC_RETRIEVED_AT = datetime(2026, 10, 23, 23, 55, tzinfo=UTC)
 CURRENT_DAY = date(2026, 10, 26)
 
 FULL_POOL_SAMPLE = (
@@ -56,8 +61,8 @@ FULL_POOL_SAMPLE = (
 
 def _build(products=FULL_POOL_SAMPLE, **kwargs):
     current_days = {product.exchange_id: CURRENT_DAY for product in products}
-    kwargs.setdefault("as_of", AS_OF)
-    kwargs.setdefault("retrieved_at", RETRIEVED_AT)
+    kwargs.setdefault("as_of", SYNTHETIC_AS_OF)
+    kwargs.setdefault("retrieved_at", SYNTHETIC_RETRIEVED_AT)
     return build_expected_daytime_calendars(
         products,
         current_days,
@@ -110,7 +115,7 @@ def test_rule_calendar_keeps_full_target_pool_and_daytime_common_grid():
         FULL_POOL_SAMPLE,
         result.session_calendars,
         product_days,
-        decision_at=AS_OF,
+        decision_at=SYNTHETIC_AS_OF,
     )
     local_closes = _local_close_values(grid)
     assert len(local_closes) == 195
@@ -183,8 +188,8 @@ def test_expected_rule_evidence_is_not_misrepresented_as_source_bytes_and_roundt
     assert "source_urls" in evidence_dict
     assert "rules_manifest_sha256" in evidence_dict
     assert "sha256" not in evidence_dict
-    assert source.available_at == RETRIEVED_AT
-    assert source.retrieved_at == RETRIEVED_AT
+    assert source.available_at == SYNTHETIC_RETRIEVED_AT
+    assert source.retrieved_at == SYNTHETIC_RETRIEVED_AT
 
     manifest_calendar = result.trading_calendars[0]
     assert manifest_calendar.evidence_mode == EXPECTED_RULE_EVIDENCE_MODE
@@ -192,6 +197,57 @@ def test_expected_rule_evidence_is_not_misrepresented_as_source_bytes_and_roundt
     restored = load_exchange_session_calendar(calendar.to_dict())
     assert restored == calendar
     assert restored.to_main_contract_calendar() == manifest_calendar
+
+
+def test_current_source_review_and_issuer_notice_metadata_are_bound_without_byte_hashes():
+    as_of = RULE_REVIEW_RETRIEVED_AT_UTC + timedelta(seconds=1)
+    result = build_expected_daytime_calendars(
+        FULL_POOL_SAMPLE,
+        {product.exchange_id: CURRENT_DAY for product in FULL_POOL_SAMPLE},
+        as_of=as_of,
+        retrieved_at=RULE_REVIEW_RETRIEVED_AT_UTC,
+    )
+    assert RULE_REVIEW_VERSION == "public-rule-review-2026-10-26"
+    assert result.retrieved_at == RULE_REVIEW_RETRIEVED_AT_UTC
+    assert len(result.rules_manifest_sha256) == 64
+    later_retrieval = build_expected_daytime_calendars(
+        FULL_POOL_SAMPLE,
+        {product.exchange_id: CURRENT_DAY for product in FULL_POOL_SAMPLE},
+        as_of=as_of + timedelta(seconds=2),
+        retrieved_at=RULE_REVIEW_RETRIEVED_AT_UTC + timedelta(seconds=1),
+    )
+    assert later_retrieval.rules_manifest_sha256 == result.rules_manifest_sha256
+    expected_notices = {
+        "DCE": ("大连商品交易所", "大商所发〔2025〕437号"),
+        "CZCE": ("郑州商品交易所", "郑商函〔2025〕939号"),
+        "CFFEX": ("中国金融期货交易所", "中金所发〔2025〕55号"),
+    }
+    for exchange, (issuer, notice_id) in expected_notices.items():
+        metadata = EXCHANGE_ANNUAL_NOTICE_METADATA[exchange]
+        assert metadata["issuer"] == issuer
+        assert metadata["notice_id"] == notice_id
+        assert metadata["issued_on"] == "2025-12-17"
+        assert "third-party portal" in metadata["provenance"]
+        assert "not exchange-served bytes" in metadata["byte_identity_limit"]
+        assert "raw notice digest not captured" in metadata["byte_identity_limit"]
+        calendar = result.session_calendar_by_exchange[exchange]
+        source = calendar.source_index[calendar.calendar_source_id]
+        assert set(metadata["source_urls"]).issubset(source.source_urls)
+        assert STATE_COUNCIL_HOLIDAY_REPRODUCTION_URL in source.source_urls
+        assert source.version == RULE_REVIEW_VERSION
+        assert source.available_at == RULE_REVIEW_RETRIEVED_AT_UTC
+        assert source.retrieved_at == RULE_REVIEW_RETRIEVED_AT_UTC
+        assert "sha256" not in source.to_dict()
+    assert any(
+        "secFutrsLawId=2805291336fd4780a93b6268d93caad0" in url
+        for url in EXCHANGE_RULE_SOURCE_URLS["DCE"]
+    )
+    assert any(
+        "27165822h30l.pdf" in url for url in EXCHANGE_RULE_SOURCE_URLS["CFFEX"]
+    )
+    assert any(
+        "27165958okn6.pdf" in url for url in EXCHANGE_RULE_SOURCE_URLS["CFFEX"]
+    )
 
 
 def test_selector_manifest_exposes_expected_rule_mode_and_manifest_digest():
@@ -211,13 +267,13 @@ def test_selector_manifest_exposes_expected_rule_mode_and_manifest_digest():
         source_id="fixture.daily-eod",
         snapshot_id="eod-2026-10-23",
         source_sha256="a" * 64,
-        available_at=RETRIEVED_AT,
-        retrieved_at=RETRIEVED_AT,
+        available_at=SYNTHETIC_RETRIEVED_AT,
+        retrieved_at=SYNTHETIC_RETRIEVED_AT,
         catalog_source_id="fixture.ctp-catalog",
         catalog_snapshot_id="catalog-2026-10-23",
         catalog_sha256="b" * 64,
-        catalog_available_at=RETRIEVED_AT,
-        catalog_retrieved_at=RETRIEVED_AT,
+        catalog_available_at=SYNTHETIC_RETRIEVED_AT,
+        catalog_retrieved_at=SYNTHETIC_RETRIEVED_AT,
         coverage=(
             ProductRankingCoverage(
                 product=product,
@@ -240,7 +296,7 @@ def test_selector_manifest_exposes_expected_rule_mode_and_manifest_digest():
         (product,),
         (ExchangeTradingDay("DCE", CURRENT_DAY),),
         result.trading_calendars,
-        decision_at=AS_OF,
+        decision_at=SYNTHETIC_AS_OF,
     )
     assert manifest.status == "READY"
     calendar = manifest.to_dict()["calendars"][0]
@@ -276,13 +332,13 @@ def test_five_day_horizon_excludes_near_expiry_and_proves_far_expiry_lower_bound
         source_id="fixture.daily-eod",
         snapshot_id="eod-2026-10-23-near-far",
         source_sha256="c" * 64,
-        available_at=RETRIEVED_AT,
-        retrieved_at=RETRIEVED_AT,
+        available_at=SYNTHETIC_RETRIEVED_AT,
+        retrieved_at=SYNTHETIC_RETRIEVED_AT,
         catalog_source_id="fixture.ctp-catalog",
         catalog_snapshot_id="catalog-2026-10-23",
         catalog_sha256="d" * 64,
-        catalog_available_at=RETRIEVED_AT,
-        catalog_retrieved_at=RETRIEVED_AT,
+        catalog_available_at=SYNTHETIC_RETRIEVED_AT,
+        catalog_retrieved_at=SYNTHETIC_RETRIEVED_AT,
         coverage=(
             ProductRankingCoverage(
                 product=product,
@@ -306,7 +362,7 @@ def test_five_day_horizon_excludes_near_expiry_and_proves_far_expiry_lower_bound
         (product,),
         (ExchangeTradingDay("DCE", CURRENT_DAY),),
         result.trading_calendars,
-        decision_at=AS_OF,
+        decision_at=SYNTHETIC_AS_OF,
     )
 
     assert manifest.status == "READY"
@@ -342,14 +398,14 @@ def test_selected_treasury_final_day_overlay_removes_only_that_products_afternoo
 
 def test_timestamps_are_not_backdated_or_used_after_decision():
     with pytest.raises(ExpectedCalendarError, match="RULES_RETRIEVED_AFTER_AS_OF"):
-        _build(retrieved_at=AS_OF + timedelta(seconds=1))
-    late = _build(retrieved_at=AS_OF)
+        _build(retrieved_at=SYNTHETIC_AS_OF + timedelta(seconds=1))
+    late = _build(retrieved_at=SYNTHETIC_AS_OF)
     with pytest.raises(ValueError, match="SESSION_SOURCE_NOT_AVAILABLE_AT_DECISION"):
         build_common_minute_grid(
             FULL_POOL_SAMPLE,
             late.session_calendars,
             dict.fromkeys(FULL_POOL_SAMPLE, (CURRENT_DAY,)),
-            decision_at=AS_OF - timedelta(seconds=1),
+            decision_at=SYNTHETIC_AS_OF - timedelta(seconds=1),
         )
 
 
@@ -365,15 +421,15 @@ def test_weekend_makeup_day_and_holiday_cannot_be_current_ctp_trading_day():
         build_expected_daytime_calendars(
             (ProductKey("DCE", "M"),),
             {"DCE": date(2026, 10, 10)},
-            as_of=AS_OF,
-            retrieved_at=RETRIEVED_AT,
+            as_of=SYNTHETIC_AS_OF,
+            retrieved_at=SYNTHETIC_RETRIEVED_AT,
         )
     with pytest.raises(ExpectedCalendarError, match="CURRENT_DAY_NOT_EXPECTED_TRADING_DAY"):
         build_expected_daytime_calendars(
             (ProductKey("DCE", "M"),),
             {"DCE": date(2026, 10, 5)},
-            as_of=AS_OF,
-            retrieved_at=RETRIEVED_AT,
+            as_of=SYNTHETIC_AS_OF,
+            retrieved_at=SYNTHETIC_RETRIEVED_AT,
         )
 
 
@@ -382,8 +438,8 @@ def test_calendar_refuses_to_invent_a_2027_horizon():
         build_expected_daytime_calendars(
             (ProductKey("SHFE", "CU"),),
             {"SHFE": date(2026, 12, 28)},
-            as_of=AS_OF,
-            retrieved_at=RETRIEVED_AT,
+            as_of=SYNTHETIC_AS_OF,
+            retrieved_at=SYNTHETIC_RETRIEVED_AT,
         )
 
 
@@ -492,8 +548,8 @@ def test_default_calendar_json_shape_does_not_add_expected_rule_claims():
         source_id=source_id,
         source_url="https://fixture.invalid/calendar.html",
         version="fixture-v1",
-        available_at=RETRIEVED_AT - timedelta(hours=1),
-        retrieved_at=RETRIEVED_AT,
+        available_at=SYNTHETIC_RETRIEVED_AT - timedelta(hours=1),
+        retrieved_at=SYNTHETIC_RETRIEVED_AT,
         sha256=hashlib.sha256(b"fixture").hexdigest(),
     )
     local = datetime.combine(CURRENT_DAY, datetime.min.time(), tzinfo=CHINA)

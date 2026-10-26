@@ -1,0 +1,260 @@
+{
+  "schema": "iteration51.calendar_public_source_refresh.v1",
+  "date": "2026-10-26",
+  "scope": "public_source_refresh_only",
+  "account_or_provider_called": false,
+  "private_inputs_accessed": false,
+  "qa_import_build_install_performed": false,
+  "capture_batches": [
+    {
+      "started_at_utc": "2026-10-26T15:21:45Z",
+      "finished_at_utc": "2026-10-26T15:22:02Z",
+      "interface": "web open"
+    },
+    {
+      "started_at_utc": "2026-10-26T15:22:02Z",
+      "finished_at_utc": "2026-10-26T15:23:11Z",
+      "interface": "web search/open/find"
+    },
+    {
+      "started_at_utc": "2026-10-26T15:23:11Z",
+      "finished_at_utc": "2026-10-26T15:23:19Z",
+      "interface": "web search"
+    }
+  ],
+  "latest_capture_completed_at_utc": "2026-10-26T15:23:19Z",
+  "manifest_retrieved_at_candidate_utc": "2026-10-26T15:23:19Z",
+  "retrieved_at_interpretation": "Conservative source-review batch-completion checkpoint after all returned page/search extractions. It is not a per-URL HTTP fetch timestamp and does not imply raw response bytes were captured. Use only if the calendar manifest contract accepts a batch-completion retrieval time; otherwise capture per-source times in the source-evidence acquisition layer.",
+  "raw_document_hashes_available_from_this_capture": false,
+  "sources": [
+    {
+      "exchange": "DCE",
+      "purpose": "2026 annual holiday notice",
+      "url": "https://finance.eastmoney.com/a/202512173594230398.html",
+      "identity": {
+        "title": "关于2026年部分节假日休市安排的通知",
+        "issuer_as_shown": "大连商品交易所",
+        "notice_number": "大商所发〔2025〕437号",
+        "issued_on": "2025-12-17"
+      },
+      "provenance_category": "exchange-authored notice reproduced by third-party financial news portal",
+      "retrieval": "web-open returned extracted HTML text including title, issuer, document number, all seven operative sections and signature/date; raw HTML/PDF bytes and source-document digest were not returned",
+      "observed_content": {
+        "holiday_ranges": [
+          "2026-01-01..2026-01-03",
+          "2026-02-15..2026-02-23",
+          "2026-04-04..2026-04-06",
+          "2026-05-01..2026-05-05",
+          "2026-06-19..2026-06-21",
+          "2026-09-25..2026-09-27",
+          "2026-10-01..2026-10-07"
+        ],
+        "reopen_dates": ["2026-01-05", "2026-02-24", "2026-04-07", "2026-05-06", "2026-06-22", "2026-09-28", "2026-10-08"],
+        "weekend_market_closures": ["2026-01-04", "2026-02-14", "2026-02-28", "2026-05-09", "2026-09-20", "2026-10-10"],
+        "night_session_eves_listed": ["2025-12-31", "2026-02-13", "2026-04-03", "2026-04-30", "2026-06-18", "2026-09-24", "2026-09-30"]
+      },
+      "limitations": ["Mirror text is attributed to DCE but is not DCE-served byte identity.", "Night-session clauses do not alter the daytime-only profile.", "No raw digest was returned in this capture."],
+      "web_outcome": "text_extracted"
+    },
+    {
+      "exchange": "DCE",
+      "purpose": "current exchange-wide daytime rule",
+      "url": "https://neris.csrc.gov.cn/falvfagui/rdqsHeader/mainbody?navbarId=2&secFutrsLawId=2805291336fd4780a93b6268d93caad0",
+      "identity": {
+        "title": "大连商品交易所交易管理办法",
+        "issuer": "大连商品交易所",
+        "notice_number": "大商所发〔2026〕80号",
+        "issued_on": "2026-09-11",
+        "status_as_returned": "现行有效"
+      },
+      "provenance_category": "regulator-hosted legal record of issuer-authored rule; search-index text extraction, not exchange-served original bytes",
+      "retrieval": "Direct web open timed out. Search result returned the NERIS regulation metadata and full Article 30 text.",
+      "observed_content": "Article 30 says each trading day has night and day sessions; day sessions are 09:00-10:15, 10:30-11:30 and 13:30-15:00; night-eligible products are separately announced. Article 74 says the Measures take effect upon promulgation.",
+      "limitations": ["NERIS metadata leaves the implementation-date field blank; Article 74 plus the 2026-09-11 issuer date is the basis for the effective-date interpretation.", "No NERIS/exchange raw document bytes or digest were obtained."],
+      "web_outcome": "direct_timeout_search_text_success"
+    },
+    {
+      "exchange": "DCE",
+      "purpose": "second annual-notice mirror cross-check",
+      "url": "https://www.bocifco.com/newsinfo.aspx?cid=3&id=50018",
+      "identity": {
+        "claimed_notice": "大商所发〔2025〕437号",
+        "claimed_issuer_date": "2025-12-17"
+      },
+      "provenance_category": "broker mirror / forwarding page",
+      "retrieval": "Direct web open timed out; no text was retrieved in this refresh.",
+      "web_outcome": "timeout_no_current_text"
+    },
+    {
+      "exchange": "CZCE",
+      "purpose": "2026 annual holiday notice",
+      "url": "https://finance.eastmoney.com/a/202512173594248238.html",
+      "identity": {
+        "title": "关于2026年部分节假日休市安排的通知",
+        "issuer_as_shown": "郑州商品交易所",
+        "notice_number": "郑商函〔2025〕939号",
+        "issued_on": "2025-12-17"
+      },
+      "provenance_category": "exchange-authored notice reproduced by third-party financial news portal",
+      "retrieval": "web-open returned extracted HTML text including title, issuer, document number and all seven operative sections/signature/date",
+      "observed_content": {
+        "holiday_ranges": [
+          "2026-01-01..2026-01-03",
+          "2026-02-15..2026-02-23",
+          "2026-04-04..2026-04-06",
+          "2026-05-01..2026-05-05",
+          "2026-06-19..2026-06-21",
+          "2026-09-25..2026-09-27",
+          "2026-10-01..2026-10-07"
+        ],
+        "reopen_dates": ["2026-01-05", "2026-02-24", "2026-04-07", "2026-05-06", "2026-06-22", "2026-09-28", "2026-10-08"],
+        "weekend_market_closures": ["2026-01-04", "2026-02-14", "2026-02-28", "2026-05-09", "2026-09-20", "2026-10-10"],
+        "night_session_eves_listed": ["2025-12-31", "2026-02-13", "2026-04-03", "2026-04-30", "2026-06-18", "2026-09-24", "2026-09-30"]
+      },
+      "limitations": ["Mirror text is attributed to CZCE but is not CZCE-served byte identity.", "Night-session clauses do not alter the daytime-only profile.", "No raw digest was returned in this capture."],
+      "web_outcome": "text_extracted"
+    },
+    {
+      "exchange": "CZCE",
+      "purpose": "annual-notice second full-body mirror cross-check",
+      "url": "https://www.founderfu.com/fzzqqh_2019/details_247_85034.html",
+      "identity": {
+        "title": "转发郑商所关于2026年部分节假日休市安排的通知",
+        "issuer_in_body": "郑州商品交易所",
+        "notice_number": "郑商函〔2025〕939号",
+        "issued_on": "2025-12-17"
+      },
+      "provenance_category": "futures broker forwarding the exchange notice",
+      "retrieval": "web-open returned the full notice body and signature/date; separately fetched HTTP bytes/hash were not available from this tool",
+      "observed_content": "The holiday ranges, resumption dates, additional weekend closures, and night-session-eve clauses match the Eastmoney full-text copy.",
+      "limitations": ["Forwarded issuer-authored text, not CZCE-served byte identity."],
+      "web_outcome": "text_extracted"
+    },
+    {
+      "exchange": "CZCE",
+      "purpose": "current exchange-wide ordinary-futures daytime rule",
+      "url": "https://www.czce.com.cn/cn/content_file/flfg/zcjywgz/ywbf/2026/5/a5ad00e02e484498abdbac8ddbfd5c35.pdf",
+      "identity": {
+        "title": "郑州商品交易所期货交易管理办法",
+        "issuer": "郑州商品交易所",
+        "announcement_number": "公告〔2026〕68号 (prior source note: approved 2026-04-07, effective from publication 2026-05-07)"
+      },
+      "provenance_category": "official CZCE PDF; search-index extracted text, not downloaded PDF bytes",
+      "retrieval": "Direct web open returned 404. Search result returned Article 26 text.",
+      "observed_content": "Article 26 covers futures trading days; day sessions are 09:00-11:30 with 10:15-10:30 rest and 13:30-15:00; night product eligibility is separately announced.",
+      "limitations": ["Publication/effective metadata are carried forward from the prior public rule note, not re-exposed in this search result.", "No raw PDF bytes or digest were obtained."],
+      "web_outcome": "direct_404_search_text_success"
+    },
+    {
+      "exchange": "CFFEX",
+      "purpose": "2026 annual holiday notice",
+      "url": "https://news.bjd.com.cn/2025/12/17/11469627.shtml",
+      "identity": {
+        "title": "关于2026年部分节假日休市安排的通知",
+        "issuer_as_shown_by_portal": "中国金融期货交易所",
+        "notice_number": "中金所发〔2025〕55号",
+        "issued_on": "2025-12-17"
+      },
+      "provenance_category": "news portal reproduction explicitly attributed to CFFEX; complete issuer-authored Chinese notice text shown",
+      "retrieval": "web-open returned extracted HTML text including author/source attribution, notice number, all seven sections and issuer/date",
+      "observed_content": {
+        "holiday_ranges": [
+          "2026-01-01..2026-01-03",
+          "2026-02-15..2026-02-23",
+          "2026-04-04..2026-04-06",
+          "2026-05-01..2026-05-05",
+          "2026-06-19..2026-06-21",
+          "2026-09-25..2026-09-27",
+          "2026-10-01..2026-10-07"
+        ],
+        "reopen_dates": ["2026-01-05", "2026-02-24", "2026-04-07", "2026-05-06", "2026-06-22", "2026-09-28", "2026-10-08"],
+        "weekend_market_closures": ["2026-01-04", "2026-02-14", "2026-02-28", "2026-05-09", "2026-09-20", "2026-10-10"]
+      },
+      "limitations": ["Not CFFEX-served bytes; no raw response hash was returned by this capture.", "Notice does not include a night-session clause."],
+      "web_outcome": "text_extracted"
+    },
+    {
+      "exchange": "CFFEX",
+      "purpose": "annual notice distribution cross-check",
+      "url": "https://ebs.publicnow.com/view/ADDFFE5578158AB71CC79990697606A0CA2A0458",
+      "identity_from_prior_public_research": {
+        "claimed_notice": "中金所发〔2025〕55号",
+        "claimed_issuer": "CFFEX"
+      },
+      "provenance_category": "press-release distribution endpoint",
+      "retrieval": "Direct web open returned 403 Forbidden; no notice text retrieved in this refresh.",
+      "web_outcome": "403_no_current_text"
+    },
+    {
+      "exchange": "CFFEX",
+      "purpose": "official IH index-futures daytime rule",
+      "url": "https://www.cffex.com.cn/u/cms/www/202003/27165822h30l.pdf",
+      "identity": {
+        "title": "上证50股指期货合约交易细则",
+        "issuer": "中国金融期货交易所",
+        "published_on": "2015-03-27",
+        "revisions_returned": ["2015-07-31", "2015-12-04", "2016-01-07", "2017-03-31", "2018-12-28"]
+      },
+      "provenance_category": "official CFFEX PDF; indexed PDF text extraction, not downloaded PDF bytes",
+      "retrieval": "Direct web open timed out. Search result returned PDF identity/revision list and exact continuous trading hours.",
+      "observed_content": "Article 11 continuous trading: 09:30-11:30 and 13:00-15:00; code IH.",
+      "limitations": ["No raw PDF bytes/hash; search index extraction only."],
+      "web_outcome": "direct_timeout_search_text_success"
+    },
+    {
+      "exchange": "CFFEX",
+      "purpose": "official IC index-futures daytime rule",
+      "url": "https://www.cffex.com.cn/u/cms/www/202003/27165958okn6.pdf",
+      "identity": {
+        "title": "中证500股指期货合约交易细则",
+        "issuer": "中国金融期货交易所",
+        "published_on": "2015-03-27",
+        "revisions_returned": ["2015-07-31", "2015-12-04", "2016-01-07"]
+      },
+      "provenance_category": "official CFFEX PDF; indexed PDF text extraction, not downloaded PDF bytes",
+      "retrieval": "Direct web open timed out. Search result returned PDF identity/revision list and exact continuous trading hours.",
+      "observed_content": "Article 11 continuous trading: 09:30-11:30 and 13:00-15:00; code IC.",
+      "limitations": ["No raw PDF bytes/hash; search index extraction only."],
+      "web_outcome": "direct_timeout_search_text_success"
+    },
+    {
+      "exchange": "StateCouncil",
+      "purpose": "2026 statutory holiday schedule and makeup-work days",
+      "url": "https://www.beijing.gov.cn/cs/gncs/zcwj/202603/t20260327_4568275.html",
+      "identity": {
+        "title": "国务院办公厅关于2026年部分节假日安排的通知",
+        "issuing_body": "国务院办公厅",
+        "document_number": "国办发明电〔2025〕7号",
+        "document_date": "2025-11-04",
+        "portal_publish_date_as_page_metadata": "2025-11-04"
+      },
+      "provenance_category": "municipal government portal reproduction of State Council Office notice, not the State Council Gazette PDF bytes",
+      "retrieval": "web-open returned extracted full text with issuer/document/date and all seven holiday provisions",
+      "observed_content": "The seven holiday ranges match the DCE, CZCE and CFFEX annual notice ranges; makeup workdays listed are Jan 4, Feb 14, Feb 28, May 9, Sep 20 and Oct 10, 2026. The exchanges explicitly treat these dates as weekend market closures.",
+      "limitations": ["The requested official Gazette PDF URL returned 403 in this capture.", "The Beijing portal text has an unusual breadcrumb labelled 全站测试/AI智能组件功能测试; preserve that page-context limitation and do not claim Gazette-byte identity."],
+      "web_outcome": "government_portal_text_extracted_gazette_pdf_403"
+    },
+    {
+      "exchange": "StateCouncil",
+      "purpose": "official Gazette original PDF byte retrieval attempt",
+      "url": "https://www.gov.cn/gongbao/2025/issue_12406/material/gwygb202532.pdf",
+      "identity_from_prior_public_research": {
+        "document_number": "国办发明电〔2025〕7号",
+        "gazette_pages": "17-18"
+      },
+      "provenance_category": "State Council Gazette PDF endpoint",
+      "retrieval": "Direct web open returned 403 Forbidden; no PDF text or bytes were retrieved.",
+      "web_outcome": "403_no_current_text"
+    }
+  ],
+  "cross_source_calendar_check": {
+    "result": "no_daytime_holiday_date_contradiction_found",
+    "holiday_ranges_match_state_council": true,
+    "market_weekend_closures_on_makeup_workdays": ["2026-01-04", "2026-02-14", "2026-02-28", "2026-05-09", "2026-09-20", "2026-10-10"],
+    "weekday_closure_overlay_additions_identified": [],
+    "night_session_eve_restrictions_affect_daytime_profile": false,
+    "future_or_actual_session_observation": "none; sources support an expected rule-derived calendar only"
+  },
+  "prior_capture_reference": ".codex-tmp/i51_calendar_exchange_authored_mirrors_20261026.md",
+  "digest_limit": "Prior note records selected raw mirror-page HTML response hashes, but those are page-response digests, not exchange notice document hashes. This web capture returned extracted text/search-index text only; no new raw source byte digest is available."
+}

@@ -1,0 +1,111 @@
+{
+  "round": "i51-calendar-refresh-20261027-r1",
+  "base_head": "8a65f3d8b7f06768542cb9435ecb4f97043da744",
+  "branch": "dev",
+  "source_review_version": "public-rule-review-2026-10-26",
+  "source_review_retrieved_at_utc": "2026-10-26T15:23:19Z",
+  "candidate_frozen_at_utc": "2026-10-26T16:13:35Z",
+  "authorized_scope": [
+    "backtrader/feeds/futures_expected_calendar.py",
+    "tests/unit/feeds/test_futures_expected_calendar.py",
+    "examples/unified/028_alpha003_simnow_minute/run.py",
+    "tests/unit/test_alpha003_simnow_runner.py"
+  ],
+  "tests": [
+    {
+      "warnings": 1,
+      "skipped": 0,
+      "failed": 0,
+      "scope": "calendar expected-calendar unit file",
+      "passed": 15,
+      "artifact": "calendar-unit-r2",
+      "warning": "PytestConfigWarning: installed pytest does not recognize asyncio_default_fixture_loop_scope",
+      "tests": 15,
+      "exit_code": 0
+    },
+    {
+      "warnings": 1,
+      "skipped": 0,
+      "failed": 0,
+      "scope": "runner CTP-query caller nodes same-store-query-live and saved-query-history-three-epoch-restart",
+      "passed": 2,
+      "artifact": "runner-ctp-query-r2",
+      "warning": "PytestConfigWarning: installed pytest does not recognize asyncio_default_fixture_loop_scope",
+      "tests": 2,
+      "exit_code": 0
+    }
+  ],
+  "diagnostic_attempts": [
+    {
+      "result": "pre-collection pytest_asyncio plugin compatibility error; retried with only that plugin disabled",
+      "artifact": "calendar-unit.console.txt / calendar-unit.junit.xml / calendar-unit-result.json"
+    },
+    {
+      "result": "1 passed, 1 failed on old assertion expecting equal-day fixed-source calendar evidence hashes to differ; assertion corrected to stable equality, decision metadata assertions remain separate",
+      "artifact": "runner-ctp-query.console.txt / runner-ctp-query.junit.xml / runner-ctp-query-result.json"
+    }
+  ],
+  "candidate_revision": "r2",
+  "candidate_input_manifest": "candidate-inputs-r2.json",
+  "final_candidate_pins_match": true,
+  "final_scope_status": [
+    " M backtrader/feeds/futures_expected_calendar.py",
+    " M examples/unified/028_alpha003_simnow_minute/run.py",
+    " M tests/unit/feeds/test_futures_expected_calendar.py",
+    " M tests/unit/test_alpha003_simnow_runner.py"
+  ],
+  "diff_check": "exit 0; only expected Git LF-to-CRLF working-copy notices",
+  "no_stage_or_commit": true,
+  "limitations": [
+    "Annual notice evidence is issuer-attributed mirror/reproduction text where recorded; exchange-served byte identity was not established and no source PDF/document SHA-256 was invented.",
+    "Annual holiday notices plus normative daytime rules do not establish exceptional unscheduled closures beyond their stated scope.",
+    "No SimNow login, account call, or actual CTP TradingDay observation was performed; unit/caller QA is source-level only."
+  ],
+  "artifacts": [
+    {
+      "path": "D:\\temp\\i51-calendar-refresh-20261027-r1\\calendar-unit-r2.console.txt",
+      "length": 644,
+      "sha256": "f6aaf263d4095ad70cfa3d7804b59c1d4a8bd052b5aadc201a32cc9e8bca2297"
+    },
+    {
+      "path": "D:\\temp\\i51-calendar-refresh-20261027-r1\\calendar-unit-r2.junit.xml",
+      "length": 2631,
+      "sha256": "abc7081c9a623f2923a0f3ef80d97b075e888fa5364eeda85bea1f6646daaf5b"
+    },
+    {
+      "path": "D:\\temp\\i51-calendar-refresh-20261027-r1\\calendar-unit-r2-result.json",
+      "length": 290,
+      "sha256": "b2606848439c66a1515285aa3b3e25a554dc9a608417d641fa318aae97ece7b6"
+    },
+    {
+      "path": "D:\\temp\\i51-calendar-refresh-20261027-r1\\runner-ctp-query-r2.console.txt",
+      "length": 647,
+      "sha256": "62ea878d721872567c65d34b3cc37ec598d332d78d46deed9dfa41f1af13d009"
+    },
+    {
+      "path": "D:\\temp\\i51-calendar-refresh-20261027-r1\\runner-ctp-query-r2.junit.xml",
+      "length": 604,
+      "sha256": "daa63850327b40e234abbcd8ffe8c2250716e3ea4016e8caf1ed780ca366add6"
+    },
+    {
+      "path": "D:\\temp\\i51-calendar-refresh-20261027-r1\\runner-ctp-query-r2-result.json",
+      "length": 768,
+      "sha256": "7e5a7943e6400908dd44365c61eefbe25222d63c1cc07ad579480572d1d11c21"
+    },
+    {
+      "path": "D:\\temp\\i51-calendar-refresh-20261027-r1\\candidate-inputs-r2.json",
+      "length": 3362,
+      "sha256": "61da34536798b72d81178c1fa23bd69edcf56700ad2bc858356e409cb5b2cf90"
+    },
+    {
+      "path": "D:\\temp\\i51-calendar-refresh-20261027-r1\\runner-r2-adjustment.json",
+      "length": 1097,
+      "sha256": "a2034be8c4f0c479aa5415c84f7c6b27543b08b83697e301a0390740a7f63070"
+    },
+    {
+      "path": "D:\\temp\\i51-calendar-refresh-20261027-r1\\harness-adjustment.json",
+      "length": 548,
+      "sha256": "5dbd4b53a922e99fec331ba17add5983fadd8783f584e93c43dd54303cf5eca0"
+    }
+  ]
+}

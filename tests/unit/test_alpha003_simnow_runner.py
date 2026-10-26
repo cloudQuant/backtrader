@@ -947,7 +947,7 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
     from types import SimpleNamespace
 
     import backtrader.stores.registered_sim as registered_sim_module
-    from backtrader.feeds import futures_ctp_snapshot
+    from backtrader.feeds import futures_ctp_snapshot, futures_expected_calendar
     from tests.unit.stores import test_factor_execution_facts as facts_fixture
     from tests.test_utils.optional_sdk import optional_sdk
 
@@ -961,6 +961,15 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
     second_day = date(2026, 10, 23)
     first_decision = datetime(2026, 10, 21, 9, 10, tzinfo=UTC)
     second_decision = datetime(2026, 10, 22, 9, 10, tzinfo=UTC)
+    synthetic_calendar_review_at = datetime(2026, 10, 21, 9, 9, tzinfo=UTC)
+    if selection_source == "ctp_query":
+        # Keep this historical causal fixture independent of the production
+        # source-review cutoff captured on 2026-10-26.
+        monkeypatch.setattr(
+            futures_expected_calendar,
+            "RULE_REVIEW_RETRIEVED_AT_UTC",
+            synthetic_calendar_review_at,
+        )
     config = _base_config(tmp_path, "live")
     first_bundle = _write_json(
         tmp_path / "selection-first.json",
@@ -1713,6 +1722,10 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
 
         def tracked_query_plan(*args, **kwargs):
             plan = original_query_plan(*args, **kwargs)
+            for calendar in plan["session_calendars"].values():
+                source = calendar.source_index[calendar.calendar_source_id]
+                assert source.available_at == synthetic_calendar_review_at
+                assert source.retrieved_at == synthetic_calendar_review_at
             current_plan["value"] = plan
             query_plans_by_snapshot_id[plan["source_snapshot_id"]] = plan
             trace.append(("query_plan_ready", plan["source_snapshot_id"]))
@@ -2475,9 +2488,12 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
                     old_evidence["manifest"]["decision_at"]
                     != epoch2_evidence["manifest"]["decision_at"]
                 )
+                # The same synthetic CTP TradingDay uses one fixed source
+                # review timestamp, so its calendar evidence is stable across
+                # later selection decisions.
                 assert (
                     old_evidence["manifest"]["calendars"][0]["sha256"]
-                    != epoch2_evidence["manifest"]["calendars"][0]["sha256"]
+                    == epoch2_evidence["manifest"]["calendars"][0]["sha256"]
                 )
                 old_grid_sha256, old_grid_semantics_sha256 = actual_query_grid_hashes(
                     old_evidence

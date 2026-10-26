@@ -1,0 +1,16 @@
+{
+  "junit": "D:\\temp\\i51-calendar-refresh-20261027-r1\\runner-ctp-query-r2.junit.xml",
+  "console_log": "D:\\temp\\i51-calendar-refresh-20261027-r1\\runner-ctp-query-r2.console.txt",
+  "exit_code": 0,
+  "started_at_utc": "2026-10-26T16:14:22.0316972Z",
+  "node_ids": [
+    "same-store-query-live",
+    "saved-query-history-three-epoch-restart"
+  ],
+  "finished_at_utc": "2026-10-26T16:14:36.8593735Z",
+  "round": "i51-calendar-refresh-20261027-r1",
+  "attempt": "runner-r2",
+  "status": "PASS",
+  "candidate_inputs": "candidate-inputs-r2.json",
+  "note": "pytest asyncio plugin disabled because its installed version fails at pytest_collectstart before collection; repo configuration/conftest retained; unknown asyncio config warning may remain."
+}
