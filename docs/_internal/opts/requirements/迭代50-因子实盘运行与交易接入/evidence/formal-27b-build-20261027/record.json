@@ -1,0 +1,30 @@
+{
+  "schema": 1,
+  "parent": "3250ad029b8240c3426c1f7aa7fcb8e71f7019f4",
+  "branch": "dev",
+  "decision": "PASS_FUNCTIONAL_LONGSTREAM_BUILD_ONLY",
+  "original_session": 8713,
+  "completion_tool_chunk": "05c504",
+  "original_runner_exit": 3,
+  "root_source_identity_crosscheck": {
+    "native_build_same_runner": true,
+    "same_input_generator": true,
+    "same_36_module_pre_pins": true,
+    "stable_performance_comparison_claimed": false,
+    "per_grid_native_build_pair_dump_compared": false
+  },
+  "payload_pins": {
+    "docs/_internal/opts/requirements/迭代50-因子实盘运行与交易接入/evidence/formal-27b-build-20261027/launch.json": "d2e4a34e35fd233e9aaa2d34316ef55ae95c29b06dda754f6f6a2505aedc1690",
+    "docs/_internal/opts/requirements/迭代50-因子实盘运行与交易接入/evidence/formal-27b-build-20261027/completion.json": "5b9a446baf8f2c3664e6ccee6a4e1233da2a70b6ed607b0cb90d0458500a94c7",
+    "docs/_internal/opts/requirements/迭代50-因子实盘运行与交易接入/evidence/formal-27b-build-20261027/execution-context.json": "858bd2b95f2849c922f345948f81c5fd482469310b221356c1876c0f566fc72b",
+    "docs/_internal/opts/requirements/迭代50-因子实盘运行与交易接入/evidence/formal-27b-build-20261027/result.json": "93cd29640a6169a830eea6ea45bc71655ec7828d92096987eb0ce79b6a0d0cbd",
+    "docs/_internal/opts/requirements/迭代50-因子实盘运行与交易接入/evidence/formal-27b-build-20261027/stdout.bin": "09430f5278d2bafb9e1a97ff174d6c2579ab056e4e28bc8740e6ef0fc65a91e0",
+    "docs/_internal/opts/requirements/迭代50-因子实盘运行与交易接入/evidence/formal-27b-build-20261027/stderr.bin": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "docs/_internal/opts/requirements/迭代50-因子实盘运行与交易接入/evidence/formal-27b-build-20261027/adjudication.json": "fc11d6ade4aaa8758b55686987267e9bd1e34f9c3794ba8088375c435cf85d8d",
+    "docs/_internal/opts/requirements/迭代50-因子实盘运行与交易接入/evidence/formal-27b-build-20261027/adjudication.md": "988f5db64d92a5418b9469e3c145b99129a85d42dcb2baa689911175675dab6f",
+    "docs/_internal/opts/requirements/迭代50-因子实盘运行与交易接入/evidence/formal-27b-build-20261027/checklist.md": "ca155f0802ebcb2d4de9e9f7550fbd6bdce9af7ffce31ef55bcaa04f88f7f446",
+    "docs/_internal/opts/requirements/迭代50-因子实盘运行与交易接入/evidence/formal-27b-build-20261027/launch-wrapper.py": "505358404cee8b82d25508c7ff52a733f9a95a5a878bef222452b33a479cd0a3"
+  },
+  "database_retained_outside_git": true,
+  "formal_parent_or_account_promotion": false
+}

@@ -1,0 +1,9 @@
+{
+  "policy_date": "2026-10-26",
+  "acceptance_scope": "functional correctness and complete bounded longstream",
+  "performance_thresholds_blocking": false,
+  "quiet_environment_claimed": false,
+  "concurrent_work": "light source regression tests and normal development may run during this profile",
+  "performance_comparison_claimed": false,
+  "note": "User deferred performance optimization. Original runner thresholds and output remain unchanged; latency-only failures are adjudicated separately after completion."
+}
