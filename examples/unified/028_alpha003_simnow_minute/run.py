@@ -3818,15 +3818,9 @@ def _cleanup_complete(cleanup):
     )
 
 
-def _live_env_config(config):
-    name = _text(config["live"]["store_config_env"], "live.store_config_env")
-    payload = os.environ.get(name)
-    if payload is None:
-        raise RunnerError("LIVE_STORE_CONFIG_ENV_MISSING", name)
-    try:
-        row = json.loads(payload)
-    except json.JSONDecodeError:
-        raise RunnerError("LIVE_STORE_CONFIG_ENV_INVALID", name) from None
+def _validated_live_store_config(row):
+    """Validate the exact config/api_kwargs shape without exposing values."""
+
     _mapping(row, "live Store config")
     if set(row) != {"config", "api_kwargs"}:
         raise RunnerError("LIVE_STORE_CONFIG_FIELDS_INVALID")
@@ -3840,6 +3834,22 @@ def _live_env_config(config):
     ):
         raise RunnerError("LIVE_STORE_CONFIG_INJECTION_DENIED")
     return config_values, api_kwargs
+
+
+def _live_env_config(config, *, override=None):
+    """Read the legacy environment input or validate an in-process override."""
+
+    if override is not None:
+        return _validated_live_store_config(override)
+    name = _text(config["live"]["store_config_env"], "live.store_config_env")
+    payload = os.environ.get(name)
+    if payload is None:
+        raise RunnerError("LIVE_STORE_CONFIG_ENV_MISSING", name)
+    try:
+        row = json.loads(payload)
+    except json.JSONDecodeError:
+        raise RunnerError("LIVE_STORE_CONFIG_ENV_INVALID", name) from None
+    return _validated_live_store_config(row)
 
 
 class SimNowProfileValidationError(ValueError):
@@ -4409,6 +4419,7 @@ def run_live(
     *,
     decision,
     allow_write_flag,
+    _live_store_config_override: Optional[Mapping[str, Any]] = None,
     previous_plan=None,
     _include_plan=False,
 ):
@@ -4418,6 +4429,9 @@ def run_live(
     from alpha003_strategy import Alpha003TargetStrategy
 
     from backtrader.stores.factor_execution_facts import FactorExecutionTarget
+
+    if _live_store_config_override is not None and decision.effective_tier != "live":
+        raise RunnerError("LIVE_STORE_CONFIG_OVERRIDE_REQUIRES_LIVE_MODE")
 
     max_targets = 256
     query_selection = plan is None
@@ -4471,7 +4485,10 @@ def run_live(
             config["live"]["query_max_age_seconds"], "live.query_max_age_seconds", positive=True
         )
     )
-    store_config, api_kwargs = _live_env_config(config)
+    if _live_store_config_override is None:
+        store_config, api_kwargs = _live_env_config(config)
+    else:
+        store_config, api_kwargs = _live_env_config(config, override=_live_store_config_override)
     simnow_profile = validate_official_simnow_store_profile(store_config, api_kwargs)
     store = None
     broker = None
@@ -5175,6 +5192,7 @@ def _run_ctp_query_live_epochs(
     *,
     decision,
     allow_write_flag,
+    _live_store_config_override: Optional[Mapping[str, Any]] = None,
 ):
     """Query and run epochs serially, creating no next Store early."""
 
@@ -5220,6 +5238,7 @@ def _run_ctp_query_live_epochs(
                 direction,
                 decision=decision,
                 allow_write_flag=allow_write_flag,
+                _live_store_config_override=_live_store_config_override,
                 previous_plan=previous_plan,
                 _include_plan=True,
             )
@@ -5333,6 +5352,7 @@ def run_live_epochs(
     *,
     decision,
     allow_write_flag,
+    _live_store_config_override: Optional[Mapping[str, Any]] = None,
 ):
     """Run finite, independently assembled live epochs in bundle order.
 
@@ -5355,6 +5375,7 @@ def run_live_epochs(
             direction,
             decision=decision,
             allow_write_flag=allow_write_flag,
+            _live_store_config_override=_live_store_config_override,
         )
 
     daily_paths = _daily_bundle_paths(config, config_path)
@@ -5367,6 +5388,7 @@ def run_live_epochs(
             direction,
             decision=decision,
             allow_write_flag=allow_write_flag,
+            _live_store_config_override=_live_store_config_override,
         )
     if decision.effective_tier != "live":
         raise RunnerError("DAILY_ROLLOVER_LIVE_TIER_REQUIRED")
@@ -5412,6 +5434,7 @@ def run_live_epochs(
                     direction,
                     decision=decision,
                     allow_write_flag=allow_write_flag,
+                    _live_store_config_override=_live_store_config_override,
                 )
             except BaseException as error:
                 failed_epoch = getattr(error, "live_epoch_evidence", None)
@@ -5536,7 +5559,7 @@ def run_live_epochs(
     }
 
 
-def run(args=None):
+def run(args=None, *, _live_store_config_override: Optional[Mapping[str, Any]] = None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--config", type=Path, default=Path(__file__).with_name("config.yaml"))
     parser.add_argument("--mode", choices=("dry", "research", "replay", "live"))
@@ -5547,6 +5570,11 @@ def run(args=None):
     try:
         config = load_config(config_path)
         mode, tier = resolve_mode(config, ns.mode)
+        if _live_store_config_override is not None:
+            if mode != "live":
+                raise RunnerError("LIVE_STORE_CONFIG_OVERRIDE_REQUIRES_LIVE_MODE")
+            # Validate before plan loading or any live Store can be constructed.
+            _validated_live_store_config(_live_store_config_override)
         factor_mode, direction, _preheat, _cadence = _factor_parameters(config, ns.factor_mode)
         daily_bundles = config["selection"]["daily_bundles"]
         selection_source = config["selection"]["source"]
@@ -5585,6 +5613,7 @@ def run(args=None):
                 direction,
                 decision=tier,
                 allow_write_flag=ns.allow_write,
+                _live_store_config_override=_live_store_config_override,
             )
             summary.update({**tier.as_evidence(), "mode": mode})
         else:
@@ -5608,6 +5637,7 @@ def run(args=None):
                     direction,
                     decision=tier,
                     allow_write_flag=ns.allow_write,
+                    _live_store_config_override=_live_store_config_override,
                 )
             summary.update({**tier.as_evidence(), "mode": mode})
         public_summary = dict(summary)

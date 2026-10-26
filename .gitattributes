@@ -927,3 +927,9 @@ docs/_internal/opts/requirements/迭代50-因子实盘运行与交易接入/evid
 "docs/_internal/opts/requirements/迭代50-因子实盘运行与交易接入/evidence/r0-installed-consumer-20261026/provenance/execution-provenance.json" -text
 "docs/_internal/opts/requirements/迭代50-因子实盘运行与交易接入/evidence/r0-installed-consumer-20261026/acceptance.md" -text
 "docs/_internal/opts/requirements/迭代50-因子实盘运行与交易接入/evidence/r0-installed-consumer-20261026/verification.json" -text
+"docs/_internal/opts/requirements/迭代51-因子流批一体与Alpha003-SimNow实盘示例/evidence/inprocess-config-handoff-20261026/acceptance.json" -text
+"docs/_internal/opts/requirements/迭代51-因子流批一体与Alpha003-SimNow实盘示例/evidence/inprocess-config-handoff-20261026/launch.json" -text
+"docs/_internal/opts/requirements/迭代51-因子流批一体与Alpha003-SimNow实盘示例/evidence/inprocess-config-handoff-20261026/completion.json" -text
+"docs/_internal/opts/requirements/迭代51-因子流批一体与Alpha003-SimNow实盘示例/evidence/inprocess-config-handoff-20261026/junit.xml" -text
+"docs/_internal/opts/requirements/迭代51-因子流批一体与Alpha003-SimNow实盘示例/evidence/inprocess-config-handoff-20261026/stdout.bin" -text
+"docs/_internal/opts/requirements/迭代51-因子流批一体与Alpha003-SimNow实盘示例/evidence/inprocess-config-handoff-20261026/stderr.bin" -text

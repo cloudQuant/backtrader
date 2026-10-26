@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites><testsuite name="pytest" errors="0" failures="3" skipped="0" tests="18" time="10.486" timestamp="2026-10-26T23:57:25.183968" hostname="yun"><testcase classname="tests.integration.test_live_alpha003_history_catchup_execution" name="test_alpha003_prenext_history_warmup_dispatches_owned_risk_cancel[tape-write-failed]" time="0.062"><failure message="IndexError: array index out of range">tests\integration\test_live_alpha003_history_catchup_execution.py:856: in test_alpha003_prenext_history_warmup_dispatches_owned_risk_cancel
+    result = cerebro.run(runonce=False, preload=False)
+backtrader\cerebro.py:107: in _wrapped
+    result = run_method(self, *args, **kwargs)
+backtrader\cerebro.py:931: in run
+    runstrat = self.runstrategies(iterstrat)
+backtrader\_cerebro\execution.py:223: in runstrategies
+    strat._start()
+backtrader\strategy.py:1901: in _start
+    self.start()
+tests\integration\test_live_alpha003_history_catchup_execution.py:771: in start
+    self.seed_order = self.buy(
+backtrader\strategy.py:3615: in buy
+    order = self.broker.buy(
+backtrader\brokers\btapibroker.py:5253: in buy
+    order = BuyOrder(
+backtrader\order.py:925: in __init__
+    super().__init__(**kwargs)
+backtrader\order.py:578: in __init__
+    pclose = self.data.close[0] if not self.p.simulated else self.price
+backtrader\linebuffer.py:603: in __getitem__
+    raise IndexError("array index out of range")
+E   IndexError: array index out of range</failure></testcase><testcase classname="tests.integration.test_live_alpha003_history_catchup_execution" name="test_alpha003_prenext_history_warmup_dispatches_owned_risk_cancel[durable-tape]" time="0.033"><failure message="IndexError: array index out of range">tests\integration\test_live_alpha003_history_catchup_execution.py:856: in test_alpha003_prenext_history_warmup_dispatches_owned_risk_cancel
+    result = cerebro.run(runonce=False, preload=False)
+backtrader\cerebro.py:107: in _wrapped
+    result = run_method(self, *args, **kwargs)
+backtrader\cerebro.py:931: in run
+    runstrat = self.runstrategies(iterstrat)
+backtrader\_cerebro\execution.py:223: in runstrategies
+    strat._start()
+backtrader\strategy.py:1901: in _start
+    self.start()
+tests\integration\test_live_alpha003_history_catchup_execution.py:771: in start
+    self.seed_order = self.buy(
+backtrader\strategy.py:3615: in buy
+    order = self.broker.buy(
+backtrader\brokers\btapibroker.py:5253: in buy
+    order = BuyOrder(
+backtrader\order.py:925: in __init__
+    super().__init__(**kwargs)
+backtrader\order.py:578: in __init__
+    pclose = self.data.close[0] if not self.p.simulated else self.price
+backtrader\linebuffer.py:603: in __getitem__
+    raise IndexError("array index out of range")
+E   IndexError: array index out of range</failure></testcase><testcase classname="tests.unit.test_alpha003_simnow_store_config_override" name="test_live_store_config_uses_in_memory_override_without_environment" time="0.001" /><testcase classname="tests.unit.test_alpha003_simnow_store_config_override" name="test_live_store_config_keeps_legacy_environment_fallback" time="0.001" /><testcase classname="tests.unit.test_alpha003_simnow_store_config_override" name="test_run_rejects_invalid_override_before_epoch_or_store_path[override0-LIVE_STORE_CONFIG_INJECTION_DENIED]" time="0.003" /><testcase classname="tests.unit.test_alpha003_simnow_store_config_override" name="test_run_rejects_invalid_override_before_epoch_or_store_path[override1-LIVE_STORE_CONFIG_INJECTION_DENIED]" time="0.003" /><testcase classname="tests.unit.test_alpha003_simnow_store_config_override" name="test_run_rejects_invalid_override_before_epoch_or_store_path[override2-LIVE_STORE_CONFIG_FIELDS_INVALID]" time="0.002" /><testcase classname="tests.unit.test_alpha003_simnow_store_config_override" name="test_run_rejects_override_outside_live_mode" time="0.002" /><testcase classname="tests.unit.test_alpha003_simnow_store_config_override" name="test_run_forwards_override_to_query_and_bundle_epoch_entry[ctp_query]" time="0.002" /><testcase classname="tests.unit.test_alpha003_simnow_store_config_override" name="test_run_forwards_override_to_query_and_bundle_epoch_entry[bundle]" time="0.002" /><testcase classname="tests.unit.test_alpha003_simnow_store_config_override" name="test_query_epoch_sequence_forwards_same_override_to_each_live_run" time="0.001" /><testcase classname="tests.unit.test_alpha003_simnow_store_config_override" name="test_bundle_epoch_sequence_forwards_same_override_to_each_live_run" time="0.001" /><testcase classname="tests.unit.test_alpha003_simnow_runner" name="test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bundle[same-store-query-live]" time="5.573" /><testcase classname="tests.unit.test_alpha003_simnow_strategy" name="test_shared_snapshot_projection_preserves_epoch_availability_and_quality" time="0.003" /><testcase classname="tests.unit.test_alpha003_simnow_strategy" name="test_prenext_durably_records_each_complete_warmup_grid_once" time="0.003"><failure message="AttributeError: 'types.SimpleNamespace' object has no attribute '_run_live_prenext_risk'">tests\unit\test_alpha003_simnow_strategy.py:1017: in test_prenext_durably_records_each_complete_warmup_grid_once
+    _STRATEGY.Alpha003TargetStrategy.prenext(strategy)
+examples\unified\028_alpha003_simnow_minute\alpha003_strategy.py:4447: in prenext
+    self._run_live_prenext_risk()
+E   AttributeError: 'types.SimpleNamespace' object has no attribute '_run_live_prenext_risk'</failure></testcase><testcase classname="tests.unit.test_alpha003_simnow_strategy" name="test_prenext_leaves_ready_grid_for_target_decision_path" time="0.002" /><testcase classname="tests.unit.test_alpha003_simnow_strategy" name="test_prenext_leaves_replay_ready_history_grid_for_target_decision_path" time="0.002" /><testcase classname="tests.unit.test_alpha003_simnow_strategy" name="test_live_shadow_does_not_submit_risk_reduction_preview" time="0.001" /></testsuite></testsuites>

@@ -1,0 +1,89 @@
+{
+  "head": "4f5732c7a17ed3c7d9d3e165d37679d3b5e432a3",
+  "python": "3.11.5 | packaged by Anaconda, Inc. | (main, Sep 11 2023, 13:26:23) [MSC v.1916 64 bit (AMD64)]",
+  "command": [
+    "C:\\anaconda3\\python.exe",
+    "-m",
+    "pytest",
+    "-p",
+    "no:asyncio",
+    "-q",
+    "--tb=short",
+    "-o",
+    "faulthandler_timeout=45",
+    "--junitxml=D:\\temp\\i51-functional-focus-20261026-r2\\junit.xml",
+    "tests/integration/test_live_alpha003_history_catchup_execution.py::test_alpha003_prenext_history_warmup_dispatches_owned_risk_cancel",
+    "tests/unit/test_alpha003_simnow_store_config_override.py",
+    "tests/unit/test_alpha003_simnow_runner.py::test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bundle[same-store-query-live]",
+    "tests/unit/test_alpha003_simnow_strategy.py::test_shared_snapshot_projection_preserves_epoch_availability_and_quality",
+    "tests/unit/test_alpha003_simnow_strategy.py::test_prenext_durably_records_each_complete_warmup_grid_once",
+    "tests/unit/test_alpha003_simnow_strategy.py::test_prenext_leaves_ready_grid_for_target_decision_path",
+    "tests/unit/test_alpha003_simnow_strategy.py::test_prenext_leaves_replay_ready_history_grid_for_target_decision_path",
+    "tests/unit/test_alpha003_simnow_strategy.py::test_live_shadow_does_not_submit_risk_reduction_preview"
+  ],
+  "pre": {
+    "examples/unified/028_alpha003_simnow_minute/alpha003_strategy.py": {
+      "bytes": 200202,
+      "sha256": "220330a52a0acc65427f5c68448e82b80f4ef9fdddc8c7a75eceb0bea4ee3521"
+    },
+    "examples/unified/028_alpha003_simnow_minute/run.py": {
+      "bytes": 250230,
+      "sha256": "1a6f4eac07ffd75da3f7906a214e346d646d7a278e0bffe464e7df3ad7e3dff7"
+    },
+    "tests/integration/test_live_alpha003_history_catchup_execution.py": {
+      "bytes": 36681,
+      "sha256": "b82b4fa599404e4d8e3a80bfb898a9f9cfc292a156b454eda92c57056b32e7c6"
+    },
+    "tests/unit/test_alpha003_simnow_store_config_override.py": {
+      "bytes": 9327,
+      "sha256": "faba8c33e287a0f8c90bd2b153bae8bfdca28a2066e3d3707f8fa84ef90401cb"
+    },
+    "tests/unit/test_alpha003_simnow_strategy.py": {
+      "bytes": 124654,
+      "sha256": "f729291367efe709b825f6f0dad527ffd13f806c3ad1affb30bd491fafc8088b"
+    },
+    "tests/unit/test_alpha003_simnow_runner.py": {
+      "bytes": 206243,
+      "sha256": "e1b3907d0d0b6985e4de4e4e7eb7d98c44bec51e60e24699fff710426afb12a7"
+    },
+    "tests/unit/stores/test_factor_execution.py": {
+      "bytes": 69614,
+      "sha256": "ee3aa511fb3cc161e57d6f5d074e7fe4fc90c38f4885f1604a6bfe734a1ce4dc"
+    },
+    "tests/unit/stores/test_factor_execution_facts.py": {
+      "bytes": 152605,
+      "sha256": "6e63db2d040ca592157032dd2f01bce6b93d6cb6290b82af3e1515b4353e16e0"
+    },
+    "backtrader/stores/factor_execution.py": {
+      "bytes": 280234,
+      "sha256": "a37eb1ac11ef58523897b2bdc3eba6195c0057ac9a9028e555f06b64da2b1dc6"
+    },
+    "backtrader/stores/factor_execution_facts.py": {
+      "bytes": 211980,
+      "sha256": "98feaa3db0fd8ded871ba23a2341008c892dfa27d133b44c29a3c514e1d34763"
+    },
+    "backtrader/stores/execution_decision_journal.py": {
+      "bytes": 298039,
+      "sha256": "e60e9c1e353ce9dea39c3f6461ce1f9aadbb48308ff45c72c19796cf10dadadf"
+    },
+    "backtrader/stores/registered_sim.py": {
+      "bytes": 136711,
+      "sha256": "0d1d5ae60139378c0383e6fbba89718914bb5cc46972471d5d2248f48403682b"
+    },
+    "backtrader/stores/btapistore.py": {
+      "bytes": 860515,
+      "sha256": "737213fcabbc8ab62acc9322cd18c29808c83f2b10e9df37bb735f58fa2eb290"
+    },
+    "backtrader/brokers/btapibroker.py": {
+      "bytes": 525567,
+      "sha256": "ba741412429f2679dbf3d2205c454315b7fd190f7b6677358609a2b3a12ce945"
+    },
+    "backtrader/research/live_cohort.py": {
+      "bytes": 116603,
+      "sha256": "69f31733ad0fedc126837f6595b752cf2e2b180471da2352ab98ccb2e825b0d6"
+    }
+  },
+  "timeout_seconds": 180,
+  "evidence_level": "SOURCE_FAKE_COMPOSITION_ONLY",
+  "performance_gates": "not evaluated; concurrent longstream is permitted"
+}

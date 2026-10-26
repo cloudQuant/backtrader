@@ -112,6 +112,12 @@ For live shadow, provide the protected CTP/SimNow Store configuration as JSON
 in the environment variable named by `live.store_config_env` (default
 `BT_SIMNOW_CONFIG_JSON`). The runner reads it only after an explicit live mode
 is selected; it does not read `.env` or any private repository config file.
+Trusted in-process embedders may instead pass the private
+`_live_store_config_override` to `run.py` in live mode. It goes through the
+same schema, injection, and profile validation as the environment value; when
+no override is supplied, the existing environment-variable fallback remains
+the default. This hook does not modify the process environment or grant write
+authorization, and it is not a CLI or public-config option.
 Shadow mode keeps `RegisteredSimStore(allow_writes=False)` and the ordinary
 `BtApiBroker` chain. Shadow mode still opens the same durable
 `ExecutionDecisionJournal` used by the live coordinator and records each
