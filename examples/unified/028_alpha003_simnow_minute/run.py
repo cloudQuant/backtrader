@@ -4923,6 +4923,18 @@ def run_live(
         store_config, api_kwargs = _live_env_config(config)
     else:
         store_config, api_kwargs = _live_env_config(config, override=_live_store_config_override)
+    # BtApiStore applies api_kwargs over config, then its CTP wrapper coerces
+    # allow_zero_login_response with bool().  That SDK option permits an
+    # empty MD login identity for quote-only use, so it cannot back a
+    # write-enabled runner session.
+    allow_zero_login_response = bool(
+        api_kwargs.get(
+            "allow_zero_login_response",
+            store_config.get("allow_zero_login_response", False),
+        )
+    )
+    if write_enabled and allow_zero_login_response:
+        raise RunnerError("LIVE_ZERO_LOGIN_RESPONSE_READ_ONLY")
     simnow_profile = validate_official_simnow_store_profile(store_config, api_kwargs)
     store = None
     broker = None
