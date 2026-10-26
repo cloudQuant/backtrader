@@ -933,3 +933,13 @@ docs/_internal/opts/requirements/迭代50-因子实盘运行与交易接入/evid
 "docs/_internal/opts/requirements/迭代51-因子流批一体与Alpha003-SimNow实盘示例/evidence/inprocess-config-handoff-20261026/junit.xml" -text
 "docs/_internal/opts/requirements/迭代51-因子流批一体与Alpha003-SimNow实盘示例/evidence/inprocess-config-handoff-20261026/stdout.bin" -text
 "docs/_internal/opts/requirements/迭代51-因子流批一体与Alpha003-SimNow实盘示例/evidence/inprocess-config-handoff-20261026/stderr.bin" -text
+"docs/_internal/opts/requirements/迭代51-因子流批一体与Alpha003-SimNow实盘示例/evidence/prenext-risk-20261027/acceptance.json" -text
+"docs/_internal/opts/requirements/迭代51-因子流批一体与Alpha003-SimNow实盘示例/evidence/prenext-risk-20261027/completion.json" -text
+"docs/_internal/opts/requirements/迭代51-因子流批一体与Alpha003-SimNow实盘示例/evidence/prenext-risk-20261027/junit.xml" -text
+"docs/_internal/opts/requirements/迭代51-因子流批一体与Alpha003-SimNow实盘示例/evidence/prenext-risk-20261027/launch.json" -text
+"docs/_internal/opts/requirements/迭代51-因子流批一体与Alpha003-SimNow实盘示例/evidence/prenext-risk-20261027/review.md" -text
+"docs/_internal/opts/requirements/迭代51-因子流批一体与Alpha003-SimNow实盘示例/evidence/prenext-risk-20261027/source-pins-post.json" -text
+"docs/_internal/opts/requirements/迭代51-因子流批一体与Alpha003-SimNow实盘示例/evidence/prenext-risk-20261027/source-pins-pre.json" -text
+"docs/_internal/opts/requirements/迭代51-因子流批一体与Alpha003-SimNow实盘示例/evidence/prenext-risk-20261027/stderr.bin" -text
+"docs/_internal/opts/requirements/迭代51-因子流批一体与Alpha003-SimNow实盘示例/evidence/prenext-risk-20261027/stdout.bin" -text
+"docs/_internal/opts/requirements/迭代51-因子流批一体与Alpha003-SimNow实盘示例/evidence/prenext-risk-20261027/unit-junit.xml" -text

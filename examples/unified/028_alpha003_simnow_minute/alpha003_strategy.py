@@ -3900,6 +3900,37 @@ class Alpha003TargetStrategy(bt.Strategy):
             if scope.dispatch_allowed:
                 self._dispatch_live_actions(actions, batch)
 
+    def _run_live_prenext_risk(self) -> None:
+        """Evaluate only fresh live risk reductions during factor warmup."""
+
+        if self.p.replay_mode or not self.p.execution_enabled:
+            return
+        if self._coordinator is None:
+            self.last_execution_block_reason = "DURABLE_DECISION_COORDINATOR_UNAVAILABLE"
+            return
+        try:
+            now = self._clock_now()
+        except (TypeError, ValueError, RuntimeError):
+            self.last_execution_block_reason = "MARKET_DECISION_TIME_UNAVAILABLE"
+            return
+        facts = self._live_facts(now)
+        if facts is None:
+            return
+        planning = _live_planning_input(
+            facts,
+            strategy_scope=self._strategy_scope,
+            evaluated_at=now,
+            risk_evidence_available_at=facts.available_at,
+            session_close_at=None,
+            run_end=self._shutdown_requested.is_set(),
+            risk_policy=self._risk_policy,
+            target_decision=None,
+            eligible_grid_ordinal=None,
+            run_order_intents_used=self._coordinator.run_order_count(),
+        )
+        self.last_order_plan = plan_alpha003_orders(planning)
+        self._live_risk_decision(None, facts, self.last_order_plan, planning=planning)
+
     def _dispatch_live_actions(self, actions: Tuple[Alpha003OrderAction, ...], batch: Any) -> None:
         for action in actions:
             if action.action == "CANCEL":
@@ -4341,14 +4372,16 @@ class Alpha003TargetStrategy(bt.Strategy):
         self._request_engine_stop_if_ready()
 
     def prenext(self) -> None:
-        """Persist complete preheat grids without placing or planning orders.
+        """Persist warmup tape rows and maintain only fresh live risk.
 
         Cerebro calls ``prenext`` while the ordinary factor graph is still
         warming up. Those sealed source rows and their unavailable/partial
-        factor outputs are still part of the causal replay tape, so they must
-        be recorded before the first ``next`` callback. A grid whose outputs
-        are already calculation-ready is left to ``next`` so its target
-        decision and any orders share the same tape record.
+        factor outputs are still part of the causal tape, so they are recorded
+        before the first ``next`` callback. Live mode then checks existing
+        risk reductions from fresh execution facts only; it does not select a
+        target or create a grid decision. Replay warmup remains tape-only. A
+        calculation-ready grid is left to ``next`` so its target decision and
+        any orders share the same tape record.
         """
 
         try:
@@ -4407,8 +4440,13 @@ class Alpha003TargetStrategy(bt.Strategy):
             None,
         )
         durable, _reference, error = self._record_decision_tape(batch, snapshot, None, plan)
-        if not durable:
-            self.last_execution_block_reason = error
+        tape_error = error if not durable else None
+        if tape_error is not None:
+            self.last_execution_block_reason = tape_error
+        if not self.p.replay_mode:
+            self._run_live_prenext_risk()
+        if tape_error is not None:
+            self.last_execution_block_reason = tape_error
 
     def next(self) -> None:
         try:

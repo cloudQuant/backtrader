@@ -7,9 +7,12 @@ coordinator, and the journal are real; only the provider SDK leaves are fake.
 
 from __future__ import annotations
 
+from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 import math
+from pathlib import Path
+import sys
 from types import MappingProxyType
 
 import backtrader as bt
@@ -17,7 +20,10 @@ import pytest
 
 from backtrader.research import FactorSpec, LiveFactorPlan, LiveFactorSet
 from backtrader.research.alpha101 import get_alpha
-from backtrader.research.live import LiveFactorOutputStatus, LiveFactorReadiness
+from backtrader.research.live import (
+    LiveFactorOutputStatus,
+    LiveFactorReadiness,
+)
 from backtrader.research.live_cohort import (
     LiveBarCohort,
     LiveCalendarMemberSession,
@@ -66,6 +72,13 @@ class _ReplayClock:
         elapsed = max(0.0, float(timeout_seconds))
         self._now += timedelta(seconds=elapsed)
         self._monotonic_ns += max(1, int(elapsed * 1_000_000_000))
+
+
+class _WallUtcReplayClock(_ReplayClock):
+    """Keep historical cohort slots while sampling live facts on wall UTC."""
+
+    def utc_now(self):
+        return datetime.now(UTC)
 
 
 def _calendar_and_bars():
@@ -484,3 +497,574 @@ def test_history_overlap_and_staggered_live_cutovers_block_orders_until_qualifie
     assert intent.dispatch_state == "KNOWN"
     assert intent.original_identity["order_ref"] == "501"
     assert Decimal(str(strategy.order.size)) == Decimal("1")
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize(
+    ("tape_write_confirmed", "expected_tape_error"),
+    ((True, None), (False, "DECISION_TAPE_WRITE_NOT_CONFIRMED")),
+    ids=("durable-tape", "tape-write-failed"),
+)
+def test_alpha003_prenext_history_warmup_dispatches_owned_risk_cancel(
+    tape_write_confirmed, expected_tape_error
+):
+    """Production WARMUP prenext adds only risk CANCEL after fixture seeding."""
+    import importlib
+
+    example_dir = (
+        Path(__file__).resolve().parents[2]
+        / "examples"
+        / "unified"
+        / "028_alpha003_simnow_minute"
+    )
+    if str(example_dir) not in sys.path:
+        sys.path.insert(0, str(example_dir))
+    strategy_module = importlib.import_module("alpha003_strategy")
+    alpha_strategy = strategy_module.Alpha003TargetStrategy
+    now = datetime.now(UTC)
+    minute = now.replace(second=0, microsecond=0)
+    closes = (minute - timedelta(minutes=1), minute)
+    session_day = TRADING_DAY[:4] + "-" + TRADING_DAY[4:6] + "-" + TRADING_DAY[6:]
+    member_id = "member-prenext-risk"
+    calendar_id = execution_fixtures._CALENDAR
+    cohort_id = execution_fixtures._COHORT
+    clock = _WallUtcReplayClock(now)
+    member_sessions = {
+        member_id: LiveCalendarMemberSession(
+            trading_day=session_day,
+            session_segment="regular",
+        )
+    }
+    calendar = LiveCohortCalendar(
+        calendar_id=calendar_id,
+        version="v1",
+        epoch_id=1,
+        frequency="1min",
+        frequency_seconds=60,
+        timezone_id="UTC",
+        clock_domain_id="clock-alpha003-prenext-risk",
+        session_semantics="ctp-regular-v1",
+        slots=tuple(
+            LiveCalendarSlot(
+                slot_id="history-minute-{}".format(index),
+                bucket_start=close - timedelta(minutes=1),
+                close_time=close,
+                trading_day=session_day,
+                session_segment="regular",
+                member_sessions=member_sessions,
+            )
+            for index, close in enumerate(closes)
+        ),
+    )
+    bars = tuple(
+        MappingProxyType(
+            {
+                "instrument": INSTRUMENT,
+                "symbol": INSTRUMENT,
+                "timestamp": close.timestamp(),
+                "datetime": close,
+                "bucket_start": close - timedelta(minutes=1),
+                "bucket_end": close,
+                "available_at": close,
+                "trading_day": session_day,
+                "session_segment": "regular",
+                "timezone_id": "UTC",
+                "clock_domain_id": "clock-alpha003-prenext-risk",
+                "connection_generation": "history-generation-1",
+                "bar_sequence": index + 1,
+                "bar_id": "{}-history-{}".format(INSTRUMENT, index),
+                "open": 100.0 + index,
+                "high": 102.0 + index,
+                "low": 99.0 + index,
+                "close": 101.0 + index,
+                "volume": 100.0 + index,
+                "openinterest": 0.0,
+                "present": True,
+                "complete": True,
+                "quality": "GOOD",
+                "quality_flags": (),
+                "source": "alpha003-history-prenext-risk-fixture",
+            }
+        )
+        for index, close in enumerate(closes)
+    )
+    feed = bt.feeds.BtApiFeed(
+        dataname=INSTRUMENT,
+        historical_bars=bars,
+        live_bars=(),
+        cohort_source_mode=True,
+        backfill_start=False,
+        timeframe=bt.TimeFrame.Minutes,
+        compression=1,
+        clock=clock,
+    )
+    cohort = LiveBarCohort(
+        cohort_id,
+        calendar,
+        max_pending_slots=2,
+        max_window_bars=10,
+        wait_timeout_ns=2_000_000_000,
+    )
+    cohort.register_member(
+        member_id,
+        feed,
+        instrument=INSTRUMENT,
+        source_ref="fixture-alpha003-history-prenext-risk",
+        line_fields=("open", "high", "low", "close", "volume", "openinterest"),
+        raw_fields=("open", "high", "low", "close", "volume", "openinterest"),
+        clock_domain_id="clock-alpha003-prenext-risk",
+        timezone_id="UTC",
+        session_semantics="ctp-regular-v1",
+        numeric_fields=("open", "high", "low", "close", "volume", "openinterest"),
+    )
+    cohort.seal()
+
+    api, store, broker, journal, coordinator, _old_target, *_unused = execution_fixtures._system(
+        now=now,
+        query_rows=facts_fixtures._query_rows(),
+    )
+    target = FactorExecutionTarget("rb", INSTRUMENT, EXCHANGE, feed)
+    # _system() configures its Broker for the fixture's original instrument-
+    # named PandasData. This Cerebro run binds the real history feed as "rb",
+    # which is the Broker position key; give that exact feed alias the same
+    # exchange contract metadata before projecting any execution facts.
+    broker._contract_metadata["rb"] = dict(broker._contract_metadata[INSTRUMENT])
+
+    class _ManualRefreshView:
+        execution_target_ids = ("rb",)
+
+        def __init__(self, receipt):
+            self.last_receipt = receipt
+            self.joined = False
+
+        def bind_strategy(self, strategy):
+            self.strategy = strategy
+
+        @contextmanager
+        def strategy_fact_projection_scope(self):
+            yield True
+
+        def stop_and_join(self):
+            self.joined = True
+            return True
+
+    refresh_view = _ManualRefreshView(None)
+    projection_clock_observations = []
+    next_quote_sequence = 1
+
+    def refresh_post_callback_facts(*, retain_quote=False):
+        nonlocal next_quote_sequence
+        receipt, projection_now, consumed = facts_fixtures._refresh_complete_facts_after_callback(
+            api,
+            store,
+            target,
+            sequence=next_quote_sequence,
+            trading_day=TRADING_DAY,
+        )
+        next_quote_sequence += 1
+        refresh_view.last_receipt = receipt
+        assert api._use_observed_query_clock is True
+        assert receipt.query_set.completed_at_utc <= projection_now
+        assert projection_now <= clock.utc_now()
+        assert consumed.received_wall_time <= projection_now.timestamp()
+        if retain_quote:
+            assert store.get_latest_tick_snapshot(INSTRUMENT) is not None
+        else:
+            # Exercise the complete fresh query/quote boundary while
+            # deliberately leaving no executable quote for WARMUP risk.
+            store._latest_ticks.clear()
+            assert store.get_latest_tick_snapshot(INSTRUMENT) is None
+        return receipt, projection_now
+
+    class _DecisionTape:
+        file_id = "fixture-prenext-risk-tape"
+
+        def __init__(self):
+            self.rows = []
+            self.last_record_reference = None
+
+        def record_decision(self, batch, snapshot, target_decision, order_plan):
+            self.rows.append((batch, snapshot, target_decision, order_plan))
+            if not tape_write_confirmed:
+                return False
+            self.last_record_reference = {
+                "file_id": self.file_id,
+                "record_id": "record-{}".format(len(self.rows)),
+                "record_index": len(self.rows) - 1,
+                "batch_id": batch.batch_id,
+            }
+            return True
+
+    tape = _DecisionTape()
+    risk_policy = strategy_module.Alpha003RiskPolicy(
+        risk_policy_id="prenext-history-cancel-v1",
+        max_hold_eligible_bars=10,
+        preclose_grace_seconds=0,
+        run_end_policy="CLOSE_ALL",
+        quote_max_age_seconds=Decimal("2"),
+        max_state_age_seconds=Decimal("7200"),
+        max_notional_per_position=Decimal("100000"),
+        max_total_notional=Decimal("300000"),
+        max_margin_per_position=Decimal("10000"),
+        max_total_margin=Decimal("30000"),
+        max_loss_per_position=Decimal("10000"),
+        max_total_loss=Decimal("20000"),
+        stop_loss_ticks=5,
+        max_order_intents_per_grid=4,
+        max_order_intents_per_run=20,
+        round_trip_fee_upper_bound_per_contract=Decimal("1"),
+    )
+    cerebro = bt.Cerebro(stdstats=False, exactbars=3, preload=False, runonce=False)
+    cerebro.setbroker(broker)
+    cerebro.adddata(feed, name="rb")
+    cerebro.add_live_bar_cohort(cohort, clock=clock)
+    observations = []
+    grid_decision_calls = []
+    cancel_calls = []
+
+    def ctp_order_row(order_ref, status, remaining):
+        identity = api._provider_orders[str(order_ref)]
+        return {
+            "OrderRef": str(order_ref),
+            "OrderSysID": identity["order_sys_id"] or "",
+            "InstrumentID": identity["instrument_id"],
+            "ExchangeID": identity["exchange_id"],
+            "OrderStatus": status,
+            "Direction": "0",
+            "CombOffsetFlag": "0",
+            "LimitPrice": "100",
+            "VolumeTotalOriginal": "1",
+            "VolumeTraded": "0",
+            "VolumeTotal": str(remaining),
+            "FrontID": identity["front_id"],
+            "SessionID": identity["session_id"],
+            "TradingDay": TRADING_DAY,
+        }
+
+    original_cancel = api.cancel_order
+
+    def ctp_cancel(order_ref, dataname=None):
+        response = original_cancel(order_ref, dataname=dataname)
+        cancel_calls.append((str(order_ref), dataname))
+        api.query_rows["orders_result"] = [ctp_order_row(order_ref, "5", 0)]
+        api.emit_provider_order_callback(order_ref, status="canceled", filled=0, remaining=0)
+        api._order_updates[-1]["details"]["OrderStatus"] = "5"
+        api._order_updates[-1]["details"]["TradingDay"] = TRADING_DAY
+        return response
+
+    api.cancel_order = ctp_cancel
+
+    class _PrenextRiskStrategy(alpha_strategy):
+        def _live_facts(self, now):
+            receipt = refresh_view.last_receipt
+            completed_at = None if receipt is None else receipt.query_set.completed_at_utc
+            assert completed_at is None or completed_at <= now, (completed_at, now)
+            if completed_at is not None:
+                projection_clock_observations.append((completed_at, now))
+            return super()._live_facts(now)
+
+        def start(self):
+            super().start()
+            # Cerebro starts the Store immediately before strategy.start();
+            # that lifecycle intentionally clears pre-start quote/query facts.
+            # Establish the seed OPEN's evidence only after that boundary.
+            facts_fixtures._arm(store)
+            _startup_receipt, startup_projection_now = refresh_post_callback_facts(
+                retain_quote=True
+            )
+            facts = self._live_facts(startup_projection_now)
+            assert facts is not None and facts.open_risk_ready is True, (
+                None if facts is None else facts.blockers
+            )
+            self.seed_order = None
+            self.seed_decision_id = None
+            self.seed_intent_id = None
+            self.terminal_resolution = None
+            self.terminal_reconciliation_page = None
+            self.prenext_observations = observations
+            self.grid_decision_calls = grid_decision_calls
+            # Shutdown is requested before the first history callback. The
+            # fixture will seed one owner order once a real bar is loaded,
+            # then production prenext may only maintain its risk.
+            self.request_shutdown()
+
+        def _seed_owned_open_before_history_prenext(self):
+            data = self._data_by_target["rb"]
+            assert len(data) > 0
+            assert math.isfinite(float(data.close[0]))
+            _seed_receipt, seed_projection_now = refresh_post_callback_facts(retain_quote=True)
+            facts = self._live_facts(seed_projection_now)
+            assert facts is not None and facts.open_risk_ready is True, (
+                None if facts is None else facts.blockers
+            )
+            open_key = ExecutionIntentKey(
+                action="SUBMIT",
+                instrument=INSTRUMENT,
+                side="BUY",
+                position_effect="OPEN",
+                leg=0,
+            )
+            economics = {
+                "instrument": INSTRUMENT,
+                "instrument_id": INSTRUMENT,
+                "exchange": EXCHANGE,
+                "side": "BUY",
+                "position_effect": "OPEN",
+                "quantity": "1",
+                "limit_price": "100",
+                "offset": "open",
+                "factor_stop_price": "95",
+                "stop_price": "95",
+                "risk_policy_id": risk_policy.risk_policy_id,
+                "risk_policy": {"stop_loss_ticks": 5, "max_loss_per_position": "25"},
+                "entry_grid_ordinal": 1,
+                "batch_id": "batch-1",
+                "price": "100",
+            }
+            seed_scope = execution_fixtures._live_scope(
+                coordinator,
+                self,
+                facts,
+                now=self._clock_now(),
+                intent_key=open_key,
+                economics=economics,
+            )
+            with seed_scope:
+                self.seed_order = self.buy(
+                    data=data,
+                    size=1,
+                    price=100.0,
+                    exectype=bt.Order.Limit,
+                    instrument_id=INSTRUMENT,
+                    exchange_id=EXCHANGE,
+                    factor_position_effect="OPEN",
+                    factor_strategy_scope=STRATEGY_SCOPE,
+                    offset="open",
+                )
+            self.seed_decision_id = seed_scope.decision_id
+            self.seed_intent_id = self.seed_order.info["factor_intent_id"]
+            api.emit_provider_order_callback(
+                self.seed_order.info["external_order_ref"],
+                status="accepted",
+                filled=0,
+                remaining=1,
+            )
+            api._order_updates[-1]["details"]["OrderStatus"] = "3"
+            api._order_updates[-1]["details"]["TradingDay"] = TRADING_DAY
+            api.query_rows["orders_result"] = [
+                ctp_order_row(self.seed_order.info["external_order_ref"], "3", 1)
+            ]
+            refresh_post_callback_facts()
+
+        def _live_grid_decision(self, *args, **kwargs):
+            grid_decision_calls.append((args, kwargs))
+            return super()._live_grid_decision(*args, **kwargs)
+
+        def prenext(self):
+            batch = cohort.current_batch()
+            snapshot = self.live_factors.snapshot() if batch is not None else None
+            if batch is not None and self.seed_order is None:
+                assert batch.status == "COMPLETE"
+                assert snapshot is not None
+                assert snapshot.readiness is LiveFactorReadiness.WARMUP
+                self._seed_owned_open_before_history_prenext()
+            pre_production_order_count = coordinator.run_order_count()
+            pre_production_native_actions = tuple(call[0] for call in api.native_calls)
+            super().prenext()
+            if batch is not None:
+                receipt = batch.receipt_for_feed(feed)
+                observations.append(
+                    {
+                        "batch": batch,
+                        "snapshot": snapshot,
+                        "source_role": receipt.envelope.source_role,
+                        "facts": self.last_execution_facts,
+                        "plan": self.last_order_plan,
+                        "block_reason": self.last_execution_block_reason,
+                        "pre_production_order_count": pre_production_order_count,
+                        "pre_production_native_actions": pre_production_native_actions,
+                    }
+                )
+                refresh_receipt, projection_now = refresh_post_callback_facts(
+                    retain_quote=(
+                        self.terminal_resolution is None
+                        and self.seed_order is not None
+                        and self.seed_order.getstatusname() == "Canceled"
+                    )
+                )
+                if (
+                    self.terminal_resolution is None
+                    and self.seed_order is not None
+                    and self.seed_order.getstatusname() == "Canceled"
+                ):
+                    terminal_facts = self._live_facts(projection_now)
+                    assert terminal_facts is not None
+                    assert len(terminal_facts.terminal_orders) == 1
+                    terminal_page = coordinator.reconcile_terminal_order_observations(
+                        terminal_facts,
+                        refresh_receipt=refresh_receipt,
+                    )
+                    assert len(terminal_page.items) == 1
+                    assert terminal_page.items[0].status == "RESOLVED", terminal_page.items[0]
+                    self.terminal_reconciliation_page = terminal_page
+                    self.terminal_resolution = journal.instrument_resolution(self.seed_intent_id)
+                    assert self.terminal_resolution is not None
+                    assert self.terminal_resolution.position_flat is True
+                    # Re-query after the durable owner release so shutdown
+                    # reads a causally newer complete execution snapshot.
+                    refresh_post_callback_facts()
+
+    cerebro.addstrategy(
+        _PrenextRiskStrategy,
+        cohort=cohort,
+        calendar_id=calendar_id,
+        factor_mode="native",
+        direction=1,
+        authorized_targets=("rb",),
+        product_keys={"rb": (EXCHANGE, "rb")},
+        preheat_bars=10,
+        max_pending_slots=2,
+        max_window_bars=10,
+        wait_timeout_ns=2_000_000_000,
+        rebalance_every=5,
+        replay_mode=False,
+        execution_enabled=True,
+        risk_policy=risk_policy,
+        routes={"rb": (INSTRUMENT, EXCHANGE)},
+        session_calendars={},
+        account_scope=ACCOUNT_SCOPE,
+        strategy_scope=STRATEGY_SCOPE,
+        logical_run_id="run-1",
+        quote_max_age_seconds=2,
+        max_query_age_seconds=7200,
+        max_live_bar_age_seconds=120,
+        max_future_skew_seconds=0,
+        control_refresh_loop=refresh_view,
+        decision_tape=tape,
+    )
+
+    try:
+        result = cerebro.run(runonce=False, preload=False)
+        assert len(result) == 1
+        strategy = result[0]
+        assert len(observations) == 2
+        assert all(row["batch"].status == "COMPLETE" for row in observations)
+        assert all(row["source_role"] == "history" for row in observations)
+        assert all(row["snapshot"].readiness is LiveFactorReadiness.WARMUP for row in observations)
+        assert all(row["snapshot"].batch_complete is True for row in observations)
+        assert observations[0]["pre_production_order_count"] == 1
+        assert observations[0]["pre_production_native_actions"] == ("insert",)
+        assert observations[0]["facts"].open_risk_ready is False
+        assert observations[0]["facts"].order_cancel_ready is True
+        assert observations[0]["facts"].available_at > observations[0]["batch"].close_time
+        assert observations[0]["plan"].status == "READY"
+        assert tuple(action.action for action in observations[0]["plan"].actions) == ("CANCEL",)
+        assert all(tape_row[2] is None for tape_row in tape.rows)
+        assert all(tape_row[3].reason == "CALCULATION_WARMUP" for tape_row in tape.rows)
+        assert all(tape_row[3].actions == () for tape_row in tape.rows)
+        assert all(row["block_reason"] == expected_tape_error for row in observations)
+        assert grid_decision_calls == []
+        assert strategy.seed_order is not None
+        assert strategy.seed_order.info["factor_dispatch_state"] == "KNOWN"
+        assert strategy.seed_order.info["factor_position_effect"] == "OPEN"
+        assert strategy.seed_order.info["cancel_acknowledged"] is True
+        assert strategy.seed_order.getstatusname() == "Canceled"
+        assert strategy.terminal_reconciliation_page is not None
+        assert len(strategy.terminal_reconciliation_page.items) == 1
+        assert strategy.terminal_reconciliation_page.items[0].status == "RESOLVED"
+        assert strategy.terminal_resolution is not None
+        assert strategy.terminal_resolution.position_flat is True
+        assert projection_clock_observations
+        assert all(
+            completed_at <= sampled_at
+            for completed_at, sampled_at in projection_clock_observations
+        )
+        final_facts = strategy.last_execution_facts
+        assert strategy.shutdown_ready is True, {
+            "shutdown_blocker": strategy.shutdown_blocker,
+            "shutdown_post_join_blocker": strategy.shutdown_post_join_blocker,
+            "last_execution_block_reason": strategy.last_execution_block_reason,
+            "refresh_joined": refresh_view.joined,
+            "final_facts": None
+            if final_facts is None
+            else {
+                "available_at": getattr(final_facts, "available_at", None),
+                "query_set_id": getattr(final_facts, "query_set_id", None),
+                "read_only_reconciliation_ready": getattr(
+                    final_facts, "read_only_reconciliation_ready", None
+                ),
+                "read_only_reconciliation_blockers": getattr(
+                    final_facts, "read_only_reconciliation_blockers", None
+                ),
+                "read_only_observation_blockers": getattr(
+                    final_facts, "read_only_observation_blockers", None
+                ),
+                "positions": tuple(
+                    (
+                        getattr(item, "target_id", None),
+                        getattr(item, "quantity", None),
+                        getattr(item, "owner_strategy_scope", None),
+                        getattr(item, "owner_intent_id", None),
+                    )
+                    for item in getattr(final_facts, "positions", ())
+                ),
+                "working_orders": tuple(
+                    (
+                        getattr(item, "target_id", None),
+                        getattr(item, "instrument", None),
+                        getattr(item, "exchange", None),
+                        getattr(item, "state", None),
+                        getattr(item, "execution_unknown", None),
+                        getattr(item, "owner_strategy_scope", None),
+                        getattr(item, "owner_intent_id", None),
+                    )
+                    for item in getattr(final_facts, "working_orders", ())
+                ),
+            },
+        }
+        assert strategy.shutdown_post_join_confirmed is True
+        assert refresh_view.joined is True
+        assert cancel_calls == [(strategy.seed_order.info["external_order_ref"], EXCHANGE + "." + INSTRUMENT)]
+        assert [call[0] for call in api.native_calls] == ["insert", "cancel"]
+        assert coordinator.run_order_count() == 2
+        capacity = journal.decision_capacity_snapshot()
+        assert capacity.base_record_count == 1
+        assert capacity.settlement_record_count == 1
+        seed_decision = journal.decision(strategy.seed_decision_id)
+        assert seed_decision is not None
+        assert seed_decision.key.decision_kind == "ALPHA003_GRID"
+        seed_intent = journal.intent(strategy.seed_intent_id)
+        assert seed_intent is not None
+        assert seed_intent.key.action == "SUBMIT"
+        assert seed_intent.key.position_effect == "OPEN"
+        assert seed_intent.state == "KNOWN"
+
+        cancel_intent_id = strategy.seed_order.info["factor_cancel_intent_id"]
+        cancel_intent = journal.intent(cancel_intent_id)
+        assert cancel_intent is not None
+        assert cancel_intent.key.action == "CANCEL"
+        assert cancel_intent.owner_intent_id == strategy.seed_intent_id
+        assert cancel_intent.state == "KNOWN"
+        risk_facts = observations[0]["facts"]
+        risk_key = ExecutionDecisionKey(
+            account_scope=ACCOUNT_SCOPE,
+            strategy_scope=STRATEGY_SCOPE,
+            logical_run_id="run-1",
+            cohort_id=cohort_id,
+            close_time=risk_facts.available_at.isoformat().replace("+00:00", "Z"),
+            decision_kind="ALPHA003_RISK_REDUCTION",
+        )
+        risk_decision = journal.decision_for_key(risk_key)
+        assert risk_decision is not None
+        assert risk_decision.key.close_time == risk_facts.available_at.isoformat().replace(
+            "+00:00", "Z"
+        )
+        assert risk_decision.intent_keys == (cancel_intent.key,)
+        assert risk_decision.economic_payload["batch_id"] is None
+        assert observations[1]["facts"].working_orders == ()
+        assert observations[1]["facts"].query_set_id != observations[0]["facts"].query_set_id
+        assert observations[1]["facts"].available_at > observations[0]["facts"].available_at
+        assert strategy.last_execution_facts.working_orders == ()
+        assert tape_write_confirmed is (expected_tape_error is None)
+    finally:
+        journal.close()

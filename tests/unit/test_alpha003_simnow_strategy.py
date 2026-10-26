@@ -62,12 +62,24 @@ def _history_batch_snapshot(batch_id, close_time, available_at):
         )
         for target, value in (("A", 2.0), ("B", -1.0))
     }
+    factor_spec = _STRATEGY.make_alpha003_factor_spec(mode="native", direction=1)
+    pit_policy_complete = bool(factor_spec.field_bindings) and set(
+        factor_spec.field_bindings
+    ).issubset(factor_spec.field_policies)
     factor = LiveFactorResult(
         name="alpha003",
         mode="native",
         panel_line="factor",
         direction=1,
         source_sha256="b" * 64,
+        field_policy_sha256=factor_spec.field_policy_sha256,
+        pit_policy_complete=pit_policy_complete,
+        pit_qualified=False,
+        unqualified_fields=tuple(
+            alias
+            for alias in factor_spec.field_bindings
+            if alias not in factor_spec.field_policies
+        ),
         inputs=MappingProxyType({}),
         values=MappingProxyType(outputs),
     )
@@ -573,12 +585,24 @@ def test_shared_snapshot_projection_preserves_epoch_availability_and_quality():
             generation="generation-1",
         ),
     }
+    factor_spec = _STRATEGY.make_alpha003_factor_spec(mode="native", direction=1)
+    pit_policy_complete = bool(factor_spec.field_bindings) and set(
+        factor_spec.field_bindings
+    ).issubset(factor_spec.field_policies)
     block = LiveFactorResult(
         name="alpha003",
         mode="native",
         panel_line="factor",
         direction=1,
         source_sha256="b" * 64,
+        field_policy_sha256=factor_spec.field_policy_sha256,
+        pit_policy_complete=pit_policy_complete,
+        pit_qualified=False,
+        unqualified_fields=tuple(
+            alias
+            for alias in factor_spec.field_bindings
+            if alias not in factor_spec.field_policies
+        ),
         inputs=MappingProxyType({}),
         values=MappingProxyType(output_rows),
     )
@@ -978,7 +1002,7 @@ def test_prenext_durably_records_each_complete_warmup_grid_once():
             return True
 
     strategy = SimpleNamespace(
-        p=SimpleNamespace(replay_mode=False, decision_tape=_Tape()),
+        p=SimpleNamespace(replay_mode=False, execution_enabled=False, decision_tape=_Tape()),
         _current_batch_snapshot=lambda: (batch, snapshot),
         _clock_now=lambda: AVAILABLE,
         _last_decision_tape_batch_id=None,
@@ -988,6 +1012,9 @@ def test_prenext_durably_records_each_complete_warmup_grid_once():
     )
     strategy._record_decision_tape = MethodType(
         _STRATEGY.Alpha003TargetStrategy._record_decision_tape, strategy
+    )
+    strategy._run_live_prenext_risk = MethodType(
+        _STRATEGY.Alpha003TargetStrategy._run_live_prenext_risk, strategy
     )
 
     _STRATEGY.Alpha003TargetStrategy.prenext(strategy)

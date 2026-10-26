@@ -184,6 +184,12 @@ preserves the engine's unfinished-grid status and requires the Strategy's
 reconciliation, refresh-thread join, and resource-cleanup proofs; it does not
 retire an automatic daily epoch.
 
+During live `prenext`, complete warmup grids are recorded in the decision tape.
+Warmup does not dispatch factor-driven target decisions or opening orders.
+Independent risk maintenance uses fresh execution facts and may cancel an
+owned order even if the tape write fails; the tape error remains recorded.
+Replay warmup remains tape-only.
+
 Journal decision storage is finite per database: defaults allow 100,000 BASE
 decisions (including NOOPs) and 512 MiB of canonical decision JSON, plus a
 separate settlement reserve of 4,096 CLOSE/CANCEL-only decisions and 64 MiB.

@@ -1,0 +1,137 @@
+{
+  "schema_version": 1,
+  "date": "2026-10-27",
+  "evidence_level": "SOURCE_FAKE_PRENEX_RISK_CANCEL_ONLY",
+  "scope": "028 live Alpha003 history-WARMUP prenext and owned-order risk cancellation",
+  "source_context": {
+    "backtrader_dev_head_at_integration_run": "8a65f3d8b7f06768542cb9435ecb4f97043da744",
+    "strategy_path": "examples/unified/028_alpha003_simnow_minute/alpha003_strategy.py",
+    "strategy_sha256": "220330a52a0acc65427f5c68448e82b80f4ef9fdddc8c7a75eceb0bea4ee3521",
+    "integration_test_path": "tests/integration/test_live_alpha003_history_catchup_execution.py",
+    "integration_test_sha256": "6f25638c7d4b6cf6f133dd97a7c5a6b8e3fdcb2e4dbc3dd871a8b9cf64523881",
+    "unit_test_path": "tests/unit/test_alpha003_simnow_strategy.py",
+    "unit_test_sha256": "81093d0a62fdfce0a3deb4abea142425bea39be3deb72acfbae4bc57baeb07dc"
+  },
+  "integration_r5": {
+    "run": "i51-prenext-risk-20261027-r5",
+    "result": "PASS",
+    "tests": 2,
+    "passed": 2,
+    "failed": 0,
+    "skipped": 0,
+    "python_exit_code": 0,
+    "duration_seconds": 4.826,
+    "cases": [
+      "test_alpha003_prenext_history_warmup_dispatches_owned_risk_cancel[tape-write-failed]",
+      "test_alpha003_prenext_history_warmup_dispatches_owned_risk_cancel[durable-tape]"
+    ],
+    "command_record": "launch.json",
+    "completion_record": "completion.json",
+    "junit": "junit.xml",
+    "stdout": "stdout.bin",
+    "stderr": "stderr.bin",
+    "source_pins": [
+      "source-pins-pre.json",
+      "source-pins-post.json"
+    ]
+  },
+  "unit_focus": {
+    "tool_id": "cdf4ea",
+    "result": "PASS",
+    "tests": 4,
+    "passed": 4,
+    "failed": 0,
+    "skipped": 0,
+    "junit": "unit-junit.xml",
+    "raw_stdout_stderr": "not available; none is claimed",
+    "cases": [
+      "test_shared_snapshot_projection_preserves_epoch_availability_and_quality",
+      "test_prenext_durably_records_each_complete_warmup_grid_once",
+      "test_prenext_leaves_ready_grid_for_target_decision_path",
+      "test_prenext_leaves_replay_ready_history_grid_for_target_decision_path"
+    ]
+  },
+  "static_review": {
+    "result": "GO",
+    "conclusion": "SOURCE_FAKE_PRENEX_RISK_CANCEL_ONLY",
+    "artifact": "review.md",
+    "sha256": "F77FCFEF8F086D09AE53048724BBA3DCD6520580076C7F6ADF89867E3C07E43B"
+  },
+  "exercised_scenario": [
+    "真实 Cerebro、Strategy、Store、Broker、coordinator 与 journal 路径；provider、refresh 与 tape 使用 fake。",
+    "fixture 在 Store 启动且首根历史 bar 已加载后、进入 production prenext 前，seed 一个 OPEN；仅覆盖同一进程/生命周期内的既有 owned-order 风险撤销。",
+    "durable-tape 分支写出完整 WARMUP；两个分支均验证无历史目标决策/OPEN、一次风险 CANCEL。通过真实 coordinator reconciliation API，使用 fake provider 刷新出的查询事实验证终态。",
+    "tape-write-failed 分支保留原 tape 错误，同时仍验证风险撤单；单测和静态审阅说明 replay 仍为 tape-only。"
+  ],
+  "not_established": [
+    "没有真实 provider 或账户操作；不能作为实盘、账户或AC51/AC50整体验收。",
+    "没有证明在历史开始前已拥有的订单，也没有证明 OS/进程重启后的此类风险处置。",
+    "不升级 AC51-01、AC50-28b、50-A交接或任何账户级验收状态。"
+  ],
+  "timing_policy": "本归档的测试耗时仅作诊断；依据现行用户验收口径，单独的耗时/延迟性能阈值不构成本轮阻塞。",
+  "archived_artifacts": [
+    {
+      "path": "launch.json",
+      "source": "D:/temp/i51-prenext-risk-20261027-r5/launch.json",
+      "bytes": 1042,
+      "sha256": "5F2EE792341D6AFD50E3A3B018095B080E494B0630AB97FCA8681FA768156C7C",
+      "byte_copy_verified": true
+    },
+    {
+      "path": "completion.json",
+      "source": "D:/temp/i51-prenext-risk-20261027-r5/completion.json",
+      "bytes": 584,
+      "sha256": "5C472749FCC358C3E960D6D1D686D37DDADC6532EB248027A6CD0E134F91544C",
+      "byte_copy_verified": true
+    },
+    {
+      "path": "junit.xml",
+      "source": "D:/temp/i51-prenext-risk-20261027-r5/junit.xml",
+      "bytes": 592,
+      "sha256": "8275745D0898B72FCF15146651BDFA3C033BF31AAA5FDE1DC148C6B5574F9B72",
+      "byte_copy_verified": true
+    },
+    {
+      "path": "source-pins-pre.json",
+      "source": "D:/temp/i51-prenext-risk-20261027-r5/source-pins-pre.json",
+      "bytes": 366,
+      "sha256": "95227C7B284F7F09B68806CCD424635212C33F6A1830CD51F55791794EDA9CDA",
+      "byte_copy_verified": true
+    },
+    {
+      "path": "source-pins-post.json",
+      "source": "D:/temp/i51-prenext-risk-20261027-r5/source-pins-post.json",
+      "bytes": 234,
+      "sha256": "5E814E978A2BD3D6900B409BC71436B5C0F7E51F9EE6A18563399DF3A38500D2",
+      "byte_copy_verified": true
+    },
+    {
+      "path": "stdout.bin",
+      "source": "D:/temp/i51-prenext-risk-20261027-r5/stdout.bin",
+      "bytes": 631,
+      "sha256": "704E2A1CDFF6F8983E90861CB2B9AA1EB0AA4C481928FCA0EBD1A790F2922E46",
+      "byte_copy_verified": true
+    },
+    {
+      "path": "stderr.bin",
+      "source": "D:/temp/i51-prenext-risk-20261027-r5/stderr.bin",
+      "bytes": 0,
+      "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "byte_copy_verified": true
+    },
+    {
+      "path": "unit-junit.xml",
+      "source": "D:/temp/i51-prenext-unit-20261027.xml",
+      "bytes": 813,
+      "sha256": "E232B0FF0CFE009E88E6FE8CE80F266B52ABFB4136F27329CE7D23B8E6195335",
+      "byte_copy_verified": true
+    },
+    {
+      "path": "review.md",
+      "source": "D:/source_code/backtrader/.codex-tmp/i51_prenext_risk_static_review_20261027.md",
+      "bytes": 2513,
+      "sha256": "F77FCFEF8F086D09AE53048724BBA3DCD6520580076C7F6ADF89867E3C07E43B",
+      "byte_copy_verified": true
+    }
+  ]
+}
