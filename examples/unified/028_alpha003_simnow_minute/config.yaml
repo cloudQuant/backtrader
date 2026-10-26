@@ -88,6 +88,9 @@ live:
   # when --mode live is explicitly selected. The runner never loads .env.
   store_config_env: BT_SIMNOW_CONFIG_JSON
   allow_writes: false
+  # Optional 3-5 product-target read-only golden feed set. The runner still
+  # queries and validates the complete CTP catalog/depth/ranking universe.
+  golden_targets: null
   account_scope: null
   strategy_scope: null
   logical_run_id: null

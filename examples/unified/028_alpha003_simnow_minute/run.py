@@ -233,6 +233,7 @@ _SECTION_KEYS = {
         "quote_max_age_seconds",
         "query_max_age_seconds",
         "shutdown_grace_seconds",
+        "golden_targets",
     },
     "output": {
         "directory",
@@ -275,6 +276,10 @@ def load_config(config_path: Path) -> dict[str, Any]:
             # Existing copied configurations remain valid; saved-history
             # continuation is an explicit live-only opt-in.
             row.setdefault("history_decision_tape", None)
+        elif section == "live":
+            # Golden live validation is an explicit feed subset; omitted keys
+            # preserve the existing complete-pool runner behavior.
+            row.setdefault("golden_targets", None)
         extra = set(row).difference(expected)
         missing_section = expected.difference(row)
         if extra or missing_section:
@@ -297,6 +302,63 @@ def load_config(config_path: Path) -> dict[str, Any]:
     if selection["source"] == "ctp_query" and daily_bundles:
         raise RunnerError("QUERY_SELECTION_DAILY_BUNDLES_UNSUPPORTED")
     return config
+
+
+def _validate_golden_targets_option(
+    config: Mapping[str, Any], *, mode: str, decision: Any, allow_write_flag: bool
+) -> Optional[tuple[str, ...]]:
+    """Validate the opt-in read-only CTP golden feed subset before resources."""
+
+    live = config.get("live")
+    if not isinstance(live, Mapping):
+        raise RunnerError("LIVE_SECTION_INVALID")
+    raw_targets = live.get("golden_targets")
+    if raw_targets is None:
+        return None
+    selection = config.get("selection")
+    if (
+        mode != "live"
+        or not isinstance(selection, Mapping)
+        or selection.get("source") != "ctp_query"
+        or selection.get("daily_bundles")
+    ):
+        raise RunnerError("GOLDEN_TARGETS_LIVE_CTP_QUERY_REQUIRED")
+    if (
+        live.get("allow_writes") is not False
+        or allow_write_flag is not False
+        or getattr(decision, "effective_tier", None) != "live"
+    ):
+        raise RunnerError("GOLDEN_TARGETS_READ_ONLY_REQUIRED")
+    arm_templates = live.get("arm_templates")
+    if type(arm_templates) is not list or arm_templates:
+        raise RunnerError("GOLDEN_TARGETS_WRITE_CONFIGURATION_UNSUPPORTED")
+    if type(raw_targets) is not list:
+        raise RunnerError("GOLDEN_TARGETS_INVALID")
+    if not 3 <= len(raw_targets) <= 5:
+        raise RunnerError("GOLDEN_TARGETS_COUNT_INVALID")
+    targets = []
+    for target in raw_targets:
+        if (
+            type(target) is not str
+            or not target
+            or target != target.strip()
+            or target != target.upper()
+            or target.count(".") != 1
+            or any(not part for part in target.split("."))
+        ):
+            raise RunnerError("GOLDEN_TARGETS_INVALID")
+        targets.append(target)
+    if len(targets) != len(set(targets)):
+        raise RunnerError("GOLDEN_TARGETS_DUPLICATE")
+    authorized = selection.get("authorized_products")
+    if authorized is not None and (
+        type(authorized) is not list
+        or not authorized
+        or any(type(target) is not str or not target for target in authorized)
+        or not set(authorized).intersection(targets)
+    ):
+        raise RunnerError("GOLDEN_AUTHORIZED_TARGETS_EMPTY")
+    return tuple(sorted(targets))
 
 
 def _daily_bundle_paths(config: Mapping[str, Any], config_path: Path) -> tuple[Path, ...]:
@@ -569,6 +631,112 @@ def build_ctp_query_market_plan(store, config, *, clock):
         "calendar_evidence_mode": calendar_build.evidence_mode,
         "calendar_rules_sha256": calendar_build.rules_manifest_sha256,
     }
+
+
+def _apply_golden_target_subset(plan, requested_targets):
+    """Project a read-only subset only after the complete CTP plan is READY."""
+
+    if requested_targets is None:
+        return plan
+    manifest = plan.get("manifest") if isinstance(plan, Mapping) else None
+    if (
+        plan.get("selection_source") != "ctp_query_snapshot_equal_weight_v1"
+        or getattr(manifest, "status", None) != "READY"
+    ):
+        raise RunnerError("GOLDEN_TARGETS_FULL_SELECTION_NOT_READY")
+    try:
+        full_products = tuple(plan["products"])
+        full_routes = dict(plan["routes"])
+        full_targets = tuple(plan["targets"])
+        product_by_target = dict(plan["product_by_target"])
+        target_by_product = dict(plan["target_by_product"])
+        full_authorized_targets = tuple(plan["authorized_targets"])
+        full_grid = plan["grid"]
+        route_rows = dict(manifest.selected_mapping())
+    except Exception as error:
+        raise RunnerError("GOLDEN_TARGETS_FULL_SELECTION_INVALID", type(error).__name__) from None
+    expected_targets = tuple(_target_id(product) for product in full_products)
+    if (
+        not full_products
+        or len(set(full_products)) != len(full_products)
+        or full_targets != expected_targets
+        or set(product_by_target) != set(full_targets)
+        or any(
+            product_by_target[target] != product
+            for target, product in zip(full_targets, full_products)
+        )
+        or target_by_product
+        != {product: target for product, target in zip(full_products, full_targets)}
+        or set(full_routes) != set(full_products)
+        or full_routes != route_rows
+        or set(getattr(manifest, "target_products", ())) != set(full_products)
+        or getattr(full_grid, "status", None) != "READY"
+        or not getattr(full_grid, "minutes", ())
+        or set(getattr(full_grid, "target_products", ())) != set(full_products)
+        or len(full_authorized_targets) != len(set(full_authorized_targets))
+        or not set(full_authorized_targets).issubset(set(full_targets))
+    ):
+        raise RunnerError("GOLDEN_TARGETS_FULL_SELECTION_INVALID")
+    requested = set(requested_targets)
+    unknown = requested.difference(full_targets)
+    if unknown:
+        raise RunnerError("GOLDEN_TARGETS_OUTSIDE_SELECTED_POOL")
+    active_targets = tuple(target for target in full_targets if target in requested)
+    active_products = tuple(product_by_target[target] for target in active_targets)
+    if not active_products:
+        raise RunnerError("GOLDEN_TARGETS_EMPTY")
+    try:
+        from backtrader.feeds.futures_sessions import build_common_minute_grid
+
+        product_days = dict(full_grid.product_trading_days)
+        if set(product_days) != set(full_products):
+            raise ValueError("full grid TradingDay map differs from full selection")
+        calendars = plan["session_calendars"]
+        if not isinstance(calendars, Mapping):
+            raise ValueError("session calendars are unavailable")
+        active_grid = build_common_minute_grid(
+            active_products,
+            tuple(calendars.values()),
+            {product: product_days[product] for product in active_products},
+            decision_at=full_grid.decision_at,
+        )
+    except Exception as error:
+        raise RunnerError("GOLDEN_TARGETS_GRID_BUILD_FAILED", type(error).__name__) from None
+    if active_grid.status != "READY" or not active_grid.minutes:
+        raise RunnerError("GOLDEN_TARGETS_GRID_UNAVAILABLE", active_grid.status)
+
+    active_routes = {product: full_routes[product] for product in active_products}
+    active_product_by_target = {
+        target: product_by_target[target] for target in active_targets
+    }
+    active_target_set = set(active_targets)
+    active_authorized_targets = tuple(
+        target for target in full_authorized_targets if target in active_target_set
+    )
+    projected = dict(plan)
+    projected.update(
+        {
+            "full_products": full_products,
+            "full_routes": full_routes,
+            "full_selected_targets": full_targets,
+            "full_product_by_target": product_by_target,
+            "full_target_by_product": target_by_product,
+            "full_authorized_targets": full_authorized_targets,
+            "full_grid": full_grid,
+            "active_shadow_targets": active_targets,
+            "golden_targets": active_targets,
+            "products": active_products,
+            "routes": active_routes,
+            "targets": active_targets,
+            "product_by_target": active_product_by_target,
+            "target_by_product": {
+                product: target for target, product in active_product_by_target.items()
+            },
+            "authorized_targets": active_authorized_targets,
+            "grid": active_grid,
+        }
+    )
+    return projected
 
 
 def _minute_slot_index(grid: Any):
@@ -1973,11 +2141,37 @@ def _live_restart_identity(config, config_path, plan, *, factor_mode, direction,
         },
         "risk": {name: risk[name] for name in ("policy_id", *RISK_FIELDS)},
     }
+    if plan.get("golden_targets") is not None:
+        identity.update(
+            {
+                "full_selected_targets": sorted(plan["full_selected_targets"]),
+                "active_shadow_targets": sorted(plan["active_shadow_targets"]),
+                "full_authorized_targets": sorted(plan["full_authorized_targets"]),
+                "full_routes": _full_route_summary(plan),
+                "full_grid_semantics_sha256": _grid_semantics_sha256(plan["full_grid"]),
+                "active_grid_semantics_sha256": _grid_semantics_sha256(plan["grid"]),
+            }
+        )
     _canonical_json_bytes(identity)
     return identity
 
 
 def _selection_evidence_matches_identity(evidence, identity):
+    if "active_shadow_targets" in evidence:
+        return bool(
+            evidence["epoch_id"] == identity.get("epoch_id")
+            and evidence["selection_source"] == identity.get("selection_source")
+            and evidence["source_snapshot_id"] == identity.get("source_snapshot_id")
+            and evidence["routes"] == identity.get("full_routes")
+            and evidence["authorized_targets"] == identity.get("full_authorized_targets")
+            and evidence["full_selected_targets"] == identity.get("full_selected_targets")
+            and evidence["active_shadow_targets"] == identity.get("active_shadow_targets")
+            and evidence["active_routes"] == identity.get("routes")
+            and evidence["active_authorized_targets"] == identity.get("authorized_targets")
+            and evidence["grid_semantics_sha256"] == identity.get("full_grid_semantics_sha256")
+            and evidence["active_grid_semantics_sha256"]
+            == identity.get("active_grid_semantics_sha256")
+        )
     return bool(
         evidence["epoch_id"] == identity.get("epoch_id")
         and evidence["selection_source"] == identity.get("selection_source")
@@ -4165,6 +4359,40 @@ def _restore_shutdown_signal_handlers(installed):
         signal.signal(signum, previous)
 
 
+def _full_route_summary(plan):
+    targets = tuple(plan.get("full_selected_targets", plan["targets"]))
+    product_by_target = plan.get("full_product_by_target", plan["product_by_target"])
+    routes = plan.get("full_routes", plan["routes"])
+    return {target: routes[product_by_target[target]] for target in targets}
+
+
+def _full_authorized_targets(plan):
+    return tuple(plan.get("full_authorized_targets", plan["authorized_targets"]))
+
+
+def _grid_semantics_sha256(grid):
+    grid_to_dict = getattr(grid, "to_dict", None)
+    if not callable(grid_to_dict):
+        raise RunnerError("SELECTION_EVIDENCE_GRID_UNAVAILABLE")
+    grid_row = grid_to_dict()
+    if type(grid_row) is not dict or set(grid_row) != {
+        "schema",
+        "status",
+        "decision_at",
+        "target_products",
+        "product_trading_days",
+        "calendar_hashes",
+        "minutes",
+    }:
+        raise RunnerError("SELECTION_EVIDENCE_GRID_INVALID")
+    stable_grid = {
+        key: value
+        for key, value in grid_row.items()
+        if key not in {"decision_at", "calendar_hashes"}
+    }
+    return hashlib.sha256(_canonical_json_bytes(stable_grid).rstrip(b"\n")).hexdigest()
+
+
 def _selection_evidence(plan, epoch_id, *, max_bytes):
     """Return bounded, JSON-safe selection evidence bound to one epoch route set."""
 
@@ -4184,8 +4412,14 @@ def _selection_evidence(plan, epoch_id, *, max_bytes):
         encoded_manifest = _canonical_json_bytes(manifest_row)
         if hashlib.sha256(encoded_manifest.rstrip(b"\n")).hexdigest() != manifest_digest:
             raise ValueError("manifest digest does not match its projection")
-        authorized_targets = plan.get("authorized_targets")
-        route_targets = set(_route_summary(plan))
+        golden_subset = plan.get("golden_targets") is not None
+        routes = _full_route_summary(plan) if golden_subset else _route_summary(plan)
+        authorized_targets = (
+            sorted(_full_authorized_targets(plan))
+            if golden_subset
+            else plan.get("authorized_targets")
+        )
+        route_targets = set(routes)
         if (
             type(authorized_targets) not in (tuple, list)
             or not authorized_targets
@@ -4202,32 +4436,22 @@ def _selection_evidence(plan, epoch_id, *, max_bytes):
             "selection_path": str(plan["selection_path"]),
             "source_snapshot_id": plan.get("source_snapshot_id"),
             "manifest_sha256": manifest_digest,
-            "routes": _route_summary(plan),
+            "routes": routes,
             "authorized_targets": authorized_targets,
         }
         if binding["selection_source"] == "ctp_query_snapshot_equal_weight_v1":
-            grid_to_dict = getattr(plan.get("grid"), "to_dict", None)
-            if not callable(grid_to_dict):
-                raise RunnerError("SELECTION_EVIDENCE_GRID_UNAVAILABLE")
-            grid_row = grid_to_dict()
-            if type(grid_row) is not dict or set(grid_row) != {
-                "schema",
-                "status",
-                "decision_at",
-                "target_products",
-                "product_trading_days",
-                "calendar_hashes",
-                "minutes",
-            }:
-                raise RunnerError("SELECTION_EVIDENCE_GRID_INVALID")
-            stable_grid = {
-                key: value
-                for key, value in grid_row.items()
-                if key not in {"decision_at", "calendar_hashes"}
-            }
-            binding["grid_semantics_sha256"] = hashlib.sha256(
-                _canonical_json_bytes(stable_grid).rstrip(b"\n")
-            ).hexdigest()
+            evidence_grid = plan.get("full_grid") if golden_subset else plan.get("grid")
+            binding["grid_semantics_sha256"] = _grid_semantics_sha256(evidence_grid)
+        if golden_subset:
+            binding.update(
+                {
+                    "full_selected_targets": sorted(plan["full_selected_targets"]),
+                    "active_shadow_targets": sorted(plan["active_shadow_targets"]),
+                    "active_routes": _route_summary(plan),
+                    "active_authorized_targets": sorted(plan["authorized_targets"]),
+                    "active_grid_semantics_sha256": _grid_semantics_sha256(plan["grid"]),
+                }
+            )
         binding_sha256 = hashlib.sha256(_canonical_json_bytes(binding).rstrip(b"\n")).hexdigest()
         evidence = {
             **binding,
@@ -4259,9 +4483,18 @@ def _validate_selection_evidence(value):
         "binding_sha256",
         "manifest",
     }
+    golden_keys = {
+        "full_selected_targets",
+        "active_shadow_targets",
+        "active_routes",
+        "active_authorized_targets",
+        "active_grid_semantics_sha256",
+    }
     try:
         if not isinstance(value, Mapping):
             raise TypeError("selection evidence is not a mapping")
+        if golden_keys.intersection(value):
+            expected_keys.update(golden_keys)
         if value.get("selection_source") == "ctp_query_snapshot_equal_weight_v1":
             expected_keys.add("grid_semantics_sha256")
         _exact_keys(value, expected_keys, "selection evidence")
@@ -4317,6 +4550,42 @@ def _validate_selection_evidence(value):
             or not set(authorized).issubset(routes)
         ):
             raise TypeError("authorized selection targets are invalid")
+        if golden_keys.issubset(value):
+            full_selected = value["full_selected_targets"]
+            active_selected = value["active_shadow_targets"]
+            active_routes = value["active_routes"]
+            active_authorized = value["active_authorized_targets"]
+            if (
+                type(full_selected) is not list
+                or not full_selected
+                or any(type(target) is not str or not target for target in full_selected)
+                or full_selected != sorted(set(full_selected))
+                or full_selected != sorted(routes)
+                or type(active_selected) is not list
+                or not 3 <= len(active_selected) <= 5
+                or any(type(target) is not str or not target for target in active_selected)
+                or active_selected != sorted(set(active_selected))
+                or not set(active_selected).issubset(full_selected)
+                or type(active_routes) is not dict
+                or set(active_routes) != set(active_selected)
+                or any(
+                    type(active_routes[target]) is not str
+                    or active_routes[target] != routes[target]
+                    for target in active_selected
+                )
+                or type(active_authorized) is not list
+                or active_authorized != sorted(set(active_authorized))
+                or not set(active_authorized).issubset(active_selected)
+                or active_authorized != sorted(set(authorized).intersection(active_selected))
+                or type(value["active_grid_semantics_sha256"]) is not str
+                or len(value["active_grid_semantics_sha256"]) != 64
+                or any(
+                    character not in "0123456789abcdef"
+                    for character in value["active_grid_semantics_sha256"]
+                )
+                or value["selection_source"] != "ctp_query_snapshot_equal_weight_v1"
+            ):
+                raise TypeError("golden selection evidence is invalid")
         manifest_digest = hashlib.sha256(
             _canonical_json_bytes(value["manifest"]).rstrip(b"\n")
         ).hexdigest()
@@ -4335,6 +4604,9 @@ def _validate_selection_evidence(value):
         binding = {key: value[key] for key in binding_keys}
         if "grid_semantics_sha256" in value:
             binding["grid_semantics_sha256"] = value["grid_semantics_sha256"]
+        for key in golden_keys:
+            if key in value:
+                binding[key] = value[key]
         binding_digest = hashlib.sha256(_canonical_json_bytes(binding).rstrip(b"\n")).hexdigest()
         if value["binding_sha256"] != binding_digest:
             raise TypeError("selection binding digest is invalid")
@@ -4518,6 +4790,18 @@ def _query_history_selection_projection(evidence):
             ),
         },
     }
+    if "active_shadow_targets" in evidence:
+        projection.update(
+            {
+                "full_selected_targets": evidence["full_selected_targets"],
+                "active_shadow_targets": evidence["active_shadow_targets"],
+                "active_routes": evidence["active_routes"],
+                "active_authorized_targets": evidence["active_authorized_targets"],
+                "active_grid_semantics_sha256": evidence[
+                    "active_grid_semantics_sha256"
+                ],
+            }
+        )
     try:
         return _canonical_json_bytes(projection)
     except RunnerError:
@@ -4565,6 +4849,14 @@ def run_live(
     previous_plan=None,
     _include_plan=False,
 ):
+    golden_targets = _validate_golden_targets_option(
+        config,
+        mode="live",
+        decision=decision,
+        allow_write_flag=allow_write_flag,
+    )
+    if golden_targets is not None and plan is not None:
+        raise RunnerError("GOLDEN_TARGETS_QUERY_PLAN_REQUIRED")
     import backtrader as bt
     from backtrader.brokers.btapibroker import BtApiBroker
     from backtrader.stores.registered_sim import RegisteredSimStore
@@ -4704,6 +4996,7 @@ def run_live(
                 for key in ("trading_day", "connection_generation")
             ):
                 raise RunnerError("LIVE_SESSION_CHANGED_DURING_SELECTION")
+            plan = _apply_golden_target_subset(plan, golden_targets)
             query_session_ready = True
             selection_snapshot_id = plan["source_snapshot_id"]
         elif plan is None:
@@ -5275,6 +5568,13 @@ def run_live(
         "resource_shutdown": cleanup,
         "cleanup_complete": _cleanup_complete(cleanup),
     }
+    if plan.get("golden_targets") is not None:
+        summary.update(
+            {
+                "full_selected_targets": list(plan["full_selected_targets"]),
+                "active_shadow_targets": list(plan["active_shadow_targets"]),
+            }
+        )
     if _include_plan:
         summary["_plan"] = plan
     return summary
@@ -5289,11 +5589,15 @@ def _route_summary(plan):
 def _assert_daily_plan_transition(previous, current):
     """Keep the product pool fixed while requiring a later PIT epoch."""
 
-    if set(previous["products"]) != set(current["products"]):
+    previous_products = previous.get("full_products", previous["products"])
+    current_products = current.get("full_products", current["products"])
+    if set(previous_products) != set(current_products):
         raise RunnerError("DAILY_SELECTION_PRODUCT_POOL_CHANGED")
     if previous["manifest"].policy != current["manifest"].policy:
         raise RunnerError("DAILY_SELECTION_POLICY_CHANGED")
-    if set(previous["authorized_targets"]) != set(current["authorized_targets"]):
+    previous_authorized = previous.get("full_authorized_targets", previous["authorized_targets"])
+    current_authorized = current.get("full_authorized_targets", current["authorized_targets"])
+    if set(previous_authorized) != set(current_authorized):
         raise RunnerError("DAILY_SELECTION_AUTHORIZED_POOL_CHANGED")
     if set(previous["session_calendars"]) != set(current["session_calendars"]):
         raise RunnerError("DAILY_SELECTION_EXCHANGE_SET_CHANGED")
@@ -5495,6 +5799,13 @@ def _run_ctp_query_live_epochs(
                 "decision_tape_readback": result["decision_tape_readback"],
                 "strategy_order_events": result.get("strategy_order_events"),
             }
+            if plan.get("golden_targets") is not None:
+                row.update(
+                    {
+                        "full_selected_targets": list(plan["full_selected_targets"]),
+                        "active_shadow_targets": list(plan["active_shadow_targets"]),
+                    }
+                )
             summaries.append(row)
             previous_plan = plan
             previous_result = result
@@ -5525,7 +5836,7 @@ def _run_ctp_query_live_epochs(
             pass
         raise
 
-    return {
+    summary = {
         "status": sequence_status,
         "mode": "live",
         "tier": decision.effective_tier,
@@ -5541,6 +5852,14 @@ def _run_ctp_query_live_epochs(
         "next_epoch_loaded": len(summaries) > 1,
         "stop_reason": stop_reason,
     }
+    if summaries and "active_shadow_targets" in summaries[-1]:
+        summary.update(
+            {
+                "full_selected_targets": summaries[-1]["full_selected_targets"],
+                "active_shadow_targets": summaries[-1]["active_shadow_targets"],
+            }
+        )
+    return summary
 
 
 def run_live_epochs(
