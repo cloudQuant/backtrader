@@ -1,0 +1,256 @@
+{
+  "schema": "iteration51.source_round.v1",
+  "date": "2026-10-27",
+  "repository": "D:\\source_code\\backtrader",
+  "branch": "dev",
+  "parent_commit": "ce5a86741d2091bb7c54d7adb2bf55c70af21fa7",
+  "scope": "Bounded full-195-grid saved Alpha003 tape validation through ordinary Cerebro native/build",
+  "evidence_level": "SOURCE_COMPOSITION_AND_ONE_INSTALLED_SYNTHETIC_NODE_ONLY",
+  "source_checkout_sha256": {
+    "scripts/validate_iteration51_saved_factor_tape.py": "7800089b42c54c2902873d69b95a867cc6849599b290fb780fa4756dedf4592d",
+    "tests/integration/test_iteration51_saved_factor_tape.py": "858fd3a9cd5039b242469fbe861f5efd87466b0beed5f1e2b9d6c6fedffd4781"
+  },
+  "source_qa": {
+    "distinct_focused_nodes_with_pass_evidence": 11,
+    "single_final_source_suite_claim": false,
+    "runs": [
+      {
+        "name": "negative",
+        "passed": 4,
+        "failed": 0,
+        "raw_result_preserved": true
+      },
+      {
+        "name": "fix",
+        "passed": 3,
+        "failed": 1,
+        "raw_result_preserved": true
+      },
+      {
+        "name": "live-positive-failed",
+        "passed": 0,
+        "failed": 1,
+        "raw_result_preserved": true
+      },
+      {
+        "name": "receive-order",
+        "passed": 2,
+        "failed": 0,
+        "raw_result_preserved": true
+      },
+      {
+        "name": "entry-guards",
+        "passed": 2,
+        "failed": 0,
+        "raw_result_preserved": true
+      }
+    ],
+    "warnings": "One existing unknown asyncio_default_fixture_loop_scope option warning per run.",
+    "failures_repaired": [
+      "Test fixture missing math import.",
+      "Validator incorrectly required strictly increasing receive timestamps although two real Feed events in one drain share the same capture time."
+    ],
+    "early_positive": "An earlier self-generated tape positive passed before these focused runs; not added to the 11-case count."
+  },
+  "installed_qa": {
+    "passed": 1,
+    "exit_code": 0,
+    "installed_module_origins_checked": 549,
+    "test": "test_saved_factor_tape_accepts_live_ready_good_batch_with_legal_nan",
+    "backtrader_record_sha256": "d243f63d1dc8fee67abbab8bcb05ba4e33b23816ee44315c13468f656db5c39a",
+    "wheel_rebuilt_or_reinstalled": false
+  },
+  "composition": {
+    "source": "Actual LiveFactorSet/Cerebro snapshots and production DecisionTapeWriter with synthetic source events.",
+    "targets": 6,
+    "grid_minutes": 195,
+    "offline_modes": [
+      "native",
+      "build"
+    ],
+    "value_reason_membership_comparisons_per_mode": 1170,
+    "legal_nan_checked": true,
+    "distinct_finite_same_grid_witness_checked": true
+  },
+  "review": "Independent final static GO_SOURCE_COMPOSITION_SAVED_TAPE_ONLY; Root reviewed repaired boundaries and ran the new installed-core composition node.",
+  "contract": [
+    "Caller supplies the same-run plan, complete 195 planned minutes and exact closed-tape receipt pins.",
+    "64 MiB tape and plan read caps; streaming records; at most 256 targets and 512 plan slots, with exactly 195 required for this profile.",
+    "At least 100 complete GOOD LIVE_READY batches; lawful NaN/reasons still match offline computation exactly.",
+    "Strict feed sequence, nondecreasing capture monotonic time, stable source identity, live-only members and causal availability.",
+    "At least two authorized targets have distinct finite scores in one grid; no requirement that every target is finite.",
+    "Tape hash and size match before reading and after offline computation; no order-rule recomputation."
+  ],
+  "limitations": [
+    "No actual market tape or private configuration was read in this round.",
+    "Does not accept account calls, golden suffix runs, restarts or real-session ACs.",
+    "The accepted package and SDK remain unchanged; source and installed tests are distinct evidence."
+  ],
+  "archive": {
+    "file": "public-qa.zip",
+    "bytes": 33177,
+    "sha256": "a35316fea2a34c58f6eadd5c9fb8d194491faad6b7591ff2b3dc729aa815163a",
+    "members": [
+      {
+        "member": "negative/command.txt",
+        "bytes": 642,
+        "sha256": "bd2bb4a36013f13527d2e8415e05393540f22d092e17b35d9f8032fd485ab8e5"
+      },
+      {
+        "member": "negative/result.json",
+        "bytes": 1831,
+        "sha256": "5113015147c4071d3c15081e849394feb7c1b5e99cf1c3286e986daed752763a"
+      },
+      {
+        "member": "negative/junit.xml",
+        "bytes": 821,
+        "sha256": "fedae408d207d0ab2e7ca62630978439793b845279753afe65aa7aa254b580ac"
+      },
+      {
+        "member": "negative/stdout.txt",
+        "bytes": 631,
+        "sha256": "3a9098c49c372b0139c33f3d10557d6ea13ed11a06bc9e27179b73af371ec03e"
+      },
+      {
+        "member": "fix/command.txt",
+        "bytes": 648,
+        "sha256": "a5b909ebc23e43ce4d8a7684ea4e7ea797b9ccb08fa8a9c347b13f3a1816ff07"
+      },
+      {
+        "member": "fix/result.json",
+        "bytes": 1837,
+        "sha256": "d5662c9bc2d28069bf6e9e75c4d35a2c4278ff1552076f6fc3eb2d9605ca8b6a"
+      },
+      {
+        "member": "fix/junit.xml",
+        "bytes": 3422,
+        "sha256": "6516f42a78f977b782759dbd3889c8ec6b2174b809bccefd302fa8300ac48cfa"
+      },
+      {
+        "member": "fix/stdout.txt",
+        "bytes": 3509,
+        "sha256": "5bba2b7ba9f7a25a7c922d180745e7dcb0cc3dc1240ad59c2477b9cc44b27a21"
+      },
+      {
+        "member": "live-positive-failed/command.txt",
+        "bytes": 342,
+        "sha256": "3b5b2ced57d85f7489381390126aa3267472f27075fc8ed97e6d6443ca2b7196"
+      },
+      {
+        "member": "live-positive-failed/result.json",
+        "bytes": 1031,
+        "sha256": "9af3085f1b64656f630f5f6fc9964ebc0776090c57e7adb27f43a76a4cd87038"
+      },
+      {
+        "member": "live-positive-failed/junit.xml",
+        "bytes": 1183,
+        "sha256": "51338cd804507e717b38330d68e71eea46794e722156b4d9bb746f983853c334"
+      },
+      {
+        "member": "live-positive-failed/stdout.txt",
+        "bytes": 1672,
+        "sha256": "a9305a2495a6e99bcf0ecb4d4ab3a540281fcee327520d3001d96c123f93c4b0"
+      },
+      {
+        "member": "live-positive-failed/pre-pins.json",
+        "bytes": 221,
+        "sha256": "570c17255b29599626b9e0d7528ea4502a788f55b8831c438cf3fb52cfa3a25c"
+      },
+      {
+        "member": "live-positive-failed/post-pins.json",
+        "bytes": 221,
+        "sha256": "570c17255b29599626b9e0d7528ea4502a788f55b8831c438cf3fb52cfa3a25c"
+      },
+      {
+        "member": "receive-order/command.txt",
+        "bytes": 461,
+        "sha256": "77a947163406c424f073ce4fc3d3d8f0aff68eb8c48168f019577d85f2a531b5"
+      },
+      {
+        "member": "receive-order/result.json",
+        "bytes": 1150,
+        "sha256": "52c65c22633d5f18c713c2d088d720ea9650ab47c089dc0d3535dbda11e09224"
+      },
+      {
+        "member": "receive-order/junit.xml",
+        "bytes": 537,
+        "sha256": "adaa2183979d386f7e5d78a95becf177a16cbb32949d2c9e15e8307d35087a60"
+      },
+      {
+        "member": "receive-order/stdout.txt",
+        "bytes": 634,
+        "sha256": "3e3b058600be21e77216ea67c541cc8c2d767fe95bf5e8df5a37184191aec8e3"
+      },
+      {
+        "member": "receive-order/pre-pins.json",
+        "bytes": 221,
+        "sha256": "cce5c122a190e271babd10e948c1fad987afa9ee1d1c3efdcd3660d3db2ebbd5"
+      },
+      {
+        "member": "receive-order/post-pins.json",
+        "bytes": 221,
+        "sha256": "cce5c122a190e271babd10e948c1fad987afa9ee1d1c3efdcd3660d3db2ebbd5"
+      },
+      {
+        "member": "entry-guards/command.txt",
+        "bytes": 453,
+        "sha256": "24140617572a80749bd67baea88fc86dc6a3d8506a1db7172d3c3c835a1d8282"
+      },
+      {
+        "member": "entry-guards/result.json",
+        "bytes": 1140,
+        "sha256": "9310299372bfd8bf2f6b641dec086b4c1922ede11c54919568093360493fa6bc"
+      },
+      {
+        "member": "entry-guards/junit.xml",
+        "bytes": 531,
+        "sha256": "a5c2ed3590e999e381671cc97b52302c5aa956e902c112f183f30518d2881528"
+      },
+      {
+        "member": "entry-guards/stdout.txt",
+        "bytes": 633,
+        "sha256": "7616b646530acfcce5629e93f6517c9de1a447e8417510425642c4f6dff4605d"
+      },
+      {
+        "member": "entry-guards/pre-pins.json",
+        "bytes": 221,
+        "sha256": "0fbfe8f4594e4acffc2104935d75d971df1300146758309256bb69b2948f9b5d"
+      },
+      {
+        "member": "entry-guards/post-pins.json",
+        "bytes": 221,
+        "sha256": "0fbfe8f4594e4acffc2104935d75d971df1300146758309256bb69b2948f9b5d"
+      },
+      {
+        "member": "installed/command.json",
+        "bytes": 595,
+        "sha256": "4ab9be47dd8adc5456b9579b85b32fc1d8d9038e3635f19ba1337172ebe32a99"
+      },
+      {
+        "member": "installed/result.json",
+        "bytes": 1181,
+        "sha256": "ce2115c02ca6ccdfa609cc58f9b13e28294ae3a4542c21cec6f39279a0aa235b"
+      },
+      {
+        "member": "installed/junit.xml",
+        "bytes": 384,
+        "sha256": "9fc798ec0d38ceed74afe0b9519c96400a732f6fe6f04a636ff6fe97f5b44999"
+      },
+      {
+        "member": "initial-negative-source/frozen-original-validate_iteration51_saved_factor_tape.py",
+        "bytes": 55531,
+        "sha256": "3f1d0c2b78804acb212adf920597af2df0dc8419687017ec70136ac1d5340414"
+      },
+      {
+        "member": "initial-negative-source/frozen-original-test_iteration51_saved_factor_tape.py",
+        "bytes": 15757,
+        "sha256": "c9258d78f45b9a3723967499c7a6d9f8c4a5b0726322b91b05cebd7d1924bb6c"
+      },
+      {
+        "member": "installed/root-focus.py",
+        "bytes": 3855,
+        "sha256": "aabf19e85d3c83e5d3ec9ff4b9b96316278b02aa18023b5afa5c28a1d591aaa7"
+      }
+    ]
+  }
+}
