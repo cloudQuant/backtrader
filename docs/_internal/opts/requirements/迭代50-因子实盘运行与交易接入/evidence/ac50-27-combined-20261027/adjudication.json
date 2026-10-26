@@ -1,0 +1,641 @@
+{
+  "schema_version": 1,
+  "decision": "PASS",
+  "parent_acceptance": "AC50-27",
+  "parent_status": "PASS",
+  "adjudicated_at": "2026-10-27",
+  "scope": "The AC50-27 profile requirements only: 27a (20 assets, Alpha003, native/build, 100000 evaluated grids) and 27b (20 assets, six representative factors, native/build, 100000 evaluated grids per mode, at least 7200 seconds with fault/idle coverage).",
+  "evidence_level": "COMPOSITION_SYNTHETIC_SOURCE_STREAM_ONLY",
+  "criteria_sources": {
+    "acceptance_plan": {
+      "path": "docs/_internal/opts/requirements/迭代50-因子实盘运行与交易接入/验收方案.md",
+      "size_bytes": 40987,
+      "sha256": "16848ee8771a95ab16d627c794c8b29196ea50b330f605ad675332e7a43d95cb"
+    },
+    "iteration_plan": {
+      "path": "docs/_internal/opts/requirements/迭代50-因子实盘运行与交易接入/迭代计划.md",
+      "size_bytes": 25591,
+      "sha256": "5acf19c83d9a9741165a49b7fb1a7e667ea97de5df42cad23c290b4720b272cf"
+    }
+  },
+  "timing_waiver": {
+    "basis": "User-approved AC50-27 timing rule recorded on 2026-10-26; pure p99/max thresholds are optimization data and do not block functional longstream acceptance.",
+    "waived_gate_failure_codes": [
+      "durable_decision_p99_latency_exceeded_100ms",
+      "durable_decision_max_latency_exceeded_500ms"
+    ],
+    "nonwaived_requirements": [
+      "numerical/oracle correctness",
+      "complete source grids/no gaps or corruption",
+      "data freshness and safety deadlines",
+      "bounded memory/capacities",
+      "fault/recovery and idle coverage required by 27b",
+      "normal Store/journal close, reopen/readback and checkpoint"
+    ],
+    "raw_result_statuses_or_gate_failures_rewritten": false
+  },
+  "runs": {
+    "27a_native": {
+      "mode": "native",
+      "result": {
+        "path": "docs/_internal/opts/requirements/迭代50-因子实盘运行与交易接入/evidence/formal-27a-native-r3-20261025/result.json",
+        "size_bytes": 33113,
+        "sha256": "e93946e48a46e3d5b961a2ac68a2acabbb86b0457917d66ccb1c7aeca55a8916"
+      },
+      "completion": {
+        "path": "docs/_internal/opts/requirements/迭代50-因子实盘运行与交易接入/evidence/formal-27a-native-r3-20261025/completion.json",
+        "size_bytes": 175,
+        "sha256": "43f96001a6d433615514a12a52a011a9da51a912ad540537c281a2a05f62bb15"
+      },
+      "original_status": "FAIL",
+      "original_gate_failures": [
+        "durable_decision_max_latency_exceeded_500ms"
+      ],
+      "completion_exit_code": 3,
+      "completion_result_exists": true,
+      "source_revision": "718ca1dc644321b316c761d361a04497fc2719af",
+      "runner_sha256": "75ca8866f6adb7fb8fc2dd361107d7749170d2cb453ba4cff4754a334567c2db",
+      "input_generation_sha256": "e5825a532fbcc32191b64a6bfd4c68cdbb4fff1cf494a0ff6ecc155770badbd8",
+      "loaded_module_set": {
+        "module_count": 31,
+        "sha256": "b2b0bd67554fce4e15b2c9267f4c72e07bfe01f0c99f29107534bf0f7f967276",
+        "pre_post_match": true
+      },
+      "profile": {
+        "scenario": "standard",
+        "mode": "native",
+        "target_count": 20,
+        "factor_ids": [
+          3
+        ],
+        "factor_names": [
+          "alpha003"
+        ],
+        "evaluation_grids": 100000,
+        "warmup_bars": 64,
+        "total_grid_slots": 100064,
+        "minimum_wall_clock_duration_seconds": 0
+      },
+      "elapsed_seconds": 2903.031,
+      "oracle": {
+        "comparisons": 2000000,
+        "finite_factor_values": 2000000,
+        "distinct_finite_factor_values": 2,
+        "factor_output_unavailable_grids": 0,
+        "rank_reason_failures": 0,
+        "correlation_reason_failures": 0,
+        "tolerance": "abs(actual-reference) <= 1e-12 + 1e-10*abs(reference)"
+      },
+      "source_completeness": {
+        "events_returned": 2001280,
+        "source_gap_count": 0,
+        "cohort_frozen": false,
+        "cohort_gaps": [],
+        "cohort_next_slot_index": 100064,
+        "max_current_member_rows": 20,
+        "max_pending_source_slots": 1,
+        "source_rows_retained_max": 20,
+        "source_rows_retained_at_end": 0,
+        "source_clock_bar_close_to_available": {
+          "clock_domain_id": "synthetic-source-utc",
+          "max_ms": 0.0,
+          "p99_upper_bound_ms": 0.1,
+          "sample_count": 100000
+        }
+      },
+      "memory": {
+        "growth_pass": true,
+        "rss_growth_bytes": 1036288,
+        "rss_growth_limit_bytes": 33554432,
+        "first_window_sample_count": 1000,
+        "last_window_sample_count": 1000,
+        "process_tree_peak_claimed": false,
+        "rss_samples_may_miss_transient_peaks": true
+      },
+      "cleanup": {
+        "synthetic_store_close_attempted": true,
+        "synthetic_store_close_returned": true,
+        "journal_passed": true,
+        "journal_close_returned": true,
+        "journal_closed": true,
+        "reopen_succeeded": true,
+        "readback_matches_live_close": true,
+        "checkpoint_complete": true,
+        "checkpoint_busy": 0,
+        "failure_codes": []
+      },
+      "latency_observation": {
+        "p99_upper_bound_ms": 93.10000000000001,
+        "p99_limit_ms": 100.0,
+        "max_ms": 1985.0,
+        "max_limit_ms": 500.0
+      },
+      "soak_coverage": {
+        "failure_recovery_path_exercised": false,
+        "idle_order_event_path_exercised": false,
+        "ordinary_broker_lifecycle_exercised": false,
+        "full_group_rebuild_exercised": false,
+        "ac50_25_disk_or_persistent_write_failure_exercised": false,
+        "backbroker_order_lifecycle_journaled_by_noop_decision": false,
+        "ac50_27b_ready": false,
+        "ac50_27b_formal_acceptance_claimed": false
+      }
+    },
+    "27a_build": {
+      "mode": "build",
+      "result": {
+        "path": "docs/_internal/opts/requirements/迭代50-因子实盘运行与交易接入/evidence/formal-27a-build-r6-20261025/result.json",
+        "size_bytes": 33102,
+        "sha256": "ef915ad4c77c4c39d5fffb105006b956a9637718b2ef87f4ee59ddf79fd23c5e"
+      },
+      "completion": {
+        "path": "docs/_internal/opts/requirements/迭代50-因子实盘运行与交易接入/evidence/formal-27a-build-r6-20261025/completion.json",
+        "size_bytes": 175,
+        "sha256": "bf1761131f8fdc7aaee7ad170c40842e9fbbeea915853dd81bc72140b1a57f3a"
+      },
+      "original_status": "FAIL",
+      "original_gate_failures": [
+        "durable_decision_max_latency_exceeded_500ms"
+      ],
+      "completion_exit_code": 3,
+      "completion_result_exists": true,
+      "source_revision": "a69a494e7b26251703c130c2b9083f9ce196ef2c",
+      "runner_sha256": "75ca8866f6adb7fb8fc2dd361107d7749170d2cb453ba4cff4754a334567c2db",
+      "input_generation_sha256": "e5825a532fbcc32191b64a6bfd4c68cdbb4fff1cf494a0ff6ecc155770badbd8",
+      "loaded_module_set": {
+        "module_count": 31,
+        "sha256": "b2b0bd67554fce4e15b2c9267f4c72e07bfe01f0c99f29107534bf0f7f967276",
+        "pre_post_match": true
+      },
+      "profile": {
+        "scenario": "standard",
+        "mode": "build",
+        "target_count": 20,
+        "factor_ids": [
+          3
+        ],
+        "factor_names": [
+          "alpha003"
+        ],
+        "evaluation_grids": 100000,
+        "warmup_bars": 64,
+        "total_grid_slots": 100064,
+        "minimum_wall_clock_duration_seconds": 0
+      },
+      "elapsed_seconds": 3646.703,
+      "oracle": {
+        "comparisons": 2000000,
+        "finite_factor_values": 2000000,
+        "distinct_finite_factor_values": 2,
+        "factor_output_unavailable_grids": 0,
+        "rank_reason_failures": 0,
+        "correlation_reason_failures": 0,
+        "tolerance": "abs(actual-reference) <= 1e-12 + 1e-10*abs(reference)"
+      },
+      "source_completeness": {
+        "events_returned": 2001280,
+        "source_gap_count": 0,
+        "cohort_frozen": false,
+        "cohort_gaps": [],
+        "cohort_next_slot_index": 100064,
+        "max_current_member_rows": 20,
+        "max_pending_source_slots": 1,
+        "source_rows_retained_max": 20,
+        "source_rows_retained_at_end": 0,
+        "source_clock_bar_close_to_available": {
+          "clock_domain_id": "synthetic-source-utc",
+          "max_ms": 0.0,
+          "p99_upper_bound_ms": 0.1,
+          "sample_count": 100000
+        }
+      },
+      "memory": {
+        "growth_pass": true,
+        "rss_growth_bytes": 1206272,
+        "rss_growth_limit_bytes": 33554432,
+        "first_window_sample_count": 1000,
+        "last_window_sample_count": 1000,
+        "process_tree_peak_claimed": false,
+        "rss_samples_may_miss_transient_peaks": true
+      },
+      "cleanup": {
+        "synthetic_store_close_attempted": true,
+        "synthetic_store_close_returned": true,
+        "journal_passed": true,
+        "journal_close_returned": true,
+        "journal_closed": true,
+        "reopen_succeeded": true,
+        "readback_matches_live_close": true,
+        "checkpoint_complete": true,
+        "checkpoint_busy": 0,
+        "failure_codes": []
+      },
+      "latency_observation": {
+        "p99_upper_bound_ms": 94.10000000000001,
+        "p99_limit_ms": 100.0,
+        "max_ms": 1766.0,
+        "max_limit_ms": 500.0
+      },
+      "soak_coverage": {
+        "failure_recovery_path_exercised": false,
+        "idle_order_event_path_exercised": false,
+        "ordinary_broker_lifecycle_exercised": false,
+        "full_group_rebuild_exercised": false,
+        "ac50_25_disk_or_persistent_write_failure_exercised": false,
+        "backbroker_order_lifecycle_journaled_by_noop_decision": false,
+        "ac50_27b_ready": false,
+        "ac50_27b_formal_acceptance_claimed": false
+      }
+    },
+    "27b_native": {
+      "mode": "native",
+      "result": {
+        "path": "docs/_internal/opts/requirements/迭代50-因子实盘运行与交易接入/evidence/formal-27b-native-20261026/result.json",
+        "size_bytes": 37847,
+        "sha256": "e5e7d78adc75b71213568b94ee2507d0d0c100bb6d63c201bfe4a1b1142e1c4c"
+      },
+      "completion": {
+        "path": "docs/_internal/opts/requirements/迭代50-因子实盘运行与交易接入/evidence/formal-27b-native-20261026/completion.json",
+        "size_bytes": 174,
+        "sha256": "8c085a9dc768e28da51bb0ec38612d8e05601516e576179e6915175b48486597"
+      },
+      "original_status": "FAIL",
+      "original_gate_failures": [
+        "durable_decision_p99_latency_exceeded_100ms",
+        "durable_decision_max_latency_exceeded_500ms"
+      ],
+      "completion_exit_code": 3,
+      "completion_result_exists": true,
+      "source_revision": "a69a494e7b26251703c130c2b9083f9ce196ef2c",
+      "runner_sha256": "75ca8866f6adb7fb8fc2dd361107d7749170d2cb453ba4cff4754a334567c2db",
+      "input_generation_sha256": "c066ca821f2ecd79616fa3b649f392b2f7050c9cfd6ead3fa6524e8ef54a4b0c",
+      "loaded_module_set": {
+        "module_count": 36,
+        "sha256": "f4120ba0213bed09f6129f18b01d07962403267ac3257c4b736f2748e8c0d8f7",
+        "pre_post_match": true
+      },
+      "profile": {
+        "scenario": "27b",
+        "mode": "native",
+        "target_count": 20,
+        "factor_ids": [
+          1,
+          3,
+          6,
+          48,
+          56,
+          101
+        ],
+        "factor_names": [
+          "alpha001",
+          "alpha003",
+          "alpha006",
+          "alpha048",
+          "alpha056",
+          "alpha101"
+        ],
+        "evaluation_grids": 100000,
+        "warmup_bars": 316,
+        "total_grid_slots": 100316,
+        "minimum_wall_clock_duration_seconds": 7200
+      },
+      "elapsed_seconds": 11818.141,
+      "oracle": {
+        "comparisons": 12000000,
+        "finite_factor_values": 12000000,
+        "distinct_finite_factor_values": 2,
+        "factor_output_unavailable_grids": 0,
+        "rank_reason_failures": 0,
+        "correlation_reason_failures": 0,
+        "tolerance": "abs(actual-reference) <= 1e-12 + 1e-10*abs(reference)"
+      },
+      "source_completeness": {
+        "events_returned": 2006320,
+        "source_gap_count": 0,
+        "cohort_frozen": false,
+        "cohort_gaps": [],
+        "cohort_next_slot_index": 100316,
+        "max_current_member_rows": 20,
+        "max_pending_source_slots": 1,
+        "source_rows_retained_max": 20,
+        "source_rows_retained_at_end": 0,
+        "source_clock_bar_close_to_available": {
+          "clock_domain_id": "synthetic-source-utc",
+          "max_ms": 0.0,
+          "p99_upper_bound_ms": 0.1,
+          "sample_count": 100000
+        }
+      },
+      "memory": {
+        "growth_pass": true,
+        "rss_growth_bytes": -32829440,
+        "rss_growth_limit_bytes": 33554432,
+        "first_window_sample_count": 1000,
+        "last_window_sample_count": 1000,
+        "process_tree_peak_claimed": false,
+        "rss_samples_may_miss_transient_peaks": true
+      },
+      "cleanup": {
+        "synthetic_store_close_attempted": true,
+        "synthetic_store_close_returned": true,
+        "journal_passed": true,
+        "journal_close_returned": true,
+        "journal_closed": true,
+        "reopen_succeeded": true,
+        "readback_matches_live_close": true,
+        "checkpoint_complete": true,
+        "checkpoint_busy": 0,
+        "failure_codes": []
+      },
+      "latency_observation": {
+        "p99_upper_bound_ms": 281.1,
+        "p99_limit_ms": 100.0,
+        "max_ms": 1828.0,
+        "max_limit_ms": 500.0
+      },
+      "soak_coverage": {
+        "failure_recovery_path_exercised": true,
+        "idle_order_event_path_exercised": true,
+        "ordinary_broker_lifecycle_exercised": true,
+        "full_group_rebuild_exercised": false,
+        "ac50_25_disk_or_persistent_write_failure_exercised": false,
+        "backbroker_order_lifecycle_journaled_by_noop_decision": false,
+        "ac50_27b_ready": false,
+        "ac50_27b_formal_acceptance_claimed": false
+      },
+      "recovery": {
+        "same_generation": true,
+        "recovery_mode": "same-generation",
+        "disconnect_grid_index": 50316,
+        "resume_grid_index": 50316,
+        "no_feed_strategy_or_factor_advance": true,
+        "poll_rounds_while_disconnected": 1,
+        "resume_barrier_observed": true,
+        "resume_barrier_timed_out": false,
+        "disconnect_to_recovery_ms": 31.0,
+        "idle_callback_count": 23033,
+        "wake_wait_count": 23032,
+        "wake_wait_count_interrupted": 1
+      },
+      "broker_order_lifecycle": {
+        "broker_class": "backtrader.brokers.bbroker.BackBroker",
+        "submit_calls": 1,
+        "cancel_calls": 1,
+        "cancelled_during_idle": true,
+        "notified_statuses": [
+          "Submitted",
+          "Accepted",
+          "Canceled"
+        ],
+        "final_status": "Canceled",
+        "executed_size": 0.0,
+        "position_size": 0.0,
+        "next_without_bar_capability": false,
+        "execution_intents": 0
+      }
+    },
+    "27b_build": {
+      "mode": "build",
+      "result": {
+        "path": "docs/_internal/opts/requirements/迭代50-因子实盘运行与交易接入/evidence/formal-27b-build-20261027/result.json",
+        "size_bytes": 37857,
+        "sha256": "93cd29640a6169a830eea6ea45bc71655ec7828d92096987eb0ce79b6a0d0cbd"
+      },
+      "completion": {
+        "path": "docs/_internal/opts/requirements/迭代50-因子实盘运行与交易接入/evidence/formal-27b-build-20261027/completion.json",
+        "size_bytes": 175,
+        "sha256": "5b9a446baf8f2c3664e6ccee6a4e1233da2a70b6ed607b0cb90d0458500a94c7"
+      },
+      "original_status": "FAIL",
+      "original_gate_failures": [
+        "durable_decision_p99_latency_exceeded_100ms",
+        "durable_decision_max_latency_exceeded_500ms"
+      ],
+      "completion_exit_code": 3,
+      "completion_result_exists": true,
+      "source_revision": "a69a494e7b26251703c130c2b9083f9ce196ef2c",
+      "runner_sha256": "75ca8866f6adb7fb8fc2dd361107d7749170d2cb453ba4cff4754a334567c2db",
+      "input_generation_sha256": "c066ca821f2ecd79616fa3b649f392b2f7050c9cfd6ead3fa6524e8ef54a4b0c",
+      "loaded_module_set": {
+        "module_count": 36,
+        "sha256": "f4120ba0213bed09f6129f18b01d07962403267ac3257c4b736f2748e8c0d8f7",
+        "pre_post_match": true
+      },
+      "profile": {
+        "scenario": "27b",
+        "mode": "build",
+        "target_count": 20,
+        "factor_ids": [
+          1,
+          3,
+          6,
+          48,
+          56,
+          101
+        ],
+        "factor_names": [
+          "alpha001",
+          "alpha003",
+          "alpha006",
+          "alpha048",
+          "alpha056",
+          "alpha101"
+        ],
+        "evaluation_grids": 100000,
+        "warmup_bars": 316,
+        "total_grid_slots": 100316,
+        "minimum_wall_clock_duration_seconds": 7200
+      },
+      "elapsed_seconds": 9150.843,
+      "oracle": {
+        "comparisons": 12000000,
+        "finite_factor_values": 12000000,
+        "distinct_finite_factor_values": 2,
+        "factor_output_unavailable_grids": 0,
+        "rank_reason_failures": 0,
+        "correlation_reason_failures": 0,
+        "tolerance": "abs(actual-reference) <= 1e-12 + 1e-10*abs(reference)"
+      },
+      "source_completeness": {
+        "events_returned": 2006320,
+        "source_gap_count": 0,
+        "cohort_frozen": false,
+        "cohort_gaps": [],
+        "cohort_next_slot_index": 100316,
+        "max_current_member_rows": 20,
+        "max_pending_source_slots": 1,
+        "source_rows_retained_max": 20,
+        "source_rows_retained_at_end": 0,
+        "source_clock_bar_close_to_available": {
+          "clock_domain_id": "synthetic-source-utc",
+          "max_ms": 0.0,
+          "p99_upper_bound_ms": 0.1,
+          "sample_count": 100000
+        }
+      },
+      "memory": {
+        "growth_pass": true,
+        "rss_growth_bytes": 2134016,
+        "rss_growth_limit_bytes": 33554432,
+        "first_window_sample_count": 1000,
+        "last_window_sample_count": 1000,
+        "process_tree_peak_claimed": false,
+        "rss_samples_may_miss_transient_peaks": true
+      },
+      "cleanup": {
+        "synthetic_store_close_attempted": true,
+        "synthetic_store_close_returned": true,
+        "journal_passed": true,
+        "journal_close_returned": true,
+        "journal_closed": true,
+        "reopen_succeeded": true,
+        "readback_matches_live_close": true,
+        "checkpoint_complete": true,
+        "checkpoint_busy": 0,
+        "failure_codes": []
+      },
+      "latency_observation": {
+        "p99_upper_bound_ms": 156.10000000000002,
+        "p99_limit_ms": 100.0,
+        "max_ms": 2156.0,
+        "max_limit_ms": 500.0
+      },
+      "soak_coverage": {
+        "failure_recovery_path_exercised": true,
+        "idle_order_event_path_exercised": true,
+        "ordinary_broker_lifecycle_exercised": true,
+        "full_group_rebuild_exercised": false,
+        "ac50_25_disk_or_persistent_write_failure_exercised": false,
+        "backbroker_order_lifecycle_journaled_by_noop_decision": false,
+        "ac50_27b_ready": false,
+        "ac50_27b_formal_acceptance_claimed": false
+      },
+      "recovery": {
+        "same_generation": true,
+        "recovery_mode": "same-generation",
+        "disconnect_grid_index": 50316,
+        "resume_grid_index": 50316,
+        "no_feed_strategy_or_factor_advance": true,
+        "poll_rounds_while_disconnected": 1,
+        "resume_barrier_observed": true,
+        "resume_barrier_timed_out": false,
+        "disconnect_to_recovery_ms": 47.0,
+        "idle_callback_count": 16910,
+        "wake_wait_count": 16909,
+        "wake_wait_count_interrupted": 1
+      },
+      "broker_order_lifecycle": {
+        "broker_class": "backtrader.brokers.bbroker.BackBroker",
+        "submit_calls": 1,
+        "cancel_calls": 1,
+        "cancelled_during_idle": true,
+        "notified_statuses": [
+          "Submitted",
+          "Accepted",
+          "Canceled"
+        ],
+        "final_status": "Canceled",
+        "executed_size": 0.0,
+        "position_size": 0.0,
+        "next_without_bar_capability": false,
+        "execution_intents": 0
+      }
+    }
+  },
+  "paired_runner_input_module_agreement": {
+    "27a": {
+      "native_run": "27a_native",
+      "build_run": "27a_build",
+      "same_runner_sha256": true,
+      "runner_sha256": "75ca8866f6adb7fb8fc2dd361107d7749170d2cb453ba4cff4754a334567c2db",
+      "same_input_generation": true,
+      "input_generation_sha256": "e5825a532fbcc32191b64a6bfd4c68cdbb4fff1cf494a0ff6ecc155770badbd8",
+      "same_loaded_module_set": true,
+      "module_set_sha256": "b2b0bd67554fce4e15b2c9267f4c72e07bfe01f0c99f29107534bf0f7f967276",
+      "module_count": 31,
+      "native_pre_post_match": true,
+      "build_pre_post_match": true,
+      "source_revision_labels_match": false
+    },
+    "27b": {
+      "native_run": "27b_native",
+      "build_run": "27b_build",
+      "same_runner_sha256": true,
+      "runner_sha256": "75ca8866f6adb7fb8fc2dd361107d7749170d2cb453ba4cff4754a334567c2db",
+      "same_input_generation": true,
+      "input_generation_sha256": "c066ca821f2ecd79616fa3b649f392b2f7050c9cfd6ead3fa6524e8ef54a4b0c",
+      "same_loaded_module_set": true,
+      "module_set_sha256": "f4120ba0213bed09f6129f18b01d07962403267ac3257c4b736f2748e8c0d8f7",
+      "module_count": 36,
+      "native_pre_post_match": true,
+      "build_pre_post_match": true,
+      "source_revision_labels_match": true
+    }
+  },
+  "profile_verdicts": {
+    "27a": {
+      "status": "PASS_FUNCTIONAL_LONGSTREAM_BOTH_MODES",
+      "criteria_satisfied": [
+        "20 targets",
+        "Alpha003 factor id 3",
+        "100000 evaluated grids per mode after 64 warmup slots",
+        "2000000 oracle comparisons per mode",
+        "no unavailable/reason/source-gap failures",
+        "bounded process RSS and source/cache capacities",
+        "Store/journal normal close, checkpoint, reopen and matching readback"
+      ],
+      "two_hour_minimum_required": false
+    },
+    "27b": {
+      "status": "PASS_FUNCTIONAL_LONGSTREAM_BOTH_MODES",
+      "criteria_satisfied": [
+        "20 targets",
+        "representative factor ids 1/3/6/48/56/101",
+        "100000 evaluated grids per mode after 316 warmup slots",
+        "12000000 oracle comparisons per mode",
+        "elapsed wall clock at least 7200 seconds in both modes",
+        "same-generation disconnect/resume at the same grid with no advance while disconnected and a successful resume barrier",
+        "idle BackBroker submit/cancel lifecycle with bounded event, no fill/position",
+        "no unavailable/reason/source-gap failures",
+        "bounded process RSS and source/cache capacities",
+        "Store/journal normal close, checkpoint, reopen and matching readback"
+      ],
+      "elapsed_seconds_by_mode": {
+        "native": 11818.141,
+        "build": 9150.843
+      }
+    }
+  },
+  "limits_and_nonclaims": [
+    "The evidence is synthetic composition only; actual provider/account acceptance is not claimed.",
+    "This decision does not close AC50-01..27 as a whole, 50-A, 50-B, or Iteration 50.",
+    "Full-101 long soak is a separate 50-B/other AC scope, not an AC50-27 prerequisite.",
+    "Full group rebuild is AC50-09/11 scope, not an AC50-27 prerequisite.",
+    "Disk/persistent-write failure injection is AC50-25 scope, not an AC50-27 prerequisite; physical SQLite/WAL capacity enforcement is not claimed.",
+    "The artifacts do not compare native/build output dumps grid-by-grid; each mode independently satisfies its scalar oracle checks on the same paired generator and loaded module set.",
+    "RSS observations are process-local sampled values and do not claim process-tree peak or capture every transient peak.",
+    "Raw runner results remain FAIL/exit 3 because the original timing gates are preserved; this JSON records the separate reviewer acceptance decision."
+  ],
+  "review_copy": {
+    "path": "docs/_internal/opts/requirements/迭代50-因子实盘运行与交易接入/evidence/ac50-27-combined-20261027/criteria-review.md",
+    "size_bytes": 7026,
+    "sha256": "01217e4b80f507c8922fa41ec7e6db29b39de398553174ad8e325ab9be6603c8"
+  },
+  "prior_adjudication_artifacts": [
+    {
+      "path": "docs/_internal/opts/requirements/迭代50-因子实盘运行与交易接入/evidence/formal-27b-native-20261026/adjudication.json",
+      "size_bytes": 1596,
+      "sha256": "34dd87f51f3db84410250ae5200bea438af1b1dff28168b468c63d425774558a"
+    },
+    {
+      "path": "docs/_internal/opts/requirements/迭代50-因子实盘运行与交易接入/evidence/formal-27b-build-20261027/adjudication.json",
+      "size_bytes": 37302,
+      "sha256": "fc11d6ade4aaa8758b55686987267e9bd1e34f9c3794ba8088375c435cf85d8d"
+    },
+    {
+      "path": "docs/_internal/opts/requirements/迭代50-因子实盘运行与交易接入/evidence/formal-27b-build-20261027/record.json",
+      "size_bytes": 2653,
+      "sha256": "3174c263a2dac2524bce92c31921fb4ef5adb7b5fb6d1c9629cf1196ed7ef361"
+    }
+  ]
+}
