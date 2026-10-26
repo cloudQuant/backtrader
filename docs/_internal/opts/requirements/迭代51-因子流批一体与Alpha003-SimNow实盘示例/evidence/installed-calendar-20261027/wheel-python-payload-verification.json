@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "status": "PASS",
+  "source_commit": "ae218c04ca521aaad3ef8c6aa38f17f6c334444d",
+  "source_archive_sha256": "146845c640fe904aae80c3a552de25f82c6b21c4f4aff4a5927dd8d6153f8ba3",
+  "wheel": "D:\\temp\\i51cal-consumer-20261027-r1\\wheel\\back_trader_python-1.4.0-py3-none-any.whl",
+  "wheel_sha256": "c560ed79d34c87e0baec015ed9e3b55f8d82ee5e79f157eaf2df3a4063812f16",
+  "source_python_count": 662,
+  "wheel_python_count": 662,
+  "missing_from_wheel": [],
+  "extra_in_wheel": [],
+  "hash_mismatches": []
+}
