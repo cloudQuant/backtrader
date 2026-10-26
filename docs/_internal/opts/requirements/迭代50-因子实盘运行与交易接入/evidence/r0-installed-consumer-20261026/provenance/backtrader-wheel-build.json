@@ -1,0 +1,24 @@
+﻿{
+  "source_commit": "3eacbd197ed4812c2e0627d2f994065934d6f978",
+  "source_archive_sha256": "e87684dc41b91760220c68e668302feb9fdf38e548b6d8fa85b683dca013be56",
+  "command": [
+    "C:\\anaconda3\\python.exe",
+    "-I",
+    "-m",
+    "pip",
+    "wheel",
+    "--disable-pip-version-check",
+    "--no-cache-dir",
+    "--no-deps",
+    "--index-url",
+    "https://pypi.org/simple",
+    "--wheel-dir",
+    "D:\\temp\\ac51-r0-sdk-20261026-bt-wheelprep\\wheel",
+    "D:\\temp\\ac51-r0-sdk-20261026-bt-wheelprep\\source"
+  ],
+  "started_unix": 1793027875,
+  "ended_unix": 1793027894,
+  "exit_code": 0,
+  "stdout": "D:\\temp\\ac51-r0-sdk-20261026-bt-wheelprep\\backtrader-wheel-build.stdout.log",
+  "stderr": "D:\\temp\\ac51-r0-sdk-20261026-bt-wheelprep\\backtrader-wheel-build.stderr.log"
+}
