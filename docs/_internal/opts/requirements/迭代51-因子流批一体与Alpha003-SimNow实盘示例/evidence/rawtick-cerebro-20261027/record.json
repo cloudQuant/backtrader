@@ -1,0 +1,110 @@
+{
+  "status": "PASS_SOURCE_FAKE_RAW_CTP_TO_CEREBRO",
+  "parent": "a5929052a73a305bd5e3cc0b19f462e344169fde",
+  "sources": {
+    "tests/integration/test_ctp_factor_source_cerebro.py": "e092de7905d39b2c19640c67a5a0eff064df5942d94b36ddb1668f78cdcb3370"
+  },
+  "qa": {
+    "argv": [
+      "C:/anaconda3/python.exe",
+      "-m",
+      "pytest",
+      "tests/integration/test_ctp_factor_source_cerebro.py",
+      "-q",
+      "--tb=short",
+      "-p",
+      "no:asyncio",
+      "--junitxml=D:\\temp\\i51-rawtick-cerebro-root-qa-20261027-r3\\junit.xml"
+    ],
+    "exit_code": 0,
+    "elapsed_seconds": 4.204,
+    "source_pins": {
+      "tests/integration/test_ctp_factor_source_cerebro.py": "e092de7905d39b2c19640c67a5a0eff064df5942d94b36ddb1668f78cdcb3370",
+      "tests/integration/test_ctp_factor_source_cohort.py": "3ec4493afc9186e32e5e1804580067cd390c899fa4c26310d8f92a6deb6ec4c9",
+      "backtrader/stores/btapistore.py": "04dd30950eded43cf3fdfb9596dc5587e87c2fe19b12957608faa7ae7bc327c2",
+      "backtrader/feeds/btapifeed.py": "9db659fee67098c7592212920df414c88a9a7fcf1cfca0eedd995bba9f1df599",
+      "backtrader/feeds/ctp_factor_source.py": "e65fb21eff1577a3565e99f484a9abcc96a606443026507ac3a703501e5c6316",
+      "backtrader/_cerebro/runnext.py": "d0a12a6558f3418249cc0ff9d9f35336698b5be7330929c05d02c2d1921511b9",
+      "backtrader/research/live_cohort.py": "69f31733ad0fedc126837f6595b752cf2e2b180471da2352ab98ccb2e825b0d6"
+    },
+    "source_unchanged": true
+  },
+  "passed": 2,
+  "warnings": 1,
+  "scope": "3 synthetic products, native/build, 50 complete minute cohorts, 30 warmup, independent Alpha003 oracle, zero orders, normal Store cleanup",
+  "real_components": [
+    "CTP Store callback adapter and tick queues",
+    "BtApiFeed timestamp validation and minute aggregation",
+    "LiveBarCohort",
+    "ordinary Cerebro.run",
+    "production Alpha003 native/build"
+  ],
+  "fake_leaves": [
+    "SDK clients/raw callbacks",
+    "source UTC and Store callback wall clock",
+    "typed native shutdown receipts"
+  ],
+  "history": "Initial fixture lacked a baseline tick; later callback EOF assertion interrupted legitimate queued-tick/bar drain. Final fixture permits at most 64 unchanged-UTC no-callback retries. Root R1 failed native diagnostic is also preserved under ctp-native-shutdown-20261027/evidence.zip. No production scheduler change or successful-case count from old failed runs.",
+  "actual_account_or_native_close_acceptance": false,
+  "archive": {
+    "sha256": "06d65a308f411f89caf1e41a656694ead4f69e756485505e30194e1c1bf24469",
+    "members": {
+      "author-r1/run.json": {
+        "size": 2459,
+        "sha256": "2ba944b85812da3a350b71b64382124c18ede27c755e6c9a148fc5d6d0f0974c"
+      },
+      "author-r1/stderr.txt": {
+        "size": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "author-r1/stdout.txt": {
+        "size": 2968,
+        "sha256": "e18e96dced14a4042112e447764a9641b533b07e8e73f456e010f1d92ad964f5"
+      },
+      "author-r2/junit.xml": {
+        "size": 552,
+        "sha256": "bab56cc18165037d74458900109c013b38077377ec24ff4ef942353cadb363d7"
+      },
+      "author-r2/run.json": {
+        "size": 4773,
+        "sha256": "69db55b06bef7829723b3980336b4aabce6383c0d8675a427f9458f301fe9a9a"
+      },
+      "review.md": {
+        "size": 3648,
+        "sha256": "82acdd966d066e7a053031f53fbebb4a473277f22359370ad590687153eae061"
+      },
+      "root-r2/junit.xml": {
+        "size": 3110,
+        "sha256": "b73a0d7cc494394663296010e1f2e0e7c520047baec2c68abed7b143ca1dae96"
+      },
+      "root-r2/result.json": {
+        "size": 1184,
+        "sha256": "c76afc55796d2cf29ec02e033628836f240bdb6aedd34a2eb4ff016bec57cf1f"
+      },
+      "root-r2/stderr.txt": {
+        "size": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "root-r2/stdout.txt": {
+        "size": 2671,
+        "sha256": "70dfabf8751e472b155ba730992052adc064bc6b7fbceb95f1d25a6e3a9cd77d"
+      },
+      "root-r3/junit.xml": {
+        "size": 552,
+        "sha256": "b269d22f24513e00dad457f88ae95d5e4072c8eaf807228b6a6393b480774156"
+      },
+      "root-r3/result.json": {
+        "size": 1184,
+        "sha256": "f4e4b5a54cba6b063878e2af6c5d07faad74057b1f6938c3c94550d709745885"
+      },
+      "root-r3/stderr.txt": {
+        "size": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "root-r3/stdout.txt": {
+        "size": 633,
+        "sha256": "82fce71a960c626c53a8eacc432c9b8e7ccedabf81fcd4f35e2e7e2d5403b37a"
+      }
+    }
+  }
+}
