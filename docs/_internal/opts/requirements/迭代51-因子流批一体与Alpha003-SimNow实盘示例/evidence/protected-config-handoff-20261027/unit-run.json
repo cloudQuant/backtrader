@@ -1,0 +1,23 @@
+{
+  "command": [
+    "C:/anaconda3/python.exe",
+    "-m",
+    "pytest",
+    "tests/unit/test_alpha003_protected_simnow.py",
+    "-q",
+    "-p",
+    "no:asyncio",
+    "--tb=short",
+    "--junitxml=D:\\temp\\i51-protected-handoff-20261027-r2\\junit.xml"
+  ],
+  "exit_code": 0,
+  "elapsed_seconds": 1.2077858448028564,
+  "source_before": {
+    "examples/unified/028_alpha003_simnow_minute/protected_simnow.py": "6d411641a2cf5cafd1ead5fa530c7cd145a138adb84d579e7dcffaaa805847ec",
+    "tests/unit/test_alpha003_protected_simnow.py": "86e9545bfa15b4e47fbab608c7e61596e772b5ab50e28bedfa3c3752a1ef6bcb"
+  },
+  "source_after": {
+    "examples/unified/028_alpha003_simnow_minute/protected_simnow.py": "6d411641a2cf5cafd1ead5fa530c7cd145a138adb84d579e7dcffaaa805847ec",
+    "tests/unit/test_alpha003_protected_simnow.py": "86e9545bfa15b4e47fbab608c7e61596e772b5ab50e28bedfa3c3752a1ef6bcb"
+  }
+}

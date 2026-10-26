@@ -1,0 +1,50 @@
+{
+  "schema": 1,
+  "level": "SOURCE_SYNTHETIC_PROTECTED_HANDOFF_AND_LOCAL_INSTALLED_ARTIFACT_ONLY",
+  "parent": "3ba23420b7b1e6145634eff9f334fb26114786a1",
+  "qa": {
+    "passed": 13,
+    "failures": 0,
+    "errors": 0,
+    "source_pins": {
+      "examples/unified/028_alpha003_simnow_minute/protected_simnow.py": "6d411641a2cf5cafd1ead5fa530c7cd145a138adb84d579e7dcffaaa805847ec",
+      "tests/unit/test_alpha003_protected_simnow.py": "86e9545bfa15b4e47fbab608c7e61596e772b5ab50e28bedfa3c3752a1ef6bcb"
+    },
+    "limitations": "Synthetic private config and permission leaves; actual parser, admission, effective and credential seals. SDK gate/profile selector are fake in unit tests."
+  },
+  "actual_public_sdk_gate": {
+    "status": "PASS_INSTALLED_SDK_PROVENANCE",
+    "tool_chunk": "a71418",
+    "python_exit": 0,
+    "consumer": "D:/temp/i51cal-consumer-20261027-r1/consumer",
+    "command": "consumer/Scripts/python.exe -I .codex-tmp/i51_installed_protected_artifact_check_20261027.py",
+    "private_config_read": false,
+    "provider_invoked": false
+  },
+  "root_bounded_metadata": {
+    "status": "PASS_BOUNDED_CONFIG_METADATA_ONLY",
+    "tool_chunk": "3269c4",
+    "python_exit": 0,
+    "scope": "Existing source reader and original registry only; no new handoff or SDK/provider call."
+  },
+  "historical_qa": "D:/temp/i51-protected-handoff-20261027-r1 retains 13 passes before redacted mapping improvement; final acceptance binds r2 only. Initial Black invocation rejected local target-version config before edits; explicit py311 formatting passed.",
+  "provider_account_acceptance": false,
+  "limitations": [
+    "No Store/Broker/Feed/Cerebro or provider construction by the new helper.",
+    "Caller must keep context open through resource shutdown and enforce separate shadow/write permission gates.",
+    "Mapping repr is redacted; explicit conversion can still expose data and is prohibited outside in-process Store handoff.",
+    "Actual protected handoff with installed runtime is a later separate root-only step."
+  ],
+  "archive": {
+    "docs/_internal/opts/requirements/迭代51-因子流批一体与Alpha003-SimNow实盘示例/evidence/protected-config-handoff-20261027/unit-run.json": "2f399b112fd4995511e02dc79c7d30fc7ecd45eaa2488a2987911e6cfeef3e0a",
+    "docs/_internal/opts/requirements/迭代51-因子流批一体与Alpha003-SimNow实盘示例/evidence/protected-config-handoff-20261027/unit-junit.xml": "c929da990dced9ec68771ae3ba5938fffd42df020db7762decc0bda44ffcef29",
+    "docs/_internal/opts/requirements/迭代51-因子流批一体与Alpha003-SimNow实盘示例/evidence/protected-config-handoff-20261027/unit-stdout.log": "66528b04d3df0f9ca8007393aab65b090ec991f2b59a07282fc34e517d185e54",
+    "docs/_internal/opts/requirements/迭代51-因子流批一体与Alpha003-SimNow实盘示例/evidence/protected-config-handoff-20261027/unit-stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "docs/_internal/opts/requirements/迭代51-因子流批一体与Alpha003-SimNow实盘示例/evidence/protected-config-handoff-20261027/review-initial.md": "86b9b3908daa4c8cd51f636566587deb51f433958821d2c3851e35e484f651ef",
+    "docs/_internal/opts/requirements/迭代51-因子流批一体与Alpha003-SimNow实盘示例/evidence/protected-config-handoff-20261027/review-final.md": "023c36e76383345752419c6bca00ed0cb18efb34decf17cf7c0ebedb31917853",
+    "docs/_internal/opts/requirements/迭代51-因子流批一体与Alpha003-SimNow实盘示例/evidence/protected-config-handoff-20261027/installed-sdk-check.py": "710a3a16ba175e45a7d784356ff9593c317b796f574f9a06c47f7a1affe01069",
+    "docs/_internal/opts/requirements/迭代51-因子流批一体与Alpha003-SimNow实盘示例/evidence/protected-config-handoff-20261027/installed-sdk-check.json": "119106ab066d20f5391f6db892b2f78643170514a0c767545c0f720d86155741",
+    "docs/_internal/opts/requirements/迭代51-因子流批一体与Alpha003-SimNow实盘示例/evidence/protected-config-handoff-20261027/root-bounded-metadata.py": "360b33d4d5e56940b3bd85d6b1f8f7932cdffcb97f15e1cbce67808284b50ea0",
+    "docs/_internal/opts/requirements/迭代51-因子流批一体与Alpha003-SimNow实盘示例/evidence/protected-config-handoff-20261027/root-bounded-metadata.json": "76d086971f632e63f39deb4e4b8528593d6c45291d4369231c231bab4f66b194"
+  }
+}

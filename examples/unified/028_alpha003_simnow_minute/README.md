@@ -287,3 +287,12 @@ readback/tamper detection, interrupting the real runner clock through the
 public Cerebro wake API, and resource cleanup after readiness, query-refresh,
 or arm-template setup failures. They do not establish live market, account,
 provider, or native-write acceptance.
+
+
+### 受保护配置的进程内移交（2026-10-27）
+
+`protected_simnow.protected_simnow_store_config(selected_config_index=...)` 供主调用方读取现有 013_3 注册的受保护配置，索引从零开始且必须显式指定。它只将现有零写入策略的目录定位到此示例的 013_3 相邻目录；不修改 I41 注册或 artifact pin 表。必须先通过有界读取、配置/路由/凭据密封及本次固定安装 SDK 校验，再验证官方 SimNow TD/MD 配对。它不探测网络、不创建客户端或 Store，也不授予交易权限。
+
+在上下文内调用 `handoff.for_runner()` 可得到用于 `run(..., _live_store_config_override=...)` 的只读映射。每次取得映射都复核凭据密封；句柄和映射的 repr 隐去内容，退出后共享映射清空且句柄不可复用。调用方必须在上下文结束前正常关闭使用它的全部 Store，单独保持 shadow 配置及已有写入许可门槛。禁止把映射转换为日志、文件、环境变量、子进程参数或验收回执；只允许向本进程 Store 移交。安装来源不符合固定 pin 时直接拒绝，不回退到其他 SDK。
+
+本地最终 13 项合成配置测试及独立静态审阅通过；真实隔离消费者的公开 SDK artifact 校验通过。该组件本轮未执行新 helper 的真实受保护凭据移交、provider 或账户验收。
