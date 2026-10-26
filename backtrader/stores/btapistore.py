@@ -2059,6 +2059,11 @@ def _create_ctp_wrapper_class():
             self._ctp_stream_stale_reason = ""
             self._ctp_stream_stale_tick_drop_count = 0
             self._ctp_stream_stale_tick_drop_reason = ""
+            # This opt-in counter records local callback observation order.
+            # It is not a CTP wire sequence and does not certify continuity.
+            self._ctp_factor_tick_source_enabled = False
+            self._ctp_factor_expected_md_generation = None
+            self._ctp_factor_callback_sequence = 0
             self._price_tick_cache = {}
             self._symbol_specs = {}
             self._order_updates: collections.deque = collections.deque()
@@ -2217,19 +2222,34 @@ def _create_ctp_wrapper_class():
 
         def _mark_md_client_connected(self, md_client):
             """Clear reconnect-pending health only for the active client."""
+            notify = False
             with self._ctp_stream_health_lock:
                 if self._ctp_stream_client is not md_client or md_client is not self.md_client:
                     return
-                self._ctp_stream_stale = False
-                self._ctp_stream_stale_reason = ""
                 generation = getattr(md_client, "connection_generation", None)
-                if (
-                    self._ctp_stream_generation_callbacks
-                    and type(generation) is int
-                    and generation > 0
-                    and self._ctp_stream_source_generation is None
+                if self._ctp_factor_tick_source_enabled and (
+                    type(generation) is not int
+                    or generation != self._ctp_factor_expected_md_generation
                 ):
-                    self._ctp_stream_source_generation = generation
+                    reason = "ctp_factor_md_generation_changed"
+                    self._clear_ctp_tick_queues_locked(reason)
+                    if not self._ctp_stream_stale or self._ctp_stream_stale_reason != reason:
+                        self._ctp_stream_revision += 1
+                    self._ctp_stream_stale = True
+                    self._ctp_stream_stale_reason = reason
+                    notify = True
+                else:
+                    self._ctp_stream_stale = False
+                    self._ctp_stream_stale_reason = ""
+                    if (
+                        self._ctp_stream_generation_callbacks
+                        and type(generation) is int
+                        and generation > 0
+                        and self._ctp_stream_source_generation is None
+                    ):
+                        self._ctp_stream_source_generation = generation
+            if notify:
+                self._notify_live_bar_event()
 
         def _handle_md_tick_for_client(self, payload, source_client):
             """Preserve legacy tick behavior while fencing replaced clients."""
@@ -2249,6 +2269,23 @@ def _create_ctp_wrapper_class():
                     return
                 current_generation = getattr(source_client, "connection_generation", None)
                 if type(current_generation) is not int or generation != current_generation:
+                    return
+
+                if self._ctp_factor_tick_source_enabled and (
+                    self.live_tick_provenance is not None
+                    or generation != self._ctp_factor_expected_md_generation
+                ):
+                    reason = (
+                        "ctp_factor_static_provenance_conflict"
+                        if self.live_tick_provenance is not None
+                        else "ctp_factor_md_generation_changed"
+                    )
+                    self._clear_ctp_tick_queues_locked(reason)
+                    if not self._ctp_stream_stale:
+                        self._ctp_stream_revision += 1
+                    self._ctp_stream_stale = True
+                    self._ctp_stream_stale_reason = reason
+                    self._notify_live_bar_event()
                     return
 
                 previous_generation = self._ctp_stream_source_generation
@@ -2274,9 +2311,36 @@ def _create_ctp_wrapper_class():
                     if dropped and previous_generation is None:
                         self._ctp_stream_revision += 1
                     self._ctp_stream_source_generation = generation
+                if self._ctp_factor_tick_source_enabled:
+                    if self._ctp_factor_callback_sequence >= (1 << 63) - 1:
+                        self._clear_ctp_tick_queues_locked(
+                            "ctp_factor_callback_sequence_overflow"
+                        )
+                        if not self._ctp_stream_stale:
+                            self._ctp_stream_revision += 1
+                        self._ctp_stream_stale = True
+                        self._ctp_stream_stale_reason = (
+                            "ctp_factor_callback_sequence_overflow"
+                        )
+                        self._notify_live_bar_event()
+                        return
+                    self._ctp_factor_callback_sequence += 1
+                    callback_sequence = self._ctp_factor_callback_sequence
+                    callback_wall_time = time.time()
+                    callback_monotonic_ns = time.monotonic_ns()
+                else:
+                    callback_sequence = None
+                    callback_wall_time = None
+                    callback_monotonic_ns = None
                 # Keep the exact callback generation through normalization;
                 # do not reread the mutable client state in _handle_md_tick.
-                self._handle_md_tick(payload, _source_generation=generation)
+                self._handle_md_tick(
+                    payload,
+                    _source_generation=generation,
+                    _source_callback_sequence=callback_sequence,
+                    _source_callback_wall_time=callback_wall_time,
+                    _source_callback_monotonic_ns=callback_monotonic_ns,
+                )
 
         def _handle_md_disconnect_legacy(self, _reason, source_client):
             """Expose a bounded stale marker for legacy clients, without trust."""
@@ -2336,6 +2400,41 @@ def _create_ctp_wrapper_class():
                     "stale_tick_drop_reason": self._ctp_stream_stale_tick_drop_reason,
                     "symbols": tuple(sorted(self._subscribed_aliases)),
                 }
+
+        def enable_ctp_factor_tick_source(self):
+            """Pin a factor run to the connected generation-aware MD source.
+
+            ``_mark_md_client_connected`` establishes the source generation
+            after client readiness, so a quote is not required before binding.
+            """
+
+            with self._ctp_stream_health_lock:
+                client = self.md_client
+                generation = self._ctp_stream_source_generation
+                client_generation = (
+                    getattr(client, "connection_generation", None) if client is not None else None
+                )
+                if self.live_tick_provenance is not None:
+                    raise BtApiStoreError("CTP_FACTOR_STATIC_PROVENANCE_CONFLICT")
+                if (
+                    client is None
+                    or client is not self._ctp_stream_client
+                    or not self._ctp_stream_generation_callbacks
+                    or self._ctp_stream_stale
+                    or type(generation) is not int
+                    or generation <= 0
+                    or type(client_generation) is not int
+                    or client_generation != generation
+                ):
+                    raise BtApiStoreError("CTP_FACTOR_MD_CALLBACK_SOURCE_UNAVAILABLE")
+                if self._ctp_factor_tick_source_enabled:
+                    if self._ctp_factor_expected_md_generation != generation:
+                        raise BtApiStoreError("CTP_FACTOR_MD_CALLBACK_SOURCE_CHANGED")
+                    return generation
+                self._ctp_factor_tick_source_enabled = True
+                self._ctp_factor_expected_md_generation = generation
+                self._ctp_factor_callback_sequence = 0
+                return generation
 
         def connect(self):
             """Connect to CTP servers."""
@@ -3302,7 +3401,15 @@ def _create_ctp_wrapper_class():
                 update["external_order_id"] = order_sys_id
             return update
 
-        def _handle_md_tick(self, payload, *, _source_generation=None):
+        def _handle_md_tick(
+            self,
+            payload,
+            *,
+            _source_generation=None,
+            _source_callback_sequence=None,
+            _source_callback_wall_time=None,
+            _source_callback_monotonic_ns=None,
+        ):
             """Convert a raw CTP depth market data callback into queued TickEvents."""
             instrument = _safe_text_attr(payload, "InstrumentID", "ExchangeInstID")
             if not instrument:
@@ -3434,6 +3541,19 @@ def _create_ctp_wrapper_class():
                 event.action_day = str(getattr(payload, "ActionDay", "") or "")
                 event.update_time = str(getattr(payload, "UpdateTime", "") or "")
                 event.update_millisec = _coerce_int(getattr(payload, "UpdateMillisec", 0), 0)
+                if _source_callback_sequence is not None:
+                    # This ordinal is the local order of exact-generation
+                    # callbacks observed by this Store. It is not a provider
+                    # sequence and must never be promoted to continuity proof.
+                    event.ctp_callback_generation_captured = True
+                    event.ctp_callback_sequence = _source_callback_sequence
+                    event.ctp_callback_received_wall_time = _source_callback_wall_time
+                    event.ctp_callback_received_monotonic_ns = _source_callback_monotonic_ns
+                    event.ingest_seq = _source_callback_sequence
+                    event.sequence = _source_callback_sequence
+                    event.exchange_time = event.timestamp
+                    event.received_wall_time = _source_callback_wall_time
+                    event.received_monotonic_ns = _source_callback_monotonic_ns
                 if provenance_seq is not None:
                     self._stamp_live_tick_provenance(
                         event,
@@ -4044,6 +4164,44 @@ class BtApiStore(LiveStoreBase):
         ):
             return env_provider
         return provider
+
+    def enable_ctp_factor_tick_source(self) -> int:
+        """Bind factor feeds to this ready RegisteredSim CTP callback source.
+
+        The Store deliberately exposes only the captured MD generation, not
+        the managed SDK wrapper. A Trader login is required for the run's
+        TradingDay binding; MD callbacks can then be bound before the first
+        quote arrives.
+        """
+        from .registered_sim import RegisteredSimStore, RegisteredSimWrapper
+
+        if (
+            not isinstance(self, RegisteredSimStore)
+            or self.provider != "ctp"
+            or self.backend != "direct"
+            or getattr(self, "registered_sim_route_id", None) != "simnow-registered-v1"
+        ):
+            raise BtApiStoreError("CTP_FACTOR_REGISTERED_SIM_ROUTE_REQUIRED")
+
+        api = self._ensure_api_ready()
+        if (
+            api is not self._api
+            or not isinstance(api, RegisteredSimWrapper)
+            or getattr(api, "_connected", None) is not True
+        ):
+            raise BtApiStoreError("CTP_FACTOR_REGISTERED_SIM_API_UNAVAILABLE")
+
+        login_facts = self.registered_sim_login_facts()
+        if not isinstance(login_facts, Mapping) or login_facts.get("read_only_ready") is not True:
+            raise BtApiStoreError("CTP_FACTOR_TRADER_NOT_READY")
+
+        enable = getattr(api, "enable_ctp_factor_tick_source", None)
+        if not callable(enable):
+            raise BtApiStoreError("CTP_FACTOR_MD_CALLBACK_SOURCE_UNAVAILABLE")
+        generation = enable()
+        if type(generation) is not int or generation <= 0:
+            raise BtApiStoreError("CTP_FACTOR_MD_CALLBACK_SOURCE_UNAVAILABLE")
+        return generation
 
     @property
     def is_connected(self) -> bool:

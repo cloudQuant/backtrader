@@ -7,6 +7,7 @@ from decimal import Decimal
 from copy import deepcopy
 from collections import deque
 import hashlib
+import importlib.metadata
 import importlib.util
 import itertools
 import json
@@ -115,8 +116,87 @@ def test_replay_clock_deadline_samples_and_partial_waits_do_not_skip_slots():
         assert prefetched.utc_now() == times[1]
 
 
-def _official_simnow_store_config():
-    selector = pytest.importorskip("bt_api_ctp.ctp_env_selector")
+def _load_official_simnow_selector():
+    # The production selector is a pure-Python SDK source leaf. Load that exact
+    # public file directly so these fake-native tests do not depend on an
+    # installed CTP package (or import its package initializers/native leaves).
+    explicit_source = os.environ.get("BT_CTP_TEST_SELECTOR_SOURCE")
+    if explicit_source is not None:
+        selector_path = Path(explicit_source)
+        if not selector_path.is_file():
+            raise FileNotFoundError(
+                "BT_CTP_TEST_SELECTOR_SOURCE does not name a public selector source file"
+            )
+    else:
+        try:
+            distribution = importlib.metadata.distribution("bt-api-ctp")
+        except importlib.metadata.PackageNotFoundError:
+            pytest.skip("optional bt-api-ctp distribution is not installed")
+        selector_path = Path(
+            distribution.locate_file("bt_api_ctp/ctp_env_selector.py")
+        )
+        if not selector_path.is_file():
+            raise FileNotFoundError(
+                "installed bt-api-ctp distribution has no ctp_env_selector.py source file"
+            )
+    module_name = "_alpha003_simnow_test_ctp_env_selector"
+    spec = importlib.util.spec_from_file_location(module_name, selector_path)
+    if spec is None or spec.loader is None:
+        raise RuntimeError("could not load public bt_api_ctp ctp_env_selector.py source")
+    selector = importlib.util.module_from_spec(spec)
+    previous_module = sys.modules.get(module_name)
+    sys.modules[module_name] = selector
+    try:
+        spec.loader.exec_module(selector)
+    finally:
+        if previous_module is None:
+            sys.modules.pop(module_name, None)
+        else:
+            sys.modules[module_name] = previous_module
+    return selector
+
+
+def _load_public_ctp_sdk_source(relative_path, module_name, source_environment):
+    """Load one public pure-Python SDK contract leaf without package init."""
+    explicit_source = os.environ.get(source_environment)
+    if explicit_source is not None:
+        source_path = Path(explicit_source)
+        if not source_path.is_file():
+            raise FileNotFoundError(
+                "{} does not name a public SDK source file".format(source_environment)
+            )
+    else:
+        try:
+            distribution = importlib.metadata.distribution("bt-api-ctp")
+        except importlib.metadata.PackageNotFoundError:
+            pytest.skip("optional bt-api-ctp distribution is not installed")
+        source_path = Path(distribution.locate_file(relative_path))
+        if not source_path.is_file():
+            raise FileNotFoundError(
+                "installed bt-api-ctp distribution has no {} source file".format(
+                    relative_path
+                )
+            )
+
+    spec = importlib.util.spec_from_file_location(module_name, source_path)
+    if spec is None or spec.loader is None:
+        raise RuntimeError("could not load public {} SDK source".format(relative_path))
+    module = importlib.util.module_from_spec(spec)
+    previous_module = sys.modules.get(module_name)
+    sys.modules[module_name] = module
+    try:
+        spec.loader.exec_module(module)
+    finally:
+        if previous_module is None:
+            sys.modules.pop(module_name, None)
+        else:
+            sys.modules[module_name] = previous_module
+    return module
+
+
+def _official_simnow_store_config(selector=None):
+    if selector is None:
+        selector = _load_official_simnow_selector()
     profile = "set1_group1"
     td_front, md_front = selector.official_simnow_fronts(profile)
     return {
@@ -948,10 +1028,9 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
 
     import backtrader.stores.registered_sim as registered_sim_module
     from backtrader.feeds import futures_ctp_snapshot, futures_expected_calendar
+    from backtrader.feeds.ctp_factor_source import CtpFactorSourceBinding
+    from backtrader.stores.btapistore import _create_ctp_wrapper_class
     from tests.unit.stores import test_factor_execution_facts as facts_fixture
-    from tests.test_utils.optional_sdk import optional_sdk
-
-    query_result_type = optional_sdk("bt_api_ctp.query").QueryResult
     query_saved_history = selection_source == "ctp_query" and saved_history_restart
 
     # Keep the controlled source/session timestamps historical relative to the
@@ -1465,49 +1544,219 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
             )
         )
 
-    class FakeCtpWrapper(facts_fixture._FakeRegisteredSimWrapper):
+    import types
+
+    ctp_env_selector = _load_official_simnow_selector()
+    if selection_source == "ctp_query":
+        query_contract = _load_public_ctp_sdk_source(
+            "bt_api_ctp/query.py",
+            "_alpha003_simnow_test_query_contract",
+            "BT_CTP_TEST_QUERY_SOURCE",
+        )
+        instrument_contract = _load_public_ctp_sdk_source(
+            "bt_api_ctp/instrument.py",
+            "_alpha003_simnow_test_instrument_contract",
+            "BT_CTP_TEST_INSTRUMENT_SOURCE",
+        )
+        ctp_query_result_type = query_contract.QueryResult
+        ctp_normalize_instrument = instrument_contract.normalize_ctp_instrument
+    else:
+        ctp_query_result_type = None
+        ctp_normalize_instrument = None
+
+    class CtpNativeStopReceipt:
+        __module__ = "bt_api_ctp.ctp.client"
+
+        def __init__(self, connection_generation):
+            self.connection_generation = connection_generation
+            self.native_released = True
+            self.join_required = False
+            self.join_completed = True
+            self.thread_alive = False
+            self.timed_out = False
+
+        @property
+        def complete(self):
+            return (
+                self.native_released is True
+                and self.join_required is False
+                and self.join_completed is True
+                and self.thread_alive is False
+                and self.timed_out is False
+            )
+
+    sdk_instances = {"md": [], "trader": []}
+
+    class FakeMdClient:
+        def __init__(self, **_kwargs):
+            api = api_clients[-1]
+            self._connection_generation = int(
+                getattr(api.context, "connection_generation", api.context.epoch_id)
+            )
+            self.start_calls = []
+            self.stop_calls = 0
+            self.stop_receipts = []
+            self.on_tick = None
+            self.on_tick_with_generation = None
+            self.on_disconnect = None
+            self.on_disconnect_with_generation = None
+            self.on_error = None
+            sdk_instances["md"].append(self)
+
+        @property
+        def connection_generation(self):
+            return self._connection_generation
+
+        def start(self, *, block, join_observer):
+            assert block is False
+            assert join_observer is False
+            self.start_calls.append({"block": block, "join_observer": join_observer})
+
+        @staticmethod
+        def wait_ready(timeout=20):
+            del timeout
+            return True
+
+        @staticmethod
+        def subscribe(_instruments):
+            return None
+
+        def stop(self):
+            self.stop_calls += 1
+            receipt = CtpNativeStopReceipt(self.connection_generation)
+            self.stop_receipts.append(receipt)
+            return receipt
+
+    class FakeTraderClient(facts_fixture._QueryClient):
+        def __init__(self, **_kwargs):
+            super().__init__()
+            api = api_clients[-1]
+            self._api = api
+            context = api.context
+            self._account_fingerprint = "alpha003-two-epoch-account"
+            self._trading_day = context.trading_day
+            self._connection_generation = int(
+                getattr(context, "connection_generation", context.epoch_id)
+            )
+            self._front_id = 100 + context.epoch_id
+            self._session_id = 10 + context.epoch_id
+            self.is_ready = True
+            self.is_trading_ready = False
+            self.is_read_only_ready = True
+            self._gate_state.update(
+                connection_generation=self._connection_generation,
+                trading_day=self._trading_day,
+            )
+            self.on_login = None
+            self.on_order = None
+            self.on_trade = None
+            self.on_error = None
+            self.start_calls = []
+            self.stop_calls = 0
+            self.stop_receipts = []
+            self._query_leaf = api._query_leaf
+            self._query_leaf.trader_client = self
+            for name in (
+                "query_account_result",
+                "query_positions_result",
+                "query_orders_result",
+                "query_trades_result",
+                "query_instruments_result",
+                "query_instrument_margin_rate_result",
+            ):
+                setattr(self, name, getattr(self._query_leaf, name))
+            sdk_instances["trader"].append(self)
+
+        def start(self, *, block, join_observer):
+            assert block is False
+            assert join_observer is False
+            self.start_calls.append({"block": block, "join_observer": join_observer})
+
+        @staticmethod
+        def wait_ready(timeout=20):
+            del timeout
+            return True
+
+        def get_session_state(self):
+            return {
+                "connected": self._api._connected,
+                "ready": self.is_ready,
+                "read_only_ready": self.is_read_only_ready,
+                "trading_ready": self.is_trading_ready,
+                "account_fingerprint": self._account_fingerprint,
+                "connection_generation": self._connection_generation,
+                "trading_day": self._trading_day,
+            }
+
+        def stop(self):
+            self.stop_calls += 1
+            receipt = CtpNativeStopReceipt(self._connection_generation)
+            self.stop_receipts.append(receipt)
+            return receipt
+
+    package = types.ModuleType("bt_api_ctp")
+    package.__path__ = []
+    monkeypatch.setattr(package, "ctp_env_selector", ctp_env_selector, raising=False)
+    ctp_package = types.ModuleType("bt_api_ctp.ctp")
+    ctp_package.__path__ = []
+    client_module = types.ModuleType("bt_api_ctp.ctp.client")
+    client_module.MdClient = FakeMdClient
+    client_module.TraderClient = FakeTraderClient
+    client_module._MdSpi = type("_MdSpi", (), {})
+    client_module._TraderSpi = type("_TraderSpi", (), {})
+    client_module.CtpNativeStopReceipt = CtpNativeStopReceipt
+    package.ctp = ctp_package
+    ctp_package.client = client_module
+    query_module = types.ModuleType("bt_api_ctp.query")
+    query_module.__file__ = (
+        query_contract.__file__ if selection_source == "ctp_query" else "<synthetic-query>"
+    )
+    query_module.QueryResult = ctp_query_result_type
+    instrument_module = types.ModuleType("bt_api_ctp.instrument")
+    instrument_module.__file__ = (
+        instrument_contract.__file__
+        if selection_source == "ctp_query"
+        else "<synthetic-instrument>"
+    )
+    instrument_module.normalize_ctp_instrument = ctp_normalize_instrument
+    package.query = query_module
+    package.instrument = instrument_module
+    md_api_module = types.ModuleType("bt_api_ctp.ctp.ctp_md_api")
+    md_api_module.CThostFtdcMdSpi = type("CThostFtdcMdSpi", (), {})
+    structs_module = types.ModuleType("bt_api_ctp.ctp.ctp_structs_order")
+    structs_module.CThostFtdcInputOrderActionField = type(
+        "CThostFtdcInputOrderActionField", (), {}
+    )
+    structs_module.CThostFtdcInputOrderField = type("CThostFtdcInputOrderField", (), {})
+    trader_api_module = types.ModuleType("bt_api_ctp.ctp.ctp_trader_api")
+    trader_api_module.CThostFtdcTraderSpi = type("CThostFtdcTraderSpi", (), {})
+    for module_name, module in (
+        ("bt_api_ctp", package),
+        ("bt_api_ctp.ctp_env_selector", ctp_env_selector),
+        ("bt_api_ctp.query", query_module),
+        ("bt_api_ctp.instrument", instrument_module),
+        ("bt_api_ctp.ctp", ctp_package),
+        ("bt_api_ctp.ctp.client", client_module),
+        ("bt_api_ctp.ctp.ctp_md_api", md_api_module),
+        ("bt_api_ctp.ctp.ctp_structs_order", structs_module),
+        ("bt_api_ctp.ctp.ctp_trader_api", trader_api_module),
+    ):
+        monkeypatch.setitem(sys.modules, module_name, module)
+
+    production_ctp_wrapper = _create_ctp_wrapper_class()
+
+    class FakeCtpWrapper(production_ctp_wrapper):
         def __init__(self, *args, **kwargs):
-            allow_writes = kwargs.pop("registered_sim_allow_writes", False)
-            history_limit = kwargs.pop("registered_sim_history_limit", 64)
-            terminal_limit = kwargs.pop("registered_sim_terminal_order_limit", 512)
             context = contexts.popleft()
             if context.epoch_id > 1 and not saved_history_restart:
                 clock.set_utc_now(datetime(2026, 10, 23, 1, 0, tzinfo=UTC))
-            super().__init__(
-                *args,
-                registered_sim_allow_writes=allow_writes,
-                registered_sim_history_limit=history_limit,
-                registered_sim_terminal_order_limit=terminal_limit,
-                query_rows=context.rows,
-                query_time=clock.utc_now(),
-                ticks={},
-                **kwargs,
-            )
+            super().__init__(*args, **kwargs)
             self.context = context
             self._selection_request_id = 0
-            client = self.trader_client
-            client._account_fingerprint = "alpha003-two-epoch-account"
-            client._trading_day = context.trading_day
-            if selection_source == "ctp_query":
-                client._connection_generation = context.connection_generation
-            client._front_id = 100 + context.epoch_id
-            client._session_id = 10 + context.epoch_id
-            client.is_ready = True
-            client.is_trading_ready = False
-            client.is_read_only_ready = True
-            client.wait_ready = lambda timeout: True
-            client._gate_state.update(
-                connection_generation=client._connection_generation,
-                trading_day=context.trading_day,
+            self._query_leaf = facts_fixture._ProviderLeaves(
+                query_rows=context.rows,
+                query_time=clock.utc_now(),
             )
-            client.get_session_state = lambda: {
-                "connected": self._connected,
-                "read_only_ready": True,
-                "trading_ready": False,
-                "account_fingerprint": client._account_fingerprint,
-                "connection_generation": client._connection_generation,
-                "trading_day": client._trading_day,
-            }
             self.closed = False
             self._first_bar_logged = False
             api_clients.append(self)
@@ -1522,7 +1771,7 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
                 )
 
         def connect(self):
-            self._connected = True
+            super().connect()
             trace.append(("api_connected", self.context.epoch_id))
             if selection_source == "ctp_query":
                 trace.append(
@@ -1534,7 +1783,7 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
                 )
 
         def disconnect(self):
-            self._connected = False
+            super().disconnect()
             self.closed = True
             trace.append(("api_closed", self.context.epoch_id))
             if selection_source == "ctp_query":
@@ -1555,40 +1804,28 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
                 "trading_day": client._trading_day,
             }
 
-        def _get_live_ctp_stream_health(self):
-            return {
-                "generation_callbacks_supported": True,
-                "source_generation": self.trader_client._connection_generation,
-                "source_revision": 0,
-                "stale": False,
-                "stale_reason": "",
-                "symbols": (),
-                "stale_tick_drop_count": 0,
-                "stale_tick_drop_reason": "",
-            }
-
         def _selection_query_result(self, request_type, records):
             self._selection_request_id += 1
-            retrieved_at = clock.utc_now()
-            completed_at = retrieved_at - timedelta(
-                milliseconds=1, seconds=self.context.stale_seconds
+            self._query_leaf.query_time = clock.utc_now() - timedelta(
+                seconds=self.context.stale_seconds
             )
-            return query_result_type(
-                request_type=request_type,
-                request_id=self._selection_request_id,
-                connection_generation=self.trader_client._connection_generation,
-                account_fingerprint=self.trader_client._account_fingerprint,
-                started_at_utc=completed_at - timedelta(milliseconds=1),
-                completed_at_utc=completed_at,
-                is_last_seen=True,
-                error_code=None,
-                error_message="",
-                timed_out=False,
-                complete=True,
-                records=tuple(records),
-                late_callback_count=0,
-                unsupported=False,
-                submit_code=0,
+            result = self._query_leaf._query(request_type, list(records))
+            return ctp_query_result_type(
+                request_type=result.request_type,
+                request_id=result.request_id,
+                connection_generation=result.connection_generation,
+                account_fingerprint=result.account_fingerprint,
+                started_at_utc=result.started_at_utc,
+                completed_at_utc=result.completed_at_utc,
+                is_last_seen=result.is_last_seen,
+                error_code=result.error_code,
+                error_message=result.error_message,
+                timed_out=result.timed_out,
+                complete=result.complete,
+                records=result.records,
+                late_callback_count=result.late_callback_count,
+                unsupported=result.unsupported,
+                submit_code=result.submit_code,
             )
 
         def query_instruments_result(
@@ -1663,7 +1900,16 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
             allow_writes, history_limit, terminal_limit, FakeCtpWrapper
         ),
     )
-    monkeypatch.setattr(RUNNER, "_live_env_config", lambda _config: _official_simnow_store_config())
+    def fake_live_store_config(_config):
+        store_config, api_kwargs = _official_simnow_store_config(ctp_env_selector)
+        store_config.update(
+            broker_id="alpha003-synthetic-broker",
+            investor_id="alpha003-synthetic-investor",
+            password="alpha003-synthetic-password",
+        )
+        return store_config, api_kwargs
+
+    monkeypatch.setattr(RUNNER, "_live_env_config", fake_live_store_config)
     original_store_wait_ready = registered_sim_module.RegisteredSimStore.registered_sim_wait_ready
     original_store_login_facts = registered_sim_module.RegisteredSimStore.registered_sim_login_facts
 
@@ -1688,6 +1934,20 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
         registered_sim_module.RegisteredSimStore,
         "registered_sim_login_facts",
         tracked_store_login_facts,
+    )
+    original_store_getdata = registered_sim_module.RegisteredSimStore.getdata
+    factor_source_bindings = []
+
+    def tracked_store_getdata(store, *args, **kwargs):
+        binding = kwargs.get("ctp_factor_source_binding")
+        if binding is not None:
+            factor_source_bindings.append((store._api, binding))
+        return original_store_getdata(store, *args, **kwargs)
+
+    monkeypatch.setattr(
+        registered_sim_module.RegisteredSimStore,
+        "getdata",
+        tracked_store_getdata,
     )
     original_refresh_initial = RUNNER.QueryRefreshLoop.refresh_initial
 
@@ -1714,6 +1974,8 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
             trace.append(("second_bundle_loaded", Path(bundle_path).name))
         plan = original_load(*args, bundle_path=bundle_path, **kwargs)
         current_plan["value"] = plan
+        if bundle_path is not None:
+            contexts.append(make_context(plan, len(live_run_results) + 1))
         return plan
 
     monkeypatch.setattr(RUNNER, "load_market_plan", tracked_load)
@@ -1758,7 +2020,7 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
             assert context.all_catalog_facts is True
             make_context(plan, epoch_id, context=context)
         else:
-            contexts.append(make_context(plan, epoch_id))
+            make_context(plan, epoch_id, context=api_clients[-1].context)
         trace.append(("cohort_assembled", epoch_id))
         return original_make_cohort(epoch_config, grid, begin_at=begin_at, **kwargs)
 
@@ -1790,6 +2052,8 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
 
     def run_saved_history_epoch():
         if not query_saved_history:
+            if selection_source != "ctp_query":
+                contexts.append(make_context(first_plan, config["cohort"]["epoch_id"]))
             return RUNNER.run_live(
                 config,
                 config_path,
@@ -2645,6 +2909,8 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
             config["inputs"]["history_decision_tape"] = str(epoch2_tape_path)
             result = run_saved_history_epoch()
         else:
+            if selection_source != "ctp_query":
+                contexts.append(make_context(first_plan, config["cohort"]["epoch_id"]))
             result = RUNNER.run_live_epochs(
                 config,
                 config_path,
@@ -2724,6 +2990,42 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
                     }
                 )
             )
+    assert sdk_instances["md"] == [api.md_client for api in api_clients]
+    assert sdk_instances["trader"] == [api.trader_client for api in api_clients]
+    for api in api_clients:
+        for client in (api.md_client, api.trader_client):
+            assert client.start_calls == [{"block": False, "join_observer": False}]
+            assert client.stop_calls == 1
+            assert len(client.stop_receipts) == 1
+            receipt = client.stop_receipts[0]
+            assert receipt.complete is True
+            assert receipt.native_released is True
+            assert receipt.join_required is False
+            assert receipt.join_completed is True
+            assert receipt.thread_alive is False
+            assert receipt.timed_out is False
+            expected_generation = (
+                api.md_client.connection_generation
+                if client is api.md_client
+                else api.trader_client._connection_generation
+            )
+            assert receipt.connection_generation == expected_generation
+        assert api.live_tick_provenance is None
+        health = api._get_live_ctp_stream_health()
+        assert health["generation_callbacks_supported"] is True
+        assert health["source_generation"] == api.md_client.connection_generation
+        assert callable(api.md_client.on_tick_with_generation)
+        assert callable(api.md_client.on_disconnect_with_generation)
+    assert factor_source_bindings
+    for api, binding in factor_source_bindings:
+        assert isinstance(binding, CtpFactorSourceBinding)
+        assert api._ctp_factor_tick_source_enabled is True
+        assert api._ctp_factor_expected_md_generation == api.md_client.connection_generation
+        assert binding.expected_md_generation == api.md_client.connection_generation
+        assert binding.trader_trading_day == datetime.strptime(
+            api.trader_client._trading_day, "%Y%m%d"
+        ).date()
+
     if unresolved_position:
         assert isinstance(failure, TimeoutError), repr(
             {
@@ -4202,7 +4504,17 @@ def test_live_setup_failures_close_every_created_resource(
 
         def registered_sim_login_facts(self):
             lifecycle.append("login_facts")
-            return {"read_only_ready": True, "trading_ready": True}
+            return {
+                "read_only_ready": True,
+                "trading_ready": True,
+                "trading_day": "20261021",
+            }
+
+        def enable_ctp_factor_tick_source(self):
+            # This high-level FakeStore only checks setup/cleanup ordering.
+            # The live integration cases above use the production Store gate.
+            lifecycle.append("factor_tick_source_enabled")
+            return 1
 
         def registered_sim_configure_arm_templates(self, templates):
             lifecycle.append("arm_templates")
@@ -4337,11 +4649,23 @@ def test_live_setup_failures_close_every_created_resource(
     cleanup = error.value.cleanup_results
     assert RUNNER._cleanup_complete(cleanup) is cleanup_complete
     by_resource = {row["resource"]: row for row in cleanup}
-    if failure == "grid_expired":
+    resources_not_created = {"grid_expired"}
+    readiness_failures_after_journal = {
+        "grid_remaining",
+        "grid_boundary",
+        "ready",
+        "ready_store_stop",
+    }
+    if failure in resources_not_created:
         assert by_resource["decision_tape"]["status"] == "NOT_CREATED"
         assert by_resource["journal"]["status"] == "NOT_CREATED"
         assert by_resource["broker"]["status"] == "NOT_CREATED"
         assert constructed == []
+        assert not Path(config["output"]["decision_tape_path"]).exists()
+    elif failure in readiness_failures_after_journal:
+        assert by_resource["decision_tape"]["status"] == "NOT_CREATED"
+        assert by_resource["journal"]["status"] == "CLOSED"
+        assert constructed == ["journal"]
         assert not Path(config["output"]["decision_tape_path"]).exists()
     else:
         assert by_resource["decision_tape"]["status"] == "CLOSED"
@@ -4354,7 +4678,9 @@ def test_live_setup_failures_close_every_created_resource(
     if failure == "grid_expired":
         assert "store" in closed
         assert lifecycle == []
-    else:
+    elif failure in readiness_failures_after_journal:
+        assert by_resource["broker"]["status"] == "NOT_CREATED"
+    elif failure not in resources_not_created:
         assert by_resource["broker"]["status"] == "NOT_RUN"
     if failure in {
         "ready",
@@ -4371,19 +4697,33 @@ def test_live_setup_failures_close_every_created_resource(
         assert by_resource["query_refresh"]["status"] == "RETURNED"
         assert "query_refresh" in closed
     assert "store" in closed
-    if failure != "grid_expired":
+    if failure not in resources_not_created:
         assert "journal" in closed
     if failure in {"ready", "ready_store_stop", "grid_boundary", "grid_remaining"}:
         assert lifecycle == ["session_ready"]
-    elif failure in {"grid_expired", "grid_crossing"}:
+    elif failure == "grid_expired":
         assert lifecycle == []
+    elif failure == "grid_crossing":
+        assert lifecycle == [
+            "session_ready",
+            "factor_tick_source_enabled",
+            "login_facts",
+        ]
     if failure == "grid_crossing":
         assert clock_calls["count"] >= 3
     elif failure == "arm":
-        assert lifecycle == ["session_ready", "login_facts", "arm_templates"]
+        assert lifecycle == [
+            "session_ready",
+            "factor_tick_source_enabled",
+            "login_facts",
+            "login_facts",
+            "arm_templates",
+        ]
     elif failure == "refresh":
         assert lifecycle == [
             "session_ready",
+            "factor_tick_source_enabled",
+            "login_facts",
             "login_facts",
             "arm_templates",
             "refresh_loop_created",

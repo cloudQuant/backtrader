@@ -1,0 +1,361 @@
+{
+  "schema": "iteration51-ctp-factor-source-round-v1",
+  "parent_commit": "9205a49f54112c41ea8ec058623ca5c1fd869865",
+  "status": "ACCEPTED_SOURCE_FAKE_COMPONENTS_ONLY",
+  "source_files": {
+    "backtrader/feeds/ctp_factor_source.py": {
+      "bytes": 22363,
+      "sha256": "e65fb21eff1577a3565e99f484a9abcc96a606443026507ac3a703501e5c6316"
+    },
+    "backtrader/feeds/btapifeed.py": {
+      "bytes": 139768,
+      "sha256": "9db659fee67098c7592212920df414c88a9a7fcf1cfca0eedd995bba9f1df599"
+    },
+    "backtrader/stores/btapistore.py": {
+      "bytes": 870410,
+      "sha256": "a2a8d95186a8d5eefe41208ce989bd2eb902d9293fc7073a6cb52d023e425380"
+    },
+    "examples/unified/028_alpha003_simnow_minute/run.py": {
+      "bytes": 252618,
+      "sha256": "3db7a63a70b9c5a59a163b0f816a1e5ab67a92202b70ec54fa10b369d29618bb"
+    },
+    "tests/integration/test_ctp_factor_source_cohort.py": {
+      "bytes": 32745,
+      "sha256": "66a8e6896ae538a237c26da72db74a55b9f7832be9e930e058dad2467765821c"
+    },
+    "tests/unit/test_alpha003_simnow_runner.py": {
+      "bytes": 223888,
+      "sha256": "d4596d387b58c4a14dbda1e54bb086e09a896f50961e41fa07006405ce090045"
+    }
+  },
+  "review": {
+    "bytes": 16420,
+    "sha256": "29e6f70f621d23b1b6930a47ef4042ef9fa73c243ecdb33b5d4da54de9c5eacd"
+  },
+  "qa_archive": {
+    "bytes": 35076,
+    "sha256": "f17c6a7403588b1d9bcb1aed373644421c7ed1d42c0641024245b014177c201b"
+  },
+  "qa_members": {
+    "runner-r1/result.json": {
+      "bytes": 4478,
+      "sha256": "ecc34dedfce2ebdf2639900fdb6ac80188bd1aaa1c7f1da43505e67c808a4d12"
+    },
+    "runner-r1/command.json": {
+      "bytes": 2763,
+      "sha256": "e041caf3dff35b42456db18a55f8b39fa7c8b43b4d35562fe57fbc425817227c"
+    },
+    "runner-r1/stdout.txt": {
+      "bytes": 3542,
+      "sha256": "f906fd4df8a7fe0dfb2781b8652124d55ea6dd217bae706ea19942e168393911"
+    },
+    "runner-r1/stderr.txt": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "runner-r1/junit.xml": {
+      "bytes": 4833,
+      "sha256": "3d4d2b30aa95286e31114738c640f6e2a1cd7f0e1368bce236ee69f157687d11"
+    },
+    "runner-r2/result.json": {
+      "bytes": 7242,
+      "sha256": "c865537466037cfe5ab695da4f9ca240b0f017ba160e1515abb4d376ea1fe396"
+    },
+    "runner-r2/command.json": {
+      "bytes": 4837,
+      "sha256": "08611aedee726e2b249138f7aa2dc3b314529d9f7f0538f677df545286411ae3"
+    },
+    "runner-r2/stdout.txt": {
+      "bytes": 5816,
+      "sha256": "237270053fbb4289bfaea5b3e6139fad49a5a1ddad4c3e5a53cefbe99cb7f3cc"
+    },
+    "runner-r2/stderr.txt": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "runner-r2/junit.xml": {
+      "bytes": 5701,
+      "sha256": "53a951d7318847576ba0508957f0d23021b5793d15284b9d9700199c35824055"
+    },
+    "runner-r3/result.json": {
+      "bytes": 6937,
+      "sha256": "904213707f2e4e897b4a67e7660931d0362d232ee8ffdd16aabc78e994574505"
+    },
+    "runner-r3/command.json": {
+      "bytes": 4519,
+      "sha256": "e7ba3a7132a7c721b9cc72af7a560b83ffa892a00f26a00d8ac4522820f503f8"
+    },
+    "runner-r3/stdout.txt": {
+      "bytes": 4346,
+      "sha256": "37072ecfc651e39700d39d05840d98b736f654de020f498ed161303ebb254ac5"
+    },
+    "runner-r3/stderr.txt": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "runner-r3/junit.xml": {
+      "bytes": 4564,
+      "sha256": "9422762895b070184583b13531c579279c095c30355c34f1383ea147a00e1160"
+    },
+    "runner-r4/result.json": {
+      "bytes": 5680,
+      "sha256": "01bb347fc4cc058af0275e5ff7a5344dfd1320f2ec442949f53a8e95e6038e84"
+    },
+    "runner-r4/command.json": {
+      "bytes": 3261,
+      "sha256": "f29b36765bd5a96fcc1a89d119886241abbc47a90288aa6052eb67a2790ef951"
+    },
+    "runner-r4/stdout.txt": {
+      "bytes": 3918,
+      "sha256": "ec8653a1d806940cd4fe7176fdd8b2b673c9bd9654a735e0371ec6f087746521"
+    },
+    "runner-r4/stderr.txt": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "runner-r4/junit.xml": {
+      "bytes": 3459,
+      "sha256": "a71accb59964455ae02e6f618eb7b7b08ce1f7723712f403cb49b92fe5d87a55"
+    },
+    "runner-r5/result.json": {
+      "bytes": 6789,
+      "sha256": "3fbb32ce57aedb690d080d4b7f2236d1b5a8bc8d1ebd30488f2885358f7b30a4"
+    },
+    "runner-r5/command.json": {
+      "bytes": 3994,
+      "sha256": "a52552d3f5eecea7f41fa10593d62fa4eb1f2b493645226c89951f378240030b"
+    },
+    "runner-r5/stdout.txt": {
+      "bytes": 635,
+      "sha256": "99b7551c76afaf82006d21df53543552efa9e526866ce7be710add3fe16ee2f7"
+    },
+    "runner-r5/stderr.txt": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "runner-r5/junit.xml": {
+      "bytes": 604,
+      "sha256": "58b2508b3a364fbf2bd415c1ecf555c2d5e56bdaf94fd170ce78f3552854eccf"
+    },
+    "integration-r1/result.json": {
+      "bytes": 4030,
+      "sha256": "b2a5688561cdd66293adb84e4f2b51ecdfbf5ba93eefd37c7f84377d4db280fa"
+    },
+    "integration-r1/command.json": {
+      "bytes": 2138,
+      "sha256": "763368a16dfbf357a6f137831f0e6c6e41d51e1e8973d3b895b21c10d30a80d7"
+    },
+    "integration-r1/stdout.txt": {
+      "bytes": 1293,
+      "sha256": "9b4dad8f9a0e1a894eef0dd2ecf4883b3f99d4cb6090ad3461c169da552cf9aa"
+    },
+    "integration-r1/stderr.txt": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "integration-r1/junit.xml": {
+      "bytes": 2633,
+      "sha256": "881dfddd59b8116416008ee1fdab43990e8b40f1f94ae3b0eaca836f121716bd"
+    },
+    "integration-r2/result.json": {
+      "bytes": 3739,
+      "sha256": "b20bb4da367c445619039f17c339271940f6535c2dd9fe2685c2648b22ea4431"
+    },
+    "integration-r2/command.json": {
+      "bytes": 2068,
+      "sha256": "32561e71e95f00b11c3a15be6d9d63b7abb569c423a88219b2b35087cf337c6a"
+    },
+    "integration-r2/stdout.txt": {
+      "bytes": 639,
+      "sha256": "2712fd50fd02e953c9bac4ba4d6d8f1f68ccde0c38dafe0d0fd4f585d02ab978"
+    },
+    "integration-r2/stderr.txt": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "integration-r2/junit.xml": {
+      "bytes": 380,
+      "sha256": "ef99c2bdb9ab04744020ca59bf664dd37c182ff72eb1bee129c943a9c6db2fbc"
+    },
+    "harness/qa-r1.py": {
+      "bytes": 2860,
+      "sha256": "60afe70c0802f5544f2d2c60b146cf2e8c1d2b834a677956f8cf2dd071315df4"
+    },
+    "harness/qa-r2.py": {
+      "bytes": 3285,
+      "sha256": "d32c3439ee2cb04688b9c1609be435e4361e7e38dda5f178bcb5cfe493698dfb"
+    },
+    "harness/qa-r3.py": {
+      "bytes": 3802,
+      "sha256": "347ea030cd5967ff84faded5d7905f9011098de036d8a22b269092d298938b26"
+    }
+  },
+  "root_rounds": [
+    {
+      "name": "runner-r1",
+      "exit_code": 1,
+      "elapsed_seconds": 4.313000000023749,
+      "passed": 3,
+      "failed": 5,
+      "skipped": 2,
+      "changed_pinned_paths": []
+    },
+    {
+      "name": "runner-r2",
+      "exit_code": 1,
+      "elapsed_seconds": 4.75,
+      "passed": 1,
+      "failed": 6,
+      "skipped": 0,
+      "changed_pinned_paths": []
+    },
+    {
+      "name": "runner-r3",
+      "exit_code": 1,
+      "elapsed_seconds": 5.780999999959022,
+      "passed": 4,
+      "failed": 2,
+      "skipped": 0,
+      "changed_pinned_paths": []
+    },
+    {
+      "name": "runner-r4",
+      "exit_code": 1,
+      "elapsed_seconds": 4.2810000000172295,
+      "passed": 0,
+      "failed": 2,
+      "skipped": 0,
+      "changed_pinned_paths": []
+    },
+    {
+      "name": "runner-r5",
+      "exit_code": 0,
+      "elapsed_seconds": 11.89100000000326,
+      "passed": 2,
+      "failed": 0,
+      "skipped": 0,
+      "changed_pinned_paths": []
+    },
+    {
+      "name": "integration-r1",
+      "exit_code": 1,
+      "elapsed_seconds": 2.594000000040978,
+      "passed": 11,
+      "failed": 1,
+      "skipped": 0,
+      "changed_pinned_paths": [
+        "tests/unit/test_alpha003_simnow_runner.py"
+      ]
+    },
+    {
+      "name": "integration-r2",
+      "exit_code": 0,
+      "elapsed_seconds": 2.452999999979511,
+      "passed": 1,
+      "failed": 0,
+      "skipped": 0,
+      "changed_pinned_paths": []
+    }
+  ],
+  "distinct_final_passed_nodes": 22,
+  "latest_node_outcomes": {
+    "tests.unit.test_alpha003_simnow_runner::test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bundle[same-store-query-live]": {
+      "status": "passed",
+      "round": "runner-r5"
+    },
+    "tests.unit.test_alpha003_simnow_runner::test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bundle[saved-query-history-three-epoch-restart]": {
+      "status": "passed",
+      "round": "runner-r5"
+    },
+    "tests.unit.test_alpha003_simnow_runner::test_live_setup_failures_close_every_created_resource[arm-RuntimeError-True-True]": {
+      "status": "passed",
+      "round": "runner-r1"
+    },
+    "tests.unit.test_alpha003_simnow_runner::test_live_setup_failures_close_every_created_resource[refresh-LIVE_INITIAL_QUERY_REFRESH_FAILED-True-True]": {
+      "status": "passed",
+      "round": "runner-r1"
+    },
+    "tests.unit.test_alpha003_simnow_runner::test_live_setup_failures_close_every_created_resource[grid_crossing-COHORT_HAS_NO_PLANNED_SLOTS-False-True]": {
+      "status": "passed",
+      "round": "runner-r2"
+    },
+    "tests.unit.test_alpha003_simnow_runner::test_live_setup_failures_close_every_created_resource[grid_remaining-LIVE_CTP_SESSION_NOT_READY-False-True]": {
+      "status": "passed",
+      "round": "runner-r3"
+    },
+    "tests.unit.test_alpha003_simnow_runner::test_live_setup_failures_close_every_created_resource[grid_boundary-LIVE_CTP_SESSION_NOT_READY-False-True]": {
+      "status": "passed",
+      "round": "runner-r3"
+    },
+    "tests.unit.test_alpha003_simnow_runner::test_live_setup_failures_close_every_created_resource[grid_expired-LIVE_GRID_HAS_NO_REMAINING_COMMON_MINUTES-False-True]": {
+      "status": "passed",
+      "round": "runner-r1"
+    },
+    "tests.unit.test_alpha003_simnow_runner::test_live_setup_failures_close_every_created_resource[ready_store_stop-LIVE_CTP_SESSION_NOT_READY-False-False]": {
+      "status": "passed",
+      "round": "runner-r3"
+    },
+    "tests.unit.test_alpha003_simnow_runner::test_live_setup_failures_close_every_created_resource[ready-LIVE_CTP_SESSION_NOT_READY-False-True]": {
+      "status": "passed",
+      "round": "runner-r3"
+    },
+    "tests.integration.test_ctp_factor_source_cohort::test_registered_sim_ctp_callbacks_aggregate_two_product_overnight_cohort": {
+      "status": "passed",
+      "round": "integration-r1"
+    },
+    "tests.integration.test_ctp_factor_source_cohort::test_valid_outside_common_minute_quote_does_not_break_later_planned_cohort": {
+      "status": "passed",
+      "round": "integration-r2"
+    },
+    "tests.integration.test_ctp_factor_source_cohort::test_exact_session_end_quote_only_checks_normalized_event_time[valid-end-quote]": {
+      "status": "passed",
+      "round": "integration-r1"
+    },
+    "tests.integration.test_ctp_factor_source_cohort::test_exact_session_end_quote_only_checks_normalized_event_time[datetime-conflict]": {
+      "status": "passed",
+      "round": "integration-r1"
+    },
+    "tests.integration.test_ctp_factor_source_cohort::test_exact_session_end_quote_only_checks_normalized_event_time[timestamp-conflict]": {
+      "status": "passed",
+      "round": "integration-r1"
+    },
+    "tests.integration.test_ctp_factor_source_cohort::test_malformed_or_wrong_route_ctp_callback_freezes_factor_source[missing-update-time]": {
+      "status": "passed",
+      "round": "integration-r1"
+    },
+    "tests.integration.test_ctp_factor_source_cohort::test_malformed_or_wrong_route_ctp_callback_freezes_factor_source[missing-action-day]": {
+      "status": "passed",
+      "round": "integration-r1"
+    },
+    "tests.integration.test_ctp_factor_source_cohort::test_malformed_or_wrong_route_ctp_callback_freezes_factor_source[missing-trading-day]": {
+      "status": "passed",
+      "round": "integration-r1"
+    },
+    "tests.integration.test_ctp_factor_source_cohort::test_malformed_or_wrong_route_ctp_callback_freezes_factor_source[wrong-instrument-binding]": {
+      "status": "passed",
+      "round": "integration-r1"
+    },
+    "tests.integration.test_ctp_factor_source_cohort::test_malformed_or_wrong_route_ctp_callback_freezes_factor_source[conflicting-exchange]": {
+      "status": "passed",
+      "round": "integration-r1"
+    },
+    "tests.integration.test_ctp_factor_source_cohort::test_malformed_or_wrong_route_ctp_callback_freezes_factor_source[unsupported-action-day]": {
+      "status": "passed",
+      "round": "integration-r1"
+    },
+    "tests.integration.test_ctp_factor_source_cohort::test_md_reconnect_generation_change_is_stale_before_new_generation_tick": {
+      "status": "passed",
+      "round": "integration-r1"
+    }
+  },
+  "single_run_22_pass_claimed": false,
+  "warning": "Each root pytest run has only the existing unknown asyncio_default_fixture_loop_scope config warning.",
+  "integration_r1_pin_exception": "Only the unselected runner-test file changed concurrently; selected integration source and all recorded production pins stayed unchanged. Original overall false is preserved.",
+  "integration_boundary": "Raw synthetic MD callback through production Store/feed aggregation and explicit cohort capture/prepare; no Cerebro.run in this fixture.",
+  "runner_boundary": "Real wrapper, Store and normal Cerebro run with synthetic SDK/provider leaves and completed bars; real SDK query/instrument/selector contracts.",
+  "no_full_raw_tick_scheduler_or_account_claim": true,
+  "formal_case_pass_increment": 0,
+  "performance_optimization_performed": false,
+  "retained_hosts_touched": false,
+  "push_performed": false
+}

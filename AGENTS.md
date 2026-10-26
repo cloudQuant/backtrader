@@ -534,6 +534,16 @@ and polling Stores require `preserve_raw_bars=True`. Explicit missing fields
 carry NaN plus typed presence/quality metadata; registered Alpha101 factors
 exclude absent members and wait for complete rolling windows, while unsupported
 custom-factor gap semantics freeze the cohort.
+The 028 live CTP route binds each feed to its selected contract, the actual
+Trader trading day and the independently captured MD connection generation.
+`feeds/ctp_factor_source.py` maps untouched native ActionDay/TradingDay and
+UpdateTime/UpdateMillisec through the explicit Shanghai UTC+8 source-time
+contract and shared immutable product session calendars. Missing timestamps
+have no receive-time fallback. Local callback ordinals are observation order,
+not exchange wire sequences or authentication proof. Valid native quotes on
+the selected product-day's source dates remain available outside the common
+factor grid, without assigning a trading session or forming factor bars.
+Ordinary feeds do not enable this adapter.
 Store event wakers share a generation-checked engine condition. An injected
 clock may implement `wait_interruptibly` to support external wake/runstop;
 legacy clocks retain their own `wait` semantics and observe those signals only

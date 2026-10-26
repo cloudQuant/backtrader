@@ -428,6 +428,9 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
         # validates them. Ordinary feeds retain their historical tolerant
         # normalization path.
         ("cohort_source_mode", False),
+        # Optional strict live CTP factor source binding. Kept out of ordinary
+        # imports and behavior unless the caller explicitly supplies it.
+        ("ctp_factor_source_binding", None),
         # Adapter-authored origin claim; cohort matching does not prove exchange completeness.
         ("cohort_source_origin", None),
         ("backfill_start", True),
@@ -514,6 +517,31 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
         cohort_source_mode = self.p.cohort_source_mode
         if type(cohort_source_mode) is not bool:
             raise ValueError("cohort_source_mode must be an exact bool")
+        source_binding = self.p.ctp_factor_source_binding
+        if source_binding is None:
+            self._ctp_factor_source_binding = None
+            self._ctp_factor_source_projector = None
+            self._ctp_factor_source_error_type = None
+        else:
+            # Import only for this explicit live-source mode so a normal
+            # BtApiFeed import remains compatible with Python 3.8 and does
+            # not load the futures-session implementation.
+            from .ctp_factor_source import (
+                CTP_FACTOR_SOURCE_TIME_CONTRACT,
+                CtpFactorSourceBinding,
+                CtpFactorSourceError,
+                project_ctp_factor_tick,
+            )
+
+            if not isinstance(source_binding, CtpFactorSourceBinding):
+                raise ValueError("ctp_factor_source_binding has an unsupported type")
+            if not cohort_source_mode:
+                raise ValueError("CTP factor source binding requires cohort_source_mode=True")
+            self._ctp_factor_source_binding = source_binding
+            self._ctp_factor_source_projector = project_ctp_factor_tick
+            self._ctp_factor_source_error_type = CtpFactorSourceError
+            self._ctp_factor_source_time_contract = CTP_FACTOR_SOURCE_TIME_CONTRACT
+        self._ctp_factor_source_last_callback_sequence = 0
         if cohort_source_mode:
             if type(history_source) is not tuple or type(live_source) is not tuple:
                 raise ValueError("cohort_source_mode requires immutable tuple bar sources")
@@ -1724,11 +1752,52 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
             expired_after_poll = self._cohort_prepare_deadline_expired(deadline_ns)
             drained = True
             drained_count += 1
+            ctp_factor_planned_minute = True
+
+            if self._ctp_factor_source_binding is not None:
+                try:
+                    projection = self._ctp_factor_source_projector(
+                        self._ctp_factor_source_binding, tick
+                    )
+                    callback_sequence = getattr(tick, "ctp_callback_sequence", None)
+                    if (
+                        type(callback_sequence) is not int
+                        or callback_sequence <= self._ctp_factor_source_last_callback_sequence
+                    ):
+                        from .ctp_factor_source import CtpFactorSourceError
+
+                        raise CtpFactorSourceError(
+                            "CTP_FACTOR_SOURCE_CALLBACK_ORDER_INVALID"
+                        )
+                    self._ctp_factor_source_last_callback_sequence = callback_sequence
+                except self._ctp_factor_source_error_type:
+                    self._freeze_cohort_source_state("ctp_factor_source_invalid")
+                    raise
+                ctp_factor_planned_minute = projection.planned_close_time is not None
+                tick.event_time_utc = projection.event_time_utc
+                tick.clock_domain_id = self._ctp_factor_source_binding.calendar.clock_domain_id
+                tick.ctp_source_calendar_hash = projection.calendar_hash
+                tick.ctp_source_time_contract = self._ctp_factor_source_time_contract
+                tick.ctp_factor_target_id = self._ctp_factor_source_binding.target_id
+                tick.ctp_factor_product = (
+                    self._ctp_factor_source_binding.product.exchange_id,
+                    self._ctp_factor_source_binding.product.product_id,
+                )
+                tick.ctp_factor_trader_trading_day = (
+                    self._ctp_factor_source_binding.trader_trading_day.isoformat()
+                )
+                tick.exchange_id = projection.exchange_id
+                tick.exchange_id_source = projection.exchange_id_source
+                if ctp_factor_planned_minute:
+                    tick.session_segment = projection.session_segment
 
             if self._validate_raw_cohort_tick_price(tick) is False:
                 self._mark_event_dropped(tick, "invalid_ctp_source_tick")
                 continue
-            self._prepare_tick(tick, quote_only=quote_only)
+            self._prepare_tick(
+                tick,
+                quote_only=quote_only or not ctp_factor_planned_minute,
+            )
             expired_after_normalize = self._cohort_prepare_deadline_expired(deadline_ns)
 
             if self._handle_event_health(tick):
@@ -1760,7 +1829,7 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
                 )
             else:
                 self._mark_event_dropped(tick, "tick_dispatch_disabled")
-            if quote_only:
+            if quote_only or not ctp_factor_planned_minute:
                 if (
                     expired_after_poll
                     or expired_after_normalize
@@ -2030,6 +2099,19 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
             "action_day": _tick_value(tick, "action_day", "ActionDay", default=""),
             "rules_hash": _tick_value(tick, "rules_hash", default=None),
             "session_segment": _tick_value(tick, "session_segment", default=None),
+            "clock_domain_id": _tick_value(tick, "clock_domain_id", default=None),
+            "ctp_source_calendar_hash": _tick_value(
+                tick, "ctp_source_calendar_hash", default=None
+            ),
+            "ctp_source_time_contract": _tick_value(
+                tick, "ctp_source_time_contract", default=None
+            ),
+            "ctp_factor_target_id": _tick_value(tick, "ctp_factor_target_id", default=None),
+            "ctp_factor_product": _tick_value(tick, "ctp_factor_product", default=None),
+            "ctp_factor_trader_trading_day": _tick_value(
+                tick, "ctp_factor_trader_trading_day", default=None
+            ),
+            "exchange_id_source": _tick_value(tick, "exchange_id_source", default=None),
             "connection_generation": _tick_value(
                 tick, "connection_generation", "stream_generation", default=None
             ),
@@ -2749,6 +2831,18 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
             }
             if bool(self.p.closed_bar_quote_capture):
                 extensions["quote_events"] = tuple(current.get("quote_events") or ())
+            for name in (
+                "clock_domain_id",
+                "ctp_source_calendar_hash",
+                "ctp_source_time_contract",
+                "ctp_factor_target_id",
+                "ctp_factor_product",
+                "ctp_factor_trader_trading_day",
+                "exchange_id_source",
+            ):
+                value = current.get(name)
+                if value is not None:
+                    extensions[name] = value
             for name, value in extensions.items():
                 setattr(completed, name, value)
             self._attach_closed_bar_evidence(completed)

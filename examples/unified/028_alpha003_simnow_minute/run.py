@@ -4637,6 +4637,28 @@ def run_live(
             )
         if store is None:
             create_store()
+        if not query_session_ready and not store.registered_sim_wait_ready(ready_timeout):
+            raise RunnerError("LIVE_CTP_SESSION_NOT_READY")
+        from backtrader.feeds.ctp_factor_source import (
+            CtpFactorSourceBinding,
+            CtpFactorSourceCalendar,
+            parse_ctp_trading_day,
+        )
+
+        if store is None:
+            raise RunnerError("LIVE_CTP_STORE_UNAVAILABLE_FOR_FACTOR_SOURCE")
+        expected_md_generation = store.enable_ctp_factor_tick_source()
+        source_login = store.registered_sim_login_facts()
+        source_trading_day_text = source_login.get("trading_day")
+        try:
+            source_trading_day = parse_ctp_trading_day(source_trading_day_text)
+        except ValueError as exc:
+            raise RunnerError("LIVE_CTP_TRADING_DAY_UNAVAILABLE_FOR_FACTOR_SOURCE") from exc
+        source_calendar = CtpFactorSourceCalendar.from_grid(
+            plan["grid"],
+            config["cohort"]["clock_domain_id"],
+            plan["session_calendars"],
+        )
         decision_tape = _new_decision_tape(
             config,
             config_path,
@@ -4712,6 +4734,15 @@ def run_live(
                     "historical_bars": history_bars,
                     "cohort_source_origin": history_origin,
                 }
+            feed_options["ctp_factor_source_binding"] = CtpFactorSourceBinding(
+                calendar=source_calendar,
+                target_id=target,
+                product=product,
+                instrument_id=instrument,
+                exchange_id=product.exchange_id,
+                trader_trading_day=source_trading_day,
+                expected_md_generation=expected_md_generation,
+            )
             data = store.getdata(
                 dataname=instrument,
                 backfill_start=False,
@@ -4751,9 +4782,9 @@ def run_live(
             winddown_timeout_seconds=shutdown_grace,
         )
 
-        if not query_session_ready and not store.registered_sim_wait_ready(ready_timeout):
-            raise RunnerError("LIVE_CTP_SESSION_NOT_READY")
         login = store.registered_sim_login_facts()
+        if login.get("trading_day") != source_trading_day_text:
+            raise RunnerError("LIVE_SESSION_CHANGED_DURING_FACTOR_SOURCE_BINDING")
         if login.get("read_only_ready") is not True:
             raise RunnerError("LIVE_CTP_READ_ONLY_STATE_UNAVAILABLE")
         if write_enabled and login.get("trading_ready") is not True:
