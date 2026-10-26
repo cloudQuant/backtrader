@@ -1,0 +1,269 @@
+{
+  "schema": "iteration51.accepted-root-support-round.v1",
+  "round": "readonly-observers-20261027",
+  "repository": "D:\\source_code\\backtrader",
+  "branch": "dev",
+  "acceptance_parent": "bc80fb2a878aa963f39e812433909061dafa35ab",
+  "evidence_level": "PUBLIC_SOURCE_SYNTHETIC_COMPONENTS_ONLY",
+  "accepted_distinct_cases": 13,
+  "source_pins": {
+    ".codex-tmp/i51_root_golden_quote_observer_20261027.py": "8c99b0838cba10edd61f9b0293cf2f6a70c42468a7f818250ea3741edab68dd9",
+    ".codex-tmp/test_i51_golden_quote_observer_20261027.py": "2a382397133b69682648ccb8d44f68366f194c45ce48d24f834c381b0b19d10b",
+    ".codex-tmp/i51_root_readonly_span_capture_draft_20261027.py": "c885d65d7d1cb66f817046020ec74ec0b77e431a4209b59edaccfe8ec5fc90ff",
+    ".codex-tmp/test_i51_root_readonly_span_capture_draft_20261027.py": "2fc9c3cb85d03013652d37e8f907b1b0d27e34d8cd64f41a637b3b8183a808a8",
+    ".codex-tmp/i51_root_readonly_write_observation_20261027.py": "cf0c540c68ce23959e4d63d007ab1aae6b526710523b2d4be4cc313d4385ec59",
+    ".codex-tmp/test_i51_root_readonly_write_observation_20261027.py": "1725038a0ac0f30297b1c61c275c4c1294a78120dd05cbb70f917d572fb9a5c0",
+    ".codex-tmp/run_i51_public_focus_20261027.py": "04420e489106f243e549791d323a380f59358888ae4468b7bcf51cdf553f65af",
+    ".codex-tmp/i51_root_golden_quote_review_20261027.md": "b231b417b69dd5b20fd7125016ff628b910f76b09356a1a158612a4aacc30abe"
+  },
+  "qa_results": {
+    "write-observer": {
+      "command": [
+        "C:\\anaconda3\\python.exe",
+        "-m",
+        "pytest",
+        "-p",
+        "no:asyncio",
+        "-q",
+        "--tb=short",
+        "--junitxml=D:\\temp\\i51-write-observer-root-qa-20261027-r1\\junit.xml",
+        ".codex-tmp/test_i51_root_readonly_write_observation_20261027.py"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 1.2650000000139698,
+      "counts": {
+        "tests": 7,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "pins_before": {
+        ".codex-tmp/i51_root_readonly_write_observation_20261027.py": "cf0c540c68ce23959e4d63d007ab1aae6b526710523b2d4be4cc313d4385ec59",
+        ".codex-tmp/test_i51_root_readonly_write_observation_20261027.py": "1725038a0ac0f30297b1c61c275c4c1294a78120dd05cbb70f917d572fb9a5c0"
+      },
+      "pins_after": {
+        ".codex-tmp/i51_root_readonly_write_observation_20261027.py": "cf0c540c68ce23959e4d63d007ab1aae6b526710523b2d4be4cc313d4385ec59",
+        ".codex-tmp/test_i51_root_readonly_write_observation_20261027.py": "1725038a0ac0f30297b1c61c275c4c1294a78120dd05cbb70f917d572fb9a5c0"
+      },
+      "source_pins_unchanged": true,
+      "evidence_level": "PUBLIC_SOURCE_SYNTHETIC_LEAVES_ONLY"
+    },
+    "golden-r1": {
+      "command": [
+        "C:\\anaconda3\\python.exe",
+        "-m",
+        "pytest",
+        "-p",
+        "no:asyncio",
+        "-q",
+        "--tb=short",
+        "--junitxml=D:\\temp\\i51-auction-and-golden-source-qa-20261027-r1\\junit.xml",
+        "tests/integration/test_ctp_factor_preopen_baseline.py",
+        ".codex-tmp/test_i51_golden_quote_observer_20261027.py"
+      ],
+      "exit_code": 1,
+      "elapsed_seconds": 4.579000000027008,
+      "counts": {
+        "tests": 16,
+        "failures": 4,
+        "errors": 0,
+        "skipped": 0
+      },
+      "pins_before": {
+        "backtrader/feeds/btapifeed.py": "f08eb46c3ea9320be008de1266078fa1053944ad98e3b4736e3cc91723ed8ed5",
+        "backtrader/feeds/ctp_factor_source.py": "ae2305394a61dd2b4f2af1334a05356644ce6493d8a8c343cff87a88cde89f49",
+        "backtrader/feeds/futures_expected_calendar.py": "6f19a8d9caead6e0ec78a8bfa189c538d6ac326d0be580978fc4097ad963ce25",
+        "tests/integration/test_ctp_factor_preopen_baseline.py": "f53076d11dd9846d30b5ecd354a528bdd86b5756cd376ab65581d1eaa783da9c",
+        "tests/integration/test_ctp_factor_source_cohort.py": "3ec4493afc9186e32e5e1804580067cd390c899fa4c26310d8f92a6deb6ec4c9",
+        "tests/unit/test_alpha003_simnow_runner.py": "68338e564f42829efb68cbcb2f7ca636a1fff0c1ee06913f77107dbed8859ea2",
+        "tests/unit/feeds/test_futures_sessions.py": "91c31100b1750567ba87639f1385c57d62e85b5f022c26edd9fa96a13df936b3",
+        ".codex-tmp/i51_root_golden_quote_observer_20261027.py": "8c99b0838cba10edd61f9b0293cf2f6a70c42468a7f818250ea3741edab68dd9",
+        ".codex-tmp/test_i51_golden_quote_observer_20261027.py": "4c92bdddc000f92d833f3a27b08cf70e9617f7e8161e1647c56199a666e0a674"
+      },
+      "pins_after": {
+        "backtrader/feeds/btapifeed.py": "f08eb46c3ea9320be008de1266078fa1053944ad98e3b4736e3cc91723ed8ed5",
+        "backtrader/feeds/ctp_factor_source.py": "ae2305394a61dd2b4f2af1334a05356644ce6493d8a8c343cff87a88cde89f49",
+        "backtrader/feeds/futures_expected_calendar.py": "6f19a8d9caead6e0ec78a8bfa189c538d6ac326d0be580978fc4097ad963ce25",
+        "tests/integration/test_ctp_factor_preopen_baseline.py": "f53076d11dd9846d30b5ecd354a528bdd86b5756cd376ab65581d1eaa783da9c",
+        "tests/integration/test_ctp_factor_source_cohort.py": "3ec4493afc9186e32e5e1804580067cd390c899fa4c26310d8f92a6deb6ec4c9",
+        "tests/unit/test_alpha003_simnow_runner.py": "68338e564f42829efb68cbcb2f7ca636a1fff0c1ee06913f77107dbed8859ea2",
+        "tests/unit/feeds/test_futures_sessions.py": "91c31100b1750567ba87639f1385c57d62e85b5f022c26edd9fa96a13df936b3",
+        ".codex-tmp/i51_root_golden_quote_observer_20261027.py": "8c99b0838cba10edd61f9b0293cf2f6a70c42468a7f818250ea3741edab68dd9",
+        ".codex-tmp/test_i51_golden_quote_observer_20261027.py": "4c92bdddc000f92d833f3a27b08cf70e9617f7e8161e1647c56199a666e0a674"
+      },
+      "source_pins_unchanged": true,
+      "evidence_level": "PUBLIC_SOURCE_SYNTHETIC_LEAVES_ONLY"
+    },
+    "golden-span-r2": {
+      "command": [
+        "C:\\anaconda3\\python.exe",
+        "-m",
+        "pytest",
+        "-p",
+        "no:asyncio",
+        "-q",
+        "--tb=short",
+        "--junitxml=D:\\temp\\i51-golden-span-source-qa-20261027-r2\\junit.xml",
+        ".codex-tmp/test_i51_golden_quote_observer_20261027.py",
+        ".codex-tmp/test_i51_root_readonly_span_capture_draft_20261027.py"
+      ],
+      "exit_code": 1,
+      "elapsed_seconds": 3.2969999999622814,
+      "counts": {
+        "tests": 6,
+        "failures": 4,
+        "errors": 0,
+        "skipped": 0
+      },
+      "pins_before": {
+        "backtrader/feeds/btapifeed.py": "f08eb46c3ea9320be008de1266078fa1053944ad98e3b4736e3cc91723ed8ed5",
+        "backtrader/feeds/ctp_factor_source.py": "ae2305394a61dd2b4f2af1334a05356644ce6493d8a8c343cff87a88cde89f49",
+        "backtrader/feeds/futures_expected_calendar.py": "6f19a8d9caead6e0ec78a8bfa189c538d6ac326d0be580978fc4097ad963ce25",
+        "tests/integration/test_ctp_factor_preopen_baseline.py": "f53076d11dd9846d30b5ecd354a528bdd86b5756cd376ab65581d1eaa783da9c",
+        "tests/integration/test_ctp_factor_source_cohort.py": "3ec4493afc9186e32e5e1804580067cd390c899fa4c26310d8f92a6deb6ec4c9",
+        "tests/unit/test_alpha003_simnow_runner.py": "68338e564f42829efb68cbcb2f7ca636a1fff0c1ee06913f77107dbed8859ea2",
+        "tests/unit/feeds/test_futures_sessions.py": "91c31100b1750567ba87639f1385c57d62e85b5f022c26edd9fa96a13df936b3",
+        ".codex-tmp/i51_root_golden_quote_observer_20261027.py": "8c99b0838cba10edd61f9b0293cf2f6a70c42468a7f818250ea3741edab68dd9",
+        ".codex-tmp/test_i51_golden_quote_observer_20261027.py": "5d7ea6bc06fe0fca1990aa93df840b1a493216740ecf0607341f8a0b807835f4",
+        ".codex-tmp/i51_root_readonly_span_capture_draft_20261027.py": "c885d65d7d1cb66f817046020ec74ec0b77e431a4209b59edaccfe8ec5fc90ff",
+        ".codex-tmp/test_i51_root_readonly_span_capture_draft_20261027.py": "2fc9c3cb85d03013652d37e8f907b1b0d27e34d8cd64f41a637b3b8183a808a8",
+        ".codex-tmp/i51_root_readonly_write_observation_20261027.py": "cf0c540c68ce23959e4d63d007ab1aae6b526710523b2d4be4cc313d4385ec59"
+      },
+      "pins_after": {
+        "backtrader/feeds/btapifeed.py": "f08eb46c3ea9320be008de1266078fa1053944ad98e3b4736e3cc91723ed8ed5",
+        "backtrader/feeds/ctp_factor_source.py": "ae2305394a61dd2b4f2af1334a05356644ce6493d8a8c343cff87a88cde89f49",
+        "backtrader/feeds/futures_expected_calendar.py": "6f19a8d9caead6e0ec78a8bfa189c538d6ac326d0be580978fc4097ad963ce25",
+        "tests/integration/test_ctp_factor_preopen_baseline.py": "f53076d11dd9846d30b5ecd354a528bdd86b5756cd376ab65581d1eaa783da9c",
+        "tests/integration/test_ctp_factor_source_cohort.py": "3ec4493afc9186e32e5e1804580067cd390c899fa4c26310d8f92a6deb6ec4c9",
+        "tests/unit/test_alpha003_simnow_runner.py": "68338e564f42829efb68cbcb2f7ca636a1fff0c1ee06913f77107dbed8859ea2",
+        "tests/unit/feeds/test_futures_sessions.py": "91c31100b1750567ba87639f1385c57d62e85b5f022c26edd9fa96a13df936b3",
+        ".codex-tmp/i51_root_golden_quote_observer_20261027.py": "8c99b0838cba10edd61f9b0293cf2f6a70c42468a7f818250ea3741edab68dd9",
+        ".codex-tmp/test_i51_golden_quote_observer_20261027.py": "5d7ea6bc06fe0fca1990aa93df840b1a493216740ecf0607341f8a0b807835f4",
+        ".codex-tmp/i51_root_readonly_span_capture_draft_20261027.py": "c885d65d7d1cb66f817046020ec74ec0b77e431a4209b59edaccfe8ec5fc90ff",
+        ".codex-tmp/test_i51_root_readonly_span_capture_draft_20261027.py": "2fc9c3cb85d03013652d37e8f907b1b0d27e34d8cd64f41a637b3b8183a808a8",
+        ".codex-tmp/i51_root_readonly_write_observation_20261027.py": "cf0c540c68ce23959e4d63d007ab1aae6b526710523b2d4be4cc313d4385ec59"
+      },
+      "source_pins_unchanged": true,
+      "evidence_level": "PUBLIC_SOURCE_SYNTHETIC_LEAVES_ONLY"
+    },
+    "golden-r3": {
+      "command": [
+        "C:\\anaconda3\\python.exe",
+        "-m",
+        "pytest",
+        "-p",
+        "no:asyncio",
+        "-q",
+        "--tb=short",
+        "--junitxml=D:\\temp\\i51-golden-source-qa-20261027-r3\\junit.xml",
+        ".codex-tmp/test_i51_golden_quote_observer_20261027.py"
+      ],
+      "exit_code": 1,
+      "elapsed_seconds": 2.969000000040978,
+      "counts": {
+        "tests": 4,
+        "failures": 1,
+        "errors": 0,
+        "skipped": 0
+      },
+      "pins_before": {
+        "backtrader/feeds/btapifeed.py": "f08eb46c3ea9320be008de1266078fa1053944ad98e3b4736e3cc91723ed8ed5",
+        "backtrader/feeds/ctp_factor_source.py": "ae2305394a61dd2b4f2af1334a05356644ce6493d8a8c343cff87a88cde89f49",
+        "backtrader/feeds/futures_expected_calendar.py": "6f19a8d9caead6e0ec78a8bfa189c538d6ac326d0be580978fc4097ad963ce25",
+        "tests/integration/test_ctp_factor_preopen_baseline.py": "f53076d11dd9846d30b5ecd354a528bdd86b5756cd376ab65581d1eaa783da9c",
+        "tests/integration/test_ctp_factor_source_cohort.py": "3ec4493afc9186e32e5e1804580067cd390c899fa4c26310d8f92a6deb6ec4c9",
+        "tests/unit/test_alpha003_simnow_runner.py": "68338e564f42829efb68cbcb2f7ca636a1fff0c1ee06913f77107dbed8859ea2",
+        "tests/unit/feeds/test_futures_sessions.py": "91c31100b1750567ba87639f1385c57d62e85b5f022c26edd9fa96a13df936b3",
+        ".codex-tmp/i51_root_golden_quote_observer_20261027.py": "8c99b0838cba10edd61f9b0293cf2f6a70c42468a7f818250ea3741edab68dd9",
+        ".codex-tmp/test_i51_golden_quote_observer_20261027.py": "97d20593e9126b2d0a8d0b191de3f35f3814ffb7d4376ec51da049e93a4127b0",
+        ".codex-tmp/i51_root_readonly_span_capture_draft_20261027.py": "c885d65d7d1cb66f817046020ec74ec0b77e431a4209b59edaccfe8ec5fc90ff",
+        ".codex-tmp/test_i51_root_readonly_span_capture_draft_20261027.py": "2fc9c3cb85d03013652d37e8f907b1b0d27e34d8cd64f41a637b3b8183a808a8",
+        ".codex-tmp/i51_root_readonly_write_observation_20261027.py": "cf0c540c68ce23959e4d63d007ab1aae6b526710523b2d4be4cc313d4385ec59"
+      },
+      "pins_after": {
+        "backtrader/feeds/btapifeed.py": "f08eb46c3ea9320be008de1266078fa1053944ad98e3b4736e3cc91723ed8ed5",
+        "backtrader/feeds/ctp_factor_source.py": "ae2305394a61dd2b4f2af1334a05356644ce6493d8a8c343cff87a88cde89f49",
+        "backtrader/feeds/futures_expected_calendar.py": "6f19a8d9caead6e0ec78a8bfa189c538d6ac326d0be580978fc4097ad963ce25",
+        "tests/integration/test_ctp_factor_preopen_baseline.py": "f53076d11dd9846d30b5ecd354a528bdd86b5756cd376ab65581d1eaa783da9c",
+        "tests/integration/test_ctp_factor_source_cohort.py": "3ec4493afc9186e32e5e1804580067cd390c899fa4c26310d8f92a6deb6ec4c9",
+        "tests/unit/test_alpha003_simnow_runner.py": "68338e564f42829efb68cbcb2f7ca636a1fff0c1ee06913f77107dbed8859ea2",
+        "tests/unit/feeds/test_futures_sessions.py": "91c31100b1750567ba87639f1385c57d62e85b5f022c26edd9fa96a13df936b3",
+        ".codex-tmp/i51_root_golden_quote_observer_20261027.py": "8c99b0838cba10edd61f9b0293cf2f6a70c42468a7f818250ea3741edab68dd9",
+        ".codex-tmp/test_i51_golden_quote_observer_20261027.py": "97d20593e9126b2d0a8d0b191de3f35f3814ffb7d4376ec51da049e93a4127b0",
+        ".codex-tmp/i51_root_readonly_span_capture_draft_20261027.py": "c885d65d7d1cb66f817046020ec74ec0b77e431a4209b59edaccfe8ec5fc90ff",
+        ".codex-tmp/test_i51_root_readonly_span_capture_draft_20261027.py": "2fc9c3cb85d03013652d37e8f907b1b0d27e34d8cd64f41a637b3b8183a808a8",
+        ".codex-tmp/i51_root_readonly_write_observation_20261027.py": "cf0c540c68ce23959e4d63d007ab1aae6b526710523b2d4be4cc313d4385ec59"
+      },
+      "source_pins_unchanged": true,
+      "evidence_level": "PUBLIC_SOURCE_SYNTHETIC_LEAVES_ONLY"
+    },
+    "golden-r4": {
+      "command": [
+        "C:\\anaconda3\\python.exe",
+        "-m",
+        "pytest",
+        "-p",
+        "no:asyncio",
+        "-q",
+        "--tb=short",
+        "--junitxml=D:\\temp\\i51-golden-source-qa-20261027-r4\\junit.xml",
+        ".codex-tmp/test_i51_golden_quote_observer_20261027.py::test_stale_only_quote_witnesses_do_not_qualify_after_fake_sixty_second_window"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 2.562000000034459,
+      "counts": {
+        "tests": 1,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "pins_before": {
+        "backtrader/feeds/btapifeed.py": "f08eb46c3ea9320be008de1266078fa1053944ad98e3b4736e3cc91723ed8ed5",
+        "backtrader/feeds/ctp_factor_source.py": "ae2305394a61dd2b4f2af1334a05356644ce6493d8a8c343cff87a88cde89f49",
+        "backtrader/feeds/futures_expected_calendar.py": "6f19a8d9caead6e0ec78a8bfa189c538d6ac326d0be580978fc4097ad963ce25",
+        "tests/integration/test_ctp_factor_preopen_baseline.py": "f53076d11dd9846d30b5ecd354a528bdd86b5756cd376ab65581d1eaa783da9c",
+        "tests/integration/test_ctp_factor_source_cohort.py": "3ec4493afc9186e32e5e1804580067cd390c899fa4c26310d8f92a6deb6ec4c9",
+        "tests/unit/test_alpha003_simnow_runner.py": "68338e564f42829efb68cbcb2f7ca636a1fff0c1ee06913f77107dbed8859ea2",
+        "tests/unit/feeds/test_futures_sessions.py": "91c31100b1750567ba87639f1385c57d62e85b5f022c26edd9fa96a13df936b3",
+        ".codex-tmp/i51_root_golden_quote_observer_20261027.py": "8c99b0838cba10edd61f9b0293cf2f6a70c42468a7f818250ea3741edab68dd9",
+        ".codex-tmp/test_i51_golden_quote_observer_20261027.py": "2a382397133b69682648ccb8d44f68366f194c45ce48d24f834c381b0b19d10b",
+        ".codex-tmp/i51_root_readonly_span_capture_draft_20261027.py": "c885d65d7d1cb66f817046020ec74ec0b77e431a4209b59edaccfe8ec5fc90ff",
+        ".codex-tmp/test_i51_root_readonly_span_capture_draft_20261027.py": "2fc9c3cb85d03013652d37e8f907b1b0d27e34d8cd64f41a637b3b8183a808a8",
+        ".codex-tmp/i51_root_readonly_write_observation_20261027.py": "cf0c540c68ce23959e4d63d007ab1aae6b526710523b2d4be4cc313d4385ec59"
+      },
+      "pins_after": {
+        "backtrader/feeds/btapifeed.py": "f08eb46c3ea9320be008de1266078fa1053944ad98e3b4736e3cc91723ed8ed5",
+        "backtrader/feeds/ctp_factor_source.py": "ae2305394a61dd2b4f2af1334a05356644ce6493d8a8c343cff87a88cde89f49",
+        "backtrader/feeds/futures_expected_calendar.py": "6f19a8d9caead6e0ec78a8bfa189c538d6ac326d0be580978fc4097ad963ce25",
+        "tests/integration/test_ctp_factor_preopen_baseline.py": "f53076d11dd9846d30b5ecd354a528bdd86b5756cd376ab65581d1eaa783da9c",
+        "tests/integration/test_ctp_factor_source_cohort.py": "3ec4493afc9186e32e5e1804580067cd390c899fa4c26310d8f92a6deb6ec4c9",
+        "tests/unit/test_alpha003_simnow_runner.py": "68338e564f42829efb68cbcb2f7ca636a1fff0c1ee06913f77107dbed8859ea2",
+        "tests/unit/feeds/test_futures_sessions.py": "91c31100b1750567ba87639f1385c57d62e85b5f022c26edd9fa96a13df936b3",
+        ".codex-tmp/i51_root_golden_quote_observer_20261027.py": "8c99b0838cba10edd61f9b0293cf2f6a70c42468a7f818250ea3741edab68dd9",
+        ".codex-tmp/test_i51_golden_quote_observer_20261027.py": "2a382397133b69682648ccb8d44f68366f194c45ce48d24f834c381b0b19d10b",
+        ".codex-tmp/i51_root_readonly_span_capture_draft_20261027.py": "c885d65d7d1cb66f817046020ec74ec0b77e431a4209b59edaccfe8ec5fc90ff",
+        ".codex-tmp/test_i51_root_readonly_span_capture_draft_20261027.py": "2fc9c3cb85d03013652d37e8f907b1b0d27e34d8cd64f41a637b3b8183a808a8",
+        ".codex-tmp/i51_root_readonly_write_observation_20261027.py": "cf0c540c68ce23959e4d63d007ab1aae6b526710523b2d4be4cc313d4385ec59"
+      },
+      "source_pins_unchanged": true,
+      "evidence_level": "PUBLIC_SOURCE_SYNTHETIC_LEAVES_ONLY"
+    }
+  },
+  "scope": "Bounded three-to-five-product quote qualification, aggregate read-only write counters, and one-shot exact Cerebro.run span capture. These Root helpers neither read configuration nor create or close provider sessions.",
+  "qa_summary": "Write observer: 7 passes. Span hook: 2 passes in R2, covering unrelated prelude calls and both normal/exceptional returns. Quote helper: positive/source/ActionDay 3 passes in R3, stale-only 1 pass in R4; helper code unchanged throughout. Accepted cases were not rerun for delivery.",
+  "preserved_failures": [
+    "R1 golden fixtures used a future rule retrieval time relative to synthetic as_of.",
+    "R2 fixtures emitted callbacks before registering the observer alias, so those callbacks belonged only to the existing Feed alias queue.",
+    "R3 stale fixture expected two witnesses, but the second callback was first polled after 61 seconds and correctly never became eligible. R4 fixes only the expected witness/eligible count."
+  ],
+  "limits": [
+    "Positive quote fixture proves qualification before cohort publication; it does not prove an observation outside the planned common grid.",
+    "No actual quote, provider, account, complete session, or write-zero result is accepted.",
+    "The hook test uses synthetic Cerebro and observer objects. Real-engine same-call capture remains required.",
+    "Each source QA records one existing pytest configuration warning."
+  ],
+  "archive": {
+    "sha256": "891515b06eb07fce1985b7317606a4f9d0c6b70228966e7a480d1e8be6049ff1",
+    "size_bytes": 49974
+  }
+}
