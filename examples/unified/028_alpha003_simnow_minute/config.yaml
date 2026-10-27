@@ -18,6 +18,10 @@ selection:
   # same RegisteredSimStore later used by Cerebro. Research/replay require the
   # explicit legacy saved-bundle source below.
   source: ctp_query
+  # The staged profile freezes the complete visible ProductClass=1 product
+  # set, queries each product's instruments, then requests ProductClass=1 depth.
+  # Older copied configs without this field retain legacy_two_query.
+  query_mode: staged_product_set
   bundle: null
   # Optional list of EXCHANGE.PRODUCT values allowed to receive trade targets.
   # The complete manifest target pool still participates in cross-sectional ranks.

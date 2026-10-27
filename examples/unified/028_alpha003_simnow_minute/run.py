@@ -103,6 +103,12 @@ _CTP_FUTURES_SNAPSHOT_ERROR_CODES = frozenset(
         "QUERY_REQUEST_ID_INVALID",
         "QUERY_REQUEST_TYPE_INVALID",
         "QUERY_REQUEST_TYPE_MISMATCH",
+        "QUERY_REQUEST_FILTERS_MISMATCH",
+        "QUERY_RECORD_LIMIT_INVALID",
+        "QUERY_RECORD_LIMIT_UNAVAILABLE",
+        "QUERY_RECORD_LIMIT_MISMATCH",
+        "QUERY_RECORD_LIMIT_STATE_INVALID",
+        "QUERY_RECORD_LIMIT_EXCEEDED",
         "QUERY_RESULT_TYPE_INVALID",
         "QUERY_ROW_KEY_UNSUPPORTED",
         "QUERY_ROW_VALUE_UNSUPPORTED",
@@ -113,6 +119,23 @@ _CTP_FUTURES_SNAPSHOT_ERROR_CODES = frozenset(
         "QUERY_TIME_REVERSED",
         "QUERY_TIMED_OUT",
         "QUERY_UNSUPPORTED",
+        "PRODUCT_QUERY_EMPTY",
+        "PRODUCT_QUERY_RECORD_CAP_EXCEEDED",
+        "PRODUCT_FIELD_CONFLICT",
+        "PRODUCT_CANONICAL_COLLISION",
+        "PRODUCT_DUPLICATE",
+        "PRODUCT_CLASS_MISMATCH",
+        "PRODUCT_CLASS_MISSING",
+        "PRODUCT_CLASS_INVALID",
+        "PRODUCT_EXCHANGE_ID_MISSING",
+        "PRODUCT_EXCHANGE_ID_INVALID",
+        "PRODUCT_ID_MISSING",
+        "PRODUCT_ID_INVALID",
+        "PRODUCTS_QUERY_CALL_FAILED",
+        "INSTRUMENT_RECORD_CAP_EXHAUSTED",
+        "INSTRUMENT_RECORD_CAP_EXCEEDED",
+        "INSTRUMENT_QUERY_ROW_SCOPE_MISMATCH",
+        "DEPTH_QUERY_CALL_FAILED",
         "QUOTE_ACTION_DAY_INVALID",
         "QUOTE_EXCHANGE_ID_MISSING",
         "QUOTE_IDENTITY_INVALID",
@@ -266,6 +289,7 @@ _SECTION_KEYS = {
     "factor": {"mode", "direction", "preheat_bars", "rebalance_every"},
     "selection": {
         "source",
+        "query_mode",
         "bundle",
         "authorized_products",
         "daily_bundles",
@@ -340,6 +364,7 @@ def load_config(config_path: Path) -> dict[str, Any]:
         # the original offline-bundle behavior for copied configurations.
         if section == "selection":
             row.setdefault("source", "bundle")
+            row.setdefault("query_mode", "legacy_two_query")
             row.setdefault("daily_bundles", [])
             row.setdefault("max_epochs", 1)
         elif section == "inputs":
@@ -366,6 +391,13 @@ def load_config(config_path: Path) -> dict[str, Any]:
     selection = config["selection"]
     if selection["source"] not in {"bundle", "ctp_query"}:
         raise RunnerError("SELECTION_SOURCE_INVALID")
+    if type(selection["query_mode"]) is not str or selection["query_mode"] not in {
+        "legacy_two_query",
+        "staged_product_set",
+    }:
+        raise RunnerError("SELECTION_QUERY_MODE_INVALID")
+    if selection["source"] != "ctp_query" and selection["query_mode"] != "legacy_two_query":
+        raise RunnerError("SELECTION_QUERY_MODE_REQUIRES_CTP_QUERY")
     max_epochs = selection["max_epochs"]
     if type(max_epochs) is not int or not 1 <= max_epochs <= 100:
         raise RunnerError("SELECTION_MAX_EPOCHS_INVALID")
@@ -575,8 +607,28 @@ def build_ctp_query_market_plan(store, config, *, clock):
     collector = getattr(store, "registered_sim_collect_futures_snapshot", None)
     if not callable(collector):
         raise RunnerError("CTP_FUTURES_SNAPSHOT_BRIDGE_UNAVAILABLE")
+    selection = config.get("selection")
+    query_mode = "legacy_two_query"
+    if isinstance(selection, Mapping):
+        query_mode = selection.get("query_mode", query_mode)
+    if type(query_mode) is not str or query_mode not in {
+        "legacy_two_query",
+        "staged_product_set",
+    }:
+        raise RunnerError("SELECTION_QUERY_MODE_INVALID")
+    if query_mode == "staged_product_set":
+        collector_kwargs = {
+            "max_collection_seconds": 300.0,
+            "max_snapshot_age_seconds": 300.0,
+            "query_mode": query_mode,
+        }
+    else:
+        collector_kwargs = {
+            "max_collection_seconds": 300.0,
+            "max_snapshot_age_seconds": 300.0,
+        }
     try:
-        snapshot = collector(max_collection_seconds=300.0, max_snapshot_age_seconds=300.0)
+        snapshot = collector(**collector_kwargs)
     except Exception as error:
         # Do not expose SDK exception text, provider payloads, or account data.
         from backtrader.feeds.futures_ctp_snapshot import CtpFuturesSnapshotError
@@ -584,8 +636,20 @@ def build_ctp_query_market_plan(store, config, *, clock):
         detail = "UNEXPECTED_COLLECTION_FAILURE"
         if type(error) is CtpFuturesSnapshotError:
             code = getattr(error, "code", None)
-            if type(code) is str and code in _CTP_FUTURES_SNAPSHOT_ERROR_CODES:
-                detail = code
+            if type(code) is str:
+                numbered_instrument_failure = False
+                prefix = "INSTRUMENTS_"
+                suffix = "_QUERY_CALL_FAILED"
+                if code.startswith(prefix) and code.endswith(suffix):
+                    request_ordinal = code[len(prefix) : -len(suffix)]
+                    numbered_instrument_failure = (
+                        len(request_ordinal) == 3
+                        and request_ordinal.isascii()
+                        and request_ordinal.isdigit()
+                        and 1 <= int(request_ordinal) <= 256
+                    )
+                if code in _CTP_FUTURES_SNAPSHOT_ERROR_CODES or numbered_instrument_failure:
+                    detail = code
         runner_error = RunnerError("CTP_FUTURES_SNAPSHOT_COLLECTION_FAILED", detail)
         runner_error.query_diagnostics = _project_ctp_snapshot_query_diagnostics(error)
         raise runner_error from None
@@ -594,12 +658,20 @@ def build_ctp_query_market_plan(store, config, *, clock):
 
     if not isinstance(snapshot, MainContractQuerySnapshot):
         raise RunnerError("CTP_FUTURES_SNAPSHOT_TYPE_INVALID")
-    products = tuple(
-        sorted(
-            {row.product for row in snapshot.catalog_records if row.product_class == "1"},
-            key=lambda product: (product.exchange_id, product.product_id),
+    if query_mode == "staged_product_set":
+        query_set = snapshot.query_set
+        if query_set is None:
+            raise RunnerError("CTP_FUTURES_QUERY_SET_UNAVAILABLE")
+        products = tuple(item.product for item in query_set.products)
+    else:
+        if snapshot.query_set is not None:
+            raise RunnerError("CTP_FUTURES_QUERY_MODE_MISMATCH")
+        products = tuple(
+            sorted(
+                {row.product for row in snapshot.catalog_records if row.product_class == "1"},
+                key=lambda product: (product.exchange_id, product.product_id),
+            )
         )
-    )
     if not products or any(not isinstance(product, ProductKey) for product in products):
         raise RunnerError("CTP_FUTURES_PRODUCT_POOL_UNAVAILABLE")
     trading_day = snapshot.session_trading_day_after
@@ -688,11 +760,18 @@ def build_ctp_query_market_plan(store, config, *, clock):
         if len(set(authorized)) != len(authorized) or not set(authorized).issubset(target_names):
             raise RunnerError("AUTHORIZED_PRODUCTS_OUTSIDE_POOL")
 
-    catalog_id = snapshot.catalog_source.snapshot_id
-    quote_id = snapshot.quote_source.snapshot_id
-    if type(catalog_id) is not str or type(quote_id) is not str:
-        raise RunnerError("CTP_FUTURES_SNAPSHOT_ID_UNAVAILABLE")
-    source_snapshot_id = f"{catalog_id}|{quote_id}"
+    if query_mode == "staged_product_set":
+        source_snapshot_id = snapshot.query_set.snapshot_id
+        if type(source_snapshot_id) is not str or not source_snapshot_id:
+            raise RunnerError("CTP_FUTURES_SNAPSHOT_ID_UNAVAILABLE")
+        selection_path = f"ctp-query://{source_snapshot_id}"
+    else:
+        catalog_id = snapshot.catalog_source.snapshot_id
+        quote_id = snapshot.quote_source.snapshot_id
+        if type(catalog_id) is not str or type(quote_id) is not str:
+            raise RunnerError("CTP_FUTURES_SNAPSHOT_ID_UNAVAILABLE")
+        source_snapshot_id = f"{catalog_id}|{quote_id}"
+        selection_path = f"ctp-query://{catalog_id}|{quote_id}"
     return {
         "bundle": None,
         "manifest": manifest,
@@ -704,7 +783,7 @@ def build_ctp_query_market_plan(store, config, *, clock):
         "authorized_targets": authorized,
         "session_calendars": calendar_build.session_calendar_by_exchange,
         "grid": grid,
-        "selection_path": f"ctp-query://{catalog_id}|{quote_id}",
+        "selection_path": selection_path,
         "selection_source": "ctp_query_snapshot_equal_weight_v1",
         "source_snapshot_id": source_snapshot_id,
         "calendar_evidence_mode": calendar_build.evidence_mode,
@@ -720,6 +799,8 @@ _CTP_QUERY_DIAGNOSTIC_CATEGORIES = frozenset(
         "unsupported",
         "incomplete",
         "late_callbacks",
+        "record_limit",
+        "scope_mismatch",
         "submission_error",
         "query_error",
         "invalid",
@@ -738,13 +819,14 @@ _CTP_QUERY_COMPLETION_ORIGINS = frozenset(
         "timeout",
         "deadline",
         "success",
+        "record_limit",
         "local_preflight",
     }
 )
 _CTP_QUERY_SUBMIT_CATEGORIES = frozenset(
     {"unavailable", "not_observed", "accepted", "rejected", "invalid"}
 )
-_CTP_QUERY_DIAGNOSTIC_MAX_RECORDS = 1_000_000
+_CTP_QUERY_DIAGNOSTIC_MAX_RECORDS = 20_000
 _CTP_QUERY_UNAVAILABLE_CATEGORIES = frozenset(
     {
         "DIAGNOSTIC_CONTRACT_UNAVAILABLE",
@@ -754,36 +836,42 @@ _CTP_QUERY_UNAVAILABLE_CATEGORIES = frozenset(
     }
 )
 _CTP_QUERY_STAGE_FIELD_NAMES = (
-        "stage",
-        "entered",
-        "returned",
-        "elapsed_seconds",
-        "prior_stage_complete",
-        "result_type_matches",
-        "request_type_matches",
-        "generation_matches",
-        "request_id_positive",
-        "timed_out",
-        "complete",
-        "is_last_seen",
-        "unsupported",
-        "late_callbacks_reported",
-        "late_callback_count_valid",
-        "record_count",
-        "record_count_capped",
-        "submit_category",
-        "error_code_present",
-        "error_code_valid",
-        "error_code_nonzero",
-        "error_message_present",
-        "error_message_valid",
-        "error_category",
-        "first_completion_origin",
-        "completion_origin",
+    "stage",
+    "entered",
+    "returned",
+    "elapsed_seconds",
+    "prior_stage_complete",
+    "result_type_matches",
+    "request_type_matches",
+    "generation_matches",
+    "request_id_positive",
+    "timed_out",
+    "complete",
+    "is_last_seen",
+    "unsupported",
+    "late_callbacks_reported",
+    "late_callback_count_valid",
+    "record_count",
+    "record_count_capped",
+    "submit_category",
+    "error_code_present",
+    "error_code_valid",
+    "error_code_nonzero",
+    "error_message_present",
+    "error_message_valid",
+    "error_category",
+    "first_completion_origin",
+    "completion_origin",
 )
-_CTP_QUERY_STAGE_FIELDS = frozenset(
-    _CTP_QUERY_STAGE_FIELD_NAMES
+_CTP_QUERY_STAGED_STAGE_FIELD_NAMES = _CTP_QUERY_STAGE_FIELD_NAMES + (
+    "requested_record_limit",
+    "record_limit_observed",
+    "record_limit_matches",
+    "record_limit_exceeded",
+    "request_filters_match",
 )
+_CTP_QUERY_STAGE_FIELDS = frozenset(_CTP_QUERY_STAGE_FIELD_NAMES)
+_CTP_QUERY_STAGED_STAGE_FIELDS = frozenset(_CTP_QUERY_STAGED_STAGE_FIELD_NAMES)
 
 
 def _sanitize_ctp_query_diagnostics(value):
@@ -803,14 +891,61 @@ def _sanitize_ctp_query_diagnostics(value):
     if set(value) != {"status", "stages"} or value.get("status") != "AVAILABLE":
         return unavailable
     stages = value.get("stages")
-    if type(stages) is not list or not 1 <= len(stages) <= 2:
+    if type(stages) is not list or not 1 <= len(stages) <= 258:
+        return unavailable
+    if type(stages[0]) is not dict or type(stages[0].get("stage")) is not str:
+        return unavailable
+    staged_query_set = stages[0]["stage"] == "products"
+    if not staged_query_set and len(stages) > 2:
+        return unavailable
+    product_count = stages[0].get("record_count") if staged_query_set else None
+    if product_count is not None and (
+        type(product_count) is not int
+        or not 0 <= product_count <= _CTP_QUERY_DIAGNOSTIC_MAX_RECORDS
+    ):
+        return unavailable
+    if (
+        staged_query_set
+        and product_count is not None
+        and product_count > 256
+        and len(stages) > 1
+    ):
+        return unavailable
+    if staged_query_set and product_count is None and len(stages) > 1:
+        return unavailable
+    if staged_query_set and product_count == 0 and len(stages) > 1:
         return unavailable
 
     sanitized = []
     for index, stage in enumerate(stages):
-        expected_name = "catalog" if index == 0 else "depth"
-        if type(stage) is not dict or set(stage) != _CTP_QUERY_STAGE_FIELDS:
+        stage_fields = (
+            _CTP_QUERY_STAGED_STAGE_FIELDS if staged_query_set else _CTP_QUERY_STAGE_FIELDS
+        )
+        if type(stage) is not dict or set(stage) != stage_fields:
             return unavailable
+        if staged_query_set:
+            if index == 0:
+                expected_name = "products"
+            elif index <= product_count:
+                expected_name = "instruments_{:03d}".format(index)
+            elif index == product_count + 1:
+                expected_name = "depth"
+            else:
+                return unavailable
+        else:
+            expected_name = "catalog" if index == 0 else "depth"
+        if staged_query_set:
+            requested_limit = stage.get("requested_record_limit")
+            if expected_name == "products":
+                valid_limit = type(requested_limit) is int and requested_limit == 256
+            elif expected_name == "depth":
+                valid_limit = type(requested_limit) is int and requested_limit == 20_000
+            else:
+                valid_limit = (
+                    type(requested_limit) is int and 1 <= requested_limit <= 20_000
+                )
+            if not valid_limit:
+                return unavailable
         if (
             type(stage["stage"]) is not str
             or stage["stage"] != expected_name
@@ -824,6 +959,12 @@ def _sanitize_ctp_query_diagnostics(value):
             or stage["first_completion_origin"] not in _CTP_QUERY_COMPLETION_ORIGINS
             or type(stage["completion_origin"]) is not str
             or stage["completion_origin"] not in _CTP_QUERY_COMPLETION_ORIGINS
+        ):
+            return unavailable
+        if not staged_query_set and (
+            stage["error_category"] in {"record_limit", "scope_mismatch"}
+            or stage["first_completion_origin"] == "record_limit"
+            or stage["completion_origin"] == "record_limit"
         ):
             return unavailable
         prior = stage["prior_stage_complete"]
@@ -856,6 +997,12 @@ def _sanitize_ctp_query_diagnostics(value):
             "error_message_present",
             "error_message_valid",
         )
+        if staged_query_set:
+            optional_booleans += (
+                "record_limit_matches",
+                "record_limit_exceeded",
+                "request_filters_match",
+            )
         if any(
             stage[name] is not None and type(stage[name]) is not bool
             for name in optional_booleans
@@ -885,6 +1032,28 @@ def _sanitize_ctp_query_diagnostics(value):
         ):
             return unavailable
 
+        requested_limit = stage.get("requested_record_limit")
+        observed_limit = stage.get("record_limit_observed")
+        if staged_query_set and requested_limit is None:
+            return unavailable
+        if requested_limit is None:
+            if any(
+                stage.get(name) is not None
+                for name in (
+                    "record_limit_observed",
+                    "record_limit_matches",
+                    "record_limit_exceeded",
+                    "request_filters_match",
+                )
+            ):
+                return unavailable
+        elif type(requested_limit) is not int or not 1 <= requested_limit <= 100_000:
+            return unavailable
+        if observed_limit is not None and (
+            type(observed_limit) is not int or not 1 <= observed_limit <= 100_000
+        ):
+            return unavailable
+
         if stage["result_type_matches"] is True:
             required_boolean_facts = (
                 "request_type_matches",
@@ -907,6 +1076,34 @@ def _sanitize_ctp_query_diagnostics(value):
                 or record_count is None
                 or stage["submit_category"] in {"unavailable", "invalid"}
                 or stage["error_category"] == "unavailable"
+            ):
+                return unavailable
+            if requested_limit is not None:
+                if (
+                    type(observed_limit) is not int
+                    or type(stage.get("record_limit_matches")) is not bool
+                    or type(stage.get("record_limit_exceeded")) is not bool
+                    or type(stage.get("request_filters_match")) is not bool
+                    or stage.get("record_limit_matches")
+                    is not (observed_limit == requested_limit)
+                ):
+                    return unavailable
+                if stage["record_count_capped"] is True and stage.get(
+                    "record_limit_exceeded"
+                ) is not True:
+                    return unavailable
+                if record_count > requested_limit and stage.get(
+                    "record_limit_exceeded"
+                ) is not True:
+                    return unavailable
+            elif any(
+                stage.get(name) is not None
+                for name in (
+                    "record_limit_observed",
+                    "record_limit_matches",
+                    "record_limit_exceeded",
+                    "request_filters_match",
+                )
             ):
                 return unavailable
             if stage["error_code_valid"] is True:
@@ -938,6 +1135,14 @@ def _sanitize_ctp_query_diagnostics(value):
                 expected_error_category = "invalid"
             elif stage["timed_out"] is True:
                 expected_error_category = "timeout"
+            elif stage.get("record_limit_exceeded") is True or stage["completion_origin"] == (
+                "record_limit"
+            ):
+                expected_error_category = "record_limit"
+            elif stage.get("record_limit_matches") is False or stage.get(
+                "request_filters_match"
+            ) is False:
+                expected_error_category = "scope_mismatch"
             elif stage["unsupported"] is True:
                 expected_error_category = "unsupported"
             elif stage["error_code_nonzero"] is True:
@@ -965,28 +1170,28 @@ def _sanitize_ctp_query_diagnostics(value):
 
         sanitized.append(dict(stage))
 
-    if len(sanitized) == 2:
-        catalog = sanitized[0]
-        if not (
-            catalog["returned"] is True
-            and catalog["result_type_matches"] is True
-            and catalog["request_type_matches"] is True
-            and catalog["generation_matches"] is True
-            and catalog["request_id_positive"] is True
-            and catalog["timed_out"] is False
-            and catalog["unsupported"] is False
-            and catalog["complete"] is True
-            and catalog["is_last_seen"] is True
-            and catalog["late_callbacks_reported"] is False
-            and catalog["late_callback_count_valid"] is True
-            and catalog["record_count"] is not None
-            and catalog["submit_category"] in {"accepted", "not_observed"}
-            and catalog["error_category"] == "none"
-            and catalog["error_code_valid"] is True
-            and catalog["error_message_valid"] is True
-            and catalog["error_message_present"] is False
-        ):
-            return unavailable
+    if len(sanitized) > 1:
+        for prior_stage in sanitized[:-1]:
+            if not (
+                prior_stage["returned"] is True
+                and prior_stage["result_type_matches"] is True
+                and prior_stage["request_type_matches"] is True
+                and prior_stage["generation_matches"] is True
+                and prior_stage["request_id_positive"] is True
+                and prior_stage["timed_out"] is False
+                and prior_stage["unsupported"] is False
+                and prior_stage["complete"] is True
+                and prior_stage["is_last_seen"] is True
+                and prior_stage["late_callbacks_reported"] is False
+                and prior_stage["late_callback_count_valid"] is True
+                and prior_stage["record_count"] is not None
+                and prior_stage["submit_category"] in {"accepted", "not_observed"}
+                and prior_stage["error_category"] == "none"
+                and prior_stage["error_code_valid"] is True
+                and prior_stage["error_message_valid"] is True
+                and prior_stage["error_message_present"] is False
+            ):
+                return unavailable
     return {"status": "AVAILABLE", "stages": sanitized}
 
 
@@ -1008,13 +1213,23 @@ def _project_ctp_snapshot_query_diagnostics(error):
     observations = getattr(error, "query_observations", None)
     if type(observations) is not tuple or not observations:
         return unavailable("NO_QUERY_OBSERVATION")
-    if len(observations) > 2 or any(
+    staged_query_set = (
+        type(observations[0]) is CtpFuturesSnapshotQueryObservation
+        and getattr(observations[0], "stage", None) == "products"
+    )
+    max_observations = 258 if staged_query_set else 2
+    if len(observations) > max_observations or any(
         type(item) is not CtpFuturesSnapshotQueryObservation for item in observations
     ):
         return unavailable("INVALID_DIAGNOSTICS")
+    field_names = (
+        _CTP_QUERY_STAGED_STAGE_FIELD_NAMES
+        if staged_query_set
+        else _CTP_QUERY_STAGE_FIELD_NAMES
+    )
     try:
         stages = [
-            {name: getattr(observation, name) for name in _CTP_QUERY_STAGE_FIELD_NAMES}
+            {name: getattr(observation, name) for name in field_names}
             for observation in observations
         ]
     except Exception:

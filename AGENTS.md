@@ -625,8 +625,16 @@ focused cases (not one 24-case run). The latter fixes named PandasData position
 refresh by accepting only nonblank string native aliases, retaining exchange
 conflict checks. This is synthetic integration only; 028 strategy wiring, real
 account PnL and process-restart acceptance remain outstanding.
-The all-visible CTP snapshot collector attaches at most two typed, bounded
-query-stage observations to refusal errors. The 028 runner emits only a
+The CTP snapshot collector supports explicit `staged_product_set`: a class-1
+product query, one exact native-case instrument query per returned product,
+then a class-1 depth query share one absolute collection deadline. Product,
+cumulative instrument and depth rows are capped at 256, 20,000 and 20,000;
+the SDK also retains its bounded query history. Selection keeps the entire
+returned product set, including products with missing instrument/quote coverage,
+and binds the immutable query-set identity and individual request provenance.
+The 028 public template selects this mode; omission retains the legacy two-query
+path. Refusals carry at most 258 bounded stages in staged mode, or two in legacy
+mode. The 028 runner emits only a
 validated fixed schema; raw query rows, request IDs and provider messages are
 excluded. First and latest completion origins use an explicit SDK whitelist;
 older results default to unknown, and nonzero errors alone do not identify a

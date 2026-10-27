@@ -28,7 +28,10 @@ from typing import Any, Callable, Optional, Tuple
 _DEFAULT_MAX_COLLECTION_SECONDS = 300.0
 _DEFAULT_MAX_SNAPSHOT_AGE_SECONDS = 300.0
 _MAX_CONFIGURED_SECONDS = 3600.0
-_MAX_QUERY_DIAGNOSTIC_RECORD_COUNT = 1_000_000
+_MAX_QUERY_DIAGNOSTIC_RECORD_COUNT = 20_000
+_MAX_QUERY_DIAGNOSTIC_OBSERVATIONS = 258
+_MAX_PRODUCT_QUERY_HARD_SECONDS = 30.0
+_MAX_QUERY_IDLE_SECONDS = 5.0
 _QUERY_COMPLETION_ORIGINS = frozenset(
     {
         "unknown",
@@ -43,6 +46,7 @@ _QUERY_COMPLETION_ORIGINS = frozenset(
         "deadline",
         "success",
         "local_preflight",
+        "record_limit",
     }
 )
 _DAY_FORMAT = "%Y%m%d"
@@ -79,6 +83,11 @@ class CtpFuturesSnapshotQueryObservation:
     error_category: str
     first_completion_origin: Optional[str] = "unknown"
     completion_origin: Optional[str] = "unknown"
+    requested_record_limit: Optional[int] = None
+    record_limit_observed: Optional[int] = None
+    record_limit_matches: Optional[bool] = None
+    record_limit_exceeded: Optional[bool] = None
+    request_filters_match: Optional[bool] = None
 
 
 class CtpFuturesSnapshotError(RuntimeError):
@@ -89,7 +98,7 @@ class CtpFuturesSnapshotError(RuntimeError):
         observations = query_observations
         if (
             type(observations) is not tuple
-            or len(observations) > 2
+            or len(observations) > _MAX_QUERY_DIAGNOSTIC_OBSERVATIONS
             or any(type(item) is not CtpFuturesSnapshotQueryObservation for item in observations)
         ):
             observations = ()
@@ -113,6 +122,8 @@ def _query_observation(
     query_type: type,
     expected_request_type: str,
     expected_generation: int,
+    expected_record_limit: Optional[int] = None,
+    expected_request_filters: Optional[tuple] = None,
 ) -> CtpFuturesSnapshotQueryObservation:
     elapsed = returned_monotonic - started_monotonic
     elapsed_seconds = None
@@ -126,6 +137,9 @@ def _query_observation(
     late_callbacks_reported = late_callback_count_valid = None
     record_count = None
     record_count_capped = None
+    actual_record_count = None
+    record_limit = record_limit_matches = record_limit_exceeded = None
+    request_filters_match = None
     error_code_present = error_code_valid = error_code_nonzero = None
     error_message_present = error_message_valid = None
     submit_category = "unavailable"
@@ -177,9 +191,26 @@ def _query_observation(
 
             records = result.records
             if type(records) is tuple:
-                count = len(records)
-                record_count = min(count, _MAX_QUERY_DIAGNOSTIC_RECORD_COUNT)
-                record_count_capped = count > _MAX_QUERY_DIAGNOSTIC_RECORD_COUNT
+                actual_record_count = len(records)
+                record_count = min(actual_record_count, _MAX_QUERY_DIAGNOSTIC_RECORD_COUNT)
+                record_count_capped = actual_record_count > _MAX_QUERY_DIAGNOSTIC_RECORD_COUNT
+
+            observed_limit = getattr(result, "record_limit", None)
+            if type(observed_limit) is int:
+                record_limit = observed_limit
+                if expected_record_limit is not None:
+                    record_limit_matches = observed_limit == expected_record_limit
+            observed_exceeded = getattr(result, "record_limit_exceeded", None)
+            if type(observed_exceeded) is bool:
+                record_limit_exceeded = observed_exceeded or (
+                    expected_record_limit is not None
+                    and actual_record_count is not None
+                    and actual_record_count > expected_record_limit
+                )
+            if expected_request_filters is not None:
+                request_filters_match = (
+                    _request_filter_pairs(result) == expected_request_filters
+                )
 
             late_callback_count = result.late_callback_count
             late_callback_count_valid = (
@@ -228,6 +259,10 @@ def _query_observation(
                 error_category = "invalid"
             elif timed_out is True:
                 error_category = "timeout"
+            elif record_limit_exceeded is True or completion == "record_limit":
+                error_category = "record_limit"
+            elif record_limit_matches is False or request_filters_match is False:
+                error_category = "scope_mismatch"
             elif unsupported is True:
                 error_category = "unsupported"
             elif error_code_nonzero is True:
@@ -261,6 +296,11 @@ def _query_observation(
         late_callback_count_valid=late_callback_count_valid,
         record_count=record_count,
         record_count_capped=record_count_capped,
+        requested_record_limit=expected_record_limit,
+        record_limit_observed=record_limit,
+        record_limit_matches=record_limit_matches,
+        record_limit_exceeded=record_limit_exceeded,
+        request_filters_match=request_filters_match,
         error_code_present=error_code_present,
         error_code_valid=error_code_valid,
         error_code_nonzero=error_code_nonzero,
@@ -466,6 +506,20 @@ def _record_digest(records: Tuple[Any, ...]) -> str:
     return hashlib.sha256(payload).hexdigest()
 
 
+def _request_filter_pairs(result: Any) -> Optional[tuple]:
+    source = getattr(result, "query_source", None)
+    filters = getattr(source, "request_filters", None)
+    if type(filters) is not tuple or any(
+        type(pair) is not tuple
+        or len(pair) != 2
+        or type(pair[0]) is not str
+        or type(pair[1]) is not str
+        for pair in filters
+    ):
+        return None
+    return filters
+
+
 def _load_sdk_contract() -> tuple[type, Callable[[Any], Mapping[str, Any]]]:
     try:
         from bt_api_ctp.instrument import normalize_ctp_instrument
@@ -501,6 +555,8 @@ def _validate_query_result(
     expected_request_type: str,
     expected_generation: Any,
     retrieved_at: datetime,
+    expected_request_filters: Optional[tuple] = None,
+    max_records: Optional[int] = None,
 ) -> tuple[datetime, datetime, int, str]:
     if not isinstance(result, query_type):
         _fail("QUERY_RESULT_TYPE_INVALID")
@@ -526,12 +582,6 @@ def _validate_query_result(
         _fail("QUERY_ERROR_STATE_INVALID")
     if result.error_message:
         _fail("QUERY_ERROR_MESSAGE")
-    if result.complete is not True:
-        _fail("QUERY_INCOMPLETE")
-    if result.is_last_seen is not True:
-        _fail("QUERY_TERMINAL_PACKET_MISSING")
-    if type(result.late_callback_count) is not int or result.late_callback_count != 0:
-        _fail("QUERY_LATE_CALLBACKS")
     if type(result.request_id) is not int or result.request_id <= 0:
         _fail("QUERY_REQUEST_ID_INVALID")
     if type(result.connection_generation) is not int or result.connection_generation <= 0:
@@ -540,6 +590,30 @@ def _validate_query_result(
         _fail("QUERY_GENERATION_MISMATCH")
     if type(result.records) is not tuple:
         _fail("QUERY_RECORDS_NOT_IMMUTABLE")
+    if expected_request_filters is not None:
+        if _request_filter_pairs(result) != expected_request_filters:
+            _fail("QUERY_REQUEST_FILTERS_MISMATCH")
+    if max_records is not None:
+        if type(max_records) is not int or max_records <= 0:
+            _fail("QUERY_RECORD_LIMIT_INVALID")
+        if type(getattr(result, "record_limit", None)) is not int:
+            _fail("QUERY_RECORD_LIMIT_UNAVAILABLE")
+        if result.record_limit != max_records:
+            _fail("QUERY_RECORD_LIMIT_MISMATCH")
+        if type(getattr(result, "record_limit_exceeded", None)) is not bool:
+            _fail("QUERY_RECORD_LIMIT_STATE_INVALID")
+        if result.record_limit_exceeded:
+            _fail("QUERY_RECORD_LIMIT_EXCEEDED")
+        if len(result.records) > max_records:
+            _fail("QUERY_RECORD_LIMIT_EXCEEDED")
+        if getattr(result, "completion_origin", None) == "record_limit":
+            _fail("QUERY_RECORD_LIMIT_EXCEEDED")
+    if result.complete is not True:
+        _fail("QUERY_INCOMPLETE")
+    if result.is_last_seen is not True:
+        _fail("QUERY_TERMINAL_PACKET_MISSING")
+    if type(result.late_callback_count) is not int or result.late_callback_count != 0:
+        _fail("QUERY_LATE_CALLBACKS")
     started_at = _aware_utc(result.started_at_utc, "QUERY_START_TIME_INVALID")
     if result.completed_at_utc is None:
         _fail("QUERY_COMPLETION_TIME_MISSING")
@@ -655,6 +729,474 @@ def _catalog_records(rows: Tuple[Any, ...], normalize: Callable) -> tuple:
             )
         )
     return tuple(output)
+
+
+def _product_evidence(rows: Tuple[Any, ...]) -> tuple:
+    from backtrader.feeds.futures_main_contract import (
+        MAX_VISIBLE_FUTURE_PRODUCTS,
+        ProductKey,
+        QuerySnapshotProductEvidence,
+    )
+
+    if not rows:
+        _fail("PRODUCT_QUERY_EMPTY")
+    if len(rows) > MAX_VISIBLE_FUTURE_PRODUCTS:
+        _fail("PRODUCT_QUERY_RECORD_CAP_EXCEEDED")
+    output = []
+    canonical_to_native = {}
+    for raw in rows:
+        row = _mapping_row(raw, "PRODUCT_ROW_INVALID")
+        for native, alias in (
+            ("ExchangeID", "exchange_id"),
+            ("ProductID", "product_id"),
+            ("ProductClass", "product_class"),
+        ):
+            if native in row and alias in row and not _same_field_value(row[native], row[alias]):
+                _fail("PRODUCT_FIELD_CONFLICT")
+        exchange = _ctp_text(
+            _field(
+                row,
+                "ExchangeID",
+                "exchange_id",
+                missing_code="PRODUCT_EXCHANGE_ID_MISSING",
+            ),
+            "PRODUCT_EXCHANGE_ID_INVALID",
+        )
+        product_id = _ctp_text(
+            _field(
+                row,
+                "ProductID",
+                "product_id",
+                missing_code="PRODUCT_ID_MISSING",
+            ),
+            "PRODUCT_ID_INVALID",
+        )
+        product_class = _ctp_text(
+            _field(
+                row,
+                "ProductClass",
+                "product_class",
+                missing_code="PRODUCT_CLASS_MISSING",
+            ),
+            "PRODUCT_CLASS_INVALID",
+        )
+        if product_class != "1":
+            _fail("PRODUCT_CLASS_MISMATCH")
+        product = ProductKey(exchange, product_id)
+        native_pair = (exchange, product_id)
+        prior = canonical_to_native.get(product)
+        if prior is not None:
+            _fail(
+                "PRODUCT_CANONICAL_COLLISION"
+                if prior != native_pair
+                else "PRODUCT_DUPLICATE"
+            )
+        canonical_to_native[product] = native_pair
+        output.append(
+            QuerySnapshotProductEvidence(
+                product=product,
+                native_exchange_id=exchange,
+                native_product_id=product_id,
+                product_class=product_class,
+            )
+        )
+    output.sort(key=lambda item: (item.product.exchange_id, item.product.product_id))
+    return tuple(output)
+
+
+def _query_source_evidence(
+    *,
+    source_prefix: str,
+    method_name: str,
+    source_kind: str,
+    result: Any,
+    generation: int,
+    trading_day: date,
+    started_at: datetime,
+    completed_at: datetime,
+    retrieved_at: datetime,
+    request_id: int,
+    source_sha256: str,
+    request_filters: tuple,
+    record_limit: int,
+) -> Any:
+    from backtrader.feeds.futures_main_contract import QuerySnapshotSourceEvidence
+
+    return QuerySnapshotSourceEvidence(
+        source_id="{}.{}".format(source_prefix, method_name),
+        source_kind=source_kind,
+        snapshot_id="ctp-visible-{}:{}:{}:{}:{}".format(
+            source_kind,
+            generation,
+            trading_day.strftime(_DAY_FORMAT),
+            request_id,
+            source_sha256[:16],
+        ),
+        source_sha256=source_sha256,
+        request_id=request_id,
+        connection_generation=generation,
+        trading_day=trading_day,
+        started_at=started_at,
+        completed_at=completed_at,
+        retrieved_at=retrieved_at,
+        complete=True,
+        is_last_seen=True,
+        record_count=len(result.records),
+        request_filters=request_filters,
+        record_limit=record_limit,
+        record_limit_exceeded=False,
+    )
+
+
+def _collect_staged_ctp_futures_snapshot(
+    feed: Any,
+    *,
+    max_collection_seconds: float,
+    max_snapshot_age_seconds: float,
+    source_prefix: str,
+    observations: list,
+) -> Any:
+    """Collect a bounded ProductClass=1 product/instrument/depth query set.
+
+    The local adapter retains only normalized rows and query receipts after
+    each request. The SDK also keeps its bounded sealed-query history; the
+    product, cumulative instrument, and depth caps bound those retained rows.
+    """
+
+    from backtrader.feeds.futures_main_contract import (
+        MAX_PRODUCT_INSTRUMENT_ROWS,
+        MAX_VISIBLE_DEPTH_ROWS,
+        MAX_VISIBLE_FUTURE_PRODUCTS,
+        MainContractQuerySnapshot,
+        QuerySnapshotSetEvidence,
+        query_snapshot_set_digest,
+    )
+
+    if (
+        type(source_prefix) is not str
+        or not source_prefix.isascii()
+        or _SOURCE_PREFIX_RE.fullmatch(source_prefix) is None
+    ):
+        _fail("SOURCE_PREFIX_INVALID")
+    collection_limit = _duration(max_collection_seconds, "COLLECTION_LIMIT")
+    snapshot_age_limit = _duration(max_snapshot_age_seconds, "SNAPSHOT_AGE_LIMIT")
+    query_type, normalize_instrument = _load_sdk_contract()
+    query_products = getattr(feed, "query_products_result", None)
+    query_instruments = getattr(feed, "query_instruments_result", None)
+    query_depth = getattr(feed, "query_depth_market_data_result", None)
+    if not all(callable(method) for method in (query_products, query_instruments, query_depth)):
+        _fail("PUBLIC_QUERY_METHOD_MISSING")
+
+    started_monotonic = time.monotonic()
+    day_before, generation_before = _session_facts(feed)
+    deadline = started_monotonic + collection_limit
+
+    def run_query(
+        *,
+        stage: str,
+        method: Callable,
+        kwargs: dict,
+        request_type: str,
+        prior_complete: Optional[bool],
+        max_records: int,
+        request_filters: tuple,
+    ) -> tuple[Any, datetime, datetime, datetime, int, str]:
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            _fail("COLLECTION_TIMEOUT", tuple(observations))
+        call_hard_limit = kwargs.pop("_hard_limit")
+        hard_limit = min(remaining, call_hard_limit)
+        if hard_limit <= 0:
+            _fail("COLLECTION_TIMEOUT", tuple(observations))
+        idle_limit = min(_MAX_QUERY_IDLE_SECONDS, hard_limit)
+        call_kwargs = dict(kwargs)
+        call_kwargs.update(
+            timeout=idle_limit,
+            max_duration=hard_limit,
+            deadline_monotonic=deadline,
+            max_records=max_records,
+        )
+        call_started = time.monotonic()
+        try:
+            result = method(**call_kwargs)
+        except Exception:
+            call_returned = time.monotonic()
+            observations.append(
+                _query_observation(
+                    stage=stage,
+                    entered=True,
+                    returned=False,
+                    started_monotonic=call_started,
+                    returned_monotonic=call_returned,
+                    prior_stage_complete=prior_complete,
+                    result=None,
+                    query_type=query_type,
+                    expected_request_type=request_type,
+                    expected_generation=generation_before,
+                    expected_record_limit=max_records,
+                    expected_request_filters=request_filters,
+                )
+            )
+            _fail("{}_QUERY_CALL_FAILED".format(stage.upper()), tuple(observations))
+        call_returned = time.monotonic()
+        observations.append(
+            _query_observation(
+                stage=stage,
+                entered=True,
+                returned=True,
+                started_monotonic=call_started,
+                returned_monotonic=call_returned,
+                prior_stage_complete=prior_complete,
+                result=result,
+                query_type=query_type,
+                expected_request_type=request_type,
+                expected_generation=generation_before,
+                expected_record_limit=max_records,
+                expected_request_filters=request_filters,
+            )
+        )
+        retrieved_at = _aware_utc(_now_utc(), "COLLECTOR_CLOCK_INVALID")
+        try:
+            started_at, completed_at, request_id, digest = _validate_query_result(
+                result,
+                query_type=query_type,
+                expected_request_type=request_type,
+                expected_generation=generation_before,
+                retrieved_at=retrieved_at,
+                expected_request_filters=request_filters,
+                max_records=max_records,
+            )
+        except CtpFuturesSnapshotError as error:
+            _fail(error.code, tuple(observations))
+        if time.monotonic() > deadline:
+            _fail("COLLECTION_TIMEOUT", tuple(observations))
+        return result, started_at, completed_at, retrieved_at, request_id, digest
+
+    product_filters = (
+        ("ExchangeID", ""),
+        ("ProductClass", "1"),
+        ("ProductID", ""),
+    )
+    first_remaining = deadline - time.monotonic()
+    product_hard_limit = min(_MAX_PRODUCT_QUERY_HARD_SECONDS, first_remaining / 10.0)
+    (
+        product_result,
+        product_started,
+        product_completed,
+        product_retrieved,
+        product_request_id,
+        product_digest,
+    ) = run_query(
+        stage="products",
+        method=query_products,
+        kwargs={
+            "product_class": "1",
+            "exchange_id": "",
+            "product_id": "",
+            "_hard_limit": product_hard_limit,
+        },
+        request_type="products",
+        prior_complete=None,
+        max_records=MAX_VISIBLE_FUTURE_PRODUCTS,
+        request_filters=product_filters,
+    )
+    product_evidence = _product_evidence(product_result.records)
+    product_source = _query_source_evidence(
+        source_prefix=source_prefix,
+        method_name="query_products_result",
+        source_kind="products",
+        result=product_result,
+        generation=generation_before,
+        trading_day=day_before,
+        started_at=product_started,
+        completed_at=product_completed,
+        retrieved_at=product_retrieved,
+        request_id=product_request_id,
+        source_sha256=product_digest,
+        request_filters=product_filters,
+        record_limit=MAX_VISIBLE_FUTURE_PRODUCTS,
+    )
+    del product_result
+
+    catalog_records = []
+    request_sources = [product_source]
+    request_ids = [product_request_id]
+    for product_index, product in enumerate(product_evidence):
+        remaining_rows = MAX_PRODUCT_INSTRUMENT_ROWS - len(catalog_records)
+        if remaining_rows <= 0:
+            _fail("INSTRUMENT_RECORD_CAP_EXHAUSTED", tuple(observations))
+        remaining = deadline - time.monotonic()
+        remaining_instrument_calls = len(product_evidence) - product_index
+        hard_limit = remaining / (remaining_instrument_calls + 1)
+        instrument_filters = (
+            ("ExchangeID", product.native_exchange_id),
+            ("InstrumentID", ""),
+            ("ProductID", product.native_product_id),
+        )
+        stage = "instruments_{:03d}".format(product_index + 1)
+        (
+            instrument_result,
+            query_started,
+            query_completed,
+            query_retrieved,
+            request_id,
+            digest,
+        ) = run_query(
+            stage=stage,
+            method=query_instruments,
+            kwargs={
+                "instrument_id": "",
+                "exchange_id": product.native_exchange_id,
+                "product_id": product.native_product_id,
+                "_hard_limit": hard_limit,
+            },
+            request_type="instruments",
+            prior_complete=True,
+            max_records=remaining_rows,
+            request_filters=instrument_filters,
+        )
+        raw = None
+        for raw in instrument_result.records:
+            row = _mapping_row(raw, "CATALOG_ROW_INVALID")
+            raw_exchange = _ctp_text(
+                _field(
+                    row,
+                    "ExchangeID",
+                    "exchange_id",
+                    missing_code="CATALOG_EXCHANGE_ID_MISSING",
+                ),
+                "CATALOG_IDENTITY_INVALID",
+            )
+            raw_product = _ctp_text(
+                _field(
+                    row,
+                    "ProductID",
+                    "product_id",
+                    missing_code="CATALOG_PRODUCT_ID_MISSING",
+                ),
+                "CATALOG_IDENTITY_INVALID",
+            )
+            if (
+                raw_exchange != product.native_exchange_id
+                or raw_product != product.native_product_id
+            ):
+                _fail("INSTRUMENT_QUERY_ROW_SCOPE_MISMATCH", tuple(observations))
+        rows = _catalog_records(instrument_result.records, normalize_instrument)
+        if any(record.product != product.product for record in rows):
+            _fail("INSTRUMENT_QUERY_ROW_SCOPE_MISMATCH", tuple(observations))
+        if len(catalog_records) + len(rows) > MAX_PRODUCT_INSTRUMENT_ROWS:
+            _fail("INSTRUMENT_RECORD_CAP_EXCEEDED", tuple(observations))
+        catalog_records.extend(rows)
+        del raw
+        request_sources.append(
+            _query_source_evidence(
+                source_prefix=source_prefix,
+                method_name="query_instruments_result",
+                source_kind="instruments",
+                result=instrument_result,
+                generation=generation_before,
+                trading_day=day_before,
+                started_at=query_started,
+                completed_at=query_completed,
+                retrieved_at=query_retrieved,
+                request_id=request_id,
+                source_sha256=digest,
+                request_filters=instrument_filters,
+                record_limit=remaining_rows,
+            )
+        )
+        request_ids.append(request_id)
+        del instrument_result
+
+    depth_filters = (
+        ("ExchangeID", ""),
+        ("InstrumentID", ""),
+        ("ProductClass", "1"),
+    )
+    depth_remaining = deadline - time.monotonic()
+    (
+        depth_result,
+        depth_started,
+        depth_completed,
+        depth_retrieved,
+        depth_request_id,
+        depth_digest,
+    ) = run_query(
+        stage="depth",
+        method=query_depth,
+        kwargs={
+            "instrument_id": "",
+            "exchange_id": "",
+            "product_class": "1",
+            "_hard_limit": depth_remaining,
+        },
+        request_type="depth_market_data",
+        prior_complete=True,
+        max_records=MAX_VISIBLE_DEPTH_ROWS,
+        request_filters=depth_filters,
+    )
+    if depth_request_id in request_ids:
+        _fail("QUERY_REQUEST_ID_COLLISION", tuple(observations))
+    quote_records = _quote_records(depth_result.records)
+    request_sources.append(
+        _query_source_evidence(
+            source_prefix=source_prefix,
+            method_name="query_depth_market_data_result",
+            source_kind="depth_market_data",
+            result=depth_result,
+            generation=generation_before,
+            trading_day=day_before,
+            started_at=depth_started,
+            completed_at=depth_completed,
+            retrieved_at=depth_retrieved,
+            request_id=depth_request_id,
+            source_sha256=depth_digest,
+            request_filters=depth_filters,
+            record_limit=MAX_VISIBLE_DEPTH_ROWS,
+        )
+    )
+    del depth_result
+
+    day_after, generation_after = _session_facts(feed)
+    if day_before != day_after or generation_before != generation_after:
+        _fail("SESSION_CHANGED_DURING_COLLECTION", tuple(observations))
+    if len(request_ids) != len(set(request_ids)):
+        _fail("QUERY_REQUEST_ID_COLLISION", tuple(observations))
+    query_sources = tuple(request_sources)
+    product_tuple = tuple(product_evidence)
+    query_set_sha256 = query_snapshot_set_digest(product_tuple, query_sources)
+    query_set = QuerySnapshotSetEvidence(
+        source_id="{}.staged_futures_query_set".format(source_prefix),
+        snapshot_id="ctp-visible-futures-set:{}:{}:{}".format(
+            generation_before,
+            day_before.strftime(_DAY_FORMAT),
+            query_set_sha256[:16],
+        ),
+        source_sha256=query_set_sha256,
+        products=product_tuple,
+        requests=query_sources,
+    )
+    snapshot = MainContractQuerySnapshot(
+        catalog_source=None,
+        quote_source=None,
+        catalog_records=tuple(catalog_records),
+        quote_records=quote_records,
+        session_trading_day_before=day_before,
+        session_trading_day_after=day_after,
+        session_generation_before=generation_before,
+        session_generation_after=generation_after,
+        query_set=query_set,
+    )
+    if time.monotonic() - started_monotonic > collection_limit:
+        _fail("COLLECTION_TIMEOUT", tuple(observations))
+    final_retrieved_at = _aware_utc(_now_utc(), "COLLECTOR_CLOCK_INVALID")
+    for source in query_sources:
+        age = (final_retrieved_at - source.completed_at).total_seconds()
+        if age < 0:
+            _fail("QUERY_TIME_IN_FUTURE", tuple(observations))
+        if age > snapshot_age_limit:
+            _fail("SNAPSHOT_TOO_OLD", tuple(observations))
+    return snapshot
 
 
 def _quote_records(rows: Tuple[Any, ...]) -> tuple:
@@ -1004,11 +1546,22 @@ def collect_ctp_futures_snapshot(
     max_collection_seconds: float = _DEFAULT_MAX_COLLECTION_SECONDS,
     max_snapshot_age_seconds: float = _DEFAULT_MAX_SNAPSHOT_AGE_SECONDS,
     source_prefix: str = "bt_api_ctp.CtpLiveFeed",
+    query_mode: str = "legacy_two_query",
 ) -> Any:
-    """Collect one complete bounded catalog/depth snapshot from a ready feed."""
+    """Collect one bounded CTP snapshot using an explicitly selected query mode."""
 
     observations = []
     try:
+        if query_mode == "staged_product_set":
+            return _collect_staged_ctp_futures_snapshot(
+                feed,
+                max_collection_seconds=max_collection_seconds,
+                max_snapshot_age_seconds=max_snapshot_age_seconds,
+                source_prefix=source_prefix,
+                observations=observations,
+            )
+        if query_mode != "legacy_two_query":
+            _fail("QUERY_MODE_INVALID")
         return _collect_ctp_futures_snapshot(
             feed,
             max_collection_seconds=max_collection_seconds,

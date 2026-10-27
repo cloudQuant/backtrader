@@ -2814,6 +2814,7 @@ def _create_ctp_wrapper_class():
             product_id="",
             max_duration=None,
             deadline_monotonic=None,
+            max_records=None,
         ):
             """Fetch the typed instrument query result.
 
@@ -2832,7 +2833,35 @@ def _create_ctp_wrapper_class():
             )
             if deadline_monotonic is not None:
                 query_kwargs["deadline_monotonic"] = deadline_monotonic
+            if max_records is not None:
+                query_kwargs["max_records"] = max_records
             return self._query_result("query_instruments_result", **query_kwargs)
+
+        def query_products_result(
+            self,
+            product_class="",
+            exchange_id="",
+            product_id="",
+            timeout=5,
+            *,
+            max_duration=None,
+            deadline_monotonic=None,
+            max_records=None,
+        ):
+            """Fetch a typed product query with the caller's exact CTP filters."""
+            query_kwargs = dict(
+                product_class=product_class,
+                exchange_id=exchange_id,
+                product_id=product_id,
+                timeout=timeout,
+            )
+            if max_duration is not None:
+                query_kwargs["max_duration"] = max_duration
+            if deadline_monotonic is not None:
+                query_kwargs["deadline_monotonic"] = deadline_monotonic
+            if max_records is not None:
+                query_kwargs["max_records"] = max_records
+            return self._query_result("query_products_result", **query_kwargs)
 
         def query_depth_market_data_result(
             self,
@@ -2840,7 +2869,10 @@ def _create_ctp_wrapper_class():
             exchange_id="",
             timeout=5,
             *,
+            product_class=None,
+            max_duration=None,
             deadline_monotonic=None,
+            max_records=None,
         ):
             """Fetch the typed depth result without an alternate-path fallback.
 
@@ -2852,8 +2884,14 @@ def _create_ctp_wrapper_class():
                 exchange_id=exchange_id,
                 timeout=timeout,
             )
+            if product_class is not None:
+                query_kwargs["product_class"] = product_class
+            if max_duration is not None:
+                query_kwargs["max_duration"] = max_duration
             if deadline_monotonic is not None:
                 query_kwargs["deadline_monotonic"] = deadline_monotonic
+            if max_records is not None:
+                query_kwargs["max_records"] = max_records
             return self._query_result("query_depth_market_data_result", **query_kwargs)
 
         def query_instrument_margin_rate_result(
@@ -4565,6 +4603,7 @@ class BtApiStore(LiveStoreBase):
         *,
         max_collection_seconds: float = 300.0,
         max_snapshot_age_seconds: float = 300.0,
+        query_mode: str = "legacy_two_query",
     ) -> Any:
         """Collect complete visible CTP futures queries on this live Store session.
 
@@ -4597,6 +4636,7 @@ class BtApiStore(LiveStoreBase):
             source_prefix=("backtrader.stores.btapistore.CtpClientWrapper.bt_api_ctp.TraderClient"),
             max_collection_seconds=max_collection_seconds,
             max_snapshot_age_seconds=max_snapshot_age_seconds,
+            query_mode=query_mode,
         )
 
     def registered_sim_assert_original_order_absent(

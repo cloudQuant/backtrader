@@ -1,0 +1,436 @@
+{
+  "schema": "iteration51_staged_product_query_dev_round.v1",
+  "repository": "D:\\source_code\\backtrader",
+  "branch": "dev",
+  "parent_commit": "451c03b490a1e4f659b404b1c599474e17ca1e25",
+  "sdk_commit": "8b3ce1f1f27aa29725a1891db07aa79db0126be8",
+  "sdk_parent_commit": "13ff7890680f478fe58222235e2c37c8a0613f94",
+  "scope": [
+    "backtrader/feeds/futures_ctp_snapshot.py",
+    "backtrader/feeds/futures_main_contract.py",
+    "backtrader/stores/btapistore.py",
+    "examples/unified/028_alpha003_simnow_minute/run.py",
+    "examples/unified/028_alpha003_simnow_minute/config.yaml",
+    "tests/unit/feeds/test_futures_ctp_query_set.py",
+    "tests/unit/test_alpha003_simnow_staged_query_runner.py"
+  ],
+  "accepted_level": "SOURCE_SYNTHETIC_QUERY_SET_INTEGRATION_ONLY",
+  "behavior": [
+    "Class-1 product query, exact native-case per-product instruments, class-1 depth.",
+    "One absolute collection deadline; 256 products, 20000 cumulative instruments, 20000 depth rows.",
+    "Full returned product pool remains visible to selector even when coverage is missing.",
+    "Immutable query-set identity binds individual request filters, IDs, generation, day and completeness.",
+    "028 template opts in; omitted mode preserves legacy two-query behavior.",
+    "Bounded staged diagnostics preserve record-limit origin and reject contradictory success claims."
+  ],
+  "qa": [
+    {
+      "path": "D:\\temp\\i51-staged-query-qa-20261027-r2\\result.json",
+      "pin": {
+        "size_bytes": 9379,
+        "sha256": "edea0553e8dcedab544406358d617d6c5856023cb9a90d29cffc156611929cab"
+      },
+      "result": {
+        "level": "SOURCE_NATIVE_SYNTHETIC_ONLY",
+        "lane": "backtrader",
+        "exit_code": 1,
+        "elapsed_seconds": 5.266000000061467,
+        "test_count": 178,
+        "failures": 2,
+        "errors": 0,
+        "skips": 0,
+        "source_pins_unchanged": true,
+        "source_pins_before": {
+          "D:\\source_code\\backtrader\\backtrader\\feeds\\futures_ctp_snapshot.py": {
+            "size_bytes": 58310,
+            "sha256": "8e3e4861a7de30e4a89a373ef637c7cd305a253216c79939cdc96fce3ab0bd83"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\feeds\\futures_main_contract.py": {
+            "size_bytes": 133406,
+            "sha256": "baf90a7989ff7af2d4a98b02d7d47e69a7af5072b378337ac96df683521b24fb"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\stores\\btapistore.py": {
+            "size_bytes": 888832,
+            "sha256": "4de5c66997072da7bb397f230ac0f9955e5f900d9396134264ace341c7c0a568"
+          },
+          "D:\\source_code\\backtrader\\examples\\unified\\028_alpha003_simnow_minute\\run.py": {
+            "size_bytes": 298678,
+            "sha256": "b757708c0e61d555c5436d9cf875c05a2e651d10a508e98a1f30d77a1bf74dee"
+          },
+          "D:\\source_code\\backtrader\\examples\\unified\\028_alpha003_simnow_minute\\config.yaml": {
+            "size_bytes": 4106,
+            "sha256": "1bf0c679bef830267d2f0545eee992c1701e75b62c6156908b3188301772f3b3"
+          },
+          "D:\\source_code\\backtrader\\tests\\unit\\feeds\\test_futures_ctp_query_set.py": {
+            "size_bytes": 16724,
+            "sha256": "d031754971e68ea102d6c67580b636b31ab94e475615dc1d099d1bcfca6252ff"
+          },
+          "D:\\source_code\\backtrader\\tests\\unit\\test_alpha003_simnow_staged_query_runner.py": {
+            "size_bytes": 13192,
+            "sha256": "694806cacd0ff5acde69a6ef54c026607ec1cffe13dc340f65f8636e77a62bfe"
+          },
+          "D:\\source_code\\backtrader\\tests\\unit\\feeds\\test_futures_ctp_snapshot.py": {
+            "size_bytes": 36014,
+            "sha256": "1d5081da57fae423fe65866ac118fb5f7b32e6c136f789cd43b731a76988d815"
+          },
+          "D:\\source_code\\backtrader\\tests\\unit\\feeds\\test_futures_main_contract.py": {
+            "size_bytes": 43682,
+            "sha256": "200f419e193dc22f881eee90c0d147eb77a5bf9156d326e237199fcf1a6ad7be"
+          },
+          "D:\\source_code\\backtrader\\tests\\unit\\test_alpha003_simnow_runner.py": {
+            "size_bytes": 230729,
+            "sha256": "2eb4043c80719584c131894a3a8f5dceaf64b91719e13dea7c89ee2b383fabc9"
+          },
+          "D:\\source_code\\backtrader\\tests\\unit\\stores\\test_btapistore.py": {
+            "size_bytes": 150716,
+            "sha256": "b1cfdca02d97f07e84da3bd4c18967c7d02a91a70f5e2277653f9203d1f9648c"
+          },
+          "D:\\source_code\\backtrader\\tests\\test_utils\\optional_sdk.py": {
+            "size_bytes": 827,
+            "sha256": "708bfd9ae284de3ecc986f0e1e4f4e0523be64018aa3167c93b097093f0b19c1"
+          },
+          "D:\\source_code\\backtrader\\examples\\unified\\028_alpha003_simnow_minute\\alpha003_strategy.py": {
+            "size_bytes": 200202,
+            "sha256": "220330a52a0acc65427f5c68448e82b80f4ef9fdddc8c7a75eceb0bea4ee3521"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\stores\\registered_sim.py": {
+            "size_bytes": 144382,
+            "sha256": "fed9eb3106cd3d7b4753157fe75b0723dbdd6bec3775f9c18aad06b71a639a04"
+          },
+          "D:\\bt_api_py\\bt_api\\bt_api_ctp\\src\\bt_api_ctp\\query.py": {
+            "size_bytes": 14630,
+            "sha256": "bf6bfcdf41614c216c79d2e137756bacfc1a45b7e903bb4335399d65e8bb3dfb"
+          },
+          "D:\\bt_api_py\\bt_api\\bt_api_ctp\\src\\bt_api_ctp\\ctp\\client.py": {
+            "size_bytes": 508688,
+            "sha256": "5caca800ccba1169253d8cf1d1853e66c85806f84f81e8ead600957f7285445c"
+          },
+          "D:\\bt_api_py\\bt_api\\bt_api_ctp\\src\\bt_api_ctp\\ctp\\callback_ingress.py": {
+            "size_bytes": 73492,
+            "sha256": "c7dbae9aad0aafc7ab1afb4e7a682957f6125abb3b4ba270dd516acdf70294f7"
+          },
+          "D:\\bt_api_py\\bt_api\\bt_api_ctp\\src\\bt_api_ctp\\ctp\\ctp_structs_query.py": {
+            "size_bytes": 171254,
+            "sha256": "acc1f36ca84b0e5c48d3942ddd700f8a17c5638f8ee6b60228c91c9b5d318e48"
+          }
+        },
+        "source_pins_after": {
+          "D:\\source_code\\backtrader\\backtrader\\feeds\\futures_ctp_snapshot.py": {
+            "size_bytes": 58310,
+            "sha256": "8e3e4861a7de30e4a89a373ef637c7cd305a253216c79939cdc96fce3ab0bd83"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\feeds\\futures_main_contract.py": {
+            "size_bytes": 133406,
+            "sha256": "baf90a7989ff7af2d4a98b02d7d47e69a7af5072b378337ac96df683521b24fb"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\stores\\btapistore.py": {
+            "size_bytes": 888832,
+            "sha256": "4de5c66997072da7bb397f230ac0f9955e5f900d9396134264ace341c7c0a568"
+          },
+          "D:\\source_code\\backtrader\\examples\\unified\\028_alpha003_simnow_minute\\run.py": {
+            "size_bytes": 298678,
+            "sha256": "b757708c0e61d555c5436d9cf875c05a2e651d10a508e98a1f30d77a1bf74dee"
+          },
+          "D:\\source_code\\backtrader\\examples\\unified\\028_alpha003_simnow_minute\\config.yaml": {
+            "size_bytes": 4106,
+            "sha256": "1bf0c679bef830267d2f0545eee992c1701e75b62c6156908b3188301772f3b3"
+          },
+          "D:\\source_code\\backtrader\\tests\\unit\\feeds\\test_futures_ctp_query_set.py": {
+            "size_bytes": 16724,
+            "sha256": "d031754971e68ea102d6c67580b636b31ab94e475615dc1d099d1bcfca6252ff"
+          },
+          "D:\\source_code\\backtrader\\tests\\unit\\test_alpha003_simnow_staged_query_runner.py": {
+            "size_bytes": 13192,
+            "sha256": "694806cacd0ff5acde69a6ef54c026607ec1cffe13dc340f65f8636e77a62bfe"
+          },
+          "D:\\source_code\\backtrader\\tests\\unit\\feeds\\test_futures_ctp_snapshot.py": {
+            "size_bytes": 36014,
+            "sha256": "1d5081da57fae423fe65866ac118fb5f7b32e6c136f789cd43b731a76988d815"
+          },
+          "D:\\source_code\\backtrader\\tests\\unit\\feeds\\test_futures_main_contract.py": {
+            "size_bytes": 43682,
+            "sha256": "200f419e193dc22f881eee90c0d147eb77a5bf9156d326e237199fcf1a6ad7be"
+          },
+          "D:\\source_code\\backtrader\\tests\\unit\\test_alpha003_simnow_runner.py": {
+            "size_bytes": 230729,
+            "sha256": "2eb4043c80719584c131894a3a8f5dceaf64b91719e13dea7c89ee2b383fabc9"
+          },
+          "D:\\source_code\\backtrader\\tests\\unit\\stores\\test_btapistore.py": {
+            "size_bytes": 150716,
+            "sha256": "b1cfdca02d97f07e84da3bd4c18967c7d02a91a70f5e2277653f9203d1f9648c"
+          },
+          "D:\\source_code\\backtrader\\tests\\test_utils\\optional_sdk.py": {
+            "size_bytes": 827,
+            "sha256": "708bfd9ae284de3ecc986f0e1e4f4e0523be64018aa3167c93b097093f0b19c1"
+          },
+          "D:\\source_code\\backtrader\\examples\\unified\\028_alpha003_simnow_minute\\alpha003_strategy.py": {
+            "size_bytes": 200202,
+            "sha256": "220330a52a0acc65427f5c68448e82b80f4ef9fdddc8c7a75eceb0bea4ee3521"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\stores\\registered_sim.py": {
+            "size_bytes": 144382,
+            "sha256": "fed9eb3106cd3d7b4753157fe75b0723dbdd6bec3775f9c18aad06b71a639a04"
+          },
+          "D:\\bt_api_py\\bt_api\\bt_api_ctp\\src\\bt_api_ctp\\query.py": {
+            "size_bytes": 14630,
+            "sha256": "bf6bfcdf41614c216c79d2e137756bacfc1a45b7e903bb4335399d65e8bb3dfb"
+          },
+          "D:\\bt_api_py\\bt_api\\bt_api_ctp\\src\\bt_api_ctp\\ctp\\client.py": {
+            "size_bytes": 508688,
+            "sha256": "5caca800ccba1169253d8cf1d1853e66c85806f84f81e8ead600957f7285445c"
+          },
+          "D:\\bt_api_py\\bt_api\\bt_api_ctp\\src\\bt_api_ctp\\ctp\\callback_ingress.py": {
+            "size_bytes": 73492,
+            "sha256": "c7dbae9aad0aafc7ab1afb4e7a682957f6125abb3b4ba270dd516acdf70294f7"
+          },
+          "D:\\bt_api_py\\bt_api\\bt_api_ctp\\src\\bt_api_ctp\\ctp\\ctp_structs_query.py": {
+            "size_bytes": 171254,
+            "sha256": "acc1f36ca84b0e5c48d3942ddd700f8a17c5638f8ee6b60228c91c9b5d318e48"
+          }
+        },
+        "nodes": [
+          "tests/unit/feeds/test_futures_ctp_query_set.py",
+          "tests/unit/test_alpha003_simnow_staged_query_runner.py",
+          "tests/unit/feeds/test_futures_ctp_snapshot.py",
+          "tests/unit/feeds/test_futures_main_contract.py",
+          "tests/unit/test_alpha003_simnow_runner.py::test_ctp_query_plan_projects_only_finite_snapshot_failure_codes",
+          "tests/unit/test_alpha003_simnow_runner.py::test_ctp_query_plan_drops_malformed_snapshot_diagnostics_without_leaking_values",
+          "tests/unit/test_alpha003_simnow_runner.py::test_cli_query_diagnostic_serializer_rejects_forged_payloads",
+          "tests/unit/test_alpha003_simnow_runner.py::test_public_config_defaults_to_dry_and_cli_cannot_escalate",
+          "tests/unit/stores/test_btapistore.py::test_registered_sim_snapshot_uses_existing_session_and_records_source_provenance",
+          "tests/unit/stores/test_btapistore.py::test_registered_sim_snapshot_rejects_session_generation_or_day_drift",
+          "tests/unit/stores/test_btapistore.py::test_registered_sim_snapshot_rejects_incomplete_query_without_fallback",
+          "tests/unit/stores/test_btapistore.py::test_registered_sim_snapshot_missing_depth_capability_fails_closed",
+          "tests/unit/stores/test_btapistore.py::test_registered_sim_snapshot_requires_an_already_connected_store"
+        ],
+        "spec": {
+          "size_bytes": 5567,
+          "sha256": "7859be0be16eb950def25172529dee4878a11f8ef442cd2d53905d8821b4e46a"
+        },
+        "runner": {
+          "size_bytes": 4408,
+          "sha256": "2e7e707c9bd53f0e160f5a4cc4a10345b1ee333779a1877e948ea8265d1e0e10"
+        },
+        "boundary": "Real SDK/SPI and query fields; synthetic request/OS leaves. Network denied. No provider/account acceptance."
+      }
+    },
+    {
+      "path": "D:\\temp\\i51-staged-query-qa-20261027-r3\\result.json",
+      "pin": {
+        "size_bytes": 8533,
+        "sha256": "3220704ce16e5fb55f3a16e5a6e6b1e9a3dfd06e4ca527b03e319efbdabf5eaf"
+      },
+      "result": {
+        "level": "SOURCE_NATIVE_SYNTHETIC_ONLY",
+        "lane": "backtrader",
+        "exit_code": 0,
+        "elapsed_seconds": 1.9849999999860302,
+        "test_count": 3,
+        "failures": 0,
+        "errors": 0,
+        "skips": 0,
+        "source_pins_unchanged": true,
+        "source_pins_before": {
+          "D:\\source_code\\backtrader\\backtrader\\feeds\\futures_ctp_snapshot.py": {
+            "size_bytes": 58334,
+            "sha256": "a0241fc39710d704810bf2f612e40c370d948775d1d5cabf149c50ce48c332d9"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\feeds\\futures_main_contract.py": {
+            "size_bytes": 133406,
+            "sha256": "baf90a7989ff7af2d4a98b02d7d47e69a7af5072b378337ac96df683521b24fb"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\stores\\btapistore.py": {
+            "size_bytes": 888832,
+            "sha256": "4de5c66997072da7bb397f230ac0f9955e5f900d9396134264ace341c7c0a568"
+          },
+          "D:\\source_code\\backtrader\\examples\\unified\\028_alpha003_simnow_minute\\run.py": {
+            "size_bytes": 298678,
+            "sha256": "b757708c0e61d555c5436d9cf875c05a2e651d10a508e98a1f30d77a1bf74dee"
+          },
+          "D:\\source_code\\backtrader\\examples\\unified\\028_alpha003_simnow_minute\\config.yaml": {
+            "size_bytes": 4106,
+            "sha256": "1bf0c679bef830267d2f0545eee992c1701e75b62c6156908b3188301772f3b3"
+          },
+          "D:\\source_code\\backtrader\\tests\\unit\\feeds\\test_futures_ctp_query_set.py": {
+            "size_bytes": 16811,
+            "sha256": "34873aa7bb0667ffbaeb00b15d45d157c308223122ff99fec0c44b61bf71bcc4"
+          },
+          "D:\\source_code\\backtrader\\tests\\unit\\test_alpha003_simnow_staged_query_runner.py": {
+            "size_bytes": 13192,
+            "sha256": "694806cacd0ff5acde69a6ef54c026607ec1cffe13dc340f65f8636e77a62bfe"
+          },
+          "D:\\source_code\\backtrader\\tests\\unit\\feeds\\test_futures_ctp_snapshot.py": {
+            "size_bytes": 36014,
+            "sha256": "1d5081da57fae423fe65866ac118fb5f7b32e6c136f789cd43b731a76988d815"
+          },
+          "D:\\source_code\\backtrader\\tests\\unit\\feeds\\test_futures_main_contract.py": {
+            "size_bytes": 43682,
+            "sha256": "200f419e193dc22f881eee90c0d147eb77a5bf9156d326e237199fcf1a6ad7be"
+          },
+          "D:\\source_code\\backtrader\\tests\\unit\\test_alpha003_simnow_runner.py": {
+            "size_bytes": 230729,
+            "sha256": "2eb4043c80719584c131894a3a8f5dceaf64b91719e13dea7c89ee2b383fabc9"
+          },
+          "D:\\source_code\\backtrader\\tests\\unit\\stores\\test_btapistore.py": {
+            "size_bytes": 150716,
+            "sha256": "b1cfdca02d97f07e84da3bd4c18967c7d02a91a70f5e2277653f9203d1f9648c"
+          },
+          "D:\\source_code\\backtrader\\tests\\test_utils\\optional_sdk.py": {
+            "size_bytes": 827,
+            "sha256": "708bfd9ae284de3ecc986f0e1e4f4e0523be64018aa3167c93b097093f0b19c1"
+          },
+          "D:\\source_code\\backtrader\\examples\\unified\\028_alpha003_simnow_minute\\alpha003_strategy.py": {
+            "size_bytes": 200202,
+            "sha256": "220330a52a0acc65427f5c68448e82b80f4ef9fdddc8c7a75eceb0bea4ee3521"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\stores\\registered_sim.py": {
+            "size_bytes": 144382,
+            "sha256": "fed9eb3106cd3d7b4753157fe75b0723dbdd6bec3775f9c18aad06b71a639a04"
+          },
+          "D:\\bt_api_py\\bt_api\\bt_api_ctp\\src\\bt_api_ctp\\query.py": {
+            "size_bytes": 14630,
+            "sha256": "bf6bfcdf41614c216c79d2e137756bacfc1a45b7e903bb4335399d65e8bb3dfb"
+          },
+          "D:\\bt_api_py\\bt_api\\bt_api_ctp\\src\\bt_api_ctp\\ctp\\client.py": {
+            "size_bytes": 508688,
+            "sha256": "5caca800ccba1169253d8cf1d1853e66c85806f84f81e8ead600957f7285445c"
+          },
+          "D:\\bt_api_py\\bt_api\\bt_api_ctp\\src\\bt_api_ctp\\ctp\\callback_ingress.py": {
+            "size_bytes": 73492,
+            "sha256": "c7dbae9aad0aafc7ab1afb4e7a682957f6125abb3b4ba270dd516acdf70294f7"
+          },
+          "D:\\bt_api_py\\bt_api\\bt_api_ctp\\src\\bt_api_ctp\\ctp\\ctp_structs_query.py": {
+            "size_bytes": 171254,
+            "sha256": "acc1f36ca84b0e5c48d3942ddd700f8a17c5638f8ee6b60228c91c9b5d318e48"
+          }
+        },
+        "source_pins_after": {
+          "D:\\source_code\\backtrader\\backtrader\\feeds\\futures_ctp_snapshot.py": {
+            "size_bytes": 58334,
+            "sha256": "a0241fc39710d704810bf2f612e40c370d948775d1d5cabf149c50ce48c332d9"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\feeds\\futures_main_contract.py": {
+            "size_bytes": 133406,
+            "sha256": "baf90a7989ff7af2d4a98b02d7d47e69a7af5072b378337ac96df683521b24fb"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\stores\\btapistore.py": {
+            "size_bytes": 888832,
+            "sha256": "4de5c66997072da7bb397f230ac0f9955e5f900d9396134264ace341c7c0a568"
+          },
+          "D:\\source_code\\backtrader\\examples\\unified\\028_alpha003_simnow_minute\\run.py": {
+            "size_bytes": 298678,
+            "sha256": "b757708c0e61d555c5436d9cf875c05a2e651d10a508e98a1f30d77a1bf74dee"
+          },
+          "D:\\source_code\\backtrader\\examples\\unified\\028_alpha003_simnow_minute\\config.yaml": {
+            "size_bytes": 4106,
+            "sha256": "1bf0c679bef830267d2f0545eee992c1701e75b62c6156908b3188301772f3b3"
+          },
+          "D:\\source_code\\backtrader\\tests\\unit\\feeds\\test_futures_ctp_query_set.py": {
+            "size_bytes": 16811,
+            "sha256": "34873aa7bb0667ffbaeb00b15d45d157c308223122ff99fec0c44b61bf71bcc4"
+          },
+          "D:\\source_code\\backtrader\\tests\\unit\\test_alpha003_simnow_staged_query_runner.py": {
+            "size_bytes": 13192,
+            "sha256": "694806cacd0ff5acde69a6ef54c026607ec1cffe13dc340f65f8636e77a62bfe"
+          },
+          "D:\\source_code\\backtrader\\tests\\unit\\feeds\\test_futures_ctp_snapshot.py": {
+            "size_bytes": 36014,
+            "sha256": "1d5081da57fae423fe65866ac118fb5f7b32e6c136f789cd43b731a76988d815"
+          },
+          "D:\\source_code\\backtrader\\tests\\unit\\feeds\\test_futures_main_contract.py": {
+            "size_bytes": 43682,
+            "sha256": "200f419e193dc22f881eee90c0d147eb77a5bf9156d326e237199fcf1a6ad7be"
+          },
+          "D:\\source_code\\backtrader\\tests\\unit\\test_alpha003_simnow_runner.py": {
+            "size_bytes": 230729,
+            "sha256": "2eb4043c80719584c131894a3a8f5dceaf64b91719e13dea7c89ee2b383fabc9"
+          },
+          "D:\\source_code\\backtrader\\tests\\unit\\stores\\test_btapistore.py": {
+            "size_bytes": 150716,
+            "sha256": "b1cfdca02d97f07e84da3bd4c18967c7d02a91a70f5e2277653f9203d1f9648c"
+          },
+          "D:\\source_code\\backtrader\\tests\\test_utils\\optional_sdk.py": {
+            "size_bytes": 827,
+            "sha256": "708bfd9ae284de3ecc986f0e1e4f4e0523be64018aa3167c93b097093f0b19c1"
+          },
+          "D:\\source_code\\backtrader\\examples\\unified\\028_alpha003_simnow_minute\\alpha003_strategy.py": {
+            "size_bytes": 200202,
+            "sha256": "220330a52a0acc65427f5c68448e82b80f4ef9fdddc8c7a75eceb0bea4ee3521"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\stores\\registered_sim.py": {
+            "size_bytes": 144382,
+            "sha256": "fed9eb3106cd3d7b4753157fe75b0723dbdd6bec3775f9c18aad06b71a639a04"
+          },
+          "D:\\bt_api_py\\bt_api\\bt_api_ctp\\src\\bt_api_ctp\\query.py": {
+            "size_bytes": 14630,
+            "sha256": "bf6bfcdf41614c216c79d2e137756bacfc1a45b7e903bb4335399d65e8bb3dfb"
+          },
+          "D:\\bt_api_py\\bt_api\\bt_api_ctp\\src\\bt_api_ctp\\ctp\\client.py": {
+            "size_bytes": 508688,
+            "sha256": "5caca800ccba1169253d8cf1d1853e66c85806f84f81e8ead600957f7285445c"
+          },
+          "D:\\bt_api_py\\bt_api\\bt_api_ctp\\src\\bt_api_ctp\\ctp\\callback_ingress.py": {
+            "size_bytes": 73492,
+            "sha256": "c7dbae9aad0aafc7ab1afb4e7a682957f6125abb3b4ba270dd516acdf70294f7"
+          },
+          "D:\\bt_api_py\\bt_api\\bt_api_ctp\\src\\bt_api_ctp\\ctp\\ctp_structs_query.py": {
+            "size_bytes": 171254,
+            "sha256": "acc1f36ca84b0e5c48d3942ddd700f8a17c5638f8ee6b60228c91c9b5d318e48"
+          }
+        },
+        "nodes": [
+          "tests/unit/feeds/test_futures_ctp_query_set.py::test_complete_query_set_runs_through_the_existing_full_pool_selector",
+          "tests/unit/feeds/test_futures_ctp_query_set.py::test_sdk_record_limit_overflow_stays_incomplete_and_fail_closed",
+          "tests/unit/test_alpha003_simnow_staged_query_runner.py::test_staged_query_failures_keep_bounded_limit_and_scope_diagnostics[feed_options0-QUERY_RECORD_LIMIT_EXCEEDED-record_limit]"
+        ],
+        "spec": {
+          "size_bytes": 4722,
+          "sha256": "de2a90dbcab20a2ce163d14f3e93a0f14d969a9e08c0a76559f6e223f0eb73cc"
+        },
+        "runner": {
+          "size_bytes": 4408,
+          "sha256": "2e7e707c9bd53f0e160f5a4cc4a10345b1ee333779a1877e948ea8265d1e0e10"
+        },
+        "boundary": "Real SDK/SPI and query fields; synthetic request/OS leaves. Network denied. No provider/account acceptance."
+      }
+    }
+  ],
+  "accepted_distinct_cases": 178,
+  "qa_note": "R2 passed 176/178. Corrected one test-only nonexistent mapping accessor and a real missing record_limit completion-origin allowlist entry. R3 passed the two failed cases plus the strengthened overflow assertion; not a final 178-case rerun. R1 precheck stopped before any test because a reviewed one-line fixture edit changed its pin.",
+  "warnings": [
+    "Each executed run reported one inherited unknown asyncio_default_fixture_loop_scope pytest config warning."
+  ],
+  "independent_static_review": "nojoin_tests GO including production Store/wrapper bridge fixture and final two-file correction.",
+  "source_pins": {
+    "backtrader/feeds/futures_ctp_snapshot.py": {
+      "size_bytes": 58334,
+      "sha256": "a0241fc39710d704810bf2f612e40c370d948775d1d5cabf149c50ce48c332d9"
+    },
+    "backtrader/feeds/futures_main_contract.py": {
+      "size_bytes": 133406,
+      "sha256": "baf90a7989ff7af2d4a98b02d7d47e69a7af5072b378337ac96df683521b24fb"
+    },
+    "backtrader/stores/btapistore.py": {
+      "size_bytes": 888832,
+      "sha256": "4de5c66997072da7bb397f230ac0f9955e5f900d9396134264ace341c7c0a568"
+    },
+    "examples/unified/028_alpha003_simnow_minute/run.py": {
+      "size_bytes": 298678,
+      "sha256": "b757708c0e61d555c5436d9cf875c05a2e651d10a508e98a1f30d77a1bf74dee"
+    },
+    "examples/unified/028_alpha003_simnow_minute/config.yaml": {
+      "size_bytes": 4106,
+      "sha256": "1bf0c679bef830267d2f0545eee992c1701e75b62c6156908b3188301772f3b3"
+    },
+    "tests/unit/feeds/test_futures_ctp_query_set.py": {
+      "size_bytes": 16811,
+      "sha256": "34873aa7bb0667ffbaeb00b15d45d157c308223122ff99fec0c44b61bf71bcc4"
+    },
+    "tests/unit/test_alpha003_simnow_staged_query_runner.py": {
+      "size_bytes": 13192,
+      "sha256": "694806cacd0ff5acde69a6ef54c026607ec1cffe13dc340f65f8636e77a62bfe"
+    }
+  },
+  "boundary": "Synthetic query/provider leaves with actual collector, selector, Store wrapper and runner paths. No fresh provider/account call, no complete exchange-universe proof, no full AC increment. SDK retains bounded query history.",
+  "formal_case_increment": 0
+}

@@ -45,6 +45,10 @@ RANKING_MODE_LEGACY_PRIOR_DAY_OI = "legacy_previous_complete_day_eod_oi_v1"
 RANKING_MODE_CTP_QUERY_SNAPSHOT = "ctp_query_snapshot_equal_weight_v1"
 _QUERY_METRIC_MAX_DIGITS = 512
 _QUERY_METRIC_MAX_ABS_EXPONENT = 256
+MAX_VISIBLE_FUTURE_PRODUCTS = 256
+MAX_PRODUCT_INSTRUMENT_ROWS = 20_000
+MAX_VISIBLE_DEPTH_ROWS = 20_000
+MAX_STAGED_QUERY_REQUESTS = MAX_VISIBLE_FUTURE_PRODUCTS + 2
 
 
 class TradingCalendarContractError(ValueError):
@@ -424,6 +428,138 @@ class QuerySnapshotSourceEvidence:
     complete: Any
     is_last_seen: Any
     record_count: Any
+    request_filters: Any = None
+    record_limit: Any = None
+    record_limit_exceeded: Any = None
+
+
+@dataclass(frozen=True)
+class QuerySnapshotProductEvidence:
+    """A ProductKey bound to its exact native CTP product filters."""
+
+    product: ProductKey
+    native_exchange_id: str
+    native_product_id: str
+    product_class: str = "1"
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.product, ProductKey):
+            raise ValueError("product must be a ProductKey")
+        for name in ("native_exchange_id", "native_product_id", "product_class"):
+            value = getattr(self, name)
+            if type(value) is not str or not value or value != value.strip():
+                raise ValueError("{} must be non-empty trimmed text".format(name))
+        if self.product.exchange_id != self.native_exchange_id.upper():
+            raise ValueError("native exchange does not match canonical product")
+        if self.product.product_id != self.native_product_id.upper():
+            raise ValueError("native product does not match canonical product")
+        if self.product_class != "1":
+            raise ValueError("query-set products must be CTP futures")
+
+
+@dataclass(frozen=True)
+class QuerySnapshotSetEvidence:
+    """One typed product query, exact per-product instrument queries, and depth."""
+
+    source_id: Any
+    snapshot_id: Any
+    source_sha256: Any
+    products: Tuple[QuerySnapshotProductEvidence, ...]
+    requests: Tuple[QuerySnapshotSourceEvidence, ...]
+
+    def __post_init__(self) -> None:
+        products = tuple(self.products)
+        requests = tuple(self.requests)
+        if not products or len(products) > MAX_VISIBLE_FUTURE_PRODUCTS:
+            raise ValueError("query-set products must be non-empty and bounded")
+        if any(not isinstance(item, QuerySnapshotProductEvidence) for item in products):
+            raise ValueError("query-set products must contain QuerySnapshotProductEvidence")
+        if any(not isinstance(item, QuerySnapshotSourceEvidence) for item in requests):
+            raise ValueError("query-set requests must contain QuerySnapshotSourceEvidence")
+        if len(requests) != len(products) + 2 or len(requests) > MAX_STAGED_QUERY_REQUESTS:
+            raise ValueError("query-set request count does not match its products")
+        product_keys = tuple(item.product for item in products)
+        if len(set(product_keys)) != len(product_keys):
+            raise ValueError("query-set products contain canonical collisions")
+        object.__setattr__(self, "products", products)
+        object.__setattr__(self, "requests", requests)
+
+    @property
+    def product_keys(self) -> Tuple[ProductKey, ...]:
+        return tuple(item.product for item in self.products)
+
+
+def query_snapshot_set_digest(
+    products: Sequence[QuerySnapshotProductEvidence],
+    requests: Sequence[QuerySnapshotSourceEvidence],
+) -> str:
+    """Digest ordered, value-bound request receipts without retaining raw rows."""
+
+    def time_value(value: Any) -> Optional[str]:
+        if not isinstance(value, datetime) or value.tzinfo is None or value.utcoffset() is None:
+            return None
+        return value.astimezone(timezone.utc).isoformat()
+
+    def scalar(value: Any) -> Any:
+        if value is None or type(value) in (str, int, bool):
+            return value
+        if type(value) is date:
+            return value.isoformat()
+        return "<{}>".format(type(value).__name__)
+
+    def filter_values(value: Any) -> Any:
+        if type(value) is not tuple or any(
+            type(pair) is not tuple
+            or len(pair) != 2
+            or type(pair[0]) is not str
+            or type(pair[1]) is not str
+            for pair in value
+        ):
+            return "<invalid-request-filters>"
+        return [list(pair) for pair in value]
+
+    payload = {
+        "schema": "backtrader.ctp_query_snapshot_set.v1",
+        "products": [
+            {
+                "exchange_id": item.product.exchange_id,
+                "product_id": item.product.product_id,
+                "native_exchange_id": item.native_exchange_id,
+                "native_product_id": item.native_product_id,
+                "product_class": item.product_class,
+            }
+            for item in products
+        ],
+        "requests": [
+            {
+                "source_id": scalar(item.source_id),
+                "source_kind": scalar(item.source_kind),
+                "snapshot_id": scalar(item.snapshot_id),
+                "source_sha256": scalar(item.source_sha256),
+                "request_id": scalar(item.request_id),
+                "connection_generation": scalar(item.connection_generation),
+                "trading_day": scalar(item.trading_day),
+                "started_at": time_value(item.started_at),
+                "completed_at": time_value(item.completed_at),
+                "retrieved_at": time_value(item.retrieved_at),
+                "complete": scalar(item.complete),
+                "is_last_seen": scalar(item.is_last_seen),
+                "record_count": scalar(item.record_count),
+                "request_filters": filter_values(item.request_filters),
+                "record_limit": scalar(item.record_limit),
+                "record_limit_exceeded": scalar(item.record_limit_exceeded),
+            }
+            for item in requests
+        ],
+    }
+    encoded = json.dumps(
+        payload,
+        ensure_ascii=False,
+        allow_nan=False,
+        separators=(",", ":"),
+        sort_keys=True,
+    ).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
 
 
 @dataclass(frozen=True)
@@ -484,7 +620,7 @@ class CurrentDayQuoteRecord:
 
 @dataclass(frozen=True)
 class MainContractQuerySnapshot:
-    """Two real, completed CTP query results plus the surrounding session facts.
+    """Real completed CTP query results plus the surrounding session facts.
 
     Catalog and quote records are retained verbatim as tuples so duplicate or
     unexpected IDs remain visible to the selector.  The adapter must not
@@ -499,6 +635,7 @@ class MainContractQuerySnapshot:
     session_trading_day_after: Any
     session_generation_before: Any
     session_generation_after: Any
+    query_set: Optional[QuerySnapshotSetEvidence] = None
 
     def __post_init__(self) -> None:
         catalog = tuple(self.catalog_records)
@@ -515,6 +652,14 @@ class MainContractQuerySnapshot:
             self.quote_source, QuerySnapshotSourceEvidence
         ):
             raise ValueError("quote_source must be QuerySnapshotSourceEvidence or None")
+        if self.query_set is not None and not isinstance(
+            self.query_set, QuerySnapshotSetEvidence
+        ):
+            raise ValueError("query_set must be QuerySnapshotSetEvidence or None")
+        if self.query_set is not None and (
+            self.catalog_source is not None or self.quote_source is not None
+        ):
+            raise ValueError("query-set snapshots cannot also claim legacy source pair")
         object.__setattr__(self, "catalog_records", catalog)
         object.__setattr__(self, "quote_records", quotes)
 
@@ -1126,6 +1271,14 @@ def _query_source_blockers(
 ) -> Tuple[str, ...]:
     if snapshot is None:
         return ("QUERY_SNAPSHOT_UNAVAILABLE",)
+    if snapshot.query_set is not None:
+        return _query_set_source_blockers(
+            snapshot,
+            decision_at=decision_at,
+            policy=policy,
+            target_products=target_products,
+            current_days=current_days,
+        )
     blockers = []
     catalog = snapshot.catalog_source
     quote = snapshot.quote_source
@@ -1251,6 +1404,254 @@ def _query_source_blockers(
     return tuple(dict.fromkeys(blockers))
 
 
+def _query_set_source_blockers(
+    snapshot: MainContractQuerySnapshot,
+    *,
+    decision_at: datetime,
+    policy: MainContractPolicy,
+    target_products: Sequence[ProductKey],
+    current_days: Mapping[str, date],
+) -> Tuple[str, ...]:
+    query_set = snapshot.query_set
+    if query_set is None:
+        return ("QUERY_SET_UNAVAILABLE",)
+    blockers = []
+    products = query_set.products
+    requests = query_set.requests
+    if snapshot.catalog_source is not None or snapshot.quote_source is not None:
+        blockers.append("QUERY_SET_LEGACY_SOURCE_PAIR_MIXED")
+    if not products or len(products) > MAX_VISIBLE_FUTURE_PRODUCTS:
+        blockers.append("QUERY_SET_PRODUCT_COUNT_INVALID")
+    product_keys = tuple(item.product for item in products)
+    if len(set(product_keys)) != len(product_keys):
+        blockers.append("QUERY_SET_PRODUCT_CANONICAL_COLLISION")
+    if tuple(sorted(product_keys, key=_key_order)) != product_keys:
+        blockers.append("QUERY_SET_PRODUCT_ORDER_INVALID")
+    expected_keys = tuple(sorted(target_products, key=_key_order))
+    if product_keys != expected_keys:
+        blockers.append("QUERY_SET_PRODUCT_POOL_MISMATCH")
+    if len(requests) != len(products) + 2 or len(requests) > MAX_STAGED_QUERY_REQUESTS:
+        blockers.append("QUERY_SET_REQUEST_COUNT_INVALID")
+        return tuple(dict.fromkeys(blockers))
+    if type(query_set.source_id) is not str or not query_set.source_id.strip():
+        blockers.append("QUERY_SET_SOURCE_ID_MISSING")
+    if type(query_set.snapshot_id) is not str or not query_set.snapshot_id.strip():
+        blockers.append("QUERY_SET_SNAPSHOT_ID_MISSING")
+    if type(query_set.source_sha256) is not str or not _SOURCE_SHA256.fullmatch(
+        query_set.source_sha256
+    ):
+        blockers.append("QUERY_SET_SOURCE_DIGEST_INVALID")
+    elif query_snapshot_set_digest(products, requests) != query_set.source_sha256:
+        blockers.append("QUERY_SET_SOURCE_DIGEST_MISMATCH")
+
+    product_source_suffix = ".query_products_result"
+    first_source_id = requests[0].source_id
+    source_prefix = None
+    if type(first_source_id) is str and first_source_id.endswith(product_source_suffix):
+        source_prefix = first_source_id[: -len(product_source_suffix)]
+        if not source_prefix or source_prefix != source_prefix.strip():
+            source_prefix = None
+            blockers.append("QUERY_SET_PRODUCT_SOURCE_ID_MISMATCH")
+    else:
+        blockers.append("QUERY_SET_PRODUCT_SOURCE_ID_MISMATCH")
+    if source_prefix is not None:
+        expected_query_set_source_id = "{}.staged_futures_query_set".format(source_prefix)
+        if query_set.source_id != expected_query_set_source_id:
+            blockers.append("QUERY_SET_SOURCE_ID_MISMATCH")
+        if (
+            type(query_set.source_sha256) is str
+            and _SOURCE_SHA256.fullmatch(query_set.source_sha256)
+            and type(snapshot.session_generation_before) is int
+            and snapshot.session_generation_before > 0
+            and type(snapshot.session_trading_day_before) is date
+        ):
+            expected_query_set_snapshot_id = "ctp-visible-futures-set:{}:{}:{}".format(
+                snapshot.session_generation_before,
+                snapshot.session_trading_day_before.strftime("%Y%m%d"),
+                query_set.source_sha256[:16],
+            )
+            if query_set.snapshot_id != expected_query_set_snapshot_id:
+                blockers.append("QUERY_SET_SNAPSHOT_ID_MISMATCH")
+
+    product_filters = (
+        ("ExchangeID", ""),
+        ("ProductClass", "1"),
+        ("ProductID", ""),
+    )
+    instrument_filters = tuple(
+        (
+            ("ExchangeID", item.native_exchange_id),
+            ("InstrumentID", ""),
+            ("ProductID", item.native_product_id),
+        )
+        for item in products
+    )
+    depth_filters = (
+        ("ExchangeID", ""),
+        ("InstrumentID", ""),
+        ("ProductClass", "1"),
+    )
+    expected_filters = (product_filters,) + instrument_filters + (depth_filters,)
+    expected_kinds = ("products",) + ("instruments",) * len(products) + (
+        "depth_market_data",
+    )
+    expected_methods = ("query_products_result",) + ("query_instruments_result",) * len(
+        products
+    ) + ("query_depth_market_data_result",)
+    request_ids = []
+    span_timestamps = []
+    instrument_count = 0
+    for index, (source, expected_kind, expected_method, filters) in enumerate(
+        zip(requests, expected_kinds, expected_methods, expected_filters)
+    ):
+        name = "QUERY_SET_REQUEST_{}".format(index + 1)
+        blockers.extend(
+            _named_source_blockers(
+                name,
+                source_id=source.source_id,
+                snapshot_id=source.snapshot_id,
+                source_sha256=source.source_sha256,
+                available_at=source.completed_at,
+                retrieved_at=source.retrieved_at,
+                decision_at=decision_at,
+            )
+        )
+        if source.source_kind != expected_kind:
+            blockers.append("{}_SOURCE_KIND_MISMATCH".format(name))
+        if source_prefix is not None and source.source_id != "{}.{}".format(
+            source_prefix, expected_method
+        ):
+            blockers.append("{}_SOURCE_ID_MISMATCH".format(name))
+        if source.request_filters != filters:
+            blockers.append("{}_FILTERS_MISMATCH".format(name))
+        if type(source.request_id) is not int or source.request_id <= 0:
+            blockers.append("{}_REQUEST_ID_UNAVAILABLE".format(name))
+        else:
+            request_ids.append(source.request_id)
+        if type(source.connection_generation) is not int or source.connection_generation <= 0:
+            blockers.append("{}_CONNECTION_GENERATION_UNAVAILABLE".format(name))
+        if type(source.trading_day) is not date:
+            blockers.append("{}_TRADING_DAY_UNAVAILABLE".format(name))
+        if (
+            type(source.connection_generation) is int
+            and source.connection_generation > 0
+            and type(source.trading_day) is date
+            and type(source.request_id) is int
+            and source.request_id > 0
+            and type(source.source_sha256) is str
+            and _SOURCE_SHA256.fullmatch(source.source_sha256)
+        ):
+            expected_request_snapshot_id = "ctp-visible-{}:{}:{}:{}:{}".format(
+                expected_kind,
+                source.connection_generation,
+                source.trading_day.strftime("%Y%m%d"),
+                source.request_id,
+                source.source_sha256[:16],
+            )
+            if source.snapshot_id != expected_request_snapshot_id:
+                blockers.append("{}_SNAPSHOT_ID_MISMATCH".format(name))
+        for field_name, value in (
+            ("started_at", source.started_at),
+            ("completed_at", source.completed_at),
+            ("retrieved_at", source.retrieved_at),
+        ):
+            normalized = _source_timestamp(value)
+            if normalized is None:
+                blockers.append("{}_{}_INVALID".format(name, field_name.upper()))
+            elif field_name != "retrieved_at":
+                span_timestamps.append(normalized.astimezone(timezone.utc))
+        started = _source_timestamp(source.started_at)
+        completed = _source_timestamp(source.completed_at)
+        retrieved = _source_timestamp(source.retrieved_at)
+        if started is not None and completed is not None:
+            if started.astimezone(timezone.utc) > completed.astimezone(timezone.utc):
+                blockers.append("{}_START_AFTER_COMPLETION".format(name))
+            age_seconds = (
+                decision_at.astimezone(timezone.utc)
+                - completed.astimezone(timezone.utc)
+            ).total_seconds()
+            if age_seconds > policy.max_snapshot_age_seconds:
+                blockers.append("{}_SNAPSHOT_STALE".format(name))
+        if completed is not None and retrieved is not None:
+            if retrieved.astimezone(timezone.utc) < completed.astimezone(timezone.utc):
+                blockers.append("{}_RETRIEVED_BEFORE_COMPLETION".format(name))
+        if source.complete is not True:
+            blockers.append("{}_QUERY_INCOMPLETE".format(name))
+        if source.is_last_seen is not True:
+            blockers.append("{}_QUERY_TERMINAL_NOT_SEEN".format(name))
+        if type(source.record_count) is not int or source.record_count < 0:
+            blockers.append("{}_RECORD_COUNT_UNAVAILABLE".format(name))
+        expected_record_limit = (
+            MAX_VISIBLE_FUTURE_PRODUCTS
+            if index == 0
+            else MAX_VISIBLE_DEPTH_ROWS
+            if index == len(requests) - 1
+            else MAX_PRODUCT_INSTRUMENT_ROWS - instrument_count
+        )
+        if type(source.record_limit) is not int or source.record_limit != expected_record_limit:
+            blockers.append("{}_RECORD_LIMIT_MISMATCH".format(name))
+        if source.record_limit_exceeded is not False:
+            blockers.append("{}_RECORD_LIMIT_EXCEEDED".format(name))
+        if (
+            type(source.record_count) is int
+            and type(source.record_limit) is int
+            and source.record_count > source.record_limit
+        ):
+            blockers.append("{}_RECORD_LIMIT_EXCEEDED".format(name))
+        if index == 0 and source.record_count != len(products):
+            blockers.append("QUERY_SET_PRODUCT_RECORD_COUNT_MISMATCH")
+        elif 0 < index < len(requests) - 1:
+            if type(source.record_count) is int and source.record_count >= 0:
+                instrument_count += source.record_count
+        elif index == len(requests) - 1 and source.record_count != len(
+            snapshot.quote_records
+        ):
+            blockers.append("QUERY_SET_DEPTH_RECORD_COUNT_MISMATCH")
+
+    if len(request_ids) != len(set(request_ids)):
+        blockers.append("QUERY_SET_REQUEST_ID_COLLISION")
+    if instrument_count > MAX_PRODUCT_INSTRUMENT_ROWS:
+        blockers.append("QUERY_SET_INSTRUMENT_RECORD_CAP_EXCEEDED")
+    if instrument_count != len(snapshot.catalog_records):
+        blockers.append("QUERY_SET_INSTRUMENT_RECORD_COUNT_MISMATCH")
+    if span_timestamps:
+        span = (max(span_timestamps) - min(span_timestamps)).total_seconds()
+        if span < 0 or span > policy.max_collection_span_seconds:
+            blockers.append("QUERY_COLLECTION_SPAN_EXCEEDED")
+
+    generations = (snapshot.session_generation_before, snapshot.session_generation_after)
+    if any(not _query_generation_valid(value) for value in generations):
+        blockers.append("SESSION_GENERATION_UNAVAILABLE")
+    elif generations[0] != generations[1]:
+        blockers.append("QUERY_SESSION_CHANGED_DURING_COLLECTION")
+    session_days = (snapshot.session_trading_day_before, snapshot.session_trading_day_after)
+    if any(type(value) is not date for value in session_days):
+        blockers.append("SESSION_TRADING_DAY_UNAVAILABLE")
+    elif session_days[0] != session_days[1]:
+        blockers.append("QUERY_SESSION_TRADING_DAY_CHANGED_DURING_COLLECTION")
+
+    for source in requests:
+        if _query_generation_valid(source.connection_generation) and all(
+            _query_generation_valid(generation) for generation in generations
+        ):
+            if any(generation != source.connection_generation for generation in generations):
+                blockers.append("QUERY_SESSION_GENERATION_MISMATCH")
+        if type(source.trading_day) is date and all(
+            type(day) is date for day in session_days
+        ):
+            if any(day != source.trading_day for day in session_days):
+                blockers.append("QUERY_SESSION_TRADING_DAY_MISMATCH")
+        if type(source.trading_day) is date:
+            for product in product_keys:
+                expected_day = current_days.get(product.exchange_id)
+                if expected_day is None:
+                    blockers.append("CURRENT_TRADING_DAY_UNAVAILABLE")
+                elif expected_day != source.trading_day:
+                    blockers.append("CURRENT_TRADING_DAY_MISMATCH")
+
+    return tuple(dict.fromkeys(blockers))
+
+
 def _safe_query_value(value: Any) -> dict[str, Any]:
     number = _number_as_decimal(value)
     if number is not None:
@@ -1294,7 +1695,17 @@ def _query_source_dict(source: Optional[QuerySnapshotSourceEvidence]) -> Optiona
             return value
         return "<{}>".format(type(value).__name__)
 
-    return {
+    filters = None
+    if type(source.request_filters) is tuple and all(
+        type(pair) is tuple
+        and len(pair) == 2
+        and type(pair[0]) is str
+        and type(pair[1]) is str
+        for pair in source.request_filters
+    ):
+        filters = [[name, value] for name, value in source.request_filters]
+
+    projection = {
         "source_id": _source_text(source.source_id),
         "source_kind": _source_text(source.source_kind),
         "snapshot_id": _source_text(source.snapshot_id),
@@ -1312,6 +1723,21 @@ def _query_source_dict(source: Optional[QuerySnapshotSourceEvidence]) -> Optiona
         if type(source.record_count) is int and source.record_count >= 0
         else None,
     }
+    if source.request_filters is not None or source.record_limit is not None or (
+        source.record_limit_exceeded is not None
+    ):
+        projection.update(
+            {
+                "request_filters": filters,
+                "record_limit": source.record_limit
+                if type(source.record_limit) is int and source.record_limit > 0
+                else None,
+                "record_limit_exceeded": source.record_limit_exceeded
+                if type(source.record_limit_exceeded) is bool
+                else None,
+            }
+        )
+    return projection
 
 
 def _query_snapshot_dict(
@@ -1344,12 +1770,32 @@ def _query_snapshot_dict(
         for row in snapshot.quote_records
     ]
 
+    query_set = None
+    if snapshot.query_set is not None:
+        query_set = {
+            "source_id": _source_text(snapshot.query_set.source_id),
+            "snapshot_id": _source_text(snapshot.query_set.snapshot_id),
+            "sha256": _source_digest(snapshot.query_set.source_sha256),
+            "products": [
+                {
+                    "product": _product_dict(item.product),
+                    "native_exchange_id": item.native_exchange_id,
+                    "native_product_id": item.native_product_id,
+                    "product_class": item.product_class,
+                }
+                for item in snapshot.query_set.products
+            ],
+            "requests": [
+                _query_source_dict(source) for source in snapshot.query_set.requests
+            ],
+        }
+
     def scalar(value: Any) -> Any:
         if value is None or type(value) in (str, int, bool):
             return value
         return "<{}>".format(type(value).__name__)
 
-    return {
+    projection = {
         "kind": "CTP_CURRENT_DAY_QUERY_SNAPSHOT_NOT_FINALIZED_EOD",
         "catalog_source": _query_source_dict(snapshot.catalog_source),
         "quote_source": _query_source_dict(snapshot.quote_source),
@@ -1366,6 +1812,9 @@ def _query_snapshot_dict(
         "catalog_records": catalog,
         "quote_records": quotes,
     }
+    if query_set is not None:
+        projection["query_set"] = query_set
+    return projection
 
 
 def _calendar_for(
@@ -1844,6 +2293,12 @@ def _select_query_snapshot(
     catalog_by_product = {}
     expected_quotes_by_product = {}
     quote_rows_by_key = {}
+    query_quote_trading_day = None
+    if snapshot is not None:
+        if snapshot.quote_source is not None:
+            query_quote_trading_day = snapshot.quote_source.trading_day
+        elif snapshot.query_set is not None and snapshot.query_set.requests:
+            query_quote_trading_day = snapshot.query_set.requests[-1].trading_day
 
     if snapshot is not None:
         for record in snapshot.catalog_records:
@@ -1881,10 +2336,9 @@ def _select_query_snapshot(
             elif expected_day is not None and quote.trading_day != expected_day:
                 global_blockers.append("QUOTE_TRADING_DAY_MISMATCH")
             if (
-                snapshot.quote_source is not None
-                and type(snapshot.quote_source.trading_day) is date
+                type(query_quote_trading_day) is date
                 and type(quote.trading_day) is date
-                and quote.trading_day != snapshot.quote_source.trading_day
+                and quote.trading_day != query_quote_trading_day
             ):
                 global_blockers.append("QUOTE_QUERY_ROW_CROSS_DAY")
         if any(len(rows) > 1 for rows in quote_rows_by_key.values()):
@@ -2778,6 +3232,8 @@ __all__ = [
     "ProductKey",
     "ProductRankingCoverage",
     "ProductSelection",
+    "QuerySnapshotProductEvidence",
+    "QuerySnapshotSetEvidence",
     "QuerySnapshotSourceEvidence",
     "RANKING_MODE_CTP_QUERY_SNAPSHOT",
     "RANKING_MODE_LEGACY_PRIOR_DAY_OI",
@@ -2788,5 +3244,6 @@ __all__ = [
     "TradingDayReference",
     "authorize_main_contract_rollover",
     "plan_main_contract_rollover",
+    "query_snapshot_set_digest",
     "select_main_contracts",
 ]
