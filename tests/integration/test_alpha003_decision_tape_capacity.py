@@ -4,9 +4,12 @@ from __future__ import annotations
 
 from dataclasses import replace
 from datetime import timedelta
+import hashlib
 import importlib.util
+import json
 from pathlib import Path
 import sys
+import tracemalloc
 from types import MappingProxyType, SimpleNamespace
 
 import pytest
@@ -54,6 +57,17 @@ def _complete_batch_snapshot(target_decision):
             source_ref=source_ref,
             source_role="live",
             connection_generation=1,
+            origin_partition=MappingProxyType(
+                {
+                    "schema": _RUNNER.SOURCE_ORIGIN_PARTITION_SCHEMA,
+                    "cohort_id": batch.cohort_id,
+                    "epoch_id": batch.epoch_id,
+                    "member_id": target,
+                    "source_ref": source_ref,
+                    "source_role": "live",
+                    "connection_generation": 1,
+                }
+            ),
             feed_sequence=sequence,
             bucket_start=batch.close_time - timedelta(minutes=1),
             close_time=batch.close_time,
@@ -255,6 +269,7 @@ def test_actual_decision_tape_append_overflow_suppresses_open_dispatch(tmp_path)
     owner._account_scope = economics.ACCOUNT_SCOPE
     owner._strategy_scope = economics.STRATEGY_SCOPE
     owner._logical_run_id = coordinator.logical_run_id
+    owner._source_kind = "ALPHA003_GRID"
     owner._last_signal_target = second_decision
     owner.last_execution_block_reason = None
     owner.live_factors = SimpleNamespace(snapshot=lambda: second_snapshot)
@@ -333,3 +348,108 @@ def test_actual_decision_tape_append_overflow_suppresses_open_dispatch(tmp_path)
             except _RUNNER.RunnerError:
                 pass
         journal.close()
+
+
+@pytest.mark.integration
+def test_fee_pair_source_only_reader_streams_long_tape_with_bounded_memory(tmp_path):
+    """The source-only verifier retains a header and tail, not the whole tape."""
+    target_decision = economics._target_decision(mode="native", batch_id="long-tape")
+    batch, snapshot = _complete_batch_snapshot(target_decision)
+    tape_path = tmp_path / "long-source-only-prefix.jsonl"
+    writer = _writer(
+        tape_path,
+        max_bytes=64 * 1024 * 1024,
+        calendar_id=batch.calendar_id,
+    )
+    assert writer.record_decision(batch, snapshot, target_decision, None) is True
+    writer.close()
+
+    header_raw, sample_raw = tape_path.read_bytes().splitlines(keepends=True)
+    sample = json.loads(sample_raw.decode("utf-8"))
+    sample.pop("record_id")
+    row_bytes = len(sample_raw)
+    row_count = max(4096, (16 * 1024 * 1024 // row_bytes) + 1)
+    with tape_path.open("wb") as handle:
+        handle.write(header_raw)
+        for index in range(1, row_count + 1):
+            row = dict(sample)
+            row["record_index"] = index
+            row["record_id"] = hashlib.sha256(
+                _RUNNER._canonical_json_bytes(row).rstrip(b"\n")
+            ).hexdigest()
+            handle.write(_RUNNER._canonical_json_bytes(row))
+    tape_size = tape_path.stat().st_size
+    assert tape_size > 16 * 1024 * 1024
+
+    tracemalloc.start()
+    try:
+        summary = writer._stream_fee_pair_tape(None)
+        _current, peak = tracemalloc.get_traced_memory()
+    finally:
+        tracemalloc.stop()
+
+    assert summary["row_count"] == row_count + 1
+    assert summary["last"]["record_index"] == row_count
+    assert summary["raw_sha256"] == hashlib.sha256(tape_path.read_bytes()).hexdigest()
+    assert peak < 4 * 1024 * 1024
+
+
+@pytest.mark.integration
+def test_strict_decision_reader_rejects_record_cap_plus_one_before_json_parse(
+    tmp_path, monkeypatch
+):
+    target_decision = economics._target_decision(mode="native", batch_id="line-cap")
+    batch, _snapshot = _complete_batch_snapshot(target_decision)
+    tape_path = tmp_path / "oversized-record.jsonl"
+    writer = _writer(tape_path, max_bytes=16 * 1024 * 1024, calendar_id=batch.calendar_id)
+    writer.close()
+    header_raw = tape_path.read_bytes()
+    record_cap = _RUNNER._FEE_PAIR_SOURCE_ONLY_MAX_RECORD_BYTES
+    tape_path.write_bytes(header_raw + b"{" + b" " * (record_cap - 1) + b"\n")
+
+    original_open = Path.open
+    read_sizes = []
+
+    class _TrackingHandle:
+        def __init__(self, handle):
+            self._handle = handle
+
+        def __enter__(self):
+            self._handle.__enter__()
+            return self
+
+        def __exit__(self, *args):
+            return self._handle.__exit__(*args)
+
+        def readline(self, size=-1):
+            read_sizes.append(size)
+            return self._handle.readline(size)
+
+        def __getattr__(self, name):
+            return getattr(self._handle, name)
+
+    def tracking_open(path, *args, **kwargs):
+        handle = original_open(path, *args, **kwargs)
+        return _TrackingHandle(handle) if path == tape_path else handle
+
+    original_loads = json.loads
+    parsed_rows = []
+
+    def tracking_loads(value, *args, **kwargs):
+        parsed_rows.append(value)
+        return original_loads(value, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "open", tracking_open)
+    monkeypatch.setattr(_RUNNER.json, "loads", tracking_loads)
+    with pytest.raises(_RUNNER.RunnerError) as rejected:
+        tuple(
+            _RUNNER.iter_decision_tape(
+                tape_path,
+                max_bytes=16 * 1024 * 1024,
+                max_record_bytes=record_cap,
+            )
+        )
+
+    assert rejected.value.code == "DECISION_TAPE_RECORD_BYTE_LIMIT_EXCEEDED"
+    assert read_sizes == [record_cap + 1, record_cap + 1]
+    assert len(parsed_rows) == 1

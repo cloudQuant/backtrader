@@ -41,6 +41,12 @@ METADATA_SCHEMA = "backtrader.alpha003.replay_instrument_metadata.v1"
 LEGACY_DECISION_TAPE_SCHEMA = "backtrader.alpha003.decision_tape.v1"
 DECISION_TAPE_SCHEMA = "backtrader.alpha003.decision_tape.v2"
 SOURCE_ORIGIN_PARTITION_SCHEMA = "backtrader.execution_source_origin_partition.v1"
+# The opt-in SOURCE_ONLY fee-pair helper applies tighter read limits than the
+# general decision-tape reader.  The tape cap is aligned with the Journal's
+# default decision-byte budget; a single line may be larger only when a future
+# explicitly reviewed contract raises this fixed bound.
+_FEE_PAIR_SOURCE_ONLY_MAX_TAPE_BYTES = 512 * 1024 * 1024
+_FEE_PAIR_SOURCE_ONLY_MAX_RECORD_BYTES = 8 * 1024 * 1024
 # The 87-target GRID receipt and its production execution evidence exceed the
 # journal's general 64 KiB default. Keep this run-local cap bounded and leave
 # the journal-wide default unchanged.
@@ -2562,9 +2568,15 @@ class DecisionTapeWriter:
             raise RunnerError("DECISION_TAPE_BYTE_BUDGET_INVALID")
         if mode not in {"replay", "live"}:
             raise RunnerError("DECISION_TAPE_MODE_INVALID")
+        self.mode = mode
+        self.factor_mode = factor_mode
+        self.direction = direction
         self.path = path.resolve(strict=False)
         self.max_bytes = max_bytes
         self.targets = tuple(sorted(targets))
+        self.calendar_id = calendar_id
+        self.grid_sha256 = grid_sha256
+        self.source_snapshot_id = source_snapshot_id
         if not self.targets or len(self.targets) != len(set(self.targets)):
             raise RunnerError("DECISION_TAPE_TARGETS_INVALID")
         self.file_id = str(uuid.uuid4())
@@ -2576,6 +2588,7 @@ class DecisionTapeWriter:
         self._lock = threading.RLock()
         self._last_record_reference = None
         self._header_record_id = None
+        self._fee_pair_source_scope = None
         if calendar_fingerprint is not None and (
             type(calendar_fingerprint) is not str
             or len(calendar_fingerprint) != 64
@@ -2592,6 +2605,11 @@ class DecisionTapeWriter:
             self._selection_evidence["binding_sha256"]
             if self._selection_evidence is not None
             else None
+        )
+        self._restart_identity = (
+            None
+            if restart_identity is None
+            else json.loads(_canonical_json_bytes(restart_identity))
         )
         try:
             self.path.parent.mkdir(parents=True, exist_ok=True)
@@ -2697,6 +2715,529 @@ class DecisionTapeWriter:
             )
             return True
 
+    def record_fee_pair_source_only(
+        self,
+        candidate,
+        batch,
+        snapshot,
+        target_decision,
+        journal,
+        *,
+        owner_token: str,
+        ttl_seconds: float = 10.0,
+    ):
+        """Append and verify one v17 candidate as a no-intent SOURCE_ONLY row.
+
+        This is an opt-in, same-process source-only helper. It does not query
+        fees, authorize OPEN, recover a writer after restart, or establish
+        cross-process exclusion. The ordinary ``record_decision`` row format
+        remains unchanged. Candidate signal/factor/quote hashes are opaque
+        commitments: this helper binds their v17 candidate digest into the
+        row, but does not claim to recompute their underlying content.
+        """
+        from backtrader.stores import execution_decision_journal as journal_api
+
+        if type(candidate) is not journal_api.ExecutionFeePairCandidate:
+            raise RunnerError("FEE_PAIR_CANDIDATE_TYPE_INVALID")
+        if type(journal) is not journal_api.ExecutionDecisionJournal:
+            raise RunnerError("FEE_PAIR_JOURNAL_TYPE_INVALID")
+
+        with self._lock:
+            if self._closed or self._failed:
+                raise RunnerError("DECISION_TAPE_UNAVAILABLE")
+            if self.calendar_fingerprint is None:
+                raise RunnerError("FEE_PAIR_TAPE_CALENDAR_FINGERPRINT_REQUIRED")
+            if self._selection_evidence is None:
+                raise RunnerError("FEE_PAIR_TAPE_SELECTION_EVIDENCE_REQUIRED")
+            self._verify_fee_pair_writer_prefix(journal)
+            self._verify_fee_pair_candidate_writer_binding(candidate)
+
+            expected_index = self._record_count + 1
+            source_scope = (
+                candidate.key.account_scope,
+                candidate.key.strategy_scope,
+                candidate.key.logical_run_id,
+                candidate.source_kind,
+                candidate.cohort_id,
+                candidate.epoch_id,
+                candidate.calendar_id,
+                candidate.calendar_version,
+                candidate.calendar_fingerprint,
+            )
+            if (
+                self._fee_pair_source_scope is not None
+                and self._fee_pair_source_scope != source_scope
+            ):
+                raise RunnerError("FEE_PAIR_TAPE_SOURCE_SCOPE_MISMATCH")
+            highwater = journal.source_highwater(
+                candidate.key.account_scope,
+                candidate.key.strategy_scope,
+                candidate.key.logical_run_id,
+                candidate.source_kind,
+            )
+            if highwater is not None and (
+                candidate.epoch_id < highwater.receipt.epoch_id
+                or (
+                    candidate.epoch_id == highwater.receipt.epoch_id
+                    and candidate.slot_index <= highwater.receipt.slot_index
+                )
+            ):
+                raise RunnerError("FEE_PAIR_TAPE_SLOT_ALREADY_CONSUMED")
+            if (
+                candidate.expected_tape_file_id != self.file_id
+                or candidate.expected_tape_record_index != expected_index
+            ):
+                raise RunnerError("FEE_PAIR_TAPE_POSITION_MISMATCH")
+
+            row = _decision_tape_record(
+                batch,
+                snapshot,
+                target_decision,
+                None,
+                file_id=self.file_id,
+                index=expected_index,
+                targets=self.targets,
+                calendar_fingerprint=self.calendar_fingerprint,
+            )
+            _validate_fee_pair_candidate_projection(candidate, row, journal_api)
+            row["order_plan"] = {
+                "status": "SOURCE_ONLY",
+                "reason": "FEE_PAIR_NOT_AUTHORIZED",
+                "decision_batch_id": row["batch_id"],
+                "decision_available_at": row["available_at"],
+                "actions": [],
+            }
+            if self._selection_evidence_sha256 is not None:
+                row["selection_evidence_sha256"] = self._selection_evidence_sha256
+            row["header_record_id"] = self._header_record_id
+
+            # Both hashes have fixed-width SHA-256 encodings.  Check the exact
+            # line and file limits before the durable claim so a local capacity
+            # rejection cannot strand an APPEND_CLAIMED workflow.
+            size_probe = dict(row)
+            size_probe["fee_pair_workflow"] = {
+                "candidate_id": "0" * 64,
+                "candidate_sha256": "0" * 64,
+            }
+            size_probe["record_id"] = "0" * 64
+            size_probe_raw = _canonical_json_bytes(size_probe)
+            if len(size_probe_raw) > _FEE_PAIR_SOURCE_ONLY_MAX_RECORD_BYTES:
+                raise RunnerError("FEE_PAIR_TAPE_RECORD_BYTE_LIMIT_EXCEEDED")
+            if self._bytes + len(size_probe_raw) > _FEE_PAIR_SOURCE_ONLY_MAX_TAPE_BYTES:
+                raise RunnerError("FEE_PAIR_TAPE_BYTE_LIMIT_EXCEEDED")
+            if self._bytes + len(size_probe_raw) > self.max_bytes:
+                raise RunnerError("DECISION_TAPE_BYTE_BUDGET_EXCEEDED")
+
+            try:
+                # The Journal is the durable duplicate/cursor authority.  This
+                # scalar binds this same-process writer to one source scope;
+                # failures after this point leave the writer latched unusable.
+                self._fee_pair_source_scope = source_scope
+                reserved = journal.reserve_fee_pair_workflow_candidate(
+                    candidate,
+                    owner_token=owner_token,
+                    ttl_seconds=ttl_seconds,
+                )
+                candidate_id = reserved.candidate_id
+                candidate_sha256 = reserved.candidate_sha256
+                if (
+                    reserved.state != "RESERVED"
+                    or type(candidate_id) is not str
+                    or not _is_lower_sha256(candidate_id)
+                    or not _is_lower_sha256(candidate_sha256)
+                ):
+                    raise RunnerError("FEE_PAIR_CANDIDATE_RESERVATION_INVALID")
+
+                claimed = journal.record_fee_pair_workflow_append_claim(
+                    candidate_id, owner_token=owner_token
+                )
+                if claimed.state != "APPEND_CLAIMED":
+                    raise RunnerError("FEE_PAIR_APPEND_CLAIM_INVALID")
+
+                row["fee_pair_workflow"] = {
+                    "candidate_id": candidate_id,
+                    "candidate_sha256": candidate_sha256,
+                }
+                digest = hashlib.sha256(_canonical_json_bytes(row).rstrip(b"\n")).hexdigest()
+                row["record_id"] = digest
+                raw = _canonical_json_bytes(row)
+                if len(raw) != len(size_probe_raw):
+                    raise RunnerError("FEE_PAIR_TAPE_RECORD_SIZE_PROJECTION_MISMATCH")
+                self._append(raw, count_record=True)
+                self._last_record_reference = MappingProxyType(
+                    {
+                        "file_id": self.file_id,
+                        "record_id": digest,
+                        "record_index": expected_index,
+                        "batch_id": row["batch_id"],
+                    }
+                )
+
+                verified_row = self._verify_fee_pair_candidate_tape_rows(
+                    journal,
+                    candidate,
+                    candidate_id=candidate_id,
+                    candidate_sha256=candidate_sha256,
+                    expected_index=expected_index,
+                )
+                receipt = _fee_pair_source_receipt_from_tape_row(
+                    verified_row, candidate, journal_api
+                )
+                attached = journal.attach_verified_fee_pair_source_receipt(
+                    candidate_id, receipt, owner_token=owner_token
+                )
+                if attached.state != "RECEIPT_VERIFIED":
+                    raise RunnerError("FEE_PAIR_SOURCE_RECEIPT_NOT_ATTACHED")
+                decision = journal.finalize_fee_pair_source_only_from_attached_receipt(
+                    candidate_id, owner_token=owner_token
+                )
+                if (
+                    decision.key != candidate.key
+                    or decision.intent_keys
+                    or decision.economic_payload.get("_execution_source_anchor_only") is not True
+                    or decision.economic_payload.get("_execution_fee_pair_workflow")
+                    != {
+                        "candidate_id": candidate_id,
+                        "candidate_sha256": candidate_sha256,
+                    }
+                ):
+                    raise RunnerError("FEE_PAIR_SOURCE_ONLY_DECISION_INVALID")
+                workflow = journal.fee_pair_workflow_candidate(candidate_id)
+                highwater = journal.source_highwater(
+                    candidate.key.account_scope,
+                    candidate.key.strategy_scope,
+                    candidate.key.logical_run_id,
+                    candidate.source_kind,
+                )
+                if (
+                    workflow is None
+                    or workflow.state != "SOURCE_ONLY"
+                    or workflow.source_only_decision_id != decision.decision_id
+                    or highwater is None
+                    or highwater.anchor_kind != "SOURCE_ONLY"
+                    or highwater.receipt != receipt
+                ):
+                    raise RunnerError("FEE_PAIR_SOURCE_ONLY_HIGHWATER_INVALID")
+                return MappingProxyType(
+                    {
+                        "candidate_id": candidate_id,
+                        "candidate_sha256": candidate_sha256,
+                        "tape_reference": dict(self._last_record_reference),
+                        "source_receipt": receipt,
+                        "decision": decision,
+                    }
+                )
+            except BaseException:
+                # A post-reservation failure leaves the Journal claim unresolved
+                # and the tape unusable for further writes in this process.
+                self._failed = True
+                raise
+
+    def _verify_fee_pair_candidate_writer_binding(self, candidate) -> None:
+        identity = self._restart_identity
+        evidence = self._selection_evidence
+        scope_hashes = identity.get("scope_sha256") if isinstance(identity, Mapping) else None
+        calendar = identity.get("calendar") if isinstance(identity, Mapping) else None
+        identity_targets = identity.get("targets") if isinstance(identity, Mapping) else None
+        routes = identity.get("routes") if isinstance(identity, Mapping) else None
+        key = candidate.key
+        expected_scope_hashes = {
+            "account_scope": hashlib.sha256(key.account_scope.encode("utf-8")).hexdigest(),
+            "strategy_scope": hashlib.sha256(key.strategy_scope.encode("utf-8")).hexdigest(),
+            "logical_run_id": hashlib.sha256(key.logical_run_id.encode("utf-8")).hexdigest(),
+        }
+        if (
+            not isinstance(identity, Mapping)
+            or not isinstance(evidence, Mapping)
+            or not isinstance(scope_hashes, Mapping)
+            or not isinstance(calendar, Mapping)
+            or type(identity_targets) is not list
+            or not isinstance(routes, Mapping)
+            or identity.get("schema") != "backtrader.alpha003.live_restart_identity.v1"
+            or identity.get("mode") != self.mode
+            or identity.get("factor_mode") != self.factor_mode
+            or identity.get("direction") != self.direction
+            or identity.get("epoch_id") != candidate.epoch_id
+            or identity.get("scope_sha256") != expected_scope_hashes
+            or tuple(identity_targets) != self.targets
+            or set(routes) != set(self.targets)
+            or identity.get("selection_source") != evidence.get("selection_source")
+            or identity.get("source_snapshot_id") != self.source_snapshot_id
+            or not _selection_evidence_matches_identity(evidence, identity)
+            or calendar.get("calendar_id") != self.calendar_id
+            or calendar.get("grid_sha256") != self.grid_sha256
+            or candidate.calendar_id != self.calendar_id
+            or candidate.calendar_fingerprint != self.calendar_fingerprint
+            or len(candidate.target_ids) != 2
+            or len(set(candidate.target_ids)) != 2
+            or not set(candidate.target_ids).issubset(set(self.targets))
+            or type(candidate.source_kind) is not str
+            or not candidate.source_kind
+        ):
+            raise RunnerError("FEE_PAIR_TAPE_PLAN_BINDING_MISMATCH")
+
+    def _verify_fee_pair_writer_prefix(self, journal) -> None:
+        try:
+            handle_size = os.fstat(self._handle.fileno()).st_size
+            path_size = self.path.stat().st_size
+        except OSError:
+            raise RunnerError("FEE_PAIR_TAPE_WRITER_STATE_UNAVAILABLE") from None
+        if (
+            handle_size != self._bytes
+            or path_size != self._bytes
+            or self._bytes > _FEE_PAIR_SOURCE_ONLY_MAX_TAPE_BYTES
+        ):
+            raise RunnerError("FEE_PAIR_TAPE_WRITER_SIZE_MISMATCH")
+        summary = self._stream_fee_pair_tape(journal)
+        header = summary["header"]
+        last = summary["last"]
+        if (
+            header is None
+            or header.get("file_id") != self.file_id
+            or header.get("record_id") != self._header_record_id
+            or header.get("mode") != "live"
+            or header.get("factor_mode") != self.factor_mode
+            or header.get("direction") != self.direction
+            or tuple(header.get("targets", ())) != self.targets
+            or header.get("calendar_id") != self.calendar_id
+            or header.get("grid_sha256") != self.grid_sha256
+            or header.get("source_snapshot_id") != self.source_snapshot_id
+            or header.get("calendar_fingerprint") != self.calendar_fingerprint
+            or header.get("restart_identity") != self._restart_identity
+            or header.get("selection_evidence") != self._selection_evidence
+        ):
+            raise RunnerError("FEE_PAIR_TAPE_WRITER_HEADER_MISMATCH")
+        if (
+            summary["row_count"] < 1
+            or summary["row_count"] - 1 != self._record_count
+            or summary["raw_sha256"] != self._hash.hexdigest()
+        ):
+            raise RunnerError("FEE_PAIR_TAPE_WRITER_CONTENT_MISMATCH")
+        actual_last = None
+        if last is not None:
+            actual_last = {
+                "file_id": last["file_id"],
+                "record_id": last["record_id"],
+                "record_index": last["record_index"],
+                "batch_id": last["batch_id"],
+            }
+        if actual_last != self.last_record_reference:
+            raise RunnerError("FEE_PAIR_TAPE_WRITER_TAIL_MISMATCH")
+
+    def _stream_fee_pair_tape(
+        self,
+        journal,
+        *,
+        candidate=None,
+        candidate_id=None,
+        candidate_sha256=None,
+        expected_index=None,
+    ):
+        raw_hasher = hashlib.sha256()
+        header = None
+        last = None
+        matched = None
+        row_count = 0
+        max_bytes = min(self.max_bytes, _FEE_PAIR_SOURCE_ONLY_MAX_TAPE_BYTES)
+        for row in iter_decision_tape(
+            self.path,
+            max_bytes=max_bytes,
+            max_record_bytes=_FEE_PAIR_SOURCE_ONLY_MAX_RECORD_BYTES,
+            _raw_hasher=raw_hasher,
+        ):
+            if row_count == 0:
+                header = row
+            else:
+                if "fee_pair_workflow" in row:
+                    extension_row = self._validate_fee_pair_tape_extension(
+                        row,
+                        journal,
+                        candidate=candidate,
+                        candidate_id=candidate_id,
+                        candidate_sha256=candidate_sha256,
+                        expected_index=expected_index,
+                    )
+                    if extension_row is not None:
+                        if matched is not None:
+                            raise RunnerError("FEE_PAIR_TAPE_CANDIDATE_ROW_MISMATCH")
+                        matched = extension_row
+                last = row
+            row_count += 1
+        return {
+            "header": header,
+            "last": last,
+            "matched": matched,
+            "row_count": row_count,
+            "raw_sha256": raw_hasher.hexdigest(),
+        }
+
+    def _validate_fee_pair_tape_extension(
+        self,
+        row,
+        journal,
+        *,
+        candidate=None,
+        candidate_id=None,
+        candidate_sha256=None,
+        expected_index=None,
+    ):
+        from backtrader.stores import execution_decision_journal as journal_api
+
+        extension = row["fee_pair_workflow"]
+        if (
+            not isinstance(extension, Mapping)
+            or set(extension) != {"candidate_id", "candidate_sha256"}
+            or not _is_lower_sha256(extension.get("candidate_id"))
+            or not _is_lower_sha256(extension.get("candidate_sha256"))
+        ):
+            raise RunnerError("FEE_PAIR_TAPE_EXTENSION_INVALID")
+        current_id = extension["candidate_id"]
+        current_sha256 = extension["candidate_sha256"]
+        workflow = journal.fee_pair_workflow_candidate(current_id)
+        if (
+            workflow is None
+            or workflow.candidate_id != current_id
+            or workflow.candidate_sha256 != current_sha256
+        ):
+            raise RunnerError("FEE_PAIR_TAPE_EXTENSION_BINDING_MISMATCH")
+        if candidate_id is not None and current_id == candidate_id:
+            if (
+                candidate is None
+                or current_sha256 != candidate_sha256
+                or row.get("record_index") != expected_index
+                or workflow.state != "APPEND_CLAIMED"
+                or workflow.source_only_decision_id is not None
+            ):
+                raise RunnerError("FEE_PAIR_TAPE_EXTENSION_BINDING_MISMATCH")
+            _validate_fee_pair_candidate_projection(candidate, row, journal_api)
+            return row
+        if workflow.state != "SOURCE_ONLY" or type(workflow.source_only_decision_id) is not str:
+            raise RunnerError("FEE_PAIR_TAPE_EXTENSION_STATE_INVALID")
+        decision = journal.decision(workflow.source_only_decision_id)
+        source_scope = self._fee_pair_source_scope
+        if (
+            decision is None
+            or decision.decision_id != workflow.source_only_decision_id
+            or source_scope is None
+            or decision.key.account_scope != source_scope[0]
+            or decision.key.strategy_scope != source_scope[1]
+            or decision.key.logical_run_id != source_scope[2]
+            or decision.key.decision_kind != source_scope[3]
+            or decision.key.cohort_id != row.get("cohort_id")
+            or decision.key.close_time != row.get("close_time")
+            or decision.intent_keys
+            or decision.economic_payload.get("_execution_source_anchor_only") is not True
+            or decision.economic_payload.get("_execution_fee_pair_workflow") != dict(extension)
+        ):
+            raise RunnerError("FEE_PAIR_TAPE_EXTENSION_BINDING_MISMATCH")
+        receipt_values = decision.economic_payload.get("_execution_source_receipt")
+        if not isinstance(receipt_values, Mapping):
+            raise RunnerError("FEE_PAIR_TAPE_EXTENSION_BINDING_MISMATCH")
+        row_receipt_fields = (
+            ("cohort_id", "cohort_id"),
+            ("calendar_id", "calendar_id"),
+            ("calendar_version", "calendar_version"),
+            ("calendar_fingerprint", "calendar_fingerprint"),
+            ("epoch_id", "epoch_id"),
+            ("slot_index", "slot_index"),
+            ("slot_id", "slot_id"),
+            ("close_time", "close_time"),
+            ("batch_id", "batch_id"),
+            ("readiness", "readiness"),
+            ("file_id", "tape_file_id"),
+            ("record_id", "tape_record_id"),
+            ("record_index", "tape_record_index"),
+        )
+        if (
+            receipt_values.get("source_kind") != source_scope[3]
+            or any(
+                receipt_values.get(receipt_name) != row.get(row_name)
+                for row_name, receipt_name in row_receipt_fields
+            )
+            or not self._fee_pair_receipt_members_match(row, receipt_values, journal_api)
+        ):
+            raise RunnerError("FEE_PAIR_TAPE_EXTENSION_BINDING_MISMATCH")
+        return None
+
+    @staticmethod
+    def _fee_pair_receipt_members_match(row, receipt_values, journal_api):
+        receipt_members = receipt_values.get("members")
+        if type(receipt_members) not in (list, tuple):
+            return False
+        try:
+            journal_members = []
+            for value in receipt_members:
+                if not isinstance(value, Mapping):
+                    return False
+                member_values = dict(value)
+                member_values["missing_fields"] = tuple(member_values["missing_fields"])
+                member_values["quality_flags"] = tuple(member_values["quality_flags"])
+                journal_members.append(journal_api.ExecutionSourceMemberReceipt(**member_values))
+            tape_members = _fee_pair_source_members_from_tape_row(row, journal_api)
+        except (
+            KeyError,
+            TypeError,
+            ValueError,
+            journal_api.ExecutionDecisionJournalError,
+            RunnerError,
+        ):
+            return False
+        return tuple(journal_members) == tape_members
+
+    def _verify_fee_pair_candidate_tape_rows(
+        self,
+        journal,
+        candidate,
+        *,
+        candidate_id,
+        candidate_sha256,
+        expected_index,
+    ):
+        from backtrader.stores import execution_decision_journal as journal_api
+
+        summary = self._stream_fee_pair_tape(
+            journal,
+            candidate=candidate,
+            candidate_id=candidate_id,
+            candidate_sha256=candidate_sha256,
+            expected_index=expected_index,
+        )
+        rows_seen = summary["row_count"]
+        verified_row = summary["matched"]
+        if (
+            summary["header"] is None
+            or summary["header"].get("file_id") != self.file_id
+            or rows_seen - 1 != self._record_count
+            or self._record_count != expected_index
+            or summary["raw_sha256"] != self._hash.hexdigest()
+        ):
+            raise RunnerError("FEE_PAIR_TAPE_READBACK_INDEX_MISMATCH")
+        reference = self._last_record_reference
+        if (
+            verified_row is None
+            or verified_row is not summary["last"]
+            or reference is None
+            or verified_row.get("file_id") != reference.get("file_id")
+            or verified_row.get("record_id") != reference.get("record_id")
+            or verified_row.get("record_index") != reference.get("record_index")
+            or verified_row.get("batch_id") != reference.get("batch_id")
+            or verified_row.get("order_plan")
+            != {
+                "status": "SOURCE_ONLY",
+                "reason": "FEE_PAIR_NOT_AUTHORIZED",
+                "decision_batch_id": verified_row.get("batch_id"),
+                "decision_available_at": verified_row.get("available_at"),
+                "actions": [],
+            }
+        ):
+            raise RunnerError("FEE_PAIR_TAPE_CANDIDATE_ROW_MISMATCH")
+        _validate_fee_pair_candidate_projection(
+            candidate,
+            verified_row,
+            journal_api,
+        )
+        return verified_row
+
     def close(self):
         with self._lock:
             if self._closed:
@@ -2735,10 +3276,221 @@ class DecisionTapeWriter:
         }
 
 
-def iter_decision_tape(path: Path, *, max_bytes: int):
+def _is_lower_sha256(value: Any) -> bool:
+    return bool(
+        type(value) is str
+        and len(value) == 64
+        and all(character in "0123456789abcdef" for character in value)
+    )
+
+
+def _fee_pair_source_members_from_tape_row(row, journal_api):
+    member_rows = row.get("members")
+    if not isinstance(member_rows, Mapping) or not member_rows:
+        raise RunnerError("FEE_PAIR_TAPE_SOURCE_MEMBERS_INVALID")
+    result = []
+    try:
+        for member_id in sorted(member_rows):
+            member = member_rows[member_id]
+            if not isinstance(member, Mapping):
+                raise RunnerError("FEE_PAIR_TAPE_SOURCE_MEMBER_INVALID")
+            result.append(
+                journal_api.ExecutionSourceMemberReceipt(
+                    member_id=member_id,
+                    source_ref=member["source_ref"],
+                    source_role=member["source_role"],
+                    connection_generation=member["connection_generation"],
+                    feed_sequence=member["feed_sequence"],
+                    bar_id=member["bar_id"],
+                    bucket_start=member["bucket_start"],
+                    close_time=member["close_time"],
+                    available_at=member["available_at"],
+                    trading_day=member["trading_day"],
+                    session_segment=member["session_segment"],
+                    timezone_id=member["timezone_id"],
+                    clock_domain_id=member["clock_domain_id"],
+                    complete=member["complete"],
+                    quality=member["quality"],
+                    present=member["present"],
+                    missing_fields=tuple(member.get("missing_fields", ())),
+                    quality_flags=tuple(member.get("quality_flags", ())),
+                    event_source=member.get("event_source", ""),
+                    received_monotonic_ns=member.get("received_monotonic_ns"),
+                    rules_hash=member.get("rules_hash"),
+                    origin_partition=member.get("origin_partition"),
+                )
+            )
+    except RunnerError:
+        raise
+    except (
+        KeyError,
+        TypeError,
+        ValueError,
+        journal_api.ExecutionDecisionJournalError,
+    ) as error:
+        code = getattr(error, "code", None)
+        raise RunnerError(
+            "FEE_PAIR_TAPE_SOURCE_MEMBER_INVALID",
+            code if type(code) is str else None,
+        ) from None
+    return tuple(result)
+
+
+def _validate_fee_pair_candidate_projection(
+    candidate, row, journal_api, *, allow_missing_candidate=False
+):
+    if candidate is None and allow_missing_candidate:
+        candidate = None
+    elif candidate is None:
+        raise RunnerError("FEE_PAIR_CANDIDATE_REQUIRED")
+    if (
+        row.get("schema") != DECISION_TAPE_SCHEMA
+        or row.get("record_type") != "DECISION"
+        or not _is_lower_sha256(row.get("calendar_fingerprint"))
+        or type(row.get("slot_id")) is not str
+        or not row["slot_id"]
+    ):
+        raise RunnerError("FEE_PAIR_TAPE_SOURCE_PROJECTION_INVALID")
+
+    members = _fee_pair_source_members_from_tape_row(row, journal_api)
+    member_rows = row["members"]
+    member_ids = tuple(member.member_id for member in members)
+    slot_ids = {member_rows[member_id].get("slot_id") for member_id in member_ids}
+    for member_id in member_ids:
+        member_row = member_rows[member_id]
+        if (
+            member_row.get("cohort_id") != row.get("cohort_id")
+            or member_row.get("calendar_id") != row.get("calendar_id")
+            or member_row.get("epoch_id") != row.get("epoch_id")
+            or member_row.get("slot_index") != row.get("slot_index")
+            or member_row.get("close_time") != row.get("close_time")
+        ):
+            raise RunnerError("FEE_PAIR_TAPE_SOURCE_PROJECTION_INVALID")
+    if slot_ids != {row.get("slot_id")}:
+        raise RunnerError("FEE_PAIR_TAPE_SOURCE_PROJECTION_INVALID")
+
+    target_decision = row.get("target_decision")
+    if not isinstance(target_decision, Mapping):
+        raise RunnerError("FEE_PAIR_TAPE_TARGET_PROJECTION_INVALID")
+    target_rows = target_decision.get("targets")
+    if not isinstance(target_rows, list):
+        raise RunnerError("FEE_PAIR_TAPE_TARGET_PROJECTION_INVALID")
+    target_positions = {}
+    for item in target_rows:
+        if not isinstance(item, Mapping):
+            raise RunnerError("FEE_PAIR_TAPE_TARGET_PROJECTION_INVALID")
+        target_id = item.get("target_id")
+        position = item.get("target_position")
+        if type(target_id) is not str or target_id in target_positions:
+            raise RunnerError("FEE_PAIR_TAPE_TARGET_PROJECTION_INVALID")
+        if type(position) is not int or position not in (-1, 1):
+            raise RunnerError("FEE_PAIR_TAPE_TARGET_PROJECTION_INVALID")
+        target_positions[target_id] = position
+
+    if candidate is None:
+        if len(target_positions) != 2 or not set(target_positions).issubset(set(member_ids)):
+            raise RunnerError("FEE_PAIR_TAPE_TARGET_PROJECTION_INVALID")
+        return members
+
+    if (
+        candidate.expected_tape_file_id != row.get("file_id")
+        or candidate.expected_tape_record_index != row.get("record_index")
+        or candidate.batch_id != row.get("batch_id")
+        or candidate.cohort_id != row.get("cohort_id")
+        or candidate.calendar_id != row.get("calendar_id")
+        or candidate.calendar_version != row.get("calendar_version")
+        or candidate.calendar_fingerprint != row.get("calendar_fingerprint")
+        or candidate.epoch_id != row.get("epoch_id")
+        or candidate.slot_index != row.get("slot_index")
+        or candidate.slot_id != row.get("slot_id")
+        or candidate.readiness != row.get("readiness")
+        or candidate.key.close_time != row.get("close_time")
+        or candidate.source_members != members
+        or len(candidate.target_ids) != 2
+        or len(set(candidate.target_ids)) != 2
+        or not set(candidate.target_ids).issubset(set(member_ids))
+        or set(target_positions) != set(candidate.target_ids)
+        or tuple(target_positions.get(target) for target in candidate.target_ids)
+        != candidate.directions
+    ):
+        raise RunnerError("FEE_PAIR_TAPE_CANDIDATE_PROJECTION_MISMATCH")
+    return members
+
+
+def _fee_pair_source_receipt_from_tape_row(row, candidate, journal_api):
+    members = _validate_fee_pair_candidate_projection(candidate, row, journal_api)
+    try:
+        # The row carries the physical source projection and strict-reader IDs.
+        # The v17 predecessor/restart objects are not columns in the v2 tape
+        # schema; copy those candidate-bound values and let Journal's public
+        # attach API verify the complete typed receipt against its reserved row.
+        receipt = journal_api.ExecutionSourceReceipt(
+            source_kind=candidate.source_kind,
+            cohort_id=row["cohort_id"],
+            calendar_id=row["calendar_id"],
+            calendar_version=row["calendar_version"],
+            calendar_fingerprint=row["calendar_fingerprint"],
+            epoch_id=row["epoch_id"],
+            slot_index=row["slot_index"],
+            slot_id=row["slot_id"],
+            close_time=row["close_time"],
+            batch_id=row["batch_id"],
+            readiness=row["readiness"],
+            tape_file_id=row["file_id"],
+            tape_record_id=row["record_id"],
+            tape_record_index=row["record_index"],
+            members=members,
+            predecessor=candidate.source_predecessor,
+            restart_marker=candidate.source_restart_marker,
+        )
+    except (
+        KeyError,
+        TypeError,
+        ValueError,
+        journal_api.ExecutionDecisionJournalError,
+    ) as error:
+        code = getattr(error, "code", None)
+        raise RunnerError(
+            "FEE_PAIR_TAPE_SOURCE_RECEIPT_INVALID",
+            code if type(code) is str else None,
+        ) from None
+    if (
+        receipt.source_kind != candidate.source_kind
+        or receipt.cohort_id != row.get("cohort_id")
+        or receipt.calendar_id != row.get("calendar_id")
+        or receipt.calendar_version != row.get("calendar_version")
+        or receipt.calendar_fingerprint != row.get("calendar_fingerprint")
+        or receipt.epoch_id != row.get("epoch_id")
+        or receipt.slot_index != row.get("slot_index")
+        or receipt.slot_id != row.get("slot_id")
+        or receipt.close_time != row.get("close_time")
+        or receipt.batch_id != row.get("batch_id")
+        or receipt.readiness != row.get("readiness")
+        or receipt.tape_file_id != row.get("file_id")
+        or receipt.tape_record_id != row.get("record_id")
+        or receipt.tape_record_index != row.get("record_index")
+        or receipt.members != members
+        or receipt.predecessor != candidate.source_predecessor
+        or receipt.restart_marker != candidate.source_restart_marker
+    ):
+        raise RunnerError("FEE_PAIR_TAPE_SOURCE_RECEIPT_MISMATCH")
+    return receipt
+
+
+def iter_decision_tape(
+    path: Path,
+    *,
+    max_bytes: int,
+    max_record_bytes: Optional[int] = None,
+    _raw_hasher=None,
+):
     """Read and verify one JSONL record at a time under the declared byte cap."""
     if type(max_bytes) is not int or max_bytes < 1:
         raise RunnerError("DECISION_TAPE_BYTE_BUDGET_INVALID")
+    if max_record_bytes is not None and (type(max_record_bytes) is not int or max_record_bytes < 1):
+        raise RunnerError("DECISION_TAPE_RECORD_BYTE_LIMIT_INVALID")
+    if _raw_hasher is not None and not callable(getattr(_raw_hasher, "update", None)):
+        raise RunnerError("DECISION_TAPE_HASHER_INVALID")
     try:
         if path.stat().st_size > max_bytes:
             raise RunnerError("DECISION_TAPE_BYTE_BUDGET_EXCEEDED")
@@ -2756,11 +3508,22 @@ def iter_decision_tape(path: Path, *, max_bytes: int):
         selection_evidence_sha256 = None
         require_header_binding = False
         while True:
-            raw = handle.readline(max_bytes - total + 1)
+            read_size = max_bytes - total + 1
+            if max_record_bytes is not None:
+                read_size = min(read_size, max_record_bytes + 1)
+            raw = handle.readline(read_size)
             if not raw:
                 break
+            if _raw_hasher is not None:
+                _raw_hasher.update(raw)
+            if max_record_bytes is not None and len(raw) > max_record_bytes:
+                raise RunnerError("DECISION_TAPE_RECORD_BYTE_LIMIT_EXCEEDED")
             total += len(raw)
-            if total > max_bytes or not raw.endswith(b"\n"):
+            if total > max_bytes:
+                if max_record_bytes is None:
+                    raise RunnerError("DECISION_TAPE_RECORD_INVALID")
+                raise RunnerError("DECISION_TAPE_BYTE_BUDGET_EXCEEDED")
+            if not raw.endswith(b"\n"):
                 raise RunnerError("DECISION_TAPE_RECORD_INVALID")
             try:
                 row = json.loads(raw.decode("utf-8"))
