@@ -603,6 +603,38 @@ def test_total_collection_budget_is_enforced_after_public_query_returns(
 
 
 @pytest.mark.parametrize(
+    ("endpoint", "expected_code"),
+    [
+        ("query_instruments_result", "CATALOG_QUERY_CALL_FAILED"),
+        ("query_depth_market_data_result", "QUOTE_QUERY_CALL_FAILED"),
+    ],
+)
+def test_public_query_call_exceptions_have_finite_refusal_codes(
+    monkeypatch, query_result_type, endpoint, expected_code
+):
+    _fixed_collector_clock(monkeypatch)
+    feed = _feed(query_result_type)
+    calls = []
+
+    def fail_query(**kwargs):
+        calls.append(dict(kwargs))
+        raise RuntimeError("private-provider-payload")
+
+    monkeypatch.setattr(feed, endpoint, fail_query)
+    with pytest.raises(adapter.CtpFuturesSnapshotError) as caught:
+        adapter.collect_ctp_futures_snapshot(feed)
+
+    assert caught.value.code == expected_code
+    assert str(caught.value) == expected_code
+    assert "private-provider-payload" not in str(caught.value)
+    assert len(calls) == 1
+    if endpoint == "query_instruments_result":
+        assert feed.quote_kwargs is None
+    else:
+        assert feed.catalog_kwargs is not None
+
+
+@pytest.mark.parametrize(
     ("catalog_row", "expected_code"),
     [
         ({"InstrumentID": "M2611"}, "CATALOG_EXCHANGE_ID_MISSING"),

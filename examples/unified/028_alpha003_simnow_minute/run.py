@@ -69,6 +69,76 @@ class RunnerError(ValueError):
         super().__init__(code if detail is None else f"{code}: {detail}")
 
 
+_CTP_FUTURES_SNAPSHOT_ERROR_CODES = frozenset(
+    {
+        "CATALOG_EXCHANGE_ID_MISSING",
+        "CATALOG_EXPIRY_INVALID",
+        "CATALOG_FIELD_CONFLICT",
+        "CATALOG_IDENTITY_INVALID",
+        "CATALOG_INSTRUMENT_ID_MISSING",
+        "CATALOG_NORMALIZATION_FAILED",
+        "CATALOG_PRODUCT_CLASS_INVALID",
+        "CATALOG_PRODUCT_CLASS_MISSING",
+        "CATALOG_PRODUCT_ID_MISSING",
+        "CATALOG_QUERY_CALL_FAILED",
+        "CATALOG_ROW_INVALID",
+        "COLLECTION_LIMIT_INVALID",
+        "COLLECTION_SPAN_EXCEEDED",
+        "COLLECTION_TIMEOUT",
+        "COLLECTOR_CLOCK_INVALID",
+        "CTP_SDK_UNAVAILABLE",
+        "PUBLIC_QUERY_METHOD_MISSING",
+        "QUERY_BOOLEAN_STATE_INVALID",
+        "QUERY_COMPLETION_TIME_INVALID",
+        "QUERY_COMPLETION_TIME_MISSING",
+        "QUERY_ERROR",
+        "QUERY_ERROR_MESSAGE",
+        "QUERY_ERROR_STATE_INVALID",
+        "QUERY_GENERATION_INVALID",
+        "QUERY_GENERATION_MISMATCH",
+        "QUERY_INCOMPLETE",
+        "QUERY_LATE_CALLBACKS",
+        "QUERY_RECORDS_NOT_IMMUTABLE",
+        "QUERY_REQUEST_ID_COLLISION",
+        "QUERY_REQUEST_ID_INVALID",
+        "QUERY_REQUEST_TYPE_INVALID",
+        "QUERY_REQUEST_TYPE_MISMATCH",
+        "QUERY_RESULT_TYPE_INVALID",
+        "QUERY_ROW_KEY_UNSUPPORTED",
+        "QUERY_ROW_VALUE_UNSUPPORTED",
+        "QUERY_START_TIME_INVALID",
+        "QUERY_SUBMISSION_FAILED",
+        "QUERY_TERMINAL_PACKET_MISSING",
+        "QUERY_TIME_IN_FUTURE",
+        "QUERY_TIME_REVERSED",
+        "QUERY_TIMED_OUT",
+        "QUERY_UNSUPPORTED",
+        "QUOTE_ACTION_DAY_INVALID",
+        "QUOTE_EXCHANGE_ID_MISSING",
+        "QUOTE_IDENTITY_INVALID",
+        "QUOTE_INSTRUMENT_ID_MISSING",
+        "QUOTE_OPEN_INTEREST_MISSING",
+        "QUOTE_QUERY_CALL_FAILED",
+        "QUOTE_ROW_INVALID",
+        "QUOTE_TRADING_DAY_INVALID",
+        "QUOTE_TRADING_DAY_MISSING",
+        "QUOTE_UPDATE_MILLISEC_INVALID",
+        "QUOTE_UPDATE_TIME_INVALID",
+        "QUOTE_VOLUME_MISSING",
+        "ROW_FIELD_CONFLICT",
+        "SESSION_CHANGED_DURING_COLLECTION",
+        "SESSION_GENERATION_UNAVAILABLE",
+        "SESSION_NOT_READ_ONLY_READY",
+        "SESSION_STATE_METHOD_MISSING",
+        "SESSION_STATE_UNAVAILABLE",
+        "SESSION_TRADING_DAY_UNAVAILABLE",
+        "SNAPSHOT_AGE_LIMIT_INVALID",
+        "SNAPSHOT_TOO_OLD",
+        "SOURCE_PREFIX_INVALID",
+    }
+)
+
+
 def _mapping(value: Any, label: str) -> Mapping[str, Any]:
     if not isinstance(value, Mapping):
         raise RunnerError("INPUT_OBJECT_REQUIRED", label)
@@ -509,7 +579,14 @@ def build_ctp_query_market_plan(store, config, *, clock):
         snapshot = collector(max_collection_seconds=300.0, max_snapshot_age_seconds=300.0)
     except Exception as error:
         # Do not expose SDK exception text, provider payloads, or account data.
-        raise RunnerError("CTP_FUTURES_SNAPSHOT_COLLECTION_FAILED", type(error).__name__) from None
+        from backtrader.feeds.futures_ctp_snapshot import CtpFuturesSnapshotError
+
+        detail = "UNEXPECTED_COLLECTION_FAILURE"
+        if type(error) is CtpFuturesSnapshotError:
+            code = getattr(error, "code", None)
+            if type(code) is str and code in _CTP_FUTURES_SNAPSHOT_ERROR_CODES:
+                detail = code
+        raise RunnerError("CTP_FUTURES_SNAPSHOT_COLLECTION_FAILED", detail) from None
 
     from backtrader.feeds.futures_main_contract import MainContractQuerySnapshot
 

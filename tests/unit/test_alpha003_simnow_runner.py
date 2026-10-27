@@ -65,6 +65,49 @@ def _load_runner():
 RUNNER = _load_runner()
 
 
+@pytest.mark.parametrize(
+    ("failure_kind", "expected_detail"),
+    [
+        ("known", "CATALOG_QUERY_CALL_FAILED"),
+        ("forged", "UNEXPECTED_COLLECTION_FAILURE"),
+        ("subclass", "UNEXPECTED_COLLECTION_FAILURE"),
+        ("unexpected", "UNEXPECTED_COLLECTION_FAILURE"),
+    ],
+)
+def test_ctp_query_plan_projects_only_finite_snapshot_failure_codes(
+    failure_kind, expected_detail
+):
+    from types import SimpleNamespace
+
+    from backtrader.feeds.futures_ctp_snapshot import CtpFuturesSnapshotError
+
+    class DerivedSnapshotError(CtpFuturesSnapshotError):
+        pass
+
+    calls = []
+
+    class Store:
+        def registered_sim_collect_futures_snapshot(self, **kwargs):
+            calls.append(kwargs)
+            if failure_kind == "known":
+                raise CtpFuturesSnapshotError("CATALOG_QUERY_CALL_FAILED")
+            if failure_kind == "forged":
+                raise CtpFuturesSnapshotError("private-provider-payload")
+            if failure_kind == "subclass":
+                raise DerivedSnapshotError("CATALOG_QUERY_CALL_FAILED")
+            raise RuntimeError("private-provider-payload")
+
+    with pytest.raises(RUNNER.RunnerError) as caught:
+        RUNNER.build_ctp_query_market_plan(Store(), {}, clock=SimpleNamespace())
+
+    assert caught.value.code == "CTP_FUTURES_SNAPSHOT_COLLECTION_FAILED"
+    assert caught.value.detail == expected_detail
+    assert "private-provider-payload" not in str(caught.value)
+    assert calls == [
+        {"max_collection_seconds": 300.0, "max_snapshot_age_seconds": 300.0}
+    ]
+
+
 def test_replay_clock_deadline_samples_and_partial_waits_do_not_skip_slots():
     from types import SimpleNamespace
 
@@ -2390,6 +2433,7 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
                 with pytest.raises(RUNNER.RunnerError) as stale_query_error:
                     run_saved_history_epoch()
                 assert stale_query_error.value.code == "CTP_FUTURES_SNAPSHOT_COLLECTION_FAILED"
+                assert stale_query_error.value.detail == "SNAPSHOT_TOO_OLD"
                 assert api_clients[-1].closed is True
                 assert not any(
                     row[0] == "history_load" and row[1] == 2 for row in trace
