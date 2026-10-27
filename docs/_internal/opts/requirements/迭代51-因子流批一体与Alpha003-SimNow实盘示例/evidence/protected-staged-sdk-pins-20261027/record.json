@@ -1,0 +1,336 @@
+{
+  "schema": "iteration51_protected_sdk_pin_dev_round.v1",
+  "repository": "D:\\source_code\\backtrader",
+  "branch": "dev",
+  "parent_commit": "03f70ef5ed67445ccc4472f1c22e9df293aa8f8e",
+  "scope": [
+    "examples/unified/028_alpha003_simnow_minute/protected_simnow.py"
+  ],
+  "accepted_level": "LOCAL_INSTALLED_ARTIFACT_ADMISSION_AND_SYNTHETIC_HANDOFF_ONLY",
+  "source": {
+    "path": "D:\\source_code\\backtrader\\examples\\unified\\028_alpha003_simnow_minute\\protected_simnow.py",
+    "size_bytes": 8556,
+    "sha256": "88fef4e0ed6268dca4399e36e2ed42a7229ca73035c10726beea4856917eca60"
+  },
+  "change": "Replace only the CTP wheel and installed RECORD hashes with the accepted staged-query consumer artifacts; base/version/wheel filename and all authorization/private-input behavior unchanged.",
+  "consumer": "D:/temp/i51-final-source-consumer-20261027-r3/consumer",
+  "installed_package_source_commit": "9e8717fc8dde12453f689478deb08481c068171a",
+  "installed_acceptance_commit": "03f70ef5ed67445ccc4472f1c22e9df293aa8f8e",
+  "artifact_admission": {
+    "runner": {
+      "path": "D:\\source_code\\backtrader\\.codex-tmp\\i51_protected_sdk_admission_qa_20261027.py",
+      "size_bytes": 5299,
+      "sha256": "b2b493cfea825e5e6b5719127eb5b23474323c617f2c0f305e0e3d2c2bfe4836"
+    },
+    "runner_source": "\"\"\"Read-only installed CTP artifact admission check; never enters protected config.\"\"\"\nimport argparse, dataclasses, hashlib, importlib.util, json, sys\nfrom pathlib import Path\n\nOLD_CTP_RECORD = \"ec812e9940d462bf46c4725b20a7a06d934b0ceb1266ee6f96ae5d2c89829d43\"\nNAMES = (\"bt_api_base\", \"bt_api_ctp\")\n\ndef _relative(path, root):\n    return Path(path).resolve(strict=True).relative_to(root).as_posix()\n\ndef main():\n    report = {\"schema\": \"i51_protected_sdk_admission.v1\", \"status\": \"HOLD\",\n              \"phase\": \"arguments\", \"positive_validation\": False,\n              \"negative_record_pin_rejected\": False}\n    phase = \"arguments\"\n    try:\n        parser = argparse.ArgumentParser()\n        parser.add_argument(\"--consumer-root\", required=True, type=Path)\n        parser.add_argument(\"--protected-source-sha256\", required=True)\n        args = parser.parse_args()\n        root = args.consumer_root.resolve(strict=True)\n        if (sys.flags.isolated != 1 or not sys.dont_write_bytecode\n                or Path(sys.prefix).resolve(strict=True) != root):\n            raise ValueError\n        repo = Path(__file__).resolve(strict=True).parents[1]\n        protected_path = repo / \"examples/unified/028_alpha003_simnow_minute/protected_simnow.py\"\n        protected_sha = hashlib.sha256(protected_path.read_bytes()).hexdigest()\n        if protected_sha != args.protected_source_sha256.lower():\n            raise ValueError\n        phase = \"installed_origins\"\n        import backtrader_runtime\n        from backtrader_runtime import capability_imports, ctp_artifact_provenance\n        origins = {\n            \"backtrader_runtime\": _relative(backtrader_runtime.__file__, root),\n            \"capability_imports\": _relative(capability_imports.__file__, root),\n            \"ctp_artifact_provenance\": _relative(ctp_artifact_provenance.__file__, root),\n        }\n        spec = importlib.util.spec_from_file_location(\"_i51_public_protected_simnow\", protected_path)\n        if spec is None or spec.loader is None:\n            raise ValueError\n        protected = importlib.util.module_from_spec(spec)\n        spec.loader.exec_module(protected)\n        if (hashlib.sha256(protected_path.read_bytes()).hexdigest() != protected_sha\n                or Path(protected.__file__).resolve(strict=True) != protected_path.resolve(strict=True)):\n            raise ValueError\n        origins[\"protected_simnow\"] = protected_path.relative_to(repo).as_posix()\n        pins = protected._SDK_PINS\n        if tuple(pins) != NAMES:\n            raise ValueError\n        if any(type(pins[name]) is not ctp_artifact_provenance.CtpSdkArtifactPin for name in NAMES):\n            raise ValueError\n        verifier = protected._verify_pinned_sdk_distributions\n        if (verifier.__module__ != ctp_artifact_provenance.__name__\n                or Path(verifier.__code__.co_filename).resolve(strict=True)\n                != Path(ctp_artifact_provenance.__file__).resolve(strict=True)):\n            raise ValueError\n        phase = \"positive_validation\"\n        with capability_imports.trusted_installed_capability_import_context(NAMES):\n            package_roots = verifier(NAMES, pins=pins)\n        if type(package_roots) is not dict or tuple(package_roots) != NAMES:\n            raise ValueError\n        origins.update({name: _relative(package_roots[name], root) for name in NAMES})\n        report[\"positive_validation\"] = True\n        phase = \"negative_record_pin_validation\"\n        ctp_pin = pins[\"bt_api_ctp\"]\n        old_record = \"ec812e9940d462bf46c4725b20a7a06d934b0ceb1266ee6f96ae5d2c89829d43\"\n        if ctp_pin.record_sha256 == old_record:\n            raise ValueError\n        negative_pins = dict(pins)\n        negative_pins[\"bt_api_ctp\"] = dataclasses.replace(ctp_pin, record_sha256=old_record)\n        if negative_pins[\"bt_api_base\"] is not pins[\"bt_api_base\"]:\n            raise ValueError\n        try:\n            with capability_imports.trusted_installed_capability_import_context(NAMES):\n                verifier(NAMES, pins=negative_pins)\n        except ctp_artifact_provenance.CtpArtifactProvenanceError as error:\n            report[\"negative_record_pin_rejected\"] = (\n                type(error) is ctp_artifact_provenance.CtpArtifactProvenanceError\n                and type(error.reason) is str and error.reason == \"artifact_record_pin_mismatch\"\n            )\n        if report[\"negative_record_pin_rejected\"] is not True:\n            raise ValueError\n        report.update(\n            status=\"PASS\",\n            phase=\"complete\",\n            protected_source_sha256=protected_sha,\n            pins={\n                name: {\n                    \"distribution\": pins[name].distribution,\n                    \"module\": pins[name].module,\n                    \"version\": pins[name].version,\n                    \"wheel_filename\": pins[name].wheel_filename,\n                    \"wheel_sha256\": pins[name].wheel_sha256,\n                    \"record_sha256\": pins[name].record_sha256,\n                }\n                for name in NAMES\n            },\n            origins=origins,\n        )\n    except BaseException:\n        report[\"phase\"] = phase\n    print(json.dumps(report, sort_keys=True, separators=(\",\", \":\")))\n    return 0 if report[\"status\"] == \"PASS\" else 1\n\nif __name__ == \"__main__\":\n    raise SystemExit(main())\n",
+    "result_pin": {
+      "path": "D:\\source_code\\backtrader\\.codex-tmp\\i51_protected_sdk_admission_result_20261027.json",
+      "size_bytes": 1325,
+      "sha256": "6c633b5840b12dcb085965429a4c1509b84f880d5a13ac4cf0d3068727561da2"
+    },
+    "result": {
+      "negative_record_pin_rejected": true,
+      "origins": {
+        "backtrader_runtime": "Lib/site-packages/backtrader_runtime/__init__.py",
+        "bt_api_base": "Lib/site-packages/bt_api_base",
+        "bt_api_ctp": "Lib/site-packages/bt_api_ctp",
+        "capability_imports": "Lib/site-packages/backtrader_runtime/capability_imports.py",
+        "ctp_artifact_provenance": "Lib/site-packages/backtrader_runtime/ctp_artifact_provenance.py",
+        "protected_simnow": "examples/unified/028_alpha003_simnow_minute/protected_simnow.py"
+      },
+      "phase": "complete",
+      "pins": {
+        "bt_api_base": {
+          "distribution": "bt_api_base",
+          "module": "bt_api_base",
+          "record_sha256": "6284d7236b283cbcc5599d2ad14e5ab81d83d93ee641392ef612acbe1df54dda",
+          "version": "0.15.8",
+          "wheel_filename": "bt_api_base-0.15.8-py3-none-any.whl",
+          "wheel_sha256": "b579a73531281d74f6e1630d447717b9f87e38bf507d82178d9ad46745017f39"
+        },
+        "bt_api_ctp": {
+          "distribution": "bt_api_ctp",
+          "module": "bt_api_ctp",
+          "record_sha256": "cb2c2f3501a447ab34c403f35e2a000e53d9c6ba04b88b822a23682d54b9006a",
+          "version": "2.0.4+iteration41.i9",
+          "wheel_filename": "bt_api_ctp-2.0.4+iteration41.i9-cp311-cp311-win_amd64.whl",
+          "wheel_sha256": "ae2cc7a04a51a69e38ad6f33aa871783e13ad295112d3fe7d75a3a6a78ca8cf8"
+        }
+      },
+      "positive_validation": true,
+      "protected_source_sha256": "88fef4e0ed6268dca4399e36e2ed42a7229ca73035c10726beea4856917eca60",
+      "schema": "i51_protected_sdk_admission.v1",
+      "status": "PASS"
+    },
+    "command_flags": [
+      "-I",
+      "-B"
+    ],
+    "invoked": "Only _verify_pinned_sdk_distributions; never called configuration, handoff, profile, credential or provider/API entrypoints."
+  },
+  "focused_handoff_qa": {
+    "result_pin": {
+      "path": "D:\\temp\\i51-protected-sdk-pins-qa-20261027-r1\\result.json",
+      "size_bytes": 12319,
+      "sha256": "5987d7e70e85879d3c697bbaad31ba0d0cfd9b9c4ea403106a3bcdfeb8242f95"
+    },
+    "result": {
+      "level": "SOURCE_NATIVE_SYNTHETIC_ONLY",
+      "lane": "backtrader",
+      "exit_code": 0,
+      "elapsed_seconds": 2.484000000054948,
+      "test_count": 13,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0,
+      "source_pins_unchanged": true,
+      "source_pins_before": {
+        "D:\\source_code\\backtrader\\examples\\unified\\028_alpha003_simnow_minute\\alpha003_strategy.py": {
+          "size_bytes": 229037,
+          "sha256": "a8b34261a06c35d2e2ff9f1e5c44825a2e7c6ecae4d0af2adadf169260640522"
+        },
+        "D:\\source_code\\backtrader\\examples\\unified\\028_alpha003_simnow_minute\\run.py": {
+          "size_bytes": 322730,
+          "sha256": "ea2a21325f5f1e56fac3aed09f5a16bbc24fdccce754e8fe1ddc87bb3653619e"
+        },
+        "D:\\source_code\\backtrader\\examples\\unified\\028_alpha003_simnow_minute\\config.yaml": {
+          "size_bytes": 4591,
+          "sha256": "9eecf5a4dba7786aa391c1b8c8bb90747f7b06692679e7b9d851c052d646841d"
+        },
+        "D:\\source_code\\backtrader\\backtrader\\stores\\execution_decision_journal.py": {
+          "size_bytes": 378324,
+          "sha256": "4bb854e89a95e0ebe1a4eb5c6d5bd92bf26e780a3f6b3569495f98d70ee2359f"
+        },
+        "D:\\source_code\\backtrader\\backtrader\\stores\\execution_durable_capacity.py": {
+          "size_bytes": 19940,
+          "sha256": "fdf1b79becfc1cd86f953291f801c6145b26a66246348617383e149298072688"
+        },
+        "D:\\source_code\\backtrader\\backtrader\\stores\\factor_execution.py": {
+          "size_bytes": 296766,
+          "sha256": "55286e94308a18565280299b3ba05dfab8ca5610c6f0ef0d4c299caee74bb239"
+        },
+        "D:\\source_code\\backtrader\\backtrader\\stores\\factor_execution_facts.py": {
+          "size_bytes": 219489,
+          "sha256": "769e1b87100022354222023796c22504cae676d3067582b16e146abc3bf6fa2b"
+        },
+        "D:\\source_code\\backtrader\\backtrader\\stores\\registered_sim.py": {
+          "size_bytes": 144382,
+          "sha256": "fed9eb3106cd3d7b4753157fe75b0723dbdd6bec3775f9c18aad06b71a639a04"
+        },
+        "D:\\source_code\\backtrader\\backtrader\\stores\\btapistore.py": {
+          "size_bytes": 888832,
+          "sha256": "4de5c66997072da7bb397f230ac0f9955e5f900d9396134264ace341c7c0a568"
+        },
+        "D:\\source_code\\backtrader\\backtrader\\brokers\\btapibroker.py": {
+          "size_bytes": 525714,
+          "sha256": "776087c6b70574df935009038a0cd4cb07d83da078e47b16c854d09e041bed3e"
+        },
+        "D:\\source_code\\backtrader\\tests\\unit\\stores\\test_factor_execution_facts.py": {
+          "size_bytes": 159045,
+          "sha256": "2a20ee47bc6ab75d2e422b16e5a0eaf6256dcab1c4abbf0888624220925931d2"
+        },
+        "D:\\source_code\\backtrader\\backtrader\\research\\live.py": {
+          "size_bytes": 71236,
+          "sha256": "ade26ec53cc4b6d262eeeb889816f7493058cff719a6eb580508323f9ae440f7"
+        },
+        "D:\\source_code\\backtrader\\backtrader\\research\\live_cohort.py": {
+          "size_bytes": 145308,
+          "sha256": "914df8ecd7474a6efdd8e04ee079c08f7b388ba425fff91c62053d84bedba8a1"
+        },
+        "D:\\bt_api_py\\bt_api\\bt_api_ctp\\src\\bt_api_ctp\\query.py": {
+          "size_bytes": 14630,
+          "sha256": "bf6bfcdf41614c216c79d2e137756bacfc1a45b7e903bb4335399d65e8bb3dfb"
+        },
+        "D:\\bt_api_py\\bt_api\\bt_api_ctp\\src\\bt_api_ctp\\ctp\\client.py": {
+          "size_bytes": 508688,
+          "sha256": "5caca800ccba1169253d8cf1d1853e66c85806f84f81e8ead600957f7285445c"
+        },
+        "D:\\bt_api_py\\bt_api\\bt_api_ctp\\src\\bt_api_ctp\\ctp\\callback_ingress.py": {
+          "size_bytes": 73492,
+          "sha256": "c7dbae9aad0aafc7ab1afb4e7a682957f6125abb3b4ba270dd516acdf70294f7"
+        },
+        "D:\\source_code\\backtrader\\tests\\integration\\test_live_alpha003_history_source_hwm.py": {
+          "size_bytes": 53425,
+          "sha256": "8a370226f10f6ff7c4bb82263ddc1c6bddc4ffe4b49044a5bd8ca1e7f7807b19"
+        },
+        "D:\\source_code\\backtrader\\tests\\integration\\test_live_alpha003_history_payload_size.py": {
+          "size_bytes": 22929,
+          "sha256": "7ced9e0e3454d02de75dd6bb673a6d9310b3362e7a8be2c19cc4e2f8b067285a"
+        },
+        "D:\\source_code\\backtrader\\tests\\integration\\test_live_alpha003_history_continuity.py": {
+          "size_bytes": 5728,
+          "sha256": "898819c16f54901a2d2fa9a4950f6f06bce542082f2e9f7640c5af8802eae272"
+        },
+        "D:\\source_code\\backtrader\\tests\\integration\\test_live_alpha003_history_catchup_execution.py": {
+          "size_bytes": 47376,
+          "sha256": "44cdd1b9ce94ed830a3220af075289097b30ffd355222ed77814ff6761c0fc16"
+        },
+        "D:\\source_code\\backtrader\\tests\\integration\\test_factor_decision_replay_economics.py": {
+          "size_bytes": 18276,
+          "sha256": "234a70e717e72577f03f43d129e5ef026472ef659e606bba6eaa7e342314b486"
+        },
+        "D:\\source_code\\backtrader\\tests\\__init__.py": {
+          "size_bytes": 30,
+          "sha256": "512e1e3b7f30908568916e60ff67f65142b85edf14a00d8b49a2a99d3e19a458"
+        },
+        "D:\\source_code\\backtrader\\tests\\integration\\__init__.py": {
+          "size_bytes": 963,
+          "sha256": "98646827c4cb4bfa0f40d3292a3bf7e03f99d8852d4789f46c45fdc296887b47"
+        },
+        "D:\\source_code\\backtrader\\tests\\unit\\stores\\test_factor_execution.py": {
+          "size_bytes": 89698,
+          "sha256": "3f9ed313837116ecb3baa73778765cc4167ed9f6a469c8925741f84baf7f4995"
+        },
+        "D:\\source_code\\backtrader\\tests\\unit\\test_alpha003_simnow_strategy.py": {
+          "size_bytes": 170094,
+          "sha256": "eff210e3f0e772e1a5b44b5f5c90a30c1fb6530b057cd19a871ffd588e1a7037"
+        },
+        "D:\\source_code\\backtrader\\tests\\unit\\test_alpha003_simnow_runner.py": {
+          "size_bytes": 261564,
+          "sha256": "3000ef4b7a623c159078e40fad8f96e1ccb13a55cb640e7cb8825ca3af3284ae"
+        },
+        "D:\\source_code\\backtrader\\tests\\unit\\test_alpha003_protected_simnow.py": {
+          "size_bytes": 9039,
+          "sha256": "86e9545bfa15b4e47fbab608c7e61596e772b5ab50e28bedfa3c3752a1ef6bcb"
+        },
+        "D:\\source_code\\backtrader\\examples\\unified\\028_alpha003_simnow_minute\\protected_simnow.py": {
+          "size_bytes": 8556,
+          "sha256": "88fef4e0ed6268dca4399e36e2ed42a7229ca73035c10726beea4856917eca60"
+        }
+      },
+      "source_pins_after": {
+        "D:\\source_code\\backtrader\\examples\\unified\\028_alpha003_simnow_minute\\alpha003_strategy.py": {
+          "size_bytes": 229037,
+          "sha256": "a8b34261a06c35d2e2ff9f1e5c44825a2e7c6ecae4d0af2adadf169260640522"
+        },
+        "D:\\source_code\\backtrader\\examples\\unified\\028_alpha003_simnow_minute\\run.py": {
+          "size_bytes": 322730,
+          "sha256": "ea2a21325f5f1e56fac3aed09f5a16bbc24fdccce754e8fe1ddc87bb3653619e"
+        },
+        "D:\\source_code\\backtrader\\examples\\unified\\028_alpha003_simnow_minute\\config.yaml": {
+          "size_bytes": 4591,
+          "sha256": "9eecf5a4dba7786aa391c1b8c8bb90747f7b06692679e7b9d851c052d646841d"
+        },
+        "D:\\source_code\\backtrader\\backtrader\\stores\\execution_decision_journal.py": {
+          "size_bytes": 378324,
+          "sha256": "4bb854e89a95e0ebe1a4eb5c6d5bd92bf26e780a3f6b3569495f98d70ee2359f"
+        },
+        "D:\\source_code\\backtrader\\backtrader\\stores\\execution_durable_capacity.py": {
+          "size_bytes": 19940,
+          "sha256": "fdf1b79becfc1cd86f953291f801c6145b26a66246348617383e149298072688"
+        },
+        "D:\\source_code\\backtrader\\backtrader\\stores\\factor_execution.py": {
+          "size_bytes": 296766,
+          "sha256": "55286e94308a18565280299b3ba05dfab8ca5610c6f0ef0d4c299caee74bb239"
+        },
+        "D:\\source_code\\backtrader\\backtrader\\stores\\factor_execution_facts.py": {
+          "size_bytes": 219489,
+          "sha256": "769e1b87100022354222023796c22504cae676d3067582b16e146abc3bf6fa2b"
+        },
+        "D:\\source_code\\backtrader\\backtrader\\stores\\registered_sim.py": {
+          "size_bytes": 144382,
+          "sha256": "fed9eb3106cd3d7b4753157fe75b0723dbdd6bec3775f9c18aad06b71a639a04"
+        },
+        "D:\\source_code\\backtrader\\backtrader\\stores\\btapistore.py": {
+          "size_bytes": 888832,
+          "sha256": "4de5c66997072da7bb397f230ac0f9955e5f900d9396134264ace341c7c0a568"
+        },
+        "D:\\source_code\\backtrader\\backtrader\\brokers\\btapibroker.py": {
+          "size_bytes": 525714,
+          "sha256": "776087c6b70574df935009038a0cd4cb07d83da078e47b16c854d09e041bed3e"
+        },
+        "D:\\source_code\\backtrader\\tests\\unit\\stores\\test_factor_execution_facts.py": {
+          "size_bytes": 159045,
+          "sha256": "2a20ee47bc6ab75d2e422b16e5a0eaf6256dcab1c4abbf0888624220925931d2"
+        },
+        "D:\\source_code\\backtrader\\backtrader\\research\\live.py": {
+          "size_bytes": 71236,
+          "sha256": "ade26ec53cc4b6d262eeeb889816f7493058cff719a6eb580508323f9ae440f7"
+        },
+        "D:\\source_code\\backtrader\\backtrader\\research\\live_cohort.py": {
+          "size_bytes": 145308,
+          "sha256": "914df8ecd7474a6efdd8e04ee079c08f7b388ba425fff91c62053d84bedba8a1"
+        },
+        "D:\\bt_api_py\\bt_api\\bt_api_ctp\\src\\bt_api_ctp\\query.py": {
+          "size_bytes": 14630,
+          "sha256": "bf6bfcdf41614c216c79d2e137756bacfc1a45b7e903bb4335399d65e8bb3dfb"
+        },
+        "D:\\bt_api_py\\bt_api\\bt_api_ctp\\src\\bt_api_ctp\\ctp\\client.py": {
+          "size_bytes": 508688,
+          "sha256": "5caca800ccba1169253d8cf1d1853e66c85806f84f81e8ead600957f7285445c"
+        },
+        "D:\\bt_api_py\\bt_api\\bt_api_ctp\\src\\bt_api_ctp\\ctp\\callback_ingress.py": {
+          "size_bytes": 73492,
+          "sha256": "c7dbae9aad0aafc7ab1afb4e7a682957f6125abb3b4ba270dd516acdf70294f7"
+        },
+        "D:\\source_code\\backtrader\\tests\\integration\\test_live_alpha003_history_source_hwm.py": {
+          "size_bytes": 53425,
+          "sha256": "8a370226f10f6ff7c4bb82263ddc1c6bddc4ffe4b49044a5bd8ca1e7f7807b19"
+        },
+        "D:\\source_code\\backtrader\\tests\\integration\\test_live_alpha003_history_payload_size.py": {
+          "size_bytes": 22929,
+          "sha256": "7ced9e0e3454d02de75dd6bb673a6d9310b3362e7a8be2c19cc4e2f8b067285a"
+        },
+        "D:\\source_code\\backtrader\\tests\\integration\\test_live_alpha003_history_continuity.py": {
+          "size_bytes": 5728,
+          "sha256": "898819c16f54901a2d2fa9a4950f6f06bce542082f2e9f7640c5af8802eae272"
+        },
+        "D:\\source_code\\backtrader\\tests\\integration\\test_live_alpha003_history_catchup_execution.py": {
+          "size_bytes": 47376,
+          "sha256": "44cdd1b9ce94ed830a3220af075289097b30ffd355222ed77814ff6761c0fc16"
+        },
+        "D:\\source_code\\backtrader\\tests\\integration\\test_factor_decision_replay_economics.py": {
+          "size_bytes": 18276,
+          "sha256": "234a70e717e72577f03f43d129e5ef026472ef659e606bba6eaa7e342314b486"
+        },
+        "D:\\source_code\\backtrader\\tests\\__init__.py": {
+          "size_bytes": 30,
+          "sha256": "512e1e3b7f30908568916e60ff67f65142b85edf14a00d8b49a2a99d3e19a458"
+        },
+        "D:\\source_code\\backtrader\\tests\\integration\\__init__.py": {
+          "size_bytes": 963,
+          "sha256": "98646827c4cb4bfa0f40d3292a3bf7e03f99d8852d4789f46c45fdc296887b47"
+        },
+        "D:\\source_code\\backtrader\\tests\\unit\\stores\\test_factor_execution.py": {
+          "size_bytes": 89698,
+          "sha256": "3f9ed313837116ecb3baa73778765cc4167ed9f6a469c8925741f84baf7f4995"
+        },
+        "D:\\source_code\\backtrader\\tests\\unit\\test_alpha003_simnow_strategy.py": {
+          "size_bytes": 170094,
+          "sha256": "eff210e3f0e772e1a5b44b5f5c90a30c1fb6530b057cd19a871ffd588e1a7037"
+        },
+        "D:\\source_code\\backtrader\\tests\\unit\\test_alpha003_simnow_runner.py": {
+          "size_bytes": 261564,
+          "sha256": "3000ef4b7a623c159078e40fad8f96e1ccb13a55cb640e7cb8825ca3af3284ae"
+        },
+        "D:\\source_code\\backtrader\\tests\\unit\\test_alpha003_protected_simnow.py": {
+          "size_bytes": 9039,
+          "sha256": "86e9545bfa15b4e47fbab608c7e61596e772b5ab50e28bedfa3c3752a1ef6bcb"
+        },
+        "D:\\source_code\\backtrader\\examples\\unified\\028_alpha003_simnow_minute\\protected_simnow.py": {
+          "size_bytes": 8556,
+          "sha256": "88fef4e0ed6268dca4399e36e2ed42a7229ca73035c10726beea4856917eca60"
+        }
+      },
+      "nodes": [
+        "tests/unit/test_alpha003_protected_simnow.py"
+      ],
+      "spec": {
+        "size_bytes": 6194,
+        "sha256": "662fa8217e166bb157ea85524f73770a21943dcb2349441f88a7ee6143292b29"
+      },
+      "runner": {
+        "size_bytes": 4408,
+        "sha256": "2e7e707c9bd53f0e160f5a4cc4a10345b1ee333779a1877e948ea8265d1e0e10"
+      },
+      "boundary": "Real SDK/SPI and query fields; synthetic request/OS leaves. Network denied. No provider/account acceptance."
+    },
+    "boundary": "13 synthetic handoff/rejection/cleanup tests; network denied by source QA. Not actual account configuration."
+  },
+  "prelaunch_correction": "Author reported an incorrect QA-script hash; Root rejected it before invocation, independently inspected bytes, and used the corrected actual hash.",
+  "limits": [
+    "No credentials/config read or account/provider call occurred.",
+    "No new trading authorization or formal case pass.",
+    "The protected source is an external example module; installed Backtrader runtime/package remains the already accepted 9e8717fc8 wheel."
+  ]
+}
