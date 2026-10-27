@@ -578,6 +578,18 @@ The actual DCE/CZCE/GFEX end-of-day source coverage is still incomplete.
 registered-sim adapter, execution coordinator, owned-position projection, and
 028 strategy integration must be accepted at their actual composition boundary;
 source or synthetic checks do not establish SimNow account acceptance.
+The optional execution-journal net-loss guard uses schema 13 and one durable
+state row per account/strategy/logical run. A caller-qualified total-net-PnL
+observation latches the loss threshold across restarts; new OPEN admission and
+dispatch require a fresh matching guard, while exact readback and CLOSE/CANCEL
+remain available. Explicit guard context without a policy fails closed. The
+source component is accepted at `d700b0a63`; provider PnL qualification and
+strategy-driven exit integration remain separate work.
+The all-visible CTP snapshot collector attaches at most two typed, bounded
+query-stage observations to refusal errors. The 028 runner emits only a
+validated fixed schema; raw query rows, request IDs and provider messages are
+excluded. Synthetic installed-SDK callback composition does not establish
+provider query or account acceptance.
 Registered-sim DISPATCHING-CANCEL recovery requires the current cross-process
 recovery lease, a complete fresh source-bound query, atomic journal terminal
 reconciliation, and a durable acknowledgement of Store read-only local absence

@@ -103,9 +103,91 @@ def test_ctp_query_plan_projects_only_finite_snapshot_failure_codes(
     assert caught.value.code == "CTP_FUTURES_SNAPSHOT_COLLECTION_FAILED"
     assert caught.value.detail == expected_detail
     assert "private-provider-payload" not in str(caught.value)
+    if failure_kind in {"known", "forged"}:
+        assert caught.value.query_diagnostics == {
+            "status": "UNAVAILABLE",
+            "category": "NO_QUERY_OBSERVATION",
+        }
+    else:
+        assert caught.value.query_diagnostics == {
+            "status": "UNAVAILABLE",
+            "category": "ERROR_TYPE_UNTRUSTED",
+        }
     assert calls == [
         {"max_collection_seconds": 300.0, "max_snapshot_age_seconds": 300.0}
     ]
+
+
+def test_ctp_query_plan_drops_malformed_snapshot_diagnostics_without_leaking_values():
+    from backtrader.feeds.futures_ctp_snapshot import CtpFuturesSnapshotError
+
+    error = CtpFuturesSnapshotError("CATALOG_QUERY_CALL_FAILED")
+    object.__setattr__(error, "query_observations", ("private-provider-payload",))
+
+    class Store:
+        def registered_sim_collect_futures_snapshot(self, **_kwargs):
+            raise error
+
+    with pytest.raises(RUNNER.RunnerError) as caught:
+        RUNNER.build_ctp_query_market_plan(Store(), {}, clock=object())
+
+    assert caught.value.code == "CTP_FUTURES_SNAPSHOT_COLLECTION_FAILED"
+    assert caught.value.detail == "CATALOG_QUERY_CALL_FAILED"
+    assert caught.value.query_diagnostics == {
+        "status": "UNAVAILABLE",
+        "category": "INVALID_DIAGNOSTICS",
+    }
+    assert "private-provider-payload" not in str(caught.value)
+    assert "private-provider-payload" not in json.dumps(caught.value.query_diagnostics)
+
+
+@pytest.mark.parametrize(
+    "forged_changes",
+    (
+        {"timed_out": True},
+        {"record_count": 5, "record_count_capped": True},
+        {"error_code_nonzero": True},
+    ),
+)
+def test_cli_query_diagnostic_serializer_rejects_forged_payloads(forged_changes):
+    stage = {
+        "stage": "catalog",
+        "entered": True,
+        "returned": True,
+        "elapsed_seconds": 0.01,
+        "prior_stage_complete": None,
+        "result_type_matches": True,
+        "request_type_matches": True,
+        "generation_matches": True,
+        "request_id_positive": True,
+        "timed_out": False,
+        "complete": True,
+        "is_last_seen": True,
+        "unsupported": False,
+        "late_callbacks_reported": False,
+        "late_callback_count_valid": True,
+        "record_count": 1,
+        "record_count_capped": False,
+        "submit_category": "accepted",
+        "error_code_present": False,
+        "error_code_valid": True,
+        "error_code_nonzero": False,
+        "error_message_present": False,
+        "error_message_valid": True,
+        "error_category": "none",
+    }
+    valid = {"status": "AVAILABLE", "stages": [stage]}
+    assert RUNNER._sanitize_ctp_query_diagnostics(valid) == valid
+
+    contradictory = dict(stage, **forged_changes)
+    forged = {"status": "AVAILABLE", "stages": [contradictory]}
+    serialized = RUNNER._sanitize_ctp_query_diagnostics(forged)
+
+    assert serialized == {
+        "status": "UNAVAILABLE",
+        "category": "INVALID_DIAGNOSTICS",
+    }
+    assert "timed_out" not in json.dumps(serialized)
 
 
 def test_replay_clock_deadline_samples_and_partial_waits_do_not_skip_slots():
@@ -2434,6 +2516,29 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
                     run_saved_history_epoch()
                 assert stale_query_error.value.code == "CTP_FUTURES_SNAPSHOT_COLLECTION_FAILED"
                 assert stale_query_error.value.detail == "SNAPSHOT_TOO_OLD"
+                query_diagnostics = stale_query_error.value.query_diagnostics
+                assert query_diagnostics["status"] == "AVAILABLE"
+                assert [row["stage"] for row in query_diagnostics["stages"]] == [
+                    "catalog",
+                    "depth",
+                ]
+                assert all(
+                    row["result_type_matches"] is True
+                    and row["request_type_matches"] is True
+                    and row["generation_matches"] is True
+                    and row["request_id_positive"] is True
+                    and row["complete"] is True
+                    and row["is_last_seen"] is True
+                    and row["timed_out"] is False
+                    for row in query_diagnostics["stages"]
+                )
+                assert all(
+                    "request_id" not in row
+                    and "connection_generation" not in row
+                    and "records" not in row
+                    and "error_message" not in row
+                    for row in query_diagnostics["stages"]
+                )
                 assert api_clients[-1].closed is True
                 assert not any(
                     row[0] == "history_load" and row[1] == 2 for row in trace

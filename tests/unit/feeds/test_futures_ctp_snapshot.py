@@ -514,6 +514,189 @@ def test_incomplete_or_failed_query_facts_have_distinct_refusal_codes(
 
     assert caught.value.code == expected_code
     assert feed.quote_kwargs is None
+    observations = caught.value.query_observations
+    assert len(observations) == 1
+    observation = observations[0]
+    assert observation.stage == "catalog"
+    assert observation.entered is True
+    assert observation.returned is True
+    assert observation.prior_stage_complete is None
+    assert observation.result_type_matches is True
+    assert observation.request_type_matches is True
+    assert observation.generation_matches is True
+    assert observation.request_id_positive is True
+    assert observation.record_count == 1
+    assert observation.record_count_capped is False
+    assert observation.error_code_valid is True
+    assert observation.error_message_valid is True
+    assert observation.late_callback_count_valid is True
+    if expected_code == "QUERY_TIMED_OUT":
+        assert observation.timed_out is True
+        assert observation.error_category == "timeout"
+    elif expected_code == "QUERY_TERMINAL_PACKET_MISSING":
+        assert observation.is_last_seen is False
+        assert observation.error_category == "incomplete"
+    elif expected_code == "QUERY_INCOMPLETE":
+        assert observation.complete is False
+        assert observation.error_category == "incomplete"
+    elif expected_code == "QUERY_UNSUPPORTED":
+        assert observation.unsupported is True
+        assert observation.error_category == "unsupported"
+    elif expected_code == "QUERY_BOOLEAN_STATE_INVALID":
+        assert observation.timed_out is None or observation.unsupported is None
+        assert observation.error_category == "invalid"
+    elif expected_code == "QUERY_LATE_CALLBACKS":
+        assert observation.late_callbacks_reported is True
+        assert observation.error_category == "late_callbacks"
+    elif expected_code == "QUERY_SUBMISSION_FAILED":
+        assert observation.submit_category == "rejected"
+        assert observation.error_category == "submission_error"
+
+
+@pytest.mark.parametrize(
+    ("submit_code", "expected_category"),
+    [(None, "not_observed"), (0, "accepted")],
+)
+def test_catalog_submit_observation_distinguishes_missing_from_zero(
+    monkeypatch, query_result_type, submit_code, expected_category
+):
+    _fixed_collector_clock(monkeypatch)
+    feed = _feed(query_result_type)
+    feed.catalog_result = _query_result(
+        query_result_type,
+        "instruments",
+        101,
+        (_catalog_row(),),
+        submit_code=submit_code,
+    )
+    feed.quote_result = _query_result(
+        query_result_type,
+        "depth_market_data",
+        102,
+        (),
+        timed_out=True,
+        complete=False,
+        is_last_seen=False,
+    )
+
+    with pytest.raises(adapter.CtpFuturesSnapshotError) as caught:
+        adapter.collect_ctp_futures_snapshot(feed)
+
+    catalog = caught.value.query_observations[0]
+    assert catalog.stage == "catalog"
+    assert catalog.submit_category == expected_category
+    assert catalog.error_category == "none"
+
+
+@pytest.mark.parametrize(
+    ("changes", "expected_category"),
+    [
+        (
+            {
+                "timed_out": True,
+                "unsupported": True,
+                "error_code": 7,
+                "submit_code": 7,
+                "complete": False,
+                "late_callback_count": 1,
+            },
+            "timeout",
+        ),
+        (
+            {
+                "unsupported": True,
+                "error_code": 7,
+                "submit_code": 7,
+                "complete": False,
+                "late_callback_count": 1,
+            },
+            "unsupported",
+        ),
+        (
+            {
+                "error_code": 7,
+                "submit_code": 7,
+                "complete": False,
+                "late_callback_count": 1,
+            },
+            "provider_error",
+        ),
+        (
+            {"submit_code": 7, "complete": False, "late_callback_count": 1},
+            "submission_error",
+        ),
+        (
+            {
+                "submit_code": 7,
+                "error_message": "synthetic-provider-message",
+                "complete": False,
+                "late_callback_count": 1,
+            },
+            "submission_error",
+        ),
+        ({"complete": False, "late_callback_count": 1}, "incomplete"),
+        ({"late_callback_count": 1}, "late_callbacks"),
+    ],
+)
+def test_query_diagnostic_error_category_preserves_refusal_priority(
+    monkeypatch, query_result_type, changes, expected_category
+):
+    _fixed_collector_clock(monkeypatch)
+    feed = _feed(query_result_type)
+    feed.catalog_result = _query_result(
+        query_result_type,
+        "instruments",
+        101,
+        (_catalog_row(),),
+        **changes,
+    )
+
+    with pytest.raises(adapter.CtpFuturesSnapshotError) as caught:
+        adapter.collect_ctp_futures_snapshot(feed)
+
+    assert feed.catalog_kwargs is not None
+    assert feed.quote_kwargs is None
+    # The bounded collector DTO follows timeout/provider/submission/completion
+    # refusal priority without exposing any underlying error text.
+    assert caught.value.query_observations[0].error_category == expected_category
+
+
+def test_depth_timeout_retains_successful_catalog_and_nonterminal_row_count(
+    monkeypatch, query_result_type
+):
+    _fixed_collector_clock(monkeypatch)
+    feed = _feed(query_result_type)
+    feed.quote_result = _query_result(
+        query_result_type,
+        "depth_market_data",
+        102,
+        (_quote_row(), _quote_row("M2612")),
+        timed_out=True,
+        complete=False,
+        is_last_seen=False,
+    )
+
+    with pytest.raises(adapter.CtpFuturesSnapshotError) as caught:
+        adapter.collect_ctp_futures_snapshot(feed)
+
+    assert caught.value.code == "QUERY_TIMED_OUT"
+    assert feed.quote_kwargs is not None
+    catalog, depth = caught.value.query_observations
+    assert (catalog.stage, catalog.entered, catalog.returned) == ("catalog", True, True)
+    assert catalog.prior_stage_complete is None
+    assert catalog.complete is True and catalog.is_last_seen is True
+    assert depth.stage == "depth"
+    assert depth.prior_stage_complete is True
+    assert depth.result_type_matches is True
+    assert depth.request_type_matches is True
+    assert depth.generation_matches is True
+    assert depth.request_id_positive is True
+    assert depth.timed_out is True
+    assert depth.complete is False
+    assert depth.is_last_seen is False
+    assert depth.record_count == 2
+    assert depth.late_callbacks_reported is False
+    assert depth.error_category == "timeout"
 
 
 def test_query_generation_must_match_the_current_session(monkeypatch, query_result_type):
@@ -531,6 +714,82 @@ def test_query_generation_must_match_the_current_session(monkeypatch, query_resu
         adapter.collect_ctp_futures_snapshot(feed)
 
     assert caught.value.code == "QUERY_GENERATION_MISMATCH"
+    observation = caught.value.query_observations[0]
+    assert observation.result_type_matches is True
+    assert observation.request_type_matches is True
+    assert observation.generation_matches is False
+    assert observation.request_id_positive is True
+    assert observation.error_category == "none"
+
+
+def test_wrong_result_type_is_recorded_without_inspecting_the_object(
+    monkeypatch, query_result_type
+):
+    _fixed_collector_clock(monkeypatch)
+    feed = _feed(query_result_type)
+    feed.catalog_result = object()
+
+    with pytest.raises(adapter.CtpFuturesSnapshotError) as caught:
+        adapter.collect_ctp_futures_snapshot(feed)
+
+    assert caught.value.code == "QUERY_RESULT_TYPE_INVALID"
+    assert feed.quote_kwargs is None
+    observation = caught.value.query_observations[0]
+    assert observation.result_type_matches is False
+    assert observation.request_type_matches is None
+    assert observation.generation_matches is None
+    assert observation.request_id_positive is None
+    assert observation.record_count is None
+    assert observation.submit_category == "unavailable"
+    assert observation.error_category == "unavailable"
+
+
+def test_request_type_mismatch_is_reported_without_exposing_request_id(
+    monkeypatch, query_result_type
+):
+    _fixed_collector_clock(monkeypatch)
+    feed = _feed(query_result_type)
+    feed.catalog_result = _query_result(
+        query_result_type,
+        "private-request-name",
+        101,
+        (_catalog_row(),),
+    )
+
+    with pytest.raises(adapter.CtpFuturesSnapshotError) as caught:
+        adapter.collect_ctp_futures_snapshot(feed)
+
+    assert caught.value.code == "QUERY_REQUEST_TYPE_MISMATCH"
+    observation = caught.value.query_observations[0]
+    assert observation.result_type_matches is True
+    assert observation.request_type_matches is False
+    assert observation.generation_matches is True
+    assert observation.request_id_positive is True
+    assert "private-request-name" not in repr(observation)
+    assert not hasattr(observation, "request_id")
+
+
+def test_query_error_text_is_reduced_to_presence_and_category(monkeypatch, query_result_type):
+    _fixed_collector_clock(monkeypatch)
+    feed = _feed(query_result_type)
+    feed.catalog_result = _query_result(
+        query_result_type,
+        "instruments",
+        101,
+        (_catalog_row(),),
+        error_message="private-provider-payload",
+    )
+
+    with pytest.raises(adapter.CtpFuturesSnapshotError) as caught:
+        adapter.collect_ctp_futures_snapshot(feed)
+
+    assert caught.value.code == "QUERY_ERROR_MESSAGE"
+    assert str(caught.value) == "QUERY_ERROR_MESSAGE"
+    assert "private-provider-payload" not in repr(caught.value.query_observations)
+    observation = caught.value.query_observations[0]
+    assert observation.error_message_valid is True
+    assert observation.error_message_present is True
+    assert observation.error_category == "provider_error"
 
 
 @pytest.mark.parametrize(
@@ -600,6 +859,9 @@ def test_total_collection_budget_is_enforced_after_public_query_returns(
     assert feed.quote_kwargs is None
     assert feed.catalog_kwargs["timeout"] <= 0.005
     assert feed.catalog_kwargs["max_duration"] <= 0.005
+    assert len(caught.value.query_observations) == 1
+    assert caught.value.query_observations[0].stage == "catalog"
+    assert caught.value.query_observations[0].returned is True
 
 
 @pytest.mark.parametrize(
@@ -628,9 +890,23 @@ def test_public_query_call_exceptions_have_finite_refusal_codes(
     assert str(caught.value) == expected_code
     assert "private-provider-payload" not in str(caught.value)
     assert len(calls) == 1
+    observation = caught.value.query_observations[-1]
+    assert observation.returned is False
+    assert observation.result_type_matches is None
+    assert observation.request_type_matches is None
+    assert observation.generation_matches is None
+    assert observation.elapsed_seconds is None or observation.elapsed_seconds >= 0
+    assert observation.submit_category == "unavailable"
+    assert observation.error_category == "unavailable"
     if endpoint == "query_instruments_result":
+        assert len(caught.value.query_observations) == 1
+        assert observation.stage == "catalog"
+        assert observation.prior_stage_complete is None
         assert feed.quote_kwargs is None
     else:
+        assert len(caught.value.query_observations) == 2
+        assert observation.stage == "depth"
+        assert observation.prior_stage_complete is True
         assert feed.catalog_kwargs is not None
 
 

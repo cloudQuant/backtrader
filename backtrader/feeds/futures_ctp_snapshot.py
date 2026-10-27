@@ -19,6 +19,7 @@ import math
 import re
 import time
 from collections.abc import Mapping
+from dataclasses import dataclass
 from datetime import date, datetime, timezone
 from decimal import Decimal
 from typing import Any, Callable, Optional, Tuple
@@ -27,20 +28,216 @@ from typing import Any, Callable, Optional, Tuple
 _DEFAULT_MAX_COLLECTION_SECONDS = 300.0
 _DEFAULT_MAX_SNAPSHOT_AGE_SECONDS = 300.0
 _MAX_CONFIGURED_SECONDS = 3600.0
+_MAX_QUERY_DIAGNOSTIC_RECORD_COUNT = 1_000_000
 _DAY_FORMAT = "%Y%m%d"
 _SOURCE_PREFIX_RE = re.compile(r"[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*")
+
+
+@dataclass(frozen=True)
+class CtpFuturesSnapshotQueryObservation:
+    """Bounded facts about one public query call, without request or row data."""
+
+    stage: str
+    entered: bool
+    returned: bool
+    elapsed_seconds: Optional[float]
+    prior_stage_complete: Optional[bool]
+    result_type_matches: Optional[bool]
+    request_type_matches: Optional[bool]
+    generation_matches: Optional[bool]
+    request_id_positive: Optional[bool]
+    timed_out: Optional[bool]
+    complete: Optional[bool]
+    is_last_seen: Optional[bool]
+    unsupported: Optional[bool]
+    late_callbacks_reported: Optional[bool]
+    late_callback_count_valid: Optional[bool]
+    record_count: Optional[int]
+    record_count_capped: Optional[bool]
+    error_code_present: Optional[bool]
+    error_code_valid: Optional[bool]
+    error_code_nonzero: Optional[bool]
+    error_message_present: Optional[bool]
+    error_message_valid: Optional[bool]
+    submit_category: str
+    error_category: str
 
 
 class CtpFuturesSnapshotError(RuntimeError):
     """A stable, value-free reason that a CTP source snapshot was refused."""
 
-    def __init__(self, code: str) -> None:
+    def __init__(self, code: str, query_observations: tuple = ()) -> None:
         self.code = code
+        observations = query_observations
+        if (
+            type(observations) is not tuple
+            or len(observations) > 2
+            or any(type(item) is not CtpFuturesSnapshotQueryObservation for item in observations)
+        ):
+            observations = ()
+        self.query_observations = observations
         super().__init__(code)
 
 
-def _fail(code: str) -> None:
-    raise CtpFuturesSnapshotError(code)
+def _fail(code: str, query_observations: tuple = ()) -> None:
+    raise CtpFuturesSnapshotError(code, query_observations)
+
+
+def _query_observation(
+    *,
+    stage: str,
+    entered: bool,
+    returned: bool,
+    started_monotonic: float,
+    returned_monotonic: float,
+    prior_stage_complete: Optional[bool],
+    result: Any,
+    query_type: type,
+    expected_request_type: str,
+    expected_generation: int,
+) -> CtpFuturesSnapshotQueryObservation:
+    elapsed = returned_monotonic - started_monotonic
+    elapsed_seconds = None
+    if type(elapsed) in (int, float) and math.isfinite(elapsed) and elapsed >= 0:
+        elapsed_seconds = float(elapsed)
+    result_type_matches = None
+    request_type_matches = None
+    generation_matches = None
+    request_id_positive = None
+    timed_out = complete = is_last_seen = unsupported = None
+    late_callbacks_reported = late_callback_count_valid = None
+    record_count = None
+    record_count_capped = None
+    error_code_present = error_code_valid = error_code_nonzero = None
+    error_message_present = error_message_valid = None
+    submit_category = "unavailable"
+    error_category = "unavailable"
+
+    # Only inspect the SDK's exact public result type. Subclasses and malformed
+    # objects remain subject to the existing validator but do not contribute
+    # diagnostic fields that could invoke caller-defined attribute behavior.
+    if returned:
+        result_type_matches = type(result) is query_type
+        if result_type_matches:
+            request_type = result.request_type
+            request_type_matches = (
+                request_type == expected_request_type if type(request_type) is str else False
+            )
+            generation = result.connection_generation
+            generation_matches = (
+                generation == expected_generation
+                if type(generation) is int and generation > 0
+                else False
+            )
+            request_id = result.request_id
+            request_id_positive = type(request_id) is int and request_id > 0
+
+            for name in ("timed_out", "complete", "is_last_seen", "unsupported"):
+                value = getattr(result, name)
+                if type(value) is bool:
+                    if name == "timed_out":
+                        timed_out = value
+                    elif name == "complete":
+                        complete = value
+                    elif name == "is_last_seen":
+                        is_last_seen = value
+                    else:
+                        unsupported = value
+
+            records = result.records
+            if type(records) is tuple:
+                count = len(records)
+                record_count = min(count, _MAX_QUERY_DIAGNOSTIC_RECORD_COUNT)
+                record_count_capped = count > _MAX_QUERY_DIAGNOSTIC_RECORD_COUNT
+
+            late_callback_count = result.late_callback_count
+            late_callback_count_valid = (
+                type(late_callback_count) is int and late_callback_count >= 0
+            )
+            late_callbacks_reported = (
+                late_callback_count > 0 if late_callback_count_valid else None
+            )
+
+            submit_code = result.submit_code
+            if submit_code is None:
+                submit_category = "not_observed"
+            elif type(submit_code) is int and submit_code == 0:
+                submit_category = "accepted"
+            elif type(submit_code) is int:
+                submit_category = "rejected"
+            else:
+                submit_category = "invalid"
+
+            error_code = result.error_code
+            error_message = result.error_message
+            error_code_present = error_code is not None
+            error_code_valid = error_code is None or type(error_code) is int
+            if error_code_valid:
+                error_code_nonzero = error_code is not None and error_code != 0
+            error_message_valid = type(error_message) is str
+            error_message_present = error_message != "" if error_message_valid else None
+            boolean_fields_valid = all(
+                type(getattr(result, name)) is bool
+                for name in ("timed_out", "complete", "is_last_seen", "unsupported")
+            )
+            invalid_facts = (
+                type(request_type) is not str
+                or type(generation) is not int
+                or generation <= 0
+                or type(request_id) is not int
+                or request_id <= 0
+                or not boolean_fields_valid
+                or type(records) is not tuple
+                or not late_callback_count_valid
+                or not error_code_valid
+                or not error_message_valid
+                or (result.submit_code is not None and type(result.submit_code) is not int)
+            )
+            if invalid_facts:
+                error_category = "invalid"
+            elif timed_out is True:
+                error_category = "timeout"
+            elif unsupported is True:
+                error_category = "unsupported"
+            elif error_code_nonzero is True:
+                error_category = "provider_error"
+            elif submit_category == "rejected":
+                error_category = "submission_error"
+            elif error_message:
+                error_category = "provider_error"
+            elif complete is False or is_last_seen is False:
+                error_category = "incomplete"
+            elif late_callbacks_reported is True:
+                error_category = "late_callbacks"
+            else:
+                error_category = "none"
+
+    return CtpFuturesSnapshotQueryObservation(
+        stage=stage,
+        entered=entered,
+        returned=returned,
+        elapsed_seconds=elapsed_seconds,
+        prior_stage_complete=prior_stage_complete,
+        result_type_matches=result_type_matches,
+        request_type_matches=request_type_matches,
+        generation_matches=generation_matches,
+        request_id_positive=request_id_positive,
+        timed_out=timed_out,
+        complete=complete,
+        is_last_seen=is_last_seen,
+        unsupported=unsupported,
+        late_callbacks_reported=late_callbacks_reported,
+        late_callback_count_valid=late_callback_count_valid,
+        record_count=record_count,
+        record_count_capped=record_count_capped,
+        error_code_present=error_code_present,
+        error_code_valid=error_code_valid,
+        error_code_nonzero=error_code_nonzero,
+        error_message_present=error_message_present,
+        error_message_valid=error_message_valid,
+        submit_category=submit_category,
+        error_category=error_category,
+    )
 
 
 def _duration(value: Any, name: str) -> float:
@@ -523,12 +720,13 @@ def _quote_records(rows: Tuple[Any, ...]) -> tuple:
     return tuple(output)
 
 
-def collect_ctp_futures_snapshot(
+def _collect_ctp_futures_snapshot(
     feed: Any,
     *,
     max_collection_seconds: float = _DEFAULT_MAX_COLLECTION_SECONDS,
     max_snapshot_age_seconds: float = _DEFAULT_MAX_SNAPSHOT_AGE_SECONDS,
     source_prefix: str = "bt_api_ctp.CtpLiveFeed",
+    _query_observations: Any,
 ) -> Any:
     """Collect complete all-visible catalog and current-depth query evidence.
 
@@ -569,6 +767,7 @@ def collect_ctp_futures_snapshot(
     remaining = min(collection_limit, deadline - time.monotonic())
     if remaining <= 0:
         _fail("COLLECTION_TIMEOUT")
+    catalog_call_started = time.monotonic()
     try:
         catalog_result = query_instruments(
             instrument_id="",
@@ -578,26 +777,59 @@ def collect_ctp_futures_snapshot(
             max_duration=remaining,
         )
     except Exception:
-        _fail("CATALOG_QUERY_CALL_FAILED")
-    catalog_retrieved_at = _aware_utc(_now_utc(), "COLLECTOR_CLOCK_INVALID")
-    (
-        catalog_started_at,
-        catalog_completed_at,
-        catalog_request_id,
-        catalog_digest,
-    ) = _validate_query_result(
-        catalog_result,
+        catalog_call_returned = time.monotonic()
+        _query_observations.append(
+            _query_observation(
+                stage="catalog",
+                entered=True,
+                returned=False,
+                started_monotonic=catalog_call_started,
+                returned_monotonic=catalog_call_returned,
+                prior_stage_complete=None,
+                result=None,
+                query_type=query_type,
+                expected_request_type="instruments",
+                expected_generation=generation_before,
+            )
+        )
+        _fail("CATALOG_QUERY_CALL_FAILED", tuple(_query_observations))
+    catalog_call_returned = time.monotonic()
+    catalog_observation = _query_observation(
+        stage="catalog",
+        entered=True,
+        returned=True,
+        started_monotonic=catalog_call_started,
+        returned_monotonic=catalog_call_returned,
+        prior_stage_complete=None,
+        result=catalog_result,
         query_type=query_type,
         expected_request_type="instruments",
         expected_generation=generation_before,
-        retrieved_at=catalog_retrieved_at,
     )
+    _query_observations.append(catalog_observation)
+    catalog_retrieved_at = _aware_utc(_now_utc(), "COLLECTOR_CLOCK_INVALID")
+    try:
+        (
+            catalog_started_at,
+            catalog_completed_at,
+            catalog_request_id,
+            catalog_digest,
+        ) = _validate_query_result(
+            catalog_result,
+            query_type=query_type,
+            expected_request_type="instruments",
+            expected_generation=generation_before,
+            retrieved_at=catalog_retrieved_at,
+        )
+    except CtpFuturesSnapshotError as error:
+        _fail(error.code, tuple(_query_observations))
     if time.monotonic() > deadline:
-        _fail("COLLECTION_TIMEOUT")
+        _fail("COLLECTION_TIMEOUT", tuple(_query_observations))
 
     remaining = min(collection_limit, deadline - time.monotonic())
     if remaining <= 0:
         _fail("COLLECTION_TIMEOUT")
+    quote_call_started = time.monotonic()
     try:
         quote_result = query_depth(
             instrument_id="",
@@ -605,15 +837,49 @@ def collect_ctp_futures_snapshot(
             timeout=remaining,
         )
     except Exception:
-        _fail("QUOTE_QUERY_CALL_FAILED")
-    quote_retrieved_at = _aware_utc(_now_utc(), "COLLECTOR_CLOCK_INVALID")
-    quote_started_at, quote_completed_at, quote_request_id, quote_digest = _validate_query_result(
-        quote_result,
+        quote_call_returned = time.monotonic()
+        _query_observations.append(
+            _query_observation(
+                stage="depth",
+                entered=True,
+                returned=False,
+                started_monotonic=quote_call_started,
+                returned_monotonic=quote_call_returned,
+                prior_stage_complete=True,
+                result=None,
+                query_type=query_type,
+                expected_request_type="depth_market_data",
+                expected_generation=generation_before,
+            )
+        )
+        _fail("QUOTE_QUERY_CALL_FAILED", tuple(_query_observations))
+    quote_call_returned = time.monotonic()
+    quote_observation = _query_observation(
+        stage="depth",
+        entered=True,
+        returned=True,
+        started_monotonic=quote_call_started,
+        returned_monotonic=quote_call_returned,
+        prior_stage_complete=True,
+        result=quote_result,
         query_type=query_type,
         expected_request_type="depth_market_data",
         expected_generation=generation_before,
-        retrieved_at=quote_retrieved_at,
     )
+    _query_observations.append(quote_observation)
+    quote_retrieved_at = _aware_utc(_now_utc(), "COLLECTOR_CLOCK_INVALID")
+    try:
+        quote_started_at, quote_completed_at, quote_request_id, quote_digest = (
+            _validate_query_result(
+                quote_result,
+                query_type=query_type,
+                expected_request_type="depth_market_data",
+                expected_generation=generation_before,
+                retrieved_at=quote_retrieved_at,
+            )
+        )
+    except CtpFuturesSnapshotError as error:
+        _fail(error.code, tuple(_query_observations))
 
     day_after, generation_after = _session_facts(feed)
     if day_before != day_after or generation_before != generation_after:
@@ -695,4 +961,32 @@ def collect_ctp_futures_snapshot(
     return snapshot
 
 
-__all__ = ["CtpFuturesSnapshotError", "collect_ctp_futures_snapshot"]
+def collect_ctp_futures_snapshot(
+    feed: Any,
+    *,
+    max_collection_seconds: float = _DEFAULT_MAX_COLLECTION_SECONDS,
+    max_snapshot_age_seconds: float = _DEFAULT_MAX_SNAPSHOT_AGE_SECONDS,
+    source_prefix: str = "bt_api_ctp.CtpLiveFeed",
+) -> Any:
+    """Collect one complete bounded catalog/depth snapshot from a ready feed."""
+
+    observations = []
+    try:
+        return _collect_ctp_futures_snapshot(
+            feed,
+            max_collection_seconds=max_collection_seconds,
+            max_snapshot_age_seconds=max_snapshot_age_seconds,
+            source_prefix=source_prefix,
+            _query_observations=observations,
+        )
+    except CtpFuturesSnapshotError as error:
+        if error.query_observations or not observations:
+            raise
+        raise CtpFuturesSnapshotError(error.code, tuple(observations)) from None
+
+
+__all__ = [
+    "CtpFuturesSnapshotError",
+    "CtpFuturesSnapshotQueryObservation",
+    "collect_ctp_futures_snapshot",
+]

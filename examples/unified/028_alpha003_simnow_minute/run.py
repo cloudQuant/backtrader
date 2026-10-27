@@ -586,7 +586,9 @@ def build_ctp_query_market_plan(store, config, *, clock):
             code = getattr(error, "code", None)
             if type(code) is str and code in _CTP_FUTURES_SNAPSHOT_ERROR_CODES:
                 detail = code
-        raise RunnerError("CTP_FUTURES_SNAPSHOT_COLLECTION_FAILED", detail) from None
+        runner_error = RunnerError("CTP_FUTURES_SNAPSHOT_COLLECTION_FAILED", detail)
+        runner_error.query_diagnostics = _project_ctp_snapshot_query_diagnostics(error)
+        raise runner_error from None
 
     from backtrader.feeds.futures_main_contract import MainContractQuerySnapshot
 
@@ -708,6 +710,289 @@ def build_ctp_query_market_plan(store, config, *, clock):
         "calendar_evidence_mode": calendar_build.evidence_mode,
         "calendar_rules_sha256": calendar_build.rules_manifest_sha256,
     }
+
+
+_CTP_QUERY_DIAGNOSTIC_CATEGORIES = frozenset(
+    {
+        "unavailable",
+        "none",
+        "timeout",
+        "unsupported",
+        "incomplete",
+        "late_callbacks",
+        "submission_error",
+        "provider_error",
+        "invalid",
+    }
+)
+_CTP_QUERY_SUBMIT_CATEGORIES = frozenset(
+    {"unavailable", "not_observed", "accepted", "rejected", "invalid"}
+)
+_CTP_QUERY_DIAGNOSTIC_MAX_RECORDS = 1_000_000
+_CTP_QUERY_UNAVAILABLE_CATEGORIES = frozenset(
+    {
+        "DIAGNOSTIC_CONTRACT_UNAVAILABLE",
+        "ERROR_TYPE_UNTRUSTED",
+        "NO_QUERY_OBSERVATION",
+        "INVALID_DIAGNOSTICS",
+    }
+)
+_CTP_QUERY_STAGE_FIELD_NAMES = (
+        "stage",
+        "entered",
+        "returned",
+        "elapsed_seconds",
+        "prior_stage_complete",
+        "result_type_matches",
+        "request_type_matches",
+        "generation_matches",
+        "request_id_positive",
+        "timed_out",
+        "complete",
+        "is_last_seen",
+        "unsupported",
+        "late_callbacks_reported",
+        "late_callback_count_valid",
+        "record_count",
+        "record_count_capped",
+        "submit_category",
+        "error_code_present",
+        "error_code_valid",
+        "error_code_nonzero",
+        "error_message_present",
+        "error_message_valid",
+        "error_category",
+)
+_CTP_QUERY_STAGE_FIELDS = frozenset(
+    _CTP_QUERY_STAGE_FIELD_NAMES
+)
+
+
+def _sanitize_ctp_query_diagnostics(value):
+    """Copy only the exact finite diagnostics schema into public output."""
+
+    unavailable = {"status": "UNAVAILABLE", "category": "INVALID_DIAGNOSTICS"}
+    if type(value) is not dict:
+        return unavailable
+    if value.get("status") == "UNAVAILABLE":
+        if (
+            set(value) == {"status", "category"}
+            and type(value.get("category")) is str
+            and value["category"] in _CTP_QUERY_UNAVAILABLE_CATEGORIES
+        ):
+            return dict(value)
+        return unavailable
+    if set(value) != {"status", "stages"} or value.get("status") != "AVAILABLE":
+        return unavailable
+    stages = value.get("stages")
+    if type(stages) is not list or not 1 <= len(stages) <= 2:
+        return unavailable
+
+    sanitized = []
+    for index, stage in enumerate(stages):
+        expected_name = "catalog" if index == 0 else "depth"
+        if type(stage) is not dict or set(stage) != _CTP_QUERY_STAGE_FIELDS:
+            return unavailable
+        if (
+            type(stage["stage"]) is not str
+            or stage["stage"] != expected_name
+            or stage["entered"] is not True
+            or type(stage["returned"]) is not bool
+            or type(stage["submit_category"]) is not str
+            or stage["submit_category"] not in _CTP_QUERY_SUBMIT_CATEGORIES
+            or type(stage["error_category"]) is not str
+            or stage["error_category"] not in _CTP_QUERY_DIAGNOSTIC_CATEGORIES
+        ):
+            return unavailable
+        prior = stage["prior_stage_complete"]
+        if index == 0:
+            if prior is not None:
+                return unavailable
+        elif prior is not True:
+            return unavailable
+        elapsed = stage["elapsed_seconds"]
+        if elapsed is not None and (
+            type(elapsed) is not float or not math.isfinite(elapsed) or elapsed < 0
+        ):
+            return unavailable
+
+        optional_booleans = (
+            "result_type_matches",
+            "request_type_matches",
+            "generation_matches",
+            "request_id_positive",
+            "timed_out",
+            "complete",
+            "is_last_seen",
+            "unsupported",
+            "late_callbacks_reported",
+            "late_callback_count_valid",
+            "record_count_capped",
+            "error_code_present",
+            "error_code_valid",
+            "error_code_nonzero",
+            "error_message_present",
+            "error_message_valid",
+        )
+        if any(
+            stage[name] is not None and type(stage[name]) is not bool
+            for name in optional_booleans
+        ):
+            return unavailable
+        if stage["returned"] is True:
+            if type(stage["result_type_matches"]) is not bool:
+                return unavailable
+        elif stage["result_type_matches"] is not None:
+            return unavailable
+
+        record_count = stage["record_count"]
+        if record_count is not None and (
+            type(record_count) is not int
+            or not 0 <= record_count <= _CTP_QUERY_DIAGNOSTIC_MAX_RECORDS
+        ):
+            return unavailable
+        if (record_count is None) != (stage["record_count_capped"] is None):
+            return unavailable
+        if stage["record_count_capped"] is True and record_count != (
+            _CTP_QUERY_DIAGNOSTIC_MAX_RECORDS
+        ):
+            return unavailable
+
+        if stage["result_type_matches"] is True:
+            required_boolean_facts = (
+                "request_type_matches",
+                "generation_matches",
+                "request_id_positive",
+                "timed_out",
+                "complete",
+                "is_last_seen",
+                "unsupported",
+                "late_callbacks_reported",
+                "late_callback_count_valid",
+                "error_code_present",
+                "error_code_valid",
+                "error_code_nonzero",
+                "error_message_present",
+                "error_message_valid",
+            )
+            if (
+                any(stage[name] is None for name in required_boolean_facts)
+                or record_count is None
+                or stage["submit_category"] in {"unavailable", "invalid"}
+                or stage["error_category"] == "unavailable"
+            ):
+                return unavailable
+            if stage["error_code_valid"] is True:
+                if type(stage["error_code_nonzero"]) is not bool:
+                    return unavailable
+            elif stage["error_code_nonzero"] is not None:
+                return unavailable
+            if (
+                stage["error_code_present"] is False
+                and stage["error_code_valid"] is False
+            ) or (
+                stage["error_code_nonzero"] is True
+                and stage["error_code_present"] is not True
+            ):
+                return unavailable
+            if stage["error_message_valid"] is True:
+                if type(stage["error_message_present"]) is not bool:
+                    return unavailable
+            elif stage["error_message_present"] is not None:
+                return unavailable
+
+            invalid_facts = (
+                stage["request_id_positive"] is False
+                or stage["late_callback_count_valid"] is False
+                or stage["error_code_valid"] is False
+                or stage["error_message_valid"] is False
+            )
+            if invalid_facts:
+                expected_error_category = "invalid"
+            elif stage["timed_out"] is True:
+                expected_error_category = "timeout"
+            elif stage["unsupported"] is True:
+                expected_error_category = "unsupported"
+            elif stage["error_code_nonzero"] is True:
+                expected_error_category = "provider_error"
+            elif stage["submit_category"] == "rejected":
+                expected_error_category = "submission_error"
+            elif stage["error_message_present"] is True:
+                expected_error_category = "provider_error"
+            elif stage["complete"] is False or stage["is_last_seen"] is False:
+                expected_error_category = "incomplete"
+            elif stage["late_callbacks_reported"] is True:
+                expected_error_category = "late_callbacks"
+            else:
+                expected_error_category = "none"
+            if stage["error_category"] != expected_error_category:
+                return unavailable
+        else:
+            if (
+                any(stage[name] is not None for name in optional_booleans)
+                or record_count is not None
+                or stage["submit_category"] != "unavailable"
+                or stage["error_category"] != "unavailable"
+            ):
+                return unavailable
+
+        sanitized.append(dict(stage))
+
+    if len(sanitized) == 2:
+        catalog = sanitized[0]
+        if not (
+            catalog["returned"] is True
+            and catalog["result_type_matches"] is True
+            and catalog["request_type_matches"] is True
+            and catalog["generation_matches"] is True
+            and catalog["request_id_positive"] is True
+            and catalog["timed_out"] is False
+            and catalog["unsupported"] is False
+            and catalog["complete"] is True
+            and catalog["is_last_seen"] is True
+            and catalog["late_callbacks_reported"] is False
+            and catalog["late_callback_count_valid"] is True
+            and catalog["record_count"] is not None
+            and catalog["submit_category"] in {"accepted", "not_observed"}
+            and catalog["error_category"] == "none"
+            and catalog["error_code_valid"] is True
+            and catalog["error_message_valid"] is True
+            and catalog["error_message_present"] is False
+        ):
+            return unavailable
+    return {"status": "AVAILABLE", "stages": sanitized}
+
+
+def _project_ctp_snapshot_query_diagnostics(error):
+    """Whitelist exact collector DTOs, then apply the shared strict sanitizer."""
+
+    def unavailable(category):
+        return {"status": "UNAVAILABLE", "category": category}
+
+    try:
+        from backtrader.feeds.futures_ctp_snapshot import (
+            CtpFuturesSnapshotError,
+            CtpFuturesSnapshotQueryObservation,
+        )
+    except ImportError:
+        return unavailable("DIAGNOSTIC_CONTRACT_UNAVAILABLE")
+    if type(error) is not CtpFuturesSnapshotError:
+        return unavailable("ERROR_TYPE_UNTRUSTED")
+    observations = getattr(error, "query_observations", None)
+    if type(observations) is not tuple or not observations:
+        return unavailable("NO_QUERY_OBSERVATION")
+    if len(observations) > 2 or any(
+        type(item) is not CtpFuturesSnapshotQueryObservation for item in observations
+    ):
+        return unavailable("INVALID_DIAGNOSTICS")
+    try:
+        stages = [
+            {name: getattr(observation, name) for name in _CTP_QUERY_STAGE_FIELD_NAMES}
+            for observation in observations
+        ]
+    except Exception:
+        return unavailable("INVALID_DIAGNOSTICS")
+    return _sanitize_ctp_query_diagnostics({"status": "AVAILABLE", "stages": stages})
 
 
 def _apply_golden_target_subset(plan, requested_targets):
@@ -6273,9 +6558,13 @@ def run(args=None, *, _live_store_config_override: Optional[Mapping[str, Any]] =
             "query_epoch_attempts",
             "old_route_handling",
             "live_epoch_evidence",
+            "query_diagnostics",
         ):
             if hasattr(error, name):
-                payload[name] = getattr(error, name)
+                value = getattr(error, name)
+                if name == "query_diagnostics":
+                    value = _sanitize_ctp_query_diagnostics(value)
+                payload[name] = value
         print(json.dumps(payload, sort_keys=True, default=str))
         return 2
     except Exception as error:
@@ -6298,9 +6587,13 @@ def run(args=None, *, _live_store_config_override: Optional[Mapping[str, Any]] =
             "query_epoch_attempts",
             "old_route_handling",
             "live_epoch_evidence",
+            "query_diagnostics",
         ):
             if hasattr(error, name):
-                payload[name] = getattr(error, name)
+                value = getattr(error, name)
+                if name == "query_diagnostics":
+                    value = _sanitize_ctp_query_diagnostics(value)
+                payload[name] = value
         print(json.dumps(payload, sort_keys=True, default=str))
         return 1
 
