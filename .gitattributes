@@ -1148,3 +1148,12 @@ docs/_internal/opts/requirements/迭代50-因子实盘运行与交易接入/evid
 "docs/_internal/opts/requirements/迭代51-因子流批一体与Alpha003-SimNow实盘示例/evidence/golden-query-r6-20261027/observation.json" -text
 "docs/_internal/opts/requirements/迭代51-因子流批一体与Alpha003-SimNow实盘示例/evidence/golden-query-r6-20261027/closure.json" -text
 "docs/_internal/opts/requirements/迭代51-因子流批一体与Alpha003-SimNow实盘示例/evidence/golden-query-r6-20261027/memory-summary.json" -text
+
+# Iteration51 completed capacity87 public receipts, 2026-10-27
+"docs/_internal/opts/requirements/迭代51-因子流批一体与Alpha003-SimNow实盘示例/evidence/capacity87-corrected-rss-20261027/native/result.json" -text
+"docs/_internal/opts/requirements/迭代51-因子流批一体与Alpha003-SimNow实盘示例/evidence/capacity87-corrected-rss-20261027/native/launch.json" -text
+"docs/_internal/opts/requirements/迭代51-因子流批一体与Alpha003-SimNow实盘示例/evidence/capacity87-corrected-rss-20261027/native/completion.json" -text
+"docs/_internal/opts/requirements/迭代51-因子流批一体与Alpha003-SimNow实盘示例/evidence/capacity87-corrected-rss-20261027/build/result.json" -text
+"docs/_internal/opts/requirements/迭代51-因子流批一体与Alpha003-SimNow实盘示例/evidence/capacity87-corrected-rss-20261027/build/launch.json" -text
+"docs/_internal/opts/requirements/迭代51-因子流批一体与Alpha003-SimNow实盘示例/evidence/capacity87-corrected-rss-20261027/build/completion.json" -text
+"docs/_internal/opts/requirements/迭代51-因子流批一体与Alpha003-SimNow实盘示例/evidence/capacity87-corrected-rss-20261027/record.json" -text
