@@ -3,6 +3,7 @@ import argparse
 import hashlib
 import json
 import logging
+import math
 import os
 import re
 import sys
@@ -1573,7 +1574,233 @@ def public_cleanup(cleanup):
     return rows
 
 
-def public_summary(summary, runner):
+def _capacity_count(value):
+    return value if type(value) is int and 0 <= value < (1 << 63) else None
+
+
+def _capacity_sample_projection(sample, *, logical_run_id, pid, create_time, epoch_id, calendar_id):
+    if type(sample) is not dict:
+        return None
+    binding = sample.get('run_binding')
+    boundary = sample.get('ready_boundary')
+    cohort = sample.get('cohort_identity')
+    ordinal = sample.get('ordinal')
+    if (
+        sample.get('schema') != 'backtrader.live_capacity_snapshot.v1'
+        or type(sample.get('run_id')) is not str or sample['run_id'] != logical_run_id
+        or type(ordinal) is not int or ordinal < 0
+        or sample.get('status') not in ('OBSERVED', 'INCOMPLETE')
+        or sample.get('acceptance_evaluated') is not False
+        or type(binding) is not dict
+        or binding.get('run_id') != logical_run_id
+        or type(binding.get('epoch_id')) is not int or binding['epoch_id'] != epoch_id
+        or type(binding.get('process_id')) is not int or binding['process_id'] != pid
+        or type(binding.get('process_create_time')) not in (int, float)
+        or not math.isfinite(binding['process_create_time'])
+        or binding['process_create_time'] != create_time
+        or type(boundary) is not dict
+        or boundary.get('ordinal_source') != 'live_cohort_batch_slot_index_zero_based'
+        or type(boundary.get('grid_ordinal')) is not int
+        or boundary['grid_ordinal'] != ordinal
+        or type(boundary.get('slot_index')) is not int
+        or boundary['slot_index'] != ordinal
+        or type(boundary.get('epoch_id')) is not int or boundary['epoch_id'] != epoch_id
+        or boundary.get('calendar_id') != calendar_id
+        or type(boundary.get('cohort_id')) is not str or not boundary['cohort_id']
+        or type(boundary.get('batch_id')) is not str or not boundary['batch_id']
+        or boundary.get('engine_phase') not in ('prenext_ready', 'grid_recorded')
+        or type(cohort) is not dict
+        or cohort.get('status') != 'OBSERVED'
+        or cohort.get('cohort_id') != boundary['cohort_id']
+        or type(cohort.get('epoch_id')) is not int or cohort['epoch_id'] != epoch_id
+    ):
+        return None
+
+    lines = sample.get('lines')
+    cohort_capacity = sample.get('cohort')
+    diagnostics = sample.get('diagnostics')
+    strategy_events = sample.get('strategy_events')
+    orders = sample.get('orders')
+
+    def count(group, key):
+        return _capacity_count(group.get(key)) if type(group) is dict else None
+
+    event_rows = strategy_events.get('events') if type(strategy_events) is dict else None
+    event_count = None
+    if type(event_rows) is dict:
+        event_counts = [
+            _capacity_count(event_rows.get(name, {}).get('count'))
+            if type(event_rows.get(name)) is dict else None
+            for name in ('order_events', 'trade_events')
+        ]
+        if all(value is not None for value in event_counts):
+            event_count = sum(event_counts)
+
+    status_allowlist = ('OBSERVED', 'INCOMPLETE', 'UNAVAILABLE', 'UNSTABLE_OR_OVER_CAPACITY')
+    def group_status(group):
+        status = group.get('status') if type(group) is dict else None
+        return status if status in status_allowlist else 'UNAVAILABLE'
+
+    return {
+        'ordinal': ordinal,
+        'status': sample['status'],
+        'batch_id': boundary['batch_id'],
+        'cohort_id': boundary['cohort_id'],
+        'epoch_id': epoch_id,
+        'calendar_id': calendar_id,
+        'engine_phase': boundary['engine_phase'],
+        'capacity_status': {
+            'lines': group_status(lines),
+            'cohort': group_status(cohort_capacity),
+            'factor_diagnostics': group_status(diagnostics),
+            'strategy_events': group_status(strategy_events),
+            'orders': group_status(orders),
+        },
+        'counts': {
+            'graph_nodes': count(lines, 'graph_node_count'),
+            'graph_references': count(lines, 'graph_reference_count'),
+            'line_buffers': count(lines, 'line_buffer_count'),
+            'bounded_line_buffers': count(lines, 'bounded_line_buffer_count'),
+            'line_capacity_sum': count(lines, 'line_capacity_sum'),
+            'retained_line_values': count(lines, 'retained_line_value_count'),
+            'factor_nodes': count(diagnostics, 'factor_count'),
+            'factor_calls': count(diagnostics, 'call_count'),
+            'factor_once_ranges': count(diagnostics, 'once_range_count'),
+            'cohort_members': count(cohort_capacity, 'member_count'),
+            'pending_cohort_slots': count(cohort_capacity, 'pending_slot_count'),
+            'strategy_events': event_count,
+            'active_orders': count(orders, 'active_order_count'),
+            'unknown_orders': count(orders, 'unknown_order_count'),
+            'terminal_orders': count(orders, 'terminal_order_count'),
+        },
+    }
+
+
+def public_live_capacity(summary, config):
+    """Project count-only run capture and bind it to this R10 target call."""
+    base = {
+        'status': 'INCOMPLETE',
+        'reason_code': 'LIVE_CAPACITY_REPORT_UNAVAILABLE',
+        'acceptance_evaluated': False,
+        'window_evaluation': 'NOT_EVALUATED',
+        'growth_evaluation': 'NOT_EVALUATED',
+        'stability_peak_claimed': False,
+        'samples': [],
+    }
+    report = summary.get('live_capacity') if type(summary) is dict else None
+    if type(report) is not dict:
+        return base
+    live_cfg = config.get('live') if type(config) is dict else None
+    cohort_cfg = config.get('cohort') if type(config) is dict else None
+    identity = MEMORY_TARGET_IDENTITY if type(MEMORY_TARGET_IDENTITY) is dict else None
+    run_uuid = MEMORY_RUN_ID
+    if (
+        type(live_cfg) is not dict or type(cohort_cfg) is not dict
+        or type(identity) is not dict
+        or type(run_uuid) is not str or not re.fullmatch(r'i51-[0-9a-f]{32}', run_uuid)
+    ):
+        base['reason_code'] = 'LIVE_CAPACITY_CALL_CONTEXT_UNAVAILABLE'
+        return base
+    logical_run_id = live_cfg.get('logical_run_id')
+    epoch_id = cohort_cfg.get('epoch_id')
+    calendar_id = cohort_cfg.get('calendar_id')
+    pid = identity.get('pid')
+    create_time = identity.get('create_time')
+    if (
+        type(logical_run_id) is not str or not logical_run_id
+        or type(epoch_id) is not int or epoch_id <= 0
+        or type(calendar_id) is not str or not calendar_id
+        or type(pid) is not int or pid <= 0
+        or type(create_time) not in (int, float) or not math.isfinite(create_time)
+        or create_time <= 0
+    ):
+        base['reason_code'] = 'LIVE_CAPACITY_CALL_CONTEXT_INVALID'
+        return base
+
+    process_identity = report.get('process_identity')
+    samples = report.get('samples')
+    expected_ordinals = report.get('expected_ordinals')
+    sample_count = report.get('sample_count')
+    max_samples = report.get('max_samples')
+    issues = report.get('issues')
+    if (
+        report.get('schema') != 'backtrader.live_capacity_run_report.v1'
+        or type(report.get('run_id')) is not str or report['run_id'] != logical_run_id
+        or type(report.get('epoch_id')) is not int or report['epoch_id'] != epoch_id
+        or type(report.get('calendar_id')) is not str or report['calendar_id'] != calendar_id
+        or report.get('status') not in ('RECORDED_NOT_EVALUATED', 'INCOMPLETE')
+        or report.get('acceptance_evaluated') is not False
+        or report.get('window_evaluation') != 'NOT_EVALUATED'
+        or report.get('growth_evaluation') != 'NOT_EVALUATED'
+        or report.get('stability_peak_claimed') is not False
+        or type(process_identity) is not dict
+        or process_identity.get('status') != 'OBSERVED'
+        or type(process_identity.get('pid')) is not int
+        or process_identity['pid'] != pid
+        or type(process_identity.get('create_time')) not in (int, float)
+        or not math.isfinite(process_identity['create_time'])
+        or process_identity['create_time'] != create_time
+        or type(samples) not in (tuple, list) or len(samples) > 16
+        or type(expected_ordinals) not in (tuple, list) or len(expected_ordinals) > 16
+        or not samples or not expected_ordinals
+        or type(sample_count) is not int or sample_count != len(samples)
+        or type(max_samples) is not int or not 1 <= max_samples <= 16
+        or len(samples) > max_samples
+        or any(type(value) is not int or value < 0 for value in expected_ordinals)
+        or any(left >= right for left, right in zip(expected_ordinals, expected_ordinals[1:]))
+        or len(samples) > len(expected_ordinals)
+        or type(issues) not in (tuple, list) or len(issues) > 32
+    ):
+        base['reason_code'] = 'LIVE_CAPACITY_REPORT_BINDING_INVALID'
+        return base
+
+    projected_samples = []
+    for index, sample in enumerate(samples):
+        projection = _capacity_sample_projection(
+            sample,
+            logical_run_id=logical_run_id,
+            pid=pid,
+            create_time=create_time,
+            epoch_id=epoch_id,
+            calendar_id=calendar_id,
+        )
+        if projection is None or projection['ordinal'] != expected_ordinals[index]:
+            base['reason_code'] = 'LIVE_CAPACITY_SAMPLE_BINDING_INVALID'
+            return base
+        projected_samples.append(projection)
+
+    complete = (
+        report['status'] == 'RECORDED_NOT_EVALUATED'
+        and len(samples) == len(expected_ordinals)
+        and all(sample['status'] == 'OBSERVED' for sample in projected_samples)
+        and not issues
+    )
+    return {
+        'status': 'BOUND_RECORDED_NOT_EVALUATED' if complete else 'BOUND_INCOMPLETE',
+        'reason_code': None if complete else 'LIVE_CAPACITY_CAPTURE_INCOMPLETE',
+        'acceptance_evaluated': False,
+        'window_evaluation': 'NOT_EVALUATED',
+        'growth_evaluation': 'NOT_EVALUATED',
+        'stability_peak_claimed': False,
+        'report_status': report['status'],
+        'issue_count': len(issues),
+        'sample_count': sample_count,
+        'max_samples': max_samples,
+        'expected_ordinals': list(expected_ordinals),
+        'binding': {
+            'association': 'SAME_TARGET_RUN_CALL_CONTEXT',
+            'supervisor_run_uuid': run_uuid,
+            'logical_run_id': logical_run_id,
+            'root_pid': pid,
+            'root_create_time': create_time,
+            'epoch_id': epoch_id,
+            'calendar_id': calendar_id,
+        },
+        'samples': projected_samples,
+    }
+
+
+def public_summary(summary, runner, config):
     routes = summary.get('routes')
     count = len(routes) if type(routes) is dict else None
     tape = summary.get('decision_tape')
@@ -1606,6 +1833,7 @@ def public_summary(summary, runner):
         'decision_tape_records': count_or_none(tape.get('record_count')),
         'full_grid_record_count_matches': type(tape.get('record_count')) is int and tape['record_count'] == 195,
         'decision_tape_bytes': count_or_none(tape.get('bytes')),
+        'live_capacity': public_live_capacity(summary, config),
         'resources': public_cleanup(summary.get('resource_shutdown')),
     }
 
@@ -1731,6 +1959,7 @@ def main():
                 _live_ready_callback=publish_live_ready_record,
                 _live_next_callback=publish_live_next_record,
                 _include_plan=True,
+                _capture_live_capacity=True,
                 # Conservative session cutoff after the public day session.
                 # The accepted 195-slot count still comes from this run's plan.
                 shutdown_deadline_utc=datetime(2026, 10, 28, 7, 10, 0, tzinfo=timezone.utc),
@@ -1743,7 +1972,7 @@ def main():
             ).isoformat()
             result['live_call_window']['runner_call_returned'] = run_call_returned
         ROOT_STATE['summary'] = summary
-        result['run'] = public_summary(summary, runner)
+        result['run'] = public_summary(summary, runner, config)
         cleanup = summary.get('resource_shutdown')
         closed = (summary.get('cleanup_complete') is True and runner._cleanup_complete(cleanup)
                   and ROOT_STATE['observer_sink'].get('timer_joined') is True)

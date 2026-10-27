@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
+import ast
 import importlib.util
 import json
 import os
@@ -30,7 +31,7 @@ R10_SCRIPT = (
     / "r10_frozen_disabled"
     / "i51_root_golden_minute_actual_r10_memory_supervised_20261028.py"
 )
-R10_FIXTURE_SHA256 = "c842fc12309c25702d687bdb7e78ccfc575c6a022f025ddeff7d1614569a5208"
+R10_FIXTURE_SHA256 = "4982e296a51ea46b7ef78e191d43f58d9ae1b2c3a3eeafafe118e4a1caffba50"
 SYNTHETIC_PROFILE_BYTES = b'{"selection":{"query_mode":"synthetic"}}\n'
 SYNTHETIC_POSTFLIGHT_BYTES = b"DRAFT_UNEXECUTABLE = True\nSYNTHETIC_POSTFLIGHT = True\n"
 R10_SPEC = importlib.util.spec_from_file_location("i51_root_memory_r10", R10_SCRIPT)
@@ -44,6 +45,280 @@ def test_r10_public_fixture_is_frozen_disabled_draft():
     assert r10.hashlib.sha256(fixture_bytes).hexdigest() == R10_FIXTURE_SHA256
     assert r10.DRAFT_UNEXECUTABLE is True
     assert r10.R10_SUPERVISOR_ENABLED is False
+
+
+def _synthetic_live_capacity_report(logical_run_id, pid, create_time, epoch_id, calendar_id):
+    cohort_id = "alpha003:{}:{}".format(calendar_id, epoch_id)
+    boundary = {
+        "ordinal_source": "live_cohort_batch_slot_index_zero_based",
+        "grid_ordinal": 7,
+        "slot_index": 7,
+        "cohort_id": cohort_id,
+        "epoch_id": epoch_id,
+        "calendar_id": calendar_id,
+        "batch_id": "synthetic-batch-7",
+        "engine_phase": "grid_recorded",
+        "system_utc_epoch_ns": 1_798_000_000_000_000_000,
+        "monotonic_before_ns": 10_000,
+        "monotonic_after_ns": 10_010,
+    }
+    sample = {
+        "schema": "backtrader.live_capacity_snapshot.v1",
+        "run_id": logical_run_id,
+        "ordinal": 7,
+        "status": "OBSERVED",
+        "acceptance_evaluated": False,
+        "run_binding": {
+            "run_id": logical_run_id,
+            "epoch_id": epoch_id,
+            "process_id": pid,
+            "process_create_time": create_time,
+        },
+        "ready_boundary": boundary,
+        "cohort_identity": {
+            "status": "OBSERVED",
+            "cohort_id": cohort_id,
+            "epoch_id": epoch_id,
+        },
+        "lines": {
+            "status": "OBSERVED",
+            "graph_node_count": 88,
+            "graph_reference_count": 99,
+            "line_buffer_count": 77,
+            "bounded_line_buffer_count": 77,
+            "line_capacity_sum": 15_000,
+            "retained_line_value_count": 12_000,
+        },
+        "cohort": {
+            "status": "OBSERVED",
+            "member_count": 87,
+            "pending_slot_count": 0,
+        },
+        "diagnostics": {
+            "status": "OBSERVED",
+            "factor_count": 174,
+            "call_count": 25_000,
+            "once_range_count": 0,
+        },
+        "strategy_events": {
+            "status": "OBSERVED",
+            "events": {
+                "order_events": {"count": 0},
+                "trade_events": {"count": 0},
+            },
+        },
+        "orders": {
+            "status": "OBSERVED",
+            "active_order_count": 0,
+            "unknown_order_count": 0,
+            "terminal_order_count": 0,
+        },
+    }
+    return {
+        "schema": "backtrader.live_capacity_run_report.v1",
+        "run_id": logical_run_id,
+        "status": "RECORDED_NOT_EVALUATED",
+        "acceptance_evaluated": False,
+        "window_evaluation": "NOT_EVALUATED",
+        "growth_evaluation": "NOT_EVALUATED",
+        "stability_peak_claimed": False,
+        "epoch_id": epoch_id,
+        "calendar_id": calendar_id,
+        "calendar_slot_count": 195,
+        "expected_ordinals": (7,),
+        "max_samples": 16,
+        "sample_count": 1,
+        "process_identity": {
+            "status": "OBSERVED",
+            "pid": pid,
+            "create_time": create_time,
+        },
+        "first_ready_boundary": {"epoch_id": epoch_id, "calendar_id": calendar_id},
+        "samples": (sample,),
+        "issues": (),
+    }
+
+
+def test_r10_live_capacity_projection_binds_same_call_and_keeps_acceptance_unevaluated(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    run_uuid = "i51-" + "a" * 32
+    logical_run_id = "i5051:synthetic:logical-run"
+    pid = 43210
+    create_time = 1790000000.25
+    epoch_id = 3
+    calendar_id = "synthetic-calendar-r10"
+    monkeypatch.setattr(r10, "MEMORY_RUN_ID", run_uuid)
+    monkeypatch.setattr(
+        r10,
+        "MEMORY_TARGET_IDENTITY",
+        {"pid": pid, "create_time": create_time},
+    )
+    config = {
+        "live": {"logical_run_id": logical_run_id},
+        "cohort": {"epoch_id": epoch_id, "calendar_id": calendar_id},
+    }
+    summary = {
+        "live_capacity": _synthetic_live_capacity_report(
+            logical_run_id, pid, create_time, epoch_id, calendar_id
+        )
+    }
+
+    projected = r10.public_live_capacity(summary, config)
+    assert projected["status"] == "BOUND_RECORDED_NOT_EVALUATED"
+    assert projected["acceptance_evaluated"] is False
+    assert projected["window_evaluation"] == "NOT_EVALUATED"
+    assert projected["growth_evaluation"] == "NOT_EVALUATED"
+    assert projected["stability_peak_claimed"] is False
+    assert projected["binding"] == {
+        "association": "SAME_TARGET_RUN_CALL_CONTEXT",
+        "supervisor_run_uuid": run_uuid,
+        "logical_run_id": logical_run_id,
+        "root_pid": pid,
+        "root_create_time": create_time,
+        "epoch_id": epoch_id,
+        "calendar_id": calendar_id,
+    }
+    assert projected["sample_count"] == 1
+    assert projected["samples"][0]["batch_id"] == "synthetic-batch-7"
+    assert projected["samples"][0]["counts"]["line_capacity_sum"] == 15_000
+    runner = SimpleNamespace(
+        _live_epoch_retired=lambda _summary: True,
+        _live_epoch_controlled_stopped=lambda _summary: True,
+    )
+    summary.update(
+        {
+            "status": "LIVE_RUN_COMPLETE",
+            "routes": {},
+            "decision_tape": {},
+            "_plan": {
+                "targets": tuple(range(87)),
+                "grid": SimpleNamespace(to_dict=lambda: {"minutes": list(range(195))}),
+            },
+            "factor_mode": "native",
+            "write_mode": False,
+            "cleanup_complete": True,
+            "strategy_shutdown_ready": True,
+            "strategy_shutdown_post_join_confirmed": True,
+            "resource_shutdown": [],
+        }
+    )
+    run_projection = r10.public_summary(summary, runner, config)
+    assert run_projection["live_capacity"] == projected
+    assert run_projection["write_mode_disabled"] is True
+    assert r10.DRAFT_UNEXECUTABLE is True
+    assert r10.R10_SUPERVISOR_ENABLED is False
+
+
+@pytest.mark.parametrize("empty_field", ("samples", "expected_ordinals"))
+def test_r10_live_capacity_projection_rejects_empty_capture_sequences(
+    empty_field: str, monkeypatch: pytest.MonkeyPatch
+):
+    run_uuid = "i51-" + "c" * 32
+    logical_run_id = "i5051:synthetic:empty-capacity"
+    pid = 65432
+    create_time = 1790000001.0
+    epoch_id = 5
+    calendar_id = "synthetic-calendar-empty-r10"
+    report = _synthetic_live_capacity_report(
+        logical_run_id, pid, create_time, epoch_id, calendar_id
+    )
+    if empty_field == "samples":
+        report["samples"] = ()
+        report["sample_count"] = 0
+    else:
+        report["expected_ordinals"] = ()
+
+    monkeypatch.setattr(r10, "MEMORY_RUN_ID", run_uuid)
+    monkeypatch.setattr(
+        r10,
+        "MEMORY_TARGET_IDENTITY",
+        {"pid": pid, "create_time": create_time},
+    )
+    config = {
+        "live": {"logical_run_id": logical_run_id},
+        "cohort": {"epoch_id": epoch_id, "calendar_id": calendar_id},
+    }
+
+    projected = r10.public_live_capacity({"live_capacity": report}, config)
+    assert projected["status"] == "INCOMPLETE"
+    assert projected["reason_code"] == "LIVE_CAPACITY_REPORT_BINDING_INVALID"
+    assert projected["acceptance_evaluated"] is False
+    assert projected["samples"] == []
+
+
+@pytest.mark.parametrize(
+    "mismatch",
+    (
+        "logical_run_id",
+        "pid",
+        "create_time",
+        "epoch_id",
+        "calendar_id",
+        "sample_process",
+        "sample_calendar",
+        "missing_supervisor_uuid",
+    ),
+)
+def test_r10_live_capacity_projection_rejects_identity_drift(
+    mismatch: str, monkeypatch: pytest.MonkeyPatch
+):
+    run_uuid = "i51-" + "b" * 32
+    logical_run_id = "i5051:synthetic:logical-run"
+    pid = 54321
+    create_time = 1790000000.5
+    epoch_id = 4
+    calendar_id = "synthetic-calendar-r10"
+    report = _synthetic_live_capacity_report(
+        logical_run_id, pid, create_time, epoch_id, calendar_id
+    )
+    config = {
+        "live": {"logical_run_id": logical_run_id},
+        "cohort": {"epoch_id": epoch_id, "calendar_id": calendar_id},
+    }
+    identity = {"pid": pid, "create_time": create_time}
+    if mismatch == "logical_run_id":
+        report["run_id"] = "other-logical-run"
+    elif mismatch == "pid":
+        report["process_identity"]["pid"] += 1
+    elif mismatch == "create_time":
+        report["process_identity"]["create_time"] += 1.0
+    elif mismatch == "epoch_id":
+        report["epoch_id"] += 1
+    elif mismatch == "calendar_id":
+        report["calendar_id"] = "other-calendar"
+    elif mismatch == "sample_process":
+        report["samples"][0]["run_binding"]["process_id"] += 1
+    elif mismatch == "sample_calendar":
+        report["samples"][0]["ready_boundary"]["calendar_id"] = "other-calendar"
+    elif mismatch == "missing_supervisor_uuid":
+        run_uuid = None
+
+    monkeypatch.setattr(r10, "MEMORY_RUN_ID", run_uuid)
+    monkeypatch.setattr(r10, "MEMORY_TARGET_IDENTITY", identity)
+    projected = r10.public_live_capacity({"live_capacity": report}, config)
+    assert projected["status"] == "INCOMPLETE"
+    assert projected["acceptance_evaluated"] is False
+    assert projected["samples"] == []
+
+
+def test_r10_live_run_call_explicitly_enables_capacity_capture():
+    tree = ast.parse(R10_SCRIPT.read_text(encoding="utf-8"))
+    matches = []
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call) or not node.args:
+            continue
+        first = node.args[0]
+        if (
+            isinstance(first, ast.Attribute)
+            and isinstance(first.value, ast.Name)
+            and first.value.id == "runner"
+            and first.attr == "run_live"
+        ):
+            matches.append({keyword.arg: keyword.value for keyword in node.keywords})
+    assert len(matches) == 1
+    capture = matches[0].get("_capture_live_capacity")
+    assert isinstance(capture, ast.Constant) and capture.value is True
 
 
 def test_synthetic_process_tree_rss_and_sanitized_completion(tmp_path: Path):
@@ -898,6 +1173,8 @@ def test_real_cerebro_prenext_ready_then_later_next_slot_binds_r10_sampler(
                 self._last_session_close_at = None
                 self.last_execution_block_reason = None
                 self._control_refresh_stopped = True
+                self.source_continuity_failure_count = 0
+                self.source_continuity_first_error = None
                 self.phase_calls = []
                 self._live_ready_callback_attempted = False
                 self._live_ready_callback_completed = False
@@ -907,6 +1184,7 @@ def test_real_cerebro_prenext_ready_then_later_next_slot_binds_r10_sampler(
                 self._live_next_callback_completed = False
                 self._live_next_callback_failed = False
                 self._target_ids = ("target", "missing") if missing_member else ("target",)
+                self._install_synthetic_coordinator()
 
             def _current_batch_snapshot(self):
                 index = len(self)
@@ -943,13 +1221,27 @@ def test_real_cerebro_prenext_ready_then_later_next_slot_binds_r10_sampler(
                     calendar_id=batch.calendar_id,
                     close_time=close_time,
                     available_at=available_at,
+                    factors={
+                        strategy_module.FACTOR_NAME: SimpleNamespace(
+                            source_sha256="synthetic-factor-source"
+                        )
+                    },
                 )
                 cohort.batch = batch
                 self._synthetic_snapshot = snapshot
                 return batch, snapshot
 
-            def _record_decision_tape(self, *_args):
-                return True, {"reference": "synthetic"}, None
+            def _record_decision_tape(self, batch, *_args):
+                return (
+                    True,
+                    {
+                        "file_id": "synthetic-tape-file",
+                        "record_id": "synthetic-record-{}".format(batch.batch_id),
+                        "record_index": len(self),
+                        "batch_id": batch.batch_id,
+                    },
+                    None,
+                )
 
             def _record_source_only(self, *_args):
                 return True
@@ -966,8 +1258,61 @@ def test_real_cerebro_prenext_ready_then_later_next_slot_binds_r10_sampler(
             def _session_facts(self, _batch):
                 return None, False, None
 
-            def _run_live(self, *_args, **_kwargs):
+            def _live_facts(self, _now):
+                return None
+
+            def _source_receipt(self, batch, snapshot, _tape_reference):
+                if tuple(sorted(batch.members)) != tuple(sorted(self._target_ids)):
+                    raise ValueError("synthetic source batch member set mismatch")
+                return SimpleNamespace(readiness=snapshot.readiness)
+
+            def _confirm_source_anchor(self, receipt, *, anchor_kind):
+                assert receipt.readiness == "LIVE_READY"
+                assert anchor_kind == "GRID"
+                self.synthetic_grid_anchors.append(cohort.batch.batch_id)
+                return True
+
+            def _run_live(self, *args, **kwargs):
                 self.phase_calls.append(("next-live", len(self)))
+                return strategy_module.Alpha003TargetStrategy._run_live(
+                    self, *args, **kwargs
+                )
+
+            def _install_synthetic_coordinator(self):
+                class GridScope:
+                    dispatch_allowed = False
+
+                    def __enter__(self):
+                        return self
+
+                    def __exit__(self, *_args):
+                        return False
+
+                class JournalProbe:
+                    @staticmethod
+                    def fee_pair_required_scope(*_args):
+                        return None
+
+                class CoordinatorProbe:
+                    journal = JournalProbe()
+
+                    @staticmethod
+                    def run_order_count():
+                        return 0
+
+                    def decision_scope(_self, **scope_args):
+                        assert scope_args["batch"] is cohort.batch
+                        assert scope_args["source_receipt"].readiness == "LIVE_READY"
+                        return GridScope()
+
+                self._coordinator = CoordinatorProbe()
+                self._account_scope = "synthetic-account"
+                self._strategy_scope = "synthetic-strategy"
+                self._logical_run_id = "synthetic-logical-run"
+                self._source_kind = "ALPHA003_GRID"
+                self._risk_policy = None
+                self._last_signal_target = None
+                self.synthetic_grid_anchors = []
 
         cerebro = bt.Cerebro(stdstats=False, runonce=False, preload=False)
         frame = pd.DataFrame(
@@ -1041,6 +1386,8 @@ def test_real_cerebro_prenext_ready_then_later_next_slot_binds_r10_sampler(
             assert next_record is None
             assert strategy._live_ready_callback_completed is False
             assert strategy._live_next_callback_attempted is False
+            assert strategy.source_continuity_first_error == "SOURCE_RECEIPT_BUILD_FAILED"
+            assert strategy.synthetic_grid_anchors == []
             assert close["status"] == "LIVE_RUN_INCOMPLETE"
             return {
                 "case_dir": case_dir,
