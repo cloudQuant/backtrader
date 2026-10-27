@@ -6826,8 +6826,12 @@ class BtApiBroker(BrokerBase):
         def add_data_route(data, extra_identities=()):
             route = self._position_key(data)
             native_symbols = [
-                getattr(data, "_dataname", None),
-                getattr(getattr(data, "p", None), "dataname", None),
+                symbol
+                for symbol in (
+                    getattr(data, "_dataname", None),
+                    getattr(getattr(data, "p", None), "dataname", None),
+                )
+                if isinstance(symbol, str) and symbol.strip()
             ]
             symbols = [route, *native_symbols]
             route_exchanges = {

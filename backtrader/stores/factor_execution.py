@@ -28,6 +28,8 @@ from .execution_decision_journal import (
     ExecutionDecisionKey,
     ExecutionIntentKey,
     ExecutionIntentRecord,
+    ExecutionRunLossGuardContext,
+    ExecutionRunLossGuardSnapshot,
     _dispatching_cancel_absence_ack_ids,
 )
 from .factor_position_book import FactorPositionBook
@@ -335,6 +337,154 @@ class FactorExecutionCoordinator:
         return self.journal.run_order_count(
             self.account_scope, self.strategy_scope, self.logical_run_id
         )
+
+    def run_loss_guard(
+        self, context: ExecutionRunLossGuardContext
+    ) -> Optional[ExecutionRunLossGuardSnapshot]:
+        """Read explicit persisted guard state without initializing it.
+
+        A read is diagnostic only. OPEN decisions still pass the journal's
+        freshness and trip checks inside their durable transaction.
+        """
+
+        context = self._validate_run_loss_guard_context(context)
+        try:
+            snapshot = self.journal.run_loss_guard(
+                self.account_scope, self.strategy_scope, self.logical_run_id
+            )
+        except ExecutionDecisionJournalError as error:
+            raise FactorExecutionError(error.code) from error
+        if snapshot is not None and snapshot.context != context:
+            raise FactorExecutionError("RUN_LOSS_GUARD_CONTEXT_MISMATCH")
+        return snapshot
+
+    def enable_run_loss_guard(
+        self,
+        context: ExecutionRunLossGuardContext,
+        account_facts: Any,
+        *,
+        net_loss_threshold: Decimal,
+        max_observation_age_seconds: int,
+    ) -> ExecutionRunLossGuardSnapshot:
+        """Explicitly initialize a persistent policy from qualified account PnL.
+
+        The caller supplies the policy identity and qualified total net PnL
+        (realized plus unrealized, with fees counted exactly once) under the
+        declared basis; this component does not choose a threshold, infer fees,
+        or enable a policy as a side effect of ordinary reads or decisions. The limit
+        stops new OPEN admission only; it does not guarantee a maximum final
+        loss or force liquidation.
+        """
+
+        context, account, asof = self._run_loss_observation_inputs(context, account_facts)
+        try:
+            return self.journal.enable_run_loss_guard(
+                context,
+                baseline_observation_id=account.snapshot_id,
+                baseline_asof=asof,
+                baseline_total_net_pnl=account.total_net_pnl,
+                net_loss_threshold=net_loss_threshold,
+                max_observation_age_seconds=max_observation_age_seconds,
+            )
+        except ExecutionDecisionJournalError as error:
+            raise FactorExecutionError(error.code) from error
+
+    def record_run_loss_observation(
+        self,
+        context: ExecutionRunLossGuardContext,
+        account_facts: Any,
+    ) -> ExecutionRunLossGuardSnapshot:
+        """Persist one qualified total-net-PnL observation supplied by the caller."""
+
+        context, account, asof = self._run_loss_observation_inputs(context, account_facts)
+        try:
+            return self.journal.record_run_loss_observation(
+                context,
+                observation_id=account.snapshot_id,
+                asof=asof,
+                total_net_pnl=account.total_net_pnl,
+            )
+        except ExecutionDecisionJournalError as error:
+            raise FactorExecutionError(error.code) from error
+
+    def _validate_run_loss_guard_context(
+        self, context: ExecutionRunLossGuardContext
+    ) -> ExecutionRunLossGuardContext:
+        if type(context) is not ExecutionRunLossGuardContext:
+            raise FactorExecutionError("RUN_LOSS_GUARD_CONTEXT_INVALID")
+        if (
+            context.account_scope != self.account_scope
+            or context.strategy_scope != self.strategy_scope
+            or context.logical_run_id != self.logical_run_id
+        ):
+            raise FactorExecutionError("RUN_LOSS_GUARD_CONTEXT_MISMATCH")
+        if (
+            type(context.currency) is not str
+            or _valid_trading_day(context.trading_day) != context.trading_day
+            or not _exact_identifier(context.pnl_basis)
+        ):
+            raise FactorExecutionError("RUN_LOSS_GUARD_CONTEXT_INVALID")
+        if context.currency != "CNY":
+            raise FactorExecutionError("RUN_LOSS_ACCOUNT_CURRENCY_UNSUPPORTED")
+        return context
+
+    def _run_loss_observation_inputs(self, context: Any, account_facts: Any):
+        context = self._validate_run_loss_guard_context(context)
+        from .factor_execution_facts import FactorExecutionAccountFacts
+
+        if type(account_facts) is not FactorExecutionAccountFacts:
+            raise FactorExecutionError("RUN_LOSS_ACCOUNT_FACTS_INVALID")
+        if account_facts.account_scope != self.account_scope:
+            raise FactorExecutionError("RUN_LOSS_ACCOUNT_SCOPE_MISMATCH")
+        if (
+            account_facts.total_net_pnl_available is not True
+            or account_facts.total_net_pnl_reason is not None
+            or type(account_facts.total_net_pnl) is not Decimal
+            or not account_facts.total_net_pnl.is_finite()
+        ):
+            raise FactorExecutionError("RUN_LOSS_ACCOUNT_PNL_UNQUALIFIED")
+        if (
+            type(account_facts.trading_day) is not str
+            or _valid_trading_day(account_facts.trading_day) != context.trading_day
+        ):
+            raise FactorExecutionError("RUN_LOSS_ACCOUNT_TRADING_DAY_MISMATCH")
+        if (
+            type(account_facts.currency) is not str
+            or account_facts.currency != context.currency
+            or account_facts.currency != "CNY"
+        ):
+            raise FactorExecutionError("RUN_LOSS_ACCOUNT_CURRENCY_MISMATCH")
+        if type(account_facts.snapshot_id) is not str or not _exact_identifier(
+            account_facts.snapshot_id
+        ):
+            raise FactorExecutionError("RUN_LOSS_ACCOUNT_SNAPSHOT_ID_INVALID")
+        if type(account_facts.available_at) is not datetime:
+            raise FactorExecutionError("RUN_LOSS_ACCOUNT_ASOF_INVALID")
+        asof = _aware_utc(account_facts.available_at)
+        if asof is None:
+            raise FactorExecutionError("RUN_LOSS_ACCOUNT_ASOF_INVALID")
+        asof_text = asof.isoformat().replace("+00:00", "Z")
+        return context, account_facts, asof_text
+
+    def _validate_open_loss_guard_scope(
+        self,
+        context: Optional[ExecutionRunLossGuardContext],
+        account_facts: Any,
+    ) -> None:
+        if context is None:
+            # The journal preserves legacy callers while requiring context
+            # whenever an immutable policy is configured.
+            return
+        context, account, asof = self._run_loss_observation_inputs(context, account_facts)
+        snapshot = self.run_loss_guard(context)
+        if snapshot is None:
+            raise FactorExecutionError("RUN_LOSS_GUARD_NOT_CONFIGURED")
+        if (
+            snapshot.latest_observation_id != account.snapshot_id
+            or snapshot.latest_asof != asof
+            or snapshot.latest_total_net_pnl != account.total_net_pnl
+        ):
+            raise FactorExecutionError("RUN_LOSS_GUARD_OBSERVATION_MISMATCH")
 
     def decision_capacity_snapshot(self):
         """Expose bounded journal usage and physical DB/WAL diagnostics."""
@@ -4608,6 +4758,7 @@ class FactorExecutionCoordinator:
         inputs_complete: bool,
         expected_run_order_intents_used: int,
         remaining_exit_intent_reserve: int,
+        loss_guard_context: Optional[ExecutionRunLossGuardContext] = None,
     ) -> "FactorExecutionDecisionScope":
         return FactorExecutionDecisionScope(
             self,
@@ -4622,6 +4773,7 @@ class FactorExecutionCoordinator:
             expected_run_order_intents_used=expected_run_order_intents_used,
             remaining_exit_intent_reserve=remaining_exit_intent_reserve,
             risk_only=False,
+            loss_guard_context=loss_guard_context,
         )
 
     def risk_decision_scope(
@@ -4796,6 +4948,7 @@ class FactorExecutionDecisionScope:
         expected_run_order_intents_used: int,
         remaining_exit_intent_reserve: int,
         risk_only: bool,
+        loss_guard_context: Optional[ExecutionRunLossGuardContext] = None,
     ) -> None:
         self.coordinator = coordinator
         self.owner = owner
@@ -4809,6 +4962,7 @@ class FactorExecutionDecisionScope:
         self.expected_run_order_intents_used = expected_run_order_intents_used
         self.remaining_exit_intent_reserve = remaining_exit_intent_reserve
         self.risk_only = risk_only
+        self.loss_guard_context = loss_guard_context
         self.decision_id: Optional[str] = None
         self.cursor = None
         self.is_new_grid = False
@@ -4869,6 +5023,7 @@ class FactorExecutionDecisionScope:
                 max_order_intents_per_run=coordinator.max_order_intents_per_run,
                 expected_run_order_intents_used=self.expected_run_order_intents_used,
                 remaining_exit_intent_reserve=self.remaining_exit_intent_reserve,
+                loss_guard_context=self.loss_guard_context,
             )
         if result.decision is None:
             raise FactorExecutionError("DECISION_NOT_DURABLE")
@@ -5077,6 +5232,7 @@ class FactorExecutionDecisionScope:
             economics,
             original_identity=identity,
             owner_intent_id=owner_intent_id,
+            loss_guard_context=self.loss_guard_context,
         )
         self._prepared[self._next_leg] = intent.intent_id
         if intent.state != "PREPARED" or intent.dispatch_state is not None:
@@ -5095,7 +5251,10 @@ class FactorExecutionDecisionScope:
             ),
             default=0,
         )
-        claim = self.coordinator.journal.claim_dispatch(intent.intent_id)
+        claim = self.coordinator.journal.claim_dispatch(
+            intent.intent_id,
+            loss_guard_context=self.loss_guard_context,
+        )
         if claim is None:
             raise FactorExecutionError("DISPATCH_ALREADY_CLAIMED")
         intent = claim.intent
@@ -5258,6 +5417,22 @@ class FactorExecutionDecisionScope:
             or self.execution_facts.strategy_scope != coordinator.strategy_scope
         ):
             raise FactorExecutionError("EXECUTION_FACTS_SCOPE_MISMATCH")
+        if any(
+            key.action == "SUBMIT" and key.position_effect == "OPEN"
+            for key in self.intent_keys
+        ):
+            # An exact durable decision readback is not a new admission. Let
+            # the journal perform its canonical key/economics/intent equality
+            # check first; only a missing row needs fresh caller facts here.
+            # New intent preparation and every PREPARED claim still recheck
+            # the persisted guard at their own journal transaction boundary.
+            if self.loss_guard_context is not None and (
+                coordinator.journal.decision_for_key(self.key) is None
+            ):
+                coordinator._validate_open_loss_guard_scope(
+                    self.loss_guard_context,
+                    self.execution_facts.account,
+                )
         if (
             any(
                 key.action == "SUBMIT" and key.position_effect == "CLOSE"

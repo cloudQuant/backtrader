@@ -10,6 +10,7 @@ from __future__ import annotations
 import collections
 import contextvars
 from contextlib import ExitStack
+from dataclasses import replace
 import threading
 import time
 from datetime import datetime, timedelta, timezone
@@ -26,11 +27,16 @@ from backtrader.research.live import LiveFactorReadiness, LiveFactorSnapshot
 from backtrader.research.live_cohort import LiveCohortBatch
 from backtrader.stores.execution_decision_journal import (
     ExecutionDecisionJournal,
+    ExecutionDecisionJournalError,
     ExecutionDecisionKey,
     ExecutionIntentKey,
+    ExecutionRunLossGuardContext,
 )
 from backtrader.stores.factor_execution import FactorExecutionCoordinator, FactorExecutionError
-from backtrader.stores.factor_execution_facts import FactorExecutionTarget
+from backtrader.stores.factor_execution_facts import (
+    FactorExecutionAccountFacts,
+    FactorExecutionTarget,
+)
 from backtrader.stores.registered_sim import RegisteredSimStore, RegisteredSimWrapper
 from tests.unit.stores import test_factor_execution_facts as facts_helpers
 
@@ -571,12 +577,27 @@ def _system(*, now, query_rows=None, bars=1, bar_advance_gate=None, exchange=_EX
     return api, store, broker, journal, coordinator, target, data, strategy, cerebro
 
 
-def _live_scope(coordinator, strategy, facts, *, now, intent_key, economics):
-    close_time = (now - timedelta(seconds=2)).replace(microsecond=0)
-    batch_id = "batch-1"
+def _live_scope(
+    coordinator,
+    strategy,
+    facts,
+    *,
+    now,
+    intent_key,
+    economics,
+    loss_guard_context=None,
+    cohort_id=_COHORT,
+    batch_id="batch-1",
+    close_time=None,
+):
+    close_time = (
+        (now - timedelta(seconds=2)).replace(microsecond=0)
+        if close_time is None
+        else close_time
+    )
     batch = LiveCohortBatch(
         batch_id=batch_id,
-        cohort_id=_COHORT,
+        cohort_id=cohort_id,
         calendar_id=_CALENDAR,
         calendar_version="v1",
         epoch_id=1,
@@ -586,7 +607,7 @@ def _live_scope(coordinator, strategy, facts, *, now, intent_key, economics):
     )
     snapshot = LiveFactorSnapshot(
         plan_id="alpha003-test-plan",
-        cohort_id=_COHORT,
+        cohort_id=cohort_id,
         calendar_id=_CALENDAR,
         calendar_version="v1",
         frequency="1min",
@@ -603,7 +624,7 @@ def _live_scope(coordinator, strategy, facts, *, now, intent_key, economics):
         account_scope=_ACCOUNT_SCOPE,
         strategy_scope=_SCOPE,
         logical_run_id="run-1",
-        cohort_id=_COHORT,
+        cohort_id=cohort_id,
         close_time=close_time.isoformat().replace("+00:00", "Z"),
         decision_kind="ALPHA003_GRID",
     )
@@ -620,7 +641,145 @@ def _live_scope(coordinator, strategy, facts, *, now, intent_key, economics):
         # This local helper only creates a single-decision fixture. Production
         # Strategy plans pass the actual remaining-exit reserve explicitly.
         remaining_exit_intent_reserve=0,
+        loss_guard_context=loss_guard_context,
     )
+
+
+def _qualified_loss_account_facts(
+    *, account_scope, snapshot_id, available_at, trading_day, total_net_pnl
+):
+    return FactorExecutionAccountFacts(
+        account_scope=account_scope,
+        snapshot_id=snapshot_id,
+        available_at=available_at,
+        route_permitted=True,
+        available_margin=Decimal("100000"),
+        used_margin=Decimal("0"),
+        current_notional=Decimal("0"),
+        current_worst_case_loss=Decimal("0"),
+        account_fingerprint="fake-account-1",
+        connection_generation=1,
+        trading_day=trading_day,
+        total_net_pnl=total_net_pnl,
+        currency="CNY",
+        total_net_pnl_available=True,
+        total_net_pnl_reason=None,
+    )
+
+
+def test_coordinator_run_loss_guard_is_explicit_typed_and_restart_sticky(tmp_path):
+    now = datetime.now(timezone.utc)
+    journal = ExecutionDecisionJournal(tmp_path / "coordinator-loss-guard.sqlite3")
+    store = SimpleNamespace(registered_sim_route_id="simnow-registered-v1", allow_writes=True)
+    broker = SimpleNamespace(store=store)
+    coordinator = FactorExecutionCoordinator(
+        broker,
+        journal,
+        account_scope=_ACCOUNT_SCOPE,
+        strategy_scope=_SCOPE,
+        logical_run_id="run-loss-guard-component",
+        max_order_intents_per_grid=2,
+        max_order_intents_per_run=8,
+    )
+    context = ExecutionRunLossGuardContext(
+        account_scope=_ACCOUNT_SCOPE,
+        strategy_scope=_SCOPE,
+        logical_run_id="run-loss-guard-component",
+        trading_day=facts_helpers._TRADING_DAY,
+        currency="CNY",
+        pnl_basis="validated_total_net_after_fees_v1",
+    )
+    baseline = _qualified_loss_account_facts(
+        account_scope=_ACCOUNT_SCOPE,
+        snapshot_id="qualified-pnl-baseline",
+        available_at=now - timedelta(seconds=1),
+        trading_day=facts_helpers._TRADING_DAY,
+        total_net_pnl=Decimal("10000"),
+    )
+    try:
+        assert coordinator.run_loss_guard(context) is None
+        with pytest.raises(FactorExecutionError, match="RUN_LOSS_GUARD_NOT_CONFIGURED"):
+            coordinator.record_run_loss_observation(context, baseline)
+        assert coordinator.run_loss_guard(context) is None
+
+        unqualified = replace(
+            baseline,
+            total_net_pnl=None,
+            total_net_pnl_available=False,
+            total_net_pnl_reason="position_profit_unavailable",
+        )
+        with pytest.raises(FactorExecutionError, match="RUN_LOSS_ACCOUNT_PNL_UNQUALIFIED"):
+            coordinator.enable_run_loss_guard(
+                context,
+                unqualified,
+                net_loss_threshold=Decimal("1000"),
+                max_observation_age_seconds=600,
+            )
+        for invalid, code in (
+            (
+                replace(baseline, trading_day="20261025"),
+                "RUN_LOSS_ACCOUNT_TRADING_DAY_MISMATCH",
+            ),
+            (replace(baseline, currency="USD"), "RUN_LOSS_ACCOUNT_CURRENCY_MISMATCH"),
+            (
+                replace(baseline, available_at=now.replace(tzinfo=None)),
+                "RUN_LOSS_ACCOUNT_ASOF_INVALID",
+            ),
+            (
+                replace(baseline, total_net_pnl=Decimal("NaN")),
+                "RUN_LOSS_ACCOUNT_PNL_UNQUALIFIED",
+            ),
+        ):
+            with pytest.raises(FactorExecutionError, match=code):
+                coordinator.enable_run_loss_guard(
+                    context,
+                    invalid,
+                    net_loss_threshold=Decimal("1000"),
+                    max_observation_age_seconds=600,
+                )
+        assert coordinator.run_loss_guard(context) is None
+
+        enabled = coordinator.enable_run_loss_guard(
+            context,
+            baseline,
+            net_loss_threshold=Decimal("1000"),
+            max_observation_age_seconds=600,
+        )
+        assert enabled.baseline_observation_id == baseline.snapshot_id
+        assert enabled.baseline_total_net_pnl == Decimal("10000")
+        assert not enabled.tripped
+
+        tripped_facts = replace(
+            baseline,
+            snapshot_id="qualified-pnl-trip",
+            available_at=datetime.now(timezone.utc),
+            total_net_pnl=Decimal("9000"),
+        )
+        tripped = coordinator.record_run_loss_observation(context, tripped_facts)
+        assert tripped.tripped
+        assert tripped.trip_observation_id == tripped_facts.snapshot_id
+        assert tripped.total_net_loss_from_baseline == Decimal("1000")
+
+        restarted = FactorExecutionCoordinator(
+            SimpleNamespace(store=store),
+            journal,
+            account_scope=_ACCOUNT_SCOPE,
+            strategy_scope=_SCOPE,
+            logical_run_id="run-loss-guard-component",
+            max_order_intents_per_grid=2,
+            max_order_intents_per_run=8,
+        )
+        assert restarted.run_loss_guard(context) == tripped
+        with pytest.raises(FactorExecutionError, match="RUN_LOSS_GUARD_POLICY_CONFLICT"):
+            restarted.enable_run_loss_guard(
+                context,
+                tripped_facts,
+                net_loss_threshold=Decimal("1000"),
+                max_observation_age_seconds=600,
+            )
+        assert restarted.run_loss_guard(context) == tripped
+    finally:
+        journal.close()
 
 
 def test_sourcefake_plain_strategy_buy_manual_fill_component_only():
@@ -1199,6 +1358,30 @@ def test_actual_cerebro_open_cancel_terminal_and_risk_close_chain():
     assert facts_helpers._consume_quote(store) is not None
     open_facts = facts_helpers._project(store, broker, target, now, query_set=initial.query_set)
     assert open_facts.open_risk_ready is True, open_facts.blockers
+    assert open_facts.account is not None
+    qualified_open_account = replace(
+        open_facts.account,
+        total_net_pnl=Decimal("10000"),
+        currency="CNY",
+        total_net_pnl_available=True,
+        total_net_pnl_reason=None,
+    )
+    open_facts = replace(open_facts, account=qualified_open_account)
+    loss_guard_context = ExecutionRunLossGuardContext(
+        account_scope=_ACCOUNT_SCOPE,
+        strategy_scope=_SCOPE,
+        logical_run_id="run-1",
+        trading_day=facts_helpers._TRADING_DAY,
+        currency="CNY",
+        pnl_basis="validated_total_net_after_fees_v1",
+    )
+    baseline_guard = coordinator.enable_run_loss_guard(
+        loss_guard_context,
+        qualified_open_account,
+        net_loss_threshold=Decimal("1000"),
+        max_observation_age_seconds=600,
+    )
+    assert not baseline_guard.tripped
 
     open_intent = ExecutionIntentKey(
         action="SUBMIT",
@@ -1239,6 +1422,7 @@ def test_actual_cerebro_open_cancel_terminal_and_risk_close_chain():
         "order": None,
         "close_order": None,
         "close_facts": None,
+        "owner": None,
         "order_notifications": [],
         "trade_notifications": [],
         "error": None,
@@ -1289,6 +1473,7 @@ def test_actual_cerebro_open_cancel_terminal_and_risk_close_chain():
                 now=now,
                 intent_key=open_intent,
                 economics=open_economics,
+                loss_guard_context=loss_guard_context,
             ):
                 state["order"] = owner.buy(
                     data=owner.data0,
@@ -1301,6 +1486,7 @@ def test_actual_cerebro_open_cancel_terminal_and_risk_close_chain():
                     factor_strategy_scope=_SCOPE,
                     offset="open",
                 )
+            state["owner"] = owner
             cancel_economics["owner_intent_id"] = state["order"].info["factor_intent_id"]
             close_economics["owner_intent_id"] = state["order"].info["factor_intent_id"]
             state["open_sent"].set()
@@ -1400,6 +1586,65 @@ def test_actual_cerebro_open_cancel_terminal_and_risk_close_chain():
     order = state["order"]
     assert order is not None and order.alive()
     assert api.native_calls == [("insert", _INSTRUMENT, exchange, "501", 101)]
+
+    trip_account_facts = replace(
+        qualified_open_account,
+        snapshot_id="pnl-trip-after-open",
+        available_at=datetime.now(timezone.utc),
+        total_net_pnl=Decimal("9000"),
+    )
+    tripped_guard = coordinator.record_run_loss_observation(
+        loss_guard_context, trip_account_facts
+    )
+    assert tripped_guard.tripped
+    assert tripped_guard.total_net_loss_from_baseline == Decimal("1000")
+    tripped_open_facts = replace(open_facts, account=trip_account_facts)
+    with _live_scope(
+        coordinator,
+        state["owner"],
+        open_facts,
+        now=now,
+        intent_key=open_intent,
+        economics=open_economics,
+        loss_guard_context=loss_guard_context,
+    ) as replayed_open:
+        assert replayed_open.is_new_grid is False
+        assert replayed_open.dispatch_allowed is False
+
+    probe_close_time = (now - timedelta(seconds=2)).replace(microsecond=0) + timedelta(
+        seconds=1
+    )
+    with pytest.raises(
+        ExecutionDecisionJournalError, match="RUN_LOSS_GUARD_CONTEXT_REQUIRED"
+    ):
+        with _live_scope(
+            coordinator,
+            state["owner"],
+            tripped_open_facts,
+            now=now,
+            intent_key=open_intent,
+            economics=open_economics,
+            cohort_id="loss-guard-context-required",
+            batch_id="loss-guard-context-required-batch",
+            close_time=probe_close_time,
+        ):
+            pass
+    with pytest.raises(
+        ExecutionDecisionJournalError, match="RUN_TOTAL_NET_LOSS_LIMIT_REACHED"
+    ):
+        with _live_scope(
+            coordinator,
+            state["owner"],
+            tripped_open_facts,
+            now=now,
+            intent_key=open_intent,
+            economics=open_economics,
+            loss_guard_context=loss_guard_context,
+            cohort_id="loss-guard-tripped-open",
+            batch_id="loss-guard-tripped-open-batch",
+            close_time=probe_close_time,
+        ):
+            pass
 
     # Normal fake provider callbacks are enqueued on the composed API and are
     # drained by the ordinary Store.poll_broker_update -> Broker.next path.
@@ -1594,6 +1839,20 @@ def test_actual_cerebro_open_cancel_terminal_and_risk_close_chain():
     gate.allow_through(5)
     assert state["close_sent"].wait(10), state["error"]
     close_order = state["close_order"]
+    if close_order is not None and close_order.status == Order.Rejected:
+        # This is a synthetic-only fake-provider path.  The Broker maps
+        # exceptions from several distinct pre-trade checks to the same
+        # finite error code; retain a bounded fake exception message in the
+        # focused failure so a failed run can identify the throwing check.
+        error_code = close_order.info.get("error_code")
+        error_msg = close_order.info.get("error_msg")
+        diagnostic_code = error_code if type(error_code) is str else None
+        diagnostic_msg = error_msg[:512] if type(error_msg) is str else None
+        assert error_code != "pre_trade_state_refresh_failed", (
+            "synthetic close pre-trade exception: code={!r}, message={!r}".format(
+                diagnostic_code, diagnostic_msg
+            )
+        )
     assert close_order is not None and close_order.alive(), (
         None if close_order is None else close_order.getstatusname(),
         None if close_order is None else dict(close_order.info),
@@ -1603,6 +1862,7 @@ def test_actual_cerebro_open_cancel_terminal_and_risk_close_chain():
     assert close_order.info["factor_intent_id"]
     assert len(api.native_calls) == 3
     assert api.native_calls[2] == ("insert", _INSTRUMENT, exchange, "502", 103)
+    assert coordinator.run_loss_guard(loss_guard_context).tripped
 
     # Reconcile a complete query first, then deliver the same close through
     # the normal queued Store/Broker callback path with no TradeDate. The

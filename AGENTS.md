@@ -598,6 +598,14 @@ current source client and typed generation, matching TD/MD day, and stable
 pre/post observations. Zero-login readonly acceptance and unbound sources remain
 explicitly unqualified. Six final real-SDK/synthetic-leaf tests passed; actual
 MD identity, strategy trading authorization and account acceptance are separate.
+Coordinator run-loss APIs explicitly bind the durable guard context to qualified
+account PnL. New OPEN decisions, intent preparation and dispatch claims recheck
+the guard; exact durable replay cannot dispatch, and the independent CANCEL/CLOSE
+path remains available. Root accepted 14 earlier Coordinator cases and 10 final
+focused cases (not one 24-case run). The latter fixes named PandasData position
+refresh by accepting only nonblank string native aliases, retaining exchange
+conflict checks. This is synthetic integration only; 028 strategy wiring, real
+account PnL and process-restart acceptance remain outstanding.
 The all-visible CTP snapshot collector attaches at most two typed, bounded
 query-stage observations to refusal errors. The 028 runner emits only a
 validated fixed schema; raw query rows, request IDs and provider messages are

@@ -5,6 +5,7 @@ from decimal import Decimal
 from types import SimpleNamespace
 
 import backtrader as bt
+import pandas as pd
 import pytest
 
 from backtrader.brokers.btapibroker import BtApiBroker
@@ -285,6 +286,90 @@ def test_periodic_refresh_keeps_current_contract_position_bound_to_named_feed():
 
     after_refresh = broker.execution_position_snapshot(data)
     assert after_refresh.quantity == Decimal("1")
+
+
+def test_named_pandas_feed_payload_is_not_a_native_position_alias_for_close():
+    frame = pd.DataFrame(
+        {
+            "open": [100.0],
+            "high": [101.0],
+            "low": [99.0],
+            "close": [100.0],
+            "volume": [1.0],
+        },
+        index=pd.date_range("2026-10-27", periods=1, freq="1min"),
+    )
+    data = bt.feeds.PandasData(dataname=frame, name="DCE.M")
+    # Store registration can expose the instrument through _dataname while
+    # PandasData retains its DataFrame in the public params object.
+    data._dataname = "M2612"
+    assert data.p.dataname is frame
+    metadata = {
+        "DCE.M": {
+            "instrument_id": "M2612",
+            "exchange_id": "DCE",
+            "exchange_type": "CTP",
+        }
+    }
+    store = SimpleNamespace(
+        is_connected=True,
+        _service_read_only=False,
+        _data_feeds=[data],
+        _subscribed_datanames={"M2612"},
+        contract_metadata=metadata,
+        get_positions=lambda **kwargs: [
+            {
+                "symbol": "M2612",
+                "instrument_id": "M2612",
+                "exchange_id": "DCE",
+                "direction": "long",
+                "volume": 1,
+                "price": 100,
+            }
+        ],
+    )
+    broker = BtApiBroker(
+        store=store,
+        position_mode="net",
+        position_sync_policy="periodic",
+        force_refresh_queries=False,
+        validation_enabled=False,
+        contract_metadata=metadata,
+    )
+    broker._live_started = True
+
+    aliases = broker._tracked_position_alias_map()
+    assert "DCE.M" in aliases["aliases"]["DCE.M"]
+    assert "M2612" in aliases["aliases"]
+    assert str(frame).strip() not in aliases["aliases"]
+
+    close_order = SimpleNamespace(
+        data=data,
+        size=1,
+        info={"offset": "close"},
+        isbuy=lambda: False,
+    )
+    assert broker._ensure_required_net_offset(close_order) is None
+    assert broker.getposition(data, clone=False).size == 1
+
+
+def test_qualified_native_string_still_marks_cross_exchange_route_conflict():
+    data = SimpleNamespace(
+        _name="DCE.M",
+        _dataname="SHFE.M2612",
+        p=SimpleNamespace(dataname="SHFE.M2612"),
+    )
+    broker = make_position_sync_broker(
+        [data],
+        [],
+        contract_metadata={
+            "DCE.M": {"instrument_id": "M2612", "exchange_id": "DCE"}
+        },
+    )
+
+    aliases = broker._tracked_position_alias_map()
+
+    assert "DCE.M" in aliases["conflicted_routes"]
 
 
 def test_periodic_refresh_routes_same_instrument_by_exchange_without_merging():
