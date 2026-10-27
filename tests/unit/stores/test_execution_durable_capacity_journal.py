@@ -46,6 +46,21 @@ def _usage(journal: ExecutionDecisionJournal):
             cursor.close()
 
 
+def _restore_v11_journal_schema(connection: sqlite3.Connection) -> None:
+    """Remove schema added after v11 before modeling a historical database."""
+
+    for table in (
+        "execution_fee_pair_scope_events",
+        "execution_fee_pair_required_scopes",
+        "execution_source_highwaters",
+        "execution_run_loss_guards",
+        "execution_durable_capacity_usage",
+        "execution_durable_capacity_limits",
+    ):
+        connection.execute("DROP TABLE IF EXISTS " + table)
+    connection.execute("PRAGMA user_version=11")
+
+
 def _key(
     logical_run_id: str,
     *,
@@ -469,9 +484,7 @@ def test_v12_migration_rejects_ambiguous_grid_history_classification(tmp_path):
         journal.close()
 
     with sqlite3.connect(path) as connection:
-        connection.execute("DROP TABLE execution_durable_capacity_usage")
-        connection.execute("DROP TABLE execution_durable_capacity_limits")
-        connection.execute("PRAGMA user_version=11")
+        _restore_v11_journal_schema(connection)
 
     with pytest.raises(ExecutionDecisionJournalError) as error:
         ExecutionDecisionJournal(path)
@@ -495,9 +508,7 @@ def test_v12_migration_assigns_ambiguous_dispatching_owner_to_settlement(tmp_pat
     journal.close()
 
     with sqlite3.connect(path) as connection:
-        connection.execute("DROP TABLE execution_durable_capacity_usage")
-        connection.execute("DROP TABLE execution_durable_capacity_limits")
-        connection.execute("PRAGMA user_version=11")
+        _restore_v11_journal_schema(connection)
 
     migrated = ExecutionDecisionJournal(
         path,
@@ -558,9 +569,7 @@ def test_v12_migration_assigns_mixed_run_budget_snapshot_to_base(tmp_path):
         journal.close()
 
     with sqlite3.connect(path) as connection:
-        connection.execute("DROP TABLE execution_durable_capacity_usage")
-        connection.execute("DROP TABLE execution_durable_capacity_limits")
-        connection.execute("PRAGMA user_version=11")
+        _restore_v11_journal_schema(connection)
 
     migrated = ExecutionDecisionJournal(path)
     try:
@@ -647,9 +656,7 @@ def test_v12_migration_classifies_prepared_rows_by_intent_operation(tmp_path):
         journal.close()
 
     with sqlite3.connect(path) as connection:
-        connection.execute("DROP TABLE execution_durable_capacity_usage")
-        connection.execute("DROP TABLE execution_durable_capacity_limits")
-        connection.execute("PRAGMA user_version=11")
+        _restore_v11_journal_schema(connection)
 
     migrated = ExecutionDecisionJournal(
         path,

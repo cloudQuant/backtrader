@@ -37,6 +37,62 @@ _REQUIRED_TABLES = frozenset(
         "execution_instrument_owners",
     }
 )
+_REQUIRED_TABLES_BY_MINIMUM_SCHEMA_VERSION = {
+    12: frozenset(
+        {
+            "execution_durable_capacity_limits",
+            "execution_durable_capacity_usage",
+        }
+    ),
+    13: frozenset({"execution_run_loss_guards"}),
+    14: frozenset({"execution_source_highwaters"}),
+    15: frozenset(
+        {
+            "execution_fee_pair_required_scopes",
+            "execution_fee_pair_scope_events",
+        }
+    )
+}
+
+
+def _required_tables_for_schema_version(schema_version: int) -> frozenset[str]:
+    required = set(_REQUIRED_TABLES)
+    for minimum_version, tables in _REQUIRED_TABLES_BY_MINIMUM_SCHEMA_VERSION.items():
+        if schema_version >= minimum_version:
+            required.update(tables)
+    return frozenset(required)
+
+
+def _validate_required_schema_objects(
+    connection: sqlite3.Connection,
+    schema_version: int,
+    *,
+    tables: Optional[Tuple[str, ...]] = None,
+) -> Tuple[str, ...]:
+    """Require version-cumulative tables and exact v15 append-only triggers."""
+
+    if tables is None:
+        _schema_sha256, tables = _schema_fingerprint(connection)
+    if not _required_tables_for_schema_version(schema_version).issubset(tables):
+        raise ExecutionJournalArchiveError("ARCHIVE_SCHEMA_INCOMPLETE")
+    if schema_version < 15:
+        return tables
+
+    # Import at verification time: the journal imports this archive module,
+    # while its validator and declarations are authoritative for the v15
+    # fee-pair schema. This also checks exact table DDL/columns and rejects
+    # unexpected triggers attached to either fee-pair table.
+    from . import execution_decision_journal as journal_module
+
+    cursor = connection.cursor()
+    cursor.row_factory = sqlite3.Row
+    try:
+        journal_module.ExecutionDecisionJournal._validate_fee_pair_scope_schema(cursor)
+    except journal_module.ExecutionDecisionJournalError as error:
+        raise ExecutionJournalArchiveError("ARCHIVE_SCHEMA_INCOMPLETE") from error
+    finally:
+        cursor.close()
+    return tables
 
 
 class ExecutionJournalArchiveError(RuntimeError):
@@ -290,8 +346,7 @@ def verify_execution_journal_archive(
             if next(connection.execute("PRAGMA foreign_key_check"), None) is not None:
                 raise ExecutionJournalArchiveError("ARCHIVE_FOREIGN_KEY_CHECK_FAILED")
             schema_sha256, tables = _schema_fingerprint(connection)
-            if not _REQUIRED_TABLES.issubset(tables):
-                raise ExecutionJournalArchiveError("ARCHIVE_SCHEMA_INCOMPLETE")
+            _validate_required_schema_objects(connection, version, tables=tables)
             row_counts = _table_row_counts(connection, tables, deadline)
         except ExecutionJournalArchiveError:
             raise

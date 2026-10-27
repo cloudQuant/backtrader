@@ -2644,6 +2644,46 @@ def test_reduction_is_submitted_alone_before_any_new_target_is_opened():
     assert plan.actions[0].owner_intent_id == "intent-open-A"
 
 
+def test_active_reduction_precedes_missing_selected_pair_fee_qualification():
+    base = _three_target_fee_planning_input(
+        fee_status_by_target={
+            "A": "RATE_UNAVAILABLE",
+            "B": "QUERY_UNAVAILABLE",
+            "C": "RATE_UNAVAILABLE",
+        }
+    )
+    evaluated_at = base.evaluated_at
+    held_a = _STRATEGY.Alpha003PositionFact(
+        target_id="A",
+        instrument="SHFE.rb",
+        exchange="SHFE",
+        quantity=1,
+        snapshot_id="positions-1",
+        available_at=evaluated_at,
+        owner_strategy_scope=base.strategy_scope,
+        owner_intent_id="intent-open-A",
+        average_price=Decimal("100"),
+        stop_price=Decimal("95"),
+        held_eligible_bars=12,
+    )
+    positions = (held_a,) + tuple(
+        replace(position, available_at=evaluated_at)
+        for position in base.positions
+        if position.target_id != "A"
+    )
+
+    plan = _STRATEGY.plan_alpha003_orders(
+        _genericize_target_exchange(replace(base, positions=positions))
+    )
+
+    assert plan.status == "READY"
+    assert plan.reason == "REDUCTIONS_BEFORE_INCREASES"
+    assert len(plan.actions) == 1
+    assert plan.actions[0].target_id == "A"
+    assert plan.actions[0].position_effect == "CLOSE"
+    assert all(action.position_effect != "OPEN" for action in plan.actions)
+
+
 def test_unquoted_existing_position_freezes_a_new_target_increase():
     evaluated_at = AVAILABLE + timedelta(seconds=6)
     position = _STRATEGY.Alpha003PositionFact(
@@ -4749,6 +4789,7 @@ def test_live_loss_guard_refresh_binding_and_clock_failures_are_fatal():
     (
         ("late_enable", "RUN_LOSS_GUARD_LATE_ENABLE_AFTER_OPEN"),
         ("scan_limit", "RUN_LOSS_GUARD_ENABLE_SCAN_LIMIT"),
+        ("fee_pair_scope", "FEE_PAIR_SCOPE_FAIL_CLOSED"),
     ),
 )
 def test_cerebro_strategy_blocks_open_then_replays_owned_close_once(
@@ -4899,6 +4940,7 @@ def test_cerebro_strategy_blocks_open_then_replays_owned_close_once(
     )
     cohort.seal()
     dispatched = []
+    ready_events = []
     outcome = {}
 
     def exercise(strategy):
@@ -5031,6 +5073,11 @@ def test_cerebro_strategy_blocks_open_then_replays_owned_close_once(
         assert coordinator.journal.decision_for_key(missing_context_key) is None
         assert dispatched == []
 
+        if guard_failure == "fee_pair_scope":
+            coordinator.journal.register_fee_pair_required_scope(
+                strategy._account_scope, strategy._strategy_scope
+            )
+
         strategy._run_live(
             batch,
             snapshot,
@@ -5042,7 +5089,18 @@ def test_cerebro_strategy_blocks_open_then_replays_owned_close_once(
         )
         assert strategy.last_execution_block_reason == expected_blocker
         assert strategy.last_order_plan.actions == close_plan.actions
-        assert journal.run_loss_guard("acct-scope", "alpha003", "run-1") is None
+        if guard_failure == "fee_pair_scope":
+            assert journal.fee_pair_required_scope("acct-scope", "alpha003") is not None
+            assert journal.decision_for_key(missing_context_key) is None
+            assert journal.source_highwater(
+                "acct-scope", "alpha003", "run-1", strategy._source_kind
+            ) is None
+            assert journal.grid_cursor(
+                "acct-scope", "alpha003", batch.cohort_id
+            ) is None
+            assert ready_events == []
+        else:
+            assert journal.run_loss_guard("acct-scope", "alpha003", "run-1") is None
         assert len(dispatched) == 1
         assert tuple(action.position_effect for action in dispatched[0][0]) == ("CLOSE",)
 
@@ -5053,6 +5111,188 @@ def test_cerebro_strategy_blocks_open_then_replays_owned_close_once(
         )
         assert len(dispatched) == 1
         assert tuple(action.position_effect for action in dispatched[0][0]) == ("CLOSE",)
+
+        if guard_failure == "fee_pair_scope":
+            # Exercise the real Strategy risk decision and Coordinator against
+            # a source-backed, KNOWN working OPEN. Registration leaves its
+            # owner in place so the CANCEL path can persist and dispatch it.
+            active_module = _load_store_facts_test_module()
+            from backtrader.order import BuyOrder, Order
+
+            active_now = datetime.now(UTC)
+            remote_order = {
+                "OrderRef": "94",
+                "OrderSysID": "sys-active-94",
+                "InstrumentID": active_module._INSTRUMENT,
+                "ExchangeID": active_module._EXCHANGE,
+                "OrderStatus": "3",
+                "Direction": "0",
+                "CombOffsetFlag": "0",
+                "VolumeTotal": "1",
+                "FrontID": 4,
+                "SessionID": 7,
+                "TradingDay": active_module._TRADING_DAY,
+            }
+            (
+                active_api,
+                active_store,
+                active_broker,
+                active_journal,
+                active_coordinator,
+                active_target,
+            ) = active_module._system_under_test(
+                now=active_now,
+                rows=active_module._query_rows(orders=(remote_order,)),
+                allow_writes=True,
+            )
+            active_order = BuyOrder(
+                owner=None,
+                data=active_target.data,
+                size=1,
+                price=100,
+                exectype=Order.Limit,
+                simulated=True,
+            )
+            active_order.status = Order.Accepted
+            decision_key = journal_module.ExecutionDecisionKey(
+                account_scope=active_coordinator.account_scope,
+                strategy_scope=active_coordinator.strategy_scope,
+                logical_run_id=active_coordinator.logical_run_id,
+                cohort_id="fee-pair-cancel-fixture",
+                close_time=(active_now - timedelta(seconds=2)).isoformat().replace("+00:00", "Z"),
+                decision_kind="alpha003-rebalance",
+            )
+            open_key = journal_module.ExecutionIntentKey(
+                action="SUBMIT",
+                instrument=active_target.instrument,
+                side="BUY",
+                position_effect="OPEN",
+                leg=0,
+            )
+            decision = active_journal.record_decision(
+                decision_key,
+                {"batch_id": "fee-pair-cancel-fixture", "mode": "native"},
+                intent_keys=(open_key,),
+            )
+            active_intent = active_journal.prepare_intent(
+                decision.decision_id,
+                open_key,
+                {"exchange": active_target.exchange, "quantity": "1", "price": "100"},
+                original_identity={
+                    "backtrader_order_ref": active_order.ref,
+                    "operation": "insert",
+                    "instrument_id": active_target.instrument,
+                    "exchange_id": active_target.exchange,
+                    "order_ref": "94",
+                    "order_sys_id": "sys-active-94",
+                    "trading_day": active_module._TRADING_DAY,
+                },
+            )
+            assert active_journal.claim_dispatch(active_intent.intent_id) is not None
+            active_journal.record_dispatch_result(
+                active_intent.intent_id,
+                state="KNOWN",
+                provider_identity={"order_ref": "94", "order_sys_id": "sys-active-94"},
+                outcome_code="accepted",
+            )
+            active_order.info.update(
+                {
+                    "external_order_ref": "94",
+                    "order_sys_id": "sys-active-94",
+                    "registered_sim_ctp_order_sys_id": "sys-active-94",
+                    "registered_sim_ctp_order_sys_id_source": "ctp_order_callback",
+                    "_registered_sim_ctp_identity_binding_captured": True,
+                    "_registered_sim_ctp_identity_binding_valid": True,
+                    "instrument_id": active_target.instrument,
+                    "exchange_id": active_target.exchange,
+                    "factor_position_effect": "OPEN",
+                    "factor_strategy_scope": active_coordinator.strategy_scope,
+                    "factor_intent_id": active_intent.intent_id,
+                    "front_id": 4,
+                    "session_id": 7,
+                    "execution_unknown": False,
+                    "cancel_requested_remote": False,
+                    "cancel_intent_active": False,
+                    "managed_execution_cancel_pending": False,
+                }
+            )
+            active_broker.orders[active_order.ref] = active_order
+            active_receipt = active_module._refresh_all(active_store, active_target)
+            active_module._arm(active_store)
+            assert active_module._consume_quote(active_store) is not None
+            active_facts = active_module._project(
+                active_store,
+                active_broker,
+                active_target,
+                datetime.now(UTC),
+                query_set=active_receipt.query_set,
+            )
+            assert active_facts.order_cancel_ready is True, active_facts.order_cancel_blockers
+
+            original_broker, original_coordinator = strategy.broker, strategy._coordinator
+            original_orders_by_ref = strategy._orders_by_broker_ref
+            try:
+                active_journal.register_fee_pair_required_scope(
+                    active_coordinator.account_scope,
+                    active_coordinator.strategy_scope,
+                )
+                owner = active_journal.active_instrument_owner(
+                    active_coordinator.account_scope,
+                    active_target.instrument,
+                )
+                assert owner is not None and owner.intent_id == active_intent.intent_id
+                cancel_action = _STRATEGY.Alpha003OrderAction(
+                    action="CANCEL",
+                    target_id=active_target.target_id,
+                    instrument=active_target.instrument,
+                    side="BUY",
+                    position_effect="OPEN",
+                    quantity=1,
+                    limit_price=None,
+                    offset="open",
+                    reason="RUN_END_CANCEL_PENDING_OPEN",
+                    order_ref="94",
+                    owner_intent_id=active_intent.intent_id,
+                    exchange=active_target.exchange,
+                    decision_available_at=active_facts.available_at,
+                    broker_order_ref=active_order.ref,
+                )
+                cancel_plan = _STRATEGY.Alpha003OrderPlan(
+                    "READY",
+                    "CANCEL_OPEN_ORDERS_BEFORE_EXIT",
+                    (cancel_action,),
+                    None,
+                    active_facts.available_at,
+                    active_facts.snapshot_id,
+                )
+                strategy.broker = active_broker
+                strategy._coordinator = active_coordinator
+                strategy._orders_by_broker_ref = {}
+                _STRATEGY.Alpha003TargetStrategy._live_risk_decision(
+                    strategy, None, active_facts, cancel_plan
+                )
+                assert len(dispatched) == 2
+                assert dispatched[-1][0] == (cancel_action,)
+                risk_key = journal_module.ExecutionDecisionKey(
+                    account_scope=active_coordinator.account_scope,
+                    strategy_scope=active_coordinator.strategy_scope,
+                    logical_run_id=active_coordinator.logical_run_id,
+                    cohort_id=cohort.cohort_id,
+                    close_time=_STRATEGY._time_key(active_facts.available_at),
+                    decision_kind="ALPHA003_RISK_REDUCTION",
+                )
+                cancel_decision = active_journal.decision_for_key(risk_key)
+                assert cancel_decision is not None
+                assert tuple(item.action for item in cancel_decision.intent_keys) == ("CANCEL",)
+                assert active_journal.active_instrument_owner(
+                    active_coordinator.account_scope,
+                    active_target.instrument,
+                ).intent_id == active_intent.intent_id
+            finally:
+                strategy.broker = original_broker
+                strategy._coordinator = original_coordinator
+                strategy._orders_by_broker_ref = original_orders_by_ref
+                active_journal.close()
         outcome.update(
             blocker=strategy.last_execution_block_reason,
             dispatches=tuple(dispatched),
@@ -5133,12 +5373,13 @@ def test_cerebro_strategy_blocks_open_then_replays_owned_close_once(
         max_future_skew_seconds=0,
         control_refresh_loop=refresh_loop,
         guard_test_callback=exercise,
+        live_ready_callback=lambda event: ready_events.append(event),
     )
     try:
         cerebro.run(runonce=False, preload=False)
         assert refresh_loop.joined is True
         assert outcome["blocker"] == expected_blocker
-        assert len(outcome["dispatches"]) == 1
+        assert len(outcome["dispatches"]) == (2 if guard_failure == "fee_pair_scope" else 1)
     finally:
         journal.close()
 

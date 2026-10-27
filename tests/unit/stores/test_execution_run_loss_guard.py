@@ -586,13 +586,15 @@ def test_schema_v12_upgrade_preserves_usage_and_loss_row_is_settlement(tmp_path)
     journal.close()
 
     with sqlite3.connect(path) as connection:
+        connection.execute("DROP TABLE execution_fee_pair_scope_events")
+        connection.execute("DROP TABLE execution_fee_pair_required_scopes")
         connection.execute("DROP TABLE execution_run_loss_guards")
         connection.execute("DROP TABLE execution_source_highwaters")
         connection.execute("PRAGMA user_version=12")
 
     migrated = ExecutionDecisionJournal(path)
     try:
-        assert migrated._connection.execute("PRAGMA user_version").fetchone()[0] == 14
+        assert migrated._connection.execute("PRAGMA user_version").fetchone()[0] == 15
         assert _usage(migrated) == before
         assert migrated.record_decision(base_key, {"legacy": "base"}).key == base_key
         assert migrated.record_decision(

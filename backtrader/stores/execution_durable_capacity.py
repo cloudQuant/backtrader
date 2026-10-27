@@ -33,6 +33,8 @@ _DURABLE_ROW_KEYS = {
     "execution_run_loss_guards": ("account_scope", "strategy_scope", "logical_run_id"),
     "execution_grid_cursors": ("account_scope", "strategy_scope", "cohort_id"),
     "execution_grid_highwaters": ("account_scope", "strategy_scope"),
+    "execution_fee_pair_required_scopes": ("account_scope", "strategy_scope"),
+    "execution_fee_pair_scope_events": ("event_id",),
     "execution_source_highwaters": (
         "account_scope",
         "strategy_scope",

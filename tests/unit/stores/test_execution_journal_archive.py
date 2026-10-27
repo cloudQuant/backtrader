@@ -133,6 +133,9 @@ def test_archive_snapshot_verifies_terminal_chain_and_preserves_unknown(tmp_path
             state="UNKNOWN",
             outcome_code="synthetic-response-lost-after-send",
         )
+        registration = journal.register_fee_pair_required_scope(
+            "archive-only-account", "archive-only-strategy"
+        )
         before = journal.decision_capacity_snapshot()
 
         receipt = journal.archive_snapshot(archive_path)
@@ -142,11 +145,13 @@ def test_archive_snapshot_verifies_terminal_chain_and_preserves_unknown(tmp_path
             expected_sha256=receipt.sha256,
         )
         assert independently_verified == receipt
-        assert receipt.schema_version == 14
+        assert receipt.schema_version == 15
         assert receipt.size_bytes == archive_path.stat().st_size
         assert receipt.table_row_counts["execution_decisions"] == 2
         assert receipt.table_row_counts["execution_decision_intents"] == 2
         assert receipt.table_row_counts["execution_intent_resolutions"] == 1
+        assert receipt.table_row_counts["execution_fee_pair_required_scopes"] == 1
+        assert receipt.table_row_counts["execution_fee_pair_scope_events"] == 1
 
         with closing(_readonly_connection(archive_path)) as archived:
             terminal_row = archived.execute(
@@ -187,6 +192,28 @@ def test_archive_snapshot_verifies_terminal_chain_and_preserves_unknown(tmp_path
                 "202",
                 unknown_intent.intent_id,
             )
+            archived_registration = archived.execute(
+                """SELECT account_scope,strategy_scope,policy_id,state,registered_at_ns
+                   FROM execution_fee_pair_required_scopes"""
+            ).fetchone()
+            assert archived_registration == (
+                registration.account_scope,
+                registration.strategy_scope,
+                registration.policy_id,
+                registration.state,
+                registration.registered_at_ns,
+            )
+            archived_event = archived.execute(
+                """SELECT event_id,event_kind,event_payload_json,created_at_ns
+                   FROM execution_fee_pair_scope_events"""
+            ).fetchone()
+            assert len(archived_event[0]) == 64
+            assert all(character in "0123456789abcdef" for character in archived_event[0])
+            assert archived_event[1:] == (
+                "REQUIRE_PAIR_REGISTERED",
+                '{"policy_id":"REQUIRE_PAIR_FEE_V1","state":"REQUIRE_PAIR_FAIL_CLOSED"}',
+                registration.registered_at_ns,
+            )
             with pytest.raises(sqlite3.OperationalError):
                 archived.execute("DELETE FROM execution_decision_intents")
 
@@ -208,6 +235,110 @@ def test_archive_snapshot_verifies_terminal_chain_and_preserves_unknown(tmp_path
             )
     finally:
         journal.close()
+
+
+def test_archive_verifier_keeps_v14_snapshots_compatible(tmp_path):
+    source_path = tmp_path / "v15-source.sqlite3"
+    archive_path = tmp_path / "v14-snapshot.sqlite3"
+    journal = ExecutionDecisionJournal(source_path)
+    try:
+        journal.record_decision(
+            _decision_key("archive-v14", close_time="2026-10-24T10:00:00Z"),
+            {"signal": "synthetic-flat"},
+        )
+        journal.archive_snapshot(archive_path)
+    finally:
+        journal.close()
+
+    # Older immutable snapshots predate the v15 pair-scope tables and remain
+    # verifiable after the active archive contract advances to v15.
+    with sqlite3.connect(archive_path) as archived:
+        archived.execute("DROP TABLE execution_fee_pair_scope_events")
+        archived.execute("DROP TABLE execution_fee_pair_required_scopes")
+        archived.execute("PRAGMA user_version=14")
+
+    verified = archive_module.verify_execution_journal_archive(
+        archive_path, expected_schema_version=14
+    )
+    assert verified.schema_version == 14
+    assert verified.table_row_counts["execution_decisions"] == 1
+
+
+@pytest.mark.parametrize(
+    "statement",
+    (
+        "DROP TABLE execution_source_highwaters",
+        "DROP TRIGGER execution_fee_pair_scope_no_update",
+        "DROP TRIGGER execution_fee_pair_scope_no_delete",
+        "DROP TRIGGER execution_fee_pair_scope_event_no_update",
+        "DROP TRIGGER execution_fee_pair_scope_event_no_delete",
+        "DROP TRIGGER execution_fee_pair_scope_no_update; "
+        "CREATE TRIGGER execution_fee_pair_scope_no_update "
+        "BEFORE UPDATE ON execution_fee_pair_required_scopes "
+        "BEGIN SELECT 1; END",
+        "ALTER TABLE execution_fee_pair_required_scopes DROP COLUMN registered_at_ns",
+        "CREATE TRIGGER execution_fee_pair_scope_unexpected_guard "
+        "BEFORE INSERT ON execution_fee_pair_required_scopes "
+        "BEGIN SELECT 1; END",
+        "PRAGMA writable_schema=ON; "
+        "UPDATE sqlite_master SET sql=replace(sql, "
+        "'CHECK(policy_id=''REQUIRE_PAIR_FEE_V1'')', "
+        "'CHECK(policy_id<>''REQUIRE_PAIR_FEE_V1'')') "
+        "WHERE type='table' AND name='execution_fee_pair_required_scopes'; "
+        "PRAGMA writable_schema=OFF;",
+    ),
+)
+def test_v15_archive_rejects_missing_or_changed_cumulative_schema_object(
+    tmp_path, statement
+):
+    source_path = tmp_path / "v15-source.sqlite3"
+    archive_path = tmp_path / "damaged-v15.sqlite3"
+    journal = ExecutionDecisionJournal(source_path)
+    try:
+        journal.record_decision(
+            _decision_key(
+                "archive-v15-required-object", close_time="2026-10-20T10:00:00Z"
+            ),
+            {"signal": "flat"},
+        )
+        journal.archive_snapshot(archive_path)
+    finally:
+        journal.close()
+
+    with sqlite3.connect(archive_path) as archived:
+        archived.executescript(statement)
+
+    with pytest.raises(
+        archive_module.ExecutionJournalArchiveError,
+        match="ARCHIVE_SCHEMA_INCOMPLETE",
+    ):
+        archive_module.verify_execution_journal_archive(
+            archive_path, expected_schema_version=15
+        )
+
+
+def test_v14_archive_still_requires_v14_source_highwater(tmp_path):
+    source_path = tmp_path / "v15-source-for-v14.sqlite3"
+    archive_path = tmp_path / "incomplete-v14.sqlite3"
+    journal = ExecutionDecisionJournal(source_path)
+    try:
+        journal.archive_snapshot(archive_path)
+    finally:
+        journal.close()
+
+    with sqlite3.connect(archive_path) as archived:
+        archived.execute("DROP TABLE execution_fee_pair_scope_events")
+        archived.execute("DROP TABLE execution_fee_pair_required_scopes")
+        archived.execute("DROP TABLE execution_source_highwaters")
+        archived.execute("PRAGMA user_version=14")
+
+    with pytest.raises(
+        archive_module.ExecutionJournalArchiveError,
+        match="ARCHIVE_SCHEMA_INCOMPLETE",
+    ):
+        archive_module.verify_execution_journal_archive(
+            archive_path, expected_schema_version=14
+        )
 
 
 def test_archive_snapshot_is_exclusive_and_hash_verification_detects_change(tmp_path):

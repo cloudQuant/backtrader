@@ -4638,6 +4638,7 @@ class Alpha003TargetStrategy(bt.Strategy):
         loss_guard_context: Any = None,
         loss_guard_blocker: Optional[str] = None,
     ) -> bool:
+        self._last_grid_fee_pair_blocked = False
         if (
             batch is None
             or snapshot is None
@@ -4715,6 +4716,18 @@ class Alpha003TargetStrategy(bt.Strategy):
         from backtrader.stores.factor_execution import FactorExecutionError
 
         try:
+            if (
+                self.p.execution_enabled
+                and self._coordinator.journal.fee_pair_required_scope(
+                    self._account_scope, self._strategy_scope
+                )
+                is not None
+            ):
+                # A registered scope cannot advance any ordinary grid, even
+                # when an earlier guard would otherwise stop before the write.
+                # The read verifies the immutable fence; the journal's write
+                # transaction remains the authority for concurrent registration.
+                raise ExecutionDecisionJournalError("FEE_PAIR_SCOPE_FAIL_CLOSED")
             if self.p.execution_enabled and grid_actions and loss_guard_context is None:
                 # A prior row must get its canonical payload/economics check
                 # before any mutable guard state can affect exact replay.
@@ -4758,6 +4771,25 @@ class Alpha003TargetStrategy(bt.Strategy):
                     return True
         except (FactorExecutionError, ExecutionDecisionJournalError) as error:
             code = getattr(error, "code", None)
+            if code == "FEE_PAIR_SCOPE_FAIL_CLOSED":
+                # The registered scope has no source/grid settlement yet.
+                # Suppress every new OPEN, but keep independently planned
+                # risk reductions for the later ALPHA003_RISK_REDUCTION path.
+                self.last_execution_block_reason = code
+                reductions = tuple(
+                    action
+                    for action in plan.actions
+                    if action.action == "CANCEL"
+                    or (action.action == "SUBMIT" and action.position_effect == "CLOSE")
+                )
+                self.last_order_plan = replace(
+                    plan,
+                    status="READY" if reductions else "BLOCKED",
+                    reason=code,
+                    actions=reductions,
+                )
+                self._last_grid_fee_pair_blocked = True
+                return False
             if type(code) is not str or code not in _RUN_LOSS_OPEN_REJECTION_CODES:
                 raise
             self.last_execution_block_reason = code
@@ -5097,6 +5129,7 @@ class Alpha003TargetStrategy(bt.Strategy):
         is_new_batch: bool,
         session_reason: Optional[str] = None,
     ) -> None:
+        self._last_grid_fee_pair_blocked = False
         facts = self._live_facts(now)
         loss_guard_context = None
         loss_guard_blocker = None
@@ -5186,10 +5219,6 @@ class Alpha003TargetStrategy(bt.Strategy):
                 )
                 grid_recorded = False
                 if live_good_batch:
-                    ready_callback = getattr(self.p, "live_ready_callback", None)
-                    capture_ready = getattr(self, "_capture_live_ready_boundary", None)
-                    if callable(ready_callback) and callable(capture_ready):
-                        capture_ready(batch, snapshot)
                     grid_recorded = self._live_grid_decision(
                         batch,
                         snapshot,
@@ -5203,8 +5232,15 @@ class Alpha003TargetStrategy(bt.Strategy):
                         loss_guard_context=loss_guard_context,
                         loss_guard_blocker=loss_guard_blocker,
                     )
+                    ready_callback = getattr(self.p, "live_ready_callback", None)
+                    capture_ready = getattr(self, "_capture_live_ready_boundary", None)
+                    if grid_recorded and callable(ready_callback) and callable(capture_ready):
+                        # A readiness receipt is an execution boundary: don't
+                        # publish it until the source/grid anchor is durable.
+                        capture_ready(batch, snapshot)
                 if not grid_recorded:
-                    self._record_source_only(batch, snapshot, tape_reference)
+                    if not getattr(self, "_last_grid_fee_pair_blocked", False):
+                        self._record_source_only(batch, snapshot, tape_reference)
         elif is_new_batch and batch is not None and snapshot is not None:
             # No tape row means there is no source identity to anchor and no
             # grid decision may advance. Fresh risk reductions still run below.
@@ -5607,15 +5643,6 @@ class Alpha003TargetStrategy(bt.Strategy):
         except (TypeError, ValueError, RuntimeError):
             self.last_execution_block_reason = "MARKET_DECISION_TIME_UNAVAILABLE"
             return
-        if not self.p.replay_mode:
-            ready_callback = getattr(self.p, "live_ready_callback", None)
-            capture_ready = getattr(self, "_capture_live_ready_boundary", None)
-            if callable(ready_callback) and callable(capture_ready):
-                capture_ready(batch, snapshot)
-            next_callback = getattr(self.p, "live_next_callback", None)
-            capture_next = getattr(self, "_capture_live_next_boundary", None)
-            if callable(next_callback) and callable(capture_next):
-                capture_next(batch, snapshot)
         is_new = batch is not None and _read(batch, "batch_id") != self._last_batch_id
         ordinal = None
         if batch is not None:
@@ -5656,6 +5683,13 @@ class Alpha003TargetStrategy(bt.Strategy):
                 is_new_batch=is_new,
                 session_reason=session_reason if batch is not None else None,
             )
+            # _run_live publishes readiness only after a durable GRID/source
+            # anchor. A fee-pair fence deliberately leaves that anchor absent,
+            # so neither readiness nor its dependent next receipt may escape.
+            next_callback = getattr(self.p, "live_next_callback", None)
+            capture_next = getattr(self, "_capture_live_next_boundary", None)
+            if callable(next_callback) and callable(capture_next):
+                capture_next(batch, snapshot)
 
     def _stop_control_refresh_loop(self) -> None:
         """Join runner-owned Store refresh work before Cerebro tears down I/O."""

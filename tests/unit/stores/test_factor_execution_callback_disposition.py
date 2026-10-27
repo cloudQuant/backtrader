@@ -171,6 +171,10 @@ def test_v10_migration_keeps_legacy_callbacks_pending_and_origin_unknown(tmp_pat
         connection.execute("ALTER TABLE execution_decision_callbacks DROP COLUMN delivery_pending")
         connection.execute("DROP TABLE IF EXISTS execution_durable_capacity_usage")
         connection.execute("DROP TABLE IF EXISTS execution_durable_capacity_limits")
+        connection.execute("DROP TABLE IF EXISTS execution_fee_pair_scope_events")
+        connection.execute("DROP TABLE IF EXISTS execution_fee_pair_required_scopes")
+        connection.execute("DROP TABLE IF EXISTS execution_source_highwaters")
+        connection.execute("DROP TABLE IF EXISTS execution_run_loss_guards")
         connection.execute("PRAGMA user_version=10")
         connection.commit()
     finally:
@@ -178,7 +182,7 @@ def test_v10_migration_keeps_legacy_callbacks_pending_and_origin_unknown(tmp_pat
 
     migrated = ExecutionDecisionJournal(path)
     try:
-        assert migrated._connection.execute("PRAGMA user_version").fetchone()[0] == 12
+        assert migrated._connection.execute("PRAGMA user_version").fetchone()[0] == 15
         pending = migrated.pending_callbacks(limit=16)
         assert {item.receipt_id for item in pending} == {native.receipt_id, query.receipt_id}
         with migrated._transaction() as cursor, pytest.raises(

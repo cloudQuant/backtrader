@@ -26,6 +26,11 @@ from backtrader.stores.factor_position_book import apply_factor_execution_fill
 def _drop_v12_durable_capacity_tables(connection: sqlite3.Connection) -> None:
     """Restore a pre-v12 schema before exercising an older migration path."""
 
+    # Test databases are made by downgrading a current journal; remove the
+    # later v15 additions too so the fixture represents the requested old
+    # schema instead of a corrupt user_version/table combination.
+    connection.execute("DROP TABLE IF EXISTS execution_fee_pair_scope_events")
+    connection.execute("DROP TABLE IF EXISTS execution_fee_pair_required_scopes")
     connection.execute("DROP TABLE IF EXISTS execution_durable_capacity_usage")
     connection.execute("DROP TABLE IF EXISTS execution_durable_capacity_limits")
     connection.execute("DROP TABLE IF EXISTS execution_run_loss_guards")
@@ -216,6 +221,248 @@ def test_noop_and_canonical_economics_are_durable_and_immutable(tmp_path):
     assert restored.economic_payload["quantity"] == "1"
     reopened.close()
 
+
+def test_fee_pair_scope_registration_is_immutable_idempotent_and_durable(tmp_path):
+    journal = ExecutionDecisionJournal(tmp_path / "fee-pair-registration.sqlite3")
+    try:
+        registration = journal.register_fee_pair_required_scope("account-a", "strategy-a")
+        assert registration.state == "REQUIRE_PAIR_FAIL_CLOSED"
+        assert journal.register_fee_pair_required_scope("account-a", "strategy-a") == registration
+        assert journal.fee_pair_required_scope("account-a", "strategy-a") == registration
+        assert journal._connection.execute(
+            "SELECT COUNT(*) FROM execution_fee_pair_required_scopes"
+        ).fetchone()[0] == 1
+        assert journal._connection.execute(
+            "SELECT COUNT(*) FROM execution_fee_pair_scope_events"
+        ).fetchone()[0] == 1
+
+        with pytest.raises(sqlite3.IntegrityError, match="FEE_PAIR_SCOPE_IMMUTABLE"):
+            journal._connection.execute(
+                "UPDATE execution_fee_pair_required_scopes SET state='OPEN'"
+            )
+        with pytest.raises(sqlite3.IntegrityError, match="FEE_PAIR_SCOPE_IMMUTABLE"):
+            journal._connection.execute("DELETE FROM execution_fee_pair_required_scopes")
+        with pytest.raises(sqlite3.IntegrityError, match="FEE_PAIR_SCOPE_EVENT_APPEND_ONLY"):
+            journal._connection.execute(
+                "UPDATE execution_fee_pair_scope_events SET event_payload_json='{}'"
+            )
+        with pytest.raises(sqlite3.IntegrityError, match="FEE_PAIR_SCOPE_EVENT_APPEND_ONLY"):
+            journal._connection.execute("DELETE FROM execution_fee_pair_scope_events")
+
+        usage = tuple(
+            tuple(row)
+            for row in journal._connection.execute(
+                "SELECT capacity_class,record_count,payload_bytes "
+                "FROM execution_durable_capacity_usage ORDER BY capacity_class"
+            )
+        )
+        assert usage[1][0] == "SETTLEMENT"
+        assert usage[1][1] == 2
+        assert usage[1][2] > 0
+    finally:
+        journal.close()
+
+
+def test_fee_pair_scope_registration_capacity_failure_rolls_back_both_rows(tmp_path):
+    journal = ExecutionDecisionJournal(
+        tmp_path / "fee-pair-registration-capacity.sqlite3",
+        max_durable_settlement_records=1,
+        max_durable_settlement_bytes=4096,
+    )
+    try:
+        before_usage = tuple(
+            tuple(row)
+            for row in journal._connection.execute(
+                "SELECT capacity_class,record_count,payload_bytes "
+                "FROM execution_durable_capacity_usage ORDER BY capacity_class"
+            )
+        )
+        with pytest.raises(
+            ExecutionDecisionJournalError, match="DURABLE_SETTLEMENT_RECORDS_EXHAUSTED"
+        ):
+            journal.register_fee_pair_required_scope("account-a", "strategy-a")
+        assert journal._connection.execute(
+            "SELECT COUNT(*) FROM execution_fee_pair_required_scopes"
+        ).fetchone()[0] == 0
+        assert journal._connection.execute(
+            "SELECT COUNT(*) FROM execution_fee_pair_scope_events"
+        ).fetchone()[0] == 0
+        after_usage = tuple(
+            tuple(row)
+            for row in journal._connection.execute(
+                "SELECT capacity_class,record_count,payload_bytes "
+                "FROM execution_durable_capacity_usage ORDER BY capacity_class"
+            )
+        )
+        assert after_usage == before_usage
+        assert journal.fee_pair_required_scope("account-a", "strategy-a") is None
+    finally:
+        journal.close()
+
+
+def test_registered_fee_pair_scope_fences_legacy_open_paths_but_allows_close_cancel(
+    tmp_path,
+):
+    journal = ExecutionDecisionJournal(tmp_path / "fee-pair-open-fence.sqlite3")
+    try:
+        known_open_key = _intent_key("SIM-OWNER-1", side="BUY", effect="OPEN")
+        known_open_decision = journal.record_decision(
+            _decision_key("owner-run", close_time="2026-10-20T10:00:00Z"),
+            {"signal": "open-before-registration"},
+            intent_keys=(known_open_key,),
+        )
+        known_open = journal.prepare_intent(
+            known_open_decision.decision_id,
+            known_open_key,
+            _order_payload(),
+            original_identity={"backtrader_order_ref": 51},
+        )
+        assert journal.claim_dispatch(known_open.intent_id) is not None
+        journal.record_dispatch_result(
+            known_open.intent_id,
+            state="KNOWN",
+            provider_identity={"order_id": "synthetic-open-51"},
+            outcome_code="accepted",
+        )
+
+        prepared_open_key = _intent_key("SIM-PREPARED-2", side="BUY", effect="OPEN")
+        prepared_open_decision = journal.record_decision(
+            _decision_key("prepared-run", close_time="2026-10-20T10:01:00Z"),
+            {"signal": "prepared-before-registration"},
+            intent_keys=(prepared_open_key,),
+        )
+        prepared_open = journal.prepare_intent(
+            prepared_open_decision.decision_id,
+            prepared_open_key,
+            _order_payload(),
+            original_identity={"backtrader_order_ref": 52},
+        )
+
+        unprepared_open_key = _intent_key("SIM-UNPREPARED-3", side="BUY", effect="OPEN")
+        unprepared_open_decision = journal.record_decision(
+            _decision_key("unprepared-run", close_time="2026-10-20T10:02:00Z"),
+            {"signal": "declared-before-registration"},
+            intent_keys=(unprepared_open_key,),
+        )
+        journal.register_fee_pair_required_scope("account-a", "strategy-a")
+        # A completed dispatch may still be a working provider order. Its
+        # owner remains available to risk cancellation, while replays cannot
+        # dispatch the already-claimed OPEN a second time.
+        assert journal.claim_dispatch(known_open.intent_id) is None
+        assert journal.active_instrument_owner("account-a", "SIM-OWNER-1").intent_id == (
+            known_open.intent_id
+        )
+
+        with pytest.raises(
+            ExecutionDecisionJournalError, match="FEE_PAIR_SCOPE_FAIL_CLOSED"
+        ):
+            journal.record_decision(
+                _decision_key("different-run", close_time="2026-10-20T10:03:00Z"),
+                {"signal": "open-after-registration"},
+                intent_keys=(_intent_key("SIM-NEW-4", side="BUY", effect="OPEN"),),
+            )
+        with pytest.raises(
+            ExecutionDecisionJournalError, match="FEE_PAIR_SCOPE_FAIL_CLOSED"
+        ):
+            journal.record_grid_decision(
+                _grid_key(
+                    run_id="different-run",
+                    cohort_id="different-cohort",
+                    close_time="2026-10-20T10:03:00Z",
+                ),
+                {"signal": "flat"},
+                epoch_id="epoch-next",
+                batch_id="batch-next",
+                eligible=True,
+                complete=True,
+                live_ready=True,
+                inputs_complete=True,
+            )
+        with pytest.raises(
+            ExecutionDecisionJournalError, match="FEE_PAIR_SCOPE_FAIL_CLOSED"
+        ):
+            journal.prepare_intent(
+                unprepared_open_decision.decision_id,
+                unprepared_open_key,
+                _order_payload(),
+                original_identity={"backtrader_order_ref": 53},
+            )
+        with pytest.raises(
+            ExecutionDecisionJournalError, match="FEE_PAIR_SCOPE_FAIL_CLOSED"
+        ):
+            journal.claim_dispatch(prepared_open.intent_id)
+        assert journal.intent(prepared_open.intent_id).state == "PREPARED"
+        assert journal.intent(known_open.intent_id).state == "KNOWN"
+
+        # Different account or strategy scopes retain the legacy OPEN path.
+        other_key = ExecutionDecisionKey(
+            account_scope="account-other",
+            strategy_scope="strategy-a",
+            logical_run_id="different-run",
+            cohort_id="cohort-1",
+            close_time="2026-10-20T10:04:00Z",
+            decision_kind="bar",
+        )
+        other_decision = journal.record_decision(
+            other_key,
+            {"signal": "open-other-account"},
+            intent_keys=(_intent_key("SIM-OTHER-ACCOUNT", effect="OPEN"),),
+        )
+        assert other_decision.intent_keys
+        other_strategy_key = ExecutionDecisionKey(
+            account_scope="account-a",
+            strategy_scope="strategy-other",
+            logical_run_id="different-run",
+            cohort_id="cohort-1",
+            close_time="2026-10-20T10:05:00Z",
+            decision_kind="bar",
+        )
+        other_strategy_decision = journal.record_decision(
+            other_strategy_key,
+            {"signal": "open-other-strategy"},
+            intent_keys=(_intent_key("SIM-OTHER-STRATEGY", effect="OPEN"),),
+        )
+        assert other_strategy_decision.intent_keys
+
+        close_key = _intent_key("SIM-CLOSE-SAFE", side="SELL", effect="CLOSE")
+        close_decision = journal.record_risk_decision(
+            _decision_key("close-safe-run", close_time="2026-10-20T10:06:00Z", kind="risk"),
+            {"signal": "risk-close"},
+            intent_keys=(close_key,),
+            max_order_intents_per_run=5,
+            expected_run_order_intents_used=0,
+            remaining_exit_intent_reserve=4,
+        )
+        close_intent = journal.prepare_intent(
+            close_decision.decision.decision_id,
+            close_key,
+            _order_payload(),
+            original_identity={"backtrader_order_ref": 54},
+        )
+        assert journal.claim_dispatch(close_intent.intent_id) is not None
+
+        cancel_key = _intent_key(
+            "SIM-OWNER-1", action="CANCEL", side="BUY", effect="OPEN"
+        )
+        cancel_decision = journal.record_risk_decision(
+            _decision_key("cancel-safe-run", close_time="2026-10-20T10:07:00Z", kind="risk"),
+            {"signal": "risk-cancel"},
+            intent_keys=(cancel_key,),
+            max_order_intents_per_run=5,
+            expected_run_order_intents_used=0,
+            remaining_exit_intent_reserve=4,
+        )
+        cancel_intent = journal.prepare_intent(
+            cancel_decision.decision.decision_id,
+            cancel_key,
+            {"order_ref": "synthetic-open-51"},
+            original_identity={"backtrader_order_ref": 55},
+            owner_intent_id=known_open.intent_id,
+        )
+        assert journal.claim_dispatch(cancel_intent.intent_id) is not None
+    finally:
+        journal.close()
+
     invalid = ExecutionDecisionJournal(tmp_path / "invalid-economic.sqlite3")
     decision = invalid.record_decision(_decision_key("invalid-economic"), _decision_payload())
     with pytest.raises(ExecutionDecisionJournalError, match="INVALID_JOURNAL_PAYLOAD"):
@@ -225,6 +472,102 @@ def test_noop_and_canonical_economics_are_durable_and_immutable(tmp_path):
             _order_payload(price=False),
         )
     invalid.close()
+
+
+@pytest.mark.parametrize("dispatch_state", ("DISPATCHING", "UNKNOWN"))
+def test_fee_pair_registration_rejects_claimed_open_until_authoritatively_resolved(
+    tmp_path, dispatch_state
+):
+    path = tmp_path / ("fee-pair-register-{}-open.sqlite3".format(dispatch_state.lower()))
+    claiming = ExecutionDecisionJournal(path)
+    prepared = None
+    registered = ExecutionDecisionJournal(path)
+    try:
+        open_key = _intent_key("SIM-RACE-OPEN", side="BUY", effect="OPEN")
+        decision = claiming.record_decision(
+            _decision_key("claim-before-register"),
+            {"signal": "open-before-register"},
+            intent_keys=(open_key,),
+        )
+        prepared = claiming.prepare_intent(
+            decision.decision_id,
+            open_key,
+            _order_payload(),
+            original_identity={"backtrader_order_ref": 901},
+        )
+        claim = claiming.claim_dispatch(prepared.intent_id)
+        assert claim is not None
+        if dispatch_state == "UNKNOWN":
+            claiming.record_dispatch_result(
+                prepared.intent_id,
+                state="UNKNOWN",
+                outcome_code="synthetic-response-lost-after-send",
+            )
+
+        # The registration's BEGIN IMMEDIATE sees the committed claim state
+        # from the other Journal connection and refuses to fence over it.
+        with pytest.raises(
+            ExecutionDecisionJournalError,
+            match="FEE_PAIR_SCOPE_OPEN_INTENT_UNRESOLVED",
+        ):
+            registered.register_fee_pair_required_scope("account-a", "strategy-a")
+        assert registered.fee_pair_required_scope("account-a", "strategy-a") is None
+        assert claiming.claim_dispatch(prepared.intent_id) is None
+        if dispatch_state == "UNKNOWN":
+            resolved = claiming.record_reconciliation(
+                prepared.intent_id,
+                reconciliation_id="synthetic-open-terminal-reconciliation",
+                query_id="synthetic-complete-orders-query",
+                state="KNOWN",
+                provider_identity={"order_id": "synthetic-open-order"},
+                outcome_code="terminal_order_observed",
+                terminal_state="CANCELLED",
+                terminal_event_id="synthetic-open-terminal-event",
+                position_snapshot_id="synthetic-position-snapshot",
+                position_flat=True,
+            )
+            assert resolved.terminal_state == "CANCELLED"
+            assert (
+                registered.register_fee_pair_required_scope("account-a", "strategy-a").state
+                == "REQUIRE_PAIR_FAIL_CLOSED"
+            )
+    finally:
+        registered.close()
+        claiming.close()
+
+
+def test_fee_pair_registration_winning_before_old_prepared_claim_fences_it(tmp_path):
+    path = tmp_path / "fee-pair-register-before-claim.sqlite3"
+    registering = ExecutionDecisionJournal(path)
+    claiming = ExecutionDecisionJournal(path)
+    try:
+        open_key = _intent_key("SIM-PREPARED-OPEN", side="BUY", effect="OPEN")
+        decision = registering.record_decision(
+            _decision_key("register-before-claim"),
+            {"signal": "prepared-before-register"},
+            intent_keys=(open_key,),
+        )
+        prepared = registering.prepare_intent(
+            decision.decision_id,
+            open_key,
+            _order_payload(),
+            original_identity={"backtrader_order_ref": 902},
+        )
+        registration = registering.register_fee_pair_required_scope(
+            "account-a", "strategy-a"
+        )
+
+        # A second connection cannot turn an old PREPARED row into a send
+        # after registration commits.
+        with pytest.raises(
+            ExecutionDecisionJournalError, match="FEE_PAIR_SCOPE_FAIL_CLOSED"
+        ):
+            claiming.claim_dispatch(prepared.intent_id)
+        assert claiming.intent(prepared.intent_id).state == "PREPARED"
+        assert claiming.fee_pair_required_scope("account-a", "strategy-a") == registration
+    finally:
+        claiming.close()
+        registering.close()
 
 
 def test_decision_for_key_reads_after_reopen_without_mutating_journal(tmp_path):
@@ -395,7 +738,7 @@ def test_capacity_usage_migration_backfills_exact_bytes_once(tmp_path):
         connection.execute("PRAGMA user_version = 8")
 
     migrated = ExecutionDecisionJournal(path)
-    assert migrated._connection.execute("PRAGMA user_version").fetchone()[0] == 14
+    assert migrated._connection.execute("PRAGMA user_version").fetchone()[0] == 15
     usage = migrated._connection.execute(
         """SELECT capacity_class,record_count,payload_bytes
            FROM execution_decision_capacity_usage ORDER BY capacity_class"""
@@ -422,6 +765,35 @@ def test_capacity_usage_migration_backfills_exact_bytes_once(tmp_path):
         reopened.decision_capacity_snapshot().settlement_record_count == expected["SETTLEMENT"][0]
     )
     reopened.close()
+
+
+@pytest.mark.parametrize(
+    "damaged_object,statement",
+    (
+        (
+            "execution_fee_pair_scope_event_no_delete",
+            "DROP TRIGGER execution_fee_pair_scope_event_no_delete",
+        ),
+        (
+            "execution_fee_pair_scope_events",
+            "DROP TABLE execution_fee_pair_scope_events",
+        ),
+    ),
+)
+def test_v15_open_rejects_incomplete_fee_pair_scope_schema(tmp_path, damaged_object, statement):
+    path = tmp_path / "v15-corrupt-pair-scope-{}.sqlite3".format(damaged_object)
+    journal = ExecutionDecisionJournal(path)
+    journal.close()
+    with sqlite3.connect(path) as connection:
+        connection.execute(statement)
+
+    with pytest.raises(
+        ExecutionDecisionJournalError, match="FEE_PAIR_SCOPE_SCHEMA_CORRUPT"
+    ):
+        ExecutionDecisionJournal(path)
+
+    with sqlite3.connect(path) as connection:
+        assert connection.execute("PRAGMA user_version").fetchone()[0] == 15
 
 
 def test_capacity_usage_concurrent_v8_openers_backfill_once(tmp_path, monkeypatch):
@@ -500,7 +872,7 @@ def test_capacity_usage_concurrent_v8_openers_backfill_once(tmp_path, monkeypatc
 
     assert len(backfill_calls) == 1
     with sqlite3.connect(path) as connection:
-        assert connection.execute("PRAGMA user_version").fetchone()[0] == 14
+        assert connection.execute("PRAGMA user_version").fetchone()[0] == 15
         usage = connection.execute(
             """SELECT capacity_class,record_count
                FROM execution_decision_capacity_usage ORDER BY capacity_class"""
@@ -651,7 +1023,7 @@ def test_schema_v1_migration_preserves_original_dispatch_outcome(tmp_path):
     assert intent.state == "UNKNOWN"
     assert intent.dispatch_state == "UNKNOWN"
     assert intent.outcome_code == "connection_lost"
-    assert journal._connection.execute("PRAGMA user_version").fetchone()[0] == 14
+    assert journal._connection.execute("PRAGMA user_version").fetchone()[0] == 15
     journal.close()
 
 
@@ -678,7 +1050,7 @@ def test_schema_v2_migrates_grid_and_run_budget_tables(tmp_path):
         connection.execute("PRAGMA user_version = 2")
 
     journal = ExecutionDecisionJournal(path)
-    assert journal._connection.execute("PRAGMA user_version").fetchone()[0] == 14
+    assert journal._connection.execute("PRAGMA user_version").fetchone()[0] == 15
     names = {
         row["name"]
         for row in journal._connection.execute(
@@ -738,7 +1110,7 @@ def test_schema_v7_startup_backfills_native_ref_without_rewriting_dispatch(tmp_p
     )
     assert indexed == unknown
     assert recovered.intent(intent.intent_id) == unknown
-    assert recovered._connection.execute("PRAGMA user_version").fetchone()[0] == 14
+    assert recovered._connection.execute("PRAGMA user_version").fetchone()[0] == 15
     recovered.close()
 
     with sqlite3.connect(path) as connection:
@@ -1905,7 +2277,7 @@ def test_grid_highwater_migration_backfills_maximum_from_v9_cohort_cursors(tmp_p
         connection.execute("PRAGMA user_version = 9")
 
     migrated = ExecutionDecisionJournal(path)
-    assert migrated._connection.execute("PRAGMA user_version").fetchone()[0] == 14
+    assert migrated._connection.execute("PRAGMA user_version").fetchone()[0] == 15
     highwater = migrated._connection.execute(
         """SELECT close_time,cohort_id,decision_id FROM execution_grid_highwaters
            WHERE account_scope='account-a' AND strategy_scope='strategy-a'"""

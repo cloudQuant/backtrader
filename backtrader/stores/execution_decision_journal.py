@@ -97,6 +97,11 @@ _MAX_RUN_LOSS_ENABLE_SCAN_ROWS = 100_000
 _RUN_ORDER_RESERVATION_FIELD = "_journal_run_order_reservation"
 _SOURCE_RECEIPT_PAYLOAD_FIELD = "_execution_source_receipt"
 _SOURCE_ANCHOR_ONLY_FIELD = "_execution_source_anchor_only"
+_FEE_PAIR_SCOPE_POLICY_ID = "REQUIRE_PAIR_FEE_V1"
+_FEE_PAIR_SCOPE_STATE = "REQUIRE_PAIR_FAIL_CLOSED"
+_FEE_PAIR_SCOPE_EVENT_ID_PREFIX = "fee-pair-scope-required"
+_FEE_PAIR_SCOPE_EVENT_KIND = "REQUIRE_PAIR_REGISTERED"
+_SOURCE_HIGHWATER_SCHEMA_VERSION = 14
 _SOURCE_ORIGIN_PARTITION_SCHEMA = "backtrader.execution_source_origin_partition.v1"
 _SOURCE_ORIGIN_PARTITION_FIELDS = (
     "schema",
@@ -109,6 +114,53 @@ _SOURCE_ORIGIN_PARTITION_FIELDS = (
 )
 _MAX_SOURCE_RECEIPT_MEMBERS = 512
 _MAX_SOURCE_RECEIPT_BYTES = 1_048_576
+_FEE_PAIR_SCOPE_TABLE_SQL = """CREATE TABLE execution_fee_pair_required_scopes (
+    account_scope TEXT NOT NULL,
+    strategy_scope TEXT NOT NULL,
+    policy_id TEXT NOT NULL CHECK(policy_id='REQUIRE_PAIR_FEE_V1'),
+    state TEXT NOT NULL CHECK(state='REQUIRE_PAIR_FAIL_CLOSED'),
+    registered_at_ns INTEGER NOT NULL CHECK(registered_at_ns > 0),
+    PRIMARY KEY(account_scope,strategy_scope)
+) WITHOUT ROWID"""
+_FEE_PAIR_SCOPE_EVENT_TABLE_SQL = """CREATE TABLE execution_fee_pair_scope_events (
+    event_id TEXT PRIMARY KEY,
+    account_scope TEXT NOT NULL,
+    strategy_scope TEXT NOT NULL,
+    event_kind TEXT NOT NULL CHECK(event_kind='REQUIRE_PAIR_REGISTERED'),
+    event_payload_json TEXT NOT NULL,
+    created_at_ns INTEGER NOT NULL CHECK(created_at_ns > 0),
+    UNIQUE(account_scope,strategy_scope,event_kind),
+    FOREIGN KEY(account_scope,strategy_scope)
+        REFERENCES execution_fee_pair_required_scopes(account_scope,strategy_scope)
+)"""
+_FEE_PAIR_SCOPE_NO_UPDATE_TRIGGER_SQL = """CREATE TRIGGER execution_fee_pair_scope_no_update
+BEFORE UPDATE ON execution_fee_pair_required_scopes
+BEGIN
+    SELECT RAISE(ABORT, 'FEE_PAIR_SCOPE_IMMUTABLE');
+END"""
+_FEE_PAIR_SCOPE_NO_DELETE_TRIGGER_SQL = """CREATE TRIGGER execution_fee_pair_scope_no_delete
+BEFORE DELETE ON execution_fee_pair_required_scopes
+BEGIN
+    SELECT RAISE(ABORT, 'FEE_PAIR_SCOPE_IMMUTABLE');
+END"""
+_FEE_PAIR_EVENT_NO_UPDATE_TRIGGER_SQL = """CREATE TRIGGER execution_fee_pair_scope_event_no_update
+BEFORE UPDATE ON execution_fee_pair_scope_events
+BEGIN
+    SELECT RAISE(ABORT, 'FEE_PAIR_SCOPE_EVENT_APPEND_ONLY');
+END"""
+_FEE_PAIR_EVENT_NO_DELETE_TRIGGER_SQL = """CREATE TRIGGER execution_fee_pair_scope_event_no_delete
+BEFORE DELETE ON execution_fee_pair_scope_events
+BEGIN
+    SELECT RAISE(ABORT, 'FEE_PAIR_SCOPE_EVENT_APPEND_ONLY');
+END"""
+_FEE_PAIR_SCOPE_SCHEMA_SQL = (
+    _FEE_PAIR_SCOPE_TABLE_SQL,
+    _FEE_PAIR_SCOPE_EVENT_TABLE_SQL,
+    _FEE_PAIR_SCOPE_NO_UPDATE_TRIGGER_SQL,
+    _FEE_PAIR_SCOPE_NO_DELETE_TRIGGER_SQL,
+    _FEE_PAIR_EVENT_NO_UPDATE_TRIGGER_SQL,
+    _FEE_PAIR_EVENT_NO_DELETE_TRIGGER_SQL,
+)
 _DISPATCHING_CRASH_NO_FILL_OUTCOME = "complete_orders_query_dispatching_no_fill_terminal"
 _DISPATCHING_CANCEL_CHILD_OUTCOME = "complete_orders_query_cancel_dispatching_terminal"
 _DISPATCHING_CANCEL_PARENT_OUTCOME = "complete_orders_query_terminal"
@@ -153,6 +205,22 @@ class ExecutionDecisionKey:
             if not _identifier(value):
                 raise ExecutionDecisionJournalError("INVALID_DECISION_KEY")
         object.__setattr__(self, "close_time", _normalize_close_time(self.close_time))
+
+
+@dataclass(frozen=True)
+class ExecutionFeePairScopeRegistration:
+    """Persistent fail-closed registration for one fee-qualified strategy scope.
+
+    This first journal schema round intentionally has no transition that can
+    authorize an OPEN.  Scope registration blocks legacy OPEN and source-grid
+    entry points until a later pending/settlement implementation is available.
+    """
+
+    account_scope: str
+    strategy_scope: str
+    policy_id: str
+    state: str
+    registered_at_ns: int
 
 
 @dataclass(frozen=True)
@@ -793,7 +861,7 @@ class ExecutionDecisionJournal:
     and checks fresh matching context at each OPEN decision, prepare, and claim.
     """
 
-    _SCHEMA_VERSION = 14
+    _SCHEMA_VERSION = 15
     _NATIVE_IDENTITY_SCHEMA_VERSION = 8
     _DECISION_CAPACITY_SCHEMA_VERSION = 9
     _DURABLE_CAPACITY_SCHEMA_VERSION = 12
@@ -1069,6 +1137,13 @@ class ExecutionDecisionJournal:
         now_ns = time.time_ns()
 
         with self._transaction() as cursor:
+            if any(_is_open_submit_intent(item) for item in normalized_keys):
+                key_values = json.loads(key_json)
+                self._raise_if_fee_pair_scope_requires_pending(
+                    cursor,
+                    account_scope=key_values["account_scope"],
+                    strategy_scope=key_values["strategy_scope"],
+                )
             record, _created = self._record_decision_in_transaction(
                 cursor,
                 decision_id=decision_id,
@@ -1181,6 +1256,11 @@ class ExecutionDecisionJournal:
         cursor_key = (key.account_scope, key.strategy_scope, key.cohort_id)
 
         with self._transaction() as db_cursor:
+            self._raise_if_fee_pair_scope_grid_write(
+                db_cursor,
+                account_scope=key.account_scope,
+                strategy_scope=key.strategy_scope,
+            )
             if source_receipt is not None:
                 prior_decision = db_cursor.execute(
                     "SELECT economic_payload_json FROM execution_decisions WHERE decision_id=?",
@@ -1842,6 +1922,20 @@ class ExecutionDecisionJournal:
         run_order_reservation: Optional[Mapping[str, int]] = None,
         loss_guard_context: Optional[ExecutionRunLossGuardContext] = None,
     ) -> Tuple[ExecutionDecisionRecord, bool]:
+        if any(_is_open_submit_intent(item) for item in normalized_keys):
+            try:
+                key_values = json.loads(key_json)
+                if not isinstance(key_values, Mapping):
+                    raise ValueError("decision key is not a mapping")
+                account_scope = key_values["account_scope"]
+                strategy_scope = key_values["strategy_scope"]
+            except (KeyError, TypeError, ValueError) as error:
+                raise ExecutionDecisionJournalError("INVALID_DECISION_KEY") from error
+            self._raise_if_fee_pair_scope_requires_pending(
+                cursor,
+                account_scope=account_scope,
+                strategy_scope=strategy_scope,
+            )
         row = cursor.execute(
             "SELECT * FROM execution_decisions WHERE decision_id = ?", (decision_id,)
         ).fetchone()
@@ -1949,6 +2043,20 @@ class ExecutionDecisionJournal:
         loss_guard_context: Optional[ExecutionRunLossGuardContext],
     ) -> None:
         """Require room in both cumulative classes before admitting new OPEN risk."""
+
+        try:
+            key_values = json.loads(business_key_json)
+            if not isinstance(key_values, Mapping):
+                raise ValueError("decision key is not a mapping")
+            account_scope = key_values["account_scope"]
+            strategy_scope = key_values["strategy_scope"]
+        except (KeyError, TypeError, ValueError) as error:
+            raise ExecutionDecisionJournalError("INVALID_DECISION_KEY") from error
+        self._raise_if_fee_pair_scope_requires_pending(
+            cursor,
+            account_scope=account_scope,
+            strategy_scope=strategy_scope,
+        )
 
         self._ensure_run_loss_guard_allows_open(
             cursor,
@@ -2272,6 +2380,11 @@ class ExecutionDecisionJournal:
         now_ns = time.time_ns()
         scope = (key.account_scope, key.strategy_scope, key.logical_run_id, receipt.source_kind)
         with self._transaction() as cursor:
+            self._raise_if_fee_pair_scope_grid_write(
+                cursor,
+                account_scope=key.account_scope,
+                strategy_scope=key.strategy_scope,
+            )
             existing_row = cursor.execute(
                 "SELECT * FROM execution_decisions WHERE decision_id=?", (decision_id,)
             ).fetchone()
@@ -2366,6 +2479,11 @@ class ExecutionDecisionJournal:
         created: bool,
         anchor_kind: str,
     ) -> None:
+        self._raise_if_fee_pair_scope_grid_write(
+            cursor,
+            account_scope=key.account_scope,
+            strategy_scope=key.strategy_scope,
+        )
         scope = (key.account_scope, key.strategy_scope, key.logical_run_id, receipt.source_kind)
         highwater = self._source_highwater_in_transaction(
             cursor,
@@ -2658,6 +2776,238 @@ class ExecutionDecisionJournal:
             wal_bytes=wal_bytes,
         )
 
+    def register_fee_pair_required_scope(
+        self, account_scope: str, strategy_scope: str
+    ) -> ExecutionFeePairScopeRegistration:
+        """Persist a scope-wide fail-closed fee-pair requirement.
+
+        This schema round deliberately does not yet provide pending settlement,
+        source attachment, or an OPEN authorization API.  Registering a scope
+        therefore blocks its old OPEN and source-grid entry points until a
+        later round supplies the journal-verified pair settlement path.  There
+        is no unregister operation; registration and its audit event are
+        immutable.  Exact replays return the original registration.
+        """
+
+        _require_identifier(account_scope, "INVALID_ACCOUNT_SCOPE")
+        _require_identifier(strategy_scope, "INVALID_STRATEGY_SCOPE")
+        with self._transaction() as cursor:
+            existing = cursor.execute(
+                """SELECT * FROM execution_fee_pair_required_scopes
+                   WHERE account_scope=? AND strategy_scope=?""",
+                (account_scope, strategy_scope),
+            ).fetchone()
+            if existing is not None:
+                return self._fee_pair_scope_registration_in_transaction(
+                    cursor, account_scope=account_scope, strategy_scope=strategy_scope
+                )
+
+            orphan_event = cursor.execute(
+                """SELECT 1 FROM execution_fee_pair_scope_events
+                   WHERE account_scope=? AND strategy_scope=? LIMIT 1""",
+                (account_scope, strategy_scope),
+            ).fetchone()
+            if orphan_event is not None:
+                raise ExecutionDecisionJournalError("FEE_PAIR_SCOPE_LEDGER_CORRUPT")
+
+            self._raise_if_fee_pair_scope_has_ambiguous_open_dispatch(
+                cursor, account_scope=account_scope, strategy_scope=strategy_scope
+            )
+
+            registered_at_ns = time.time_ns()
+            event_id = _fee_pair_scope_event_id(account_scope, strategy_scope)
+            event_payload_json = _canonical_json(
+                {
+                    "policy_id": _FEE_PAIR_SCOPE_POLICY_ID,
+                    "state": _FEE_PAIR_SCOPE_STATE,
+                }
+            )
+            with track_durable_row_change(
+                cursor,
+                "execution_fee_pair_required_scopes",
+                (account_scope, strategy_scope),
+                "SETTLEMENT",
+            ):
+                cursor.execute(
+                    """INSERT INTO execution_fee_pair_required_scopes
+                       (account_scope,strategy_scope,policy_id,state,registered_at_ns)
+                       VALUES(?,?,?,?,?)""",
+                    (
+                        account_scope,
+                        strategy_scope,
+                        _FEE_PAIR_SCOPE_POLICY_ID,
+                        _FEE_PAIR_SCOPE_STATE,
+                        registered_at_ns,
+                    ),
+                )
+            with track_durable_row_change(
+                cursor, "execution_fee_pair_scope_events", (event_id,), "SETTLEMENT"
+            ):
+                cursor.execute(
+                    """INSERT INTO execution_fee_pair_scope_events
+                       (event_id,account_scope,strategy_scope,event_kind,
+                        event_payload_json,created_at_ns)
+                       VALUES(?,?,?,?,?,?)""",
+                    (
+                        event_id,
+                        account_scope,
+                        strategy_scope,
+                        _FEE_PAIR_SCOPE_EVENT_KIND,
+                        event_payload_json,
+                        registered_at_ns,
+                    ),
+                )
+            return ExecutionFeePairScopeRegistration(
+                account_scope=account_scope,
+                strategy_scope=strategy_scope,
+                policy_id=_FEE_PAIR_SCOPE_POLICY_ID,
+                state=_FEE_PAIR_SCOPE_STATE,
+                registered_at_ns=registered_at_ns,
+            )
+
+    @staticmethod
+    def _raise_if_fee_pair_scope_has_ambiguous_open_dispatch(
+        cursor: sqlite3.Cursor, *, account_scope: str, strategy_scope: str
+    ) -> None:
+        """Reject registration while a prior OPEN may still be sent or resolved.
+
+        PREPARED rows have not claimed their one-way dispatch transition; once
+        this transaction installs the scope fence, claim_dispatch will reject
+        them. DISPATCHING and UNKNOWN rows can still represent an unobserved
+        external send and must be authoritatively reconciled first. A completed
+        KNOWN dispatch remains eligible for close/cancel management: its active
+        instrument owner is deliberately left untouched by registration.
+        """
+
+        rows = cursor.execute(
+            """SELECT i.intent_id,i.state,i.dispatch_state,
+                      r.state AS reconciliation_state,
+                      r.terminal_state,r.terminal_event_id,
+                      r.position_snapshot_id,r.position_flat
+               FROM execution_decision_intents AS i
+               JOIN execution_decisions AS d ON d.decision_id=i.decision_id
+               LEFT JOIN execution_intent_reconciliations AS r
+                 ON r.reconciliation_id=(
+                    SELECT latest.reconciliation_id
+                    FROM execution_intent_reconciliations AS latest
+                    WHERE latest.intent_id=i.intent_id
+                    ORDER BY latest.created_at_ns DESC,latest.reconciliation_id DESC
+                    LIMIT 1
+                 )
+               WHERE CASE WHEN json_valid(d.business_key_json)
+                          THEN json_extract(d.business_key_json,'$.account_scope') END=?
+                 AND CASE WHEN json_valid(d.business_key_json)
+                          THEN json_extract(d.business_key_json,'$.strategy_scope') END=?
+                 AND CASE WHEN json_valid(i.intent_key_json)
+                          THEN json_extract(i.intent_key_json,'$.action') END='SUBMIT'
+                 AND CASE WHEN json_valid(i.intent_key_json)
+                          THEN json_extract(i.intent_key_json,'$.position_effect') END='OPEN'
+               ORDER BY i.intent_id""",
+            (account_scope, strategy_scope),
+        ).fetchall()
+        for row in rows:
+            if row["state"] == "PREPARED" and row["dispatch_state"] is None:
+                # Registration and claim are serialized by BEGIN IMMEDIATE.
+                # If registration commits first, the old PREPARED claim sees
+                # the scope fence; if claim commits first, state is DISPATCHING
+                # and this registration is rejected below.
+                continue
+            if row["state"] == "KNOWN" and row["dispatch_state"] == "KNOWN":
+                # The original external attempt returned a known result. It
+                # may still be working; preserve its owner for risk CANCEL.
+                continue
+            if (
+                row["state"] == "KNOWN"
+                and row["reconciliation_state"] == "KNOWN"
+                and row["terminal_state"] in ("FILLED", "CANCELLED", "REJECTED")
+                and isinstance(row["terminal_event_id"], str)
+                and bool(row["terminal_event_id"])
+                and isinstance(row["position_snapshot_id"], str)
+                and bool(row["position_snapshot_id"])
+                and row["position_flat"] in (0, 1)
+            ):
+                # This includes UNKNOWN dispatches resolved by a typed terminal
+                # query. It does not release or alter the position owner.
+                continue
+            raise ExecutionDecisionJournalError("FEE_PAIR_SCOPE_OPEN_INTENT_UNRESOLVED")
+
+    def fee_pair_required_scope(
+        self, account_scope: str, strategy_scope: str
+    ) -> Optional[ExecutionFeePairScopeRegistration]:
+        """Read one immutable fee-pair registration and verify its audit event."""
+
+        _require_identifier(account_scope, "INVALID_ACCOUNT_SCOPE")
+        _require_identifier(strategy_scope, "INVALID_STRATEGY_SCOPE")
+        with self._read_lock():
+            cursor = self._connection.cursor()
+            try:
+                return self._fee_pair_scope_registration_in_transaction(
+                    cursor, account_scope=account_scope, strategy_scope=strategy_scope
+                )
+            finally:
+                cursor.close()
+
+    @staticmethod
+    def _fee_pair_scope_registration_in_transaction(
+        cursor: sqlite3.Cursor, *, account_scope: str, strategy_scope: str
+    ) -> Optional[ExecutionFeePairScopeRegistration]:
+        row = cursor.execute(
+            """SELECT * FROM execution_fee_pair_required_scopes
+               WHERE account_scope=? AND strategy_scope=?""",
+            (account_scope, strategy_scope),
+        ).fetchone()
+        event = cursor.execute(
+            """SELECT * FROM execution_fee_pair_scope_events
+               WHERE account_scope=? AND strategy_scope=? AND event_kind=?""",
+            (account_scope, strategy_scope, _FEE_PAIR_SCOPE_EVENT_KIND),
+        ).fetchone()
+        if row is None:
+            if event is not None:
+                raise ExecutionDecisionJournalError("FEE_PAIR_SCOPE_LEDGER_CORRUPT")
+            return None
+        expected_event_id = _fee_pair_scope_event_id(account_scope, strategy_scope)
+        expected_event_payload = _canonical_json(
+            {"policy_id": _FEE_PAIR_SCOPE_POLICY_ID, "state": _FEE_PAIR_SCOPE_STATE}
+        )
+        if (
+            row["policy_id"] != _FEE_PAIR_SCOPE_POLICY_ID
+            or row["state"] != _FEE_PAIR_SCOPE_STATE
+            or type(row["registered_at_ns"]) is not int
+            or row["registered_at_ns"] <= 0
+            or event is None
+            or event["event_id"] != expected_event_id
+            or event["event_payload_json"] != expected_event_payload
+            or event["created_at_ns"] != row["registered_at_ns"]
+        ):
+            raise ExecutionDecisionJournalError("FEE_PAIR_SCOPE_LEDGER_CORRUPT")
+        return ExecutionFeePairScopeRegistration(
+            account_scope=account_scope,
+            strategy_scope=strategy_scope,
+            policy_id=row["policy_id"],
+            state=row["state"],
+            registered_at_ns=row["registered_at_ns"],
+        )
+
+    @classmethod
+    def _raise_if_fee_pair_scope_requires_pending(
+        cls, cursor: sqlite3.Cursor, *, account_scope: str, strategy_scope: str
+    ) -> None:
+        registration = cls._fee_pair_scope_registration_in_transaction(
+            cursor, account_scope=account_scope, strategy_scope=strategy_scope
+        )
+        if registration is not None:
+            raise ExecutionDecisionJournalError("FEE_PAIR_SCOPE_FAIL_CLOSED")
+
+    @classmethod
+    def _raise_if_fee_pair_scope_grid_write(
+        cls, cursor: sqlite3.Cursor, *, account_scope: str, strategy_scope: str
+    ) -> None:
+        registration = cls._fee_pair_scope_registration_in_transaction(
+            cursor, account_scope=account_scope, strategy_scope=strategy_scope
+        )
+        if registration is not None:
+            raise ExecutionDecisionJournalError("FEE_PAIR_SCOPE_FAIL_CLOSED")
+
     def prepare_intent(
         self,
         decision_id: str,
@@ -2700,6 +3050,20 @@ class ExecutionDecisionJournal:
             ).fetchone()
             if decision_row is None or slot is None or slot["decision_id"] != decision_id:
                 raise ExecutionDecisionJournalError("INTENT_NOT_DECLARED")
+            if _is_open_submit_intent(intent_key):
+                try:
+                    key_values = json.loads(decision_row["business_key_json"])
+                    if not isinstance(key_values, Mapping):
+                        raise ValueError("decision key is not a mapping")
+                    account_scope = key_values["account_scope"]
+                    strategy_scope = key_values["strategy_scope"]
+                except (KeyError, TypeError, ValueError) as error:
+                    raise ExecutionDecisionJournalError("INVALID_DECISION_KEY") from error
+                self._raise_if_fee_pair_scope_requires_pending(
+                    cursor,
+                    account_scope=account_scope,
+                    strategy_scope=strategy_scope,
+                )
             row = cursor.execute(
                 "SELECT * FROM execution_decision_intents WHERE intent_id = ?", (intent_id,)
             ).fetchone()
@@ -4217,6 +4581,8 @@ class ExecutionDecisionJournal:
             ).fetchone()
             if row is None:
                 raise ExecutionDecisionJournalError("INTENT_NOT_PREPARED")
+            if row["state"] != "PREPARED":
+                return None
             if (
                 cursor.execute(
                     "SELECT 1 FROM execution_intent_abandonments WHERE intent_id = ?", (intent_id,)
@@ -4226,9 +4592,27 @@ class ExecutionDecisionJournal:
                 ).fetchone()
             ):
                 raise ExecutionDecisionJournalError("INTENT_ABANDONED")
-            if row["state"] != "PREPARED":
-                return None
             intent_key = ExecutionIntentKey(**json.loads(row["intent_key_json"]))
+            if _is_open_submit_intent(intent_key):
+                decision_scope = cursor.execute(
+                    "SELECT business_key_json FROM execution_decisions WHERE decision_id=?",
+                    (row["decision_id"],),
+                ).fetchone()
+                if decision_scope is None:
+                    raise ExecutionDecisionJournalError("DECISION_NOT_FOUND")
+                try:
+                    key_values = json.loads(decision_scope["business_key_json"])
+                    if not isinstance(key_values, Mapping):
+                        raise ValueError("decision key is not a mapping")
+                    account_scope = key_values["account_scope"]
+                    strategy_scope = key_values["strategy_scope"]
+                except (KeyError, TypeError, ValueError) as error:
+                    raise ExecutionDecisionJournalError("INVALID_DECISION_KEY") from error
+                self._raise_if_fee_pair_scope_requires_pending(
+                    cursor,
+                    account_scope=account_scope,
+                    strategy_scope=strategy_scope,
+                )
             if intent_key.action == "CANCEL":
                 decision_row = cursor.execute(
                     "SELECT business_key_json FROM execution_decisions WHERE decision_id = ?",
@@ -5790,6 +6174,116 @@ class ExecutionDecisionJournal:
                SET delivery_pending=CASE WHEN acknowledged=0 THEN 1 ELSE 0 END"""
         )
 
+    @staticmethod
+    def _create_fee_pair_scope_schema(cursor: sqlite3.Cursor) -> None:
+        existing = cursor.execute(
+            """SELECT name FROM sqlite_master WHERE name IN (
+                   'execution_fee_pair_required_scopes',
+                   'execution_fee_pair_scope_events',
+                   'execution_fee_pair_scope_no_update',
+                   'execution_fee_pair_scope_no_delete',
+                   'execution_fee_pair_scope_event_no_update',
+                   'execution_fee_pair_scope_event_no_delete')"""
+        ).fetchall()
+        if existing:
+            raise ExecutionDecisionJournalError("FEE_PAIR_SCOPE_SCHEMA_CORRUPT")
+        try:
+            for statement in _FEE_PAIR_SCOPE_SCHEMA_SQL:
+                cursor.execute(statement)
+        except sqlite3.Error as error:
+            raise ExecutionDecisionJournalError("FEE_PAIR_SCOPE_SCHEMA_CREATE_FAILED") from error
+
+    @staticmethod
+    def _validate_fee_pair_scope_schema(cursor: sqlite3.Cursor) -> None:
+        expected = {
+            "execution_fee_pair_required_scopes": ("table", _FEE_PAIR_SCOPE_TABLE_SQL),
+            "execution_fee_pair_scope_events": ("table", _FEE_PAIR_SCOPE_EVENT_TABLE_SQL),
+            "execution_fee_pair_scope_no_update": (
+                "trigger",
+                _FEE_PAIR_SCOPE_NO_UPDATE_TRIGGER_SQL,
+            ),
+            "execution_fee_pair_scope_no_delete": (
+                "trigger",
+                _FEE_PAIR_SCOPE_NO_DELETE_TRIGGER_SQL,
+            ),
+            "execution_fee_pair_scope_event_no_update": (
+                "trigger",
+                _FEE_PAIR_EVENT_NO_UPDATE_TRIGGER_SQL,
+            ),
+            "execution_fee_pair_scope_event_no_delete": (
+                "trigger",
+                _FEE_PAIR_EVENT_NO_DELETE_TRIGGER_SQL,
+            ),
+        }
+        try:
+            rows = cursor.execute(
+                """SELECT type,name,tbl_name,sql FROM sqlite_master
+                   WHERE name IN (?,?,?,?,?,?)""",
+                tuple(expected),
+            ).fetchall()
+            actual = {row["name"]: row for row in rows}
+            if set(actual) != set(expected):
+                raise ExecutionDecisionJournalError("FEE_PAIR_SCOPE_SCHEMA_CORRUPT")
+            for name, (expected_type, expected_sql) in expected.items():
+                row = actual[name]
+                expected_table = (
+                    "execution_fee_pair_required_scopes"
+                    if name.startswith("execution_fee_pair_scope_no_")
+                    else "execution_fee_pair_scope_events"
+                )
+                if name in (
+                    "execution_fee_pair_required_scopes",
+                    "execution_fee_pair_scope_events",
+                ):
+                    expected_table = name
+                if (
+                    row["type"] != expected_type
+                    or row["tbl_name"] != expected_table
+                    or _normalize_schema_sql(row["sql"])
+                    != _normalize_schema_sql(expected_sql)
+                ):
+                    raise ExecutionDecisionJournalError("FEE_PAIR_SCOPE_SCHEMA_CORRUPT")
+
+            expected_columns = {
+                "execution_fee_pair_required_scopes": (
+                    ("account_scope", "TEXT", 1, 1),
+                    ("strategy_scope", "TEXT", 1, 2),
+                    ("policy_id", "TEXT", 1, 0),
+                    ("state", "TEXT", 1, 0),
+                    ("registered_at_ns", "INTEGER", 1, 0),
+                ),
+                "execution_fee_pair_scope_events": (
+                    ("event_id", "TEXT", 0, 1),
+                    ("account_scope", "TEXT", 1, 0),
+                    ("strategy_scope", "TEXT", 1, 0),
+                    ("event_kind", "TEXT", 1, 0),
+                    ("event_payload_json", "TEXT", 1, 0),
+                    ("created_at_ns", "INTEGER", 1, 0),
+                ),
+            }
+            for table, expected_info in expected_columns.items():
+                actual_info = tuple(
+                    (row["name"], row["type"].upper(), int(row["notnull"]), int(row["pk"]))
+                    for row in cursor.execute("PRAGMA table_info({})".format(table)).fetchall()
+                )
+                if actual_info != expected_info:
+                    raise ExecutionDecisionJournalError("FEE_PAIR_SCOPE_SCHEMA_CORRUPT")
+
+            unexpected_triggers = cursor.execute(
+                """SELECT name FROM sqlite_master WHERE type='trigger'
+                   AND tbl_name IN ('execution_fee_pair_required_scopes',
+                                    'execution_fee_pair_scope_events')"""
+            ).fetchall()
+            expected_triggers = {
+                name for name, (kind, _sql) in expected.items() if kind == "trigger"
+            }
+            if {row["name"] for row in unexpected_triggers} != expected_triggers:
+                raise ExecutionDecisionJournalError("FEE_PAIR_SCOPE_SCHEMA_CORRUPT")
+        except ExecutionDecisionJournalError:
+            raise
+        except (KeyError, TypeError, ValueError, sqlite3.Error) as error:
+            raise ExecutionDecisionJournalError("FEE_PAIR_SCOPE_SCHEMA_CORRUPT") from error
+
     def _durable_capacity_config_values(self) -> Tuple[int, int, int, int]:
         limits = self.durable_capacity_limits
         return (
@@ -6156,6 +6650,7 @@ class ExecutionDecisionJournal:
                 11,
                 self._DURABLE_CAPACITY_SCHEMA_VERSION,
                 13,
+                _SOURCE_HIGHWATER_SCHEMA_VERSION,
                 self._SCHEMA_VERSION,
             ):
                 raise ExecutionDecisionJournalError("UNSUPPORTED_SCHEMA_VERSION")
@@ -6236,6 +6731,11 @@ class ExecutionDecisionJournal:
                 ):
                     raise ExecutionDecisionJournalError("RUN_LOSS_GUARD_SCHEMA_CORRUPT")
             if version >= self._SCHEMA_VERSION:
+                cursor = self._connection.cursor()
+                try:
+                    self._validate_fee_pair_scope_schema(cursor)
+                finally:
+                    cursor.close()
                 required_tables = {
                     row["name"]
                     for row in self._connection.execute(
@@ -6534,6 +7034,7 @@ class ExecutionDecisionJournal:
                     11,
                     self._DURABLE_CAPACITY_SCHEMA_VERSION,
                     13,
+                    _SOURCE_HIGHWATER_SCHEMA_VERSION,
                     self._SCHEMA_VERSION,
                 ):
                     raise ExecutionDecisionJournalError("UNSUPPORTED_SCHEMA_VERSION")
@@ -6685,7 +7186,7 @@ class ExecutionDecisionJournal:
                     self._connection.execute(
                         "DROP TABLE IF EXISTS execution_callback_delivery_queue"
                     )
-                if locked_version < self._SCHEMA_VERSION:
+                if locked_version < _SOURCE_HIGHWATER_SCHEMA_VERSION:
                     existing_source_table = self._connection.execute(
                         """SELECT 1 FROM sqlite_master WHERE type='table'
                            AND name='execution_source_highwaters'"""
@@ -6760,6 +7261,9 @@ class ExecutionDecisionJournal:
                 cursor = self._connection.cursor()
                 try:
                     self._migrate_durable_capacity_v12(cursor, locked_version)
+                    if locked_version < self._SCHEMA_VERSION:
+                        self._create_fee_pair_scope_schema(cursor)
+                    self._validate_fee_pair_scope_schema(cursor)
                 finally:
                     cursor.close()
                 self._connection.execute("PRAGMA user_version = {}".format(self._SCHEMA_VERSION))
@@ -6773,6 +7277,8 @@ class ExecutionDecisionJournal:
                 # V13 persists one bounded total-net-P&L loss-guard state per run.
                 # V14 adds a single scope-bound current source/tape highwater. Existing
                 # decisions are deliberately not backfilled as source receipts.
+                # V15 adds immutable REQUIRE_PAIR scope registration and its append-only
+                # audit event. V15 registrations intentionally remain fail-closed.
             except ExecutionDecisionJournalError:
                 if self._connection.in_transaction:
                     self._connection.execute("ROLLBACK")
@@ -7514,6 +8020,23 @@ def _intent_key_values(key: ExecutionIntentKey) -> dict[str, Any]:
 
 def _stable_id(kind: str, value: str) -> str:
     return hashlib.sha256((kind + ":v1:" + value).encode("utf-8")).hexdigest()
+
+
+def _fee_pair_scope_event_id(account_scope: str, strategy_scope: str) -> str:
+    identity = _canonical_json(
+        {"account_scope": account_scope, "strategy_scope": strategy_scope}
+    )
+    return _stable_id(_FEE_PAIR_SCOPE_EVENT_ID_PREFIX, identity)
+
+
+def _normalize_schema_sql(value: Any) -> str:
+    if type(value) is not str:
+        raise ExecutionDecisionJournalError("FEE_PAIR_SCOPE_SCHEMA_CORRUPT")
+    return "".join(value.split()).rstrip(";").casefold()
+
+
+def _is_open_submit_intent(intent_key: ExecutionIntentKey) -> bool:
+    return intent_key.action == "SUBMIT" and intent_key.position_effect == "OPEN"
 
 
 def _decision_record(row: sqlite3.Row) -> ExecutionDecisionRecord:

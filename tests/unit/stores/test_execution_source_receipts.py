@@ -829,18 +829,200 @@ def test_v13_schema_upgrade_adds_empty_source_highwater_and_preserves_usage(tmp_
     journal.close()
 
     with sqlite3.connect(path) as connection:
+        connection.execute("DROP TABLE execution_fee_pair_scope_events")
+        connection.execute("DROP TABLE execution_fee_pair_required_scopes")
         connection.execute("DROP TABLE execution_source_highwaters")
         connection.execute("PRAGMA user_version=13")
 
     migrated = ExecutionDecisionJournal(path)
     try:
-        assert migrated._connection.execute("PRAGMA user_version").fetchone()[0] == 14
+        assert migrated._connection.execute("PRAGMA user_version").fetchone()[0] == 15
         assert _durable_usage(migrated._connection) == before
         assert migrated._connection.execute(
             "SELECT COUNT(*) FROM execution_source_highwaters"
         ).fetchone()[0] == 0
     finally:
         migrated.close()
+
+
+def test_v14_to_v15_pair_scope_migration_preserves_existing_journal_rows(tmp_path):
+    path = tmp_path / "schema-v14-pair-scope-upgrade.sqlite3"
+    journal = ExecutionDecisionJournal(path)
+    receipt = _receipt(
+        _calendar(1),
+        cohort_id="cohort-v14",
+        slot_index=0,
+        tape_file_id="tape-v14",
+        tape_record_index=1,
+        source_role="history",
+        connection_generation="generation-v14",
+        feed_sequence=1,
+    )
+    _record_source(journal, receipt)
+    expected_decisions = tuple(
+        tuple(row)
+        for row in journal._connection.execute(
+            "SELECT * FROM execution_decisions ORDER BY decision_id"
+        )
+    )
+    expected_source_highwaters = tuple(
+        tuple(row)
+        for row in journal._connection.execute(
+            "SELECT * FROM execution_source_highwaters ORDER BY account_scope,strategy_scope,"
+            "logical_run_id,source_kind"
+        )
+    )
+    expected_usage = _durable_usage(journal._connection)
+    expected_highwater = _highwater(journal)
+    journal.close()
+
+    # Remove only v15 additions and present the exact previous user_version.
+    with sqlite3.connect(path) as connection:
+        connection.execute("DROP TABLE execution_fee_pair_scope_events")
+        connection.execute("DROP TABLE execution_fee_pair_required_scopes")
+        connection.execute("PRAGMA user_version=14")
+
+    migrated = ExecutionDecisionJournal(path)
+    try:
+        assert migrated._connection.execute("PRAGMA user_version").fetchone()[0] == 15
+        assert tuple(
+            tuple(row)
+            for row in migrated._connection.execute(
+                "SELECT * FROM execution_decisions ORDER BY decision_id"
+            )
+        ) == expected_decisions
+        assert tuple(
+            tuple(row)
+            for row in migrated._connection.execute(
+                "SELECT * FROM execution_source_highwaters ORDER BY account_scope,strategy_scope,"
+                "logical_run_id,source_kind"
+            )
+        ) == expected_source_highwaters
+        assert _durable_usage(migrated._connection) == expected_usage
+        assert _highwater(migrated) == expected_highwater
+        assert migrated.fee_pair_required_scope(_ACCOUNT, _STRATEGY) is None
+        assert migrated._connection.execute(
+            "SELECT COUNT(*) FROM execution_fee_pair_scope_events"
+        ).fetchone()[0] == 0
+    finally:
+        migrated.close()
+
+    # Reopening an already migrated v15 journal is idempotent.
+    reopened = ExecutionDecisionJournal(path)
+    try:
+        assert reopened._connection.execute("PRAGMA user_version").fetchone()[0] == 15
+        assert tuple(
+            tuple(row)
+            for row in reopened._connection.execute(
+                "SELECT * FROM execution_decisions ORDER BY decision_id"
+            )
+        ) == expected_decisions
+        assert tuple(
+            tuple(row)
+            for row in reopened._connection.execute(
+                "SELECT * FROM execution_source_highwaters ORDER BY account_scope,strategy_scope,"
+                "logical_run_id,source_kind"
+            )
+        ) == expected_source_highwaters
+        assert _durable_usage(reopened._connection) == expected_usage
+    finally:
+        reopened.close()
+
+
+def test_registered_pair_scope_blocks_grid_and_source_only_advances_across_batches(tmp_path):
+    journal = ExecutionDecisionJournal(tmp_path / "pair-scope-source-fence.sqlite3")
+    try:
+        registered = journal.register_fee_pair_required_scope(_ACCOUNT, _STRATEGY)
+        assert registered.state == "REQUIRE_PAIR_FAIL_CLOSED"
+        assert journal.fee_pair_required_scope(_ACCOUNT, _STRATEGY) == registered
+
+        calendar = _calendar(1)
+        receipt = _receipt(
+            calendar,
+            cohort_id="cohort-next",
+            slot_index=0,
+            tape_file_id="tape-next",
+            tape_record_index=1,
+            source_role="live",
+            connection_generation="generation-next",
+            feed_sequence=1,
+        )
+        changed_batch_key = ExecutionDecisionKey(
+            account_scope=_ACCOUNT,
+            strategy_scope=_STRATEGY,
+            logical_run_id="different-run",
+            cohort_id="cohort-next",
+            close_time=receipt.close_time,
+            decision_kind=_SOURCE_KIND,
+        )
+        before_decisions = journal._connection.execute(
+            "SELECT COUNT(*) FROM execution_decisions"
+        ).fetchone()[0]
+        before_usage = _durable_usage(journal._connection)
+
+        with pytest.raises(
+            ExecutionDecisionJournalError, match="FEE_PAIR_SCOPE_FAIL_CLOSED"
+        ):
+            journal.record_grid_decision(
+                changed_batch_key,
+                {"signal": "synthetic-source"},
+                epoch_id=str(receipt.epoch_id),
+                batch_id=receipt.batch_id,
+                eligible=False,
+                complete=True,
+                live_ready=True,
+                inputs_complete=True,
+                source_receipt=receipt,
+            )
+        assert journal._connection.execute(
+            "SELECT COUNT(*) FROM execution_decisions"
+        ).fetchone()[0] == before_decisions
+        assert journal.source_highwater(_ACCOUNT, _STRATEGY, "different-run", _SOURCE_KIND) is None
+        assert _durable_usage(journal._connection) == before_usage
+
+        # The old eligible-grid API is fenced at stable account/strategy scope,
+        # even when the request contains no OPEN intents and changes run/cohort.
+        with pytest.raises(
+            ExecutionDecisionJournalError, match="FEE_PAIR_SCOPE_FAIL_CLOSED"
+        ):
+            journal.record_grid_decision(
+                changed_batch_key,
+                {"signal": "synthetic-flat"},
+                epoch_id=str(receipt.epoch_id),
+                batch_id=receipt.batch_id,
+                eligible=True,
+                complete=True,
+                live_ready=True,
+                inputs_complete=True,
+            )
+
+        # Scope registration does not silently affect a different account or
+        # strategy; their source receipt path remains usable.
+        other_scope_key = ExecutionDecisionKey(
+            account_scope="unregistered-account",
+            strategy_scope=_STRATEGY,
+            logical_run_id="different-run",
+            cohort_id="cohort-next",
+            close_time=receipt.close_time,
+            decision_kind=_SOURCE_KIND,
+        )
+        other = journal.record_grid_decision(
+            other_scope_key,
+            {"signal": "synthetic-source"},
+            epoch_id=str(receipt.epoch_id),
+            batch_id=receipt.batch_id,
+            eligible=False,
+            complete=True,
+            live_ready=True,
+            inputs_complete=True,
+            source_receipt=receipt,
+        )
+        assert other.eligible is False
+        assert journal.source_highwater(
+            "unregistered-account", _STRATEGY, "different-run", _SOURCE_KIND
+        ) is not None
+    finally:
+        journal.close()
 
 
 @pytest.mark.parametrize(
@@ -895,7 +1077,7 @@ def test_source_highwater_archive_preserves_exact_anchor(tmp_path):
             expected_sha256=archive_receipt.sha256,
         )
         assert verified == archive_receipt
-        assert archive_receipt.schema_version == 14
+        assert archive_receipt.schema_version == 15
         assert archive_receipt.table_row_counts["execution_source_highwaters"] == 1
     finally:
         journal.close()
@@ -933,7 +1115,7 @@ def test_current_schema_rejects_source_highwater_table_without_composite_primary
                 updated_at_ns INTEGER NOT NULL
             )"""
         )
-        connection.execute("PRAGMA user_version=14")
+        connection.execute("PRAGMA user_version=15")
 
     with pytest.raises(
         ExecutionDecisionJournalError, match="SOURCE_HIGHWATER_SCHEMA_CORRUPT"
