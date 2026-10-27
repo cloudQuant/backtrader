@@ -24,6 +24,8 @@ from backtrader.stores.execution_decision_journal import (
     ExecutionSourceMemberReceipt,
     ExecutionSourceReceipt,
     ExecutionSourceRestartMarker,
+    _source_receipt_sha256,
+    _source_receipt_values,
 )
 
 
@@ -84,6 +86,7 @@ def _receipt(
     predecessor=None,
     restart_marker=None,
     readiness=None,
+    origin_partition=None,
 ) -> ExecutionSourceReceipt:
     slot = calendar.slots[slot_index]
     close_time = _time(slot.close_time)
@@ -104,6 +107,7 @@ def _receipt(
         complete=True,
         quality="GOOD",
         present=True,
+        origin_partition=origin_partition,
     )
     return ExecutionSourceReceipt(
         source_kind=_SOURCE_KIND,
@@ -266,6 +270,128 @@ def test_source_receipts_survive_reopen_and_exact_replay_without_advancing_grid(
         ).fetchone()[0] == 2
     finally:
         reopened.close()
+
+
+def test_legacy_source_receipt_hash_and_bytes_survive_reopen(tmp_path):
+    path = tmp_path / "legacy-source-receipt.sqlite3"
+    receipt = _receipt(
+        _calendar(1),
+        cohort_id="cohort-1",
+        slot_index=0,
+        tape_file_id="tape-1",
+        tape_record_index=1,
+        source_role="live",
+        connection_generation="generation-1",
+        feed_sequence=1,
+    )
+    member_values = _source_receipt_values(receipt)["members"][0]
+    assert "origin_partition" not in member_values
+    expected_legacy_hash = "2c4c49968802265f1dd58bf9ae20939c33f885d3ad3c310eb6a257886e2cd9a1"
+    assert _source_receipt_sha256(receipt) == expected_legacy_hash
+
+    journal = ExecutionDecisionJournal(path)
+    _record_source(journal, receipt)
+    before = _highwater(journal)
+    assert before is not None and before.receipt_sha256 == expected_legacy_hash
+    journal.close()
+
+    reopened = ExecutionDecisionJournal(path)
+    try:
+        after = _highwater(reopened)
+        assert after == before
+        assert after.receipt_sha256 == expected_legacy_hash
+        assert _source_receipt_values(after.receipt)["members"][0] == member_values
+    finally:
+        reopened.close()
+
+
+def test_source_origin_partition_accepts_epoch_scoped_generation_reuse_and_rejects_rollback(
+    tmp_path,
+):
+    journal = ExecutionDecisionJournal(tmp_path / "origin-partition-order.sqlite3")
+
+    def partition(cohort_id, epoch_id, source_role):
+        return {
+            "schema": "backtrader.execution_source_origin_partition.v1",
+            "cohort_id": cohort_id,
+            "epoch_id": epoch_id,
+            "member_id": _MEMBER,
+            "source_ref": _SOURCE_REF,
+            "source_role": source_role,
+            "connection_generation": "generation-reused-after-restart",
+        }
+
+    try:
+        epoch1_partition = partition("cohort-1", 1, "live")
+        first = _receipt(
+            _calendar(1),
+            cohort_id="cohort-1",
+            slot_index=0,
+            tape_file_id="tape-1",
+            tape_record_index=1,
+            source_role="live",
+            connection_generation="generation-reused-after-restart",
+            feed_sequence=1,
+            origin_partition=epoch1_partition,
+        )
+        _record_source(journal, first)
+        prior = _highwater(journal)
+        assert prior is not None
+
+        epoch2_calendar = _calendar(2)
+        epoch2_first = _receipt(
+            epoch2_calendar,
+            cohort_id="cohort-2",
+            slot_index=0,
+            tape_file_id="tape-2",
+            tape_record_index=1,
+            source_role="history",
+            connection_generation="generation-reused-after-restart",
+            feed_sequence=1,
+            predecessor=prior.reference,
+            restart_marker=ExecutionSourceRestartMarker(prior_highwater=prior.reference),
+            origin_partition=epoch1_partition,
+        )
+        _record_source(journal, epoch2_first)
+        epoch2_prior = _highwater(journal)
+        assert epoch2_prior is not None
+
+        epoch2_history_origin = partition("cohort-2", 2, "history")
+        epoch2_second = _receipt(
+            epoch2_calendar,
+            cohort_id="cohort-2",
+            slot_index=1,
+            tape_file_id="tape-2",
+            tape_record_index=2,
+            source_role="history",
+            connection_generation="generation-reused-after-restart",
+            feed_sequence=1,
+            predecessor=epoch2_prior.reference,
+            origin_partition=epoch2_history_origin,
+        )
+        _record_source(journal, epoch2_second)
+        epoch2_prior = _highwater(journal)
+        assert epoch2_prior is not None
+
+        rolled_back = _receipt(
+            epoch2_calendar,
+            cohort_id="cohort-2",
+            slot_index=2,
+            tape_file_id="tape-2",
+            tape_record_index=3,
+            source_role="history",
+            connection_generation="generation-reused-after-restart",
+            feed_sequence=2,
+            predecessor=epoch2_prior.reference,
+            origin_partition=epoch1_partition,
+        )
+        with pytest.raises(
+            ExecutionDecisionJournalError, match="SOURCE_RECEIPT_LINEAGE_ORDER_INVALID"
+        ):
+            _record_source(journal, rolled_back)
+        assert _highwater(journal) == epoch2_prior
+    finally:
+        journal.close()
 
 
 def test_grid_source_anchor_is_atomic_and_source_only_cannot_upgrade(tmp_path):

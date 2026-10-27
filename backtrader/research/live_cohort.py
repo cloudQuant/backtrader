@@ -35,6 +35,41 @@ _MAX_PENDING_SLOTS = 64
 _MAX_WINDOW_BARS = 4096
 _MAX_RESTART_GAP_SLOTS = _MAX_CALENDAR_SLOTS
 _RESTART_GAP_FACTORY_TOKEN = object()
+_SOURCE_ORIGIN_PARTITION_SCHEMA = "backtrader.execution_source_origin_partition.v1"
+_SOURCE_ORIGIN_PARTITION_FIELDS = frozenset(
+    {
+        "schema",
+        "cohort_id",
+        "epoch_id",
+        "member_id",
+        "source_ref",
+        "source_role",
+        "connection_generation",
+    }
+)
+_VERIFIED_HISTORY_PROOF_EVENT_KEY = "_verified_saved_history_origin_proof"
+_SAVED_HISTORY_ANCHOR_EVENT_KEY = "_saved_history_tape_anchor"
+_SAVED_HISTORY_RECORD_SOURCE_ROLE_EVENT_KEY = "_saved_history_record_source_role"
+_VERIFIED_HISTORY_ANCHOR_FIELDS = frozenset(
+    {
+        "decision_id",
+        "receipt_sha256",
+        "tape_file_id",
+        "tape_record_id",
+        "tape_record_index",
+        "batch_id",
+        "source_cohort_id",
+        "source_epoch_id",
+        "calendar_id",
+        "calendar_version",
+        "calendar_fingerprint",
+        "slot_index",
+        "slot_id",
+        "close_time",
+        "member_receipt",
+        "origin_partition",
+    }
+)
 
 
 class LiveCohortError(RuntimeError):
@@ -77,6 +112,250 @@ def _read(source: Any, name: str, default: Any = None) -> Any:
     if isinstance(source, Mapping):
         return source.get(name, default)
     return getattr(source, name, default)
+
+
+def _origin_partition_values(value: Any) -> Mapping[str, Any]:
+    if not isinstance(value, Mapping) or set(value) != _SOURCE_ORIGIN_PARTITION_FIELDS:
+        raise LiveCohortValidationError("source origin partition schema is invalid")
+    generation = value["connection_generation"]
+    if (
+        value["schema"] != _SOURCE_ORIGIN_PARTITION_SCHEMA
+        or type(value["epoch_id"]) is not int
+        or value["epoch_id"] < 1
+        or type(value["source_role"]) is not str
+        or value["source_role"] not in ("history", "live")
+        or type(generation) not in (str, int)
+        or (type(generation) is str and (not generation or len(generation) > 256))
+        or (type(generation) is int and generation <= 0)
+    ):
+        raise LiveCohortValidationError("source origin partition schema is invalid")
+    for name, limit in (("cohort_id", 512), ("member_id", 256), ("source_ref", 2048)):
+        text = value[name]
+        if type(text) is not str or not text or text != text.strip() or len(text) > limit:
+            raise LiveCohortValidationError("source origin partition identity is invalid")
+    return MappingProxyType({name: value[name] for name in _SOURCE_ORIGIN_PARTITION_FIELDS})
+
+
+def _origin_partition_identity(value: Mapping[str, Any]) -> Tuple[Any, ...]:
+    return tuple(
+        value[name]
+        for name in (
+            "cohort_id",
+            "epoch_id",
+            "member_id",
+            "source_ref",
+            "source_role",
+            "connection_generation",
+        )
+    )
+
+
+def _origin_partition_follows(previous: Mapping[str, Any], current: Mapping[str, Any]) -> bool:
+    if _origin_partition_identity(previous) == _origin_partition_identity(current):
+        return True
+    if current["epoch_id"] > previous["epoch_id"]:
+        return current["cohort_id"] != previous["cohort_id"]
+    return bool(
+        current["epoch_id"] == previous["epoch_id"]
+        and current["cohort_id"] == previous["cohort_id"]
+        and current["member_id"] == previous["member_id"]
+        and current["source_ref"] == previous["source_ref"]
+        and previous["source_role"] == "history"
+        and current["source_role"] == "live"
+    )
+
+
+def _proof_scalar(value: Any, name: str) -> Any:
+    """Encode one bounded source value for the transient history proof digest."""
+    if isinstance(value, _datetime.datetime):
+        return {"datetime_utc": _aware_utc(value, name).isoformat().replace("+00:00", "Z")}
+    if isinstance(value, Decimal):
+        return {"decimal": str(value)}
+    if isinstance(value, float):
+        if not math.isfinite(value):
+            raise LiveCohortValidationError("{} must be finite for history proof".format(name))
+        return {"float_hex": value.hex()}
+    if value is None or type(value) in (str, int, bool):
+        return value
+    if isinstance(value, bytes):
+        return {"bytes_hex": value.hex()}
+    if type(value) in (tuple, list):
+        return [_proof_scalar(item, name) for item in value]
+    if isinstance(value, Mapping):
+        if any(type(key) is not str for key in value):
+            raise LiveCohortValidationError("{} keys must be text for history proof".format(name))
+        return {key: _proof_scalar(value[key], name) for key in sorted(value)}
+    raise LiveCohortValidationError("{} has an unsupported history proof value".format(name))
+
+
+def _saved_history_event_sha256(event: Any, member: "LiveCohortMember", source_role: str) -> str:
+    """Commit the normalized source facts that a saved-history event can deliver."""
+    names = (
+        "instrument",
+        "symbol",
+        "exchange",
+        "timestamp",
+        "datetime",
+        "bucket_start",
+        "bucket_end",
+        "available_at",
+        "trading_day",
+        "session_segment",
+        "timezone_id",
+        "clock_domain_id",
+        "connection_generation",
+        "bar_sequence",
+        "bar_id",
+        "source_ref",
+        "origin_partition",
+        "present",
+        "complete",
+        "quality",
+        "quality_flags",
+        "missing_fields",
+        "source",
+        "rules_hash",
+        "received_monotonic_ns",
+    ) + tuple(member.raw_fields)
+    payload = {
+        "member_id": member.member_id,
+        "source_ref": member.source_ref,
+        "source_role": source_role,
+        "clock_domain_id": member.clock_domain_id,
+        "timezone_id": member.timezone_id,
+        "session_semantics": member.session_semantics,
+        "raw_fields": tuple(member.raw_fields),
+        "event": {
+            name: _proof_scalar(_read(event, name, None), name) for name in names
+        },
+    }
+    encoded = json.dumps(
+        payload, sort_keys=True, separators=(",", ":"), ensure_ascii=True, allow_nan=False
+    ).encode("ascii")
+    return hashlib.sha256(encoded).hexdigest()
+
+
+@dataclass(frozen=True)
+class _VerifiedSavedHistoryJournalAnchor:
+    """One bounded journal receipt row already matched to a tape row by the runner.
+
+    This is transient in-process evidence.  It is not serialized into a tape and
+    does not authenticate a caller running with the same Python privileges.
+    """
+
+    facts: Mapping[str, Any]
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.facts, Mapping) or set(self.facts) != _VERIFIED_HISTORY_ANCHOR_FIELDS:
+            raise LiveCohortValidationError("verified saved-history anchor shape is invalid")
+        values = dict(self.facts)
+        for name in (
+            "decision_id",
+            "receipt_sha256",
+            "tape_file_id",
+            "tape_record_id",
+            "batch_id",
+            "source_cohort_id",
+            "calendar_id",
+            "calendar_version",
+            "calendar_fingerprint",
+            "slot_id",
+        ):
+            _nonempty_text(values[name], "verified anchor " + name)
+        if (
+            len(values["receipt_sha256"]) != 64
+            or any(char not in "0123456789abcdef" for char in values["receipt_sha256"])
+            or len(values["calendar_fingerprint"]) != 64
+            or any(char not in "0123456789abcdef" for char in values["calendar_fingerprint"])
+            or type(values["source_epoch_id"]) is not int
+            or values["source_epoch_id"] < 1
+            or type(values["slot_index"]) is not int
+            or values["slot_index"] < 0
+            or type(values["tape_record_index"]) is not int
+            or values["tape_record_index"] < 1
+            or not isinstance(values["member_receipt"], Mapping)
+            or (
+                values["origin_partition"] is not None
+                and not isinstance(values["origin_partition"], Mapping)
+            )
+        ):
+            raise LiveCohortValidationError("verified saved-history anchor identity is invalid")
+        values["close_time"] = _aware_utc(values["close_time"], "verified anchor close_time")
+        member_receipt = dict(values["member_receipt"])
+        if member_receipt.get("origin_partition") is not None:
+            member_receipt["origin_partition"] = _origin_partition_values(
+                member_receipt["origin_partition"]
+            )
+        for name in ("missing_fields", "quality_flags"):
+            if name in member_receipt:
+                member_receipt[name] = tuple(member_receipt[name])
+        values["member_receipt"] = MappingProxyType(member_receipt)
+        if values["origin_partition"] is not None:
+            values["origin_partition"] = _origin_partition_values(values["origin_partition"])
+        object.__setattr__(self, "facts", MappingProxyType(values))
+
+
+@dataclass(frozen=True)
+class _VerifiedSavedHistoryOriginProof:
+    """Exact, transient authorization to merge one journal-anchored old origin."""
+
+    owner_token: Any = field(compare=False, repr=False)
+    member_identity: int
+    feed_identity: int
+    receiver_cohort_id: str
+    receiver_epoch_id: int
+    receiver_calendar_id: str
+    receiver_calendar_version: str
+    receiver_calendar_fingerprint: str
+    origin_identity: Tuple[Any, ...]
+    source_role: str
+    generation: Any
+    feed_sequence: int
+    bar_id: str
+    slot_index: int
+    slot_id: str
+    close_time: _datetime.datetime
+    bucket_start: _datetime.datetime
+    available_at: _datetime.datetime
+    trading_day: str
+    session_segment: str
+    content_sha256: str
+    tape_anchor_identity: Tuple[Any, ...]
+    tape_source_role: str
+    decision_id: str
+    receipt_sha256: str
+
+
+def _make_verified_saved_history_journal_anchor(**facts: Any) -> _VerifiedSavedHistoryJournalAnchor:
+    """Build a transient anchor only after the runner has checked its full tail."""
+    return _VerifiedSavedHistoryJournalAnchor(facts)
+
+
+def _history_receipt_time(value: Any) -> str:
+    if isinstance(value, str):
+        parse_text = value[:-1] + "+00:00" if value.endswith("Z") else value
+        try:
+            value = _datetime.datetime.fromisoformat(parse_text)
+        except ValueError as error:
+            raise LiveCohortValidationError("saved history receipt time is invalid") from error
+    return _aware_utc(value, "saved history receipt time").isoformat().replace("+00:00", "Z")
+
+
+def _verified_history_anchor_identity(facts: Mapping[str, Any]) -> Tuple[Any, ...]:
+    return (
+        facts["tape_file_id"],
+        facts["tape_record_id"],
+        facts["tape_record_index"],
+        facts["batch_id"],
+        facts["source_cohort_id"],
+        facts["source_epoch_id"],
+        facts["calendar_id"],
+        facts["calendar_version"],
+        facts["calendar_fingerprint"],
+        facts["slot_index"],
+        facts["slot_id"],
+        facts["close_time"],
+    )
 
 
 def _frozen_scalar(value: Any, name: str) -> Any:
@@ -745,6 +1024,7 @@ class LiveSourceOrigin:
     bar_id: str
     feed_sequence: int
     close_time: _datetime.datetime
+    origin_partition: Optional[Mapping[str, Any]] = field(default=None, compare=True)
 
     def __post_init__(self) -> None:
         _nonempty_text(self.member_id, "member_id")
@@ -762,6 +1042,17 @@ class LiveSourceOrigin:
         _nonempty_text(self.bar_id, "bar_id")
         _positive_int(self.feed_sequence, "feed_sequence")
         object.__setattr__(self, "close_time", _aware_utc(self.close_time, "close_time"))
+        if self.origin_partition is not None:
+            partition = _origin_partition_values(self.origin_partition)
+            if (
+                partition["member_id"] != self.member_id
+                or partition["source_ref"] != self.source_ref
+                or partition["connection_generation"] != self.connection_generation
+            ):
+                raise LiveCohortValidationError(
+                    "source origin partition does not bind its origin"
+                )
+            object.__setattr__(self, "origin_partition", partition)
 
 
 @dataclass(frozen=True)
@@ -887,6 +1178,7 @@ class BarEnvelope:
     event_ref: Any = field(default=None, compare=False, repr=False)
     evidence_ref: Any = field(default=None, compare=False, repr=False)
     rules_hash: Optional[str] = None
+    origin_partition: Optional[Mapping[str, Any]] = field(default=None, compare=True)
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "bucket_start", _aware_utc(self.bucket_start, "bucket_start"))
@@ -920,6 +1212,8 @@ class BarEnvelope:
         object.__setattr__(self, "field_gaps", gaps)
         object.__setattr__(self, "missing_fields", missing)
         object.__setattr__(self, "quality_flags", tuple(self.quality_flags))
+        if self.origin_partition is not None:
+            object.__setattr__(self, "origin_partition", _origin_partition_values(self.origin_partition))
 
 
 @dataclass(frozen=True)
@@ -1135,6 +1429,7 @@ class _BarSignature:
     connection_generation: Any
     feed_sequence: int
     bar_id: str
+    origin_partition: Tuple[Any, ...]
 
 
 class LiveBarCohort:
@@ -1188,12 +1483,13 @@ class LiveBarCohort:
         self._recent_signatures: Dict[Tuple[int, str], _BarSignature] = {}
         self._recent_signature_order: Deque[Tuple[int, str]] = deque()
         self._window_receipts: Dict[str, Deque[LiveDeliveryReceipt]] = {}
-        self._generation_by_role: Dict[Tuple[str, str], Any] = {}
-        self._last_sequence: Dict[Tuple[str, str, Any], int] = {}
+        self._last_origin_partition: Dict[str, Mapping[str, Any]] = {}
+        self._last_partition_sequence: Dict[str, int] = {}
         self._last_role: Dict[str, Optional[str]] = {}
         self._history_last_close: Dict[str, _datetime.datetime] = {}
         self._first_live_receipt: Dict[str, LiveDeliveryReceipt] = {}
         self._history_continuity: Dict[str, LiveHistoryContinuity] = {}
+        self._history_proof_owner_token = object()
         self._lock = threading.RLock()
 
     @property
@@ -1368,6 +1664,142 @@ class LiveBarCohort:
             return None
         return member
 
+    def _issue_verified_saved_history_origin_proof(
+        self,
+        feed_ref: Any,
+        event: Any,
+        anchor: _VerifiedSavedHistoryJournalAnchor,
+    ) -> _VerifiedSavedHistoryOriginProof:
+        """Authorize one old-origin row after the runner verified its full journal anchor.
+
+        The runner is the sole production caller and calls this only after the
+        entire bounded tail passed journal checks.  The transient object is an
+        in-process capability against plain tape mappings and accidental proof
+        reuse; it is not a cryptographic boundary against same-privilege code.
+        """
+        with self._lock:
+            if type(anchor) is not _VerifiedSavedHistoryJournalAnchor:
+                raise LiveCohortValidationError("saved history requires a verified journal anchor")
+            member = self.member_for_feed(feed_ref)
+            if member is None or member.feed_ref is not feed_ref:
+                raise LiveCohortValidationError("saved history anchor names another feed member")
+            if self._next_slot_index or self._pending or self._prepared is not None:
+                raise LiveCohortValidationError("saved history proofs must bind before capture")
+            facts = anchor.facts
+            if facts["origin_partition"] is None:
+                raise LiveCohortValidationError("saved history origin partition is unproven")
+            partition = _origin_partition_values(_read(event, "origin_partition", None))
+            if (
+                partition["epoch_id"] >= self.epoch_id
+                or partition["cohort_id"] == self.cohort_id
+                or partition["member_id"] != member.member_id
+                or partition["source_ref"] != member.source_ref
+                or facts["origin_partition"] is None
+                or _origin_partition_identity(partition)
+                != _origin_partition_identity(facts["origin_partition"])
+                or partition["connection_generation"]
+                != _read(event, "connection_generation", None)
+                or _read(event, _SAVED_HISTORY_ANCHOR_EVENT_KEY, None)
+                != _verified_history_anchor_identity(facts)
+            ):
+                raise LiveCohortValidationError("saved history journal anchor does not bind the row")
+            member_receipt = facts["member_receipt"]
+            if (
+                member_receipt.get("member_id") != member.member_id
+                or member_receipt.get("source_ref") != member.source_ref
+                or _read(event, "source_ref", None) != member.source_ref
+                or (
+                    member_receipt.get("origin_partition") is not None
+                    and _origin_partition_identity(
+                        _origin_partition_values(member_receipt["origin_partition"])
+                    )
+                    != _origin_partition_identity(partition)
+                )
+                or (
+                    member_receipt.get("origin_partition") is None
+                    and (
+                        member_receipt.get("source_role") != "live"
+                        or partition["cohort_id"] != facts["source_cohort_id"]
+                        or partition["epoch_id"] != facts["source_epoch_id"]
+                        or partition["source_role"] != "live"
+                    )
+                )
+                or member_receipt.get("connection_generation")
+                != _read(event, "connection_generation", None)
+                or member_receipt.get("feed_sequence") != _read(event, "bar_sequence", None)
+                or member_receipt.get("bar_id") != _read(event, "bar_id", None)
+                or member_receipt.get("source_role")
+                != _read(event, _SAVED_HISTORY_RECORD_SOURCE_ROLE_EVENT_KEY, None)
+                or member_receipt.get("complete") != _read(event, "complete", None)
+                or member_receipt.get("quality") != _read(event, "quality", None)
+                or member_receipt.get("present") != _read(event, "present", None)
+                or tuple(member_receipt.get("missing_fields", ()))
+                != _read(event, "missing_fields", None)
+                or tuple(member_receipt.get("quality_flags", ()))
+                != _read(event, "quality_flags", None)
+                or member_receipt.get("event_source") != _read(event, "source", None)
+                or member_receipt.get("received_monotonic_ns")
+                != _read(event, "received_monotonic_ns", None)
+                or member_receipt.get("rules_hash") != _read(event, "rules_hash", None)
+                or member_receipt.get("bucket_start")
+                != _history_receipt_time(_read(event, "bucket_start", None))
+                or member_receipt.get("close_time")
+                != _history_receipt_time(_read(event, "bucket_end", None))
+                or member_receipt.get("available_at")
+                != _history_receipt_time(_read(event, "available_at", None))
+                or member_receipt.get("trading_day")
+                != _read(event, "trading_day", None)
+                or member_receipt.get("session_segment")
+                != _read(event, "session_segment", None)
+                or member_receipt.get("timezone_id") != member.timezone_id
+                or member_receipt.get("clock_domain_id") != member.clock_domain_id
+            ):
+                raise LiveCohortValidationError("saved history receipt member does not bind the row")
+            receiver_slot_index = self._slot_index(
+                _aware_utc(_read(event, "bucket_end", None), "saved history close_time")
+            )
+            if receiver_slot_index is None:
+                raise LiveCohortValidationError("saved history row is outside the receiver calendar")
+            receiver_slot = self._calendar.slots[receiver_slot_index]
+            if (
+                receiver_slot.bucket_start
+                != _aware_utc(_read(event, "bucket_start", None), "saved history bucket_start")
+                or receiver_slot.trading_day
+                != _read(event, "trading_day", None)
+                or receiver_slot.session_segment
+                != _read(event, "session_segment", None)
+            ):
+                raise LiveCohortValidationError("saved history row session differs from receiver slot")
+            return _VerifiedSavedHistoryOriginProof(
+                owner_token=self._history_proof_owner_token,
+                member_identity=id(member),
+                feed_identity=id(feed_ref),
+                receiver_cohort_id=self.cohort_id,
+                receiver_epoch_id=self.epoch_id,
+                receiver_calendar_id=self.calendar_id,
+                receiver_calendar_version=self.calendar_version,
+                receiver_calendar_fingerprint=self.calendar_fingerprint,
+                origin_identity=_origin_partition_identity(partition),
+                source_role="history",
+                generation=_read(event, "connection_generation", None),
+                feed_sequence=_read(event, "bar_sequence", None),
+                bar_id=_read(event, "bar_id", None),
+                slot_index=receiver_slot_index,
+                slot_id=receiver_slot.slot_id,
+                close_time=receiver_slot.close_time,
+                bucket_start=receiver_slot.bucket_start,
+                available_at=_aware_utc(
+                    _read(event, "available_at", None), "saved history available_at"
+                ),
+                trading_day=_read(event, "trading_day", None),
+                session_segment=_read(event, "session_segment", None),
+                content_sha256=_saved_history_event_sha256(event, member, "history"),
+                tape_anchor_identity=_verified_history_anchor_identity(facts),
+                tape_source_role=member_receipt["source_role"],
+                decision_id=facts["decision_id"],
+                receipt_sha256=facts["receipt_sha256"],
+            )
+
     def require_factor_field(self, feed_ref: Any, line_name: str) -> LiveInputBinding:
         with self._lock:
             self._require_open()
@@ -1462,14 +1894,21 @@ class LiveBarCohort:
             slot_index = envelope.slot_index
             existing = self._pending.get(slot_index, {}).get(member.member_id)
             if existing is not None:
-                if (
+                same_capture = (
                     self._data_signature(existing) == self._data_signature(envelope)
                     and existing.source_role == envelope.source_role
-                    and existing.connection_generation != envelope.connection_generation
+                )
+                if same_capture and (
+                    existing.connection_generation != envelope.connection_generation
                 ):
                     self._freeze("connection_generation_changed")
                     raise LiveCohortFrozenError(
                         "duplicate bar came from a different connection generation"
+                    )
+                if same_capture and existing.origin_partition != envelope.origin_partition:
+                    self._freeze("source_origin_partition_changed")
+                    raise LiveCohortFrozenError(
+                        "duplicate bar came from a different source origin partition"
                     )
                 if self._is_duplicate(existing, envelope):
                     if existing.source_role != envelope.source_role:
@@ -1486,15 +1925,22 @@ class LiveBarCohort:
                     if signature.source_role != envelope.source_role:
                         self._validate_member_sequence(member, envelope)
                     return CaptureResult(envelope, True, slot_index)
-                if (
+                same_capture = (
                     signature is not None
                     and signature.data == candidate_signature.data
-                    and signature.source_role == envelope.source_role
-                    and signature.connection_generation != envelope.connection_generation
+                    and signature.source_role == candidate_signature.source_role
+                )
+                if same_capture and (
+                    signature.connection_generation != candidate_signature.connection_generation
                 ):
                     self._freeze("connection_generation_changed")
                     raise LiveCohortFrozenError(
                         "late duplicate came from a different connection generation"
+                    )
+                if same_capture and signature.origin_partition != candidate_signature.origin_partition:
+                    self._freeze("source_origin_partition_changed")
+                    raise LiveCohortFrozenError(
+                        "late duplicate came from a different source origin partition"
                     )
                 self._freeze("late_bar_after_seal")
                 raise LiveCohortFrozenError("late bar cannot rewrite a sealed cohort slot")
@@ -1624,10 +2070,99 @@ class LiveBarCohort:
             raise LiveCohortValidationError(
                 "connection_generation must be an explicit non-empty value"
             )
+        origin_partition = _read(event, "origin_partition", None)
+        if origin_partition is None:
+            origin_partition = MappingProxyType(
+                {
+                    "schema": _SOURCE_ORIGIN_PARTITION_SCHEMA,
+                    "cohort_id": self.cohort_id,
+                    "epoch_id": self.epoch_id,
+                    "member_id": member.member_id,
+                    "source_ref": member.source_ref,
+                    "source_role": source_role,
+                    "connection_generation": generation,
+                }
+            )
+        else:
+            origin_partition = _origin_partition_values(origin_partition)
+        proof = _read(event, _VERIFIED_HISTORY_PROOF_EVENT_KEY, None)
+        if origin_partition["epoch_id"] > self.epoch_id:
+            raise LiveCohortValidationError("source origin partition is from a future epoch")
+        if origin_partition["epoch_id"] < self.epoch_id:
+            if source_role != "history":
+                raise LiveCohortValidationError(
+                    "an older source origin partition must enter as history"
+                )
+            if type(proof) is not _VerifiedSavedHistoryOriginProof:
+                raise LiveCohortValidationError(
+                    "saved history requires a verified journal anchor"
+                )
+        if (
+            origin_partition["member_id"] != member.member_id
+            or origin_partition["source_ref"] != member.source_ref
+            or origin_partition["connection_generation"] != generation
+            or (
+                origin_partition["epoch_id"] == self.epoch_id
+                and (
+                    origin_partition["cohort_id"] != self.cohort_id
+                    or origin_partition["source_role"] != source_role
+                )
+            )
+            or (
+                origin_partition["epoch_id"] < self.epoch_id
+                and origin_partition["cohort_id"] == self.cohort_id
+            )
+            or (
+                source_role == "live"
+                and (
+                    origin_partition["cohort_id"] != self.cohort_id
+                    or origin_partition["epoch_id"] != self.epoch_id
+                    or origin_partition["source_role"] != "live"
+                )
+            )
+            or (
+                source_role == "history"
+                and origin_partition["epoch_id"] == self.epoch_id
+                and origin_partition["source_role"] != "history"
+            )
+        ):
+            raise LiveCohortValidationError("source origin partition does not match the bar")
         sequence = _positive_int(_read(event, "bar_sequence", None), "bar_sequence")
         bar_id = _nonempty_text(_read(event, "bar_id", None), "bar_id")
         trading_day = _nonempty_text(_read(event, "trading_day", None), "trading_day")
         session_segment = _nonempty_text(_read(event, "session_segment", None), "session_segment")
+        if origin_partition["epoch_id"] == self.epoch_id and proof is not None:
+            raise LiveCohortValidationError("current source row cannot carry a saved history proof")
+        if origin_partition["epoch_id"] < self.epoch_id:
+            proof_matches = (
+                proof.owner_token is self._history_proof_owner_token
+                and proof.member_identity == id(member)
+                and proof.feed_identity == id(member.feed_ref)
+                and proof.receiver_cohort_id == self.cohort_id
+                and proof.receiver_epoch_id == self.epoch_id
+                and proof.receiver_calendar_id == self.calendar_id
+                and proof.receiver_calendar_version == self.calendar_version
+                and proof.receiver_calendar_fingerprint == self.calendar_fingerprint
+                and proof.origin_identity == _origin_partition_identity(origin_partition)
+                and proof.source_role == source_role
+                and proof.generation == generation
+                and proof.feed_sequence == sequence
+                and proof.bar_id == bar_id
+                and proof.slot_index == slot_index
+                and proof.slot_id == slot.slot_id
+                and proof.close_time == close_time
+                and proof.bucket_start == slot_start
+                and proof.available_at == available_at
+                and proof.trading_day == trading_day
+                and proof.session_segment == session_segment
+                and proof.tape_anchor_identity
+                == _read(event, _SAVED_HISTORY_ANCHOR_EVENT_KEY, None)
+                and proof.tape_source_role
+                == _read(event, _SAVED_HISTORY_RECORD_SOURCE_ROLE_EVENT_KEY, None)
+                and proof.content_sha256 == _saved_history_event_sha256(event, member, source_role)
+            )
+            if not proof_matches:
+                raise LiveCohortValidationError("saved history proof does not bind the exact row")
         expected_session = slot.member_sessions.get(member.member_id)
         expected_trading_day = (
             expected_session.trading_day if expected_session is not None else slot.trading_day
@@ -1949,6 +2484,7 @@ class LiveBarCohort:
             event_ref=event,
             evidence_ref=evidence,
             rules_hash=rules_hash,
+            origin_partition=origin_partition,
         )
 
     def _validate_member_sequence(self, member: LiveCohortMember, envelope: BarEnvelope) -> None:
@@ -1956,18 +2492,28 @@ class LiveBarCohort:
         if role == "live" and envelope.source_role == "history":
             self._freeze("history_after_live")
             raise LiveCohortFrozenError("history bars cannot follow live bars within an epoch")
-        role_key = (member.member_id, envelope.source_role)
-        prior_generation = self._generation_by_role.get(role_key)
-        if prior_generation is not None and prior_generation != envelope.connection_generation:
-            self._freeze("connection_generation_changed")
-            raise LiveCohortFrozenError("connection generation changed within a cohort epoch")
-        seq_key = (member.member_id, envelope.source_role, envelope.connection_generation)
-        prior_sequence = self._last_sequence.get(seq_key)
-        if prior_sequence is not None and envelope.feed_sequence <= prior_sequence:
-            self._freeze("non_monotone_feed_sequence")
-            raise LiveCohortFrozenError("feed sequence must increase within source generation")
-        self._generation_by_role[role_key] = envelope.connection_generation
-        self._last_sequence[seq_key] = envelope.feed_sequence
+        partition = envelope.origin_partition
+        if partition is None:
+            self._freeze("source_origin_partition_missing")
+            raise LiveCohortFrozenError("source origin partition is required")
+        previous_partition = self._last_origin_partition.get(member.member_id)
+        previous_sequence = self._last_partition_sequence.get(member.member_id)
+        if previous_partition is not None:
+            if not _origin_partition_follows(previous_partition, partition):
+                self._freeze("source_origin_partition_order_invalid")
+                raise LiveCohortFrozenError("source origin partition moved backwards or changed")
+            same_partition = (
+                _origin_partition_identity(previous_partition)
+                == _origin_partition_identity(partition)
+            )
+            if same_partition and previous_sequence is not None and envelope.feed_sequence <= previous_sequence:
+                self._freeze("non_monotone_feed_sequence")
+                raise LiveCohortFrozenError("feed sequence must increase within source partition")
+            if role == "live" and envelope.source_role == "live" and not same_partition:
+                self._freeze("source_origin_partition_order_invalid")
+                raise LiveCohortFrozenError("live source cannot switch origin partitions")
+        self._last_origin_partition[member.member_id] = partition
+        self._last_partition_sequence[member.member_id] = envelope.feed_sequence
         self._last_role[member.member_id] = envelope.source_role
 
     def _slot_index(self, close_time: _datetime.datetime) -> Optional[int]:
@@ -2016,6 +2562,11 @@ class LiveBarCohort:
             connection_generation=envelope.connection_generation,
             feed_sequence=envelope.feed_sequence,
             bar_id=envelope.bar_id,
+            origin_partition=(
+                ()
+                if envelope.origin_partition is None
+                else _origin_partition_identity(envelope.origin_partition)
+            ),
         )
 
     @staticmethod
@@ -2024,6 +2575,8 @@ class LiveBarCohort:
             return False
         if prior.source_role == candidate.source_role:
             return (
+                prior.origin_partition == candidate.origin_partition
+                and
                 prior.connection_generation == candidate.connection_generation
                 and prior.feed_sequence == candidate.feed_sequence
                 and prior.bar_id == candidate.bar_id
@@ -2447,6 +3000,22 @@ class LiveBarCohort:
         )
         if prior is None:
             origin = member.source_origin
+            expected_origin_partition = (
+                None
+                if origin is None
+                else origin.origin_partition
+                or MappingProxyType(
+                    {
+                        "schema": _SOURCE_ORIGIN_PARTITION_SCHEMA,
+                        "cohort_id": self.cohort_id,
+                        "epoch_id": origin.epoch_id,
+                        "member_id": origin.member_id,
+                        "source_ref": origin.source_ref,
+                        "source_role": origin.source_role,
+                        "connection_generation": origin.connection_generation,
+                    }
+                )
+            )
             exact_origin = (
                 origin is not None
                 and origin.member_id == member.member_id
@@ -2457,6 +3026,10 @@ class LiveBarCohort:
                 and origin.bar_id == receipt.envelope.bar_id
                 and origin.feed_sequence == receipt.feed_sequence
                 and origin.close_time == receipt.close_time
+                and receipt.envelope.origin_partition is not None
+                and expected_origin_partition is not None
+                and _origin_partition_identity(expected_origin_partition)
+                == _origin_partition_identity(receipt.envelope.origin_partition)
             )
             qualified = bool(exact_origin and complete)
             reason = (
@@ -2508,15 +3081,31 @@ class LiveBarCohort:
                 origin_receipt=prior.origin_receipt,
                 last_receipt=receipt,
             )
-        # The planned slot is the cross-role identity. Sequence counters and
-        # generations are scoped to a source role by the cohort contract.
+        # Current role remains the feed contract. Origin partitions disambiguate
+        # historical rows merged from successive, journal-anchored sessions.
+        previous_partition = previous.envelope.origin_partition
+        current_partition = receipt.envelope.origin_partition
+        same_partition = bool(
+            previous_partition is not None
+            and current_partition is not None
+            and _origin_partition_identity(previous_partition)
+            == _origin_partition_identity(current_partition)
+        )
         if previous.source_role == receipt.source_role:
-            role_continuous = (
-                receipt.envelope.connection_generation == previous.envelope.connection_generation
-                and receipt.feed_sequence > previous.feed_sequence
+            role_continuous = bool(
+                previous_partition is not None
+                and current_partition is not None
+                and _origin_partition_follows(previous_partition, current_partition)
+                and (not same_partition or receipt.feed_sequence > previous.feed_sequence)
             )
         else:
-            role_continuous = previous.source_role == "history" and receipt.source_role == "live"
+            role_continuous = bool(
+                previous.source_role == "history"
+                and receipt.source_role == "live"
+                and previous_partition is not None
+                and current_partition is not None
+                and _origin_partition_follows(previous_partition, current_partition)
+            )
         continuous = (
             complete
             and receipt.cohort_id == prior.cohort_id == self.cohort_id

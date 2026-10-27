@@ -4521,6 +4521,7 @@ class Alpha003TargetStrategy(bt.Strategy):
                     event_source=_read(envelope, "event_source"),
                     received_monotonic_ns=_read(envelope, "received_monotonic_ns"),
                     rules_hash=_read(envelope, "rules_hash"),
+                    origin_partition=_read(envelope, "origin_partition"),
                 )
             )
         cohort = self.p.cohort

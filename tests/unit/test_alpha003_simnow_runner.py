@@ -1133,14 +1133,18 @@ def _daily_test_inputs(tmp_path):
         "unresolved_position",
         "saved_history_restart",
         "source_final_highwater_missing",
+        "lineage_chain_only",
+        "legacy_v1_compat",
     ),
     (
-        ("bundle", False, False, False),
-        ("bundle", True, False, False),
-        ("ctp_query", False, False, False),
-        ("bundle", False, True, False),
-        ("ctp_query", False, True, False),
-        ("bundle", False, False, True),
+        ("bundle", False, False, False, False, False),
+        ("bundle", True, False, False, False, False),
+        ("ctp_query", False, False, False, False, False),
+        ("bundle", False, True, False, False, False),
+        ("ctp_query", False, True, False, False, False),
+        ("bundle", False, False, True, False, False),
+        ("ctp_query", False, True, False, True, False),
+        ("ctp_query", False, True, False, True, True),
     ),
     ids=(
         "flat-two-epoch-positive",
@@ -1149,6 +1153,8 @@ def _daily_test_inputs(tmp_path):
         "saved-history-real-live-restart",
         "saved-query-history-three-epoch-restart",
         "final-highwater-missing-after-cleanup",
+        "saved-query-history-8bar-lineage-e1-e5",
+        "saved-query-history-v1-live-tail-and-mixed-tail-refusal",
     ),
 )
 def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bundle(
@@ -1158,6 +1164,8 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
     unresolved_position,
     saved_history_restart,
     source_final_highwater_missing,
+    lineage_chain_only,
+    legacy_v1_compat,
 ):
     """Exercise daily assembly through the real Store/Broker/Cerebro stack.
 
@@ -1176,6 +1184,13 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
     from backtrader.feeds.ctp_factor_source import CtpFactorSourceBinding
     from backtrader.stores.btapistore import _create_ctp_wrapper_class
     from tests.unit.stores import test_factor_execution_facts as facts_fixture
+
+    if legacy_v1_compat:
+        from tests.fixtures.alpha003_decision_tape_v1_writer import bind_legacy_writer
+
+        assert selection_source == "ctp_query"
+        assert saved_history_restart is True and lineage_chain_only is True
+        monkeypatch.setattr(RUNNER, "DecisionTapeWriter", bind_legacy_writer(RUNNER))
     query_saved_history = selection_source == "ctp_query" and saved_history_restart
 
     # Keep the controlled source/session timestamps historical relative to the
@@ -1290,10 +1305,22 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
     # The prior tape must retain one full LIVE_READY window after the initial
     # warmup; those rows are the journal-anchored values restored next epoch.
     restart_cut = 2 * config["factor"]["preheat_bars"]
-    restart_cut_2 = restart_cut + config["factor"]["preheat_bars"] + 8
-    restart_cut_3 = restart_cut_2 + config["factor"]["preheat_bars"] + 8
-    assert restart_cut_3 < len(first_plan["grid"].minutes)
-    for cutoff in (restart_cut, restart_cut_2):
+    restart_step = 8 if lineage_chain_only else config["factor"]["preheat_bars"] + 8
+    restart_cut_2 = restart_cut + restart_step
+    restart_cut_3 = restart_cut_2 + restart_step
+    restart_cutoffs = {
+        1: restart_cut,
+        2: restart_cut_2,
+        3: restart_cut_3,
+    }
+    if lineage_chain_only:
+        restart_cut_4 = restart_cut_3 + restart_step
+        restart_cut_5 = restart_cut_4 + restart_step
+        restart_cutoffs.update({4: restart_cut_4, 5: restart_cut_5})
+        assert restart_cut_5 < len(first_plan["grid"].minutes)
+    else:
+        assert restart_cut_3 < len(first_plan["grid"].minutes)
+    for cutoff in restart_cutoffs.values():
         assert len(
             {
                 (member.trading_day, member.session_id)
@@ -1314,6 +1341,7 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
     strategy_source_highwaters = []
     source_receipts_written = []
     source_receipt_events = []
+    query_refresh_events = []
     source_receipt_counts = {
         "builder_calls": 0,
         "builder_returns": 0,
@@ -1323,6 +1351,7 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
         "journal_source_rows": 0,
     }
     decision_tape_closed = {"value": False}
+    live_run_started_at = {"value": None}
 
     def _safe_source_code(value):
         if (
@@ -1563,42 +1592,58 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
         bar_rows = defaultdict(list)
         live_slots_by_close = None
         restart_highwater_close = None
-        if saved_history_restart and epoch_id in (2, 3) and calendar_override is not None:
+        if saved_history_restart and epoch_id > 1 and calendar_override is not None:
             gap = calendar_override.restart_gap
-            assert gap is not None
-            prior_cutoff = restart_cut if epoch_id == 2 else restart_cut_2
+            prior_cutoff = restart_cutoffs[epoch_id - 1]
             prior_plan = plans_by_epoch[epoch_id - 1]
             expected_highwater_close = prior_plan["grid"].minutes[prior_cutoff - 1].close_time
             restart_highwater_close = expected_highwater_close
-            assert gap.journal_highwater.close_time == expected_highwater_close
-            assert gap.omitted_slot_count > 0
-            assert gap.omitted_slot_count == (
-                gap.first_live_original_slot_index
-                - gap.history_highwater_original_slot_index
-                - 1
-            )
-            assert gap.first_live_cohort_slot_index == (
-                gap.history_highwater_original_slot_index + 1
-            )
-            highwater_slot = calendar_override.slots[
-                gap.history_highwater_original_slot_index
-            ]
-            first_live_slot = calendar_override.slots[gap.first_live_cohort_slot_index]
-            assert highwater_slot.slot_id == gap.journal_highwater.slot_id
-            assert highwater_slot.close_time == expected_highwater_close
-            assert first_live_slot.slot_id == gap.first_live_slot_id
-            assert first_live_slot.bucket_start == gap.first_live_bucket_start
-            assert first_live_slot.close_time == gap.first_live_close_time
-            assert first_live_slot.bucket_start >= gap.startup_time_utc
-            omitted_plan_closes = tuple(
-                minute.close_time
-                for ordinal, minute in enumerate(plan["grid"].minutes, 1)
-                if ordinal > prior_cutoff and minute.close_time < first_live_slot.close_time
-            )
-            assert len(omitted_plan_closes) == gap.omitted_slot_count
-            live_slots = tuple(
-                calendar_override.slots[gap.first_live_cohort_slot_index :]
-            )
+            if gap is None:
+                assert lineage_chain_only
+                live_close_set = {
+                    minute.close_time
+                    for ordinal, minute in enumerate(plan["grid"].minutes, 1)
+                    if prior_cutoff < ordinal <= restart_cutoffs[epoch_id]
+                }
+                live_slots = tuple(
+                    slot
+                    for slot in calendar_override.slots
+                    if slot.close_time in live_close_set
+                )
+                assert live_slots
+                first_live_slot = live_slots[0]
+                assert live_slots[0].bucket_start == expected_highwater_close
+                omitted_plan_closes = ()
+            else:
+                assert gap.journal_highwater.close_time == expected_highwater_close
+                assert gap.omitted_slot_count > 0
+                assert gap.omitted_slot_count == (
+                    gap.first_live_original_slot_index
+                    - gap.history_highwater_original_slot_index
+                    - 1
+                )
+                assert gap.first_live_cohort_slot_index == (
+                    gap.history_highwater_original_slot_index + 1
+                )
+                highwater_slot = calendar_override.slots[
+                    gap.history_highwater_original_slot_index
+                ]
+                first_live_slot = calendar_override.slots[gap.first_live_cohort_slot_index]
+                assert highwater_slot.slot_id == gap.journal_highwater.slot_id
+                assert highwater_slot.close_time == expected_highwater_close
+                assert first_live_slot.slot_id == gap.first_live_slot_id
+                assert first_live_slot.bucket_start == gap.first_live_bucket_start
+                assert first_live_slot.close_time == gap.first_live_close_time
+                assert first_live_slot.bucket_start >= gap.startup_time_utc
+                omitted_plan_closes = tuple(
+                    minute.close_time
+                    for ordinal, minute in enumerate(plan["grid"].minutes, 1)
+                    if ordinal > prior_cutoff and minute.close_time < first_live_slot.close_time
+                )
+                assert len(omitted_plan_closes) == gap.omitted_slot_count
+                live_slots = tuple(
+                    calendar_override.slots[gap.first_live_cohort_slot_index :]
+                )
             assert live_slots and live_slots[0] is first_live_slot
             live_slots_by_close = {slot.close_time: slot for slot in live_slots}
             assert len(live_slots_by_close) == len(live_slots)
@@ -1606,11 +1651,11 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
             if saved_history_restart:
                 if epoch_id == 1 and ordinal > restart_cut:
                     continue
-                if epoch_id == 2 and not restart_cut < ordinal <= restart_cut_2:
+                if epoch_id > 1 and not restart_cutoffs[epoch_id - 1] < ordinal <= restart_cutoffs[
+                    epoch_id
+                ]:
                     continue
-                if epoch_id == 3 and not restart_cut_2 < ordinal <= restart_cut_3:
-                    continue
-                if epoch_id not in (1, 2, 3):
+                if epoch_id not in restart_cutoffs:
                     raise AssertionError("unexpected saved-history epoch")
             close_time = minute.close_time
             if live_slots_by_close is not None:
@@ -1643,7 +1688,11 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
                         "exchange": product.exchange_id,
                         "bucket_start": start_time,
                         "bucket_end": close_time,
-                        "available_at": close_time + timedelta(seconds=2),
+                        "available_at": (
+                            close_time
+                            if lineage_chain_only
+                            else close_time + timedelta(seconds=2)
+                        ),
                         "trading_day": member.trading_day.strftime("%Y%m%d"),
                         "session_segment": member.session_id,
                         "timezone_id": "UTC",
@@ -1671,11 +1720,7 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
                 )
 
         if live_slots_by_close is not None:
-            window_start, window_end = (
-                (restart_cut, restart_cut_2)
-                if epoch_id == 2
-                else (restart_cut_2, restart_cut_3)
-            )
+            window_start, window_end = restart_cutoffs[epoch_id - 1], restart_cutoffs[epoch_id]
             expected_live_closes = tuple(
                 minute.close_time
                 for ordinal, minute in enumerate(plan["grid"].minutes, 1)
@@ -2314,7 +2359,143 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
     )
     original_refresh_initial = RUNNER.QueryRefreshLoop.refresh_initial
 
+    original_refresh_once = RUNNER.QueryRefreshLoop.refresh_once
+
+    def tracked_refresh_once(refresh_loop, *args, **kwargs):
+        try:
+            result = original_refresh_once(refresh_loop, *args, **kwargs)
+        except Exception as error:
+            if lineage_chain_only:
+                query_refresh_events.append(
+                    {
+                        "epoch_id": config["cohort"]["epoch_id"],
+                        "outcome": "ERROR",
+                        "error_code": _safe_source_code(
+                            getattr(error, "code", None)
+                        ),
+                        "last_error_code": _safe_source_code(
+                            getattr(refresh_loop, "last_error_code", None)
+                        ),
+                        "reconciliation_blockers": tuple(
+                            getattr(refresh_loop, "last_reconciliation_blockers", ())[:8]
+                        ),
+                    }
+                )
+            raise
+        if lineage_chain_only:
+            receipt = result
+            query_set = getattr(receipt, "query_set", None)
+            provenance = tuple(getattr(receipt, "query_provenance", ()))
+            core_families = (
+                "account_result",
+                "orders_result",
+                "trades_result",
+                "instruments_result",
+                "positions_result",
+            )
+            core_facts = tuple(
+                fact
+                for fact in provenance
+                if getattr(fact, "family", None) in core_families
+                and getattr(fact, "target_id", None) is None
+            )
+            request_ids = tuple(getattr(fact, "request_id", None) for fact in core_facts)
+            generations = tuple(
+                getattr(fact, "connection_generation", None) for fact in core_facts
+            )
+            accounts = tuple(
+                getattr(fact, "account_fingerprint", None) for fact in core_facts
+            )
+            trading_days = tuple(getattr(fact, "trading_day", None) for fact in core_facts)
+            started_values = tuple(getattr(fact, "started_at", None) for fact in core_facts)
+            completed_values = tuple(getattr(fact, "completed_at", None) for fact in core_facts)
+            completed_at = getattr(receipt, "completed_at", None)
+            query_refresh_events.append(
+                {
+                    "epoch_id": config["cohort"]["epoch_id"],
+                    "outcome": "RETURNED",
+                    "last_error_code": _safe_source_code(
+                        getattr(refresh_loop, "last_error_code", None)
+                    ),
+                    "requested": tuple(getattr(receipt, "requested_families", ())[:8]),
+                    "attempted": tuple(getattr(receipt, "attempted_families", ())[:8]),
+                    "pending": tuple(getattr(receipt, "pending_families", ())[:8]),
+                    "receipt_blockers": tuple(getattr(receipt, "blockers", ())[:8]),
+                    "query_set_available": query_set is not None,
+                    "query_set_id_present": bool(
+                        getattr(query_set, "query_set_id", None)
+                    ),
+                    "query_provenance": tuple(
+                        {
+                            "family": getattr(fact, "family", None),
+                            "target_id": getattr(fact, "target_id", None),
+                            "source_owned": getattr(fact, "source_owned", None),
+                            "query_complete": getattr(fact, "query_complete", None),
+                            "scope_complete": getattr(fact, "scope_complete", None),
+                            "request_id_present": type(
+                                getattr(fact, "request_id", None)
+                            ) is int,
+                            "generation_present": type(
+                                getattr(fact, "connection_generation", None)
+                            ) is int,
+                            "started_present": getattr(fact, "started_at", None) is not None,
+                            "completed_present": getattr(fact, "completed_at", None)
+                            is not None,
+                        }
+                        for fact in getattr(receipt, "query_provenance", ())[:8]
+                    ),
+                    "query_set_checks": {
+                        "core_order": tuple(
+                            getattr(receipt, "attempted_families", ())[: len(core_families)]
+                        )
+                        == core_families,
+                        "core_count": len(core_facts) == len(core_families),
+                        "request_ids_positive_unique": (
+                            len(request_ids) == len(core_families)
+                            and all(type(value) is int and value > 0 for value in request_ids)
+                            and len(set(request_ids)) == len(core_families)
+                        ),
+                        "generations_consistent": len(set(generations)) == 1,
+                        "accounts_consistent": len(set(accounts)) == 1,
+                        "trading_days_consistent": len(set(trading_days)) == 1,
+                        "source_proofs_complete": all(
+                            getattr(fact, "source_owned", None) is True
+                            and getattr(fact, "query_complete", None) is True
+                            and getattr(fact, "scope_complete", None) is True
+                            for fact in core_facts
+                        ),
+                        "times_ordered_and_within_receipt": (
+                            completed_at is not None
+                            and len(started_values) == len(core_families)
+                            and len(completed_values) == len(core_families)
+                            and all(
+                                started is not None
+                                and completed is not None
+                                and started <= completed <= completed_at
+                                for started, completed in zip(
+                                    started_values, completed_values
+                                )
+                            )
+                        ),
+                    },
+                    "reconciliation_blockers": tuple(
+                        getattr(refresh_loop, "last_reconciliation_blockers", ())[:8]
+                    ),
+                }
+            )
+            if len(query_refresh_events) > 16:
+                del query_refresh_events[:-16]
+        return result
+
+    monkeypatch.setattr(RUNNER.QueryRefreshLoop, "refresh_once", tracked_refresh_once)
+
     def tracked_refresh_initial(refresh_loop, *args, **kwargs):
+        if lineage_chain_only:
+            # Cohort assembly positions the virtual source clock at the first
+            # complete slot. Bind synthetic provider query completion to that
+            # same startup instant so the production query-set causality check
+            # sees a completed source read rather than a pre-assembly clock.
+            api_clients[-1]._query_leaf.query_time = clock.utc_now()
         result = original_refresh_initial(refresh_loop, *args, **kwargs)
         if saved_history_restart:
             trace.append(("initial_refresh_complete", config["cohort"]["epoch_id"]))
@@ -2437,12 +2618,15 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
             "source_continuity": continuity_projection,
             "source_receipt_counts": dict(source_receipt_counts),
             "events": source_receipt_events[-8:],
+            "query_refresh_events": query_refresh_events[-8:],
         }
         return "bounded source-receipt diagnostic " + json.dumps(
             projection, sort_keys=True, separators=(",", ":")
         )
 
     def tracked_run_live(epoch_config, *args, **kwargs):
+        if lineage_chain_only:
+            live_run_started_at["value"] = time.monotonic()
         try:
             result = original_run_live(epoch_config, *args, **kwargs)
         except Exception as error:
@@ -2473,7 +2657,7 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
         query_run_attempts["value"] += 1
         options = dict(pending_query_context_options)
         pending_query_context_options.clear()
-        if query_run_attempts["value"] > 1:
+        if query_run_attempts["value"] > 1 and not lineage_chain_only:
             # Rebuild each fresh query plan at a later decision time while
             # staying inside the next-bar boundary of the shared live grid.
             clock.set_utc_now(clock.utc_now() + timedelta(seconds=1))
@@ -2539,6 +2723,18 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
         except Exception as error:
             _record_source_receipt_event("strategy_source_receipt", error=error)
             raise
+        if legacy_v1_compat:
+            # A v1-era receipt predates origin_partition. Keep production
+            # strategy construction and journal serialization, but persist the
+            # exact optional-field omission used by the legacy canonical form.
+            from dataclasses import replace
+
+            result = replace(
+                result,
+                members=tuple(
+                    replace(member, origin_partition=None) for member in result.members
+                ),
+            )
         source_receipt_counts["builder_returns"] += 1
         _record_source_receipt_event("strategy_source_receipt", result=result)
         return result
@@ -2573,7 +2769,10 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
             1: restart_cut,
             2: restart_cut_2,
             3: restart_cut_3,
-        }.get(epoch_id)
+        }
+        if lineage_chain_only:
+            final_ordinal.update({4: restart_cut_4, 5: restart_cut_5})
+        final_ordinal = final_ordinal.get(epoch_id)
         if final_ordinal is None:
             return
         epoch_plan = current_plan["value"]
@@ -2623,6 +2822,8 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
     def tracked_prenext(strategy):
         result = original_prenext(strategy)
         clock.record_completed_batch(strategy.p.cohort.current_batch())
+        if lineage_chain_only:
+            request_restart_after_final_batch(strategy)
         return result
 
     def tracked_next(strategy):
@@ -2632,6 +2833,41 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
         return result
 
     def tracked_notify_idle(strategy):
+        if lineage_chain_only and live_run_started_at["value"] is not None:
+            if time.monotonic() - live_run_started_at["value"] > 30:
+                batch = strategy.p.cohort.current_batch()
+                context = api_clients[-1].context if api_clients else None
+                diagnostic = {
+                    "epoch_id": strategy.p.cohort.epoch_id,
+                    "shutdown_requested": strategy.shutdown_requested,
+                    "shutdown_blocker": strategy.shutdown_blocker,
+                    "batch_status": getattr(batch, "status", None),
+                    "batch_epoch_id": getattr(batch, "epoch_id", None),
+                    "batch_close_time": (
+                        batch.close_time.isoformat()
+                        if batch is not None and batch.close_time is not None
+                        else None
+                    ),
+                    "member_count": len(batch.members) if batch is not None else 0,
+                    "provider_remaining": (
+                        {key: len(queue) for key, queue in context.bars.items()}
+                        if context is not None
+                        else None
+                    ),
+                    "tape_batch_matches": (
+                        strategy._last_decision_tape_batch_id
+                        == getattr(batch, "batch_id", None)
+                    ),
+                    "tape_reference_present": (
+                        strategy._last_decision_tape_reference is not None
+                    ),
+                    "tape_error": strategy._last_decision_tape_error,
+                    "trace_tail": trace[-12:],
+                }
+                raise TimeoutError(
+                    "bounded saved-history epoch wait "
+                    + json.dumps(diagnostic, sort_keys=True, default=str)
+                )
         original_notify_idle(strategy)
         if strategy.shutdown_requested:
             loop = strategy.p.control_refresh_loop
@@ -2799,6 +3035,136 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
             config["cohort"]["epoch_id"] = 2
             config["inputs"]["history_decision_tape"] = str(first_tape_path)
             config["output"]["decision_tape_path"] = str(tmp_path / "live-decisions-resumed.jsonl")
+
+            if legacy_v1_compat:
+                legacy_schema = "backtrader.alpha003.decision_tape.v1"
+
+                def assert_legacy_v1_rows(path):
+                    rows = tuple(
+                        RUNNER.iter_decision_tape(path, max_bytes=50_000_000)
+                    )
+                    assert rows[0]["schema"] == legacy_schema
+                    assert "origin_partition_schema" not in rows[0]
+                    assert all(
+                        "origin_partition" not in member
+                        for row in rows[1:]
+                        for member in row["members"].values()
+                    )
+                    return rows
+
+                first_tape_rows = assert_legacy_v1_rows(first_tape_path)
+                first_decisions = first_tape_rows[1:]
+                assert len(first_decisions[-config["factor"]["preheat_bars"] :]) == (
+                    config["factor"]["preheat_bars"]
+                )
+                assert all(
+                    member["source_role"] == "live"
+                    for row in first_decisions[-config["factor"]["preheat_bars"] :]
+                    for member in row["members"].values()
+                )
+
+                from backtrader.stores.execution_decision_journal import (
+                    ExecutionDecisionJournal,
+                )
+
+                def read_legacy_source_receipts():
+                    journal = ExecutionDecisionJournal(config["live"]["journal_path"])
+                    try:
+                        rows = tuple(
+                            journal._connection.execute(
+                                "SELECT account_scope,strategy_scope,logical_run_id,source_kind,"
+                                "receipt_json,receipt_sha256 FROM execution_source_highwaters "
+                                "ORDER BY account_scope,strategy_scope,logical_run_id,source_kind"
+                            )
+                        )
+                        assert rows
+                        snapshot = []
+                        for row in rows:
+                            scope = tuple(row[:4])
+                            receipt_json = row[4]
+                            receipt_sha256 = row[5]
+                            assert hashlib.sha256(
+                                receipt_json.encode("utf-8")
+                            ).hexdigest() == receipt_sha256
+                            receipt_values = json.loads(receipt_json)
+                            assert all(
+                                "origin_partition" not in member
+                                for member in receipt_values["members"]
+                            )
+                            highwater = journal.source_highwater(*scope)
+                            assert highwater is not None
+                            assert highwater.receipt_sha256 == receipt_sha256
+                            assert all(
+                                member.origin_partition is None
+                                for member in highwater.receipt.members
+                            )
+                            snapshot.append((scope, receipt_json, receipt_sha256))
+                        return tuple(snapshot)
+                    finally:
+                        journal.close()
+
+                before_reopen = read_legacy_source_receipts()
+                after_reopen = read_legacy_source_receipts()
+                assert after_reopen == before_reopen
+
+                epoch2_result = run_saved_history_epoch()
+                assert epoch2_result["status"] == "LIVE_RUN_COMPLETE"
+                assert epoch2_result["epoch_id"] == 2
+                assert epoch2_result["cleanup_complete"] is True
+                assert epoch2_result["history_resume"]["restored_bar_count"] == (
+                    config["factor"]["preheat_bars"]
+                )
+                assert api_clients[-1].closed is True
+                epoch2_tape_path = Path(epoch2_result["decision_tape"]["path"])
+                epoch2_tape_rows = assert_legacy_v1_rows(epoch2_tape_path)
+                epoch2_decisions = epoch2_tape_rows[1:]
+                warmup_bars = config["factor"]["preheat_bars"]
+                assert len(epoch2_decisions) == warmup_bars + 8
+                epoch2_history = epoch2_decisions[:warmup_bars]
+                epoch2_live = epoch2_decisions[warmup_bars:]
+                assert len(epoch2_live) == 8
+                assert all(
+                    member["source_role"] == "history"
+                    for row in epoch2_history
+                    for member in row["members"].values()
+                )
+                assert all(
+                    member["source_role"] == "live"
+                    for row in epoch2_live
+                    for member in row["members"].values()
+                )
+                mixed_tail = epoch2_decisions[-warmup_bars:]
+                assert len(mixed_tail) == warmup_bars
+                assert all(
+                    member["source_role"] == expected_role
+                    for row, expected_role in zip(
+                        mixed_tail,
+                        ("history",) * (warmup_bars - 8) + ("live",) * 8,
+                    )
+                    for member in row["members"].values()
+                )
+
+                config["cohort"]["epoch_id"] = 3
+                config["inputs"]["history_decision_tape"] = str(epoch2_tape_path)
+                rejected_output = tmp_path / "live-decisions-v1-mixed-tail-rejected.jsonl"
+                config["output"]["decision_tape_path"] = str(rejected_output)
+                api_count_before_rejection = len(api_clients)
+                with pytest.raises(RUNNER.RunnerError) as unproven_origin_error:
+                    run_saved_history_epoch()
+                assert (
+                    unproven_origin_error.value.code
+                    == "LIVE_HISTORY_ORIGIN_PARTITION_UNPROVEN"
+                )
+                assert len(api_clients) == api_count_before_rejection + 1
+                assert api_clients[-1].closed is True
+                assert not rejected_output.exists()
+                assert len(
+                    [row for row in trace if row[0] == "history_load" and row[1] == 3]
+                ) == 1
+                assert not any(
+                    row == ("run_live_returned", 3) for row in trace
+                )
+                return
 
             if query_saved_history:
                 configured_daily_bundles = config["selection"]["daily_bundles"]
@@ -3308,6 +3674,24 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
             def make_source_ref_drift(rows):
                 rows[1]["members"][first_target]["source_ref"] = "ctp-live:wrong:route"
 
+            def make_origin_partition_cohort_splice(rows):
+                history_bars = config["factor"]["preheat_bars"]
+                first_live_index = 1 + history_bars
+                terminal_index = len(rows) - 1
+                assert terminal_index > first_live_index
+                for target in rows[1]["members"]:
+                    origin_partition = dict(rows[1]["members"][target]["origin_partition"])
+                    sequence = rows[first_live_index - 1]["members"][target]["feed_sequence"]
+                    for row in rows[first_live_index:terminal_index]:
+                        member = row["members"][target]
+                        assert member["source_role"] == "live"
+                        sequence += 1
+                        member["connection_generation"] = origin_partition[
+                            "connection_generation"
+                        ]
+                        member["feed_sequence"] = sequence
+                        member["origin_partition"] = dict(origin_partition)
+
             def make_non_string_event_source(rows):
                 rows[1]["members"][first_target]["event_source"] = 7
 
@@ -3327,12 +3711,12 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
                 (
                     "history-generation-drift",
                     make_history_generation_drift,
-                    "LIVE_HISTORY_GENERATION_CHANGED",
+                    "LIVE_HISTORY_ORIGIN_PARTITION_INVALID",
                 ),
                 (
                     "live-generation-drift",
                     make_live_generation_drift,
-                    "LIVE_HISTORY_GENERATION_CHANGED",
+                    "LIVE_HISTORY_ORIGIN_PARTITION_INVALID",
                 ),
                 (
                     "history-sequence-rollback",
@@ -3345,6 +3729,11 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
                     "LIVE_HISTORY_SEQUENCE_INVALID",
                 ),
                 ("source-ref-drift", make_source_ref_drift, "LIVE_HISTORY_MEMBER_INVALID"),
+                (
+                    "origin-partition-cohort-splice",
+                    make_origin_partition_cohort_splice,
+                    "LIVE_HISTORY_SOURCE_RECEIPT_MISMATCH",
+                ),
                 (
                     # Rehashing the valid-value edit changes the terminal
                     # record ID, so source-HWM binding fails before anchors.
@@ -3362,7 +3751,7 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
             config["output"]["decision_tape_path"] = str(
                 tmp_path / "live-decisions-epoch-3.jsonl"
             )
-            if query_saved_history:
+            if query_saved_history and not lineage_chain_only:
                 # The query-history comparison must use the latest successful
                 # tape as its baseline, not keep consulting epoch 1.
                 config["inputs"]["history_decision_tape"] = str(epoch2_tape_path)
@@ -3374,16 +3763,29 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
                     "routes"
                 ]
                 assert api_clients[-1].closed is True
-            for name, mutate, expected_code in tampering_cases:
-                tampered_path = write_tampered_history("history-{}.jsonl".format(name), mutate)
-                config["inputs"]["history_decision_tape"] = str(tampered_path)
-                with pytest.raises(RUNNER.RunnerError) as tampering_error:
-                    run_saved_history_epoch()
-                assert tampering_error.value.code == expected_code
-                assert len(api_clients) == (
-                    query_run_attempts["value"] if query_saved_history else 2
-                )
-                assert not Path(config["output"]["decision_tape_path"]).exists()
+            if not lineage_chain_only:
+                for name, mutate, expected_code in tampering_cases:
+                    tampered_path = write_tampered_history(
+                        "history-{}.jsonl".format(name), mutate
+                    )
+                    config["inputs"]["history_decision_tape"] = str(tampered_path)
+                    tampering_error = None
+                    try:
+                        run_saved_history_epoch()
+                    except RUNNER.RunnerError as caught_error:
+                        tampering_error = caught_error
+                    else:
+                        pytest.fail("tampering case unexpectedly accepted: {}".format(name))
+                    assert tampering_error is not None
+                    assert tampering_error.code == expected_code, {
+                        "tampering_case": name,
+                        "expected_code": expected_code,
+                        "actual_code": tampering_error.code,
+                    }
+                    assert len(api_clients) == (
+                        query_run_attempts["value"] if query_saved_history else 2
+                    )
+                    assert not Path(config["output"]["decision_tape_path"]).exists()
 
             config["inputs"]["history_decision_tape"] = str(epoch2_tape_path)
             result = run_saved_history_epoch()
@@ -3756,7 +4158,7 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
         assert [row for row in trace if row[0] == "fixture_restart_requested"] == (
             expected_restart_requests
         )
-        if query_saved_history:
+        if query_saved_history and not lineage_chain_only:
             assert plans_by_epoch[3]["grid"].minutes[
                 restart_cut_3 - 1
             ].close_time != first_plan["grid"].minutes[restart_cut_3 - 1].close_time
@@ -3799,6 +4201,7 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
         # zero-based offset is N - 1. Keep this GRID projection separate from
         # the source-tape tail restored as history below.
         first_ready_live_offset = warmup_bars - 1
+        restored_ready_live_offset = 0 if lineage_chain_only else first_ready_live_offset
         assert old_grid_decisions == tuple(old_decisions[first_ready_live_offset:])
         assert not eligible_live_grid_decisions(old_decisions[:first_ready_live_offset])
         expected_history_tail = tuple(old_decisions[-warmup_bars:])
@@ -3822,7 +4225,7 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
             close.isoformat().replace("+00:00", "Z") for close in expected_epoch2_live_closes
         )
         assert not eligible_live_grid_decisions(history_decisions)
-        assert not eligible_live_grid_decisions(live_decisions[:first_ready_live_offset])
+        assert not eligible_live_grid_decisions(live_decisions[:restored_ready_live_offset])
         assert all(
             member["source_role"] == "history"
             and member["connection_generation"] == "epoch-1-generation-1"
@@ -3841,10 +4244,10 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
         )
         epoch2_grid_decisions = eligible_live_grid_decisions(epoch2_decisions)
         assert len(epoch2_grid_decisions) == (
-            len(expected_epoch2_live_closes) - first_ready_live_offset
+            len(expected_epoch2_live_closes) - restored_ready_live_offset
         )
         assert epoch2_grid_decisions
-        assert epoch2_grid_decisions == tuple(live_decisions[first_ready_live_offset:])
+        assert epoch2_grid_decisions == tuple(live_decisions[restored_ready_live_offset:])
         assert [
             next(iter(row["members"].values()))["feed_sequence"] for row in live_decisions
         ] == list(range(1, len(live_decisions) + 1))
@@ -3904,10 +4307,9 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
             close.isoformat().replace("+00:00", "Z") for close in expected_epoch3_live_closes
         )
         assert not eligible_live_grid_decisions(epoch3_history)
-        assert not eligible_live_grid_decisions(epoch3_live[:first_ready_live_offset])
+        assert not eligible_live_grid_decisions(epoch3_live[:restored_ready_live_offset])
         assert all(
             member["source_role"] == "history"
-            and member["connection_generation"] == "epoch-2-generation-1"
             and member["epoch_id"] == 3
             and member["source_ref"] == "ctp-live:{}:{}".format(
                 target, first_plan["routes"][first_plan["product_by_target"][target]]
@@ -3915,6 +4317,15 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
             for row in epoch3_history
             for target, member in row["members"].items()
         )
+        for restored, original in zip(epoch3_history, expected_epoch3_history_tail):
+            for target, member in restored["members"].items():
+                original_member = original["members"][target]
+                assert member["connection_generation"] == original_member[
+                    "connection_generation"
+                ]
+                assert member["feed_sequence"] == original_member["feed_sequence"]
+                assert member["bar_id"] == original_member["bar_id"]
+                assert member["raw_values"] == original_member["raw_values"]
         assert all(
             member["source_role"] == "live"
             and member["connection_generation"] == "epoch-3-generation-1"
@@ -3928,10 +4339,10 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
         )
         epoch3_grid_decisions = eligible_live_grid_decisions(epoch3_decisions)
         assert len(epoch3_grid_decisions) == (
-            len(expected_epoch3_live_closes) - first_ready_live_offset
+            len(expected_epoch3_live_closes) - restored_ready_live_offset
         )
         assert epoch3_grid_decisions
-        assert epoch3_grid_decisions == tuple(epoch3_live[first_ready_live_offset:])
+        assert epoch3_grid_decisions == tuple(epoch3_live[restored_ready_live_offset:])
         expected_epoch3_history = plans_by_epoch[2]["grid"].minutes[
             restart_cut_2 - warmup_bars : restart_cut_2
         ]
@@ -4000,6 +4411,91 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
             assert budget is not None and tuple(budget) == (100, 0)
         finally:
             journal.close()
+
+        previous_result = result
+        previous_tape_rows = epoch3_rows
+        for epoch_id in ((4, 5) if lineage_chain_only else ()):
+            config["cohort"]["epoch_id"] = epoch_id
+            config["inputs"]["history_decision_tape"] = previous_result[
+                "decision_tape"
+            ]["path"]
+            config["output"]["decision_tape_path"] = str(
+                tmp_path / "live-decisions-epoch-{}.jsonl".format(epoch_id)
+            )
+            next_result = run_saved_history_epoch()
+            assert next_result["status"] == "LIVE_RUN_COMPLETE"
+            assert next_result["epoch_id"] == epoch_id
+            assert next_result["cleanup_complete"] is True
+            assert api_clients[-1].closed is True
+            next_rows = tuple(
+                RUNNER.iter_decision_tape(
+                    Path(next_result["decision_tape"]["path"]), max_bytes=50_000_000
+                )
+            )
+            assert next_rows[0]["schema"] == RUNNER.DECISION_TAPE_SCHEMA
+            assert (
+                next_rows[0]["origin_partition_schema"]
+                == RUNNER.SOURCE_ORIGIN_PARTITION_SCHEMA
+            )
+            next_decisions = next_rows[1:]
+            previous_decisions = previous_tape_rows[1:]
+            assert len(next_decisions) == config["factor"]["preheat_bars"] + 8
+            assert all(row["epoch_id"] == epoch_id for row in next_decisions)
+            history_decisions = next_decisions[: config["factor"]["preheat_bars"]]
+            assert tuple(row["close_time"] for row in history_decisions) == tuple(
+                row["close_time"]
+                for row in previous_decisions[-config["factor"]["preheat_bars"] :]
+            )
+            for restored, original in zip(
+                history_decisions,
+                previous_decisions[-config["factor"]["preheat_bars"] :],
+            ):
+                for target, member in restored["members"].items():
+                    original_member = original["members"][target]
+                    assert member["source_role"] == "history"
+                    assert member["connection_generation"] == original_member[
+                        "connection_generation"
+                    ]
+                    assert member["feed_sequence"] == original_member["feed_sequence"]
+                    assert member["bar_id"] == original_member["bar_id"]
+                    assert member["raw_values"] == original_member["raw_values"]
+                    assert member["origin_partition"] == original_member["origin_partition"]
+            live_decisions = next_decisions[config["factor"]["preheat_bars"] :]
+            assert len(live_decisions) == 8
+            for row in live_decisions:
+                for target, member in row["members"].items():
+                    expected_source_ref = "ctp-live:{}:{}".format(
+                        target,
+                        current_plan["value"]["routes"][
+                            current_plan["value"]["product_by_target"][target]
+                        ],
+                    )
+                    assert member["source_role"] == "live"
+                    assert member["connection_generation"] == f"epoch-{epoch_id}-generation-1"
+                    assert member["source_ref"] == expected_source_ref
+                    assert member["origin_partition"] == {
+                        "schema": RUNNER.SOURCE_ORIGIN_PARTITION_SCHEMA,
+                        "cohort_id": "alpha003:{}:{}".format(
+                            config["cohort"]["calendar_id"], epoch_id
+                        ),
+                        "epoch_id": epoch_id,
+                        "member_id": target,
+                        "source_ref": expected_source_ref,
+                        "source_role": "live",
+                        "connection_generation": f"epoch-{epoch_id}-generation-1",
+                    }
+            assert next_result["history_resume"]["restored_bar_count"] == config[
+                "factor"
+            ]["preheat_bars"]
+            assert next_result["history_resume"]["prior_run_order_intents"] == 0
+            assert next_result["history_resume"]["run_order_intents_after"] == 0
+            for row in history_decisions:
+                assert not any(
+                    action.get("action") in {"OPEN", "CLOSE", "CANCEL"}
+                    for action in (row.get("order_plan") or {}).get("actions", ())
+                )
+            previous_result = next_result
+            previous_tape_rows = next_rows
         return
 
     if selection_source == "ctp_query":

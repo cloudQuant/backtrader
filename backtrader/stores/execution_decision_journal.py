@@ -97,6 +97,16 @@ _MAX_RUN_LOSS_ENABLE_SCAN_ROWS = 100_000
 _RUN_ORDER_RESERVATION_FIELD = "_journal_run_order_reservation"
 _SOURCE_RECEIPT_PAYLOAD_FIELD = "_execution_source_receipt"
 _SOURCE_ANCHOR_ONLY_FIELD = "_execution_source_anchor_only"
+_SOURCE_ORIGIN_PARTITION_SCHEMA = "backtrader.execution_source_origin_partition.v1"
+_SOURCE_ORIGIN_PARTITION_FIELDS = (
+    "schema",
+    "cohort_id",
+    "epoch_id",
+    "member_id",
+    "source_ref",
+    "source_role",
+    "connection_generation",
+)
 _MAX_SOURCE_RECEIPT_MEMBERS = 512
 _MAX_SOURCE_RECEIPT_BYTES = 1_048_576
 _DISPATCHING_CRASH_NO_FILL_OUTCOME = "complete_orders_query_dispatching_no_fill_terminal"
@@ -412,6 +422,9 @@ class ExecutionSourceMemberReceipt:
     event_source: str = ""
     received_monotonic_ns: Optional[int] = None
     rules_hash: Optional[str] = None
+    # Omitted from legacy receipt serialization when None so old hashes and
+    # canonical journal bytes remain exactly stable.
+    origin_partition: Optional[Mapping[str, Any]] = None
 
     def __post_init__(self) -> None:
         for name, limit in (
@@ -484,6 +497,17 @@ class ExecutionSourceMemberReceipt:
             raise ExecutionDecisionJournalError("INVALID_SOURCE_RECEIPT_MEMBER")
         if self.rules_hash is not None and not _source_sha256(self.rules_hash):
             raise ExecutionDecisionJournalError("INVALID_SOURCE_RECEIPT_MEMBER")
+        if self.origin_partition is not None:
+            partition = _source_origin_partition_mapping(
+                self.origin_partition, "INVALID_SOURCE_RECEIPT_MEMBER"
+            )
+            if (
+                partition["member_id"] != self.member_id
+                or partition["source_ref"] != self.source_ref
+                or partition["connection_generation"] != self.connection_generation
+            ):
+                raise ExecutionDecisionJournalError("INVALID_SOURCE_RECEIPT_MEMBER")
+            object.__setattr__(self, "origin_partition", MappingProxyType(dict(partition)))
 
 
 @dataclass(frozen=True)
@@ -636,6 +660,29 @@ class ExecutionSourceReceipt:
             raise ExecutionDecisionJournalError("INVALID_SOURCE_RECEIPT")
         if self.restart_marker is not None and type(self.restart_marker) is not ExecutionSourceRestartMarker:
             raise ExecutionDecisionJournalError("INVALID_SOURCE_RECEIPT")
+        for member in self.members:
+            partition = member.origin_partition
+            if partition is None:
+                continue
+            origin_epoch = partition["epoch_id"]
+            if member.source_role == "live":
+                valid_origin = (
+                    partition["cohort_id"] == self.cohort_id
+                    and origin_epoch == self.epoch_id
+                    and partition["source_role"] == "live"
+                )
+            elif origin_epoch == self.epoch_id:
+                valid_origin = (
+                    partition["cohort_id"] == self.cohort_id
+                    and partition["source_role"] == "history"
+                )
+            else:
+                valid_origin = (
+                    origin_epoch < self.epoch_id
+                    and partition["cohort_id"] != self.cohort_id
+                )
+            if not valid_origin:
+                raise ExecutionDecisionJournalError("INVALID_SOURCE_RECEIPT_MEMBER")
 
 
 @dataclass(frozen=True)
@@ -2380,6 +2427,13 @@ class ExecutionDecisionJournal:
                 or receipt.tape_record_index != 1
             ):
                 raise ExecutionDecisionJournalError("SOURCE_HIGHWATER_PREDECESSOR_REQUIRED")
+            for member in receipt.members:
+                partition = member.origin_partition
+                if partition is not None and (
+                    partition["cohort_id"] != receipt.cohort_id
+                    or partition["epoch_id"] != receipt.epoch_id
+                ):
+                    raise ExecutionDecisionJournalError("SOURCE_RECEIPT_LINEAGE_INVALID")
             return
         previous = highwater.reference
         if receipt.predecessor != previous:
@@ -2407,7 +2461,12 @@ class ExecutionDecisionJournal:
             ):
                 raise ExecutionDecisionJournalError("SOURCE_RECEIPT_SEQUENCE_INVALID")
             ExecutionDecisionJournal._validate_source_member_transition(
-                prior_receipt.members, receipt.members
+                prior_receipt.members,
+                receipt.members,
+                previous_cohort_id=prior_receipt.cohort_id,
+                previous_epoch_id=prior_receipt.epoch_id,
+                current_cohort_id=receipt.cohort_id,
+                current_epoch_id=receipt.epoch_id,
             )
             return
         if receipt.epoch_id != previous.epoch_id + 1:
@@ -2437,11 +2496,26 @@ class ExecutionDecisionJournal:
             )
         ):
             raise ExecutionDecisionJournalError("SOURCE_RESTART_MEMBER_SCOPE_MISMATCH")
+        for member in receipt.members:
+            partition = member.origin_partition
+            if partition is not None and (
+                partition["epoch_id"] > previous.epoch_id
+                or (
+                    partition["epoch_id"] == previous.epoch_id
+                    and partition["cohort_id"] != previous.cohort_id
+                )
+            ):
+                raise ExecutionDecisionJournalError("SOURCE_RECEIPT_LINEAGE_INVALID")
 
     @staticmethod
     def _validate_source_member_transition(
         previous_members: Tuple[ExecutionSourceMemberReceipt, ...],
         current_members: Tuple[ExecutionSourceMemberReceipt, ...],
+        *,
+        previous_cohort_id: Optional[str] = None,
+        previous_epoch_id: Optional[int] = None,
+        current_cohort_id: Optional[str] = None,
+        current_epoch_id: Optional[int] = None,
     ) -> None:
         if tuple(member.member_id for member in previous_members) != tuple(
             member.member_id for member in current_members
@@ -2450,14 +2524,80 @@ class ExecutionDecisionJournal:
         for previous, current in zip(previous_members, current_members):
             if current.source_ref != previous.source_ref:
                 raise ExecutionDecisionJournalError("SOURCE_RECEIPT_SOURCE_DRIFT")
-            if current.source_role == previous.source_role:
-                if (
-                    current.connection_generation != previous.connection_generation
-                    or current.feed_sequence <= previous.feed_sequence
-                ):
-                    raise ExecutionDecisionJournalError("SOURCE_RECEIPT_MEMBER_SEQUENCE_INVALID")
-            elif (previous.source_role, current.source_role) != ("history", "live"):
+            if current.source_role != previous.source_role and (
+                previous.source_role,
+                current.source_role,
+            ) != ("history", "live"):
                 raise ExecutionDecisionJournalError("SOURCE_RECEIPT_ROLE_ORDER_INVALID")
+            previous_partition = previous.origin_partition
+            current_partition = current.origin_partition
+            if previous_partition is None or current_partition is None:
+                if previous_partition is not current_partition:
+                    # An old live row has a uniquely reconstructible origin:
+                    # its current receipt identity is the live origin. Old
+                    # history rows do not carry enough information.
+                    legacy = previous if previous_partition is None else current
+                    legacy_cohort = (
+                        previous_cohort_id if legacy is previous else current_cohort_id
+                    )
+                    legacy_epoch = previous_epoch_id if legacy is previous else current_epoch_id
+                    if (
+                        legacy.source_role != "live"
+                        or legacy_cohort_id is None
+                        or legacy_epoch is None
+                    ):
+                        raise ExecutionDecisionJournalError("SOURCE_RECEIPT_LINEAGE_MISSING")
+                    legacy_partition = {
+                        "schema": _SOURCE_ORIGIN_PARTITION_SCHEMA,
+                        "cohort_id": legacy_cohort,
+                        "epoch_id": legacy_epoch,
+                        "member_id": legacy.member_id,
+                        "source_ref": legacy.source_ref,
+                        "source_role": "live",
+                        "connection_generation": legacy.connection_generation,
+                    }
+                    if legacy is previous:
+                        previous_partition = legacy_partition
+                    else:
+                        current_partition = legacy_partition
+                else:
+                    # Two old-format receipts preserve their pre-v2 contract.
+                    if current.source_role == previous.source_role:
+                        if (
+                            current.connection_generation != previous.connection_generation
+                            or current.feed_sequence <= previous.feed_sequence
+                        ):
+                            raise ExecutionDecisionJournalError(
+                                "SOURCE_RECEIPT_MEMBER_SEQUENCE_INVALID"
+                            )
+                    continue
+            previous_identity = _source_origin_partition_identity(previous_partition)
+            current_identity = _source_origin_partition_identity(current_partition)
+            if current.source_role == previous.source_role:
+                if previous_identity == current_identity:
+                    if current.feed_sequence <= previous.feed_sequence:
+                        raise ExecutionDecisionJournalError(
+                            "SOURCE_RECEIPT_MEMBER_SEQUENCE_INVALID"
+                        )
+                    continue
+                old_epoch = previous_partition["epoch_id"]
+                new_epoch = current_partition["epoch_id"]
+                if new_epoch > old_epoch and current_partition["cohort_id"] != previous_partition[
+                    "cohort_id"
+                ]:
+                    continue
+                if (
+                    new_epoch == old_epoch
+                    and current_partition["cohort_id"] == previous_partition["cohort_id"]
+                    and previous_partition["source_role"] == "history"
+                    and current_partition["source_role"] == "live"
+                ):
+                    continue
+                raise ExecutionDecisionJournalError("SOURCE_RECEIPT_LINEAGE_ORDER_INVALID")
+            # Current history -> live remains mandatory. Receipt validation
+            # binds the live partition to this exact cohort/epoch/generation.
+            if current_partition["source_role"] != "live":
+                raise ExecutionDecisionJournalError("SOURCE_RECEIPT_LINEAGE_ORDER_INVALID")
 
     def decision_capacity_snapshot(self) -> ExecutionDecisionCapacitySnapshot:
         """Return bounded decision usage plus a read-only SQLite size sample.
@@ -6842,6 +6982,31 @@ def _source_mapping(value: Any, expected: Tuple[str, ...], code: str) -> Mapping
     return value
 
 
+def _source_origin_partition_mapping(value: Any, code: str) -> Mapping[str, Any]:
+    values = _source_mapping(value, _SOURCE_ORIGIN_PARTITION_FIELDS, code)
+    if (
+        values["schema"] != _SOURCE_ORIGIN_PARTITION_SCHEMA
+        or type(values["epoch_id"]) is not int
+        or values["epoch_id"] < 1
+        or type(values["source_role"]) is not str
+        or values["source_role"] not in ("history", "live")
+        or type(values["connection_generation"]) not in (str, int)
+        or (type(values["connection_generation"]) is str and not values["connection_generation"])
+        or (type(values["connection_generation"]) is int and values["connection_generation"] <= 0)
+    ):
+        raise ExecutionDecisionJournalError(code)
+    _source_text(values["cohort_id"], 512, code)
+    _source_text(values["member_id"], 256, code)
+    _source_text(values["source_ref"], 2048, code)
+    if type(values["connection_generation"]) is str and len(values["connection_generation"]) > 256:
+        raise ExecutionDecisionJournalError(code)
+    return values
+
+
+def _source_origin_partition_identity(partition: Mapping[str, Any]) -> Tuple[Any, ...]:
+    return tuple(partition[name] for name in _SOURCE_ORIGIN_PARTITION_FIELDS)
+
+
 def _source_highwater_ref_values(ref: ExecutionSourceHighWaterRef) -> Mapping[str, Any]:
     return {
         "account_scope": ref.account_scope,
@@ -6896,7 +7061,7 @@ def _source_highwater_ref_from_values(value: Any) -> ExecutionSourceHighWaterRef
 
 
 def _source_member_values(member: ExecutionSourceMemberReceipt) -> Mapping[str, Any]:
-    return {
+    values = {
         "member_id": member.member_id,
         "source_ref": member.source_ref,
         "source_role": member.source_role,
@@ -6919,10 +7084,13 @@ def _source_member_values(member: ExecutionSourceMemberReceipt) -> Mapping[str, 
         "received_monotonic_ns": member.received_monotonic_ns,
         "rules_hash": member.rules_hash,
     }
+    if member.origin_partition is not None:
+        values["origin_partition"] = dict(member.origin_partition)
+    return values
 
 
 def _source_member_from_values(value: Any) -> ExecutionSourceMemberReceipt:
-    names = (
+    legacy_names = (
         "member_id",
         "source_ref",
         "source_role",
@@ -6945,15 +7113,26 @@ def _source_member_from_values(value: Any) -> ExecutionSourceMemberReceipt:
         "received_monotonic_ns",
         "rules_hash",
     )
-    values = _source_mapping(value, names, "INVALID_SOURCE_RECEIPT_MEMBER")
+    names = legacy_names + ("origin_partition",)
+    if not isinstance(value, Mapping) or set(value) not in (set(legacy_names), set(names)):
+        raise ExecutionDecisionJournalError("INVALID_SOURCE_RECEIPT_MEMBER")
+    values = value
     if type(values["missing_fields"]) not in (list, tuple) or type(
         values["quality_flags"]
     ) not in (list, tuple):
         raise ExecutionDecisionJournalError("INVALID_SOURCE_RECEIPT_MEMBER")
     try:
-        kwargs = {name: values[name] for name in names if name not in ("missing_fields", "quality_flags")}
+        kwargs = {
+            name: values[name]
+            for name in values
+            if name not in ("missing_fields", "quality_flags")
+        }
         kwargs["missing_fields"] = tuple(values["missing_fields"])
         kwargs["quality_flags"] = tuple(values["quality_flags"])
+        if "origin_partition" in kwargs:
+            kwargs["origin_partition"] = _source_origin_partition_mapping(
+                kwargs["origin_partition"], "INVALID_SOURCE_RECEIPT_MEMBER"
+            )
         return ExecutionSourceMemberReceipt(**kwargs)
     except (TypeError, ValueError) as error:
         if isinstance(error, ExecutionDecisionJournalError):

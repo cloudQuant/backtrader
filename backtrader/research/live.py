@@ -1032,6 +1032,21 @@ class LiveFactorSet:
             for feed in input_feeds.values():
                 member = _member_for_feed(self._cohort, feed)
                 latest = current_receipts.get(id(feed))
+                source_origin = None if member is None else getattr(member, "source_origin", None)
+                expected_origin_partition = (
+                    None
+                    if source_origin is None
+                    else getattr(source_origin, "origin_partition", None)
+                    or {
+                        "schema": "backtrader.execution_source_origin_partition.v1",
+                        "cohort_id": self._cohort.cohort_id,
+                        "epoch_id": source_origin.epoch_id,
+                        "member_id": source_origin.member_id,
+                        "source_ref": source_origin.source_ref,
+                        "source_role": source_origin.source_role,
+                        "connection_generation": source_origin.connection_generation,
+                    }
+                )
                 proof = (
                     None
                     if member is None
@@ -1052,6 +1067,13 @@ class LiveFactorSet:
                     or proof.origin_receipt.feed_ref is not feed
                     or proof.origin_receipt.member_id != member.member_id
                     or proof.origin_receipt.epoch_id != batch.epoch_id
+                    or expected_origin_partition is None
+                    or proof.origin_receipt.envelope.origin_partition is None
+                    or dict(proof.origin_receipt.envelope.origin_partition)
+                    != dict(expected_origin_partition)
+                    or latest.envelope.origin_partition is None
+                    or proof.last_receipt.envelope.origin_partition
+                    != latest.envelope.origin_partition
                 ):
                     reasons.append(
                         getattr(proof, "reason", None) or "history_reconstruction_unqualified"

@@ -38,7 +38,9 @@ SCHEMA = "backtrader.alpha003.simnow_runner.v1"
 MINUTE_TAPE_SCHEMA = "backtrader.alpha003.minute_tape.v1"
 QUOTE_TAPE_SCHEMA = "backtrader.alpha003.execution_quote_tape.v1"
 METADATA_SCHEMA = "backtrader.alpha003.replay_instrument_metadata.v1"
-DECISION_TAPE_SCHEMA = "backtrader.alpha003.decision_tape.v1"
+LEGACY_DECISION_TAPE_SCHEMA = "backtrader.alpha003.decision_tape.v1"
+DECISION_TAPE_SCHEMA = "backtrader.alpha003.decision_tape.v2"
+SOURCE_ORIGIN_PARTITION_SCHEMA = "backtrader.execution_source_origin_partition.v1"
 # The 87-target GRID receipt and its production execution evidence exceed the
 # journal's general 64 KiB default. Keep this run-local cap bounded and leave
 # the journal-wide default unchanged.
@@ -2319,6 +2321,9 @@ def _decision_tape_record(
             "slot_id": _tape_scalar(getattr(envelope, "slot_id", None), "slot_id"),
             "instrument": _tape_scalar(getattr(envelope, "instrument", None), "instrument"),
             "source_ref": _tape_scalar(getattr(envelope, "source_ref", None), "source_ref"),
+            "origin_partition": _tape_origin_partition(
+                getattr(envelope, "origin_partition", None), target
+            ),
             "source_role": _tape_scalar(getattr(envelope, "source_role", None), "source_role"),
             "connection_generation": _tape_scalar(
                 getattr(envelope, "connection_generation", None), "connection_generation"
@@ -2589,6 +2594,7 @@ class DecisionTapeWriter:
             raise RunnerError("DECISION_TAPE_CREATE_FAILED") from None
         header = {
             "schema": DECISION_TAPE_SCHEMA,
+            "origin_partition_schema": SOURCE_ORIGIN_PARTITION_SCHEMA,
             "record_type": "HEADER",
             "file_id": self.file_id,
             "created_at": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
@@ -2737,6 +2743,7 @@ def iter_decision_tape(path: Path, *, max_bytes: int):
         total = 0
         index = 0
         header_seen = False
+        tape_schema = None
         file_id = None
         targets = None
         header_record_id = None
@@ -2761,7 +2768,19 @@ def iter_decision_tape(path: Path, *, max_bytes: int):
             if type(record_id) is not str or record_id != expected:
                 raise RunnerError("DECISION_TAPE_RECORD_HASH_INVALID")
             if not header_seen:
-                if row.get("record_type") != "HEADER" or row.get("schema") != DECISION_TAPE_SCHEMA:
+                tape_schema = row.get("schema")
+                if (
+                    row.get("record_type") != "HEADER"
+                    or tape_schema not in (LEGACY_DECISION_TAPE_SCHEMA, DECISION_TAPE_SCHEMA)
+                    or (
+                        tape_schema == DECISION_TAPE_SCHEMA
+                        and row.get("origin_partition_schema") != SOURCE_ORIGIN_PARTITION_SCHEMA
+                    )
+                    or (
+                        tape_schema == LEGACY_DECISION_TAPE_SCHEMA
+                        and "origin_partition_schema" in row
+                    )
+                ):
                     raise RunnerError("DECISION_TAPE_HEADER_INVALID")
                 file_id = row.get("file_id")
                 targets = row.get("targets")
@@ -2784,7 +2803,7 @@ def iter_decision_tape(path: Path, *, max_bytes: int):
                 index += 1
                 if (
                     row.get("record_type") != "DECISION"
-                    or row.get("schema") != DECISION_TAPE_SCHEMA
+                    or row.get("schema") != tape_schema
                     or row.get("file_id") != file_id
                     or row.get("record_index") != index
                     or set(row.get("members", {})) != set(targets)
@@ -2993,12 +3012,15 @@ def _load_saved_live_history(
     previous_batch_id = None
     previous_sequences = {}
     generations = {}
+    previous_origin_partitions = {}
+    previous_origin_sequences = {}
     previous_source_roles = {}
     source_cohort_id = None
     source_epoch_id = None
     historical_grid_cursor = None
     source_calendar_fingerprint = None
     header = None
+    tape_schema = None
     record_count = 0
     latest_grid_anchor = None
     iterator = iter_decision_tape(
@@ -3007,6 +3029,7 @@ def _load_saved_live_history(
     for row in iterator:
         if header is None:
             header = row
+            tape_schema = row["schema"]
             source_calendar_fingerprint = row.get("calendar_fingerprint")
             if (
                 type(source_calendar_fingerprint) is not str
@@ -3151,6 +3174,8 @@ def _load_saved_live_history(
                 "quality_flags", "missing_fields", "rules_hash", "event_source",
                 "received_monotonic_ns", "raw_values",
             }
+            if tape_schema == DECISION_TAPE_SCHEMA:
+                expected_member_keys.add("origin_partition")
             try:
                 _exact_keys(member, expected_member_keys, "saved history member")
             except RunnerError:
@@ -3167,6 +3192,25 @@ def _load_saved_live_history(
             generation = member["connection_generation"]
             sequence = member["feed_sequence"]
             bar_id = member["bar_id"]
+            if tape_schema == DECISION_TAPE_SCHEMA:
+                origin_partition = _tape_origin_partition(member["origin_partition"], target)
+            elif source_role == "live":
+                # A legacy live row's original partition is uniquely recoverable
+                # from its exact, journal-anchored current source identity.
+                origin_partition = {
+                    "schema": SOURCE_ORIGIN_PARTITION_SCHEMA,
+                    "cohort_id": source_cohort_id,
+                    "epoch_id": source_epoch_id,
+                    "member_id": target,
+                    "source_ref": source_ref,
+                    "source_role": "live",
+                    "connection_generation": generation,
+                }
+            else:
+                # Legacy history rows have already discarded their origin role
+                # and generation partition. Only fail if one enters the bounded
+                # restored tail; older rows remain validation context.
+                origin_partition = None
             if source_role not in ("history", "live"):
                 raise RunnerError("LIVE_HISTORY_SOURCE_ROLE_INVALID", target)
             if (
@@ -3217,14 +3261,46 @@ def _load_saved_live_history(
             previous_role = previous_source_roles.get(target)
             if previous_role == "live" and source_role != "live":
                 raise RunnerError("LIVE_HISTORY_SOURCE_ROLE_ORDER_INVALID", target)
-            role_key = (target, source_role)
-            if role_key in generations and generations[role_key] != generation:
-                raise RunnerError("LIVE_HISTORY_GENERATION_CHANGED", target)
-            prior_sequence = previous_sequences.get(role_key)
-            if prior_sequence is not None and sequence <= prior_sequence:
-                raise RunnerError("LIVE_HISTORY_SEQUENCE_INVALID", target)
-            generations[role_key] = generation
-            previous_sequences[role_key] = sequence
+            if origin_partition is not None:
+                origin_role = origin_partition["source_role"]
+                origin_epoch = origin_partition["epoch_id"]
+                if (
+                    origin_partition["cohort_id"] == ""
+                    or origin_partition["source_ref"] != source_ref
+                    or origin_partition["connection_generation"] != generation
+                    or origin_epoch > source_epoch_id
+                    or (
+                        origin_epoch == source_epoch_id
+                        and (
+                            origin_partition["cohort_id"] != source_cohort_id
+                            or origin_role != source_role
+                        )
+                    )
+                    or (origin_epoch < source_epoch_id and origin_partition["cohort_id"] == source_cohort_id)
+                    or (source_role == "live" and origin_role != "live")
+                ):
+                    raise RunnerError("LIVE_HISTORY_ORIGIN_PARTITION_INVALID", target)
+            previous_partition = previous_origin_partitions.get(target)
+            if origin_partition is not None:
+                if previous_partition is not None:
+                    if not _origin_partition_follows(previous_partition, origin_partition):
+                        raise RunnerError("LIVE_HISTORY_ORIGIN_PARTITION_ORDER_INVALID", target)
+                    if (
+                        dict(previous_partition) == dict(origin_partition)
+                        and sequence <= previous_origin_sequences[target]
+                    ):
+                        raise RunnerError("LIVE_HISTORY_SEQUENCE_INVALID", target)
+                previous_origin_partitions[target] = origin_partition
+                previous_origin_sequences[target] = sequence
+            else:
+                role_key = (target, source_role)
+                if role_key in generations and generations[role_key] != generation:
+                    raise RunnerError("LIVE_HISTORY_GENERATION_CHANGED", target)
+                prior_sequence = previous_sequences.get(role_key)
+                if prior_sequence is not None and sequence <= prior_sequence:
+                    raise RunnerError("LIVE_HISTORY_SEQUENCE_INVALID", target)
+                generations[role_key] = generation
+                previous_sequences[role_key] = sequence
             previous_source_roles[target] = source_role
             values = {
                 name: _number(member["raw_values"][name], "saved history " + target + "." + name)
@@ -3238,11 +3314,26 @@ def _load_saved_live_history(
                 or values["openinterest"] < 0
             ):
                 raise RunnerError("LIVE_HISTORY_OHLCV_INVALID", target)
+            tape_anchor_identity = (
+                row["file_id"],
+                row["record_id"],
+                row["record_index"],
+                batch_id,
+                source_cohort_id,
+                source_epoch_id,
+                row["calendar_id"],
+                row["calendar_version"],
+                row["calendar_fingerprint"],
+                slot_index,
+                row["slot_id"],
+                close_time,
+            )
             event_rows[target] = MappingProxyType(
                 {
                     "instrument": instrument,
                     "symbol": instrument,
                     "exchange": product.exchange_id,
+                    "source_ref": source_ref,
                     "timestamp": close_time.timestamp(),
                     "datetime": close_time,
                     "bucket_start": bucket_start,
@@ -3255,11 +3346,21 @@ def _load_saved_live_history(
                     "connection_generation": generation,
                     "bar_sequence": sequence,
                     "bar_id": bar_id,
+                    "rules_hash": member["rules_hash"],
+                    "received_monotonic_ns": member["received_monotonic_ns"],
+                    "origin_partition": (
+                        None
+                        if origin_partition is None
+                        else MappingProxyType(dict(origin_partition))
+                    ),
                     "present": True,
                     "complete": True,
                     "quality": "GOOD",
                     "quality_flags": tuple(member["quality_flags"]),
+                    "missing_fields": tuple(member["missing_fields"]),
                     "source": member["event_source"],
+                    "_saved_history_tape_anchor": tape_anchor_identity,
+                    "_saved_history_record_source_role": source_role,
                     **values,
                 }
             )
@@ -3306,6 +3407,12 @@ def _load_saved_live_history(
         raise RunnerError("LIVE_HISTORY_RECORDS_MISSING")
     if len(tail) != preheat_bars:
         raise RunnerError("LIVE_HISTORY_WARMUP_NOT_CONTIGUOUS")
+    if any(
+        event["origin_partition"] is None
+        for item in tail
+        for event in item[4].values()
+    ):
+        raise RunnerError("LIVE_HISTORY_ORIGIN_PARTITION_UNPROVEN")
     if any(item[1] not in {"WARMUP", "CATCHING_UP", "LIVE_READY"} for item in tail):
         raise RunnerError("LIVE_HISTORY_TAIL_NOT_RESTORABLE")
     for target in target_set:
@@ -3394,9 +3501,17 @@ def _verify_saved_history_decision_anchors(journal, scopes, saved_history):
     """Bind every restored source row to its atomic GRID or SOURCE_ONLY record."""
     from backtrader.stores.execution_decision_journal import (
         ExecutionDecisionKey,
+        ExecutionDecisionJournalError,
         ExecutionDecisionRecord,
+        _source_receipt_from_values,
+        _source_receipt_sha256,
+    )
+    from backtrader.research.live_cohort import (
+        _SAVED_HISTORY_ANCHOR_EVENT_KEY,
+        _make_verified_saved_history_journal_anchor,
     )
 
+    verified_records = {}
     for anchor in saved_history["decision_anchors"]:
         close_time = anchor["close_time"].isoformat().replace("+00:00", "Z")
         key = ExecutionDecisionKey(
@@ -3459,8 +3574,7 @@ def _verify_saved_history_decision_anchors(journal, scopes, saved_history):
             raise RunnerError("LIVE_HISTORY_SOURCE_RECEIPT_MISMATCH")
         expected_members = []
         for member_id, member in sorted(anchor["members"].items()):
-            expected_members.append(
-                {
+            expected_member = {
                     "member_id": member_id,
                     "source_ref": member["source_ref"],
                     "source_role": member["source_role"],
@@ -3483,7 +3597,9 @@ def _verify_saved_history_decision_anchors(journal, scopes, saved_history):
                     "received_monotonic_ns": member["received_monotonic_ns"],
                     "rules_hash": member["rules_hash"],
                 }
-            )
+            if "origin_partition" in member:
+                expected_member["origin_partition"] = dict(member["origin_partition"])
+            expected_members.append(expected_member)
         if list(member_values) != expected_members:
             raise RunnerError("LIVE_HISTORY_SOURCE_RECEIPT_MISMATCH")
         if not source_only:
@@ -3503,6 +3619,92 @@ def _verify_saved_history_decision_anchors(journal, scopes, saved_history):
                 )
             ):
                 raise RunnerError("LIVE_HISTORY_JOURNAL_DECISION_ANCHOR_MISMATCH")
+        try:
+            typed_receipt = _source_receipt_from_values(receipt)
+            receipt_sha256 = _source_receipt_sha256(typed_receipt)
+        except (ExecutionDecisionJournalError, TypeError, ValueError, KeyError):
+            raise RunnerError("LIVE_HISTORY_SOURCE_RECEIPT_MISMATCH") from None
+        anchor_identity = (
+            anchor["file_id"],
+            anchor["record_id"],
+            anchor["record_index"],
+            anchor["batch_id"],
+            anchor["cohort_id"],
+            anchor["epoch_id"],
+            anchor["calendar_id"],
+            anchor["calendar_version"],
+            anchor["calendar_fingerprint"],
+            anchor["slot_index"],
+            anchor["slot_id"],
+            _aware_datetime(anchor["close_time"], "saved history anchor close_time"),
+        )
+        verified_records[anchor_identity] = {
+            "decision_id": record.decision_id,
+            "receipt_sha256": receipt_sha256,
+            "receipt_members": {
+                member["member_id"]: dict(member) for member in member_values
+            },
+            "anchor": anchor,
+        }
+
+    # Do not publish any row capability until every tail decision and member
+    # receipt has passed the exact journal-to-tape checks above.
+    verified_anchors = {}
+    for target, events in saved_history["bars_by_target"].items():
+        for event in events:
+            anchor_identity = event.get(_SAVED_HISTORY_ANCHOR_EVENT_KEY)
+            verified_record = verified_records.get(anchor_identity)
+            if verified_record is None:
+                raise RunnerError("LIVE_HISTORY_JOURNAL_DECISION_ANCHOR_MISMATCH")
+            member_receipt = verified_record["receipt_members"].get(target)
+            if member_receipt is None:
+                raise RunnerError("LIVE_HISTORY_SOURCE_RECEIPT_MISMATCH")
+            origin_partition = event.get("origin_partition")
+            if not isinstance(origin_partition, Mapping):
+                raise RunnerError("LIVE_HISTORY_ORIGIN_PARTITION_UNPROVEN", target)
+            receipt_partition = member_receipt.get("origin_partition")
+            if receipt_partition is None:
+                # Old source receipts omitted this optional field. A live row's
+                # origin is uniquely recoverable from its source cohort/epoch,
+                # exact member/source and generation already checked above.
+                if (
+                    member_receipt.get("source_role") != "live"
+                    or origin_partition.get("cohort_id")
+                    != verified_record["anchor"]["cohort_id"]
+                    or origin_partition.get("epoch_id")
+                    != verified_record["anchor"]["epoch_id"]
+                    or origin_partition.get("source_role") != "live"
+                    or origin_partition.get("member_id") != member_receipt["member_id"]
+                    or origin_partition.get("source_ref") != member_receipt["source_ref"]
+                    or origin_partition.get("connection_generation")
+                    != member_receipt["connection_generation"]
+                ):
+                    raise RunnerError("LIVE_HISTORY_ORIGIN_PARTITION_UNPROVEN", target)
+            elif dict(receipt_partition) != dict(origin_partition):
+                raise RunnerError("LIVE_HISTORY_SOURCE_RECEIPT_MISMATCH", target)
+            anchor = verified_record["anchor"]
+            facts = {
+                "decision_id": verified_record["decision_id"],
+                "receipt_sha256": verified_record["receipt_sha256"],
+                "tape_file_id": anchor["file_id"],
+                "tape_record_id": anchor["record_id"],
+                "tape_record_index": anchor["record_index"],
+                "batch_id": anchor["batch_id"],
+                "source_cohort_id": anchor["cohort_id"],
+                "source_epoch_id": anchor["epoch_id"],
+                "calendar_id": anchor["calendar_id"],
+                "calendar_version": anchor["calendar_version"],
+                "calendar_fingerprint": anchor["calendar_fingerprint"],
+                "slot_index": anchor["slot_index"],
+                "slot_id": anchor["slot_id"],
+                "close_time": anchor["close_time"],
+                "member_receipt": member_receipt,
+                "origin_partition": origin_partition,
+            }
+            verified_anchors[(anchor_identity, target)] = (
+                _make_verified_saved_history_journal_anchor(**facts)
+            )
+    saved_history["verified_journal_anchors"] = MappingProxyType(verified_anchors)
 
 
 def _decision_tape_readback(
@@ -5519,6 +5721,61 @@ def _resolve_ctp_front(options: Mapping[str, Any], address_key: str, front_key: 
     return value
 
 
+def _tape_origin_partition(value: Any, member_id: str) -> dict[str, Any]:
+    names = {
+        "schema",
+        "cohort_id",
+        "epoch_id",
+        "member_id",
+        "source_ref",
+        "source_role",
+        "connection_generation",
+    }
+    if not isinstance(value, Mapping) or set(value) != names:
+        raise RunnerError("DECISION_TAPE_ORIGIN_PARTITION_INVALID", member_id)
+    generation = value["connection_generation"]
+    if (
+        value["schema"] != SOURCE_ORIGIN_PARTITION_SCHEMA
+        or type(value["cohort_id"]) is not str
+        or not value["cohort_id"]
+        or type(value["epoch_id"]) is not int
+        or value["epoch_id"] < 1
+        or value["member_id"] != member_id
+        or type(value["source_ref"]) is not str
+        or not value["source_ref"]
+        or value["source_role"] not in ("history", "live")
+        or type(value["source_role"]) is not str
+        or type(generation) not in (str, int)
+        or (type(generation) is str and not generation)
+        or (type(generation) is int and generation <= 0)
+    ):
+        raise RunnerError("DECISION_TAPE_ORIGIN_PARTITION_INVALID", member_id)
+    return {name: value[name] for name in (
+        "schema",
+        "cohort_id",
+        "epoch_id",
+        "member_id",
+        "source_ref",
+        "source_role",
+        "connection_generation",
+    )}
+
+
+def _origin_partition_follows(previous: Mapping[str, Any], current: Mapping[str, Any]) -> bool:
+    if dict(previous) == dict(current):
+        return True
+    if current["epoch_id"] > previous["epoch_id"]:
+        return current["cohort_id"] != previous["cohort_id"]
+    return bool(
+        current["epoch_id"] == previous["epoch_id"]
+        and current["cohort_id"] == previous["cohort_id"]
+        and current["member_id"] == previous["member_id"]
+        and current["source_ref"] == previous["source_ref"]
+        and previous["source_role"] == "history"
+        and current["source_role"] == "live"
+    )
+
+
 def _claimed_ctp_profile(options: Mapping[str, Any]) -> str:
     claims = []
     for key in ("ctp_env_profile", "environment_profile"):
@@ -6576,6 +6833,7 @@ def run_live(
                     bar_id=first_history["bar_id"],
                     feed_sequence=first_history["bar_sequence"],
                     close_time=first_history["bucket_end"],
+                    origin_partition=first_history["origin_partition"],
                 )
                 feed_options = {
                     "historical_bars": history_bars,
@@ -6622,6 +6880,40 @@ def run_live(
                     data=data,
                 )
             )
+        if saved_history is not None:
+            from backtrader.research.live_cohort import (
+                LiveCohortError,
+                _SAVED_HISTORY_ANCHOR_EVENT_KEY,
+                _VERIFIED_HISTORY_PROOF_EVENT_KEY,
+            )
+
+            verified_anchors = saved_history.get("verified_journal_anchors")
+            if not isinstance(verified_anchors, Mapping):
+                raise RunnerError("LIVE_HISTORY_JOURNAL_DECISION_ANCHOR_MISMATCH")
+            authorized_history_sources = {}
+            for target in plan["targets"]:
+                data = next(item.data for item in query_targets if item.target_id == target)
+                authorized_events = []
+                for event in data._cohort_history_source:
+                    anchor_identity = event.get(_SAVED_HISTORY_ANCHOR_EVENT_KEY)
+                    anchor = verified_anchors.get((anchor_identity, target))
+                    if anchor is None:
+                        raise RunnerError("LIVE_HISTORY_JOURNAL_DECISION_ANCHOR_MISMATCH")
+                    try:
+                        proof = cohort._issue_verified_saved_history_origin_proof(
+                            data, event, anchor
+                        )
+                    except LiveCohortError as error:
+                        raise RunnerError("LIVE_HISTORY_ORIGIN_PROOF_INVALID", target) from error
+                    authorized_event = dict(event)
+                    authorized_event[_VERIFIED_HISTORY_PROOF_EVENT_KEY] = proof
+                    authorized_events.append(MappingProxyType(authorized_event))
+                authorized_history_sources[target] = tuple(authorized_events)
+            # Sign and validate every feed's complete history window before
+            # replacing any source tuple that Cerebro could later consume.
+            for target in plan["targets"]:
+                data = next(item.data for item in query_targets if item.target_id == target)
+                data._cohort_history_source = authorized_history_sources[target]
         cohort.seal()
         cerebro.add_live_bar_cohort(
             cohort,

@@ -17,6 +17,10 @@ from backtrader.research.live_cohort import (
     LiveCohortFrozenError,
     LiveCohortValidationError,
     LiveInputBinding,
+    _SAVED_HISTORY_ANCHOR_EVENT_KEY,
+    _SAVED_HISTORY_RECORD_SOURCE_ROLE_EVENT_KEY,
+    _VERIFIED_HISTORY_PROOF_EVENT_KEY,
+    _make_verified_saved_history_journal_anchor,
 )
 
 
@@ -54,13 +58,15 @@ def make_cohort(
     member_count=2,
     *,
     count=3,
+    epoch_id=1,
+    cohort_id="cohort-A",
     wait_timeout_ns=100,
     max_pending_slots=None,
     max_window_bars=None,
 ):
     cohort = LiveBarCohort(
-        "cohort-A",
-        make_calendar(count),
+        cohort_id,
+        make_calendar(count, epoch_id=epoch_id),
         max_pending_slots=max(count, 1) if max_pending_slots is None else max_pending_slots,
         max_window_bars=(min(max(count, 1), 16) if max_window_bars is None else max_window_bars),
         wait_timeout_ns=wait_timeout_ns,
@@ -82,11 +88,19 @@ def make_cohort(
     return cohort, feeds
 
 
-def make_event(member_id, slot_index, *, source_role="live", sequence=None, close=None):
+def make_event(
+    member_id,
+    slot_index,
+    *,
+    source_role="live",
+    sequence=None,
+    close=None,
+    origin_partition=None,
+):
     start = BASE + dt.timedelta(minutes=slot_index)
     end = start + dt.timedelta(minutes=1)
     close_value = float(100 + slot_index if close is None else close)
-    return {
+    event = {
         "instrument": "SYM{}".format(member_id.rsplit("-", 1)[1]),
         "symbol": "SYM{}".format(member_id.rsplit("-", 1)[1]),
         "timestamp": end.timestamp(),
@@ -112,6 +126,9 @@ def make_event(member_id, slot_index, *, source_role="live", sequence=None, clos
         "source": "test-source",
         "received_monotonic_ns": 10_000 + slot_index,
     }
+    if origin_partition is not None:
+        event["origin_partition"] = origin_partition
+    return event
 
 
 def capture_slot(cohort, feeds, slot_index, *, role="live", sequences=None):
@@ -741,6 +758,230 @@ def test_history_live_overlap_deduplicates_without_replacing_source_receipt():
     batch = deliver_prepared(cohort, feeds, 30_000)
     assert batch.members["asset-0"].source_role == "history"
     assert cohort.epoch_cutover(feed) is None
+
+
+def test_unproved_old_and_future_origin_partitions_are_rejected():
+    malformed_cohort, malformed_feeds = make_cohort(member_count=1, count=1)
+    malformed = make_event("asset-0", 0)
+    malformed["origin_partition"] = {
+        "schema": "backtrader.execution_source_origin_partition.v1",
+        "cohort_id": "cohort-A",
+        "epoch_id": 1,
+        "member_id": "asset-0",
+        "source_ref": "provider-feed-forged",
+        "source_role": "live",
+        "connection_generation": "gen-live",
+    }
+    with pytest.raises(LiveCohortValidationError, match="does not match the bar"):
+        malformed_cohort.capture_bar(
+            malformed_feeds["asset-0"], malformed, source_role="live"
+        )
+
+    cohort, feeds = make_cohort(
+        member_count=1, count=3, epoch_id=3, cohort_id="cohort-current"
+    )
+
+    def origin(cohort_id, epoch_id):
+        return {
+            "schema": "backtrader.execution_source_origin_partition.v1",
+            "cohort_id": cohort_id,
+            "epoch_id": epoch_id,
+            "member_id": "asset-0",
+            "source_ref": "provider-feed-0",
+            "source_role": "live",
+            "connection_generation": "same-generation-label",
+        }
+
+    def history_event(slot_index, origin_partition):
+        event = make_event(
+            "asset-0",
+            slot_index,
+            source_role="history",
+            origin_partition=origin_partition,
+        )
+        event["connection_generation"] = "same-generation-label"
+        return event
+
+    with pytest.raises(LiveCohortValidationError, match="verified journal anchor"):
+        cohort.capture_bar(
+            feeds["asset-0"],
+            history_event(0, origin("cohort-1", 1)),
+            source_role="history",
+        )
+    future_cohort, future_feeds = make_cohort(
+        member_count=1, count=3, epoch_id=3, cohort_id="cohort-current"
+    )
+    with pytest.raises(LiveCohortValidationError, match="future epoch"):
+        future_cohort.capture_bar(
+            future_feeds["asset-0"],
+            history_event(0, origin("cohort-4", 4)),
+            source_role="history",
+        )
+
+    current_history = history_event(0, origin("cohort-current", 3))
+    current_history["origin_partition"]["source_role"] = "history"
+    current_cohort, current_feeds = make_cohort(
+        member_count=1, count=1, epoch_id=3, cohort_id="cohort-current"
+    )
+    current_cohort.capture_bar(
+        current_feeds["asset-0"], current_history, source_role="history"
+    )
+
+    mutations = (
+        ("cohort_id", "cohort-other", None),
+        ("member_id", "asset-other", None),
+        ("source_ref", "provider-other", None),
+        ("source_role", "live", None),
+        ("connection_generation", "other-generation", None),
+        (None, None, "2026-10-21"),
+    )
+    for partition_field, value, trading_day in mutations:
+        invalid_cohort, invalid_feeds = make_cohort(
+            member_count=1, count=1, epoch_id=3, cohort_id="cohort-current"
+        )
+        invalid_partition = origin("cohort-current", 3)
+        invalid_partition["source_role"] = "history"
+        invalid_event = history_event(0, invalid_partition)
+        if partition_field is not None:
+            invalid_event["origin_partition"][partition_field] = value
+        if trading_day is not None:
+            invalid_event["trading_day"] = trading_day
+        with pytest.raises(LiveCohortValidationError):
+            invalid_cohort.capture_bar(
+                invalid_feeds["asset-0"], invalid_event, source_role="history"
+            )
+
+
+def _verified_saved_history_row(cohort, feed, member_id="asset-0", *, slot_index=0):
+    member = cohort.member_for_feed(feed)
+    origin = {
+        "schema": "backtrader.execution_source_origin_partition.v1",
+        "cohort_id": "cohort-prior-1",
+        "epoch_id": 1,
+        "member_id": member.member_id,
+        "source_ref": member.source_ref,
+        "source_role": "live",
+        "connection_generation": "saved-generation",
+    }
+    event = make_event(
+        member_id,
+        slot_index,
+        source_role="history",
+        origin_partition=origin,
+    )
+    event.update(
+        {
+            "connection_generation": "saved-generation",
+            "source_ref": member.source_ref,
+            "present": True,
+            "missing_fields": (),
+            "rules_hash": None,
+        }
+    )
+    tape_anchor = (
+        "tape-file-1",
+        "tape-record-{}".format(slot_index),
+        slot_index + 1,
+        "saved-batch-{}".format(slot_index),
+        origin["cohort_id"],
+        origin["epoch_id"],
+        "XNYS-1m",
+        "v1",
+        "a" * 64,
+        slot_index,
+        "saved-slot-{}".format(slot_index),
+        event["bucket_end"],
+    )
+    event[_SAVED_HISTORY_ANCHOR_EVENT_KEY] = tape_anchor
+    event[_SAVED_HISTORY_RECORD_SOURCE_ROLE_EVENT_KEY] = "live"
+    time_value = lambda value: value.astimezone(UTC).isoformat().replace("+00:00", "Z")
+    member_receipt = {
+        "member_id": member.member_id,
+        "source_ref": member.source_ref,
+        "source_role": "live",
+        "connection_generation": event["connection_generation"],
+        "feed_sequence": event["bar_sequence"],
+        "bar_id": event["bar_id"],
+        "bucket_start": time_value(event["bucket_start"]),
+        "close_time": time_value(event["bucket_end"]),
+        "available_at": time_value(event["available_at"]),
+        "trading_day": event["trading_day"],
+        "session_segment": event["session_segment"],
+        "timezone_id": member.timezone_id,
+        "clock_domain_id": member.clock_domain_id,
+        "complete": True,
+        "quality": "GOOD",
+        "present": True,
+        "missing_fields": (),
+        "quality_flags": (),
+        "event_source": event["source"],
+        "received_monotonic_ns": event["received_monotonic_ns"],
+        "rules_hash": None,
+        "origin_partition": origin,
+    }
+    anchor = _make_verified_saved_history_journal_anchor(
+        decision_id="decision-{}".format(slot_index),
+        receipt_sha256="b" * 64,
+        tape_file_id=tape_anchor[0],
+        tape_record_id=tape_anchor[1],
+        tape_record_index=tape_anchor[2],
+        batch_id=tape_anchor[3],
+        source_cohort_id=tape_anchor[4],
+        source_epoch_id=tape_anchor[5],
+        calendar_id=tape_anchor[6],
+        calendar_version=tape_anchor[7],
+        calendar_fingerprint=tape_anchor[8],
+        slot_index=tape_anchor[9],
+        slot_id=tape_anchor[10],
+        close_time=tape_anchor[11],
+        member_receipt=member_receipt,
+        origin_partition=origin,
+    )
+    proof = cohort._issue_verified_saved_history_origin_proof(feed, event, anchor)
+    event[_VERIFIED_HISTORY_PROOF_EVENT_KEY] = proof
+    return event
+
+
+def test_verified_history_proof_rejects_cross_owner_member_and_single_byte_tamper():
+    cohort, feeds = make_cohort(
+        member_count=2, count=3, epoch_id=3, cohort_id="cohort-current"
+    )
+    proof_event = _verified_saved_history_row(cohort, feeds["asset-0"])
+
+    other_owner, other_owner_feeds = make_cohort(
+        member_count=2, count=3, epoch_id=3, cohort_id="cohort-current"
+    )
+    with pytest.raises(LiveCohortValidationError, match="proof does not bind"):
+        other_owner.capture_bar(
+            other_owner_feeds["asset-0"], proof_event, source_role="history"
+        )
+
+    member_cohort, member_feeds = make_cohort(
+        member_count=2, count=3, epoch_id=3, cohort_id="cohort-current"
+    )
+    other_member = _verified_saved_history_row(
+        member_cohort, member_feeds["asset-1"], member_id="asset-1"
+    )
+    member_zero = _verified_saved_history_row(member_cohort, member_feeds["asset-0"])
+    copied_proof = dict(other_member)
+    copied_proof[_VERIFIED_HISTORY_PROOF_EVENT_KEY] = member_zero[
+        _VERIFIED_HISTORY_PROOF_EVENT_KEY
+    ]
+    with pytest.raises(LiveCohortValidationError, match="proof does not bind"):
+        member_cohort.capture_bar(
+            member_feeds["asset-1"], copied_proof, source_role="history"
+        )
+
+    tamper_cohort, tamper_feeds = make_cohort(
+        member_count=1, count=3, epoch_id=3, cohort_id="cohort-current"
+    )
+    tamper_event = _verified_saved_history_row(tamper_cohort, tamper_feeds["asset-0"])
+    changed_byte = dict(tamper_event)
+    changed_byte["source"] = "test-sourcf"
+    with pytest.raises(LiveCohortValidationError, match="proof does not bind"):
+        tamper_cohort.capture_bar(
+            tamper_feeds["asset-0"], changed_byte, source_role="history"
+        )
 
 
 def test_exact_repeat_is_idempotent_but_connection_generation_change_is_not():
