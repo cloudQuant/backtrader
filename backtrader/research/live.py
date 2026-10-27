@@ -844,6 +844,13 @@ class LiveFactorSet:
                 factor_values={},
             )
         windows_complete = True
+        restart_gap_window_complete = True
+        restart_gap = getattr(self._cohort, "restart_gap", None)
+        restart_gap_rewarm_required = bool(
+            restart_gap is not None
+            and self._reconstruction
+            and all(kind == "finite_window" for kind, _span in self._reconstruction.values())
+        )
         window_receipts = {}
         for feed_id, (feed, line_names) in self._required_fields.items():
             if not line_names:
@@ -854,6 +861,15 @@ class LiveFactorSet:
                 windows_complete = False
                 continue
             window_receipts[feed_id] = tuple(window)
+            if restart_gap_rewarm_required:
+                live_window = self._cohort.complete_live_window_bars(
+                    feed,
+                    line_names,
+                    required_count,
+                    current_receipt=latest,
+                )
+                if not live_window or live_window[-1] is not latest:
+                    restart_gap_window_complete = False
 
         cutover_flags = []
         for feed_id, (feed, _line_names) in self._required_fields.items():
@@ -875,7 +891,26 @@ class LiveFactorSet:
                 or cutover.first_live_receipt.feed_ref is not feed
                 or cutover.first_live_receipt.close_time > latest.close_time
                 or cutover.first_live_receipt.source_role != "live"
-                or cutover.transition_kind not in ("history_to_live", "live_cold_start")
+                or (
+                    restart_gap is None
+                    and (
+                        cutover.transition_kind not in ("history_to_live", "live_cold_start")
+                        or cutover.restart_gap_fingerprint is not None
+                    )
+                )
+                or (
+                    restart_gap is not None
+                    and (
+                        cutover.transition_kind != "restart_gap_to_live"
+                        or cutover.restart_gap_fingerprint != restart_gap.fingerprint
+                        or cutover.history_last_close_time
+                        != restart_gap.journal_highwater.close_time
+                        or cutover.first_live_receipt.slot_index
+                        != restart_gap.first_live_cohort_slot_index
+                        or cutover.first_live_receipt.envelope.slot_id
+                        != restart_gap.first_live_slot_id
+                    )
+                )
             ):
                 cutover_flags.append(False)
             else:
@@ -941,6 +976,8 @@ class LiveFactorSet:
             readiness_reasons.append("cohort_gap_present")
         if not windows_complete:
             readiness_reasons.append("input_window_incomplete_or_warmup_short")
+        if restart_gap_rewarm_required and not restart_gap_window_complete:
+            readiness_reasons.append("restart_gap_rewarming")
         if cutover_state is not LiveFactorReadiness.LIVE_READY:
             readiness_reasons.append("live_cutover_incomplete")
         if history_policy_invalid:
@@ -955,6 +992,7 @@ class LiveFactorSet:
         elif (
             gap_receipts
             or not windows_complete
+            or (restart_gap_rewarm_required and not restart_gap_window_complete)
             or history_policy_invalid
             or freshness_reasons
             or reconstruction_reasons

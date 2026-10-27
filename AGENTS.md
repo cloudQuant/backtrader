@@ -543,6 +543,14 @@ and polling Stores require `preserve_raw_bars=True`. Explicit missing fields
 carry NaN plus typed presence/quality metadata; registered Alpha101 factors
 exclude absent members and wait for complete rolling windows, while unsupported
 custom-factor gap semantics freeze the cohort.
+`LiveCohortCalendar.with_restart_gap` binds an explicit bounded omission to the
+original finite calendar and an exact old journal high-water. Replayed old-live
+rows enter the new epoch as history; omitted slots never become bars. After
+the gap, finite graphs require a complete current-generation live window;
+recursive source-origin continuity stays unqualified. Nine distinct synthetic
+core cases passed across two runs, including the exact-start boundary repair.
+The 028 history-loader composition and actual restart remain separate work;
+old warmup rows without durable journal anchors cannot be retrospectively trusted.
 The 028 live CTP route binds each feed to its selected contract, the actual
 Trader trading day and the independently captured MD connection generation.
 `feeds/ctp_factor_source.py` maps untouched native ActionDay/TradingDay and

@@ -33,6 +33,8 @@ _MAX_CALENDAR_SLOTS = 200_000
 _MAX_COHORT_MEMBERS = 512
 _MAX_PENDING_SLOTS = 64
 _MAX_WINDOW_BARS = 4096
+_MAX_RESTART_GAP_SLOTS = _MAX_CALENDAR_SLOTS
+_RESTART_GAP_FACTORY_TOKEN = object()
 
 
 class LiveCohortError(RuntimeError):
@@ -223,6 +225,267 @@ class LiveCalendarSlot:
 
 
 @dataclass(frozen=True)
+class LiveCohortJournalMemberHighWater:
+    """One member's exact old-run event identity at a durable journal cursor.
+
+    ``source_role`` preserves the role stored in the old journal. A replay of
+    that high-water event in the new epoch must independently use ``history``.
+    """
+
+    member_id: str
+    source_ref: str
+    source_role: str
+    connection_generation: Any
+    feed_sequence: int
+    bar_id: str
+    close_time: _datetime.datetime
+    trading_day: str
+    session_segment: str
+
+    def __post_init__(self) -> None:
+        for name in ("member_id", "source_ref", "bar_id", "trading_day", "session_segment"):
+            _nonempty_text(getattr(self, name), name)
+        if type(self.source_role) is not str or self.source_role not in ("history", "live"):
+            raise LiveCohortValidationError(
+                "high-water source_role must preserve its original history/live role"
+            )
+        generation = self.connection_generation
+        if (
+            isinstance(generation, bool)
+            or not isinstance(generation, (str, int))
+            or generation in ("", 0)
+        ):
+            raise LiveCohortValidationError("high-water connection generation must be explicit")
+        _positive_int(self.feed_sequence, "high-water feed_sequence")
+        object.__setattr__(self, "close_time", _aware_utc(self.close_time, "close_time"))
+
+
+@dataclass(frozen=True)
+class LiveCohortJournalHighWater:
+    """Bounded identity for the prior journal's last complete history batch."""
+
+    cohort_id: str
+    calendar_id: str
+    calendar_version: str
+    calendar_fingerprint: str
+    epoch_id: int
+    slot_index: int
+    slot_id: str
+    close_time: _datetime.datetime
+    batch_id: str
+    members: Mapping[str, LiveCohortJournalMemberHighWater]
+
+    def __post_init__(self) -> None:
+        for name in ("cohort_id", "calendar_id", "calendar_version", "slot_id", "batch_id"):
+            _nonempty_text(getattr(self, name), name)
+        _positive_int(self.epoch_id, "high-water epoch_id")
+        if type(self.slot_index) is not int or self.slot_index < 0:
+            raise LiveCohortValidationError("high-water slot_index must be a non-negative integer")
+        fingerprint = self.calendar_fingerprint
+        if (
+            type(fingerprint) is not str
+            or len(fingerprint) != 64
+            or any(character not in "0123456789abcdef" for character in fingerprint)
+        ):
+            raise LiveCohortValidationError("high-water calendar fingerprint must be SHA-256")
+        object.__setattr__(self, "close_time", _aware_utc(self.close_time, "close_time"))
+        if not isinstance(self.members, Mapping) or not self.members:
+            raise LiveCohortValidationError("high-water members must be a non-empty mapping")
+        if len(self.members) > _MAX_COHORT_MEMBERS:
+            raise LiveCohortCapacityError("high-water member limit exceeded")
+        members = {}
+        for member_id, member in self.members.items():
+            _nonempty_text(member_id, "high-water member id")
+            if type(member) is not LiveCohortJournalMemberHighWater:
+                raise LiveCohortValidationError(
+                    "high-water members must be LiveCohortJournalMemberHighWater values"
+                )
+            if member.member_id != member_id or member.close_time != self.close_time:
+                raise LiveCohortValidationError("high-water member identity differs from its batch")
+            members[member_id] = member
+        expected_batch_id = "{}:{}:{}:{}:{}".format(
+            self.cohort_id,
+            self.calendar_id,
+            self.epoch_id,
+            self.calendar_version,
+            self.slot_index,
+        )
+        if self.batch_id != expected_batch_id:
+            raise LiveCohortValidationError("high-water batch_id is not its canonical slot identity")
+        object.__setattr__(self, "members", MappingProxyType(members))
+
+
+@dataclass(frozen=True)
+class LiveCohortRestartGap:
+    """Immutable proof of the exact planned slots omitted at process restart."""
+
+    full_original_calendar_fingerprint: str
+    original_scope_first_slot_id: str
+    original_scope_last_slot_id: str
+    original_scope_slot_count: int
+    journal_highwater: LiveCohortJournalHighWater
+    history_highwater_original_slot_index: int
+    omitted_start_original_slot_index: int
+    omitted_end_original_slot_index: int
+    omitted_slot_count: int
+    omitted_first_slot_id: str
+    omitted_last_slot_id: str
+    omitted_elapsed_slot_count: int
+    omitted_partial_slot_id: Optional[str]
+    startup_time_utc: _datetime.datetime
+    first_live_original_slot_index: int
+    first_live_cohort_slot_index: int
+    first_live_slot_id: str
+    first_live_bucket_start: _datetime.datetime
+    first_live_close_time: _datetime.datetime
+    first_live_member_sessions: Mapping[str, LiveCalendarMemberSession]
+    _fingerprint: str = field(init=False, repr=False, compare=False)
+
+    def __post_init__(self) -> None:
+        fingerprint = self.full_original_calendar_fingerprint
+        if (
+            type(fingerprint) is not str
+            or len(fingerprint) != 64
+            or any(character not in "0123456789abcdef" for character in fingerprint)
+        ):
+            raise LiveCohortValidationError("original calendar fingerprint must be SHA-256")
+        if type(self.journal_highwater) is not LiveCohortJournalHighWater:
+            raise LiveCohortValidationError("restart gap requires a typed journal high-water")
+        for name in (
+            "original_scope_first_slot_id",
+            "original_scope_last_slot_id",
+            "omitted_first_slot_id",
+            "omitted_last_slot_id",
+            "first_live_slot_id",
+        ):
+            _nonempty_text(getattr(self, name), name)
+        for name in (
+            "original_scope_slot_count",
+            "omitted_slot_count",
+            "first_live_original_slot_index",
+            "first_live_cohort_slot_index",
+        ):
+            _positive_int(getattr(self, name), name)
+        for name in (
+            "history_highwater_original_slot_index",
+            "omitted_start_original_slot_index",
+            "omitted_end_original_slot_index",
+            "omitted_elapsed_slot_count",
+        ):
+            value = getattr(self, name)
+            if type(value) is not int or value < 0:
+                raise LiveCohortValidationError("{} must be a non-negative integer".format(name))
+        if (
+            self.omitted_slot_count > _MAX_RESTART_GAP_SLOTS
+            or self.omitted_end_original_slot_index - self.omitted_start_original_slot_index
+            != self.omitted_slot_count
+            or self.omitted_start_original_slot_index
+            != self.history_highwater_original_slot_index + 1
+            or self.first_live_original_slot_index != self.omitted_end_original_slot_index
+            or self.history_highwater_original_slot_index >= self.original_scope_slot_count
+            or self.omitted_end_original_slot_index >= self.original_scope_slot_count
+            or self.first_live_cohort_slot_index
+            != self.history_highwater_original_slot_index + 1
+            or self.omitted_elapsed_slot_count > self.omitted_slot_count
+        ):
+            raise LiveCohortValidationError("restart gap slot range is inconsistent or unbounded")
+        if self.omitted_partial_slot_id is not None:
+            _nonempty_text(self.omitted_partial_slot_id, "omitted_partial_slot_id")
+            if (
+                self.omitted_elapsed_slot_count + 1 != self.omitted_slot_count
+                or self.omitted_partial_slot_id != self.omitted_last_slot_id
+            ):
+                raise LiveCohortValidationError("only the final omitted slot may be partial")
+        elif self.omitted_elapsed_slot_count != self.omitted_slot_count:
+            raise LiveCohortValidationError("every omitted slot must be elapsed or one partial slot")
+        startup = _aware_utc(self.startup_time_utc, "startup_time_utc")
+        object.__setattr__(self, "startup_time_utc", startup)
+        first_start = _aware_utc(self.first_live_bucket_start, "first_live_bucket_start")
+        first_close = _aware_utc(self.first_live_close_time, "first_live_close_time")
+        object.__setattr__(self, "first_live_bucket_start", first_start)
+        object.__setattr__(self, "first_live_close_time", first_close)
+        if first_start < startup or first_close <= first_start:
+            raise LiveCohortValidationError("first live slot must begin at or after restart startup")
+        if not isinstance(self.first_live_member_sessions, Mapping) or not self.first_live_member_sessions:
+            raise LiveCohortValidationError("first live member sessions must be explicit")
+        sessions = {}
+        for member_id, session in self.first_live_member_sessions.items():
+            _nonempty_text(member_id, "first live member id")
+            if type(session) is not LiveCalendarMemberSession:
+                raise LiveCohortValidationError(
+                    "first live member sessions must use LiveCalendarMemberSession values"
+                )
+            sessions[member_id] = session
+        if set(sessions) != set(self.journal_highwater.members):
+            raise LiveCohortValidationError(
+                "restart high-water and first-live slots must cover the same members"
+            )
+        object.__setattr__(self, "first_live_member_sessions", MappingProxyType(sessions))
+        digest = hashlib.sha256()
+        _update_calendar_fingerprint(digest, _restart_gap_fingerprint_payload(self))
+        object.__setattr__(self, "_fingerprint", digest.hexdigest())
+
+    @property
+    def fingerprint(self) -> str:
+        return self._fingerprint
+
+
+def _restart_gap_fingerprint_payload(gap: LiveCohortRestartGap) -> Mapping[str, Any]:
+    highwater = gap.journal_highwater
+    return {
+        "full_original_calendar_fingerprint": gap.full_original_calendar_fingerprint,
+        "original_scope_first_slot_id": gap.original_scope_first_slot_id,
+        "original_scope_last_slot_id": gap.original_scope_last_slot_id,
+        "original_scope_slot_count": gap.original_scope_slot_count,
+        "journal_highwater": {
+            "cohort_id": highwater.cohort_id,
+            "calendar_id": highwater.calendar_id,
+            "calendar_version": highwater.calendar_version,
+            "calendar_fingerprint": highwater.calendar_fingerprint,
+            "epoch_id": highwater.epoch_id,
+            "slot_index": highwater.slot_index,
+            "slot_id": highwater.slot_id,
+            "close_time": highwater.close_time.isoformat(),
+            "batch_id": highwater.batch_id,
+            "members": {
+                member_id: {
+                    "source_ref": member.source_ref,
+                    "source_role": member.source_role,
+                    "connection_generation": member.connection_generation,
+                    "feed_sequence": member.feed_sequence,
+                    "bar_id": member.bar_id,
+                    "close_time": member.close_time.isoformat(),
+                    "trading_day": member.trading_day,
+                    "session_segment": member.session_segment,
+                }
+                for member_id, member in sorted(highwater.members.items())
+            },
+        },
+        "history_highwater_original_slot_index": gap.history_highwater_original_slot_index,
+        "omitted_start_original_slot_index": gap.omitted_start_original_slot_index,
+        "omitted_end_original_slot_index": gap.omitted_end_original_slot_index,
+        "omitted_slot_count": gap.omitted_slot_count,
+        "omitted_first_slot_id": gap.omitted_first_slot_id,
+        "omitted_last_slot_id": gap.omitted_last_slot_id,
+        "omitted_elapsed_slot_count": gap.omitted_elapsed_slot_count,
+        "omitted_partial_slot_id": gap.omitted_partial_slot_id,
+        "startup_time_utc": gap.startup_time_utc.isoformat(),
+        "first_live_original_slot_index": gap.first_live_original_slot_index,
+        "first_live_cohort_slot_index": gap.first_live_cohort_slot_index,
+        "first_live_slot_id": gap.first_live_slot_id,
+        "first_live_bucket_start": gap.first_live_bucket_start.isoformat(),
+        "first_live_close_time": gap.first_live_close_time.isoformat(),
+        "first_live_member_sessions": {
+            member_id: {
+                "trading_day": session.trading_day,
+                "session_segment": session.session_segment,
+            }
+            for member_id, session in sorted(gap.first_live_member_sessions.items())
+        },
+    }
+
+
+@dataclass(frozen=True)
 class LiveCohortCalendar:
     """A finite calendar epoch. Exhaustion never implies an infinite grid."""
 
@@ -235,6 +498,8 @@ class LiveCohortCalendar:
     clock_domain_id: str
     session_semantics: str
     slots: Tuple[LiveCalendarSlot, ...]
+    restart_gap: Optional[LiveCohortRestartGap] = field(default=None, repr=False, compare=False)
+    _restart_gap_factory_token: Any = field(default=None, repr=False, compare=False)
     _fingerprint: str = field(init=False, repr=False, compare=False)
 
     def __post_init__(self) -> None:
@@ -275,6 +540,26 @@ class LiveCohortCalendar:
                     )
             prior = slot
         object.__setattr__(self, "slots", slots)
+        gap = self.restart_gap
+        if gap is not None:
+            if (
+                type(gap) is not LiveCohortRestartGap
+                or self._restart_gap_factory_token is not _RESTART_GAP_FACTORY_TOKEN
+            ):
+                raise LiveCohortValidationError(
+                    "restart-gap calendars must be produced from a validated full calendar"
+                )
+            if (
+                len(slots) != gap.original_scope_slot_count - gap.omitted_slot_count
+                or gap.history_highwater_original_slot_index >= len(slots)
+                or gap.first_live_cohort_slot_index >= len(slots)
+                or slots[gap.history_highwater_original_slot_index].slot_id
+                != gap.journal_highwater.slot_id
+                or slots[gap.first_live_cohort_slot_index].slot_id != gap.first_live_slot_id
+            ):
+                raise LiveCohortValidationError("restart-gap calendar does not match its proof")
+        elif self._restart_gap_factory_token is not None:
+            raise LiveCohortValidationError("restart-gap factory token has no proof")
         digest = hashlib.sha256()
         header = {
             "calendar_id": self.calendar_id,
@@ -305,7 +590,127 @@ class LiveCohortCalendar:
                     },
                 },
             )
+        if gap is not None:
+            _update_calendar_fingerprint(
+                digest,
+                {"restart_gap": gap.fingerprint},
+            )
         object.__setattr__(self, "_fingerprint", digest.hexdigest())
+
+    @classmethod
+    def with_restart_gap(
+        cls,
+        full_calendar: "LiveCohortCalendar",
+        *,
+        startup_time_utc: _datetime.datetime,
+        journal_highwater: LiveCohortJournalHighWater,
+        first_live_slot_id: str,
+    ) -> "LiveCohortCalendar":
+        """Bind one exact restart omission before building the new cohort.
+
+        The caller supplies the validated finite calendar from its retained
+        history scope through the remaining live plan. Only the contiguous
+        slots after the durable history high-water and before the first live
+        slot may be omitted. The original scope hash is named explicitly; it
+        is not a factor-plan grid-semantics hash.
+        """
+        if type(full_calendar) is not cls or full_calendar.restart_gap is not None:
+            raise LiveCohortValidationError(
+                "restart-gap factory requires an unmodified full finite calendar"
+            )
+        if type(journal_highwater) is not LiveCohortJournalHighWater:
+            raise LiveCohortValidationError("restart-gap factory requires a typed journal high-water")
+        startup = _aware_utc(startup_time_utc, "startup_time_utc")
+        first_live_slot_id = _nonempty_text(first_live_slot_id, "first_live_slot_id")
+        ids = {slot.slot_id: index for index, slot in enumerate(full_calendar.slots)}
+        highwater_index = ids.get(journal_highwater.slot_id)
+        first_live_index = ids.get(first_live_slot_id)
+        if highwater_index is None or first_live_index is None:
+            raise LiveCohortValidationError("restart anchors must be slots in the full calendar")
+        highwater_slot = full_calendar.slots[highwater_index]
+        if (
+            highwater_slot.close_time != journal_highwater.close_time
+            or startup < highwater_slot.close_time
+        ):
+            raise LiveCohortValidationError("journal high-water does not match the full calendar")
+        if first_live_index <= highwater_index + 1:
+            raise LiveCohortValidationError("restart gap must omit at least one planned slot")
+        omitted = full_calendar.slots[highwater_index + 1 : first_live_index]
+        if not omitted or len(omitted) > _MAX_RESTART_GAP_SLOTS:
+            raise LiveCohortCapacityError("restart omission is empty or exceeds its finite bound")
+        first_live_slot = full_calendar.slots[first_live_index]
+        if first_live_slot.bucket_start < startup:
+            raise LiveCohortValidationError("restart omission cannot skip a current or future live slot")
+        elapsed_count = 0
+        partial_slot_id = None
+        for index, slot in enumerate(omitted):
+            if slot.close_time <= startup:
+                if partial_slot_id is not None:
+                    raise LiveCohortValidationError("elapsed slots cannot follow a partial omitted slot")
+                elapsed_count += 1
+            elif slot.bucket_start < startup < slot.close_time:
+                if partial_slot_id is not None or index != len(omitted) - 1:
+                    raise LiveCohortValidationError(
+                        "only the final omitted slot may be in progress at restart"
+                    )
+                partial_slot_id = slot.slot_id
+            else:
+                raise LiveCohortValidationError("restart gap contains a future unelapsed slot")
+        highwater_sessions = highwater_slot.member_sessions
+        if highwater_sessions and set(highwater_sessions) != set(journal_highwater.members):
+            raise LiveCohortValidationError("journal high-water member set differs from its slot")
+        for member_id, member in journal_highwater.members.items():
+            session = highwater_sessions.get(member_id)
+            expected_day = highwater_slot.trading_day if session is None else session.trading_day
+            expected_segment = (
+                highwater_slot.session_segment if session is None else session.session_segment
+            )
+            if member.trading_day != expected_day or member.session_segment != expected_segment:
+                raise LiveCohortValidationError(
+                    "journal high-water session identity differs from the full calendar"
+                )
+        first_sessions = {}
+        for member_id in journal_highwater.members:
+            session = first_live_slot.member_sessions.get(member_id)
+            first_sessions[member_id] = session or LiveCalendarMemberSession(
+                first_live_slot.trading_day, first_live_slot.session_segment
+            )
+        proof = LiveCohortRestartGap(
+            full_original_calendar_fingerprint=full_calendar.fingerprint,
+            original_scope_first_slot_id=full_calendar.slots[0].slot_id,
+            original_scope_last_slot_id=full_calendar.slots[-1].slot_id,
+            original_scope_slot_count=len(full_calendar.slots),
+            journal_highwater=journal_highwater,
+            history_highwater_original_slot_index=highwater_index,
+            omitted_start_original_slot_index=highwater_index + 1,
+            omitted_end_original_slot_index=first_live_index,
+            omitted_slot_count=len(omitted),
+            omitted_first_slot_id=omitted[0].slot_id,
+            omitted_last_slot_id=omitted[-1].slot_id,
+            omitted_elapsed_slot_count=elapsed_count,
+            omitted_partial_slot_id=partial_slot_id,
+            startup_time_utc=startup,
+            first_live_original_slot_index=first_live_index,
+            first_live_cohort_slot_index=highwater_index + 1,
+            first_live_slot_id=first_live_slot.slot_id,
+            first_live_bucket_start=first_live_slot.bucket_start,
+            first_live_close_time=first_live_slot.close_time,
+            first_live_member_sessions=first_sessions,
+        )
+        return cls(
+            calendar_id=full_calendar.calendar_id,
+            version=full_calendar.version,
+            epoch_id=full_calendar.epoch_id,
+            frequency=full_calendar.frequency,
+            frequency_seconds=full_calendar.frequency_seconds,
+            timezone_id=full_calendar.timezone_id,
+            clock_domain_id=full_calendar.clock_domain_id,
+            session_semantics=full_calendar.session_semantics,
+            slots=full_calendar.slots[: highwater_index + 1]
+            + full_calendar.slots[first_live_index:],
+            restart_gap=proof,
+            _restart_gap_factory_token=_RESTART_GAP_FACTORY_TOKEN,
+        )
 
     @property
     def fingerprint(self) -> str:
@@ -607,6 +1012,7 @@ class LiveEpochCutover:
     transition_kind: str
     crossed_live: bool
     first_live_receipt: LiveDeliveryReceipt = field(compare=False, repr=False)
+    restart_gap_fingerprint: Optional[str] = None
 
 
 @dataclass(frozen=True)
@@ -803,6 +1209,10 @@ class LiveBarCohort:
         return self._calendar.fingerprint
 
     @property
+    def restart_gap(self) -> Optional[LiveCohortRestartGap]:
+        return self._calendar.restart_gap
+
+    @property
     def epoch_id(self) -> int:
         return self._calendar.epoch_id
 
@@ -909,6 +1319,36 @@ class LiveBarCohort:
             if not self._members:
                 raise LiveCohortValidationError("cohort requires at least one registered member")
             expected_members = set(self._members)
+            gap = self.restart_gap
+            if gap is not None:
+                highwater_members = set(gap.journal_highwater.members)
+                if highwater_members != expected_members:
+                    raise LiveCohortValidationError(
+                        "restart journal high-water must cover every registered member"
+                    )
+                if set(gap.first_live_member_sessions) != expected_members:
+                    raise LiveCohortValidationError(
+                        "restart first-live session proof must cover every registered member"
+                    )
+                for member_id, member in self._members.items():
+                    highwater = gap.journal_highwater.members[member_id]
+                    if highwater.source_ref != member.source_ref:
+                        raise LiveCohortValidationError(
+                            "restart high-water source identity differs from the member"
+                        )
+                    expected_session = gap.first_live_member_sessions[member_id]
+                    first_slot_session = self._calendar.slots[
+                        gap.first_live_cohort_slot_index
+                    ].member_sessions.get(member_id)
+                    if first_slot_session is None:
+                        first_slot_session = LiveCalendarMemberSession(
+                            self._calendar.slots[gap.first_live_cohort_slot_index].trading_day,
+                            self._calendar.slots[gap.first_live_cohort_slot_index].session_segment,
+                        )
+                    if expected_session != first_slot_session:
+                        raise LiveCohortValidationError(
+                            "restart first-live session proof differs from the retained calendar"
+                        )
             for slot in self._calendar.slots:
                 if not slot.member_sessions:
                     continue
@@ -1098,7 +1538,14 @@ class LiveBarCohort:
                 calendar_revision.fingerprint,
             )
             expected_identity = (expected.calendar_id, expected.version, expected.fingerprint)
-            if observed_identity != expected_identity:
+            original_identity = (
+                expected.calendar_id,
+                expected.version,
+                None
+                if expected.restart_gap is None
+                else expected.restart_gap.full_original_calendar_fingerprint,
+            )
+            if observed_identity != expected_identity and observed_identity != original_identity:
                 self._freeze("calendar_revision_changed")
                 raise LiveCohortFrozenError("calendar revision changed; rebuild the cohort epoch")
         return rules_hash
@@ -1149,6 +1596,18 @@ class LiveBarCohort:
         slot = self._calendar.slots[slot_index]
         if slot.bucket_start != slot_start:
             raise LiveCohortValidationError("bar bucket_start does not match its planned slot")
+        restart_gap = self.restart_gap
+        if restart_gap is not None:
+            history_index = restart_gap.history_highwater_original_slot_index
+            first_live_index = restart_gap.first_live_cohort_slot_index
+            if slot_index <= history_index and source_role != "history":
+                raise LiveCohortValidationError(
+                    "restart history prefix cannot contain live-role bars"
+                )
+            if slot_index >= first_live_index and source_role != "live":
+                raise LiveCohortValidationError(
+                    "restart live tail cannot contain history-role bars"
+                )
 
         symbol = _read(event, "instrument", _read(event, "symbol", None))
         if symbol != member.instrument:
@@ -1182,6 +1641,27 @@ class LiveBarCohort:
             raise LiveCohortValidationError(
                 "bar trading day/session does not match the planned slot"
             )
+        if (
+            restart_gap is not None
+            and slot_index == restart_gap.history_highwater_original_slot_index
+        ):
+            highwater = restart_gap.journal_highwater.members.get(member.member_id)
+            # The journal role is preserved as old-run identity; replay still
+            # enters this epoch through the explicit history source role.
+            if (
+                highwater is None
+                or highwater.source_ref != member.source_ref
+                or source_role != "history"
+                or highwater.connection_generation != generation
+                or highwater.feed_sequence != sequence
+                or highwater.bar_id != bar_id
+                or highwater.close_time != close_time
+                or highwater.trading_day != trading_day
+                or highwater.session_segment != session_segment
+            ):
+                raise LiveCohortValidationError(
+                    "restart history high-water differs from the exact replayed bar"
+                )
         event_timezone = _read(event, "timezone_id", member.timezone_id)
         if event_timezone != member.timezone_id:
             raise LiveCohortValidationError("bar timezone does not match the exact feed member")
@@ -2008,6 +2488,26 @@ class LiveBarCohort:
             )
 
         previous = prior.last_receipt
+        restart_gap = self.restart_gap
+        if (
+            restart_gap is not None
+            and previous.source_role == "history"
+            and receipt.source_role == "live"
+            and previous.slot_index == restart_gap.history_highwater_original_slot_index
+            and receipt.slot_index == restart_gap.first_live_cohort_slot_index
+            and previous.close_time == restart_gap.journal_highwater.close_time
+            and receipt.envelope.slot_id == restart_gap.first_live_slot_id
+        ):
+            return LiveHistoryContinuity(
+                cohort_id=self.cohort_id,
+                member_id=member.member_id,
+                epoch_id=self.epoch_id,
+                source_ref=member.source_ref,
+                qualified=False,
+                reason="history_restart_gap",
+                origin_receipt=prior.origin_receipt,
+                last_receipt=receipt,
+            )
         # The planned slot is the cross-role identity. Sequence counters and
         # generations are scoped to a source role by the cohort contract.
         if previous.source_role == receipt.source_role:
@@ -2161,10 +2661,17 @@ class LiveBarCohort:
                         history_last_close_time=history_last,
                         first_live_close_time=first_live.close_time,
                         transition_kind=(
-                            "history_to_live" if history_last is not None else "live_cold_start"
+                            "restart_gap_to_live"
+                            if self.restart_gap is not None
+                            else "history_to_live"
+                            if history_last is not None
+                            else "live_cold_start"
                         ),
                         crossed_live=True,
                         first_live_receipt=first_live,
+                        restart_gap_fingerprint=(
+                            None if self.restart_gap is None else self.restart_gap.fingerprint
+                        ),
                     )
 
             continuity_updates = {
@@ -2472,6 +2979,56 @@ class LiveBarCohort:
                 return ()
             return window
 
+    def complete_live_window_bars(
+        self,
+        feed_ref: Any,
+        line_names: Iterable[str],
+        count: int,
+        *,
+        current_receipt: Optional[LiveDeliveryReceipt] = None,
+    ) -> Tuple[LiveDeliveryReceipt, ...]:
+        """Return an exact bounded GOOD window delivered wholly after a restart gap."""
+        with self._lock:
+            gap = self.restart_gap
+            if gap is None:
+                return ()
+            member = self.member_for_feed(feed_ref)
+            if member is None:
+                raise LiveCohortValidationError("window feed is not an exact registered member")
+            window = self.complete_window_bars(feed_ref, line_names, count)
+            if not window:
+                return ()
+            batch = self._current_batch
+            current = None if batch is None else batch.members.get(member.member_id)
+            if current_receipt is None:
+                current_receipt = current
+            if (
+                current is None
+                or current is not current_receipt
+                or current.feed_ref is not feed_ref
+                or self.current_delivery(feed_ref) is not current
+                or current.slot_index < gap.first_live_cohort_slot_index
+                or window[-1] is not current
+            ):
+                return ()
+            if any(
+                row.source_role != "live"
+                or row.source_ref != member.source_ref
+                or row.feed_ref is not feed_ref
+                or row.slot_index < gap.first_live_cohort_slot_index
+                or row.epoch_id != self.epoch_id
+                or row.envelope.connection_generation
+                != window[0].envelope.connection_generation
+                for row in window
+            ):
+                return ()
+            if any(
+                right.feed_sequence <= left.feed_sequence
+                for left, right in zip(window, window[1:])
+            ):
+                return ()
+            return window
+
     def epoch_cutover(self, feed_ref: Any) -> Optional[LiveEpochCutover]:
         """Return a cutover fact only after the first live bar was delivered."""
         member = self.member_for_feed(feed_ref)
@@ -2490,9 +3047,18 @@ class LiveBarCohort:
             epoch_id=self.epoch_id,
             history_last_close_time=history_last,
             first_live_close_time=first_live.close_time,
-            transition_kind="history_to_live" if history_last is not None else "live_cold_start",
+            transition_kind=(
+                "restart_gap_to_live"
+                if self.restart_gap is not None
+                else "history_to_live"
+                if history_last is not None
+                else "live_cold_start"
+            ),
             crossed_live=True,
             first_live_receipt=first_live,
+            restart_gap_fingerprint=(
+                None if self.restart_gap is None else self.restart_gap.fingerprint
+            ),
         )
 
     def _require_open(self) -> None:
