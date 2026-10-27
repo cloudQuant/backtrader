@@ -1,0 +1,99 @@
+{
+  "schema": "iteration51.replay_pending_risk_round.v1",
+  "parent_dev_commit": "6b2452e88db5ced09753e5633352e48572969380",
+  "evidence_level": "SOURCE_SYNTHETIC_BACKBROKER_ONLY",
+  "source_sha256": {
+    "examples/unified/028_alpha003_simnow_minute/alpha003_strategy.py": "0ec9a612fdbd08033430ecb67924dd56e4272a48d0889c6169960e43ca11c9fe",
+    "tests/unit/test_alpha003_simnow_strategy.py": "82a94be24a701c6ebbf53431f78dac15b41b00c7951b2e8246efa8fcaa4b0111"
+  },
+  "qa": {
+    "command": "C:\\anaconda3\\Scripts\\pytest.exe -p no:asyncio -q tests/unit/test_alpha003_simnow_strategy.py::test_replay_actual_broker_without_pending_orders_keeps_open_planning_ready tests/unit/test_alpha003_simnow_strategy.py::test_replay_any_actual_pending_order_blocks_new_open_budget tests/unit/test_alpha003_simnow_strategy.py::test_replay_unmapped_pending_order_blocks_opens_but_known_owned_cancel_remains_available tests/unit/test_alpha003_simnow_strategy.py::test_replay_only_unmapped_pending_order_still_blocks_new_open tests/unit/test_alpha003_simnow_strategy.py::test_replay_unknown_broker_order_status_is_preserved_as_unresolved_and_blocks_open tests/unit/test_alpha003_simnow_strategy.py::test_replay_invalid_working_order_effect_is_unavailable_without_authorizing_open tests/unit/test_alpha003_simnow_strategy.py::test_replay_pending_open_budget_does_not_suppress_independent_position_close tests/unit/test_alpha003_simnow_strategy.py::test_replay_malformed_owner_metadata_never_authorizes_cancel tests/unit/test_alpha003_simnow_strategy.py::test_replay_cancel_uses_only_consistent_signed_unfilled_remainder tests/unit/test_alpha003_simnow_strategy.py::test_replay_noncanonical_order_scope_never_authorizes_cancel tests/unit/test_alpha003_simnow_strategy.py::test_replay_invalid_broker_order_ref_never_authorizes_cancel tests/unit/test_alpha003_simnow_strategy.py::test_replay_cancel_respects_exact_authorized_target_subset tests/unit/test_alpha003_simnow_strategy.py::test_replay_empty_authorized_target_set_stays_read_only_without_orders tests/unit/test_alpha003_simnow_strategy.py::test_replay_missing_or_unmapped_order_queue_blocks_close_but_known_other_target_does_not tests/unit/test_alpha003_simnow_strategy.py::test_replay_unmapped_order_on_open_position_route_blocks_close tests/unit/test_alpha003_simnow_strategy.py::test_replay_whitespace_position_owner_cannot_authorize_close_or_shutdown tests/unit/test_alpha003_simnow_strategy.py::test_replay_submitted_order_is_not_treated_as_an_accepted_cancel_at_run_end tests/unit/test_alpha003_simnow_strategy.py::test_final_replay_residual_position_is_explicitly_blocked tests/unit/test_alpha003_simnow_strategy.py::test_replay_shutdown_requires_known_empty_submitted_and_pending_queues tests/unit/test_alpha003_simnow_strategy.py::test_replay_shutdown_does_not_ignore_owned_unmapped_unknown_or_submitted_orders tests/unit/test_alpha003_simnow_strategy.py::test_replay_shutdown_ignores_explicitly_foreign_unmapped_order tests/unit/test_alpha003_simnow_strategy.py::test_replay_active_order_snapshot_deduplicates_same_order_in_both_queues tests/unit/test_alpha003_simnow_strategy.py::test_replay_missing_submitted_queue_blocks_open_and_shutdown_proof tests/unit/test_alpha003_simnow_strategy.py::test_replay_conflicting_order_objects_with_same_ref_block_authoritative_snapshot tests/unit/test_alpha003_simnow_strategy.py::test_cerebro_strategy_blocks_open_then_replays_owned_close_once tests/unit/test_alpha003_simnow_strategy.py::test_replay_shfe_close_without_a_dated_replay_ledger_is_explicitly_blocked --junitxml=D:\\temp\\i51-replay-pending-risk-20261027-r4\\junit.xml",
+    "cwd": "D:\\source_code\\backtrader",
+    "environment": {
+      "PYTEST_DISABLE_PLUGIN_AUTOLOAD": "1",
+      "PYTHONUTF8": "1",
+      "PYTHONFAULTHANDLER": "1"
+    },
+    "exit_code": 0,
+    "result": "50 passed, 1 existing pytest configuration warning in 2.64s",
+    "stdout": "D:\\temp\\i51-replay-pending-risk-20261027-r4\\stdout.txt",
+    "stderr": "D:\\temp\\i51-replay-pending-risk-20261027-r4\\stderr.txt",
+    "junit": "D:\\temp\\i51-replay-pending-risk-20261027-r4\\junit.xml",
+    "selected_node_ids": [
+      "tests/unit/test_alpha003_simnow_strategy.py::test_replay_actual_broker_without_pending_orders_keeps_open_planning_ready",
+      "tests/unit/test_alpha003_simnow_strategy.py::test_replay_any_actual_pending_order_blocks_new_open_budget",
+      "tests/unit/test_alpha003_simnow_strategy.py::test_replay_unmapped_pending_order_blocks_opens_but_known_owned_cancel_remains_available",
+      "tests/unit/test_alpha003_simnow_strategy.py::test_replay_only_unmapped_pending_order_still_blocks_new_open",
+      "tests/unit/test_alpha003_simnow_strategy.py::test_replay_unknown_broker_order_status_is_preserved_as_unresolved_and_blocks_open",
+      "tests/unit/test_alpha003_simnow_strategy.py::test_replay_invalid_working_order_effect_is_unavailable_without_authorizing_open",
+      "tests/unit/test_alpha003_simnow_strategy.py::test_replay_pending_open_budget_does_not_suppress_independent_position_close",
+      "tests/unit/test_alpha003_simnow_strategy.py::test_replay_malformed_owner_metadata_never_authorizes_cancel",
+      "tests/unit/test_alpha003_simnow_strategy.py::test_replay_cancel_uses_only_consistent_signed_unfilled_remainder",
+      "tests/unit/test_alpha003_simnow_strategy.py::test_replay_noncanonical_order_scope_never_authorizes_cancel",
+      "tests/unit/test_alpha003_simnow_strategy.py::test_replay_invalid_broker_order_ref_never_authorizes_cancel",
+      "tests/unit/test_alpha003_simnow_strategy.py::test_replay_cancel_respects_exact_authorized_target_subset",
+      "tests/unit/test_alpha003_simnow_strategy.py::test_replay_empty_authorized_target_set_stays_read_only_without_orders",
+      "tests/unit/test_alpha003_simnow_strategy.py::test_replay_missing_or_unmapped_order_queue_blocks_close_but_known_other_target_does_not",
+      "tests/unit/test_alpha003_simnow_strategy.py::test_replay_unmapped_order_on_open_position_route_blocks_close",
+      "tests/unit/test_alpha003_simnow_strategy.py::test_replay_whitespace_position_owner_cannot_authorize_close_or_shutdown",
+      "tests/unit/test_alpha003_simnow_strategy.py::test_replay_submitted_order_is_not_treated_as_an_accepted_cancel_at_run_end",
+      "tests/unit/test_alpha003_simnow_strategy.py::test_final_replay_residual_position_is_explicitly_blocked",
+      "tests/unit/test_alpha003_simnow_strategy.py::test_replay_shutdown_requires_known_empty_submitted_and_pending_queues",
+      "tests/unit/test_alpha003_simnow_strategy.py::test_replay_shutdown_does_not_ignore_owned_unmapped_unknown_or_submitted_orders",
+      "tests/unit/test_alpha003_simnow_strategy.py::test_replay_shutdown_ignores_explicitly_foreign_unmapped_order",
+      "tests/unit/test_alpha003_simnow_strategy.py::test_replay_active_order_snapshot_deduplicates_same_order_in_both_queues",
+      "tests/unit/test_alpha003_simnow_strategy.py::test_replay_missing_submitted_queue_blocks_open_and_shutdown_proof",
+      "tests/unit/test_alpha003_simnow_strategy.py::test_replay_conflicting_order_objects_with_same_ref_block_authoritative_snapshot",
+      "tests/unit/test_alpha003_simnow_strategy.py::test_cerebro_strategy_blocks_open_then_replays_owned_close_once",
+      "tests/unit/test_alpha003_simnow_strategy.py::test_replay_shfe_close_without_a_dated_replay_ledger_is_explicitly_blocked"
+    ]
+  },
+  "qa_junit": {
+    "tests": 50,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "warnings": 1
+  },
+  "qa_pin_limit": "Author reports unchanged final source during test; exact checkout pins independently checked after test. The QA result does not contain pre-test source hashes.",
+  "review": {
+    "reviewer": "/root/pending_risk_design",
+    "status": "GO_STATIC",
+    "tests_repeated": false
+  },
+  "scope": "Replay snapshots submitted and pending; incomplete or active order makes monetary OPEN capacity unavailable; preserves trusted independent cancels/closes, validates signed remaining, owner and authorized routes, and shutdown evidence.",
+  "boundary": "Does not compute true per-order reserves, prove real fee schedule, query a provider, place orders, or accept any actual-account case.",
+  "prior_failures": "Initial focused run 43/44; distinct-route positive could not prove unmapped order route and used stale quote. New run retained fail-closed unmapped behavior and fixed mapped independent-close fixture.",
+  "archive_sha256": "0c05b5e5195955eb2a4c624616195c1aa6ab4486c05f4c9e800fb17bd1ce430c",
+  "archive_members": [
+    {
+      "name": "command.txt",
+      "bytes": 3124,
+      "sha256": "1bdc08fb0c250f278f191a814dd4d0fcc8215264d2e40a8ae07ef73efe21e376"
+    },
+    {
+      "name": "result.json",
+      "bytes": 6880,
+      "sha256": "27f52b75c9636667b37d3e159cc33ab703da7bf94f06a81f17b6ef8c64d8bdea"
+    },
+    {
+      "name": "stdout.txt",
+      "bytes": 632,
+      "sha256": "26409e3596db17a8914cd3703b891f62a72ead10bbb9774937a5717b4bd5d74f"
+    },
+    {
+      "name": "stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "junit.xml",
+      "bytes": 8909,
+      "sha256": "05be1d58b88f03f4eaddaa8b752f10445f597cfd4ba59877fff07c039262bda0"
+    }
+  ],
+  "provider_calls": 0,
+  "actual_account_calls": 0,
+  "formal_ac_increase": 0,
+  "pushed": false
+}

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import importlib.util
 import sys
+from copy import copy
 from dataclasses import replace
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
@@ -1585,6 +1586,560 @@ def test_replay_quote_lookup_uses_latest_causal_row_and_dispatch_keeps_its_ident
     assert observed[0]["data"] is strategy._data_by_target["A"]
 
 
+class _ReplayOrderDateTime:
+    def __getitem__(self, _index):
+        return 0.0
+
+    def datetime(self, _index=0):
+        return datetime(2026, 10, 20)
+
+    def date(self):
+        return datetime(2026, 10, 20).date()
+
+
+class _ReplayBrokerData:
+    close = (100.0,)
+    datetime = _ReplayOrderDateTime()
+
+    def __init__(self):
+        self.p = SimpleNamespace(sessionend=datetime(2026, 10, 20).time())
+        self._name = "replay-test"
+
+    def __len__(self):
+        return 1
+
+    @staticmethod
+    def date2num(_value):
+        return 0.0
+
+
+def _replay_broker_planning_fixture(
+    *,
+    working_order=None,
+    working_order_side="SELL",
+    held_position=False,
+    authorized_targets=("A", "B"),
+):
+    now = AVAILABLE + timedelta(seconds=6)
+    broker = bt.BackBroker()
+    broker.set_cash(100_000)
+    data_by_target = {"A": _ReplayBrokerData(), "B": _ReplayBrokerData()}
+    routes = {"A": ("DCE.rb", "DCE"), "B": ("DCE.i", "DCE")}
+    if held_position:
+        broker.positions[data_by_target["A"]].update(size=1, price=100.0)
+
+    strategy = SimpleNamespace(
+        broker=broker,
+        _target_ids=("A", "B"),
+        _authorized_targets=frozenset(authorized_targets),
+        _data_by_target=data_by_target,
+        _routes=routes,
+        _strategy_scope="alpha003-simnow-example",
+        _account_scope="replay-account",
+        _risk_policy=_risk_policy(),
+        _replay_order_count=0,
+        _replay_owners=(
+            {
+                "A": {
+                    "owner_intent_id": "held-A",
+                    "stop_price": Decimal("99"),
+                    "held_eligible_bars": 12,
+                }
+            }
+            if held_position
+            else {}
+        ),
+        _replay_instruments={
+            target: {
+                "instrument": instrument,
+                "exchange": exchange,
+                "snapshot_id": "meta-" + target,
+                "available_at": now,
+                "trading_permitted": True,
+                "multiplier": "10",
+                "long_margin_per_hand": "100",
+                "short_margin_per_hand": "100",
+                "tick_size": "0.5",
+                "lower_limit": "90",
+                "upper_limit": "110",
+            }
+            for target, (instrument, exchange) in routes.items()
+        },
+        _replay_quotes=tuple(
+            _STRATEGY.Alpha003ReplayQuoteFact(
+                instrument=instrument,
+                exchange=exchange,
+                event_time=AVAILABLE + timedelta(seconds=2),
+                available_at=AVAILABLE + timedelta(seconds=3),
+                bid=Decimal("99.5"),
+                ask=Decimal("100"),
+                source_ref="replay-quote-source-" + target,
+                quote_id="replay-quote-" + target,
+            )
+            for target, (instrument, exchange) in routes.items()
+        ),
+    )
+    strategy._replay_instrument_facts = lambda target_id, at: _STRATEGY.Alpha003TargetStrategy._replay_instrument_facts(
+        strategy, target_id, at
+    )
+    strategy._latest_replay_quote = lambda instrument, exchange, *, available_by: (
+        _STRATEGY.Alpha003TargetStrategy._latest_replay_quote(
+            strategy, instrument, exchange, available_by=available_by
+        )
+    )
+    strategy._replay_active_order_snapshot = lambda: (
+        _STRATEGY.Alpha003TargetStrategy._replay_active_order_snapshot(strategy)
+    )
+    if working_order is not None:
+        target, effect, status = working_order
+        submit = broker.buy if working_order_side == "BUY" else broker.sell
+        order = submit(
+            owner=object(),
+            data=data_by_target[target],
+            size=1,
+            price=100,
+            exectype=bt.Order.Limit,
+            simulated=True,
+            factor_strategy_scope=strategy._strategy_scope,
+            instrument_id=routes[target][0],
+            exchange_id=routes[target][1],
+            factor_position_effect=effect,
+            replay_owner_intent_id="pending-" + target,
+        )
+        if status == bt.Order.Accepted:
+            # Exercise BackBroker's actual pending queue after its submission
+            # transition. The default path intentionally leaves the order in
+            # ``submitted`` with status Submitted.
+            broker.submitted.remove(order)
+            broker.submit_accept(order)
+        if status is not None:
+            if status != bt.Order.Accepted:
+                order.status = status
+        strategy._fixture_order = order
+
+    return strategy, now
+
+
+def _real_replay_order_plan(strategy, now, *, run_end=False, target_decision=True):
+    decision = replace(_target_decision(), execution_mode="REPLAY") if target_decision else None
+    inputs = _STRATEGY.Alpha003TargetStrategy._replay_planning_input(
+        strategy,
+        batch=SimpleNamespace(batch_id="replay-batch"),
+        now=now,
+        risk_evidence_at=now,
+        session_close_at=now + timedelta(hours=1),
+        run_end=run_end,
+        ordinal=5,
+        target_decision=decision,
+    )
+    return inputs, _STRATEGY.plan_alpha003_orders(inputs)
+
+
+def test_replay_actual_broker_without_pending_orders_keeps_open_planning_ready():
+    strategy, now = _replay_broker_planning_fixture()
+
+    inputs, plan = _real_replay_order_plan(strategy, now)
+
+    assert inputs.working_orders == ()
+    assert inputs.open_risk_ready is True
+    assert inputs.open_risk_blockers == ()
+    assert inputs.account is not None
+    assert inputs.account.available_margin == Decimal("100000")
+    assert inputs.account.used_margin == Decimal("0")
+    assert inputs.account.current_notional == Decimal("0")
+    assert inputs.account.current_worst_case_loss == Decimal("0")
+    assert plan.status == "READY"
+    assert tuple(action.position_effect for action in plan.actions) == ("OPEN", "OPEN")
+
+
+def _assert_replay_pending_order_money_unavailable(inputs):
+    assert inputs.account is not None
+    assert inputs.account.available_margin is None
+    assert inputs.account.used_margin is None
+    assert inputs.account.current_notional is None
+    assert inputs.account.current_worst_case_loss is None
+    # BackBroker's raw account observations remain available for diagnostics;
+    # they are not promoted into a complete monetary capacity projection.
+    assert inputs.account.cash is not None
+    assert inputs.account.equity is not None
+
+
+@pytest.mark.parametrize("effect", ("OPEN", "CLOSE"))
+@pytest.mark.parametrize(
+    "submitted_status,expected_state",
+    ((None, "DISPATCHING"), (bt.Order.Accepted, "ACCEPTED")),
+)
+def test_replay_any_actual_pending_order_blocks_new_open_budget(
+    effect, submitted_status, expected_state
+):
+    strategy, now = _replay_broker_planning_fixture(
+        working_order=("B", effect, submitted_status)
+    )
+
+    inputs, plan = _real_replay_order_plan(strategy, now)
+
+    assert len(inputs.working_orders) == 1
+    assert inputs.working_orders[0].state == expected_state
+    assert inputs.working_orders[0].position_effect == effect
+    assert inputs.open_risk_ready is False
+    assert inputs.open_risk_blockers == ("REPLAY_WORKING_ORDER_BUDGET_UNAVAILABLE",)
+    _assert_replay_pending_order_money_unavailable(inputs)
+    assert plan.status == "BLOCKED"
+    assert plan.reason == "OPEN_RISK_FACTS_BLOCKED:REPLAY_WORKING_ORDER_BUDGET_UNAVAILABLE"
+    assert plan.actions == ()
+
+
+def test_replay_unmapped_pending_order_blocks_opens_but_known_owned_cancel_remains_available():
+    strategy, now = _replay_broker_planning_fixture(
+        working_order=("A", "OPEN", bt.Order.Accepted)
+    )
+    strategy.broker.sell(
+        owner=object(),
+        data=_ReplayBrokerData(),
+        size=1,
+        price=100,
+        exectype=bt.Order.Limit,
+        simulated=True,
+        factor_strategy_scope=strategy._strategy_scope,
+        factor_position_effect="OPEN",
+        replay_owner_intent_id="unmapped-order",
+    )
+
+    inputs, plan = _real_replay_order_plan(strategy, now, run_end=True, target_decision=False)
+
+    # The unknown route is not fabricated into an actionable fact, but it
+    # still makes opening capacity unavailable. The mapped order remains
+    # eligible for its independently authorized run-end cancellation.
+    assert len(inputs.working_orders) == 1
+    assert inputs.working_orders[0].target_id == "A"
+    assert inputs.open_risk_ready is False
+    _assert_replay_pending_order_money_unavailable(inputs)
+    assert plan.status == "READY"
+    assert plan.reason == "CANCEL_OPEN_ORDERS_BEFORE_EXIT"
+    assert len(plan.actions) == 1
+    assert plan.actions[0].action == "CANCEL"
+    assert plan.actions[0].owner_intent_id == "pending-A"
+
+
+def test_replay_only_unmapped_pending_order_still_blocks_new_open():
+    strategy, now = _replay_broker_planning_fixture()
+    strategy.broker.sell(
+        owner=object(),
+        data=_ReplayBrokerData(),
+        size=1,
+        price=100,
+        exectype=bt.Order.Limit,
+        simulated=True,
+        factor_strategy_scope=strategy._strategy_scope,
+        factor_position_effect="OPEN",
+        replay_owner_intent_id="unmapped-order",
+    )
+
+    inputs, plan = _real_replay_order_plan(strategy, now)
+
+    assert inputs.working_orders == ()
+    assert inputs.open_risk_ready is False
+    assert inputs.open_risk_blockers == ("REPLAY_WORKING_ORDER_BUDGET_UNAVAILABLE",)
+    _assert_replay_pending_order_money_unavailable(inputs)
+    assert plan.status == "BLOCKED"
+    assert plan.actions == ()
+
+
+def test_replay_unknown_broker_order_status_is_preserved_as_unresolved_and_blocks_open():
+    strategy, now = _replay_broker_planning_fixture(working_order=("B", "OPEN", 99))
+
+    inputs, plan = _real_replay_order_plan(strategy, now)
+
+    assert len(inputs.working_orders) == 1
+    assert inputs.working_orders[0].state == "UNKNOWN"
+    assert inputs.open_risk_ready is False
+    _assert_replay_pending_order_money_unavailable(inputs)
+    assert plan.status == "BLOCKED"
+    assert plan.reason == "OPEN_RISK_FACTS_BLOCKED:REPLAY_WORKING_ORDER_BUDGET_UNAVAILABLE"
+    assert plan.actions == ()
+
+
+@pytest.mark.parametrize("effect", ("UNKNOWN", " ", 7))
+def test_replay_invalid_working_order_effect_is_unavailable_without_authorizing_open(effect):
+    strategy, now = _replay_broker_planning_fixture(working_order=("B", effect, None))
+
+    inputs, plan = _real_replay_order_plan(strategy, now)
+
+    assert len(inputs.working_orders) == 1
+    assert inputs.working_orders[0].position_effect is None
+    assert inputs.open_risk_ready is False
+    _assert_replay_pending_order_money_unavailable(inputs)
+    assert plan.status == "BLOCKED"
+    assert plan.reason == "WORKING_ORDER_FIELDS_UNAVAILABLE"
+    assert plan.actions == ()
+
+
+def test_replay_pending_open_budget_does_not_suppress_independent_position_close():
+    strategy, now = _replay_broker_planning_fixture(
+        working_order=("B", "OPEN", None), held_position=True
+    )
+
+    inputs, plan = _real_replay_order_plan(strategy, now)
+
+    assert inputs.open_risk_ready is False
+    _assert_replay_pending_order_money_unavailable(inputs)
+    assert plan.status == "READY"
+    assert plan.reason == "REDUCTIONS_BEFORE_INCREASES"
+    assert len(plan.actions) == 1
+    assert plan.actions[0].target_id == "A"
+    assert plan.actions[0].position_effect == "CLOSE"
+    assert plan.actions[0].reason == "MAX_HOLD"
+
+
+@pytest.mark.parametrize(
+    "owner_values",
+    (
+        {"replay_owner_intent_id": "   "},
+        {"replay_owner_intent_id": ["not", "text"]},
+        {"replay_owner_intent_id": 7, "factor_intent_id": "must-not-fallback"},
+    ),
+)
+def test_replay_malformed_owner_metadata_never_authorizes_cancel(owner_values):
+    strategy, now = _replay_broker_planning_fixture(
+        working_order=("A", "OPEN", bt.Order.Accepted)
+    )
+    strategy._fixture_order.info.update(owner_values)
+
+    inputs, plan = _real_replay_order_plan(strategy, now, run_end=True, target_decision=False)
+
+    assert inputs.working_orders[0].owner_intent_id is None
+    assert inputs.order_cancel_ready is False
+    assert plan.status == "BLOCKED"
+    assert not any(action.action == "CANCEL" for action in plan.actions)
+
+
+@pytest.mark.parametrize(
+    "created_size,executed_size,remaining,status,expected_quantity,side",
+    (
+        (-3, -2, -1, bt.Order.Partial, 1, "SELL"),
+        (-1, 0, None, bt.Order.Accepted, None, "SELL"),
+        (-1, 0, None, bt.Order.Partial, None, "SELL"),
+        (-1, 0, 0, bt.Order.Accepted, None, "SELL"),
+        (-1, 0, 1, bt.Order.Accepted, None, "SELL"),
+        (-3, 0, -4, bt.Order.Accepted, None, "SELL"),
+        (-3, -1, -1, bt.Order.Partial, None, "SELL"),
+        (3, 2, 1, bt.Order.Partial, 1, "BUY"),
+    ),
+)
+def test_replay_cancel_uses_only_consistent_signed_unfilled_remainder(
+    created_size, executed_size, remaining, status, expected_quantity, side
+):
+    strategy, now = _replay_broker_planning_fixture(
+        working_order=("A", "OPEN", bt.Order.Accepted), working_order_side=side
+    )
+    order = strategy._fixture_order
+    order.created.size = created_size
+    order.executed.size = executed_size
+    order.executed.remsize = remaining
+    order.status = status
+
+    inputs, plan = _real_replay_order_plan(strategy, now, run_end=True, target_decision=False)
+
+    assert inputs.working_orders[0].remaining_quantity == expected_quantity
+    if expected_quantity is None:
+        assert inputs.order_cancel_ready is False
+        assert plan.status == "BLOCKED"
+        assert not any(action.action == "CANCEL" for action in plan.actions)
+    else:
+        assert inputs.order_cancel_ready is True
+        assert plan.status == "READY"
+        assert tuple(action.quantity for action in plan.actions if action.action == "CANCEL") == (
+            expected_quantity,
+        )
+
+
+@pytest.mark.parametrize("scope", (" ", ["not", "text"], 9))
+def test_replay_noncanonical_order_scope_never_authorizes_cancel(scope):
+    strategy, now = _replay_broker_planning_fixture(
+        working_order=("A", "OPEN", bt.Order.Accepted)
+    )
+    strategy._fixture_order.info["factor_strategy_scope"] = scope
+
+    inputs, plan = _real_replay_order_plan(strategy, now, run_end=True, target_decision=False)
+
+    assert inputs.working_orders[0].owner_strategy_scope is None
+    assert inputs.order_cancel_ready is False
+    assert plan.status == "BLOCKED"
+    assert not any(action.action == "CANCEL" for action in plan.actions)
+
+
+def test_replay_invalid_broker_order_ref_never_authorizes_cancel():
+    strategy, now = _replay_broker_planning_fixture(
+        working_order=("A", "OPEN", bt.Order.Accepted)
+    )
+    strategy._fixture_order.ref = 0
+
+    inputs, plan = _real_replay_order_plan(strategy, now, run_end=True, target_decision=False)
+
+    assert inputs.order_cancel_ready is False
+    assert plan.status == "BLOCKED"
+    assert not any(action.action == "CANCEL" for action in plan.actions)
+
+
+@pytest.mark.parametrize(
+    "authorized_targets,expected_cancel_ready",
+    (((), False), (("B",), False), (("A",), True)),
+)
+def test_replay_cancel_respects_exact_authorized_target_subset(
+    authorized_targets, expected_cancel_ready
+):
+    strategy, now = _replay_broker_planning_fixture(
+        working_order=("A", "OPEN", bt.Order.Accepted),
+        authorized_targets=authorized_targets,
+    )
+
+    inputs, plan = _real_replay_order_plan(strategy, now, run_end=True, target_decision=False)
+
+    assert inputs.execution_target_ids == (
+        tuple(authorized_targets) if authorized_targets else None
+    )
+    assert inputs.order_cancel_ready is expected_cancel_ready
+    cancel_actions = tuple(action for action in plan.actions if action.action == "CANCEL")
+    assert bool(cancel_actions) is expected_cancel_ready
+    if expected_cancel_ready:
+        assert plan.status == "READY"
+        assert plan.actions[0].target_id == "A"
+    else:
+        assert plan.status == "BLOCKED"
+
+
+def test_replay_empty_authorized_target_set_stays_read_only_without_orders():
+    strategy, now = _replay_broker_planning_fixture(authorized_targets=())
+
+    inputs, plan = _real_replay_order_plan(strategy, now)
+
+    assert inputs.execution_target_ids is None
+    assert inputs.open_risk_ready is False
+    assert inputs.risk_reduction_ready is False
+    assert inputs.order_cancel_ready is False
+    assert plan.status == "BLOCKED"
+    assert plan.actions == ()
+
+
+def test_replay_missing_or_unmapped_order_queue_blocks_close_but_known_other_target_does_not():
+    missing_queue_strategy, now = _replay_broker_planning_fixture(held_position=True)
+    del missing_queue_strategy.broker.submitted
+    missing_inputs, missing_plan = _real_replay_order_plan(
+        missing_queue_strategy, now, target_decision=False
+    )
+
+    assert missing_inputs.risk_reduction_ready is False
+    assert missing_inputs.risk_reduction_blockers == (
+        "REPLAY_WORKING_ORDER_CONFLICT_UNAVAILABLE",
+    )
+    assert missing_plan.status == "BLOCKED"
+    assert not any(action.position_effect == "CLOSE" for action in missing_plan.actions)
+
+    unmapped_strategy, now = _replay_broker_planning_fixture(held_position=True)
+    unmapped_strategy.broker.sell(
+        owner=object(),
+        data=_ReplayBrokerData(),
+        size=1,
+        price=100,
+        exectype=bt.Order.Limit,
+        simulated=True,
+        factor_strategy_scope=unmapped_strategy._strategy_scope,
+        # These writable labels do not bind the unknown data feed to a route.
+        instrument_id="DCE.unrelated",
+        exchange_id="DCE",
+        factor_position_effect="OPEN",
+        replay_owner_intent_id="unmapped-other-route",
+    )
+    unmapped_inputs, unmapped_plan = _real_replay_order_plan(
+        unmapped_strategy, now, target_decision=False
+    )
+
+    assert unmapped_inputs.risk_reduction_ready is False
+    assert unmapped_inputs.risk_reduction_blockers == (
+        "REPLAY_WORKING_ORDER_CONFLICT_UNAVAILABLE",
+    )
+    assert unmapped_plan.status == "BLOCKED"
+    assert not any(action.position_effect == "CLOSE" for action in unmapped_plan.actions)
+
+    other_route_strategy, now = _replay_broker_planning_fixture(
+        working_order=("B", "OPEN", bt.Order.Accepted), held_position=True
+    )
+    other_route_strategy._replay_quotes = tuple(
+        replace(quote, event_time=now, available_at=now)
+        if quote.instrument == other_route_strategy._routes["A"][0]
+        else quote
+        for quote in other_route_strategy._replay_quotes
+    )
+    unrelated_inputs, unrelated_plan = _real_replay_order_plan(
+        other_route_strategy, now, target_decision=False
+    )
+
+    assert unrelated_inputs.risk_reduction_ready is True
+    assert unrelated_plan.status == "READY"
+    assert tuple(action.position_effect for action in unrelated_plan.actions) == ("CLOSE",)
+    assert unrelated_plan.actions[0].target_id == "A"
+
+
+def test_replay_unmapped_order_on_open_position_route_blocks_close():
+    strategy, now = _replay_broker_planning_fixture(held_position=True)
+    strategy.broker.sell(
+        owner=object(),
+        data=_ReplayBrokerData(),
+        size=1,
+        price=100,
+        exectype=bt.Order.Limit,
+        simulated=True,
+        factor_strategy_scope="foreign-but-unmapped",
+        instrument_id=strategy._routes["A"][0],
+        exchange_id=strategy._routes["A"][1],
+        factor_position_effect="OPEN",
+        replay_owner_intent_id="unmapped-conflicting-route",
+    )
+
+    inputs, plan = _real_replay_order_plan(strategy, now, target_decision=False)
+
+    assert inputs.risk_reduction_ready is False
+    assert inputs.risk_reduction_blockers == (
+        "REPLAY_WORKING_ORDER_CONFLICT_UNAVAILABLE",
+    )
+    assert plan.status == "BLOCKED"
+    assert not any(action.position_effect == "CLOSE" for action in plan.actions)
+
+
+def test_replay_whitespace_position_owner_cannot_authorize_close_or_shutdown():
+    strategy, now = _replay_broker_planning_fixture(held_position=True)
+    strategy._replay_owners["A"]["owner_intent_id"] = "   "
+
+    inputs, plan = _real_replay_order_plan(strategy, now, target_decision=False)
+
+    assert inputs.positions[0].owner_strategy_scope is None
+    assert inputs.positions[0].owner_intent_id is None
+    assert plan.status == "BLOCKED"
+    assert not any(action.position_effect == "CLOSE" for action in plan.actions)
+
+    _request_replay_shutdown(strategy)
+    _STRATEGY.Alpha003TargetStrategy._update_replay_shutdown_state(strategy)
+
+    assert strategy._shutdown_ready_state is False
+    assert strategy._shutdown_blocker_state == "REPLAY_SHUTDOWN_POSITION_OWNERSHIP_UNAVAILABLE:A"
+
+
+def test_replay_submitted_order_is_not_treated_as_an_accepted_cancel_at_run_end():
+    strategy, now = _replay_broker_planning_fixture(working_order=("A", "OPEN", None))
+    assert strategy._fixture_order.status == bt.Order.Submitted
+    assert strategy._fixture_order in strategy.broker.submitted
+    assert strategy._fixture_order not in strategy.broker.pending
+
+    inputs, plan = _real_replay_order_plan(strategy, now, run_end=True, target_decision=False)
+
+    assert len(inputs.working_orders) == 1
+    assert inputs.working_orders[0].state == "DISPATCHING"
+    assert inputs.order_cancel_ready is False
+    assert plan.status == "BLOCKED"
+    assert plan.reason == "EXIT_ORDER_TERMINAL_EVIDENCE_PENDING"
+    assert plan.actions == ()
+
+
 def test_missing_opening_margin_blocks_increase_without_inventing_a_default():
     instruments = list(_risk_facts().instruments)
     instruments[0] = replace(instruments[0], long_margin_per_hand=None)
@@ -2696,6 +3251,189 @@ def test_final_replay_residual_position_is_explicitly_blocked():
 
     assert strategy._shutdown_ready_state is False
     assert strategy._shutdown_blocker_state == "REPLAY_SHUTDOWN_POSITION_OPEN:A"
+
+
+def _request_replay_shutdown(strategy):
+    strategy._shutdown_requested = Event()
+    strategy._shutdown_requested.set()
+    strategy._shutdown_ready_state = False
+    strategy._shutdown_blocker_state = None
+    strategy._last_shutdown_facts_id = "stale-prior-proof"
+
+
+def test_replay_shutdown_requires_known_empty_submitted_and_pending_queues():
+    strategy, _now = _replay_broker_planning_fixture()
+    _request_replay_shutdown(strategy)
+
+    _STRATEGY.Alpha003TargetStrategy._update_replay_shutdown_state(strategy)
+
+    assert strategy._shutdown_ready_state is True
+    assert strategy._shutdown_blocker_state is None
+    assert strategy._last_shutdown_facts_id == "backbroker-local"
+
+
+@pytest.mark.parametrize(
+    "scope,order_data,status,owner_id,expected_blocker",
+    (
+        (
+            "alpha003-simnow-example",
+            "unmapped",
+            bt.Order.Submitted,
+            "shutdown-order",
+            "REPLAY_SHUTDOWN_ORDER_OWNERSHIP_UNAVAILABLE",
+        ),
+        (
+            None,
+            "unmapped",
+            bt.Order.Submitted,
+            "shutdown-order",
+            "REPLAY_SHUTDOWN_ORDER_OWNERSHIP_UNAVAILABLE",
+        ),
+        (
+            "   ",
+            "unmapped",
+            bt.Order.Submitted,
+            "shutdown-order",
+            "REPLAY_SHUTDOWN_ORDER_OWNERSHIP_UNAVAILABLE",
+        ),
+        (
+            "alpha003-simnow-example",
+            "A",
+            99,
+            "shutdown-order",
+            "REPLAY_SHUTDOWN_ORDER_STATE_UNAVAILABLE",
+        ),
+        (
+            "alpha003-simnow-example",
+            "A",
+            bt.Order.Submitted,
+            "shutdown-order",
+            "REPLAY_SHUTDOWN_ORDER_ACTIVE",
+        ),
+        (
+            "alpha003-simnow-example",
+            "A",
+            bt.Order.Submitted,
+            "   ",
+            "REPLAY_SHUTDOWN_ORDER_OWNERSHIP_UNAVAILABLE",
+        ),
+    ),
+)
+def test_replay_shutdown_does_not_ignore_owned_unmapped_unknown_or_submitted_orders(
+    scope, order_data, status, owner_id, expected_blocker
+):
+    strategy, _now = _replay_broker_planning_fixture()
+    data = (
+        strategy._data_by_target[order_data]
+        if order_data in strategy._data_by_target
+        else _ReplayBrokerData()
+    )
+    order = strategy.broker.sell(
+        owner=object(),
+        data=data,
+        size=1,
+        price=100,
+        exectype=bt.Order.Limit,
+        factor_strategy_scope=scope,
+        instrument_id=(strategy._routes[order_data][0] if order_data in strategy._routes else "DCE.x"),
+        exchange_id=(strategy._routes[order_data][1] if order_data in strategy._routes else "DCE"),
+        factor_position_effect="OPEN",
+        replay_owner_intent_id=owner_id,
+    )
+    if status != bt.Order.Submitted:
+        order.status = status
+    _request_replay_shutdown(strategy)
+
+    _STRATEGY.Alpha003TargetStrategy._update_replay_shutdown_state(strategy)
+
+    assert strategy._shutdown_ready_state is False
+    assert strategy._shutdown_blocker_state == expected_blocker
+    assert strategy._last_shutdown_facts_id is None
+
+
+def test_replay_shutdown_ignores_explicitly_foreign_unmapped_order():
+    strategy, _now = _replay_broker_planning_fixture()
+    strategy.broker.sell(
+        owner=object(),
+        data=_ReplayBrokerData(),
+        size=1,
+        price=100,
+        exectype=bt.Order.Limit,
+        factor_strategy_scope="another-strategy",
+        instrument_id="DCE.x",
+        exchange_id="DCE",
+        factor_position_effect="OPEN",
+        replay_owner_intent_id="foreign-order",
+    )
+    _request_replay_shutdown(strategy)
+
+    _STRATEGY.Alpha003TargetStrategy._update_replay_shutdown_state(strategy)
+
+    assert strategy._shutdown_ready_state is True
+    assert strategy._shutdown_blocker_state is None
+    assert strategy._last_shutdown_facts_id == "backbroker-local"
+
+
+def test_replay_active_order_snapshot_deduplicates_same_order_in_both_queues():
+    strategy, now = _replay_broker_planning_fixture(working_order=("B", "OPEN", None))
+    order = strategy._fixture_order
+    strategy.broker.pending.append(order)
+
+    active, complete = strategy._replay_active_order_snapshot()
+    inputs, plan = _real_replay_order_plan(strategy, now)
+
+    assert complete is True
+    assert active == (order,)
+    assert len(inputs.working_orders) == 1
+    assert inputs.working_orders[0].broker_order_ref == order.ref
+    assert plan.status == "BLOCKED"
+
+
+def test_replay_missing_submitted_queue_blocks_open_and_shutdown_proof():
+    strategy, now = _replay_broker_planning_fixture()
+    del strategy.broker.submitted
+
+    inputs, plan = _real_replay_order_plan(strategy, now)
+
+    assert inputs.open_risk_ready is False
+    assert inputs.open_risk_blockers == ("REPLAY_WORKING_ORDER_SNAPSHOT_UNAVAILABLE",)
+    assert inputs.working_orders == ()
+    assert inputs.account is not None
+    assert inputs.account.available_margin is None
+    assert plan.status == "BLOCKED"
+    assert plan.actions == ()
+
+    _request_replay_shutdown(strategy)
+    _STRATEGY.Alpha003TargetStrategy._update_replay_shutdown_state(strategy)
+
+    assert strategy._shutdown_ready_state is False
+    assert strategy._shutdown_blocker_state == "REPLAY_SHUTDOWN_ORDER_SNAPSHOT_UNAVAILABLE"
+    assert strategy._last_shutdown_facts_id is None
+
+
+def test_replay_conflicting_order_objects_with_same_ref_block_authoritative_snapshot():
+    strategy, now = _replay_broker_planning_fixture(working_order=("B", "OPEN", None))
+    order = strategy._fixture_order
+    strategy.broker.pending.append(copy(order))
+
+    active, complete = strategy._replay_active_order_snapshot()
+    inputs, _plan = _real_replay_order_plan(strategy, now)
+
+    assert len(active) == 2
+    assert active[0] is order
+    assert active[1] is not order
+    assert active[0].ref == active[1].ref
+    assert complete is False
+    assert inputs.open_risk_ready is False
+    assert inputs.open_risk_blockers == ("REPLAY_WORKING_ORDER_SNAPSHOT_UNAVAILABLE",)
+    _assert_replay_pending_order_money_unavailable(inputs)
+
+    _request_replay_shutdown(strategy)
+    _STRATEGY.Alpha003TargetStrategy._update_replay_shutdown_state(strategy)
+
+    assert strategy._shutdown_ready_state is False
+    assert strategy._shutdown_blocker_state == "REPLAY_SHUTDOWN_ORDER_SNAPSHOT_UNAVAILABLE"
+    assert strategy._last_shutdown_facts_id is None
 
 
 @pytest.mark.parametrize("ready", (True, False))

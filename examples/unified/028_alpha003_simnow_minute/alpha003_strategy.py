@@ -2326,6 +2326,26 @@ def _risk_policy(value: Any) -> Optional[Alpha003RiskPolicy]:
     return Alpha003RiskPolicy(**normalized)
 
 
+def _replay_exact_text(value: Any) -> Optional[str]:
+    """Return canonical non-empty replay metadata without coercion or truth tests."""
+
+    if type(value) is not str or not value or value != value.strip():
+        return None
+    return value
+
+
+def _replay_owner_intent_id(info: Mapping[str, Any]) -> Optional[str]:
+    """Read one exact owner field; malformed primary metadata never falls back."""
+
+    try:
+        owner_id = info.get("replay_owner_intent_id")
+        if owner_id is None:
+            owner_id = info.get("factor_intent_id")
+    except Exception:
+        return None
+    return _replay_exact_text(owner_id)
+
+
 def _exact_hands(value: Any) -> Optional[int]:
     if value is None or isinstance(value, bool):
         return None
@@ -3390,6 +3410,56 @@ class Alpha003TargetStrategy(bt.Strategy):
             key=lambda quote: (quote.available_at, quote.event_time, quote.quote_id),
         )
 
+    def _replay_active_order_snapshot(self) -> Tuple[Tuple[Any, ...], bool]:
+        """Read BackBroker's submitted and pending queues as one bounded snapshot.
+
+        ``get_orders_open`` exposes only ``pending``. A newly submitted order
+        can still be in ``submitted`` while margin checks are deferred, so an
+        unreadable or absent queue must not be interpreted as an empty book.
+        Repeated references to the same object are one order; conflicting
+        objects with a repeated broker reference remain visible and make the
+        snapshot incomplete.
+        """
+
+        orders = []
+        seen_objects = set()
+        seen_refs = {}
+        complete = True
+        missing = object()
+        for queue_name in ("submitted", "pending"):
+            try:
+                queue = getattr(self.broker, queue_name, missing)
+                if queue is missing or queue is None:
+                    return tuple(orders), False
+                queued_orders = tuple(queue)
+            except Exception:
+                return tuple(orders), False
+            for order in queued_orders:
+                if order is None:
+                    complete = False
+                    continue
+                identity = id(order)
+                if identity in seen_objects:
+                    continue
+                seen_objects.add(identity)
+                try:
+                    order_ref = order.ref
+                except Exception:
+                    order_ref = None
+                if type(order_ref) is int and order_ref > 0:
+                    previous = seen_refs.get(order_ref)
+                    if previous is not None and previous is not order:
+                        complete = False
+                    else:
+                        seen_refs[order_ref] = order
+                else:
+                    complete = False
+                # Keep conflicting refs in the snapshot. Dropping either could
+                # conceal an active order; the incomplete flag prevents the
+                # resulting projection from authorizing OPEN or shutdown.
+                orders.append(order)
+        return tuple(orders), complete
+
     def _replay_planning_input(
         self,
         *,
@@ -3401,6 +3471,13 @@ class Alpha003TargetStrategy(bt.Strategy):
         ordinal: Optional[int],
         target_decision: Optional[Alpha003TargetDecision],
     ) -> Alpha003OrderPlanningInput:
+        # Capture both BackBroker queues once, before projecting any
+        # position/account totals. Pending-order economics are not sufficient
+        # here to separate already-filled exposure from the unfilled remainder.
+        broker_working_orders, order_snapshot_complete = (
+            self._replay_active_order_snapshot()
+        )
+        open_order_budget_unavailable = bool(broker_working_orders) or not order_snapshot_complete
         positions = []
         instruments = []
         margin_used = Decimal(0)
@@ -3414,16 +3491,26 @@ class Alpha003TargetStrategy(bt.Strategy):
             quantity = _exact_hands(getattr(position, "size", None))
             owner = self._replay_owners.get(target_id)
             if quantity is not None and quantity != 0:
-                if owner is None:
+                owner_intent = (
+                    _replay_exact_text(owner.get("owner_intent_id"))
+                    if isinstance(owner, Mapping)
+                    else None
+                )
+                if owner_intent is None:
                     owner_scope = owner_intent = None
                     average = _decimal_or_none(getattr(position, "price", None))
                     stop = held = None
                 else:
                     owner_scope = self._strategy_scope
-                    owner_intent = owner["owner_intent_id"]
+                    raw_stop = _decimal_or_none(owner.get("stop_price"))
+                    stop = raw_stop if raw_stop is not None and raw_stop > 0 else None
+                    raw_held = owner.get("held_eligible_bars")
+                    held = (
+                        raw_held
+                        if type(raw_held) is int and raw_held >= 0
+                        else None
+                    )
                     average = _decimal_or_none(getattr(position, "price", None))
-                    stop = owner.get("stop_price")
-                    held = owner.get("held_eligible_bars")
                 if (
                     instrument.multiplier is None
                     or average is None
@@ -3488,42 +3575,146 @@ class Alpha003TargetStrategy(bt.Strategy):
                     evidence_source="REPLAY_TAPE",
                 )
             )
+        # BackBroker positions already include any fills. Its pending queue
+        # does not give this replay projection enough authoritative economics
+        # to reserve the unfilled remainder without risking double-counting
+        # those fills (or omitting fees/contract margin). Keep that limitation
+        # explicit: any live pending order makes new OPEN capacity unavailable.
+        # Mapped orders remain in the normal fact set so independently
+        # authorized CANCEL/CLOSE planning can continue.
         working_orders = []
-        for order in self.broker.get_orders_open(safe=False):
-            target_id = next(
-                (name for name, data in self._data_by_target.items() if data is order.data), None
+        order_cancel_route_matches = []
+        replay_order_states = {
+            "CREATED": "PREPARED",
+            "SUBMITTED": "DISPATCHING",
+            "ACCEPTED": "ACCEPTED",
+            "PARTIAL": "PARTIAL",
+            "UNKNOWN": "UNKNOWN",
+            "CANCEL_PENDING": "CANCEL_PENDING",
+        }
+        open_position_routes = {
+            (item.instrument, item.exchange)
+            for item in positions
+            if item.quantity not in (None, 0)
+        }
+        authorized_targets = tuple(
+            target_id
+            for target_id in self._target_ids
+            if target_id in getattr(self, "_authorized_targets", ())
+        )
+        reduction_order_snapshot_complete = order_snapshot_complete
+        for order in broker_working_orders:
+            try:
+                order_data = order.data
+            except Exception:
+                order_data = None
+            matching_targets = tuple(
+                name for name, data in self._data_by_target.items() if data is order_data
             )
-            if target_id is None:
+            # An unmapped or ambiguously mapped order still blocks opening
+            # capacity above. It cannot authorize an action or prove that a
+            # risk-reducing CLOSE is independent: order.info route labels are
+            # caller metadata, and this feed identity has no mapped target.
+            if len(matching_targets) != 1:
+                reduction_order_snapshot_complete = False
                 continue
-            info = order.info
-            status = order.getstatusname().upper()
-            effect = info.get("factor_position_effect")
-            owner_id = info.get("replay_owner_intent_id") or info.get("factor_intent_id")
-            remaining = _exact_hands(getattr(order.executed, "remsize", None))
-            if remaining is None or remaining == 0:
-                remaining = _exact_hands(getattr(order.created, "size", None))
+            target_id = matching_targets[0]
+            info = getattr(order, "info", None)
+            if not isinstance(info, Mapping):
+                info = {}
+            try:
+                status_name = order.getstatusname()
+            except Exception:
+                status_name = None
+            status = (
+                replay_order_states.get(status_name.upper(), "UNKNOWN")
+                if type(status_name) is str
+                else "UNKNOWN"
+            )
+            raw_effect = info.get("factor_position_effect")
+            effect = (
+                raw_effect
+                if type(raw_effect) is str and raw_effect in {"OPEN", "CLOSE"}
+                else None
+            )
+            owner_id = _replay_owner_intent_id(info)
+            owner_scope = _replay_exact_text(info.get("factor_strategy_scope"))
+            info_instrument = _replay_exact_text(info.get("instrument_id"))
+            info_exchange = _replay_exact_text(info.get("exchange_id"))
+            route_instrument, route_exchange = self._routes[target_id]
+            route_matches = (
+                info_instrument == route_instrument and info_exchange == route_exchange
+            )
+            if not route_matches and (
+                (route_instrument, route_exchange) in open_position_routes
+                or (info_instrument, info_exchange) in open_position_routes
+            ):
+                reduction_order_snapshot_complete = False
+            try:
+                remaining = _exact_hands(getattr(order.executed, "remsize", None))
+            except Exception:
+                remaining = None
+            try:
+                created_size = _exact_hands(getattr(order.created, "size", None))
+                executed_size = _exact_hands(getattr(order.executed, "size", None))
+            except Exception:
+                created_size = executed_size = None
+            try:
+                is_buy = order.isbuy()
+                side = "BUY" if is_buy is True else "SELL" if is_buy is False else None
+            except Exception:
+                side = None
+            expected_sign = 1 if side == "BUY" else -1 if side == "SELL" else 0
+            if (
+                created_size is None
+                or created_size == 0
+                or executed_size is None
+                or remaining is None
+                or remaining == 0
+                or expected_sign == 0
+                or created_size * expected_sign <= 0
+                or remaining * expected_sign <= 0
+                or abs(remaining) > abs(created_size)
+                or executed_size + remaining != created_size
+            ):
+                remaining = None
+            try:
+                order_ref = order.ref
+            except Exception:
+                order_ref = None
             working_orders.append(
                 Alpha003WorkingOrderFact(
                     target_id=target_id,
-                    instrument=self._routes[target_id][0],
-                    exchange=self._routes[target_id][1],
-                    order_ref=str(owner_id or order.ref),
-                    broker_order_ref=order.ref,
-                    state="PARTIAL" if status == "PARTIAL" else "ACCEPTED",
-                    side="BUY" if order.isbuy() else "SELL",
+                    instrument=route_instrument,
+                    exchange=route_exchange,
+                    order_ref=(
+                        owner_id
+                        or (str(order_ref) if type(order_ref) is int else "unknown-order")
+                    ),
+                    broker_order_ref=(
+                        order_ref if type(order_ref) is int and order_ref > 0 else None
+                    ),
+                    state=status,
+                    side=side,
                     position_effect=effect,
                     remaining_quantity=abs(remaining) if remaining is not None else None,
-                    owner_strategy_scope=self._strategy_scope if owner_id else None,
-                    owner_intent_id=str(owner_id) if owner_id else None,
+                    owner_strategy_scope=owner_scope,
+                    owner_intent_id=owner_id,
                 )
             )
-        order_cancel_ready = bool(working_orders) and all(
+            order_cancel_route_matches.append(route_matches)
+        order_cancel_ready = bool(working_orders) and order_snapshot_complete and all(
             order.owner_strategy_scope == self._strategy_scope
             and order.owner_intent_id is not None
             and order.broker_order_ref is not None
             and order.remaining_quantity is not None
             and order.remaining_quantity > 0
-            for order in working_orders
+            and order.side in {"BUY", "SELL"}
+            and order.position_effect == "OPEN"
+            and order.state in {"ACCEPTED", "PARTIAL"}
+            and order.target_id in authorized_targets
+            and route_matches
+            for order, route_matches in zip(working_orders, order_cancel_route_matches)
         )
         cash = _decimal_or_none(self.broker.getcash())
         value = _decimal_or_none(self.broker.getvalue())
@@ -3533,10 +3724,26 @@ class Alpha003TargetStrategy(bt.Strategy):
             snapshot_id="backbroker-account-%s" % _time_key(now),
             available_at=now,
             route_permitted=route_ok,
-            available_margin=cash if cash is not None and cash >= 0 else None,
-            used_margin=margin_used if finance_complete else None,
-            current_notional=notional_used if finance_complete else None,
-            current_worst_case_loss=stop_loss if finance_complete else None,
+            available_margin=(
+                cash
+                if not open_order_budget_unavailable and cash is not None and cash >= 0
+                else None
+            ),
+            used_margin=(
+                margin_used
+                if not open_order_budget_unavailable and finance_complete
+                else None
+            ),
+            current_notional=(
+                notional_used
+                if not open_order_budget_unavailable and finance_complete
+                else None
+            ),
+            current_worst_case_loss=(
+                stop_loss
+                if not open_order_budget_unavailable and finance_complete
+                else None
+            ),
             cash=cash,
             equity=value,
         )
@@ -3549,6 +3756,24 @@ class Alpha003TargetStrategy(bt.Strategy):
             and item.lower_limit is not None
             and item.upper_limit is not None
             for item in instruments
+        )
+        ordinary_open_facts_ready = (
+            route_ok
+            and valid_metadata
+            and finance_complete
+            and cash is not None
+            and value is not None
+        )
+        open_risk_blockers = (
+            ("REPLAY_RISK_FACTS_UNAVAILABLE",)
+            if not ordinary_open_facts_ready
+            else ("REPLAY_WORKING_ORDER_SNAPSHOT_UNAVAILABLE",)
+            if not order_snapshot_complete
+            else ("REPLAY_WORKING_ORDER_BUDGET_UNAVAILABLE",)
+            if open_order_budget_unavailable
+            else ("REPLAY_EXECUTION_TARGET_SET_EMPTY",)
+            if not authorized_targets
+            else ()
         )
         return Alpha003OrderPlanningInput(
             strategy_scope=self._strategy_scope,
@@ -3565,32 +3790,39 @@ class Alpha003TargetStrategy(bt.Strategy):
             target_decision=target_decision,
             run_order_intents_used=self._replay_order_count,
             eligible_grid_ordinal=ordinal,
-            risk_reduction_ready=route_ok,
-            risk_reduction_blockers=() if route_ok else ("REPLAY_INSTRUMENT_NOT_PERMITTED",),
-            open_risk_ready=(
+            risk_reduction_ready=(
                 route_ok
-                and valid_metadata
-                and finance_complete
-                and cash is not None
-                and value is not None
+                and reduction_order_snapshot_complete
+                and bool(authorized_targets)
             ),
-            open_risk_blockers=(
+            risk_reduction_blockers=(
                 ()
-                if route_ok
-                and valid_metadata
-                and finance_complete
-                and cash is not None
-                and value is not None
-                else ("REPLAY_RISK_FACTS_UNAVAILABLE",)
+                if route_ok and reduction_order_snapshot_complete and authorized_targets
+                else ("REPLAY_INSTRUMENT_NOT_PERMITTED",)
+                if not route_ok
+                else ("REPLAY_WORKING_ORDER_CONFLICT_UNAVAILABLE",)
+                if not reduction_order_snapshot_complete
+                else ("REPLAY_EXECUTION_TARGET_SET_EMPTY",)
             ),
+            open_risk_ready=(
+                ordinary_open_facts_ready
+                and not open_order_budget_unavailable
+                and bool(authorized_targets)
+            ),
+            open_risk_blockers=open_risk_blockers,
             order_cancel_ready=order_cancel_ready,
             order_cancel_blockers=(
                 ()
                 if order_cancel_ready
+                else ("REPLAY_ORDER_SNAPSHOT_UNAVAILABLE",)
+                if not order_snapshot_complete
                 else ("REPLAY_ORDER_OWNERSHIP_UNAVAILABLE",)
-                if working_orders
+                if open_order_budget_unavailable
+                else ("REPLAY_EXECUTION_TARGET_SET_EMPTY",)
+                if not authorized_targets
                 else ()
             ),
+            execution_target_ids=authorized_targets if authorized_targets else None,
             evidence_source="CAUSAL_REPLAY",
         )
 
@@ -3679,9 +3911,10 @@ class Alpha003TargetStrategy(bt.Strategy):
     def _update_replay_shutdown_state(self) -> None:
         """Confirm only this strategy's actual local positions and orders."""
 
+        self._shutdown_ready_state = False
+        self._shutdown_blocker_state = "SHUTDOWN_NOT_REQUESTED"
+        self._last_shutdown_facts_id = None
         if not self._shutdown_requested.is_set():
-            self._shutdown_ready_state = False
-            self._shutdown_blocker_state = "SHUTDOWN_NOT_REQUESTED"
             return
         positions = []
         for target_id in self._target_ids:
@@ -3693,10 +3926,16 @@ class Alpha003TargetStrategy(bt.Strategy):
                 return
             if quantity:
                 owner = self._replay_owners.get(target_id)
+                owner_intent_id = (
+                    _replay_exact_text(owner.get("owner_intent_id"))
+                    if isinstance(owner, Mapping)
+                    else None
+                )
                 if (
                     not isinstance(owner, Mapping)
-                    or not isinstance(owner.get("owner_intent_id"), str)
-                    or _decimal_or_none(owner.get("stop_price")) is None
+                    or owner_intent_id is None
+                    or (stop_price := _decimal_or_none(owner.get("stop_price"))) is None
+                    or stop_price <= 0
                 ):
                     self._shutdown_ready_state = False
                     self._shutdown_blocker_state = (
@@ -3714,24 +3953,54 @@ class Alpha003TargetStrategy(bt.Strategy):
             self._shutdown_blocker_state = "REPLAY_SHUTDOWN_POSITION_OPEN:" + positions[0][0]
             return
 
-        for order in self.broker.get_orders_open(safe=False):
-            target_id = next(
-                (name for name, data in self._data_by_target.items() if data is order.data), None
-            )
-            if target_id is None:
-                continue
-            info = order.info
-            owner_id = info.get("replay_owner_intent_id") or info.get("factor_intent_id")
-            if (
-                not isinstance(owner_id, str)
-                or info.get("instrument_id") != self._routes[target_id][0]
-                or info.get("exchange_id") != self._routes[target_id][1]
-                or info.get("factor_strategy_scope") != self._strategy_scope
-            ):
-                self._shutdown_ready_state = False
+        orders, order_snapshot_complete = self._replay_active_order_snapshot()
+        if not order_snapshot_complete:
+            self._shutdown_blocker_state = "REPLAY_SHUTDOWN_ORDER_SNAPSHOT_UNAVAILABLE"
+            return
+        for order in orders:
+            info = getattr(order, "info", None)
+            if not isinstance(info, Mapping):
+                info = {}
+            owner_scope = info.get("factor_strategy_scope")
+            owner_scope = _replay_exact_text(owner_scope)
+            if owner_scope is None:
                 self._shutdown_blocker_state = "REPLAY_SHUTDOWN_ORDER_OWNERSHIP_UNAVAILABLE"
                 return
-            self._shutdown_ready_state = False
+            if owner_scope != self._strategy_scope:
+                continue
+            try:
+                order_data = order.data
+            except Exception:
+                order_data = None
+            matching_targets = tuple(
+                name for name, data in self._data_by_target.items() if data is order_data
+            )
+            if len(matching_targets) != 1:
+                self._shutdown_blocker_state = "REPLAY_SHUTDOWN_ORDER_OWNERSHIP_UNAVAILABLE"
+                return
+            target_id = matching_targets[0]
+            owner_id = _replay_owner_intent_id(info)
+            instrument = _replay_exact_text(info.get("instrument_id"))
+            exchange = _replay_exact_text(info.get("exchange_id"))
+            if (
+                owner_id is None
+                or instrument != self._routes[target_id][0]
+                or exchange != self._routes[target_id][1]
+            ):
+                self._shutdown_blocker_state = "REPLAY_SHUTDOWN_ORDER_OWNERSHIP_UNAVAILABLE"
+                return
+            try:
+                status_name = order.getstatusname()
+            except Exception:
+                status_name = None
+            if type(status_name) is not str or status_name.upper() not in {
+                "CREATED",
+                "SUBMITTED",
+                "ACCEPTED",
+                "PARTIAL",
+            }:
+                self._shutdown_blocker_state = "REPLAY_SHUTDOWN_ORDER_STATE_UNAVAILABLE"
+                return
             self._shutdown_blocker_state = "REPLAY_SHUTDOWN_ORDER_ACTIVE"
             return
 
