@@ -16,6 +16,8 @@ import os
 from pathlib import Path
 import re
 import stat
+from statistics import median
+import tempfile
 import time
 from typing import Any, Iterable, Mapping, Optional
 
@@ -32,9 +34,11 @@ MAX_OUTPUT_BYTES = 32 * 1024 * 1024
 SUMMARY_RESERVE_BYTES = 16 * 1024
 MAX_TREE_PROCESSES = 256
 MAX_SAMPLE_GAP_SECONDS = 2.0
+MAX_UTC_MONOTONIC_SKEW_SECONDS = 2.0
 WINDOW_SECONDS = 30 * 60
 MIN_WINDOW_COVERAGE = 0.90
 RECEIPT_FILENAME = "completion_receipt.json"
+READY_FILENAME = "target_ready.json"
 SUCCESS_STATUSES = {"LIVE_RUN_COMPLETE", "LIVE_EPOCH_SEQUENCE_COMPLETE"}
 TERMINAL_STATUSES = SUCCESS_STATUSES | {
     "LIVE_RUN_INCOMPLETE",
@@ -68,7 +72,38 @@ def _is_receipt_path(path: Path) -> bool:
     return path.name == RECEIPT_FILENAME
 
 
-def _read_receipt(path: Path) -> dict[str, Any]:
+def _atomic_json(path: Path, payload: Mapping[str, Any]) -> None:
+    """Publish one bounded protocol record atomically without replacing a prior record."""
+    if not path.parent.is_dir() or path.exists() or path.is_symlink():
+        raise FileExistsError("protocol_record_path_not_fresh")
+    descriptor, raw_temp = tempfile.mkstemp(
+        prefix=f".{path.name}.", suffix=".tmp", dir=path.parent
+    )
+    temp_path = Path(raw_temp)
+    try:
+        with os.fdopen(descriptor, "w", encoding="utf-8", newline="\n") as target:
+            json.dump(dict(payload), target, sort_keys=True, separators=(",", ":"))
+            target.write("\n")
+            target.flush()
+            os.fsync(target.fileno())
+        # A hard-link publish is atomic and refuses to replace an existing gate/receipt.
+        os.link(temp_path, path)
+        temp_path.unlink()
+    except BaseException:
+        try:
+            temp_path.unlink()
+        except OSError:
+            pass
+        raise
+
+
+def _read_receipt(
+    path: Path,
+    *,
+    run_id: str,
+    root_pid: int,
+    expected_create_time: float,
+) -> dict[str, Any]:
     """Return only whitelisted receipt facts; never return the raw payload."""
     if not _is_receipt_path(path):
         return {"state": "invalid", "error_code": "RECEIPT_PATH_NOT_ALLOWED"}
@@ -113,26 +148,130 @@ def _read_receipt(path: Path) -> dict[str, Any]:
         return {"state": "invalid", "error_code": "RECEIPT_JSON_INVALID"}
     if not isinstance(payload, dict):
         return {"state": "invalid", "error_code": "RECEIPT_SHAPE_INVALID"}
-    if set(payload) - {"status", "closed", "cleanup_complete", "receipt_id"}:
-        return {"state": "invalid", "error_code": "RECEIPT_FIELDS_NOT_SANITIZED"}
+    expected_fields = {
+        "schema",
+        "status",
+        "closed",
+        "cleanup_complete",
+        "receipt_id",
+        "run_id",
+        "root_pid",
+        "root_create_time",
+        "live_ready_boundary_id",
+        "live_ready_monotonic_ns",
+        "live_next_boundary_id",
+        "live_next_monotonic_ns",
+        "close_utc",
+        "close_monotonic_ns",
+        "close_clock_pair_span_ns",
+    }
+    if set(payload) != expected_fields:
+        return {"state": "invalid", "error_code": "RECEIPT_FIELDS_INVALID"}
+    if type(payload.get("schema")) is not int or payload.get("schema") != 1:
+        return {"state": "invalid", "error_code": "RECEIPT_SCHEMA_INVALID"}
+    if (
+        payload.get("run_id") != run_id
+        or type(payload.get("root_pid")) is not int
+        or payload.get("root_pid") != root_pid
+        or isinstance(payload.get("root_create_time"), bool)
+        or type(payload.get("root_create_time")) not in (int, float)
+        or payload.get("root_create_time") != expected_create_time
+    ):
+        return {"state": "invalid", "error_code": "RECEIPT_TARGET_BINDING_MISMATCH"}
 
     status = payload.get("status")
     if not isinstance(status, str) or status not in TERMINAL_STATUSES:
         return {"state": "nonterminal", "error_code": "RECEIPT_STATUS_NOT_TERMINAL"}
-    closed = [payload[key] for key in ("closed", "cleanup_complete") if key in payload]
-    if not closed or any(type(value) is not bool for value in closed):
+    closed = payload.get("closed")
+    cleanup_complete = payload.get("cleanup_complete")
+    if type(closed) is not bool or type(cleanup_complete) is not bool:
         return {"state": "invalid", "error_code": "RECEIPT_CLOSED_FIELD_INVALID"}
-    if any(value != closed[0] for value in closed[1:]):
-        return {"state": "invalid", "error_code": "RECEIPT_CLOSED_FIELDS_CONFLICT"}
     receipt_id = payload.get("receipt_id")
-    if not isinstance(receipt_id, str) or _RECEIPT_ID.fullmatch(receipt_id) is None:
-        receipt_id = None
+    expected_receipt_id = f"{run_id}:close"
+    if not isinstance(receipt_id, str) or receipt_id != expected_receipt_id:
+        return {"state": "invalid", "error_code": "RECEIPT_ID_MISMATCH"}
+    close_utc = payload.get("close_utc")
+    close_monotonic_ns = payload.get("close_monotonic_ns")
+    close_clock_pair_span_ns = payload.get("close_clock_pair_span_ns")
+    live_ready_boundary_id = payload.get("live_ready_boundary_id")
+    live_ready_monotonic_ns = payload.get("live_ready_monotonic_ns")
+    if live_ready_boundary_id is None and live_ready_monotonic_ns is None:
+        live_ready_valid = False
+    elif (
+        type(live_ready_boundary_id) is not str
+        or live_ready_boundary_id != f"{run_id}:live-ready"
+        or type(live_ready_monotonic_ns) is not int
+        or live_ready_monotonic_ns <= 0
+    ):
+        return {"state": "invalid", "error_code": "RECEIPT_LIVE_READY_BOUNDARY_INVALID"}
+    else:
+        live_ready_valid = True
+    live_next_boundary_id = payload.get("live_next_boundary_id")
+    live_next_monotonic_ns = payload.get("live_next_monotonic_ns")
+    if live_next_boundary_id is None and live_next_monotonic_ns is None:
+        live_next_valid = False
+    elif (
+        type(live_next_boundary_id) is not str
+        or live_next_boundary_id != f"{run_id}:first-next"
+        or type(live_next_monotonic_ns) is not int
+        or live_next_monotonic_ns <= 0
+    ):
+        return {"state": "invalid", "error_code": "RECEIPT_LIVE_NEXT_BOUNDARY_INVALID"}
+    else:
+        live_next_valid = True
+    if closed is True:
+        try:
+            _parse_utc(close_utc)
+        except ValueError:
+            return {"state": "invalid", "error_code": "RECEIPT_CLOSE_UTC_INVALID"}
+        if type(close_monotonic_ns) is not int or close_monotonic_ns <= 0:
+            return {"state": "invalid", "error_code": "RECEIPT_CLOSE_MONOTONIC_INVALID"}
+        if (
+            type(close_clock_pair_span_ns) is not int
+            or not 0
+            <= close_clock_pair_span_ns
+            <= MAX_UTC_MONOTONIC_SKEW_SECONDS * 1_000_000_000
+        ):
+            return {"state": "invalid", "error_code": "RECEIPT_CLOSE_CLOCK_PAIR_INVALID"}
+        if live_ready_valid and live_ready_monotonic_ns >= close_monotonic_ns:
+            return {"state": "invalid", "error_code": "RECEIPT_LIVE_READY_ORDER_INVALID"}
+        if live_next_valid and (
+            not live_ready_valid
+            or live_next_monotonic_ns <= live_ready_monotonic_ns
+            or live_next_monotonic_ns >= close_monotonic_ns
+        ):
+            return {"state": "invalid", "error_code": "RECEIPT_LIVE_NEXT_ORDER_INVALID"}
+    elif (
+        close_utc is not None
+        or close_monotonic_ns is not None
+        or close_clock_pair_span_ns is not None
+        or live_next_valid
+    ):
+        return {"state": "invalid", "error_code": "RECEIPT_UNCLOSED_BOUNDARY_PRESENT"}
+    if status in SUCCESS_STATUSES and (closed is not True or cleanup_complete is not True):
+        return {"state": "invalid", "error_code": "RECEIPT_SUCCESS_WITHOUT_CLEANUP"}
+    if status in SUCCESS_STATUSES and not live_ready_valid:
+        return {"state": "invalid", "error_code": "RECEIPT_SUCCESS_WITHOUT_LIVE_READY"}
+    if status in SUCCESS_STATUSES and not live_next_valid:
+        return {"state": "invalid", "error_code": "RECEIPT_SUCCESS_WITHOUT_LIVE_NEXT"}
     return {
         "state": "terminal",
+        "schema": 1,
         "status": status,
-        "closed": closed[0],
+        "closed": closed,
+        "cleanup_complete": cleanup_complete,
         "receipt_id": receipt_id,
-        "error_code": None if receipt_id else "RECEIPT_ID_MISSING_OR_INVALID",
+        "run_id": run_id,
+        "root_pid": root_pid,
+        "root_create_time": expected_create_time,
+        "live_ready_boundary_id": live_ready_boundary_id,
+        "live_ready_monotonic_ns": live_ready_monotonic_ns,
+        "live_next_boundary_id": live_next_boundary_id,
+        "live_next_monotonic_ns": live_next_monotonic_ns,
+        "close_utc": close_utc,
+        "close_monotonic_ns": close_monotonic_ns,
+        "close_clock_pair_span_ns": close_clock_pair_span_ns,
+        "error_code": None,
     }
 
 
@@ -252,9 +391,19 @@ def _snapshot(root_pid: int, expected_create_time: float) -> dict[str, Any]:
 
 
 def summarize_equal_windows(
-    samples: Iterable[Mapping[str, Any]], *, warmup_end_utc: str, run_end_utc: str
+    samples: Iterable[Mapping[str, Any]],
+    *,
+    warmup_end_utc: str,
+    run_end_utc: str,
+    start_monotonic_ns: Optional[int] = None,
+    end_monotonic_ns: Optional[int] = None,
 ) -> dict[str, Any]:
-    """Compare explicit equal first/last 30-minute windows from raw sample rows."""
+    """Compare explicit equal first/last 30-minute windows from raw sample rows.
+
+    When monotonic boundaries are supplied, they determine sample ordering,
+    membership, slots, and gaps. UTC is an independent paired-clock check only.
+    The legacy UTC-only form remains available for static analysis callers.
+    """
     try:
         warmup = _parse_utc(warmup_end_utc)
         end = _parse_utc(run_end_utc)
@@ -265,52 +414,127 @@ def summarize_equal_windows(
     if end <= warmup or first[1] > last[0]:
         return {"status": "INVALID_WINDOW_BOUNDS", "windows": []}
 
-    rows: list[list[tuple[datetime, int, bool]]] = [[], []]
+    monotonic_windows = None
+    if (start_monotonic_ns is None) != (end_monotonic_ns is None):
+        return {"status": "INVALID_MONOTONIC_BOUNDS", "windows": []}
+    if start_monotonic_ns is not None and end_monotonic_ns is not None:
+        if (
+            type(start_monotonic_ns) is not int
+            or type(end_monotonic_ns) is not int
+            or start_monotonic_ns <= 0
+            or end_monotonic_ns <= start_monotonic_ns
+            or end_monotonic_ns - start_monotonic_ns < 2 * WINDOW_SECONDS * SAMPLE_NS
+        ):
+            return {"status": "INVALID_MONOTONIC_BOUNDS", "windows": []}
+        utc_duration = (end - warmup).total_seconds()
+        monotonic_duration = (end_monotonic_ns - start_monotonic_ns) / SAMPLE_NS
+        if abs(utc_duration - monotonic_duration) > MAX_UTC_MONOTONIC_SKEW_SECONDS:
+            return {"status": "CLOCK_PAIR_DURATION_MISMATCH", "windows": []}
+        monotonic_windows = (
+            (start_monotonic_ns, start_monotonic_ns + WINDOW_SECONDS * SAMPLE_NS),
+            (end_monotonic_ns - WINDOW_SECONDS * SAMPLE_NS, end_monotonic_ns),
+        )
+
+    rows: list[list[tuple[int, datetime, int, bool]]] = [[], []]
     unlocated = 0
+    monotonic_order_valid = True
+    previous_monotonic = None
     for sample in samples:
+        mono = sample.get("monotonic_ns") if monotonic_windows is not None else None
+        if monotonic_windows is not None:
+            if type(mono) is not int or mono <= 0:
+                unlocated += 1
+                continue
+            if previous_monotonic is not None and mono <= previous_monotonic:
+                monotonic_order_valid = False
+            previous_monotonic = mono
         try:
             when = _parse_utc(sample.get("utc"))
         except (ValueError, TypeError):
             unlocated += 1
             continue
-        for index, (start, stop) in enumerate((first, last)):
-            if start <= when < stop:
-                valid = sample.get("sampling_valid") is True
-                rss = sample.get("rss_total_bytes")
-                if type(rss) is not int or rss <= 0:
-                    valid, rss = False, 0
-                rows[index].append((when, rss, valid))
-                break
+        if monotonic_windows is None:
+            located = next(
+                (index for index, (start, stop) in enumerate((first, last)) if start <= when < stop),
+                None,
+            )
+            slot_value = when
+        else:
+            located = next(
+                (
+                    index
+                    for index, (start_ns, stop_ns) in enumerate(monotonic_windows)
+                    if start_ns <= mono < stop_ns
+                ),
+                None,
+            )
+            if located is not None:
+                anchor_utc, anchor_mono = (
+                    (warmup, start_monotonic_ns)
+                    if located == 0
+                    else (end, end_monotonic_ns)
+                )
+                expected_utc = anchor_utc + timedelta(
+                    seconds=(mono - anchor_mono) / SAMPLE_NS
+                )
+                if abs((when - expected_utc).total_seconds()) > MAX_UTC_MONOTONIC_SKEW_SECONDS:
+                    unlocated += 1
+                    continue
+            slot_value = mono
+        if located is not None:
+            valid = sample.get("sampling_valid") is True
+            rss = sample.get("rss_total_bytes")
+            if type(rss) is not int or rss <= 0:
+                valid, rss = False, 0
+            rows[located].append((slot_value, when, rss, valid))
 
     windows = []
     minimum = math.ceil(WINDOW_SECONDS * MIN_WINDOW_COVERAGE)
-    for (start, stop), observed in zip((first, last), rows):
-        observed.sort(key=lambda row: row[0])
-        valid_rows = [row for row in observed if row[2]]
-        slots = {int((row[0] - start).total_seconds()) for row in valid_rows}
-        values = sorted(row[1] for row in valid_rows)
-        times = [row[0] for row in valid_rows]
-        gaps = [(times[0] - start).total_seconds()] if times else []
-        gaps.extend((b - a).total_seconds() for a, b in zip(times, times[1:]))
-        if times:
-            gaps.append((stop - times[-1]).total_seconds())
+    for index, ((start, stop), observed) in enumerate(zip((first, last), rows)):
+        if monotonic_windows is None:
+            observed.sort(key=lambda row: row[1])
+            window_start = start
+            window_stop = stop
+            to_slot = lambda value: int((value - start).total_seconds())
+            start_position = start
+            stop_position = stop
+            gap_seconds = lambda a, b: (b - a).total_seconds()
+        else:
+            observed.sort(key=lambda row: row[0])
+            window_start_ns, window_stop_ns = monotonic_windows[index]
+            window_start = start
+            window_stop = stop
+            to_slot = lambda value: (value - window_start_ns) // SAMPLE_NS
+            start_position = window_start_ns
+            stop_position = window_stop_ns
+            gap_seconds = lambda a, b: (b - a) / SAMPLE_NS
+        valid_rows = [row for row in observed if row[3]]
+        slots = {to_slot(row[0]) for row in valid_rows}
+        values = sorted(row[2] for row in valid_rows)
+        valid_positions = [row[0] for row in valid_rows]
+        gaps = [gap_seconds(start_position, valid_positions[0])] if valid_positions else []
+        gaps.extend(gap_seconds(a, b) for a, b in zip(valid_positions, valid_positions[1:]))
+        if valid_positions:
+            gaps.append(gap_seconds(valid_positions[-1], stop_position))
         max_gap = max(gaps, default=float(WINDOW_SECONDS))
         enough = (
             len(slots) >= minimum
             and len(valid_rows) == len(slots)
             and len(observed) == len(valid_rows)
             and max_gap <= MAX_SAMPLE_GAP_SECONDS
+            and monotonic_order_valid
         )
         windows.append(
             {
-                "start_utc": start.isoformat().replace("+00:00", "Z"),
-                "end_utc": stop.isoformat().replace("+00:00", "Z"),
+                "start_utc": window_start.isoformat().replace("+00:00", "Z"),
+                "end_utc": window_stop.isoformat().replace("+00:00", "Z"),
                 "expected_samples": WINDOW_SECONDS,
                 "valid_samples": len(slots),
                 "invalid_samples": len(observed) - len(valid_rows),
                 "duplicate_second_count": len(valid_rows) - len(slots),
                 "coverage_ratio": len(slots) / WINDOW_SECONDS,
                 "maximum_gap_seconds": max_gap,
+                "median_rss_bytes": median(values) if values else None,
                 "p95_rss_bytes": values[max(0, math.ceil(len(values) * 0.95) - 1)]
                 if values
                 else None,
@@ -320,10 +544,20 @@ def summarize_equal_windows(
         )
     enough = unlocated == 0 and all(row["coverage_status"] == "SUFFICIENT" for row in windows)
     return {
-        "status": "WINDOWS_RECORDED" if enough else "INSUFFICIENT_COVERAGE",
+        "status": (
+            "WINDOWS_RECORDED"
+            if enough
+            else "MONOTONIC_ORDER_INVALID"
+            if not monotonic_order_valid
+            else "INSUFFICIENT_COVERAGE"
+        ),
         "window_seconds": WINDOW_SECONDS,
         "minimum_coverage_ratio": MIN_WINDOW_COVERAGE,
         "unlocated_invalid_sample_count": unlocated,
+        "monotonic_order_valid": monotonic_order_valid,
+        "window_clock_source": "MONOTONIC_WITH_INDEPENDENT_UTC_CHECK"
+        if monotonic_windows is not None
+        else "UTC_ONLY_STATIC_ANALYSIS",
         "first_vs_last_p95_growth_bytes": (
             windows[1]["p95_rss_bytes"] - windows[0]["p95_rss_bytes"] if enough else None
         ),
@@ -344,7 +578,9 @@ def observe_process(
     *,
     root_pid: int,
     expected_create_time: float,
+    run_id: str,
     completion_receipt: Path,
+    ready_path: Path,
     output_path: Path,
     warmup_end_utc: Optional[str] = None,
     run_end_utc: Optional[str] = None,
@@ -361,10 +597,23 @@ def observe_process(
         or expected_create_time <= 0
     ):
         raise ValueError("invalid_expected_create_time")
+    if not isinstance(run_id, str) or _RECEIPT_ID.fullmatch(run_id) is None:
+        raise ValueError("invalid_run_id")
     if not _is_receipt_path(completion_receipt):
         raise ValueError("completion_receipt_path_not_allowed")
     if completion_receipt.resolve(strict=False) == output_path.resolve(strict=False):
         raise ValueError("receipt_and_output_must_differ")
+    if ready_path.name != READY_FILENAME:
+        raise ValueError("ready_path_not_allowed")
+    if (
+        ready_path.resolve(strict=False).parent
+        != output_path.resolve(strict=False).parent
+        or ready_path.resolve(strict=False) == output_path.resolve(strict=False)
+        or ready_path.resolve(strict=False) == completion_receipt.resolve(strict=False)
+    ):
+        raise ValueError("protocol_paths_must_share_fresh_directory")
+    if ready_path.exists() or ready_path.is_symlink():
+        raise ValueError("ready_path_not_fresh")
     if (warmup_end_utc is None) != (run_end_utc is None):
         raise ValueError("both_window_times_required")
     windows = None
@@ -396,13 +645,17 @@ def observe_process(
     stop_error_codes: list[str] = []
     receipt: dict[str, Any] = {"state": "absent"}
     size = 0
+    ready_published = False
+    sampler_pid = os.getpid()
 
     with output_path.open("xb") as stream:
         header = {
             "record_type": "header",
             "schema": 1,
+            "run_id": run_id,
             "root_pid": root_pid,
             "expected_create_time": expected_create_time,
+            "sampler_pid": sampler_pid,
             "sample_interval_seconds": 1,
             "maximum_duration_seconds": 7 * 60 * 60,
             "maximum_output_bytes": MAX_OUTPUT_BYTES,
@@ -422,7 +675,12 @@ def observe_process(
                 time.sleep((deadline - now) / 1_000_000_000)
             if time.monotonic_ns() - started_ns >= MAX_DURATION_NS:
                 break
-            receipt = _read_receipt(completion_receipt)
+            receipt = _read_receipt(
+                completion_receipt,
+                run_id=run_id,
+                root_pid=root_pid,
+                expected_create_time=expected_create_time,
+            )
             if receipt["state"] == "terminal":
                 if receipt.get("error_code"):
                     counts["completion_receipt_errors"] += 1
@@ -439,6 +697,10 @@ def observe_process(
             if snap["stop_reason"]:
                 stop_reason = snap["stop_reason"]
                 stop_error_codes = list(snap["error_codes"])
+                break
+            if any(entry.get("pid") == sampler_pid for entry in snap["process_tree"]):
+                stop_reason = "SAMPLER_IN_TARGET_TREE"
+                stop_error_codes = ["SAMPLER_IN_TARGET_TREE"]
                 break
             row = {
                 "record_type": "sample",
@@ -457,6 +719,26 @@ def observe_process(
             if row["sampling_valid"]:
                 counts["valid_sample_count"] += 1
                 peak = max(peak or 0, row["rss_total_bytes"])
+                if not ready_published:
+                    try:
+                        _atomic_json(
+                            ready_path,
+                            {
+                                "schema": 1,
+                                "run_id": run_id,
+                                "root_pid": root_pid,
+                                "root_create_time": expected_create_time,
+                                "sampler_pid": sampler_pid,
+                                "sample_utc": utc,
+                                "sample_monotonic_ns": mono,
+                                "sampling_valid": True,
+                            },
+                        )
+                    except OSError:
+                        stop_reason = "READY_SIGNAL_PUBLISH_FAILED"
+                        stop_error_codes = ["READY_SIGNAL_PUBLISH_FAILED"]
+                        break
+                    ready_published = True
             else:
                 counts["invalid_sample_count"] += 1
             if previous_ns is not None:
@@ -487,10 +769,16 @@ def observe_process(
             receipt.get("state") == "terminal"
             and receipt.get("status") in SUCCESS_STATUSES
             and receipt.get("closed") is True
+            and receipt.get("cleanup_complete") is True
+            and receipt.get("live_ready_boundary_id") == f"{run_id}:live-ready"
+            and type(receipt.get("live_ready_monotonic_ns")) is int
+            and receipt.get("live_next_boundary_id") == f"{run_id}:first-next"
+            and type(receipt.get("live_next_monotonic_ns")) is int
             and isinstance(receipt_id, str)
         )
         quality = (
             counts["sample_count"] > 0
+            and ready_published
             and counts["invalid_sample_count"] == 0
             and counts["missed_sample_count"] == 0
             and max_gap <= MAX_SAMPLE_GAP_SECONDS
@@ -505,6 +793,10 @@ def observe_process(
         summary = {
             "record_type": "summary",
             "schema": 1,
+            "run_id": run_id,
+            "root_pid": root_pid,
+            "expected_create_time": expected_create_time,
+            "sampler_pid": sampler_pid,
             "started_utc": started_utc,
             "ended_utc": ended_utc,
             "elapsed_seconds": elapsed,
@@ -512,7 +804,18 @@ def observe_process(
             "completion_receipt_state": receipt.get("state"),
             "completion_status": receipt.get("status"),
             "completion_closed": receipt.get("closed"),
+            "completion_cleanup_complete": receipt.get("cleanup_complete"),
             "completion_receipt_id": receipt_id,
+            "completion_run_id": receipt.get("run_id"),
+            "completion_root_pid": receipt.get("root_pid"),
+            "completion_root_create_time": receipt.get("root_create_time"),
+            "completion_live_ready_boundary_id": receipt.get("live_ready_boundary_id"),
+            "completion_live_ready_monotonic_ns": receipt.get("live_ready_monotonic_ns"),
+            "completion_live_next_boundary_id": receipt.get("live_next_boundary_id"),
+            "completion_live_next_monotonic_ns": receipt.get("live_next_monotonic_ns"),
+            "close_utc": receipt.get("close_utc"),
+            "close_monotonic_ns": receipt.get("close_monotonic_ns"),
+            "close_clock_pair_span_ns": receipt.get("close_clock_pair_span_ns"),
             "completion_receipt_error_code": receipt.get("error_code"),
             "stop_error_codes": stop_error_codes,
             **counts,
@@ -532,7 +835,9 @@ def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--root-pid", type=int, required=True)
     parser.add_argument("--expected-create-time", type=float, required=True)
+    parser.add_argument("--run-id", required=True)
     parser.add_argument("--completion-receipt", type=Path, required=True)
+    parser.add_argument("--ready-path", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--warmup-end-utc")
     parser.add_argument("--run-end-utc")
@@ -545,7 +850,9 @@ def main(argv: Optional[list[str]] = None) -> int:
         result = observe_process(
             root_pid=args.root_pid,
             expected_create_time=args.expected_create_time,
+            run_id=args.run_id,
             completion_receipt=args.completion_receipt,
+            ready_path=args.ready_path,
             output_path=args.output,
             warmup_end_utc=args.warmup_end_utc,
             run_end_utc=args.run_end_utc,

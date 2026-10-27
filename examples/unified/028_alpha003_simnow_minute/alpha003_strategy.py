@@ -2994,12 +2994,18 @@ class Alpha003TargetStrategy(bt.Strategy):
         ("max_live_bar_age_seconds", None),
         ("max_future_skew_seconds", None),
         ("control_refresh_loop", None),
+        ("live_ready_callback", None),
+        ("live_next_callback", None),
         ("decision_tape", None),
         ("source_restart_marker", None),
         ("source_kind", None),
     )
 
     def __init__(self) -> None:
+        if self.p.live_ready_callback is not None and not callable(self.p.live_ready_callback):
+            raise TypeError("live_ready_callback must be callable or None")
+        if self.p.live_next_callback is not None and not callable(self.p.live_next_callback):
+            raise TypeError("live_next_callback must be callable or None")
         target_ids = tuple(getattr(data, "_name", "") for data in self.datas)
         if not target_ids or any(not isinstance(name, str) or not name for name in target_ids):
             raise ValueError("each Alpha003 target feed needs an explicit non-empty name")
@@ -3119,6 +3125,13 @@ class Alpha003TargetStrategy(bt.Strategy):
         self._last_decision_tape_batch_id: Optional[str] = None
         self._last_decision_tape_reference: Optional[Mapping[str, Any]] = None
         self._last_decision_tape_error: Optional[str] = None
+        self._live_ready_callback_attempted = False
+        self._live_ready_callback_completed = False
+        self._live_ready_callback_failed = False
+        self._live_ready_event_identity = None
+        self._live_next_callback_attempted = False
+        self._live_next_callback_completed = False
+        self._live_next_callback_failed = False
         self._source_restart_marker = self.p.source_restart_marker
         self._source_predecessor = (
             None
@@ -4769,6 +4782,138 @@ class Alpha003TargetStrategy(bt.Strategy):
             return False
         return True
 
+    def _confirmed_live_ready_event(
+        self, batch: Any, snapshot: Any
+    ) -> Optional[dict[str, Any]]:
+        if self.p.replay_mode or batch is None or snapshot is None:
+            return None
+        try:
+            batch_id = _read(batch, "batch_id")
+            cohort_id = _read(batch, "cohort_id")
+            epoch_id = _read(batch, "epoch_id")
+            calendar_id = _read(batch, "calendar_id")
+            slot_index = _read(batch, "slot_index")
+            members = _read(batch, "members")
+            target_ids = getattr(self, "_target_ids", None)
+            if (
+                _read(batch, "status") != "COMPLETE"
+                or _state_name(_read(snapshot, "readiness"), "snapshot readiness")
+                != "LIVE_READY"
+                or _read(snapshot, "batch_complete") is not True
+                or _read(snapshot, "batch_id") != batch_id
+                or _read(snapshot, "cohort_id") != cohort_id
+                or _read(snapshot, "epoch_id") != epoch_id
+                or _read(snapshot, "calendar_id") != _read(batch, "calendar_id")
+                or _read(snapshot, "close_time") != _read(batch, "close_time")
+                or _read(snapshot, "available_at") != _read(batch, "available_at")
+                or not isinstance(members, Mapping)
+                or not members
+                or type(target_ids) is not tuple
+                or not target_ids
+                or any(type(target_id) is not str or not target_id for target_id in target_ids)
+                or len(set(target_ids)) != len(target_ids)
+                or set(members) != set(target_ids)
+                or not all(
+                    _read(_read(receipt, "envelope"), "source_role") == "live"
+                    and _read(_read(receipt, "envelope"), "complete") is True
+                    and _read(_read(receipt, "envelope"), "quality") == "GOOD"
+                    and _read(_read(receipt, "envelope"), "present") is True
+                    and not _read(_read(receipt, "envelope"), "missing_fields")
+                    and set(_read(_read(receipt, "envelope"), "quality_flags")).issubset(
+                        {"LEGACY_SCHEMA"}
+                    )
+                    for receipt in members.values()
+                )
+            ):
+                return None
+            if (
+                self.p.cohort.current_batch() is not batch
+                or self.live_factors.snapshot() != snapshot
+            ):
+                return None
+            if (
+                type(cohort_id) is not str or not cohort_id
+                or type(epoch_id) is not int or epoch_id <= 0
+                or type(calendar_id) is not str or not calendar_id
+                or type(slot_index) is not int or slot_index < 0
+                or type(batch_id) is not str or not batch_id
+            ):
+                return None
+        except Exception:
+            return None
+        return {
+            "readiness": "LIVE_READY",
+            "replay_mode": False,
+            "cohort_id": cohort_id,
+            "epoch_id": epoch_id,
+            "calendar_id": calendar_id,
+            "batch_id": batch_id,
+            "slot_index": slot_index,
+        }
+
+    def _capture_live_ready_boundary(self, batch: Any, snapshot: Any) -> None:
+        """Notify an optional observer once after the first full live snapshot."""
+        callback = getattr(self.p, "live_ready_callback", None)
+        if callback is None or self._live_ready_callback_attempted:
+            return
+        event = self._confirmed_live_ready_event(batch, snapshot)
+        if event is None:
+            return
+        self._live_ready_callback_attempted = True
+        try:
+            callback(event)
+            self._live_ready_event_identity = (
+                event["cohort_id"],
+                event["epoch_id"],
+                event["calendar_id"],
+                event["slot_index"],
+                event["batch_id"],
+            )
+            self._live_ready_callback_completed = True
+        except Exception:
+            # Telemetry failure must not interrupt the engine or resource cleanup.
+            self._live_ready_callback_failed = True
+
+    def _capture_live_next_boundary(self, batch: Any, snapshot: Any) -> None:
+        """Record entry into regular ``next`` at the ready batch or a later slot."""
+        callback = getattr(self.p, "live_next_callback", None)
+        if (
+            callback is None
+            or self.p.replay_mode
+            or not self._live_ready_callback_completed
+            or self._live_next_callback_attempted
+        ):
+            return
+        event = self._confirmed_live_ready_event(batch, snapshot)
+        if event is None or self._live_ready_event_identity is None:
+            return
+        ready_cohort, ready_epoch, ready_calendar, ready_slot, ready_batch = (
+            self._live_ready_event_identity
+        )
+        if (
+            event["cohort_id"] != ready_cohort
+            or event["epoch_id"] != ready_epoch
+            or event["calendar_id"] != ready_calendar
+            or event["slot_index"] < ready_slot
+            or (
+                event["slot_index"] == ready_slot
+                and event["batch_id"] != ready_batch
+            )
+            or (
+                event["slot_index"] > ready_slot
+                and event["batch_id"] == ready_batch
+            )
+        ):
+            return
+        self._live_next_callback_attempted = True
+        try:
+            callback(event)
+            self._live_next_callback_completed = True
+        except Exception:
+            # A missing next receipt makes the memory run incomplete; it must not
+            # change engine behavior or interfere with the normal cleanup path.
+            self._live_next_callback_failed = True
+
     def _live_risk_decision(
         self,
         batch: Any,
@@ -5041,6 +5186,10 @@ class Alpha003TargetStrategy(bt.Strategy):
                 )
                 grid_recorded = False
                 if live_good_batch:
+                    ready_callback = getattr(self.p, "live_ready_callback", None)
+                    capture_ready = getattr(self, "_capture_live_ready_boundary", None)
+                    if callable(ready_callback) and callable(capture_ready):
+                        capture_ready(batch, snapshot)
                     grid_recorded = self._live_grid_decision(
                         batch,
                         snapshot,
@@ -5423,6 +5572,11 @@ class Alpha003TargetStrategy(bt.Strategy):
                 _state_name(_read(snapshot, "readiness"), "snapshot readiness") == "LIVE_READY"
             )
         if calculation_ready:
+            if not self.p.replay_mode:
+                ready_callback = getattr(self.p, "live_ready_callback", None)
+                capture_ready = getattr(self, "_capture_live_ready_boundary", None)
+                if callable(ready_callback) and callable(capture_ready):
+                    capture_ready(batch, snapshot)
             return
         plan = Alpha003OrderPlan(
             "NO_ACTION",
@@ -5453,6 +5607,15 @@ class Alpha003TargetStrategy(bt.Strategy):
         except (TypeError, ValueError, RuntimeError):
             self.last_execution_block_reason = "MARKET_DECISION_TIME_UNAVAILABLE"
             return
+        if not self.p.replay_mode:
+            ready_callback = getattr(self.p, "live_ready_callback", None)
+            capture_ready = getattr(self, "_capture_live_ready_boundary", None)
+            if callable(ready_callback) and callable(capture_ready):
+                capture_ready(batch, snapshot)
+            next_callback = getattr(self.p, "live_next_callback", None)
+            capture_next = getattr(self, "_capture_live_next_boundary", None)
+            if callable(next_callback) and callable(capture_next):
+                capture_next(batch, snapshot)
         is_new = batch is not None and _read(batch, "batch_id") != self._last_batch_id
         ordinal = None
         if batch is not None:

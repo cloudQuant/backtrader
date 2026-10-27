@@ -2183,6 +2183,8 @@ def _make_strategy_kwargs(config, plan, factor_mode, direction, risk_policy, *, 
         "source_kind",
         "max_live_bar_age_seconds",
         "max_future_skew_seconds",
+        "live_ready_callback",
+        "live_next_callback",
         "loss_guard_net_loss_threshold",
         "loss_guard_max_observation_age_seconds",
     }
@@ -2221,6 +2223,8 @@ def _make_strategy_kwargs(config, plan, factor_mode, direction, risk_policy, *, 
         "logical_run_id": extra.pop("logical_run_id", None),
         "replay_quotes": extra.pop("replay_quotes", ()),
         "replay_instruments": extra.pop("replay_instruments", {}),
+        "live_ready_callback": extra.pop("live_ready_callback", None),
+        "live_next_callback": extra.pop("live_next_callback", None),
         **extra,
     }
 
@@ -6439,9 +6443,15 @@ def run_live(
     decision,
     allow_write_flag,
     _live_store_config_override: Optional[Mapping[str, Any]] = None,
+    _live_ready_callback: Optional[Callable[[Mapping[str, Any]], Any]] = None,
+    _live_next_callback: Optional[Callable[[Mapping[str, Any]], Any]] = None,
     previous_plan=None,
     _include_plan=False,
 ):
+    if _live_ready_callback is not None and not callable(_live_ready_callback):
+        raise RunnerError("LIVE_READY_CALLBACK_INVALID")
+    if _live_next_callback is not None and not callable(_live_next_callback):
+        raise RunnerError("LIVE_NEXT_CALLBACK_INVALID")
     golden_targets = _validate_golden_targets_option(
         config,
         mode="live",
@@ -6982,6 +6992,8 @@ def run_live(
             max_query_age_seconds=max_query_age.total_seconds(),
             max_live_bar_age_seconds=age_bound,
             max_future_skew_seconds=skew_bound,
+            live_ready_callback=_live_ready_callback,
+            live_next_callback=_live_next_callback,
             execution_enabled=write_enabled,
             loss_guard_net_loss_threshold=loss_guard_threshold,
             loss_guard_max_observation_age_seconds=loss_guard_max_age,
