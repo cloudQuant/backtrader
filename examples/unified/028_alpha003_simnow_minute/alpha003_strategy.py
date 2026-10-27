@@ -3342,7 +3342,11 @@ class Alpha003TargetStrategy(bt.Strategy):
         if store is None:
             self.last_execution_block_reason = "EXECUTION_STORE_UNAVAILABLE"
             return None
-        if self._risk_policy is None and getattr(self.p, "execution_enabled", None) is not False:
+        execution_enabled = getattr(self.p, "execution_enabled", None)
+        if type(execution_enabled) is not bool:
+            self.last_execution_block_reason = "EXECUTION_MODE_INVALID"
+            return None
+        if self._risk_policy is None and execution_enabled is True:
             self.last_execution_block_reason = "RISK_POLICY_REQUIRED"
             return None
         quote_max_age_seconds = self._quote_max_age_seconds
@@ -3387,6 +3391,16 @@ class Alpha003TargetStrategy(bt.Strategy):
         if tuple(refresh_loop_execution_ids) != execution_target_ids:
             self.last_execution_block_reason = "LIVE_EXECUTION_TARGET_SET_MISMATCH"
             return None
+        refresh_loop = getattr(self.p, "control_refresh_loop", None)
+        commission_required_override = getattr(
+            refresh_loop, "commission_required_for_open", None
+        )
+        if commission_required_override is not None and type(commission_required_override) is not bool:
+            self.last_execution_block_reason = "COMMISSION_REQUIRED_FOR_OPEN_INVALID"
+            return None
+        commission_required_for_open = (
+            execution_enabled is True or commission_required_override is True
+        )
 
         def project_current_snapshot():
             return project_factor_execution_facts(
@@ -3405,14 +3419,13 @@ class Alpha003TargetStrategy(bt.Strategy):
                 max_query_age=timedelta(seconds=float(query_max_age_seconds)),
                 execution_target_ids=execution_target_ids,
                 commission_identity_by_target=getattr(
-                    self.p.control_refresh_loop, "commission_identity_by_target", None
+                    refresh_loop, "commission_identity_by_target", None
                 ),
+                commission_required_for_open=commission_required_for_open,
             )
 
         try:
-            projection_scope = getattr(
-                self.p.control_refresh_loop, "strategy_fact_projection_scope", None
-            )
+            projection_scope = getattr(refresh_loop, "strategy_fact_projection_scope", None)
             if callable(projection_scope):
                 with projection_scope() as acquired:
                     if acquired is not True:

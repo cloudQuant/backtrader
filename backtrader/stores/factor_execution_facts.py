@@ -1562,6 +1562,10 @@ def _read_only_reconciliation_blockers(
     ignored_prefixes = (
         "consumed_quote_",
         "consumed_stream_",
+        # Commission evidence qualifies OPEN planning only. Retirement,
+        # reductions, and cancellations use the complete account/order facts
+        # below and must not depend on the optional fee sidecar.
+        "commission_fee_",
         "route_ineligible:",
         "route_eligibility_incomplete:",
         "route_arm_",
