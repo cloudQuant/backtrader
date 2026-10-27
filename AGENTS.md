@@ -549,8 +549,11 @@ rows enter the new epoch as history; omitted slots never become bars. After
 the gap, finite graphs require a complete current-generation live window;
 recursive source-origin continuity stays unqualified. Nine distinct synthetic
 core cases passed across two runs, including the exact-start boundary repair.
-The 028 history-loader composition and actual restart remain separate work;
-old warmup rows without durable journal anchors cannot be retrospectively trusted.
+The 028 saved-history/source-HWM integration is accepted only as
+`SOURCE_SYNTHETIC_HISTORY_SOURCE_INTEGRATION_ONLY`: 218 distinct cases have PASS
+across batches (composed 207/218, repair 11/13, final 2/2), not one 218-case run;
+three production-source pins were identical across all three. Legacy tape rows
+without durable anchors remain rejected, and real-account restart remains unaccepted.
 Journal schema 14 adds an optional typed source receipt to `record_grid_decision`
 and an indexed `source_highwater` per account/strategy/run/source kind. Completed
 ineligible batches receive empty-intent source anchors without advancing execution
@@ -560,8 +563,29 @@ a source-only anchor. Receipts have finite member/byte limits; old decisions are
 backfilled. Restart markers bind the exact old head and a caller/core-validated gap
 reference (or gapless transition); the journal does not recompute calendar omissions.
 Thirty distinct synthetic SQLite cases passed across the initial and focused repair
-runs, including migrations, rollback, close/reopen replay and archive. The 028 history
-loader and actual restart acceptance remain separate.
+runs, including migrations, rollback, close/reopen replay and archive. This journal-only
+result did not by itself accept the loader composition or an actual restart.
+The 028 integration fsyncs each tape row before recording its typed source
+receipt. WARMUP, CATCHING_UP, and other ineligible rows receive an empty-intent
+SOURCE_ONLY anchor without advancing the execution cursor or order budget; eligible
+GRID decisions, source anchors, scoped high-water updates, and capacity accounting
+share one transaction. Exact replay cannot rewind the source high-water or upgrade a
+SOURCE_ONLY row, and legacy tape rows without durable anchors are always rejected.
+The observed serialized combined payload is 109,308 bytes under the 028-only
+131,072-byte cap. The generic
+journal default remains 65,536 bytes.
+The saved-history loader binds the exact saved tape tail to its journal high-water.
+Only a nonempty bounded restart gap requires the full configured new-live window
+before OPEN; a gapless transition may reuse valid history under the core continuity
+and freshness checks. Missing slots never become bars. Its domain-tagged namespace
+uses only the sorted complete exchange-to-current-trading-day map, not route or grid
+identity, so same-day changes still pass the existing high-water/history checks and
+the day partition cannot reset logical-run risk identity, budgets, or loss baseline.
+The common enum fix normalizes `str` Enum values to exact built-in strings, and
+saved-history initialization cleanup preserves the original exception. Real-account
+history restart and formal AC status remain unaccepted. Timing thresholds are
+diagnostic under the current user policy; correctness, bounded-memory, and
+complete-cleanup contracts remain required.
 The 028 live CTP route binds each feed to its selected contract, the actual
 Trader trading day and the independently captured MD connection generation.
 `feeds/ctp_factor_source.py` maps untouched native ActionDay/TradingDay and
@@ -623,8 +647,10 @@ the guard; exact durable replay cannot dispatch, and the independent CANCEL/CLOS
 path remains available. Root accepted 14 earlier Coordinator cases and 10 final
 focused cases (not one 24-case run). The latter fixes named PandasData position
 refresh by accepting only nonblank string native aliases, retaining exchange
-conflict checks. This is synthetic integration only; 028 strategy wiring, real
-account PnL and process-restart acceptance remain outstanding.
+conflict checks. This Coordinator integration is synthetic only. The separate 028
+Strategy run-loss wiring was accepted only as source-synthetic integration, with 146
+distinct cases across three runs; real-account PnL and process-restart acceptance
+remain outstanding.
 The 028 Strategy now requires explicit run-loss policy for live writes before
 setup, and binds complete CNY account PnL to the durable guard. The public
 template uses CNY 1,000 and 30 seconds; read-only/replay remain inert. Missing

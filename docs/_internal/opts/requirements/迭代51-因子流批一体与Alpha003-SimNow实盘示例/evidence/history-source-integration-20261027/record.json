@@ -1,0 +1,1830 @@
+{
+  "schema": "iteration51_history_source_integration_dev_round.v1",
+  "repository": "D:\\source_code\\backtrader",
+  "branch": "dev",
+  "parent_commit": "19395a79ba5c3973a06b06df38e42117a7de3b0b",
+  "scope": [
+    "examples/unified/028_alpha003_simnow_minute/run.py",
+    "examples/unified/028_alpha003_simnow_minute/alpha003_strategy.py",
+    "backtrader/stores/factor_execution.py",
+    "tests/integration/test_live_alpha003_history_source_hwm.py",
+    "tests/integration/test_live_alpha003_history_payload_size.py",
+    "tests/integration/test_live_alpha003_history_continuity.py",
+    "tests/unit/test_alpha003_simnow_strategy.py",
+    "tests/integration/test_live_alpha003_history_catchup_execution.py",
+    "tests/unit/test_alpha003_simnow_runner.py",
+    "tests/integration/test_factor_decision_replay_economics.py"
+  ],
+  "accepted_level": "SOURCE_SYNTHETIC_HISTORY_SOURCE_INTEGRATION_ONLY",
+  "behavior": [
+    "Tape fsync precedes a typed source receipt. Ineligible warmup/history batches receive empty-intent SOURCE_ONLY anchors without an execution cursor or order-budget increment.",
+    "Eligible GRID, source anchor and indexed high-water update commit atomically; exact replay cannot rewind or upgrade a SOURCE_ONLY anchor.",
+    "History requires the exact anchored tape tail, header and per-member receipts; unanchored legacy warmup and legacy bare source-kind high-water are rejected.",
+    "Nonempty bounded restart gaps require a complete configured new-live finite window; gapless valid history remains reusable subject to core freshness and continuity. Missing slots are never fabricated.",
+    "Domain-tagged source namespace uses only the sorted full exchange/current-trading-day map. Same-day route/grid changes retain high-water checks; logical-run risk identity, budgets and loss baseline are unchanged.",
+    "Sticky continuity failures and final nonempty-tape high-water mismatch fail after cleanup; independently qualified owned CANCEL/CLOSE remain available.",
+    "Normalize string enum readiness to a built-in string; initialize saved history before guarded loading and derive cutover after source readiness.",
+    "028 combined decision payload cap is 131072 bytes; generic journal default remains 65536. The measured 87-member/92-provenance/two-OPEN synthetic payload is 109308 bytes; source-only still fits the generic cap."
+  ],
+  "qa": [
+    {
+      "generation": "i51-history-composed-qa-20261027-r1",
+      "result_path": "D:\\temp\\i51-history-composed-qa-20261027-r1\\result.json",
+      "result_pin": {
+        "size_bytes": 11855,
+        "sha256": "17e2619ec7d936cfb5691fb44988ba7032fdc7cf535a540259d1a444fde4102a"
+      },
+      "result": {
+        "level": "SOURCE_NATIVE_SYNTHETIC_ONLY",
+        "lane": "backtrader",
+        "exit_code": 1,
+        "elapsed_seconds": 35.563000000081956,
+        "test_count": 218,
+        "failures": 11,
+        "errors": 0,
+        "skips": 0,
+        "source_pins_unchanged": true,
+        "source_pins_before": {
+          "D:\\source_code\\backtrader\\examples\\unified\\028_alpha003_simnow_minute\\alpha003_strategy.py": {
+            "size_bytes": 229037,
+            "sha256": "a8b34261a06c35d2e2ff9f1e5c44825a2e7c6ecae4d0af2adadf169260640522"
+          },
+          "D:\\source_code\\backtrader\\examples\\unified\\028_alpha003_simnow_minute\\run.py": {
+            "size_bytes": 322730,
+            "sha256": "ea2a21325f5f1e56fac3aed09f5a16bbc24fdccce754e8fe1ddc87bb3653619e"
+          },
+          "D:\\source_code\\backtrader\\examples\\unified\\028_alpha003_simnow_minute\\config.yaml": {
+            "size_bytes": 4591,
+            "sha256": "9eecf5a4dba7786aa391c1b8c8bb90747f7b06692679e7b9d851c052d646841d"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\stores\\execution_decision_journal.py": {
+            "size_bytes": 378324,
+            "sha256": "4bb854e89a95e0ebe1a4eb5c6d5bd92bf26e780a3f6b3569495f98d70ee2359f"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\stores\\execution_durable_capacity.py": {
+            "size_bytes": 19940,
+            "sha256": "fdf1b79becfc1cd86f953291f801c6145b26a66246348617383e149298072688"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\stores\\factor_execution.py": {
+            "size_bytes": 296766,
+            "sha256": "55286e94308a18565280299b3ba05dfab8ca5610c6f0ef0d4c299caee74bb239"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\stores\\factor_execution_facts.py": {
+            "size_bytes": 219489,
+            "sha256": "769e1b87100022354222023796c22504cae676d3067582b16e146abc3bf6fa2b"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\stores\\registered_sim.py": {
+            "size_bytes": 144382,
+            "sha256": "fed9eb3106cd3d7b4753157fe75b0723dbdd6bec3775f9c18aad06b71a639a04"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\stores\\btapistore.py": {
+            "size_bytes": 888832,
+            "sha256": "4de5c66997072da7bb397f230ac0f9955e5f900d9396134264ace341c7c0a568"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\brokers\\btapibroker.py": {
+            "size_bytes": 525714,
+            "sha256": "776087c6b70574df935009038a0cd4cb07d83da078e47b16c854d09e041bed3e"
+          },
+          "D:\\source_code\\backtrader\\tests\\unit\\stores\\test_factor_execution_facts.py": {
+            "size_bytes": 159045,
+            "sha256": "2a20ee47bc6ab75d2e422b16e5a0eaf6256dcab1c4abbf0888624220925931d2"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\research\\live.py": {
+            "size_bytes": 71236,
+            "sha256": "ade26ec53cc4b6d262eeeb889816f7493058cff719a6eb580508323f9ae440f7"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\research\\live_cohort.py": {
+            "size_bytes": 145308,
+            "sha256": "914df8ecd7474a6efdd8e04ee079c08f7b388ba425fff91c62053d84bedba8a1"
+          },
+          "D:\\bt_api_py\\bt_api\\bt_api_ctp\\src\\bt_api_ctp\\query.py": {
+            "size_bytes": 14630,
+            "sha256": "bf6bfcdf41614c216c79d2e137756bacfc1a45b7e903bb4335399d65e8bb3dfb"
+          },
+          "D:\\bt_api_py\\bt_api\\bt_api_ctp\\src\\bt_api_ctp\\ctp\\client.py": {
+            "size_bytes": 508688,
+            "sha256": "5caca800ccba1169253d8cf1d1853e66c85806f84f81e8ead600957f7285445c"
+          },
+          "D:\\bt_api_py\\bt_api\\bt_api_ctp\\src\\bt_api_ctp\\ctp\\callback_ingress.py": {
+            "size_bytes": 73492,
+            "sha256": "c7dbae9aad0aafc7ab1afb4e7a682957f6125abb3b4ba270dd516acdf70294f7"
+          },
+          "D:\\source_code\\backtrader\\tests\\integration\\test_live_alpha003_history_source_hwm.py": {
+            "size_bytes": 53164,
+            "sha256": "262a69149015f4becbba6c0df4bd7647e4f25dea50a9ecb0242e3176a9244bd7"
+          },
+          "D:\\source_code\\backtrader\\tests\\integration\\test_live_alpha003_history_payload_size.py": {
+            "size_bytes": 20604,
+            "sha256": "b8d178a5de36f9889bdf82436b2201931c2bd587755c0b9ffc87d8b100897300"
+          },
+          "D:\\source_code\\backtrader\\tests\\integration\\test_live_alpha003_history_continuity.py": {
+            "size_bytes": 5728,
+            "sha256": "898819c16f54901a2d2fa9a4950f6f06bce542082f2e9f7640c5af8802eae272"
+          },
+          "D:\\source_code\\backtrader\\tests\\integration\\test_live_alpha003_history_catchup_execution.py": {
+            "size_bytes": 47376,
+            "sha256": "44cdd1b9ce94ed830a3220af075289097b30ffd355222ed77814ff6761c0fc16"
+          },
+          "D:\\source_code\\backtrader\\tests\\integration\\test_factor_decision_replay_economics.py": {
+            "size_bytes": 18235,
+            "sha256": "20bb3e06cc9280cc30327ce1c5696dbcb629d29467d7ad921bb850fead686da6"
+          },
+          "D:\\source_code\\backtrader\\tests\\__init__.py": {
+            "size_bytes": 30,
+            "sha256": "512e1e3b7f30908568916e60ff67f65142b85edf14a00d8b49a2a99d3e19a458"
+          },
+          "D:\\source_code\\backtrader\\tests\\integration\\__init__.py": {
+            "size_bytes": 963,
+            "sha256": "98646827c4cb4bfa0f40d3292a3bf7e03f99d8852d4789f46c45fdc296887b47"
+          },
+          "D:\\source_code\\backtrader\\tests\\unit\\stores\\test_factor_execution.py": {
+            "size_bytes": 89698,
+            "sha256": "3f9ed313837116ecb3baa73778765cc4167ed9f6a469c8925741f84baf7f4995"
+          },
+          "D:\\source_code\\backtrader\\tests\\unit\\test_alpha003_simnow_strategy.py": {
+            "size_bytes": 169015,
+            "sha256": "847ee134caa3d6e6cdb664aff8c63fcb16a332939eb53e2d0de529b002a7de79"
+          },
+          "D:\\source_code\\backtrader\\tests\\unit\\test_alpha003_simnow_runner.py": {
+            "size_bytes": 252708,
+            "sha256": "5c4a06582217278552e899d31909b65296947922e0d29083504df7408954cd63"
+          }
+        },
+        "source_pins_after": {
+          "D:\\source_code\\backtrader\\examples\\unified\\028_alpha003_simnow_minute\\alpha003_strategy.py": {
+            "size_bytes": 229037,
+            "sha256": "a8b34261a06c35d2e2ff9f1e5c44825a2e7c6ecae4d0af2adadf169260640522"
+          },
+          "D:\\source_code\\backtrader\\examples\\unified\\028_alpha003_simnow_minute\\run.py": {
+            "size_bytes": 322730,
+            "sha256": "ea2a21325f5f1e56fac3aed09f5a16bbc24fdccce754e8fe1ddc87bb3653619e"
+          },
+          "D:\\source_code\\backtrader\\examples\\unified\\028_alpha003_simnow_minute\\config.yaml": {
+            "size_bytes": 4591,
+            "sha256": "9eecf5a4dba7786aa391c1b8c8bb90747f7b06692679e7b9d851c052d646841d"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\stores\\execution_decision_journal.py": {
+            "size_bytes": 378324,
+            "sha256": "4bb854e89a95e0ebe1a4eb5c6d5bd92bf26e780a3f6b3569495f98d70ee2359f"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\stores\\execution_durable_capacity.py": {
+            "size_bytes": 19940,
+            "sha256": "fdf1b79becfc1cd86f953291f801c6145b26a66246348617383e149298072688"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\stores\\factor_execution.py": {
+            "size_bytes": 296766,
+            "sha256": "55286e94308a18565280299b3ba05dfab8ca5610c6f0ef0d4c299caee74bb239"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\stores\\factor_execution_facts.py": {
+            "size_bytes": 219489,
+            "sha256": "769e1b87100022354222023796c22504cae676d3067582b16e146abc3bf6fa2b"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\stores\\registered_sim.py": {
+            "size_bytes": 144382,
+            "sha256": "fed9eb3106cd3d7b4753157fe75b0723dbdd6bec3775f9c18aad06b71a639a04"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\stores\\btapistore.py": {
+            "size_bytes": 888832,
+            "sha256": "4de5c66997072da7bb397f230ac0f9955e5f900d9396134264ace341c7c0a568"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\brokers\\btapibroker.py": {
+            "size_bytes": 525714,
+            "sha256": "776087c6b70574df935009038a0cd4cb07d83da078e47b16c854d09e041bed3e"
+          },
+          "D:\\source_code\\backtrader\\tests\\unit\\stores\\test_factor_execution_facts.py": {
+            "size_bytes": 159045,
+            "sha256": "2a20ee47bc6ab75d2e422b16e5a0eaf6256dcab1c4abbf0888624220925931d2"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\research\\live.py": {
+            "size_bytes": 71236,
+            "sha256": "ade26ec53cc4b6d262eeeb889816f7493058cff719a6eb580508323f9ae440f7"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\research\\live_cohort.py": {
+            "size_bytes": 145308,
+            "sha256": "914df8ecd7474a6efdd8e04ee079c08f7b388ba425fff91c62053d84bedba8a1"
+          },
+          "D:\\bt_api_py\\bt_api\\bt_api_ctp\\src\\bt_api_ctp\\query.py": {
+            "size_bytes": 14630,
+            "sha256": "bf6bfcdf41614c216c79d2e137756bacfc1a45b7e903bb4335399d65e8bb3dfb"
+          },
+          "D:\\bt_api_py\\bt_api\\bt_api_ctp\\src\\bt_api_ctp\\ctp\\client.py": {
+            "size_bytes": 508688,
+            "sha256": "5caca800ccba1169253d8cf1d1853e66c85806f84f81e8ead600957f7285445c"
+          },
+          "D:\\bt_api_py\\bt_api\\bt_api_ctp\\src\\bt_api_ctp\\ctp\\callback_ingress.py": {
+            "size_bytes": 73492,
+            "sha256": "c7dbae9aad0aafc7ab1afb4e7a682957f6125abb3b4ba270dd516acdf70294f7"
+          },
+          "D:\\source_code\\backtrader\\tests\\integration\\test_live_alpha003_history_source_hwm.py": {
+            "size_bytes": 53164,
+            "sha256": "262a69149015f4becbba6c0df4bd7647e4f25dea50a9ecb0242e3176a9244bd7"
+          },
+          "D:\\source_code\\backtrader\\tests\\integration\\test_live_alpha003_history_payload_size.py": {
+            "size_bytes": 20604,
+            "sha256": "b8d178a5de36f9889bdf82436b2201931c2bd587755c0b9ffc87d8b100897300"
+          },
+          "D:\\source_code\\backtrader\\tests\\integration\\test_live_alpha003_history_continuity.py": {
+            "size_bytes": 5728,
+            "sha256": "898819c16f54901a2d2fa9a4950f6f06bce542082f2e9f7640c5af8802eae272"
+          },
+          "D:\\source_code\\backtrader\\tests\\integration\\test_live_alpha003_history_catchup_execution.py": {
+            "size_bytes": 47376,
+            "sha256": "44cdd1b9ce94ed830a3220af075289097b30ffd355222ed77814ff6761c0fc16"
+          },
+          "D:\\source_code\\backtrader\\tests\\integration\\test_factor_decision_replay_economics.py": {
+            "size_bytes": 18235,
+            "sha256": "20bb3e06cc9280cc30327ce1c5696dbcb629d29467d7ad921bb850fead686da6"
+          },
+          "D:\\source_code\\backtrader\\tests\\__init__.py": {
+            "size_bytes": 30,
+            "sha256": "512e1e3b7f30908568916e60ff67f65142b85edf14a00d8b49a2a99d3e19a458"
+          },
+          "D:\\source_code\\backtrader\\tests\\integration\\__init__.py": {
+            "size_bytes": 963,
+            "sha256": "98646827c4cb4bfa0f40d3292a3bf7e03f99d8852d4789f46c45fdc296887b47"
+          },
+          "D:\\source_code\\backtrader\\tests\\unit\\stores\\test_factor_execution.py": {
+            "size_bytes": 89698,
+            "sha256": "3f9ed313837116ecb3baa73778765cc4167ed9f6a469c8925741f84baf7f4995"
+          },
+          "D:\\source_code\\backtrader\\tests\\unit\\test_alpha003_simnow_strategy.py": {
+            "size_bytes": 169015,
+            "sha256": "847ee134caa3d6e6cdb664aff8c63fcb16a332939eb53e2d0de529b002a7de79"
+          },
+          "D:\\source_code\\backtrader\\tests\\unit\\test_alpha003_simnow_runner.py": {
+            "size_bytes": 252708,
+            "sha256": "5c4a06582217278552e899d31909b65296947922e0d29083504df7408954cd63"
+          }
+        },
+        "nodes": [
+          "tests/unit/test_alpha003_simnow_strategy.py",
+          "tests/unit/test_alpha003_simnow_runner.py",
+          "tests/integration/test_live_alpha003_history_source_hwm.py",
+          "tests/integration/test_live_alpha003_history_catchup_execution.py",
+          "tests/integration/test_live_alpha003_history_payload_size.py",
+          "tests/integration/test_live_alpha003_history_continuity.py",
+          "tests/integration/test_factor_decision_replay_economics.py"
+        ],
+        "spec": {
+          "size_bytes": 6544,
+          "sha256": "183ac246aa5243c3fe84aa2f0dfb009d4cbdc5d708b18ed981160e5e92a36ed1"
+        },
+        "runner": {
+          "size_bytes": 4408,
+          "sha256": "2e7e707c9bd53f0e160f5a4cc4a10345b1ee333779a1877e948ea8265d1e0e10"
+        },
+        "boundary": "Real SDK/SPI and query fields; synthetic request/OS leaves. Network denied. No provider/account acceptance."
+      },
+      "cases": [
+        {
+          "node": "tests/unit/test_alpha003_simnow_strategy.py::test_alpha003_plan_uses_production_factor_and_cohort_capacity_contract",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_strategy.py::test_authorized_subset_does_not_shrink_factor_pool_and_selects_extrema",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_strategy.py::test_direction_is_applied_once_and_ties_use_product_key_order",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_strategy.py::test_equal_or_insufficient_finite_extrema_do_not_create_targets[points0]",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_strategy.py::test_equal_or_insufficient_finite_extrema_do_not_create_targets[points1]",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_strategy.py::test_incomplete_or_nonlive_evidence_blocks_new_signal[changes0-COHORT_NOT_COMPLETE]",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_strategy.py::test_incomplete_or_nonlive_evidence_blocks_new_signal[changes1-FACTOR_NOT_LIVE_READY]",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_strategy.py::test_incomplete_or_nonlive_evidence_blocks_new_signal[changes2-FACTOR_NOT_LIVE_READY]",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_strategy.py::test_incomplete_or_nonlive_evidence_blocks_new_signal[changes3-FACTOR_BATCH_NOT_COMPLETE]",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_strategy.py::test_incomplete_or_nonlive_evidence_blocks_new_signal[changes4-INVALID_AVAILABILITY_ORDER]",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_strategy.py::test_incomplete_or_nonlive_evidence_blocks_new_signal[changes5-INPUT_QUALITY_UNAVAILABLE]",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_strategy.py::test_batch_snapshot_identity_must_match_and_inputs_must_be_complete",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_strategy.py::test_rebalance_cadence_counts_eligible_grids_and_defaults_to_five",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_strategy.py::test_shared_snapshot_projection_preserves_epoch_availability_and_quality",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_strategy.py::test_history_projection_can_be_replay_ready_without_mutating_live_readiness",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_strategy.py::test_live_decision_reacquires_and_rejects_a_changed_factor_snapshot",
+          "status": "FAIL",
+          "failure_message": "AttributeError: 'types.SimpleNamespace' object has no attribute '_source_kind'"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_strategy.py::test_live_shadow_records_eligible_grid_as_noop_and_never_dispatches",
+          "status": "FAIL",
+          "failure_message": "AttributeError: 'types.SimpleNamespace' object has no attribute '_source_kind'"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_strategy.py::test_live_grid_scope_forwards_sampled_budget_count_and_exit_reserve",
+          "status": "FAIL",
+          "failure_message": "AttributeError: 'Alpha003TargetStrategy' object has no attribute '_source_kind'"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_strategy.py::test_live_risk_scope_forwards_sampled_budget_count_and_post_plan_reserve",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_strategy.py::test_live_shadow_does_not_submit_risk_reduction_preview",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_strategy.py::test_live_shadow_records_complete_source_grid_without_risk_budget_facts",
+          "status": "FAIL",
+          "failure_message": "AttributeError: 'Alpha003TargetStrategy' object has no attribute '_source_kind'"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_strategy.py::test_prenext_decision_tape_writer_is_idempotent_per_complete_warmup_grid",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_strategy.py::test_prenext_leaves_ready_grid_for_target_decision_path",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_strategy.py::test_prenext_leaves_replay_ready_history_grid_for_target_decision_path",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_strategy.py::test_live_execution_evidence_payload_binds_quote_and_query_times",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_strategy.py::test_non_due_grid_clears_older_actionable_target",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_strategy.py::test_strategy_remains_an_ordinary_backtrader_strategy",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_strategy.py::test_order_planner_creates_one_hand_per_extreme_at_fresh_tick_aligned_prices",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_strategy.py::test_order_planner_enforces_quote_availability_tick_and_price_limits[quote_changes0-CURRENT_QUOTE_INVALID_OR_STALE]",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_strategy.py::test_order_planner_enforces_quote_availability_tick_and_price_limits[quote_changes1-CURRENT_QUOTE_INVALID_OR_STALE]",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_strategy.py::test_order_planner_enforces_quote_availability_tick_and_price_limits[quote_changes2-CURRENT_QUOTE_INVALID_OR_STALE]",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_strategy.py::test_order_planner_enforces_quote_availability_tick_and_price_limits[quote_changes3-None]",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_strategy.py::test_live_plan_rejects_missing_or_invalid_freshness_bounds[kwargs0]",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_strategy.py::test_live_plan_rejects_missing_or_invalid_freshness_bounds[kwargs1]",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_strategy.py::test_live_plan_rejects_missing_or_invalid_freshness_bounds[kwargs2]",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_strategy.py::test_live_plan_rejects_missing_or_invalid_freshness_bounds[kwargs3]",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_strategy.py::test_live_plan_rejects_missing_or_invalid_freshness_bounds[kwargs4]",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_strategy.py::test_live_plan_rejects_missing_or_invalid_freshness_bounds[kwargs5]",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_strategy.py::test_live_plan_rejects_missing_or_invalid_freshness_bounds[kwargs6]",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_strategy.py::test_live_plan_rejects_missing_or_invalid_freshness_bounds[kwargs7]",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_strategy.py::test_replay_metadata_availability_is_preserved_for_freshness_checks",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_strategy.py::test_replay_quote_lookup_uses_latest_causal_row_and_dispatch_keeps_its_identity",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_strategy.py::test_missing_opening_margin_blocks_increase_without_inventing_a_default",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_strategy.py::test_risk_reduction_survives_missing_opening_capital_and_margin_facts",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_strategy.py::test_cancel_open_order_intent_keeps_original_owner_without_opening_policy_payload",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_strategy.py::test_order_planner_refuses_new_risk_when_explicit_budgets_are_exceeded[policy_changes0-ORDER_INTENT_BUDGET_EXCEEDED]",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_strategy.py::test_order_planner_refuses_new_risk_when_explicit_budgets_are_exceeded[policy_changes1-ACCOUNT_RISK_LIMIT]",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_strategy.py::test_order_planner_refuses_new_risk_when_explicit_budgets_are_exceeded[policy_changes2-ACCOUNT_RISK_LIMIT]",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_strategy.py::test_order_planner_refuses_new_risk_when_explicit_budgets_are_exceeded[policy_changes3-ACCOUNT_RISK_LIMIT]",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_strategy.py::test_order_planner_never_opens_when_route_or_trading_permission_is_denied[account_route-ROUTE_NOT_AUTHORIZED]",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_strategy.py::test_order_planner_never_opens_when_route_or_trading_permission_is_denied[instrument_route-INSTRUMENT_NOT_AUTHORIZED]",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_strategy.py::test_order_planner_never_opens_when_route_or_trading_permission_is_denied[instrument_trading-INSTRUMENT_NOT_AUTHORIZED]",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_strategy.py::test_live_run_keeps_source_backed_owned_order_cancel_during_warmup_without_open_readiness",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_strategy.py::test_reduction_is_submitted_alone_before_any_new_target_is_opened",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_strategy.py::test_unquoted_existing_position_freezes_a_new_target_increase",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_strategy.py::test_unknown_working_intent_freezes_all_new_risk",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_strategy.py::test_missing_risk_inputs_block_writes_but_leave_factor_selection_available",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_strategy.py::test_opening_plan_reserves_bounded_exit_capacity_from_durable_run_budget[14-READY-None]",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_strategy.py::test_opening_plan_reserves_bounded_exit_capacity_from_durable_run_budget[15-BLOCKED-RUN_ORDER_BUDGET_EXCEEDED]",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_strategy.py::test_opening_plan_reserves_bounded_exit_capacity_from_durable_run_budget[None-BLOCKED-RUN_ORDER_BUDGET_UNAVAILABLE]",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_strategy.py::test_one_shfe_open_reserves_cancel_and_first_close_for_each_exposure[3-0-BLOCKED]",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_strategy.py::test_one_shfe_open_reserves_cancel_and_first_close_for_each_exposure[4-0-READY]",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_strategy.py::test_active_partial_open_and_new_open_reserve_their_full_possible_disposition",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_strategy.py::test_last_budget_admitted_opens_leave_room_for_close_all_and_reserve_is_not_charged",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_strategy.py::test_reduction_plan_obeys_the_same_durable_run_order_budget[19-READY]",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_strategy.py::test_reduction_plan_obeys_the_same_durable_run_order_budget[20-BLOCKED]",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_strategy.py::test_close_preserves_first_exit_capacity_for_another_owned_position[18-READY]",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_strategy.py::test_close_preserves_first_exit_capacity_for_another_owned_position[19-BLOCKED]",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_strategy.py::test_exit_cancel_reserves_first_close_for_possible_fill_and_other_position[17-READY]",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_strategy.py::test_exit_cancel_reserves_first_close_for_possible_fill_and_other_position[18-BLOCKED]",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_strategy.py::test_maximum_hold_and_run_end_apply_independent_of_signal_availability",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_strategy.py::test_flat_pending_open_is_cancelled_before_run_end_or_preclose_without_quote_facts[True-ACCEPTED]",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_strategy.py::test_flat_pending_open_is_cancelled_before_run_end_or_preclose_without_quote_facts[False-PARTIAL]",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_strategy.py::test_unknown_pending_open_blocks_run_end_instead_of_claiming_flat",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_strategy.py::test_unowned_pending_open_blocks_exit_cancellation",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_strategy.py::test_missing_final_batch_evidence_blocks_new_risk",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_strategy.py::test_tape_failure_keeps_cancel_and_close_but_suppresses_open",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_strategy.py::test_final_replay_residual_position_is_explicitly_blocked",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_strategy.py::test_notify_idle_requests_public_engine_stop_only_after_shutdown_ready[True]",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_strategy.py::test_notify_idle_requests_public_engine_stop_only_after_shutdown_ready[False]",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_strategy.py::test_missing_round_trip_fee_bound_blocks_new_open_but_keeps_risk_reductions",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_strategy.py::test_round_trip_fee_upper_bound_is_included_in_opening_loss_budget",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_strategy.py::test_unknown_run_end_policy_is_rejected_instead_of_becoming_a_write_default",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_strategy.py::test_risk_policy_mapping_matches_typed_policy_for_preclose_grace[0]",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_strategy.py::test_risk_policy_mapping_matches_typed_policy_for_preclose_grace[60]",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_strategy.py::test_risk_policy_mapping_rejects_invalid_preclose_grace_types_and_values[True]",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_strategy.py::test_risk_policy_mapping_rejects_invalid_preclose_grace_types_and_values[1.5]",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_strategy.py::test_risk_policy_mapping_rejects_invalid_preclose_grace_types_and_values[-1]",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_strategy.py::test_stop_joins_control_refresh_before_base_strategy_stop",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_strategy.py::test_strategy_stop_propagates_refresh_join_failure_without_base_stop",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_strategy.py::test_cerebro_refresh_join_failure_skips_broker_and_store_teardown",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_strategy.py::test_refresh_loop_stop_failure_does_not_claim_shutdown_completed",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_strategy.py::test_source_backed_dated_position_produces_exact_close_leg_and_broker_order[TODAY-False-close_today-3]",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_strategy.py::test_source_backed_dated_position_produces_exact_close_leg_and_broker_order[TODAY-True-close_today-3]",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_strategy.py::test_source_backed_dated_position_produces_exact_close_leg_and_broker_order[HISTORY-False-close_yesterday-4]",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_strategy.py::test_generic_dce_close_dispatch_matches_owner_intent_economics",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_strategy.py::test_exhausted_run_budget_keeps_owned_residual_not_flat",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_strategy.py::test_live_loss_guard_uses_complete_source_pnl_once_and_latches_without_rebaseline",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_strategy.py::test_unqualified_live_pnl_never_seeds_guard_and_read_only_skips_requirement",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_strategy.py::test_incomplete_live_refresh_never_seeds_guard",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_strategy.py::test_live_loss_guard_refresh_binding_and_clock_failures_are_fatal",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_strategy.py::test_cerebro_strategy_blocks_open_then_replays_owned_close_once[late_enable-RUN_LOSS_GUARD_LATE_ENABLE_AFTER_OPEN]",
+          "status": "FAIL",
+          "failure_message": "AssertionError: assert 'OPEN_RISK_FACTS_NOT_READY' == 'RUN_LOSS_GUA...TEXT_REQUIRED'\n  \n  - RUN_LOSS_GUARD_CONTEXT_REQUIRED\n  + OPEN_RISK_FACTS_NOT_READY"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_strategy.py::test_cerebro_strategy_blocks_open_then_replays_owned_close_once[scan_limit-RUN_LOSS_GUARD_ENABLE_SCAN_LIMIT]",
+          "status": "FAIL",
+          "failure_message": "AssertionError: assert 'OPEN_RISK_FACTS_NOT_READY' == 'RUN_LOSS_GUA...TEXT_REQUIRED'\n  \n  - RUN_LOSS_GUARD_CONTEXT_REQUIRED\n  + OPEN_RISK_FACTS_NOT_READY"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_strategy.py::test_live_loss_guard_trading_day_change_never_rebaselines_same_run",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_strategy.py::test_read_only_flat_shadow_can_retire_while_trading_plan_is_blocked",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_strategy.py::test_null_risk_read_only_stop_preserves_observed_working_orders[active_order]",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_strategy.py::test_null_risk_read_only_stop_preserves_observed_working_orders[pending_order]",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_strategy.py::test_null_risk_retirement_rejects_nonflat_projection_with_writable_store",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_strategy.py::test_null_risk_read_only_stop_preserves_foreign_target_position_without_attribution",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_strategy.py::test_null_risk_read_only_stop_blocks_unreconciled_foreign_order_slot",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_strategy.py::test_null_risk_read_only_stop_preserves_typed_external_position_and_order",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_strategy.py::test_null_risk_read_only_facts_require_explicit_freshness_and_current_receipt",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_strategy.py::test_null_risk_read_only_stop_rejects_stale_query_projection",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_strategy.py::test_passive_retirement_requires_same_projecting_broker_and_store[broker]",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_strategy.py::test_passive_retirement_requires_same_projecting_broker_and_store[store]",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_strategy.py::test_nonflat_read_only_state_needs_all_positive_no_write_proofs[execution_enabled]",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_strategy.py::test_nonflat_read_only_state_needs_all_positive_no_write_proofs[broker_mode]",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_strategy.py::test_nonflat_read_only_state_needs_all_positive_no_write_proofs[store_write]",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_strategy.py::test_stop_confirms_fresh_read_only_state_after_refresh_join",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_strategy.py::test_stop_rejects_readiness_if_query_session_changes_during_join",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_strategy.py::test_stop_rejects_readiness_if_query_snapshot_ages_during_join",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_strategy.py::test_read_only_retirement_rejects_missing_facts",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_strategy.py::test_read_only_retirement_blocks_stale_mixed_session_or_unknown_facts[stale_query-SHUTDOWN_RECONCILIATION_BLOCKED:]",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_strategy.py::test_read_only_retirement_blocks_stale_mixed_session_or_unknown_facts[session_mismatch-SHUTDOWN_RECONCILIATION_BLOCKED:]",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_strategy.py::test_read_only_retirement_blocks_stale_mixed_session_or_unknown_facts[unknown_order-SHUTDOWN_RECONCILIATION_BLOCKED:]",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_strategy.py::test_read_only_retirement_blocks_stale_mixed_session_or_unknown_facts[pending_order-SHUTDOWN_RECONCILIATION_BLOCKED:]",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_strategy.py::test_read_only_retirement_blocks_stale_mixed_session_or_unknown_facts[frozen-SHUTDOWN_RECONCILIATION_BLOCKED:]",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_strategy.py::test_read_only_retirement_blocks_active_order_with_source_book_blocker",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_strategy.py::test_dated_close_rejects_generic_offset_or_unroutable_hedge[mutation0-DATED_CLOSE_OFFSET_OR_HEDGE_INVALID]",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_strategy.py::test_dated_close_rejects_generic_offset_or_unroutable_hedge[mutation1-DATED_CLOSE_HEDGE_UNSUPPORTED]",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_strategy.py::test_shfe_close_without_source_backed_date_bucket_never_falls_back_to_generic_close",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_strategy.py::test_replay_shfe_close_without_a_dated_replay_ledger_is_explicitly_blocked",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_runner.py::test_ctp_query_plan_projects_only_finite_snapshot_failure_codes[known-CATALOG_QUERY_CALL_FAILED]",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_runner.py::test_ctp_query_plan_projects_only_finite_snapshot_failure_codes[forged-UNEXPECTED_COLLECTION_FAILURE]",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_runner.py::test_ctp_query_plan_projects_only_finite_snapshot_failure_codes[subclass-UNEXPECTED_COLLECTION_FAILURE]",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_runner.py::test_ctp_query_plan_projects_only_finite_snapshot_failure_codes[unexpected-UNEXPECTED_COLLECTION_FAILURE]",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_runner.py::test_ctp_query_plan_drops_malformed_snapshot_diagnostics_without_leaking_values",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_runner.py::test_cli_query_diagnostic_serializer_rejects_forged_payloads[forged_changes0]",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_runner.py::test_cli_query_diagnostic_serializer_rejects_forged_payloads[forged_changes1]",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_runner.py::test_cli_query_diagnostic_serializer_rejects_forged_payloads[forged_changes2]",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_runner.py::test_cli_query_diagnostic_serializer_rejects_forged_payloads[forged_changes3]",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_runner.py::test_cli_query_diagnostic_serializer_rejects_forged_payloads[forged_changes4]",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_runner.py::test_replay_clock_deadline_samples_and_partial_waits_do_not_skip_slots",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_runner.py::test_runner_wall_clock_wait_is_interrupted_by_public_cerebro_wake",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_runner.py::test_refresh_loop_accepts_natural_eof_only_from_strategy_shutdown_proof[True-PASS-None]",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_runner.py::test_refresh_loop_accepts_natural_eof_only_from_strategy_shutdown_proof[False-BLOCKED-SHUTDOWN_ORDER_TERMINAL_PENDING]",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_runner.py::test_refresh_loop_finishes_inflight_query_before_successful_post_join_proof",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_runner.py::test_refresh_loop_stop_wins_before_reserved_query_start",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_runner.py::test_refresh_loop_passes_same_query_set_receipt_to_terminal_coordinator",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_runner.py::test_refresh_loop_rotates_margin_queries_only_over_execution_targets",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_runner.py::test_reconcile_all_fails_closed_on_blocked_coordinator_result",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_runner.py::test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bundle[flat-two-epoch-positive]",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_runner.py::test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bundle[nonflat-winddown-timeout]",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_runner.py::test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bundle[same-store-query-live]",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_runner.py::test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bundle[saved-history-real-live-restart]",
+          "status": "FAIL",
+          "failure_message": "backtrader.research.live_cohort.LiveCohortValidationError: bar close_time is not an explicit planned calendar slot\nbounded source-receipt diagnostic {\"code\":null,\"events\":[{\"outcome\":\"RETURNED\",\"result_type\":\"ExecutionSourceReceipt\",\"stage\":\"strategy_source_receipt\"},{\"outcome\":\"RETURNED\",\"result_type\":\"ExecutionGridDecision\",\"stage\":\"coordinator_record_source_receipt\"},{\"outcome\":\"RETURNED\",\"result_type\":\"ExecutionSourceReceipt\",\"stage\":\"strategy_source_receipt\"},{\"outcome\":\"RETURNED\",\"result_type\":\"ExecutionSourceReceipt\",\"stage\":\"strategy_source_receipt\"},{\"outcome\":\"RETURNED\",\"result_type\":\"ExecutionGridDecision\",\"stage\":\"coordinator_record_source_receipt\"},{\"outcome\":\"RETURNED\",\"result_type\":\"ExecutionSourceReceipt\",\"stage\":\"strategy_source_receipt\"},{\"outcome\":\"RETURNED\",\"result_type\":\"ExecutionSourceReceipt\",\"stage\":\"strategy_source_receipt\"},{\"outcome\":\"RETURNED\",\"result_type\":\"ExecutionGridDecision\",\"stage\":\"coordinator_record_source_receipt\"}],\"exception_type\":\"LiveCohortValidationError\",\"source_continuity\":null,\"source_receipt_counts\":{\"builder_calls\":81,\"builder_returns\":81,\"coordinator_write_calls\":39,\"coordinator_write_returns\":39,\"journal_grid_calls\":60,\"journal_source_rows\":60}}"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_runner.py::test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bundle[saved-query-history-three-epoch-restart]",
+          "status": "FAIL",
+          "failure_message": "backtrader.research.live_cohort.LiveCohortValidationError: bar close_time is not an explicit planned calendar slot\nbounded source-receipt diagnostic {\"code\":null,\"events\":[{\"outcome\":\"RETURNED\",\"result_type\":\"ExecutionSourceReceipt\",\"stage\":\"strategy_source_receipt\"},{\"outcome\":\"RETURNED\",\"result_type\":\"ExecutionGridDecision\",\"stage\":\"coordinator_record_source_receipt\"},{\"outcome\":\"RETURNED\",\"result_type\":\"ExecutionSourceReceipt\",\"stage\":\"strategy_source_receipt\"},{\"outcome\":\"RETURNED\",\"result_type\":\"ExecutionSourceReceipt\",\"stage\":\"strategy_source_receipt\"},{\"outcome\":\"RETURNED\",\"result_type\":\"ExecutionGridDecision\",\"stage\":\"coordinator_record_source_receipt\"},{\"outcome\":\"RETURNED\",\"result_type\":\"ExecutionSourceReceipt\",\"stage\":\"strategy_source_receipt\"},{\"outcome\":\"RETURNED\",\"result_type\":\"ExecutionSourceReceipt\",\"stage\":\"strategy_source_receipt\"},{\"outcome\":\"RETURNED\",\"result_type\":\"ExecutionGridDecision\",\"stage\":\"coordinator_record_source_receipt\"}],\"exception_type\":\"LiveCohortValidationError\",\"source_continuity\":null,\"source_receipt_counts\":{\"builder_calls\":81,\"builder_returns\":81,\"coordinator_write_calls\":39,\"coordinator_write_returns\":39,\"journal_grid_calls\":60,\"journal_source_rows\":60}}"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_runner.py::test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bundle[final-highwater-missing-after-cleanup]",
+          "status": "FAIL",
+          "failure_message": "assert False\n +  where False = all(<generator object test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bundle.<locals>.<genexpr> at 0x0000029D569CE340>)"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_runner.py::test_controlled_application_stop_requires_exact_post_join_proof[not-requested]",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_runner.py::test_controlled_application_stop_requires_exact_post_join_proof[nonflat-or-unready]",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_runner.py::test_controlled_application_stop_requires_exact_post_join_proof[strategy-blocker]",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_runner.py::test_controlled_application_stop_requires_exact_post_join_proof[post-join-unconfirmed]",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_runner.py::test_controlled_application_stop_requires_exact_post_join_proof[post-join-blocker]",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_runner.py::test_controlled_application_stop_requires_exact_post_join_proof[refresh-blocked]",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_runner.py::test_controlled_application_stop_requires_exact_post_join_proof[refresh-not-joined]",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_runner.py::test_controlled_application_stop_requires_exact_post_join_proof[engine-status-drift]",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_runner.py::test_controlled_application_stop_requires_exact_post_join_proof[engine-reason-drift]",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_runner.py::test_saved_live_history_is_rejected_outside_live_mode",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_runner.py::test_saved_live_history_rejects_daily_bundle_selection_before_provider",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_runner.py::test_public_config_defaults_to_dry_and_cli_cannot_escalate",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_runner.py::test_live_cli_json_never_serializes_private_selection_plan",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_runner.py::test_live_cli_preserves_finite_epoch_failure_evidence_without_raw_context[runner-error]",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_runner.py::test_live_cli_preserves_finite_epoch_failure_evidence_without_raw_context[timeout-error]",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_runner.py::test_daily_rollover_loads_next_pit_bundle_only_after_retirement_proof",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_runner.py::test_daily_rollover_rejects_saved_bundle_policy_drift",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_runner.py::test_strategy_order_event_projection_keeps_exact_epoch_route_and_bounds",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_runner.py::test_daily_rollover_timeout_retains_old_route_evidence_and_never_loads_next",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_runner.py::test_daily_rollover_requires_post_join_confirmation_after_engine_ready",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_runner.py::test_selection_is_recomputed_instead_of_trusting_serialized_claim",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_runner.py::test_research_uses_production_factor_strategy_and_full_planned_grid",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_runner.py::test_replay_executes_real_cerebro_orders_only_on_causal_later_bars",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_runner.py::test_replay_rejects_late_quote_for_original_decision_and_tape_detects_tamper",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_runner.py::test_decision_tape_requires_fresh_exclusive_bounded_destination",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_runner.py::test_live_setup_failures_close_every_created_resource[ready-LIVE_CTP_SESSION_NOT_READY-False-True]",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_runner.py::test_live_setup_failures_close_every_created_resource[ready_store_stop-LIVE_CTP_SESSION_NOT_READY-False-False]",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_runner.py::test_live_setup_failures_close_every_created_resource[grid_expired-LIVE_GRID_HAS_NO_REMAINING_COMMON_MINUTES-False-True]",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_runner.py::test_live_setup_failures_close_every_created_resource[grid_boundary-LIVE_CTP_SESSION_NOT_READY-False-True]",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_runner.py::test_live_setup_failures_close_every_created_resource[grid_remaining-LIVE_CTP_SESSION_NOT_READY-False-True]",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_runner.py::test_live_setup_failures_close_every_created_resource[grid_crossing-COHORT_HAS_NO_PLANNED_SLOTS-False-True]",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_runner.py::test_live_setup_failures_close_every_created_resource[refresh-LIVE_INITIAL_QUERY_REFRESH_FAILED-True-True]",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_runner.py::test_live_setup_failures_close_every_created_resource[arm-RuntimeError-True-True]",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_runner.py::test_live_source_continuity_treats_empty_tape_as_not_applicable",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_runner.py::test_replay_clock_ignores_quotes_past_the_next_slot_deadline",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_runner.py::test_live_write_grant_requires_mode_config_and_live_entry_tier",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_runner.py::test_run_loss_policy_is_explicit_for_writes_and_inert_for_read_only",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_runner.py::test_write_enabled_strategy_kwargs_forward_the_separate_loss_guard_policy",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_runner.py::test_copied_folder_dry_entry_needs_no_sibling_example_import",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_runner.py::test_real_cerebro_live_strategy_winddown_is_ready_or_times_out[False]",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_runner.py::test_real_cerebro_live_strategy_winddown_is_ready_or_times_out[True]",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/integration/test_live_alpha003_history_source_hwm.py::test_tape_trading_day_keeps_ctp_and_persisted_date_boundaries_strict",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/integration/test_live_alpha003_history_source_hwm.py::test_source_lineage_uses_only_sorted_full_exchange_day_map",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/integration/test_live_alpha003_history_source_hwm.py::test_legacy_bare_source_highwater_is_explicitly_rejected",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/integration/test_live_alpha003_history_source_hwm.py::test_source_only_hwm_replay_is_idempotent_and_cannot_upgrade_to_grid",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/integration/test_live_alpha003_history_source_hwm.py::test_source_receipt_rejects_each_coordinator_scope_drift_before_journal_write",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/integration/test_live_alpha003_history_source_hwm.py::test_saved_history_gapless_and_restart_gap_continue_only_after_anchored_tail",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/integration/test_live_alpha003_history_source_hwm.py::test_saved_history_rejects_missing_or_unanchored_source_highwater_before_engine_setup",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/integration/test_live_alpha003_history_source_hwm.py::test_saved_history_rejects_same_calendar_old_slot_or_session_changes",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/integration/test_live_alpha003_history_source_hwm.py::test_live_source_continuity_is_sticky_and_reports_no_rows_and_read_errors",
+          "status": "FAIL",
+          "failure_message": "AssertionError: assert {'available':...MISSING', ...} == {'available':...r': None, ...}\n  \n  Omitting 1 identical items, use -vv to show\n  Differing items:\n  {'first_error': 'SOURCE_HIGHWATER_MISSING'} != {'first_error': None}\n  {'available': False} != {'available': True}\n  {'status': 'UNAVAILABLE'} != {'status': 'AVAILABLE'}\n  {'final_highwater_matches_tape': False} != {'final_highwater_matches_tape': True}\n  {'failure_count': 1} != {'failure_count': 0}\n  Use -v to get more diff"
+        },
+        {
+          "node": "tests/integration/test_live_alpha003_history_catchup_execution.py::test_history_overlap_and_staggered_live_cutovers_block_orders_until_qualified_grid[native]",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/integration/test_live_alpha003_history_catchup_execution.py::test_history_overlap_and_staggered_live_cutovers_block_orders_until_qualified_grid[build]",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/integration/test_live_alpha003_history_catchup_execution.py::test_alpha003_prenext_history_warmup_dispatches_owned_risk_cancel[durable-tape]",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/integration/test_live_alpha003_history_catchup_execution.py::test_alpha003_prenext_history_warmup_dispatches_owned_risk_cancel[tape-write-failed]",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/integration/test_live_alpha003_history_payload_size.py::test_87_member_alpha003_grid_payload_is_measured_before_write_and_reopen",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/integration/test_live_alpha003_history_payload_size.py::test_87_member_source_only_payload_fits_default_cap_after_reopen",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/integration/test_live_alpha003_history_continuity.py::test_sticky_strategy_failure_wins_over_matching_final_highwater",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/integration/test_live_alpha003_history_continuity.py::test_zero_rows_do_not_read_source_highwater",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/integration/test_live_alpha003_history_continuity.py::test_sqlite_highwater_error_is_finite_and_unavailable",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/integration/test_live_alpha003_history_continuity.py::test_exact_final_highwater_reference_is_available",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/integration/test_factor_decision_replay_economics.py::test_alpha003_economics_replay_and_unknown_owner_stay_bound_to_the_durable_grid",
+          "status": "FAIL",
+          "failure_message": "AttributeError: 'Alpha003TargetStrategy' object has no attribute '_source_kind'"
+        }
+      ],
+      "stdout_pin": {
+        "size_bytes": 16077,
+        "sha256": "3a711019ffdb02e3f20b4c011a0457e663d3e970e68bc5825cfcb91d39c38d7c"
+      },
+      "stderr_pin": {
+        "size_bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "junit_pin": {
+        "size_bytes": 54005,
+        "sha256": "8012a89e7495d9c4bd04c4b58ad3e4a88ed9e733ec165df2927dedff487c8d26"
+      },
+      "warning": "One inherited PytestConfigWarning: unknown asyncio_default_fixture_loop_scope option."
+    },
+    {
+      "generation": "i51-history-composed-repair-qa-20261027-r1",
+      "result_path": "D:\\temp\\i51-history-composed-repair-qa-20261027-r1\\result.json",
+      "result_pin": {
+        "size_bytes": 13287,
+        "sha256": "d1f219e8f1480da323b69996ca6438b739b27400b598c755c916df9296f0d513"
+      },
+      "result": {
+        "level": "SOURCE_NATIVE_SYNTHETIC_ONLY",
+        "lane": "backtrader",
+        "exit_code": 1,
+        "elapsed_seconds": 13.625,
+        "test_count": 13,
+        "failures": 2,
+        "errors": 0,
+        "skips": 0,
+        "source_pins_unchanged": true,
+        "source_pins_before": {
+          "D:\\source_code\\backtrader\\examples\\unified\\028_alpha003_simnow_minute\\alpha003_strategy.py": {
+            "size_bytes": 229037,
+            "sha256": "a8b34261a06c35d2e2ff9f1e5c44825a2e7c6ecae4d0af2adadf169260640522"
+          },
+          "D:\\source_code\\backtrader\\examples\\unified\\028_alpha003_simnow_minute\\run.py": {
+            "size_bytes": 322730,
+            "sha256": "ea2a21325f5f1e56fac3aed09f5a16bbc24fdccce754e8fe1ddc87bb3653619e"
+          },
+          "D:\\source_code\\backtrader\\examples\\unified\\028_alpha003_simnow_minute\\config.yaml": {
+            "size_bytes": 4591,
+            "sha256": "9eecf5a4dba7786aa391c1b8c8bb90747f7b06692679e7b9d851c052d646841d"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\stores\\execution_decision_journal.py": {
+            "size_bytes": 378324,
+            "sha256": "4bb854e89a95e0ebe1a4eb5c6d5bd92bf26e780a3f6b3569495f98d70ee2359f"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\stores\\execution_durable_capacity.py": {
+            "size_bytes": 19940,
+            "sha256": "fdf1b79becfc1cd86f953291f801c6145b26a66246348617383e149298072688"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\stores\\factor_execution.py": {
+            "size_bytes": 296766,
+            "sha256": "55286e94308a18565280299b3ba05dfab8ca5610c6f0ef0d4c299caee74bb239"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\stores\\factor_execution_facts.py": {
+            "size_bytes": 219489,
+            "sha256": "769e1b87100022354222023796c22504cae676d3067582b16e146abc3bf6fa2b"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\stores\\registered_sim.py": {
+            "size_bytes": 144382,
+            "sha256": "fed9eb3106cd3d7b4753157fe75b0723dbdd6bec3775f9c18aad06b71a639a04"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\stores\\btapistore.py": {
+            "size_bytes": 888832,
+            "sha256": "4de5c66997072da7bb397f230ac0f9955e5f900d9396134264ace341c7c0a568"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\brokers\\btapibroker.py": {
+            "size_bytes": 525714,
+            "sha256": "776087c6b70574df935009038a0cd4cb07d83da078e47b16c854d09e041bed3e"
+          },
+          "D:\\source_code\\backtrader\\tests\\unit\\stores\\test_factor_execution_facts.py": {
+            "size_bytes": 159045,
+            "sha256": "2a20ee47bc6ab75d2e422b16e5a0eaf6256dcab1c4abbf0888624220925931d2"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\research\\live.py": {
+            "size_bytes": 71236,
+            "sha256": "ade26ec53cc4b6d262eeeb889816f7493058cff719a6eb580508323f9ae440f7"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\research\\live_cohort.py": {
+            "size_bytes": 145308,
+            "sha256": "914df8ecd7474a6efdd8e04ee079c08f7b388ba425fff91c62053d84bedba8a1"
+          },
+          "D:\\bt_api_py\\bt_api\\bt_api_ctp\\src\\bt_api_ctp\\query.py": {
+            "size_bytes": 14630,
+            "sha256": "bf6bfcdf41614c216c79d2e137756bacfc1a45b7e903bb4335399d65e8bb3dfb"
+          },
+          "D:\\bt_api_py\\bt_api\\bt_api_ctp\\src\\bt_api_ctp\\ctp\\client.py": {
+            "size_bytes": 508688,
+            "sha256": "5caca800ccba1169253d8cf1d1853e66c85806f84f81e8ead600957f7285445c"
+          },
+          "D:\\bt_api_py\\bt_api\\bt_api_ctp\\src\\bt_api_ctp\\ctp\\callback_ingress.py": {
+            "size_bytes": 73492,
+            "sha256": "c7dbae9aad0aafc7ab1afb4e7a682957f6125abb3b4ba270dd516acdf70294f7"
+          },
+          "D:\\source_code\\backtrader\\tests\\integration\\test_live_alpha003_history_source_hwm.py": {
+            "size_bytes": 53425,
+            "sha256": "8a370226f10f6ff7c4bb82263ddc1c6bddc4ffe4b49044a5bd8ca1e7f7807b19"
+          },
+          "D:\\source_code\\backtrader\\tests\\integration\\test_live_alpha003_history_payload_size.py": {
+            "size_bytes": 22929,
+            "sha256": "7ced9e0e3454d02de75dd6bb673a6d9310b3362e7a8be2c19cc4e2f8b067285a"
+          },
+          "D:\\source_code\\backtrader\\tests\\integration\\test_live_alpha003_history_continuity.py": {
+            "size_bytes": 5728,
+            "sha256": "898819c16f54901a2d2fa9a4950f6f06bce542082f2e9f7640c5af8802eae272"
+          },
+          "D:\\source_code\\backtrader\\tests\\integration\\test_live_alpha003_history_catchup_execution.py": {
+            "size_bytes": 47376,
+            "sha256": "44cdd1b9ce94ed830a3220af075289097b30ffd355222ed77814ff6761c0fc16"
+          },
+          "D:\\source_code\\backtrader\\tests\\integration\\test_factor_decision_replay_economics.py": {
+            "size_bytes": 18276,
+            "sha256": "234a70e717e72577f03f43d129e5ef026472ef659e606bba6eaa7e342314b486"
+          },
+          "D:\\source_code\\backtrader\\tests\\__init__.py": {
+            "size_bytes": 30,
+            "sha256": "512e1e3b7f30908568916e60ff67f65142b85edf14a00d8b49a2a99d3e19a458"
+          },
+          "D:\\source_code\\backtrader\\tests\\integration\\__init__.py": {
+            "size_bytes": 963,
+            "sha256": "98646827c4cb4bfa0f40d3292a3bf7e03f99d8852d4789f46c45fdc296887b47"
+          },
+          "D:\\source_code\\backtrader\\tests\\unit\\stores\\test_factor_execution.py": {
+            "size_bytes": 89698,
+            "sha256": "3f9ed313837116ecb3baa73778765cc4167ed9f6a469c8925741f84baf7f4995"
+          },
+          "D:\\source_code\\backtrader\\tests\\unit\\test_alpha003_simnow_strategy.py": {
+            "size_bytes": 170094,
+            "sha256": "eff210e3f0e772e1a5b44b5f5c90a30c1fb6530b057cd19a871ffd588e1a7037"
+          },
+          "D:\\source_code\\backtrader\\tests\\unit\\test_alpha003_simnow_runner.py": {
+            "size_bytes": 260557,
+            "sha256": "5947449f11dcb007c1181bcf1f4b77911f460a4615747077f5ebf7e5dcbd2d7d"
+          }
+        },
+        "source_pins_after": {
+          "D:\\source_code\\backtrader\\examples\\unified\\028_alpha003_simnow_minute\\alpha003_strategy.py": {
+            "size_bytes": 229037,
+            "sha256": "a8b34261a06c35d2e2ff9f1e5c44825a2e7c6ecae4d0af2adadf169260640522"
+          },
+          "D:\\source_code\\backtrader\\examples\\unified\\028_alpha003_simnow_minute\\run.py": {
+            "size_bytes": 322730,
+            "sha256": "ea2a21325f5f1e56fac3aed09f5a16bbc24fdccce754e8fe1ddc87bb3653619e"
+          },
+          "D:\\source_code\\backtrader\\examples\\unified\\028_alpha003_simnow_minute\\config.yaml": {
+            "size_bytes": 4591,
+            "sha256": "9eecf5a4dba7786aa391c1b8c8bb90747f7b06692679e7b9d851c052d646841d"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\stores\\execution_decision_journal.py": {
+            "size_bytes": 378324,
+            "sha256": "4bb854e89a95e0ebe1a4eb5c6d5bd92bf26e780a3f6b3569495f98d70ee2359f"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\stores\\execution_durable_capacity.py": {
+            "size_bytes": 19940,
+            "sha256": "fdf1b79becfc1cd86f953291f801c6145b26a66246348617383e149298072688"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\stores\\factor_execution.py": {
+            "size_bytes": 296766,
+            "sha256": "55286e94308a18565280299b3ba05dfab8ca5610c6f0ef0d4c299caee74bb239"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\stores\\factor_execution_facts.py": {
+            "size_bytes": 219489,
+            "sha256": "769e1b87100022354222023796c22504cae676d3067582b16e146abc3bf6fa2b"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\stores\\registered_sim.py": {
+            "size_bytes": 144382,
+            "sha256": "fed9eb3106cd3d7b4753157fe75b0723dbdd6bec3775f9c18aad06b71a639a04"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\stores\\btapistore.py": {
+            "size_bytes": 888832,
+            "sha256": "4de5c66997072da7bb397f230ac0f9955e5f900d9396134264ace341c7c0a568"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\brokers\\btapibroker.py": {
+            "size_bytes": 525714,
+            "sha256": "776087c6b70574df935009038a0cd4cb07d83da078e47b16c854d09e041bed3e"
+          },
+          "D:\\source_code\\backtrader\\tests\\unit\\stores\\test_factor_execution_facts.py": {
+            "size_bytes": 159045,
+            "sha256": "2a20ee47bc6ab75d2e422b16e5a0eaf6256dcab1c4abbf0888624220925931d2"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\research\\live.py": {
+            "size_bytes": 71236,
+            "sha256": "ade26ec53cc4b6d262eeeb889816f7493058cff719a6eb580508323f9ae440f7"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\research\\live_cohort.py": {
+            "size_bytes": 145308,
+            "sha256": "914df8ecd7474a6efdd8e04ee079c08f7b388ba425fff91c62053d84bedba8a1"
+          },
+          "D:\\bt_api_py\\bt_api\\bt_api_ctp\\src\\bt_api_ctp\\query.py": {
+            "size_bytes": 14630,
+            "sha256": "bf6bfcdf41614c216c79d2e137756bacfc1a45b7e903bb4335399d65e8bb3dfb"
+          },
+          "D:\\bt_api_py\\bt_api\\bt_api_ctp\\src\\bt_api_ctp\\ctp\\client.py": {
+            "size_bytes": 508688,
+            "sha256": "5caca800ccba1169253d8cf1d1853e66c85806f84f81e8ead600957f7285445c"
+          },
+          "D:\\bt_api_py\\bt_api\\bt_api_ctp\\src\\bt_api_ctp\\ctp\\callback_ingress.py": {
+            "size_bytes": 73492,
+            "sha256": "c7dbae9aad0aafc7ab1afb4e7a682957f6125abb3b4ba270dd516acdf70294f7"
+          },
+          "D:\\source_code\\backtrader\\tests\\integration\\test_live_alpha003_history_source_hwm.py": {
+            "size_bytes": 53425,
+            "sha256": "8a370226f10f6ff7c4bb82263ddc1c6bddc4ffe4b49044a5bd8ca1e7f7807b19"
+          },
+          "D:\\source_code\\backtrader\\tests\\integration\\test_live_alpha003_history_payload_size.py": {
+            "size_bytes": 22929,
+            "sha256": "7ced9e0e3454d02de75dd6bb673a6d9310b3362e7a8be2c19cc4e2f8b067285a"
+          },
+          "D:\\source_code\\backtrader\\tests\\integration\\test_live_alpha003_history_continuity.py": {
+            "size_bytes": 5728,
+            "sha256": "898819c16f54901a2d2fa9a4950f6f06bce542082f2e9f7640c5af8802eae272"
+          },
+          "D:\\source_code\\backtrader\\tests\\integration\\test_live_alpha003_history_catchup_execution.py": {
+            "size_bytes": 47376,
+            "sha256": "44cdd1b9ce94ed830a3220af075289097b30ffd355222ed77814ff6761c0fc16"
+          },
+          "D:\\source_code\\backtrader\\tests\\integration\\test_factor_decision_replay_economics.py": {
+            "size_bytes": 18276,
+            "sha256": "234a70e717e72577f03f43d129e5ef026472ef659e606bba6eaa7e342314b486"
+          },
+          "D:\\source_code\\backtrader\\tests\\__init__.py": {
+            "size_bytes": 30,
+            "sha256": "512e1e3b7f30908568916e60ff67f65142b85edf14a00d8b49a2a99d3e19a458"
+          },
+          "D:\\source_code\\backtrader\\tests\\integration\\__init__.py": {
+            "size_bytes": 963,
+            "sha256": "98646827c4cb4bfa0f40d3292a3bf7e03f99d8852d4789f46c45fdc296887b47"
+          },
+          "D:\\source_code\\backtrader\\tests\\unit\\stores\\test_factor_execution.py": {
+            "size_bytes": 89698,
+            "sha256": "3f9ed313837116ecb3baa73778765cc4167ed9f6a469c8925741f84baf7f4995"
+          },
+          "D:\\source_code\\backtrader\\tests\\unit\\test_alpha003_simnow_strategy.py": {
+            "size_bytes": 170094,
+            "sha256": "eff210e3f0e772e1a5b44b5f5c90a30c1fb6530b057cd19a871ffd588e1a7037"
+          },
+          "D:\\source_code\\backtrader\\tests\\unit\\test_alpha003_simnow_runner.py": {
+            "size_bytes": 260557,
+            "sha256": "5947449f11dcb007c1181bcf1f4b77911f460a4615747077f5ebf7e5dcbd2d7d"
+          }
+        },
+        "nodes": [
+          "tests/unit/test_alpha003_simnow_strategy.py::test_live_decision_reacquires_and_rejects_a_changed_factor_snapshot",
+          "tests/unit/test_alpha003_simnow_strategy.py::test_live_shadow_records_eligible_grid_as_noop_and_never_dispatches",
+          "tests/unit/test_alpha003_simnow_strategy.py::test_live_grid_scope_forwards_sampled_budget_count_and_exit_reserve",
+          "tests/unit/test_alpha003_simnow_strategy.py::test_live_shadow_records_complete_source_grid_without_risk_budget_facts",
+          "tests/unit/test_alpha003_simnow_strategy.py::test_cerebro_strategy_blocks_open_then_replays_owned_close_once[late_enable-RUN_LOSS_GUARD_LATE_ENABLE_AFTER_OPEN]",
+          "tests/unit/test_alpha003_simnow_strategy.py::test_cerebro_strategy_blocks_open_then_replays_owned_close_once[scan_limit-RUN_LOSS_GUARD_ENABLE_SCAN_LIMIT]",
+          "tests/unit/test_alpha003_simnow_runner.py::test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bundle[saved-history-real-live-restart]",
+          "tests/unit/test_alpha003_simnow_runner.py::test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bundle[saved-query-history-three-epoch-restart]",
+          "tests/unit/test_alpha003_simnow_runner.py::test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bundle[final-highwater-missing-after-cleanup]",
+          "tests/integration/test_live_alpha003_history_source_hwm.py::test_live_source_continuity_is_sticky_and_reports_no_rows_and_read_errors",
+          "tests/integration/test_factor_decision_replay_economics.py::test_alpha003_economics_replay_and_unknown_owner_stay_bound_to_the_durable_grid",
+          "tests/integration/test_live_alpha003_history_payload_size.py::test_87_member_alpha003_grid_payload_is_measured_before_write_and_reopen",
+          "tests/integration/test_live_alpha003_history_payload_size.py::test_87_member_source_only_payload_fits_default_cap_after_reopen"
+        ],
+        "spec": {
+          "size_bytes": 8187,
+          "sha256": "84e7cf5b8564f81c8a3a653a139254aad5038a3bee53028bbea3cfe5624efc96"
+        },
+        "runner": {
+          "size_bytes": 4408,
+          "sha256": "2e7e707c9bd53f0e160f5a4cc4a10345b1ee333779a1877e948ea8265d1e0e10"
+        },
+        "boundary": "Real SDK/SPI and query fields; synthetic request/OS leaves. Network denied. No provider/account acceptance."
+      },
+      "cases": [
+        {
+          "node": "tests/unit/test_alpha003_simnow_strategy.py::test_live_decision_reacquires_and_rejects_a_changed_factor_snapshot",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_strategy.py::test_live_shadow_records_eligible_grid_as_noop_and_never_dispatches",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_strategy.py::test_live_grid_scope_forwards_sampled_budget_count_and_exit_reserve",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_strategy.py::test_live_shadow_records_complete_source_grid_without_risk_budget_facts",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_strategy.py::test_cerebro_strategy_blocks_open_then_replays_owned_close_once[late_enable-RUN_LOSS_GUARD_LATE_ENABLE_AFTER_OPEN]",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_strategy.py::test_cerebro_strategy_blocks_open_then_replays_owned_close_once[scan_limit-RUN_LOSS_GUARD_ENABLE_SCAN_LIMIT]",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_runner.py::test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bundle[saved-history-real-live-restart]",
+          "status": "FAIL",
+          "failure_message": "AssertionError: assert (mappingproxy...89135'}), ...) == (mappingproxy...c25b7'}), ...)\n  \n  At index 0 diff: mappingproxy({'available_at': '2026-10-22T01:20:02Z', 'batch_id': 'alpha003:alpha003-one-minute-v1:1:alpha003-one-minute-v1:1:source-session-snapshot-v1:19', 'calendar_fingerprint': 'd973fc68117c42f586f83603cae4413af5d1a1d7c100d7ea20b2ec8cc375e506', 'calendar_id': 'alpha003-one-minute-v1', 'calendar_version': 'source-session-snapshot-v1', 'close_time': '2026-10-22T01:20:00Z', 'cohort_id': 'alpha003:alpha003-one-minute-v1:1', 'epoch_id': 1, 'factors': {'factors': {'alpha003': {'direction': 1, 'mode': 'native', 'panel_line': 'factor', 'source_sha256': '7c...\n  \n  ...Full output truncated (3 lines hidden), use '-vv' to show"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_runner.py::test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bundle[saved-query-history-three-epoch-restart]",
+          "status": "FAIL",
+          "failure_message": "AssertionError: assert (mappingproxy...53a3f'}), ...) == (mappingproxy...2397e'}), ...)\n  \n  At index 0 diff: mappingproxy({'available_at': '2026-10-22T01:20:02Z', 'batch_id': 'alpha003:alpha003-one-minute-v1:1:alpha003-one-minute-v1:1:source-session-snapshot-v1:19', 'calendar_fingerprint': '2ab18b589224efe968cd725e41a26dfa2a410e920cbadb7021bfcb72ed966704', 'calendar_id': 'alpha003-one-minute-v1', 'calendar_version': 'source-session-snapshot-v1', 'close_time': '2026-10-22T01:20:00Z', 'cohort_id': 'alpha003:alpha003-one-minute-v1:1', 'epoch_id': 1, 'factors': {'factors': {'alpha003': {'direction': 1, 'mode': 'native', 'panel_line': 'factor', 'source_sha256': '7c...\n  \n  ...Full output truncated (3 lines hidden), use '-vv' to show"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_runner.py::test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bundle[final-highwater-missing-after-cleanup]",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/integration/test_live_alpha003_history_source_hwm.py::test_live_source_continuity_is_sticky_and_reports_no_rows_and_read_errors",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/integration/test_factor_decision_replay_economics.py::test_alpha003_economics_replay_and_unknown_owner_stay_bound_to_the_durable_grid",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/integration/test_live_alpha003_history_payload_size.py::test_87_member_alpha003_grid_payload_is_measured_before_write_and_reopen",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/integration/test_live_alpha003_history_payload_size.py::test_87_member_source_only_payload_fits_default_cap_after_reopen",
+          "status": "PASS"
+        }
+      ],
+      "stdout_pin": {
+        "size_bytes": 3417,
+        "sha256": "d9c5090c22567cf22e69df62c7846f35b12a0636dafd8cbf2ba8281256141bc2"
+      },
+      "stderr_pin": {
+        "size_bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "junit_pin": {
+        "size_bytes": 6043,
+        "sha256": "6784581da98eca275e80e1342df7ca13809fb3adcb6a96ebdefb13e09c5004c8"
+      },
+      "warning": "One inherited PytestConfigWarning: unknown asyncio_default_fixture_loop_scope option."
+    },
+    {
+      "generation": "i51-history-composed-repair-qa-20261027-r2",
+      "result_path": "D:\\temp\\i51-history-composed-repair-qa-20261027-r2\\result.json",
+      "result_pin": {
+        "size_bytes": 11740,
+        "sha256": "299ee19a58fbd1fb0281fccabf2029706c940a0c05b3b19506ec85baa17b62a9"
+      },
+      "result": {
+        "level": "SOURCE_NATIVE_SYNTHETIC_ONLY",
+        "lane": "backtrader",
+        "exit_code": 0,
+        "elapsed_seconds": 9.28200000000652,
+        "test_count": 2,
+        "failures": 0,
+        "errors": 0,
+        "skips": 0,
+        "source_pins_unchanged": true,
+        "source_pins_before": {
+          "D:\\source_code\\backtrader\\examples\\unified\\028_alpha003_simnow_minute\\alpha003_strategy.py": {
+            "size_bytes": 229037,
+            "sha256": "a8b34261a06c35d2e2ff9f1e5c44825a2e7c6ecae4d0af2adadf169260640522"
+          },
+          "D:\\source_code\\backtrader\\examples\\unified\\028_alpha003_simnow_minute\\run.py": {
+            "size_bytes": 322730,
+            "sha256": "ea2a21325f5f1e56fac3aed09f5a16bbc24fdccce754e8fe1ddc87bb3653619e"
+          },
+          "D:\\source_code\\backtrader\\examples\\unified\\028_alpha003_simnow_minute\\config.yaml": {
+            "size_bytes": 4591,
+            "sha256": "9eecf5a4dba7786aa391c1b8c8bb90747f7b06692679e7b9d851c052d646841d"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\stores\\execution_decision_journal.py": {
+            "size_bytes": 378324,
+            "sha256": "4bb854e89a95e0ebe1a4eb5c6d5bd92bf26e780a3f6b3569495f98d70ee2359f"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\stores\\execution_durable_capacity.py": {
+            "size_bytes": 19940,
+            "sha256": "fdf1b79becfc1cd86f953291f801c6145b26a66246348617383e149298072688"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\stores\\factor_execution.py": {
+            "size_bytes": 296766,
+            "sha256": "55286e94308a18565280299b3ba05dfab8ca5610c6f0ef0d4c299caee74bb239"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\stores\\factor_execution_facts.py": {
+            "size_bytes": 219489,
+            "sha256": "769e1b87100022354222023796c22504cae676d3067582b16e146abc3bf6fa2b"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\stores\\registered_sim.py": {
+            "size_bytes": 144382,
+            "sha256": "fed9eb3106cd3d7b4753157fe75b0723dbdd6bec3775f9c18aad06b71a639a04"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\stores\\btapistore.py": {
+            "size_bytes": 888832,
+            "sha256": "4de5c66997072da7bb397f230ac0f9955e5f900d9396134264ace341c7c0a568"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\brokers\\btapibroker.py": {
+            "size_bytes": 525714,
+            "sha256": "776087c6b70574df935009038a0cd4cb07d83da078e47b16c854d09e041bed3e"
+          },
+          "D:\\source_code\\backtrader\\tests\\unit\\stores\\test_factor_execution_facts.py": {
+            "size_bytes": 159045,
+            "sha256": "2a20ee47bc6ab75d2e422b16e5a0eaf6256dcab1c4abbf0888624220925931d2"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\research\\live.py": {
+            "size_bytes": 71236,
+            "sha256": "ade26ec53cc4b6d262eeeb889816f7493058cff719a6eb580508323f9ae440f7"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\research\\live_cohort.py": {
+            "size_bytes": 145308,
+            "sha256": "914df8ecd7474a6efdd8e04ee079c08f7b388ba425fff91c62053d84bedba8a1"
+          },
+          "D:\\bt_api_py\\bt_api\\bt_api_ctp\\src\\bt_api_ctp\\query.py": {
+            "size_bytes": 14630,
+            "sha256": "bf6bfcdf41614c216c79d2e137756bacfc1a45b7e903bb4335399d65e8bb3dfb"
+          },
+          "D:\\bt_api_py\\bt_api\\bt_api_ctp\\src\\bt_api_ctp\\ctp\\client.py": {
+            "size_bytes": 508688,
+            "sha256": "5caca800ccba1169253d8cf1d1853e66c85806f84f81e8ead600957f7285445c"
+          },
+          "D:\\bt_api_py\\bt_api\\bt_api_ctp\\src\\bt_api_ctp\\ctp\\callback_ingress.py": {
+            "size_bytes": 73492,
+            "sha256": "c7dbae9aad0aafc7ab1afb4e7a682957f6125abb3b4ba270dd516acdf70294f7"
+          },
+          "D:\\source_code\\backtrader\\tests\\integration\\test_live_alpha003_history_source_hwm.py": {
+            "size_bytes": 53425,
+            "sha256": "8a370226f10f6ff7c4bb82263ddc1c6bddc4ffe4b49044a5bd8ca1e7f7807b19"
+          },
+          "D:\\source_code\\backtrader\\tests\\integration\\test_live_alpha003_history_payload_size.py": {
+            "size_bytes": 22929,
+            "sha256": "7ced9e0e3454d02de75dd6bb673a6d9310b3362e7a8be2c19cc4e2f8b067285a"
+          },
+          "D:\\source_code\\backtrader\\tests\\integration\\test_live_alpha003_history_continuity.py": {
+            "size_bytes": 5728,
+            "sha256": "898819c16f54901a2d2fa9a4950f6f06bce542082f2e9f7640c5af8802eae272"
+          },
+          "D:\\source_code\\backtrader\\tests\\integration\\test_live_alpha003_history_catchup_execution.py": {
+            "size_bytes": 47376,
+            "sha256": "44cdd1b9ce94ed830a3220af075289097b30ffd355222ed77814ff6761c0fc16"
+          },
+          "D:\\source_code\\backtrader\\tests\\integration\\test_factor_decision_replay_economics.py": {
+            "size_bytes": 18276,
+            "sha256": "234a70e717e72577f03f43d129e5ef026472ef659e606bba6eaa7e342314b486"
+          },
+          "D:\\source_code\\backtrader\\tests\\__init__.py": {
+            "size_bytes": 30,
+            "sha256": "512e1e3b7f30908568916e60ff67f65142b85edf14a00d8b49a2a99d3e19a458"
+          },
+          "D:\\source_code\\backtrader\\tests\\integration\\__init__.py": {
+            "size_bytes": 963,
+            "sha256": "98646827c4cb4bfa0f40d3292a3bf7e03f99d8852d4789f46c45fdc296887b47"
+          },
+          "D:\\source_code\\backtrader\\tests\\unit\\stores\\test_factor_execution.py": {
+            "size_bytes": 89698,
+            "sha256": "3f9ed313837116ecb3baa73778765cc4167ed9f6a469c8925741f84baf7f4995"
+          },
+          "D:\\source_code\\backtrader\\tests\\unit\\test_alpha003_simnow_strategy.py": {
+            "size_bytes": 170094,
+            "sha256": "eff210e3f0e772e1a5b44b5f5c90a30c1fb6530b057cd19a871ffd588e1a7037"
+          },
+          "D:\\source_code\\backtrader\\tests\\unit\\test_alpha003_simnow_runner.py": {
+            "size_bytes": 261564,
+            "sha256": "3000ef4b7a623c159078e40fad8f96e1ccb13a55cb640e7cb8825ca3af3284ae"
+          }
+        },
+        "source_pins_after": {
+          "D:\\source_code\\backtrader\\examples\\unified\\028_alpha003_simnow_minute\\alpha003_strategy.py": {
+            "size_bytes": 229037,
+            "sha256": "a8b34261a06c35d2e2ff9f1e5c44825a2e7c6ecae4d0af2adadf169260640522"
+          },
+          "D:\\source_code\\backtrader\\examples\\unified\\028_alpha003_simnow_minute\\run.py": {
+            "size_bytes": 322730,
+            "sha256": "ea2a21325f5f1e56fac3aed09f5a16bbc24fdccce754e8fe1ddc87bb3653619e"
+          },
+          "D:\\source_code\\backtrader\\examples\\unified\\028_alpha003_simnow_minute\\config.yaml": {
+            "size_bytes": 4591,
+            "sha256": "9eecf5a4dba7786aa391c1b8c8bb90747f7b06692679e7b9d851c052d646841d"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\stores\\execution_decision_journal.py": {
+            "size_bytes": 378324,
+            "sha256": "4bb854e89a95e0ebe1a4eb5c6d5bd92bf26e780a3f6b3569495f98d70ee2359f"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\stores\\execution_durable_capacity.py": {
+            "size_bytes": 19940,
+            "sha256": "fdf1b79becfc1cd86f953291f801c6145b26a66246348617383e149298072688"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\stores\\factor_execution.py": {
+            "size_bytes": 296766,
+            "sha256": "55286e94308a18565280299b3ba05dfab8ca5610c6f0ef0d4c299caee74bb239"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\stores\\factor_execution_facts.py": {
+            "size_bytes": 219489,
+            "sha256": "769e1b87100022354222023796c22504cae676d3067582b16e146abc3bf6fa2b"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\stores\\registered_sim.py": {
+            "size_bytes": 144382,
+            "sha256": "fed9eb3106cd3d7b4753157fe75b0723dbdd6bec3775f9c18aad06b71a639a04"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\stores\\btapistore.py": {
+            "size_bytes": 888832,
+            "sha256": "4de5c66997072da7bb397f230ac0f9955e5f900d9396134264ace341c7c0a568"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\brokers\\btapibroker.py": {
+            "size_bytes": 525714,
+            "sha256": "776087c6b70574df935009038a0cd4cb07d83da078e47b16c854d09e041bed3e"
+          },
+          "D:\\source_code\\backtrader\\tests\\unit\\stores\\test_factor_execution_facts.py": {
+            "size_bytes": 159045,
+            "sha256": "2a20ee47bc6ab75d2e422b16e5a0eaf6256dcab1c4abbf0888624220925931d2"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\research\\live.py": {
+            "size_bytes": 71236,
+            "sha256": "ade26ec53cc4b6d262eeeb889816f7493058cff719a6eb580508323f9ae440f7"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\research\\live_cohort.py": {
+            "size_bytes": 145308,
+            "sha256": "914df8ecd7474a6efdd8e04ee079c08f7b388ba425fff91c62053d84bedba8a1"
+          },
+          "D:\\bt_api_py\\bt_api\\bt_api_ctp\\src\\bt_api_ctp\\query.py": {
+            "size_bytes": 14630,
+            "sha256": "bf6bfcdf41614c216c79d2e137756bacfc1a45b7e903bb4335399d65e8bb3dfb"
+          },
+          "D:\\bt_api_py\\bt_api\\bt_api_ctp\\src\\bt_api_ctp\\ctp\\client.py": {
+            "size_bytes": 508688,
+            "sha256": "5caca800ccba1169253d8cf1d1853e66c85806f84f81e8ead600957f7285445c"
+          },
+          "D:\\bt_api_py\\bt_api\\bt_api_ctp\\src\\bt_api_ctp\\ctp\\callback_ingress.py": {
+            "size_bytes": 73492,
+            "sha256": "c7dbae9aad0aafc7ab1afb4e7a682957f6125abb3b4ba270dd516acdf70294f7"
+          },
+          "D:\\source_code\\backtrader\\tests\\integration\\test_live_alpha003_history_source_hwm.py": {
+            "size_bytes": 53425,
+            "sha256": "8a370226f10f6ff7c4bb82263ddc1c6bddc4ffe4b49044a5bd8ca1e7f7807b19"
+          },
+          "D:\\source_code\\backtrader\\tests\\integration\\test_live_alpha003_history_payload_size.py": {
+            "size_bytes": 22929,
+            "sha256": "7ced9e0e3454d02de75dd6bb673a6d9310b3362e7a8be2c19cc4e2f8b067285a"
+          },
+          "D:\\source_code\\backtrader\\tests\\integration\\test_live_alpha003_history_continuity.py": {
+            "size_bytes": 5728,
+            "sha256": "898819c16f54901a2d2fa9a4950f6f06bce542082f2e9f7640c5af8802eae272"
+          },
+          "D:\\source_code\\backtrader\\tests\\integration\\test_live_alpha003_history_catchup_execution.py": {
+            "size_bytes": 47376,
+            "sha256": "44cdd1b9ce94ed830a3220af075289097b30ffd355222ed77814ff6761c0fc16"
+          },
+          "D:\\source_code\\backtrader\\tests\\integration\\test_factor_decision_replay_economics.py": {
+            "size_bytes": 18276,
+            "sha256": "234a70e717e72577f03f43d129e5ef026472ef659e606bba6eaa7e342314b486"
+          },
+          "D:\\source_code\\backtrader\\tests\\__init__.py": {
+            "size_bytes": 30,
+            "sha256": "512e1e3b7f30908568916e60ff67f65142b85edf14a00d8b49a2a99d3e19a458"
+          },
+          "D:\\source_code\\backtrader\\tests\\integration\\__init__.py": {
+            "size_bytes": 963,
+            "sha256": "98646827c4cb4bfa0f40d3292a3bf7e03f99d8852d4789f46c45fdc296887b47"
+          },
+          "D:\\source_code\\backtrader\\tests\\unit\\stores\\test_factor_execution.py": {
+            "size_bytes": 89698,
+            "sha256": "3f9ed313837116ecb3baa73778765cc4167ed9f6a469c8925741f84baf7f4995"
+          },
+          "D:\\source_code\\backtrader\\tests\\unit\\test_alpha003_simnow_strategy.py": {
+            "size_bytes": 170094,
+            "sha256": "eff210e3f0e772e1a5b44b5f5c90a30c1fb6530b057cd19a871ffd588e1a7037"
+          },
+          "D:\\source_code\\backtrader\\tests\\unit\\test_alpha003_simnow_runner.py": {
+            "size_bytes": 261564,
+            "sha256": "3000ef4b7a623c159078e40fad8f96e1ccb13a55cb640e7cb8825ca3af3284ae"
+          }
+        },
+        "nodes": [
+          "tests/unit/test_alpha003_simnow_runner.py::test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bundle[saved-history-real-live-restart]",
+          "tests/unit/test_alpha003_simnow_runner.py::test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bundle[saved-query-history-three-epoch-restart]"
+        ],
+        "spec": {
+          "size_bytes": 6631,
+          "sha256": "d308b6ecbc9c9fc24eaed4a884540b59f8654f4369072d6aed75320c58b6f396"
+        },
+        "runner": {
+          "size_bytes": 4408,
+          "sha256": "2e7e707c9bd53f0e160f5a4cc4a10345b1ee333779a1877e948ea8265d1e0e10"
+        },
+        "boundary": "Real SDK/SPI and query fields; synthetic request/OS leaves. Network denied. No provider/account acceptance."
+      },
+      "cases": [
+        {
+          "node": "tests/unit/test_alpha003_simnow_runner.py::test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bundle[saved-history-real-live-restart]",
+          "status": "PASS"
+        },
+        {
+          "node": "tests/unit/test_alpha003_simnow_runner.py::test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bundle[saved-query-history-three-epoch-restart]",
+          "status": "PASS"
+        }
+      ],
+      "stdout_pin": {
+        "size_bytes": 731,
+        "sha256": "4e8eb66819a24cc216a29d05258b2d6064477d4e78c3119d9a770e1aee1ec8d4"
+      },
+      "stderr_pin": {
+        "size_bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "junit_pin": {
+        "size_bytes": 619,
+        "sha256": "3fe0f68421b53bd70475b86a58a513c9c86c25208312db41722be9fbfebfbdfa"
+      },
+      "warning": "One inherited PytestConfigWarning: unknown asyncio_default_fixture_loop_scope option."
+    }
+  ],
+  "acceptance_summary": {
+    "distinct_cases_with_passing_result": 218,
+    "single_final_218_case_run": false,
+    "production_unchanged_across_three_runs": true,
+    "final_followup_exit_code": 0,
+    "fixture_repairs": "Actual source/coordinator identity, namespaced high-water, fresh calendar cutover, exact restart gaps, source tail versus eligible GRID and Nth-bar inclusive warmup boundaries.",
+    "real_components": "Cerebro, source receipts, production history loader, SQLite journal/reopen, SDK query structures; synthetic provider/clock/dispatch leaves.",
+    "network": "Denied by the source QA audit hook."
+  },
+  "final_source_pins": {
+    "examples/unified/028_alpha003_simnow_minute/run.py": {
+      "size_bytes": 322730,
+      "sha256": "ea2a21325f5f1e56fac3aed09f5a16bbc24fdccce754e8fe1ddc87bb3653619e"
+    },
+    "examples/unified/028_alpha003_simnow_minute/alpha003_strategy.py": {
+      "size_bytes": 229037,
+      "sha256": "a8b34261a06c35d2e2ff9f1e5c44825a2e7c6ecae4d0af2adadf169260640522"
+    },
+    "backtrader/stores/factor_execution.py": {
+      "size_bytes": 296766,
+      "sha256": "55286e94308a18565280299b3ba05dfab8ca5610c6f0ef0d4c299caee74bb239"
+    },
+    "tests/integration/test_live_alpha003_history_source_hwm.py": {
+      "size_bytes": 53425,
+      "sha256": "8a370226f10f6ff7c4bb82263ddc1c6bddc4ffe4b49044a5bd8ca1e7f7807b19"
+    },
+    "tests/integration/test_live_alpha003_history_payload_size.py": {
+      "size_bytes": 22929,
+      "sha256": "7ced9e0e3454d02de75dd6bb673a6d9310b3362e7a8be2c19cc4e2f8b067285a"
+    },
+    "tests/integration/test_live_alpha003_history_continuity.py": {
+      "size_bytes": 5728,
+      "sha256": "898819c16f54901a2d2fa9a4950f6f06bce542082f2e9f7640c5af8802eae272"
+    },
+    "tests/unit/test_alpha003_simnow_strategy.py": {
+      "size_bytes": 170094,
+      "sha256": "eff210e3f0e772e1a5b44b5f5c90a30c1fb6530b057cd19a871ffd588e1a7037"
+    },
+    "tests/integration/test_live_alpha003_history_catchup_execution.py": {
+      "size_bytes": 47376,
+      "sha256": "44cdd1b9ce94ed830a3220af075289097b30ffd355222ed77814ff6761c0fc16"
+    },
+    "tests/unit/test_alpha003_simnow_runner.py": {
+      "size_bytes": 261564,
+      "sha256": "3000ef4b7a623c159078e40fad8f96e1ccb13a55cb640e7cb8825ca3af3284ae"
+    },
+    "tests/integration/test_factor_decision_replay_economics.py": {
+      "size_bytes": 18276,
+      "sha256": "234a70e717e72577f03f43d129e5ef026472ef659e606bba6eaa7e342314b486"
+    }
+  },
+  "limits": [
+    "No provider/account acceptance or formal AC increment.",
+    "No actual order, account PnL or OS-process history restart acceptance.",
+    "Timing waiver does not waive correctness, bounded memory or complete cleanup.",
+    "Measured payload is a concrete fixture, not a proof for every possible metadata length."
+  ],
+  "next": [
+    "Build exact committed Backtrader wheel and run eight selected installed-package cases with the pinned staged-query CTP wheel.",
+    "Use a separately finalized protected read-only actual caller during a valid supported session; preserve previous consumed attempts."
+  ]
+}

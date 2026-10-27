@@ -58,6 +58,14 @@ _RUN_LOSS_OPEN_REJECTION_CODES = frozenset(
         "RUN_LOSS_ACCOUNT_QUERYSET_MISMATCH",
     }
 )
+_SOURCE_CONTINUITY_FAILURE_CODES = frozenset(
+    {
+        "DURABLE_DECISION_COORDINATOR_UNAVAILABLE",
+        "SOURCE_RECEIPT_BUILD_FAILED",
+        "SOURCE_RECEIPT_WRITE_FAILED",
+        "SOURCE_HIGHWATER_CONFIRMATION_FAILED",
+    }
+)
 
 ProductKey = Tuple[str, str]
 
@@ -1928,11 +1936,11 @@ def _read(source: Any, name: str) -> Any:
 
 
 def _state_name(value: Any, label: str) -> str:
-    if isinstance(value, str) and value:
-        return value
     enum_value = getattr(value, "value", None)
     if isinstance(enum_value, str) and enum_value:
-        return enum_value
+        return str(enum_value)
+    if isinstance(value, str) and value:
+        return str(value)
     raise TypeError("%s must be a string or string-valued enum" % label)
 
 
@@ -2748,6 +2756,8 @@ class Alpha003TargetStrategy(bt.Strategy):
         ("max_future_skew_seconds", None),
         ("control_refresh_loop", None),
         ("decision_tape", None),
+        ("source_restart_marker", None),
+        ("source_kind", None),
     )
 
     def __init__(self) -> None:
@@ -2822,6 +2832,19 @@ class Alpha003TargetStrategy(bt.Strategy):
             raise ValueError("strategy_scope must be explicit")
         self._account_scope = self.p.account_scope
         self._logical_run_id = self.p.logical_run_id
+        source_kind = getattr(self.p, "source_kind", None)
+        if source_kind is None:
+            source_kind = "ALPHA003_GRID"
+        lineage_prefix = "ALPHA003_GRID:trading-day-map-v1:"
+        lineage_digest = source_kind[len(lineage_prefix) :] if type(source_kind) is str else ""
+        if source_kind != "ALPHA003_GRID" and not (
+            type(source_kind) is str
+            and source_kind.startswith(lineage_prefix)
+            and len(lineage_digest) == 64
+            and all(character in "0123456789abcdef" for character in lineage_digest)
+        ):
+            raise ValueError("source_kind must be the internal trading-day lineage")
+        self._source_kind = source_kind
         self._routes = self._normalize_routes(self.p.routes, target_ids)
         self._session_calendars = self.p.session_calendars or {}
         if not isinstance(self._session_calendars, Mapping):
@@ -2857,6 +2880,17 @@ class Alpha003TargetStrategy(bt.Strategy):
         self._last_decision_tape_batch_id: Optional[str] = None
         self._last_decision_tape_reference: Optional[Mapping[str, Any]] = None
         self._last_decision_tape_error: Optional[str] = None
+        self._source_restart_marker = self.p.source_restart_marker
+        self._source_predecessor = (
+            None
+            if self._source_restart_marker is None
+            else self._source_restart_marker.prior_highwater
+        )
+        self._source_receipt_batch_id: Optional[str] = None
+        self._source_receipt_tape_reference: Optional[Mapping[str, Any]] = None
+        self._source_receipt_cache: Any = None
+        self.source_continuity_failure_count = 0
+        self.source_continuity_first_error: Optional[str] = None
         refresh_loop = self.p.control_refresh_loop
         if refresh_loop is not None and not callable(getattr(refresh_loop, "stop_and_join", None)):
             raise TypeError("control_refresh_loop must expose stop_and_join()")
@@ -3876,7 +3910,7 @@ class Alpha003TargetStrategy(bt.Strategy):
                 or not isinstance(reference["record_id"], str)
                 or not reference["record_id"]
                 or type(reference["record_index"]) is not int
-                or reference["record_index"] < 0
+                or reference["record_index"] < 1
                 or reference["batch_id"] != batch_id
             ):
                 self._last_decision_tape_error = "DECISION_TAPE_REFERENCE_INVALID"
@@ -3911,6 +3945,160 @@ class Alpha003TargetStrategy(bt.Strategy):
             return replace(plan, status="BLOCKED", reason="DECISION_TAPE_NOT_DURABLE", actions=())
         return plan
 
+    def _source_receipt(self, batch: Any, snapshot: Any, tape_reference: Any) -> Any:
+        """Bind one sealed batch to its exact fsynced tape row."""
+
+        if not isinstance(tape_reference, Mapping):
+            raise ValueError("source receipt requires a durable tape reference")
+        reference = {
+            name: tape_reference.get(name)
+            for name in ("file_id", "record_id", "record_index", "batch_id")
+        }
+        batch_id = _read(batch, "batch_id")
+        if (
+            type(reference["file_id"]) is not str
+            or not reference["file_id"]
+            or type(reference["record_id"]) is not str
+            or not reference["record_id"]
+            or type(reference["record_index"]) is not int
+            or reference["record_index"] < 1
+            or reference["batch_id"] != batch_id
+        ):
+            raise ValueError("source receipt tape reference is invalid")
+        if self._source_receipt_batch_id == batch_id:
+            if dict(self._source_receipt_tape_reference or {}) != reference:
+                raise ValueError("source receipt tape reference changed for one batch")
+            if self._source_receipt_cache is None:
+                raise ValueError("source receipt cache is unavailable")
+            return self._source_receipt_cache
+
+        from backtrader.stores.execution_decision_journal import (
+            ExecutionSourceMemberReceipt,
+            ExecutionSourceReceipt,
+        )
+
+        members = _read(batch, "members")
+        if (
+            not isinstance(members, Mapping)
+            or not members
+            or tuple(sorted(members)) != tuple(sorted(self._target_ids))
+        ):
+            raise ValueError("source receipt member batch is unavailable")
+        member_receipts = []
+        for member_id in sorted(members):
+            delivered = members[member_id]
+            envelope = _read(delivered, "envelope")
+            member_receipts.append(
+                ExecutionSourceMemberReceipt(
+                    member_id=member_id,
+                    source_ref=_read(envelope, "source_ref"),
+                    source_role=_read(envelope, "source_role"),
+                    connection_generation=_read(envelope, "connection_generation"),
+                    feed_sequence=_read(envelope, "feed_sequence"),
+                    bar_id=_read(envelope, "bar_id"),
+                    bucket_start=_time_key(_read(envelope, "bucket_start")),
+                    close_time=_time_key(_read(envelope, "close_time")),
+                    available_at=_time_key(_read(envelope, "available_at")),
+                    trading_day=_read(envelope, "trading_day"),
+                    session_segment=_read(envelope, "session_segment"),
+                    timezone_id=_read(envelope, "timezone_id"),
+                    clock_domain_id=_read(envelope, "clock_domain_id"),
+                    complete=_read(envelope, "complete"),
+                    quality=_read(envelope, "quality"),
+                    present=_read(envelope, "present"),
+                    missing_fields=tuple(_read(envelope, "missing_fields")),
+                    quality_flags=tuple(_read(envelope, "quality_flags")),
+                    event_source=_read(envelope, "event_source"),
+                    received_monotonic_ns=_read(envelope, "received_monotonic_ns"),
+                    rules_hash=_read(envelope, "rules_hash"),
+                )
+            )
+        cohort = self.p.cohort
+        receipt = ExecutionSourceReceipt(
+            source_kind=self._source_kind,
+            cohort_id=_read(batch, "cohort_id"),
+            calendar_id=_read(batch, "calendar_id"),
+            calendar_version=_read(batch, "calendar_version"),
+            calendar_fingerprint=_read(cohort, "calendar_fingerprint"),
+            epoch_id=_read(batch, "epoch_id"),
+            slot_index=_read(batch, "slot_index"),
+            slot_id=_read(members[sorted(members)[0]].envelope, "slot_id"),
+            close_time=_time_key(_read(batch, "close_time")),
+            batch_id=batch_id,
+            readiness=_state_name(_read(snapshot, "readiness"), "snapshot readiness"),
+            tape_file_id=reference["file_id"],
+            tape_record_id=reference["record_id"],
+            tape_record_index=reference["record_index"],
+            members=tuple(member_receipts),
+            predecessor=self._source_predecessor,
+            restart_marker=self._source_restart_marker,
+        )
+        self._source_receipt_batch_id = batch_id
+        self._source_receipt_tape_reference = MappingProxyType(reference)
+        self._source_receipt_cache = receipt
+        return receipt
+
+    def _note_source_continuity_failure(self, code: str) -> None:
+        if code not in _SOURCE_CONTINUITY_FAILURE_CODES:
+            code = "SOURCE_RECEIPT_WRITE_FAILED"
+        self.source_continuity_failure_count += 1
+        if self.source_continuity_first_error is None:
+            self.source_continuity_first_error = code
+
+    def _confirm_source_anchor(self, receipt: Any, *, anchor_kind: str) -> bool:
+        try:
+            highwater = self._coordinator.journal.source_highwater(
+                self._account_scope,
+                self._strategy_scope,
+                self._logical_run_id,
+                self._source_kind,
+            )
+            confirmed = bool(
+                highwater is not None
+                and highwater.receipt == receipt
+                and highwater.anchor_kind == anchor_kind
+            )
+        except Exception:
+            confirmed = False
+        if not confirmed:
+            self._note_source_continuity_failure("SOURCE_HIGHWATER_CONFIRMATION_FAILED")
+            return False
+        self._source_predecessor = highwater.reference
+        self._source_restart_marker = None
+        return True
+
+    def _record_source_only(self, batch: Any, snapshot: Any, tape_reference: Any) -> bool:
+        """Persist source continuity without entering an order-dispatch scope."""
+
+        if self._coordinator is None:
+            self.last_execution_block_reason = "DURABLE_DECISION_COORDINATOR_UNAVAILABLE"
+            self._note_source_continuity_failure(
+                "DURABLE_DECISION_COORDINATOR_UNAVAILABLE"
+            )
+            return False
+        try:
+            from backtrader.stores.execution_decision_journal import ExecutionDecisionKey
+
+            receipt = self._source_receipt(batch, snapshot, tape_reference)
+            key = ExecutionDecisionKey(
+                account_scope=self._account_scope,
+                strategy_scope=self._strategy_scope,
+                logical_run_id=self._logical_run_id,
+                cohort_id=receipt.cohort_id,
+                close_time=receipt.close_time,
+                decision_kind=self._source_kind,
+            )
+            self._coordinator.record_source_receipt(
+                key=key,
+                batch=batch,
+                source_receipt=receipt,
+            )
+            return self._confirm_source_anchor(receipt, anchor_kind="SOURCE_ONLY")
+        except Exception:
+            self.last_execution_block_reason = "SOURCE_RECEIPT_WRITE_FAILED"
+            self._note_source_continuity_failure("SOURCE_RECEIPT_WRITE_FAILED")
+            return False
+
     def _live_grid_decision(
         self,
         batch: Any,
@@ -3921,20 +4109,21 @@ class Alpha003TargetStrategy(bt.Strategy):
         planning: Optional[Alpha003OrderPlanningInput] = None,
         decision_tape_reference: Optional[Mapping[str, Any]] = None,
         tape_error: Optional[str] = None,
+        source_receipt: Any = None,
         proposed_plan: Optional[Alpha003OrderPlan] = None,
         loss_guard_context: Any = None,
         loss_guard_blocker: Optional[str] = None,
-    ) -> None:
+    ) -> bool:
         if (
             batch is None
             or snapshot is None
             or _state_name(_read(snapshot, "readiness"), "snapshot readiness") != "LIVE_READY"
             or _read(snapshot, "batch_complete") is not True
         ):
-            return
+            return False
         if self._coordinator is None:
             self.last_execution_block_reason = "DURABLE_DECISION_COORDINATOR_UNAVAILABLE"
-            return
+            return False
         if proposed_plan is None:
             proposed_plan = plan
         proposed_actions = tuple(proposed_plan.actions) if proposed_plan.status == "READY" else ()
@@ -3957,7 +4146,7 @@ class Alpha003TargetStrategy(bt.Strategy):
             logical_run_id=self._logical_run_id,
             cohort_id=_read(batch, "cohort_id"),
             close_time=_time_key(_read(batch, "close_time")),
-            decision_kind="ALPHA003_GRID",
+            decision_kind=self._source_kind,
         )
         economic_payload = {
             "plan_id": FACTOR_NAME,
@@ -3997,7 +4186,7 @@ class Alpha003TargetStrategy(bt.Strategy):
             or _read(current_snapshot, "close_time") != _read(batch, "close_time")
         ):
             self.last_execution_block_reason = "FACTOR_SNAPSHOT_CHANGED_BEFORE_DECISION"
-            return
+            return False
         from backtrader.stores.execution_decision_journal import ExecutionDecisionJournalError
         from backtrader.stores.factor_execution import FactorExecutionError
 
@@ -4034,9 +4223,15 @@ class Alpha003TargetStrategy(bt.Strategy):
                     else 0
                 ),
                 loss_guard_context=loss_guard_context,
+                source_receipt=source_receipt,
             ) as scope:
                 if self.p.execution_enabled and scope.dispatch_allowed and grid_actions:
                     self._dispatch_live_actions(grid_actions, batch)
+            if source_receipt is not None:
+                if not self._confirm_source_anchor(source_receipt, anchor_kind="GRID"):
+                    # The GRID transaction may already have authorized/recorded
+                    # its decision. Do not retry this key as SOURCE_ONLY.
+                    return True
         except (FactorExecutionError, ExecutionDecisionJournalError) as error:
             code = getattr(error, "code", None)
             if type(code) is not str or code not in _RUN_LOSS_OPEN_REJECTION_CODES:
@@ -4060,6 +4255,8 @@ class Alpha003TargetStrategy(bt.Strategy):
                     reason=code,
                     actions=reductions,
                 )
+            return False
+        return True
 
     def _live_risk_decision(
         self,
@@ -4301,19 +4498,57 @@ class Alpha003TargetStrategy(bt.Strategy):
             if not tape_durable:
                 self.last_execution_block_reason = tape_error
             self.last_order_plan = self._gate_open_actions(proposed_plan, tape_durable=tape_durable)
-        if is_new_batch and snapshot is not None:
-            self._live_grid_decision(
-                batch,
-                snapshot,
-                facts,
-                self.last_order_plan,
-                decision_tape_reference=tape_reference,
-                tape_error=tape_error,
-                proposed_plan=proposed_plan,
-                planning=planning,
-                loss_guard_context=loss_guard_context,
-                loss_guard_blocker=loss_guard_blocker,
-            )
+        if is_new_batch and batch is not None and snapshot is not None and tape_durable:
+            source_receipt = None
+            try:
+                source_receipt = self._source_receipt(batch, snapshot, tape_reference)
+            except Exception:
+                self.last_execution_block_reason = "SOURCE_RECEIPT_BUILD_FAILED"
+                self._note_source_continuity_failure("SOURCE_RECEIPT_BUILD_FAILED")
+                self.last_order_plan = self._gate_open_actions(
+                    proposed_plan, tape_durable=False
+                )
+            if source_receipt is not None:
+                readiness = _state_name(_read(snapshot, "readiness"), "snapshot readiness")
+                batch_members = _read(batch, "members")
+                live_good_batch = (
+                    readiness == "LIVE_READY"
+                    and source_receipt.readiness == readiness
+                    and isinstance(batch_members, Mapping)
+                    and bool(batch_members)
+                    and all(
+                        _read(_read(receipt, "envelope"), "source_role") == "live"
+                        and _read(_read(receipt, "envelope"), "complete") is True
+                        and _read(_read(receipt, "envelope"), "quality") == "GOOD"
+                        and _read(_read(receipt, "envelope"), "present") is True
+                        and not _read(_read(receipt, "envelope"), "missing_fields")
+                        and set(_read(_read(receipt, "envelope"), "quality_flags")).issubset(
+                            {"LEGACY_SCHEMA"}
+                        )
+                        for receipt in batch_members.values()
+                    )
+                )
+                grid_recorded = False
+                if live_good_batch:
+                    grid_recorded = self._live_grid_decision(
+                        batch,
+                        snapshot,
+                        facts,
+                        self.last_order_plan,
+                        decision_tape_reference=tape_reference,
+                        tape_error=tape_error,
+                        source_receipt=source_receipt,
+                        proposed_plan=proposed_plan,
+                        planning=planning,
+                        loss_guard_context=loss_guard_context,
+                        loss_guard_blocker=loss_guard_blocker,
+                    )
+                if not grid_recorded:
+                    self._record_source_only(batch, snapshot, tape_reference)
+        elif is_new_batch and batch is not None and snapshot is not None:
+            # No tape row means there is no source identity to anchor and no
+            # grid decision may advance. Fresh risk reductions still run below.
+            self.last_execution_block_reason = tape_error or "SOURCE_TAPE_UNAVAILABLE"
         if self.p.execution_enabled and planning is not None:
             self._live_risk_decision(batch, facts, self.last_order_plan, planning=planning)
         if self._shutdown_requested.is_set():
@@ -4688,12 +4923,17 @@ class Alpha003TargetStrategy(bt.Strategy):
         )
         durable, _reference, error = self._record_decision_tape(batch, snapshot, None, plan)
         tape_error = error if not durable else None
+        source_anchor_error = None
         if tape_error is not None:
             self.last_execution_block_reason = tape_error
+        elif not self.p.replay_mode and not self._record_source_only(batch, snapshot, _reference):
+            source_anchor_error = "SOURCE_RECEIPT_WRITE_FAILED"
         if not self.p.replay_mode:
             self._run_live_prenext_risk()
         if tape_error is not None:
             self.last_execution_block_reason = tape_error
+        elif source_anchor_error is not None:
+            self.last_execution_block_reason = source_anchor_error
 
     def next(self) -> None:
         try:

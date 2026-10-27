@@ -7,7 +7,6 @@ coordinator, and the journal are real; only the provider SDK leaves are fake.
 
 from __future__ import annotations
 
-from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 import math
@@ -506,10 +505,11 @@ def test_history_overlap_and_staggered_live_cutovers_block_orders_until_qualifie
     ids=("durable-tape", "tape-write-failed"),
 )
 def test_alpha003_prenext_history_warmup_dispatches_owned_risk_cancel(
-    tape_write_confirmed, expected_tape_error
+    tape_write_confirmed, expected_tape_error, tmp_path
 ):
     """Production WARMUP prenext adds only risk CANCEL after fixture seeding."""
     import importlib
+    import importlib.util
 
     example_dir = (
         Path(__file__).resolve().parents[2]
@@ -520,12 +520,25 @@ def test_alpha003_prenext_history_warmup_dispatches_owned_risk_cancel(
     if str(example_dir) not in sys.path:
         sys.path.insert(0, str(example_dir))
     strategy_module = importlib.import_module("alpha003_strategy")
+    assert Path(strategy_module.__file__).resolve() == example_dir / "alpha003_strategy.py"
     alpha_strategy = strategy_module.Alpha003TargetStrategy
+    runner_name = "_alpha003_loss_guard_runner_fixture"
+    runner = sys.modules.get(runner_name)
+    if runner is None:
+        runner_spec = importlib.util.spec_from_file_location(
+            runner_name, example_dir / "run.py"
+        )
+        if runner_spec is None or runner_spec.loader is None:
+            raise RuntimeError("production runner source is unavailable")
+        runner = importlib.util.module_from_spec(runner_spec)
+        sys.modules[runner_name] = runner
+        runner_spec.loader.exec_module(runner)
+    assert Path(runner.__file__).resolve() == example_dir / "run.py"
     now = datetime.now(UTC)
     minute = now.replace(second=0, microsecond=0)
     closes = (minute - timedelta(minutes=1), minute)
     session_day = TRADING_DAY[:4] + "-" + TRADING_DAY[4:6] + "-" + TRADING_DAY[6:]
-    member_id = "member-prenext-risk"
+    member_id = "rb"
     calendar_id = execution_fixtures._CALENDAR
     cohort_id = execution_fixtures._COHORT
     clock = _WallUtcReplayClock(now)
@@ -621,7 +634,17 @@ def test_alpha003_prenext_history_warmup_dispatches_owned_risk_cancel(
 
     api, store, broker, journal, coordinator, _old_target, *_unused = execution_fixtures._system(
         now=now,
-        query_rows=facts_fixtures._query_rows(),
+        query_rows=facts_fixtures._query_rows(
+            account={
+                "Available": "100000",
+                "CurrMargin": "0",
+                "CloseProfit": "1000",
+                "PositionProfit": "0",
+                "Commission": "0",
+                "CurrencyID": "CNY",
+                "TradingDay": TRADING_DAY,
+            }
+        ),
     )
     target = FactorExecutionTarget("rb", INSTRUMENT, EXCHANGE, feed)
     # _system() configures its Broker for the fixture's original instrument-
@@ -630,25 +653,27 @@ def test_alpha003_prenext_history_warmup_dispatches_owned_risk_cancel(
     # exchange contract metadata before projecting any execution facts.
     broker._contract_metadata["rb"] = dict(broker._contract_metadata[INSTRUMENT])
 
-    class _ManualRefreshView:
-        execution_target_ids = ("rb",)
-
-        def __init__(self, receipt):
-            self.last_receipt = receipt
-            self.joined = False
-
-        def bind_strategy(self, strategy):
-            self.strategy = strategy
-
-        @contextmanager
-        def strategy_fact_projection_scope(self):
-            yield True
-
-        def stop_and_join(self):
-            self.joined = True
-            return True
-
-    refresh_view = _ManualRefreshView(None)
+    cerebro = bt.Cerebro(stdstats=False, exactbars=3, preload=False, runonce=False)
+    cerebro.setbroker(broker)
+    cerebro.adddata(feed, name="rb")
+    cerebro.add_live_bar_cohort(cohort, clock=clock)
+    refresh_loop = runner.QueryRefreshLoop(
+        store,
+        broker,
+        (target,),
+        execution_target_ids=("rb",),
+        coordinator=coordinator,
+        account_scope=ACCOUNT_SCOPE,
+        strategy_scope=STRATEGY_SCOPE,
+        clock=clock,
+        quote_max_age=timedelta(seconds=2),
+        max_query_age=timedelta(seconds=7200),
+        timeout=1.0,
+        overall_timeout=2.0,
+        interval=0.1,
+        cerebro=cerebro,
+        shutdown_grace_seconds=1.0,
+    )
     projection_clock_observations = []
     next_quote_sequence = 1
 
@@ -662,7 +687,8 @@ def test_alpha003_prenext_history_warmup_dispatches_owned_risk_cancel(
             trading_day=TRADING_DAY,
         )
         next_quote_sequence += 1
-        refresh_view.last_receipt = receipt
+        assert runner.QueryRefreshLoop._receipt_complete(receipt) is True
+        refresh_loop.last_receipt = receipt
         assert api._use_observed_query_clock is True
         assert receipt.query_set.completed_at_utc <= projection_now
         assert projection_now <= clock.utc_now()
@@ -677,23 +703,45 @@ def test_alpha003_prenext_history_warmup_dispatches_owned_risk_cancel(
         return receipt, projection_now
 
     class _DecisionTape:
-        file_id = "fixture-prenext-risk-tape"
-
         def __init__(self):
             self.rows = []
-            self.last_record_reference = None
+            self.path = tmp_path / "prenext-risk-decision-tape.jsonl"
+            self.writer = runner.DecisionTapeWriter(
+                self.path,
+                1_000_000,
+                mode="live",
+                factor_mode="native",
+                direction=1,
+                targets=("rb",),
+                calendar_id=calendar_id,
+                grid_sha256=None,
+                source_snapshot_id=None,
+                calendar_fingerprint=cohort.calendar_fingerprint,
+            )
+
+        @property
+        def file_id(self):
+            return self.writer.file_id
+
+        @property
+        def calendar_fingerprint(self):
+            return self.writer.calendar_fingerprint
+
+        @property
+        def last_record_reference(self):
+            return self.writer.last_record_reference
 
         def record_decision(self, batch, snapshot, target_decision, order_plan):
             self.rows.append((batch, snapshot, target_decision, order_plan))
             if not tape_write_confirmed:
                 return False
-            self.last_record_reference = {
-                "file_id": self.file_id,
-                "record_id": "record-{}".format(len(self.rows)),
-                "record_index": len(self.rows) - 1,
-                "batch_id": batch.batch_id,
-            }
-            return True
+            return self.writer.record_decision(batch, snapshot, target_decision, order_plan)
+
+        def summary(self):
+            return self.writer.summary()
+
+        def close(self):
+            return self.writer.close()
 
     tape = _DecisionTape()
     risk_policy = strategy_module.Alpha003RiskPolicy(
@@ -714,10 +762,6 @@ def test_alpha003_prenext_history_warmup_dispatches_owned_risk_cancel(
         max_order_intents_per_run=20,
         round_trip_fee_upper_bound_per_contract=Decimal("1"),
     )
-    cerebro = bt.Cerebro(stdstats=False, exactbars=3, preload=False, runonce=False)
-    cerebro.setbroker(broker)
-    cerebro.adddata(feed, name="rb")
-    cerebro.add_live_bar_cohort(cohort, clock=clock)
     observations = []
     grid_decision_calls = []
     cancel_calls = []
@@ -756,7 +800,7 @@ def test_alpha003_prenext_history_warmup_dispatches_owned_risk_cancel(
 
     class _PrenextRiskStrategy(alpha_strategy):
         def _live_facts(self, now):
-            receipt = refresh_view.last_receipt
+            receipt = refresh_loop.last_receipt
             completed_at = None if receipt is None else receipt.query_set.completed_at_utc
             assert completed_at is None or completed_at <= now, (completed_at, now)
             if completed_at is not None:
@@ -797,6 +841,12 @@ def test_alpha003_prenext_history_warmup_dispatches_owned_risk_cancel(
             assert facts is not None and facts.open_risk_ready is True, (
                 None if facts is None else facts.blockers
             )
+            loss_guard_context, loss_guard_blocker = self._refresh_run_loss_guard(
+                facts, seed_projection_now
+            )
+            assert loss_guard_blocker is None and loss_guard_context is not None, (
+                loss_guard_blocker
+            )
             open_key = ExecutionIntentKey(
                 action="SUBMIT",
                 instrument=INSTRUMENT,
@@ -828,6 +878,7 @@ def test_alpha003_prenext_history_warmup_dispatches_owned_risk_cancel(
                 now=self._clock_now(),
                 intent_key=open_key,
                 economics=economics,
+                loss_guard_context=loss_guard_context,
             )
             with seed_scope:
                 self.seed_order = self.buy(
@@ -939,12 +990,15 @@ def test_alpha003_prenext_history_warmup_dispatches_owned_risk_cancel(
         max_query_age_seconds=7200,
         max_live_bar_age_seconds=120,
         max_future_skew_seconds=0,
-        control_refresh_loop=refresh_view,
+        loss_guard_net_loss_threshold=Decimal("1000"),
+        loss_guard_max_observation_age_seconds=30,
+        control_refresh_loop=refresh_loop,
         decision_tape=tape,
     )
 
     try:
         result = cerebro.run(runonce=False, preload=False)
+        tape.close()
         assert len(result) == 1
         strategy = result[0]
         assert len(observations) == 2
@@ -984,7 +1038,7 @@ def test_alpha003_prenext_history_warmup_dispatches_owned_risk_cancel(
             "shutdown_blocker": strategy.shutdown_blocker,
             "shutdown_post_join_blocker": strategy.shutdown_post_join_blocker,
             "last_execution_block_reason": strategy.last_execution_block_reason,
-            "refresh_joined": refresh_view.joined,
+            "refresh_joined": refresh_loop.joined,
             "final_facts": None
             if final_facts is None
             else {
@@ -1023,12 +1077,12 @@ def test_alpha003_prenext_history_warmup_dispatches_owned_risk_cancel(
             },
         }
         assert strategy.shutdown_post_join_confirmed is True
-        assert refresh_view.joined is True
+        assert refresh_loop.joined is True
         assert cancel_calls == [(strategy.seed_order.info["external_order_ref"], EXCHANGE + "." + INSTRUMENT)]
         assert [call[0] for call in api.native_calls] == ["insert", "cancel"]
         assert coordinator.run_order_count() == 2
         capacity = journal.decision_capacity_snapshot()
-        assert capacity.base_record_count == 1
+        assert capacity.base_record_count == (3 if tape_write_confirmed else 1)
         assert capacity.settlement_record_count == 1
         seed_decision = journal.decision(strategy.seed_decision_id)
         assert seed_decision is not None
@@ -1066,5 +1120,31 @@ def test_alpha003_prenext_history_warmup_dispatches_owned_risk_cancel(
         assert observations[1]["facts"].available_at > observations[0]["facts"].available_at
         assert strategy.last_execution_facts.working_orders == ()
         assert tape_write_confirmed is (expected_tape_error is None)
+        tape_summary = tape.summary()
+        assert tape_summary["closed"] is True
+        assert tape_summary["failed"] is False
+        source_head = journal.source_highwater(
+            ACCOUNT_SCOPE,
+            STRATEGY_SCOPE,
+            "run-1",
+            "ALPHA003_GRID",
+        )
+        if tape_write_confirmed:
+            assert tape_summary["record_count"] == len(observations) == 2
+            last_reference = tape_summary["last_record_reference"]
+            assert last_reference is not None and last_reference["record_index"] == 2
+            assert source_head is not None and source_head.anchor_kind == "SOURCE_ONLY"
+            assert source_head.receipt.tape_file_id == tape_summary["file_id"]
+            assert source_head.receipt.tape_record_id == last_reference["record_id"]
+            assert source_head.receipt.tape_record_index == last_reference["record_index"]
+            assert source_head.receipt.batch_id == observations[-1]["batch"].batch_id
+            assert tuple(member.member_id for member in source_head.receipt.members) == ("rb",)
+        else:
+            assert tape_summary["record_count"] == 0
+            assert tape_summary["last_record_reference"] is None
+            assert source_head is None
     finally:
-        journal.close()
+        try:
+            tape.close()
+        finally:
+            journal.close()

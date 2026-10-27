@@ -421,7 +421,7 @@ def test_refresh_loop_finishes_inflight_query_before_successful_post_join_proof(
     loop = RUNNER.QueryRefreshLoop(
         None,
         None,
-        ("DCE.fixture",),
+        (SimpleNamespace(target_id="DCE.fixture"),),
         coordinator=None,
         account_scope="fixture-account",
         strategy_scope="fixture-strategy",
@@ -1128,13 +1128,19 @@ def _daily_test_inputs(tmp_path):
 
 
 @pytest.mark.parametrize(
-    ("selection_source", "unresolved_position", "saved_history_restart"),
     (
-        ("bundle", False, False),
-        ("bundle", True, False),
-        ("ctp_query", False, False),
-        ("bundle", False, True),
-        ("ctp_query", False, True),
+        "selection_source",
+        "unresolved_position",
+        "saved_history_restart",
+        "source_final_highwater_missing",
+    ),
+    (
+        ("bundle", False, False, False),
+        ("bundle", True, False, False),
+        ("ctp_query", False, False, False),
+        ("bundle", False, True, False),
+        ("ctp_query", False, True, False),
+        ("bundle", False, False, True),
     ),
     ids=(
         "flat-two-epoch-positive",
@@ -1142,10 +1148,16 @@ def _daily_test_inputs(tmp_path):
         "same-store-query-live",
         "saved-history-real-live-restart",
         "saved-query-history-three-epoch-restart",
+        "final-highwater-missing-after-cleanup",
     ),
 )
 def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bundle(
-    tmp_path, monkeypatch, selection_source, unresolved_position, saved_history_restart
+    tmp_path,
+    monkeypatch,
+    selection_source,
+    unresolved_position,
+    saved_history_restart,
+    source_final_highwater_missing,
 ):
     """Exercise daily assembly through the real Store/Broker/Cerebro stack.
 
@@ -1158,6 +1170,8 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
     from types import SimpleNamespace
 
     import backtrader.stores.registered_sim as registered_sim_module
+    import backtrader.stores.execution_decision_journal as journal_module
+    import backtrader.stores.factor_execution as factor_execution_module
     from backtrader.feeds import futures_ctp_snapshot, futures_expected_calendar
     from backtrader.feeds.ctp_factor_source import CtpFactorSourceBinding
     from backtrader.stores.btapistore import _create_ctp_wrapper_class
@@ -1181,13 +1195,14 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
             synthetic_calendar_review_at,
         )
     config = _base_config(tmp_path, "live")
+    session_end = (11, 59) if saved_history_restart else (10, 59)
     first_bundle = _write_json(
         tmp_path / "selection-first.json",
         _selection_bundle(
             current_day=first_day,
             decision_at=first_decision,
             select_first=False,
-            session_end=(10, 59),
+            session_end=session_end,
         ),
     )
     config["selection"]["bundle"] = str(first_bundle)
@@ -1197,7 +1212,7 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
         current_day=first_day,
         decision_at=first_decision,
         connection_generation=1,
-        session_end=(10, 59),
+        session_end=session_end,
     )
     second_bundle = _write_json(
         tmp_path / "selection-second.json",
@@ -1205,7 +1220,7 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
             current_day=second_day,
             decision_at=second_decision,
             select_first=True,
-            session_end=(10, 59),
+            session_end=session_end,
         ),
     )
     if selection_source == "ctp_query":
@@ -1276,7 +1291,7 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
     # warmup; those rows are the journal-anchored values restored next epoch.
     restart_cut = 2 * config["factor"]["preheat_bars"]
     restart_cut_2 = restart_cut + config["factor"]["preheat_bars"] + 8
-    restart_cut_3 = restart_cut_2 + 8
+    restart_cut_3 = restart_cut_2 + config["factor"]["preheat_bars"] + 8
     assert restart_cut_3 < len(first_plan["grid"].minutes)
     for cutoff in (restart_cut, restart_cut_2):
         assert len(
@@ -1295,6 +1310,122 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
     query_run_attempts = {"value": 0}
     query_context_serial = {"value": 0}
     pending_query_context_options = {}
+    source_highwater_reads = []
+    strategy_source_highwaters = []
+    source_receipts_written = []
+    source_receipt_events = []
+    source_receipt_counts = {
+        "builder_calls": 0,
+        "builder_returns": 0,
+        "coordinator_write_calls": 0,
+        "coordinator_write_returns": 0,
+        "journal_grid_calls": 0,
+        "journal_source_rows": 0,
+    }
+    decision_tape_closed = {"value": False}
+
+    def _safe_source_code(value):
+        if (
+            type(value) is str
+            and 0 < len(value) <= 96
+            and all(
+                character in "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-"
+                for character in value
+            )
+        ):
+            return value
+        return None
+
+    def _public_source_traceback_lines(error):
+        frames = []
+        tb = error.__traceback__
+        root = ROOT.resolve()
+        while tb is not None and len(frames) < 16:
+            code = tb.tb_frame.f_code
+            try:
+                source_path = Path(code.co_filename).resolve()
+                source_name = source_path.relative_to(root).as_posix()
+            except (OSError, RuntimeError, ValueError):
+                tb = tb.tb_next
+                continue
+            frames.append(
+                {
+                    "source": source_name,
+                    "function": code.co_name[:96],
+                    "line": tb.tb_lineno,
+                }
+            )
+            tb = tb.tb_next
+        return frames[-8:]
+
+    def _record_source_receipt_event(stage, *, result=None, error=None):
+        if len(source_receipt_events) >= 16:
+            del source_receipt_events[0]
+        if error is None:
+            source_receipt_events.append(
+                {
+                    "stage": stage,
+                    "outcome": "RETURNED",
+                    "result_type": type(result).__name__[:96],
+                }
+            )
+            return
+        source_receipt_events.append(
+            {
+                "stage": stage,
+                "outcome": "ERROR",
+                "exception_type": type(error).__name__[:96],
+                "code": _safe_source_code(getattr(error, "code", None)),
+                "traceback": _public_source_traceback_lines(error),
+            }
+        )
+
+    original_record_grid_decision = journal_module.ExecutionDecisionJournal.record_grid_decision
+
+    def tracked_record_grid_decision(journal, *args, **kwargs):
+        source_receipt = kwargs.get("source_receipt")
+        source_receipt_counts["journal_grid_calls"] += 1
+        try:
+            result = original_record_grid_decision(journal, *args, **kwargs)
+        except Exception as error:
+            _record_source_receipt_event("journal_record_grid_decision", error=error)
+            raise
+        if source_receipt is not None:
+            source_receipt_counts["journal_source_rows"] += 1
+            if len(source_receipts_written) < 16:
+                source_receipts_written.append(type(source_receipt).__name__)
+        return result
+
+    monkeypatch.setattr(
+        journal_module.ExecutionDecisionJournal,
+        "record_grid_decision",
+        tracked_record_grid_decision,
+    )
+
+    if source_final_highwater_missing:
+        original_source_highwater = journal_module.ExecutionDecisionJournal.source_highwater
+        original_tape_close = RUNNER.DecisionTapeWriter.close
+
+        def missing_source_highwater(_journal, *args, **kwargs):
+            if decision_tape_closed["value"]:
+                source_highwater_reads.append((args, tuple(sorted(kwargs.items()))))
+                return None
+            result = original_source_highwater(_journal, *args, **kwargs)
+            if source_receipts_written:
+                strategy_source_highwaters.append(result)
+            return result
+
+        def track_decision_tape_close(tape):
+            result = original_tape_close(tape)
+            decision_tape_closed["value"] = True
+            return result
+
+        monkeypatch.setattr(
+            journal_module.ExecutionDecisionJournal,
+            "source_highwater",
+            missing_source_highwater,
+        )
+        monkeypatch.setattr(RUNNER.DecisionTapeWriter, "close", track_decision_tape_close)
 
     class CausalFixtureClock:
         """Virtual UTC follows tape availability; monotonic drives deadlines."""
@@ -1329,7 +1460,9 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
                     self._now = max(self._now, self._availability[self._availability_index])
                     self._availability_index += 1
 
-        def set_epoch_events(self, events, *, start_at=None):
+        def set_epoch_events(
+            self, events, *, start_at=None, required_completed_close=None
+        ):
             with self._lock:
                 self._availability = tuple(
                     sorted(
@@ -1351,11 +1484,18 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
                     for row in rows
                 }
                 self._completed_close = None
-                self._required_completed_close = (
-                    min(row["bucket_start"] for rows in events.values() for row in rows)
-                    if saved_history_restart and start_at is not None
-                    else None
-                )
+                if saved_history_restart and start_at is not None:
+                    self._required_completed_close = (
+                        required_completed_close
+                        if required_completed_close is not None
+                        else min(
+                            row["bucket_start"]
+                            for rows in events.values()
+                            for row in rows
+                        )
+                    )
+                else:
+                    self._required_completed_close = None
                 # Startup facts are queried at the first planned bucket start.
                 # A restart resumes after the last saved history receipt instead
                 # of rewinding the shared virtual clock.
@@ -1414,11 +1554,54 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
     monkeypatch.setattr(RUNNER, "RunnerWallClock", lambda: clock)
     current_plan = {"value": first_plan}
     plans_by_epoch = {}
+    calendar_overrides_by_epoch = {}
+    provider_live_closes_by_epoch = {}
     query_plans_by_snapshot_id = {}
     strategy_instances = []
 
-    def make_context(plan, epoch_id, *, context=None):
+    def make_context(plan, epoch_id, *, context=None, calendar_override=None):
         bar_rows = defaultdict(list)
+        live_slots_by_close = None
+        restart_highwater_close = None
+        if saved_history_restart and epoch_id in (2, 3) and calendar_override is not None:
+            gap = calendar_override.restart_gap
+            assert gap is not None
+            prior_cutoff = restart_cut if epoch_id == 2 else restart_cut_2
+            prior_plan = plans_by_epoch[epoch_id - 1]
+            expected_highwater_close = prior_plan["grid"].minutes[prior_cutoff - 1].close_time
+            restart_highwater_close = expected_highwater_close
+            assert gap.journal_highwater.close_time == expected_highwater_close
+            assert gap.omitted_slot_count > 0
+            assert gap.omitted_slot_count == (
+                gap.first_live_original_slot_index
+                - gap.history_highwater_original_slot_index
+                - 1
+            )
+            assert gap.first_live_cohort_slot_index == (
+                gap.history_highwater_original_slot_index + 1
+            )
+            highwater_slot = calendar_override.slots[
+                gap.history_highwater_original_slot_index
+            ]
+            first_live_slot = calendar_override.slots[gap.first_live_cohort_slot_index]
+            assert highwater_slot.slot_id == gap.journal_highwater.slot_id
+            assert highwater_slot.close_time == expected_highwater_close
+            assert first_live_slot.slot_id == gap.first_live_slot_id
+            assert first_live_slot.bucket_start == gap.first_live_bucket_start
+            assert first_live_slot.close_time == gap.first_live_close_time
+            assert first_live_slot.bucket_start >= gap.startup_time_utc
+            omitted_plan_closes = tuple(
+                minute.close_time
+                for ordinal, minute in enumerate(plan["grid"].minutes, 1)
+                if ordinal > prior_cutoff and minute.close_time < first_live_slot.close_time
+            )
+            assert len(omitted_plan_closes) == gap.omitted_slot_count
+            live_slots = tuple(
+                calendar_override.slots[gap.first_live_cohort_slot_index :]
+            )
+            assert live_slots and live_slots[0] is first_live_slot
+            live_slots_by_close = {slot.close_time: slot for slot in live_slots}
+            assert len(live_slots_by_close) == len(live_slots)
         for ordinal, minute in enumerate(plan["grid"].minutes, 1):
             if saved_history_restart:
                 if epoch_id == 1 and ordinal > restart_cut:
@@ -1429,12 +1612,19 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
                     continue
                 if epoch_id not in (1, 2, 3):
                     raise AssertionError("unexpected saved-history epoch")
+            close_time = minute.close_time
+            if live_slots_by_close is not None:
+                slot = live_slots_by_close.get(close_time)
+                if slot is None:
+                    # A restart may omit elapsed/partial calendar slots. The
+                    # synthetic provider must not invent bars for those slots.
+                    continue
+                assert slot.bucket_start == close_time - timedelta(minutes=1)
             member_by_product = {member.product: member for member in minute.members}
             for target_index, target in enumerate(plan["targets"]):
                 product = plan["product_by_target"][target]
                 instrument = plan["routes"][product]
                 member = member_by_product[product]
-                close_time = minute.close_time
                 start_time = close_time - timedelta(minutes=1)
                 # Each target gets an independently moving open rank and
                 # volume rank; equal cross-sections make Alpha003's rolling
@@ -1462,13 +1652,7 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
                         # A new provider generation starts its own sequence at
                         # one. History and live therefore must be validated
                         # independently by source role.
-                        "bar_sequence": (
-                            ordinal - restart_cut
-                            if saved_history_restart and epoch_id == 2
-                            else ordinal - restart_cut_2
-                            if saved_history_restart and epoch_id == 3
-                            else ordinal
-                        ),
+                        "bar_sequence": len(bar_rows[instrument]) + 1,
                         "bar_id": f"epoch-{epoch_id}:{target}:{ordinal}",
                         "timestamp": close_time.timestamp(),
                         "present": True,
@@ -1485,6 +1669,32 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
                         "openinterest": 0.0,
                     }
                 )
+
+        if live_slots_by_close is not None:
+            window_start, window_end = (
+                (restart_cut, restart_cut_2)
+                if epoch_id == 2
+                else (restart_cut_2, restart_cut_3)
+            )
+            expected_live_closes = tuple(
+                minute.close_time
+                for ordinal, minute in enumerate(plan["grid"].minutes, 1)
+                if window_start < ordinal <= window_end
+                and minute.close_time in live_slots_by_close
+            )
+            assert expected_live_closes
+            assert expected_live_closes[0] == live_slots[0].close_time
+            assert expected_live_closes[-1] == plan["grid"].minutes[window_end - 1].close_time
+            assert not set(omitted_plan_closes) & set(expected_live_closes)
+            assert set(bar_rows) == {
+                plan["routes"][plan["product_by_target"][target]]
+                for target in plan["targets"]
+            }
+            assert all(
+                tuple(row["bucket_end"] for row in rows) == expected_live_closes
+                for rows in bar_rows.values()
+            )
+            provider_live_closes_by_epoch[epoch_id] = expected_live_closes
         rows = context.rows if context is not None else facts_fixture._query_rows()
         routes = [
             (
@@ -1553,6 +1763,7 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
         clock.set_epoch_events(
             bar_rows,
             start_at=(clock.utc_now() if saved_history_restart and epoch_id > 1 else None),
+            required_completed_close=restart_highwater_close,
         )
         return context
 
@@ -2034,7 +2245,14 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
             row = queue.popleft()
             if saved_history_restart and not self._first_bar_logged:
                 self._first_bar_logged = True
-                trace.append(("first_provider_bar", self.context.epoch_id, row["bar_sequence"]))
+                trace.append(
+                    (
+                        "first_provider_bar",
+                        self.context.epoch_id,
+                        row["bar_sequence"],
+                        row["bucket_end"],
+                    )
+                )
             return row
 
     original_factory = registered_sim_module._make_api_factory
@@ -2160,12 +2378,24 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
         assert grid is plan["grid"]
         epoch_id = epoch_config["cohort"]["epoch_id"]
         plans_by_epoch[epoch_id] = plan
+        calendar_override = kwargs.get("calendar_override")
+        calendar_overrides_by_epoch[epoch_id] = calendar_override
         if selection_source == "ctp_query":
             context = api_clients[-1].context
             assert context.all_catalog_facts is True
-            make_context(plan, epoch_id, context=context)
+            make_context(
+                plan,
+                epoch_id,
+                context=context,
+                calendar_override=calendar_override,
+            )
         else:
-            make_context(plan, epoch_id, context=api_clients[-1].context)
+            make_context(
+                plan,
+                epoch_id,
+                context=api_clients[-1].context,
+                calendar_override=calendar_override,
+            )
         trace.append(("cohort_assembled", epoch_id))
         return original_make_cohort(epoch_config, grid, begin_at=begin_at, **kwargs)
 
@@ -2187,8 +2417,40 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
     monkeypatch.setattr(RUNNER, "_load_saved_live_history", tracked_load_history)
     original_run_live = RUNNER.run_live
 
+    def _source_receipt_failure_note(error):
+        continuity = getattr(error, "source_continuity", None)
+        continuity_projection = None
+        if isinstance(continuity, dict):
+            continuity_projection = {
+                "status": continuity.get("status"),
+                "available": continuity.get("available"),
+                "record_count": continuity.get("record_count"),
+                "failure_count": continuity.get("failure_count"),
+                "first_error": _safe_source_code(continuity.get("first_error")),
+                "final_highwater_matches_tape": continuity.get(
+                    "final_highwater_matches_tape"
+                ),
+            }
+        projection = {
+            "exception_type": type(error).__name__[:96],
+            "code": _safe_source_code(getattr(error, "code", None)),
+            "source_continuity": continuity_projection,
+            "source_receipt_counts": dict(source_receipt_counts),
+            "events": source_receipt_events[-8:],
+        }
+        return "bounded source-receipt diagnostic " + json.dumps(
+            projection, sort_keys=True, separators=(",", ":")
+        )
+
     def tracked_run_live(epoch_config, *args, **kwargs):
-        result = original_run_live(epoch_config, *args, **kwargs)
+        try:
+            result = original_run_live(epoch_config, *args, **kwargs)
+        except Exception as error:
+            note = _source_receipt_failure_note(error)
+            add_note = getattr(error, "add_note", None)
+            if callable(add_note):
+                add_note(note)
+            raise
         live_run_results.append(result)
         trace.append(("run_live_returned", epoch_config["cohort"]["epoch_id"]))
         return result
@@ -2262,9 +2524,46 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
         return live_run_results[-1]
 
     strategy_module = importlib.import_module("alpha003_strategy")
+    original_source_receipt = strategy_module.Alpha003TargetStrategy._source_receipt
     original_prenext = strategy_module.Alpha003TargetStrategy.prenext
     original_next = strategy_module.Alpha003TargetStrategy.next
     original_notify_idle = strategy_module.Alpha003TargetStrategy.notify_idle
+    original_record_source_receipt = (
+        factor_execution_module.FactorExecutionCoordinator.record_source_receipt
+    )
+
+    def tracked_source_receipt(strategy, *args, **kwargs):
+        source_receipt_counts["builder_calls"] += 1
+        try:
+            result = original_source_receipt(strategy, *args, **kwargs)
+        except Exception as error:
+            _record_source_receipt_event("strategy_source_receipt", error=error)
+            raise
+        source_receipt_counts["builder_returns"] += 1
+        _record_source_receipt_event("strategy_source_receipt", result=result)
+        return result
+
+    def tracked_record_source_receipt(coordinator, *args, **kwargs):
+        source_receipt_counts["coordinator_write_calls"] += 1
+        try:
+            result = original_record_source_receipt(coordinator, *args, **kwargs)
+        except Exception as error:
+            _record_source_receipt_event("coordinator_record_source_receipt", error=error)
+            raise
+        source_receipt_counts["coordinator_write_returns"] += 1
+        _record_source_receipt_event("coordinator_record_source_receipt", result=result)
+        return result
+
+    monkeypatch.setattr(
+        strategy_module.Alpha003TargetStrategy,
+        "_source_receipt",
+        tracked_source_receipt,
+    )
+    monkeypatch.setattr(
+        factor_execution_module.FactorExecutionCoordinator,
+        "record_source_receipt",
+        tracked_record_source_receipt,
+    )
 
     def request_restart_after_final_batch(strategy):
         if not saved_history_restart or strategy.shutdown_requested:
@@ -2358,8 +2657,13 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
 
     failure = None
     result = None
+    continuity_error = None
     try:
-        if saved_history_restart:
+        if source_final_highwater_missing:
+            with pytest.raises(RUNNER.RunnerError) as continuity_error_context:
+                run_saved_history_epoch()
+            continuity_error = continuity_error_context.value
+        elif saved_history_restart:
             config["risk"].update(
                 policy_id="saved-history-budget-v1",
                 max_hold_eligible_bars=12,
@@ -2668,31 +2972,35 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
                     assert api_clients[-1].closed is True
                     assert not Path(config["output"]["decision_tape_path"]).exists()
 
-                    journal_anchor_tamper_path = write_first_tape_tamper(
+                    terminal_record_tamper_path = write_first_tape_tamper(
                         "history-header-risk-and-row-bindings-tampered.jsonl",
                         lambda rows: mutate_header_risk(rows, update_row_bindings=True),
                     )
-                    journal_anchor_tamper_rows = [
+                    terminal_record_tamper_rows = [
                         json.loads(raw)
-                        for raw in journal_anchor_tamper_path.read_bytes().splitlines()
+                        for raw in terminal_record_tamper_path.read_bytes().splitlines()
                     ]
                     assert all(
-                        row["header_record_id"] == journal_anchor_tamper_rows[0]["record_id"]
-                        for row in journal_anchor_tamper_rows[1:]
+                        row["header_record_id"] == terminal_record_tamper_rows[0]["record_id"]
+                        for row in terminal_record_tamper_rows[1:]
                     )
                     assert all(
                         tampered["record_id"] != original["record_id"]
                         for tampered, original in zip(
-                            journal_anchor_tamper_rows[1:], first_decisions
+                            terminal_record_tamper_rows[1:], first_decisions
                         )
                     )
                     config["inputs"]["history_decision_tape"] = str(
-                        journal_anchor_tamper_path
+                        terminal_record_tamper_path
                     )
-                    with pytest.raises(RUNNER.RunnerError) as rebound_anchor_error:
+                    # Rebinding the header and row IDs still changes the
+                    # terminal record referenced by the journal's source HWM.
+                    # The loader checks that exact terminal binding before its
+                    # later per-decision anchor lookup.
+                    with pytest.raises(RUNNER.RunnerError) as source_highwater_error:
                         run_saved_history_epoch()
-                    assert rebound_anchor_error.value.code == (
-                        "LIVE_HISTORY_JOURNAL_DECISION_ANCHOR_MISMATCH"
+                    assert source_highwater_error.value.code == (
+                        "LIVE_HISTORY_SOURCE_HIGHWATER_MISMATCH"
                     )
                     assert api_clients[-1].closed is True
                     assert not Path(config["output"]["decision_tape_path"]).exists()
@@ -3038,9 +3346,11 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
                 ),
                 ("source-ref-drift", make_source_ref_drift, "LIVE_HISTORY_MEMBER_INVALID"),
                 (
+                    # Rehashing the valid-value edit changes the terminal
+                    # record ID, so source-HWM binding fails before anchors.
                     "valid-price-change",
                     make_valid_price_change,
-                    "LIVE_HISTORY_JOURNAL_DECISION_ANCHOR_MISMATCH",
+                    "LIVE_HISTORY_SOURCE_HIGHWATER_MISMATCH",
                 ),
                 (
                     "non-string-event-source",
@@ -3201,6 +3511,72 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
             api.trader_client._trading_day, "%Y%m%d"
         ).date()
 
+    if source_final_highwater_missing:
+        assert continuity_error is not None
+        assert continuity_error.code == "LIVE_SOURCE_CONTINUITY_UNAVAILABLE"
+        assert failure is None
+        assert result is None
+        assert live_run_results == []
+        assert len(api_clients) == 1 and api_clients[0].closed is True
+        assert source_receipts_written, _source_receipt_failure_note(continuity_error)
+        assert strategy_source_highwaters
+        assert all(highwater is not None for highwater in strategy_source_highwaters)
+        assert decision_tape_closed["value"] is True
+        assert len(source_highwater_reads) == 1
+        assert all(
+            args
+            == (
+                "alpha003-two-epoch-account",
+                "alpha003-two-epoch-shadow",
+                "alpha003-two-epoch-shadow-run",
+                RUNNER._live_source_lineage_kind(first_plan),
+            )
+            and kwargs == ()
+            for args, kwargs in source_highwater_reads
+        )
+        source_continuity = continuity_error.source_continuity
+        assert source_continuity["status"] == "UNAVAILABLE"
+        assert source_continuity["available"] is False
+        assert source_continuity["record_count"] > 0
+        assert source_continuity["failure_count"] == 1
+        assert source_continuity["first_error"] == "SOURCE_HIGHWATER_MISSING"
+        assert source_continuity["final_highwater_matches_tape"] is False
+        cleanup = continuity_error.cleanup_results
+        assert RUNNER._cleanup_complete(cleanup) is True
+        by_resource = {row["resource"]: row for row in cleanup}
+        assert set(by_resource) == {
+            "query_refresh",
+            "decision_tape",
+            "broker",
+            "store",
+            "journal",
+        }
+        assert by_resource["query_refresh"]["joined"] is True
+        assert by_resource["decision_tape"]["status"] == "CLOSED"
+        assert by_resource["decision_tape"]["record_count"] == source_continuity[
+            "record_count"
+        ]
+        # This integration fixture is explicitly read-only, so the production
+        # Broker reports observation-only rather than claiming flat/execution
+        # reconciliation.  Cleanup still requires its actual Store stop to
+        # pass; _cleanup_complete above also checks the refresh join, native
+        # source receipt, journal, and tape.
+        assert by_resource["broker"]["status"] == "OBSERVATION_ONLY"
+        assert by_resource["broker"]["store_shutdown_state"] == "PASS"
+        assert by_resource["store"]["status"] == "CLOSED_BY_BROKER"
+        assert by_resource["store"]["shutdown_state"] == "PASS"
+        assert by_resource["journal"]["status"] == "CLOSED"
+        tape_rows = list(
+            RUNNER.iter_decision_tape(
+                Path(config["output"]["decision_tape_path"]),
+                max_bytes=config["output"]["decision_tape_max_bytes"],
+            )
+        )
+        decision_rows = [row for row in tape_rows if row["record_type"] == "DECISION"]
+        assert len(decision_rows) == source_continuity["record_count"] > 0
+        assert len(api_clients) == 1 and api_clients[0].closed is True
+        return
+
     if unresolved_position:
         assert isinstance(failure, TimeoutError), repr(
             {
@@ -3341,29 +3717,45 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
                     < login_indexes[1]
                     < history_index
                 )
-        assert [row for row in trace if row[0] == "fixture_restart_requested"] == [
-            (
-                "fixture_restart_requested",
-                epoch_id,
-                "{}:{}:{}:{}:{}".format(
-                    "alpha003:{}:{}".format(
-                        config["cohort"]["calendar_id"], epoch_id
-                    ),
-                    config["cohort"]["calendar_id"],
+        expected_restart_requests = []
+        for epoch_id, final_ordinal in (
+            (1, restart_cut),
+            (2, restart_cut_2),
+            (3, restart_cut_3),
+        ):
+            final_close = plans_by_epoch[epoch_id]["grid"].minutes[
+                final_ordinal - 1
+            ].close_time
+            calendar = calendar_overrides_by_epoch[epoch_id]
+            if calendar is None:
+                cohort_slot_index = final_ordinal - 1
+            else:
+                matching_slots = [
+                    index
+                    for index, slot in enumerate(calendar.slots)
+                    if slot.close_time == final_close
+                ]
+                assert len(matching_slots) == 1
+                cohort_slot_index = matching_slots[0]
+            expected_restart_requests.append(
+                (
+                    "fixture_restart_requested",
                     epoch_id,
-                    config["cohort"]["calendar_version"],
-                    final_ordinal - window_start - 1,
-                ),
-                plans_by_epoch[epoch_id]["grid"].minutes[
-                    final_ordinal - 1
-                ].close_time.isoformat(),
+                    "{}:{}:{}:{}:{}".format(
+                        "alpha003:{}:{}".format(
+                            config["cohort"]["calendar_id"], epoch_id
+                        ),
+                        config["cohort"]["calendar_id"],
+                        epoch_id,
+                        config["cohort"]["calendar_version"],
+                        cohort_slot_index,
+                    ),
+                    final_close.isoformat(),
+                )
             )
-            for epoch_id, final_ordinal, window_start in (
-                (1, restart_cut, 0),
-                (2, restart_cut_2, restart_cut - config["factor"]["preheat_bars"]),
-                (3, restart_cut_3, restart_cut_2 - config["factor"]["preheat_bars"]),
-            )
-        ]
+        assert [row for row in trace if row[0] == "fixture_restart_requested"] == (
+            expected_restart_requests
+        )
         if query_saved_history:
             assert plans_by_epoch[3]["grid"].minutes[
                 restart_cut_3 - 1
@@ -3385,14 +3777,52 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
             for member in row["members"].values()
         )
         warmup_bars = config["factor"]["preheat_bars"]
+
+        def eligible_live_grid_decisions(decisions):
+            return tuple(
+                row
+                for row in decisions
+                if row["readiness"] == "LIVE_READY"
+                and row["members"]
+                and all(
+                    member["source_role"] == "live"
+                    and member["complete"] is True
+                    and member["present"] is True
+                    and member["quality"] == "GOOD"
+                    and not member["missing_fields"]
+                    for member in row["members"].values()
+                )
+            )
+
+        old_grid_decisions = eligible_live_grid_decisions(old_decisions)
+        # A complete N-bar live window becomes eligible on its Nth bar, whose
+        # zero-based offset is N - 1. Keep this GRID projection separate from
+        # the source-tape tail restored as history below.
+        first_ready_live_offset = warmup_bars - 1
+        assert old_grid_decisions == tuple(old_decisions[first_ready_live_offset:])
+        assert not eligible_live_grid_decisions(old_decisions[:first_ready_live_offset])
+        expected_history_tail = tuple(old_decisions[-warmup_bars:])
+        assert len(expected_history_tail) == warmup_bars
         assert epoch2_result["status"] == "LIVE_RUN_COMPLETE"
         assert epoch2_result["epoch_id"] == 2
         assert epoch2_result["cleanup_complete"] is True
         assert epoch2_tape_rows[0]["restart_identity"]["epoch_id"] == 2
-        assert len(epoch2_decisions) == warmup_bars + restart_cut_2 - restart_cut
+        expected_epoch2_live_closes = provider_live_closes_by_epoch[2]
+        assert len(epoch2_decisions) == warmup_bars + len(expected_epoch2_live_closes)
+        assert next(
+            row for row in trace if row[0] == "first_provider_bar" and row[1] == 2
+        ) == ("first_provider_bar", 2, 1, expected_epoch2_live_closes[0])
         assert all(row["epoch_id"] == 2 for row in epoch2_decisions)
         history_decisions = epoch2_decisions[:warmup_bars]
         live_decisions = epoch2_decisions[warmup_bars:]
+        assert tuple(row["close_time"] for row in history_decisions) == tuple(
+            row["close_time"] for row in expected_history_tail
+        )
+        assert tuple(row["close_time"] for row in live_decisions) == tuple(
+            close.isoformat().replace("+00:00", "Z") for close in expected_epoch2_live_closes
+        )
+        assert not eligible_live_grid_decisions(history_decisions)
+        assert not eligible_live_grid_decisions(live_decisions[:first_ready_live_offset])
         assert all(
             member["source_role"] == "history"
             and member["connection_generation"] == "epoch-1-generation-1"
@@ -3409,11 +3839,12 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
             for row in live_decisions
             for member in row["members"].values()
         )
-        assert all(
-            row["readiness"] == "LIVE_READY"
-            and all(member["source_role"] == "live" for member in row["members"].values())
-            for row in epoch2_decisions[-warmup_bars:]
+        epoch2_grid_decisions = eligible_live_grid_decisions(epoch2_decisions)
+        assert len(epoch2_grid_decisions) == (
+            len(expected_epoch2_live_closes) - first_ready_live_offset
         )
+        assert epoch2_grid_decisions
+        assert epoch2_grid_decisions == tuple(live_decisions[first_ready_live_offset:])
         assert [
             next(iter(row["members"].values()))["feed_sequence"] for row in live_decisions
         ] == list(range(1, len(live_decisions) + 1))
@@ -3423,9 +3854,9 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
         assert [row["close_time"] for row in history_decisions] == [
             minute.close_time.isoformat().replace("+00:00", "Z") for minute in expected_history
         ]
-        assert live_decisions[0]["close_time"] == (
-            first_plan["grid"].minutes[restart_cut].close_time.isoformat().replace("+00:00", "Z")
-        )
+        assert live_decisions[0]["close_time"] == expected_epoch2_live_closes[
+            0
+        ].isoformat().replace("+00:00", "Z")
         assert epoch2_result["history_resume"]["source_epoch_id"] == 1
         assert epoch2_result["history_resume"]["restored_bar_count"] == warmup_bars
         assert epoch2_result["history_resume"]["last_close_time"] == history_decisions[-1][
@@ -3434,7 +3865,7 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
         assert epoch2_result["history_resume"]["prior_run_order_intents"] == 0
         assert (
             epoch2_result["history_resume"]["prior_grid_cursor_batch_id"]
-            == first_decisions[-1]["batch_id"]
+            == old_grid_decisions[-1]["batch_id"]
         )
         assert epoch2_result["history_resume"]["run_order_intents_after"] == 0
 
@@ -3456,10 +3887,24 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
                 for decision_row in tape_rows[1:]
                 for action in (decision_row.get("order_plan") or {}).get("actions", ())
             )
-        assert len(epoch3_decisions) == warmup_bars + restart_cut_3 - restart_cut_2
+        expected_epoch3_live_closes = provider_live_closes_by_epoch[3]
+        assert len(epoch3_decisions) == warmup_bars + len(expected_epoch3_live_closes)
+        assert next(
+            row for row in trace if row[0] == "first_provider_bar" and row[1] == 3
+        ) == ("first_provider_bar", 3, 1, expected_epoch3_live_closes[0])
         assert all(row["epoch_id"] == 3 for row in epoch3_decisions)
         epoch3_history = epoch3_decisions[:warmup_bars]
         epoch3_live = epoch3_decisions[warmup_bars:]
+        expected_epoch3_history_tail = tuple(epoch2_decisions[-warmup_bars:])
+        assert len(expected_epoch3_history_tail) == warmup_bars
+        assert tuple(row["close_time"] for row in epoch3_history) == tuple(
+            row["close_time"] for row in expected_epoch3_history_tail
+        )
+        assert tuple(row["close_time"] for row in epoch3_live) == tuple(
+            close.isoformat().replace("+00:00", "Z") for close in expected_epoch3_live_closes
+        )
+        assert not eligible_live_grid_decisions(epoch3_history)
+        assert not eligible_live_grid_decisions(epoch3_live[:first_ready_live_offset])
         assert all(
             member["source_role"] == "history"
             and member["connection_generation"] == "epoch-2-generation-1"
@@ -3481,24 +3926,28 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
             for index, row in enumerate(epoch3_live, 1)
             for member in row["members"].values()
         )
-        expected_epoch3_history = first_plan["grid"].minutes[
+        epoch3_grid_decisions = eligible_live_grid_decisions(epoch3_decisions)
+        assert len(epoch3_grid_decisions) == (
+            len(expected_epoch3_live_closes) - first_ready_live_offset
+        )
+        assert epoch3_grid_decisions
+        assert epoch3_grid_decisions == tuple(epoch3_live[first_ready_live_offset:])
+        expected_epoch3_history = plans_by_epoch[2]["grid"].minutes[
             restart_cut_2 - warmup_bars : restart_cut_2
         ]
         assert [row["close_time"] for row in epoch3_history] == [
             minute.close_time.isoformat().replace("+00:00", "Z")
             for minute in expected_epoch3_history
         ]
-        assert epoch3_live[0]["close_time"] == (
-            plans_by_epoch[3]["grid"].minutes[restart_cut_2]
-            .close_time.isoformat()
-            .replace("+00:00", "Z")
-        )
+        assert epoch3_live[0]["close_time"] == expected_epoch3_live_closes[
+            0
+        ].isoformat().replace("+00:00", "Z")
         assert result["history_resume"]["source_epoch_id"] == 2
         assert result["history_resume"]["restored_bar_count"] == warmup_bars
         assert result["history_resume"]["last_close_time"] == epoch3_history[-1]["close_time"]
-        assert result["history_resume"]["prior_grid_cursor_batch_id"] == epoch2_decisions[-1][
-            "batch_id"
-        ]
+        assert result["history_resume"]["prior_grid_cursor_batch_id"] == (
+            epoch2_grid_decisions[-1]["batch_id"]
+        )
         assert result["history_resume"]["prior_run_order_intents"] == 0
         assert result["history_resume"]["run_order_intents_after"] == 0
 
@@ -3523,16 +3972,17 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
             )
             assert old_cursor is not None and new_cursor is not None and newest_cursor is not None
             assert RUNNER._aware_datetime(old_cursor.close_time, "old cursor") == (
-                first_plan["grid"].minutes[restart_cut - 1].close_time
+                RUNNER._aware_datetime(old_grid_decisions[-1]["close_time"], "old grid row")
             )
+            assert old_cursor.ordinal == len(old_grid_decisions)
             assert RUNNER._aware_datetime(new_cursor.close_time, "new cursor") == (
-                first_plan["grid"].minutes[restart_cut_2 - 1].close_time
+                RUNNER._aware_datetime(epoch2_grid_decisions[-1]["close_time"], "new grid row")
             )
-            assert new_cursor.ordinal == restart_cut_2 - restart_cut
+            assert new_cursor.ordinal == len(epoch2_grid_decisions)
             assert RUNNER._aware_datetime(newest_cursor.close_time, "newest cursor") == (
-                plans_by_epoch[3]["grid"].minutes[restart_cut_3 - 1].close_time
+                RUNNER._aware_datetime(epoch3_grid_decisions[-1]["close_time"], "newest grid row")
             )
-            assert newest_cursor.ordinal == restart_cut_3 - restart_cut_2
+            assert newest_cursor.ordinal == len(epoch3_grid_decisions)
             assert journal.run_order_count(
                 config["live"]["account_scope"],
                 config["live"]["strategy_scope"],
@@ -3918,30 +4368,24 @@ def test_saved_live_history_is_rejected_outside_live_mode(tmp_path, capsys):
     assert result["code"] == "LIVE_HISTORY_LIVE_MODE_REQUIRED"
 
 
-def test_saved_live_history_rejects_unsupported_selection_before_provider(
-    tmp_path,
-):
+def test_saved_live_history_rejects_daily_bundle_selection_before_provider(tmp_path):
     from types import SimpleNamespace
 
-    for selection_source, daily_bundles in (
-        ("ctp_query", []),
-        ("bundle", ["unused-next-day.json"]),
-    ):
-        config = {
-            "inputs": {"history_decision_tape": str(tmp_path / "prior.jsonl")},
-            "selection": {"source": selection_source, "daily_bundles": daily_bundles},
-        }
-        with pytest.raises(RUNNER.RunnerError) as error:
-            RUNNER.run_live_epochs(
-                config,
-                tmp_path / "unused.yaml",
-                None,
-                "native",
-                1,
-                decision=SimpleNamespace(effective_tier="live"),
-                allow_write_flag=False,
-            )
-        assert error.value.code == "LIVE_HISTORY_SELECTION_UNSUPPORTED"
+    config = {
+        "inputs": {"history_decision_tape": str(tmp_path / "prior.jsonl")},
+        "selection": {"source": "bundle", "daily_bundles": ["unused-next-day.json"]},
+    }
+    with pytest.raises(RUNNER.RunnerError) as error:
+        RUNNER.run_live_epochs(
+            config,
+            tmp_path / "unused.yaml",
+            None,
+            "native",
+            1,
+            decision=SimpleNamespace(effective_tier="live"),
+            allow_write_flag=False,
+        )
+    assert error.value.code == "LIVE_HISTORY_SELECTION_UNSUPPORTED"
 
 
 def test_public_config_defaults_to_dry_and_cli_cannot_escalate(tmp_path, capsys):
@@ -4762,12 +5206,18 @@ def test_live_setup_failures_close_every_created_resource(
             return {"status": "NOT_STARTED", "store_shutdown_state": "UNPROVEN"}
 
     class FakeJournal:
-        def __init__(self, path):
+        def __init__(self, path, *, max_payload_bytes):
+            assert max_payload_bytes == 131072
             constructed.append("journal")
             self.path = path
+            self.max_payload_bytes = max_payload_bytes
 
         def close(self):
             closed.append("journal")
+
+        def source_highwater(self, *args, **kwargs):
+            del args, kwargs
+            return None
 
     class FakeCoordinator:
         def __init__(self, broker, journal, **kwargs):
@@ -4803,6 +5253,14 @@ def test_live_setup_failures_close_every_created_resource(
             raise AssertionError("setup failure should occur before Cerebro.run")
 
     class FakeCohort:
+        def __init__(self, calendar):
+            assert calendar is not None
+            self._calendar = calendar
+
+        @property
+        def calendar_fingerprint(self):
+            return self._calendar.fingerprint
+
         def register_member(self, *args, **kwargs):
             return None
 
@@ -4851,7 +5309,7 @@ def test_live_setup_failures_close_every_created_resource(
     def make_cohort(*args, **kwargs):
         if failure == "grid_crossing":
             return original_make_cohort(*args, **kwargs)
-        return FakeCohort()
+        return FakeCohort(kwargs["calendar_override"])
 
     monkeypatch.setattr(RUNNER, "_make_cohort", make_cohort)
     monkeypatch.setattr(RUNNER, "_make_strategy_kwargs", lambda *args, **kwargs: {})
@@ -4882,6 +5340,7 @@ def test_live_setup_failures_close_every_created_resource(
         "grid_boundary",
         "ready",
         "ready_store_stop",
+        "grid_crossing",
     }
     if failure in resources_not_created:
         assert by_resource["decision_tape"]["status"] == "NOT_CREATED"
@@ -4993,7 +5452,7 @@ def test_live_setup_failures_close_every_created_resource(
             "source_shutdown_receipt_projected",
         ]
     if failure == "grid_crossing":
-        assert clock_calls["count"] >= 3
+        assert clock_calls["count"] == 2
     elif failure == "arm":
         assert lifecycle == [
             "session_ready",
@@ -5014,6 +5473,33 @@ def test_live_setup_failures_close_every_created_resource(
             "facts_refresh",
             "source_shutdown_receipt_projected",
         ]
+
+
+def test_live_source_continuity_treats_empty_tape_as_not_applicable():
+    class EmptyTape:
+        @staticmethod
+        def summary():
+            return {"record_count": 0}
+
+    class NoHighwaterRead:
+        @staticmethod
+        def source_highwater(*_args, **_kwargs):
+            raise AssertionError("empty tape must not require a journal anchor")
+
+    assert RUNNER._live_source_continuity_status(
+        NoHighwaterRead(),
+        {},
+        EmptyTape(),
+        None,
+    ) == {
+        "status": "NOT_APPLICABLE",
+        "available": False,
+        "record_count": 0,
+        "failure_count": 0,
+        "first_error": None,
+        "final_highwater_matches_tape": None,
+        "reason": "NO_ROWS",
+    }
 
 
 def test_replay_clock_ignores_quotes_past_the_next_slot_deadline(tmp_path):

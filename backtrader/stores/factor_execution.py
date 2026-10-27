@@ -30,6 +30,7 @@ from .execution_decision_journal import (
     ExecutionIntentRecord,
     ExecutionRunLossGuardContext,
     ExecutionRunLossGuardSnapshot,
+    ExecutionSourceReceipt,
     _dispatching_cancel_absence_ack_ids,
 )
 from .factor_position_book import FactorPositionBook
@@ -4759,6 +4760,7 @@ class FactorExecutionCoordinator:
         expected_run_order_intents_used: int,
         remaining_exit_intent_reserve: int,
         loss_guard_context: Optional[ExecutionRunLossGuardContext] = None,
+        source_receipt: Optional[ExecutionSourceReceipt] = None,
     ) -> "FactorExecutionDecisionScope":
         return FactorExecutionDecisionScope(
             self,
@@ -4774,6 +4776,56 @@ class FactorExecutionCoordinator:
             remaining_exit_intent_reserve=remaining_exit_intent_reserve,
             risk_only=False,
             loss_guard_context=loss_guard_context,
+            source_receipt=source_receipt,
+        )
+
+    def record_source_receipt(
+        self,
+        *,
+        key: ExecutionDecisionKey,
+        batch: Any,
+        source_receipt: ExecutionSourceReceipt,
+    ) -> Any:
+        """Persist an ineligible source batch without opening a dispatch scope."""
+        if not isinstance(key, ExecutionDecisionKey):
+            raise FactorExecutionError("INVALID_DECISION_KEY")
+        if (
+            key.account_scope != self.account_scope
+            or key.strategy_scope != self.strategy_scope
+            or key.logical_run_id != self.logical_run_id
+        ):
+            raise FactorExecutionError("DECISION_SCOPE_IDENTITY_MISMATCH")
+        if self._active_scope.get() is not None:
+            raise FactorExecutionError("NESTED_DECISION_SCOPE")
+        if (
+            type(source_receipt) is not ExecutionSourceReceipt
+            or batch is None
+            or not self._batch_matches_source_key(batch, key)
+            or source_receipt.batch_id != batch.batch_id
+            or source_receipt.epoch_id != batch.epoch_id
+            or source_receipt.close_time != _utc_text(batch.close_time)
+        ):
+            raise FactorExecutionError("SOURCE_RECEIPT_BATCH_MISMATCH")
+        return self.journal.record_grid_decision(
+            key,
+            {},
+            intent_keys=(),
+            epoch_id=str(batch.epoch_id),
+            batch_id=batch.batch_id,
+            eligible=False,
+            complete=True,
+            live_ready=False,
+            inputs_complete=False,
+            source_receipt=source_receipt,
+        )
+
+    @staticmethod
+    def _batch_matches_source_key(batch: Any, key: ExecutionDecisionKey) -> bool:
+        return bool(
+            getattr(batch, "cohort_id", None) == key.cohort_id
+            and getattr(batch, "close_time", None) is not None
+            and getattr(batch, "batch_id", None) is not None
+            and _same_time(getattr(batch, "close_time", None), key.close_time)
         )
 
     def risk_decision_scope(
@@ -4949,6 +5001,7 @@ class FactorExecutionDecisionScope:
         remaining_exit_intent_reserve: int,
         risk_only: bool,
         loss_guard_context: Optional[ExecutionRunLossGuardContext] = None,
+        source_receipt: Optional[ExecutionSourceReceipt] = None,
     ) -> None:
         self.coordinator = coordinator
         self.owner = owner
@@ -4963,6 +5016,7 @@ class FactorExecutionDecisionScope:
         self.remaining_exit_intent_reserve = remaining_exit_intent_reserve
         self.risk_only = risk_only
         self.loss_guard_context = loss_guard_context
+        self.source_receipt = source_receipt
         self.decision_id: Optional[str] = None
         self.cursor = None
         self.is_new_grid = False
@@ -5024,6 +5078,7 @@ class FactorExecutionDecisionScope:
                 expected_run_order_intents_used=self.expected_run_order_intents_used,
                 remaining_exit_intent_reserve=self.remaining_exit_intent_reserve,
                 loss_guard_context=self.loss_guard_context,
+                source_receipt=self.source_receipt,
             )
         if result.decision is None:
             raise FactorExecutionError("DECISION_NOT_DURABLE")

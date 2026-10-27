@@ -276,6 +276,7 @@ def _strategy_facade(broker, coordinator, decision, batch, snapshot):
     owner._account_scope = ACCOUNT_SCOPE
     owner._strategy_scope = STRATEGY_SCOPE
     owner._logical_run_id = coordinator.logical_run_id
+    owner._source_kind = "ALPHA003_GRID"
     owner._last_signal_target = decision
     owner.last_execution_block_reason = None
     owner.p = SimpleNamespace(cohort=cohort, execution_enabled=False)

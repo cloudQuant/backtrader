@@ -701,6 +701,7 @@ def test_live_decision_reacquires_and_rejects_a_changed_factor_snapshot():
         _account_scope="paper",
         _strategy_scope="alpha003-test",
         _logical_run_id="run-1",
+        _source_kind="ALPHA003_GRID",
         _last_signal_target=None,
         last_execution_block_reason=None,
         _order_intents=lambda plan, batch: ((), ()),
@@ -780,6 +781,7 @@ def test_live_shadow_records_eligible_grid_as_noop_and_never_dispatches():
         _account_scope="paper",
         _strategy_scope="alpha003-test",
         _logical_run_id="run-1",
+        _source_kind="ALPHA003_GRID",
         _last_signal_target=None,
         last_execution_block_reason=None,
         _order_intents=lambda _plan, _batch: pytest.fail(
@@ -965,48 +967,256 @@ def test_live_shadow_does_not_submit_risk_reduction_preview():
     _STRATEGY.Alpha003TargetStrategy._live_risk_decision(strategy, None, SimpleNamespace(), plan)
 
 
-def test_live_shadow_records_grid_even_without_risk_budget_facts():
-    batch, snapshot = _history_batch_snapshot("batch-1", CLOSE, AVAILABLE)
-    snapshot = replace(
-        snapshot,
-        readiness=LiveFactorReadiness.LIVE_READY,
-        readiness_reasons=(),
+def test_live_shadow_records_complete_source_grid_without_risk_budget_facts():
+    """A real sealed cohort reaches the durable GRID path in execution-disabled mode."""
+    case = _source_backed_loss_guard_case(
+        {
+            "Available": "100000",
+            "CurrMargin": "0",
+            "CloseProfit": "1000",
+            "PositionProfit": "0",
+            "Commission": "0",
+            "CurrencyID": "CNY",
+            "TradingDay": "20261024",
+        }
     )
-    observed = []
-    strategy = SimpleNamespace(
-        p=SimpleNamespace(execution_enabled=False),
-        _coordinator=None,
-        _live_shadow_order_count=0,
-        _shutdown_requested=Event(),
-        _live_facts=lambda _now: None,
-        _last_signal_target=None,
-        _risk_policy=None,
-        last_order_plan=None,
-        _record_decision_tape=lambda *_args: (True, None, None),
-        _gate_open_actions=lambda plan, **_kwargs: plan,
-        _live_grid_decision=lambda *args, **kwargs: observed.append((args, kwargs)),
-        _live_risk_decision=lambda *_args: pytest.fail(
-            "shadow mode must not enter the risk dispatch path"
-        ),
-    )
+    try:
+        slot = LiveCalendarSlot(
+            slot_id="shadow-slot-1",
+            bucket_start=CLOSE - timedelta(minutes=1),
+            close_time=CLOSE,
+            trading_day=CLOSE.date().isoformat(),
+            session_segment="regular",
+        )
+        calendar = LiveCohortCalendar(
+            calendar_id="simnow-common-minutes-v1",
+            version="shadow-source-v1",
+            epoch_id=1,
+            frequency="1min",
+            frequency_seconds=60,
+            timezone_id="UTC",
+            clock_domain_id="shadow-source-clock-v1",
+            session_semantics="regular-v1",
+            slots=(slot,),
+        )
+        cohort = LiveBarCohort(
+            "shadow-source-cohort-v1",
+            calendar,
+            max_pending_slots=1,
+            max_window_bars=1,
+            wait_timeout_ns=1_000_000_000,
+        )
+        feed_ref = object()
+        target_id = case.target.target_id
+        raw_fields = ("open", "high", "low", "close", "volume", "openinterest")
+        cohort.register_member(
+            target_id,
+            feed_ref,
+            instrument=case.target.instrument,
+            source_ref="synthetic://shadow/{}".format(target_id),
+            line_fields=raw_fields,
+            raw_fields=raw_fields,
+            numeric_fields=raw_fields,
+            clock_domain_id=calendar.clock_domain_id,
+            timezone_id=calendar.timezone_id,
+            session_semantics=calendar.session_semantics,
+        )
+        cohort.seal()
+        event = {
+            "instrument": case.target.instrument,
+            "symbol": case.target.instrument,
+            "timestamp": CLOSE.timestamp(),
+            "bucket_start": slot.bucket_start,
+            "bucket_end": slot.close_time,
+            "available_at": AVAILABLE,
+            "trading_day": slot.trading_day,
+            "session_segment": slot.session_segment,
+            "timezone_id": calendar.timezone_id,
+            "clock_domain_id": calendar.clock_domain_id,
+            "connection_generation": "shadow-generation-1",
+            "bar_sequence": 1,
+            "bar_id": "shadow-rb-live-1",
+            "open": 100.0,
+            "high": 101.0,
+            "low": 99.0,
+            "close": 100.5,
+            "volume": 1.0,
+            "openinterest": 0.0,
+            "complete": True,
+            "quality": "GOOD",
+            "quality_flags": (),
+            "source": "synthetic-shadow-source",
+        }
+        cohort.capture_bar(feed_ref, event, source_role="live", received_monotonic_ns=1)
+        prepared = cohort.prepare_round(
+            10, source_time_utc=AVAILABLE
+        ).prepared
+        assert prepared is not None
+        envelope = cohort.prepared_envelope(feed_ref)
+        assert envelope is not None
+        batch = cohort.record_delivery_batch(((feed_ref, envelope, CLOSE),))
+        assert batch is cohort.current_batch()
+        assert batch.status == "COMPLETE"
+        assert tuple(batch.members) == (target_id,)
 
-    _STRATEGY.Alpha003TargetStrategy._run_live(
-        strategy,
-        batch,
-        snapshot,
-        AVAILABLE,
-        5,
-        None,
-        False,
-        is_new_batch=True,
-    )
+        _, base_snapshot = _history_batch_snapshot(batch.batch_id, CLOSE, AVAILABLE)
+        base_factor = base_snapshot.factors[_STRATEGY.FACTOR_NAME]
+        member = batch.members[target_id]
+        source_output = LiveFactorOutput(
+            value=1.0,
+            status=LiveFactorOutputStatus.OUTPUT_AVAILABLE,
+            reason=None,
+            present=True,
+            complete=True,
+            quality="GOOD",
+            source_role="live",
+            member_id=target_id,
+            source_ref=member.source_ref,
+            sequence=member.feed_sequence,
+            generation=member.envelope.connection_generation,
+        )
+        factor = replace(
+            base_factor,
+            values=MappingProxyType({target_id: source_output}),
+        )
+        snapshot = replace(
+            base_snapshot,
+            cohort_id=batch.cohort_id,
+            calendar_id=batch.calendar_id,
+            calendar_version=batch.calendar_version,
+            epoch_id=batch.epoch_id,
+            batch_id=batch.batch_id,
+            close_time=batch.close_time,
+            available_at=batch.available_at,
+            batch_complete=True,
+            readiness=LiveFactorReadiness.LIVE_READY,
+            readiness_reasons=(),
+            factors=MappingProxyType({_STRATEGY.FACTOR_NAME: factor}),
+        )
 
-    assert len(observed) == 1
-    assert observed[0][0][:3] == (batch, snapshot, None)
-    assert strategy.last_order_plan.status == "BLOCKED"
+        class _Tape:
+            file_id = "shadow-tape-file"
+
+            def __init__(self):
+                self.last_record_reference = None
+
+            def record_decision(self, actual_batch, actual_snapshot, target, plan):
+                del actual_snapshot, target, plan
+                self.last_record_reference = MappingProxyType(
+                    {
+                        "file_id": self.file_id,
+                        "record_id": "shadow-tape-record-1",
+                        "record_index": 1,
+                        "batch_id": actual_batch.batch_id,
+                    }
+                )
+                return True
+
+        strategy = object.__new__(_STRATEGY.Alpha003TargetStrategy)
+        strategy.p = SimpleNamespace(
+            execution_enabled=False,
+            replay_mode=False,
+            decision_tape=_Tape(),
+            cohort=cohort,
+        )
+        strategy.live_factors = SimpleNamespace(snapshot=lambda: snapshot)
+        strategy._coordinator = case.coordinator
+        # A real decision scope binds its owner to the Coordinator's Broker,
+        # even when this shadow NOOP has no execution facts or intents.
+        strategy.broker = case.broker
+        assert strategy.broker is case.coordinator.broker
+        strategy._account_scope = "acct-scope"
+        strategy._strategy_scope = "alpha003"
+        strategy._logical_run_id = "run-1"
+        strategy._source_kind = "ALPHA003_GRID"
+        strategy._target_ids = (target_id,)
+        strategy._source_predecessor = None
+        strategy._source_restart_marker = None
+        strategy._source_receipt_batch_id = None
+        strategy._source_receipt_tape_reference = None
+        strategy._source_receipt_cache = None
+        strategy.source_continuity_failure_count = 0
+        strategy.source_continuity_first_error = None
+        strategy._last_decision_tape_batch_id = None
+        strategy._last_decision_tape_reference = None
+        strategy._last_decision_tape_error = None
+        strategy._last_signal_target = None
+        strategy._risk_policy = None
+        strategy._live_shadow_order_count = 0
+        strategy._shutdown_requested = Event()
+        strategy.last_order_plan = None
+        strategy.last_execution_block_reason = None
+        strategy._live_facts = lambda _now: None
+        strategy._dispatch_live_actions = lambda *_args: pytest.fail(
+            "shadow mode must not dispatch live actions"
+        )
+        strategy._record_decision_tape = MethodType(
+            _STRATEGY.Alpha003TargetStrategy._record_decision_tape, strategy
+        )
+        strategy._gate_open_actions = _STRATEGY.Alpha003TargetStrategy._gate_open_actions
+        for name in (
+            "_source_receipt",
+            "_note_source_continuity_failure",
+            "_confirm_source_anchor",
+            "_record_source_only",
+            "_live_grid_decision",
+        ):
+            setattr(
+                strategy,
+                name,
+                MethodType(getattr(_STRATEGY.Alpha003TargetStrategy, name), strategy),
+            )
+
+        _STRATEGY.Alpha003TargetStrategy._run_live(
+            strategy,
+            batch,
+            snapshot,
+            AVAILABLE,
+            1,
+            None,
+            False,
+            is_new_batch=True,
+        )
+
+        from backtrader.stores.execution_decision_journal import ExecutionDecisionKey
+
+        key = ExecutionDecisionKey(
+            account_scope="acct-scope",
+            strategy_scope="alpha003",
+            logical_run_id="run-1",
+            cohort_id=batch.cohort_id,
+            close_time=batch.close_time.isoformat().replace("+00:00", "Z"),
+            decision_kind="ALPHA003_GRID",
+        )
+        decision = case.journal.decision_for_key(key)
+        highwater = case.journal.source_highwater(
+            "acct-scope", "alpha003", "run-1", "ALPHA003_GRID"
+        )
+        assert strategy.last_order_plan.status == "BLOCKED"
+        assert strategy.last_order_plan.reason == "EXECUTION_FACTS_UNAVAILABLE"
+        if strategy.source_continuity_first_error == "SOURCE_RECEIPT_BUILD_FAILED":
+            # Preserve the production failure-path diagnostic for the source
+            # owner: the strategy intentionally stores only a fixed category,
+            # so retrying the exact pure receipt construction here lets pytest
+            # display the underlying validation exception.
+            strategy._source_receipt(
+                batch, snapshot, strategy._last_decision_tape_reference
+            )
+        assert decision is not None
+        assert highwater is not None and highwater.anchor_kind == "GRID"
+        assert highwater.receipt.batch_id == batch.batch_id
+        assert highwater.receipt.source_kind == "ALPHA003_GRID"
+        assert highwater.receipt.calendar_fingerprint == cohort.calendar_fingerprint
+        assert tuple(member.member_id for member in highwater.receipt.members) == (target_id,)
+        assert highwater.receipt.tape_record_index == 1
+        assert strategy.source_continuity_failure_count == 0
+        assert case.journal.run_loss_guard("acct-scope", "alpha003", "run-1") is None
+    finally:
+        case.journal.close()
 
 
-def test_prenext_durably_records_each_complete_warmup_grid_once():
+def test_prenext_decision_tape_writer_is_idempotent_per_complete_warmup_grid():
+    """This writer-only seam does not claim durable source-receipt coverage."""
     batch, snapshot = _history_batch_snapshot("warmup-batch-1", CLOSE, AVAILABLE)
     writes = []
 
@@ -1022,7 +1232,7 @@ def test_prenext_durably_records_each_complete_warmup_grid_once():
                 {
                     "file_id": self.file_id,
                     "record_id": "record-1",
-                    "record_index": 0,
+                    "record_index": len(writes),
                     "batch_id": actual_batch.batch_id,
                 }
             )
@@ -1037,6 +1247,8 @@ def test_prenext_durably_records_each_complete_warmup_grid_once():
         _last_decision_tape_error=None,
         last_execution_block_reason=None,
     )
+    source_only_calls = []
+    strategy._record_source_only = lambda *args: source_only_calls.append(args)
     strategy._record_decision_tape = MethodType(
         _STRATEGY.Alpha003TargetStrategy._record_decision_tape, strategy
     )
@@ -1060,6 +1272,19 @@ def test_prenext_durably_records_each_complete_warmup_grid_once():
     assert writes[0][3].actions == ()
     assert writes[1][:3] == (batch2, snapshot2, None)
     assert strategy._last_decision_tape_reference["batch_id"] == batch2.batch_id
+    assert len(source_only_calls) == 4
+    expected_source_calls = (
+        (batch, snapshot),
+        (batch, snapshot),
+        (batch2, snapshot2),
+        (batch2, snapshot2),
+    )
+    for (actual_batch, actual_snapshot, tape_reference), (expected_batch, expected_snapshot) in zip(
+        source_only_calls, expected_source_calls
+    ):
+        assert actual_batch is expected_batch
+        assert actual_snapshot is expected_snapshot
+        assert tape_reference["batch_id"] == expected_batch.batch_id
 
 
 def test_prenext_leaves_ready_grid_for_target_decision_path():
@@ -1684,8 +1909,14 @@ def test_live_run_keeps_source_backed_owned_order_cancel_during_warmup_without_o
     strategy.last_order_plan = None
     strategy.last_execution_facts = None
     strategy.last_execution_block_reason = None
+    strategy.source_continuity_failure_count = 0
+    strategy.source_continuity_first_error = None
     strategy.cancel = lambda candidate: canceled.append(candidate)
-    strategy._record_decision_tape = lambda *_args: (True, None, None)
+    strategy._record_decision_tape = lambda *_args: (
+        False,
+        None,
+        "DECISION_TAPE_REFERENCE_INVALID",
+    )
     strategy._find_order_object = MethodType(
         _STRATEGY.Alpha003TargetStrategy._find_order_object, strategy
     )
@@ -1727,7 +1958,9 @@ def test_live_run_keeps_source_backed_owned_order_cancel_during_warmup_without_o
     assert api.query_calls
 
     assert strategy.last_order_plan.status == "READY"
-    assert strategy.last_order_plan.reason == "CANCEL_OPEN_ORDERS_BEFORE_EXIT"
+    # The failed tape suppresses OPEN admission, but the independent owned
+    # CANCEL action remains in the plan and is still dispatched below.
+    assert strategy.last_order_plan.reason == "OPEN_SUPPRESSED_DECISION_TAPE"
     assert len(strategy.last_order_plan.actions) == 1
     assert strategy.last_order_plan.actions[0].action == "CANCEL"
     assert len(scopes) == 1
@@ -1736,6 +1969,13 @@ def test_live_run_keeps_source_backed_owned_order_cancel_during_warmup_without_o
     assert scopes[0]["intent_keys"][0].position_effect == "OPEN"
     assert scopes[0]["economic_payload"]["intent_economics"][0]["owner_intent_id"] == ("intent-94")
     assert canceled == [order]
+    assert strategy.last_execution_block_reason == "DECISION_TAPE_REFERENCE_INVALID"
+    assert strategy.source_continuity_failure_count == 0
+    assert strategy.source_continuity_first_error is None
+    assert (
+        journal.source_highwater("acct-scope", "alpha003", "run-1", "ALPHA003_GRID")
+        is None
+    )
     baseline = journal.run_loss_guard("acct-scope", "alpha003", "run-1")
     assert baseline is not None
     assert baseline.net_loss_threshold == Decimal("1000")
@@ -2997,6 +3237,7 @@ def _source_backed_loss_guard_case(account_row):
     strategy._account_scope = "acct-scope"
     strategy._strategy_scope = "alpha003"
     strategy._logical_run_id = "run-1"
+    strategy._source_kind = "ALPHA003_GRID"
     strategy._loss_guard_net_loss_threshold = Decimal("1000")
     strategy._loss_guard_max_observation_age_seconds = 30
     return SimpleNamespace(
@@ -3381,17 +3622,47 @@ def test_cerebro_strategy_blocks_open_then_replays_owned_close_once(
     def exercise(strategy):
         batch = cohort.current_batch()
         assert batch is not None and batch.status == "COMPLETE"
-        factor = SimpleNamespace(source_sha256="b" * 64)
-        snapshot = SimpleNamespace(
-            readiness=LiveFactorReadiness.LIVE_READY,
-            batch_complete=True,
-            batch_id=batch.batch_id,
+        _, base_snapshot = _history_batch_snapshot(
+            batch.batch_id, batch.close_time, batch.available_at
+        )
+        member = batch.members["rb"]
+        base_factor = base_snapshot.factors[_STRATEGY.FACTOR_NAME]
+        output = LiveFactorOutput(
+            value=0.0,
+            status=LiveFactorOutputStatus.OUTPUT_AVAILABLE,
+            reason=None,
+            present=True,
+            complete=True,
+            quality="GOOD",
+            source_role="live",
+            member_id="rb",
+            source_ref=member.source_ref,
+            sequence=member.feed_sequence,
+            generation=member.envelope.connection_generation,
+        )
+        factor = replace(
+            base_factor,
+            values=MappingProxyType({"rb": output}),
+        )
+        snapshot = replace(
+            base_snapshot,
             cohort_id=batch.cohort_id,
             calendar_id=batch.calendar_id,
+            calendar_version=batch.calendar_version,
             epoch_id=batch.epoch_id,
+            batch_id=batch.batch_id,
             close_time=batch.close_time,
-            factors={_STRATEGY.FACTOR_NAME: factor},
+            available_at=batch.available_at,
+            batch_complete=True,
+            readiness=LiveFactorReadiness.LIVE_READY,
+            readiness_reasons=(),
+            factors=MappingProxyType({_STRATEGY.FACTOR_NAME: factor}),
         )
+        assert isinstance(snapshot, LiveFactorSnapshot)
+        assert snapshot.batch_id == batch.batch_id
+        assert snapshot.cohort_id == batch.cohort_id
+        assert snapshot.calendar_id == batch.calendar_id
+        assert snapshot.epoch_id == batch.epoch_id
         strategy.live_factors.snapshot = lambda: snapshot
         assert strategy._loss_guard_net_loss_threshold == Decimal("1000")
         assert strategy._loss_guard_max_observation_age_seconds == 30
@@ -3437,12 +3708,47 @@ def test_cerebro_strategy_blocks_open_then_replays_owned_close_once(
             {
                 "file_id": "loss-guard-test-tape",
                 "record_id": "loss-guard-test-record",
-                "record_index": 0,
+                "record_index": 1,
                 "batch_id": batch.batch_id,
             },
             None,
         )
         monkeypatch.setattr(_STRATEGY, "plan_alpha003_orders", lambda _planning: mixed_plan)
+
+        # Prove the missing-context guard on a genuinely new grid key before
+        # the primary run records its durable close decision. The facts above
+        # are the complete Store/query projection from this same source-backed
+        # run; this check must precede Coordinator risk/readiness validation.
+        missing_context_key = journal_module.ExecutionDecisionKey(
+            account_scope=strategy._account_scope,
+            strategy_scope=strategy._strategy_scope,
+            logical_run_id=strategy._logical_run_id,
+            cohort_id=batch.cohort_id,
+            close_time=_STRATEGY._time_key(batch.close_time),
+            decision_kind=strategy._source_kind,
+        )
+        assert coordinator.journal.decision_for_key(missing_context_key) is None
+        with pytest.raises(FactorExecutionError) as missing_context:
+            strategy._live_grid_decision(
+                batch,
+                snapshot,
+                facts,
+                mixed_plan,
+                planning=planning,
+                proposed_plan=mixed_plan,
+                decision_tape_reference={
+                    "file_id": "loss-guard-test-tape",
+                    "record_id": "loss-guard-test-record",
+                    "record_index": 1,
+                    "batch_id": batch.batch_id,
+                },
+                loss_guard_context=None,
+                loss_guard_blocker=None,
+            )
+        assert missing_context.value.code == "RUN_LOSS_GUARD_CONTEXT_REQUIRED"
+        assert coordinator.journal.decision_for_key(missing_context_key) is None
+        assert dispatched == []
+
         strategy._run_live(
             batch,
             snapshot,
@@ -3457,25 +3763,6 @@ def test_cerebro_strategy_blocks_open_then_replays_owned_close_once(
         assert journal.run_loss_guard("acct-scope", "alpha003", "run-1") is None
         assert len(dispatched) == 1
         assert tuple(action.position_effect for action in dispatched[0][0]) == ("CLOSE",)
-
-        with pytest.raises(FactorExecutionError) as missing_context:
-            strategy._live_grid_decision(
-                batch,
-                snapshot,
-                facts,
-                mixed_plan,
-                planning=planning,
-                proposed_plan=mixed_plan,
-                decision_tape_reference={
-                    "file_id": "loss-guard-test-tape",
-                    "record_id": "loss-guard-test-record",
-                    "record_index": 0,
-                    "batch_id": batch.batch_id,
-                },
-                loss_guard_context=None,
-                loss_guard_blocker=None,
-            )
-        assert missing_context.value.code == "RUN_LOSS_GUARD_CONTEXT_REQUIRED"
 
         # Repeating the same risk decision is an exact durable replay and must
         # not create another dispatch.
