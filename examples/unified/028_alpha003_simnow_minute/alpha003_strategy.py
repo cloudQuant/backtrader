@@ -3112,6 +3112,7 @@ class Alpha003TargetStrategy(bt.Strategy):
         self._last_execution_facts_store = None
         self.last_order_plan: Optional[Alpha003OrderPlan] = None
         self.last_execution_block_reason: Optional[str] = None
+        self._last_commission_idle_notice: Optional[Mapping[str, Any]] = None
         self._last_batch_id: Optional[str] = None
         self._last_signal_target: Optional[Alpha003TargetDecision] = None
         self._eligible_grid_count = 0
@@ -5562,7 +5563,53 @@ class Alpha003TargetStrategy(bt.Strategy):
         return True
 
     def notify_idle(self) -> None:
-        """Consume shutdown requests on the engine thread during market gaps."""
+        """Consume refresh notices and shutdown requests during market gaps."""
+
+        refresh_loop = getattr(self.p, "control_refresh_loop", None)
+        consume_fee_notice = getattr(refresh_loop, "consume_commission_idle_notice", None)
+        if callable(consume_fee_notice):
+            try:
+                notice = consume_fee_notice()
+            except Exception:
+                notice = None
+                self.last_execution_block_reason = "COMMISSION_IDLE_NOTICE_UNAVAILABLE"
+            if notice is not None:
+                valid_mapping = isinstance(notice, Mapping)
+                revision = notice.get("revision") if valid_mapping else None
+                priority_changed = notice.get("priority_changed") if valid_mapping else None
+                fee_snapshot_changed = notice.get("fee_snapshot_changed") if valid_mapping else None
+                batch_id = notice.get("batch_id") if valid_mapping else None
+                previous_revision = (
+                    self._last_commission_idle_notice.get("revision", 0)
+                    if isinstance(self._last_commission_idle_notice, Mapping)
+                    else 0
+                )
+                if (
+                    type(revision) is not int
+                    or revision <= previous_revision
+                    or type(priority_changed) is not bool
+                    or type(fee_snapshot_changed) is not bool
+                    or (batch_id is not None and (type(batch_id) is not str or not batch_id))
+                ):
+                    self.last_execution_block_reason = "COMMISSION_IDLE_NOTICE_INVALID"
+                else:
+                    self._last_commission_idle_notice = MappingProxyType(
+                        {
+                            "revision": revision,
+                            "priority_changed": priority_changed,
+                            "fee_snapshot_changed": fee_snapshot_changed,
+                            "batch_id": batch_id,
+                        }
+                    )
+                    if (
+                        fee_snapshot_changed
+                        and not self._shutdown_requested.is_set()
+                        and not self.p.replay_mode
+                    ):
+                        try:
+                            self._live_facts(self._clock_now())
+                        except Exception:
+                            self.last_execution_block_reason = "COMMISSION_IDLE_FACT_REFRESH_FAILED"
 
         if not self._shutdown_requested.is_set():
             return

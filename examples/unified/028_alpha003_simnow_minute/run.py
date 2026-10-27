@@ -5562,6 +5562,13 @@ class QueryRefreshLoop:
         self._strategy_lock = threading.RLock()
         self._commission_target_lock = threading.Lock()
         self._commission_target_decision = None
+        self._commission_priority_refresh_pending = False
+        self._commission_idle_revision = 0
+        self._commission_idle_consumed_revision = 0
+        self._commission_idle_priority_changed = False
+        self._commission_idle_fee_snapshot_changed = False
+        self._commission_idle_batch_id = None
+        self._commission_idle_wake_error = None
         # Store query snapshots and Strategy projections share one
         # non-reentrant consistency boundary.  Strategy only probes it
         # nonblocking so an engine turn never waits for provider I/O.
@@ -5638,13 +5645,150 @@ class QueryRefreshLoop:
             snapshot = None
         with self._commission_target_lock:
             previous = self._commission_target_decision
-            if (
-                snapshot is None
-                or previous is None
-                or snapshot[:3] != previous[:3]
-            ):
+            priority_key = None if snapshot is None else snapshot[:3]
+            previous_priority_key = None if previous is None else previous[:3]
+            priority_changed = priority_key != previous_priority_key
+            reset_priority_index = snapshot is None or previous is None or priority_changed
+            if reset_priority_index:
                 self._commission_priority_index = 0
+            if priority_changed:
+                self._commission_priority_refresh_pending = True
+                self._queue_commission_idle_notice_locked(
+                    priority_changed=True,
+                    batch_id=None if snapshot is None else snapshot[5],
+                    set_batch_id=True,
+                )
             self._commission_target_decision = snapshot
+        if priority_changed:
+            # A newly selected pair must not wait for the next periodic pass.
+            # The flag is the durable-in-this-thread signal; the Event only
+            # shortens the refresh loop's current wait.
+            self._refresh_wakeup.set()
+            self._wake_commission_idle_strategy()
+
+    def _queue_commission_idle_notice_locked(
+        self,
+        *,
+        priority_changed=False,
+        fee_snapshot_changed=False,
+        batch_id=None,
+        set_batch_id=False,
+    ):
+        """Coalesce immutable fee refresh changes until Strategy consumes them."""
+
+        self._commission_idle_revision += 1
+        self._commission_idle_priority_changed = (
+            self._commission_idle_priority_changed or priority_changed
+        )
+        self._commission_idle_fee_snapshot_changed = (
+            self._commission_idle_fee_snapshot_changed or fee_snapshot_changed
+        )
+        if set_batch_id:
+            self._commission_idle_batch_id = batch_id
+
+    def _queue_commission_fee_snapshot_notice(self):
+        with self._commission_target_lock:
+            self._queue_commission_idle_notice_locked(fee_snapshot_changed=True)
+        self._wake_commission_idle_strategy()
+
+    def consume_commission_idle_notice(self):
+        """Return one coalesced fee-priority/projection update to engine idle."""
+
+        with self._commission_target_lock:
+            if self._commission_idle_revision == self._commission_idle_consumed_revision:
+                return None
+            notice = MappingProxyType(
+                {
+                    "revision": self._commission_idle_revision,
+                    "priority_changed": self._commission_idle_priority_changed,
+                    "fee_snapshot_changed": self._commission_idle_fee_snapshot_changed,
+                    "batch_id": self._commission_idle_batch_id,
+                }
+            )
+            self._commission_idle_consumed_revision = self._commission_idle_revision
+            self._commission_idle_priority_changed = False
+            self._commission_idle_fee_snapshot_changed = False
+            self._commission_idle_batch_id = None
+        return notice
+
+    def _wake_commission_idle_strategy(self):
+        """Signal Cerebro's thread-safe cohort waker after publishing a change."""
+
+        with self._strategy_lock:
+            strategy = self._strategy
+        if strategy is None:
+            return False
+        wake = getattr(self.cerebro, "wake_live_bar_cohort", None)
+        if not callable(wake):
+            with self._commission_target_lock:
+                self._commission_idle_wake_error = "LIVE_COHORT_WAKE_API_UNAVAILABLE"
+            return False
+        try:
+            wake_result = wake()
+        except Exception as error:
+            with self._commission_target_lock:
+                self._commission_idle_wake_error = "LIVE_COHORT_WAKE_FAILED:" + type(error).__name__
+            return False
+        if type(wake_result) is not bool or not wake_result:
+            with self._commission_target_lock:
+                self._commission_idle_wake_error = (
+                    "LIVE_COHORT_WAKE_DECLINED"
+                    if wake_result is False
+                    else "LIVE_COHORT_WAKE_RESULT_INVALID"
+                )
+            return False
+        with self._commission_target_lock:
+            self._commission_idle_wake_error = None
+        return True
+
+    def _take_commission_priority_refresh_request(self):
+        with self._commission_target_lock:
+            pending = self._commission_priority_refresh_pending
+            self._commission_priority_refresh_pending = False
+        return pending
+
+    @staticmethod
+    def _commission_projection_signature(facts):
+        """Compare only immutable commission status, values, and provenance."""
+
+        if facts is None:
+            return None
+        instruments = tuple(
+            sorted(
+                [
+                    (
+                        getattr(item, "target_id", None),
+                        getattr(item, "commission_fee_required", None),
+                        getattr(item, "commission_fee_status", None),
+                        getattr(item, "round_trip_fee_upper_bound_per_contract", None),
+                    )
+                    for item in getattr(facts, "instruments", ())
+                ],
+                key=lambda row: str(row[0]),
+            )
+        )
+        commission_provenance = tuple(
+            sorted(
+                [
+                    (
+                        getattr(item, "target_id", None),
+                        getattr(item, "request_id", None),
+                        getattr(item, "connection_generation", None),
+                        getattr(item, "account_fingerprint", None),
+                        getattr(item, "trading_day", None),
+                        getattr(item, "started_at", None),
+                        getattr(item, "completed_at", None),
+                        getattr(item, "source_owned", None),
+                        getattr(item, "query_complete", None),
+                    )
+                    for item in getattr(facts, "query_provenance", ())
+                    if getattr(item, "family", None)
+                    == "instrument_commission_rate_result"
+                ],
+                key=lambda row: (str(row[0]), str(row[1]), str(row[2])),
+            )
+        )
+        return instruments, commission_provenance
 
     def _commission_priority_target_ids(self):
         """Read a fresh, same-grant selected pair without sharing mutable state."""
@@ -6112,13 +6256,15 @@ class QueryRefreshLoop:
         # The outer lock serializes refreshers but is not used by Strategy.
         # Optional sidecar I/O can release only the inner projection lock while
         # preventing a second core refresh from overlapping.
+        commission_snapshot_changed = False
         with self._refresh_serialization_lock:
+            previous_commission_signature = self._commission_projection_signature(self.last_facts)
             try:
                 with self._fact_snapshot_lock:
                     self._reconciliation_blockers_work = []
                     self.last_reconciliation_blockers = ()
                     try:
-                        return self._refresh_once_locked()
+                        receipt = self._refresh_once_locked()
                     except Exception:
                         self.last_reconciliation_blockers = tuple(
                             self._reconciliation_blockers_work[:16]
@@ -6126,6 +6272,17 @@ class QueryRefreshLoop:
                         raise
             finally:
                 self._wake_waiting_strategy_projection()
+            current_commission_signature = self._commission_projection_signature(self.last_facts)
+            commission_snapshot_changed = (
+                current_commission_signature is not None
+                and previous_commission_signature is not None
+                and current_commission_signature != previous_commission_signature
+            )
+        if commission_snapshot_changed:
+            # Publish only after both refresh locks are released. Strategy's
+            # idle callback then sees a coherent, completed projection.
+            self._queue_commission_fee_snapshot_notice()
+        return receipt
 
     def _refresh_optional_commission_without_projection_lock(self):
         """Query one optional fee target without hiding complete core facts."""
@@ -6503,6 +6660,8 @@ class QueryRefreshLoop:
         while not self._stop.is_set():
             observed_request = self._observe_strategy_shutdown_request()
             if observed_request:
+                next_refresh_at = min(next_refresh_at, time.monotonic())
+            if self._take_commission_priority_refresh_request():
                 next_refresh_at = min(next_refresh_at, time.monotonic())
             if self._shutdown_event.is_set():
                 self._advance_shutdown()
