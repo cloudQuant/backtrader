@@ -1284,6 +1284,189 @@ def test_real_registered_store_and_broker_project_a_complete_flat_snapshot():
     assert len(api.query_calls) == 6
 
 
+@pytest.mark.parametrize(
+    ("price_tick", "bid", "ask"),
+    ((0.1, 100.1, 100.2), (0.5, 99.5, 100.0)),
+)
+def test_quote_prices_on_the_same_contract_tick_remain_open_risk_usable(
+    price_tick, bid, ask
+):
+    now = datetime.now(timezone.utc)
+    rows = _query_rows()
+    rows["instruments_result"][0]["PriceTick"] = price_tick
+    tick = _quote(event_time=now - timedelta(milliseconds=200))
+    tick.bid_price = bid
+    tick.ask_price = ask
+    _api, store, broker, _journal, _coordinator, target = _system_under_test(
+        now=now, rows=rows, tick=tick
+    )
+    receipt = _refresh_all(store, target)
+    _arm(store)
+    assert _consume_quote(store) is not None
+
+    facts = _project(store, broker, target, now, query_set=receipt.query_set)
+
+    assert facts.quotes[0].quality == "GOOD"
+    assert facts.quotes[0].bid == Decimal(str(bid))
+    assert facts.quotes[0].ask == Decimal(str(ask))
+    assert "consumed_quote_price_tick_mismatch:rb" not in facts.blockers
+    assert facts.open_risk_ready is True, facts.open_risk_blockers
+
+
+@pytest.mark.parametrize(
+    "bid,ask",
+    ((99.5, 101.0), (99.0, 101.5), (100.00000000000001, 101.0)),
+)
+def test_off_grid_quote_blocks_new_risk_without_invalidating_source_readiness(bid, ask):
+    now = datetime.now(timezone.utc)
+    rows = _query_rows()
+    rows["instruments_result"][0]["PriceTick"] = 1
+    tick = _quote(event_time=now - timedelta(milliseconds=200))
+    tick.bid_price = bid
+    tick.ask_price = ask
+    _api, store, broker, _journal, _coordinator, target = _system_under_test(
+        now=now, rows=rows, tick=tick
+    )
+    receipt = _refresh_all(store, target)
+    _arm(store)
+    assert _consume_quote(store) is not None
+
+    facts = _project(store, broker, target, now, query_set=receipt.query_set)
+
+    assert facts.quotes[0].quality == "GOOD"
+    assert "consumed_quote_price_tick_mismatch:rb" in facts.blockers
+    assert facts.account.current_notional == Decimal(0)
+    assert facts.risk_reduction_ready is True, facts.risk_reduction_blockers
+    assert facts.open_risk_ready is False
+
+
+@pytest.mark.parametrize(
+    ("lower_limit", "upper_limit", "bid", "ask"),
+    ((100, 1000, 99.0, 100.0), (1, 100, 100.0, 101.0)),
+)
+def test_quote_outside_same_contract_price_band_blocks_new_risk(
+    lower_limit, upper_limit, bid, ask
+):
+    now = datetime.now(timezone.utc)
+    rows = _query_rows()
+    rows["instruments_result"][0].update(
+        {"LowerLimitPrice": lower_limit, "UpperLimitPrice": upper_limit}
+    )
+    tick = _quote(event_time=now - timedelta(milliseconds=200))
+    tick.bid_price = bid
+    tick.ask_price = ask
+    _api, store, broker, _journal, _coordinator, target = _system_under_test(
+        now=now, rows=rows, tick=tick
+    )
+    receipt = _refresh_all(store, target)
+    _arm(store)
+    assert _consume_quote(store) is not None
+
+    facts = _project(store, broker, target, now, query_set=receipt.query_set)
+
+    assert facts.quotes[0].quality == "GOOD"
+    assert "consumed_quote_price_out_of_band:rb" in facts.blockers
+    assert "consumed_quote_price_tick_mismatch:rb" not in facts.blockers
+    assert facts.risk_reduction_ready is True, facts.risk_reduction_blockers
+    assert facts.open_risk_ready is False
+
+
+def test_off_grid_quote_with_held_position_makes_risk_totals_unknown_but_close_ready():
+    _initial_facts, live = _build_source_backed_dated_close_facts()
+    now = datetime.now(timezone.utc)
+    api = live["api"]
+    store = live["store"]
+    broker = live["broker"]
+    target = live["target"]
+    query_set = live["query_set"]
+    tick_time = min(
+        now - timedelta(milliseconds=2),
+        max(query_set.completed_at_utc + timedelta(milliseconds=1), now - timedelta(seconds=1)),
+    )
+    tick = _quote(
+        event_time=tick_time,
+        received_at=tick_time + timedelta(milliseconds=1),
+        sequence=100,
+    )
+    tick.bid_price = 100.5
+    tick.ask_price = 101.0
+    api.tick = tick
+    assert _consume_quote(store) is not None
+    projection_now = datetime.now(timezone.utc)
+
+    facts = _project(store, broker, target, projection_now, query_set=query_set)
+
+    assert facts.positions[0].quantity == Decimal("1")
+    assert facts.quotes[0].quality == "GOOD"
+    assert "consumed_quote_price_tick_mismatch:rb" in facts.blockers
+    assert facts.account.current_notional is None
+    assert facts.account.current_worst_case_loss is None
+    assert facts.risk_reduction_ready is True, facts.risk_reduction_blockers
+    assert facts.open_risk_ready is False
+    assert len(facts.dated_close_legs) == 1
+    assert facts.dated_close_legs[0].ready is True, facts.dated_close_legs[0].blockers
+
+
+def test_off_grid_quote_keeps_exact_owned_order_cancel_ready():
+    now = datetime.now(timezone.utc)
+    remote = {
+        "OrderRef": "94",
+        "OrderSysID": "sys-94",
+        "InstrumentID": _INSTRUMENT,
+        "ExchangeID": _EXCHANGE,
+        "OrderStatus": "3",
+        "Direction": "0",
+        "CombOffsetFlag": "0",
+        "VolumeTotal": "1",
+        "FrontID": 4,
+        "SessionID": 7,
+    }
+    tick = _quote(event_time=now - timedelta(milliseconds=200))
+    tick.bid_price = 99.5
+    tick.ask_price = 101.0
+    _api, store, broker, _journal, _coordinator, target = _system_under_test(
+        now=now, rows=_query_rows(orders=(remote,)), tick=tick
+    )
+    receipt = _refresh_all(store, target)
+    _arm(store)
+    assert _consume_quote(store) is not None
+    order = BuyOrder(
+        owner=None,
+        data=target.data,
+        size=1,
+        price=100,
+        exectype=Order.Limit,
+        simulated=True,
+    )
+    order.status = Order.Accepted
+    order.info.update(
+        {
+            "external_order_ref": "94",
+            "order_sys_id": "sys-94",
+            "registered_sim_ctp_order_sys_id": "sys-94",
+            "registered_sim_ctp_order_sys_id_source": "ctp_order_callback",
+            "_registered_sim_ctp_identity_binding_captured": True,
+            "_registered_sim_ctp_identity_binding_valid": True,
+            "factor_position_effect": "OPEN",
+            "factor_strategy_scope": "alpha003",
+            "factor_intent_id": "intent-94",
+            "front_id": 4,
+            "session_id": 7,
+            "execution_unknown": False,
+            "cancel_requested_remote": False,
+            "cancel_intent_active": False,
+            "managed_execution_cancel_pending": False,
+        }
+    )
+    broker.orders[order.ref] = order
+
+    facts = _project(store, broker, target, now, query_set=receipt.query_set)
+
+    assert "consumed_quote_price_tick_mismatch:rb" in facts.blockers
+    assert facts.open_risk_ready is False
+    assert facts.order_cancel_ready is True, facts.order_cancel_blockers
+
+
 def test_position_risk_totals_use_bounded_ceiling_under_low_decimal_context():
     position = SimpleNamespace(
         target_id="rb",

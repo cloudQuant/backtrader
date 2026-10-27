@@ -1827,13 +1827,15 @@ def _is_open_risk_only_blocker(code: str) -> bool:
     """Classify risk-capacity/policy uncertainty without erasing reductions.
 
     These codes describe opening policy/capacity inputs, average/stop metadata,
-    fees, or holding age. They do not vouch for ownership, quantity, route, or
-    quote; those remain independent reduction-critical facts checked by
+    fees, holding age, or quote prices outside the contract grid/band. They do
+    not vouch for ownership, quantity, route, or quote provenance/freshness;
+    those remain independent reduction-critical facts checked by
     ``risk_reduction_ready``.
     """
 
     return code.startswith(
         (
+            "consumed_quote_price_",
             "position_held_age_unavailable:",
             "position_opening_fee_unavailable:",
             "commission_fee_",
@@ -1992,6 +1994,30 @@ def _risk_fact_decimal(value: Any, *, allow_negative: bool = False) -> Optional[
     ):
         return None
     return number
+
+
+def _quote_price_on_tick(value: Decimal, tick_size: Decimal) -> Optional[bool]:
+    """Check an observed quote against the contract tick without a tolerance.
+
+    Quote prices have already crossed the native CTP ``double`` to Python
+    ``float`` boundary.  The caller's ``Decimal(str(float))`` is a stable
+    decimal interpretation of that observed float; it does not recover or
+    prove the exchange's original economic decimal value.  In particular,
+    this check deliberately applies no ULP tolerance.
+    """
+
+    price = _risk_fact_decimal(value)
+    tick = _risk_fact_decimal(tick_size)
+    if price is None or tick is None or price <= 0 or tick <= 0:
+        return None
+    try:
+        with localcontext() as context:
+            context.prec = _RISK_FACT_CONTEXT_PRECISION
+            context.Emax = 1024
+            context.Emin = -1024
+            return price % tick == 0
+    except DecimalException:
+        return None
 
 
 def _risk_fact_result(value: Decimal) -> Optional[Decimal]:
@@ -3527,6 +3553,43 @@ def _quote_fact(
                 fail("consumed_quote_clock_order_invalid", "TIME_ORDER_INVALID")
         if bid is None or ask is None or bid_size is None or ask_size is None or bid > ask:
             fail("consumed_quote_book_unusable", "BOOK_UNOBSERVED")
+        if bid is not None and ask is not None:
+            # Keep source/freshness quality separate from price-risk usability.
+            # Invalid observed prices are open-risk blockers; held-value totals
+            # are withheld below without disabling CLOSE/CANCEL readiness.
+            tick_size = instrument_fact.tick_size if instrument_fact is not None else None
+            lower_limit = instrument_fact.lower_limit if instrument_fact is not None else None
+            upper_limit = instrument_fact.upper_limit if instrument_fact is not None else None
+            if (
+                tick_size is None
+                or tick_size <= 0
+                or lower_limit is None
+                or upper_limit is None
+                or lower_limit >= upper_limit
+            ):
+                blockers.append(
+                    "consumed_quote_price_metadata_unavailable:{}".format(target.target_id)
+                )
+            else:
+                if any(
+                    price < lower_limit or price > upper_limit for price in (bid, ask)
+                ):
+                    blockers.append(
+                        "consumed_quote_price_out_of_band:{}".format(target.target_id)
+                    )
+                on_tick = tuple(
+                    _quote_price_on_tick(price, tick_size) for price in (bid, ask)
+                )
+                if any(value is False for value in on_tick):
+                    blockers.append(
+                        "consumed_quote_price_tick_mismatch:{}".format(target.target_id)
+                    )
+                if any(value is None for value in on_tick):
+                    blockers.append(
+                        "consumed_quote_price_tick_check_unavailable:{}".format(
+                            target.target_id
+                        )
+                    )
     return FactorExecutionQuoteFacts(
         instrument=target.instrument,
         exchange=target.exchange,
@@ -4531,6 +4594,10 @@ def _risk_totals(
     working_orders: Tuple[FactorExecutionWorkingOrderFacts, ...],
     blockers: List[str],
 ):
+    if any(code.startswith("consumed_quote_price_") for code in blockers):
+        # An observed quote outside the contract grid/band cannot safely mark
+        # held exposure, even though its source and freshness may be sound.
+        return None, None
     position_order_blocker_prefixes = (
         "external_",
         "position_",
