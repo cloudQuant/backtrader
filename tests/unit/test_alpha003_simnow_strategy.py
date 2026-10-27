@@ -24,6 +24,12 @@ from backtrader.research.live import (
     LiveFactorSnapshot,
     LiveFactorOutputStatus,
 )
+from backtrader.research.live_cohort import (
+    LiveBarCohort,
+    LiveCalendarMemberSession,
+    LiveCalendarSlot,
+    LiveCohortCalendar,
+)
 from backtrader.research.specs import FactorSpec
 
 
@@ -797,9 +803,21 @@ def test_live_shadow_records_eligible_grid_as_noop_and_never_dispatches():
     assert dispatched == []
 
 
-def test_live_grid_scope_forwards_sampled_budget_count_and_exit_reserve():
+def test_live_grid_scope_forwards_sampled_budget_count_and_exit_reserve(monkeypatch, request):
     from contextlib import contextmanager
 
+    case = _source_backed_loss_guard_case(
+        {
+            "Available": "100000",
+            "CurrMargin": "0",
+            "CloseProfit": "1000",
+            "PositionProfit": "0",
+            "Commission": "0",
+            "CurrencyID": "CNY",
+            "TradingDay": "20261024",
+        }
+    )
+    request.addfinalizer(case.journal.close)
     batch, history_snapshot = _history_batch_snapshot("batch-1", CLOSE, AVAILABLE)
     snapshot = replace(
         history_snapshot,
@@ -813,16 +831,18 @@ def test_live_grid_scope_forwards_sampled_budget_count_and_exit_reserve():
 
     entered = []
 
-    class _Coordinator:
-        def run_order_count(self):
-            pytest.fail("the planner's sampled count must be reused for CAS")
+    coordinator = case.coordinator
 
-        @contextmanager
-        def decision_scope(self, **kwargs):
-            entered.append(kwargs)
-            yield SimpleNamespace(dispatch_allowed=False)
+    @contextmanager
+    def decision_scope(**kwargs):
+        entered.append(kwargs)
+        yield SimpleNamespace(dispatch_allowed=False)
 
-    planning = replace(_risk_facts(), run_order_intents_used=7)
+    monkeypatch.setattr(coordinator, "decision_scope", decision_scope)
+    planning = replace(
+        _dated_source_planning_input(case.facts, case.projected_at),
+        run_order_intents_used=7,
+    )
     actions = (
         _STRATEGY.Alpha003OrderAction(
             action="SUBMIT",
@@ -846,26 +866,33 @@ def test_live_grid_scope_forwards_sampled_budget_count_and_exit_reserve():
     plan = _STRATEGY.Alpha003OrderPlan(
         "READY", None, tuple(actions), batch.batch_id, AVAILABLE, "account-1"
     )
-    strategy = SimpleNamespace(
-        _coordinator=_Coordinator(),
-        p=SimpleNamespace(cohort=_Cohort(), execution_enabled=True),
-        live_factors=SimpleNamespace(snapshot=lambda: snapshot),
-        _account_scope="paper",
-        _strategy_scope="alpha003-test",
-        _logical_run_id="run-1",
-        _last_signal_target=None,
-        last_execution_block_reason=None,
-        _order_intents=lambda _plan, _batch: ((object(), object()), (object(), object())),
-        _dispatch_live_actions=lambda *_args: pytest.fail("dispatch is disabled in the scope"),
+    strategy = case.strategy
+    strategy.p.cohort = _Cohort()
+    strategy.live_factors = SimpleNamespace(snapshot=lambda: snapshot)
+    strategy._last_signal_target = None
+    strategy.last_execution_block_reason = None
+    strategy._order_intents = lambda _plan, _batch: ((object(), object()), (object(), object()))
+    strategy._dispatch_live_actions = lambda *_args: pytest.fail("dispatch is disabled in the scope")
+    loss_guard_context, blocker = strategy._refresh_run_loss_guard(
+        case.facts, case.projected_at
     )
+    assert loss_guard_context is not None
+    assert blocker is None
+    assert case.runner.QueryRefreshLoop._receipt_complete(case.receipt) is True
+    assert case.facts.account.total_net_pnl_available is True
+    baseline = case.journal.run_loss_guard("acct-scope", "alpha003", "run-1")
+    assert baseline is not None
+    assert baseline.net_loss_threshold == Decimal("1000")
+    assert baseline.max_observation_age_seconds == 30
 
     _STRATEGY.Alpha003TargetStrategy._live_grid_decision(
         strategy,
         batch,
         snapshot,
-        None,
+        case.facts,
         plan,
         planning=planning,
+        loss_guard_context=loss_guard_context,
     )
 
     assert len(entered) == 1
@@ -1498,7 +1525,9 @@ def test_order_planner_never_opens_when_route_or_trading_permission_is_denied(
     assert plan.actions == ()
 
 
-def test_live_run_keeps_source_backed_owned_order_cancel_during_warmup_without_open_readiness():
+def test_live_run_keeps_source_backed_owned_order_cancel_during_warmup_without_open_readiness(
+    monkeypatch, request
+):
     from contextlib import contextmanager
     from types import MethodType
 
@@ -1525,12 +1554,44 @@ def test_live_run_keeps_source_backed_owned_order_cancel_during_warmup_without_o
         "FrontID": 4,
         "SessionID": 7,
     }
-    api, store, broker, _journal, _source_coordinator, target = facts_fixture._system_under_test(
+    api, store, broker, journal, coordinator, target = facts_fixture._system_under_test(
         now=now,
-        rows=facts_fixture._query_rows(orders=(remote_order,)),
+        rows=facts_fixture._query_rows(
+            orders=(remote_order,),
+            account={
+                "Available": "100000",
+                "CurrMargin": "0",
+                "CloseProfit": "1000",
+                "PositionProfit": "0",
+                "Commission": "0",
+                "CurrencyID": "CNY",
+                "TradingDay": facts_fixture._TRADING_DAY,
+            },
+        ),
         tick=None,
     )
+    request.addfinalizer(journal.close)
     receipt = facts_fixture._refresh_all(store, target)
+    runner = _load_loss_guard_runner()
+    assert runner.QueryRefreshLoop._receipt_complete(receipt) is True
+    refresh_loop = runner.QueryRefreshLoop(
+        store,
+        broker,
+        (target,),
+        execution_target_ids=(target.target_id,),
+        coordinator=coordinator,
+        account_scope="acct-scope",
+        strategy_scope="alpha003",
+        clock=SimpleNamespace(),
+        quote_max_age=timedelta(seconds=5),
+        max_query_age=timedelta(seconds=30),
+        timeout=1.0,
+        overall_timeout=2.0,
+        interval=0.1,
+        cerebro=SimpleNamespace(),
+        shutdown_grace_seconds=1.0,
+    )
+    refresh_loop.last_receipt = receipt
     facts_fixture._arm(store)
     order = facts_fixture.BuyOrder(
         owner=None,
@@ -1545,6 +1606,10 @@ def test_live_run_keeps_source_backed_owned_order_cancel_during_warmup_without_o
         {
             "external_order_ref": "94",
             "order_sys_id": "sys-94",
+            "registered_sim_ctp_order_sys_id": "sys-94",
+            "registered_sim_ctp_order_sys_id_source": "ctp_order_callback",
+            "_registered_sim_ctp_identity_binding_captured": True,
+            "_registered_sim_ctp_identity_binding_valid": True,
             "instrument_id": facts_fixture._INSTRUMENT,
             "exchange_id": facts_fixture._EXCHANGE,
             "factor_position_effect": "OPEN",
@@ -1577,33 +1642,38 @@ def test_live_run_keeps_source_backed_owned_order_cancel_during_warmup_without_o
     scopes = []
     canceled = []
 
-    class _Coordinator:
-        def run_order_count(self):
-            return 0
+    def reject_warmup_grid_scope(**_kwargs):
+        pytest.fail("WARMUP must not dispatch a new OPEN grid decision")
 
-        def decision_scope(self, **_kwargs):
-            pytest.fail("WARMUP must not dispatch a new OPEN grid decision")
+    @contextmanager
+    def record_risk_scope(**kwargs):
+        scopes.append(kwargs)
+        yield SimpleNamespace(dispatch_allowed=True)
 
-        @contextmanager
-        def risk_decision_scope(self, **kwargs):
-            scopes.append(kwargs)
-            yield SimpleNamespace(dispatch_allowed=True)
+    monkeypatch.setattr(coordinator, "decision_scope", reject_warmup_grid_scope)
+    # Preserve the actual Coordinator and its journal-backed loss-guard
+    # methods. Only the risk-scope dispatch leaf is isolated in this CANCEL
+    # regression, as before.
+    monkeypatch.setattr(coordinator, "risk_decision_scope", record_risk_scope)
 
     strategy = object.__new__(_STRATEGY.Alpha003TargetStrategy)
     strategy.p = SimpleNamespace(
         execution_enabled=True,
         replay_mode=False,
         cohort=SimpleNamespace(cohort_id=batch.cohort_id, current_batch=lambda: batch),
-        control_refresh_loop=SimpleNamespace(last_receipt=receipt),
+        control_refresh_loop=refresh_loop,
     )
     strategy.broker = broker
-    strategy._coordinator = _Coordinator()
+    strategy._coordinator = coordinator
     strategy._risk_policy = _risk_policy()
+    strategy._loss_guard_net_loss_threshold = Decimal("1000")
+    strategy._loss_guard_max_observation_age_seconds = 30
     strategy._account_scope = "acct-scope"
     strategy._strategy_scope = "alpha003"
     strategy._logical_run_id = "run-1"
     strategy._routes = {target.target_id: (target.instrument, target.exchange)}
     strategy._target_ids = (target.target_id,)
+    strategy._authorized_targets = frozenset((target.target_id,))
     strategy._data_by_target = {target.target_id: target.data}
     strategy._orders_by_broker_ref = {}
     strategy._quote_max_age_seconds = None
@@ -1648,8 +1718,12 @@ def test_live_run_keeps_source_backed_owned_order_cancel_during_warmup_without_o
     assert facts.open_risk_ready is False
     assert facts.order_cancel_ready is True, facts.order_cancel_blockers
     assert facts.account is not None and facts.account.route_permitted is True
+    assert facts.account.total_net_pnl_available is True
     assert facts.working_orders[0].owner_strategy_scope == facts.strategy_scope
     assert facts.working_orders[0].owner_intent_id == "intent-94"
+    assert facts.working_orders[0].order_sys_id == "sys-94"
+    assert facts.working_orders[0].front_id == 4
+    assert facts.working_orders[0].session_id == 7
     assert api.query_calls
 
     assert strategy.last_order_plan.status == "READY"
@@ -1662,6 +1736,10 @@ def test_live_run_keeps_source_backed_owned_order_cancel_during_warmup_without_o
     assert scopes[0]["intent_keys"][0].position_effect == "OPEN"
     assert scopes[0]["economic_payload"]["intent_economics"][0]["owner_intent_id"] == ("intent-94")
     assert canceled == [order]
+    baseline = journal.run_loss_guard("acct-scope", "alpha003", "run-1")
+    assert baseline is not None
+    assert baseline.net_loss_threshold == Decimal("1000")
+    assert baseline.max_observation_age_seconds == 30
 
 
 def test_reduction_is_submitted_alone_before_any_new_target_is_opened():
@@ -2882,6 +2960,656 @@ def _source_backed_read_only_reconciliation_case(scenario="positive"):
     if not callable(builder):
         raise RuntimeError("read-only reconciliation source fixture is not available yet")
     return builder(scenario=scenario)
+
+
+def _source_backed_loss_guard_case(account_row):
+    """Build PnL facts through the real projection and Coordinator APIs."""
+    module_name = "_alpha003_loss_guard_source_facts_fixture"
+    module = sys.modules.get(module_name)
+    if module is None:
+        path = _ROOT / "tests" / "unit" / "stores" / "test_factor_execution_facts.py"
+        spec = importlib.util.spec_from_file_location(module_name, path)
+        if spec is None or spec.loader is None:
+            raise RuntimeError("source-backed loss guard facts fixture is unavailable")
+        module = importlib.util.module_from_spec(spec)
+        sys.modules[module_name] = module
+        spec.loader.exec_module(module)
+    now = datetime.now(UTC)
+    api, store, broker, journal, coordinator, target = module._system_under_test(
+        now=now,
+        rows=module._query_rows(account=account_row),
+    )
+    receipt = module._refresh_all(store, target)
+    projected_at = datetime.now(UTC)
+    facts = module._project(store, broker, target, projected_at, query_set=receipt.query_set)
+
+    runner = _load_loss_guard_runner()
+    refresh_loop = object.__new__(runner.QueryRefreshLoop)
+    refresh_loop.last_receipt = receipt
+
+    strategy = object.__new__(_STRATEGY.Alpha003TargetStrategy)
+    strategy.p = SimpleNamespace(
+        execution_enabled=True,
+        replay_mode=False,
+        control_refresh_loop=refresh_loop,
+    )
+    strategy._coordinator = coordinator
+    strategy._account_scope = "acct-scope"
+    strategy._strategy_scope = "alpha003"
+    strategy._logical_run_id = "run-1"
+    strategy._loss_guard_net_loss_threshold = Decimal("1000")
+    strategy._loss_guard_max_observation_age_seconds = 30
+    return SimpleNamespace(
+        api=api,
+        store=store,
+        broker=broker,
+        journal=journal,
+        coordinator=coordinator,
+        target=target,
+        receipt=receipt,
+        facts=facts,
+        strategy=strategy,
+        runner=runner,
+        source_module=module,
+        projected_at=projected_at,
+    )
+
+
+def _load_loss_guard_runner():
+    example_path = str(_ROOT / "examples" / "unified" / "028_alpha003_simnow_minute")
+    if example_path not in sys.path:
+        sys.path.insert(0, example_path)
+    runner_name = "_alpha003_loss_guard_runner_fixture"
+    runner = sys.modules.get(runner_name)
+    if runner is None:
+        runner_path = Path(example_path) / "run.py"
+        runner_spec = importlib.util.spec_from_file_location(runner_name, runner_path)
+        if runner_spec is None or runner_spec.loader is None:
+            raise RuntimeError("production refresh loop source is unavailable")
+        runner = importlib.util.module_from_spec(runner_spec)
+        sys.modules[runner_name] = runner
+        runner_spec.loader.exec_module(runner)
+    return runner
+
+
+def test_live_loss_guard_uses_complete_source_pnl_once_and_latches_without_rebaseline():
+    case = _source_backed_loss_guard_case(
+        {
+            "Available": "100000",
+            "CurrMargin": "0",
+            "CloseProfit": "1000",
+            "PositionProfit": "0",
+            "Commission": "0",
+            "CurrencyID": "CNY",
+            "TradingDay": "20261024",
+        }
+    )
+    try:
+        strategy = case.strategy
+        context, blocker = strategy._refresh_run_loss_guard(case.facts, case.projected_at)
+        assert blocker is None
+        baseline = case.journal.run_loss_guard("acct-scope", "alpha003", "run-1")
+        assert baseline.context == context
+        assert baseline.baseline_total_net_pnl == Decimal("1000")
+        assert baseline.latest_observation_id == case.facts.account.snapshot_id
+
+        # Re-reading the same query ID is idempotent and cannot reset baseline.
+        replay_context, replay_blocker = strategy._refresh_run_loss_guard(
+            case.facts, case.projected_at
+        )
+        assert replay_context == context
+        assert replay_blocker is None
+        assert case.journal.run_loss_guard("acct-scope", "alpha003", "run-1") == baseline
+
+        case.api.query_rows["account_result"] = [
+            {
+                "Available": "100000",
+                "CurrMargin": "0",
+                "CloseProfit": "0",
+                "PositionProfit": "0",
+                "Commission": "0",
+                "CurrencyID": "CNY",
+                "TradingDay": "20261024",
+            }
+        ]
+        case.api._use_observed_query_clock = True
+        next_receipt = case.source_module._refresh_all(case.store, case.target)
+        case.strategy.p.control_refresh_loop.last_receipt = next_receipt
+        next_time = datetime.now(UTC)
+        next_facts = case.source_module._project(
+            case.store, case.broker, case.target, next_time, query_set=next_receipt.query_set
+        )
+        context_after, blocker_after = strategy._refresh_run_loss_guard(next_facts, next_time)
+        assert context_after == context
+        assert blocker_after is None
+        tripped = case.journal.run_loss_guard("acct-scope", "alpha003", "run-1")
+        assert tripped.baseline_total_net_pnl == Decimal("1000")
+        assert tripped.latest_total_net_pnl == Decimal("0")
+        assert tripped.tripped is True
+
+        case.api.query_rows["account_result"][0]["CloseProfit"] = "1100"
+        recovery_receipt = case.source_module._refresh_all(case.store, case.target)
+        case.strategy.p.control_refresh_loop.last_receipt = recovery_receipt
+        recovery_time = datetime.now(UTC)
+        recovery_facts = case.source_module._project(
+            case.store,
+            case.broker,
+            case.target,
+            recovery_time,
+            query_set=recovery_receipt.query_set,
+        )
+        context_after_recovery, blocker_after_recovery = strategy._refresh_run_loss_guard(
+            recovery_facts, recovery_time
+        )
+        assert context_after_recovery == context
+        assert blocker_after_recovery is None
+        recovered = case.journal.run_loss_guard("acct-scope", "alpha003", "run-1")
+        assert recovered.baseline_total_net_pnl == Decimal("1000")
+        assert recovered.latest_total_net_pnl == Decimal("1100")
+        assert recovered.tripped is True
+        assert recovered.trip_observation_id == tripped.trip_observation_id
+    finally:
+        case.journal.close()
+
+
+def test_unqualified_live_pnl_never_seeds_guard_and_read_only_skips_requirement():
+    case = _source_backed_loss_guard_case(
+        {
+            "Available": "100000",
+            "CurrMargin": "0",
+            "CurrencyID": "CNY",
+            "TradingDay": "20261024",
+        }
+    )
+    try:
+        strategy = case.strategy
+        context, blocker = strategy._refresh_run_loss_guard(case.facts, case.projected_at)
+        assert context is None
+        raw_account = case.api.query_rows["account_result"][0]
+        assert raw_account["CurrencyID"] == "CNY"
+        assert raw_account["TradingDay"] == case.facts.account.trading_day
+        assert case.facts.account.currency is None
+        assert case.facts.account.total_net_pnl_available is False
+        assert case.facts.account.total_net_pnl_reason == "close_profit_unavailable"
+        assert blocker == "RUN_LOSS_ACCOUNT_CURRENCY_MISMATCH"
+        assert case.journal.run_loss_guard("acct-scope", "alpha003", "run-1") is None
+
+        strategy.p.execution_enabled = False
+        readonly_context, readonly_blocker = strategy._refresh_run_loss_guard(
+            case.facts, case.projected_at
+        )
+        assert readonly_context is None
+        assert readonly_blocker is None
+        assert case.journal.run_loss_guard("acct-scope", "alpha003", "run-1") is None
+    finally:
+        case.journal.close()
+
+
+def test_incomplete_live_refresh_never_seeds_guard():
+    case = _source_backed_loss_guard_case(
+        {
+            "Available": "100000",
+            "CurrMargin": "0",
+            "CloseProfit": "1000",
+            "PositionProfit": "0",
+            "Commission": "0",
+            "CurrencyID": "CNY",
+            "TradingDay": "20261024",
+        }
+    )
+    try:
+        case.strategy.p.control_refresh_loop.last_receipt = replace(
+            case.receipt, blockers=("QUERY_FIXTURE_INCOMPLETE",)
+        )
+        context, blocker = case.strategy._refresh_run_loss_guard(
+            case.facts, case.projected_at
+        )
+        assert context is None
+        assert blocker == "RUN_LOSS_ACCOUNT_REFRESH_INCOMPLETE"
+        assert case.journal.run_loss_guard("acct-scope", "alpha003", "run-1") is None
+    finally:
+        case.journal.close()
+
+
+def test_live_loss_guard_refresh_binding_and_clock_failures_are_fatal():
+    from backtrader.stores.factor_execution import FactorExecutionError
+
+    case = _source_backed_loss_guard_case(
+        {
+            "Available": "100000",
+            "CurrMargin": "0",
+            "CloseProfit": "1000",
+            "PositionProfit": "0",
+            "Commission": "0",
+            "CurrencyID": "CNY",
+            "TradingDay": "20261024",
+        }
+    )
+    try:
+        strategy = case.strategy
+        original_loop = strategy.p.control_refresh_loop
+        strategy.p.control_refresh_loop = None
+        with pytest.raises(FactorExecutionError) as missing_loop:
+            strategy._refresh_run_loss_guard(case.facts, case.projected_at)
+        assert missing_loop.value.code == "RUN_LOSS_GUARD_REFRESH_BINDING_REQUIRED"
+        assert case.journal.run_loss_guard("acct-scope", "alpha003", "run-1") is None
+
+        strategy.p.control_refresh_loop = SimpleNamespace(last_receipt=case.receipt)
+        with pytest.raises(FactorExecutionError) as missing_contract:
+            strategy._refresh_run_loss_guard(case.facts, case.projected_at)
+        assert missing_contract.value.code == "RUN_LOSS_GUARD_REFRESH_BINDING_REQUIRED"
+        assert case.journal.run_loss_guard("acct-scope", "alpha003", "run-1") is None
+
+        strategy.p.control_refresh_loop = original_loop
+        with pytest.raises(FactorExecutionError) as invalid_clock:
+            strategy._refresh_run_loss_guard(
+                case.facts, case.projected_at.replace(tzinfo=None)
+            )
+        assert invalid_clock.value.code == "RUN_LOSS_GUARD_CLOCK_INVALID"
+        assert case.journal.run_loss_guard("acct-scope", "alpha003", "run-1") is None
+
+        strategy.p.control_refresh_loop.last_receipt = replace(
+            case.receipt, completed_at=case.receipt.completed_at.replace(tzinfo=None)
+        )
+        context, source_time_blocker = strategy._refresh_run_loss_guard(
+            case.facts, case.projected_at
+        )
+        assert context is None
+        assert source_time_blocker == "RUN_LOSS_ACCOUNT_ASOF_INVALID"
+        assert case.journal.run_loss_guard("acct-scope", "alpha003", "run-1") is None
+    finally:
+        case.journal.close()
+
+
+@pytest.mark.parametrize(
+    ("guard_failure", "expected_blocker"),
+    (
+        ("late_enable", "RUN_LOSS_GUARD_LATE_ENABLE_AFTER_OPEN"),
+        ("scan_limit", "RUN_LOSS_GUARD_ENABLE_SCAN_LIMIT"),
+    ),
+)
+def test_cerebro_strategy_blocks_open_then_replays_owned_close_once(
+    monkeypatch, guard_failure, expected_blocker
+):
+    """Exercise the real live orchestration and risk scope with source-backed components."""
+    from backtrader.feeds.btapifeed import BtApiFeed
+    from backtrader.stores import execution_decision_journal as journal_module
+    from backtrader.stores.factor_execution import FactorExecutionError
+
+    assert "RUN_LOSS_GUARD_OBSERVATION_MISMATCH" in _STRATEGY._RUN_LOSS_OPEN_REJECTION_CODES
+    assert "RUN_LOSS_OBSERVATION_MISMATCH" not in _STRATEGY._RUN_LOSS_OPEN_REJECTION_CODES
+    assert "RUN_LOSS_GUARD_CONTEXT_REQUIRED" not in _STRATEGY._RUN_LOSS_OPEN_REJECTION_CODES
+    assert "RUN_LOSS_GUARD_LATE_ENABLE_AFTER_OPEN" in _STRATEGY._RUN_LOSS_OPEN_REJECTION_CODES
+    assert "RUN_LOSS_GUARD_ENABLE_SCAN_LIMIT" in _STRATEGY._RUN_LOSS_OPEN_REJECTION_CODES
+
+    facts, live = _source_backed_dated_close_facts("TODAY")
+    journal = live["journal"]
+    coordinator = live["coordinator"]
+    source_module = sys.modules["_alpha003_source_backed_dated_facts_fixture"]
+    live["api"].query_rows["account_result"] = [
+        {
+            "Available": "100000",
+            "CurrMargin": "0",
+            "CloseProfit": "1000",
+            "PositionProfit": "0",
+            "Commission": "0",
+            "CurrencyID": "CNY",
+            "TradingDay": "20261024",
+        }
+    ]
+    receipt, now, consumed_quote = source_module._refresh_complete_facts_after_callback(
+        live["api"],
+        live["store"],
+        live["target"],
+        sequence=9,
+        trading_day=source_module._TRADING_DAY,
+    )
+    assert consumed_quote is not None
+    facts = source_module._project(
+        live["store"], live["broker"], live["target"], now, query_set=receipt.query_set
+    )
+    assert facts.risk_reduction_ready is True, facts.risk_reduction_blockers
+    assert len(facts.quotes) == 1
+    assert facts.quotes[0].quality == "GOOD"
+    assert facts.quotes[0].event_time >= receipt.query_set.completed_at_utc
+    assert facts.quotes[0].available_at >= receipt.query_set.completed_at_utc
+    assert facts.quotes[0].available_at <= now
+    assert len(facts.dated_close_legs) == 1
+    assert facts.dated_close_legs[0].ready is True, facts.dated_close_legs[0].blockers
+    if guard_failure == "scan_limit":
+        # The zero-row cap is the smallest valid boundary fixture: the first
+        # inspected row produces the typed limit blocker before row decoding.
+        monkeypatch.setattr(journal_module, "_MAX_RUN_LOSS_ENABLE_SCAN_ROWS", 0)
+    batch_close = now.replace(second=0, microsecond=0) + timedelta(minutes=1)
+    batch_available = batch_close + timedelta(seconds=1)
+    trading_day = batch_close.date().isoformat()
+    slot = LiveCalendarSlot(
+        slot_id="loss-guard-slot-1",
+        bucket_start=batch_close - timedelta(minutes=1),
+        close_time=batch_close,
+        trading_day=trading_day,
+        session_segment="regular",
+        member_sessions={
+            "rb": LiveCalendarMemberSession(trading_day, "regular"),
+        },
+    )
+    calendar = LiveCohortCalendar(
+        calendar_id="loss-guard-calendar-v1",
+        version="synthetic-v1",
+        epoch_id=1,
+        frequency="1min",
+        frequency_seconds=60,
+        timezone_id="UTC",
+        clock_domain_id="loss-guard-clock-v1",
+        session_semantics="synthetic-regular-v1",
+        slots=(slot,),
+    )
+    cohort = LiveBarCohort(
+        "loss-guard-cohort-v1",
+        calendar,
+        max_pending_slots=8,
+        max_window_bars=512,
+        wait_timeout_ns=5_000_000_000,
+    )
+
+    class Clock:
+        def utc_now(self):
+            return batch_available
+
+        def monotonic_ns(self):
+            return 10_000_000_000
+
+        def wait(self, _timeout_seconds):
+            return None
+
+    event = MappingProxyType(
+        {
+            "instrument": "rb2510",
+            "symbol": "rb2510",
+            "timestamp": batch_close.timestamp(),
+            "datetime": batch_close,
+            "bucket_start": slot.bucket_start,
+            "bucket_end": slot.close_time,
+            "available_at": batch_available,
+            "trading_day": trading_day,
+            "session_segment": "regular",
+            "timezone_id": "UTC",
+            "clock_domain_id": "loss-guard-clock-v1",
+            "connection_generation": "generation-1",
+            "bar_sequence": 1,
+            "bar_id": "loss-guard-bar-1",
+            "source_ref": "loss-guard-synthetic-live",
+            "open": 100.0,
+            "high": 101.0,
+            "low": 99.0,
+            "close": 100.5,
+            "volume": 1.0,
+            "openinterest": 0.0,
+            "present": True,
+            "complete": True,
+            "quality": "GOOD",
+            "quality_flags": (),
+            "source": "loss-guard-synthetic-live",
+        }
+    )
+    feed = BtApiFeed(
+        dataname="rb2510",
+        historical_bars=(),
+        live_bars=(event,),
+        backfill_start=False,
+        cohort_source_mode=True,
+        timeframe=bt.TimeFrame.Minutes,
+        compression=1,
+    )
+    raw_fields = ("open", "high", "low", "close", "volume", "openinterest")
+    cohort.register_member(
+        "rb",
+        feed,
+        instrument="rb2510",
+        source_ref="loss-guard-synthetic-live",
+        line_fields=raw_fields,
+        raw_fields=raw_fields,
+        clock_domain_id="loss-guard-clock-v1",
+        timezone_id="UTC",
+        session_semantics="synthetic-regular-v1",
+        numeric_fields=raw_fields,
+    )
+    cohort.seal()
+    dispatched = []
+    outcome = {}
+
+    def exercise(strategy):
+        batch = cohort.current_batch()
+        assert batch is not None and batch.status == "COMPLETE"
+        factor = SimpleNamespace(source_sha256="b" * 64)
+        snapshot = SimpleNamespace(
+            readiness=LiveFactorReadiness.LIVE_READY,
+            batch_complete=True,
+            batch_id=batch.batch_id,
+            cohort_id=batch.cohort_id,
+            calendar_id=batch.calendar_id,
+            epoch_id=batch.epoch_id,
+            close_time=batch.close_time,
+            factors={_STRATEGY.FACTOR_NAME: factor},
+        )
+        strategy.live_factors.snapshot = lambda: snapshot
+        assert strategy._loss_guard_net_loss_threshold == Decimal("1000")
+        assert strategy._loss_guard_max_observation_age_seconds == 30
+
+        planning = _dated_source_planning_input(facts, now)
+        planning = replace(
+            planning,
+            run_order_intents_used=coordinator.run_order_count(),
+        )
+        close_plan = _STRATEGY.plan_alpha003_orders(planning)
+        assert close_plan.status == "READY", (
+            close_plan.reason,
+            planning.risk_reduction_blockers,
+            planning.order_cancel_blockers,
+            facts.blockers,
+        )
+        assert len(close_plan.actions) == 1
+        assert close_plan.actions[0].position_effect == "CLOSE"
+        open_action = _STRATEGY.Alpha003OrderAction(
+            action="SUBMIT",
+            target_id="rb",
+            instrument="rb2510",
+            exchange="SHFE",
+            side="BUY",
+            position_effect="OPEN",
+            quantity=1,
+            limit_price=Decimal("100"),
+            offset="open",
+            reason="ALPHA003_TARGET",
+            planned_stop_price=Decimal("95"),
+            decision_available_at=now,
+            entry_grid_ordinal=1,
+        )
+        mixed_plan = replace(close_plan, actions=(open_action,) + close_plan.actions)
+
+        # Keep the Strategy's real _run_live -> _live_grid_decision ->
+        # decision-scope and _live_risk_decision wiring. The planner result
+        # combines one source-backed owned CLOSE with a single synthetic OPEN
+        # so this case isolates the guard's boundary behavior.
+        strategy._live_facts = lambda _now: facts
+        strategy._record_decision_tape = lambda *_args: (
+            True,
+            {
+                "file_id": "loss-guard-test-tape",
+                "record_id": "loss-guard-test-record",
+                "record_index": 0,
+                "batch_id": batch.batch_id,
+            },
+            None,
+        )
+        monkeypatch.setattr(_STRATEGY, "plan_alpha003_orders", lambda _planning: mixed_plan)
+        strategy._run_live(
+            batch,
+            snapshot,
+            now,
+            1,
+            None,
+            False,
+            is_new_batch=True,
+        )
+        assert strategy.last_execution_block_reason == expected_blocker
+        assert strategy.last_order_plan.actions == close_plan.actions
+        assert journal.run_loss_guard("acct-scope", "alpha003", "run-1") is None
+        assert len(dispatched) == 1
+        assert tuple(action.position_effect for action in dispatched[0][0]) == ("CLOSE",)
+
+        with pytest.raises(FactorExecutionError) as missing_context:
+            strategy._live_grid_decision(
+                batch,
+                snapshot,
+                facts,
+                mixed_plan,
+                planning=planning,
+                proposed_plan=mixed_plan,
+                decision_tape_reference={
+                    "file_id": "loss-guard-test-tape",
+                    "record_id": "loss-guard-test-record",
+                    "record_index": 0,
+                    "batch_id": batch.batch_id,
+                },
+                loss_guard_context=None,
+                loss_guard_blocker=None,
+            )
+        assert missing_context.value.code == "RUN_LOSS_GUARD_CONTEXT_REQUIRED"
+
+        # Repeating the same risk decision is an exact durable replay and must
+        # not create another dispatch.
+        _STRATEGY.Alpha003TargetStrategy._live_risk_decision(
+            strategy, batch, facts, strategy.last_order_plan, planning=planning
+        )
+        assert len(dispatched) == 1
+        assert tuple(action.position_effect for action in dispatched[0][0]) == ("CLOSE",)
+        outcome.update(
+            blocker=strategy.last_execution_block_reason,
+            dispatches=tuple(dispatched),
+        )
+        strategy.cerebro.runstop()
+
+    class GuardWiringStrategy(_STRATEGY.Alpha003TargetStrategy):
+        params = (("guard_test_callback", None),)
+
+        def __init__(self):
+            super().__init__()
+            self._guard_test_callback_done = False
+            # The production Strategy constructor has already bound its real
+            # LiveFactorSet, Broker, Store, and Coordinator at this point.
+            self._dispatch_live_actions = lambda actions, batch: dispatched.append(
+                (tuple(actions), batch)
+            )
+
+        def prenext(self):
+            if self._guard_test_callback_done:
+                return
+            self._guard_test_callback_done = True
+            self.p.guard_test_callback(self)
+
+        def nextstart(self):
+            self.prenext()
+
+        def next(self):
+            self.prenext()
+
+    broker = live["broker"]
+    broker.start = lambda: None
+    broker.stop = lambda: None
+    broker.next = lambda: None
+    cerebro = bt.Cerebro(stdstats=False, runonce=False, preload=False)
+    cerebro.setbroker(broker)
+    cerebro.adddata(feed, name="rb")
+    clock = Clock()
+    cerebro.add_live_bar_cohort(cohort, clock=clock)
+    runner = _load_loss_guard_runner()
+    refresh_loop = runner.QueryRefreshLoop(
+        live["store"],
+        broker,
+        (live["target"],),
+        execution_target_ids=(live["target"].target_id,),
+        coordinator=coordinator,
+        account_scope="acct-scope",
+        strategy_scope="alpha003",
+        clock=clock,
+        quote_max_age=timedelta(seconds=5),
+        max_query_age=timedelta(seconds=30),
+        timeout=1.0,
+        overall_timeout=2.0,
+        interval=0.1,
+        cerebro=cerebro,
+        shutdown_grace_seconds=1.0,
+    )
+    refresh_loop.last_receipt = receipt
+    cerebro.addstrategy(
+        GuardWiringStrategy,
+        cohort=cohort,
+        calendar_id=calendar.calendar_id,
+        strategy_scope="alpha003",
+        authorized_targets=("rb",),
+        product_keys={"rb": ("SHFE", "rb")},
+        preheat_bars=1,
+        replay_mode=False,
+        execution_enabled=True,
+        risk_policy=_risk_policy(),
+        routes={"rb": ("rb2510", "SHFE")},
+        account_scope="acct-scope",
+        logical_run_id="run-1",
+        quote_max_age_seconds=5,
+        max_query_age_seconds=30,
+        loss_guard_net_loss_threshold=Decimal("1000"),
+        loss_guard_max_observation_age_seconds=30,
+        max_live_bar_age_seconds=60,
+        max_future_skew_seconds=0,
+        control_refresh_loop=refresh_loop,
+        guard_test_callback=exercise,
+    )
+    try:
+        cerebro.run(runonce=False, preload=False)
+        assert refresh_loop.joined is True
+        assert outcome["blocker"] == expected_blocker
+        assert len(outcome["dispatches"]) == 1
+    finally:
+        journal.close()
+
+
+def test_live_loss_guard_trading_day_change_never_rebaselines_same_run():
+    case = _source_backed_loss_guard_case(
+        {
+            "Available": "100000",
+            "CurrMargin": "0",
+            "CloseProfit": "1000",
+            "PositionProfit": "0",
+            "Commission": "0",
+            "CurrencyID": "CNY",
+            "TradingDay": "20261024",
+        }
+    )
+    try:
+        strategy = case.strategy
+        context, blocker = strategy._refresh_run_loss_guard(case.facts, case.projected_at)
+        assert blocker is None
+        baseline = case.journal.run_loss_guard("acct-scope", "alpha003", "run-1")
+
+        case.api.trader_client._trading_day = "20261025"
+        case.api.query_rows["account_result"][0]["TradingDay"] = "20261025"
+        case.api._use_observed_query_clock = True
+        receipt = case.source_module._refresh_all(case.store, case.target)
+        case.strategy.p.control_refresh_loop.last_receipt = receipt
+        projected_at = datetime.now(UTC)
+        facts = case.source_module._project(
+            case.store, case.broker, case.target, projected_at, query_set=receipt.query_set
+        )
+
+        changed_context, changed_blocker = strategy._refresh_run_loss_guard(facts, projected_at)
+        assert changed_context is None
+        assert changed_blocker == "RUN_LOSS_ACCOUNT_TRADING_DAY_MISMATCH"
+        assert case.journal.run_loss_guard("acct-scope", "alpha003", "run-1") == baseline
+        assert baseline.context == context
+        assert baseline.context.trading_day == "20261024"
+    finally:
+        case.journal.close()
 
 
 def _shutdown_strategy_for_facts(facts, target, *, policy=None):

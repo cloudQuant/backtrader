@@ -625,6 +625,16 @@ focused cases (not one 24-case run). The latter fixes named PandasData position
 refresh by accepting only nonblank string native aliases, retaining exchange
 conflict checks. This is synthetic integration only; 028 strategy wiring, real
 account PnL and process-restart acceptance remain outstanding.
+The 028 Strategy now requires explicit run-loss policy for live writes before
+setup, and binds complete CNY account PnL to the durable guard. The public
+template uses CNY 1,000 and 30 seconds; read-only/replay remain inert. Missing
+refresh binding or an invalid clock is fatal; unqualified PnL blocks new OPEN.
+Qualified owned CANCEL/CLOSE remains independent, including warmup and late
+guard-enable refusal. The baseline/trip never resets implicitly across days.
+Root accepted 146 distinct synthetic cases across three runs (138/146, 11/18,
+then 7/7), with identical production pins; this is not one final 146-case run
+or an actual account loss/close/restart result. The threshold prevents new OPEN
+after observation; it does not guarantee a maximum final loss.
 The CTP snapshot collector supports explicit `staged_product_set`: a class-1
 product query, one exact native-case instrument query per returned product,
 then a class-1 depth query share one absolute collection deadline. Product,

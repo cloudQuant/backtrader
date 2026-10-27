@@ -32,6 +32,32 @@ DEFAULT_DIRECTION = 1
 DEFAULT_REBALANCE_GRIDS = 5
 DEFAULT_PREHEAT_BARS = 30
 FACTOR_FREQUENCY = "1min"
+# The shared CTP facts projector defines this as CloseProfit + PositionProfit
+# - Commission, all in the one qualified CNY Account row.
+RUN_LOSS_PNL_BASIS = "ctp_total_net_after_fees_v1"
+_RUN_LOSS_OPEN_REJECTION_CODES = frozenset(
+    {
+        "RUN_LOSS_GUARD_NOT_CONFIGURED",
+        "RUN_LOSS_GUARD_CONTEXT_MISMATCH",
+        "RUN_LOSS_GUARD_POLICY_CONFLICT",
+        "RUN_LOSS_GUARD_OBSERVATION_MISMATCH",
+        "RUN_LOSS_OBSERVATION_STALE",
+        "RUN_LOSS_OBSERVATION_CONFLICT",
+        "RUN_LOSS_OBSERVATION_NOT_MONOTONE",
+        "RUN_LOSS_GUARD_LATE_ENABLE_AFTER_OPEN",
+        "RUN_LOSS_GUARD_ENABLE_SCAN_LIMIT",
+        "RUN_TOTAL_NET_LOSS_LIMIT_REACHED",
+        "RUN_LOSS_ACCOUNT_FACTS_INVALID",
+        "RUN_LOSS_ACCOUNT_SCOPE_MISMATCH",
+        "RUN_LOSS_ACCOUNT_PNL_UNQUALIFIED",
+        "RUN_LOSS_ACCOUNT_TRADING_DAY_MISMATCH",
+        "RUN_LOSS_ACCOUNT_CURRENCY_MISMATCH",
+        "RUN_LOSS_ACCOUNT_SNAPSHOT_ID_INVALID",
+        "RUN_LOSS_ACCOUNT_ASOF_INVALID",
+        "RUN_LOSS_ACCOUNT_REFRESH_INCOMPLETE",
+        "RUN_LOSS_ACCOUNT_QUERYSET_MISMATCH",
+    }
+)
 
 ProductKey = Tuple[str, str]
 
@@ -2716,6 +2742,8 @@ class Alpha003TargetStrategy(bt.Strategy):
         ("logical_run_id", None),
         ("quote_max_age_seconds", None),
         ("max_query_age_seconds", None),
+        ("loss_guard_net_loss_threshold", None),
+        ("loss_guard_max_observation_age_seconds", None),
         ("max_live_bar_age_seconds", None),
         ("max_future_skew_seconds", None),
         ("control_refresh_loop", None),
@@ -2750,6 +2778,19 @@ class Alpha003TargetStrategy(bt.Strategy):
             and (self.p.max_live_bar_age_seconds is None or self.p.max_future_skew_seconds is None)
         ):
             raise ValueError("live execution requires explicit factor freshness limits")
+        if self.p.execution_enabled and not self.p.replay_mode:
+            self._loss_guard_net_loss_threshold = _positive_decimal(
+                self.p.loss_guard_net_loss_threshold,
+                "loss_guard_net_loss_threshold",
+            )
+            age = self.p.loss_guard_max_observation_age_seconds
+            if type(age) is not int or not 1 <= age <= 86_400:
+                raise ValueError("live execution requires a positive loss observation age")
+            self._loss_guard_max_observation_age_seconds = age
+        else:
+            # Replay and read-only live modes do not establish or require PnL.
+            self._loss_guard_net_loss_threshold = None
+            self._loss_guard_max_observation_age_seconds = None
         self._max_live_bar_age_seconds = _freshness_seconds(
             60.0 if self.p.max_live_bar_age_seconds is None else self.p.max_live_bar_age_seconds,
             "max_live_bar_age_seconds",
@@ -3106,6 +3147,166 @@ class Alpha003TargetStrategy(bt.Strategy):
         self._last_execution_facts_store = store
         self.last_execution_block_reason = None
         return facts
+
+    def _refresh_run_loss_guard(self, facts: Any, now: datetime):
+        """Seed once, then advance the persisted run PnL latch from one full query."""
+        if self.p.execution_enabled is not True or self.p.replay_mode is True:
+            return None, None
+
+        from backtrader.stores.execution_decision_journal import (
+            ExecutionDecisionJournalError,
+            ExecutionRunLossGuardContext,
+            ExecutionRunLossGuardSnapshot,
+        )
+        from backtrader.stores.factor_execution import FactorExecutionError
+        from backtrader.stores.factor_execution_facts import (
+            FactorExecutionAccountFacts,
+            FactorExecutionFacts,
+            FactorExecutionQuerySetFacts,
+            FactorExecutionRefreshReceipt,
+        )
+
+        try:
+            now_utc = _as_utc(now, "loss guard observation clock")
+        except (TypeError, ValueError) as error:
+            raise FactorExecutionError("RUN_LOSS_GUARD_CLOCK_INVALID") from error
+        refresh_loop = getattr(self.p, "control_refresh_loop", None)
+        if refresh_loop is None:
+            raise FactorExecutionError("RUN_LOSS_GUARD_REFRESH_BINDING_REQUIRED")
+        complete_check = getattr(type(refresh_loop), "_receipt_complete", None)
+        if not callable(complete_check):
+            raise FactorExecutionError("RUN_LOSS_GUARD_REFRESH_BINDING_REQUIRED")
+
+        coordinator = self._coordinator
+        if coordinator is None:
+            raise FactorExecutionError("RUN_LOSS_GUARD_COORDINATOR_UNAVAILABLE")
+        journal = coordinator.journal
+        try:
+            saved = journal.run_loss_guard(
+                self._account_scope,
+                self._strategy_scope,
+                self._logical_run_id,
+            )
+        except ExecutionDecisionJournalError as error:
+            raise FactorExecutionError(error.code) from error
+
+        account = getattr(facts, "account", None) if facts is not None else None
+        if saved is None:
+            if (
+                type(account) is not FactorExecutionAccountFacts
+                or type(account.trading_day) is not str
+            ):
+                return None, "RUN_LOSS_ACCOUNT_PNL_UNQUALIFIED"
+            try:
+                context = ExecutionRunLossGuardContext(
+                    account_scope=self._account_scope,
+                    strategy_scope=self._strategy_scope,
+                    logical_run_id=self._logical_run_id,
+                    trading_day=account.trading_day,
+                    currency="CNY",
+                    pnl_basis=RUN_LOSS_PNL_BASIS,
+                )
+            except ExecutionDecisionJournalError:
+                return None, "RUN_LOSS_ACCOUNT_TRADING_DAY_MISMATCH"
+        else:
+            if type(saved) is not ExecutionRunLossGuardSnapshot:
+                raise FactorExecutionError("RUN_LOSS_GUARD_STATE_INVALID")
+            context = saved.context
+            if type(context) is not ExecutionRunLossGuardContext:
+                raise FactorExecutionError("RUN_LOSS_GUARD_STATE_INVALID")
+
+        try:
+            self._coordinator.run_loss_guard(context)
+        except FactorExecutionError as error:
+            if error.code in _RUN_LOSS_OPEN_REJECTION_CODES:
+                return None, error.code
+            raise
+
+        if saved is not None and (
+            saved.net_loss_threshold != self._loss_guard_net_loss_threshold
+            or saved.max_observation_age_seconds
+            != self._loss_guard_max_observation_age_seconds
+        ):
+            return None, "RUN_LOSS_GUARD_POLICY_CONFLICT"
+        if (
+            type(facts) is not FactorExecutionFacts
+            or type(account) is not FactorExecutionAccountFacts
+        ):
+            return None, "RUN_LOSS_ACCOUNT_PNL_UNQUALIFIED"
+
+        receipt = getattr(refresh_loop, "last_receipt", None)
+        if type(receipt) is not FactorExecutionRefreshReceipt:
+            return None, "RUN_LOSS_ACCOUNT_REFRESH_INCOMPLETE"
+        if complete_check(receipt) is not True:
+            return None, "RUN_LOSS_ACCOUNT_REFRESH_INCOMPLETE"
+        query_set = receipt.query_set
+        if type(query_set) is not FactorExecutionQuerySetFacts:
+            return None, "RUN_LOSS_ACCOUNT_QUERYSET_MISMATCH"
+        if (
+            facts.account_scope != self._account_scope
+            or facts.strategy_scope != self._strategy_scope
+            or facts.query_set_id != query_set.query_set_id
+            or account.account_scope != self._account_scope
+            or account.account_fingerprint != query_set.account_fingerprint
+            or account.connection_generation != query_set.connection_generation
+            or account.trading_day != query_set.trading_day
+        ):
+            return None, "RUN_LOSS_ACCOUNT_QUERYSET_MISMATCH"
+        if (
+            account.trading_day != context.trading_day
+            or query_set.trading_day != context.trading_day
+        ):
+            # The policy's first TradingDay is immutable across restarts and
+            # CTP day changes. Never create a fresh baseline implicitly.
+            return None, "RUN_LOSS_ACCOUNT_TRADING_DAY_MISMATCH"
+        if account.currency != "CNY" or context.currency != "CNY":
+            return None, "RUN_LOSS_ACCOUNT_CURRENCY_MISMATCH"
+        if (
+            account.total_net_pnl_available is not True
+            or account.total_net_pnl_reason is not None
+            or type(account.total_net_pnl) is not Decimal
+            or not account.total_net_pnl.is_finite()
+        ):
+            return None, "RUN_LOSS_ACCOUNT_PNL_UNQUALIFIED"
+
+        try:
+            receipt_at = _as_utc(receipt.completed_at, "loss guard refresh completion")
+            query_set_at = _as_utc(query_set.completed_at_utc, "loss guard query-set completion")
+            account_at = _as_utc(account.available_at, "loss guard account completion")
+            receipt_started = _as_utc(receipt.started_at, "loss guard refresh start")
+        except (TypeError, ValueError):
+            return None, "RUN_LOSS_ACCOUNT_ASOF_INVALID"
+        max_age = timedelta(seconds=self._loss_guard_max_observation_age_seconds)
+        if (
+            receipt_started > receipt_at
+            or query_set_at > receipt_at
+            or receipt_at > now_utc
+            or query_set_at > now_utc
+            or account_at > now_utc
+            or account_at > query_set_at
+            or now_utc - receipt_at > max_age
+            or now_utc - query_set_at > max_age
+            or now_utc - account_at > max_age
+        ):
+            return None, "RUN_LOSS_OBSERVATION_STALE"
+
+        try:
+            if saved is None:
+                self._coordinator.enable_run_loss_guard(
+                    context,
+                    account,
+                    net_loss_threshold=self._loss_guard_net_loss_threshold,
+                    max_observation_age_seconds=self._loss_guard_max_observation_age_seconds,
+                )
+            elif saved.latest_observation_id != account.snapshot_id:
+                # The journal accepts an exact latest-ID replay idempotently;
+                # the caller skips it and records only newly queried IDs.
+                self._coordinator.record_run_loss_observation(context, account)
+        except FactorExecutionError as error:
+            if error.code in _RUN_LOSS_OPEN_REJECTION_CODES:
+                return None, error.code
+            raise
+        return context, None
 
     def _replay_instrument_facts(self, target_id: str, now: datetime) -> Alpha003InstrumentRiskFact:
         value = self._replay_instruments[target_id]
@@ -3721,6 +3922,8 @@ class Alpha003TargetStrategy(bt.Strategy):
         decision_tape_reference: Optional[Mapping[str, Any]] = None,
         tape_error: Optional[str] = None,
         proposed_plan: Optional[Alpha003OrderPlan] = None,
+        loss_guard_context: Any = None,
+        loss_guard_blocker: Optional[str] = None,
     ) -> None:
         if (
             batch is None
@@ -3795,32 +3998,68 @@ class Alpha003TargetStrategy(bt.Strategy):
         ):
             self.last_execution_block_reason = "FACTOR_SNAPSHOT_CHANGED_BEFORE_DECISION"
             return
-        with self._coordinator.decision_scope(
-            owner=self,
-            key=key,
-            economic_payload=economic_payload,
-            intent_keys=keys,
-            batch=batch,
-            snapshot=current_snapshot,
-            execution_facts=facts,
-            inputs_complete=True,
-            expected_run_order_intents_used=(
-                planning.run_order_intents_used
-                if planning is not None
-                else self._coordinator.run_order_count()
-            ),
-            remaining_exit_intent_reserve=(
-                _future_exit_intent_reserve(
-                    planning,
-                    planned_actions=grid_actions,
-                    proposed_open_actions=grid_actions,
+        from backtrader.stores.execution_decision_journal import ExecutionDecisionJournalError
+        from backtrader.stores.factor_execution import FactorExecutionError
+
+        try:
+            if self.p.execution_enabled and grid_actions and loss_guard_context is None:
+                # A prior row must get its canonical payload/economics check
+                # before any mutable guard state can affect exact replay.
+                # A new OPEN cannot proceed without a source-bound context.
+                if self._coordinator.journal.decision_for_key(key) is None:
+                    raise FactorExecutionError(
+                        loss_guard_blocker or "RUN_LOSS_GUARD_CONTEXT_REQUIRED"
+                    )
+            with self._coordinator.decision_scope(
+                owner=self,
+                key=key,
+                economic_payload=economic_payload,
+                intent_keys=keys,
+                batch=batch,
+                snapshot=current_snapshot,
+                execution_facts=facts,
+                inputs_complete=True,
+                expected_run_order_intents_used=(
+                    planning.run_order_intents_used
+                    if planning is not None
+                    else self._coordinator.run_order_count()
+                ),
+                remaining_exit_intent_reserve=(
+                    _future_exit_intent_reserve(
+                        planning,
+                        planned_actions=grid_actions,
+                        proposed_open_actions=grid_actions,
+                    )
+                    if planning is not None
+                    else 0
+                ),
+                loss_guard_context=loss_guard_context,
+            ) as scope:
+                if self.p.execution_enabled and scope.dispatch_allowed and grid_actions:
+                    self._dispatch_live_actions(grid_actions, batch)
+        except (FactorExecutionError, ExecutionDecisionJournalError) as error:
+            code = getattr(error, "code", None)
+            if type(code) is not str or code not in _RUN_LOSS_OPEN_REJECTION_CODES:
+                raise
+            self.last_execution_block_reason = code
+            open_actions = tuple(
+                action
+                for action in plan.actions
+                if action.action == "SUBMIT" and action.position_effect == "OPEN"
+            )
+            if open_actions:
+                reductions = tuple(
+                    action
+                    for action in plan.actions
+                    if action.action == "CANCEL"
+                    or (action.action == "SUBMIT" and action.position_effect == "CLOSE")
                 )
-                if planning is not None
-                else 0
-            ),
-        ) as scope:
-            if self.p.execution_enabled and scope.dispatch_allowed and grid_actions:
-                self._dispatch_live_actions(grid_actions, batch)
+                self.last_order_plan = replace(
+                    plan,
+                    status="READY" if reductions else "BLOCKED",
+                    reason=code,
+                    actions=reductions,
+                )
 
     def _live_risk_decision(
         self,
@@ -4006,6 +4245,12 @@ class Alpha003TargetStrategy(bt.Strategy):
         session_reason: Optional[str] = None,
     ) -> None:
         facts = self._live_facts(now)
+        loss_guard_context = None
+        loss_guard_blocker = None
+        if facts is not None and self.p.execution_enabled:
+            loss_guard_context, loss_guard_blocker = self._refresh_run_loss_guard(facts, now)
+            if loss_guard_blocker is not None:
+                self.last_execution_block_reason = loss_guard_blocker
         target_decision = None if run_end else self._last_signal_target
         planning = None
         run_order_intents_used = (
@@ -4066,6 +4311,8 @@ class Alpha003TargetStrategy(bt.Strategy):
                 tape_error=tape_error,
                 proposed_plan=proposed_plan,
                 planning=planning,
+                loss_guard_context=loss_guard_context,
+                loss_guard_blocker=loss_guard_blocker,
             )
         if self.p.execution_enabled and planning is not None:
             self._live_risk_decision(batch, facts, self.last_order_plan, planning=planning)

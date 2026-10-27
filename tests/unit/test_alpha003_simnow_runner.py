@@ -893,6 +893,7 @@ def _base_config(tmp_path, mode):
     config["entry"]["tier"] = "dry" if mode == "research" else mode
     bundle_path = _write_json(tmp_path / "selection.json", _selection_bundle())
     config["selection"]["source"] = "bundle"
+    config["selection"]["query_mode"] = "legacy_two_query"
     config["selection"]["bundle"] = str(bundle_path)
     config["selection"]["authorized_products"] = None
     return config
@@ -4598,6 +4599,14 @@ def test_live_setup_failures_close_every_created_resource(
         decision_tape_max_bytes=1_000_000,
     )
     if write_enabled:
+        # Every write-enabled fixture needs the independent guard policy,
+        # unless that particular case explicitly tests the missing-policy
+        # preflight above.  This helper builds running/live setups rather
+        # than configuration-validation failures.
+        config["live"].update(
+            loss_guard_net_loss_threshold=1000,
+            loss_guard_max_observation_age_seconds=30,
+        )
         config["risk"].update(
             policy_id="fake-live-risk-v1",
             max_hold_eligible_bars=12,
@@ -4663,6 +4672,13 @@ def test_live_setup_failures_close_every_created_resource(
 
         def __init__(self, **kwargs):
             self.options = kwargs
+            self.api_kwargs = kwargs.get("api_kwargs")
+            assert isinstance(self.api_kwargs, dict)
+            assert self.api_kwargs.get("ctp_join_observer") is False
+            self.join_required = self.api_kwargs["ctp_join_observer"]
+            self.factor_source_enabled = False
+            self.expected_md_generation = None
+            self.expected_trader_generation = None
 
         def getdata(self, **kwargs):
             return SimpleNamespace(name=kwargs["dataname"])
@@ -4682,13 +4698,46 @@ def test_live_setup_failures_close_every_created_resource(
                 "read_only_ready": True,
                 "trading_ready": True,
                 "trading_day": "20261021",
+                "connection_generation": 1,
             }
 
         def enable_ctp_factor_tick_source(self):
-            # This high-level FakeStore only checks setup/cleanup ordering.
-            # The live integration cases above use the production Store gate.
             lifecycle.append("factor_tick_source_enabled")
+            self.factor_source_enabled = True
+            self.expected_md_generation = 1
+            self.expected_trader_generation = 1
             return 1
+
+        @staticmethod
+        def _synthetic_stop_receipt(generation, join_required):
+            # This test-only receipt matches the public shutdown projection
+            # shape; it does not exercise or establish native SDK cleanup.
+            return {
+                "connection_generation": generation,
+                "join_required": join_required,
+                "join_completed": join_required,
+                "native_released": True,
+                "thread_alive": False,
+                "timed_out": False,
+                "complete": True,
+            }
+
+        def _source_shutdown_receipt(self):
+            lifecycle.append("source_shutdown_receipt_projected")
+            return {
+                "required": True,
+                "status": "PASS",
+                "expected_md_generation": self.expected_md_generation,
+                "expected_trader_generation": self.expected_trader_generation,
+                "join_required": self.join_required,
+                "md_receipt": self._synthetic_stop_receipt(
+                    self.expected_md_generation, self.join_required
+                ),
+                "trader_receipt": self._synthetic_stop_receipt(
+                    self.expected_trader_generation, self.join_required
+                ),
+                "reason_codes": (),
+            }
 
         def registered_sim_configure_arm_templates(self, templates):
             lifecycle.append("arm_templates")
@@ -4699,7 +4748,10 @@ def test_live_setup_failures_close_every_created_resource(
             closed.append("store")
             if failure == "ready_store_stop":
                 raise RuntimeError("fake Store close failure")
-            return {"shutdown_state": "PASS"}
+            result = {"shutdown_state": "PASS"}
+            if self.factor_source_enabled:
+                result["ctp_factor_source_shutdown"] = self._source_shutdown_receipt()
+            return result
 
     class FakeBroker:
         def __init__(self, *, store, **kwargs):
@@ -4823,6 +4875,7 @@ def test_live_setup_failures_close_every_created_resource(
     cleanup = error.value.cleanup_results
     assert RUNNER._cleanup_complete(cleanup) is cleanup_complete
     by_resource = {row["resource"]: row for row in cleanup}
+    source_enabled_failures = {"grid_crossing", "refresh", "arm"}
     resources_not_created = {"grid_expired"}
     readiness_failures_after_journal = {
         "grid_remaining",
@@ -4847,8 +4900,63 @@ def test_live_setup_failures_close_every_created_resource(
         assert "journal" in constructed
     if failure == "ready_store_stop":
         assert by_resource["store"]["status"] == "FAILED"
+        assert "ctp_factor_source_shutdown" not in by_resource["store"]
     else:
         assert by_resource["store"]["shutdown_state"] == "PASS"
+    if failure in source_enabled_failures:
+        assert RUNNER._ctp_factor_source_shutdown_complete(None) is True
+        source_receipt = by_resource["store"]["ctp_factor_source_shutdown"]
+        expected_native_receipt = {
+            "connection_generation": 1,
+            "join_required": False,
+            "join_completed": False,
+            "native_released": True,
+            "thread_alive": False,
+            "timed_out": False,
+            "complete": True,
+        }
+        assert source_receipt == {
+            "required": True,
+            "status": "PASS",
+            "expected_md_generation": 1,
+            "expected_trader_generation": 1,
+            "join_required": False,
+            "md_receipt": expected_native_receipt,
+            "trader_receipt": expected_native_receipt,
+            "reason_codes": (),
+        }
+        assert lifecycle.index("factor_tick_source_enabled") < lifecycle.index(
+            "source_shutdown_receipt_projected"
+        )
+
+        missing_source_projection = RUNNER._store_stop_evidence(
+            {"shutdown_state": "PASS"}, ctp_factor_source_required=True
+        )
+        assert missing_source_projection == {
+            "shutdown_state": "PASS",
+            "ctp_factor_source_shutdown": {"required": True, "status": "UNPROVEN"},
+        }
+        missing_receipt = [
+            (
+                {**row, **missing_source_projection}
+                if row["resource"] == "store"
+                else dict(row)
+            )
+            for row in cleanup
+        ]
+        assert RUNNER._cleanup_complete(missing_receipt) is False
+        incomplete_receipt = [
+            {
+                **row,
+                **(
+                    {"ctp_factor_source_shutdown": {"required": True, "status": "INCOMPLETE"}}
+                    if row["resource"] == "store"
+                    else {}
+                ),
+            }
+            for row in cleanup
+        ]
+        assert RUNNER._cleanup_complete(incomplete_receipt) is False
     if failure == "grid_expired":
         assert "store" in closed
         assert lifecycle == []
@@ -4882,6 +4990,7 @@ def test_live_setup_failures_close_every_created_resource(
             "session_ready",
             "factor_tick_source_enabled",
             "login_facts",
+            "source_shutdown_receipt_projected",
         ]
     if failure == "grid_crossing":
         assert clock_calls["count"] >= 3
@@ -4892,6 +5001,7 @@ def test_live_setup_failures_close_every_created_resource(
             "login_facts",
             "login_facts",
             "arm_templates",
+            "source_shutdown_receipt_projected",
         ]
     elif failure == "refresh":
         assert lifecycle == [
@@ -4902,6 +5012,7 @@ def test_live_setup_failures_close_every_created_resource(
             "arm_templates",
             "refresh_loop_created",
             "facts_refresh",
+            "source_shutdown_receipt_projected",
         ]
 
 
@@ -4941,6 +5052,104 @@ def test_live_write_grant_requires_mode_config_and_live_entry_tier():
         RUNNER._write_requested(config, True, SimpleNamespace(effective_tier="replay"))
     assert error.value.code == "LIVE_WRITE_TIER_REQUIRED"
     assert RUNNER._write_requested(config, True, SimpleNamespace(effective_tier="live"))
+
+
+def test_run_loss_policy_is_explicit_for_writes_and_inert_for_read_only():
+    config = yaml.safe_load((EXAMPLE / "config.yaml").read_text(encoding="utf-8"))
+    config["risk"]["max_total_loss"] = "20000"
+    config["live"]["loss_guard_net_loss_threshold"] = 1000
+    config["live"]["loss_guard_max_observation_age_seconds"] = 30
+
+    assert RUNNER._run_loss_guard_policy(config, write_enabled=True) == (Decimal("1000"), 30)
+    assert RUNNER._run_loss_guard_policy(config, write_enabled=False) == (None, None)
+
+    config["live"]["loss_guard_net_loss_threshold"] = None
+    config["live"]["loss_guard_max_observation_age_seconds"] = None
+    assert RUNNER._run_loss_guard_policy(config, write_enabled=False) == (None, None)
+    with pytest.raises(RUNNER.RunnerError) as missing:
+        RUNNER._run_loss_guard_policy(config, write_enabled=True)
+    assert missing.value.code == "LIVE_RUN_LOSS_POLICY_REQUIRED"
+
+    config["live"]["loss_guard_net_loss_threshold"] = "not-a-threshold"
+    config["live"]["loss_guard_max_observation_age_seconds"] = 30
+    with pytest.raises(RUNNER.RunnerError) as invalid_threshold:
+        RUNNER._run_loss_guard_policy(config, write_enabled=True)
+    assert invalid_threshold.value.code == "LIVE_RUN_LOSS_POLICY_INVALID"
+
+    config["live"]["loss_guard_net_loss_threshold"] = True
+    config["live"]["loss_guard_max_observation_age_seconds"] = 30
+    with pytest.raises(RUNNER.RunnerError) as boolean_threshold:
+        RUNNER._run_loss_guard_policy(config, write_enabled=True)
+    assert boolean_threshold.value.code == "LIVE_RUN_LOSS_POLICY_INVALID"
+
+    config["live"]["loss_guard_net_loss_threshold"] = 1000
+    config["live"]["loss_guard_max_observation_age_seconds"] = True
+    with pytest.raises(RUNNER.RunnerError) as invalid_age:
+        RUNNER._run_loss_guard_policy(config, write_enabled=True)
+    assert invalid_age.value.code == "LIVE_RUN_LOSS_POLICY_INVALID"
+
+    config["live"]["loss_guard_max_observation_age_seconds"] = 30
+    config["live"]["loss_guard_net_loss_threshold"] = Decimal("7" * 256)
+    assert RUNNER._run_loss_guard_policy(config, write_enabled=True) == (
+        Decimal("7" * 256),
+        30,
+    )
+
+    config["live"]["loss_guard_net_loss_threshold"] = Decimal("7" * 257)
+    with pytest.raises(RUNNER.RunnerError) as precision_overflow:
+        RUNNER._run_loss_guard_policy(config, write_enabled=True)
+    assert precision_overflow.value.code == "LIVE_RUN_LOSS_POLICY_INVALID"
+
+    for value in (Decimal("1E1001"), Decimal("1E-1001")):
+        config["live"]["loss_guard_net_loss_threshold"] = value
+        with pytest.raises(RUNNER.RunnerError) as exponent_overflow:
+            RUNNER._run_loss_guard_policy(config, write_enabled=True)
+        assert exponent_overflow.value.code == "LIVE_RUN_LOSS_POLICY_INVALID"
+
+    for value in (Decimal("1E1000"), Decimal("1E-1000")):
+        config["live"]["loss_guard_net_loss_threshold"] = value
+        assert RUNNER._run_loss_guard_policy(config, write_enabled=True) == (value, 30)
+
+
+def test_write_enabled_strategy_kwargs_forward_the_separate_loss_guard_policy():
+    product = ProductKey("SHFE", "rb")
+    config = {
+        "live": {"strategy_scope": "alpha003-live"},
+        "cohort": {
+            "calendar_id": "calendar-v1",
+            "max_pending_slots": 8,
+            "max_window_bars": 512,
+            "wait_timeout_seconds": 5.0,
+        },
+        "factor": {"preheat_bars": 30, "rebalance_every": 5},
+    }
+    plan = {
+        "routes": {product: "rb2510"},
+        "product_by_target": {"SHFE.rb": product},
+        "authorized_targets": ("SHFE.rb",),
+        "session_calendars": {},
+    }
+    policy = object()
+
+    kwargs = RUNNER._make_strategy_kwargs(
+        config,
+        plan,
+        "native",
+        1,
+        policy,
+        replay=False,
+        cohort=object(),
+        account_scope="account-scope",
+        logical_run_id="logical-run",
+        execution_enabled=True,
+        loss_guard_net_loss_threshold=Decimal("1000"),
+        loss_guard_max_observation_age_seconds=30,
+    )
+
+    assert kwargs["execution_enabled"] is True
+    assert kwargs["risk_policy"] is policy
+    assert kwargs["loss_guard_net_loss_threshold"] == Decimal("1000")
+    assert kwargs["loss_guard_max_observation_age_seconds"] == 30
 
 
 def test_copied_folder_dry_entry_needs_no_sibling_example_import(tmp_path):

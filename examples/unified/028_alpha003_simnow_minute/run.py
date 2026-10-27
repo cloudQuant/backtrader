@@ -326,6 +326,8 @@ _SECTION_KEYS = {
         "refresh_interval_seconds",
         "quote_max_age_seconds",
         "query_max_age_seconds",
+        "loss_guard_net_loss_threshold",
+        "loss_guard_max_observation_age_seconds",
         "shutdown_grace_seconds",
         "golden_targets",
     },
@@ -375,6 +377,10 @@ def load_config(config_path: Path) -> dict[str, Any]:
             # Golden live validation is an explicit feed subset; omitted keys
             # preserve the existing complete-pool runner behavior.
             row.setdefault("golden_targets", None)
+            # Existing copied configs remain valid for dry/read-only runs. A
+            # write-enabled live run validates these explicitly before setup.
+            row.setdefault("loss_guard_net_loss_threshold", None)
+            row.setdefault("loss_guard_max_observation_age_seconds", None)
         extra = set(row).difference(expected)
         missing_section = expected.difference(row)
         if extra or missing_section:
@@ -1780,6 +1786,37 @@ def _risk_policy(config: Mapping[str, Any]):
         raise RunnerError("RISK_POLICY_INVALID") from None
 
 
+def _run_loss_guard_policy(config: Mapping[str, Any], *, write_enabled: bool):
+    """Require the separate run-level CNY loss policy only for live writes."""
+    if type(write_enabled) is not bool:
+        raise RunnerError("LIVE_RUN_LOSS_POLICY_INVALID")
+    if not write_enabled:
+        return None, None
+    live = config["live"]
+    raw_threshold = live.get("loss_guard_net_loss_threshold")
+    raw_age = live.get("loss_guard_max_observation_age_seconds")
+    if raw_threshold is None or raw_age is None:
+        raise RunnerError("LIVE_RUN_LOSS_POLICY_REQUIRED")
+    try:
+        threshold = _decimal(
+            raw_threshold,
+            "live.loss_guard_net_loss_threshold",
+            positive=True,
+        )
+    except RunnerError:
+        raise RunnerError("LIVE_RUN_LOSS_POLICY_INVALID") from None
+    parts = threshold.as_tuple()
+    if (
+        len(parts.digits) > 256
+        or abs(parts.exponent) > 1000
+        or abs(threshold.adjusted()) > 1000
+    ):
+        raise RunnerError("LIVE_RUN_LOSS_POLICY_INVALID")
+    if type(raw_age) is not int or not 1 <= raw_age <= 86_400:
+        raise RunnerError("LIVE_RUN_LOSS_POLICY_INVALID")
+    return threshold, raw_age
+
+
 def _require_replay_budgets(config: Mapping[str, Any]):
     policy = _risk_policy(config)
     if policy is None:
@@ -2070,6 +2107,8 @@ def _make_strategy_kwargs(config, plan, factor_mode, direction, risk_policy, *, 
         "logical_run_id",
         "max_live_bar_age_seconds",
         "max_future_skew_seconds",
+        "loss_guard_net_loss_threshold",
+        "loss_guard_max_observation_age_seconds",
     }
     _assert_strategy_params(Alpha003TargetStrategy, required)
     route_by_target = {
@@ -2096,6 +2135,10 @@ def _make_strategy_kwargs(config, plan, factor_mode, direction, risk_policy, *, 
         "replay_mode": replay,
         "execution_enabled": replay,
         "risk_policy": risk_policy,
+        "loss_guard_net_loss_threshold": extra.pop("loss_guard_net_loss_threshold", None),
+        "loss_guard_max_observation_age_seconds": extra.pop(
+            "loss_guard_max_observation_age_seconds", None
+        ),
         "routes": route_by_target,
         "session_calendars": plan["session_calendars"],
         "account_scope": extra.pop("account_scope", None),
@@ -5478,6 +5521,9 @@ def run_live(
     if plan is not None and len(plan["targets"]) > max_targets:
         raise RunnerError("LIVE_TARGET_CAPACITY_EXCEEDED")
     write_enabled = _write_requested(config, allow_write_flag, decision)
+    loss_guard_threshold, loss_guard_max_age = _run_loss_guard_policy(
+        config, write_enabled=write_enabled
+    )
     age_bound = config["cohort"]["max_live_bar_age_seconds"]
     skew_bound = config["cohort"]["max_future_skew_seconds"]
     if age_bound is None or skew_bound is None:
@@ -5874,6 +5920,8 @@ def run_live(
             max_live_bar_age_seconds=age_bound,
             max_future_skew_seconds=skew_bound,
             execution_enabled=write_enabled,
+            loss_guard_net_loss_threshold=loss_guard_threshold,
+            loss_guard_max_observation_age_seconds=loss_guard_max_age,
             decision_tape=decision_tape,
         )
         strategy_kwargs["control_refresh_loop"] = refresh_loop

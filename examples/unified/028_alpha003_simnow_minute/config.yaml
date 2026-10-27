@@ -108,6 +108,12 @@ live:
   # Explicit freshness limits for typed account/position/order/quote facts.
   quote_max_age_seconds: null
   query_max_age_seconds: null
+  # Separate write-enabled run loss latch, measured from qualified CNY total
+  # net PnL (CloseProfit + PositionProfit - Commission). These explicit
+  # values are inert while allow_writes is false; they do not replace
+  # risk.max_total_loss or its prospective exposure check.
+  loss_guard_net_loss_threshold: 1000
+  loss_guard_max_observation_age_seconds: 30
   shutdown_grace_seconds: null
 
 output:
