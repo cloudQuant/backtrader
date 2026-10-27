@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import sqlite3
@@ -9,16 +10,20 @@ import subprocess
 import sys
 import time
 from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from threading import Barrier, Event, RLock
 
 import pytest
 
 from backtrader.stores.execution_decision_journal import (
+    ExecutionFeePairCandidate,
     ExecutionDecisionJournal,
     ExecutionDecisionJournalError,
     ExecutionDecisionKey,
     ExecutionIntentKey,
+    ExecutionSourceHighWaterRef,
+    ExecutionSourceMemberReceipt,
 )
 from backtrader.stores.factor_position_book import apply_factor_execution_fill
 
@@ -27,14 +32,30 @@ def _drop_v12_durable_capacity_tables(connection: sqlite3.Connection) -> None:
     """Restore a pre-v12 schema before exercising an older migration path."""
 
     # Test databases are made by downgrading a current journal; remove the
-    # later v15 additions too so the fixture represents the requested old
+    # later v15/v16 additions too so the fixture represents the requested old
     # schema instead of a corrupt user_version/table combination.
+    connection.execute(
+        "DROP TABLE IF EXISTS execution_fee_pair_candidate_capacity_reservations"
+    )
+    connection.execute("DROP TABLE IF EXISTS execution_fee_pair_candidate_events")
+    connection.execute("DROP TABLE IF EXISTS execution_fee_pair_candidates")
     connection.execute("DROP TABLE IF EXISTS execution_fee_pair_scope_events")
     connection.execute("DROP TABLE IF EXISTS execution_fee_pair_required_scopes")
     connection.execute("DROP TABLE IF EXISTS execution_durable_capacity_usage")
     connection.execute("DROP TABLE IF EXISTS execution_durable_capacity_limits")
     connection.execute("DROP TABLE IF EXISTS execution_run_loss_guards")
     connection.execute("DROP TABLE IF EXISTS execution_source_highwaters")
+
+
+def _restore_v15_journal_schema(connection: sqlite3.Connection) -> None:
+    """Remove only v16 candidate objects from a current journal fixture."""
+
+    connection.execute(
+        "DROP TABLE IF EXISTS execution_fee_pair_candidate_capacity_reservations"
+    )
+    connection.execute("DROP TABLE IF EXISTS execution_fee_pair_candidate_events")
+    connection.execute("DROP TABLE IF EXISTS execution_fee_pair_candidates")
+    connection.execute("PRAGMA user_version = 15")
 
 
 def _decision_key(
@@ -66,6 +87,84 @@ def _grid_key(
         cohort_id=cohort_id,
         close_time=close_time,
         decision_kind=kind,
+    )
+
+
+def _fee_pair_candidate(
+    *,
+    run_id="fee-pair-candidate-run",
+    close_time="2026-10-24T10:30:00Z",
+    batch_id=None,
+    epoch_id=1,
+    slot_index=0,
+    session_id="session-a",
+    session_generation="generation-a",
+    source_predecessor_sha256=None,
+    source_predecessor=None,
+    source_restart_marker=None,
+    source_members=None,
+):
+    digest = lambda value: hashlib.sha256(value.encode("ascii")).hexdigest()
+    cohort_id = "cohort-a"
+    key = _grid_key(run_id=run_id, cohort_id=cohort_id, close_time=close_time, kind="simnow-live")
+    batch_id = batch_id or "{}:{}:{}:{}:{}".format(
+        cohort_id, "calendar-a", epoch_id, "calendar-v1", slot_index
+    )
+    if source_predecessor is not None and source_predecessor_sha256 is None:
+        source_predecessor_sha256 = source_predecessor.receipt_sha256
+    if source_members is None:
+        parsed_close = datetime.fromisoformat(close_time.replace("Z", "+00:00"))
+
+        def timestamp(value):
+            return value.astimezone(timezone.utc).isoformat(timespec="seconds").replace(
+                "+00:00", "Z"
+            )
+
+        source_members = (
+            ExecutionSourceMemberReceipt(
+                member_id="SIM-A",
+                source_ref="simnow-live",
+                source_role="live",
+                connection_generation="generation-a",
+                feed_sequence=1,
+                bar_id="bar-{}".format(close_time),
+                bucket_start=timestamp(parsed_close - timedelta(minutes=1)),
+                close_time=close_time,
+                available_at=timestamp(parsed_close + timedelta(seconds=1)),
+                trading_day="20261024",
+                session_segment="morning",
+                timezone_id="UTC",
+                clock_domain_id="synthetic-clock",
+                complete=True,
+                quality="GOOD",
+                present=True,
+            ),
+        )
+    return ExecutionFeePairCandidate(
+        key=key,
+        source_kind="simnow-live",
+        calendar_id="calendar-a",
+        calendar_version="calendar-v1",
+        calendar_fingerprint=digest("calendar-a"),
+        epoch_id=epoch_id,
+        slot_index=slot_index,
+        slot_id="slot-{}".format(slot_index),
+        batch_id=batch_id,
+        readiness="LIVE_READY",
+        expected_tape_file_id="tape-file-a",
+        expected_tape_record_index=slot_index + 1,
+        source_candidate_sha256=digest("source-candidate-a"),
+        source_predecessor_sha256=source_predecessor_sha256,
+        source_predecessor=source_predecessor,
+        source_restart_marker=source_restart_marker,
+        source_members=source_members,
+        signal_sha256=digest("signal-a"),
+        factor_snapshot_sha256=digest("factor-snapshot-a"),
+        target_ids=("SIM-A", "SIM-B"),
+        directions=(1, -1),
+        quote_identity_sha256s=(digest("quote-a"), digest("quote-b")),
+        account_session_id=session_id,
+        account_session_generation=session_generation,
     )
 
 
@@ -298,6 +397,276 @@ def test_fee_pair_scope_registration_capacity_failure_rolls_back_both_rows(tmp_p
         assert journal.fee_pair_required_scope("account-a", "strategy-a") is None
     finally:
         journal.close()
+
+
+def test_fee_pair_candidate_reserves_base_capacity_and_records_one_journal_only_claim(
+    tmp_path,
+):
+    journal = ExecutionDecisionJournal(tmp_path / "fee-pair-candidate-claim.sqlite3")
+    token = "owner-token-" + "x" * 40
+    candidate = _fee_pair_candidate()
+    try:
+        with pytest.raises(
+            ExecutionDecisionJournalError, match="FEE_PAIR_SCOPE_NOT_REGISTERED"
+        ):
+            journal.reserve_fee_pair_candidate(
+                candidate, owner_token=token, ttl_seconds=10
+            )
+
+        journal.register_fee_pair_required_scope("account-a", "strategy-a")
+        before_settlement = tuple(
+            journal._connection.execute(
+                """SELECT record_count,payload_bytes FROM execution_durable_capacity_usage
+                   WHERE capacity_class='SETTLEMENT'"""
+            ).fetchone()
+        )
+        reserved = journal.reserve_fee_pair_candidate(
+            candidate, owner_token=token, ttl_seconds=10
+        )
+        assert reserved.state == "RESERVED"
+        assert reserved.owner_matches_current_process is True
+        assert reserved.expired_for_current_process is False
+        assert reserved.candidate_sha256 == hashlib.sha256(
+            journal._connection.execute(
+                "SELECT candidate_payload_json FROM execution_fee_pair_candidates"
+            ).fetchone()[0].encode("utf-8")
+        ).hexdigest()
+
+        usage = {
+            row["capacity_class"]: (row["record_count"], row["payload_bytes"])
+            for row in journal._connection.execute(
+                """SELECT capacity_class,record_count,payload_bytes
+                   FROM execution_durable_capacity_usage"""
+            )
+        }
+        assert usage["BASE"][0] == 3  # candidate, reservation event and capacity row
+        assert usage["SETTLEMENT"] == before_settlement == (2, before_settlement[1])
+        reservation = journal._connection.execute(
+            """SELECT capacity_class,reserved_records,reserved_bytes,state
+               FROM execution_fee_pair_candidate_capacity_reservations"""
+        ).fetchone()
+        assert tuple(reservation) == ("BASE", 1, reservation["reserved_bytes"], "RESERVED")
+        assert reservation["reserved_bytes"] > 0
+        assert journal._connection.execute(
+            "SELECT COUNT(*) FROM execution_source_highwaters"
+        ).fetchone()[0] == 0
+
+        with pytest.raises(
+            ExecutionDecisionJournalError, match="FEE_PAIR_SCOPE_FAIL_CLOSED"
+        ):
+            journal.record_grid_decision(
+                candidate.key,
+                {"signal": "candidate-does-not-settle"},
+                epoch_id="epoch-1",
+                batch_id=candidate.batch_id,
+                eligible=True,
+                complete=True,
+                live_ready=True,
+                inputs_complete=True,
+            )
+
+        claimed = journal.record_fee_pair_append_claim(
+            reserved.candidate_id, owner_token=token
+        )
+        assert claimed.state == "APPEND_CLAIMED"
+        assert claimed.owner_matches_current_process is True
+        assert not hasattr(claimed, "writer_capability")
+        assert journal.fee_pair_candidate(reserved.candidate_id) == claimed
+        with pytest.raises(
+            ExecutionDecisionJournalError, match="FEE_PAIR_CANDIDATE_ALREADY_CLAIMED"
+        ):
+            journal.record_fee_pair_append_claim(reserved.candidate_id, owner_token=token)
+
+        # Exact reserve replay is read-only after its first commit. Neither the
+        # candidate event nor the physical source lineage is fabricated again.
+        assert journal.reserve_fee_pair_candidate(
+            candidate, owner_token=token, ttl_seconds=10
+        ) == claimed
+        assert journal._connection.execute(
+            "SELECT COUNT(*) FROM execution_fee_pair_candidate_events"
+        ).fetchone()[0] == 2
+        assert journal._connection.execute(
+            "SELECT COUNT(*) FROM execution_source_highwaters"
+        ).fetchone()[0] == 0
+        assert journal._connection.execute(
+            "SELECT COUNT(*) FROM execution_decisions"
+        ).fetchone()[0] == 0
+        consumed = journal._connection.execute(
+            """SELECT capacity_class,reserved_records,reserved_bytes,state
+               FROM execution_fee_pair_candidate_capacity_reservations"""
+        ).fetchone()
+        assert tuple(consumed) == ("BASE", 0, 0, "CONSUMED")
+        after_settlement = tuple(
+            journal._connection.execute(
+                """SELECT record_count,payload_bytes FROM execution_durable_capacity_usage
+                   WHERE capacity_class='SETTLEMENT'"""
+            ).fetchone()
+        )
+        assert after_settlement == before_settlement
+    finally:
+        journal.close()
+
+
+def test_fee_pair_candidate_binds_source_head_and_never_releases_quarantine_scope(
+    tmp_path, monkeypatch
+):
+    journal = ExecutionDecisionJournal(tmp_path / "fee-pair-candidate-quarantine.sqlite3")
+    token = "owner-token-" + "y" * 40
+    candidate = _fee_pair_candidate()
+    try:
+        journal.register_fee_pair_required_scope("account-a", "strategy-a")
+        wrong_predecessor = _fee_pair_candidate(
+            source_predecessor=ExecutionSourceHighWaterRef(
+                account_scope="account-a",
+                strategy_scope="strategy-a",
+                logical_run_id=candidate.key.logical_run_id,
+                source_kind=candidate.source_kind,
+                decision_id=hashlib.sha256(b"wrong-decision").hexdigest(),
+                receipt_sha256=hashlib.sha256(b"wrong-head").hexdigest(),
+                cohort_id=candidate.key.cohort_id,
+                calendar_id=candidate.calendar_id,
+                calendar_version=candidate.calendar_version,
+                calendar_fingerprint=candidate.calendar_fingerprint,
+                epoch_id=candidate.epoch_id,
+                slot_index=0,
+                slot_id="prior-slot",
+                close_time=candidate.key.close_time,
+                batch_id="prior-batch",
+                tape_file_id=candidate.expected_tape_file_id,
+                tape_record_id="prior-record",
+                tape_record_index=1,
+            )
+        )
+        with pytest.raises(
+            ExecutionDecisionJournalError,
+            match="FEE_PAIR_CANDIDATE_SOURCE_HEAD_MISMATCH",
+        ):
+            journal.reserve_fee_pair_candidate(
+                wrong_predecessor, owner_token=token, ttl_seconds=10
+            )
+        assert journal._connection.execute(
+            "SELECT COUNT(*) FROM execution_fee_pair_candidates"
+        ).fetchone()[0] == 0
+
+        reserved = journal.reserve_fee_pair_candidate(
+            candidate, owner_token=token, ttl_seconds=0.001
+        )
+        changed_session = _fee_pair_candidate(
+            run_id="later-run",
+            close_time="2026-10-24T10:31:00Z",
+            session_id="session-b",
+            session_generation="generation-b",
+        )
+        with pytest.raises(
+            ExecutionDecisionJournalError,
+            match="FEE_PAIR_CANDIDATE_SCOPE_ALREADY_RESERVED",
+        ):
+            journal.reserve_fee_pair_candidate(
+                changed_session, owner_token="new-owner-token-" + "z" * 32, ttl_seconds=10
+            )
+
+        import backtrader.stores.execution_decision_journal as journal_module
+
+        monkeypatch.setattr(
+            journal_module.time,
+            "monotonic_ns",
+            lambda: reserved.deadline_monotonic_ns,
+        )
+        with pytest.raises(
+            ExecutionDecisionJournalError, match="FEE_PAIR_CANDIDATE_EXPIRED"
+        ):
+            journal.record_fee_pair_append_claim(reserved.candidate_id, owner_token=token)
+        quarantined = journal.quarantine_fee_pair_candidate(
+            reserved.candidate_id, owner_token=token, reason_code="EXPIRED"
+        )
+        assert quarantined.state == "QUARANTINED"
+        assert journal._connection.execute(
+            "SELECT COUNT(*) FROM execution_fee_pair_candidate_events"
+        ).fetchone()[0] == 2
+
+        # Quarantine is terminal in this round. It does not release the scope,
+        # create a source-only decision, or permit another batch/session.
+        with pytest.raises(
+            ExecutionDecisionJournalError,
+            match="FEE_PAIR_CANDIDATE_SCOPE_ALREADY_RESERVED",
+        ):
+            journal.reserve_fee_pair_candidate(
+                changed_session, owner_token="new-owner-token-" + "z" * 32, ttl_seconds=10
+            )
+        ineligible = journal.record_grid_decision(
+            changed_session.key,
+            {"signal": "new-batch"},
+            epoch_id="epoch-2",
+            batch_id=changed_session.batch_id,
+            eligible=False,
+            complete=True,
+            live_ready=True,
+            inputs_complete=True,
+        )
+        assert ineligible.eligible is False
+        assert ineligible.source_anchor is None
+        assert journal._connection.execute(
+            "SELECT COUNT(*) FROM execution_source_highwaters"
+        ).fetchone()[0] == 0
+        assert journal._connection.execute(
+            "SELECT COUNT(*) FROM execution_decisions"
+        ).fetchone()[0] == 0
+    finally:
+        journal.close()
+
+
+def test_fee_pair_candidate_connection_reopen_is_not_process_restart_and_claim_is_cas(
+    tmp_path,
+):
+    path = tmp_path / "fee-pair-candidate-concurrent.sqlite3"
+    first = ExecutionDecisionJournal(path)
+    second = ExecutionDecisionJournal(path)
+    token = "owner-token-" + "c" * 40
+    candidate = _fee_pair_candidate()
+    barrier = Barrier(2)
+    try:
+        first.register_fee_pair_required_scope("account-a", "strategy-a")
+        second_registered = second.fee_pair_required_scope("account-a", "strategy-a")
+        assert second_registered is not None
+
+        def reserve(journal):
+            barrier.wait(timeout=5)
+            return journal.reserve_fee_pair_candidate(
+                candidate, owner_token=token, ttl_seconds=10
+            )
+
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            results = list(pool.map(reserve, (first, second)))
+        assert results[0].candidate_id == results[1].candidate_id
+        assert results[0].owner_matches_current_process is True
+        assert results[1].owner_matches_current_process is True
+        assert first._connection.execute(
+            "SELECT COUNT(*) FROM execution_fee_pair_candidates"
+        ).fetchone()[0] == 1
+
+        barrier.reset()
+
+        def claim(journal):
+            barrier.wait(timeout=5)
+            try:
+                return journal.record_fee_pair_append_claim(
+                    results[0].candidate_id, owner_token=token
+                )
+            except ExecutionDecisionJournalError as error:
+                return error.code
+
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            claims = list(pool.map(claim, (first, second)))
+        assert sum(
+            1 for result in claims if getattr(result, "state", None) == "APPEND_CLAIMED"
+        ) == 1
+        assert sum(
+            1 for result in claims if result == "FEE_PAIR_CANDIDATE_ALREADY_CLAIMED"
+        ) == 1
+        assert first.fee_pair_candidate(results[0].candidate_id).state == "APPEND_CLAIMED"
+    finally:
+        second.close()
+        first.close()
 
 
 def test_registered_fee_pair_scope_fences_legacy_open_paths_but_allows_close_cancel(
@@ -738,7 +1107,7 @@ def test_capacity_usage_migration_backfills_exact_bytes_once(tmp_path):
         connection.execute("PRAGMA user_version = 8")
 
     migrated = ExecutionDecisionJournal(path)
-    assert migrated._connection.execute("PRAGMA user_version").fetchone()[0] == 15
+    assert migrated._connection.execute("PRAGMA user_version").fetchone()[0] == 16
     usage = migrated._connection.execute(
         """SELECT capacity_class,record_count,payload_bytes
            FROM execution_decision_capacity_usage ORDER BY capacity_class"""
@@ -785,6 +1154,7 @@ def test_v15_open_rejects_incomplete_fee_pair_scope_schema(tmp_path, damaged_obj
     journal = ExecutionDecisionJournal(path)
     journal.close()
     with sqlite3.connect(path) as connection:
+        _restore_v15_journal_schema(connection)
         connection.execute(statement)
 
     with pytest.raises(
@@ -794,6 +1164,43 @@ def test_v15_open_rejects_incomplete_fee_pair_scope_schema(tmp_path, damaged_obj
 
     with sqlite3.connect(path) as connection:
         assert connection.execute("PRAGMA user_version").fetchone()[0] == 15
+
+
+def test_v15_schema_migrates_to_v16_without_rewriting_history(tmp_path):
+    path = tmp_path / "v15-to-v16-candidate-migration.sqlite3"
+    journal = ExecutionDecisionJournal(path)
+    decision = journal.record_decision(
+        _decision_key("v15-history", close_time="2026-10-24T10:00:00Z"),
+        {"signal": "flat"},
+    )
+    journal.register_fee_pair_required_scope("account-a", "strategy-a")
+    before_usage = journal.decision_capacity_snapshot()
+    before_source_highwaters = journal._connection.execute(
+        "SELECT COUNT(*) FROM execution_source_highwaters"
+    ).fetchone()[0]
+    journal.close()
+
+    with sqlite3.connect(path) as connection:
+        _restore_v15_journal_schema(connection)
+
+    migrated = ExecutionDecisionJournal(path)
+    try:
+        assert migrated._connection.execute("PRAGMA user_version").fetchone()[0] == 16
+        assert migrated.decision(decision.decision_id) == decision
+        assert migrated.fee_pair_required_scope("account-a", "strategy-a") is not None
+        assert migrated._connection.execute(
+            "SELECT COUNT(*) FROM execution_fee_pair_candidates"
+        ).fetchone()[0] == 0
+        assert migrated._connection.execute(
+            "SELECT COUNT(*) FROM execution_source_highwaters"
+        ).fetchone()[0] == before_source_highwaters
+        after_usage = migrated.decision_capacity_snapshot()
+        assert after_usage.base_record_count == before_usage.base_record_count
+        assert after_usage.base_payload_bytes == before_usage.base_payload_bytes
+        assert after_usage.settlement_record_count == before_usage.settlement_record_count
+        assert after_usage.settlement_payload_bytes == before_usage.settlement_payload_bytes
+    finally:
+        migrated.close()
 
 
 def test_capacity_usage_concurrent_v8_openers_backfill_once(tmp_path, monkeypatch):
@@ -872,7 +1279,7 @@ def test_capacity_usage_concurrent_v8_openers_backfill_once(tmp_path, monkeypatc
 
     assert len(backfill_calls) == 1
     with sqlite3.connect(path) as connection:
-        assert connection.execute("PRAGMA user_version").fetchone()[0] == 15
+        assert connection.execute("PRAGMA user_version").fetchone()[0] == 16
         usage = connection.execute(
             """SELECT capacity_class,record_count
                FROM execution_decision_capacity_usage ORDER BY capacity_class"""
@@ -1023,7 +1430,7 @@ def test_schema_v1_migration_preserves_original_dispatch_outcome(tmp_path):
     assert intent.state == "UNKNOWN"
     assert intent.dispatch_state == "UNKNOWN"
     assert intent.outcome_code == "connection_lost"
-    assert journal._connection.execute("PRAGMA user_version").fetchone()[0] == 15
+    assert journal._connection.execute("PRAGMA user_version").fetchone()[0] == 16
     journal.close()
 
 
@@ -1050,7 +1457,7 @@ def test_schema_v2_migrates_grid_and_run_budget_tables(tmp_path):
         connection.execute("PRAGMA user_version = 2")
 
     journal = ExecutionDecisionJournal(path)
-    assert journal._connection.execute("PRAGMA user_version").fetchone()[0] == 15
+    assert journal._connection.execute("PRAGMA user_version").fetchone()[0] == 16
     names = {
         row["name"]
         for row in journal._connection.execute(
@@ -1110,7 +1517,7 @@ def test_schema_v7_startup_backfills_native_ref_without_rewriting_dispatch(tmp_p
     )
     assert indexed == unknown
     assert recovered.intent(intent.intent_id) == unknown
-    assert recovered._connection.execute("PRAGMA user_version").fetchone()[0] == 15
+    assert recovered._connection.execute("PRAGMA user_version").fetchone()[0] == 16
     recovered.close()
 
     with sqlite3.connect(path) as connection:
@@ -2277,7 +2684,7 @@ def test_grid_highwater_migration_backfills_maximum_from_v9_cohort_cursors(tmp_p
         connection.execute("PRAGMA user_version = 9")
 
     migrated = ExecutionDecisionJournal(path)
-    assert migrated._connection.execute("PRAGMA user_version").fetchone()[0] == 15
+    assert migrated._connection.execute("PRAGMA user_version").fetchone()[0] == 16
     highwater = migrated._connection.execute(
         """SELECT close_time,cohort_id,decision_id FROM execution_grid_highwaters
            WHERE account_scope='account-a' AND strategy_scope='strategy-a'"""

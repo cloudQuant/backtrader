@@ -16,7 +16,7 @@ import sqlite3
 from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass
-from typing import Any, Iterator, Optional
+from typing import Any, Iterator, Optional, Tuple
 
 
 _MAX_SQLITE_INTEGER = 9_223_372_036_854_775_807
@@ -35,6 +35,9 @@ _DURABLE_ROW_KEYS = {
     "execution_grid_highwaters": ("account_scope", "strategy_scope"),
     "execution_fee_pair_required_scopes": ("account_scope", "strategy_scope"),
     "execution_fee_pair_scope_events": ("event_id",),
+    "execution_fee_pair_candidates": ("candidate_id",),
+    "execution_fee_pair_candidate_events": ("event_id",),
+    "execution_fee_pair_candidate_capacity_reservations": ("candidate_id",),
     "execution_source_highwaters": (
         "account_scope",
         "strategy_scope",
@@ -399,6 +402,43 @@ def read_durable_capacity_usage(cursor: sqlite3.Cursor) -> DurableCapacityUsage:
     )
 
 
+def read_durable_capacity_reservations(cursor: sqlite3.Cursor) -> Tuple[int, int]:
+    """Return outstanding BASE reservations, preserving pre-v16 compatibility."""
+
+    exists = cursor.execute(
+        "SELECT 1 FROM sqlite_master WHERE type='table' "
+        "AND name='execution_fee_pair_candidate_capacity_reservations'"
+    ).fetchone()
+    if exists is None:
+        return (0, 0)
+    try:
+        rows = cursor.execute(
+            """SELECT capacity_class,reserved_records,reserved_bytes,state
+               FROM execution_fee_pair_candidate_capacity_reservations"""
+        ).fetchall()
+    except sqlite3.Error as error:
+        raise DurableCapacityError("DURABLE_CAPACITY_RESERVATION_INVALID") from error
+    records = 0
+    payload_bytes = 0
+    for capacity_class, row_records, row_bytes, state in rows:
+        if (
+            capacity_class != "BASE"
+            or type(row_records) is not int
+            or type(row_bytes) is not int
+            or row_records < 0
+            or row_bytes < 0
+            or (state == "RESERVED" and (row_records != 1 or row_bytes <= 0))
+            or (state == "CONSUMED" and (row_records != 0 or row_bytes != 0))
+            or state not in ("RESERVED", "CONSUMED")
+        ):
+            raise DurableCapacityError("DURABLE_CAPACITY_RESERVATION_INVALID")
+        records += row_records
+        payload_bytes += row_bytes
+        if records > _MAX_SQLITE_INTEGER or payload_bytes > _MAX_SQLITE_INTEGER:
+            raise DurableCapacityError("DURABLE_CAPACITY_RESERVATION_INVALID")
+    return (records, payload_bytes)
+
+
 def charge_durable_capacity(
     cursor: sqlite3.Cursor,
     limits: DurableCapacityLimits,
@@ -423,11 +463,14 @@ def charge_durable_capacity(
         raise DurableCapacityError("DURABLE_CAPACITY_TRANSACTION_REQUIRED")
 
     current = read_durable_capacity_usage(cursor)
+    reserved_base_records, reserved_base_bytes = read_durable_capacity_reservations(cursor)
     requested = (
         (
             "BASE",
             current.base_records,
             current.base_bytes,
+            reserved_base_records,
+            reserved_base_bytes,
             charge.base_records,
             charge.base_bytes,
             limits.max_durable_base_records,
@@ -437,6 +480,8 @@ def charge_durable_capacity(
             "SETTLEMENT",
             current.settlement_records,
             current.settlement_bytes,
+            0,
+            0,
             charge.settlement_records,
             charge.settlement_bytes,
             limits.max_durable_settlement_records,
@@ -448,6 +493,8 @@ def charge_durable_capacity(
         capacity_class,
         records,
         payload_bytes,
+        reserved_records,
+        reserved_bytes,
         record_delta,
         byte_delta,
         record_limit,
@@ -456,9 +503,9 @@ def charge_durable_capacity(
         if record_delta == 0 and byte_delta == 0:
             updated[capacity_class] = (records, payload_bytes)
             continue
-        if record_delta > record_limit - records:
+        if record_delta > record_limit - records - reserved_records:
             raise DurableCapacityError(f"DURABLE_{capacity_class}_RECORDS_EXHAUSTED")
-        if byte_delta > byte_limit - payload_bytes:
+        if byte_delta > byte_limit - payload_bytes - reserved_bytes:
             raise DurableCapacityError(f"DURABLE_{capacity_class}_BYTES_EXHAUSTED")
         updated[capacity_class] = (records + record_delta, payload_bytes + byte_delta)
 
@@ -501,5 +548,6 @@ __all__ = [
     "durable_capacity_transaction",
     "ensure_durable_capacity_usage_schema",
     "read_durable_capacity_usage",
+    "read_durable_capacity_reservations",
     "track_durable_row_change",
 ]

@@ -829,6 +829,11 @@ def test_v13_schema_upgrade_adds_empty_source_highwater_and_preserves_usage(tmp_
     journal.close()
 
     with sqlite3.connect(path) as connection:
+        connection.execute(
+            "DROP TABLE execution_fee_pair_candidate_capacity_reservations"
+        )
+        connection.execute("DROP TABLE execution_fee_pair_candidate_events")
+        connection.execute("DROP TABLE execution_fee_pair_candidates")
         connection.execute("DROP TABLE execution_fee_pair_scope_events")
         connection.execute("DROP TABLE execution_fee_pair_required_scopes")
         connection.execute("DROP TABLE execution_source_highwaters")
@@ -836,7 +841,7 @@ def test_v13_schema_upgrade_adds_empty_source_highwater_and_preserves_usage(tmp_
 
     migrated = ExecutionDecisionJournal(path)
     try:
-        assert migrated._connection.execute("PRAGMA user_version").fetchone()[0] == 15
+        assert migrated._connection.execute("PRAGMA user_version").fetchone()[0] == 16
         assert _durable_usage(migrated._connection) == before
         assert migrated._connection.execute(
             "SELECT COUNT(*) FROM execution_source_highwaters"
@@ -845,7 +850,7 @@ def test_v13_schema_upgrade_adds_empty_source_highwater_and_preserves_usage(tmp_
         migrated.close()
 
 
-def test_v14_to_v15_pair_scope_migration_preserves_existing_journal_rows(tmp_path):
+def test_v14_to_v16_migration_preserves_existing_journal_rows(tmp_path):
     path = tmp_path / "schema-v14-pair-scope-upgrade.sqlite3"
     journal = ExecutionDecisionJournal(path)
     receipt = _receipt(
@@ -876,15 +881,20 @@ def test_v14_to_v15_pair_scope_migration_preserves_existing_journal_rows(tmp_pat
     expected_highwater = _highwater(journal)
     journal.close()
 
-    # Remove only v15 additions and present the exact previous user_version.
+    # Remove the v15/v16 additions and present the exact previous user_version.
     with sqlite3.connect(path) as connection:
+        connection.execute(
+            "DROP TABLE execution_fee_pair_candidate_capacity_reservations"
+        )
+        connection.execute("DROP TABLE execution_fee_pair_candidate_events")
+        connection.execute("DROP TABLE execution_fee_pair_candidates")
         connection.execute("DROP TABLE execution_fee_pair_scope_events")
         connection.execute("DROP TABLE execution_fee_pair_required_scopes")
         connection.execute("PRAGMA user_version=14")
 
     migrated = ExecutionDecisionJournal(path)
     try:
-        assert migrated._connection.execute("PRAGMA user_version").fetchone()[0] == 15
+        assert migrated._connection.execute("PRAGMA user_version").fetchone()[0] == 16
         assert tuple(
             tuple(row)
             for row in migrated._connection.execute(
@@ -907,10 +917,10 @@ def test_v14_to_v15_pair_scope_migration_preserves_existing_journal_rows(tmp_pat
     finally:
         migrated.close()
 
-    # Reopening an already migrated v15 journal is idempotent.
+    # Reopening an already migrated current journal is idempotent.
     reopened = ExecutionDecisionJournal(path)
     try:
-        assert reopened._connection.execute("PRAGMA user_version").fetchone()[0] == 15
+        assert reopened._connection.execute("PRAGMA user_version").fetchone()[0] == 16
         assert tuple(
             tuple(row)
             for row in reopened._connection.execute(
@@ -1077,7 +1087,7 @@ def test_source_highwater_archive_preserves_exact_anchor(tmp_path):
             expected_sha256=archive_receipt.sha256,
         )
         assert verified == archive_receipt
-        assert archive_receipt.schema_version == 15
+        assert archive_receipt.schema_version == 16
         assert archive_receipt.table_row_counts["execution_source_highwaters"] == 1
     finally:
         journal.close()
@@ -1115,7 +1125,7 @@ def test_current_schema_rejects_source_highwater_table_without_composite_primary
                 updated_at_ns INTEGER NOT NULL
             )"""
         )
-        connection.execute("PRAGMA user_version=15")
+        connection.execute("PRAGMA user_version=16")
 
     with pytest.raises(
         ExecutionDecisionJournalError, match="SOURCE_HIGHWATER_SCHEMA_CORRUPT"

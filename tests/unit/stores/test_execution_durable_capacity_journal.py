@@ -50,6 +50,9 @@ def _restore_v11_journal_schema(connection: sqlite3.Connection) -> None:
     """Remove schema added after v11 before modeling a historical database."""
 
     for table in (
+        "execution_fee_pair_candidate_capacity_reservations",
+        "execution_fee_pair_candidate_events",
+        "execution_fee_pair_candidates",
         "execution_fee_pair_scope_events",
         "execution_fee_pair_required_scopes",
         "execution_source_highwaters",

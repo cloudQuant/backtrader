@@ -51,7 +51,14 @@ _REQUIRED_TABLES_BY_MINIMUM_SCHEMA_VERSION = {
             "execution_fee_pair_required_scopes",
             "execution_fee_pair_scope_events",
         }
-    )
+    ),
+    16: frozenset(
+        {
+            "execution_fee_pair_candidates",
+            "execution_fee_pair_candidate_events",
+            "execution_fee_pair_candidate_capacity_reservations",
+        }
+    ),
 }
 
 
@@ -69,25 +76,29 @@ def _validate_required_schema_objects(
     *,
     tables: Optional[Tuple[str, ...]] = None,
 ) -> Tuple[str, ...]:
-    """Require version-cumulative tables and exact v15 append-only triggers."""
+    """Require cumulative tables and exact fee-pair schema for each version."""
 
     if tables is None:
         _schema_sha256, tables = _schema_fingerprint(connection)
     if not _required_tables_for_schema_version(schema_version).issubset(tables):
         raise ExecutionJournalArchiveError("ARCHIVE_SCHEMA_INCOMPLETE")
-    if schema_version < 15:
+    if schema_version < 14:
         return tables
 
     # Import at verification time: the journal imports this archive module,
-    # while its validator and declarations are authoritative for the v15
-    # fee-pair schema. This also checks exact table DDL/columns and rejects
-    # unexpected triggers attached to either fee-pair table.
+    # while its validator and declarations are authoritative for fee-pair
+    # schemas. Each validator checks exact DDL/columns and rejects unexpected
+    # triggers on its tables.
     from . import execution_decision_journal as journal_module
 
     cursor = connection.cursor()
     cursor.row_factory = sqlite3.Row
     try:
-        journal_module.ExecutionDecisionJournal._validate_fee_pair_scope_schema(cursor)
+        journal_module.ExecutionDecisionJournal._validate_source_highwater_schema(cursor)
+        if schema_version >= 15:
+            journal_module.ExecutionDecisionJournal._validate_fee_pair_scope_schema(cursor)
+        if schema_version >= 16:
+            journal_module.ExecutionDecisionJournal._validate_fee_pair_candidate_schema(cursor)
     except journal_module.ExecutionDecisionJournalError as error:
         raise ExecutionJournalArchiveError("ARCHIVE_SCHEMA_INCOMPLETE") from error
     finally:

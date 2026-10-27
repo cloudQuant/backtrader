@@ -29,6 +29,26 @@ def _decision_key(run_id: str, *, close_time: str) -> ExecutionDecisionKey:
     )
 
 
+def _downgrade_archive_to_v15(connection: sqlite3.Connection) -> None:
+    """Restore the exact pre-v16 object set in a copied archive fixture."""
+
+    connection.execute(
+        "DROP TABLE execution_fee_pair_candidate_capacity_reservations"
+    )
+    connection.execute("DROP TABLE execution_fee_pair_candidate_events")
+    connection.execute("DROP TABLE execution_fee_pair_candidates")
+    connection.execute("PRAGMA user_version=15")
+
+
+def _downgrade_archive_to_v14(connection: sqlite3.Connection) -> None:
+    """Restore a v14 archive while retaining its required source highwater."""
+
+    _downgrade_archive_to_v15(connection)
+    connection.execute("DROP TABLE execution_fee_pair_scope_events")
+    connection.execute("DROP TABLE execution_fee_pair_required_scopes")
+    connection.execute("PRAGMA user_version=14")
+
+
 def _intent_key(instrument: str) -> ExecutionIntentKey:
     return ExecutionIntentKey(
         action="SUBMIT",
@@ -145,13 +165,15 @@ def test_archive_snapshot_verifies_terminal_chain_and_preserves_unknown(tmp_path
             expected_sha256=receipt.sha256,
         )
         assert independently_verified == receipt
-        assert receipt.schema_version == 15
+        assert receipt.schema_version == 16
         assert receipt.size_bytes == archive_path.stat().st_size
         assert receipt.table_row_counts["execution_decisions"] == 2
         assert receipt.table_row_counts["execution_decision_intents"] == 2
         assert receipt.table_row_counts["execution_intent_resolutions"] == 1
         assert receipt.table_row_counts["execution_fee_pair_required_scopes"] == 1
         assert receipt.table_row_counts["execution_fee_pair_scope_events"] == 1
+        assert receipt.table_row_counts["execution_fee_pair_candidates"] == 0
+        assert receipt.table_row_counts["execution_fee_pair_candidate_events"] == 0
 
         with closing(_readonly_connection(archive_path)) as archived:
             terminal_row = archived.execute(
@@ -238,7 +260,7 @@ def test_archive_snapshot_verifies_terminal_chain_and_preserves_unknown(tmp_path
 
 
 def test_archive_verifier_keeps_v14_snapshots_compatible(tmp_path):
-    source_path = tmp_path / "v15-source.sqlite3"
+    source_path = tmp_path / "v16-source.sqlite3"
     archive_path = tmp_path / "v14-snapshot.sqlite3"
     journal = ExecutionDecisionJournal(source_path)
     try:
@@ -250,12 +272,10 @@ def test_archive_verifier_keeps_v14_snapshots_compatible(tmp_path):
     finally:
         journal.close()
 
-    # Older immutable snapshots predate the v15 pair-scope tables and remain
-    # verifiable after the active archive contract advances to v15.
+    # Older immutable snapshots predate later schema additions and remain
+    # verifiable against their own cumulative version contract.
     with sqlite3.connect(archive_path) as archived:
-        archived.execute("DROP TABLE execution_fee_pair_scope_events")
-        archived.execute("DROP TABLE execution_fee_pair_required_scopes")
-        archived.execute("PRAGMA user_version=14")
+        _downgrade_archive_to_v14(archived)
 
     verified = archive_module.verify_execution_journal_archive(
         archive_path, expected_schema_version=14
@@ -291,7 +311,7 @@ def test_archive_verifier_keeps_v14_snapshots_compatible(tmp_path):
 def test_v15_archive_rejects_missing_or_changed_cumulative_schema_object(
     tmp_path, statement
 ):
-    source_path = tmp_path / "v15-source.sqlite3"
+    source_path = tmp_path / "v16-source.sqlite3"
     archive_path = tmp_path / "damaged-v15.sqlite3"
     journal = ExecutionDecisionJournal(source_path)
     try:
@@ -306,6 +326,7 @@ def test_v15_archive_rejects_missing_or_changed_cumulative_schema_object(
         journal.close()
 
     with sqlite3.connect(archive_path) as archived:
+        _downgrade_archive_to_v15(archived)
         archived.executescript(statement)
 
     with pytest.raises(
@@ -327,10 +348,97 @@ def test_v14_archive_still_requires_v14_source_highwater(tmp_path):
         journal.close()
 
     with sqlite3.connect(archive_path) as archived:
-        archived.execute("DROP TABLE execution_fee_pair_scope_events")
-        archived.execute("DROP TABLE execution_fee_pair_required_scopes")
+        _downgrade_archive_to_v14(archived)
         archived.execute("DROP TABLE execution_source_highwaters")
-        archived.execute("PRAGMA user_version=14")
+
+    with pytest.raises(
+        archive_module.ExecutionJournalArchiveError,
+        match="ARCHIVE_SCHEMA_INCOMPLETE",
+    ):
+        archive_module.verify_execution_journal_archive(
+            archive_path, expected_schema_version=14
+        )
+
+
+@pytest.mark.parametrize(
+    "statement",
+    (
+        "DROP TABLE execution_fee_pair_candidates",
+        "DROP TABLE execution_fee_pair_candidate_events",
+        "DROP TABLE execution_fee_pair_candidate_capacity_reservations",
+        "DROP TRIGGER execution_fee_pair_candidate_state",
+        "DROP TRIGGER execution_fee_pair_candidate_no_delete",
+        "DROP TRIGGER execution_fee_pair_candidate_event_no_update",
+        "DROP TRIGGER execution_fee_pair_candidate_event_no_delete",
+        "DROP TRIGGER execution_fee_pair_candidate_capacity_state",
+        "DROP TRIGGER execution_fee_pair_candidate_capacity_no_delete",
+        "ALTER TABLE execution_fee_pair_candidate_events "
+        "DROP COLUMN event_payload_json",
+        "PRAGMA writable_schema=ON; "
+        "UPDATE sqlite_master SET sql=replace(sql, "
+        "'CHECK(length(candidate_sha256)=64)', "
+        "'CHECK(length(candidate_sha256)=63)') "
+        "WHERE type='table' AND name='execution_fee_pair_candidates'; "
+        "PRAGMA writable_schema=OFF; "
+        "PRAGMA schema_version=1000;",
+        "CREATE TRIGGER execution_fee_pair_candidate_unexpected_guard "
+        "BEFORE INSERT ON execution_fee_pair_candidates BEGIN SELECT 1; END",
+        "CREATE TRIGGER execution_fee_pair_candidate_event_unexpected_guard "
+        "BEFORE INSERT ON execution_fee_pair_candidate_events BEGIN SELECT 1; END",
+    ),
+)
+def test_v16_archive_rejects_incomplete_or_unexpected_candidate_schema(
+    tmp_path, statement
+):
+    source_path = tmp_path / "v16-source.sqlite3"
+    archive_path = tmp_path / "damaged-v16.sqlite3"
+    journal = ExecutionDecisionJournal(source_path)
+    try:
+        journal.archive_snapshot(archive_path)
+    finally:
+        journal.close()
+
+    with sqlite3.connect(archive_path) as archived:
+        archived.executescript(statement)
+
+    with pytest.raises(
+        archive_module.ExecutionJournalArchiveError,
+        match="ARCHIVE_SCHEMA_INCOMPLETE",
+    ):
+        archive_module.verify_execution_journal_archive(
+            archive_path, expected_schema_version=16
+        )
+
+
+@pytest.mark.parametrize(
+    "statement",
+    (
+        "CREATE TRIGGER source_highwater_unexpected_guard "
+        "BEFORE INSERT ON execution_source_highwaters BEGIN SELECT 1; END",
+        "ALTER TABLE execution_source_highwaters DROP COLUMN receipt_sha256",
+        "PRAGMA writable_schema=ON; "
+        "UPDATE sqlite_master SET sql=replace(sql, "
+        "'CHECK(anchor_kind IN (''GRID'',''SOURCE_ONLY''))', "
+        "'CHECK(anchor_kind IN (''GRID''))') "
+        "WHERE type='table' AND name='execution_source_highwaters'; "
+        "PRAGMA writable_schema=OFF; "
+        "PRAGMA schema_version=1000;",
+    ),
+)
+def test_v14_archive_rejects_incomplete_or_unexpected_source_highwater_schema(
+    tmp_path, statement
+):
+    source_path = tmp_path / "v16-source-for-v14-corruption.sqlite3"
+    archive_path = tmp_path / "damaged-v14-source-highwater.sqlite3"
+    journal = ExecutionDecisionJournal(source_path)
+    try:
+        journal.archive_snapshot(archive_path)
+    finally:
+        journal.close()
+
+    with sqlite3.connect(archive_path) as archived:
+        _downgrade_archive_to_v14(archived)
+        archived.executescript(statement)
 
     with pytest.raises(
         archive_module.ExecutionJournalArchiveError,
