@@ -29,8 +29,20 @@ def _decision_key(run_id: str, *, close_time: str) -> ExecutionDecisionKey:
     )
 
 
+def _downgrade_archive_to_v16(connection: sqlite3.Connection) -> None:
+    """Remove only v17 objects before modeling a genuine v16 archive."""
+
+    connection.execute("DROP TABLE execution_fee_pair_workflow_decision_reservations")
+    connection.execute("DROP TABLE execution_fee_pair_workflow_durable_reservations")
+    connection.execute("DROP TABLE execution_fee_pair_workflow_events")
+    connection.execute("DROP TABLE execution_fee_pair_workflows")
+    connection.execute("PRAGMA user_version=16")
+
+
 def _downgrade_archive_to_v15(connection: sqlite3.Connection) -> None:
     """Restore the exact pre-v16 object set in a copied archive fixture."""
+
+    _downgrade_archive_to_v16(connection)
 
     connection.execute(
         "DROP TABLE execution_fee_pair_candidate_capacity_reservations"
@@ -165,7 +177,7 @@ def test_archive_snapshot_verifies_terminal_chain_and_preserves_unknown(tmp_path
             expected_sha256=receipt.sha256,
         )
         assert independently_verified == receipt
-        assert receipt.schema_version == 16
+        assert receipt.schema_version == 17
         assert receipt.size_bytes == archive_path.stat().st_size
         assert receipt.table_row_counts["execution_decisions"] == 2
         assert receipt.table_row_counts["execution_decision_intents"] == 2
@@ -284,6 +296,23 @@ def test_archive_verifier_keeps_v14_snapshots_compatible(tmp_path):
     assert verified.table_row_counts["execution_decisions"] == 1
 
 
+def test_archive_verifier_keeps_v16_snapshots_compatible(tmp_path):
+    source_path = tmp_path / "v17-source-for-v16.sqlite3"
+    archive_path = tmp_path / "valid-v16-archive.sqlite3"
+    journal = ExecutionDecisionJournal(source_path)
+    try:
+        journal.archive_snapshot(archive_path)
+    finally:
+        journal.close()
+    with sqlite3.connect(archive_path) as archived:
+        _downgrade_archive_to_v16(archived)
+
+    verified = archive_module.verify_execution_journal_archive(
+        archive_path, expected_schema_version=16
+    )
+    assert verified.schema_version == 16
+
+
 @pytest.mark.parametrize(
     "statement",
     (
@@ -399,6 +428,7 @@ def test_v16_archive_rejects_incomplete_or_unexpected_candidate_schema(
         journal.close()
 
     with sqlite3.connect(archive_path) as archived:
+        _downgrade_archive_to_v16(archived)
         archived.executescript(statement)
 
     with pytest.raises(
@@ -407,6 +437,53 @@ def test_v16_archive_rejects_incomplete_or_unexpected_candidate_schema(
     ):
         archive_module.verify_execution_journal_archive(
             archive_path, expected_schema_version=16
+        )
+
+
+@pytest.mark.parametrize(
+    "statement",
+    (
+        "DROP TABLE execution_fee_pair_workflows",
+        "DROP TABLE execution_fee_pair_workflow_events",
+        "DROP TABLE execution_fee_pair_workflow_durable_reservations",
+        "DROP TABLE execution_fee_pair_workflow_decision_reservations",
+        "DROP TRIGGER execution_fee_pair_workflow_state",
+        "DROP TRIGGER execution_fee_pair_workflow_decision_reservation_no_delete",
+        "ALTER TABLE execution_fee_pair_workflow_events DROP COLUMN event_payload_json",
+        "PRAGMA writable_schema=ON; "
+        "UPDATE sqlite_master SET sql=replace(sql, "
+        "'CHECK(length(candidate_sha256)=64)', "
+        "'CHECK(length(candidate_sha256)=63)') "
+        "WHERE type='table' AND name='execution_fee_pair_workflows'; "
+        "PRAGMA writable_schema=OFF; PRAGMA schema_version=1000;",
+        "CREATE TRIGGER execution_fee_pair_workflow_unexpected_guard "
+        "BEFORE INSERT ON execution_fee_pair_workflows BEGIN SELECT 1; END",
+        "CREATE TRIGGER execution_fee_pair_workflow_event_unexpected_guard "
+        "BEFORE INSERT ON execution_fee_pair_workflow_events BEGIN SELECT 1; END",
+        "CREATE INDEX execution_fee_pair_workflow_event_unexpected_index "
+        "ON execution_fee_pair_workflow_events(candidate_id)",
+    ),
+)
+def test_v17_archive_rejects_incomplete_or_unexpected_workflow_schema(
+    tmp_path, statement
+):
+    source_path = tmp_path / "v17-source.sqlite3"
+    archive_path = tmp_path / "damaged-v17.sqlite3"
+    journal = ExecutionDecisionJournal(source_path)
+    try:
+        journal.archive_snapshot(archive_path)
+    finally:
+        journal.close()
+
+    with sqlite3.connect(archive_path) as archived:
+        archived.executescript(statement)
+
+    with pytest.raises(
+        archive_module.ExecutionJournalArchiveError,
+        match="ARCHIVE_SCHEMA_INCOMPLETE",
+    ):
+        archive_module.verify_execution_journal_archive(
+            archive_path, expected_schema_version=17
         )
 
 

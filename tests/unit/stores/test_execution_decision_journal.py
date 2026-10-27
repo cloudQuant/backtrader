@@ -32,8 +32,9 @@ def _drop_v12_durable_capacity_tables(connection: sqlite3.Connection) -> None:
     """Restore a pre-v12 schema before exercising an older migration path."""
 
     # Test databases are made by downgrading a current journal; remove the
-    # later v15/v16 additions too so the fixture represents the requested old
-    # schema instead of a corrupt user_version/table combination.
+    # later v15/v16/v17 additions too so the fixture represents the requested
+    # old schema instead of a corrupt user_version/table combination.
+    _drop_v17_fee_pair_workflow_tables(connection)
     connection.execute(
         "DROP TABLE IF EXISTS execution_fee_pair_candidate_capacity_reservations"
     )
@@ -47,9 +48,23 @@ def _drop_v12_durable_capacity_tables(connection: sqlite3.Connection) -> None:
     connection.execute("DROP TABLE IF EXISTS execution_source_highwaters")
 
 
-def _restore_v15_journal_schema(connection: sqlite3.Connection) -> None:
-    """Remove only v16 candidate objects from a current journal fixture."""
+def _drop_v17_fee_pair_workflow_tables(connection: sqlite3.Connection) -> None:
+    """Remove v17 objects from a current-schema migration fixture."""
 
+    connection.execute(
+        "DROP TABLE IF EXISTS execution_fee_pair_workflow_decision_reservations"
+    )
+    connection.execute(
+        "DROP TABLE IF EXISTS execution_fee_pair_workflow_durable_reservations"
+    )
+    connection.execute("DROP TABLE IF EXISTS execution_fee_pair_workflow_events")
+    connection.execute("DROP TABLE IF EXISTS execution_fee_pair_workflows")
+
+
+def _restore_v15_journal_schema(connection: sqlite3.Connection) -> None:
+    """Restore the cumulative v15 object set from a current journal fixture."""
+
+    _drop_v17_fee_pair_workflow_tables(connection)
     connection.execute(
         "DROP TABLE IF EXISTS execution_fee_pair_candidate_capacity_reservations"
     )
@@ -1107,7 +1122,7 @@ def test_capacity_usage_migration_backfills_exact_bytes_once(tmp_path):
         connection.execute("PRAGMA user_version = 8")
 
     migrated = ExecutionDecisionJournal(path)
-    assert migrated._connection.execute("PRAGMA user_version").fetchone()[0] == 16
+    assert migrated._connection.execute("PRAGMA user_version").fetchone()[0] == 17
     usage = migrated._connection.execute(
         """SELECT capacity_class,record_count,payload_bytes
            FROM execution_decision_capacity_usage ORDER BY capacity_class"""
@@ -1166,7 +1181,7 @@ def test_v15_open_rejects_incomplete_fee_pair_scope_schema(tmp_path, damaged_obj
         assert connection.execute("PRAGMA user_version").fetchone()[0] == 15
 
 
-def test_v15_schema_migrates_to_v16_without_rewriting_history(tmp_path):
+def test_v15_schema_migrates_to_v17_without_rewriting_history(tmp_path):
     path = tmp_path / "v15-to-v16-candidate-migration.sqlite3"
     journal = ExecutionDecisionJournal(path)
     decision = journal.record_decision(
@@ -1185,7 +1200,7 @@ def test_v15_schema_migrates_to_v16_without_rewriting_history(tmp_path):
 
     migrated = ExecutionDecisionJournal(path)
     try:
-        assert migrated._connection.execute("PRAGMA user_version").fetchone()[0] == 16
+        assert migrated._connection.execute("PRAGMA user_version").fetchone()[0] == 17
         assert migrated.decision(decision.decision_id) == decision
         assert migrated.fee_pair_required_scope("account-a", "strategy-a") is not None
         assert migrated._connection.execute(
@@ -1199,6 +1214,64 @@ def test_v15_schema_migrates_to_v16_without_rewriting_history(tmp_path):
         assert after_usage.base_payload_bytes == before_usage.base_payload_bytes
         assert after_usage.settlement_record_count == before_usage.settlement_record_count
         assert after_usage.settlement_payload_bytes == before_usage.settlement_payload_bytes
+    finally:
+        migrated.close()
+
+
+def test_committed_v16_candidate_history_survives_v17_upgrade_without_reclassification(
+    tmp_path,
+):
+    path = tmp_path / "committed-v16-to-v17-fee-pair-migration.sqlite3"
+    candidate = _fee_pair_candidate(run_id="committed-v16-history")
+    token = "v16-history-owner-" + "h" * 40
+    journal = ExecutionDecisionJournal(path)
+    journal.register_fee_pair_required_scope("account-a", "strategy-a")
+    legacy = journal.reserve_fee_pair_candidate(candidate, owner_token=token, ttl_seconds=10)
+    before = {
+        table: tuple(
+            tuple(row)
+            for row in journal._connection.execute(
+                "SELECT * FROM {} WHERE candidate_id=?".format(table),
+                (legacy.candidate_id,),
+            )
+        )
+        for table in (
+            "execution_fee_pair_candidates",
+            "execution_fee_pair_candidate_events",
+            "execution_fee_pair_candidate_capacity_reservations",
+        )
+    }
+    journal.close()
+
+    # Reconstruct the committed v16 schema on a synthetic fixture. The v17
+    # workflow tables did not exist at that version; v16 candidate history did.
+    with sqlite3.connect(path) as connection:
+        _drop_v17_fee_pair_workflow_tables(connection)
+        connection.execute("PRAGMA user_version = 16")
+
+    migrated = ExecutionDecisionJournal(path)
+    try:
+        assert migrated._connection.execute("PRAGMA user_version").fetchone()[0] == 17
+        for table, expected in before.items():
+            actual = tuple(
+                tuple(row)
+                for row in migrated._connection.execute(
+                    "SELECT * FROM {} WHERE candidate_id=?".format(table),
+                    (legacy.candidate_id,),
+                )
+            )
+            assert actual == expected
+        assert migrated.fee_pair_candidate(legacy.candidate_id).state == "RESERVED"
+        with pytest.raises(
+            ExecutionDecisionJournalError,
+            match="FEE_PAIR_SCOPE_LEGACY_CANDIDATE_QUARANTINED",
+        ):
+            migrated.reserve_fee_pair_workflow_candidate(
+                candidate, owner_token=token, ttl_seconds=10
+            )
+        assert migrated._connection.execute(
+            "SELECT COUNT(*) FROM execution_fee_pair_workflows"
+        ).fetchone()[0] == 0
     finally:
         migrated.close()
 
@@ -1279,7 +1352,7 @@ def test_capacity_usage_concurrent_v8_openers_backfill_once(tmp_path, monkeypatc
 
     assert len(backfill_calls) == 1
     with sqlite3.connect(path) as connection:
-        assert connection.execute("PRAGMA user_version").fetchone()[0] == 16
+        assert connection.execute("PRAGMA user_version").fetchone()[0] == 17
         usage = connection.execute(
             """SELECT capacity_class,record_count
                FROM execution_decision_capacity_usage ORDER BY capacity_class"""
@@ -1430,7 +1503,7 @@ def test_schema_v1_migration_preserves_original_dispatch_outcome(tmp_path):
     assert intent.state == "UNKNOWN"
     assert intent.dispatch_state == "UNKNOWN"
     assert intent.outcome_code == "connection_lost"
-    assert journal._connection.execute("PRAGMA user_version").fetchone()[0] == 16
+    assert journal._connection.execute("PRAGMA user_version").fetchone()[0] == 17
     journal.close()
 
 
@@ -1457,7 +1530,7 @@ def test_schema_v2_migrates_grid_and_run_budget_tables(tmp_path):
         connection.execute("PRAGMA user_version = 2")
 
     journal = ExecutionDecisionJournal(path)
-    assert journal._connection.execute("PRAGMA user_version").fetchone()[0] == 16
+    assert journal._connection.execute("PRAGMA user_version").fetchone()[0] == 17
     names = {
         row["name"]
         for row in journal._connection.execute(
@@ -1517,7 +1590,7 @@ def test_schema_v7_startup_backfills_native_ref_without_rewriting_dispatch(tmp_p
     )
     assert indexed == unknown
     assert recovered.intent(intent.intent_id) == unknown
-    assert recovered._connection.execute("PRAGMA user_version").fetchone()[0] == 16
+    assert recovered._connection.execute("PRAGMA user_version").fetchone()[0] == 17
     recovered.close()
 
     with sqlite3.connect(path) as connection:
@@ -2684,7 +2757,7 @@ def test_grid_highwater_migration_backfills_maximum_from_v9_cohort_cursors(tmp_p
         connection.execute("PRAGMA user_version = 9")
 
     migrated = ExecutionDecisionJournal(path)
-    assert migrated._connection.execute("PRAGMA user_version").fetchone()[0] == 16
+    assert migrated._connection.execute("PRAGMA user_version").fetchone()[0] == 17
     highwater = migrated._connection.execute(
         """SELECT close_time,cohort_id,decision_id FROM execution_grid_highwaters
            WHERE account_scope='account-a' AND strategy_scope='strategy-a'"""

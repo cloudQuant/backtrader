@@ -59,6 +59,14 @@ _REQUIRED_TABLES_BY_MINIMUM_SCHEMA_VERSION = {
             "execution_fee_pair_candidate_capacity_reservations",
         }
     ),
+    17: frozenset(
+        {
+            "execution_fee_pair_workflows",
+            "execution_fee_pair_workflow_events",
+            "execution_fee_pair_workflow_durable_reservations",
+            "execution_fee_pair_workflow_decision_reservations",
+        }
+    ),
 }
 
 
@@ -99,6 +107,8 @@ def _validate_required_schema_objects(
             journal_module.ExecutionDecisionJournal._validate_fee_pair_scope_schema(cursor)
         if schema_version >= 16:
             journal_module.ExecutionDecisionJournal._validate_fee_pair_candidate_schema(cursor)
+        if schema_version >= 17:
+            journal_module.ExecutionDecisionJournal._validate_fee_pair_workflow_schema(cursor)
     except journal_module.ExecutionDecisionJournalError as error:
         raise ExecutionJournalArchiveError("ARCHIVE_SCHEMA_INCOMPLETE") from error
     finally:

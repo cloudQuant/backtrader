@@ -38,6 +38,10 @@ _DURABLE_ROW_KEYS = {
     "execution_fee_pair_candidates": ("candidate_id",),
     "execution_fee_pair_candidate_events": ("event_id",),
     "execution_fee_pair_candidate_capacity_reservations": ("candidate_id",),
+    "execution_fee_pair_workflows": ("candidate_id",),
+    "execution_fee_pair_workflow_events": ("event_id",),
+    "execution_fee_pair_workflow_durable_reservations": ("candidate_id",),
+    "execution_fee_pair_workflow_decision_reservations": ("candidate_id",),
     "execution_source_highwaters": (
         "account_scope",
         "strategy_scope",
@@ -403,39 +407,51 @@ def read_durable_capacity_usage(cursor: sqlite3.Cursor) -> DurableCapacityUsage:
 
 
 def read_durable_capacity_reservations(cursor: sqlite3.Cursor) -> Tuple[int, int]:
-    """Return outstanding BASE reservations, preserving pre-v16 compatibility."""
+    """Return outstanding BASE reservations across the v16 and v17 ledgers."""
 
-    exists = cursor.execute(
-        "SELECT 1 FROM sqlite_master WHERE type='table' "
-        "AND name='execution_fee_pair_candidate_capacity_reservations'"
-    ).fetchone()
-    if exists is None:
-        return (0, 0)
-    try:
-        rows = cursor.execute(
-            """SELECT capacity_class,reserved_records,reserved_bytes,state
-               FROM execution_fee_pair_candidate_capacity_reservations"""
-        ).fetchall()
-    except sqlite3.Error as error:
-        raise DurableCapacityError("DURABLE_CAPACITY_RESERVATION_INVALID") from error
     records = 0
     payload_bytes = 0
-    for capacity_class, row_records, row_bytes, state in rows:
-        if (
-            capacity_class != "BASE"
-            or type(row_records) is not int
-            or type(row_bytes) is not int
-            or row_records < 0
-            or row_bytes < 0
-            or (state == "RESERVED" and (row_records != 1 or row_bytes <= 0))
-            or (state == "CONSUMED" and (row_records != 0 or row_bytes != 0))
-            or state not in ("RESERVED", "CONSUMED")
-        ):
-            raise DurableCapacityError("DURABLE_CAPACITY_RESERVATION_INVALID")
-        records += row_records
-        payload_bytes += row_bytes
-        if records > _MAX_SQLITE_INTEGER or payload_bytes > _MAX_SQLITE_INTEGER:
-            raise DurableCapacityError("DURABLE_CAPACITY_RESERVATION_INVALID")
+    tables = (
+        ("execution_fee_pair_candidate_capacity_reservations", "RESERVED", "CONSUMED"),
+        ("execution_fee_pair_workflow_durable_reservations", "ACTIVE", "CONSUMED"),
+    )
+    for table, active_state, consumed_state in tables:
+        exists = cursor.execute(
+            "SELECT 1 FROM sqlite_master WHERE type='table' AND name=?", (table,)
+        ).fetchone()
+        if exists is None:
+            continue
+        try:
+            rows = cursor.execute(
+                """SELECT capacity_class,reserved_records,reserved_bytes,state
+                   FROM {}""".format(table)
+            ).fetchall()
+        except sqlite3.Error as error:
+            raise DurableCapacityError("DURABLE_CAPACITY_RESERVATION_INVALID") from error
+        for capacity_class, row_records, row_bytes, state in rows:
+            active_invalid = state == active_state and (
+                type(row_records) is not int
+                or type(row_bytes) is not int
+                or row_records <= 0
+                or row_bytes <= 0
+            )
+            if (
+                capacity_class != "BASE"
+                or type(row_records) is not int
+                or type(row_bytes) is not int
+                or row_records < 0
+                or row_bytes < 0
+                or active_invalid
+                or (state == consumed_state and (row_records != 0 or row_bytes != 0))
+                or state not in (active_state, consumed_state)
+                or (table.endswith("candidate_capacity_reservations")
+                    and state == active_state and row_records != 1)
+            ):
+                raise DurableCapacityError("DURABLE_CAPACITY_RESERVATION_INVALID")
+            records += row_records
+            payload_bytes += row_bytes
+            if records > _MAX_SQLITE_INTEGER or payload_bytes > _MAX_SQLITE_INTEGER:
+                raise DurableCapacityError("DURABLE_CAPACITY_RESERVATION_INVALID")
     return (records, payload_bytes)
 
 
