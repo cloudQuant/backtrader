@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass, replace
 from datetime import datetime, timedelta, timezone
-from decimal import Decimal
+from decimal import Decimal, Inexact, Overflow, Rounded, localcontext
 from hashlib import sha256
 import json
 from types import SimpleNamespace
@@ -22,6 +22,8 @@ from backtrader.stores.execution_decision_journal import (
 from backtrader.stores.factor_execution import FactorExecutionCoordinator
 from backtrader.stores.factor_execution_facts import (
     FactorExecutionTarget,
+    _account_pnl_decimal,
+    _exact_total_net_pnl,
     project_factor_execution_facts,
     refresh_factor_execution_queries,
 )
@@ -1181,6 +1183,173 @@ def test_real_registered_store_and_broker_project_a_complete_flat_snapshot():
     assert coordinator.position_book is not None
     assert journal is coordinator.journal
     assert len(api.query_calls) == 6
+
+
+def _project_account_row(account):
+    now = datetime.now(timezone.utc)
+    _api, store, broker, _journal, _coordinator, target = _system_under_test(
+        now=now,
+        rows=_query_rows(account=account),
+    )
+    receipt = _refresh_all(store, target)
+    _arm(store)
+    _consume_quote(store)
+    return _project(store, broker, target, now, query_set=receipt.query_set)
+
+
+def test_account_total_net_pnl_uses_one_current_cny_account_row():
+    facts = _project_account_row(
+        {
+            "Available": "100000",
+            "CurrMargin": "25",
+            "CloseProfit": "999.99",
+            "PositionProfit": "0.02",
+            "Commission": "0.01",
+            "CurrencyID": "CNY",
+            "TradingDay": _TRADING_DAY,
+        }
+    )
+
+    assert facts.account is not None
+    assert facts.account.total_net_pnl == Decimal("1000.00")
+    assert facts.account.total_net_pnl.is_finite()
+    assert facts.account.currency == "CNY"
+    assert facts.account.total_net_pnl_available is True
+    assert facts.account.total_net_pnl_reason is None
+    assert facts.account.available_margin == Decimal("100000")
+    assert facts.account.used_margin == Decimal("25")
+    assert facts.risk_reduction_ready is True, facts.risk_reduction_blockers
+    assert facts.open_risk_ready is True, facts.blockers
+
+
+def test_unobserved_account_total_net_pnl_keeps_legacy_fact_readiness():
+    facts = _project_account_row(
+        {
+            "Available": "100000",
+            "CurrMargin": "0",
+        }
+    )
+
+    assert facts.account is not None
+    assert facts.account.total_net_pnl is None
+    assert facts.account.currency is None
+    assert facts.account.total_net_pnl_available is False
+    assert facts.account.total_net_pnl_reason == "trading_day_unavailable"
+    assert facts.blockers == ()
+    assert facts.risk_reduction_ready is True, facts.risk_reduction_blockers
+    assert facts.open_risk_ready is True, facts.blockers
+
+
+@pytest.mark.parametrize(
+    "field,value,reason",
+    (
+        ("CloseProfit", None, "close_profit_unavailable"),
+        ("PositionProfit", "NaN", "position_profit_unavailable"),
+        ("Commission", True, "commission_unavailable"),
+        ("Commission", "Infinity", "commission_unavailable"),
+        ("CloseProfit", "1E-1000000000", "net_pnl_calculation_unavailable"),
+        ("PositionProfit", "1E999999999", "net_pnl_calculation_unavailable"),
+        ("Commission", "9" * 65, "net_pnl_calculation_unavailable"),
+        ("CloseProfit", "9" * 65, "net_pnl_calculation_unavailable"),
+        ("PositionProfit", "9E1024", "net_pnl_calculation_unavailable"),
+        ("CurrencyID", "USD", "currency_unsupported"),
+        ("CurrencyID", None, "currency_unavailable"),
+        ("TradingDay", "", "trading_day_unavailable"),
+        ("TradingDay", "20261023", "trading_day_mismatch"),
+    ),
+)
+def test_unqualified_account_total_net_pnl_is_explicit_but_does_not_change_legacy_gates(
+    field, value, reason
+):
+    account = {
+        "Available": "100000",
+        "CurrMargin": "0",
+        "CloseProfit": "10",
+        "PositionProfit": "2",
+        "Commission": "1",
+        "CurrencyID": "CNY",
+        "TradingDay": _TRADING_DAY,
+    }
+    account[field] = value
+    facts = _project_account_row(account)
+
+    assert facts.account is not None
+    assert facts.account.total_net_pnl is None
+    assert facts.account.currency is None
+    assert facts.account.total_net_pnl_available is False
+    assert facts.account.total_net_pnl_reason == reason
+    assert facts.blockers == ()
+    assert facts.risk_reduction_ready is True, facts.risk_reduction_blockers
+    assert facts.open_risk_ready is True, facts.blockers
+
+
+@pytest.mark.parametrize(
+    "value,expected",
+    (
+        (float("nan"), (None, False)),
+        (Decimal("1E-1000000000"), (None, True)),
+        (Decimal("9" * 65), (None, True)),
+    ),
+)
+def test_account_pnl_decimal_rejects_unrepresentable_typed_values(value, expected):
+    assert _account_pnl_decimal(value) == expected
+
+
+def test_account_total_net_pnl_bounds_cover_finite_float64_inputs():
+    facts = _project_account_row(
+        {
+            "Available": "100000",
+            "CurrMargin": "0",
+            "CloseProfit": "1.7976931348623157e308",
+            "PositionProfit": "5e-324",
+            "Commission": "0",
+            "CurrencyID": "CNY",
+            "TradingDay": _TRADING_DAY,
+        }
+    )
+
+    assert facts.account is not None
+    assert facts.account.total_net_pnl_available is True
+    assert facts.account.total_net_pnl_reason is None
+    assert facts.account.currency == "CNY"
+    assert facts.account.total_net_pnl is not None
+    assert facts.account.total_net_pnl.is_finite()
+    assert facts.account.total_net_pnl.adjusted() == 308
+    assert facts.account.total_net_pnl.as_tuple().exponent == -324
+
+
+def test_zero_account_pnl_normalizes_extreme_exponent_before_bounded_sum():
+    facts = _project_account_row(
+        {
+            "Available": "100000",
+            "CurrMargin": "0",
+            "CloseProfit": "0E999999999",
+            "PositionProfit": "2",
+            "Commission": "1",
+            "CurrencyID": "CNY",
+            "TradingDay": _TRADING_DAY,
+        }
+    )
+
+    assert facts.account is not None
+    assert facts.account.total_net_pnl == Decimal(1)
+    assert facts.account.total_net_pnl_available is True
+    assert facts.account.total_net_pnl_reason is None
+    assert facts.account.currency == "CNY"
+
+
+def test_account_total_net_pnl_arithmetic_ignores_low_global_decimal_context():
+    with localcontext() as context:
+        context.prec = 2
+        context.Emax = 3
+        context.Emin = -3
+        context.clamp = 1
+        context.traps[Inexact] = True
+        context.traps[Rounded] = True
+        context.traps[Overflow] = True
+        assert _exact_total_net_pnl(
+            Decimal("999.99"), Decimal("0.02"), Decimal("0.01")
+        ) == Decimal("1000.00")
 
 
 def test_configured_templates_keep_all_target_routes_plannable_with_one_active_grant():
@@ -2694,6 +2863,10 @@ def test_order_cancel_readiness_does_not_depend_on_a_market_quote():
         {
             "external_order_ref": "94",
             "order_sys_id": "sys-94",
+            "registered_sim_ctp_order_sys_id": "sys-94",
+            "registered_sim_ctp_order_sys_id_source": "ctp_order_callback",
+            "_registered_sim_ctp_identity_binding_captured": True,
+            "_registered_sim_ctp_identity_binding_valid": True,
             "factor_position_effect": "OPEN",
             "factor_strategy_scope": "alpha003",
             "factor_intent_id": "intent-94",

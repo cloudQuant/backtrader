@@ -1,0 +1,162 @@
+{
+  "schema": "iteration51_account_pnl_facts_source_round.v1",
+  "repository": "D:\\source_code\\backtrader",
+  "branch": "dev",
+  "parent_commit": "27cf0885a0363dc1dc3ac9a3a80c16fdf4d6f6ae",
+  "paths": [
+    "backtrader/stores/factor_execution_facts.py",
+    "tests/unit/stores/test_factor_execution_facts.py",
+    "AGENTS.md",
+    "docs/_internal/opts/requirements/迭代51-因子流批一体与Alpha003-SimNow实盘示例/迭代计划.md",
+    "docs/_internal/opts/requirements/迭代51-因子流批一体与Alpha003-SimNow实盘示例/验收方案.md",
+    "docs/_internal/opts/requirements/迭代51-因子流批一体与Alpha003-SimNow实盘示例/evidence/account-pnl-facts-20261027/record.json"
+  ],
+  "qa": {
+    "level": "SOURCE_SYNTHETIC_ACCOUNT_PNL_ONLY",
+    "exit_code": 0,
+    "test_count": 120,
+    "failures": 0,
+    "errors": 0,
+    "skips": 0,
+    "elapsed_seconds": 4.547000000020489,
+    "source_pins_unchanged": true,
+    "source_pins_before": {
+      "backtrader/stores/factor_execution_facts.py": {
+        "size_bytes": 219489,
+        "sha256": "769e1b87100022354222023796c22504cae676d3067582b16e146abc3bf6fa2b"
+      },
+      "tests/unit/stores/test_factor_execution_facts.py": {
+        "size_bytes": 159045,
+        "sha256": "2a20ee47bc6ab75d2e422b16e5a0eaf6256dcab1c4abbf0888624220925931d2"
+      },
+      "backtrader/stores/registered_sim.py": {
+        "size_bytes": 136711,
+        "sha256": "0d1d5ae60139378c0383e6fbba89718914bb5cc46972471d5d2248f48403682b"
+      },
+      "backtrader/stores/btapistore.py": {
+        "size_bytes": 887216,
+        "sha256": "4afd798ac861a1503b0fab223b9d330907eb4ec443e517a135f1a09fd70b3ca0"
+      },
+      "backtrader/stores/factor_execution.py": {
+        "size_bytes": 280234,
+        "sha256": "a37eb1ac11ef58523897b2bdc3eba6195c0057ac9a9028e555f06b64da2b1dc6"
+      },
+      "backtrader/stores/execution_decision_journal.py": {
+        "size_bytes": 329937,
+        "sha256": "ec39380ee78be028bc24850de57da571bf14a63dc66af7d1ac017f0b8a1ff637"
+      }
+    },
+    "source_pins_after": {
+      "backtrader/stores/factor_execution_facts.py": {
+        "size_bytes": 219489,
+        "sha256": "769e1b87100022354222023796c22504cae676d3067582b16e146abc3bf6fa2b"
+      },
+      "tests/unit/stores/test_factor_execution_facts.py": {
+        "size_bytes": 159045,
+        "sha256": "2a20ee47bc6ab75d2e422b16e5a0eaf6256dcab1c4abbf0888624220925931d2"
+      },
+      "backtrader/stores/registered_sim.py": {
+        "size_bytes": 136711,
+        "sha256": "0d1d5ae60139378c0383e6fbba89718914bb5cc46972471d5d2248f48403682b"
+      },
+      "backtrader/stores/btapistore.py": {
+        "size_bytes": 887216,
+        "sha256": "4afd798ac861a1503b0fab223b9d330907eb4ec443e517a135f1a09fd70b3ca0"
+      },
+      "backtrader/stores/factor_execution.py": {
+        "size_bytes": 280234,
+        "sha256": "a37eb1ac11ef58523897b2bdc3eba6195c0057ac9a9028e555f06b64da2b1dc6"
+      },
+      "backtrader/stores/execution_decision_journal.py": {
+        "size_bytes": 329937,
+        "sha256": "ec39380ee78be028bc24850de57da571bf14a63dc66af7d1ac017f0b8a1ff637"
+      }
+    },
+    "runner": {
+      "size_bytes": 3361,
+      "sha256": "8646d76c26d2e57d122e26d6078172f69923010971017fd3f2480451c9ce3f66"
+    },
+    "boundary": "Local source and synthetic account rows. No provider or account acceptance; no guard initialization or order writes."
+  },
+  "qa_file": {
+    "path": "D:\\temp\\i51-account-pnl-source-qa-20261027-r2\\result.json",
+    "size_bytes": 2611,
+    "sha256": "0d8788aa6cc05f9d7cc9f1ea7dcb263905b0aa24f75a0a1efc0f660b6a90762f"
+  },
+  "historical_failed_qa": {
+    "path": "D:\\temp\\i51-account-pnl-source-qa-20261027-r1\\result.json",
+    "size_bytes": 2611,
+    "sha256": "002b8109d951e51cf52148de6f1e62e8615a66bb22ea63d77d134fd42e0a0948",
+    "result": {
+      "level": "SOURCE_SYNTHETIC_ACCOUNT_PNL_ONLY",
+      "exit_code": 1,
+      "test_count": 117,
+      "failures": 3,
+      "errors": 0,
+      "skips": 0,
+      "elapsed_seconds": 5.202999999979511,
+      "source_pins_unchanged": true,
+      "source_pins_before": {
+        "backtrader/stores/factor_execution_facts.py": {
+          "size_bytes": 219489,
+          "sha256": "769e1b87100022354222023796c22504cae676d3067582b16e146abc3bf6fa2b"
+        },
+        "tests/unit/stores/test_factor_execution_facts.py": {
+          "size_bytes": 158422,
+          "sha256": "6256f9ea176b117657ed4af7d09784ca4109aeff43bb49936372fa444829e07b"
+        },
+        "backtrader/stores/registered_sim.py": {
+          "size_bytes": 136711,
+          "sha256": "0d1d5ae60139378c0383e6fbba89718914bb5cc46972471d5d2248f48403682b"
+        },
+        "backtrader/stores/btapistore.py": {
+          "size_bytes": 887216,
+          "sha256": "4afd798ac861a1503b0fab223b9d330907eb4ec443e517a135f1a09fd70b3ca0"
+        },
+        "backtrader/stores/factor_execution.py": {
+          "size_bytes": 280234,
+          "sha256": "a37eb1ac11ef58523897b2bdc3eba6195c0057ac9a9028e555f06b64da2b1dc6"
+        },
+        "backtrader/stores/execution_decision_journal.py": {
+          "size_bytes": 329937,
+          "sha256": "ec39380ee78be028bc24850de57da571bf14a63dc66af7d1ac017f0b8a1ff637"
+        }
+      },
+      "source_pins_after": {
+        "backtrader/stores/factor_execution_facts.py": {
+          "size_bytes": 219489,
+          "sha256": "769e1b87100022354222023796c22504cae676d3067582b16e146abc3bf6fa2b"
+        },
+        "tests/unit/stores/test_factor_execution_facts.py": {
+          "size_bytes": 158422,
+          "sha256": "6256f9ea176b117657ed4af7d09784ca4109aeff43bb49936372fa444829e07b"
+        },
+        "backtrader/stores/registered_sim.py": {
+          "size_bytes": 136711,
+          "sha256": "0d1d5ae60139378c0383e6fbba89718914bb5cc46972471d5d2248f48403682b"
+        },
+        "backtrader/stores/btapistore.py": {
+          "size_bytes": 887216,
+          "sha256": "4afd798ac861a1503b0fab223b9d330907eb4ec443e517a135f1a09fd70b3ca0"
+        },
+        "backtrader/stores/factor_execution.py": {
+          "size_bytes": 280234,
+          "sha256": "a37eb1ac11ef58523897b2bdc3eba6195c0057ac9a9028e555f06b64da2b1dc6"
+        },
+        "backtrader/stores/execution_decision_journal.py": {
+          "size_bytes": 329937,
+          "sha256": "ec39380ee78be028bc24850de57da571bf14a63dc66af7d1ac017f0b8a1ff637"
+        }
+      },
+      "runner": {
+        "size_bytes": 3303,
+        "sha256": "351d40c7a271d421b66363afb5b43f330550ab9169bf3efef5a81658a0c78790"
+      },
+      "boundary": "Local source and synthetic account rows. No provider or account acceptance; no guard initialization or order writes."
+    }
+  },
+  "warnings": 1,
+  "independent_review": "capacity_review static GO on final two pins; no duplicate QA",
+  "formal_ac_increment": 0,
+  "boundary": "SOURCE_SYNTHETIC_ACCOUNT_PNL_ONLY. No provider, private-input, loss-guard initialization, order write, push, or new worktree."
+}

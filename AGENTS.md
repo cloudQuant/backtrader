@@ -585,6 +585,13 @@ dispatch require a fresh matching guard, while exact readback and CLOSE/CANCEL
 remain available. Explicit guard context without a policy fails closed. The
 source component is accepted at `d700b0a63`; provider PnL qualification and
 strategy-driven exit integration remain separate work.
+Account facts optionally expose qualified CNY total-net-PnL from one complete,
+current, same-day account query row (CloseProfit + PositionProfit - Commission).
+Parsing and exact arithmetic have fixed resource bounds and do not use the
+ambient Decimal context. Missing PnL preserves legacy readiness; loss-policy
+callers must explicitly require availability. The source component passed 120
+synthetic tests; actual account observations and strategy loss-policy wiring
+remain separate acceptance work.
 The all-visible CTP snapshot collector attaches at most two typed, bounded
 query-stage observations to refusal errors. The 028 runner emits only a
 validated fixed schema; raw query rows, request IDs and provider messages are

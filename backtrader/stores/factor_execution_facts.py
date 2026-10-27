@@ -22,7 +22,14 @@ from collections import defaultdict
 from collections.abc import Mapping
 from dataclasses import dataclass, replace
 from datetime import datetime, timedelta, timezone
-from decimal import Decimal, InvalidOperation
+from decimal import (
+    Context,
+    Decimal,
+    DecimalException,
+    Inexact,
+    InvalidOperation,
+    Rounded,
+)
 from typing import Any, Callable, List, Optional, Tuple
 
 from .registered_sim import RegisteredSimStore
@@ -56,6 +63,10 @@ _CAPITAL_BLOCKERS = frozenset(
         "short_margin_per_hand_unobserved",
     }
 )
+_ACCOUNT_PNL_MAX_TEXT_LENGTH = 64
+_ACCOUNT_PNL_MAX_COEFFICIENT_DIGITS = 64
+_ACCOUNT_PNL_MAX_ABSOLUTE_EXPONENT = 1024
+_ACCOUNT_PNL_MAX_PRECISION = 1024
 _THREADING_EVENT_TYPE = type(threading.Event())
 
 
@@ -132,6 +143,18 @@ class FactorExecutionRefreshReceipt:
 
 @dataclass(frozen=True)
 class FactorExecutionAccountFacts:
+    """Current account evidence, with optional qualified total-net-PnL facts.
+
+    The PnL fields describe an account-wide CTP observation. Their absence is
+    explicit but does not add a legacy OPEN blocker; a caller that enables a
+    loss policy must require ``total_net_pnl_available`` itself. A true
+    availability flag has a ``None`` reason; otherwise the reason is one of
+    ``not_observed``, ``account_row_unavailable``, ``trading_day_unavailable``,
+    ``trading_day_mismatch``, ``currency_unavailable``, ``currency_unsupported``,
+    ``close_profit_unavailable``, ``position_profit_unavailable``,
+    ``commission_unavailable``, or ``net_pnl_calculation_unavailable``.
+    """
+
     account_scope: str
     snapshot_id: str
     available_at: datetime
@@ -143,6 +166,10 @@ class FactorExecutionAccountFacts:
     account_fingerprint: Optional[str] = None
     connection_generation: Optional[int] = None
     trading_day: Optional[str] = None
+    total_net_pnl: Optional[Decimal] = None
+    currency: Optional[str] = None
+    total_net_pnl_available: bool = False
+    total_net_pnl_reason: Optional[str] = "not_observed"
 
 
 @dataclass(frozen=True)
@@ -2456,17 +2483,167 @@ def _position_dated_inventory_rows(
     return tuple(projected)
 
 
-def _account_values(rows: Any, blockers: List[str]):
+def _exact_total_net_pnl(
+    close_profit: Decimal, position_profit: Decimal, commission: Decimal
+) -> Optional[Decimal]:
+    """Return a bounded exact Decimal sum independent of caller context/traps."""
+
+    values = (close_profit, position_profit, commission)
+    if any(type(value) is not Decimal or not value.is_finite() for value in values):
+        return None
+    nonzero = tuple(value for value in values if value != 0)
+    if not nonzero:
+        return Decimal(0)
+    if any(
+        type(value) is not Decimal
+        or not value.is_finite()
+        or len(value.as_tuple().digits) > _ACCOUNT_PNL_MAX_COEFFICIENT_DIGITS
+        or abs(value.as_tuple().exponent) > _ACCOUNT_PNL_MAX_ABSOLUTE_EXPONENT
+        or abs(value.adjusted()) > _ACCOUNT_PNL_MAX_ABSOLUTE_EXPONENT
+        for value in nonzero
+    ):
+        return None
+    lowest_exponent = min(value.as_tuple().exponent for value in nonzero)
+    highest_adjusted = max(value.adjusted() for value in nonzero)
+    precision = max(1, highest_adjusted - lowest_exponent + 2)
+    if precision > _ACCOUNT_PNL_MAX_PRECISION:
+        return None
+    try:
+        context = Context(
+            prec=precision,
+            Emin=-_ACCOUNT_PNL_MAX_ABSOLUTE_EXPONENT,
+            Emax=_ACCOUNT_PNL_MAX_ABSOLUTE_EXPONENT,
+            clamp=0,
+            traps=[],
+        )
+        combined = context.add(close_profit, position_profit)
+        result = context.subtract(combined, commission)
+        if not result.is_finite() or context.flags[Inexact] or context.flags[Rounded]:
+            return None
+        if result.is_zero():
+            return Decimal(0)
+        if (
+            len(result.as_tuple().digits) > _ACCOUNT_PNL_MAX_PRECISION
+            or abs(result.as_tuple().exponent) > _ACCOUNT_PNL_MAX_ABSOLUTE_EXPONENT
+            or abs(result.adjusted()) > _ACCOUNT_PNL_MAX_ABSOLUTE_EXPONENT
+        ):
+            return None
+        return result
+    except (DecimalException, OverflowError, ValueError):
+        return None
+
+
+def _account_pnl_decimal(value: Any):
+    """Parse one CTP monetary field with finite, fixed input/resource bounds."""
+
+    if type(value) not in (str, int, float, Decimal):
+        return None, False
+    if type(value) is str:
+        if len(value) > _ACCOUNT_PNL_MAX_TEXT_LENGTH:
+            return None, True
+        value_text = value.strip()
+        if not value_text:
+            return None, False
+    elif type(value) is int:
+        if value.bit_length() > 256:
+            return None, True
+        value_text = str(value)
+    elif type(value) is float:
+        if not math.isfinite(value):
+            return None, False
+        value_text = str(value)
+    else:
+        if not value.is_finite():
+            return None, False
+        if value.is_zero():
+            return Decimal(0), False
+        value_tuple = value.as_tuple()
+        if (
+            len(value_tuple.digits) > _ACCOUNT_PNL_MAX_COEFFICIENT_DIGITS
+            or abs(value_tuple.exponent) > _ACCOUNT_PNL_MAX_ABSOLUTE_EXPONENT
+            or abs(value.adjusted()) > _ACCOUNT_PNL_MAX_ABSOLUTE_EXPONENT
+        ):
+            return None, True
+        return value, False
+
+    if len(value_text) > _ACCOUNT_PNL_MAX_TEXT_LENGTH:
+        return None, True
+    try:
+        result = Decimal(value_text)
+    except (InvalidOperation, ValueError, OverflowError):
+        return None, False
+    if not result.is_finite():
+        return None, False
+    if result.is_zero():
+        return Decimal(0), False
+    value_tuple = result.as_tuple()
+    if (
+        len(value_tuple.digits) > _ACCOUNT_PNL_MAX_COEFFICIENT_DIGITS
+        or abs(value_tuple.exponent) > _ACCOUNT_PNL_MAX_ABSOLUTE_EXPONENT
+        or abs(result.adjusted()) > _ACCOUNT_PNL_MAX_ABSOLUTE_EXPONENT
+    ):
+        return None, True
+    return result, False
+
+
+def _account_total_net_pnl(row: Mapping, trading_day: str):
+    """Project PnL only from the qualified unique row for the current query day."""
+
+    row_day = _exact_text(row.get("TradingDay", row.get("trading_day")))
+    if row_day is None or _exact_text(trading_day) is None:
+        return None, None, False, "trading_day_unavailable"
+    if row_day != trading_day:
+        return None, None, False, "trading_day_mismatch"
+
+    row_currency = _exact_text(row.get("CurrencyID", row.get("currency")))
+    if row_currency is None:
+        return None, None, False, "currency_unavailable"
+    if row_currency != "CNY":
+        return None, None, False, "currency_unsupported"
+
+    close_profit, close_out_of_range = _account_pnl_decimal(
+        row.get("CloseProfit", row.get("close_profit"))
+    )
+    if close_out_of_range:
+        return None, None, False, "net_pnl_calculation_unavailable"
+    if close_profit is None:
+        return None, None, False, "close_profit_unavailable"
+    position_profit, position_out_of_range = _account_pnl_decimal(
+        row.get("PositionProfit", row.get("position_profit"))
+    )
+    if position_out_of_range:
+        return None, None, False, "net_pnl_calculation_unavailable"
+    if position_profit is None:
+        return None, None, False, "position_profit_unavailable"
+    commission, commission_out_of_range = _account_pnl_decimal(
+        row.get("Commission", row.get("commission"))
+    )
+    if commission_out_of_range:
+        return None, None, False, "net_pnl_calculation_unavailable"
+    if commission is None:
+        return None, None, False, "commission_unavailable"
+
+    total_net_pnl = _exact_total_net_pnl(close_profit, position_profit, commission)
+    if total_net_pnl is None:
+        return None, None, False, "net_pnl_calculation_unavailable"
+    return total_net_pnl, "CNY", True, None
+
+
+def _account_values(rows: Any, blockers: List[str], *, trading_day: str):
     if not isinstance(rows, list) or len(rows) != 1 or not isinstance(rows[0], Mapping):
         blockers.append("account_row_cardinality_unobserved")
-        return None, None
-    available = _decimal(rows[0].get("Available", rows[0].get("available")), nonnegative=True)
-    used = _decimal(rows[0].get("CurrMargin", rows[0].get("current_margin")), nonnegative=True)
+        return None, None, None, None, False, "account_row_unavailable"
+    row = rows[0]
+    available = _decimal(row.get("Available", row.get("available")), nonnegative=True)
+    used = _decimal(row.get("CurrMargin", row.get("current_margin")), nonnegative=True)
     if available is None:
         blockers.append("available_margin_unobserved")
     if used is None:
         blockers.append("used_margin_unobserved")
-    return available, used
+    total_net_pnl, currency, pnl_available, pnl_reason = _account_total_net_pnl(
+        row, trading_day
+    )
+    return available, used, total_net_pnl, currency, pnl_available, pnl_reason
 
 
 def _instrument_row(rows: Any, instrument: str, exchange: str, blockers: List[str]):
@@ -4700,8 +4877,15 @@ def project_factor_execution_facts(
         if any(flag is False for flag in route_flags)
         else None
     )
-    available_margin, used_margin = _account_values(
-        _field(query_results["account_result"], "rows"), blockers
+    (
+        available_margin,
+        used_margin,
+        total_net_pnl,
+        currency,
+        total_net_pnl_available,
+        total_net_pnl_reason,
+    ) = _account_values(
+        _field(query_results["account_result"], "rows"), blockers, trading_day=trading_day
     )
     account = FactorExecutionAccountFacts(
         account_scope=account_scope,
@@ -4715,6 +4899,10 @@ def project_factor_execution_facts(
         account_fingerprint=account_fingerprint,
         connection_generation=generation,
         trading_day=trading_day,
+        total_net_pnl=total_net_pnl,
+        currency=currency,
+        total_net_pnl_available=total_net_pnl_available,
+        total_net_pnl_reason=total_net_pnl_reason,
     )
 
     remote_positions = _position_rows(_field(query_results["positions_result"], "rows"), blockers)
@@ -4953,6 +5141,10 @@ def project_factor_execution_facts(
         account_fingerprint=account.account_fingerprint,
         connection_generation=account.connection_generation,
         trading_day=account.trading_day,
+        total_net_pnl=account.total_net_pnl,
+        currency=account.currency,
+        total_net_pnl_available=account.total_net_pnl_available,
+        total_net_pnl_reason=account.total_net_pnl_reason,
     )
     facts = FactorExecutionFacts(
         account_scope=account_scope,
