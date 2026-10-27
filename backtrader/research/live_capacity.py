@@ -14,6 +14,8 @@ import collections
 import copy
 import datetime as _datetime
 import itertools
+import math
+import os
 import time
 from types import MappingProxyType
 from typing import Any, Dict, Iterable, Mapping, Optional, Tuple
@@ -24,6 +26,9 @@ from ..stores.registered_sim import RegisteredSimStore
 
 _UTC = _datetime.timezone.utc
 MAX_CAPACITY_SAMPLES = 32
+MAX_RUN_CAPACITY_SAMPLES = 16
+MAX_RUN_CAPACITY_TARGETS = 256
+MAX_RUN_CAPACITY_QUALITY_FLAGS = 16
 MAX_GRAPH_NODES = 100_000
 MAX_GRAPH_REFERENCES = 200_000
 _EMPTY_MAPPING_PROXY_TYPE = type(MappingProxyType({}))
@@ -32,6 +37,39 @@ _MISSING = object()
 
 def _is_bounded_mapping(value: Any) -> bool:
     return type(value) is dict or type(value) is _EMPTY_MAPPING_PROXY_TYPE
+
+
+def _live_ready_members_complete(strategy: Any, batch: Any) -> bool:
+    target_ids = getattr(strategy, "_target_ids", None)
+    members = getattr(batch, "members", None)
+    if (
+        type(target_ids) is not tuple
+        or not target_ids
+        or len(target_ids) > MAX_RUN_CAPACITY_TARGETS
+        or any(type(target_id) is not str or not target_id for target_id in target_ids)
+        or len(set(target_ids)) != len(target_ids)
+        or not _is_bounded_mapping(members)
+        or len(members) > MAX_RUN_CAPACITY_TARGETS
+        or set(members) != set(target_ids)
+    ):
+        return False
+    for receipt in members.values():
+        envelope = getattr(receipt, "envelope", None)
+        missing_fields = getattr(envelope, "missing_fields", None)
+        quality_flags = getattr(envelope, "quality_flags", None)
+        if (
+            getattr(envelope, "source_role", None) != "live"
+            or getattr(envelope, "complete", None) is not True
+            or getattr(envelope, "quality", None) != "GOOD"
+            or getattr(envelope, "present", None) is not True
+            or type(missing_fields) is not tuple
+            or missing_fields
+            or type(quality_flags) is not tuple
+            or len(quality_flags) > MAX_RUN_CAPACITY_QUALITY_FLAGS
+            or not set(quality_flags).issubset({"LEGACY_SCHEMA"})
+        ):
+            return False
+    return True
 
 
 def _nonnegative_int(value: Any) -> bool:
@@ -701,5 +739,334 @@ class LiveCapacitySampler:
                 "max_samples": self._max_samples,
                 "issues": tuple(issues),
                 "samples": tuple(copy.deepcopy(sample) for sample in self._samples),
+            }
+        )
+
+
+class LiveCapacityRunCapture:
+    """Bind bounded count snapshots to verified Alpha003 live boundaries.
+
+    The first observed complete ``LIVE_READY`` engine callback starts a
+    finite, evenly spaced sequence of cohort-calendar slot checkpoints.  The
+    callback supplies only identities already checked by the Strategy; this
+    class rechecks them against the current run/cohort/batch before sampling.
+    Reports are evidence only and never evaluate stability, growth, RSS, or an
+    acceptance threshold.
+    """
+
+    def __init__(
+        self,
+        run_id: str,
+        *,
+        epoch_id: int,
+        calendar_id: str,
+        calendar_slot_count: int,
+        process_id: Optional[int],
+        process_create_time: Optional[float],
+        max_samples: int = MAX_RUN_CAPACITY_SAMPLES,
+        process_identity_issue: Optional[str] = None,
+    ) -> None:
+        if not isinstance(run_id, str) or not run_id or run_id.strip() != run_id:
+            raise ValueError("run_id must be non-empty exact text")
+        if type(epoch_id) is not int or epoch_id <= 0:
+            raise ValueError("epoch_id must be a positive integer")
+        if not isinstance(calendar_id, str) or not calendar_id or calendar_id.strip() != calendar_id:
+            raise ValueError("calendar_id must be non-empty exact text")
+        if type(calendar_slot_count) is not int or calendar_slot_count <= 0:
+            raise ValueError("calendar_slot_count must be a positive integer")
+        if type(max_samples) is not int or not 1 <= max_samples <= MAX_RUN_CAPACITY_SAMPLES:
+            raise ValueError("max_samples must be between 1 and 16")
+        self._run_id = run_id
+        self._epoch_id = epoch_id
+        self._calendar_id = calendar_id
+        self._calendar_slot_count = calendar_slot_count
+        self._max_samples = max_samples
+        self._process_id = process_id
+        self._process_create_time = process_create_time
+        self._process_identity_status = "OBSERVED"
+        self._issues = []
+        if process_identity_issue is not None:
+            self._process_identity_status = "INCOMPLETE"
+            self._add_issue(process_identity_issue)
+        if type(process_id) is not int or process_id <= 0:
+            self._process_identity_status = "INCOMPLETE"
+            self._add_issue("process_id_unavailable")
+        if (
+            type(process_create_time) not in (int, float)
+            or not math.isfinite(process_create_time)
+            or process_create_time <= 0
+        ):
+            self._process_identity_status = "INCOMPLETE"
+            self._add_issue("process_create_time_unavailable")
+        self._first_ready_boundary = None
+        self._first_ready_phase = None
+        self._bound_cohort_identity = None
+        self._last_event_identity = None
+        self._last_ordinal = None
+        self._last_boundary_monotonic_ns = None
+        self._last_boundary_utc_ns = None
+        self._expected_ordinals = ()
+        self._sampler = None
+        self._sample_boundaries = []
+        self._sampling_stopped = False
+
+    def _add_issue(self, issue: str) -> None:
+        if issue not in self._issues:
+            self._issues.append(issue)
+
+    def mark_callback_failure(self) -> None:
+        """Record a Strategy-side callback failure without affecting trading."""
+        self._add_issue("strategy_capacity_callback_failed")
+
+    def _checkpoint_ordinals(self, first: int) -> Tuple[int, ...]:
+        last = self._calendar_slot_count - 1
+        remaining = last - first + 1
+        if remaining <= 0:
+            return ()
+        count = min(self._max_samples, remaining)
+        if count == 1:
+            return (first,)
+        span = last - first
+        points = tuple(first + (index * span // (count - 1)) for index in range(count))
+        if len(points) != count or any(a >= b for a, b in zip(points, points[1:])):
+            return ()
+        return points
+
+    @staticmethod
+    def _clock_boundary() -> Mapping[str, int]:
+        monotonic_before = time.monotonic_ns()
+        system_utc_ns = time.time_ns()
+        monotonic_after = time.monotonic_ns()
+        return {
+            "system_utc_epoch_ns": system_utc_ns,
+            "monotonic_before_ns": monotonic_before,
+            "monotonic_after_ns": monotonic_after,
+        }
+
+    def observe(self, strategy: Any, event: Any, *, store: Any) -> None:
+        """Observe one strategy-thread callback; malformed facts fail closed."""
+        try:
+            if self._process_id is not None and os.getpid() != self._process_id:
+                self._add_issue("process_id_changed")
+                return
+            boundary = self._clock_boundary()
+            if (
+                self._last_boundary_monotonic_ns is not None
+                and boundary["monotonic_before_ns"] < self._last_boundary_monotonic_ns
+            ):
+                self._add_issue("system_monotonic_clock_regressed")
+                return
+            if (
+                self._last_boundary_utc_ns is not None
+                and boundary["system_utc_epoch_ns"] < self._last_boundary_utc_ns
+            ):
+                self._add_issue("system_utc_clock_regressed")
+                return
+            self._last_boundary_monotonic_ns = boundary["monotonic_after_ns"]
+            self._last_boundary_utc_ns = boundary["system_utc_epoch_ns"]
+
+            if not isinstance(event, Mapping):
+                self._add_issue("ready_event_unavailable")
+                return
+            p = getattr(strategy, "p", None)
+            live_factors = getattr(strategy, "live_factors", None)
+            cohort = getattr(p, "cohort", None)
+            if (
+                event.get("readiness") != "LIVE_READY"
+                or event.get("replay_mode") is not False
+                or event.get("run_id") != self._run_id
+                or getattr(p, "logical_run_id", None) != self._run_id
+                or getattr(p, "replay_mode", None) is not False
+                or cohort is None
+                or getattr(live_factors, "cohort", None) is not cohort
+            ):
+                self._add_issue("ready_event_run_binding_mismatch")
+                return
+
+            cohort_id = event.get("cohort_id")
+            epoch_id = event.get("epoch_id")
+            calendar_id = event.get("calendar_id")
+            batch_id = event.get("batch_id")
+            slot_index = event.get("slot_index")
+            grid_ordinal = event.get("grid_ordinal")
+            phase = event.get("engine_phase")
+            if (
+                not isinstance(cohort_id, str)
+                or not cohort_id
+                or type(epoch_id) is not int
+                or epoch_id != self._epoch_id
+                or not isinstance(calendar_id, str)
+                or calendar_id != self._calendar_id
+                or not isinstance(batch_id, str)
+                or not batch_id
+                or type(slot_index) is not int
+                or slot_index < 0
+                or slot_index >= self._calendar_slot_count
+                or type(grid_ordinal) is not int
+                or grid_ordinal != slot_index
+                or phase not in ("prenext_ready", "grid_recorded")
+            ):
+                self._add_issue("ready_event_identity_or_ordinal_invalid")
+                return
+
+            current_batch_method = getattr(cohort, "current_batch", None)
+            current_batch = current_batch_method() if callable(current_batch_method) else None
+            if not _live_ready_members_complete(strategy, current_batch):
+                self._add_issue("ready_event_current_batch_members_incomplete")
+                return
+            if (
+                current_batch is None
+                or getattr(current_batch, "status", None) != "COMPLETE"
+                or getattr(current_batch, "batch_id", None) != batch_id
+                or getattr(current_batch, "cohort_id", None) != cohort_id
+                or getattr(current_batch, "epoch_id", None) != epoch_id
+                or getattr(current_batch, "calendar_id", None) != calendar_id
+                or getattr(current_batch, "slot_index", None) != slot_index
+                or getattr(cohort, "cohort_id", None) != cohort_id
+                or getattr(cohort, "epoch_id", None) != epoch_id
+                or getattr(cohort, "calendar_id", None) != calendar_id
+            ):
+                self._add_issue("ready_event_current_batch_mismatch")
+                return
+
+            cohort_identity = (cohort_id, epoch_id, calendar_id)
+            if self._bound_cohort_identity is None:
+                self._bound_cohort_identity = cohort_identity
+            elif self._bound_cohort_identity != cohort_identity:
+                self._add_issue("run_cohort_identity_changed")
+                return
+
+            event_identity = (cohort_id, epoch_id, calendar_id, slot_index, batch_id)
+            if self._last_event_identity == event_identity:
+                return
+            if self._last_ordinal is not None and slot_index <= self._last_ordinal:
+                self._add_issue("grid_ordinal_regressed_or_conflicted")
+                return
+
+            if self._first_ready_boundary is None:
+                expected = self._checkpoint_ordinals(slot_index)
+                if not expected:
+                    self._add_issue("live_calendar_checkpoint_range_invalid")
+                    return
+                self._first_ready_boundary = dict(boundary)
+                self._first_ready_phase = phase
+                self._expected_ordinals = expected
+                if self._process_identity_status == "OBSERVED":
+                    self._sampler = LiveCapacitySampler(
+                        self._run_id, expected, max_samples=len(expected)
+                    )
+
+            self._last_ordinal = slot_index
+            self._last_event_identity = event_identity
+            if self._sampler is None:
+                return
+
+            next_index = len(self._sample_boundaries)
+            if self._sampling_stopped or next_index >= len(self._expected_ordinals):
+                return
+            expected_ordinal = self._expected_ordinals[next_index]
+            if slot_index > expected_ordinal:
+                self._add_issue("grid_checkpoint_skipped")
+                self._sampling_stopped = True
+                return
+            if slot_index < expected_ordinal:
+                return
+
+            sample = self._sampler.sample(
+                slot_index, strategy=strategy, cohort=cohort, store=store
+            )
+            sample_boundary = {
+                **boundary,
+                "grid_ordinal": grid_ordinal,
+                "ordinal_source": "live_cohort_batch_slot_index_zero_based",
+                "batch_id": batch_id,
+                "cohort_id": cohort_id,
+                "epoch_id": epoch_id,
+                "calendar_id": calendar_id,
+                "engine_phase": phase,
+            }
+            if (
+                type(sample.get("capture_monotonic_ns")) is not int
+                or sample["capture_monotonic_ns"] < boundary["monotonic_before_ns"]
+            ):
+                self._add_issue("sample_clock_boundary_invalid")
+            if sample.get("status") != "OBSERVED":
+                self._add_issue("capacity_snapshot_incomplete")
+            self._sample_boundaries.append(sample_boundary)
+        except Exception:
+            self._add_issue("capacity_capture_projection_failed")
+
+    def report(self) -> Mapping[str, Any]:
+        """Return finite, explicitly unevaluated run-bound capacity evidence."""
+        if self._first_ready_boundary is None:
+            self._add_issue("verified_live_ready_not_observed")
+        if self._first_ready_boundary is not None and self._sampler is not None:
+            sampler_report = self._sampler.report()
+        else:
+            sampler_report = None
+        samples = []
+        if sampler_report is not None:
+            for index, row in enumerate(sampler_report["samples"]):
+                item = copy.deepcopy(row)
+                if index < len(self._sample_boundaries):
+                    item["run_binding"] = {
+                        "run_id": self._run_id,
+                        "epoch_id": self._epoch_id,
+                        "process_id": self._process_id,
+                        "process_create_time": self._process_create_time,
+                    }
+                    item["ready_boundary"] = dict(self._sample_boundaries[index])
+                samples.append(item)
+        issues = list(self._issues)
+        if sampler_report is not None:
+            issues.extend(issue for issue in sampler_report["issues"] if issue not in issues)
+        elif self._first_ready_boundary is not None:
+            issues.extend(
+                issue
+                for issue in ("process_identity_unavailable", "capacity_sampler_not_started")
+                if issue not in issues
+            )
+        complete_observation = (
+            sampler_report is not None
+            and sampler_report["status"] == "RECORDED_NOT_EVALUATED"
+            and self._process_identity_status == "OBSERVED"
+            and not issues
+            and len(self._sample_boundaries) == len(self._expected_ordinals)
+        )
+        return MappingProxyType(
+            {
+                "schema": "backtrader.live_capacity_run_report.v1",
+                "run_id": self._run_id,
+                "status": "RECORDED_NOT_EVALUATED" if complete_observation else "INCOMPLETE",
+                "acceptance_evaluated": False,
+                "window_evaluation": "NOT_EVALUATED",
+                "growth_evaluation": "NOT_EVALUATED",
+                "stability_peak_claimed": False,
+                "sampling_origin": "first_observed_verified_live_ready_callback",
+                "first_ready_engine_phase": self._first_ready_phase,
+                "epoch_id": self._epoch_id,
+                "calendar_id": self._calendar_id,
+                "calendar_slot_count": self._calendar_slot_count,
+                "window_start_ordinal": (
+                    self._expected_ordinals[0] if self._expected_ordinals else None
+                ),
+                "window_end_ordinal": (
+                    self._expected_ordinals[-1] if self._expected_ordinals else None
+                ),
+                "expected_ordinals": self._expected_ordinals,
+                "max_samples": self._max_samples,
+                "sample_count": len(samples),
+                "process_identity": {
+                    "status": self._process_identity_status,
+                    "pid": self._process_id,
+                    "create_time": self._process_create_time,
+                },
+                "first_ready_boundary": (
+                    None
+                    if self._first_ready_boundary is None
+                    else dict(self._first_ready_boundary)
+                ),
+                "samples": tuple(samples),
+                "issues": tuple(issues),
             }
         )

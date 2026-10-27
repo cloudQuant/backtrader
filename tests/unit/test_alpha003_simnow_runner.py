@@ -19,6 +19,7 @@ import subprocess
 import sys
 import threading
 import time
+from types import SimpleNamespace
 
 import pytest
 import yaml
@@ -4849,6 +4850,84 @@ def _call_runner(capsys, *arguments):
     return code, json.loads(stdout)
 
 
+def test_live_capacity_evidence_stays_not_evaluated_after_clean_postflight():
+    class _Capture:
+        def report(self):
+            return {
+                "status": "RECORDED_NOT_EVALUATED",
+                "acceptance_evaluated": False,
+                "window_evaluation": "NOT_EVALUATED",
+                "growth_evaluation": "NOT_EVALUATED",
+                "issues": (),
+            }
+
+        def mark_callback_failure(self):
+            raise AssertionError("callback failure was not observed")
+
+    cleanup = [
+        {"resource": "query_refresh", "joined": True},
+        {"resource": "broker", "status": "PASS", "store_shutdown_state": "PASS"},
+        {"resource": "store", "status": "RETURNED", "shutdown_state": "PASS"},
+        {"resource": "journal", "status": "CLOSED"},
+        {"resource": "decision_tape", "status": "CLOSED"},
+    ]
+
+    evidence = RUNNER._live_capacity_evidence(
+        _Capture(),
+        SimpleNamespace(_live_capacity_callback_failed=False),
+        cleanup,
+        run_id="synthetic-run",
+        epoch_id=9,
+        run_completed=True,
+    )
+
+    assert evidence["status"] == "RECORDED_NOT_EVALUATED"
+    assert evidence["postflight"]["status"] == "OBSERVED"
+    assert evidence["postflight"]["cleanup_complete"] is True
+    assert evidence["acceptance_evaluated"] is False
+    assert evidence["window_evaluation"] == "NOT_EVALUATED"
+    assert evidence["growth_evaluation"] == "NOT_EVALUATED"
+
+
+def test_live_capacity_callback_failure_keeps_postflight_report_incomplete():
+    class _Capture:
+        failed = False
+
+        def mark_callback_failure(self):
+            self.failed = True
+
+        def report(self):
+            return {
+                "status": "INCOMPLETE" if self.failed else "RECORDED_NOT_EVALUATED",
+                "acceptance_evaluated": False,
+                "window_evaluation": "NOT_EVALUATED",
+                "growth_evaluation": "NOT_EVALUATED",
+                "issues": ("strategy_capacity_callback_failed",) if self.failed else (),
+            }
+
+    cleanup = [
+        {"resource": "query_refresh", "joined": True},
+        {"resource": "broker", "status": "PASS", "store_shutdown_state": "PASS"},
+        {"resource": "store", "status": "RETURNED", "shutdown_state": "PASS"},
+        {"resource": "journal", "status": "CLOSED"},
+        {"resource": "decision_tape", "status": "CLOSED"},
+    ]
+    capture = _Capture()
+
+    evidence = RUNNER._live_capacity_evidence(
+        capture,
+        SimpleNamespace(_live_capacity_callback_failed=True),
+        cleanup,
+        run_id="synthetic-run",
+        epoch_id=9,
+        run_completed=True,
+    )
+
+    assert evidence["status"] == "INCOMPLETE"
+    assert evidence["postflight"]["status"] == "OBSERVED"
+    assert "strategy_capacity_callback_failed" in evidence["issues"]
+
+
 def test_saved_live_history_is_rejected_outside_live_mode(tmp_path, capsys):
     config = _base_config(tmp_path, "replay")
     config_path, config, _plan, minute_tape, _quotes = _write_source_inputs(tmp_path, config)
@@ -5287,6 +5366,14 @@ def test_daily_rollover_requires_post_join_confirmation_after_engine_ready(tmp_p
             "engine_winddown_status": "STOPPED",
             "engine_winddown_reason": "runstop_requested",
             "cleanup_complete": True,
+            "live_capacity": {
+                "status": "RECORDED_NOT_EVALUATED",
+                "acceptance_evaluated": False,
+                "window_evaluation": "NOT_EVALUATED",
+                "growth_evaluation": "NOT_EVALUATED",
+                "issues": (),
+                "postflight": {"status": "OBSERVED", "retirement_proven": True},
+            },
             "resource_shutdown": [
                 {
                     "resource": "query_refresh",
@@ -5329,7 +5416,71 @@ def test_daily_rollover_requires_post_join_confirmation_after_engine_ready(tmp_p
         == "SHUTDOWN_RECONCILIATION_BLOCKED:session_identity_mismatch"
     )
     assert error.failed_epoch["routes"] == RUNNER._route_summary(first_plan)
+    capacity = error.failed_epoch["live_capacity"]
+    assert capacity["status"] == "INCOMPLETE"
+    assert capacity["postflight"]["status"] == "INCOMPLETE"
+    assert capacity["postflight"]["retirement_proven"] is False
+    assert "daily_epoch_retirement_unproven" in capacity["issues"]
+    assert "daily_epoch_retirement_unproven" in capacity["postflight"]["issues"]
     assert str(second_path.resolve()) not in error.later_bundle_reads
+
+
+def test_query_epoch_retirement_failure_preserves_incomplete_live_capacity(
+    tmp_path, monkeypatch
+):
+    config = _base_config(tmp_path, "live")
+    config_path, config, plan, _tape, _quotes = _write_source_inputs(tmp_path, config)
+    config["selection"]["source"] = "ctp_query"
+    config["selection"]["max_epochs"] = 1
+    config["selection"]["daily_bundles"] = []
+    capacity = {
+        "status": "RECORDED_NOT_EVALUATED",
+        "acceptance_evaluated": False,
+        "window_evaluation": "NOT_EVALUATED",
+        "growth_evaluation": "NOT_EVALUATED",
+        "issues": (),
+        "postflight": {"status": "OBSERVED", "retirement_proven": True},
+    }
+    forwarded = {}
+
+    def unresolved_query_epoch(*_args, **kwargs):
+        forwarded.update(kwargs)
+        return {
+            "_plan": plan,
+            "status": "LIVE_RUN_COMPLETE",
+            "engine_winddown_status": "STOPPED",
+            "strategy_shutdown_ready": True,
+            "strategy_shutdown_blocker": None,
+            "strategy_shutdown_post_join_confirmed": False,
+            "strategy_shutdown_post_join_blocker": "synthetic_retirement_unproven",
+            "shutdown_status": "PASS",
+            "resource_shutdown": [],
+            "cleanup_complete": True,
+            "live_capacity": capacity,
+        }
+
+    monkeypatch.setattr(RUNNER, "run_live", unresolved_query_epoch)
+    with pytest.raises(RUNNER.RunnerError) as caught:
+        RUNNER.run_live_epochs(
+            config,
+            config_path,
+            None,
+            "native",
+            1,
+            decision=SimpleNamespace(effective_tier="live"),
+            allow_write_flag=False,
+            _capture_live_capacity=True,
+        )
+
+    error = caught.value
+    assert error.code == "DAILY_EPOCH_RETIREMENT_UNPROVEN"
+    assert forwarded["_capture_live_capacity"] is True
+    projected = error.failed_epoch["live_capacity"]
+    assert projected["status"] == "INCOMPLETE"
+    assert projected["postflight"]["status"] == "INCOMPLETE"
+    assert projected["postflight"]["retirement_proven"] is False
+    assert "daily_epoch_retirement_unproven" in projected["issues"]
+    assert "daily_epoch_retirement_unproven" in projected["postflight"]["issues"]
 
 
 def test_selection_is_recomputed_instead_of_trusting_serialized_claim(tmp_path):
@@ -6130,6 +6281,7 @@ def test_write_enabled_strategy_kwargs_forward_the_separate_loss_guard_policy():
 
     assert kwargs["execution_enabled"] is True
     assert kwargs["risk_policy"] is policy
+    assert kwargs["live_capacity_callback"] is None
     assert kwargs["loss_guard_net_loss_threshold"] == Decimal("1000")
     assert kwargs["loss_guard_max_observation_age_seconds"] == 30
 

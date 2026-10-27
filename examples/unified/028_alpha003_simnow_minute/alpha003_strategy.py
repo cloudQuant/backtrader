@@ -2996,6 +2996,7 @@ class Alpha003TargetStrategy(bt.Strategy):
         ("control_refresh_loop", None),
         ("live_ready_callback", None),
         ("live_next_callback", None),
+        ("live_capacity_callback", None),
         ("decision_tape", None),
         ("source_restart_marker", None),
         ("source_kind", None),
@@ -3006,6 +3007,10 @@ class Alpha003TargetStrategy(bt.Strategy):
             raise TypeError("live_ready_callback must be callable or None")
         if self.p.live_next_callback is not None and not callable(self.p.live_next_callback):
             raise TypeError("live_next_callback must be callable or None")
+        if self.p.live_capacity_callback is not None and not callable(
+            self.p.live_capacity_callback
+        ):
+            raise TypeError("live_capacity_callback must be callable or None")
         target_ids = tuple(getattr(data, "_name", "") for data in self.datas)
         if not target_ids or any(not isinstance(name, str) or not name for name in target_ids):
             raise ValueError("each Alpha003 target feed needs an explicit non-empty name")
@@ -3132,6 +3137,8 @@ class Alpha003TargetStrategy(bt.Strategy):
         self._live_next_callback_attempted = False
         self._live_next_callback_completed = False
         self._live_next_callback_failed = False
+        self._live_capacity_callback_count = 0
+        self._live_capacity_callback_failed = False
         self._source_restart_marker = self.p.source_restart_marker
         self._source_predecessor = (
             None
@@ -4946,6 +4953,33 @@ class Alpha003TargetStrategy(bt.Strategy):
             # change engine behavior or interfere with the normal cleanup path.
             self._live_next_callback_failed = True
 
+    def _capture_live_capacity_boundary(
+        self, batch: Any, snapshot: Any, *, engine_phase: str
+    ) -> None:
+        """Pass a confirmed live boundary to an opt-in count-only observer."""
+        callback = getattr(self.p, "live_capacity_callback", None)
+        if callback is None:
+            return
+        event = self._confirmed_live_ready_event(batch, snapshot)
+        if event is None:
+            return
+        observed = dict(event)
+        observed.update(
+            {
+                "run_id": getattr(self.p, "logical_run_id", None),
+                "grid_ordinal": event["slot_index"],
+                "engine_phase": engine_phase,
+            }
+        )
+        try:
+            callback(self, observed)
+            self._live_capacity_callback_count = (
+                getattr(self, "_live_capacity_callback_count", 0) + 1
+            )
+        except Exception:
+            # This optional observer must never change orders or normal cleanup.
+            self._live_capacity_callback_failed = True
+
     def _live_risk_decision(
         self,
         batch: Any,
@@ -5238,6 +5272,10 @@ class Alpha003TargetStrategy(bt.Strategy):
                         # A readiness receipt is an execution boundary: don't
                         # publish it until the source/grid anchor is durable.
                         capture_ready(batch, snapshot)
+                    capacity_callback = getattr(self.p, "live_capacity_callback", None)
+                    capture_capacity = getattr(self, "_capture_live_capacity_boundary", None)
+                    if grid_recorded and callable(capacity_callback) and callable(capture_capacity):
+                        capture_capacity(batch, snapshot, engine_phase="grid_recorded")
                 if not grid_recorded:
                     if not getattr(self, "_last_grid_fee_pair_blocked", False):
                         self._record_source_only(batch, snapshot, tape_reference)
@@ -5613,6 +5651,10 @@ class Alpha003TargetStrategy(bt.Strategy):
                 capture_ready = getattr(self, "_capture_live_ready_boundary", None)
                 if callable(ready_callback) and callable(capture_ready):
                     capture_ready(batch, snapshot)
+                capacity_callback = getattr(self.p, "live_capacity_callback", None)
+                capture_capacity = getattr(self, "_capture_live_capacity_boundary", None)
+                if callable(capacity_callback) and callable(capture_capacity):
+                    capture_capacity(batch, snapshot, engine_phase="prenext_ready")
             return
         plan = Alpha003OrderPlan(
             "NO_ACTION",

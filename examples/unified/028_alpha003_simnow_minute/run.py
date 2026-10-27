@@ -2185,6 +2185,7 @@ def _make_strategy_kwargs(config, plan, factor_mode, direction, risk_policy, *, 
         "max_future_skew_seconds",
         "live_ready_callback",
         "live_next_callback",
+        "live_capacity_callback",
         "loss_guard_net_loss_threshold",
         "loss_guard_max_observation_age_seconds",
     }
@@ -2225,6 +2226,7 @@ def _make_strategy_kwargs(config, plan, factor_mode, direction, risk_policy, *, 
         "replay_instruments": extra.pop("replay_instruments", {}),
         "live_ready_callback": extra.pop("live_ready_callback", None),
         "live_next_callback": extra.pop("live_next_callback", None),
+        "live_capacity_callback": extra.pop("live_capacity_callback", None),
         **extra,
     }
 
@@ -6433,6 +6435,93 @@ def _live_shutdown_path(cerebro, result, refresh_loop):
     )
 
 
+def _new_live_capacity_run_capture(run_id, epoch_id, calendar):
+    """Create process-bound count capture only for an explicit live opt-in."""
+    from backtrader.research.live_capacity import LiveCapacityRunCapture
+
+    process_id = None
+    process_create_time = None
+    identity_issue = None
+    try:
+        process_id = os.getpid()
+    except Exception:
+        identity_issue = "process_id_unavailable"
+    if process_id is not None:
+        try:
+            import psutil
+
+            process_create_time = psutil.Process(process_id).create_time()
+        except Exception:
+            identity_issue = "process_create_time_unavailable"
+    else:
+        identity_issue = "process_id_unavailable"
+    try:
+        slot_count = len(calendar.slots)
+    except Exception:
+        slot_count = 0
+    return LiveCapacityRunCapture(
+        run_id,
+        epoch_id=epoch_id,
+        calendar_id=getattr(calendar, "calendar_id", None),
+        calendar_slot_count=slot_count,
+        process_id=process_id,
+        process_create_time=process_create_time,
+        process_identity_issue=identity_issue,
+    )
+
+
+def _live_capacity_evidence(capture, result, cleanup, *, run_id, epoch_id, run_completed):
+    if capture is None:
+        return None
+    if getattr(result, "_live_capacity_callback_failed", False) is True:
+        capture.mark_callback_failure()
+    report = dict(capture.report())
+    cleanup_complete = _cleanup_complete(cleanup)
+    postflight_ok = run_completed is True and cleanup_complete is True
+    report["postflight"] = {
+        "status": "OBSERVED" if postflight_ok else "INCOMPLETE",
+        "run_id": run_id,
+        "epoch_id": epoch_id,
+        "cleanup_complete": cleanup_complete,
+        "run_completed": run_completed is True,
+    }
+    if not postflight_ok:
+        report["status"] = "INCOMPLETE"
+        report["issues"] = tuple(
+            dict.fromkeys((*report.get("issues", ()), "run_postflight_incomplete"))
+        )
+    return report
+
+
+def _live_capacity_retirement_unproven(evidence):
+    """Preserve opt-in capture while refusing to treat an unretired epoch as complete."""
+
+    if not isinstance(evidence, Mapping):
+        return None
+    report = dict(evidence)
+    issue = "daily_epoch_retirement_unproven"
+
+    def with_issue(value):
+        existing = value if isinstance(value, (tuple, list)) else ()
+        result = tuple(existing)
+        if issue not in result:
+            result += (issue,)
+        return result
+
+    report["status"] = "INCOMPLETE"
+    report["issues"] = with_issue(report.get("issues"))
+    postflight = report.get("postflight")
+    if isinstance(postflight, Mapping):
+        postflight = dict(postflight)
+    else:
+        postflight = {}
+    postflight["status"] = "INCOMPLETE"
+    postflight["retirement_proven"] = False
+    postflight["issues"] = with_issue(postflight.get("issues"))
+    report["postflight"] = postflight
+    return report
+
+
 def run_live(
     config,
     config_path,
@@ -6445,6 +6534,7 @@ def run_live(
     _live_store_config_override: Optional[Mapping[str, Any]] = None,
     _live_ready_callback: Optional[Callable[[Mapping[str, Any]], Any]] = None,
     _live_next_callback: Optional[Callable[[Mapping[str, Any]], Any]] = None,
+    _capture_live_capacity: bool = False,
     previous_plan=None,
     _include_plan=False,
 ):
@@ -6452,6 +6542,8 @@ def run_live(
         raise RunnerError("LIVE_READY_CALLBACK_INVALID")
     if _live_next_callback is not None and not callable(_live_next_callback):
         raise RunnerError("LIVE_NEXT_CALLBACK_INVALID")
+    if type(_capture_live_capacity) is not bool:
+        raise RunnerError("LIVE_CAPACITY_CAPTURE_FLAG_INVALID")
     golden_targets = _validate_golden_targets_option(
         config,
         mode="live",
@@ -6559,6 +6651,7 @@ def run_live(
     query_session_ready = False
     selection_snapshot_id = None
     ctp_factor_source_shutdown_required = False
+    capacity_capture = None
 
     def create_store():
         nonlocal store
@@ -6782,6 +6875,10 @@ def run_live(
             calendar_override=calendar,
             ctp_trading_days=True,
         )
+        if _capture_live_capacity:
+            capacity_capture = _new_live_capacity_run_capture(
+                scopes["logical_run_id"], config["cohort"]["epoch_id"], calendar
+            )
         decision_tape = _new_decision_tape(
             config,
             config_path,
@@ -7000,6 +7097,13 @@ def run_live(
             decision_tape=decision_tape,
             source_restart_marker=source_restart_marker,
             source_kind=source_kind,
+            live_capacity_callback=(
+                None
+                if capacity_capture is None
+                else lambda strategy, event: capacity_capture.observe(
+                    strategy, event, store=store
+                )
+            ),
         )
         strategy_kwargs["control_refresh_loop"] = refresh_loop
         cerebro.addstrategy(Alpha003TargetStrategy, **strategy_kwargs)
@@ -7177,6 +7281,15 @@ def run_live(
 
     if primary_error is not None:
         _attach_cleanup_results(primary_error, cleanup)
+        if capacity_capture is not None:
+            primary_error.live_capacity = _live_capacity_evidence(
+                capacity_capture,
+                result,
+                cleanup,
+                run_id=scopes["logical_run_id"],
+                epoch_id=config["cohort"]["epoch_id"],
+                run_completed=False,
+            )
         _attach_live_epoch_failure_evidence(
             primary_error, config, plan, locals().get("cerebro"), refresh_loop, cleanup
         )
@@ -7199,6 +7312,15 @@ def run_live(
             refresh_loop.shutdown_blocker or refresh_loop.shutdown_status,
         )
         _attach_cleanup_results(error, cleanup)
+        if capacity_capture is not None:
+            error.live_capacity = _live_capacity_evidence(
+                capacity_capture,
+                result,
+                cleanup,
+                run_id=scopes["logical_run_id"],
+                epoch_id=config["cohort"]["epoch_id"],
+                run_completed=False,
+            )
         _attach_live_epoch_failure_evidence(
             error, config, plan, locals().get("cerebro"), refresh_loop, cleanup
         )
@@ -7218,6 +7340,15 @@ def run_live(
     if not _cleanup_complete(cleanup):
         error = RunnerError("LIVE_RESOURCE_CLEANUP_INCOMPLETE")
         _attach_cleanup_results(error, cleanup)
+        if capacity_capture is not None:
+            error.live_capacity = _live_capacity_evidence(
+                capacity_capture,
+                result,
+                cleanup,
+                run_id=scopes["logical_run_id"],
+                epoch_id=config["cohort"]["epoch_id"],
+                run_completed=False,
+            )
         _attach_live_epoch_failure_evidence(
             error, config, plan, locals().get("cerebro"), refresh_loop, cleanup
         )
@@ -7242,6 +7373,15 @@ def run_live(
         error = RunnerError("LIVE_SOURCE_CONTINUITY_UNAVAILABLE")
         error.source_continuity = dict(source_continuity)
         _attach_cleanup_results(error, cleanup)
+        if capacity_capture is not None:
+            error.live_capacity = _live_capacity_evidence(
+                capacity_capture,
+                result,
+                cleanup,
+                run_id=scopes["logical_run_id"],
+                epoch_id=config["cohort"]["epoch_id"],
+                run_completed=False,
+            )
         _attach_live_epoch_failure_evidence(
             error, config, plan, locals().get("cerebro"), refresh_loop, cleanup
         )
@@ -7258,10 +7398,27 @@ def run_live(
             raise RunnerError("DECISION_TAPE_READBACK_MISMATCH")
     except BaseException as error:
         _attach_cleanup_results(error, cleanup)
+        if capacity_capture is not None:
+            error.live_capacity = _live_capacity_evidence(
+                capacity_capture,
+                result,
+                cleanup,
+                run_id=scopes["logical_run_id"],
+                epoch_id=config["cohort"]["epoch_id"],
+                run_completed=False,
+            )
         _attach_live_epoch_failure_evidence(
             error, config, plan, locals().get("cerebro"), refresh_loop, cleanup
         )
         raise
+    live_capacity_evidence = _live_capacity_evidence(
+        capacity_capture,
+        result,
+        cleanup,
+        run_id=scopes["logical_run_id"],
+        epoch_id=config["cohort"]["epoch_id"],
+        run_completed=True,
+    )
     summary = {
         "status": "LIVE_RUN_COMPLETE",
         "mode": "live",
@@ -7343,6 +7500,8 @@ def run_live(
         "resource_shutdown": cleanup,
         "cleanup_complete": _cleanup_complete(cleanup),
     }
+    if live_capacity_evidence is not None:
+        summary["live_capacity"] = live_capacity_evidence
     if plan.get("golden_targets") is not None:
         summary.update(
             {
@@ -7472,6 +7631,7 @@ def _run_ctp_query_live_epochs(
     decision,
     allow_write_flag,
     _live_store_config_override: Optional[Mapping[str, Any]] = None,
+    _capture_live_capacity: bool = False,
 ):
     """Query and run epochs serially, creating no next Store early."""
 
@@ -7518,6 +7678,7 @@ def _run_ctp_query_live_epochs(
                 decision=decision,
                 allow_write_flag=allow_write_flag,
                 _live_store_config_override=_live_store_config_override,
+                _capture_live_capacity=_capture_live_capacity,
                 previous_plan=previous_plan,
                 _include_plan=True,
             )
@@ -7543,6 +7704,9 @@ def _run_ctp_query_live_epochs(
                     "shutdown_status": result.get("shutdown_status"),
                     "resource_shutdown": result.get("resource_shutdown", []),
                     "cleanup_complete": result.get("cleanup_complete") is True,
+                    "live_capacity": _live_capacity_retirement_unproven(
+                        result.get("live_capacity")
+                    ),
                 }
                 raise RunnerError("DAILY_EPOCH_RETIREMENT_UNPROVEN", f"epoch={epoch_id}")
             row = {
@@ -7573,6 +7737,7 @@ def _run_ctp_query_live_epochs(
                 "decision_tape": result["decision_tape"],
                 "decision_tape_readback": result["decision_tape_readback"],
                 "strategy_order_events": result.get("strategy_order_events"),
+                "live_capacity": result.get("live_capacity"),
             }
             if plan.get("golden_targets") is not None:
                 row.update(
@@ -7647,6 +7812,7 @@ def run_live_epochs(
     decision,
     allow_write_flag,
     _live_store_config_override: Optional[Mapping[str, Any]] = None,
+    _capture_live_capacity: bool = False,
 ):
     """Run finite, independently assembled live epochs in bundle order.
 
@@ -7670,6 +7836,7 @@ def run_live_epochs(
             decision=decision,
             allow_write_flag=allow_write_flag,
             _live_store_config_override=_live_store_config_override,
+            _capture_live_capacity=_capture_live_capacity,
         )
 
     daily_paths = _daily_bundle_paths(config, config_path)
@@ -7683,6 +7850,7 @@ def run_live_epochs(
             decision=decision,
             allow_write_flag=allow_write_flag,
             _live_store_config_override=_live_store_config_override,
+            _capture_live_capacity=_capture_live_capacity,
         )
     if decision.effective_tier != "live":
         raise RunnerError("DAILY_ROLLOVER_LIVE_TIER_REQUIRED")
@@ -7729,6 +7897,7 @@ def run_live_epochs(
                     decision=decision,
                     allow_write_flag=allow_write_flag,
                     _live_store_config_override=_live_store_config_override,
+                    _capture_live_capacity=_capture_live_capacity,
                 )
             except BaseException as error:
                 failed_epoch = getattr(error, "live_epoch_evidence", None)
@@ -7763,6 +7932,9 @@ def run_live_epochs(
                     "shutdown_status": result.get("shutdown_status"),
                     "resource_shutdown": result.get("resource_shutdown", []),
                     "cleanup_complete": result.get("cleanup_complete") is True,
+                    "live_capacity": _live_capacity_retirement_unproven(
+                        result.get("live_capacity")
+                    ),
                 }
                 raise RunnerError(
                     "DAILY_EPOCH_RETIREMENT_UNPROVEN",
@@ -7801,6 +7973,7 @@ def run_live_epochs(
                         "events": [],
                     },
                 ),
+                "live_capacity": result.get("live_capacity"),
             }
             summaries.append(epoch_summary)
             previous_plan = plan
@@ -7859,11 +8032,18 @@ def run(args=None, *, _live_store_config_override: Optional[Mapping[str, Any]] =
     parser.add_argument("--mode", choices=("dry", "research", "replay", "live"))
     parser.add_argument("--factor-mode", choices=("native", "build"))
     parser.add_argument("--allow-write", action="store_true")
+    parser.add_argument(
+        "--capture-live-capacity",
+        action="store_true",
+        help="opt in to bounded count-only live object snapshots",
+    )
     ns = parser.parse_args(args)
     config_path = ns.config.expanduser().resolve(strict=False)
     try:
         config = load_config(config_path)
         mode, tier = resolve_mode(config, ns.mode)
+        if ns.capture_live_capacity and mode != "live":
+            raise RunnerError("LIVE_CAPACITY_CAPTURE_REQUIRES_LIVE_MODE")
         if _live_store_config_override is not None:
             if mode != "live":
                 raise RunnerError("LIVE_STORE_CONFIG_OVERRIDE_REQUIRES_LIVE_MODE")
@@ -7908,6 +8088,7 @@ def run(args=None, *, _live_store_config_override: Optional[Mapping[str, Any]] =
                 decision=tier,
                 allow_write_flag=ns.allow_write,
                 _live_store_config_override=_live_store_config_override,
+                _capture_live_capacity=ns.capture_live_capacity,
             )
             summary.update({**tier.as_evidence(), "mode": mode})
         else:
@@ -7932,6 +8113,7 @@ def run(args=None, *, _live_store_config_override: Optional[Mapping[str, Any]] =
                     decision=tier,
                     allow_write_flag=ns.allow_write,
                     _live_store_config_override=_live_store_config_override,
+                    _capture_live_capacity=ns.capture_live_capacity,
                 )
             summary.update({**tier.as_evidence(), "mode": mode})
         public_summary = dict(summary)
@@ -7960,6 +8142,7 @@ def run(args=None, *, _live_store_config_override: Optional[Mapping[str, Any]] =
             "old_route_handling",
             "live_epoch_evidence",
             "query_diagnostics",
+            "live_capacity",
         ):
             if hasattr(error, name):
                 value = getattr(error, name)
