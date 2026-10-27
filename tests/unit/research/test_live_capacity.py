@@ -238,6 +238,11 @@ def test_live_capacity_samples_are_count_only_deduplicated_and_bounded():
     assert first["lines"]["bounded_line_buffer_count"] == 1
     assert first["lines"]["unbounded_line_buffer_count"] == 1
     assert first["lines"]["retained_line_value_count"] == 2
+    assert first["lines"]["bounded_retained_line_value_count"] == 1
+    assert first["lines"]["unbounded_retained_line_value_count"] == 1
+    assert first["lines"]["retained_line_value_count_status"] == "OBSERVED"
+    assert first["lines"]["graph_node_limit"] > first["lines"]["graph_node_count"]
+    assert first["lines"]["graph_reference_limit"] > first["lines"]["graph_reference_count"]
     assert first["diagnostics"]["call_count"] == 150
     assert first["diagnostics"]["call_sample_count"] == 64
     assert first["cohort"]["pending_bar_count"] == 2
@@ -255,6 +260,26 @@ def test_live_capacity_samples_are_count_only_deduplicated_and_bounded():
     assert "private-active-1" not in repr(report)
     assert "private-unknown" not in repr(report)
     assert "private-terminal-1" not in repr(report)
+
+
+def test_live_capacity_unclassified_line_values_are_not_reported_as_bounded_or_zero():
+    strategy, cohort, store, _api = _success_case()
+    bounded = strategy.datas[0].lines.lines[0]
+    bounded.maxlen += 1  # deque capacity no longer proves its declared line capacity
+
+    row = LiveCapacitySampler("synthetic-run", (1,), max_samples=1).sample(
+        1, strategy=strategy, cohort=cohort, store=store
+    )
+
+    assert row["status"] == "INCOMPLETE"
+    assert row["lines"]["status"] == "INCOMPLETE"
+    assert row["lines"]["line_capacity_unavailable_count"] == 1
+    assert row["lines"]["retained_line_value_count_status"] == "INCOMPLETE"
+    # The unbounded array is classified accurately; the malformed deque's
+    # retained value is unknown by capacity class, not misreported as zero.
+    assert row["lines"]["bounded_retained_line_value_count"] == 0
+    assert row["lines"]["unbounded_retained_line_value_count"] == 1
+    assert row["lines"]["retained_line_value_count"] == 1
 
 
 def test_live_capacity_run_capture_binds_verified_boundaries_and_calendar_ordinals():

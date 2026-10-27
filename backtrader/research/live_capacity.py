@@ -297,6 +297,8 @@ def _graph_capacity_facts(
                 break
 
     retained_values = 0
+    bounded_retained_values = 0
+    unbounded_retained_values = 0
     capacity_sum = 0
     bounded_count = 0
     unbounded_count = 0
@@ -314,10 +316,12 @@ def _graph_capacity_facts(
         max_retained = max(max_retained, retained)
         if facts["bounded"]:
             bounded_count += 1
+            bounded_retained_values += retained
             capacity_sum += facts["capacity"]
             max_capacity = max(max_capacity, facts["capacity"])
         else:
             unbounded_count += 1
+            unbounded_retained_values += retained
 
     if line_issues:
         budget.fail(line_issues[0])
@@ -330,6 +334,8 @@ def _graph_capacity_facts(
         "observation_complete": complete,
         "graph_node_count": len(visited),
         "graph_reference_count": budget.references,
+        "graph_node_limit": max_graph_nodes,
+        "graph_reference_limit": max_graph_references,
         "line_buffer_count": len(lines),
         "bounded_line_buffer_count": bounded_count,
         "unbounded_line_buffer_count": unbounded_count,
@@ -339,6 +345,9 @@ def _graph_capacity_facts(
         "line_capacity_sum": capacity_sum,
         "max_line_capacity": max_capacity,
         "retained_line_value_count": retained_values,
+        "bounded_retained_line_value_count": bounded_retained_values,
+        "unbounded_retained_line_value_count": unbounded_retained_values,
+        "retained_line_value_count_status": "OBSERVED" if complete else "INCOMPLETE",
         "max_retained_values_per_line": max_retained,
         "value_line_count": len(value_lines),
         "reason_line_count": len(reason_lines),

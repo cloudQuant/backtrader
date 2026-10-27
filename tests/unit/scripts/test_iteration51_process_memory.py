@@ -31,7 +31,7 @@ R10_SCRIPT = (
     / "r10_frozen_disabled"
     / "i51_root_golden_minute_actual_r10_memory_supervised_20261028.py"
 )
-R10_FIXTURE_SHA256 = "b42d238f021bb3ffe927a4c4fa0ab324eceea7988ef294748b8af3d9671dc883"
+R10_FIXTURE_SHA256 = "d38858651ce7a7efe71d466ec8afedea32b34cd7a3ee6f2b350272fea1a46b0a"
 SYNTHETIC_PROFILE_BYTES = b'{"selection":{"query_mode":"synthetic"}}\n'
 SYNTHETIC_POSTFLIGHT_BYTES = b"DRAFT_UNEXECUTABLE = True\nSYNTHETIC_POSTFLIGHT = True\n"
 R10_SPEC = importlib.util.spec_from_file_location("i51_root_memory_r10", R10_SCRIPT)
@@ -70,6 +70,10 @@ def _synthetic_live_capacity_report(logical_run_id, pid, create_time, epoch_id, 
         "schema": "backtrader.live_capacity_snapshot.v1",
         "run_id": logical_run_id,
         "ordinal": 7,
+        "sampled_at_utc": "2026-10-28T01:02:03.000004+00:00",
+        "utc_monotonic_before_ns": 10_011,
+        "utc_monotonic_after_ns": 10_012,
+        "capture_monotonic_ns": 10_013,
         "status": "OBSERVED",
         "acceptance_evaluated": False,
         "run_binding": {
@@ -86,29 +90,61 @@ def _synthetic_live_capacity_report(logical_run_id, pid, create_time, epoch_id, 
         },
         "lines": {
             "status": "OBSERVED",
+            "observation_complete": True,
             "graph_node_count": 88,
             "graph_reference_count": 99,
+            "graph_node_limit": 100_000,
+            "graph_reference_limit": 200_000,
             "line_buffer_count": 77,
-            "bounded_line_buffer_count": 77,
+            "bounded_line_buffer_count": 76,
+            "unbounded_line_buffer_count": 1,
+            "line_capacity_unavailable_count": 0,
+            "unobservable_line_reference_count": 0,
+            "unobservable_line_collection_count": 0,
             "line_capacity_sum": 15_000,
+            "max_line_capacity": 512,
             "retained_line_value_count": 12_000,
+            "bounded_retained_line_value_count": 11_900,
+            "unbounded_retained_line_value_count": 100,
+            "retained_line_value_count_status": "OBSERVED",
+            "max_retained_values_per_line": 512,
+            "value_line_count": 87,
+            "reason_line_count": 87,
         },
         "cohort": {
             "status": "OBSERVED",
             "member_count": 87,
             "pending_slot_count": 0,
+            "pending_bar_count": 0,
+            "max_pending_slots": 512,
+            "max_pending_bars": 1024,
+            "window_receipt_count": 1_234,
+            "window_receipt_limit": 8_704,
+            "window_receipt_member_limit": 100,
+            "window_receipt_member_limits_match": True,
+            "recent_signature_count": 8_700,
+            "recent_signature_order_count": 8_700,
+            "recent_signature_limit": 8_704,
+            "diagnostic_gap_count": 0,
+            "diagnostic_gap_limit": 4_352,
+            "limits_respected": True,
         },
         "diagnostics": {
             "status": "OBSERVED",
             "factor_count": 174,
             "call_count": 25_000,
             "once_range_count": 0,
+            "call_sample_count": 64,
+            "once_range_sample_count": 0,
+            "call_samples_bounded": True,
+            "once_range_samples_bounded": True,
+            "sample_limits": (64,),
         },
         "strategy_events": {
             "status": "OBSERVED",
             "events": {
-                "order_events": {"count": 0},
-                "trade_events": {"count": 0},
+                "order_events": {"count": 0, "limit": 256, "bounded": True},
+                "trade_events": {"count": 0, "limit": 256, "bounded": True},
             },
         },
         "orders": {
@@ -116,6 +152,11 @@ def _synthetic_live_capacity_report(logical_run_id, pid, create_time, epoch_id, 
             "active_order_count": 0,
             "unknown_order_count": 0,
             "terminal_order_count": 0,
+            "dispatching_order_count": 0,
+            "active_unknown_limit": None,
+            "active_unknown_bounded": False,
+            "terminal_order_limit": 512,
+            "terminal_limit_respected": True,
         },
     }
     return {
@@ -186,6 +227,48 @@ def test_r10_live_capacity_projection_binds_same_call_and_keeps_acceptance_uneva
     assert projected["sample_count"] == 1
     assert projected["samples"][0]["batch_id"] == "synthetic-batch-7"
     assert projected["samples"][0]["counts"]["line_capacity_sum"] == 15_000
+    sample = projected["samples"][0]
+    assert sample["capture_time"] == {
+        "status": "OBSERVED",
+        "utc_clock_domain": "SYSTEM_UTC",
+        "sampled_at_utc": "2026-10-28T01:02:03.000004+00:00",
+        "ready_boundary_system_utc_epoch_ns": 1_798_000_000_000_000_000,
+        "monotonic_clock_domain": "OS_MONOTONIC_NS",
+        "ready_boundary_monotonic_before_ns": 10_000,
+        "ready_boundary_monotonic_after_ns": 10_010,
+        "sample_monotonic_before_ns": 10_011,
+        "sample_monotonic_after_ns": 10_012,
+        "capture_monotonic_ns": 10_013,
+    }
+    assert sample["counts"]["bounded_retained_line_values"] == 11_900
+    assert sample["counts"]["unbounded_retained_line_values"] == 100
+    assert sample["counts"]["unbounded_line_buffers"] == 1
+    assert sample["counts"]["value_lines"] == 87
+    assert sample["counts"]["reason_lines"] == 87
+    assert sample["capacity_status"]["lines"] == "OBSERVED"
+    assert sample["capacity_limits"]["lines"]["graph_node_limit"] == 100_000
+    assert sample["capacity_limits"]["lines"]["graph_reference_limit"] == 200_000
+    assert sample["capacity_limits"]["lines"]["bounded_line_capacity_sum"] == 15_000
+    assert sample["capacity_limits"]["lines"]["unbounded_line_buffers"] == 1
+    assert sample["capacity_limits"]["cohort"] == {
+        "max_pending_slots": 512,
+        "max_pending_bars": 1024,
+        "window_receipt_limit": 8_704,
+        "window_receipt_member_limit": 100,
+        "recent_signature_limit": 8_704,
+        "diagnostic_gap_limit": 4_352,
+    }
+    assert sample["counts"]["window_receipts"] == 1_234
+    assert sample["counts"]["recent_signatures"] == 8_700
+    assert sample["capacity_limits"]["factor_diagnostics"]["sample_limits"] == [64]
+    assert sample["work_counters"]["factor_calls"] == 25_000
+    assert "factor_calls" not in sample["counts"]
+    assert sample["capacity_limits"]["strategy_events"]["order_events"] == {
+        "status": "OBSERVED", "count": 0, "limit": 256,
+        "limit_status": "OBSERVED", "bounded": True,
+    }
+    assert sample["capacity_limits"]["orders"]["active_unknown_limit_status"] == "UNBOUNDED"
+    assert sample["capacity_limits"]["orders"]["terminal_order_limit"] == 512
     runner = SimpleNamespace(
         _live_epoch_retired=lambda _summary: True,
         _live_epoch_controlled_stopped=lambda _summary: True,
@@ -212,6 +295,148 @@ def test_r10_live_capacity_projection_binds_same_call_and_keeps_acceptance_uneva
     assert run_projection["write_mode_disabled"] is True
     assert r10.DRAFT_UNEXECUTABLE is True
     assert r10.R10_SUPERVISOR_ENABLED is False
+
+
+@pytest.mark.parametrize("missing_field", ("bounded_retained_line_value_count", "max_pending_bars"))
+def test_r10_capacity_projection_preserves_missing_metrics_as_unknown(
+    missing_field: str, monkeypatch: pytest.MonkeyPatch
+):
+    run_uuid = "i51-" + "d" * 32
+    logical_run_id = "i5051:synthetic:unknown-capacity"
+    pid = 43211
+    create_time = 1790000000.75
+    epoch_id = 3
+    calendar_id = "synthetic-calendar-unknown-r10"
+    report = _synthetic_live_capacity_report(
+        logical_run_id, pid, create_time, epoch_id, calendar_id
+    )
+    report["samples"][0]["status"] = "INCOMPLETE"
+    target_group = (
+        report["samples"][0]["lines"]
+        if missing_field == "bounded_retained_line_value_count"
+        else report["samples"][0]["cohort"]
+    )
+    target_group.pop(missing_field)
+    target_group["status"] = "INCOMPLETE"
+    report["status"] = "INCOMPLETE"
+
+    monkeypatch.setattr(r10, "MEMORY_RUN_ID", run_uuid)
+    monkeypatch.setattr(r10, "MEMORY_TARGET_IDENTITY", {"pid": pid, "create_time": create_time})
+    config = {
+        "live": {"logical_run_id": logical_run_id},
+        "cohort": {"epoch_id": epoch_id, "calendar_id": calendar_id},
+    }
+    projected = r10.public_live_capacity({"live_capacity": report}, config)
+    assert projected["status"] == "BOUND_INCOMPLETE"
+    assert projected["acceptance_evaluated"] is False
+    assert projected["window_evaluation"] == projected["growth_evaluation"] == "NOT_EVALUATED"
+    sample = projected["samples"][0]
+    if missing_field == "bounded_retained_line_value_count":
+        assert sample["counts"]["bounded_retained_line_values"] is None
+        assert sample["capacity_status"]["lines"] == "INCOMPLETE"
+    else:
+        assert sample["capacity_limits"]["cohort"]["max_pending_bars"] is None
+        assert sample["capacity_status"]["cohort"] == "INCOMPLETE"
+
+
+def test_r10_capacity_projection_keeps_unbounded_and_unknown_limits_distinct(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    run_uuid = "i51-" + "e" * 32
+    logical_run_id = "i5051:synthetic:unbounded-capacity"
+    pid = 43212
+    create_time = 1790000000.875
+    epoch_id = 3
+    calendar_id = "synthetic-calendar-unbounded-r10"
+    report = _synthetic_live_capacity_report(
+        logical_run_id, pid, create_time, epoch_id, calendar_id
+    )
+    sample = report["samples"][0]
+    sample["strategy_events"]["status"] = "INCOMPLETE"
+    sample["strategy_events"]["events"]["order_events"] = {
+        "count": 5, "limit": None, "bounded": False
+    }
+    sample["status"] = "INCOMPLETE"
+    report["status"] = "INCOMPLETE"
+    monkeypatch.setattr(r10, "MEMORY_RUN_ID", run_uuid)
+    monkeypatch.setattr(r10, "MEMORY_TARGET_IDENTITY", {"pid": pid, "create_time": create_time})
+    config = {
+        "live": {"logical_run_id": logical_run_id},
+        "cohort": {"epoch_id": epoch_id, "calendar_id": calendar_id},
+    }
+
+    projected = r10.public_live_capacity({"live_capacity": report}, config)
+
+    assert projected["status"] == "BOUND_INCOMPLETE"
+    event = projected["samples"][0]["capacity_limits"]["strategy_events"]["order_events"]
+    assert event == {
+        "status": "INCOMPLETE", "count": 5, "limit": None,
+        "limit_status": "UNBOUNDED", "bounded": False,
+    }
+    assert projected["samples"][0]["capacity_status"]["strategy_events"] == "INCOMPLETE"
+    assert projected["acceptance_evaluated"] is False
+    assert projected["growth_evaluation"] == "NOT_EVALUATED"
+
+
+def test_r10_capacity_projection_rejects_invalid_monotonic_capture_order(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    run_uuid = "i51-" + "f" * 32
+    logical_run_id = "i5051:synthetic:bad-clock"
+    pid = 43213
+    create_time = 1790000001.0
+    epoch_id = 3
+    calendar_id = "synthetic-calendar-clock-r10"
+    report = _synthetic_live_capacity_report(
+        logical_run_id, pid, create_time, epoch_id, calendar_id
+    )
+    report["samples"][0]["capture_monotonic_ns"] = 10_011
+    monkeypatch.setattr(r10, "MEMORY_RUN_ID", run_uuid)
+    monkeypatch.setattr(r10, "MEMORY_TARGET_IDENTITY", {"pid": pid, "create_time": create_time})
+    config = {
+        "live": {"logical_run_id": logical_run_id},
+        "cohort": {"epoch_id": epoch_id, "calendar_id": calendar_id},
+    }
+
+    projected = r10.public_live_capacity({"live_capacity": report}, config)
+
+    assert projected["status"] == "BOUND_INCOMPLETE"
+    assert projected["samples"][0]["capture_time"]["status"] == "INCOMPLETE"
+    assert projected["samples"][0]["capture_time"]["capture_monotonic_ns"] == 10_011
+    assert projected["acceptance_evaluated"] is False
+    assert projected["window_evaluation"] == projected["growth_evaluation"] == "NOT_EVALUATED"
+
+
+def test_r10_capacity_projection_preserves_unknown_group_status_with_observed_counts(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    run_uuid = "i51-" + "9" * 32
+    logical_run_id = "i5051:synthetic:unknown-status"
+    pid = 43214
+    create_time = 1790000001.125
+    epoch_id = 3
+    calendar_id = "synthetic-calendar-status-r10"
+    report = _synthetic_live_capacity_report(
+        logical_run_id, pid, create_time, epoch_id, calendar_id
+    )
+    sample = report["samples"][0]
+    sample["orders"].pop("status")
+    sample["status"] = "INCOMPLETE"
+    report["status"] = "INCOMPLETE"
+    monkeypatch.setattr(r10, "MEMORY_RUN_ID", run_uuid)
+    monkeypatch.setattr(r10, "MEMORY_TARGET_IDENTITY", {"pid": pid, "create_time": create_time})
+    config = {
+        "live": {"logical_run_id": logical_run_id},
+        "cohort": {"epoch_id": epoch_id, "calendar_id": calendar_id},
+    }
+
+    projected = r10.public_live_capacity({"live_capacity": report}, config)
+
+    assert projected["status"] == "BOUND_INCOMPLETE"
+    assert projected["samples"][0]["capacity_status"]["orders"] == "UNAVAILABLE"
+    assert projected["samples"][0]["counts"]["active_orders"] == 0
+    assert projected["acceptance_evaluated"] is False
+    assert projected["growth_evaluation"] == "NOT_EVALUATED"
 
 
 @pytest.mark.parametrize("empty_field", ("samples", "expected_ordinals"))

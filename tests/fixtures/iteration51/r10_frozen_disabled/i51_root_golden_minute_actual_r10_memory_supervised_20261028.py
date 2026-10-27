@@ -1603,6 +1603,18 @@ def _capacity_count(value):
     return value if type(value) is int and 0 <= value < (1 << 63) else None
 
 
+def _capacity_utc_timestamp(value):
+    if type(value) is not str:
+        return None
+    try:
+        parsed = datetime.fromisoformat(value.replace('Z', '+00:00'))
+    except ValueError:
+        return None
+    if parsed.tzinfo is None or parsed.utcoffset() != timedelta(0):
+        return None
+    return value
+
+
 def _capacity_sample_projection(sample, *, logical_run_id, pid, create_time, epoch_id, calendar_id):
     if type(sample) is not dict:
         return None
@@ -1646,57 +1658,319 @@ def _capacity_sample_projection(sample, *, logical_run_id, pid, create_time, epo
     diagnostics = sample.get('diagnostics')
     strategy_events = sample.get('strategy_events')
     orders = sample.get('orders')
+    status_allowlist = ('OBSERVED', 'INCOMPLETE', 'UNAVAILABLE', 'UNSTABLE_OR_OVER_CAPACITY')
 
     def count(group, key):
         return _capacity_count(group.get(key)) if type(group) is dict else None
 
+    def status(group, required_counts=(), required_booleans=()):
+        if type(group) is not dict:
+            return 'UNAVAILABLE'
+        value = group.get('status')
+        if value not in status_allowlist:
+            return 'UNAVAILABLE'
+        if value == 'OBSERVED':
+            if any(count(group, key) is None for key in required_counts):
+                return 'INCOMPLETE'
+            if any(type(group.get(key)) is not bool for key in required_booleans):
+                return 'INCOMPLETE'
+        return value
+
+    line_status = status(
+        lines,
+        (
+            'graph_node_count', 'graph_reference_count', 'graph_node_limit',
+            'graph_reference_limit', 'line_buffer_count', 'bounded_line_buffer_count',
+            'unbounded_line_buffer_count', 'line_capacity_unavailable_count',
+            'unobservable_line_reference_count', 'unobservable_line_collection_count',
+            'line_capacity_sum', 'max_line_capacity', 'retained_line_value_count',
+            'bounded_retained_line_value_count', 'unbounded_retained_line_value_count',
+            'max_retained_values_per_line', 'value_line_count', 'reason_line_count',
+        ),
+        ('observation_complete',),
+    )
+    if line_status == 'OBSERVED' and (
+        lines.get('observation_complete') is not True
+        or lines.get('retained_line_value_count_status') != 'OBSERVED'
+        or count(lines, 'line_buffer_count') <= 0
+        or count(lines, 'line_capacity_unavailable_count') != 0
+        or count(lines, 'unobservable_line_reference_count') != 0
+        or count(lines, 'unobservable_line_collection_count') != 0
+        or count(lines, 'line_buffer_count')
+        != count(lines, 'bounded_line_buffer_count')
+        + count(lines, 'unbounded_line_buffer_count')
+        + count(lines, 'line_capacity_unavailable_count')
+        or count(lines, 'retained_line_value_count')
+        != count(lines, 'bounded_retained_line_value_count')
+        + count(lines, 'unbounded_retained_line_value_count')
+        or count(lines, 'graph_node_count') > count(lines, 'graph_node_limit')
+        or count(lines, 'graph_reference_count') > count(lines, 'graph_reference_limit')
+    ):
+        line_status = 'INCOMPLETE'
+
+    cohort_fields = (
+        'member_count', 'pending_slot_count', 'pending_bar_count', 'max_pending_slots',
+        'max_pending_bars', 'window_receipt_count', 'window_receipt_limit',
+        'window_receipt_member_limit', 'recent_signature_count',
+        'recent_signature_order_count', 'recent_signature_limit',
+        'diagnostic_gap_count', 'diagnostic_gap_limit',
+    )
+    cohort_status = status(
+        cohort_capacity, cohort_fields,
+        ('window_receipt_member_limits_match', 'limits_respected'),
+    )
+    if cohort_status == 'OBSERVED' and (
+        cohort_capacity.get('window_receipt_member_limits_match') is not True
+        or cohort_capacity.get('limits_respected') is not True
+    ):
+        cohort_status = 'INCOMPLETE'
+
+    diagnostic_status = status(
+        diagnostics,
+        ('factor_count', 'call_count', 'once_range_count', 'call_sample_count',
+         'once_range_sample_count'),
+        ('call_samples_bounded', 'once_range_samples_bounded'),
+    )
+    sample_limits = diagnostics.get('sample_limits') if type(diagnostics) is dict else None
+    if (
+        diagnostic_status == 'OBSERVED'
+        and (
+            diagnostics.get('call_samples_bounded') is not True
+            or diagnostics.get('once_range_samples_bounded') is not True
+            or type(sample_limits) not in (tuple, list)
+            or not sample_limits
+            or len(sample_limits) > 100_000
+            or any(type(value) is not int or not 0 < value < (1 << 63) for value in sample_limits)
+        )
+    ):
+        diagnostic_status = 'INCOMPLETE'
+    projected_sample_limits = (
+        sorted(set(sample_limits))
+        if type(sample_limits) in (tuple, list)
+        and len(sample_limits) <= 100_000
+        and all(type(value) is int and 0 < value < (1 << 63) for value in sample_limits)
+        else None
+    )
+
     event_rows = strategy_events.get('events') if type(strategy_events) is dict else None
-    event_count = None
-    if type(event_rows) is dict:
-        event_counts = [
-            _capacity_count(event_rows.get(name, {}).get('count'))
-            if type(event_rows.get(name)) is dict else None
-            for name in ('order_events', 'trade_events')
-        ]
-        if all(value is not None for value in event_counts):
-            event_count = sum(event_counts)
+    projected_events = {}
+    event_counts = []
+    event_projection_complete = type(event_rows) is dict
+    for name in ('order_events', 'trade_events'):
+        event = event_rows.get(name) if type(event_rows) is dict else None
+        event_count = count(event, 'count')
+        event_limit = count(event, 'limit')
+        event_bounded = event.get('bounded') if type(event) is dict else None
+        explicit_unbounded = (
+            type(event) is dict
+            and 'limit' in event
+            and event.get('limit') is None
+            and event_bounded is False
+        )
+        event_status = 'OBSERVED'
+        limit_status = 'OBSERVED'
+        if type(event) is not dict:
+            event_status = 'UNAVAILABLE'
+            limit_status = 'UNKNOWN'
+            event_projection_complete = False
+        elif event_count is None or type(event_bounded) is not bool:
+            event_status = 'INCOMPLETE'
+            limit_status = 'UNKNOWN'
+            event_projection_complete = False
+        elif explicit_unbounded:
+            event_status = 'INCOMPLETE'
+            limit_status = 'UNBOUNDED'
+            event_projection_complete = False
+        elif event_limit is None or event_limit <= 0:
+            event_status = 'INCOMPLETE'
+            limit_status = 'UNKNOWN'
+            event_projection_complete = False
+        elif event_bounded != (event_count <= event_limit) or event_bounded is not True:
+            event_status = 'INCOMPLETE'
+            event_projection_complete = False
+        if event_count is not None:
+            event_counts.append(event_count)
+        projected_events[name] = {
+            'status': event_status,
+            'count': event_count,
+            'limit': event_limit,
+            'limit_status': limit_status,
+            'bounded': event_bounded if type(event_bounded) is bool else None,
+        }
+    event_status = status(strategy_events)
+    if event_status == 'OBSERVED' and not event_projection_complete:
+        event_status = 'INCOMPLETE'
 
-    status_allowlist = ('OBSERVED', 'INCOMPLETE', 'UNAVAILABLE', 'UNSTABLE_OR_OVER_CAPACITY')
-    def group_status(group):
-        status = group.get('status') if type(group) is dict else None
-        return status if status in status_allowlist else 'UNAVAILABLE'
+    order_status = status(
+        orders,
+        ('active_order_count', 'unknown_order_count', 'terminal_order_count',
+         'dispatching_order_count', 'terminal_order_limit'),
+        ('active_unknown_bounded', 'terminal_limit_respected'),
+    )
+    if order_status == 'OBSERVED' and (
+        orders.get('active_unknown_limit', 'missing') is not None
+        or orders.get('active_unknown_bounded') is not False
+        or count(orders, 'terminal_order_limit') <= 0
+        or orders.get('terminal_limit_respected') is not True
+        or count(orders, 'terminal_order_count') > count(orders, 'terminal_order_limit')
+    ):
+        order_status = 'INCOMPLETE'
 
+    sample_utc = _capacity_utc_timestamp(sample.get('sampled_at_utc'))
+    sample_mono_before = _capacity_count(sample.get('utc_monotonic_before_ns'))
+    sample_mono_after = _capacity_count(sample.get('utc_monotonic_after_ns'))
+    capture_mono = _capacity_count(sample.get('capture_monotonic_ns'))
+    boundary_utc = _capacity_count(boundary.get('system_utc_epoch_ns'))
+    boundary_mono_before = _capacity_count(boundary.get('monotonic_before_ns'))
+    boundary_mono_after = _capacity_count(boundary.get('monotonic_after_ns'))
+    time_status = 'OBSERVED'
+    if (
+        sample_utc is None
+        or sample_mono_before is None
+        or sample_mono_after is None
+        or capture_mono is None
+        or boundary_utc is None
+        or boundary_mono_before is None
+        or boundary_mono_after is None
+        or boundary_mono_before > boundary_mono_after
+        or boundary_mono_after > sample_mono_before
+        or sample_mono_before > sample_mono_after
+        or sample_mono_after > capture_mono
+    ):
+        time_status = 'INCOMPLETE'
+
+    projected_status = sample['status']
+    if projected_status == 'OBSERVED' and (
+        time_status != 'OBSERVED'
+        or any(value != 'OBSERVED' for value in
+               (line_status, cohort_status, diagnostic_status, event_status, order_status))
+    ):
+        projected_status = 'INCOMPLETE'
+
+    counts = {
+        'graph_nodes': count(lines, 'graph_node_count'),
+        'graph_references': count(lines, 'graph_reference_count'),
+        'line_buffers': count(lines, 'line_buffer_count'),
+        'bounded_line_buffers': count(lines, 'bounded_line_buffer_count'),
+        'unbounded_line_buffers': count(lines, 'unbounded_line_buffer_count'),
+        'line_capacity_unavailable': count(lines, 'line_capacity_unavailable_count'),
+        'unobservable_line_references': count(lines, 'unobservable_line_reference_count'),
+        'unobservable_line_collections': count(lines, 'unobservable_line_collection_count'),
+        'line_capacity_sum': count(lines, 'line_capacity_sum'),
+        'retained_line_values': count(lines, 'retained_line_value_count'),
+        'bounded_retained_line_values': count(lines, 'bounded_retained_line_value_count'),
+        'unbounded_retained_line_values': count(lines, 'unbounded_retained_line_value_count'),
+        'value_lines': count(lines, 'value_line_count'),
+        'reason_lines': count(lines, 'reason_line_count'),
+        'factor_nodes': count(diagnostics, 'factor_count'),
+        'cohort_members': count(cohort_capacity, 'member_count'),
+        'pending_cohort_slots': count(cohort_capacity, 'pending_slot_count'),
+        'pending_cohort_bars': count(cohort_capacity, 'pending_bar_count'),
+        'window_receipts': count(cohort_capacity, 'window_receipt_count'),
+        'recent_signatures': count(cohort_capacity, 'recent_signature_count'),
+        'recent_signature_order': count(cohort_capacity, 'recent_signature_order_count'),
+        'diagnostic_gaps': count(cohort_capacity, 'diagnostic_gap_count'),
+        'strategy_events': sum(event_counts) if event_projection_complete else None,
+        'active_orders': count(orders, 'active_order_count'),
+        'unknown_orders': count(orders, 'unknown_order_count'),
+        'terminal_orders': count(orders, 'terminal_order_count'),
+        'dispatching_orders': count(orders, 'dispatching_order_count'),
+    }
     return {
         'ordinal': ordinal,
-        'status': sample['status'],
+        'status': projected_status,
         'batch_id': boundary['batch_id'],
         'cohort_id': boundary['cohort_id'],
         'epoch_id': epoch_id,
         'calendar_id': calendar_id,
         'engine_phase': boundary['engine_phase'],
-        'capacity_status': {
-            'lines': group_status(lines),
-            'cohort': group_status(cohort_capacity),
-            'factor_diagnostics': group_status(diagnostics),
-            'strategy_events': group_status(strategy_events),
-            'orders': group_status(orders),
+        'capture_time': {
+            'status': time_status,
+            'utc_clock_domain': 'SYSTEM_UTC',
+            'sampled_at_utc': sample_utc,
+            'ready_boundary_system_utc_epoch_ns': boundary_utc,
+            'monotonic_clock_domain': 'OS_MONOTONIC_NS',
+            'ready_boundary_monotonic_before_ns': boundary_mono_before,
+            'ready_boundary_monotonic_after_ns': boundary_mono_after,
+            'sample_monotonic_before_ns': sample_mono_before,
+            'sample_monotonic_after_ns': sample_mono_after,
+            'capture_monotonic_ns': capture_mono,
         },
-        'counts': {
-            'graph_nodes': count(lines, 'graph_node_count'),
-            'graph_references': count(lines, 'graph_reference_count'),
-            'line_buffers': count(lines, 'line_buffer_count'),
-            'bounded_line_buffers': count(lines, 'bounded_line_buffer_count'),
-            'line_capacity_sum': count(lines, 'line_capacity_sum'),
-            'retained_line_values': count(lines, 'retained_line_value_count'),
-            'factor_nodes': count(diagnostics, 'factor_count'),
+        'capacity_status': {
+            'lines': line_status,
+            'cohort': cohort_status,
+            'factor_diagnostics': diagnostic_status,
+            'strategy_events': event_status,
+            'orders': order_status,
+        },
+        'counts': counts,
+        'work_counters': {
             'factor_calls': count(diagnostics, 'call_count'),
             'factor_once_ranges': count(diagnostics, 'once_range_count'),
-            'cohort_members': count(cohort_capacity, 'member_count'),
-            'pending_cohort_slots': count(cohort_capacity, 'pending_slot_count'),
-            'strategy_events': event_count,
-            'active_orders': count(orders, 'active_order_count'),
-            'unknown_orders': count(orders, 'unknown_order_count'),
-            'terminal_orders': count(orders, 'terminal_order_count'),
+            'factor_call_samples': count(diagnostics, 'call_sample_count'),
+            'factor_once_range_samples': count(diagnostics, 'once_range_sample_count'),
+        },
+        'capacity_limits': {
+            'lines': {
+                'graph_node_limit': count(lines, 'graph_node_limit'),
+                'graph_reference_limit': count(lines, 'graph_reference_limit'),
+                'observation_complete': (
+                    lines.get('observation_complete')
+                    if type(lines) is dict and type(lines.get('observation_complete')) is bool else None
+                ),
+                'bounded_line_capacity_sum': count(lines, 'line_capacity_sum'),
+                'max_line_capacity': count(lines, 'max_line_capacity'),
+                'unbounded_line_buffers': count(lines, 'unbounded_line_buffer_count'),
+                'line_capacity_unavailable_count': count(lines, 'line_capacity_unavailable_count'),
+                'max_retained_values_per_line': count(lines, 'max_retained_values_per_line'),
+                'retained_value_classification_status': (
+                    lines.get('retained_line_value_count_status')
+                    if type(lines) is dict else None
+                ),
+            },
+            'cohort': {
+                key: count(cohort_capacity, key)
+                for key in (
+                    'max_pending_slots', 'max_pending_bars', 'window_receipt_limit',
+                    'window_receipt_member_limit', 'recent_signature_limit',
+                    'diagnostic_gap_limit',
+                )
+            },
+            'factor_diagnostics': {
+                'call_samples_bounded': (
+                    diagnostics.get('call_samples_bounded')
+                    if type(diagnostics) is dict else None
+                ),
+                'once_range_samples_bounded': (
+                    diagnostics.get('once_range_samples_bounded')
+                    if type(diagnostics) is dict else None
+                ),
+                'sample_limits': projected_sample_limits,
+            },
+            'strategy_events': projected_events,
+            'orders': {
+                'active_unknown_limit': (
+                    orders.get('active_unknown_limit') if type(orders) is dict else None
+                ),
+                'active_unknown_limit_status': (
+                    'UNBOUNDED'
+                    if type(orders) is dict
+                    and orders.get('active_unknown_limit', 'missing') is None
+                    and orders.get('active_unknown_bounded') is False
+                    else 'UNKNOWN'
+                ),
+                'active_unknown_bounded': (
+                    orders.get('active_unknown_bounded')
+                    if type(orders) is dict
+                    and type(orders.get('active_unknown_bounded')) is bool else None
+                ),
+                'terminal_order_limit': count(orders, 'terminal_order_limit'),
+                'terminal_limit_respected': (
+                    orders.get('terminal_limit_respected')
+                    if type(orders) is dict
+                    and type(orders.get('terminal_limit_respected')) is bool else None
+                ),
+            },
         },
     }
 
