@@ -1,0 +1,93 @@
+{
+  "schema": "iteration51_query_diagnostics_installed_acceptance.v1",
+  "date": "2026-10-27",
+  "repository": "D:/source_code/backtrader",
+  "source": {
+    "commit": "29d32aeff0ef073b8eae03c085910d2d98ba39d3",
+    "parent": "d700b0a63612f579ec4a643e5a10d2045dba1b0c",
+    "postcommit_receipt": {
+      "path": ".codex-tmp/i51_query_diagnostics_postcommit_20261027.json",
+      "sha256": "af72a0c974ff4b22486a3669d81bd789bbba91c312a28343397b91f149655520",
+      "status": "PASS",
+      "scope_count": 12,
+      "source_qa": "64 passed; not repeated",
+      "exact_original_R4_observation": true
+    }
+  },
+  "acceptance": {
+    "status": "PASS_LOCAL_NATIVE_SYNTHETIC_INSTALLED_QUERY_COMPOSITION_ONLY",
+    "formal_ac_increment": 0,
+    "pytest_nodes": 8,
+    "pytest_elapsed_seconds": 0.88,
+    "process_elapsed_seconds": 4.281,
+    "exit_code": 0,
+    "skips": 0,
+    "failures": 0,
+    "warnings": 0,
+    "installed_sdk_origin_verified": true,
+    "record_entries_verified": 1341,
+    "wheel_payload_files_verified": 668,
+    "repository_backtrader_modules_loaded": false,
+    "prior_failed_attempt_preserved": true
+  },
+  "installed_package": {
+    "consumer": "D:/temp/i51-query-diagnostic-consumer-20261027-r2/consumer",
+    "distribution_version": "1.4.0",
+    "wheel": "back_trader_python-1.4.0-py3-none-any.whl",
+    "wheel_sha256": "0cbad68ac37d1296d0e43d9a5966521243e6d88a917a327216d7d9a8463fe6ab",
+    "record_sha256": "c4e31e888cafaac776a7953d98fe8f4cd87a40270df4417eeadf2d3b715f90f5",
+    "reproducible_build_claim": false
+  },
+  "coverage": {
+    "kind": "selected installed synthetic nodes",
+    "request_path": "Installed SDK SPI/query-field allocation paths exercised with fake ReqQry leaves; no provider connection.",
+    "node_ids": [
+      "tests/integration/test_ctp_snapshot_query_diagnostics.py::test_real_trader_client_timeout_diagnostics_are_bounded_and_runner_visible[partial-catalog-timeout]",
+      "tests/integration/test_ctp_snapshot_query_diagnostics.py::test_real_trader_client_timeout_diagnostics_are_bounded_and_runner_visible[wrong-request-id-catalog-timeout]",
+      "tests/integration/test_ctp_snapshot_query_diagnostics.py::test_real_trader_client_timeout_diagnostics_are_bounded_and_runner_visible[empty-nonterminal-catalog-timeout]",
+      "tests/integration/test_ctp_snapshot_query_diagnostics.py::test_real_trader_client_timeout_diagnostics_are_bounded_and_runner_visible[valid-catalog-depth-timeout]",
+      "tests/integration/test_ctp_snapshot_query_diagnostics.py::test_real_trader_client_valid_two_query_chain_builds_the_live_plan",
+      "tests/unit/test_alpha003_simnow_runner.py::test_ctp_query_plan_drops_malformed_snapshot_diagnostics_without_leaking_values",
+      "tests/unit/test_alpha003_simnow_runner.py::test_cli_query_diagnostic_serializer_rejects_forged_payloads[forged_changes0]",
+      "tests/unit/feeds/test_futures_ctp_snapshot.py::test_depth_timeout_retains_successful_catalog_and_nonterminal_row_count"
+    ],
+    "source_64_and_installed_8_are_separate_runs": true
+  },
+  "artifacts": [
+    {
+      "path": "D:/temp/i51-query-diagnostic-consumer-20261027-r2/focus-recovery-r3/installed-focus.json",
+      "size_bytes": 81921,
+      "sha256": "b1b7def969c889b60e2f9f9743920af4b512e875ac15af6e3bb3392659772754"
+    },
+    {
+      "path": "D:/temp/i51-query-diagnostic-consumer-20261027-r2/focus-recovery-r3/recovery.json",
+      "size_bytes": 2716,
+      "sha256": "903d20bf5045f951be986eac790ad9082c045ba546b1da05300e23f8a3f0d425"
+    },
+    {
+      "path": "D:/temp/i51-query-diagnostic-consumer-20261027-r2/fixture-recovery-r2.json",
+      "size_bytes": 8262,
+      "sha256": "50cef310d0ea3994ce514fe0539b7fc27ec52b29deebd3f628957ca2284df485"
+    },
+    {
+      "path": ".codex-tmp/i51_query_diagnostics_postcommit_20261027.json",
+      "size_bytes": 919,
+      "sha256": "af72a0c974ff4b22486a3669d81bd789bbba91c312a28343397b91f149655520"
+    }
+  ],
+  "lineage": {
+    "fixture_recovery_commit": "29d32aeff0ef073b8eae03c085910d2d98ba39d3",
+    "fixture_files": 30,
+    "original_fixtures_unchanged": true,
+    "recovery_helper_sha256": "83411e42e4bc7ba40bca7c250c5dbbebec3a921b71644a73d54a81179db10c13",
+    "failed_prior_attempt_rewritten": false
+  },
+  "limits": [
+    "This is installed local synthetic query-composition evidence, not provider or account acceptance.",
+    "No provider connection was made; fake ReqQry leaves were used.",
+    "This does not claim a reproducible wheel build.",
+    "The source 64-node QA and this installed 8-node focus are separate; their counts are not combined.",
+    "The actual R4 golden remains blocked; no retry result is included here.",
+    "No formal AC status changes from this record."
+  ]
+}
