@@ -23,6 +23,7 @@ from backtrader.stores.registered_sim import (
     RegisteredSimStore,
     RegisteredSimWrapper,
 )
+from tests.test_utils.optional_sdk import optional_sdk
 
 
 class FakeSdkTrader:
@@ -1937,3 +1938,254 @@ def test_margin_query_snapshots_are_keyed_by_exact_contract_filters():
         )
         is None
     )
+
+
+def _md_identity_store(
+    *,
+    allow_zero=False,
+    zero_response=False,
+    broker_id="BTEST",
+    user_id="UTEST",
+    trading_day="20261024",
+    response_request_id=None,
+    response_generation_matches=True,
+    source_bound=True,
+    source_generation=None,
+):
+    ctp_client = optional_sdk("bt_api_ctp.ctp.client")
+
+    class FakeMdRequestApi:
+        request_id = None
+
+        def ReqUserLogin(self, _field, request_id):
+            self.request_id = request_id
+            return 0
+
+    native_api = FakeMdRequestApi()
+    md_client = ctp_client.MdClient(
+        front="tcp://127.0.0.1:10001",
+        broker_id="BTEST",
+        user_id="UTEST",
+        password="test-only",
+        allow_zero_login_response=allow_zero,
+    )
+    md_client._api = native_api
+    spi = ctp_client._MdSpi(md_client, native_api=native_api)
+    md_client._spi = spi
+    spi.OnFrontConnected()
+
+    request_id = native_api.request_id
+    if not response_generation_matches:
+        md_client._login_request_generation = md_client.connection_generation + 1
+    if zero_response:
+        response_request_id = 0
+        broker_id = ""
+        user_id = ""
+    elif response_request_id is None:
+        response_request_id = request_id
+    response = SimpleNamespace(
+        BrokerID=broker_id,
+        UserID=user_id,
+        TradingDay=trading_day,
+    )
+    response_info = SimpleNamespace(ErrorID=0, ErrorMsg="")
+    spi.OnRspUserLogin(response, response_info, response_request_id, True)
+
+    api = _wrapper(allow_writes=False)
+    api.md_client = md_client
+    store = RegisteredSimStore(api=api, allow_writes=False)
+    store._connected = True
+    store._ctp_factor_tick_source_enabled = source_bound
+    if source_bound:
+        bound_generation = (
+            md_client.connection_generation if source_generation is None else source_generation
+        )
+        store._ctp_factor_expected_md_generation = bound_generation
+        api._ctp_factor_md_client = md_client
+        api._ctp_factor_expected_md_generation = bound_generation
+    return store, api, md_client, spi
+
+
+def test_registered_sim_md_identity_facts_qualify_current_bound_source_without_raw_identity():
+    store, _api, _md_client, _spi = _md_identity_store()
+
+    login_keys = set(store.registered_sim_login_facts())
+    facts = store.registered_sim_md_identity_facts()
+
+    assert login_keys == {
+        "front_id",
+        "session_id",
+        "trading_day",
+        "connection_generation",
+        "read_only_ready",
+        "trading_ready",
+    }
+    assert facts == {
+        "status": "QUALIFIED",
+        "observation_present": True,
+        "identity_matches_bound": True,
+        "source_generation_matches": True,
+        "trading_day_matches": True,
+        "identity_qualified": True,
+    }
+    assert not {
+        "front",
+        "broker_id",
+        "user_id",
+        "request_id",
+        "account_fingerprint",
+        "sha256",
+    }.intersection(facts)
+
+
+def test_registered_sim_md_identity_facts_zero_response_is_read_only_unqualified():
+    store, _api, _md_client, _spi = _md_identity_store(
+        allow_zero=True,
+        zero_response=True,
+    )
+
+    facts = store.registered_sim_md_identity_facts()
+
+    assert facts["observation_present"] is False
+    assert facts["identity_qualified"] is False
+    assert facts["status"] == "READ_ONLY_ACCEPTED"
+
+
+def test_registered_sim_md_identity_facts_fail_closed_for_login_source_generation_and_day():
+    bad_identity, _api, _md_client, _spi = _md_identity_store(broker_id="BOTHER")
+    bad_identity_facts = bad_identity.registered_sim_md_identity_facts()
+    assert bad_identity_facts["identity_qualified"] is False
+    assert bad_identity_facts["status"] == "MD_LOGIN_IDENTITY_REJECTED"
+
+    bad_request, _api, _md_client, _spi = _md_identity_store(response_request_id=999)
+    assert bad_request.registered_sim_md_identity_facts()["status"] == (
+        "MD_LOGIN_REQUEST_ID_MISMATCH"
+    )
+
+    bad_response_generation, _api, _md_client, _spi = _md_identity_store(
+        response_generation_matches=False
+    )
+    assert (
+        bad_response_generation.registered_sim_md_identity_facts()["status"]
+        == "MD_LOGIN_GENERATION_MISMATCH"
+    )
+
+    bad_generation, _api, _md_client, _spi = _md_identity_store(source_generation=2)
+    generation_facts = bad_generation.registered_sim_md_identity_facts()
+    assert generation_facts["identity_matches_bound"] is True
+    assert generation_facts["source_generation_matches"] is False
+    assert generation_facts["identity_qualified"] is False
+    assert generation_facts["status"] == "MD_SOURCE_GENERATION_MISMATCH"
+
+    wrong_source_client, wrong_source_api, _md_client, _spi = _md_identity_store()
+    wrong_source_api._ctp_factor_md_client = object()
+    wrong_source_facts = wrong_source_client.registered_sim_md_identity_facts()
+    assert wrong_source_facts["identity_matches_bound"] is True
+    assert wrong_source_facts["source_generation_matches"] is False
+    assert wrong_source_facts["identity_qualified"] is False
+    assert wrong_source_facts["status"] == "MD_SOURCE_GENERATION_MISMATCH"
+
+    changing_source, changing_source_api, changing_source_md_client, _spi = (
+        _md_identity_store()
+    )
+    changed_source = object()
+
+    class ChangingSourceWrapper(type(changing_source_api)):
+        def __getattribute__(self, name):
+            if name == "_ctp_factor_md_client":
+                reads = object.__getattribute__(self, "_md_client_reads")
+                object.__setattr__(self, "_md_client_reads", reads + 1)
+                return changing_source_md_client if reads == 0 else changed_source
+            return super().__getattribute__(name)
+
+    changing_source_api.__class__ = ChangingSourceWrapper
+    changing_source_api._md_client_reads = 0
+    changing_source_facts = changing_source.registered_sim_md_identity_facts()
+    assert changing_source_facts["identity_matches_bound"] is True
+    assert changing_source_facts["source_generation_matches"] is True
+    assert changing_source_facts["identity_qualified"] is False
+    assert changing_source_facts["status"] == "SESSION_CHANGED"
+
+    bool_generation, bool_generation_api, _md_client, _spi = _md_identity_store()
+    bool_generation_api._ctp_factor_expected_md_generation = True
+    bool_generation_facts = bool_generation.registered_sim_md_identity_facts()
+    assert bool_generation_facts["source_generation_matches"] is False
+    assert bool_generation_facts["identity_qualified"] is False
+    assert bool_generation_facts["status"] == "MD_SOURCE_GENERATION_MISMATCH"
+
+    changing_generation, changing_api, _md_client, _spi = _md_identity_store()
+
+    class ChangingGenerationWrapper(type(changing_api)):
+        def __getattribute__(self, name):
+            if name == "_ctp_factor_expected_md_generation":
+                reads = object.__getattribute__(self, "_generation_reads")
+                object.__setattr__(self, "_generation_reads", reads + 1)
+                return 1 if reads == 0 else True
+            return super().__getattribute__(name)
+
+    changing_api.__class__ = ChangingGenerationWrapper
+    changing_api._generation_reads = 0
+    changing_facts = changing_generation.registered_sim_md_identity_facts()
+    assert changing_facts["source_generation_matches"] is True
+    assert changing_facts["identity_qualified"] is False
+    assert changing_facts["status"] == "SESSION_CHANGED"
+
+    bad_day, _api, _md_client, _spi = _md_identity_store(trading_day="20261025")
+    day_facts = bad_day.registered_sim_md_identity_facts()
+    assert day_facts["identity_matches_bound"] is True
+    assert day_facts["trading_day_matches"] is False
+    assert day_facts["identity_qualified"] is False
+    assert day_facts["status"] == "TRADING_DAY_MISMATCH"
+
+
+def test_registered_sim_md_identity_facts_report_unbound_source_and_revoke_on_disconnect():
+    unbound, _api, _md_client, _spi = _md_identity_store(source_bound=False)
+    unbound_facts = unbound.registered_sim_md_identity_facts()
+    assert unbound_facts["identity_matches_bound"] is True
+    assert unbound_facts["source_generation_matches"] is None
+    assert unbound_facts["identity_qualified"] is False
+    assert unbound_facts["status"] == "MD_SOURCE_UNBOUND"
+
+    connected, _api, md_client, spi = _md_identity_store()
+    assert connected.registered_sim_md_identity_facts()["identity_qualified"] is True
+    spi.OnFrontDisconnected(0x1001)
+    disconnected = connected.registered_sim_md_identity_facts()
+    assert disconnected["observation_present"] is False
+    assert disconnected["identity_qualified"] is False
+    assert disconnected["status"] == "DISCONNECTED"
+    assert md_client.active_md_identity is None
+
+
+def test_registered_sim_md_identity_facts_ignore_stale_callback_after_current_login():
+    store, _api, md_client, _current_spi = _md_identity_store()
+    identity = md_client.active_md_identity
+    request_id = identity.request_id
+    ctp_client = optional_sdk("bt_api_ctp.ctp.client")
+    stale_spi = ctp_client._MdSpi(md_client, native_api=object())
+    stale_spi.OnRspUserLogin(
+        SimpleNamespace(BrokerID="BTEST", UserID="UTEST", TradingDay="20261024"),
+        SimpleNamespace(ErrorID=0, ErrorMsg=""),
+        request_id,
+        True,
+    )
+
+    facts = store.registered_sim_md_identity_facts()
+
+    # The SDK's active-SPI fence ignores this callback before its handler, so
+    # the current identity's ACCEPTED diagnostic remains unchanged.
+    assert md_client.login_callback_diagnostic.disposition.name == "ACCEPTED"
+    assert md_client.active_md_identity is identity
+    assert facts["observation_present"] is True
+    assert facts["identity_matches_bound"] is True
+    assert facts["identity_qualified"] is True
+    assert facts["status"] == "QUALIFIED"
+
+
+def test_registered_sim_md_identity_facts_do_not_create_an_api_or_connection():
+    store = RegisteredSimStore()
+
+    facts = store.registered_sim_md_identity_facts()
+
+    assert store._api is None
+    assert facts["status"] == "API_UNAVAILABLE"
+    assert facts["identity_qualified"] is False

@@ -592,6 +592,12 @@ ambient Decimal context. Missing PnL preserves legacy readiness; loss-policy
 callers must explicitly require availability. The source component passed 120
 synthetic tests; actual account observations and strategy loss-policy wiring
 remain separate acceptance work.
+RegisteredSimStore exposes a six-field read-only MD identity projection without
+creating a connection or query. Qualification binds the SDK active identity,
+current source client and typed generation, matching TD/MD day, and stable
+pre/post observations. Zero-login readonly acceptance and unbound sources remain
+explicitly unqualified. Six final real-SDK/synthetic-leaf tests passed; actual
+MD identity, strategy trading authorization and account acceptance are separate.
 The all-visible CTP snapshot collector attaches at most two typed, bounded
 query-stage observations to refusal errors. The 028 runner emits only a
 validated fixed schema; raw query rows, request IDs and provider messages are

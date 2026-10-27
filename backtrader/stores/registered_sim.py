@@ -2519,6 +2519,166 @@ class RegisteredSimStore(BtApiStore):
             "trading_ready": getattr(client, "is_trading_ready", None),
         }
 
+    def registered_sim_md_identity_facts(self) -> Dict[str, Any]:
+        """Return redacted identity qualification facts for the current MD client.
+
+        This is a read-only projection of the already-connected wrapper.  It
+        deliberately does not call ``_ensure_api_ready``: observing login
+        identity must never create or reconnect a provider session.
+        """
+
+        facts: Dict[str, Any] = {
+            "status": "API_UNAVAILABLE",
+            "observation_present": False,
+            "identity_matches_bound": False,
+            "source_generation_matches": None,
+            "trading_day_matches": None,
+            "identity_qualified": False,
+        }
+        api = self._api
+        if not isinstance(api, RegisteredSimWrapper):
+            return facts
+
+        try:
+            md_client = getattr(api, "md_client", None)
+            if md_client is None:
+                facts["status"] = "MD_CLIENT_UNAVAILABLE"
+                return facts
+
+            diagnostic = getattr(md_client, "login_callback_diagnostic", None)
+            disposition = getattr(diagnostic, "disposition", None)
+            disposition_name = getattr(disposition, "name", None)
+            login_statuses = {
+                "NONE": "MD_IDENTITY_UNAVAILABLE",
+                "STALE_SPI": "MD_LOGIN_STALE_SPI",
+                "GENERATION_MISMATCH": "MD_LOGIN_GENERATION_MISMATCH",
+                "REQUEST_ID_TYPE_INVALID": "MD_LOGIN_REQUEST_ID_TYPE_INVALID",
+                "REQUEST_ID_MISMATCH": "MD_LOGIN_REQUEST_ID_MISMATCH",
+                "NONTERMINAL": "MD_LOGIN_NONTERMINAL",
+                "IDENTITY_REJECTED": "MD_LOGIN_IDENTITY_REJECTED",
+                "READ_ONLY_ACCEPTED": "READ_ONLY_ACCEPTED",
+                "ACCEPTED": "MD_IDENTITY_UNAVAILABLE",
+                "PROVIDER_REJECTED": "MD_LOGIN_PROVIDER_REJECTED",
+                "DISCONNECTED": "DISCONNECTED",
+            }
+            login_status = (
+                login_statuses.get(disposition_name, "MD_LOGIN_OTHER")
+                if type(disposition_name) is str
+                else "MD_IDENTITY_UNAVAILABLE"
+            )
+            if getattr(md_client, "_connected", None) is False:
+                login_status = "DISCONNECTED"
+
+            identity = getattr(md_client, "active_md_identity", None)
+            if identity is None:
+                facts["status"] = login_status
+                return facts
+            # The last callback diagnostic may not describe the identity that
+            # remains active.  Qualify that identity from its current bindings.
+            facts["observation_present"] = True
+
+            from bt_api_ctp.md_identity import md_identity_matches
+
+            current_generation = getattr(md_client, "connection_generation", None)
+            request_id = getattr(md_client, "_login_request_id", None)
+            try:
+                identity_matches = md_identity_matches(
+                    identity,
+                    expected_front=getattr(md_client, "_bound_front", None),
+                    expected_broker_id=getattr(md_client, "_bound_broker_id", None),
+                    expected_user_id=getattr(md_client, "_bound_user_id", None),
+                    expected_connection_generation=current_generation,
+                    expected_request_id=request_id,
+                )
+            except Exception:
+                identity_matches = False
+            facts["identity_matches_bound"] = identity_matches is True
+
+            source_generation = getattr(self, "_ctp_factor_expected_md_generation", None)
+            expected_api_generation = getattr(
+                api, "_ctp_factor_expected_md_generation", None
+            )
+            source_md_client = getattr(api, "_ctp_factor_md_client", None)
+            source_enabled = getattr(self, "_ctp_factor_tick_source_enabled", None) is True
+            if source_enabled:
+                facts["source_generation_matches"] = bool(
+                    type(source_generation) is int
+                    and source_generation > 0
+                    and type(expected_api_generation) is int
+                    and expected_api_generation > 0
+                    and source_md_client is md_client
+                    and expected_api_generation == source_generation
+                    and getattr(identity, "connection_generation", None) == source_generation
+                    and current_generation == source_generation
+                )
+
+            trader = getattr(api, "trader_client", None)
+            trader_day = getattr(trader, "_trading_day", None) if trader is not None else None
+            identity_day = getattr(identity, "trading_day", None)
+            if type(trader_day) is str and type(identity_day) is str:
+                facts["trading_day_matches"] = identity_day == trader_day
+
+            trader_stable = bool(
+                getattr(api, "trader_client", None) is trader
+                and (
+                    (getattr(trader, "_trading_day", None) if trader is not None else None)
+                    == trader_day
+                )
+            )
+            stable_api_generation = getattr(
+                api, "_ctp_factor_expected_md_generation", None
+            )
+            stable_source_md_client = getattr(api, "_ctp_factor_md_client", None)
+            stable_source_generation = getattr(
+                self, "_ctp_factor_expected_md_generation", None
+            )
+            identity_stable = bool(
+                getattr(md_client, "active_md_identity", None) is identity
+                and getattr(md_client, "connection_generation", None) == current_generation
+                and self._api is api
+                and getattr(api, "md_client", None) is md_client
+                and trader_stable
+                and (
+                    not source_enabled
+                    or (
+                        getattr(self, "_ctp_factor_tick_source_enabled", None) is True
+                        and stable_source_md_client is source_md_client
+                        and type(stable_api_generation) is type(expected_api_generation)
+                        and stable_api_generation == expected_api_generation
+                        and type(stable_source_generation) is type(source_generation)
+                        and stable_source_generation == source_generation
+                    )
+                )
+            )
+            facts["identity_qualified"] = bool(
+                facts["identity_matches_bound"] is True
+                and identity_stable is True
+                and facts["source_generation_matches"] is True
+                and facts["trading_day_matches"] is True
+            )
+
+            if identity_stable is not True:
+                facts["status"] = "SESSION_CHANGED"
+            elif facts["identity_matches_bound"] is not True:
+                facts["status"] = "IDENTITY_UNQUALIFIED"
+            elif facts["source_generation_matches"] is None:
+                facts["status"] = "MD_SOURCE_UNBOUND"
+            elif facts["source_generation_matches"] is not True:
+                facts["status"] = "MD_SOURCE_GENERATION_MISMATCH"
+            elif facts["trading_day_matches"] is None:
+                facts["status"] = "TRADING_DAY_UNOBSERVED"
+            elif facts["trading_day_matches"] is not True:
+                facts["status"] = "TRADING_DAY_MISMATCH"
+            else:
+                facts["status"] = "QUALIFIED"
+            return facts
+        except ImportError:
+            facts["status"] = "SDK_IDENTITY_API_UNAVAILABLE"
+            return facts
+        except Exception:
+            facts["status"] = "OBSERVATION_READ_FAILED"
+            return facts
+
     def registered_sim_account_fingerprint(self) -> Optional[str]:
         api = self._ensure_api_ready()
         client = getattr(api, "trader_client", None)
