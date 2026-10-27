@@ -782,6 +782,299 @@ def test_coordinator_run_loss_guard_is_explicit_typed_and_restart_sticky(tmp_pat
         journal.close()
 
 
+def test_coordinator_run_loss_guard_survives_sqlite_close_reopen(tmp_path):
+    """A fresh coordinator observes the loss fence after SQLite close/reopen.
+
+    The production coordinator and file-backed journal APIs run with synthetic
+    facts only. No order is dispatched and no Store/provider is called; risk-
+    only rows prove journal admission, not native execution.
+    """
+    path = tmp_path / "run-loss-guard-reopen.sqlite3"
+    journal = ExecutionDecisionJournal(path)
+    context = ExecutionRunLossGuardContext(
+        account_scope=_ACCOUNT_SCOPE,
+        strategy_scope=_SCOPE,
+        logical_run_id="run-loss-guard-reopen",
+        trading_day=facts_helpers._TRADING_DAY,
+        currency="CNY",
+        pnl_basis="validated_total_net_after_fees_v1",
+    )
+    store = SimpleNamespace(registered_sim_route_id="simnow-registered-v1", allow_writes=True)
+    now = datetime.now(timezone.utc)
+    coordinator = FactorExecutionCoordinator(
+        SimpleNamespace(store=store),
+        journal,
+        account_scope=_ACCOUNT_SCOPE,
+        strategy_scope=_SCOPE,
+        logical_run_id=context.logical_run_id,
+        max_order_intents_per_grid=2,
+        max_order_intents_per_run=8,
+    )
+
+    def iso_utc(value):
+        return value.isoformat().replace("+00:00", "Z")
+
+    def open_decision(database, *, key, batch_id, expected_used):
+        return database.record_grid_decision(
+            key,
+            open_payload,
+            intent_keys=(open_intent,),
+            epoch_id="epoch-1",
+            batch_id=batch_id,
+            eligible=True,
+            complete=True,
+            live_ready=True,
+            inputs_complete=True,
+            max_order_intents_per_run=8,
+            expected_run_order_intents_used=expected_used,
+            remaining_exit_intent_reserve=0,
+            loss_guard_context=context,
+        )
+
+    def risk_decision(database, *, cohort_id, close_time, payload, intent, expected_used):
+        return database.record_risk_decision(
+            ExecutionDecisionKey(
+                account_scope=_ACCOUNT_SCOPE,
+                strategy_scope=_SCOPE,
+                logical_run_id=context.logical_run_id,
+                cohort_id=cohort_id,
+                close_time=close_time,
+                decision_kind="ALPHA003_RISK_REDUCTION",
+            ),
+            payload,
+            intent_keys=(intent,),
+            max_order_intents_per_run=8,
+            expected_run_order_intents_used=expected_used,
+            remaining_exit_intent_reserve=0,
+        )
+
+    open_intent = ExecutionIntentKey(
+        action="SUBMIT",
+        instrument=_INSTRUMENT,
+        side="BUY",
+        position_effect="OPEN",
+        leg=0,
+    )
+    open_payload = {
+        "intent_economics": (
+            {
+                "instrument": _INSTRUMENT,
+                "exchange": _EXCHANGE,
+                "side": "BUY",
+                "position_effect": "OPEN",
+                "quantity": "1",
+                "limit_price": "100",
+                "offset": "open",
+            },
+        )
+    }
+    initial_key = ExecutionDecisionKey(
+        account_scope=_ACCOUNT_SCOPE,
+        strategy_scope=_SCOPE,
+        logical_run_id=context.logical_run_id,
+        cohort_id="loss-guard-reopen-grid",
+        close_time=iso_utc(now - timedelta(seconds=3)),
+        decision_kind="ALPHA003_GRID",
+    )
+    try:
+        baseline_facts = _qualified_loss_account_facts(
+            account_scope=_ACCOUNT_SCOPE,
+            snapshot_id="reopen-baseline",
+            available_at=now - timedelta(seconds=4),
+            trading_day=facts_helpers._TRADING_DAY,
+            total_net_pnl=Decimal("10000"),
+        )
+        baseline = coordinator.enable_run_loss_guard(
+            context,
+            baseline_facts,
+            net_loss_threshold=Decimal("1000"),
+            max_observation_age_seconds=600,
+        )
+        assert not baseline.tripped
+
+        first = open_decision(
+            journal, key=initial_key, batch_id="loss-guard-reopen-batch-1", expected_used=0
+        )
+        assert first.is_new_grid is True
+        assert first.decision is not None
+        assert journal.run_order_count(
+            _ACCOUNT_SCOPE, _SCOPE, context.logical_run_id
+        ) == 1
+
+        tripped_facts = _qualified_loss_account_facts(
+            account_scope=_ACCOUNT_SCOPE,
+            snapshot_id="reopen-trip",
+            available_at=now - timedelta(seconds=2),
+            trading_day=facts_helpers._TRADING_DAY,
+            total_net_pnl=Decimal("9000"),
+        )
+        tripped = coordinator.record_run_loss_observation(
+            context, tripped_facts
+        )
+        assert tripped.tripped is True
+        assert tripped.total_net_loss_from_baseline == Decimal("1000")
+
+        journal.close()
+        journal = None
+        journal = ExecutionDecisionJournal(path)
+        restarted = FactorExecutionCoordinator(
+            SimpleNamespace(store=store),
+            journal,
+            account_scope=_ACCOUNT_SCOPE,
+            strategy_scope=_SCOPE,
+            logical_run_id=context.logical_run_id,
+            max_order_intents_per_grid=2,
+            max_order_intents_per_run=8,
+        )
+
+        persisted = restarted.run_loss_guard(context)
+        assert persisted is not None
+        assert persisted.baseline_observation_id == "reopen-baseline"
+        assert persisted.baseline_total_net_pnl == Decimal("10000")
+        assert persisted.net_loss_threshold == Decimal("1000")
+        assert persisted.tripped is True
+        assert persisted.trip_observation_id == "reopen-trip"
+        assert persisted.latest_observation_id == "reopen-trip"
+        assert persisted.latest_total_net_pnl == Decimal("9000")
+
+        improved_facts = _qualified_loss_account_facts(
+            account_scope=_ACCOUNT_SCOPE,
+            snapshot_id="reopen-improved-pnl",
+            available_at=now - timedelta(seconds=1),
+            trading_day=facts_helpers._TRADING_DAY,
+            total_net_pnl=Decimal("9500"),
+        )
+        improved = restarted.record_run_loss_observation(
+            context,
+            improved_facts,
+        )
+        assert improved.tripped is True
+        assert improved.baseline_observation_id == "reopen-baseline"
+        assert improved.baseline_total_net_pnl == Decimal("10000")
+        assert improved.net_loss_threshold == Decimal("1000")
+        assert improved.trip_observation_id == "reopen-trip"
+        assert improved.latest_observation_id == "reopen-improved-pnl"
+        assert improved.latest_total_net_pnl == Decimal("9500")
+
+        replay = open_decision(
+            journal,
+            key=initial_key,
+            batch_id="loss-guard-reopen-batch-1",
+            expected_used=1,
+        )
+        assert replay.is_new_grid is False
+        assert replay.decision is not None
+        assert replay.decision.decision_id == first.decision.decision_id
+        assert journal.run_order_count(
+            _ACCOUNT_SCOPE, _SCOPE, context.logical_run_id
+        ) == 1
+
+        new_key = replace(
+            initial_key,
+            close_time=iso_utc(now - timedelta(seconds=2)),
+        )
+        with pytest.raises(
+            ExecutionDecisionJournalError,
+            match="RUN_TOTAL_NET_LOSS_LIMIT_REACHED",
+        ):
+            open_decision(
+                journal,
+                key=new_key,
+                batch_id="loss-guard-reopen-batch-2",
+                expected_used=1,
+            )
+
+        next_day = replace(
+            context,
+            trading_day=(
+                datetime.strptime(context.trading_day, "%Y%m%d") + timedelta(days=1)
+            ).strftime("%Y%m%d"),
+        )
+        next_day_facts = _qualified_loss_account_facts(
+            account_scope=_ACCOUNT_SCOPE,
+            snapshot_id="must-not-rebaseline-next-day",
+            available_at=now - timedelta(seconds=1),
+            trading_day=next_day.trading_day,
+            total_net_pnl=Decimal("9500"),
+        )
+        with pytest.raises(
+            FactorExecutionError,
+            match="RUN_LOSS_GUARD_POLICY_CONFLICT",
+        ):
+            restarted.enable_run_loss_guard(
+                next_day,
+                next_day_facts,
+                net_loss_threshold=Decimal("1000"),
+                max_observation_age_seconds=600,
+            )
+        still_tripped = restarted.run_loss_guard(context)
+        assert still_tripped == improved
+
+        cancel_intent = ExecutionIntentKey(
+            action="CANCEL",
+            instrument=_INSTRUMENT,
+            side="BUY",
+            position_effect="OPEN",
+            leg=0,
+        )
+        close_intent = ExecutionIntentKey(
+            action="SUBMIT",
+            instrument=_INSTRUMENT,
+            side="SELL",
+            position_effect="CLOSE",
+            leg=0,
+        )
+        cancel_result = risk_decision(
+            journal,
+            cohort_id="loss-guard-risk-cancel",
+            close_time=iso_utc(now - timedelta(seconds=1)),
+            payload={
+                "intent_economics": (
+                    {
+                        "instrument": _INSTRUMENT,
+                        "exchange": _EXCHANGE,
+                        "side": "BUY",
+                        "position_effect": "OPEN",
+                        "reason": "explicit risk-only cancellation",
+                    },
+                ),
+            },
+            intent=cancel_intent,
+            expected_used=1,
+        )
+        assert cancel_result.is_new_grid is True
+        assert journal.run_order_count(
+            _ACCOUNT_SCOPE, _SCOPE, context.logical_run_id
+        ) == 2
+
+        close_result = risk_decision(
+            journal,
+            cohort_id="loss-guard-risk-close",
+            close_time=iso_utc(now - timedelta(milliseconds=500)),
+            payload={
+                "intent_economics": (
+                    {
+                        "instrument": _INSTRUMENT,
+                        "exchange": _EXCHANGE,
+                        "side": "SELL",
+                        "position_effect": "CLOSE",
+                        "quantity": "1",
+                        "reason": "explicit position risk reduction",
+                    },
+                ),
+            },
+            intent=close_intent,
+            expected_used=2,
+        )
+        assert close_result.is_new_grid is True
+        assert journal.run_order_count(
+            _ACCOUNT_SCOPE, _SCOPE, context.logical_run_id
+        ) == 3  # one earlier OPEN plus the CANCEL and risk-reducing CLOSE
+    finally:
+        if journal is not None:
+            journal.close()
+
+
 def test_sourcefake_plain_strategy_buy_manual_fill_component_only():
     """Prove component dispatch/dedupe; the actual engine lifecycle is below."""
     now = datetime.now(timezone.utc)
