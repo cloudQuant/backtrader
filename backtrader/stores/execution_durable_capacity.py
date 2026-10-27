@@ -30,6 +30,7 @@ _DURABLE_ROW_KEYS = {
     "execution_decisions": ("decision_id",),
     "execution_decision_slots": ("intent_id",),
     "execution_run_order_budgets": ("account_scope", "strategy_scope", "logical_run_id"),
+    "execution_run_loss_guards": ("account_scope", "strategy_scope", "logical_run_id"),
     "execution_grid_cursors": ("account_scope", "strategy_scope", "cohort_id"),
     "execution_grid_highwaters": ("account_scope", "strategy_scope"),
     "execution_decision_intents": ("intent_id",),

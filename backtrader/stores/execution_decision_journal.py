@@ -27,8 +27,8 @@ import uuid
 from collections.abc import Mapping
 from contextlib import contextmanager
 from dataclasses import dataclass
-from datetime import datetime, timezone
-from decimal import Decimal, InvalidOperation
+from datetime import datetime, timedelta, timezone
+from decimal import Decimal, InvalidOperation, localcontext
 from pathlib import Path
 from types import MappingProxyType
 from threading import Lock, RLock
@@ -93,6 +93,7 @@ _ECONOMIC_DECIMAL_FIELDS = frozenset(
 _RFC3339_TIMESTAMP = re.compile(
     r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?(?:Z|[+-]\d{2}:\d{2})$"
 )
+_MAX_RUN_LOSS_ENABLE_SCAN_ROWS = 100_000
 _RUN_ORDER_RESERVATION_FIELD = "_journal_run_order_reservation"
 _DISPATCHING_CRASH_NO_FILL_OUTCOME = "complete_orders_query_dispatching_no_fill_terminal"
 _DISPATCHING_CANCEL_CHILD_OUTCOME = "complete_orders_query_cancel_dispatching_terminal"
@@ -163,6 +164,30 @@ class ExecutionIntentKey:
 
 
 @dataclass(frozen=True)
+class ExecutionRunLossGuardContext:
+    """Caller-held identity used to apply a persisted run loss guard."""
+
+    account_scope: str
+    strategy_scope: str
+    logical_run_id: str
+    trading_day: str
+    currency: str
+    pnl_basis: str
+
+    def __post_init__(self) -> None:
+        for name, value in (
+            ("account_scope", self.account_scope),
+            ("strategy_scope", self.strategy_scope),
+            ("logical_run_id", self.logical_run_id),
+            ("pnl_basis", self.pnl_basis),
+        ):
+            if not _identifier(value):
+                raise ExecutionDecisionJournalError("INVALID_RUN_LOSS_GUARD_CONTEXT")
+        _validate_loss_trading_day(self.trading_day)
+        _validate_loss_currency(self.currency)
+
+
+@dataclass(frozen=True)
 class ExecutionDecisionRecord:
     decision_id: str
     key: ExecutionDecisionKey
@@ -201,6 +226,31 @@ class ExecutionDecisionCapacitySnapshot:
     @property
     def physical_bytes(self) -> int:
         return self.database_bytes + self.wal_bytes
+
+
+@dataclass(frozen=True)
+class ExecutionRunLossGuardSnapshot:
+    """Immutable persisted policy and latest total-net-P&L observation."""
+
+    context: ExecutionRunLossGuardContext
+    baseline_observation_id: str
+    baseline_asof: str
+    baseline_total_net_pnl: Decimal
+    net_loss_threshold: Decimal
+    max_observation_age_seconds: int
+    latest_observation_id: str
+    latest_asof: str
+    latest_total_net_pnl: Decimal
+    tripped: bool
+    trip_observation_id: Optional[str]
+    trip_asof: Optional[str]
+    trip_loss: Optional[Decimal]
+
+    @property
+    def total_net_loss_from_baseline(self) -> Decimal:
+        return _exact_run_loss_difference(
+            self.baseline_total_net_pnl, self.latest_total_net_pnl
+        )
 
 
 @dataclass(frozen=True)
@@ -383,11 +433,14 @@ class ExecutionDecisionJournal:
     bounded limit.  Any SQLite write error latches this instance closed for
     further writes, so callers cannot accidentally proceed to a route after a
     failed persistence step.
+    An opt-in run loss guard persists one fixed total-net-P&L policy/state row
+    and checks fresh matching context at each OPEN decision, prepare, and claim.
     """
 
-    _SCHEMA_VERSION = 12
+    _SCHEMA_VERSION = 13
     _NATIVE_IDENTITY_SCHEMA_VERSION = 8
     _DECISION_CAPACITY_SCHEMA_VERSION = 9
+    _DURABLE_CAPACITY_SCHEMA_VERSION = 12
 
     def __init__(
         self,
@@ -641,6 +694,7 @@ class ExecutionDecisionJournal:
         economic_payload: Mapping[str, Any],
         *,
         intent_keys: Tuple[ExecutionIntentKey, ...] = (),
+        loss_guard_context: Optional[ExecutionRunLossGuardContext] = None,
     ) -> ExecutionDecisionRecord:
         """Persist one decision, including an explicit no-op when keys are empty.
 
@@ -667,6 +721,7 @@ class ExecutionDecisionJournal:
                 keys_json=keys_json,
                 normalized_keys=normalized_keys,
                 now_ns=now_ns,
+                loss_guard_context=loss_guard_context,
             )
             return record
 
@@ -685,6 +740,7 @@ class ExecutionDecisionJournal:
         max_order_intents_per_run: Optional[int] = None,
         expected_run_order_intents_used: Optional[int] = None,
         remaining_exit_intent_reserve: Optional[int] = None,
+        loss_guard_context: Optional[ExecutionRunLossGuardContext] = None,
     ) -> ExecutionGridDecision:
         """Persist one eligible decision and advance its cohort cursor atomically.
 
@@ -747,6 +803,7 @@ class ExecutionDecisionJournal:
                 keys_json=keys_json,
                 normalized_keys=normalized_keys,
                 now_ns=now_ns,
+                loss_guard_context=loss_guard_context,
             )
             current = db_cursor.execute(
                 """SELECT * FROM execution_grid_cursors
@@ -996,6 +1053,260 @@ class ExecutionDecisionJournal:
             ).fetchone()
         return 0 if row is None else int(row["intent_count"])
 
+    def enable_run_loss_guard(
+        self,
+        context: ExecutionRunLossGuardContext,
+        *,
+        baseline_observation_id: str,
+        baseline_asof: str,
+        baseline_total_net_pnl: Decimal,
+        net_loss_threshold: Decimal,
+        max_observation_age_seconds: int,
+    ) -> ExecutionRunLossGuardSnapshot:
+        """Persist an immutable run policy and its fresh starting P&L observation.
+
+        The caller must supply a validated total net P&L scalar whose declared
+        basis already accounts for realized and unrealized results and fees
+        exactly once. This journal does not derive balances, fees, or provider
+        accounting. Reopening with the same policy never resets the latest
+        observation or a latched trip.
+        """
+
+        if type(context) is not ExecutionRunLossGuardContext:
+            raise ExecutionDecisionJournalError("INVALID_RUN_LOSS_GUARD_CONTEXT")
+        _require_identifier(baseline_observation_id, "INVALID_RUN_LOSS_OBSERVATION_ID")
+        baseline_asof_value = _normalize_run_loss_asof(baseline_asof)
+        baseline_pnl_text = _run_loss_decimal_text(
+            baseline_total_net_pnl, "INVALID_RUN_LOSS_PNL"
+        )
+        threshold_text = _run_loss_decimal_text(net_loss_threshold, "INVALID_RUN_LOSS_THRESHOLD")
+        if Decimal(threshold_text) <= 0:
+            raise ExecutionDecisionJournalError("INVALID_RUN_LOSS_THRESHOLD")
+        ttl = _validate_run_loss_ttl(max_observation_age_seconds)
+        identity = (context.account_scope, context.strategy_scope, context.logical_run_id)
+        now_ns = time.time_ns()
+
+        with self._transaction() as cursor:
+            row = cursor.execute(
+                """SELECT * FROM execution_run_loss_guards
+                   WHERE account_scope=? AND strategy_scope=? AND logical_run_id=?""",
+                identity,
+            ).fetchone()
+            if row is not None:
+                expected = (
+                    context.trading_day,
+                    context.currency,
+                    context.pnl_basis,
+                    baseline_observation_id,
+                    baseline_asof_value,
+                    baseline_pnl_text,
+                    threshold_text,
+                    ttl,
+                )
+                actual = tuple(
+                    row[name]
+                    for name in (
+                        "trading_day",
+                        "currency",
+                        "pnl_basis",
+                        "baseline_observation_id",
+                        "baseline_asof",
+                        "baseline_total_net_pnl",
+                        "net_loss_threshold",
+                        "max_observation_age_seconds",
+                    )
+                )
+                if actual != expected:
+                    raise ExecutionDecisionJournalError("RUN_LOSS_GUARD_POLICY_CONFLICT")
+                snapshot = _run_loss_guard_snapshot(row)
+                _require_fresh_run_loss_asof(snapshot.latest_asof, ttl, datetime.now(timezone.utc))
+                return snapshot
+
+            _require_fresh_run_loss_asof(
+                baseline_asof_value, ttl, datetime.now(timezone.utc)
+            )
+            self._reject_late_run_loss_guard_enable(cursor, identity)
+            with track_durable_row_change(
+                cursor, "execution_run_loss_guards", identity, "SETTLEMENT"
+            ):
+                cursor.execute(
+                    """INSERT INTO execution_run_loss_guards
+                       (account_scope,strategy_scope,logical_run_id,trading_day,currency,pnl_basis,
+                        baseline_observation_id,baseline_asof,baseline_total_net_pnl,
+                        net_loss_threshold,max_observation_age_seconds,latest_observation_id,
+                        latest_asof,latest_total_net_pnl,tripped,trip_observation_id,trip_asof,
+                        trip_loss,created_at_ns,updated_at_ns)
+                       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,0,NULL,NULL,NULL,?,?)""",
+                    identity
+                    + (
+                        context.trading_day,
+                        context.currency,
+                        context.pnl_basis,
+                        baseline_observation_id,
+                        baseline_asof_value,
+                        baseline_pnl_text,
+                        threshold_text,
+                        ttl,
+                        baseline_observation_id,
+                        baseline_asof_value,
+                        baseline_pnl_text,
+                        now_ns,
+                        now_ns,
+                    ),
+                )
+            saved = cursor.execute(
+                """SELECT * FROM execution_run_loss_guards
+                   WHERE account_scope=? AND strategy_scope=? AND logical_run_id=?""",
+                identity,
+            ).fetchone()
+            return _run_loss_guard_snapshot(saved)
+
+    @staticmethod
+    def _reject_late_run_loss_guard_enable(
+        cursor: sqlite3.Cursor, identity: Tuple[str, str, str]
+    ) -> None:
+        """Do not establish a new loss baseline after prior OPEN admission.
+
+        This is a one-time preflight for first policy creation. It scans at most
+        a fixed number of existing decision rows, one row at a time, and uses
+        the journal's canonical decoder. The query is intentionally free of
+        SQLite JSON extensions and adds no durable schema or index dependency.
+        """
+
+        read_cursor = cursor.connection.cursor()
+        try:
+            rows = read_cursor.execute("SELECT * FROM execution_decisions")
+            scanned = 0
+            while True:
+                row = rows.fetchone()
+                if row is None:
+                    return
+                scanned += 1
+                if scanned > _MAX_RUN_LOSS_ENABLE_SCAN_ROWS:
+                    raise ExecutionDecisionJournalError("RUN_LOSS_GUARD_ENABLE_SCAN_LIMIT")
+                decision = _decision_record(row)
+                if (
+                    decision.key.account_scope,
+                    decision.key.strategy_scope,
+                    decision.key.logical_run_id,
+                ) != identity:
+                    continue
+                if any(
+                    item.action == "SUBMIT" and item.position_effect == "OPEN"
+                    for item in decision.intent_keys
+                ):
+                    raise ExecutionDecisionJournalError(
+                        "RUN_LOSS_GUARD_LATE_ENABLE_AFTER_OPEN"
+                    )
+        finally:
+            read_cursor.close()
+
+    def run_loss_guard(
+        self, account_scope: str, strategy_scope: str, logical_run_id: str
+    ) -> Optional[ExecutionRunLossGuardSnapshot]:
+        """Return the persisted run loss policy and latest observation, if enabled."""
+
+        identity = _run_loss_identity(account_scope, strategy_scope, logical_run_id)
+        with self._read_lock():
+            row = self._connection.execute(
+                """SELECT * FROM execution_run_loss_guards
+                   WHERE account_scope=? AND strategy_scope=? AND logical_run_id=?""",
+                identity,
+            ).fetchone()
+        return None if row is None else _run_loss_guard_snapshot(row)
+
+    def record_run_loss_observation(
+        self,
+        context: ExecutionRunLossGuardContext,
+        *,
+        observation_id: str,
+        asof: str,
+        total_net_pnl: Decimal,
+    ) -> ExecutionRunLossGuardSnapshot:
+        """Persist the latest caller-validated total-net-P&L value atomically.
+
+        Only an exact replay of the current latest observation ID is idempotent.
+        Earlier IDs and non-monotone timestamps are rejected; the journal keeps
+        one bounded state row per logical run rather than an observation log.
+        """
+
+        if type(context) is not ExecutionRunLossGuardContext:
+            raise ExecutionDecisionJournalError("INVALID_RUN_LOSS_GUARD_CONTEXT")
+        _require_identifier(observation_id, "INVALID_RUN_LOSS_OBSERVATION_ID")
+        asof_value = _normalize_run_loss_asof(asof)
+        pnl_text = _run_loss_decimal_text(total_net_pnl, "INVALID_RUN_LOSS_PNL")
+        identity = (context.account_scope, context.strategy_scope, context.logical_run_id)
+
+        with self._transaction() as cursor:
+            row = cursor.execute(
+                """SELECT * FROM execution_run_loss_guards
+                   WHERE account_scope=? AND strategy_scope=? AND logical_run_id=?""",
+                identity,
+            ).fetchone()
+            if row is None:
+                raise ExecutionDecisionJournalError("RUN_LOSS_GUARD_NOT_CONFIGURED")
+            _require_matching_run_loss_context(context, row)
+            snapshot = _run_loss_guard_snapshot(row)
+            if observation_id == snapshot.latest_observation_id:
+                if asof_value != snapshot.latest_asof or pnl_text != _run_loss_decimal_text(
+                    snapshot.latest_total_net_pnl, "RUN_LOSS_GUARD_STATE_INVALID"
+                ):
+                    raise ExecutionDecisionJournalError("RUN_LOSS_OBSERVATION_CONFLICT")
+                _require_fresh_run_loss_asof(
+                    asof_value,
+                    snapshot.max_observation_age_seconds,
+                    datetime.now(timezone.utc),
+                )
+                return snapshot
+
+            candidate_time = _parse_normalized_close_time(asof_value)
+            latest_time = _parse_normalized_close_time(snapshot.latest_asof)
+            if candidate_time <= latest_time:
+                raise ExecutionDecisionJournalError("RUN_LOSS_OBSERVATION_NOT_MONOTONE")
+            _require_fresh_run_loss_asof(
+                asof_value,
+                snapshot.max_observation_age_seconds,
+                datetime.now(timezone.utc),
+            )
+
+            baseline = snapshot.baseline_total_net_pnl
+            loss = _exact_run_loss_difference(baseline, Decimal(pnl_text))
+            tripped = snapshot.tripped or loss >= snapshot.net_loss_threshold
+            trip_observation_id = snapshot.trip_observation_id
+            trip_asof = snapshot.trip_asof
+            trip_loss = snapshot.trip_loss
+            if not snapshot.tripped and tripped:
+                trip_observation_id = observation_id
+                trip_asof = asof_value
+                trip_loss = loss
+            with track_durable_row_change(
+                cursor, "execution_run_loss_guards", identity, "SETTLEMENT"
+            ):
+                cursor.execute(
+                    """UPDATE execution_run_loss_guards
+                       SET latest_observation_id=?, latest_asof=?, latest_total_net_pnl=?,
+                           tripped=?, trip_observation_id=?, trip_asof=?, trip_loss=?,
+                           updated_at_ns=?
+                       WHERE account_scope=? AND strategy_scope=? AND logical_run_id=?""",
+                    (
+                        observation_id,
+                        asof_value,
+                        pnl_text,
+                        int(tripped),
+                        trip_observation_id,
+                        trip_asof,
+                        None if trip_loss is None else _canonical_decimal(trip_loss),
+                        time.time_ns(),
+                    )
+                    + identity,
+                )
+            saved = cursor.execute(
+                """SELECT * FROM execution_run_loss_guards
+                   WHERE account_scope=? AND strategy_scope=? AND logical_run_id=?""",
+                identity,
+            ).fetchone()
+            return _run_loss_guard_snapshot(saved)
+
     @staticmethod
     def _apply_run_order_budget(
         cursor: sqlite3.Cursor,
@@ -1117,6 +1428,7 @@ class ExecutionDecisionJournal:
         now_ns: int,
         replay_payload_json: Optional[str] = None,
         run_order_reservation: Optional[Mapping[str, int]] = None,
+        loss_guard_context: Optional[ExecutionRunLossGuardContext] = None,
     ) -> Tuple[ExecutionDecisionRecord, bool]:
         row = cursor.execute(
             "SELECT * FROM execution_decisions WHERE decision_id = ?", (decision_id,)
@@ -1144,6 +1456,8 @@ class ExecutionDecisionJournal:
                 raise ExecutionDecisionJournalError("DECISION_CONFLICT")
             return _decision_record(row), False
 
+        # A durable exact readback is not new OPEN risk. Only admit the OPEN
+        # when this transaction is about to persist a new decision row.
         decision_class = _decision_capacity_class(normalized_keys)
         decision_payload_bytes = sum(
             len(value.encode("utf-8")) for value in (key_json, payload_json, keys_json)
@@ -1175,7 +1489,11 @@ class ExecutionDecisionJournal:
         if any(
             item.action == "SUBMIT" and item.position_effect == "OPEN" for item in normalized_keys
         ):
-            self._ensure_new_open_capacity(cursor)
+            self._ensure_new_open_capacity(
+                cursor,
+                business_key_json=key_json,
+                loss_guard_context=loss_guard_context,
+            )
         with track_durable_row_change(
             cursor, "execution_decisions", (decision_id,), decision_class
         ):
@@ -1211,8 +1529,20 @@ class ExecutionDecisionJournal:
         ).fetchone()
         return _decision_record(row), True
 
-    def _ensure_new_open_capacity(self, cursor: sqlite3.Cursor) -> None:
+    def _ensure_new_open_capacity(
+        self,
+        cursor: sqlite3.Cursor,
+        *,
+        business_key_json: str,
+        loss_guard_context: Optional[ExecutionRunLossGuardContext],
+    ) -> None:
         """Require room in both cumulative classes before admitting new OPEN risk."""
+
+        self._ensure_run_loss_guard_allows_open(
+            cursor,
+            business_key_json=business_key_json,
+            context=loss_guard_context,
+        )
 
         try:
             usage = read_durable_capacity_usage(cursor)
@@ -1227,6 +1557,59 @@ class ExecutionDecisionJournal:
             raise ExecutionDecisionJournalError("DURABLE_SETTLEMENT_RECORDS_EXHAUSTED")
         if usage.settlement_bytes >= limits.max_durable_settlement_bytes:
             raise ExecutionDecisionJournalError("DURABLE_SETTLEMENT_BYTES_EXHAUSTED")
+
+    def _ensure_run_loss_guard_allows_open(
+        self,
+        cursor: sqlite3.Cursor,
+        *,
+        business_key_json: str,
+        context: Optional[ExecutionRunLossGuardContext],
+    ) -> None:
+        """Fail closed for a configured loss guard at each new OPEN boundary."""
+
+        try:
+            business_key = json.loads(business_key_json)
+        except (TypeError, ValueError) as error:
+            raise ExecutionDecisionJournalError("RUN_LOSS_GUARD_BUSINESS_KEY_INVALID") from error
+        if not isinstance(business_key, Mapping):
+            raise ExecutionDecisionJournalError("RUN_LOSS_GUARD_BUSINESS_KEY_INVALID")
+        identity = tuple(
+            business_key.get(name)
+            for name in ("account_scope", "strategy_scope", "logical_run_id")
+        )
+        if any(not _identifier(value) for value in identity):
+            raise ExecutionDecisionJournalError("RUN_LOSS_GUARD_BUSINESS_KEY_INVALID")
+        if context is not None:
+            if type(context) is not ExecutionRunLossGuardContext:
+                raise ExecutionDecisionJournalError("INVALID_RUN_LOSS_GUARD_CONTEXT")
+            if identity != (
+                context.account_scope,
+                context.strategy_scope,
+                context.logical_run_id,
+            ):
+                raise ExecutionDecisionJournalError("RUN_LOSS_GUARD_CONTEXT_MISMATCH")
+        row = cursor.execute(
+            """SELECT * FROM execution_run_loss_guards
+               WHERE account_scope=? AND strategy_scope=? AND logical_run_id=?""",
+            identity,
+        ).fetchone()
+        if row is None:
+            if context is not None:
+                raise ExecutionDecisionJournalError("RUN_LOSS_GUARD_NOT_CONFIGURED")
+            return
+        if type(context) is not ExecutionRunLossGuardContext:
+            raise ExecutionDecisionJournalError("RUN_LOSS_GUARD_CONTEXT_REQUIRED")
+        _require_matching_run_loss_context(context, row)
+        if identity != (context.account_scope, context.strategy_scope, context.logical_run_id):
+            raise ExecutionDecisionJournalError("RUN_LOSS_GUARD_CONTEXT_MISMATCH")
+        snapshot = _run_loss_guard_snapshot(row)
+        _require_fresh_run_loss_asof(
+            snapshot.latest_asof,
+            snapshot.max_observation_age_seconds,
+            datetime.now(timezone.utc),
+        )
+        if snapshot.tripped:
+            raise ExecutionDecisionJournalError("RUN_TOTAL_NET_LOSS_LIMIT_REACHED")
 
     def _check_decision_capacity(
         self, cursor: sqlite3.Cursor, *, decision_class: str, added_bytes: int
@@ -1343,6 +1726,7 @@ class ExecutionDecisionJournal:
         *,
         original_identity: Optional[Mapping[str, Any]] = None,
         owner_intent_id: Optional[str] = None,
+        loss_guard_context: Optional[ExecutionRunLossGuardContext] = None,
     ) -> ExecutionIntentRecord:
         """Bind economics and original IDs, reserving one account/instrument owner.
 
@@ -1426,7 +1810,11 @@ class ExecutionDecisionJournal:
                 if intent_key.position_effect == "OPEN":
                     if owner_intent_id is not None:
                         raise ExecutionDecisionJournalError("UNEXPECTED_OWNER_INTENT")
-                    self._ensure_new_open_capacity(cursor)
+                    self._ensure_new_open_capacity(
+                        cursor,
+                        business_key_json=decision_row["business_key_json"],
+                        loss_guard_context=loss_guard_context,
+                    )
                 elif intent_key.position_effect == "CLOSE":
                     if factor_owned_close and owner_intent_id is None:
                         raise ExecutionDecisionJournalError("CLOSE_OWNER_REQUIRED")
@@ -2867,7 +3255,12 @@ class ExecutionDecisionJournal:
                 ).fetchone()
             )
 
-    def claim_dispatch(self, intent_id: str) -> Optional[ExecutionDispatchClaim]:
+    def claim_dispatch(
+        self,
+        intent_id: str,
+        *,
+        loss_guard_context: Optional[ExecutionRunLossGuardContext] = None,
+    ) -> Optional[ExecutionDispatchClaim]:
         """Atomically claim the only dispatch attempt for one prepared intent.
 
         Returns ``None`` for DISPATCHING, KNOWN or UNKNOWN intents.  A process
@@ -2926,7 +3319,7 @@ class ExecutionDecisionJournal:
             if prior_unresolved:
                 raise ExecutionDecisionJournalError("PRIOR_INTENT_NOT_KNOWN")
             decision_row = cursor.execute(
-                "SELECT capacity_class FROM execution_decisions WHERE decision_id = ?",
+                "SELECT capacity_class,business_key_json FROM execution_decisions WHERE decision_id = ?",
                 (row["decision_id"],),
             ).fetchone()
             if decision_row is None:
@@ -2937,7 +3330,11 @@ class ExecutionDecisionJournal:
                 else self._durable_decision_class(decision_row["capacity_class"])
             )
             if intent_key.action == "SUBMIT" and intent_key.position_effect == "OPEN":
-                self._ensure_new_open_capacity(cursor)
+                self._ensure_new_open_capacity(
+                    cursor,
+                    business_key_json=decision_row["business_key_json"],
+                    loss_guard_context=loss_guard_context,
+                )
             now_ns = time.time_ns()
             with track_durable_row_change(
                 cursor, "execution_decision_intents", (intent_id,), intent_capacity_class
@@ -4666,6 +5063,7 @@ class ExecutionDecisionJournal:
             "execution_run_order_budgets",
             lambda row: self._classify_run_budget_row(row, run_classes),
         )
+        account_rows("execution_run_loss_guards", lambda _row: "SETTLEMENT")
         account_rows(
             "execution_grid_cursors",
             lambda row: decision_classes.get(row["decision_id"])
@@ -4772,7 +5170,7 @@ class ExecutionDecisionJournal:
                                 'execution_durable_capacity_usage')"""
             ).fetchall()
         }
-        if version < self._SCHEMA_VERSION:
+        if version < self._DURABLE_CAPACITY_SCHEMA_VERSION:
             if existing:
                 raise ExecutionDecisionJournalError("DURABLE_CAPACITY_SCHEMA_CORRUPT")
             cursor.execute(
@@ -4803,7 +5201,22 @@ class ExecutionDecisionJournal:
     def _create_schema(self) -> None:
         with self._lock:
             version = int(self._connection.execute("PRAGMA user_version").fetchone()[0])
-            if version not in (0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, self._SCHEMA_VERSION):
+            if version not in (
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8,
+                9,
+                10,
+                11,
+                self._DURABLE_CAPACITY_SCHEMA_VERSION,
+                self._SCHEMA_VERSION,
+            ):
                 raise ExecutionDecisionJournalError("UNSUPPORTED_SCHEMA_VERSION")
             if version == self._SCHEMA_VERSION:
                 required_tables = {
@@ -4811,14 +5224,17 @@ class ExecutionDecisionJournal:
                     for row in self._connection.execute(
                         """SELECT name FROM sqlite_master WHERE type='table'
                            AND name IN ('execution_decision_callbacks',
-                                        'execution_callback_query_dispositions')"""
+                                        'execution_callback_query_dispositions',
+                                        'execution_run_loss_guards')"""
                     ).fetchall()
                 }
-                if required_tables != {
+                if not {
                     "execution_decision_callbacks",
                     "execution_callback_query_dispositions",
-                }:
+                } <= required_tables:
                     raise ExecutionDecisionJournalError("CALLBACK_DELIVERY_SCHEMA_CORRUPT")
+                if "execution_run_loss_guards" not in required_tables:
+                    raise ExecutionDecisionJournalError("RUN_LOSS_GUARD_SCHEMA_CORRUPT")
                 callback_columns = {
                     row["name"]
                     for row in self._connection.execute(
@@ -4831,16 +5247,41 @@ class ExecutionDecisionJournal:
                         "PRAGMA table_info(execution_callback_query_dispositions)"
                     ).fetchall()
                 }
-                if (
-                    not {"delivery_pending", "process_instance_id"} <= callback_columns
-                    or not {
-                        "query_process_instance_id",
-                        "proof_payload_json",
-                        "proof_sha256",
-                    }
-                    <= disposition_columns
-                ):
+                loss_guard_info = self._connection.execute(
+                    "PRAGMA table_info(execution_run_loss_guards)"
+                ).fetchall()
+                loss_guard_columns = {row["name"] for row in loss_guard_info}
+                if not {"delivery_pending", "process_instance_id"} <= callback_columns or not {
+                    "query_process_instance_id",
+                    "proof_payload_json",
+                    "proof_sha256",
+                } <= disposition_columns:
                     raise ExecutionDecisionJournalError("CALLBACK_DELIVERY_SCHEMA_CORRUPT")
+                if (
+                    not {
+                        "account_scope",
+                        "strategy_scope",
+                        "logical_run_id",
+                        "trading_day",
+                        "currency",
+                        "pnl_basis",
+                        "baseline_observation_id",
+                        "baseline_asof",
+                        "baseline_total_net_pnl",
+                        "net_loss_threshold",
+                        "max_observation_age_seconds",
+                        "latest_observation_id",
+                        "latest_asof",
+                        "latest_total_net_pnl",
+                        "tripped",
+                        "trip_observation_id",
+                        "trip_asof",
+                        "trip_loss",
+                    }
+                    <= loss_guard_columns
+                    or not _run_loss_guard_primary_key_matches(loss_guard_info)
+                ):
+                    raise ExecutionDecisionJournalError("RUN_LOSS_GUARD_SCHEMA_CORRUPT")
                 cursor = self._connection.cursor()
                 try:
                     self._validate_durable_capacity_tables(cursor)
@@ -4903,6 +5344,34 @@ class ExecutionDecisionJournal:
                         created_at_ns INTEGER NOT NULL,
                         PRIMARY KEY(account_scope, strategy_scope, logical_run_id),
                         CHECK(intent_count <= max_intents)
+                    );
+                    CREATE TABLE IF NOT EXISTS execution_run_loss_guards (
+                        account_scope TEXT NOT NULL,
+                        strategy_scope TEXT NOT NULL,
+                        logical_run_id TEXT NOT NULL,
+                        trading_day TEXT NOT NULL,
+                        currency TEXT NOT NULL,
+                        pnl_basis TEXT NOT NULL,
+                        baseline_observation_id TEXT NOT NULL,
+                        baseline_asof TEXT NOT NULL,
+                        baseline_total_net_pnl TEXT NOT NULL,
+                        net_loss_threshold TEXT NOT NULL,
+                        max_observation_age_seconds INTEGER NOT NULL
+                            CHECK(max_observation_age_seconds > 0),
+                        latest_observation_id TEXT NOT NULL,
+                        latest_asof TEXT NOT NULL,
+                        latest_total_net_pnl TEXT NOT NULL,
+                        tripped INTEGER NOT NULL CHECK(tripped IN (0,1)),
+                        trip_observation_id TEXT,
+                        trip_asof TEXT,
+                        trip_loss TEXT,
+                        created_at_ns INTEGER NOT NULL,
+                        updated_at_ns INTEGER NOT NULL,
+                        PRIMARY KEY(account_scope,strategy_scope,logical_run_id),
+                        CHECK((tripped=0 AND trip_observation_id IS NULL
+                               AND trip_asof IS NULL AND trip_loss IS NULL)
+                           OR (tripped=1 AND trip_observation_id IS NOT NULL
+                               AND trip_asof IS NOT NULL AND trip_loss IS NOT NULL))
                     );
                     CREATE TABLE IF NOT EXISTS execution_decision_slots (
                         intent_id TEXT PRIMARY KEY,
@@ -5085,9 +5554,39 @@ class ExecutionDecisionJournal:
                     9,
                     10,
                     11,
+                    self._DURABLE_CAPACITY_SCHEMA_VERSION,
                     self._SCHEMA_VERSION,
                 ):
                     raise ExecutionDecisionJournalError("UNSUPPORTED_SCHEMA_VERSION")
+                loss_guard_info = self._connection.execute(
+                    "PRAGMA table_info(execution_run_loss_guards)"
+                ).fetchall()
+                loss_guard_columns = {row["name"] for row in loss_guard_info}
+                if not {
+                    "account_scope",
+                    "strategy_scope",
+                    "logical_run_id",
+                    "trading_day",
+                    "currency",
+                    "pnl_basis",
+                    "baseline_observation_id",
+                    "baseline_asof",
+                    "baseline_total_net_pnl",
+                    "net_loss_threshold",
+                    "max_observation_age_seconds",
+                    "latest_observation_id",
+                    "latest_asof",
+                    "latest_total_net_pnl",
+                    "tripped",
+                    "trip_observation_id",
+                    "trip_asof",
+                    "trip_loss",
+                    "created_at_ns",
+                    "updated_at_ns",
+                } <= loss_guard_columns:
+                    raise ExecutionDecisionJournalError("RUN_LOSS_GUARD_SCHEMA_CORRUPT")
+                if not _run_loss_guard_primary_key_matches(loss_guard_info):
+                    raise ExecutionDecisionJournalError("RUN_LOSS_GUARD_SCHEMA_CORRUPT")
                 callback_columns = {
                     row["name"]
                     for row in self._connection.execute(
@@ -5095,7 +5594,7 @@ class ExecutionDecisionJournal:
                     ).fetchall()
                 }
                 if (
-                    locked_version == self._SCHEMA_VERSION
+                    locked_version >= self._DURABLE_CAPACITY_SCHEMA_VERSION
                     and not {
                         "process_instance_id",
                         "delivery_pending",
@@ -5104,11 +5603,13 @@ class ExecutionDecisionJournal:
                 ):
                     raise ExecutionDecisionJournalError("CALLBACK_DELIVERY_SCHEMA_CORRUPT")
                 if "process_instance_id" not in callback_columns:
+                    if locked_version >= self._DURABLE_CAPACITY_SCHEMA_VERSION:
+                        raise ExecutionDecisionJournalError("CALLBACK_DELIVERY_SCHEMA_CORRUPT")
                     self._connection.execute(
                         "ALTER TABLE execution_decision_callbacks ADD COLUMN process_instance_id TEXT"
                     )
                 if "delivery_pending" not in callback_columns:
-                    if locked_version == self._SCHEMA_VERSION:
+                    if locked_version >= self._DURABLE_CAPACITY_SCHEMA_VERSION:
                         raise ExecutionDecisionJournalError("CALLBACK_DELIVERY_SCHEMA_CORRUPT")
                     self._connection.execute(
                         """ALTER TABLE execution_decision_callbacks
@@ -5122,7 +5623,7 @@ class ExecutionDecisionJournal:
                     ).fetchall()
                 }
                 if (
-                    locked_version == self._SCHEMA_VERSION
+                    locked_version >= self._DURABLE_CAPACITY_SCHEMA_VERSION
                     and not {
                         "query_process_instance_id",
                         "proof_payload_json",
@@ -5132,6 +5633,8 @@ class ExecutionDecisionJournal:
                 ):
                     raise ExecutionDecisionJournalError("CALLBACK_DELIVERY_SCHEMA_CORRUPT")
                 if "query_process_instance_id" not in disposition_columns:
+                    if locked_version >= self._DURABLE_CAPACITY_SCHEMA_VERSION:
+                        raise ExecutionDecisionJournalError("CALLBACK_DELIVERY_SCHEMA_CORRUPT")
                     # Any intermediate/legacy disposition has no durable
                     # process-incarnation witness and remains unusable.
                     self._connection.execute(
@@ -5186,7 +5689,7 @@ class ExecutionDecisionJournal:
                         self._backfill_decision_capacity_usage(cursor)
                     finally:
                         cursor.close()
-                if locked_version < self._SCHEMA_VERSION:
+                if locked_version < self._DURABLE_CAPACITY_SCHEMA_VERSION:
                     cursor = self._connection.cursor()
                     try:
                         self._backfill_execution_grid_highwaters(cursor)
@@ -5267,6 +5770,7 @@ class ExecutionDecisionJournal:
                 # decision-capacity usage, V10 the cross-cohort grid highwater,
                 # V11 callback query dispositions and indexed delivery state,
                 # V12 cumulative typed payload budgets across journal and book rows.
+                # V13 persists one bounded total-net-P&L loss-guard state per run.
             except ExecutionDecisionJournalError:
                 if self._connection.in_transaction:
                     self._connection.execute("ROLLBACK")
@@ -5485,6 +5989,205 @@ def _parse_normalized_close_time(value: str) -> datetime:
 def _require_identifier(value: Any, code: str) -> None:
     if not _identifier(value):
         raise ExecutionDecisionJournalError(code)
+
+
+def _validate_loss_trading_day(value: Any) -> None:
+    if type(value) is not str or not re.fullmatch(r"\d{8}", value):
+        raise ExecutionDecisionJournalError("INVALID_RUN_LOSS_TRADING_DAY")
+    try:
+        parsed = datetime.strptime(value, "%Y%m%d")
+    except ValueError as error:
+        raise ExecutionDecisionJournalError("INVALID_RUN_LOSS_TRADING_DAY") from error
+    if parsed.strftime("%Y%m%d") != value:
+        raise ExecutionDecisionJournalError("INVALID_RUN_LOSS_TRADING_DAY")
+
+
+def _validate_loss_currency(value: Any) -> None:
+    if type(value) is not str or not re.fullmatch(r"[A-Z]{3}", value):
+        raise ExecutionDecisionJournalError("INVALID_RUN_LOSS_CURRENCY")
+
+
+def _run_loss_identity(
+    account_scope: Any, strategy_scope: Any, logical_run_id: Any
+) -> Tuple[str, str, str]:
+    _require_identifier(account_scope, "INVALID_ACCOUNT_SCOPE")
+    _require_identifier(strategy_scope, "INVALID_STRATEGY_SCOPE")
+    _require_identifier(logical_run_id, "INVALID_LOGICAL_RUN_ID")
+    return account_scope, strategy_scope, logical_run_id
+
+
+def _validate_run_loss_ttl(value: Any) -> int:
+    if type(value) is not int or not 1 <= value <= 86_400:
+        raise ExecutionDecisionJournalError("INVALID_RUN_LOSS_TTL")
+    return value
+
+
+def _normalize_run_loss_asof(value: Any) -> str:
+    try:
+        return _normalize_close_time(value)
+    except ExecutionDecisionJournalError as error:
+        raise ExecutionDecisionJournalError("INVALID_RUN_LOSS_ASOF") from error
+
+
+def _run_loss_decimal_text(value: Any, code: str) -> str:
+    if type(value) is not Decimal:
+        raise ExecutionDecisionJournalError(code)
+    try:
+        if len(value.as_tuple().digits) > 256:
+            raise ValueError("decimal precision out of bounds")
+        return _canonical_decimal(value)
+    except (InvalidOperation, TypeError, ValueError) as error:
+        raise ExecutionDecisionJournalError(code) from error
+
+
+def _exact_run_loss_difference(left: Decimal, right: Decimal) -> Decimal:
+    left_tuple = left.as_tuple()
+    right_tuple = right.as_tuple()
+    lowest_exponent = min(left_tuple.exponent, right_tuple.exponent)
+    precision = max(
+        len(left_tuple.digits) + left_tuple.exponent - lowest_exponent,
+        len(right_tuple.digits) + right_tuple.exponent - lowest_exponent,
+    ) + 2
+    with localcontext() as context:
+        context.prec = precision
+        context.Emax = max(1, max(left.adjusted(), right.adjusted()) + 2)
+        context.Emin = min(-1, lowest_exponent - precision - 2)
+        context.clamp = 0
+        return left - right
+
+
+def _stored_run_loss_decimal(value: Any) -> Decimal:
+    if type(value) is not str or not value:
+        raise ExecutionDecisionJournalError("RUN_LOSS_GUARD_STATE_INVALID")
+    try:
+        number = Decimal(value)
+        canonical = _canonical_decimal(number)
+    except (InvalidOperation, TypeError, ValueError) as error:
+        raise ExecutionDecisionJournalError("RUN_LOSS_GUARD_STATE_INVALID") from error
+    if canonical != value:
+        raise ExecutionDecisionJournalError("RUN_LOSS_GUARD_STATE_INVALID")
+    return number
+
+
+def _require_fresh_run_loss_asof(asof: str, ttl_seconds: int, now: datetime) -> None:
+    try:
+        observed = _parse_normalized_close_time(asof)
+    except ExecutionDecisionJournalError as error:
+        raise ExecutionDecisionJournalError("RUN_LOSS_GUARD_STATE_INVALID") from error
+    if now.tzinfo is None or now.utcoffset() is None:
+        raise ExecutionDecisionJournalError("RUN_LOSS_GUARD_CLOCK_INVALID")
+    age = now.astimezone(timezone.utc) - observed
+    if age < timedelta(0) or age > timedelta(seconds=ttl_seconds):
+        raise ExecutionDecisionJournalError("RUN_LOSS_OBSERVATION_STALE")
+
+
+def _require_matching_run_loss_context(
+    context: ExecutionRunLossGuardContext, row: sqlite3.Row
+) -> None:
+    if type(context) is not ExecutionRunLossGuardContext:
+        raise ExecutionDecisionJournalError("RUN_LOSS_GUARD_CONTEXT_REQUIRED")
+    snapshot = _run_loss_guard_snapshot(row)
+    if context != snapshot.context:
+        raise ExecutionDecisionJournalError("RUN_LOSS_GUARD_CONTEXT_MISMATCH")
+
+
+def _run_loss_guard_primary_key_matches(column_info: Any) -> bool:
+    expected = {"account_scope": 1, "strategy_scope": 2, "logical_run_id": 3}
+    try:
+        rows = list(column_info)
+        names = [row["name"] for row in rows]
+        if not expected.keys() <= set(names) or len(names) != len(set(names)):
+            return False
+        return all(
+            type(row["pk"]) is int and row["pk"] == expected.get(row["name"], 0)
+            for row in rows
+        )
+    except (KeyError, TypeError, ValueError):
+        return False
+
+
+def _run_loss_guard_snapshot(row: sqlite3.Row) -> ExecutionRunLossGuardSnapshot:
+    try:
+        context = ExecutionRunLossGuardContext(
+            account_scope=row["account_scope"],
+            strategy_scope=row["strategy_scope"],
+            logical_run_id=row["logical_run_id"],
+            trading_day=row["trading_day"],
+            currency=row["currency"],
+            pnl_basis=row["pnl_basis"],
+        )
+        baseline_observation_id = row["baseline_observation_id"]
+        latest_observation_id = row["latest_observation_id"]
+        _require_identifier(baseline_observation_id, "RUN_LOSS_GUARD_STATE_INVALID")
+        _require_identifier(latest_observation_id, "RUN_LOSS_GUARD_STATE_INVALID")
+        baseline_asof = _normalize_run_loss_asof(row["baseline_asof"])
+        latest_asof = _normalize_run_loss_asof(row["latest_asof"])
+        if baseline_asof != row["baseline_asof"] or latest_asof != row["latest_asof"]:
+            raise ExecutionDecisionJournalError("RUN_LOSS_GUARD_STATE_INVALID")
+        baseline_time = _parse_normalized_close_time(baseline_asof)
+        latest_time = _parse_normalized_close_time(latest_asof)
+        baseline_total_net_pnl = _stored_run_loss_decimal(row["baseline_total_net_pnl"])
+        net_loss_threshold = _stored_run_loss_decimal(row["net_loss_threshold"])
+        latest_total_net_pnl = _stored_run_loss_decimal(row["latest_total_net_pnl"])
+        max_observation_age_seconds = _validate_run_loss_ttl(
+            row["max_observation_age_seconds"]
+        )
+        tripped_value = row["tripped"]
+        if type(tripped_value) is not int or tripped_value not in (0, 1):
+            raise ExecutionDecisionJournalError("RUN_LOSS_GUARD_STATE_INVALID")
+        tripped = tripped_value == 1
+        trip_observation_id = row["trip_observation_id"]
+        trip_asof = row["trip_asof"]
+        trip_loss_value = row["trip_loss"]
+        if net_loss_threshold <= 0:
+            raise ExecutionDecisionJournalError("RUN_LOSS_GUARD_STATE_INVALID")
+        if not tripped:
+            if any(value is not None for value in (trip_observation_id, trip_asof, trip_loss_value)):
+                raise ExecutionDecisionJournalError("RUN_LOSS_GUARD_STATE_INVALID")
+            trip_loss = None
+            if (
+                _exact_run_loss_difference(baseline_total_net_pnl, latest_total_net_pnl)
+                >= net_loss_threshold
+            ):
+                raise ExecutionDecisionJournalError("RUN_LOSS_GUARD_STATE_INVALID")
+        else:
+            _require_identifier(trip_observation_id, "RUN_LOSS_GUARD_STATE_INVALID")
+            normalized_trip_asof = _normalize_run_loss_asof(trip_asof)
+            if normalized_trip_asof != trip_asof:
+                raise ExecutionDecisionJournalError("RUN_LOSS_GUARD_STATE_INVALID")
+            trip_asof = normalized_trip_asof
+            trip_loss = _stored_run_loss_decimal(trip_loss_value)
+            trip_time = _parse_normalized_close_time(trip_asof)
+            if trip_loss < net_loss_threshold or trip_time > latest_time:
+                raise ExecutionDecisionJournalError("RUN_LOSS_GUARD_STATE_INVALID")
+        if latest_time < baseline_time:
+            raise ExecutionDecisionJournalError("RUN_LOSS_GUARD_STATE_INVALID")
+        if latest_time == baseline_time and (
+            latest_observation_id != baseline_observation_id
+            or latest_total_net_pnl != baseline_total_net_pnl
+        ):
+            raise ExecutionDecisionJournalError("RUN_LOSS_GUARD_STATE_INVALID")
+        return ExecutionRunLossGuardSnapshot(
+            context=context,
+            baseline_observation_id=baseline_observation_id,
+            baseline_asof=baseline_asof,
+            baseline_total_net_pnl=baseline_total_net_pnl,
+            net_loss_threshold=net_loss_threshold,
+            max_observation_age_seconds=max_observation_age_seconds,
+            latest_observation_id=latest_observation_id,
+            latest_asof=latest_asof,
+            latest_total_net_pnl=latest_total_net_pnl,
+            tripped=tripped,
+            trip_observation_id=trip_observation_id,
+            trip_asof=trip_asof,
+            trip_loss=trip_loss,
+        )
+    except ExecutionDecisionJournalError as error:
+        if error.code == "RUN_LOSS_GUARD_STATE_INVALID":
+            raise
+        raise ExecutionDecisionJournalError("RUN_LOSS_GUARD_STATE_INVALID") from error
+    except (IndexError, KeyError, TypeError, ValueError) as error:
+        raise ExecutionDecisionJournalError("RUN_LOSS_GUARD_STATE_INVALID") from error
 
 
 def _decision_key_values(key: ExecutionDecisionKey) -> dict[str, str]:
