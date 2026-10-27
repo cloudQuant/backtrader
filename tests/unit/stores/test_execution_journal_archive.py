@@ -10,6 +10,7 @@ from threading import Event
 import pytest
 
 from backtrader.stores import execution_journal_archive as archive_module
+from backtrader.stores import execution_decision_journal as journal_module
 from backtrader.stores.execution_decision_journal import (
     ExecutionDecisionJournal,
     ExecutionDecisionJournalError,
@@ -37,6 +38,102 @@ def _downgrade_archive_to_v16(connection: sqlite3.Connection) -> None:
     connection.execute("DROP TABLE execution_fee_pair_workflow_events")
     connection.execute("DROP TABLE execution_fee_pair_workflows")
     connection.execute("PRAGMA user_version=16")
+
+
+def _candidate_bounds_database(path, encoding, table, payload):
+    connection = sqlite3.connect(path)
+    connection.execute("PRAGMA encoding='{}'".format(encoding))
+    connection.execute(
+        "CREATE TABLE execution_fee_pair_candidates (candidate_payload_json)"
+    )
+    connection.execute(
+        "CREATE TABLE execution_fee_pair_workflows (candidate_payload_json)"
+    )
+    connection.execute(
+        "INSERT INTO {} (candidate_payload_json) VALUES (?)".format(table),
+        (payload,),
+    )
+    return connection
+
+
+def _utf16_v18_archive_with_workflow_payload(
+    source_path, archive_path, payload, *, verify_on_create=True
+):
+    # Establish the encoding before the journal creates its first schema page.
+    connection = sqlite3.connect(source_path)
+    try:
+        connection.execute("PRAGMA encoding='UTF-16le'")
+        connection.execute("CREATE TABLE encoding_seed (value TEXT)")
+        connection.execute("DROP TABLE encoding_seed")
+        connection.commit()
+    finally:
+        connection.close()
+
+    journal = ExecutionDecisionJournal(source_path)
+    try:
+        assert journal._connection.execute("PRAGMA encoding").fetchone()[0] == "UTF-16le"
+        journal.register_fee_pair_required_scope("archive-account", "archive-strategy")
+        journal._connection.execute(
+            """INSERT INTO execution_fee_pair_workflows
+               (candidate_id,account_scope,strategy_scope,logical_run_id,cohort_id,
+                close_time,decision_kind,batch_id,candidate_sha256,candidate_payload_json,
+                source_predecessor_sha256,owner_process_id,owner_instance_id,
+                owner_token_sha256,deadline_monotonic_ns,state,verified_receipt_sha256,
+                verified_receipt_json,created_at_ns,updated_at_ns)
+               VALUES (?,?,?,?,?,?,?,?,?,?,NULL,?,?,?,?,?,NULL,NULL,?,?)""",
+            (
+                "archive-candidate",
+                "archive-account",
+                "archive-strategy",
+                "archive-run",
+                "archive-cohort",
+                "2026-10-28T10:00:00Z",
+                "simnow-live",
+                "archive-batch",
+                "0" * 64,
+                payload,
+                1,
+                "archive-owner",
+                "1" * 64,
+                1,
+                "RESERVED",
+                1,
+                1,
+            ),
+        )
+        journal._connection.commit()
+        if verify_on_create:
+            receipt = journal.archive_snapshot(archive_path)
+            assert receipt.schema_version == 18
+        else:
+            # Preserve malformed/corrupt rows for the public verifier to reject.
+            target = sqlite3.connect(archive_path)
+            try:
+                target.execute("PRAGMA journal_mode=DELETE")
+                journal._connection.backup(target)
+                target.execute("PRAGMA journal_mode=DELETE")
+            finally:
+                target.close()
+    finally:
+        journal.close()
+
+    with sqlite3.connect(archive_path) as archived:
+        assert archived.execute("PRAGMA encoding").fetchone()[0] == "UTF-16le"
+    return archive_path
+
+
+_LEGACY_CANDIDATE_ARCHIVE_CASES = (
+    (16, "execution_fee_pair_candidates", 16_384),
+    (17, "execution_fee_pair_candidates", 16_384),
+    (18, "execution_fee_pair_candidates", 16_384),
+)
+_WORKFLOW_CANDIDATE_ARCHIVE_CASES = (
+    (17, "execution_fee_pair_workflows", 16_384),
+    (18, "execution_fee_pair_workflows", 1_048_576),
+)
+_CANDIDATE_ARCHIVE_CASES = (
+    _LEGACY_CANDIDATE_ARCHIVE_CASES + _WORKFLOW_CANDIDATE_ARCHIVE_CASES
+)
 
 
 def _downgrade_archive_to_v15(connection: sqlite3.Connection) -> None:
@@ -177,7 +274,7 @@ def test_archive_snapshot_verifies_terminal_chain_and_preserves_unknown(tmp_path
             expected_sha256=receipt.sha256,
         )
         assert independently_verified == receipt
-        assert receipt.schema_version == 17
+        assert receipt.schema_version == 18
         assert receipt.size_bytes == archive_path.stat().st_size
         assert receipt.table_row_counts["execution_decisions"] == 2
         assert receipt.table_row_counts["execution_decision_intents"] == 2
@@ -311,6 +408,178 @@ def test_archive_verifier_keeps_v16_snapshots_compatible(tmp_path):
         archive_path, expected_schema_version=16
     )
     assert verified.schema_version == 16
+
+
+@pytest.mark.parametrize("encoding", ("UTF-8", "UTF-16le"))
+@pytest.mark.parametrize(
+    "schema_version,table,limit", _CANDIDATE_ARCHIVE_CASES
+)
+def test_archive_candidate_bounds_use_utf8_bytes_for_legal_rows(
+    tmp_path, encoding, schema_version, table, limit
+):
+    payload = "x" * (limit // 2 + 1)
+    path = tmp_path / "candidate-bounds-legal-{}-{}-{}.sqlite3".format(
+        encoding.replace("-", "").lower(), schema_version, table
+    )
+    connection = _candidate_bounds_database(path, encoding, table, payload)
+    try:
+        stored_bytes = connection.execute(
+            "SELECT length(CAST(candidate_payload_json AS BLOB)) FROM {}".format(table)
+        ).fetchone()[0]
+        assert len(payload.encode("utf-8")) <= limit
+        if encoding.upper() != "UTF-8":
+            assert stored_bytes > limit
+        archive_module._validate_fee_pair_candidate_payload_bounds(
+            connection,
+            schema_version,
+            legacy_candidate_bytes=journal_module._MAX_FEE_PAIR_CANDIDATE_BYTES,
+            workflow_candidate_bytes=(
+                journal_module._MAX_FEE_PAIR_CANDIDATE_BYTES
+                if schema_version < journal_module._FEE_PAIR_WORKFLOW_CANDIDATE_SCHEMA_VERSION
+                else journal_module._MAX_FEE_PAIR_WORKFLOW_CANDIDATE_BYTES
+            ),
+        )
+    finally:
+        connection.close()
+
+
+@pytest.mark.parametrize("encoding", ("UTF-8", "UTF-16le"))
+@pytest.mark.parametrize(
+    "schema_version,table,limit", _CANDIDATE_ARCHIVE_CASES
+)
+def test_archive_candidate_bounds_reject_utf8_oversized_bmp_rows(
+    tmp_path, encoding, schema_version, table, limit
+):
+    payload = "é" * (limit // 2 + 1)
+    path = tmp_path / "candidate-bounds-oversized-{}-{}-{}.sqlite3".format(
+        encoding.replace("-", "").lower(), schema_version, table
+    )
+    connection = _candidate_bounds_database(path, encoding, table, payload)
+    try:
+        stored_bytes = connection.execute(
+            "SELECT length(CAST(candidate_payload_json AS BLOB)) FROM {}".format(table)
+        ).fetchone()[0]
+        assert len(payload) <= limit
+        assert len(payload.encode("utf-8")) > limit
+        if encoding.upper() != "UTF-8":
+            assert stored_bytes <= 2 * limit
+        with pytest.raises(
+            archive_module.ExecutionJournalArchiveError,
+            match="ARCHIVE_FEE_PAIR_CANDIDATE_TOO_LARGE",
+        ):
+            archive_module._validate_fee_pair_candidate_payload_bounds(
+                connection,
+                schema_version,
+                legacy_candidate_bytes=journal_module._MAX_FEE_PAIR_CANDIDATE_BYTES,
+                workflow_candidate_bytes=(
+                    journal_module._MAX_FEE_PAIR_CANDIDATE_BYTES
+                    if schema_version
+                    < journal_module._FEE_PAIR_WORKFLOW_CANDIDATE_SCHEMA_VERSION
+                    else journal_module._MAX_FEE_PAIR_WORKFLOW_CANDIDATE_BYTES
+                ),
+            )
+    finally:
+        connection.close()
+
+
+@pytest.mark.parametrize(
+    "schema_version,table",
+    (
+        (16, "execution_fee_pair_candidates"),
+        (17, "execution_fee_pair_workflows"),
+        (18, "execution_fee_pair_workflows"),
+    ),
+)
+def test_archive_candidate_bounds_reject_non_text_rows(tmp_path, schema_version, table):
+    path = tmp_path / "candidate-bounds-non-text-{}-{}.sqlite3".format(
+        schema_version, table
+    )
+    connection = _candidate_bounds_database(
+        path, "UTF-16le", table, sqlite3.Binary(b"{}")
+    )
+    try:
+        assert connection.execute(
+            "SELECT typeof(candidate_payload_json) FROM {}".format(table)
+        ).fetchone()[0] == "blob"
+        with pytest.raises(
+            archive_module.ExecutionJournalArchiveError,
+            match="ARCHIVE_FEE_PAIR_CANDIDATE_TOO_LARGE",
+        ):
+            archive_module._validate_fee_pair_candidate_payload_bounds(
+                connection,
+                schema_version,
+                legacy_candidate_bytes=journal_module._MAX_FEE_PAIR_CANDIDATE_BYTES,
+                workflow_candidate_bytes=(
+                    journal_module._MAX_FEE_PAIR_CANDIDATE_BYTES
+                    if schema_version
+                    < journal_module._FEE_PAIR_WORKFLOW_CANDIDATE_SCHEMA_VERSION
+                    else journal_module._MAX_FEE_PAIR_WORKFLOW_CANDIDATE_BYTES
+                ),
+            )
+    finally:
+        connection.close()
+
+
+@pytest.mark.parametrize(
+    "payload,expected_valid",
+    (
+        ("x" * (journal_module._MAX_FEE_PAIR_WORKFLOW_CANDIDATE_BYTES // 2 + 1), True),
+        ("é" * (journal_module._MAX_FEE_PAIR_WORKFLOW_CANDIDATE_BYTES // 2 + 1), False),
+    ),
+    ids=("utf16-storage-over-limit-but-utf8-valid", "utf8-bytes-over-limit"),
+)
+def test_archive_verifier_enforces_utf8_bound_on_utf16_workflow_archive(
+    tmp_path, payload, expected_valid
+):
+    limit = journal_module._MAX_FEE_PAIR_WORKFLOW_CANDIDATE_BYTES
+    payload_utf8_bytes = len(payload.encode("utf-8"))
+    assert (payload_utf8_bytes <= limit) is expected_valid
+    source_path = tmp_path / "utf16-v18-source.sqlite3"
+    archive_path = tmp_path / "utf16-v18-workflow.sqlite3"
+    _utf16_v18_archive_with_workflow_payload(
+        source_path,
+        archive_path,
+        payload,
+        verify_on_create=expected_valid,
+    )
+    with sqlite3.connect(archive_path) as archived:
+        database_bytes = archived.execute(
+            """SELECT length(CAST(candidate_payload_json AS BLOB))
+               FROM execution_fee_pair_workflows"""
+        ).fetchone()[0]
+    assert database_bytes <= 2 * limit
+    if expected_valid:
+        assert database_bytes > limit
+        verified = archive_module.verify_execution_journal_archive(
+            archive_path, expected_schema_version=18
+        )
+        assert verified.table_row_counts["execution_fee_pair_workflows"] == 1
+    else:
+        with pytest.raises(
+            archive_module.ExecutionJournalArchiveError,
+            match="ARCHIVE_FEE_PAIR_CANDIDATE_TOO_LARGE",
+        ):
+            archive_module.verify_execution_journal_archive(
+                archive_path, expected_schema_version=18
+            )
+
+
+def test_archive_verifier_rejects_non_text_row_in_utf16_workflow_archive(tmp_path):
+    source_path = tmp_path / "utf16-v18-source-with-blob.sqlite3"
+    archive_path = tmp_path / "utf16-v18-workflow-with-blob.sqlite3"
+    _utf16_v18_archive_with_workflow_payload(
+        source_path,
+        archive_path,
+        sqlite3.Binary(b"{}"),
+        verify_on_create=False,
+    )
+    with pytest.raises(
+        archive_module.ExecutionJournalArchiveError,
+        match="ARCHIVE_FEE_PAIR_CANDIDATE_TOO_LARGE",
+    ):
+        archive_module.verify_execution_journal_archive(
+            archive_path, expected_schema_version=18
+        )
 
 
 @pytest.mark.parametrize(
@@ -476,6 +745,7 @@ def test_v17_archive_rejects_incomplete_or_unexpected_workflow_schema(
         journal.close()
 
     with sqlite3.connect(archive_path) as archived:
+        archived.execute("PRAGMA user_version=17")
         archived.executescript(statement)
 
     with pytest.raises(

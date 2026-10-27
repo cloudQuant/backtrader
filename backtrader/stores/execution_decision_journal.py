@@ -118,6 +118,7 @@ _SOURCE_HIGHWATER_TABLE_SQL = """CREATE TABLE execution_source_highwaters (
 )"""
 _FEE_PAIR_CANDIDATE_SCHEMA_VERSION = 16
 _FEE_PAIR_WORKFLOW_SCHEMA_VERSION = 17
+_FEE_PAIR_WORKFLOW_CANDIDATE_SCHEMA_VERSION = 18
 _SOURCE_ORIGIN_PARTITION_SCHEMA = "backtrader.execution_source_origin_partition.v1"
 _SOURCE_ORIGIN_PARTITION_FIELDS = (
     "schema",
@@ -131,6 +132,18 @@ _SOURCE_ORIGIN_PARTITION_FIELDS = (
 _MAX_SOURCE_RECEIPT_MEMBERS = 512
 _MAX_SOURCE_RECEIPT_BYTES = 1_048_576
 _MAX_FEE_PAIR_CANDIDATE_BYTES = 16_384
+# V16 candidate rows retain their original small-record contract. V18 lifts
+# the fee-pair workflow candidate bound to the existing source-receipt limit.
+# The SOURCE_ONLY wrapper adds only its fixed top-level keys, a boolean anchor,
+# and a marker with two 64-character SHA-256 values; optional receipt fields
+# remain inside and count toward the 1 MiB receipt bound. The separate 4 KiB
+# allowance bounds that canonical-JSON wrapper without changing ordinary
+# decision payload limits.
+_MAX_FEE_PAIR_WORKFLOW_CANDIDATE_BYTES = _MAX_SOURCE_RECEIPT_BYTES
+_MAX_FEE_PAIR_WORKFLOW_DECISION_OVERHEAD_BYTES = 4_096
+_MAX_FEE_PAIR_WORKFLOW_DECISION_PAYLOAD_BYTES = (
+    _MAX_SOURCE_RECEIPT_BYTES + _MAX_FEE_PAIR_WORKFLOW_DECISION_OVERHEAD_BYTES
+)
 _FEE_PAIR_SCOPE_TABLE_SQL = """CREATE TABLE execution_fee_pair_required_scopes (
     account_scope TEXT NOT NULL,
     strategy_scope TEXT NOT NULL,
@@ -1394,7 +1407,7 @@ class ExecutionDecisionJournal:
     and checks fresh matching context at each OPEN decision, prepare, and claim.
     """
 
-    _SCHEMA_VERSION = 17
+    _SCHEMA_VERSION = _FEE_PAIR_WORKFLOW_CANDIDATE_SCHEMA_VERSION
     _NATIVE_IDENTITY_SCHEMA_VERSION = 8
     _DECISION_CAPACITY_SCHEMA_VERSION = 9
     _DURABLE_CAPACITY_SCHEMA_VERSION = 12
@@ -3568,7 +3581,7 @@ class ExecutionDecisionJournal:
         owner_token: str,
         ttl_seconds: float,
     ) -> ExecutionFeePairWorkflowRecord:
-        """Reserve a v17 candidate plus BASE capacity for its future SOURCE_ONLY.
+        """Reserve a workflow candidate plus BASE capacity for its future SOURCE_ONLY.
 
         Journal capability only: this method does not authorize a physical tape
         append or fee lookup. A trusted caller must independently verify the
@@ -3599,7 +3612,7 @@ class ExecutionDecisionJournal:
             raise ExecutionDecisionJournalError("INVALID_FEE_PAIR_CANDIDATE_TTL")
 
         candidate_json = _canonical_json(_fee_pair_candidate_values(candidate))
-        if len(candidate_json.encode("utf-8")) > _MAX_FEE_PAIR_CANDIDATE_BYTES:
+        if len(candidate_json.encode("utf-8")) > _MAX_FEE_PAIR_WORKFLOW_CANDIDATE_BYTES:
             raise ExecutionDecisionJournalError("FEE_PAIR_CANDIDATE_TOO_LARGE")
         candidate_sha256 = hashlib.sha256(candidate_json.encode("utf-8")).hexdigest()
         candidate_id = _stable_id("fee-pair-workflow", candidate_json)
@@ -3975,7 +3988,7 @@ class ExecutionDecisionJournal:
                 raise ExecutionDecisionJournalError("FEE_PAIR_WORKFLOW_CAPACITY_CORRUPT")
 
             marker = {"candidate_id": candidate_id, "candidate_sha256": row["candidate_sha256"]}
-            payload_json = self._payload_json(
+            payload_json = self._fee_pair_workflow_payload_json(
                 {
                     _SOURCE_RECEIPT_PAYLOAD_FIELD: json.loads(receipt_json),
                     _SOURCE_ANCHOR_ONLY_FIELD: True,
@@ -4110,7 +4123,7 @@ class ExecutionDecisionJournal:
         decision = {
             "decision_id": highwater["decision_id"],
             "business_key_json": _canonical_json(_decision_key_values(candidate.key)),
-            "economic_payload_json": self._payload_json(economics),
+            "economic_payload_json": self._fee_pair_workflow_payload_json(economics),
             "intent_keys_json": "[]",
             "created_at_ns": max_ns,
             "capacity_class": "BASE",
@@ -4129,7 +4142,7 @@ class ExecutionDecisionJournal:
         # Match the full public _source_text limit under canonical JSON's
         # ensure_ascii=True encoding (12 bytes per astral code point).
         receipt = _fee_pair_receipt_from_candidate(candidate, "\U0001f600" * 512)
-        payload_json = self._payload_json(
+        payload_json = self._fee_pair_workflow_payload_json(
             {
                 _SOURCE_RECEIPT_PAYLOAD_FIELD: _source_receipt_values(receipt),
                 _SOURCE_ANCHOR_ONLY_FIELD: True,
@@ -4323,7 +4336,7 @@ class ExecutionDecisionJournal:
             candidate_sha256 = row["candidate_sha256"]
             if (
                 type(candidate_json) is not str
-                or len(candidate_json.encode("utf-8")) > _MAX_FEE_PAIR_CANDIDATE_BYTES
+                or len(candidate_json.encode("utf-8")) > _MAX_FEE_PAIR_WORKFLOW_CANDIDATE_BYTES
                 or _canonical_json(json.loads(candidate_json)) != candidate_json
                 or hashlib.sha256(candidate_json.encode("utf-8")).hexdigest() != candidate_sha256
                 or _stable_id("fee-pair-workflow", candidate_json) != row["candidate_id"]
@@ -8125,6 +8138,20 @@ class ExecutionDecisionJournal:
         return encoded
 
     @staticmethod
+    def _fee_pair_workflow_payload_json(value: Mapping[str, Any]) -> str:
+        """Bound receipt-backed SOURCE_ONLY payloads outside the generic payload limit."""
+
+        if not isinstance(value, Mapping):
+            raise ExecutionDecisionJournalError("INVALID_JOURNAL_PAYLOAD")
+        try:
+            encoded = _canonical_json(value)
+        except (TypeError, ValueError, InvalidOperation, OverflowError) as error:
+            raise ExecutionDecisionJournalError("INVALID_JOURNAL_PAYLOAD") from error
+        if len(encoded.encode("utf-8")) > _MAX_FEE_PAIR_WORKFLOW_DECISION_PAYLOAD_BYTES:
+            raise ExecutionDecisionJournalError("FEE_PAIR_WORKFLOW_PAYLOAD_TOO_LARGE")
+        return encoded
+
+    @staticmethod
     def _index_native_intent_identity(
         cursor: sqlite3.Cursor,
         *,
@@ -8877,6 +8904,54 @@ class ExecutionDecisionJournal:
         except (KeyError, TypeError, ValueError, sqlite3.Error) as error:
             raise ExecutionDecisionJournalError("FEE_PAIR_WORKFLOW_SCHEMA_CORRUPT") from error
 
+    @staticmethod
+    def _validate_v17_fee_pair_workflow_candidate_bounds(cursor: sqlite3.Cursor) -> None:
+        """Keep v17 rows within their original UTF-8 candidate-size contract."""
+
+        try:
+            encoding_row = cursor.execute("PRAGMA encoding").fetchone()
+            encoding_value = encoding_row[0] if encoding_row is not None else None
+            if type(encoding_value) is not str:
+                raise ExecutionDecisionJournalError("FEE_PAIR_WORKFLOW_SCHEMA_CORRUPT")
+            encoding = encoding_value.upper()
+            if encoding == "UTF-8":
+                storage_byte_limit = _MAX_FEE_PAIR_CANDIDATE_BYTES
+            elif encoding in ("UTF-16LE", "UTF-16BE"):
+                # UTF-8 uses at least half as many bytes as UTF-16, so reject
+                # impossible rows before fetching text, then check exact UTF-8.
+                storage_byte_limit = 2 * _MAX_FEE_PAIR_CANDIDATE_BYTES
+            else:
+                raise ExecutionDecisionJournalError("FEE_PAIR_WORKFLOW_SCHEMA_CORRUPT")
+            oversized = cursor.execute(
+                """SELECT 1 FROM execution_fee_pair_workflows
+                   WHERE typeof(candidate_payload_json)!='text'
+                      OR length(CAST(candidate_payload_json AS BLOB))>?
+                   LIMIT 1""",
+                (storage_byte_limit,),
+            ).fetchone()
+            if oversized is not None:
+                raise ExecutionDecisionJournalError("FEE_PAIR_WORKFLOW_SCHEMA_CORRUPT")
+            if encoding != "UTF-8":
+                payloads = cursor.execute(
+                    "SELECT candidate_payload_json FROM execution_fee_pair_workflows"
+                )
+                while True:
+                    row = payloads.fetchone()
+                    if row is None:
+                        break
+                    payload = row[0]
+                    if (
+                        type(payload) is not str
+                        or len(payload.encode("utf-8")) > _MAX_FEE_PAIR_CANDIDATE_BYTES
+                    ):
+                        raise ExecutionDecisionJournalError(
+                            "FEE_PAIR_WORKFLOW_SCHEMA_CORRUPT"
+                        )
+        except ExecutionDecisionJournalError:
+            raise
+        except (UnicodeError, IndexError, TypeError, sqlite3.Error) as error:
+            raise ExecutionDecisionJournalError("FEE_PAIR_WORKFLOW_SCHEMA_CORRUPT") from error
+
     def _validate_fee_pair_workflow_capacity(self, cursor: sqlite3.Cursor) -> None:
         try:
             reserved_records, reserved_bytes = read_durable_capacity_reservations(cursor)
@@ -9312,6 +9387,7 @@ class ExecutionDecisionJournal:
                 _SOURCE_HIGHWATER_SCHEMA_VERSION,
                 15,
                 _FEE_PAIR_CANDIDATE_SCHEMA_VERSION,
+                _FEE_PAIR_WORKFLOW_SCHEMA_VERSION,
                 self._SCHEMA_VERSION,
             ):
                 raise ExecutionDecisionJournalError("UNSUPPORTED_SCHEMA_VERSION")
@@ -9681,6 +9757,7 @@ class ExecutionDecisionJournal:
                     _SOURCE_HIGHWATER_SCHEMA_VERSION,
                     15,
                     16,
+                    _FEE_PAIR_WORKFLOW_SCHEMA_VERSION,
                     self._SCHEMA_VERSION,
                 ):
                     raise ExecutionDecisionJournalError("UNSUPPORTED_SCHEMA_VERSION")
@@ -9905,6 +9982,8 @@ class ExecutionDecisionJournal:
                     if locked_version < _FEE_PAIR_WORKFLOW_SCHEMA_VERSION:
                         self._create_fee_pair_workflow_schema(cursor)
                     self._validate_fee_pair_workflow_schema(cursor)
+                    if locked_version == _FEE_PAIR_WORKFLOW_SCHEMA_VERSION:
+                        self._validate_v17_fee_pair_workflow_candidate_bounds(cursor)
                     self._validate_fee_pair_workflow_capacity(cursor)
                 finally:
                     cursor.close()
@@ -9927,7 +10006,9 @@ class ExecutionDecisionJournal:
                 # V17 adds a separate bounded candidate workflow, an independently
                 # reserved SOURCE_ONLY decision and durable BASE capacity. V16 rows
                 # are preserved as legacy fail-closed records and are never upgraded
-                # into v17 receipt/terminal authority.
+                # into v17 receipt/terminal authority. V18 raises only the workflow
+                # candidate JSON bound to the existing source-receipt limit; v16
+                # candidate rows retain their original 16 KiB bound.
             except ExecutionDecisionJournalError:
                 if self._connection.in_transaction:
                     self._connection.execute("ROLLBACK")

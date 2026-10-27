@@ -1,10 +1,11 @@
-"""Focused contracts for v16 candidates and v17 journal-only workflows."""
+"""Focused contracts for v16 candidates and v17/v18 journal-only workflows."""
 
 from __future__ import annotations
 
 from contextlib import contextmanager
 from dataclasses import replace
 import hashlib
+import shutil
 import sqlite3
 import time
 from concurrent.futures import ThreadPoolExecutor
@@ -13,6 +14,7 @@ from threading import Barrier, Event
 
 import pytest
 
+from backtrader.stores import execution_journal_archive as archive_module
 import backtrader.stores.execution_decision_journal as journal_module
 from backtrader.stores.execution_decision_journal import (
     ExecutionDecisionJournal,
@@ -126,6 +128,44 @@ def _candidate(
         account_session_id=session_id,
         account_session_generation="generation-{}".format(session_id),
     )
+
+
+def _candidate_with_members(*, run_id, member_count, source_ref_length):
+    base = _candidate(run_id=run_id)
+    template = base.source_members[0]
+    members = tuple(
+        replace(
+            template,
+            member_id="SIM-{0:03d}".format(index),
+            source_ref="source-" + "x" * source_ref_length,
+            feed_sequence=index + 1,
+        )
+        for index in range(member_count)
+    )
+    return replace(base, source_members=members)
+
+
+def _canonical_candidate_bytes(candidate):
+    return journal_module._canonical_json(
+        journal_module._fee_pair_candidate_values(candidate)
+    ).encode("utf-8")
+
+
+def _candidate_87_members_71659_bytes():
+    candidate = _candidate_with_members(
+        run_id="workflow-87-members",
+        member_count=87,
+        source_ref_length=280,
+    )
+    padding = 71_659 - len(_canonical_candidate_bytes(candidate))
+    assert 0 <= padding <= 2_048 - len(candidate.source_members[0].source_ref)
+    first = replace(
+        candidate.source_members[0],
+        source_ref=candidate.source_members[0].source_ref + "x" * padding,
+    )
+    candidate = replace(candidate, source_members=(first,) + candidate.source_members[1:])
+    assert len(_canonical_candidate_bytes(candidate)) == 71_659
+    return candidate
 
 
 def _source_receipt(*, run_id="candidate-run", close_time="2026-10-28T10:00:00Z"):
@@ -805,7 +845,7 @@ def test_v15_migration_preserves_history_and_adds_empty_candidate_schema(tmp_pat
 
     migrated = ExecutionDecisionJournal(path)
     try:
-        assert migrated._connection.execute("PRAGMA user_version").fetchone()[0] == 17
+        assert migrated._connection.execute("PRAGMA user_version").fetchone()[0] == 18
         assert migrated.decision(decision.decision_id) == decision
         assert migrated.fee_pair_required_scope("pair-account", "pair-strategy") is not None
         assert (
@@ -996,6 +1036,338 @@ def test_v17_workflow_attaches_exact_receipt_and_commits_source_only_once(tmp_pa
         ) == ("CONSUMED", 0, 0)
     finally:
         journal.close()
+
+
+def test_v18_87_member_workflow_fits_default_payload_limit_and_archives(tmp_path, monkeypatch):
+    path = tmp_path / "workflow-87-member.sqlite3"
+    archive_path = tmp_path / "workflow-87-member.archive.sqlite3"
+    journal = ExecutionDecisionJournal(path)
+    token = "workflow-87-member-owner-" + "m" * 40
+    candidate = _candidate_87_members_71659_bytes()
+    try:
+        assert journal.max_payload_bytes == 65_536
+        ordinary_key = ExecutionDecisionKey(
+            account_scope="ordinary-account",
+            strategy_scope="ordinary-strategy",
+            logical_run_id="ordinary-payload-bound",
+            cohort_id="ordinary-cohort",
+            close_time=candidate.key.close_time,
+            decision_kind="bar",
+        )
+        with pytest.raises(
+            ExecutionDecisionJournalError, match="JOURNAL_PAYLOAD_TOO_LARGE"
+        ):
+            journal.record_decision(ordinary_key, {"text": "x" * 65_536})
+        assert journal.decision_for_key(ordinary_key) is None
+
+        journal.register_fee_pair_required_scope("pair-account", "pair-strategy")
+        candidate_json = _canonical_candidate_bytes(candidate)
+        assert len(candidate_json) == 71_659
+        reserved = journal.reserve_fee_pair_workflow_candidate(
+            candidate, owner_token=token, ttl_seconds=10
+        )
+        stored_candidate = journal._connection.execute(
+            "SELECT candidate_payload_json FROM execution_fee_pair_workflows WHERE candidate_id=?",
+            (reserved.candidate_id,),
+        ).fetchone()[0]
+        assert len(stored_candidate.encode("utf-8")) == 71_659
+
+        claimed = journal.record_fee_pair_workflow_append_claim(
+            reserved.candidate_id, owner_token=token
+        )
+        assert claimed.state == "APPEND_CLAIMED"
+        receipt = journal_module._fee_pair_receipt_from_candidate(
+            candidate, "synthetic-record-87"
+        )
+        receipt_json = journal_module._canonical_json(
+            journal_module._source_receipt_values(receipt)
+        )
+        attached = journal.attach_verified_fee_pair_source_receipt(
+            reserved.candidate_id, receipt, owner_token=token
+        )
+        assert attached.state == "RECEIPT_VERIFIED"
+        assert len(receipt_json.encode("utf-8")) <= journal_module._MAX_SOURCE_RECEIPT_BYTES
+
+        decision = journal.finalize_fee_pair_source_only_from_attached_receipt(
+            reserved.candidate_id, owner_token=token
+        )
+        assert journal.fee_pair_workflow_candidate(reserved.candidate_id).state == "SOURCE_ONLY"
+        assert decision.is_noop
+        assert journal_module._canonical_json(
+            decision.economic_payload["_execution_source_receipt"]
+        ) == journal_module._canonical_json(journal_module._source_receipt_values(receipt))
+        assert journal.source_highwater(
+            candidate.key.account_scope,
+            candidate.key.strategy_scope,
+            candidate.key.logical_run_id,
+            candidate.source_kind,
+        ).receipt == receipt
+        economics_json = journal_module._canonical_json(decision.economic_payload)
+        envelope_overhead = len(economics_json.encode("utf-8")) - len(
+            receipt_json.encode("utf-8")
+        )
+        assert 0 < envelope_overhead <= journal_module._MAX_FEE_PAIR_WORKFLOW_DECISION_OVERHEAD_BYTES
+        assert len(economics_json.encode("utf-8")) <= (
+            journal_module._MAX_SOURCE_RECEIPT_BYTES
+            + journal_module._MAX_FEE_PAIR_WORKFLOW_DECISION_OVERHEAD_BYTES
+        )
+
+        archive_receipt = journal.archive_snapshot(archive_path)
+        verified = archive_module.verify_execution_journal_archive(
+            archive_path,
+            expected_schema_version=18,
+            expected_sha256=archive_receipt.sha256,
+        )
+        assert verified == archive_receipt
+        assert verified.table_row_counts["execution_fee_pair_workflows"] == 1
+    finally:
+        journal.close()
+
+    # A reader implementing the v17 version ceiling rejects the v18 writer's
+    # larger-candidate schema before interpreting any of its rows.
+    with monkeypatch.context() as patch:
+        patch.setattr(ExecutionDecisionJournal, "_SCHEMA_VERSION", 17)
+        with pytest.raises(
+            ExecutionDecisionJournalError, match="UNSUPPORTED_SCHEMA_VERSION"
+        ):
+            ExecutionDecisionJournal(path)
+
+    legacy_archive = tmp_path / "workflow-87-member-as-v17.archive.sqlite3"
+    shutil.copyfile(archive_path, legacy_archive)
+    with sqlite3.connect(legacy_archive) as connection:
+        connection.execute("PRAGMA user_version=17")
+    with pytest.raises(
+        archive_module.ExecutionJournalArchiveError,
+        match="ARCHIVE_FEE_PAIR_CANDIDATE_TOO_LARGE",
+    ):
+        archive_module.verify_execution_journal_archive(
+            legacy_archive, expected_schema_version=17
+        )
+
+
+def test_v18_rejects_candidate_above_workflow_limit_without_partial_rows(tmp_path):
+    journal = ExecutionDecisionJournal(tmp_path / "workflow-candidate-over-cap.sqlite3")
+    token = "workflow-over-cap-owner-" + "o" * 40
+    candidate = _candidate_with_members(
+        run_id="workflow-over-cap",
+        member_count=512,
+        source_ref_length=2_041,
+    )
+    assert len(_canonical_candidate_bytes(candidate)) > journal_module._MAX_FEE_PAIR_WORKFLOW_CANDIDATE_BYTES
+    try:
+        journal.register_fee_pair_required_scope("pair-account", "pair-strategy")
+        before = tuple(
+            tuple(row)
+            for row in journal._connection.execute(
+                "SELECT capacity_class,record_count,payload_bytes "
+                "FROM execution_durable_capacity_usage ORDER BY capacity_class"
+            )
+        )
+        with pytest.raises(
+            ExecutionDecisionJournalError, match="FEE_PAIR_CANDIDATE_TOO_LARGE"
+        ):
+            journal.reserve_fee_pair_workflow_candidate(
+                candidate, owner_token=token, ttl_seconds=10
+            )
+        after = tuple(
+            tuple(row)
+            for row in journal._connection.execute(
+                "SELECT capacity_class,record_count,payload_bytes "
+                "FROM execution_durable_capacity_usage ORDER BY capacity_class"
+            )
+        )
+        assert after == before
+        for table in (
+            "execution_fee_pair_workflows",
+            "execution_fee_pair_workflow_events",
+            "execution_fee_pair_workflow_durable_reservations",
+            "execution_fee_pair_workflow_decision_reservations",
+        ):
+            assert journal._connection.execute(
+                "SELECT COUNT(*) FROM {}".format(table)
+            ).fetchone()[0] == 0
+    finally:
+        journal.close()
+
+
+def test_v17_small_workflow_migrates_to_v18_and_remains_readable(tmp_path):
+    path = tmp_path / "workflow-v17-to-v18.sqlite3"
+    archive_path = tmp_path / "workflow-v17-small.archive.sqlite3"
+    legacy_archive = tmp_path / "workflow-v17-small-legacy.archive.sqlite3"
+    token = "workflow-v17-migration-owner-" + "v" * 32
+    candidate = _candidate(run_id="workflow-v17-migration")
+    journal = ExecutionDecisionJournal(path)
+    try:
+        journal.register_fee_pair_required_scope("pair-account", "pair-strategy")
+        reserved = journal.reserve_fee_pair_workflow_candidate(
+            candidate, owner_token=token, ttl_seconds=10
+        )
+        journal.record_fee_pair_workflow_append_claim(
+            reserved.candidate_id, owner_token=token
+        )
+        receipt = journal_module._fee_pair_receipt_from_candidate(
+            candidate, "synthetic-v17-record"
+        )
+        journal.attach_verified_fee_pair_source_receipt(
+            reserved.candidate_id, receipt, owner_token=token
+        )
+        expected = journal.finalize_fee_pair_source_only_from_attached_receipt(
+            reserved.candidate_id, owner_token=token
+        )
+    finally:
+        journal.close()
+
+    # V18 changes only the candidate size contract, so a bounded v17 row is
+    # the same schema and data shape that the new reader must migrate intact.
+    with sqlite3.connect(path) as connection:
+        connection.execute("PRAGMA user_version=17")
+
+    migrated = ExecutionDecisionJournal(path)
+    try:
+        assert migrated._connection.execute("PRAGMA user_version").fetchone()[0] == 18
+        assert migrated.fee_pair_workflow_candidate(reserved.candidate_id).state == "SOURCE_ONLY"
+        assert migrated.decision(expected.decision_id) == expected
+        archive_receipt = migrated.archive_snapshot(archive_path)
+        assert archive_receipt.schema_version == 18
+    finally:
+        migrated.close()
+
+    shutil.copyfile(archive_path, legacy_archive)
+    with sqlite3.connect(legacy_archive) as connection:
+        connection.execute("PRAGMA user_version=17")
+    verified = archive_module.verify_execution_journal_archive(
+        legacy_archive, expected_schema_version=17
+    )
+    assert verified.schema_version == 17
+    assert verified.table_row_counts["execution_fee_pair_workflows"] == 1
+
+
+@pytest.mark.parametrize(
+    "tampering",
+    ("oversized_text", "oversized_utf8", "oversized_utf8_utf16", "non_text"),
+)
+def test_v17_upgrade_rejects_candidate_outside_legacy_bound_without_mutation(
+    tmp_path, tampering
+):
+    path = tmp_path / "workflow-v17-upgrade-invalid-candidate.sqlite3"
+    token = "workflow-v17-invalid-owner-" + "i" * 32
+    candidate = _candidate_87_members_71659_bytes()
+    if tampering == "oversized_utf8_utf16":
+        with sqlite3.connect(path) as connection:
+            connection.execute("PRAGMA encoding='UTF-16le'")
+    journal = ExecutionDecisionJournal(path)
+    try:
+        journal.register_fee_pair_required_scope("pair-account", "pair-strategy")
+        reserved = journal.reserve_fee_pair_workflow_candidate(
+            candidate, owner_token=token, ttl_seconds=10
+        )
+    finally:
+        journal.close()
+
+    with sqlite3.connect(path) as connection:
+        if tampering != "oversized_text":
+            connection.execute("DROP TRIGGER execution_fee_pair_workflow_state")
+            if tampering in ("oversized_utf8", "oversized_utf8_utf16"):
+                payload = '{"padding":"' + "é" * 9_000 + '"}'
+                assert len(payload) <= journal_module._MAX_FEE_PAIR_CANDIDATE_BYTES
+                assert len(payload.encode("utf-8")) > journal_module._MAX_FEE_PAIR_CANDIDATE_BYTES
+                connection.execute(
+                    "UPDATE execution_fee_pair_workflows SET candidate_payload_json=? "
+                    "WHERE candidate_id=?",
+                    (payload, reserved.candidate_id),
+                )
+            else:
+                connection.execute(
+                    "UPDATE execution_fee_pair_workflows "
+                    "SET candidate_payload_json=CAST(candidate_payload_json AS BLOB) "
+                    "WHERE candidate_id=?",
+                    (reserved.candidate_id,),
+                )
+            connection.execute(journal_module._FEE_PAIR_WORKFLOW_STATE_TRIGGER_SQL)
+        connection.execute("PRAGMA user_version=17")
+
+    tables = (
+        "execution_fee_pair_workflows",
+        "execution_fee_pair_workflow_events",
+        "execution_fee_pair_workflow_durable_reservations",
+        "execution_fee_pair_workflow_decision_reservations",
+        "execution_durable_capacity_usage",
+    )
+
+    def snapshot():
+        with sqlite3.connect(path) as connection:
+            version = connection.execute("PRAGMA user_version").fetchone()[0]
+            rows = tuple(
+                tuple(tuple(row) for row in connection.execute("SELECT * FROM {}".format(table)))
+                for table in tables
+            )
+            return version, rows
+
+    before = snapshot()
+    with pytest.raises(
+        ExecutionDecisionJournalError, match="FEE_PAIR_WORKFLOW_SCHEMA_CORRUPT"
+    ):
+        ExecutionDecisionJournal(path)
+    assert snapshot() == before
+    assert before[0] == 17
+
+
+def test_v18_underfunded_87_member_reservation_rolls_back_atomically(tmp_path):
+    candidate = _candidate_87_members_71659_bytes()
+    token = "workflow-87-underfunded-owner-" + "u" * 32
+    probe = ExecutionDecisionJournal(
+        tmp_path / "workflow-87-capacity-probe.sqlite3",
+        max_durable_base_records=9,
+        max_durable_base_bytes=2_000_000,
+    )
+    try:
+        probe.register_fee_pair_required_scope("pair-account", "pair-strategy")
+        record = probe.reserve_fee_pair_workflow_candidate(
+            candidate, owner_token=token, ttl_seconds=10
+        )
+        used = probe._connection.execute(
+            "SELECT payload_bytes FROM execution_durable_capacity_usage "
+            "WHERE capacity_class='BASE'"
+        ).fetchone()[0]
+        reserved = probe._connection.execute(
+            "SELECT reserved_bytes FROM execution_fee_pair_workflow_durable_reservations "
+            "WHERE candidate_id=?",
+            (record.candidate_id,),
+        ).fetchone()[0]
+        exact_limit = used + reserved
+    finally:
+        probe.close()
+
+    underfunded = ExecutionDecisionJournal(
+        tmp_path / "workflow-87-capacity-underfunded.sqlite3",
+        max_durable_base_records=9,
+        max_durable_base_bytes=exact_limit - 1,
+    )
+    try:
+        underfunded.register_fee_pair_required_scope("pair-account", "pair-strategy")
+        with pytest.raises(
+            ExecutionDecisionJournalError, match="DURABLE_BASE_BYTES_EXHAUSTED"
+        ):
+            underfunded.reserve_fee_pair_workflow_candidate(
+                candidate, owner_token=token, ttl_seconds=10
+            )
+        assert tuple(
+            underfunded._connection.execute(
+                "SELECT record_count,payload_bytes FROM execution_durable_capacity_usage "
+                "WHERE capacity_class='BASE'"
+            ).fetchone()
+        ) == (0, 0)
+        for table in (
+            "execution_fee_pair_workflows",
+            "execution_fee_pair_workflow_events",
+            "execution_fee_pair_workflow_durable_reservations",
+            "execution_fee_pair_workflow_decision_reservations",
+        ):
+            assert underfunded._connection.execute(
+                "SELECT COUNT(*) FROM {}".format(table)
+            ).fetchone()[0] == 0
+    finally:
+        underfunded.close()
 
 
 def test_v17_workflow_rejects_receipt_mismatch_and_keeps_reservation(tmp_path):

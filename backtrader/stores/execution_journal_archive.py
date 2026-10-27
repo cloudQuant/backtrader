@@ -109,11 +109,81 @@ def _validate_required_schema_objects(
             journal_module.ExecutionDecisionJournal._validate_fee_pair_candidate_schema(cursor)
         if schema_version >= 17:
             journal_module.ExecutionDecisionJournal._validate_fee_pair_workflow_schema(cursor)
+        _validate_fee_pair_candidate_payload_bounds(
+            connection,
+            schema_version,
+            legacy_candidate_bytes=journal_module._MAX_FEE_PAIR_CANDIDATE_BYTES,
+            workflow_candidate_bytes=(
+                journal_module._MAX_FEE_PAIR_CANDIDATE_BYTES
+                if schema_version < journal_module._FEE_PAIR_WORKFLOW_CANDIDATE_SCHEMA_VERSION
+                else journal_module._MAX_FEE_PAIR_WORKFLOW_CANDIDATE_BYTES
+            ),
+        )
     except journal_module.ExecutionDecisionJournalError as error:
         raise ExecutionJournalArchiveError("ARCHIVE_SCHEMA_INCOMPLETE") from error
     finally:
         cursor.close()
     return tables
+
+
+def _validate_fee_pair_candidate_payload_bounds(
+    connection: sqlite3.Connection,
+    schema_version: int,
+    *,
+    legacy_candidate_bytes: int,
+    workflow_candidate_bytes: int,
+) -> None:
+    """Reject candidate rows outside their archive version's UTF-8 byte bound."""
+
+    candidates = ()
+    if schema_version >= 16:
+        candidates += (
+            ("execution_fee_pair_candidates", "candidate_payload_json", legacy_candidate_bytes),
+        )
+    if schema_version >= 17:
+        candidates += (
+            ("execution_fee_pair_workflows", "candidate_payload_json", workflow_candidate_bytes),
+        )
+    encoding_row = connection.execute("PRAGMA encoding").fetchone()
+    encoding_value = encoding_row[0] if encoding_row is not None else None
+    if type(encoding_value) is not str:
+        raise ExecutionJournalArchiveError("ARCHIVE_FEE_PAIR_CANDIDATE_TOO_LARGE")
+    encoding = encoding_value.upper()
+    if encoding == "UTF-8":
+        storage_byte_multiplier = 1
+    elif encoding in ("UTF-16LE", "UTF-16BE"):
+        # UTF-8 uses at least half as many bytes as UTF-16. This rejects rows
+        # that cannot fit before text is fetched, then exact UTF-8 bytes decide.
+        storage_byte_multiplier = 2
+    else:
+        raise ExecutionJournalArchiveError("ARCHIVE_FEE_PAIR_CANDIDATE_TOO_LARGE")
+    for table, column, limit in candidates:
+        oversized = connection.execute(
+            "SELECT 1 FROM {} WHERE typeof({})!='text' "
+            "OR length(CAST({} AS BLOB))>? LIMIT 1".format(table, column, column),
+            (storage_byte_multiplier * limit,),
+        ).fetchone()
+        if oversized is not None:
+            raise ExecutionJournalArchiveError("ARCHIVE_FEE_PAIR_CANDIDATE_TOO_LARGE")
+        try:
+            payloads = connection.execute(
+                "SELECT typeof({0}),{0} FROM {1}".format(column, table)
+            )
+            for storage_type, payload in payloads:
+                if (
+                    storage_type != "text"
+                    or type(payload) is not str
+                    or len(payload.encode("utf-8")) > limit
+                ):
+                    raise ExecutionJournalArchiveError(
+                        "ARCHIVE_FEE_PAIR_CANDIDATE_TOO_LARGE"
+                    )
+        except ExecutionJournalArchiveError:
+            raise
+        except (UnicodeError, sqlite3.Error) as error:
+            raise ExecutionJournalArchiveError(
+                "ARCHIVE_FEE_PAIR_CANDIDATE_TOO_LARGE"
+            ) from error
 
 
 class ExecutionJournalArchiveError(RuntimeError):

@@ -851,7 +851,7 @@ def test_v13_schema_upgrade_adds_empty_source_highwater_and_preserves_usage(tmp_
 
     migrated = ExecutionDecisionJournal(path)
     try:
-        assert migrated._connection.execute("PRAGMA user_version").fetchone()[0] == 17
+        assert migrated._connection.execute("PRAGMA user_version").fetchone()[0] == 18
         assert _durable_usage(migrated._connection) == before
         assert migrated._connection.execute(
             "SELECT COUNT(*) FROM execution_source_highwaters"
@@ -905,7 +905,7 @@ def test_v14_to_v16_migration_preserves_existing_journal_rows(tmp_path):
 
     migrated = ExecutionDecisionJournal(path)
     try:
-        assert migrated._connection.execute("PRAGMA user_version").fetchone()[0] == 17
+        assert migrated._connection.execute("PRAGMA user_version").fetchone()[0] == 18
         assert tuple(
             tuple(row)
             for row in migrated._connection.execute(
@@ -931,7 +931,7 @@ def test_v14_to_v16_migration_preserves_existing_journal_rows(tmp_path):
     # Reopening an already migrated current journal is idempotent.
     reopened = ExecutionDecisionJournal(path)
     try:
-        assert reopened._connection.execute("PRAGMA user_version").fetchone()[0] == 17
+        assert reopened._connection.execute("PRAGMA user_version").fetchone()[0] == 18
         assert tuple(
             tuple(row)
             for row in reopened._connection.execute(
@@ -1098,7 +1098,7 @@ def test_source_highwater_archive_preserves_exact_anchor(tmp_path):
             expected_sha256=archive_receipt.sha256,
         )
         assert verified == archive_receipt
-        assert archive_receipt.schema_version == 17
+        assert archive_receipt.schema_version == 18
         assert archive_receipt.table_row_counts["execution_source_highwaters"] == 1
     finally:
         journal.close()
