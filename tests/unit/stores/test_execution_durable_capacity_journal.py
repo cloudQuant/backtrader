@@ -49,6 +49,11 @@ def _usage(journal: ExecutionDecisionJournal):
 def _restore_v11_journal_schema(connection: sqlite3.Connection) -> None:
     """Remove schema added after v11 before modeling a historical database."""
 
+    # V19 added an append-only settlement ledger whose trigger references the
+    # workflow table, so remove it first when reconstructing a true v11 schema.
+    connection.execute(
+        "DROP TABLE IF EXISTS execution_fee_pair_workflow_grid_settlements"
+    )
     for table in (
         "execution_fee_pair_workflow_decision_reservations",
         "execution_fee_pair_workflow_durable_reservations",

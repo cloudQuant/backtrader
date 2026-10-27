@@ -1718,6 +1718,7 @@ def _multi_target_commission_projection_case(
     *,
     execution_target_ids=("A", "B", "C"),
     commission_identity_by_target=None,
+    missing_template=(),
 ):
     """Project real core/store facts for a configured three-target fee sidecar."""
 
@@ -1735,7 +1736,12 @@ def _multi_target_commission_projection_case(
         ("C", "j2510", "DCE"),
     )
     api, store, broker, _journal, _coordinator, targets, templates = (
-        _multi_target_system_under_test(now=now, target_specs=target_specs, account=account)
+        _multi_target_system_under_test(
+            now=now,
+            target_specs=target_specs,
+            missing_template=missing_template,
+            account=account,
+        )
     )
     api.query_rows["instrument_commission_rate_result"] = list(commission_rows)
     receipt = refresh_factor_execution_queries(
@@ -1756,7 +1762,8 @@ def _multi_target_commission_projection_case(
         **templates[(first.instrument, first.exchange)],
     )
     assert all(
-        store.registered_sim_write_route_invest_unit_id(target.instrument, target.exchange) == ""
+        store.registered_sim_write_route_invest_unit_id(target.instrument, target.exchange)
+        == ("" if (target.instrument, target.exchange) in templates else None)
         for target in targets
     )
     assert all(store.poll_tick(target.instrument) is not None for target in targets)
@@ -1791,7 +1798,123 @@ def _multi_target_commission_projection_case(
         commission_identity_by_target=commission_identity_by_target,
         commission_required_for_open=True,
     )
-    return SimpleNamespace(api=api, store=store, broker=broker, receipt=receipt, facts=facts)
+    return SimpleNamespace(
+        api=api,
+        store=store,
+        broker=broker,
+        journal=_journal,
+        coordinator=_coordinator,
+        receipt=receipt,
+        facts=facts,
+        targets=targets,
+        templates=templates,
+    )
+
+
+def _multi_target_facts_with_known_working_order(case, *, owner_intent_id, target_id="A"):
+    """Reproject a source-backed accepted OPEN order on a multi-target Store."""
+
+    target = next(item for item in case.targets if item.target_id == target_id)
+    external_ref = "94"
+    order_sys_id = "sys-pair-94"
+    remote_order = {
+        "OrderRef": external_ref,
+        "OrderSysID": order_sys_id,
+        "InstrumentID": target.instrument,
+        "ExchangeID": target.exchange,
+        "OrderStatus": "3",
+        "Direction": "0",
+        "CombOffsetFlag": "0",
+        "VolumeTotalOriginal": "1",
+        "VolumeTraded": "0",
+        "VolumeTotal": "1",
+        "FrontID": 4,
+        "SessionID": 7,
+        "TradingDay": _TRADING_DAY,
+    }
+    case.api.query_rows["orders_result"] = [remote_order]
+    order = BuyOrder(
+        owner=None,
+        data=target.data,
+        size=1,
+        price=100,
+        exectype=Order.Limit,
+        simulated=True,
+    )
+    order.status = Order.Accepted
+    order.info.update(
+        {
+            "external_order_ref": external_ref,
+            "order_sys_id": order_sys_id,
+            "registered_sim_ctp_order_sys_id": order_sys_id,
+            "registered_sim_ctp_order_sys_id_source": "ctp_order_callback",
+            "_registered_sim_ctp_identity_binding_captured": True,
+            "_registered_sim_ctp_identity_binding_valid": True,
+            "instrument_id": target.instrument,
+            "exchange_id": target.exchange,
+            "factor_position_effect": "OPEN",
+            "factor_strategy_scope": "alpha003",
+            "factor_intent_id": owner_intent_id,
+            "front_id": 4,
+            "session_id": 7,
+            "execution_unknown": False,
+            "cancel_requested_remote": False,
+            "cancel_intent_active": False,
+            "managed_execution_cancel_pending": False,
+        }
+    )
+    case.broker.orders[order.ref] = order
+
+    # The SDK grant is singular. Switch to the other configured leg, then
+    # refresh the ordinary query families and commission sidecars through the
+    # same Store APIs used by the production projection.
+    other = next(item for item in case.targets if item.target_id != target_id)
+    case.api.trader_client.disarm_execution_gate = lambda _capability, _reason: {
+        "revoked": True
+    }
+    case.store.registered_sim_ensure_arm(
+        other.instrument,
+        other.exchange,
+        expected_session={
+            "account_fingerprint": case.facts.account.account_fingerprint,
+            "connection_generation": case.facts.account.connection_generation,
+            "trading_day": case.facts.account.trading_day,
+        },
+    )
+    receipt = refresh_factor_execution_queries(
+        case.store,
+        targets=case.targets,
+        overall_timeout=4.0,
+        max_queries=8,
+    )
+    assert receipt.blockers == ()
+    assert receipt.pending_families == ()
+    for target_item in case.targets:
+        case.store.registered_sim_query(
+            "instrument_commission_rate_result",
+            timeout=1.0,
+            attempts=1,
+            deadline_monotonic=time.monotonic() + 5.0,
+            instrument_id=target_item.instrument,
+            exchange_id=target_item.exchange,
+        )
+    return project_factor_execution_facts(
+        case.store,
+        case.broker,
+        targets=case.targets,
+        account_scope="acct-scope",
+        strategy_scope="alpha003",
+        now=datetime.now(timezone.utc),
+        quote_max_age=timedelta(seconds=10),
+        max_query_age=timedelta(seconds=20),
+        query_set=receipt.query_set,
+        execution_target_ids=("A", "B"),
+        commission_identity_by_target={
+            "A": {"account_id": "configured-account", "invest_unit_id": ""},
+            "B": {"account_id": "configured-account", "invest_unit_id": ""},
+        },
+        commission_required_for_open=True,
+    )
 
 
 def test_commission_sidecar_uses_real_ctp_filter_shape_without_changing_core_seal():

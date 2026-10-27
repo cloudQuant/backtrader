@@ -67,6 +67,7 @@ _REQUIRED_TABLES_BY_MINIMUM_SCHEMA_VERSION = {
             "execution_fee_pair_workflow_decision_reservations",
         }
     ),
+    19: frozenset({"execution_fee_pair_workflow_grid_settlements"}),
 }
 
 
@@ -108,7 +109,9 @@ def _validate_required_schema_objects(
         if schema_version >= 16:
             journal_module.ExecutionDecisionJournal._validate_fee_pair_candidate_schema(cursor)
         if schema_version >= 17:
-            journal_module.ExecutionDecisionJournal._validate_fee_pair_workflow_schema(cursor)
+            journal_module.ExecutionDecisionJournal._validate_fee_pair_workflow_schema(
+                cursor, schema_version=min(schema_version, 19)
+            )
         _validate_fee_pair_candidate_payload_bounds(
             connection,
             schema_version,

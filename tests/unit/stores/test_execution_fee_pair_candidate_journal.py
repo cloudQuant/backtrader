@@ -1,4 +1,4 @@
-"""Focused contracts for v16 candidates and v17/v18 journal-only workflows."""
+"""Focused contracts for v16 candidates and v17-v19 journal-only workflows."""
 
 from __future__ import annotations
 
@@ -10,6 +10,7 @@ import sqlite3
 import time
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone
+from decimal import Decimal
 from threading import Barrier, Event
 
 import pytest
@@ -21,6 +22,8 @@ from backtrader.stores.execution_decision_journal import (
     ExecutionDecisionJournalError,
     ExecutionDecisionKey,
     ExecutionFeePairCandidate,
+    ExecutionFeePairOpenContext,
+    ExecutionFeePairTargetRoute,
     ExecutionIntentKey,
     ExecutionSourceMemberReceipt,
     ExecutionSourceRestartMarker,
@@ -220,6 +223,15 @@ def _record_source_grid(journal, *, run_id="candidate-run", close_time="2026-10-
 
 
 def _downgrade_to_v15(connection: sqlite3.Connection) -> None:
+    for trigger in (
+        "execution_fee_pair_workflow_grid_settlement_insert",
+        "execution_fee_pair_workflow_grid_settlement_no_update",
+        "execution_fee_pair_workflow_grid_settlement_no_delete",
+        "execution_fee_pair_workflow_state",
+    ):
+        connection.execute("DROP TRIGGER IF EXISTS {}".format(trigger))
+    connection.execute("DROP INDEX IF EXISTS execution_fee_pair_workflow_one_active")
+    connection.execute("DROP TABLE IF EXISTS execution_fee_pair_workflow_grid_settlements")
     connection.execute("DROP TABLE execution_fee_pair_workflow_decision_reservations")
     connection.execute("DROP TABLE execution_fee_pair_workflow_durable_reservations")
     connection.execute("DROP TABLE execution_fee_pair_workflow_events")
@@ -228,6 +240,39 @@ def _downgrade_to_v15(connection: sqlite3.Connection) -> None:
     connection.execute("DROP TABLE execution_fee_pair_candidate_events")
     connection.execute("DROP TABLE execution_fee_pair_candidates")
     connection.execute("PRAGMA user_version=15")
+
+
+def _downgrade_v19_workflow_to_v18(connection: sqlite3.Connection) -> None:
+    """Restore the actual v18 workflow DDL before setting an older version tag."""
+
+    for trigger in (
+        "execution_fee_pair_workflow_grid_settlement_insert",
+        "execution_fee_pair_workflow_grid_settlement_no_update",
+        "execution_fee_pair_workflow_grid_settlement_no_delete",
+        "execution_fee_pair_workflow_state",
+    ):
+        connection.execute("DROP TRIGGER IF EXISTS {}".format(trigger))
+    connection.execute("DROP INDEX IF EXISTS execution_fee_pair_workflow_one_active")
+    connection.execute("DROP TABLE IF EXISTS execution_fee_pair_workflow_grid_settlements")
+    connection.execute("DROP TRIGGER execution_fee_pair_workflow_event_no_update")
+    connection.execute("DROP TRIGGER execution_fee_pair_workflow_event_no_delete")
+    connection.execute(
+        "ALTER TABLE execution_fee_pair_workflow_events "
+        "RENAME TO execution_fee_pair_workflow_events_v19"
+    )
+    connection.execute(journal_module._FEE_PAIR_WORKFLOW_EVENT_TABLE_SQL_V18)
+    connection.execute(
+        """INSERT INTO execution_fee_pair_workflow_events
+           (event_id,candidate_id,event_sequence,event_kind,event_payload_json,created_at_ns)
+           SELECT event_id,candidate_id,event_sequence,event_kind,event_payload_json,created_at_ns
+           FROM execution_fee_pair_workflow_events_v19"""
+    )
+    connection.execute("DROP TABLE execution_fee_pair_workflow_events_v19")
+    connection.execute("ALTER TABLE execution_fee_pair_workflows DROP COLUMN grid_decision_id")
+    connection.execute(journal_module._FEE_PAIR_WORKFLOW_ACTIVE_INDEX_SQL_V18)
+    connection.execute(journal_module._FEE_PAIR_WORKFLOW_STATE_TRIGGER_SQL_V18)
+    connection.execute(journal_module._FEE_PAIR_WORKFLOW_EVENT_NO_UPDATE_TRIGGER_SQL)
+    connection.execute(journal_module._FEE_PAIR_WORKFLOW_EVENT_NO_DELETE_TRIGGER_SQL)
 
 
 def test_candidate_capacity_reservation_is_atomic_and_settlement_neutral(tmp_path):
@@ -845,7 +890,7 @@ def test_v15_migration_preserves_history_and_adds_empty_candidate_schema(tmp_pat
 
     migrated = ExecutionDecisionJournal(path)
     try:
-        assert migrated._connection.execute("PRAGMA user_version").fetchone()[0] == 18
+        assert migrated._connection.execute("PRAGMA user_version").fetchone()[0] == 19
         assert migrated.decision(decision.decision_id) == decision
         assert migrated.fee_pair_required_scope("pair-account", "pair-strategy") is not None
         assert (
@@ -1115,7 +1160,7 @@ def test_v18_87_member_workflow_fits_default_payload_limit_and_archives(tmp_path
         archive_receipt = journal.archive_snapshot(archive_path)
         verified = archive_module.verify_execution_journal_archive(
             archive_path,
-            expected_schema_version=18,
+            expected_schema_version=19,
             expected_sha256=archive_receipt.sha256,
         )
         assert verified == archive_receipt
@@ -1123,7 +1168,7 @@ def test_v18_87_member_workflow_fits_default_payload_limit_and_archives(tmp_path
     finally:
         journal.close()
 
-    # A reader implementing the v17 version ceiling rejects the v18 writer's
+    # A reader implementing the v17 version ceiling rejects the v19 writer's
     # larger-candidate schema before interpreting any of its rows.
     with monkeypatch.context() as patch:
         patch.setattr(ExecutionDecisionJournal, "_SCHEMA_VERSION", 17)
@@ -1135,6 +1180,7 @@ def test_v18_87_member_workflow_fits_default_payload_limit_and_archives(tmp_path
     legacy_archive = tmp_path / "workflow-87-member-as-v17.archive.sqlite3"
     shutil.copyfile(archive_path, legacy_archive)
     with sqlite3.connect(legacy_archive) as connection:
+        _downgrade_v19_workflow_to_v18(connection)
         connection.execute("PRAGMA user_version=17")
     with pytest.raises(
         archive_module.ExecutionJournalArchiveError,
@@ -1190,7 +1236,7 @@ def test_v18_rejects_candidate_above_workflow_limit_without_partial_rows(tmp_pat
         journal.close()
 
 
-def test_v17_small_workflow_migrates_to_v18_and_remains_readable(tmp_path):
+def test_v17_small_workflow_migrates_to_v19_and_remains_readable(tmp_path):
     path = tmp_path / "workflow-v17-to-v18.sqlite3"
     archive_path = tmp_path / "workflow-v17-small.archive.sqlite3"
     legacy_archive = tmp_path / "workflow-v17-small-legacy.archive.sqlite3"
@@ -1217,23 +1263,25 @@ def test_v17_small_workflow_migrates_to_v18_and_remains_readable(tmp_path):
     finally:
         journal.close()
 
-    # V18 changes only the candidate size contract, so a bounded v17 row is
-    # the same schema and data shape that the new reader must migrate intact.
+    # Restore the actual v17/v18 workflow schema, then let the new reader
+    # migrate that bounded row without rewriting its history.
     with sqlite3.connect(path) as connection:
+        _downgrade_v19_workflow_to_v18(connection)
         connection.execute("PRAGMA user_version=17")
 
     migrated = ExecutionDecisionJournal(path)
     try:
-        assert migrated._connection.execute("PRAGMA user_version").fetchone()[0] == 18
+        assert migrated._connection.execute("PRAGMA user_version").fetchone()[0] == 19
         assert migrated.fee_pair_workflow_candidate(reserved.candidate_id).state == "SOURCE_ONLY"
         assert migrated.decision(expected.decision_id) == expected
         archive_receipt = migrated.archive_snapshot(archive_path)
-        assert archive_receipt.schema_version == 18
+        assert archive_receipt.schema_version == 19
     finally:
         migrated.close()
 
     shutil.copyfile(archive_path, legacy_archive)
     with sqlite3.connect(legacy_archive) as connection:
+        _downgrade_v19_workflow_to_v18(connection)
         connection.execute("PRAGMA user_version=17")
     verified = archive_module.verify_execution_journal_archive(
         legacy_archive, expected_schema_version=17
@@ -1317,8 +1365,8 @@ def test_v18_underfunded_87_member_reservation_rolls_back_atomically(tmp_path):
     token = "workflow-87-underfunded-owner-" + "u" * 32
     probe = ExecutionDecisionJournal(
         tmp_path / "workflow-87-capacity-probe.sqlite3",
-        max_durable_base_records=9,
-        max_durable_base_bytes=2_000_000,
+        max_durable_base_records=16,
+        max_durable_base_bytes=5_000_000,
     )
     try:
         probe.register_fee_pair_required_scope("pair-account", "pair-strategy")
@@ -1340,7 +1388,7 @@ def test_v18_underfunded_87_member_reservation_rolls_back_atomically(tmp_path):
 
     underfunded = ExecutionDecisionJournal(
         tmp_path / "workflow-87-capacity-underfunded.sqlite3",
-        max_durable_base_records=9,
+        max_durable_base_records=16,
         max_durable_base_bytes=exact_limit - 1,
     )
     try:
@@ -1403,7 +1451,7 @@ def test_v17_workflow_rejects_receipt_mismatch_and_keeps_reservation(tmp_path):
             (reserved.candidate_id,),
         ).fetchone()
         assert reservation["state"] == "ACTIVE"
-        assert reservation["reserved_records"] == 4
+        assert reservation["reserved_records"] == 11
         assert reservation["reserved_bytes"] > 0
     finally:
         journal.close()
@@ -1719,7 +1767,7 @@ def test_v17_workflow_fence_is_bidirectional_and_capacity_is_base_only(tmp_path)
             (reserved.candidate_id,),
         ).fetchone()
         assert tuple(capacity)[:1] == ("BASE",)
-        assert capacity["reserved_records"] == 5
+        assert capacity["reserved_records"] == 12
         assert capacity["state"] == "ACTIVE"
         after = tuple(
             tuple(row)
@@ -1867,8 +1915,8 @@ def test_v17_capacity_counts_reservation_rows_once_and_keeps_terminal_budget(tmp
 
     probe = ExecutionDecisionJournal(
         tmp_path / "workflow-reservation-row-capacity-probe.sqlite3",
-        max_durable_base_records=9,
-        max_durable_base_bytes=1_000_000,
+        max_durable_base_records=16,
+        max_durable_base_bytes=5_000_000,
         max_durable_settlement_records=20,
         max_durable_settlement_bytes=1_000_000,
     )
@@ -1892,7 +1940,7 @@ def test_v17_capacity_counts_reservation_rows_once_and_keeps_terminal_budget(tmp
 
     underfunded = ExecutionDecisionJournal(
         tmp_path / "workflow-reservation-row-capacity-underfunded.sqlite3",
-        max_durable_base_records=9,
+        max_durable_base_records=16,
         max_durable_base_bytes=exact_base_byte_limit - 1,
         max_durable_settlement_records=20,
         max_durable_settlement_bytes=1_000_000,
@@ -1924,7 +1972,7 @@ def test_v17_capacity_counts_reservation_rows_once_and_keeps_terminal_budget(tmp
 
     journal = ExecutionDecisionJournal(
         tmp_path / "workflow-reservation-row-capacity.sqlite3",
-        max_durable_base_records=9,
+        max_durable_base_records=16,
         max_durable_base_bytes=exact_base_byte_limit,
         max_durable_settlement_records=20,
         max_durable_settlement_bytes=1_000_000,
@@ -1956,8 +2004,8 @@ def test_v17_capacity_counts_reservation_rows_once_and_keeps_terminal_budget(tmp
             (reserved.candidate_id,),
         ).fetchone()
         assert future["state"] == "ACTIVE"
-        assert future["reserved_records"] == 5
-        assert after_reserve["BASE"][0] + future["reserved_records"] == 9
+        assert future["reserved_records"] == 12
+        assert after_reserve["BASE"][0] + future["reserved_records"] == 16
         assert after_reserve["BASE"][1] + journal._connection.execute(
             """SELECT reserved_bytes FROM execution_fee_pair_workflow_durable_reservations
                WHERE candidate_id=?""",
@@ -1973,7 +2021,7 @@ def test_v17_capacity_counts_reservation_rows_once_and_keeps_terminal_budget(tmp
                WHERE candidate_id=?""",
             (reserved.candidate_id,),
         ).fetchone()[0]
-        assert after_claim["BASE"][0] + future_records == 9
+        assert after_claim["BASE"][0] + future_records == 16
         future_bytes = journal._connection.execute(
             """SELECT reserved_bytes FROM execution_fee_pair_workflow_durable_reservations
                WHERE candidate_id=?""",
@@ -1993,7 +2041,7 @@ def test_v17_capacity_counts_reservation_rows_once_and_keeps_terminal_budget(tmp
                WHERE candidate_id=?""",
             (reserved.candidate_id,),
         ).fetchone()[0]
-        assert after_attach["BASE"][0] + future_records == 9
+        assert after_attach["BASE"][0] + future_records == 16
         future_bytes = journal._connection.execute(
             """SELECT reserved_bytes FROM execution_fee_pair_workflow_durable_reservations
                WHERE candidate_id=?""",
@@ -2024,11 +2072,936 @@ def test_v17_capacity_counts_reservation_rows_once_and_keeps_terminal_budget(tmp
             close_time="2026-10-28T10:01:00Z",
             decision_kind="bar",
         )
+        extra = journal.record_decision(extra_key, {"signal": "flat"})
+        assert extra.key == extra_key
+        assert journal.decision_for_key(extra_key) == extra
+        assert usage()["BASE"][0] == terminal["BASE"][0] + 1
+    finally:
+        journal.close()
+
+
+def _fee_pair_settlement_fixture(
+    run_id,
+    *,
+    target_order=("A", "B"),
+    missing_template=(),
+):
+    """Build the real Store projection used by the typed Journal settlement."""
+
+    from tests.unit.stores.test_factor_execution_facts import (
+        _commission_row,
+        _multi_target_commission_projection_case,
+    )
+
+    case = _multi_target_commission_projection_case(
+        (
+            _commission_row(instrument="rb2510", exchange="SHFE"),
+            _commission_row(instrument="i2510", exchange="DCE"),
+        ),
+        execution_target_ids=("A", "B"),
+        missing_template=missing_template,
+    )
+    facts = case.facts
+    if not missing_template:
+        assert facts.open_risk_ready is True, facts.open_risk_blockers
+    quote_by_route = {(item.instrument, item.exchange): item for item in facts.quotes}
+    route_by_id = {
+        "A": ExecutionFeePairTargetRoute("A", "rb2510", "SHFE"),
+        "B": ExecutionFeePairTargetRoute("B", "i2510", "DCE"),
+    }
+    routes = tuple(route_by_id[target_id] for target_id in target_order)
+    close_time = (
+        datetime.now(timezone.utc).replace(second=0, microsecond=0) - timedelta(minutes=2)
+    ).isoformat(timespec="seconds").replace("+00:00", "Z")
+    base = _candidate(run_id=run_id, close_time=close_time)
+    source_member = base.source_members[0]
+    members = (
+        replace(source_member, member_id="A"),
+        replace(
+            source_member,
+            member_id="B",
+            source_ref="synthetic-ctp-b",
+            feed_sequence=2,
+            bar_id="bar-2",
+        ),
+    )
+    key = replace(
+        base.key,
+        account_scope=facts.account_scope,
+        strategy_scope=facts.strategy_scope,
+        logical_run_id=run_id,
+    )
+    candidate = replace(
+        base,
+        key=key,
+        source_members=members,
+        target_ids=target_order,
+        directions=tuple(1 if target_id == "A" else -1 for target_id in target_order),
+        quote_identity_sha256s=tuple(
+            journal_module._fee_pair_quote_identity_sha256(
+                quote_by_route[(route.instrument, route.exchange)]
+            )
+            for route in routes
+        ),
+        account_session_id="store-session-1",
+        account_session_generation="store-session-generation-1",
+        target_routes=routes,
+        account_fingerprint=facts.account.account_fingerprint,
+        connection_generation=facts.account.connection_generation,
+        trading_day=facts.account.trading_day,
+    )
+    assert facts.target_ids is not None and set(candidate.target_ids).issubset(facts.target_ids)
+    return case, candidate, quote_by_route
+
+
+def _fresh_fee_pair_facts_after_route_switch(case, candidate, target_id):
+    """Switch the real Store's one-route grant, then reproject from its caches."""
+
+    from backtrader.stores.factor_execution_facts import project_factor_execution_facts
+
+    client = case.api.trader_client
+    previous_capability = case.api._registered_sim_capability
+
+    def disarm_execution_gate(capability, reason):
+        assert capability is previous_capability
+        client._gate_state.update(
+            {
+                "armed": False,
+                "instrument": None,
+                "authorized_instruments": [],
+                "revocation_reason": reason,
+            }
+        )
+        return {"revoked": True}
+
+    client.disarm_execution_gate = disarm_execution_gate
+    route = next(route for route in candidate.target_routes if route.target_id == target_id)
+    expected_session = {
+        "account_fingerprint": candidate.account_fingerprint,
+        "connection_generation": candidate.connection_generation,
+        "trading_day": candidate.trading_day,
+    }
+    case.store.registered_sim_ensure_arm(
+        route.instrument,
+        route.exchange,
+        expected_session=expected_session,
+    )
+    return project_factor_execution_facts(
+        case.store,
+        case.broker,
+        targets=case.targets,
+        account_scope=candidate.key.account_scope,
+        strategy_scope=candidate.key.strategy_scope,
+        now=datetime.now(timezone.utc),
+        quote_max_age=timedelta(seconds=10),
+        max_query_age=timedelta(seconds=20),
+        query_set=case.receipt.query_set,
+        execution_target_ids=("A", "B"),
+        commission_identity_by_target={
+            "A": {"account_id": "configured-account", "invest_unit_id": ""},
+            "B": {"account_id": "configured-account", "invest_unit_id": ""},
+        },
+        commission_required_for_open=True,
+    )
+
+
+def _fee_pair_grid_economic_payload(candidate, facts, quote_by_route, receipt):
+    actions = []
+    economics = []
+    for leg, route in enumerate(candidate.target_routes):
+        quote = quote_by_route[(route.instrument, route.exchange)]
+        side = "BUY" if candidate.directions[leg] > 0 else "SELL"
+        limit_price = quote.ask if side == "BUY" else quote.bid
+        stop_price = limit_price - Decimal("1") if side == "BUY" else limit_price + Decimal("1")
+        action = {
+            "action": "SUBMIT",
+            "target_id": route.target_id,
+            "instrument": route.instrument,
+            "exchange": route.exchange,
+            "side": side,
+            "position_effect": "OPEN",
+            "quantity": 1,
+            "limit_price": str(limit_price),
+            "planned_stop_price": str(stop_price),
+            "entry_grid_ordinal": 1,
+        }
+        actions.append(action)
+        economics.append(
+            {
+                "instrument": route.instrument,
+                "instrument_id": route.instrument,
+                "exchange": route.exchange,
+                "side": side,
+                "position_effect": "OPEN",
+                "quantity": 1,
+                "limit_price": str(limit_price),
+                "offset": "OPEN",
+                "reason": "synthetic-ready-pair",
+                "batch_id": candidate.batch_id,
+                "factor_stop_price": str(stop_price),
+                "stop_price": str(stop_price),
+                "risk_policy_id": "synthetic-risk-policy-v1",
+                "risk_policy": {"risk_policy_id": "synthetic-risk-policy-v1"},
+                "entry_grid_ordinal": 1,
+            }
+        )
+    return {
+        "plan_id": "alpha003",
+        "snapshot_id": facts.snapshot_id,
+        "execution_evidence": ExecutionDecisionJournal._fee_pair_execution_evidence_payload(
+            facts
+        ),
+        "batch_id": candidate.batch_id,
+        "epoch_id": str(candidate.epoch_id),
+        "signal_batch_id": candidate.batch_id,
+        "decision_tape_status": "DURABLE",
+        "decision_tape_file_id": receipt.tape_file_id,
+        "decision_tape_record_id": receipt.tape_record_id,
+        "decision_tape_record_index": receipt.tape_record_index,
+        "decision_tape_batch_id": candidate.batch_id,
+        "intent_economics": economics,
+        "proposed_actions": actions,
+        "dispatch_suppressed": False,
+        "plan_status": "READY",
+        "plan_reason": None,
+    }
+
+
+def _attach_fee_pair_receipt(journal, candidate, owner_token):
+    reserved = journal.reserve_fee_pair_workflow_candidate(
+        candidate, owner_token=owner_token, ttl_seconds=10
+    )
+    journal.record_fee_pair_workflow_append_claim(
+        reserved.candidate_id, owner_token=owner_token
+    )
+    receipt = journal_module._fee_pair_receipt_from_candidate(candidate, "synthetic-record-id")
+    journal.attach_verified_fee_pair_source_receipt(
+        reserved.candidate_id, receipt, owner_token=owner_token
+    )
+    return reserved.candidate_id, receipt
+
+
+def test_v18_workflow_migration_preserves_events_and_allows_grid_settlement(tmp_path):
+    path = tmp_path / "workflow-v18-to-v19.sqlite3"
+    case, candidate, quote_by_route = _fee_pair_settlement_fixture("typed-grid-v18-migration")
+    owner_token = "typed-grid-v18-migration-owner-" + "m" * 32
+    journal = ExecutionDecisionJournal(path)
+    try:
+        journal.register_fee_pair_required_scope("acct-scope", "alpha003")
+        candidate_id, receipt = _attach_fee_pair_receipt(journal, candidate, owner_token)
+        payload = _fee_pair_grid_economic_payload(candidate, case.facts, quote_by_route, receipt)
+        old_events = tuple(
+            tuple(row)
+            for row in journal._connection.execute(
+                """SELECT event_id,candidate_id,event_sequence,event_kind,event_payload_json,
+                          created_at_ns FROM execution_fee_pair_workflow_events
+                   WHERE candidate_id=? ORDER BY event_sequence""",
+                (candidate_id,),
+            )
+        )
+    finally:
+        journal.close()
+
+    # Reconstruct the exact committed v18 schema and data before changing the
+    # version tag. Opening it exercises the production v18 -> v19 migration.
+    with sqlite3.connect(path) as connection:
+        _downgrade_v19_workflow_to_v18(connection)
+        connection.execute("PRAGMA user_version=18")
+        connection.commit()
+
+    migrated = ExecutionDecisionJournal(path)
+    try:
+        assert migrated._connection.execute("PRAGMA user_version").fetchone()[0] == 19
+        assert migrated.fee_pair_workflow_candidate(candidate_id).state == "RECEIPT_VERIFIED"
+        migrated_events = tuple(
+            tuple(row)
+            for row in migrated._connection.execute(
+                """SELECT event_id,candidate_id,event_sequence,event_kind,event_payload_json,
+                          created_at_ns FROM execution_fee_pair_workflow_events
+                   WHERE candidate_id=? ORDER BY event_sequence""",
+                (candidate_id,),
+            )
+        )
+        assert migrated_events == old_events
+        settled = migrated.settle_fee_pair_grid_decision(
+            candidate_id,
+            owner_token=owner_token,
+            facts=case.facts,
+            current_account_session_id=candidate.account_session_id,
+            current_account_session_generation=candidate.account_session_generation,
+            max_query_age_seconds=20.0,
+            max_quote_age_seconds=10.0,
+            economic_payload=payload,
+            max_order_intents_per_run=100,
+            expected_run_order_intents_used=0,
+            remaining_exit_intent_reserve=0,
+        )
+        assert settled.is_new_grid is True
+        terminal_event = migrated._connection.execute(
+            """SELECT event_sequence,event_kind FROM execution_fee_pair_workflow_events
+               WHERE candidate_id=? ORDER BY event_sequence DESC LIMIT 1""",
+            (candidate_id,),
+        ).fetchone()
+        assert tuple(terminal_event) == (4, "GRID_SETTLED")
+    finally:
+        migrated.close()
+
+
+def test_v19_typed_grid_settlement_is_atomic_replayable_and_fences_both_pair_legs(
+    tmp_path,
+):
+    case, candidate, quote_by_route = _fee_pair_settlement_fixture("typed-grid-settlement")
+    owner_token = "typed-grid-settlement-owner-" + "x" * 32
+    journal = ExecutionDecisionJournal(tmp_path / "typed-grid-settlement.sqlite3")
+    try:
+        journal.register_fee_pair_required_scope("acct-scope", "alpha003")
+        candidate_id, receipt = _attach_fee_pair_receipt(journal, candidate, owner_token)
+        payload = _fee_pair_grid_economic_payload(
+            candidate, case.facts, quote_by_route, receipt
+        )
+        kwargs = {
+            "owner_token": owner_token,
+            "facts": case.facts,
+            "current_account_session_id": candidate.account_session_id,
+            "current_account_session_generation": candidate.account_session_generation,
+            "max_query_age_seconds": 20.0,
+            "max_quote_age_seconds": 10.0,
+            "economic_payload": payload,
+            "max_order_intents_per_run": 100,
+            "expected_run_order_intents_used": 0,
+            "remaining_exit_intent_reserve": 0,
+        }
+
+        settled = journal.settle_fee_pair_grid_decision(candidate_id, **kwargs)
+        assert settled.is_new_grid is True
+        assert settled.eligible is True
+        assert settled.cursor.ordinal == 1
+        assert settled.decision.intent_keys == (
+            ExecutionIntentKey("SUBMIT", "rb2510", "BUY", "OPEN", 0),
+            ExecutionIntentKey("SUBMIT", "i2510", "SELL", "OPEN", 1),
+        )
+        assert journal.source_highwater(
+            "acct-scope", "alpha003", candidate.key.logical_run_id, candidate.source_kind
+        ).anchor_kind == "GRID"
+        assert journal._connection.execute(
+            "SELECT COUNT(*) FROM execution_decision_slots WHERE decision_id=?",
+            (settled.decision.decision_id,),
+        ).fetchone()[0] == 2
+        assert journal._connection.execute(
+            "SELECT COUNT(*) FROM execution_fee_pair_workflow_grid_settlements WHERE candidate_id=?",
+            (candidate_id,),
+        ).fetchone()[0] == 1
+        event = journal._connection.execute(
+            """SELECT event_sequence,event_kind FROM execution_fee_pair_workflow_events
+               WHERE candidate_id=? ORDER BY event_sequence DESC LIMIT 1""",
+            (candidate_id,),
+        ).fetchone()
+        assert tuple(event) == (4, "GRID_SETTLED")
+        assert journal.fee_pair_workflow_candidate(candidate_id).grid_settled_decision_id == (
+            settled.decision.decision_id
+        )
+        reservations = journal._connection.execute(
+            """SELECT reserved_records,reserved_bytes,state FROM
+               execution_fee_pair_workflow_durable_reservations WHERE candidate_id=?""",
+            (candidate_id,),
+        ).fetchone()
+        assert tuple(reservations) == (0, 0, "CONSUMED")
+        decision_reservation = journal._connection.execute(
+            """SELECT reserved_records,reserved_bytes,state FROM
+               execution_fee_pair_workflow_decision_reservations WHERE candidate_id=?""",
+            (candidate_id,),
+        ).fetchone()
+        assert tuple(decision_reservation) == (0, 0, "CONSUMED")
+
+        before = tuple(
+            tuple(row)
+            for row in journal._connection.execute(
+                """SELECT capacity_class,record_count,payload_bytes
+                   FROM execution_durable_capacity_usage ORDER BY capacity_class"""
+            )
+        )
+        replay = journal.settle_fee_pair_grid_decision(candidate_id, **kwargs)
+        after = tuple(
+            tuple(row)
+            for row in journal._connection.execute(
+                """SELECT capacity_class,record_count,payload_bytes
+                   FROM execution_durable_capacity_usage ORDER BY capacity_class"""
+            )
+        )
+        assert replay.is_new_grid is False
+        assert replay.decision == settled.decision
+        assert replay.cursor == settled.cursor
+        assert after == before
+
+        first_key = settled.decision.intent_keys[0]
+        first_economics = payload["intent_economics"][0]
+        context = ExecutionFeePairOpenContext(
+            facts=case.facts,
+            account_session_id=candidate.account_session_id,
+            account_session_generation=candidate.account_session_generation,
+            owner_token=owner_token,
+            max_query_age_seconds=20.0,
+            max_quote_age_seconds=10.0,
+        )
         with pytest.raises(
-            ExecutionDecisionJournalError, match="DURABLE_BASE_RECORDS_EXHAUSTED"
+            ExecutionDecisionJournalError,
+            match="FEE_PAIR_OPEN_RISK_RESERVATION_REQUIRED",
         ):
-            journal.record_decision(extra_key, {"signal": "flat"})
-        assert journal.decision_for_key(extra_key) is None
-        assert usage() == terminal
+            journal.prepare_intent(
+                settled.decision.decision_id,
+                first_key,
+                first_economics,
+            )
+        with pytest.raises(
+            ExecutionDecisionJournalError,
+            match="FEE_PAIR_OPEN_RISK_RESERVATION_REQUIRED",
+        ):
+            journal.prepare_intent(
+                settled.decision.decision_id,
+                first_key,
+                first_economics,
+                fee_pair_open_context=context,
+            )
+        first_intent_id = journal_module._stable_id(
+            "intent",
+            settled.decision.decision_id
+            + ":"
+            + journal_module._canonical_json(journal_module._intent_key_values(first_key)),
+        )
+        assert journal.intent(first_intent_id) is None
+        with pytest.raises(ExecutionDecisionJournalError, match="INTENT_NOT_PREPARED"):
+            journal.claim_dispatch(first_intent_id, fee_pair_open_context=context)
+
+        # Exercise the claim boundary against a previously persisted PREPARED
+        # row as well. This is unreachable through current prepare_intent but
+        # ensures a stale/preexisting row cannot bypass the same risk fence.
+        with journal._transaction() as cursor:
+            with journal_module.track_durable_row_change(
+                cursor,
+                "execution_decision_intents",
+                (first_intent_id,),
+                "BASE",
+            ):
+                cursor.execute(
+                    """INSERT INTO execution_decision_intents
+                       (intent_id,decision_id,intent_key_json,economic_payload_json,
+                        original_identity_json,owner_intent_id,state,dispatch_state,
+                        provider_identity_json,outcome_code,dispatch_result_json,
+                        created_at_ns,updated_at_ns)
+                       VALUES (?,?,?,?,?,NULL,'PREPARED',NULL,NULL,NULL,NULL,1,1)""",
+                    (
+                        first_intent_id,
+                        settled.decision.decision_id,
+                        journal_module._canonical_json(
+                            journal_module._intent_key_values(first_key)
+                        ),
+                        journal_module._canonical_json(first_economics),
+                        "{}",
+                    ),
+                )
+        with pytest.raises(
+            ExecutionDecisionJournalError,
+            match="FEE_PAIR_OPEN_RISK_RESERVATION_REQUIRED",
+        ):
+            journal.claim_dispatch(first_intent_id, fee_pair_open_context=context)
+        assert journal.intent(first_intent_id).state == "PREPARED"
+        assert journal.intent(first_intent_id).dispatch_state is None
+    finally:
+        journal.close()
+
+
+def test_v19_pair_settlement_keeps_templates_but_fences_both_active_grant_legs(
+    tmp_path,
+):
+    # The production Store exposes one active native grant at a time. The
+    # settled candidate retains both configured templates, but even a fresh
+    # projection with the matching A or B grant cannot authorize either OPEN
+    # until the Journal has a durable numeric pair-risk reservation.
+    case, candidate, quote_by_route = _fee_pair_settlement_fixture(
+        "typed-grid-one-active-route", target_order=("B", "A")
+    )
+    owner_token = "typed-grid-one-active-route-owner-" + "x" * 32
+    journal = ExecutionDecisionJournal(tmp_path / "typed-grid-one-active-route.sqlite3")
+    try:
+        initial_routes = {route.target_id: route for route in case.facts.route_eligibilities}
+        assert initial_routes["A"].capability_matches_route is True
+        assert initial_routes["B"].capability_matches_route is False
+        assert initial_routes["B"].arm_template_membership is True
+        journal.register_fee_pair_required_scope("acct-scope", "alpha003")
+        candidate_id, receipt = _attach_fee_pair_receipt(journal, candidate, owner_token)
+        payload = _fee_pair_grid_economic_payload(
+            candidate, case.facts, quote_by_route, receipt
+        )
+        settled = journal.settle_fee_pair_grid_decision(
+            candidate_id,
+            owner_token=owner_token,
+            facts=case.facts,
+            current_account_session_id=candidate.account_session_id,
+            current_account_session_generation=candidate.account_session_generation,
+            max_query_age_seconds=20.0,
+            max_quote_age_seconds=10.0,
+            economic_payload=payload,
+            max_order_intents_per_run=100,
+            expected_run_order_intents_used=0,
+            remaining_exit_intent_reserve=0,
+        )
+        assert settled.is_new_grid is True
+
+        for leg, target_id in enumerate(candidate.target_ids):
+            fresh_facts = _fresh_fee_pair_facts_after_route_switch(
+                case, candidate, target_id
+            )
+            fresh_routes = {
+                route.target_id: route for route in fresh_facts.route_eligibilities
+            }
+            assert fresh_facts.open_risk_ready is True, fresh_facts.open_risk_blockers
+            assert fresh_routes[target_id].capability_matches_route is True
+            assert all(
+                route.capability_matches_route is (route.target_id == target_id)
+                for route in fresh_facts.route_eligibilities
+            )
+            fresh_context = ExecutionFeePairOpenContext(
+                facts=fresh_facts,
+                account_session_id=candidate.account_session_id,
+                account_session_generation=candidate.account_session_generation,
+                owner_token=owner_token,
+                max_query_age_seconds=20.0,
+                max_quote_age_seconds=10.0,
+            )
+            leg_key = settled.decision.intent_keys[leg]
+            leg_economics = payload["intent_economics"][leg]
+            with pytest.raises(
+                ExecutionDecisionJournalError,
+                match="FEE_PAIR_OPEN_RISK_RESERVATION_REQUIRED",
+            ):
+                journal.prepare_intent(
+                    settled.decision.decision_id,
+                    leg_key,
+                    leg_economics,
+                    fee_pair_open_context=fresh_context,
+                )
+            leg_intent_id = journal_module._stable_id(
+                "intent",
+                settled.decision.decision_id
+                + ":"
+                + journal_module._canonical_json(
+                    journal_module._intent_key_values(leg_key)
+                ),
+            )
+            assert journal.intent(leg_intent_id) is None
+            with pytest.raises(ExecutionDecisionJournalError, match="INTENT_NOT_PREPARED"):
+                journal.claim_dispatch(leg_intent_id, fee_pair_open_context=fresh_context)
+        assert journal._connection.execute(
+            "SELECT COUNT(*) FROM execution_decision_intents WHERE decision_id=?",
+            (settled.decision.decision_id,),
+        ).fetchone()[0] == 0
+    finally:
+        journal.close()
+
+
+@pytest.mark.parametrize("dispatch_state", ("DISPATCHING", "UNKNOWN"))
+def test_v19_pair_open_fence_keeps_unresolved_first_leg_non_reclaimable(
+    tmp_path, dispatch_state
+):
+    case, candidate, quote_by_route = _fee_pair_settlement_fixture(
+        "typed-grid-unresolved-{}".format(dispatch_state.lower())
+    )
+    owner_token = "typed-grid-unresolved-owner-" + "u" * 32
+    journal = case.journal
+    try:
+        journal.register_fee_pair_required_scope("acct-scope", "alpha003")
+        candidate_id, receipt = _attach_fee_pair_receipt(journal, candidate, owner_token)
+        payload = _fee_pair_grid_economic_payload(
+            candidate, case.facts, quote_by_route, receipt
+        )
+        settled = journal.settle_fee_pair_grid_decision(
+            candidate_id,
+            owner_token=owner_token,
+            facts=case.facts,
+            current_account_session_id=candidate.account_session_id,
+            current_account_session_generation=candidate.account_session_generation,
+            max_query_age_seconds=20.0,
+            max_quote_age_seconds=10.0,
+            economic_payload=payload,
+            max_order_intents_per_run=100,
+            expected_run_order_intents_used=0,
+            remaining_exit_intent_reserve=0,
+        )
+        first_key = settled.decision.intent_keys[0]
+        context = ExecutionFeePairOpenContext(
+            facts=case.facts,
+            account_session_id=candidate.account_session_id,
+            account_session_generation=candidate.account_session_generation,
+            owner_token=owner_token,
+            max_query_age_seconds=20.0,
+            max_quote_age_seconds=10.0,
+        )
+        first_intent_id = journal_module._stable_id(
+            "intent",
+            settled.decision.decision_id
+            + ":"
+            + journal_module._canonical_json(
+                journal_module._intent_key_values(first_key)
+            ),
+        )
+        # Seed a preexisting unresolved marker to prove that the new fence
+        # cannot reclaim/retry a possible first dispatch. Current prepare_intent
+        # does not create such a row for a pair OPEN without risk reservation.
+        result_json = (
+            journal_module._canonical_json(
+                {"provider_identity": {}, "outcome_code": "synthetic_timeout"}
+            )
+            if dispatch_state == "UNKNOWN"
+            else None
+        )
+        with journal._transaction() as cursor:
+            with journal_module.track_durable_row_change(
+                cursor,
+                "execution_decision_intents",
+                (first_intent_id,),
+                "BASE",
+            ):
+                cursor.execute(
+                    """INSERT INTO execution_decision_intents
+                       (intent_id,decision_id,intent_key_json,economic_payload_json,
+                        original_identity_json,owner_intent_id,state,dispatch_state,
+                        provider_identity_json,outcome_code,dispatch_result_json,
+                        created_at_ns,updated_at_ns)
+                       VALUES (?,?,?,?,?,NULL,?,?,?,?,?,1,1)""",
+                    (
+                        first_intent_id,
+                        settled.decision.decision_id,
+                        journal_module._canonical_json(
+                            journal_module._intent_key_values(first_key)
+                        ),
+                        journal_module._canonical_json(payload["intent_economics"][0]),
+                        "{}",
+                        dispatch_state,
+                        "UNKNOWN" if dispatch_state == "UNKNOWN" else None,
+                        "{}" if dispatch_state == "UNKNOWN" else None,
+                        "synthetic_timeout" if dispatch_state == "UNKNOWN" else None,
+                        result_json,
+                    ),
+                )
+        assert journal.claim_dispatch(
+            first_intent_id, fee_pair_open_context=context
+        ) is None
+
+        # Even if a fresh B grant exists, neither the settlement facts nor an
+        # unresolved prior marker authorize another pair OPEN.
+        second_facts = _fresh_fee_pair_facts_after_route_switch(case, candidate, "B")
+        assert next(
+            route
+            for route in second_facts.route_eligibilities
+            if route.target_id == "B"
+        ).capability_matches_route is True
+        second_context = replace(context, facts=second_facts)
+        with pytest.raises(
+            ExecutionDecisionJournalError,
+            match="FEE_PAIR_OPEN_RISK_RESERVATION_REQUIRED",
+        ):
+            journal.prepare_intent(
+                settled.decision.decision_id,
+                settled.decision.intent_keys[1],
+                payload["intent_economics"][1],
+                fee_pair_open_context=second_context,
+            )
+        second_intent_id = journal_module._stable_id(
+            "intent",
+            settled.decision.decision_id
+            + ":"
+            + journal_module._canonical_json(
+                journal_module._intent_key_values(settled.decision.intent_keys[1])
+            ),
+        )
+        assert journal.intent(second_intent_id) is None
+    finally:
+        journal.close()
+
+
+def test_v19_known_working_first_leg_does_not_admit_second_without_risk_reservation(
+    tmp_path,
+):
+    from tests.unit.stores.test_factor_execution_facts import (
+        _multi_target_facts_with_known_working_order,
+    )
+
+    case, candidate, quote_by_route = _fee_pair_settlement_fixture(
+        "typed-grid-known-working"
+    )
+    owner_token = "typed-grid-known-working-owner-" + "w" * 32
+    journal = case.journal
+    try:
+        # Establish a genuine Journal owner before the pair fence is installed.
+        # Scope registration preserves its known working order for risk
+        # cancellation, but it must not turn that exposure into permission to
+        # start a new pair leg without a numerical risk reservation.
+        owner_route = candidate.target_routes[0]
+        prior_key = ExecutionDecisionKey(
+            account_scope=candidate.key.account_scope,
+            strategy_scope=candidate.key.strategy_scope,
+            logical_run_id="preexisting-known-owner",
+            cohort_id=candidate.key.cohort_id,
+            close_time=(datetime.now(timezone.utc) - timedelta(minutes=5))
+            .isoformat(timespec="seconds")
+            .replace("+00:00", "Z"),
+            decision_kind="bar",
+        )
+        prior_decision = journal.record_decision(
+            prior_key,
+            {"signal": "known-working-owner"},
+            intent_keys=(
+                ExecutionIntentKey("SUBMIT", owner_route.instrument, "BUY", "OPEN", 0),
+            ),
+        )
+        prior = journal.prepare_intent(
+            prior_decision.decision_id,
+            prior_decision.intent_keys[0],
+            {"exchange": owner_route.exchange, "quantity": "1", "price": "100"},
+            original_identity={"backtrader_order_ref": 94},
+        )
+        assert journal.claim_dispatch(prior.intent_id) is not None
+        journal.record_dispatch_result(
+            prior.intent_id,
+            state="KNOWN",
+            provider_identity={"order_ref": "94", "order_sys_id": "sys-pair-94"},
+            outcome_code="accepted",
+        )
+        journal.register_fee_pair_required_scope("acct-scope", "alpha003")
+        candidate_id, receipt = _attach_fee_pair_receipt(journal, candidate, owner_token)
+        payload = _fee_pair_grid_economic_payload(
+            candidate, case.facts, quote_by_route, receipt
+        )
+        settled = journal.settle_fee_pair_grid_decision(
+            candidate_id,
+            owner_token=owner_token,
+            facts=case.facts,
+            current_account_session_id=candidate.account_session_id,
+            current_account_session_generation=candidate.account_session_generation,
+            max_query_age_seconds=20.0,
+            max_quote_age_seconds=10.0,
+            economic_payload=payload,
+            max_order_intents_per_run=100,
+            expected_run_order_intents_used=0,
+            remaining_exit_intent_reserve=0,
+        )
+        second_facts = _multi_target_facts_with_known_working_order(
+            case, owner_intent_id=prior.intent_id, target_id=owner_route.target_id
+        )
+        assert len(second_facts.working_orders) == 1
+        working = second_facts.working_orders[0]
+        assert working.owner_intent_id == prior.intent_id
+        assert working.state == "ACCEPTED"
+        assert working.execution_unknown is False
+        assert second_facts.open_risk_ready is False
+        assert "open_order_risk_capacity_unobserved" in second_facts.open_risk_blockers
+        second_key = settled.decision.intent_keys[1]
+        second_context = ExecutionFeePairOpenContext(
+            facts=second_facts,
+            account_session_id=candidate.account_session_id,
+            account_session_generation=candidate.account_session_generation,
+            owner_token=owner_token,
+            max_query_age_seconds=20.0,
+            max_quote_age_seconds=10.0,
+        )
+        with pytest.raises(
+            ExecutionDecisionJournalError,
+            match="FEE_PAIR_OPEN_RISK_RESERVATION_REQUIRED",
+        ):
+            journal.prepare_intent(
+                settled.decision.decision_id,
+                second_key,
+                payload["intent_economics"][1],
+                fee_pair_open_context=second_context,
+            )
+        second_intent_id = journal_module._stable_id(
+            "intent",
+            settled.decision.decision_id
+            + ":"
+            + journal_module._canonical_json(journal_module._intent_key_values(second_key)),
+        )
+        assert journal.intent(second_intent_id) is None
+
+        # The workflow fence does not suppress independent risk reduction or
+        # cancellation of the already-known first leg.
+        risk_close_key = ExecutionDecisionKey(
+            account_scope=candidate.key.account_scope,
+            strategy_scope=candidate.key.strategy_scope,
+            logical_run_id="risk-close-known-working",
+            cohort_id=candidate.key.cohort_id,
+            close_time=(datetime.now(timezone.utc) + timedelta(seconds=1))
+            .isoformat(timespec="seconds")
+            .replace("+00:00", "Z"),
+            decision_kind="risk",
+        )
+        close_key = ExecutionIntentKey(
+            "SUBMIT", candidate.target_routes[1].instrument, "BUY", "CLOSE", 0
+        )
+        close_decision = journal.record_risk_decision(
+            risk_close_key,
+            {"signal": "close-known-working"},
+            intent_keys=(close_key,),
+            max_order_intents_per_run=10,
+            expected_run_order_intents_used=0,
+            remaining_exit_intent_reserve=0,
+        )
+        close = journal.prepare_intent(
+            close_decision.decision.decision_id,
+            close_key,
+            {
+                "exchange": candidate.target_routes[1].exchange,
+                "quantity": "1",
+                "price": "100",
+            },
+        )
+        assert journal.claim_dispatch(close.intent_id) is not None
+
+        cancel_key = ExecutionIntentKey(
+            "CANCEL", candidate.target_routes[0].instrument, "BUY", "OPEN", 0
+        )
+        cancel_decision = journal.record_risk_decision(
+            replace(risk_close_key, logical_run_id="risk-cancel-known-working"),
+            {"signal": "cancel-known-working"},
+            intent_keys=(cancel_key,),
+            max_order_intents_per_run=10,
+            expected_run_order_intents_used=0,
+            remaining_exit_intent_reserve=0,
+        )
+        cancel = journal.prepare_intent(
+            cancel_decision.decision.decision_id,
+            cancel_key,
+            {"order_ref": "94"},
+            owner_intent_id=prior.intent_id,
+        )
+        assert journal.claim_dispatch(cancel.intent_id) is not None
+    finally:
+        journal.close()
+
+
+@pytest.mark.parametrize("scenario", ("missing_template", "session_mismatch"))
+def test_v19_settlement_fails_closed_for_missing_template_or_session_mismatch(
+    tmp_path, scenario
+):
+    missing_template = (
+        (("B", "i2510", "DCE"),) if scenario == "missing_template" else ()
+    )
+    case, candidate, quote_by_route = _fee_pair_settlement_fixture(
+        "typed-grid-{}".format(scenario), missing_template=missing_template
+    )
+    owner_token = "typed-grid-{}-owner-{}".format(scenario, "x" * 32)
+    journal = ExecutionDecisionJournal(tmp_path / "typed-grid-{}.sqlite3".format(scenario))
+    try:
+        if scenario == "missing_template":
+            route = next(
+                item for item in case.facts.route_eligibilities if item.target_id == "B"
+            )
+            assert route.arm_template_membership is False
+        journal.register_fee_pair_required_scope("acct-scope", "alpha003")
+        candidate_id, receipt = _attach_fee_pair_receipt(journal, candidate, owner_token)
+        payload = _fee_pair_grid_economic_payload(
+            candidate, case.facts, quote_by_route, receipt
+        )
+        session_generation = (
+            "stale-session-generation"
+            if scenario == "session_mismatch"
+            else candidate.account_session_generation
+        )
+        with pytest.raises(
+            ExecutionDecisionJournalError, match="FEE_PAIR_FACTS_SESSION_MISMATCH"
+        ):
+            journal.settle_fee_pair_grid_decision(
+                candidate_id,
+                owner_token=owner_token,
+                facts=case.facts,
+                current_account_session_id=candidate.account_session_id,
+                current_account_session_generation=session_generation,
+                max_query_age_seconds=20.0,
+                max_quote_age_seconds=10.0,
+                economic_payload=payload,
+                max_order_intents_per_run=100,
+                expected_run_order_intents_used=0,
+                remaining_exit_intent_reserve=0,
+            )
+        workflow = journal.fee_pair_workflow_candidate(candidate_id)
+        assert workflow.state == "RECEIPT_VERIFIED"
+        assert workflow.grid_settled_decision_id is None
+        assert journal.decision_for_key(candidate.key) is None
+    finally:
+        journal.close()
+
+
+def test_v19_typed_grid_settlement_failure_rolls_back_every_grid_artifact(tmp_path):
+    case, candidate, quote_by_route = _fee_pair_settlement_fixture("typed-grid-rollback")
+    owner_token = "typed-grid-rollback-owner-" + "x" * 32
+    journal = ExecutionDecisionJournal(tmp_path / "typed-grid-rollback.sqlite3")
+    try:
+        journal.register_fee_pair_required_scope("acct-scope", "alpha003")
+        candidate_id, receipt = _attach_fee_pair_receipt(journal, candidate, owner_token)
+        payload = _fee_pair_grid_economic_payload(
+            candidate, case.facts, quote_by_route, receipt
+        )
+        journal._connection.execute(
+            """CREATE TRIGGER fail_fee_pair_grid_terminal_event
+               BEFORE INSERT ON execution_fee_pair_workflow_events
+               WHEN NEW.candidate_id='{}' AND NEW.event_kind='GRID_SETTLED'
+               BEGIN SELECT RAISE(ABORT,'injected settlement event failure'); END""".format(
+                candidate_id
+            )
+        )
+        with pytest.raises(ExecutionDecisionJournalError, match="JOURNAL_WRITE_FAILED"):
+            journal.settle_fee_pair_grid_decision(
+                candidate_id,
+                owner_token=owner_token,
+                facts=case.facts,
+                current_account_session_id=candidate.account_session_id,
+                current_account_session_generation=candidate.account_session_generation,
+                max_query_age_seconds=20.0,
+                max_quote_age_seconds=10.0,
+                economic_payload=payload,
+                max_order_intents_per_run=100,
+                expected_run_order_intents_used=0,
+                remaining_exit_intent_reserve=0,
+            )
+        assert journal._connection.execute(
+            "SELECT COUNT(*) FROM execution_decisions WHERE business_key_json=?",
+            (
+                journal_module._canonical_json(
+                    journal_module._decision_key_values(candidate.key)
+                ),
+            ),
+        ).fetchone()[0] == 0
+        for table in (
+            "execution_decision_slots",
+            "execution_fee_pair_workflow_grid_settlements",
+            "execution_grid_cursors",
+            "execution_grid_highwaters",
+            "factor_position_grid_history",
+            "execution_run_order_budgets",
+        ):
+            assert journal._connection.execute(
+                "SELECT COUNT(*) FROM {}".format(table)
+            ).fetchone()[0] == 0
+        assert journal._connection.execute(
+            "SELECT COUNT(*) FROM execution_source_highwaters"
+        ).fetchone()[0] == 0
+        assert journal._connection.execute(
+            """SELECT grid_decision_id FROM execution_fee_pair_workflows
+               WHERE candidate_id=?""",
+            (candidate_id,),
+        ).fetchone()[0] is None
+        assert tuple(
+            journal._connection.execute(
+                """SELECT reserved_records,state FROM
+                   execution_fee_pair_workflow_durable_reservations WHERE candidate_id=?""",
+                (candidate_id,),
+            ).fetchone()
+        ) == (10, "ACTIVE")
+        assert tuple(
+            journal._connection.execute(
+                """SELECT event_sequence,event_kind FROM execution_fee_pair_workflow_events
+                   WHERE candidate_id=? ORDER BY event_sequence DESC LIMIT 1""",
+                (candidate_id,),
+            ).fetchone()
+        ) == (3, "RECEIPT_VERIFIED")
     finally:
         journal.close()

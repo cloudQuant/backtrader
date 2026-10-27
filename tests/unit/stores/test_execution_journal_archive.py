@@ -33,11 +33,53 @@ def _decision_key(run_id: str, *, close_time: str) -> ExecutionDecisionKey:
 def _downgrade_archive_to_v16(connection: sqlite3.Connection) -> None:
     """Remove only v17 objects before modeling a genuine v16 archive."""
 
+    # V19's workflow-state trigger references this table, so remove it before
+    # dropping its parent. A real v16 database has no v17-v19 workflow objects.
+    connection.execute(
+        "DROP TABLE IF EXISTS execution_fee_pair_workflow_grid_settlements"
+    )
     connection.execute("DROP TABLE execution_fee_pair_workflow_decision_reservations")
     connection.execute("DROP TABLE execution_fee_pair_workflow_durable_reservations")
     connection.execute("DROP TABLE execution_fee_pair_workflow_events")
     connection.execute("DROP TABLE execution_fee_pair_workflows")
     connection.execute("PRAGMA user_version=16")
+
+
+def _downgrade_archive_to_v18(connection: sqlite3.Connection) -> None:
+    """Restore the exact v18 workflow DDL before testing old archives."""
+
+    connection.execute("DROP TRIGGER execution_fee_pair_workflow_state")
+    connection.execute("DROP INDEX execution_fee_pair_workflow_one_active")
+    connection.execute("DROP TABLE execution_fee_pair_workflow_grid_settlements")
+    connection.execute("DROP TRIGGER execution_fee_pair_workflow_event_no_update")
+    connection.execute("DROP TRIGGER execution_fee_pair_workflow_event_no_delete")
+    connection.execute(
+        "ALTER TABLE execution_fee_pair_workflow_events "
+        "RENAME TO execution_fee_pair_workflow_events_v19"
+    )
+    connection.execute(journal_module._FEE_PAIR_WORKFLOW_EVENT_TABLE_SQL_V18)
+    connection.execute(
+        """INSERT INTO execution_fee_pair_workflow_events
+           (event_id,candidate_id,event_sequence,event_kind,event_payload_json,created_at_ns)
+           SELECT event_id,candidate_id,event_sequence,event_kind,event_payload_json,created_at_ns
+           FROM execution_fee_pair_workflow_events_v19"""
+    )
+    connection.execute("DROP TABLE execution_fee_pair_workflow_events_v19")
+    connection.execute(
+        "ALTER TABLE execution_fee_pair_workflows DROP COLUMN grid_decision_id"
+    )
+    connection.execute(journal_module._FEE_PAIR_WORKFLOW_ACTIVE_INDEX_SQL_V18)
+    connection.execute(journal_module._FEE_PAIR_WORKFLOW_STATE_TRIGGER_SQL_V18)
+    connection.execute(journal_module._FEE_PAIR_WORKFLOW_EVENT_NO_UPDATE_TRIGGER_SQL)
+    connection.execute(journal_module._FEE_PAIR_WORKFLOW_EVENT_NO_DELETE_TRIGGER_SQL)
+    connection.execute("PRAGMA user_version=18")
+
+
+def _downgrade_archive_to_v17(connection: sqlite3.Connection) -> None:
+    """Restore the v17 workflow DDL and version-specific size contract."""
+
+    _downgrade_archive_to_v18(connection)
+    connection.execute("PRAGMA user_version=17")
 
 
 def _candidate_bounds_database(path, encoding, table, payload):
@@ -102,18 +144,24 @@ def _utf16_v18_archive_with_workflow_payload(
             ),
         )
         journal._connection.commit()
+        # Exercise a real v18 database: no settlement table/column and the
+        # historical SOURCE_ONLY-only terminal event constraint.
+        _downgrade_archive_to_v18(journal._connection)
+        # archive_snapshot intentionally accepts only the running Journal
+        # version; use SQLite backup here to preserve a real historical v18
+        # source, then exercise the public verifier at that version.
+        target = sqlite3.connect(archive_path)
+        try:
+            target.execute("PRAGMA journal_mode=DELETE")
+            journal._connection.backup(target)
+            target.execute("PRAGMA journal_mode=DELETE")
+        finally:
+            target.close()
         if verify_on_create:
-            receipt = journal.archive_snapshot(archive_path)
+            receipt = archive_module.verify_execution_journal_archive(
+                archive_path, expected_schema_version=18
+            )
             assert receipt.schema_version == 18
-        else:
-            # Preserve malformed/corrupt rows for the public verifier to reject.
-            target = sqlite3.connect(archive_path)
-            try:
-                target.execute("PRAGMA journal_mode=DELETE")
-                journal._connection.backup(target)
-                target.execute("PRAGMA journal_mode=DELETE")
-            finally:
-                target.close()
     finally:
         journal.close()
 
@@ -274,7 +322,7 @@ def test_archive_snapshot_verifies_terminal_chain_and_preserves_unknown(tmp_path
             expected_sha256=receipt.sha256,
         )
         assert independently_verified == receipt
-        assert receipt.schema_version == 18
+        assert receipt.schema_version == ExecutionDecisionJournal._SCHEMA_VERSION
         assert receipt.size_bytes == archive_path.stat().st_size
         assert receipt.table_row_counts["execution_decisions"] == 2
         assert receipt.table_row_counts["execution_decision_intents"] == 2
@@ -745,7 +793,7 @@ def test_v17_archive_rejects_incomplete_or_unexpected_workflow_schema(
         journal.close()
 
     with sqlite3.connect(archive_path) as archived:
-        archived.execute("PRAGMA user_version=17")
+        _downgrade_archive_to_v17(archived)
         archived.executescript(statement)
 
     with pytest.raises(
@@ -754,6 +802,41 @@ def test_v17_archive_rejects_incomplete_or_unexpected_workflow_schema(
     ):
         archive_module.verify_execution_journal_archive(
             archive_path, expected_schema_version=17
+        )
+
+
+@pytest.mark.parametrize(
+    "statement",
+    (
+        "DROP TABLE execution_fee_pair_workflow_grid_settlements",
+        "DROP TRIGGER execution_fee_pair_workflow_grid_settlement_insert",
+        "DROP TRIGGER execution_fee_pair_workflow_grid_settlement_insert; "
+        "ALTER TABLE execution_fee_pair_workflow_grid_settlements "
+        "DROP COLUMN source_receipt_sha256",
+        "CREATE TRIGGER execution_fee_pair_workflow_grid_settlement_unexpected_guard "
+        "BEFORE INSERT ON execution_fee_pair_workflow_grid_settlements BEGIN SELECT 1; END",
+    ),
+)
+def test_v19_archive_rejects_incomplete_or_unexpected_settlement_schema(
+    tmp_path, statement
+):
+    source_path = tmp_path / "v19-source.sqlite3"
+    archive_path = tmp_path / "damaged-v19.sqlite3"
+    journal = ExecutionDecisionJournal(source_path)
+    try:
+        journal.archive_snapshot(archive_path)
+    finally:
+        journal.close()
+
+    with sqlite3.connect(archive_path) as archived:
+        archived.executescript(statement)
+
+    with pytest.raises(
+        archive_module.ExecutionJournalArchiveError,
+        match="ARCHIVE_SCHEMA_INCOMPLETE",
+    ):
+        archive_module.verify_execution_journal_archive(
+            archive_path, expected_schema_version=19
         )
 
 
