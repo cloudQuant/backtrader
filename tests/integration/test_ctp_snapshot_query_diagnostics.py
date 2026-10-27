@@ -1,12 +1,13 @@
 """Compose the real installed CTP query client with the public snapshot path.
 
-Only the two native request leaves are synthetic.  The SDK owns request
-registration, callback fencing, packet accumulation, completion and timeout;
-the Backtrader Store, collector and 028 runner consume its real QueryResult.
+The native request leaves are synthetic. The SDK owns request registration,
+callback fencing, packet accumulation, completion and timeout; the Backtrader
+Store, collector and 028 runner consume its real QueryResult.
 """
 
 from __future__ import annotations
 
+import heapq
 import importlib.util
 import sys
 from datetime import datetime, timezone
@@ -125,6 +126,133 @@ class _SyntheticRequestApi:
         return 0
 
 
+class _ManualQueryClock:
+    """Deterministic monotonic time for the real SDK's progressive waiter."""
+
+    def __init__(self, start=100.0):
+        self.now = float(start)
+        self._sequence = 0
+        self._scheduled = []
+
+    def monotonic(self):
+        return self.now
+
+    def monotonic_ns(self):
+        return int(self.now * 1_000_000_000)
+
+    def schedule(self, delay, callback):
+        self._sequence += 1
+        heapq.heappush(
+            self._scheduled,
+            (self.now + float(delay), self._sequence, callback),
+        )
+
+    def advance(self, seconds):
+        target = self.now + max(float(seconds), 0.0)
+        while self._scheduled and self._scheduled[0][0] <= target:
+            at, _sequence, callback = heapq.heappop(self._scheduled)
+            self.now = at
+            callback()
+        self.now = max(self.now, target)
+
+    def event(self):
+        return _ManualQueryEvent(self)
+
+
+class _ManualQueryEvent:
+    """Event-compatible wait that advances monotonic time and dispatches SPI."""
+
+    def __init__(self, clock):
+        self.clock = clock
+        self._set = False
+
+    def set(self):
+        self._set = True
+
+    def is_set(self):
+        return self._set
+
+    def wait(self, timeout=None):
+        if not self._set:
+            self.clock.advance(0.0 if timeout is None else timeout)
+        return self._set
+
+
+class _StagedSyntheticRequestApi:
+    """Synthetic Req leaves; the installed TraderClient owns result semantics."""
+
+    def __init__(self, clock, product_ids, *, mode="heterogeneous"):
+        self.clock = clock
+        self.product_ids = tuple(product_ids)
+        self.mode = mode
+        self.spi = None
+        self.request_names = []
+        self._success = SimpleNamespace(ErrorID=0, ErrorMsg="")
+
+    def _schedule(self, callback_name, record, request_id, delay, is_last):
+        callback = getattr(self.spi, callback_name)
+        self.clock.schedule(
+            delay,
+            lambda: callback(record, self._success, request_id, is_last),
+        )
+
+    def ReqQryProduct(self, field, request_id):
+        self.request_names.append("products")
+        assert field.ProductClass == "1"
+        assert field.ExchangeID == field.ProductID == ""
+        for index, product_id in enumerate(self.product_ids):
+            record = {
+                "ExchangeID": "DCE",
+                "ProductID": product_id,
+                "ProductClass": "1",
+            }
+            self._schedule(
+                "OnRspQryProduct",
+                record,
+                request_id,
+                0.01 * (index + 1),
+                index == len(self.product_ids) - 1,
+            )
+        return 0
+
+    def ReqQryInstrument(self, field, request_id):
+        self.request_names.append("instruments")
+        product_id = field.ProductID
+        assert field.InstrumentID == ""
+        assert field.ExchangeID == "DCE"
+        record = {
+            "ExchangeID": "DCE",
+            "ProductID": product_id,
+            "ProductClass": "1",
+            "InstrumentID": product_id + "2611",
+            "IsTrading": 1,
+            "ExpireDate": "20261218",
+        }
+        if self.mode == "deadline" and product_id == self.product_ids[0]:
+            # Keep the SDK's idle timer alive while the single caller-owned
+            # deadline expires without a terminal packet.
+            for elapsed in range(4, 300, 4):
+                self._schedule(
+                    "OnRspQryInstrument",
+                    None,
+                    request_id,
+                    float(elapsed),
+                    False,
+                )
+        elif self.mode == "missing_terminal" and product_id == self.product_ids[0]:
+            self._schedule("OnRspQryInstrument", record, request_id, 0.01, False)
+        else:
+            delay = 2.0 if self.mode == "heterogeneous" and product_id == "p0" else 0.01
+            self._schedule("OnRspQryInstrument", record, request_id, delay, True)
+        return 0
+
+    def ReqQryDepthMarketData(self, field, request_id):
+        self.request_names.append("depth")
+        assert field.InstrumentID == field.ExchangeID == ""
+        self._schedule("OnRspQryDepthMarketData", None, request_id, 0.01, True)
+        return 0
+
+
 def _catalog_row():
     return SimpleNamespace(
         InstrumentID="M2611",
@@ -149,7 +277,7 @@ def _quote_row():
     )
 
 
-def _real_read_only_client(monkeypatch, client_module, scenario):
+def _real_read_only_client(monkeypatch, client_module, scenario, *, request_api=None):
     """Bind a real SDK client and SPI to one synthetic current API session."""
 
     class FrozenDateTime(datetime):
@@ -182,7 +310,7 @@ def _real_read_only_client(monkeypatch, client_module, scenario):
         "fixture-password",
         auto_settlement_confirm=False,
     )
-    request_api = _SyntheticRequestApi(scenario)
+    request_api = request_api or _SyntheticRequestApi(scenario)
     with client._query_state_lock:
         # The public setter creates the SDK's generation and source identities.
         client._api = request_api
@@ -225,6 +353,58 @@ def _real_read_only_client(monkeypatch, client_module, scenario):
     assert state["connection_generation"] == 1
     assert state["read_only_ready"] is True
     return client, request_api
+
+
+def _staged_real_protocol_client(monkeypatch, clock, request_api):
+    """Use the installed SDK client/SPI/result contract with synthetic Req leaves."""
+
+    from backtrader.feeds import futures_ctp_snapshot as snapshot_adapter
+
+    client_module = optional_sdk("bt_api_ctp.ctp.client")
+    query_module = optional_sdk("bt_api_ctp.query")
+    instrument_module = optional_sdk("bt_api_ctp.instrument")
+    client, request_api = _real_read_only_client(
+        monkeypatch,
+        client_module,
+        "staged_synthetic",
+        request_api=request_api,
+    )
+    monkeypatch.setattr(
+        client_module,
+        "time",
+        SimpleNamespace(monotonic=clock.monotonic, monotonic_ns=clock.monotonic_ns),
+    )
+    monkeypatch.setattr(snapshot_adapter, "time", SimpleNamespace(monotonic=clock.monotonic))
+    monkeypatch.setattr(snapshot_adapter, "_now_utc", lambda: NOW)
+    monkeypatch.setattr(
+        snapshot_adapter,
+        "_load_sdk_contract",
+        lambda: (query_module.QueryResult, instrument_module.normalize_ctp_instrument),
+    )
+
+    original_new_accumulator = client._new_query_accumulator
+
+    def controlled_accumulator(*args, **kwargs):
+        accumulator = original_new_accumulator(*args, **kwargs)
+        accumulator.event = clock.event()
+        return accumulator
+
+    monkeypatch.setattr(client, "_new_query_accumulator", controlled_accumulator)
+
+    budgets = []
+    for method_name in (
+        "query_products_result",
+        "query_instruments_result",
+        "query_depth_market_data_result",
+    ):
+        original_method = getattr(client, method_name)
+
+        def observed(*args, _method=original_method, _name=method_name, **kwargs):
+            budgets.append((_name, dict(kwargs)))
+            return _method(*args, **kwargs)
+
+        monkeypatch.setattr(client, method_name, observed)
+    return client, request_api, snapshot_adapter, budgets
 
 
 def _bound_fixture_query_timeouts(monkeypatch, client):
@@ -551,3 +731,120 @@ def test_real_trader_client_valid_two_query_chain_builds_the_live_plan(monkeypat
         "success",
         "success",
     ]
+
+
+def test_staged_real_sdk_budget_accepts_heterogeneous_terminal_responses(monkeypatch):
+    """A slow early product can borrow time that faster later calls leave unused."""
+
+    clock = _ManualQueryClock()
+    request_api = _StagedSyntheticRequestApi(clock, ("p0", "p1", "p2", "p3"), mode="heterogeneous")
+    client, request_api, snapshot_adapter, budgets = _staged_real_protocol_client(
+        monkeypatch, clock, request_api
+    )
+
+    snapshot = snapshot_adapter.collect_ctp_futures_snapshot(
+        client,
+        max_collection_seconds=6.0,
+        max_snapshot_age_seconds=6.0,
+        query_mode="staged_product_set",
+    )
+
+    assert request_api.request_names == [
+        "products",
+        "instruments",
+        "instruments",
+        "instruments",
+        "instruments",
+        "depth",
+    ]
+    assert budgets[0][0] == "query_products_result"
+    assert budgets[0][1]["max_duration"] == pytest.approx(0.6)
+    assert budgets[1][0] == "query_instruments_result"
+    assert budgets[1][1]["max_duration"] == pytest.approx(5.9)
+    assert budgets[1][1]["timeout"] == 5.0
+    assert budgets[1][1]["deadline_monotonic"] == pytest.approx(106.0)
+    assert budgets[-1][0] == "query_depth_market_data_result"
+    assert clock.monotonic() - 100.0 < 6.0
+
+    query_set = snapshot.query_set
+    assert query_set is not None
+    assert len(query_set.products) == 4
+    assert len(query_set.requests) == 6
+    assert all(
+        source.complete is True and source.is_last_seen is True for source in query_set.requests
+    )
+    results = tuple(client.get_query_result(source.request_id) for source in query_set.requests)
+    assert all(result is not None and result.complete and result.is_last_seen for result in results)
+    assert [result.request_type for result in results] == [
+        "products",
+        "instruments",
+        "instruments",
+        "instruments",
+        "instruments",
+        "depth_market_data",
+    ]
+    assert snapshot.session_trading_day_before == snapshot.session_trading_day_after
+    assert snapshot.session_generation_before == snapshot.session_generation_after == 1
+
+
+def test_staged_real_sdk_global_deadline_still_fails_closed_without_terminal(monkeypatch):
+    """Progress can extend idle time but cannot extend the caller's 300s deadline."""
+
+    clock = _ManualQueryClock()
+    request_api = _StagedSyntheticRequestApi(clock, ("p0",), mode="deadline")
+    client, request_api, snapshot_adapter, budgets = _staged_real_protocol_client(
+        monkeypatch, clock, request_api
+    )
+
+    with pytest.raises(snapshot_adapter.CtpFuturesSnapshotError) as caught:
+        snapshot_adapter.collect_ctp_futures_snapshot(
+            client,
+            max_collection_seconds=300.0,
+            max_snapshot_age_seconds=300.0,
+            query_mode="staged_product_set",
+        )
+
+    assert caught.value.code == "QUERY_TIMED_OUT"
+    assert request_api.request_names == ["products", "instruments"]
+    assert [name for name, _ in budgets] == [
+        "query_products_result",
+        "query_instruments_result",
+    ]
+    observation = caught.value.query_observations[-1]
+    assert observation.stage == "instruments_001"
+    assert observation.timed_out is True
+    assert observation.complete is False
+    assert observation.is_last_seen is False
+    assert observation.completion_origin == "deadline"
+    assert clock.monotonic() == pytest.approx(400.0)
+
+
+def test_staged_real_sdk_missing_terminal_packet_remains_incomplete(monkeypatch):
+    """A nonterminal instrument packet cannot authorize later stages."""
+
+    clock = _ManualQueryClock()
+    request_api = _StagedSyntheticRequestApi(clock, ("p0", "p1"), mode="missing_terminal")
+    client, request_api, snapshot_adapter, budgets = _staged_real_protocol_client(
+        monkeypatch, clock, request_api
+    )
+
+    with pytest.raises(snapshot_adapter.CtpFuturesSnapshotError) as caught:
+        snapshot_adapter.collect_ctp_futures_snapshot(
+            client,
+            max_collection_seconds=30.0,
+            max_snapshot_age_seconds=30.0,
+            query_mode="staged_product_set",
+        )
+
+    assert caught.value.code == "QUERY_TIMED_OUT"
+    assert request_api.request_names == ["products", "instruments"]
+    assert [name for name, _ in budgets] == [
+        "query_products_result",
+        "query_instruments_result",
+    ]
+    observation = caught.value.query_observations[-1]
+    assert observation.stage == "instruments_001"
+    assert observation.timed_out is True
+    assert observation.complete is False
+    assert observation.is_last_seen is False
+    assert observation.completion_origin == "timeout"

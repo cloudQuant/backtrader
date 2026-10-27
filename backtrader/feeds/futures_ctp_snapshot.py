@@ -1026,8 +1026,14 @@ def _collect_staged_ctp_futures_snapshot(
         if remaining_rows <= 0:
             _fail("INSTRUMENT_RECORD_CAP_EXHAUSTED", tuple(observations))
         remaining = deadline - time.monotonic()
-        remaining_instrument_calls = len(product_evidence) - product_index
-        hard_limit = remaining / (remaining_instrument_calls + 1)
+        # Let heterogeneous instrument responses borrow the remaining global
+        # budget. The SDK applies this as the request's progressive hard cap
+        # while retaining its idle timeout; the absolute collection deadline
+        # still limits both this request and every later stage. Re-dividing
+        # the remainder equally across pending calls can time out a slow early
+        # product even when later products respond quickly enough to finish
+        # the complete set within the same global deadline.
+        hard_limit = remaining
         instrument_filters = (
             ("ExchangeID", product.native_exchange_id),
             ("InstrumentID", ""),

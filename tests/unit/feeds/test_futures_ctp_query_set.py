@@ -301,8 +301,8 @@ def test_registered_sim_store_forwards_staged_query_set_through_ctp_wrapper(monk
     assert [kwargs["deadline_monotonic"] for _, kwargs in trader.calls] == [400.0] * 4
     assert [kwargs["max_duration"] for _, kwargs in trader.calls] == [
         30.0,
-        100.0,
-        150.0,
+        300.0,
+        300.0,
         300.0,
     ]
     assert [kwargs["timeout"] for _, kwargs in trader.calls] == [5.0] * 4
@@ -357,7 +357,12 @@ def test_staged_query_set_preserves_full_product_set_native_case_and_caps(monkey
     assert [feed.calls[index][1]["max_records"] for index in (1, 2)] == [20_000, 19_999]
     assert feed.calls[3][1]["product_class"] == "1"
     assert [kwargs["deadline_monotonic"] for _, kwargs in feed.calls] == [400.0] * 4
-    assert [kwargs["max_duration"] for _, kwargs in feed.calls] == [30.0, 100.0, 150.0, 300.0]
+    assert [kwargs["max_duration"] for _, kwargs in feed.calls] == [
+        30.0,
+        300.0,
+        300.0,
+        300.0,
+    ]
     assert [kwargs["timeout"] for _, kwargs in feed.calls] == [5.0] * 4
 
     query_set = snapshot.query_set
