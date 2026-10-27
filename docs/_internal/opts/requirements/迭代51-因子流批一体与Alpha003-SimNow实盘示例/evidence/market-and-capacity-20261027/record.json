@@ -1,0 +1,263 @@
+{
+  "schema": "iteration51_market_and_capacity_20261027.v1",
+  "date": "2026-10-27",
+  "repository": "D:\\source_code\\backtrader",
+  "branch": "dev",
+  "source_parent": "aabb41b6e89d5c48ce2cbe182032f6fd7c090f2e",
+  "evidence_level": "PUBLIC_SYNTHETIC_CAPACITY_AND_SAMPLER_FIX_SOURCE_QA_AND_ROOT_READONLY_GOLDEN_DIAGNOSTIC_ONLY",
+  "acceptance_status": {
+    "AC51_18": "NOT_RUN",
+    "AC51_19": "NOT_RUN",
+    "AC51_21a": "NOT_RUN",
+    "AC51_23": "BLOCKED",
+    "actual_full_87": "NOT_RUN",
+    "application_restart": "NOT_RUN",
+    "caller_R4": "NOT_RUN",
+    "golden_postflight": "NOT_RUN",
+    "sampler_fix_source_qa": "PASS_3_SOURCE_FOCUSED"
+  },
+  "capacity_profiles": [
+    {
+      "raw_status": "FAIL",
+      "exit_code": 3,
+      "elapsed_seconds": 15448.203,
+      "mode": "native",
+      "target_count": 87,
+      "evaluation_grids": 100000,
+      "warmup_bars": 64,
+      "oracle_comparisons": 8700000,
+      "factor_output_unavailable_grids": 0,
+      "output_reason_failures": 0,
+      "rank_reason_failures": 0,
+      "correlation_reason_failures": 0,
+      "gate_failures": [
+        "durable_decision_p99_latency_exceeded_100ms",
+        "durable_decision_max_latency_exceeded_500ms",
+        "rss_growth_exceeded_fixed_capacity_limit"
+      ],
+      "rss_first_window_median_bytes": 193847296,
+      "rss_last_window_median_bytes": 1019793408,
+      "rss_growth_bytes": 825946112,
+      "rss_limit_bytes": 33554432,
+      "rss_growth_pass": false,
+      "rss_scope": "benchmark_process",
+      "rss_method": "Windows GetProcessMemoryInfo.WorkingSetSize",
+      "line_capacity_grew_after_warmup": false,
+      "cohort_pending_slots_at_end": 0,
+      "source_rows_retained_at_end": 0,
+      "source_rows_retained_max": 87,
+      "retained_receipts_at_end": 5568,
+      "diagnostics_bounded": true,
+      "journal_rows": 100000,
+      "journal_close": true,
+      "journal_reopen": true,
+      "journal_readback_matches": true,
+      "store_close_attempted": true,
+      "store_close_returned": true,
+      "completion_end": "2026-10-27T08:56:58.134036+08:00",
+      "source_pins_unchanged": true
+    },
+    {
+      "raw_status": "FAIL",
+      "exit_code": 3,
+      "elapsed_seconds": 16087.891,
+      "mode": "build",
+      "target_count": 87,
+      "evaluation_grids": 100000,
+      "warmup_bars": 64,
+      "oracle_comparisons": 8700000,
+      "factor_output_unavailable_grids": 0,
+      "output_reason_failures": 0,
+      "rank_reason_failures": 0,
+      "correlation_reason_failures": 0,
+      "gate_failures": [
+        "durable_decision_p99_latency_exceeded_100ms",
+        "durable_decision_max_latency_exceeded_500ms",
+        "rss_growth_exceeded_fixed_capacity_limit"
+      ],
+      "rss_first_window_median_bytes": 194992128,
+      "rss_last_window_median_bytes": 1020289024,
+      "rss_growth_bytes": 825296896,
+      "rss_limit_bytes": 33554432,
+      "rss_growth_pass": false,
+      "rss_scope": "benchmark_process",
+      "rss_method": "Windows GetProcessMemoryInfo.WorkingSetSize",
+      "line_capacity_grew_after_warmup": false,
+      "cohort_pending_slots_at_end": 0,
+      "source_rows_retained_at_end": 0,
+      "source_rows_retained_max": 87,
+      "retained_receipts_at_end": 5568,
+      "diagnostics_bounded": true,
+      "journal_rows": 100000,
+      "journal_close": true,
+      "journal_reopen": true,
+      "journal_readback_matches": true,
+      "store_close_attempted": true,
+      "store_close_returned": true,
+      "completion_end": "2026-10-27T09:07:37.908711+08:00",
+      "source_pins_unchanged": true
+    }
+  ],
+  "capacity_adjudication": {
+    "both_modes_completed_naturally": true,
+    "oracle_and_data_checks_as_recorded_pass": true,
+    "bounded_lines_receipts_pending_and_cleanup_as_recorded_pass": true,
+    "raw_results_remain_FAIL_exit_3": true,
+    "pure_latency_failures_user_waived": true,
+    "rss_growth_is_not_waived": true,
+    "rss_cause": "SAMPLER_PER_SAMPLE_CTYPE_ALLOCATION_REPRODUCED_AND_FIXED; POST_FIX_LONG_RUN_RSS_NOT_RUN",
+    "production_leak_claimed": false,
+    "decision": "Keep original capacity FAIL results unchanged. Sampler repair is source-focused PASS only; rerun the agreed capacity profile with the fixed sampler before deciding full-long-run RSS or AC51-23.",
+    "rss_reproduction_evidence": "FROZEN_SYNTHETIC_PRE_FIX_SAMPLER_ONLY_ARTIFACT; not full-capacity attribution",
+    "separate_agent_sampler_observation": {
+      "artifact": "sampler-only.json",
+      "artifact_sha256": "443e8f5e7e979205e43694edc4c0ee3420f4073cfef16d2c9de3b0611acb9b39",
+      "artifact_bytes": 967,
+      "evidence_level": "SYNTHETIC_SAMPLER_ONLY_BEFORE_FIX",
+      "runner_source_sha256": "386e1aeed36bcebe636c622ce52f9409917e5143f119abbeb9c5ab875d52592c",
+      "sample_calls_total": 1001,
+      "repeated_samples_after_warmup": 1000,
+      "pointer_type_cache_entries_before_repeated_samples": 21,
+      "pointer_type_cache_entries_after_repeated_samples": 1021,
+      "sampler_counter_pointer_keys_before_repeated_samples": 1,
+      "sampler_counter_pointer_keys_after_repeated_samples": 1001,
+      "rss_working_set_bytes_before_repeated_samples": 26161152,
+      "rss_working_set_bytes_after_repeated_samples": 33640448,
+      "rss_working_set_growth_bytes": 7479296,
+      "scope": "Pinned public sampler imported without invoking main; no benchmark, database, provider, account, or native SDK call."
+    },
+    "sampler_fix_qa": {
+      "status": "PASS",
+      "tests_passed": 3,
+      "exit_code": 0,
+      "warnings": 1,
+      "warning": "One existing pytest configuration warning: asyncio_default_fixture_loop_scope is unknown to this pytest installation.",
+      "benchmark_source": {
+        "path": "scripts/run_iteration50_live_factor_benchmark.py",
+        "size_bytes": 152185,
+        "sha256": "2c0f680babe7409c09649815f7f092297fbb44fef339658a66cc2945bba6cc85"
+      },
+      "test_source": {
+        "path": "tests/unit/test_iteration51_capacity_assets.py",
+        "size_bytes": 9570,
+        "sha256": "6f184b320bb728183685504913206fc8931c51226e7a41084d7d286de059638a"
+      },
+      "result_artifact": {
+        "name": "sampler-fix-result.json",
+        "size_bytes": 1062,
+        "sha256": "66801e9d7cdb1d62bd4b811cc0c784ad797ec46ddb635cf7907aaf958a27b16b"
+      },
+      "stdout_artifact": {
+        "name": "sampler-fix-stdout.txt",
+        "size_bytes": 631,
+        "sha256": "65379f7c901fae6c9fa1308d5b479489cabbc1385ebd35f00e96c0ad44931169"
+      },
+      "junit_artifact": {
+        "name": "sampler-fix-junit.xml",
+        "size_bytes": 658,
+        "sha256": "ac88aec1efb05766ec63cf1511723a5cbd1123cb59c52ce6276cfb37e5ba9958"
+      },
+      "scope": "Three focused sampler tests only; no capacity long-run rerun and no duplicate Root QA."
+    },
+    "post_fix_long_run_rss": "NOT_RUN; repair focused QA does not resolve the existing native/build raw capacity FAIL."
+  },
+  "golden": {
+    "raw_status": "BLOCKED_ROOT_GOLDEN_MINUTE_READONLY",
+    "phase": "complete",
+    "reason": "CTP_FUTURES_SNAPSHOT_COLLECTION_FAILED",
+    "started_at": "2026-10-27T09:08:33.986215+08:00",
+    "finished_at": "2026-10-27T09:10:54.501779+08:00",
+    "expected_targets": 3,
+    "expected_full_selected_targets": 87,
+    "allow_writes": false,
+    "full_factor_acceptance": false,
+    "account_acceptance": false,
+    "engine_span_reached": false,
+    "capture_count": 0,
+    "timer_started": false,
+    "request_count": 0,
+    "broker_resource_status": "NOT_CREATED",
+    "broker_store_shutdown_state": "UNPROVEN",
+    "store_resource_status": "RETURNED",
+    "store_shutdown_state": "PASS",
+    "native_cleanup_confirmed": true,
+    "timer_joined": true,
+    "private_context_closed": true,
+    "source_pins_unchanged": true,
+    "write_surfaces_observed_zero": false,
+    "write_count_claim": "UNOBSERVED; no zero-write claim from this failed golden attempt.",
+    "postflight": "NOT_RUN; no returned summary",
+    "underlying_ctp_cause": "UNKNOWN; do not infer timeout or a specific query error.",
+    "root_same_host_followup": {
+      "pre_exit_tool": "c563c9",
+      "scope_closed": true,
+      "summary_absent": true,
+      "original_or_launcher_error_retained": false,
+      "normal_exit_tool": "de63ac",
+      "exit_code": 0
+    },
+    "window_note": "One-literal window-boundary adjustment had static GO before the single launch; no retry."
+  },
+  "limits": [
+    "Golden failure blocks actual full-87 R4, golden postflight, and application restart; all remain NOT_RUN.",
+    "Original native/build raw RSS FAIL is preserved. The sampler-only defect was reproduced and its focused fix passed three tests, but the post-fix capacity long run has not been performed; production memory behavior remains unresolved.",
+    "No SQLite/database was opened or copied; only bounded public JSON and focused QA artifacts are archived.",
+    "No actual account acceptance is claimed."
+  ],
+  "files": [
+    {
+      "name": "capacity-native-result.json",
+      "source": "D:\\temp\\i51-capacity87-100k-20261027-r1\\native\\result.json",
+      "sha256": "4cfb7b98ea058c3d516052b044788a97c8c5bfe4d8fc7cd249689f1964e081d6",
+      "size_bytes": 36476
+    },
+    {
+      "name": "capacity-native-completion.json",
+      "source": "D:\\temp\\i51-capacity87-100k-20261027-r1\\native\\completion.json",
+      "sha256": "689ca71a606b39034e09200283d9ed88bdba2afc1d4b2e734f28691984570281",
+      "size_bytes": 167
+    },
+    {
+      "name": "capacity-build-result.json",
+      "source": "D:\\temp\\i51-capacity87-100k-20261027-r1\\build\\result.json",
+      "sha256": "efdff889ef1ccc2241dd5f53608e12a68497936cfe44cfbc8563c33180031a23",
+      "size_bytes": 36467
+    },
+    {
+      "name": "capacity-build-completion.json",
+      "source": "D:\\temp\\i51-capacity87-100k-20261027-r1\\build\\completion.json",
+      "sha256": "3d111ee429a286814ca59ec52148f48794da1dafae19b5f2ca5503cfe6fe121e",
+      "size_bytes": 167
+    },
+    {
+      "name": "golden-readonly-result.json",
+      "source": "D:\\temp\\i51-root-golden-minute-readonly-20261027-r1.json",
+      "sha256": "94843598a295a5f9a474e136413cef3cbe29b85159d1418cdd0596afae8d7f27",
+      "size_bytes": 3618
+    },
+    {
+      "name": "sampler-only.json",
+      "source": "D:\\temp\\i51-capacity-sampler-only-20261027\\sampler-only.json",
+      "sha256": "443e8f5e7e979205e43694edc4c0ee3420f4073cfef16d2c9de3b0611acb9b39",
+      "size_bytes": 967
+    },
+    {
+      "name": "sampler-fix-stdout.txt",
+      "source": "D:\\temp\\i51-capacity-sampler-fix-20261027-r1\\stdout.txt",
+      "sha256": "65379f7c901fae6c9fa1308d5b479489cabbc1385ebd35f00e96c0ad44931169",
+      "size_bytes": 631
+    },
+    {
+      "name": "sampler-fix-junit.xml",
+      "source": "D:\\temp\\i51-capacity-sampler-fix-20261027-r1\\junit.xml",
+      "sha256": "ac88aec1efb05766ec63cf1511723a5cbd1123cb59c52ce6276cfb37e5ba9958",
+      "size_bytes": 658
+    },
+    {
+      "name": "sampler-fix-result.json",
+      "source": "D:\\temp\\i51-capacity-sampler-fix-20261027-r1\\result.json",
+      "sha256": "66801e9d7cdb1d62bd4b811cc0c784ad797ec46ddb635cf7907aaf958a27b16b",
+      "size_bytes": 1062
+    }
+  ]
+}

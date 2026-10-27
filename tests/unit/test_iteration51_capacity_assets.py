@@ -187,6 +187,39 @@ def test_windows_rss_reader_uses_pointer_sized_handle_and_typed_api(monkeypatch)
     assert len(get_current_process.calls) == len(get_process_memory_info.calls) == 1
 
 
+def test_windows_rss_reader_reuses_counter_pointer_type_after_warmup():
+    import ctypes
+    import os
+
+    if os.name != "nt":
+        pytest.skip("the real Windows RSS sampler requires Windows")
+
+    module = _load_benchmark_module()
+
+    def sampler_counter_pointer_keys():
+        return {
+            key
+            for key in ctypes._pointer_type_cache
+            if isinstance(key, type)
+            and key.__name__ == "_PROCESS_MEMORY_COUNTERS"
+            and key.__module__ == module.__name__
+        }
+
+    before_warmup = sampler_counter_pointer_keys()
+    assert module._read_windows_working_set_bytes() > 0
+    after_warmup = sampler_counter_pointer_keys()
+
+    assert len(after_warmup - before_warmup) == 1
+    warmed_counter_type = next(iter(after_warmup - before_warmup))
+
+    for _ in range(1000):
+        assert module._read_windows_working_set_bytes() > 0
+
+    after_repeated_samples = sampler_counter_pointer_keys()
+    assert after_repeated_samples == after_warmup
+    assert warmed_counter_type in after_repeated_samples
+
+
 def test_windows_rss_reader_rejects_failed_native_query(monkeypatch):
     import ctypes
 

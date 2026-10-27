@@ -1,0 +1,18 @@
+{
+  "command": "C:\\anaconda3\\python.exe -m pytest -q -p no:asyncio tests/unit/test_iteration51_capacity_assets.py::test_windows_rss_reader_reuses_counter_pointer_type_after_warmup tests/unit/test_iteration51_capacity_assets.py::test_windows_rss_reader_uses_pointer_sized_handle_and_typed_api tests/unit/test_iteration51_capacity_assets.py::test_windows_rss_reader_rejects_failed_native_query --junitxml D:\\temp\\i51-capacity-sampler-fix-20261027-r1\\junit.xml",
+  "exit_code": 0,
+  "test_pins": [
+    {
+      "path": "scripts/run_iteration50_live_factor_benchmark.py",
+      "bytes": 152185,
+      "sha256": "2c0f680babe7409c09649815f7f092297fbb44fef339658a66cc2945bba6cc85"
+    },
+    {
+      "path": "tests/unit/test_iteration51_capacity_assets.py",
+      "bytes": 9570,
+      "sha256": "6f184b320bb728183685504913206fc8931c51226e7a41084d7d286de059638a"
+    }
+  ],
+  "stdout_sha256": "65379f7c901fae6c9fa1308d5b479489cabbc1385ebd35f00e96c0ad44931169",
+  "junit_sha256": "ac88aec1efb05766ec63cf1511723a5cbd1123cb59c52ce6276cfb37e5ba9958"
+}

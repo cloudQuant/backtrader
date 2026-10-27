@@ -1342,25 +1342,55 @@ class _RssSampler:
         return value
 
 
+_WINDOWS_PROCESS_MEMORY_COUNTERS_LOCK = threading.Lock()
+_WINDOWS_PROCESS_MEMORY_COUNTERS_TYPE = None
+_WINDOWS_PROCESS_MEMORY_COUNTERS_POINTER = None
+
+
+def _windows_process_memory_counters_types(ctypes, wintypes):
+    """Lazily create and retain the ctypes types used by the Windows RSS reader."""
+
+    global _WINDOWS_PROCESS_MEMORY_COUNTERS_TYPE
+    global _WINDOWS_PROCESS_MEMORY_COUNTERS_POINTER
+
+    if _WINDOWS_PROCESS_MEMORY_COUNTERS_TYPE is None:
+        with _WINDOWS_PROCESS_MEMORY_COUNTERS_LOCK:
+            if _WINDOWS_PROCESS_MEMORY_COUNTERS_TYPE is None:
+
+                class _PROCESS_MEMORY_COUNTERS(ctypes.Structure):
+                    _fields_ = [
+                        ("cb", wintypes.DWORD),
+                        ("PageFaultCount", wintypes.DWORD),
+                        ("PeakWorkingSetSize", ctypes.c_size_t),
+                        ("WorkingSetSize", ctypes.c_size_t),
+                        ("QuotaPeakPagedPoolUsage", ctypes.c_size_t),
+                        ("QuotaPagedPoolUsage", ctypes.c_size_t),
+                        ("QuotaPeakNonPagedPoolUsage", ctypes.c_size_t),
+                        ("QuotaNonPagedPoolUsage", ctypes.c_size_t),
+                        ("PagefileUsage", ctypes.c_size_t),
+                        ("PeakPagefileUsage", ctypes.c_size_t),
+                    ]
+
+                _WINDOWS_PROCESS_MEMORY_COUNTERS_POINTER = ctypes.POINTER(
+                    _PROCESS_MEMORY_COUNTERS
+                )
+                _WINDOWS_PROCESS_MEMORY_COUNTERS_TYPE = _PROCESS_MEMORY_COUNTERS
+
+    return (
+        _WINDOWS_PROCESS_MEMORY_COUNTERS_TYPE,
+        _WINDOWS_PROCESS_MEMORY_COUNTERS_POINTER,
+    )
+
+
 def _read_windows_working_set_bytes() -> int:
     import ctypes
     from ctypes import wintypes
 
-    class _PROCESS_MEMORY_COUNTERS(ctypes.Structure):
-        _fields_ = [
-            ("cb", wintypes.DWORD),
-            ("PageFaultCount", wintypes.DWORD),
-            ("PeakWorkingSetSize", ctypes.c_size_t),
-            ("WorkingSetSize", ctypes.c_size_t),
-            ("QuotaPeakPagedPoolUsage", ctypes.c_size_t),
-            ("QuotaPagedPoolUsage", ctypes.c_size_t),
-            ("QuotaPeakNonPagedPoolUsage", ctypes.c_size_t),
-            ("QuotaNonPagedPoolUsage", ctypes.c_size_t),
-            ("PagefileUsage", ctypes.c_size_t),
-            ("PeakPagefileUsage", ctypes.c_size_t),
-        ]
+    counters_type, counters_pointer_type = _windows_process_memory_counters_types(
+        ctypes, wintypes
+    )
 
-    counters = _PROCESS_MEMORY_COUNTERS()
+    counters = counters_type()
     counters.cb = ctypes.sizeof(counters)
     kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
     psapi = ctypes.WinDLL("psapi", use_last_error=True)
@@ -1370,7 +1400,7 @@ def _read_windows_working_set_bytes() -> int:
     get_process_memory_info = psapi.GetProcessMemoryInfo
     get_process_memory_info.argtypes = [
         wintypes.HANDLE,
-        ctypes.POINTER(_PROCESS_MEMORY_COUNTERS),
+        counters_pointer_type,
         wintypes.DWORD,
     ]
     get_process_memory_info.restype = wintypes.BOOL
