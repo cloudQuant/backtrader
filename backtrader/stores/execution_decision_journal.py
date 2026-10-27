@@ -95,6 +95,10 @@ _RFC3339_TIMESTAMP = re.compile(
 )
 _MAX_RUN_LOSS_ENABLE_SCAN_ROWS = 100_000
 _RUN_ORDER_RESERVATION_FIELD = "_journal_run_order_reservation"
+_SOURCE_RECEIPT_PAYLOAD_FIELD = "_execution_source_receipt"
+_SOURCE_ANCHOR_ONLY_FIELD = "_execution_source_anchor_only"
+_MAX_SOURCE_RECEIPT_MEMBERS = 512
+_MAX_SOURCE_RECEIPT_BYTES = 1_048_576
 _DISPATCHING_CRASH_NO_FILL_OUTCOME = "complete_orders_query_dispatching_no_fill_terminal"
 _DISPATCHING_CANCEL_CHILD_OUTCOME = "complete_orders_query_cancel_dispatching_terminal"
 _DISPATCHING_CANCEL_PARENT_OUTCOME = "complete_orders_query_terminal"
@@ -380,6 +384,311 @@ class ExecutionGridDecision:
     cursor: Optional[ExecutionGridCursor]
     eligible: bool
     is_new_grid: bool
+    source_anchor: Optional[ExecutionDecisionRecord] = None
+
+
+@dataclass(frozen=True)
+class ExecutionSourceMemberReceipt:
+    """Bounded source identity for one member in a durable tape batch."""
+
+    member_id: str
+    source_ref: str
+    source_role: str
+    connection_generation: Union[str, int]
+    feed_sequence: int
+    bar_id: str
+    bucket_start: str
+    close_time: str
+    available_at: str
+    trading_day: str
+    session_segment: str
+    timezone_id: str
+    clock_domain_id: str
+    complete: bool
+    quality: str
+    present: bool
+    missing_fields: Tuple[str, ...] = ()
+    quality_flags: Tuple[str, ...] = ()
+    event_source: str = ""
+    received_monotonic_ns: Optional[int] = None
+    rules_hash: Optional[str] = None
+
+    def __post_init__(self) -> None:
+        for name, limit in (
+            ("member_id", 256),
+            ("source_ref", 2048),
+            ("bar_id", 512),
+            ("trading_day", 32),
+            ("session_segment", 256),
+            ("timezone_id", 256),
+            ("clock_domain_id", 256),
+        ):
+            _source_text(getattr(self, name), limit, "INVALID_SOURCE_RECEIPT_MEMBER")
+        if type(self.source_role) is not str or self.source_role not in ("history", "live"):
+            raise ExecutionDecisionJournalError("INVALID_SOURCE_RECEIPT_MEMBER")
+        generation = self.connection_generation
+        if (
+            type(generation) not in (str, int)
+            or (type(generation) is str and (not generation or len(generation) > 256))
+            or (type(generation) is int and generation <= 0)
+        ):
+            raise ExecutionDecisionJournalError("INVALID_SOURCE_RECEIPT_MEMBER")
+        if type(self.feed_sequence) is not int or self.feed_sequence < 1:
+            raise ExecutionDecisionJournalError("INVALID_SOURCE_RECEIPT_MEMBER")
+        if type(self.complete) is not bool or self.complete is not True:
+            raise ExecutionDecisionJournalError("INVALID_SOURCE_RECEIPT_MEMBER")
+        if (
+            type(self.present) is not bool
+            or type(self.quality) is not str
+            or self.quality not in ("GOOD", "MISSING")
+        ):
+            raise ExecutionDecisionJournalError("INVALID_SOURCE_RECEIPT_MEMBER")
+        if (self.quality == "GOOD") != self.present:
+            raise ExecutionDecisionJournalError("INVALID_SOURCE_RECEIPT_MEMBER")
+        if type(self.missing_fields) is not tuple or type(self.quality_flags) is not tuple:
+            raise ExecutionDecisionJournalError("INVALID_SOURCE_RECEIPT_MEMBER")
+        for values in (self.missing_fields, self.quality_flags):
+            if (
+                len(values) > 64
+                or any(type(value) is not str or not value or len(value) > 128 for value in values)
+                or tuple(sorted(set(values))) != values
+            ):
+                raise ExecutionDecisionJournalError("INVALID_SOURCE_RECEIPT_MEMBER")
+        if self.quality == "GOOD":
+            if self.missing_fields or set(self.quality_flags).difference({"LEGACY_SCHEMA"}):
+                raise ExecutionDecisionJournalError("INVALID_SOURCE_RECEIPT_MEMBER")
+        elif (
+            not self.missing_fields
+            or self.quality_flags != ("MISSING_FIELDS",)
+        ):
+            raise ExecutionDecisionJournalError("INVALID_SOURCE_RECEIPT_MEMBER")
+        if type(self.event_source) is not str or len(self.event_source) > 256:
+            raise ExecutionDecisionJournalError("INVALID_SOURCE_RECEIPT_MEMBER")
+        for name in ("bucket_start", "close_time", "available_at"):
+            object.__setattr__(
+                self,
+                name,
+                _normalize_close_time(getattr(self, name)),
+            )
+        if _parse_normalized_close_time(self.close_time) <= _parse_normalized_close_time(
+            self.bucket_start
+        ):
+            raise ExecutionDecisionJournalError("INVALID_SOURCE_RECEIPT_MEMBER")
+        if _parse_normalized_close_time(self.available_at) < _parse_normalized_close_time(
+            self.close_time
+        ):
+            raise ExecutionDecisionJournalError("INVALID_SOURCE_RECEIPT_MEMBER")
+        if self.received_monotonic_ns is not None and (
+            type(self.received_monotonic_ns) is not int or self.received_monotonic_ns < 1
+        ):
+            raise ExecutionDecisionJournalError("INVALID_SOURCE_RECEIPT_MEMBER")
+        if self.rules_hash is not None and not _source_sha256(self.rules_hash):
+            raise ExecutionDecisionJournalError("INVALID_SOURCE_RECEIPT_MEMBER")
+
+
+@dataclass(frozen=True)
+class ExecutionSourceHighWaterRef:
+    """Typed predecessor identity for one source receipt chain position."""
+
+    account_scope: str
+    strategy_scope: str
+    logical_run_id: str
+    source_kind: str
+    decision_id: str
+    receipt_sha256: str
+    cohort_id: str
+    calendar_id: str
+    calendar_version: str
+    calendar_fingerprint: str
+    epoch_id: int
+    slot_index: int
+    slot_id: str
+    close_time: str
+    batch_id: str
+    tape_file_id: str
+    tape_record_id: str
+    tape_record_index: int
+
+    def __post_init__(self) -> None:
+        for name in (
+            "account_scope",
+            "strategy_scope",
+            "logical_run_id",
+            "source_kind",
+            "decision_id",
+            "cohort_id",
+            "calendar_id",
+            "calendar_version",
+            "slot_id",
+            "batch_id",
+            "tape_file_id",
+            "tape_record_id",
+        ):
+            _source_text(getattr(self, name), 512, "INVALID_SOURCE_HIGHWATER")
+        if not _source_sha256(self.receipt_sha256) or not _source_sha256(
+            self.calendar_fingerprint
+        ):
+            raise ExecutionDecisionJournalError("INVALID_SOURCE_HIGHWATER")
+        if (
+            type(self.epoch_id) is not int
+            or self.epoch_id < 1
+            or type(self.slot_index) is not int
+            or self.slot_index < 0
+            or type(self.tape_record_index) is not int
+            or self.tape_record_index < 1
+        ):
+            raise ExecutionDecisionJournalError("INVALID_SOURCE_HIGHWATER")
+        object.__setattr__(self, "close_time", _normalize_close_time(self.close_time))
+
+
+@dataclass(frozen=True)
+class ExecutionSourceRestartMarker:
+    """Bind a new epoch to the prior journal head and caller-validated calendar.
+
+    ``gap_fingerprint is None`` denotes a core-validated gapless new epoch.
+    A nonempty fingerprint references the core-validated restart-gap proof.
+    The journal verifies the exact predecessor and its local append chain; it
+    deliberately does not reconstruct or validate calendar omission rules.
+    """
+
+    prior_highwater: ExecutionSourceHighWaterRef
+    gap_fingerprint: Optional[str] = None
+
+    def __post_init__(self) -> None:
+        if type(self.prior_highwater) is not ExecutionSourceHighWaterRef:
+            raise ExecutionDecisionJournalError("INVALID_SOURCE_RESTART_MARKER")
+        if self.gap_fingerprint is not None and not _source_sha256(self.gap_fingerprint):
+            raise ExecutionDecisionJournalError("INVALID_SOURCE_RESTART_MARKER")
+
+
+@dataclass(frozen=True)
+class ExecutionSourceReceipt:
+    """Immutable, non-executing source evidence attached to one decision key.
+
+    Calendar slots, completeness and restart-gap semantics must already have
+    been validated by the caller's live cohort. This journal persists the
+    caller's identity facts and enforces only the bounded same-epoch sequence,
+    role, generation, and predecessor chain.
+    """
+
+    source_kind: str
+    cohort_id: str
+    calendar_id: str
+    calendar_version: str
+    calendar_fingerprint: str
+    epoch_id: int
+    slot_index: int
+    slot_id: str
+    close_time: str
+    batch_id: str
+    readiness: str
+    tape_file_id: str
+    tape_record_id: str
+    tape_record_index: int
+    members: Tuple[ExecutionSourceMemberReceipt, ...]
+    predecessor: Optional[ExecutionSourceHighWaterRef] = None
+    restart_marker: Optional[ExecutionSourceRestartMarker] = None
+
+    def __post_init__(self) -> None:
+        for name in (
+            "source_kind",
+            "cohort_id",
+            "calendar_id",
+            "calendar_version",
+            "slot_id",
+            "batch_id",
+            "tape_file_id",
+            "tape_record_id",
+        ):
+            _source_text(getattr(self, name), 512, "INVALID_SOURCE_RECEIPT")
+        if not _source_sha256(self.calendar_fingerprint):
+            raise ExecutionDecisionJournalError("INVALID_SOURCE_RECEIPT")
+        if (
+            type(self.epoch_id) is not int
+            or self.epoch_id < 1
+            or type(self.slot_index) is not int
+            or self.slot_index < 0
+            or type(self.tape_record_index) is not int
+            or self.tape_record_index < 1
+        ):
+            raise ExecutionDecisionJournalError("INVALID_SOURCE_RECEIPT")
+        if type(self.readiness) is not str or self.readiness not in (
+            "INITIALIZING",
+            "WARMUP",
+            "CATCHING_UP",
+            "LIVE_READY",
+            "DEGRADED",
+        ):
+            raise ExecutionDecisionJournalError("INVALID_SOURCE_RECEIPT")
+        object.__setattr__(self, "close_time", _normalize_close_time(self.close_time))
+        if type(self.members) is not tuple or not self.members:
+            raise ExecutionDecisionJournalError("INVALID_SOURCE_RECEIPT")
+        if len(self.members) > _MAX_SOURCE_RECEIPT_MEMBERS or any(
+            type(member) is not ExecutionSourceMemberReceipt for member in self.members
+        ):
+            raise ExecutionDecisionJournalError("INVALID_SOURCE_RECEIPT")
+        member_ids = tuple(member.member_id for member in self.members)
+        if tuple(sorted(set(member_ids))) != member_ids:
+            raise ExecutionDecisionJournalError("INVALID_SOURCE_RECEIPT")
+        if any(member.close_time != self.close_time for member in self.members):
+            raise ExecutionDecisionJournalError("INVALID_SOURCE_RECEIPT")
+        if self.predecessor is not None and type(self.predecessor) is not ExecutionSourceHighWaterRef:
+            raise ExecutionDecisionJournalError("INVALID_SOURCE_RECEIPT")
+        if self.restart_marker is not None and type(self.restart_marker) is not ExecutionSourceRestartMarker:
+            raise ExecutionDecisionJournalError("INVALID_SOURCE_RECEIPT")
+
+
+@dataclass(frozen=True)
+class ExecutionSourceHighWater:
+    """Current indexed source-chain head and its exact persisted receipt."""
+
+    account_scope: str
+    strategy_scope: str
+    logical_run_id: str
+    decision_id: str
+    receipt_sha256: str
+    anchor_kind: str
+    receipt: ExecutionSourceReceipt
+
+    def __post_init__(self) -> None:
+        for name in ("account_scope", "strategy_scope", "logical_run_id", "decision_id"):
+            _source_text(getattr(self, name), 512, "INVALID_SOURCE_HIGHWATER")
+        if (
+            not _source_sha256(self.receipt_sha256)
+            or type(self.anchor_kind) is not str
+            or self.anchor_kind not in ("GRID", "SOURCE_ONLY")
+            or type(self.receipt) is not ExecutionSourceReceipt
+        ):
+            raise ExecutionDecisionJournalError("INVALID_SOURCE_HIGHWATER")
+        if _source_receipt_sha256(self.receipt) != self.receipt_sha256:
+            raise ExecutionDecisionJournalError("INVALID_SOURCE_HIGHWATER")
+
+    @property
+    def source_kind(self) -> str:
+        return self.receipt.source_kind
+
+    @property
+    def reference(self) -> ExecutionSourceHighWaterRef:
+        return ExecutionSourceHighWaterRef(
+            account_scope=self.account_scope,
+            strategy_scope=self.strategy_scope,
+            logical_run_id=self.logical_run_id,
+            source_kind=self.receipt.source_kind,
+            decision_id=self.decision_id,
+            receipt_sha256=self.receipt_sha256,
+            cohort_id=self.receipt.cohort_id,
+            calendar_id=self.receipt.calendar_id,
+            calendar_version=self.receipt.calendar_version,
+            calendar_fingerprint=self.receipt.calendar_fingerprint,
+            epoch_id=self.receipt.epoch_id,
+            slot_index=self.receipt.slot_index,
+            slot_id=self.receipt.slot_id,
+            close_time=self.receipt.close_time,
+            batch_id=self.receipt.batch_id,
+            tape_file_id=self.receipt.tape_file_id,
+            tape_record_id=self.receipt.tape_record_id,
+            tape_record_index=self.receipt.tape_record_index,
+        )
 
 
 @dataclass(frozen=True)
@@ -437,7 +746,7 @@ class ExecutionDecisionJournal:
     and checks fresh matching context at each OPEN decision, prepare, and claim.
     """
 
-    _SCHEMA_VERSION = 13
+    _SCHEMA_VERSION = 14
     _NATIVE_IDENTITY_SCHEMA_VERSION = 8
     _DECISION_CAPACITY_SCHEMA_VERSION = 9
     _DURABLE_CAPACITY_SCHEMA_VERSION = 12
@@ -741,6 +1050,7 @@ class ExecutionDecisionJournal:
         expected_run_order_intents_used: Optional[int] = None,
         remaining_exit_intent_reserve: Optional[int] = None,
         loss_guard_context: Optional[ExecutionRunLossGuardContext] = None,
+        source_receipt: Optional[ExecutionSourceReceipt] = None,
     ) -> ExecutionGridDecision:
         """Persist one eligible decision and advance its cohort cursor atomically.
 
@@ -749,11 +1059,12 @@ class ExecutionDecisionJournal:
         cohort, run, mode, or configuration from admitting an already-consumed
         close time. An exact immutable decision replay returns its prior
         decision with ``is_new_grid=False`` without rewinding either cursor.
-        Ineligible, incomplete, not-live-ready, or missing-input batches do not
-        write a decision row or advance either cursor. When a run limit is configured,
-        new decisions also require the caller's expected durable usage and the
-        post-plan exit reserve. The compare-and-swap, reservation, decision,
-        and cursor update commit together.
+        Without ``source_receipt``, ineligible batches retain the legacy no-write
+        behavior. With one, every completed source batch receives exactly one
+        durable anchor: eligible GRID economics and the source highwater commit
+        together, while an ineligible batch writes one empty-intent source anchor
+        without changing execution cursors, budgets, or positions. The source
+        highwater and decision are updated in the same SQLite transaction.
         """
 
         if not isinstance(key, ExecutionDecisionKey):
@@ -772,7 +1083,22 @@ class ExecutionDecisionJournal:
             expected_run_order_intents_used=expected_run_order_intents_used,
             remaining_exit_intent_reserve=remaining_exit_intent_reserve,
         )
+        if source_receipt is not None:
+            self._validate_source_receipt_binding(
+                key=key,
+                epoch_id=epoch_id,
+                batch_id=batch_id,
+                receipt=source_receipt,
+                grid_eligible=all(flags),
+            )
         if not all(flags):
+            if source_receipt is not None:
+                if intent_keys:
+                    raise ExecutionDecisionJournalError("SOURCE_ONLY_ANCHOR_HAS_INTENTS")
+                return self._record_source_only_grid_batch(
+                    key=key,
+                    receipt=source_receipt,
+                )
             return ExecutionGridDecision(
                 decision=None,
                 cursor=self.grid_cursor(key.account_scope, key.strategy_scope, key.cohort_id),
@@ -780,8 +1106,23 @@ class ExecutionDecisionJournal:
                 is_new_grid=False,
             )
 
+        if source_receipt is not None and not isinstance(economic_payload, Mapping):
+            raise ExecutionDecisionJournalError("INVALID_JOURNAL_PAYLOAD")
+        if source_receipt is not None and any(
+            name in economic_payload
+            for name in (_SOURCE_RECEIPT_PAYLOAD_FIELD, _SOURCE_ANCHOR_ONLY_FIELD)
+        ):
+            raise ExecutionDecisionJournalError("SOURCE_RECEIPT_EVIDENCE_RESERVED")
+        decision_economics = economic_payload
+        if source_receipt is not None:
+            decision_economics = dict(economic_payload)
+            decision_economics[_SOURCE_RECEIPT_PAYLOAD_FIELD] = _source_receipt_values(
+                source_receipt
+            )
+            self._validate_source_receipt_size(source_receipt)
+
         payload_json, replay_payload_json, reservation = self._budgeted_payload_json(
-            economic_payload,
+            decision_economics,
             max_order_intents_per_run=max_order_intents_per_run,
             remaining_exit_intent_reserve=remaining_exit_intent_reserve,
         )
@@ -793,6 +1134,18 @@ class ExecutionDecisionJournal:
         cursor_key = (key.account_scope, key.strategy_scope, key.cohort_id)
 
         with self._transaction() as db_cursor:
+            if source_receipt is not None:
+                prior_decision = db_cursor.execute(
+                    "SELECT economic_payload_json FROM execution_decisions WHERE decision_id=?",
+                    (decision_id,),
+                ).fetchone()
+                if prior_decision is not None:
+                    prior_payload = json.loads(prior_decision["economic_payload_json"])
+                    if (
+                        isinstance(prior_payload, Mapping)
+                        and prior_payload.get(_SOURCE_ANCHOR_ONLY_FIELD) is True
+                    ):
+                        raise ExecutionDecisionJournalError("SOURCE_RECEIPT_ALREADY_ANCHORED")
             decision, created = self._record_decision_in_transaction(
                 db_cursor,
                 decision_id=decision_id,
@@ -805,6 +1158,15 @@ class ExecutionDecisionJournal:
                 now_ns=now_ns,
                 loss_guard_context=loss_guard_context,
             )
+            if source_receipt is not None:
+                self._record_source_anchor_in_transaction(
+                    db_cursor,
+                    key=key,
+                    receipt=source_receipt,
+                    decision=decision,
+                    created=created,
+                    anchor_kind="GRID",
+                )
             current = db_cursor.execute(
                 """SELECT * FROM execution_grid_cursors
                    WHERE account_scope = ? AND strategy_scope = ? AND cohort_id = ?""",
@@ -834,6 +1196,7 @@ class ExecutionDecisionJournal:
                         cursor=_grid_cursor_record(current),
                         eligible=True,
                         is_new_grid=False,
+                        source_anchor=decision if source_receipt is not None else None,
                     )
             if not created:
                 # Exact immutable decision replays stay idempotent even after
@@ -855,6 +1218,7 @@ class ExecutionDecisionJournal:
                     cursor=None if current is None else _grid_cursor_record(current),
                     eligible=True,
                     is_new_grid=False,
+                    source_anchor=decision if source_receipt is not None else None,
                 )
 
             highwater = db_cursor.execute(
@@ -949,6 +1313,7 @@ class ExecutionDecisionJournal:
                 cursor=_grid_cursor_record(saved_cursor),
                 eligible=True,
                 is_new_grid=True,
+                source_anchor=decision if source_receipt is not None else None,
             )
 
     def record_risk_decision(
@@ -1658,6 +2023,441 @@ class ExecutionDecisionJournal:
             raise ExecutionDecisionJournalError("INVALID_DECISION_KEY")
         key_json = _canonical_json(_decision_key_values(key))
         return self.decision(_stable_id("decision", key_json))
+
+    def source_highwater(
+        self,
+        account_scope: str,
+        strategy_scope: str,
+        logical_run_id: str,
+        source_kind: str,
+    ) -> Optional[ExecutionSourceHighWater]:
+        """Read the indexed current source/tape anchor for one logical run."""
+
+        for value in (account_scope, strategy_scope, logical_run_id, source_kind):
+            _require_identifier(value, "INVALID_SOURCE_HIGHWATER_SCOPE")
+        with self._read_lock():
+            cursor = self._connection.cursor()
+            try:
+                row = cursor.execute(
+                    """SELECT * FROM execution_source_highwaters
+                       WHERE account_scope=? AND strategy_scope=?
+                         AND logical_run_id=? AND source_kind=?""",
+                    (account_scope, strategy_scope, logical_run_id, source_kind),
+                ).fetchone()
+                if row is None:
+                    return None
+                return self._source_highwater_from_row(
+                    cursor,
+                    row,
+                    expected_scope=(account_scope, strategy_scope, logical_run_id, source_kind),
+                )
+            finally:
+                cursor.close()
+
+    def _source_highwater_from_row(
+        self,
+        cursor: sqlite3.Cursor,
+        row: sqlite3.Row,
+        *,
+        expected_scope: Tuple[str, str, str, str],
+    ) -> ExecutionSourceHighWater:
+        try:
+            actual_scope = tuple(
+                row[name]
+                for name in ("account_scope", "strategy_scope", "logical_run_id", "source_kind")
+            )
+            if actual_scope != expected_scope:
+                raise ExecutionDecisionJournalError("SOURCE_HIGHWATER_CORRUPT")
+            receipt_json = row["receipt_json"]
+            if (
+                type(receipt_json) is not str
+                or len(receipt_json.encode("utf-8")) > _MAX_SOURCE_RECEIPT_BYTES
+            ):
+                raise ExecutionDecisionJournalError("SOURCE_HIGHWATER_CORRUPT")
+            values = json.loads(receipt_json)
+            receipt = _source_receipt_from_values(values)
+            canonical_receipt_json = _canonical_json(_source_receipt_values(receipt))
+            receipt_sha256 = hashlib.sha256(canonical_receipt_json.encode("utf-8")).hexdigest()
+            if receipt_json != canonical_receipt_json or row["receipt_sha256"] != receipt_sha256:
+                raise ExecutionDecisionJournalError("SOURCE_HIGHWATER_CORRUPT")
+            if receipt.source_kind != row["source_kind"]:
+                raise ExecutionDecisionJournalError("SOURCE_HIGHWATER_CORRUPT")
+            decision_id = row["decision_id"]
+            decision_row = cursor.execute(
+                "SELECT * FROM execution_decisions WHERE decision_id=?", (decision_id,)
+            ).fetchone()
+            if decision_row is None:
+                raise ExecutionDecisionJournalError("SOURCE_HIGHWATER_CORRUPT")
+            key_values = json.loads(decision_row["business_key_json"])
+            if not isinstance(key_values, Mapping) or set(key_values) != {
+                "account_scope",
+                "strategy_scope",
+                "logical_run_id",
+                "cohort_id",
+                "close_time",
+                "decision_kind",
+            }:
+                raise ExecutionDecisionJournalError("SOURCE_HIGHWATER_CORRUPT")
+            key = ExecutionDecisionKey(**key_values)
+            if (
+                _stable_id("decision", _canonical_json(_decision_key_values(key))) != decision_id
+                or (key.account_scope, key.strategy_scope, key.logical_run_id)
+                != actual_scope[:3]
+                or key.cohort_id != receipt.cohort_id
+                or key.close_time != receipt.close_time
+            ):
+                raise ExecutionDecisionJournalError("SOURCE_HIGHWATER_CORRUPT")
+            economics = json.loads(decision_row["economic_payload_json"])
+            if (
+                not isinstance(economics, Mapping)
+                or _canonical_json(economics.get(_SOURCE_RECEIPT_PAYLOAD_FIELD))
+                != canonical_receipt_json
+            ):
+                raise ExecutionDecisionJournalError("SOURCE_HIGHWATER_CORRUPT")
+            intent_values = json.loads(decision_row["intent_keys_json"])
+            if type(intent_values) is not list:
+                raise ExecutionDecisionJournalError("SOURCE_HIGHWATER_CORRUPT")
+            source_only = economics.get(_SOURCE_ANCHOR_ONLY_FIELD) is True
+            if (
+                row["anchor_kind"] not in ("GRID", "SOURCE_ONLY")
+                or (row["anchor_kind"] == "SOURCE_ONLY") != source_only
+                or (source_only and intent_values)
+                or (not source_only and _SOURCE_ANCHOR_ONLY_FIELD in economics)
+            ):
+                raise ExecutionDecisionJournalError("SOURCE_HIGHWATER_CORRUPT")
+            return ExecutionSourceHighWater(
+                account_scope=actual_scope[0],
+                strategy_scope=actual_scope[1],
+                logical_run_id=actual_scope[2],
+                decision_id=decision_id,
+                receipt_sha256=receipt_sha256,
+                anchor_kind=row["anchor_kind"],
+                receipt=receipt,
+            )
+        except ExecutionDecisionJournalError:
+            raise
+        except (KeyError, TypeError, ValueError, OverflowError) as error:
+            raise ExecutionDecisionJournalError("SOURCE_HIGHWATER_CORRUPT") from error
+
+    def _source_highwater_in_transaction(
+        self,
+        cursor: sqlite3.Cursor,
+        *,
+        account_scope: str,
+        strategy_scope: str,
+        logical_run_id: str,
+        source_kind: str,
+    ) -> Optional[ExecutionSourceHighWater]:
+        row = cursor.execute(
+            """SELECT * FROM execution_source_highwaters
+               WHERE account_scope=? AND strategy_scope=?
+                 AND logical_run_id=? AND source_kind=?""",
+            (account_scope, strategy_scope, logical_run_id, source_kind),
+        ).fetchone()
+        if row is None:
+            return None
+        return self._source_highwater_from_row(
+            cursor,
+            row,
+            expected_scope=(account_scope, strategy_scope, logical_run_id, source_kind),
+        )
+
+    @staticmethod
+    def _validate_source_receipt_binding(
+        *,
+        key: ExecutionDecisionKey,
+        epoch_id: str,
+        batch_id: str,
+        receipt: ExecutionSourceReceipt,
+        grid_eligible: bool,
+    ) -> None:
+        if type(receipt) is not ExecutionSourceReceipt:
+            raise ExecutionDecisionJournalError("INVALID_SOURCE_RECEIPT")
+        expected_batch = "{}:{}:{}:{}:{}".format(
+            receipt.cohort_id,
+            receipt.calendar_id,
+            receipt.epoch_id,
+            receipt.calendar_version,
+            receipt.slot_index,
+        )
+        if (
+            receipt.cohort_id != key.cohort_id
+            or receipt.source_kind != key.decision_kind
+            or receipt.close_time != key.close_time
+            or receipt.batch_id != batch_id
+            or receipt.batch_id != expected_batch
+            or str(receipt.epoch_id) != epoch_id
+        ):
+            raise ExecutionDecisionJournalError("SOURCE_RECEIPT_DECISION_MISMATCH")
+        if grid_eligible and receipt.readiness != "LIVE_READY":
+            raise ExecutionDecisionJournalError("SOURCE_RECEIPT_NOT_LIVE_READY")
+        if grid_eligible and any(member.quality != "GOOD" for member in receipt.members):
+            raise ExecutionDecisionJournalError("SOURCE_RECEIPT_INPUTS_NOT_GOOD")
+        if not _identifier(receipt.source_kind):
+            raise ExecutionDecisionJournalError("INVALID_SOURCE_RECEIPT")
+        if receipt.restart_marker is not None and (
+            receipt.restart_marker.prior_highwater.source_kind != receipt.source_kind
+        ):
+            raise ExecutionDecisionJournalError("SOURCE_RESTART_MARKER_SCOPE_MISMATCH")
+
+    def _validate_source_receipt_size(self, receipt: ExecutionSourceReceipt) -> str:
+        encoded = _canonical_json(_source_receipt_values(receipt))
+        if len(encoded.encode("utf-8")) > _MAX_SOURCE_RECEIPT_BYTES:
+            raise ExecutionDecisionJournalError("SOURCE_RECEIPT_TOO_LARGE")
+        return encoded
+
+    def _record_source_only_grid_batch(
+        self,
+        *,
+        key: ExecutionDecisionKey,
+        receipt: ExecutionSourceReceipt,
+    ) -> ExecutionGridDecision:
+        receipt_json = self._validate_source_receipt_size(receipt)
+        payload_json = self._payload_json(
+            {
+                _SOURCE_RECEIPT_PAYLOAD_FIELD: json.loads(receipt_json),
+                _SOURCE_ANCHOR_ONLY_FIELD: True,
+            }
+        )
+        keys_json = _canonical_json([])
+        key_json = _canonical_json(_decision_key_values(key))
+        decision_id = _stable_id("decision", key_json)
+        now_ns = time.time_ns()
+        scope = (key.account_scope, key.strategy_scope, key.logical_run_id, receipt.source_kind)
+        with self._transaction() as cursor:
+            existing_row = cursor.execute(
+                "SELECT * FROM execution_decisions WHERE decision_id=?", (decision_id,)
+            ).fetchone()
+            if existing_row is not None:
+                record = _decision_record(existing_row)
+                stored_receipt, source_only = self._source_receipt_from_decision(record)
+                if (
+                    record.key != key
+                    or _canonical_json(_source_receipt_values(stored_receipt)) != receipt_json
+                ):
+                    raise ExecutionDecisionJournalError("DECISION_CONFLICT")
+                if source_only and record.intent_keys:
+                    raise ExecutionDecisionJournalError("SOURCE_HIGHWATER_CORRUPT")
+                # A GRID anchor for this exact source row is already the one
+                # durable anchor; replay must not create a second no-op row.
+                highwater = self._source_highwater_in_transaction(
+                    cursor,
+                    account_scope=scope[0],
+                    strategy_scope=scope[1],
+                    logical_run_id=scope[2],
+                    source_kind=scope[3],
+                )
+                if highwater is None or highwater.receipt.epoch_id < receipt.epoch_id or (
+                    highwater.receipt.epoch_id == receipt.epoch_id
+                    and highwater.receipt.slot_index < receipt.slot_index
+                ):
+                    raise ExecutionDecisionJournalError("SOURCE_HIGHWATER_CORRUPT")
+                saved_cursor = cursor.execute(
+                    """SELECT * FROM execution_grid_cursors
+                       WHERE account_scope=? AND strategy_scope=? AND cohort_id=?""",
+                    (key.account_scope, key.strategy_scope, key.cohort_id),
+                ).fetchone()
+                return ExecutionGridDecision(
+                    decision=None,
+                    cursor=None if saved_cursor is None else _grid_cursor_record(saved_cursor),
+                    eligible=False,
+                    is_new_grid=False,
+                    source_anchor=record,
+                )
+
+            normalized_keys: Tuple[ExecutionIntentKey, ...] = ()
+            record, created = self._record_decision_in_transaction(
+                cursor,
+                decision_id=decision_id,
+                key_json=key_json,
+                payload_json=payload_json,
+                keys_json=keys_json,
+                normalized_keys=normalized_keys,
+                now_ns=now_ns,
+            )
+            if not created:
+                raise ExecutionDecisionJournalError("SOURCE_HIGHWATER_CORRUPT")
+            self._record_source_anchor_in_transaction(
+                cursor,
+                key=key,
+                receipt=receipt,
+                decision=record,
+                created=True,
+                anchor_kind="SOURCE_ONLY",
+            )
+            saved_cursor = cursor.execute(
+                """SELECT * FROM execution_grid_cursors
+                   WHERE account_scope=? AND strategy_scope=? AND cohort_id=?""",
+                (key.account_scope, key.strategy_scope, key.cohort_id),
+            ).fetchone()
+            return ExecutionGridDecision(
+                decision=None,
+                cursor=None if saved_cursor is None else _grid_cursor_record(saved_cursor),
+                eligible=False,
+                is_new_grid=False,
+                source_anchor=record,
+            )
+
+    @staticmethod
+    def _source_receipt_from_decision(
+        decision: ExecutionDecisionRecord,
+    ) -> Tuple[ExecutionSourceReceipt, bool]:
+        payload = decision.economic_payload
+        values = payload.get(_SOURCE_RECEIPT_PAYLOAD_FIELD)
+        if values is None:
+            raise ExecutionDecisionJournalError("SOURCE_RECEIPT_UNANCHORED_LEGACY")
+        receipt = _source_receipt_from_values(values)
+        return receipt, payload.get(_SOURCE_ANCHOR_ONLY_FIELD) is True
+
+    def _record_source_anchor_in_transaction(
+        self,
+        cursor: sqlite3.Cursor,
+        *,
+        key: ExecutionDecisionKey,
+        receipt: ExecutionSourceReceipt,
+        decision: ExecutionDecisionRecord,
+        created: bool,
+        anchor_kind: str,
+    ) -> None:
+        scope = (key.account_scope, key.strategy_scope, key.logical_run_id, receipt.source_kind)
+        highwater = self._source_highwater_in_transaction(
+            cursor,
+            account_scope=scope[0],
+            strategy_scope=scope[1],
+            logical_run_id=scope[2],
+            source_kind=scope[3],
+        )
+        if not created:
+            stored_receipt, source_only = self._source_receipt_from_decision(decision)
+            if _source_receipt_values(stored_receipt) != _source_receipt_values(receipt):
+                raise ExecutionDecisionJournalError("DECISION_CONFLICT")
+            if anchor_kind == "GRID" and source_only:
+                raise ExecutionDecisionJournalError("SOURCE_RECEIPT_ALREADY_ANCHORED")
+            if highwater is None or highwater.receipt.epoch_id < receipt.epoch_id or (
+                highwater.receipt.epoch_id == receipt.epoch_id
+                and highwater.receipt.slot_index < receipt.slot_index
+            ):
+                raise ExecutionDecisionJournalError("SOURCE_HIGHWATER_CORRUPT")
+            return
+        self._validate_source_append(
+            receipt=receipt,
+            highwater=highwater,
+            scope=scope,
+        )
+        receipt_json = self._validate_source_receipt_size(receipt)
+        receipt_sha256 = hashlib.sha256(receipt_json.encode("utf-8")).hexdigest()
+        source_only_marker = decision.economic_payload.get(_SOURCE_ANCHOR_ONLY_FIELD)
+        if (anchor_kind == "SOURCE_ONLY") != (source_only_marker is True):
+            raise ExecutionDecisionJournalError("SOURCE_HIGHWATER_CORRUPT")
+        key_values = scope
+        with track_durable_row_change(
+            cursor, "execution_source_highwaters", key_values, "BASE"
+        ):
+            cursor.execute(
+                """INSERT INTO execution_source_highwaters
+                   (account_scope,strategy_scope,logical_run_id,source_kind,decision_id,
+                    anchor_kind,receipt_sha256,receipt_json,updated_at_ns)
+                   VALUES(?,?,?,?,?,?,?,?,?)
+                   ON CONFLICT(account_scope,strategy_scope,logical_run_id,source_kind)
+                   DO UPDATE SET decision_id=excluded.decision_id,
+                     anchor_kind=excluded.anchor_kind,receipt_sha256=excluded.receipt_sha256,
+                     receipt_json=excluded.receipt_json,updated_at_ns=excluded.updated_at_ns""",
+                scope + (decision.decision_id, anchor_kind, receipt_sha256, receipt_json, time.time_ns()),
+            )
+
+    @staticmethod
+    def _validate_source_append(
+        *,
+        receipt: ExecutionSourceReceipt,
+        highwater: Optional[ExecutionSourceHighWater],
+        scope: Tuple[str, str, str, str],
+    ) -> None:
+        if highwater is None:
+            if (
+                receipt.predecessor is not None
+                or receipt.restart_marker is not None
+                or receipt.slot_index != 0
+                or receipt.tape_record_index != 1
+            ):
+                raise ExecutionDecisionJournalError("SOURCE_HIGHWATER_PREDECESSOR_REQUIRED")
+            return
+        previous = highwater.reference
+        if receipt.predecessor != previous:
+            raise ExecutionDecisionJournalError("SOURCE_HIGHWATER_PREDECESSOR_MISMATCH")
+        if (
+            previous.account_scope,
+            previous.strategy_scope,
+            previous.logical_run_id,
+            previous.source_kind,
+        ) != scope:
+            raise ExecutionDecisionJournalError("SOURCE_HIGHWATER_SCOPE_MISMATCH")
+        if receipt.epoch_id == previous.epoch_id:
+            prior_receipt = highwater.receipt
+            if (
+                receipt.restart_marker is not None
+                or receipt.cohort_id != previous.cohort_id
+                or receipt.calendar_id != previous.calendar_id
+                or receipt.calendar_version != previous.calendar_version
+                or receipt.calendar_fingerprint != previous.calendar_fingerprint
+                or receipt.slot_index != previous.slot_index + 1
+                or receipt.tape_record_index != previous.tape_record_index + 1
+                or receipt.tape_file_id != previous.tape_file_id
+                or _parse_normalized_close_time(receipt.close_time)
+                <= _parse_normalized_close_time(previous.close_time)
+            ):
+                raise ExecutionDecisionJournalError("SOURCE_RECEIPT_SEQUENCE_INVALID")
+            ExecutionDecisionJournal._validate_source_member_transition(
+                prior_receipt.members, receipt.members
+            )
+            return
+        if receipt.epoch_id != previous.epoch_id + 1:
+            raise ExecutionDecisionJournalError("SOURCE_RECEIPT_EPOCH_INVALID")
+        marker = receipt.restart_marker
+        if marker is None:
+            raise ExecutionDecisionJournalError("SOURCE_RESTART_MARKER_REQUIRED")
+        if marker.prior_highwater != previous:
+            raise ExecutionDecisionJournalError("SOURCE_RESTART_MARKER_MISMATCH")
+        if (
+            receipt.slot_index != 0
+            or receipt.tape_record_index != 1
+            or receipt.cohort_id == previous.cohort_id
+            or receipt.calendar_fingerprint == previous.calendar_fingerprint
+            or receipt.tape_file_id == previous.tape_file_id
+        ):
+            raise ExecutionDecisionJournalError("SOURCE_RECEIPT_EPOCH_INVALID")
+        if (
+            tuple(member.member_id for member in receipt.members)
+            != tuple(member.member_id for member in highwater.receipt.members)
+            or any(member.source_role != "history" for member in receipt.members)
+            or any(
+                current.source_ref != prior.source_ref
+                or current.timezone_id != prior.timezone_id
+                or current.clock_domain_id != prior.clock_domain_id
+                for current, prior in zip(receipt.members, highwater.receipt.members)
+            )
+        ):
+            raise ExecutionDecisionJournalError("SOURCE_RESTART_MEMBER_SCOPE_MISMATCH")
+
+    @staticmethod
+    def _validate_source_member_transition(
+        previous_members: Tuple[ExecutionSourceMemberReceipt, ...],
+        current_members: Tuple[ExecutionSourceMemberReceipt, ...],
+    ) -> None:
+        if tuple(member.member_id for member in previous_members) != tuple(
+            member.member_id for member in current_members
+        ):
+            raise ExecutionDecisionJournalError("SOURCE_RECEIPT_MEMBER_SET_CHANGED")
+        for previous, current in zip(previous_members, current_members):
+            if current.source_ref != previous.source_ref:
+                raise ExecutionDecisionJournalError("SOURCE_RECEIPT_SOURCE_DRIFT")
+            if current.source_role == previous.source_role:
+                if (
+                    current.connection_generation != previous.connection_generation
+                    or current.feed_sequence <= previous.feed_sequence
+                ):
+                    raise ExecutionDecisionJournalError("SOURCE_RECEIPT_MEMBER_SEQUENCE_INVALID")
+            elif (previous.source_role, current.source_role) != ("history", "live"):
+                raise ExecutionDecisionJournalError("SOURCE_RECEIPT_ROLE_ORDER_INVALID")
 
     def decision_capacity_snapshot(self) -> ExecutionDecisionCapacitySnapshot:
         """Return bounded decision usage plus a read-only SQLite size sample.
@@ -5215,17 +6015,17 @@ class ExecutionDecisionJournal:
                 10,
                 11,
                 self._DURABLE_CAPACITY_SCHEMA_VERSION,
+                13,
                 self._SCHEMA_VERSION,
             ):
                 raise ExecutionDecisionJournalError("UNSUPPORTED_SCHEMA_VERSION")
-            if version == self._SCHEMA_VERSION:
+            if version >= self._DURABLE_CAPACITY_SCHEMA_VERSION:
                 required_tables = {
                     row["name"]
                     for row in self._connection.execute(
                         """SELECT name FROM sqlite_master WHERE type='table'
                            AND name IN ('execution_decision_callbacks',
-                                        'execution_callback_query_dispositions',
-                                        'execution_run_loss_guards')"""
+                                        'execution_callback_query_dispositions')"""
                     ).fetchall()
                 }
                 if not {
@@ -5233,8 +6033,6 @@ class ExecutionDecisionJournal:
                     "execution_callback_query_dispositions",
                 } <= required_tables:
                     raise ExecutionDecisionJournalError("CALLBACK_DELIVERY_SCHEMA_CORRUPT")
-                if "execution_run_loss_guards" not in required_tables:
-                    raise ExecutionDecisionJournalError("RUN_LOSS_GUARD_SCHEMA_CORRUPT")
                 callback_columns = {
                     row["name"]
                     for row in self._connection.execute(
@@ -5247,16 +6045,31 @@ class ExecutionDecisionJournal:
                         "PRAGMA table_info(execution_callback_query_dispositions)"
                     ).fetchall()
                 }
-                loss_guard_info = self._connection.execute(
-                    "PRAGMA table_info(execution_run_loss_guards)"
-                ).fetchall()
-                loss_guard_columns = {row["name"] for row in loss_guard_info}
                 if not {"delivery_pending", "process_instance_id"} <= callback_columns or not {
                     "query_process_instance_id",
                     "proof_payload_json",
                     "proof_sha256",
                 } <= disposition_columns:
                     raise ExecutionDecisionJournalError("CALLBACK_DELIVERY_SCHEMA_CORRUPT")
+                cursor = self._connection.cursor()
+                try:
+                    self._validate_durable_capacity_tables(cursor)
+                finally:
+                    cursor.close()
+            if version >= 13:
+                required_tables = {
+                    row["name"]
+                    for row in self._connection.execute(
+                        """SELECT name FROM sqlite_master WHERE type='table'
+                           AND name='execution_run_loss_guards'"""
+                    ).fetchall()
+                }
+                if "execution_run_loss_guards" not in required_tables:
+                    raise ExecutionDecisionJournalError("RUN_LOSS_GUARD_SCHEMA_CORRUPT")
+                loss_guard_info = self._connection.execute(
+                    "PRAGMA table_info(execution_run_loss_guards)"
+                ).fetchall()
+                loss_guard_columns = {row["name"] for row in loss_guard_info}
                 if (
                     not {
                         "account_scope",
@@ -5282,11 +6095,36 @@ class ExecutionDecisionJournal:
                     or not _run_loss_guard_primary_key_matches(loss_guard_info)
                 ):
                     raise ExecutionDecisionJournalError("RUN_LOSS_GUARD_SCHEMA_CORRUPT")
-                cursor = self._connection.cursor()
-                try:
-                    self._validate_durable_capacity_tables(cursor)
-                finally:
-                    cursor.close()
+            if version >= self._SCHEMA_VERSION:
+                required_tables = {
+                    row["name"]
+                    for row in self._connection.execute(
+                        """SELECT name FROM sqlite_master WHERE type='table'
+                           AND name='execution_source_highwaters'"""
+                    ).fetchall()
+                }
+                if "execution_source_highwaters" not in required_tables:
+                    raise ExecutionDecisionJournalError("SOURCE_HIGHWATER_SCHEMA_CORRUPT")
+                source_highwater_info = self._connection.execute(
+                    "PRAGMA table_info(execution_source_highwaters)"
+                ).fetchall()
+                source_highwater_columns = {row["name"] for row in source_highwater_info}
+                if (
+                    not {
+                        "account_scope",
+                        "strategy_scope",
+                        "logical_run_id",
+                        "source_kind",
+                        "decision_id",
+                        "anchor_kind",
+                        "receipt_sha256",
+                        "receipt_json",
+                        "updated_at_ns",
+                    }
+                    <= source_highwater_columns
+                    or not _source_highwater_primary_key_matches(source_highwater_info)
+                ):
+                    raise ExecutionDecisionJournalError("SOURCE_HIGHWATER_SCHEMA_CORRUPT")
             try:
                 self._connection.executescript(
                     """
@@ -5555,6 +6393,7 @@ class ExecutionDecisionJournal:
                     10,
                     11,
                     self._DURABLE_CAPACITY_SCHEMA_VERSION,
+                    13,
                     self._SCHEMA_VERSION,
                 ):
                     raise ExecutionDecisionJournalError("UNSUPPORTED_SCHEMA_VERSION")
@@ -5706,6 +6545,27 @@ class ExecutionDecisionJournal:
                     self._connection.execute(
                         "DROP TABLE IF EXISTS execution_callback_delivery_queue"
                     )
+                if locked_version < self._SCHEMA_VERSION:
+                    existing_source_table = self._connection.execute(
+                        """SELECT 1 FROM sqlite_master WHERE type='table'
+                           AND name='execution_source_highwaters'"""
+                    ).fetchone()
+                    if existing_source_table is not None:
+                        raise ExecutionDecisionJournalError("SOURCE_HIGHWATER_SCHEMA_CORRUPT")
+                    self._connection.execute(
+                        """CREATE TABLE execution_source_highwaters (
+                            account_scope TEXT NOT NULL,
+                            strategy_scope TEXT NOT NULL,
+                            logical_run_id TEXT NOT NULL,
+                            source_kind TEXT NOT NULL,
+                            decision_id TEXT NOT NULL REFERENCES execution_decisions(decision_id),
+                            anchor_kind TEXT NOT NULL CHECK(anchor_kind IN ('GRID','SOURCE_ONLY')),
+                            receipt_sha256 TEXT NOT NULL,
+                            receipt_json TEXT NOT NULL,
+                            updated_at_ns INTEGER NOT NULL,
+                            PRIMARY KEY(account_scope,strategy_scope,logical_run_id,source_kind)
+                        )"""
+                    )
                 self._connection.execute(
                     """CREATE INDEX IF NOT EXISTS execution_callback_delivery_order
                        ON execution_decision_callbacks(delivery_pending,created_at_ns,receipt_id)"""
@@ -5771,6 +6631,8 @@ class ExecutionDecisionJournal:
                 # V11 callback query dispositions and indexed delivery state,
                 # V12 cumulative typed payload budgets across journal and book rows.
                 # V13 persists one bounded total-net-P&L loss-guard state per run.
+                # V14 adds a single scope-bound current source/tape highwater. Existing
+                # decisions are deliberately not backfilled as source receipts.
             except ExecutionDecisionJournalError:
                 if self._connection.in_transaction:
                     self._connection.execute("ROLLBACK")
@@ -5954,6 +6816,246 @@ def _identifier(value: Any) -> bool:
     )
 
 
+def _source_text(value: Any, limit: int, code: str) -> str:
+    if (
+        type(value) is not str
+        or not value
+        or value != value.strip()
+        or len(value) > limit
+        or any(not character.isprintable() for character in value)
+    ):
+        raise ExecutionDecisionJournalError(code)
+    return value
+
+
+def _source_sha256(value: Any) -> bool:
+    return bool(
+        type(value) is str
+        and len(value) == 64
+        and all(character in "0123456789abcdef" for character in value)
+    )
+
+
+def _source_mapping(value: Any, expected: Tuple[str, ...], code: str) -> Mapping[str, Any]:
+    if not isinstance(value, Mapping) or set(value) != set(expected):
+        raise ExecutionDecisionJournalError(code)
+    return value
+
+
+def _source_highwater_ref_values(ref: ExecutionSourceHighWaterRef) -> Mapping[str, Any]:
+    return {
+        "account_scope": ref.account_scope,
+        "strategy_scope": ref.strategy_scope,
+        "logical_run_id": ref.logical_run_id,
+        "source_kind": ref.source_kind,
+        "decision_id": ref.decision_id,
+        "receipt_sha256": ref.receipt_sha256,
+        "cohort_id": ref.cohort_id,
+        "calendar_id": ref.calendar_id,
+        "calendar_version": ref.calendar_version,
+        "calendar_fingerprint": ref.calendar_fingerprint,
+        "epoch_id": ref.epoch_id,
+        "slot_index": ref.slot_index,
+        "slot_id": ref.slot_id,
+        "close_time": ref.close_time,
+        "batch_id": ref.batch_id,
+        "tape_file_id": ref.tape_file_id,
+        "tape_record_id": ref.tape_record_id,
+        "tape_record_index": ref.tape_record_index,
+    }
+
+
+def _source_highwater_ref_from_values(value: Any) -> ExecutionSourceHighWaterRef:
+    names = (
+        "account_scope",
+        "strategy_scope",
+        "logical_run_id",
+        "source_kind",
+        "decision_id",
+        "receipt_sha256",
+        "cohort_id",
+        "calendar_id",
+        "calendar_version",
+        "calendar_fingerprint",
+        "epoch_id",
+        "slot_index",
+        "slot_id",
+        "close_time",
+        "batch_id",
+        "tape_file_id",
+        "tape_record_id",
+        "tape_record_index",
+    )
+    values = _source_mapping(value, names, "INVALID_SOURCE_HIGHWATER")
+    try:
+        return ExecutionSourceHighWaterRef(**{name: values[name] for name in names})
+    except (TypeError, ValueError) as error:
+        if isinstance(error, ExecutionDecisionJournalError):
+            raise
+        raise ExecutionDecisionJournalError("INVALID_SOURCE_HIGHWATER") from error
+
+
+def _source_member_values(member: ExecutionSourceMemberReceipt) -> Mapping[str, Any]:
+    return {
+        "member_id": member.member_id,
+        "source_ref": member.source_ref,
+        "source_role": member.source_role,
+        "connection_generation": member.connection_generation,
+        "feed_sequence": member.feed_sequence,
+        "bar_id": member.bar_id,
+        "bucket_start": member.bucket_start,
+        "close_time": member.close_time,
+        "available_at": member.available_at,
+        "trading_day": member.trading_day,
+        "session_segment": member.session_segment,
+        "timezone_id": member.timezone_id,
+        "clock_domain_id": member.clock_domain_id,
+        "complete": member.complete,
+        "quality": member.quality,
+        "present": member.present,
+        "missing_fields": list(member.missing_fields),
+        "quality_flags": list(member.quality_flags),
+        "event_source": member.event_source,
+        "received_monotonic_ns": member.received_monotonic_ns,
+        "rules_hash": member.rules_hash,
+    }
+
+
+def _source_member_from_values(value: Any) -> ExecutionSourceMemberReceipt:
+    names = (
+        "member_id",
+        "source_ref",
+        "source_role",
+        "connection_generation",
+        "feed_sequence",
+        "bar_id",
+        "bucket_start",
+        "close_time",
+        "available_at",
+        "trading_day",
+        "session_segment",
+        "timezone_id",
+        "clock_domain_id",
+        "complete",
+        "quality",
+        "present",
+        "missing_fields",
+        "quality_flags",
+        "event_source",
+        "received_monotonic_ns",
+        "rules_hash",
+    )
+    values = _source_mapping(value, names, "INVALID_SOURCE_RECEIPT_MEMBER")
+    if type(values["missing_fields"]) not in (list, tuple) or type(
+        values["quality_flags"]
+    ) not in (list, tuple):
+        raise ExecutionDecisionJournalError("INVALID_SOURCE_RECEIPT_MEMBER")
+    try:
+        kwargs = {name: values[name] for name in names if name not in ("missing_fields", "quality_flags")}
+        kwargs["missing_fields"] = tuple(values["missing_fields"])
+        kwargs["quality_flags"] = tuple(values["quality_flags"])
+        return ExecutionSourceMemberReceipt(**kwargs)
+    except (TypeError, ValueError) as error:
+        if isinstance(error, ExecutionDecisionJournalError):
+            raise
+        raise ExecutionDecisionJournalError("INVALID_SOURCE_RECEIPT_MEMBER") from error
+
+
+def _source_restart_marker_values(marker: ExecutionSourceRestartMarker) -> Mapping[str, Any]:
+    return {
+        "prior_highwater": _source_highwater_ref_values(marker.prior_highwater),
+        "gap_fingerprint": marker.gap_fingerprint,
+    }
+
+
+def _source_restart_marker_from_values(value: Any) -> ExecutionSourceRestartMarker:
+    values = _source_mapping(
+        value,
+        ("prior_highwater", "gap_fingerprint"),
+        "INVALID_SOURCE_RESTART_MARKER",
+    )
+    try:
+        return ExecutionSourceRestartMarker(
+            prior_highwater=_source_highwater_ref_from_values(values["prior_highwater"]),
+            gap_fingerprint=values["gap_fingerprint"],
+        )
+    except (TypeError, ValueError) as error:
+        if isinstance(error, ExecutionDecisionJournalError):
+            raise
+        raise ExecutionDecisionJournalError("INVALID_SOURCE_RESTART_MARKER") from error
+
+
+def _source_receipt_values(receipt: ExecutionSourceReceipt) -> Mapping[str, Any]:
+    return {
+        "source_kind": receipt.source_kind,
+        "cohort_id": receipt.cohort_id,
+        "calendar_id": receipt.calendar_id,
+        "calendar_version": receipt.calendar_version,
+        "calendar_fingerprint": receipt.calendar_fingerprint,
+        "epoch_id": receipt.epoch_id,
+        "slot_index": receipt.slot_index,
+        "slot_id": receipt.slot_id,
+        "close_time": receipt.close_time,
+        "batch_id": receipt.batch_id,
+        "readiness": receipt.readiness,
+        "tape_file_id": receipt.tape_file_id,
+        "tape_record_id": receipt.tape_record_id,
+        "tape_record_index": receipt.tape_record_index,
+        "members": [_source_member_values(member) for member in receipt.members],
+        "predecessor": (
+            None if receipt.predecessor is None else _source_highwater_ref_values(receipt.predecessor)
+        ),
+        "restart_marker": (
+            None
+            if receipt.restart_marker is None
+            else _source_restart_marker_values(receipt.restart_marker)
+        ),
+    }
+
+
+def _source_receipt_from_values(value: Any) -> ExecutionSourceReceipt:
+    names = (
+        "source_kind",
+        "cohort_id",
+        "calendar_id",
+        "calendar_version",
+        "calendar_fingerprint",
+        "epoch_id",
+        "slot_index",
+        "slot_id",
+        "close_time",
+        "batch_id",
+        "readiness",
+        "tape_file_id",
+        "tape_record_id",
+        "tape_record_index",
+        "members",
+        "predecessor",
+        "restart_marker",
+    )
+    values = _source_mapping(value, names, "INVALID_SOURCE_RECEIPT")
+    if type(values["members"]) not in (list, tuple):
+        raise ExecutionDecisionJournalError("INVALID_SOURCE_RECEIPT")
+    try:
+        kwargs = {name: values[name] for name in names if name != "members"}
+        kwargs["members"] = tuple(_source_member_from_values(item) for item in values["members"])
+        if values["predecessor"] is not None:
+            kwargs["predecessor"] = _source_highwater_ref_from_values(values["predecessor"])
+        if values["restart_marker"] is not None:
+            kwargs["restart_marker"] = _source_restart_marker_from_values(
+                values["restart_marker"]
+            )
+        return ExecutionSourceReceipt(**kwargs)
+    except (TypeError, ValueError) as error:
+        if isinstance(error, ExecutionDecisionJournalError):
+            raise
+        raise ExecutionDecisionJournalError("INVALID_SOURCE_RECEIPT") from error
+
+
+def _source_receipt_sha256(receipt: ExecutionSourceReceipt) -> str:
+    return hashlib.sha256(_canonical_json(_source_receipt_values(receipt)).encode("utf-8")).hexdigest()
+
+
 def _normalize_close_time(value: Any) -> str:
     if (
         type(value) is not str
@@ -6093,6 +7195,26 @@ def _require_matching_run_loss_context(
 
 def _run_loss_guard_primary_key_matches(column_info: Any) -> bool:
     expected = {"account_scope": 1, "strategy_scope": 2, "logical_run_id": 3}
+    try:
+        rows = list(column_info)
+        names = [row["name"] for row in rows]
+        if not expected.keys() <= set(names) or len(names) != len(set(names)):
+            return False
+        return all(
+            type(row["pk"]) is int and row["pk"] == expected.get(row["name"], 0)
+            for row in rows
+        )
+    except (KeyError, TypeError, ValueError):
+        return False
+
+
+def _source_highwater_primary_key_matches(column_info: Any) -> bool:
+    expected = {
+        "account_scope": 1,
+        "strategy_scope": 2,
+        "logical_run_id": 3,
+        "source_kind": 4,
+    }
     try:
         rows = list(column_info)
         names = [row["name"] for row in rows]

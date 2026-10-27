@@ -33,6 +33,12 @@ _DURABLE_ROW_KEYS = {
     "execution_run_loss_guards": ("account_scope", "strategy_scope", "logical_run_id"),
     "execution_grid_cursors": ("account_scope", "strategy_scope", "cohort_id"),
     "execution_grid_highwaters": ("account_scope", "strategy_scope"),
+    "execution_source_highwaters": (
+        "account_scope",
+        "strategy_scope",
+        "logical_run_id",
+        "source_kind",
+    ),
     "execution_decision_intents": ("intent_id",),
     "execution_native_intent_identities": ("intent_id",),
     "execution_decision_callbacks": ("receipt_id",),

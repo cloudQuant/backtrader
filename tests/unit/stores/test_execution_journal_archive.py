@@ -142,7 +142,7 @@ def test_archive_snapshot_verifies_terminal_chain_and_preserves_unknown(tmp_path
             expected_sha256=receipt.sha256,
         )
         assert independently_verified == receipt
-        assert receipt.schema_version == 13
+        assert receipt.schema_version == 14
         assert receipt.size_bytes == archive_path.stat().st_size
         assert receipt.table_row_counts["execution_decisions"] == 2
         assert receipt.table_row_counts["execution_decision_intents"] == 2

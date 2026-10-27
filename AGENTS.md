@@ -551,6 +551,17 @@ recursive source-origin continuity stays unqualified. Nine distinct synthetic
 core cases passed across two runs, including the exact-start boundary repair.
 The 028 history-loader composition and actual restart remain separate work;
 old warmup rows without durable journal anchors cannot be retrospectively trusted.
+Journal schema 14 adds an optional typed source receipt to `record_grid_decision`
+and an indexed `source_highwater` per account/strategy/run/source kind. Completed
+ineligible batches receive empty-intent source anchors without advancing execution
+cursors or budgets; eligible GRID decisions share one transaction with their source
+anchor and capacity charge. Exact replay cannot rewind the source head or upgrade
+a source-only anchor. Receipts have finite member/byte limits; old decisions are not
+backfilled. Restart markers bind the exact old head and a caller/core-validated gap
+reference (or gapless transition); the journal does not recompute calendar omissions.
+Thirty distinct synthetic SQLite cases passed across the initial and focused repair
+runs, including migrations, rollback, close/reopen replay and archive. The 028 history
+loader and actual restart acceptance remain separate.
 The 028 live CTP route binds each feed to its selected contract, the actual
 Trader trading day and the independently captured MD connection generation.
 `feeds/ctp_factor_source.py` maps untouched native ActionDay/TradingDay and

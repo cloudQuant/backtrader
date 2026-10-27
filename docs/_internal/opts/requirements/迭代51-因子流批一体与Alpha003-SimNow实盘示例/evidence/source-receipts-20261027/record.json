@@ -1,0 +1,299 @@
+{
+  "schema": "iteration51_source_receipts_dev_round.v1",
+  "repository": "D:\\source_code\\backtrader",
+  "branch": "dev",
+  "parent_commit": "791e817511a4a558fda447aba0f4ccad9b8a051a",
+  "scope": [
+    "backtrader/stores/execution_decision_journal.py",
+    "backtrader/stores/execution_durable_capacity.py",
+    "tests/unit/stores/test_execution_source_receipts.py",
+    "tests/unit/stores/test_execution_decision_journal.py",
+    "tests/unit/stores/test_execution_run_loss_guard.py",
+    "tests/unit/stores/test_execution_journal_archive.py"
+  ],
+  "accepted_level": "SOURCE_SYNTHETIC_SQLITE_SOURCE_RECEIPTS_ONLY",
+  "schema_version": 14,
+  "behavior": [
+    "Atomic decision/source anchor/HWM/capacity transaction.",
+    "Ineligible completed source batches are empty-intent anchors; execution cursor and intent budgets unchanged.",
+    "Exact replay never rewinds HWM; SOURCE_ONLY cannot become GRID.",
+    "Indexed per-scope head, bounded 512 members and 1 MiB receipt, and existing decision/durable quotas.",
+    "Versioned missing-table/corrupt-PK rejection; no source backfill during migration.",
+    "Gap proof validation belongs to core/caller; journal binds exact predecessor and local chain."
+  ],
+  "qa": [
+    {
+      "path": "D:\\temp\\i51-source-receipts-qa-20261027-r1\\result.json",
+      "pin": {
+        "size_bytes": 5688,
+        "sha256": "47e9046db32a426414b3c9e58abd687aecebb04554daf39f0dd9b44aa1751a3c"
+      },
+      "result": {
+        "level": "SOURCE_SYNTHETIC_SQLITE_SOURCE_RECEIPTS_ONLY",
+        "exit_code": 1,
+        "test_count": 30,
+        "failures": 2,
+        "errors": 0,
+        "skips": 0,
+        "elapsed_seconds": 5.108999999938533,
+        "source_pins_unchanged": true,
+        "source_pins_before": {
+          "D:\\source_code\\backtrader\\backtrader\\stores\\execution_decision_journal.py": {
+            "size_bytes": 378283,
+            "sha256": "d094f20d4c100faa7cd43e20cabde1cf3fc6206a602b1ad23e4e6c7b23e6cd68"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\stores\\execution_durable_capacity.py": {
+            "size_bytes": 19940,
+            "sha256": "fdf1b79becfc1cd86f953291f801c6145b26a66246348617383e149298072688"
+          },
+          "D:\\source_code\\backtrader\\tests\\unit\\stores\\test_execution_source_receipts.py": {
+            "size_bytes": 28247,
+            "sha256": "b7b24a6b180e8adc0467ee78f91c2cc84902112a9a2cf718454be98b555853c7"
+          },
+          "D:\\source_code\\backtrader\\tests\\unit\\stores\\test_execution_decision_journal.py": {
+            "size_bytes": 101254,
+            "sha256": "62cf220253f2b191b9c817f1bdefc53a2e3453e2a702c97a662b132416466175"
+          },
+          "D:\\source_code\\backtrader\\tests\\unit\\stores\\test_execution_run_loss_guard.py": {
+            "size_bytes": 37654,
+            "sha256": "aa1cf35b379ef8c878758ac6395ebe3dd21f4372848ebe7a6fb8a4406e91f49c"
+          },
+          "D:\\source_code\\backtrader\\tests\\unit\\stores\\test_execution_journal_archive.py": {
+            "size_bytes": 12610,
+            "sha256": "a3d2bed6ea075056fa9b5c3bf64352bf0563c74d47a5c52ee813f819e1bc4ea8"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\research\\live_cohort.py": {
+            "size_bytes": 145308,
+            "sha256": "914df8ecd7474a6efdd8e04ee079c08f7b388ba425fff91c62053d84bedba8a1"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\stores\\execution_journal_archive.py": {
+            "size_bytes": 18830,
+            "sha256": "a6d141b0ea18f8feeaaec18bc1db7b43aa15bfd6c26956c3e72589dd9f67bff1"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\stores\\factor_position_book.py": {
+            "size_bytes": 221352,
+            "sha256": "4348e64036dda5a06ba17d4022627f5994c5a8f04965da656aa74ff4d15602b1"
+          }
+        },
+        "source_pins_after": {
+          "D:\\source_code\\backtrader\\backtrader\\stores\\execution_decision_journal.py": {
+            "size_bytes": 378283,
+            "sha256": "d094f20d4c100faa7cd43e20cabde1cf3fc6206a602b1ad23e4e6c7b23e6cd68"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\stores\\execution_durable_capacity.py": {
+            "size_bytes": 19940,
+            "sha256": "fdf1b79becfc1cd86f953291f801c6145b26a66246348617383e149298072688"
+          },
+          "D:\\source_code\\backtrader\\tests\\unit\\stores\\test_execution_source_receipts.py": {
+            "size_bytes": 28247,
+            "sha256": "b7b24a6b180e8adc0467ee78f91c2cc84902112a9a2cf718454be98b555853c7"
+          },
+          "D:\\source_code\\backtrader\\tests\\unit\\stores\\test_execution_decision_journal.py": {
+            "size_bytes": 101254,
+            "sha256": "62cf220253f2b191b9c817f1bdefc53a2e3453e2a702c97a662b132416466175"
+          },
+          "D:\\source_code\\backtrader\\tests\\unit\\stores\\test_execution_run_loss_guard.py": {
+            "size_bytes": 37654,
+            "sha256": "aa1cf35b379ef8c878758ac6395ebe3dd21f4372848ebe7a6fb8a4406e91f49c"
+          },
+          "D:\\source_code\\backtrader\\tests\\unit\\stores\\test_execution_journal_archive.py": {
+            "size_bytes": 12610,
+            "sha256": "a3d2bed6ea075056fa9b5c3bf64352bf0563c74d47a5c52ee813f819e1bc4ea8"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\research\\live_cohort.py": {
+            "size_bytes": 145308,
+            "sha256": "914df8ecd7474a6efdd8e04ee079c08f7b388ba425fff91c62053d84bedba8a1"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\stores\\execution_journal_archive.py": {
+            "size_bytes": 18830,
+            "sha256": "a6d141b0ea18f8feeaaec18bc1db7b43aa15bfd6c26956c3e72589dd9f67bff1"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\stores\\factor_position_book.py": {
+            "size_bytes": 221352,
+            "sha256": "4348e64036dda5a06ba17d4022627f5994c5a8f04965da656aa74ff4d15602b1"
+          }
+        },
+        "nodes": [
+          "tests/unit/stores/test_execution_source_receipts.py",
+          "tests/unit/stores/test_execution_decision_journal.py::test_capacity_usage_migration_backfills_exact_bytes_once",
+          "tests/unit/stores/test_execution_decision_journal.py::test_capacity_usage_concurrent_v8_openers_backfill_once",
+          "tests/unit/stores/test_execution_decision_journal.py::test_schema_v1_migration_preserves_original_dispatch_outcome",
+          "tests/unit/stores/test_execution_decision_journal.py::test_schema_v2_migrates_grid_and_run_budget_tables",
+          "tests/unit/stores/test_execution_decision_journal.py::test_schema_v7_startup_backfills_native_ref_without_rewriting_dispatch",
+          "tests/unit/stores/test_execution_decision_journal.py::test_grid_highwater_migration_backfills_maximum_from_v9_cohort_cursors",
+          "tests/unit/stores/test_execution_run_loss_guard.py::test_schema_v12_upgrade_preserves_usage_and_loss_row_is_settlement",
+          "tests/unit/stores/test_execution_run_loss_guard.py::test_corrupt_v12_callback_delivery_schema_is_rejected",
+          "tests/unit/stores/test_execution_run_loss_guard.py::test_schema_v13_loss_guard_table_without_composite_primary_key_is_rejected",
+          "tests/unit/stores/test_execution_journal_archive.py::test_archive_snapshot_verifies_terminal_chain_and_preserves_unknown"
+        ],
+        "runner": {
+          "size_bytes": 5653,
+          "sha256": "8b4b328561e17fe5d97c6914a49719023720813ea4c85d7fbe5d3c10fe2237e4"
+        },
+        "boundary": "Real synthetic SQLite transactions, migrations, reopen and archive; no 028/provider/account restart acceptance; calendar gap authority stays in core/caller."
+      }
+    },
+    {
+      "path": "D:\\temp\\i51-source-receipts-qa-20261027-r2\\result.json",
+      "pin": {
+        "size_bytes": 4645,
+        "sha256": "1df62f63c78fc8d86dbdf5233479f2e0b4c8475de1a7eaddfa226bdceba88577"
+      },
+      "result": {
+        "level": "SOURCE_SYNTHETIC_SQLITE_SOURCE_RECEIPTS_ONLY",
+        "exit_code": 0,
+        "test_count": 2,
+        "failures": 0,
+        "errors": 0,
+        "skips": 0,
+        "elapsed_seconds": 2.10999999998603,
+        "source_pins_unchanged": true,
+        "source_pins_before": {
+          "D:\\source_code\\backtrader\\backtrader\\stores\\execution_decision_journal.py": {
+            "size_bytes": 378324,
+            "sha256": "4bb854e89a95e0ebe1a4eb5c6d5bd92bf26e780a3f6b3569495f98d70ee2359f"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\stores\\execution_durable_capacity.py": {
+            "size_bytes": 19940,
+            "sha256": "fdf1b79becfc1cd86f953291f801c6145b26a66246348617383e149298072688"
+          },
+          "D:\\source_code\\backtrader\\tests\\unit\\stores\\test_execution_source_receipts.py": {
+            "size_bytes": 29418,
+            "sha256": "0e9038bb3f0acc29394f4b792c02324777545df53372e38af51e2f0d63dc03b9"
+          },
+          "D:\\source_code\\backtrader\\tests\\unit\\stores\\test_execution_decision_journal.py": {
+            "size_bytes": 101254,
+            "sha256": "62cf220253f2b191b9c817f1bdefc53a2e3453e2a702c97a662b132416466175"
+          },
+          "D:\\source_code\\backtrader\\tests\\unit\\stores\\test_execution_run_loss_guard.py": {
+            "size_bytes": 37654,
+            "sha256": "aa1cf35b379ef8c878758ac6395ebe3dd21f4372848ebe7a6fb8a4406e91f49c"
+          },
+          "D:\\source_code\\backtrader\\tests\\unit\\stores\\test_execution_journal_archive.py": {
+            "size_bytes": 12610,
+            "sha256": "a3d2bed6ea075056fa9b5c3bf64352bf0563c74d47a5c52ee813f819e1bc4ea8"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\research\\live_cohort.py": {
+            "size_bytes": 145308,
+            "sha256": "914df8ecd7474a6efdd8e04ee079c08f7b388ba425fff91c62053d84bedba8a1"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\stores\\execution_journal_archive.py": {
+            "size_bytes": 18830,
+            "sha256": "a6d141b0ea18f8feeaaec18bc1db7b43aa15bfd6c26956c3e72589dd9f67bff1"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\stores\\factor_position_book.py": {
+            "size_bytes": 221352,
+            "sha256": "4348e64036dda5a06ba17d4022627f5994c5a8f04965da656aa74ff4d15602b1"
+          }
+        },
+        "source_pins_after": {
+          "D:\\source_code\\backtrader\\backtrader\\stores\\execution_decision_journal.py": {
+            "size_bytes": 378324,
+            "sha256": "4bb854e89a95e0ebe1a4eb5c6d5bd92bf26e780a3f6b3569495f98d70ee2359f"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\stores\\execution_durable_capacity.py": {
+            "size_bytes": 19940,
+            "sha256": "fdf1b79becfc1cd86f953291f801c6145b26a66246348617383e149298072688"
+          },
+          "D:\\source_code\\backtrader\\tests\\unit\\stores\\test_execution_source_receipts.py": {
+            "size_bytes": 29418,
+            "sha256": "0e9038bb3f0acc29394f4b792c02324777545df53372e38af51e2f0d63dc03b9"
+          },
+          "D:\\source_code\\backtrader\\tests\\unit\\stores\\test_execution_decision_journal.py": {
+            "size_bytes": 101254,
+            "sha256": "62cf220253f2b191b9c817f1bdefc53a2e3453e2a702c97a662b132416466175"
+          },
+          "D:\\source_code\\backtrader\\tests\\unit\\stores\\test_execution_run_loss_guard.py": {
+            "size_bytes": 37654,
+            "sha256": "aa1cf35b379ef8c878758ac6395ebe3dd21f4372848ebe7a6fb8a4406e91f49c"
+          },
+          "D:\\source_code\\backtrader\\tests\\unit\\stores\\test_execution_journal_archive.py": {
+            "size_bytes": 12610,
+            "sha256": "a3d2bed6ea075056fa9b5c3bf64352bf0563c74d47a5c52ee813f819e1bc4ea8"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\research\\live_cohort.py": {
+            "size_bytes": 145308,
+            "sha256": "914df8ecd7474a6efdd8e04ee079c08f7b388ba425fff91c62053d84bedba8a1"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\stores\\execution_journal_archive.py": {
+            "size_bytes": 18830,
+            "sha256": "a6d141b0ea18f8feeaaec18bc1db7b43aa15bfd6c26956c3e72589dd9f67bff1"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\stores\\factor_position_book.py": {
+            "size_bytes": 221352,
+            "sha256": "4348e64036dda5a06ba17d4022627f5994c5a8f04965da656aa74ff4d15602b1"
+          }
+        },
+        "nodes": [
+          "tests/unit/stores/test_execution_source_receipts.py::test_source_receipts_survive_reopen_and_exact_replay_without_advancing_grid",
+          "tests/unit/stores/test_execution_source_receipts.py::test_grid_source_anchor_is_atomic_and_source_only_cannot_upgrade"
+        ],
+        "runner": {
+          "size_bytes": 5914,
+          "sha256": "b06849cebce8f4055045152923412b0b9a5f0b2b8b0eedf03ea9ff57517fe6ed"
+        },
+        "boundary": "Real synthetic SQLite transactions, migrations, reopen and archive; no 028/provider/account restart acceptance; calendar gap authority stays in core/caller."
+      }
+    }
+  ],
+  "accepted_distinct_cases": 30,
+  "qa_note": "R1 passed 28. A real immutable tuple/list replay decoder bug and one upgrade-fixture error were corrected; R2 passed the two affected cases including SOURCE_ONLY/GRID close-reopen replay. Not a final 30-case rerun.",
+  "warnings": [
+    "Each run reports one inherited unknown asyncio_default_fixture_loop_scope pytest-config warning."
+  ],
+  "independent_static_review": "performance_policy_update GO after final tuple/list decoder and faithful upgrade-fixture delta.",
+  "source_pins": {
+    "backtrader/stores/execution_decision_journal.py": {
+      "size_bytes": 378324,
+      "sha256": "4bb854e89a95e0ebe1a4eb5c6d5bd92bf26e780a3f6b3569495f98d70ee2359f"
+    },
+    "backtrader/stores/execution_durable_capacity.py": {
+      "size_bytes": 19940,
+      "sha256": "fdf1b79becfc1cd86f953291f801c6145b26a66246348617383e149298072688"
+    },
+    "tests/unit/stores/test_execution_source_receipts.py": {
+      "size_bytes": 29418,
+      "sha256": "0e9038bb3f0acc29394f4b792c02324777545df53372e38af51e2f0d63dc03b9"
+    },
+    "tests/unit/stores/test_execution_decision_journal.py": {
+      "size_bytes": 101254,
+      "sha256": "62cf220253f2b191b9c817f1bdefc53a2e3453e2a702c97a662b132416466175"
+    },
+    "tests/unit/stores/test_execution_run_loss_guard.py": {
+      "size_bytes": 37654,
+      "sha256": "aa1cf35b379ef8c878758ac6395ebe3dd21f4372848ebe7a6fb8a4406e91f49c"
+    },
+    "tests/unit/stores/test_execution_journal_archive.py": {
+      "size_bytes": 12610,
+      "sha256": "a3d2bed6ea075056fa9b5c3bf64352bf0563c74d47a5c52ee813f819e1bc4ea8"
+    }
+  },
+  "expected_git_lf_pins": {
+    "backtrader/stores/execution_decision_journal.py": {
+      "size_bytes": 378324,
+      "sha256": "4bb854e89a95e0ebe1a4eb5c6d5bd92bf26e780a3f6b3569495f98d70ee2359f"
+    },
+    "backtrader/stores/execution_durable_capacity.py": {
+      "size_bytes": 19940,
+      "sha256": "fdf1b79becfc1cd86f953291f801c6145b26a66246348617383e149298072688"
+    },
+    "tests/unit/stores/test_execution_source_receipts.py": {
+      "size_bytes": 29418,
+      "sha256": "0e9038bb3f0acc29394f4b792c02324777545df53372e38af51e2f0d63dc03b9"
+    },
+    "tests/unit/stores/test_execution_decision_journal.py": {
+      "size_bytes": 101254,
+      "sha256": "62cf220253f2b191b9c817f1bdefc53a2e3453e2a702c97a662b132416466175"
+    },
+    "tests/unit/stores/test_execution_run_loss_guard.py": {
+      "size_bytes": 37654,
+      "sha256": "aa1cf35b379ef8c878758ac6395ebe3dd21f4372848ebe7a6fb8a4406e91f49c"
+    },
+    "tests/unit/stores/test_execution_journal_archive.py": {
+      "size_bytes": 12610,
+      "sha256": "a3d2bed6ea075056fa9b5c3bf64352bf0563c74d47a5c52ee813f819e1bc4ea8"
+    }
+  },
+  "boundary": "Actual synthetic SQLite operations and accepted core calendar fixtures, no 028 history-loader/provider/account restart acceptance. Legacy unanchored tape rows remain untrusted.",
+  "formal_case_increment": 0
+}

@@ -29,6 +29,7 @@ def _drop_v12_durable_capacity_tables(connection: sqlite3.Connection) -> None:
     connection.execute("DROP TABLE IF EXISTS execution_durable_capacity_usage")
     connection.execute("DROP TABLE IF EXISTS execution_durable_capacity_limits")
     connection.execute("DROP TABLE IF EXISTS execution_run_loss_guards")
+    connection.execute("DROP TABLE IF EXISTS execution_source_highwaters")
 
 
 def _decision_key(
@@ -394,7 +395,7 @@ def test_capacity_usage_migration_backfills_exact_bytes_once(tmp_path):
         connection.execute("PRAGMA user_version = 8")
 
     migrated = ExecutionDecisionJournal(path)
-    assert migrated._connection.execute("PRAGMA user_version").fetchone()[0] == 13
+    assert migrated._connection.execute("PRAGMA user_version").fetchone()[0] == 14
     usage = migrated._connection.execute(
         """SELECT capacity_class,record_count,payload_bytes
            FROM execution_decision_capacity_usage ORDER BY capacity_class"""
@@ -499,7 +500,7 @@ def test_capacity_usage_concurrent_v8_openers_backfill_once(tmp_path, monkeypatc
 
     assert len(backfill_calls) == 1
     with sqlite3.connect(path) as connection:
-        assert connection.execute("PRAGMA user_version").fetchone()[0] == 13
+        assert connection.execute("PRAGMA user_version").fetchone()[0] == 14
         usage = connection.execute(
             """SELECT capacity_class,record_count
                FROM execution_decision_capacity_usage ORDER BY capacity_class"""
@@ -650,7 +651,7 @@ def test_schema_v1_migration_preserves_original_dispatch_outcome(tmp_path):
     assert intent.state == "UNKNOWN"
     assert intent.dispatch_state == "UNKNOWN"
     assert intent.outcome_code == "connection_lost"
-    assert journal._connection.execute("PRAGMA user_version").fetchone()[0] == 13
+    assert journal._connection.execute("PRAGMA user_version").fetchone()[0] == 14
     journal.close()
 
 
@@ -677,7 +678,7 @@ def test_schema_v2_migrates_grid_and_run_budget_tables(tmp_path):
         connection.execute("PRAGMA user_version = 2")
 
     journal = ExecutionDecisionJournal(path)
-    assert journal._connection.execute("PRAGMA user_version").fetchone()[0] == 13
+    assert journal._connection.execute("PRAGMA user_version").fetchone()[0] == 14
     names = {
         row["name"]
         for row in journal._connection.execute(
@@ -737,7 +738,7 @@ def test_schema_v7_startup_backfills_native_ref_without_rewriting_dispatch(tmp_p
     )
     assert indexed == unknown
     assert recovered.intent(intent.intent_id) == unknown
-    assert recovered._connection.execute("PRAGMA user_version").fetchone()[0] == 13
+    assert recovered._connection.execute("PRAGMA user_version").fetchone()[0] == 14
     recovered.close()
 
     with sqlite3.connect(path) as connection:
@@ -1904,7 +1905,7 @@ def test_grid_highwater_migration_backfills_maximum_from_v9_cohort_cursors(tmp_p
         connection.execute("PRAGMA user_version = 9")
 
     migrated = ExecutionDecisionJournal(path)
-    assert migrated._connection.execute("PRAGMA user_version").fetchone()[0] == 13
+    assert migrated._connection.execute("PRAGMA user_version").fetchone()[0] == 14
     highwater = migrated._connection.execute(
         """SELECT close_time,cohort_id,decision_id FROM execution_grid_highwaters
            WHERE account_scope='account-a' AND strategy_scope='strategy-a'"""
