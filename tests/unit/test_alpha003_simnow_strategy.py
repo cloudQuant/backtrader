@@ -7,7 +7,7 @@ import sys
 from copy import copy
 from dataclasses import replace
 from datetime import datetime, timedelta, timezone
-from decimal import Decimal
+from decimal import Decimal, ROUND_HALF_EVEN, localcontext
 from pathlib import Path
 from threading import Event
 from types import MethodType
@@ -403,6 +403,69 @@ def _source_backed_dated_close_facts(position_date, *, partial_close=False):
         spec.loader.exec_module(module)
     return module._build_source_backed_dated_close_facts(
         position_date=position_date, partial_close=partial_close
+    )
+
+
+def _load_store_facts_test_module():
+    module_name = "_alpha003_multi_target_fee_facts_fixture"
+    module = sys.modules.get(module_name)
+    if module is None:
+        path = _ROOT / "tests" / "unit" / "stores" / "test_factor_execution_facts.py"
+        spec = importlib.util.spec_from_file_location(module_name, path)
+        if spec is None or spec.loader is None:
+            raise RuntimeError("multi-target fee facts fixture is unavailable")
+        module = importlib.util.module_from_spec(spec)
+        sys.modules[module_name] = module
+        spec.loader.exec_module(module)
+    return module
+
+
+def _source_backed_multi_target_fee_case(commission_rows):
+    """Load the real Store/Broker projection fixture without copying its logic."""
+
+    return _load_store_facts_test_module()._multi_target_commission_projection_case(
+        commission_rows
+    )
+
+
+def _source_fee_commission_row(*, instrument, exchange, open_money="0"):
+    return _load_store_facts_test_module()._commission_row(
+        instrument=instrument,
+        exchange=exchange,
+        open_money=open_money,
+    )
+
+
+def _three_target_pair_decision(*, observed_at=None):
+    observed_at = observed_at or datetime.now(UTC)
+    return _STRATEGY.select_alpha003_targets(
+        _policy(
+            (_point("A", 3.0), _point("B", -3.0), _point("C", 1.0)),
+            required=("A", "B", "C"),
+            authorized=frozenset(("A", "B", "C")),
+            cohort_available=observed_at,
+            factor_available=observed_at,
+        )
+    )
+
+
+def _map_live_three_target_fee_facts(facts, decision):
+    now = datetime.now(UTC)
+    return _STRATEGY._live_planning_input(
+        facts,
+        strategy_scope=facts.strategy_scope,
+        evaluated_at=now,
+        risk_evidence_available_at=facts.available_at,
+        session_close_at=now + timedelta(hours=1),
+        run_end=False,
+        risk_policy=_risk_policy(
+            round_trip_fee_upper_bound_per_contract=Decimal("1"),
+            max_loss_per_position=Decimal("25"),
+            max_total_loss=Decimal("50"),
+        ),
+        target_decision=decision,
+        eligible_grid_ordinal=decision.eligible_grid_index,
+        run_order_intents_used=0,
     )
 
 
@@ -1383,6 +1446,7 @@ def test_non_due_grid_clears_older_actionable_target():
             factor_mode="native",
             direction=1,
             rebalance_every=5,
+            control_refresh_loop=None,
         ),
         _eligible_grid_count=4,
         _coordinator=None,
@@ -3507,6 +3571,486 @@ def test_missing_round_trip_fee_bound_blocks_new_open_but_keeps_risk_reductions(
     assert len(closing_plan.actions) == 1
     assert closing_plan.actions[0].position_effect == "CLOSE"
     assert closing_plan.actions[0].reason == "MAX_HOLD"
+
+
+def _three_target_fee_planning_input(*, fee_status_by_target, policy_fee=None):
+    base = _risk_facts()
+    evaluated_at = base.evaluated_at
+    c_position = _STRATEGY.Alpha003PositionFact(
+        target_id="C",
+        instrument="DCE.j",
+        exchange="DCE",
+        quantity=0,
+        snapshot_id="positions-1",
+        available_at=evaluated_at,
+    )
+    c_instrument = _STRATEGY.Alpha003InstrumentRiskFact(
+        target_id="C",
+        instrument="DCE.j",
+        exchange="DCE",
+        snapshot_id="metadata-DCE.j",
+        available_at=evaluated_at,
+        trading_permitted=True,
+        multiplier=Decimal("10"),
+        long_margin_per_hand=Decimal("100"),
+        short_margin_per_hand=Decimal("100"),
+        route_permitted=True,
+    )
+    instruments = tuple(
+        replace(
+            item,
+            round_trip_fee_upper_bound_per_contract=Decimal("0.04")
+            if fee_status_by_target.get(item.target_id) == "AVAILABLE"
+            else None,
+            commission_fee_required=True,
+            commission_fee_status=fee_status_by_target.get(item.target_id, "RATE_UNAVAILABLE"),
+        )
+        for item in base.instruments
+    ) + (replace(
+        c_instrument,
+        round_trip_fee_upper_bound_per_contract=Decimal("0.04")
+        if fee_status_by_target.get("C") == "AVAILABLE"
+        else None,
+        commission_fee_required=True,
+        commission_fee_status=fee_status_by_target.get("C", "RATE_UNAVAILABLE"),
+    ),)
+    decision = _STRATEGY.select_alpha003_targets(
+        _policy(
+            (_point("A", 3.0), _point("B", -3.0), _point("C", 1.0)),
+            required=("A", "B", "C"),
+            authorized=frozenset(("A", "B", "C")),
+        )
+    )
+    assert tuple(target.target_id for target in decision.targets) == ("A", "B")
+    return replace(
+        base,
+        risk_policy=_risk_policy(round_trip_fee_upper_bound_per_contract=policy_fee),
+        positions=base.positions + (c_position,),
+        quotes=base.quotes + (_quote("DCE.j"),),
+        instruments=instruments,
+        target_decision=decision,
+    )
+
+
+def test_unselected_third_target_fee_failure_does_not_block_selected_pair():
+    inputs = _three_target_fee_planning_input(
+        fee_status_by_target={
+            "A": "AVAILABLE",
+            "B": "AVAILABLE",
+            "C": "RATE_UNAVAILABLE",
+        }
+    )
+
+    plan = _STRATEGY.plan_alpha003_orders(inputs)
+
+    assert plan.status == "READY"
+    assert tuple(action.target_id for action in plan.actions) == ("A", "B")
+    assert tuple(action.position_effect for action in plan.actions) == ("OPEN", "OPEN")
+
+
+def test_missing_fee_for_selected_pair_blocks_both_legs_even_with_static_policy():
+    inputs = _three_target_fee_planning_input(
+        fee_status_by_target={
+            "A": "AVAILABLE",
+            "B": "RATE_INVALID",
+            "C": "RATE_UNAVAILABLE",
+        },
+        policy_fee=Decimal("1"),
+    )
+
+    plan = _STRATEGY.plan_alpha003_orders(inputs)
+
+    assert plan.status == "BLOCKED"
+    assert plan.reason == "ROUND_TRIP_FEE_BUDGET_UNAVAILABLE"
+    assert plan.actions == ()
+
+
+def test_live_projection_keeps_unselected_third_target_fee_failure_out_of_pair_plan():
+    facts_case = _source_backed_multi_target_fee_case(
+        (
+            _source_fee_commission_row(instrument="rb2510", exchange="SHFE"),
+            _source_fee_commission_row(instrument="i2510", exchange="DCE"),
+        )
+    )
+    facts = facts_case.facts
+    decision = _three_target_pair_decision(observed_at=facts.quotes[0].event_time)
+    planning = _map_live_three_target_fee_facts(facts, decision)
+
+    plan = _STRATEGY.plan_alpha003_orders(planning)
+
+    assert facts.open_risk_ready is True, facts.open_risk_blockers
+    assert "commission_fee_rate_unavailable:C" in facts.blockers
+    assert "commission_fee_rate_unavailable:C" not in facts.open_risk_blockers
+    assert "commission_fee_rate_unavailable:C" not in planning.execution_blockers
+    assert {item.target_id: item.commission_fee_status for item in planning.instruments} == {
+        "A": "AVAILABLE",
+        "B": "AVAILABLE",
+        "C": "RATE_UNAVAILABLE",
+    }
+    assert plan.status == "READY", plan
+    assert tuple(action.target_id for action in plan.actions) == ("A", "B")
+    assert tuple(action.position_effect for action in plan.actions) == ("OPEN", "OPEN")
+
+
+def test_live_projection_blocks_selected_pair_when_money_fee_has_no_price_bound():
+    facts_case = _source_backed_multi_target_fee_case(
+        (
+            _source_fee_commission_row(instrument="rb2510", exchange="SHFE"),
+            _source_fee_commission_row(instrument="i2510", exchange="DCE", open_money="0.1"),
+        )
+    )
+    facts = facts_case.facts
+    decision = _three_target_pair_decision(observed_at=facts.quotes[0].event_time)
+    planning = _map_live_three_target_fee_facts(facts, decision)
+
+    plan = _STRATEGY.plan_alpha003_orders(planning)
+
+    assert "commission_fee_full_period_price_bound_unavailable:B" in facts.blockers
+    assert "commission_fee_full_period_price_bound_unavailable:B" not in facts.open_risk_blockers
+    assert planning.risk_policy.round_trip_fee_upper_bound_per_contract == Decimal("1")
+    assert {item.target_id: item.commission_fee_status for item in planning.instruments} == {
+        "A": "AVAILABLE",
+        "B": "RATE_INVALID",
+        "C": "RATE_UNAVAILABLE",
+    }
+    assert plan.status == "BLOCKED"
+    assert plan.reason == "ROUND_TRIP_FEE_BUDGET_UNAVAILABLE"
+    assert plan.actions == ()
+
+
+def _live_fee_plan_with_unqualified_held_b():
+    base = _risk_facts()
+    positions = (
+        base.positions[0],
+        replace(
+            base.positions[1],
+            quantity=-1,
+            owner_strategy_scope=base.strategy_scope,
+            owner_intent_id="intent-held-B",
+            average_price=Decimal("100"),
+            held_eligible_bars=1,
+        ),
+    )
+    instruments = (
+        replace(
+            base.instruments[0],
+            round_trip_fee_upper_bound_per_contract=Decimal("0.04"),
+            commission_fee_required=True,
+            commission_fee_status="AVAILABLE",
+        ),
+        replace(
+            base.instruments[1],
+            round_trip_fee_upper_bound_per_contract=None,
+            commission_fee_required=False,
+            commission_fee_status="NOT_REQUIRED",
+        ),
+    )
+    return replace(
+        base,
+        risk_policy=_risk_policy(round_trip_fee_upper_bound_per_contract=Decimal("1")),
+        positions=positions,
+        instruments=instruments,
+        # B remains in the execution route set for reductions, but was not
+        # included in the authorized commission sidecar target set.
+        execution_target_ids=("A", "B"),
+    )
+
+
+def test_live_open_requires_fee_budget_for_held_target_outside_sidecar_scope():
+    inputs = _live_fee_plan_with_unqualified_held_b()
+
+    plan = _STRATEGY.plan_alpha003_orders(inputs)
+
+    assert inputs.risk_policy.round_trip_fee_upper_bound_per_contract == Decimal("1")
+    assert inputs.instruments[0].commission_fee_status == "AVAILABLE"
+    assert inputs.instruments[1].commission_fee_required is False
+    assert inputs.instruments[1].commission_fee_status == "NOT_REQUIRED"
+    assert plan.status == "BLOCKED"
+    assert plan.reason == "ROUND_TRIP_FEE_BUDGET_UNAVAILABLE"
+    assert plan.actions == ()
+
+
+def test_live_static_fee_cannot_open_against_held_target_outside_execution_grant():
+    inputs = replace(_live_fee_plan_with_unqualified_held_b(), execution_target_ids=("A",))
+
+    plan = _STRATEGY.plan_alpha003_orders(inputs)
+
+    assert inputs.risk_policy.round_trip_fee_upper_bound_per_contract == Decimal("1")
+    assert plan.status == "BLOCKED"
+    assert plan.reason == "UNAUTHORIZED_POSITION_SCOPE"
+    assert plan.actions == ()
+
+
+def test_unqualified_held_fee_does_not_block_run_end_close_or_cancel():
+    inputs = _live_fee_plan_with_unqualified_held_b()
+    close_plan = _STRATEGY.plan_alpha003_orders(
+        replace(inputs, run_end=True, target_decision=None)
+    )
+    assert close_plan.status == "READY"
+    assert len(close_plan.actions) == 1
+    assert close_plan.actions[0].position_effect == "CLOSE"
+    assert close_plan.actions[0].target_id == "B"
+
+    pending_open = _STRATEGY.Alpha003WorkingOrderFact(
+        target_id="A",
+        instrument="SHFE.rb",
+        exchange="SHFE",
+        order_ref="ctp-order-ref-held-fee-cancel",
+        broker_order_ref=20,
+        state="ACCEPTED",
+        side="BUY",
+        position_effect="OPEN",
+        remaining_quantity=1,
+        owner_strategy_scope=inputs.strategy_scope,
+        owner_intent_id="intent-open-A",
+    )
+    cancel_plan = _STRATEGY.plan_alpha003_orders(
+        replace(
+            inputs,
+            run_end=True,
+            working_orders=(pending_open,),
+            order_cancel_ready=True,
+            order_cancel_blockers=(),
+        )
+    )
+    assert cancel_plan.status == "READY"
+    assert len(cancel_plan.actions) == 1
+    assert cancel_plan.actions[0].action == "CANCEL"
+    assert cancel_plan.actions[0].target_id == "A"
+
+
+def test_live_fee_loss_just_above_position_cap_cannot_round_down_to_cap():
+    base = _risk_facts()
+    decision = replace(
+        base.target_decision,
+        authorized_targets=("A",),
+        eligible_targets=("A",),
+        targets=(base.target_decision.targets[0],),
+    )
+    instruments = (
+        replace(
+            base.instruments[0],
+            round_trip_fee_upper_bound_per_contract=Decimal("4e-27"),
+            commission_fee_required=True,
+            commission_fee_status="AVAILABLE",
+        ),
+        base.instruments[1],
+    )
+    inputs = replace(
+        base,
+        risk_policy=_risk_policy(
+            max_loss_per_position=Decimal("10"),
+            max_total_loss=Decimal("40"),
+            round_trip_fee_upper_bound_per_contract=Decimal("1"),
+        ),
+        instruments=instruments,
+        target_decision=decision,
+    )
+
+    plan = _STRATEGY.plan_alpha003_orders(inputs)
+
+    assert plan.status == "BLOCKED"
+    assert plan.reason == "POSITION_RISK_LIMIT"
+    assert plan.actions == ()
+
+
+def test_tick_stop_multiplier_loss_just_above_cap_cannot_round_down():
+    base = _risk_facts()
+    exact_multiplier = Decimal("10.000000000000000000000000001")
+    rounded_down_cap = Decimal("10.00000000000000000000000000")
+    instruments = (
+        replace(base.instruments[0], multiplier=exact_multiplier),
+        base.instruments[1],
+    )
+    inputs = replace(
+        base,
+        risk_policy=_risk_policy(
+            max_loss_per_position=rounded_down_cap,
+            max_total_loss=Decimal("40"),
+            round_trip_fee_upper_bound_per_contract=Decimal("0"),
+        ),
+        instruments=instruments,
+    )
+
+    plan = _STRATEGY.plan_alpha003_orders(inputs)
+
+    assert plan.status == "BLOCKED"
+    assert plan.reason == "POSITION_RISK_LIMIT"
+    assert plan.actions == ()
+
+
+def test_held_notional_and_loss_caps_match_legacy_downround_but_reject_open():
+    with localcontext() as context:
+        context.prec = 2
+        context.Emax = 3
+        context.Emin = -3
+        context.rounding = ROUND_HALF_EVEN
+        old_cap = abs(Decimal("3")) * Decimal("3.333") * Decimal("11.111")
+        assert old_cap == Decimal("1.1E2")
+        sourced_upper_bound = _STRATEGY._risk_ceiling_product(
+            Decimal("3"), Decimal("3.333"), Decimal("11.111")
+        )
+        assert sourced_upper_bound is not None and sourced_upper_bound > old_cap
+
+        base = _risk_facts()
+        inputs = replace(
+            base,
+            risk_policy=_risk_policy(
+                max_total_notional=old_cap,
+                max_total_loss=old_cap,
+            ),
+            account=replace(
+                base.account,
+                current_notional=sourced_upper_bound,
+                current_worst_case_loss=sourced_upper_bound,
+            ),
+        )
+        plan = _STRATEGY.plan_alpha003_orders(inputs)
+
+    assert plan.status == "BLOCKED"
+    assert plan.reason == "ACCOUNT_RISK_LIMIT"
+    assert plan.actions == ()
+
+
+def test_margin_cap_equal_to_low_precision_legacy_value_rejects_open():
+    with localcontext() as context:
+        context.prec = 2
+        context.Emax = 3
+        context.Emin = -3
+        context.rounding = ROUND_HALF_EVEN
+        old_margin_cap = Decimal("101") * Decimal("10") * Decimal(str(0.1)) + Decimal(
+            str(0.2)
+        )
+        assert old_margin_cap == Decimal("1.0E2")
+        with localcontext() as exact_context:
+            exact_context.prec = 2048
+            exact_margin = (
+                Decimal("101") * Decimal("10") * Decimal.from_float(0.1)
+                + Decimal.from_float(0.2)
+            )
+        assert exact_margin > old_margin_cap
+
+        base = _risk_facts()
+        instruments = (
+            replace(base.instruments[0], long_margin_per_hand=exact_margin),
+            base.instruments[1],
+        )
+        inputs = replace(
+            base,
+            risk_policy=_risk_policy(max_margin_per_position=old_margin_cap),
+            instruments=instruments,
+        )
+        plan = _STRATEGY.plan_alpha003_orders(inputs)
+
+    assert plan.status == "BLOCKED"
+    assert plan.reason == "POSITION_RISK_LIMIT"
+    assert plan.actions == ()
+
+
+def test_stop_tick_products_and_alignment_ignore_low_global_decimal_precision():
+    base = _risk_facts(
+        quotes=(_quote("SHFE.rb", tick="0.125"), _quote("DCE.i", tick="0.125"))
+    )
+    inputs = replace(base, risk_policy=_risk_policy(stop_loss_ticks=3))
+
+    with localcontext() as context:
+        context.prec = 2
+        context.Emax = 3
+        context.Emin = -3
+        context.rounding = ROUND_HALF_EVEN
+        plan = _STRATEGY.plan_alpha003_orders(inputs)
+
+    assert plan.status == "READY"
+    assert tuple(action.planned_stop_price for action in plan.actions) == (
+        Decimal("99.625"),
+        Decimal("99.875"),
+    )
+
+
+def test_held_fee_reserve_and_total_risk_cannot_round_down_to_cap():
+    base = _risk_facts()
+    fee = Decimal("10.000000000000000000000000001")
+    rounded_down_total_cap = Decimal("30.00000000000000000000000000")
+    positions = (
+        base.positions[0],
+        replace(
+            base.positions[1],
+            quantity=-1,
+            owner_strategy_scope=base.strategy_scope,
+            owner_intent_id="intent-held-fee-rounding",
+            average_price=Decimal("100"),
+            held_eligible_bars=1,
+        ),
+    )
+    inputs = replace(
+        base,
+        risk_policy=_risk_policy(
+            max_loss_per_position=Decimal("30"),
+            max_total_loss=rounded_down_total_cap,
+            round_trip_fee_upper_bound_per_contract=fee,
+        ),
+        positions=positions,
+    )
+
+    plan = _STRATEGY.plan_alpha003_orders(inputs)
+
+    assert plan.status == "BLOCKED"
+    assert plan.reason == "ACCOUNT_RISK_LIMIT"
+    assert plan.actions == ()
+
+
+@pytest.mark.parametrize(
+    "field,value",
+    (("multiplier", Decimal("1e129")), ("multiplier", Decimal("1" + "0" * 128))),
+)
+def test_risk_arithmetic_rejects_decimal_values_outside_bounded_domain(field, value):
+    base = _risk_facts()
+    inputs = replace(
+        base,
+        instruments=(replace(base.instruments[0], **{field: value}), base.instruments[1]),
+    )
+
+    plan = _STRATEGY.plan_alpha003_orders(inputs)
+
+    assert plan.status == "BLOCKED"
+    assert plan.reason == "RISK_ARITHMETIC_VALUE_OUT_OF_RANGE"
+    assert plan.actions == ()
+
+
+def test_missing_dynamic_fee_does_not_block_safe_run_end_cancel():
+    order = _STRATEGY.Alpha003WorkingOrderFact(
+        target_id="A",
+        instrument="SHFE.rb",
+        exchange="SHFE",
+        order_ref="ctp-order-ref-fee-missing",
+        broker_order_ref=19,
+        state="ACCEPTED",
+        side="BUY",
+        position_effect="OPEN",
+        remaining_quantity=1,
+        owner_strategy_scope="alpha003-simnow-example",
+        owner_intent_id="intent-open-fee-missing",
+    )
+    base = _risk_facts(orders=(order,))
+    inputs = replace(
+        base,
+        target_decision=None,
+        run_end=True,
+        risk_policy=_risk_policy(round_trip_fee_upper_bound_per_contract=None),
+        instruments=tuple(
+            replace(item, round_trip_fee_upper_bound_per_contract=None)
+            for item in base.instruments
+        ),
+        order_cancel_ready=True,
+        order_cancel_blockers=(),
+    )
+
+    plan = _STRATEGY.plan_alpha003_orders(inputs)
+
+    assert plan.status == "READY"
+    assert len(plan.actions) == 1
+    assert plan.actions[0].action == "CANCEL"
+    assert plan.actions[0].owner_intent_id == "intent-open-fee-missing"
 
 
 def test_round_trip_fee_upper_bound_is_included_in_opening_loss_budget():

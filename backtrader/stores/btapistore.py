@@ -1093,6 +1093,26 @@ def _split_ctp_symbol(symbol: Any) -> tuple[str, str]:
     return _normalize_ctp_instrument(text, ""), ""
 
 
+def _ctp_order_route_invest_unit_id(instrument_id: Any, exchange_id: Any) -> Optional[str]:
+    """Return the unit explicitly written by this CTP order route.
+
+    The current Backtrader direct-order adapter writes the CTP default unit
+    (empty string) into every InputOrder/InputOrderAction field. Keeping the
+    value behind this shared source helper lets read-side fee projection bind
+    to the same route contract used to construct the native request.
+    """
+
+    if (
+        type(instrument_id) is not str
+        or not instrument_id
+        or instrument_id != instrument_id.strip()
+        or type(exchange_id) is not str
+        or exchange_id != exchange_id.strip()
+    ):
+        return None
+    return ""
+
+
 def _contract_metadata_aliases(symbol: Any) -> List[str]:
     """Return symbol aliases used when matching configured contract metadata."""
     raw = _coerce_text(symbol)
@@ -2917,7 +2937,9 @@ def _create_ctp_wrapper_class():
                 timeout=timeout,
             )
 
-        def query_instrument_commission_rate_result(self, instrument_id, exchange_id="", timeout=5):
+        def query_instrument_commission_rate_result(
+            self, instrument_id, exchange_id="", timeout=5, *, deadline_monotonic=None
+        ):
             """Fetch the typed instrument commission-rate query result.
 
             Args:
@@ -2934,6 +2956,11 @@ def _create_ctp_wrapper_class():
                 instrument_id=instrument_id,
                 exchange_id=exchange_id,
                 timeout=timeout,
+                **(
+                    {"deadline_monotonic": deadline_monotonic}
+                    if deadline_monotonic is not None
+                    else {}
+                ),
             )
 
         def subscribe(self, symbols):
@@ -3384,6 +3411,9 @@ def _create_ctp_wrapper_class():
             field.InvestorID = self.user_id
             field.UserID = self.user_id
             field.InstrumentID = instrument
+            field.InvestUnitID = _ctp_order_route_invest_unit_id(instrument, exchange_id)
+            if field.InvestUnitID is None:
+                raise BtApiStoreError("CTP order route identity is unavailable")
             field.Direction = direction
             field.CombOffsetFlag = offset_flag
             field.CombHedgeFlag = "1"
@@ -3456,6 +3486,9 @@ def _create_ctp_wrapper_class():
             field.InvestorID = self.user_id
             field.UserID = self.user_id
             field.InstrumentID = instrument
+            field.InvestUnitID = _ctp_order_route_invest_unit_id(instrument, exchange_id)
+            if field.InvestUnitID is None:
+                raise BtApiStoreError("CTP order route identity is unavailable")
             field.ActionFlag = "0"
             if exchange_id:
                 field.ExchangeID = exchange_id
@@ -10341,8 +10374,13 @@ class BtApiStore(LiveStoreBase):
         return value
 
     @staticmethod
-    def _ctp_query_record_to_public(record: Any) -> Dict[str, Any]:
+    def _ctp_query_record_to_public(
+        record: Any, *, include_commission_fields: bool = False
+    ) -> Dict[str, Any]:
         """Convert a typed/CTP record to a stable, credential-safe mapping."""
+        query_fields = _CTP_QUERY_RECORD_FIELDS
+        if include_commission_fields:
+            query_fields = tuple(dict.fromkeys((*query_fields, "InvestorRange", "BizType")))
         if isinstance(record, Mapping):
             value = dict(record)
         elif is_dataclass(record):
@@ -10356,12 +10394,15 @@ class BtApiStore(LiveStoreBase):
                     _safe_log("warning", "btapistore:7427 fallback on Exception")
                     initialized = None
                 if initialized is not None and initialized is not record:
-                    return BtApiStore._ctp_query_record_to_public(initialized)
+                    return BtApiStore._ctp_query_record_to_public(
+                        initialized,
+                        include_commission_fields=include_commission_fields,
+                    )
             value = {}
             for raw_name in ("order_info", "position_info", "account_info", "trade_info"):
                 raw = getattr(record, raw_name, None)
                 if isinstance(raw, Mapping):
-                    value.update({key: raw[key] for key in _CTP_QUERY_RECORD_FIELDS if key in raw})
+                    value.update({key: raw[key] for key in query_fields if key in raw})
             all_data = getattr(record, "get_all_data", None)
             if callable(all_data):
                 try:
@@ -10371,7 +10412,7 @@ class BtApiStore(LiveStoreBase):
                     public_data = None
                 if isinstance(public_data, Mapping):
                     value.update(dict(public_data))
-            value.update(_ctp_extract_fields(record, _CTP_QUERY_RECORD_FIELDS))
+            value.update(_ctp_extract_fields(record, query_fields))
             getter_fields = {
                 "order_id": "get_order_id",
                 "client_order_id": "get_client_order_id",
@@ -10400,6 +10441,9 @@ class BtApiStore(LiveStoreBase):
                 raw = getattr(record, "__dict__", None)
                 if isinstance(raw, dict):
                     value = {key: item for key, item in raw.items() if not key.startswith("_")}
+        if not include_commission_fields:
+            value.pop("InvestorRange", None)
+            value.pop("BizType", None)
         safe = _redact_diagnostic(value)
         return dict(safe) if isinstance(safe, Mapping) else {"record_type": type(record).__name__}
 

@@ -33,6 +33,215 @@ from tests.fixtures.fake_btapi import (
 )
 
 
+def test_ctp_query_record_preserves_commission_applicability_fields():
+    record = types.SimpleNamespace(InvestorRange="3", BizType="1")
+
+    core_public = BtApiStore._ctp_query_record_to_public(record)
+    public = BtApiStore._ctp_query_record_to_public(
+        record, include_commission_fields=True
+    )
+    initialized = types.SimpleNamespace(init_data=lambda: record)
+    recursive_public = BtApiStore._ctp_query_record_to_public(
+        initialized, include_commission_fields=True
+    )
+
+    assert public["InvestorRange"] == "3"
+    assert public["BizType"] == "1"
+    assert "InvestorRange" not in core_public
+    assert "BizType" not in core_public
+    assert recursive_public["InvestorRange"] == "3"
+    assert recursive_public["BizType"] == "1"
+
+
+def test_ctp_wrapper_forwards_bounded_commission_deadline_through_sdk_rate_limit(
+    monkeypatch,
+):
+    import hashlib
+    import inspect
+    from pathlib import Path
+    import subprocess
+
+    sdk_source_root = next(
+        (
+            parent / "bt_api_py" / "bt_api" / "bt_api_ctp" / "src"
+            for parent in Path(__file__).resolve().parents
+            if (parent / "bt_api_py" / "bt_api" / "bt_api_ctp" / "src").is_dir()
+        ),
+        None,
+    )
+    if sdk_source_root is None:
+        pytest.skip("the reviewed bt_api_ctp source checkout is not available")
+    sdk_repo = sdk_source_root.parents[0]
+    sdk_head = subprocess.run(
+        ["git", "-C", str(sdk_repo), "rev-parse", "HEAD"],
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
+    assert sdk_head == "be716e7664fa5db8230ed2e502e06997853d2910"
+    client_path = sdk_source_root / "bt_api_ctp" / "ctp" / "client.py"
+    assert hashlib.sha256(client_path.read_bytes()).hexdigest() == (
+        "8b344d14cb059292f9a957642627cc0fdb0e9f16b61102d43c349ce31704718f"
+    )
+    monkeypatch.syspath_prepend(str(sdk_source_root))
+    for module_name in tuple(sys.modules):
+        if module_name == "bt_api_ctp" or module_name.startswith("bt_api_ctp."):
+            monkeypatch.delitem(sys.modules, module_name, raising=False)
+    sdk_client = optional_sdk("bt_api_ctp.ctp.client")
+    assert Path(sdk_client.__file__).resolve() == client_path.resolve()
+    deadline_parameter = inspect.signature(
+        sdk_client.TraderClient.query_instrument_commission_rate_result
+    ).parameters["deadline_monotonic"]
+    assert deadline_parameter.kind is inspect.Parameter.KEYWORD_ONLY
+    wrapper_cls = _create_ctp_wrapper_class()
+    submitted = []
+
+    class SyntheticCommissionField:
+        """Keep source method coverage independent of the native SWIG ABI."""
+
+        pass
+
+    # The committed Windows SWIG setter accepts char-array bytes while the
+    # source method supplies text. Keep this source-fake focused on deadline,
+    # rate-limit and QuerySource plumbing; the native mismatch is a separate
+    # SDK integration blocker rather than a reason to fake the client method.
+    monkeypatch.setattr(
+        sdk_client, "CThostFtdcQryInstrumentCommissionRateField", SyntheticCommissionField
+    )
+
+    class VirtualClock:
+        now = 100.0
+
+        @classmethod
+        def monotonic(cls):
+            return cls.now
+
+        @classmethod
+        def sleep(cls, seconds):
+            cls.now += max(0.0, float(seconds))
+
+    class VirtualEvent:
+        def __init__(self):
+            self._set = False
+
+        def wait(self, timeout=None):
+            if not self._set and timeout is not None:
+                VirtualClock.now += max(0.0, float(timeout))
+            return self._set
+
+        def set(self):
+            self._set = True
+
+        def is_set(self):
+            return self._set
+
+    class SyntheticTrader(sdk_client.TraderClient):
+        @property
+        def is_read_only_ready(self):
+            return True
+
+        def _invoke_session_native_request(self, api, method_name, field, request_id):
+            submitted.append(
+                (
+                    VirtualClock.now,
+                    method_name,
+                    field.BrokerID,
+                    field.InvestorID,
+                    field.InstrumentID,
+                    field.ExchangeID,
+                )
+            )
+            row = types.SimpleNamespace(
+                BrokerID=field.BrokerID,
+                InvestorID=field.InvestorID,
+                InstrumentID=field.InstrumentID,
+                ExchangeID=field.ExchangeID,
+                InvestUnitID="",
+                InvestorRange="3",
+                BizType="1",
+                OpenRatioByMoney=0.0,
+                OpenRatioByVolume=0.1,
+                CloseRatioByMoney=0.0,
+                CloseRatioByVolume=0.1,
+                CloseTodayRatioByMoney=0.0,
+                CloseTodayRatioByVolume=0.1,
+            )
+            self._handle_query_callback(
+                "commission_rate", row, None, request_id, True
+            )
+            return 0
+
+    trader = SyntheticTrader(
+        "tcp://127.0.0.1:1", "synthetic-broker", "synthetic-investor", "synthetic-password"
+    )
+    trader._connection_generation = 1
+    trader._trading_day = "20261027"
+    trader._query_interval = 1.05
+    trader._last_query_submitted_at = VirtualClock.now
+
+    class SyntheticNativeApi:
+        def ReqQryInstrumentCommissionRate(self, field, request_id):
+            return 0
+
+    trader._api = SyntheticNativeApi()
+    wrapper = wrapper_cls(
+        md_address="tcp://127.0.0.1:1",
+        td_address="tcp://127.0.0.1:1",
+        broker_id="synthetic-broker",
+        investor_id="synthetic-investor",
+        password="synthetic-password",
+    )
+    wrapper.trader_client = trader
+
+    monkeypatch.setattr(sdk_client, "time", VirtualClock)
+    monkeypatch.setattr(sdk_client, "threading", types.SimpleNamespace(Event=VirtualEvent))
+
+    short_deadline = VirtualClock.now + 1.0
+    expired = wrapper.query_instrument_commission_rate_result(
+        "rb2610",
+        "SHFE",
+        timeout=1.0,
+        deadline_monotonic=short_deadline,
+    )
+    assert expired.complete is False
+    assert expired.error_message == "query_deadline_exceeded"
+    assert submitted == []
+
+    VirtualClock.now += 5.0
+    trader._last_query_submitted_at = VirtualClock.now
+    started = VirtualClock.now
+    deadline = started + 3.0
+    result = wrapper.query_instrument_commission_rate_result(
+        "rb2610",
+        "SHFE",
+        timeout=3.0,
+        deadline_monotonic=deadline,
+    )
+
+    assert result.complete is True
+    assert len(result.records) == 1
+    assert len(submitted) == 1
+    assert submitted[0][1:] == (
+        "ReqQryInstrumentCommissionRate",
+        "synthetic-broker",
+        "synthetic-investor",
+        "rb2610",
+        "SHFE",
+    )
+    assert submitted[0][0] - started >= 1.05 - 1e-9
+    assert submitted[0][0] < deadline
+    source = result.query_source
+    assert source is not None
+    assert dict(source.request_intent_filters) == {
+        "BrokerID": "synthetic-broker",
+        "InvestorID": "synthetic-investor",
+        "InstrumentID": "rb2610",
+        "ExchangeID": "SHFE",
+    }
+    assert dict(source.request_filters) == dict(source.request_intent_filters)
+    assert source.explicit_request_filters == ()
+
+
 @pytest.fixture
 def fake_client():
     """Create a fake bt_api_py client with history and live bars."""

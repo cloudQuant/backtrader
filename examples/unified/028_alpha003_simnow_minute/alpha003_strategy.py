@@ -14,7 +14,7 @@ from collections import deque
 from collections.abc import Mapping
 from dataclasses import dataclass, replace
 from datetime import date, datetime, timedelta, timezone
-from decimal import Decimal, InvalidOperation
+from decimal import Decimal, DecimalException, InvalidOperation, ROUND_CEILING, localcontext
 from numbers import Real
 from types import MappingProxyType
 from typing import Any, FrozenSet, Iterable, Optional, Tuple
@@ -501,6 +501,9 @@ class Alpha003InstrumentRiskFact:
     lower_limit: Optional[Decimal] = None
     upper_limit: Optional[Decimal] = None
     route_permitted: Optional[bool] = None
+    round_trip_fee_upper_bound_per_contract: Optional[Decimal] = None
+    commission_fee_required: bool = False
+    commission_fee_status: str = "NOT_REQUIRED"
 
     def __post_init__(self) -> None:
         for name in ("target_id", "instrument"):
@@ -515,6 +518,18 @@ class Alpha003InstrumentRiskFact:
             raise TypeError("trading_permitted must be bool or None")
         if self.route_permitted is not None and type(self.route_permitted) is not bool:
             raise TypeError("route_permitted must be bool or None")
+        if type(self.commission_fee_required) is not bool:
+            raise TypeError("commission_fee_required must be bool")
+        if self.commission_fee_status not in {
+            "NOT_REQUIRED",
+            "IDENTITY_UNAVAILABLE",
+            "QUERY_UNAVAILABLE",
+            "EVIDENCE_INVALID",
+            "RATE_UNAVAILABLE",
+            "RATE_INVALID",
+            "AVAILABLE",
+        }:
+            raise ValueError("commission_fee_status is unsupported")
         for name in (
             "multiplier",
             "long_margin_per_hand",
@@ -522,10 +537,13 @@ class Alpha003InstrumentRiskFact:
             "tick_size",
             "lower_limit",
             "upper_limit",
+            "round_trip_fee_upper_bound_per_contract",
         ):
             value = getattr(self, name)
             if value is not None:
-                if name in ("lower_limit", "upper_limit"):
+                if name == "round_trip_fee_upper_bound_per_contract":
+                    value = _nonnegative_decimal(value, name)
+                elif name in ("lower_limit", "upper_limit"):
                     value = _decimal_number(value, name)
                 else:
                     value = _positive_decimal(value, name)
@@ -1128,6 +1146,104 @@ def _nonnegative_decimal(value: Any, label: str) -> Decimal:
     return number
 
 
+_RISK_DECIMAL_MAX_DIGITS = 128
+_RISK_DECIMAL_MAX_EXPONENT = 128
+_RISK_DECIMAL_MAX_ADJUSTED_EXPONENT = 255
+_RISK_DECIMAL_CONTEXT_PRECISION = 2048
+
+
+def _risk_decimal_operand(value: Any, *, allow_negative: bool = False) -> Optional[Decimal]:
+    """Return a bounded non-negative Decimal suitable for risk arithmetic.
+
+    CTP/native facts and operator configuration are external inputs.  Cap both
+    coefficient length and exponent before doing risk math so an extreme value
+    cannot cause unbounded work or overflow the directed-rounding context.
+    """
+
+    if type(value) is int:
+        if (not allow_negative and value < 0) or value.bit_length() > 426:
+            return None
+        number = Decimal(value)
+    elif type(value) is Decimal:
+        number = value
+    else:
+        return None
+    if not number.is_finite() or (not allow_negative and number < 0):
+        return None
+    parts = number.as_tuple()
+    if (
+        len(parts.digits) > _RISK_DECIMAL_MAX_DIGITS
+        or type(parts.exponent) is not int
+        or abs(parts.exponent) > _RISK_DECIMAL_MAX_EXPONENT
+        or (not number.is_zero() and abs(number.adjusted()) > _RISK_DECIMAL_MAX_ADJUSTED_EXPONENT)
+    ):
+        return None
+    return number
+
+
+def _risk_ceiling_product(*values: Any) -> Optional[Decimal]:
+    """Multiply bounded non-negative operands with directed upper rounding."""
+
+    operands = tuple(_risk_decimal_operand(value) for value in values)
+    if not operands or any(value is None for value in operands):
+        return None
+    try:
+        with localcontext() as context:
+            context.prec = _RISK_DECIMAL_CONTEXT_PRECISION
+            context.Emax = 1024
+            context.Emin = -1024
+            context.rounding = ROUND_CEILING
+            result = operands[0]
+            for value in operands[1:]:
+                result *= value
+    except DecimalException:
+        return None
+    return _risk_decimal_operand(result)
+
+
+def _risk_ceiling_sum(*values: Any) -> Optional[Decimal]:
+    """Add bounded non-negative operands with directed upper rounding."""
+
+    operands = tuple(_risk_decimal_operand(value) for value in values)
+    if not operands or any(value is None for value in operands):
+        return None
+    try:
+        with localcontext() as context:
+            context.prec = _RISK_DECIMAL_CONTEXT_PRECISION
+            context.Emax = 1024
+            context.Emin = -1024
+            context.rounding = ROUND_CEILING
+            result = sum(operands, Decimal(0))
+    except DecimalException:
+        return None
+    return _risk_decimal_operand(result)
+
+
+def _risk_stop_price(price: Any, distance: Any, side: str) -> Optional[Decimal]:
+    price_number = _risk_decimal_operand(price)
+    distance_number = _risk_decimal_operand(distance)
+    if (
+        price_number is None
+        or distance_number is None
+        or side not in {"BUY", "SELL"}
+    ):
+        return None
+    try:
+        with localcontext() as context:
+            context.prec = _RISK_DECIMAL_CONTEXT_PRECISION
+            context.Emax = 1024
+            context.Emin = -1024
+            context.rounding = ROUND_CEILING
+            result = (
+                price_number - distance_number
+                if side == "BUY"
+                else price_number + distance_number
+            )
+    except DecimalException:
+        return None
+    return _risk_decimal_operand(result, allow_negative=True)
+
+
 def _state_is_fresh(available_at: datetime, evaluated_at: datetime, maximum_age: Decimal) -> bool:
     if not isinstance(available_at, datetime):
         return False
@@ -1136,7 +1252,20 @@ def _state_is_fresh(available_at: datetime, evaluated_at: datetime, maximum_age:
 
 
 def _price_is_on_tick(value: Decimal, tick: Decimal) -> bool:
-    return value % tick == 0
+    price = _risk_decimal_operand(value, allow_negative=True)
+    tick_size = _risk_decimal_operand(tick)
+    if price is None or tick_size is None or tick_size == 0:
+        return False
+    try:
+        with localcontext() as context:
+            context.prec = _RISK_DECIMAL_CONTEXT_PRECISION
+            context.Emax = 1024
+            context.Emin = -1024
+            context.rounding = ROUND_CEILING
+            remainder = price % tick_size
+    except DecimalException:
+        return False
+    return remainder == 0
 
 
 def _quote_for_order(
@@ -1751,6 +1880,22 @@ def plan_alpha003_orders(inputs: Alpha003OrderPlanningInput) -> Alpha003OrderPla
         )
     ):
         return blocked("ACCOUNT_RISK_BUDGET_UNAVAILABLE")
+    if any(
+        _risk_decimal_operand(value) is None
+        for value in (
+            policy.max_notional_per_position,
+            policy.max_total_notional,
+            policy.max_margin_per_position,
+            policy.max_total_margin,
+            policy.max_loss_per_position,
+            policy.max_total_loss,
+            account.available_margin,
+            account.used_margin,
+            account.current_notional,
+            account.current_worst_case_loss,
+        )
+    ):
+        return blocked("RISK_ARITHMETIC_VALUE_OUT_OF_RANGE")
 
     desired_open = []
     for signal in target.targets:
@@ -1786,6 +1931,31 @@ def plan_alpha003_orders(inputs: Alpha003OrderPlanningInput) -> Alpha003OrderPla
                 continue
             return blocked("WORKING_ORDER_BLOCKS_TARGET")
         desired_open.append(signal)
+    if not desired_open:
+        return completed("NO_ACTION", "TARGETS_ALREADY_HELD_OR_PENDING")
+
+    live_commission_sidecar_required = bool(
+        inputs.evidence_source == "REGISTERED_SIM"
+        and any(item.commission_fee_required for item in inputs.instruments)
+    )
+    fee_bounds_by_target = {}
+    for signal in desired_open:
+        risk = instruments_by_target[signal.target_id]
+        fee_bound = risk.round_trip_fee_upper_bound_per_contract
+        if live_commission_sidecar_required or risk.commission_fee_required:
+            # LIVE fees are fail-closed per selected target. A static policy
+            # reserve cannot override a missing, stale, ambiguous, or otherwise
+            # unproven sidecar result. Preserve Alpha003's paired high/low
+            # rebalance: either every selected OPEN is fee-qualified or none is.
+            if risk.commission_fee_status != "AVAILABLE" or fee_bound is None:
+                return blocked("ROUND_TRIP_FEE_BUDGET_UNAVAILABLE")
+        elif fee_bound is None:
+            fee_bound = policy.round_trip_fee_upper_bound_per_contract
+        elif policy.round_trip_fee_upper_bound_per_contract is not None:
+            fee_bound = max(fee_bound, policy.round_trip_fee_upper_bound_per_contract)
+        if fee_bound is None:
+            return blocked("ROUND_TRIP_FEE_BUDGET_UNAVAILABLE")
+        fee_bounds_by_target[signal.target_id] = fee_bound
     current_count = len(open_positions) + sum(
         1
         for order in inputs.working_orders
@@ -1793,11 +1963,36 @@ def plan_alpha003_orders(inputs: Alpha003OrderPlanningInput) -> Alpha003OrderPla
     )
     if current_count + len(desired_open) > 2:
         return blocked("MAX_OPEN_INSTRUMENTS")
-    if not desired_open:
-        return completed("NO_ACTION", "TARGETS_ALREADY_HELD_OR_PENDING")
-    fee_bound = policy.round_trip_fee_upper_bound_per_contract
-    if fee_bound is None:
-        return blocked("ROUND_TRIP_FEE_BUDGET_UNAVAILABLE")
+
+    held_fee_reserve = Decimal(0)
+    for position in open_positions:
+        risk = instruments_by_target.get(position.target_id)
+        fee_bound = (
+            risk.round_trip_fee_upper_bound_per_contract if risk is not None else None
+        )
+        if live_commission_sidecar_required or (
+            risk is not None and risk.commission_fee_required
+        ):
+            if (
+                risk is None
+                or risk.commission_fee_status != "AVAILABLE"
+                or fee_bound is None
+            ):
+                return blocked("ROUND_TRIP_FEE_BUDGET_UNAVAILABLE")
+        elif fee_bound is None:
+            fee_bound = policy.round_trip_fee_upper_bound_per_contract
+        elif policy.round_trip_fee_upper_bound_per_contract is not None:
+            fee_bound = max(fee_bound, policy.round_trip_fee_upper_bound_per_contract)
+        if fee_bound is None:
+            return blocked("ROUND_TRIP_FEE_BUDGET_UNAVAILABLE")
+        # Both operands are non-negative.  Use bounded directed arithmetic so
+        # a many-digit native fee cannot round down before reaching a cap.
+        held_fee = _risk_ceiling_product(abs(position.quantity), fee_bound)
+        if held_fee is None:
+            return blocked("RISK_ARITHMETIC_VALUE_OUT_OF_RANGE")
+        held_fee_reserve = _risk_ceiling_sum(held_fee_reserve, held_fee)
+        if held_fee_reserve is None:
+            return blocked("RISK_ARITHMETIC_VALUE_OUT_OF_RANGE")
 
     open_actions = []
     required_margin = Decimal(0)
@@ -1806,6 +2001,7 @@ def plan_alpha003_orders(inputs: Alpha003OrderPlanningInput) -> Alpha003OrderPla
     for signal in desired_open:
         position = positions_by_target[signal.target_id]
         risk = instruments_by_target[signal.target_id]
+        fee_bound = fee_bounds_by_target[signal.target_id]
         if (
             risk.multiplier is None
             or risk.long_margin_per_hand is None
@@ -1838,13 +2034,21 @@ def plan_alpha003_orders(inputs: Alpha003OrderPlanningInput) -> Alpha003OrderPla
         if tick is None or lower is None or upper is None:
             return blocked("PRICE_METADATA_UNAVAILABLE")
         margin = risk.long_margin_per_hand if side == "BUY" else risk.short_margin_per_hand
-        notional = price * risk.multiplier
-        loss = tick * policy.stop_loss_ticks * risk.multiplier + fee_bound
-        stop_price = (
-            price - tick * policy.stop_loss_ticks
-            if side == "BUY"
-            else price + tick * policy.stop_loss_ticks
+        notional = _risk_ceiling_product(price, risk.multiplier)
+        stop_distance = _risk_ceiling_product(tick, policy.stop_loss_ticks)
+        stop_loss_notional = _risk_ceiling_product(
+            stop_distance, risk.multiplier
         )
+        loss = (
+            _risk_ceiling_sum(stop_loss_notional, fee_bound)
+            if stop_loss_notional is not None
+            else None
+        )
+        if notional is None or stop_distance is None or loss is None:
+            return blocked("RISK_ARITHMETIC_VALUE_OUT_OF_RANGE")
+        stop_price = _risk_stop_price(price, stop_distance, side)
+        if stop_price is None:
+            return blocked("RISK_ARITHMETIC_VALUE_OUT_OF_RANGE")
         if (
             notional > policy.max_notional_per_position
             or margin > policy.max_margin_per_position
@@ -1854,9 +2058,11 @@ def plan_alpha003_orders(inputs: Alpha003OrderPlanningInput) -> Alpha003OrderPla
             or not _price_is_on_tick(stop_price, tick)
         ):
             return blocked("POSITION_RISK_LIMIT")
-        required_margin += margin
-        added_notional += notional
-        added_loss += loss
+        required_margin = _risk_ceiling_sum(required_margin, margin)
+        added_notional = _risk_ceiling_sum(added_notional, notional)
+        added_loss = _risk_ceiling_sum(added_loss, loss)
+        if required_margin is None or added_notional is None or added_loss is None:
+            return blocked("RISK_ARITHMETIC_VALUE_OUT_OF_RANGE")
         open_actions.append(
             Alpha003OrderAction(
                 action="SUBMIT",
@@ -1874,12 +2080,18 @@ def plan_alpha003_orders(inputs: Alpha003OrderPlanningInput) -> Alpha003OrderPla
                 entry_grid_ordinal=inputs.eligible_grid_ordinal,
             )
         )
+    total_margin = _risk_ceiling_sum(account.used_margin, required_margin)
+    total_notional = _risk_ceiling_sum(account.current_notional, added_notional)
+    total_worst_case_loss = _risk_ceiling_sum(
+        account.current_worst_case_loss, held_fee_reserve, added_loss
+    )
+    if total_margin is None or total_notional is None or total_worst_case_loss is None:
+        return blocked("RISK_ARITHMETIC_VALUE_OUT_OF_RANGE")
     if (
         required_margin > account.available_margin
-        or account.used_margin + required_margin > policy.max_total_margin
-        or account.current_notional + added_notional > policy.max_total_notional
-        or account.current_worst_case_loss + len(open_positions) * fee_bound + added_loss
-        > policy.max_total_loss
+        or total_margin > policy.max_total_margin
+        or total_notional > policy.max_total_notional
+        or total_worst_case_loss > policy.max_total_loss
     ):
         return blocked("ACCOUNT_RISK_LIMIT")
     if len(open_actions) > policy.max_order_intents_per_grid:
@@ -1894,6 +2106,8 @@ def plan_alpha003_orders(inputs: Alpha003OrderPlanningInput) -> Alpha003OrderPla
         > policy.max_order_intents_per_run
     ):
         return blocked("RUN_ORDER_BUDGET_EXCEEDED")
+    # A target lacking a provable fee is omitted from the proposed OPEN set;
+    # other selected targets with complete fees may proceed independently.
     return completed("READY", None, open_actions)
 
 
@@ -2572,6 +2786,11 @@ def _live_planning_input(
                 lower_limit=item.lower_limit,
                 upper_limit=item.upper_limit,
                 route_permitted=route_permitted,
+                round_trip_fee_upper_bound_per_contract=(
+                    item.round_trip_fee_upper_bound_per_contract
+                ),
+                commission_fee_required=getattr(item, "commission_fee_required", False),
+                commission_fee_status=getattr(item, "commission_fee_status", "NOT_REQUIRED"),
             )
         )
     account_fact = facts.account
@@ -2587,7 +2806,7 @@ def _live_planning_input(
             current_notional=account_fact.current_notional,
             current_worst_case_loss=account_fact.current_worst_case_loss,
         )
-    aggregate_blockers = tuple(getattr(facts, "aggregate_write_blockers", tuple(facts.blockers)))
+    aggregate_blockers = tuple(getattr(facts, "open_risk_blockers", tuple(facts.blockers)))
     blockers = tuple(dict.fromkeys(aggregate_blockers + tuple(mapper_blockers)))
     return Alpha003OrderPlanningInput(
         strategy_scope=strategy_scope,
@@ -3067,6 +3286,12 @@ class Alpha003TargetStrategy(bt.Strategy):
             self._eligible_grid_count += 1
         decision = select_alpha003_targets(policy_input)
         self.last_target_decision = decision
+        refresh_loop = self.p.control_refresh_loop
+        publish_fee_priority = getattr(
+            refresh_loop, "publish_commission_target_decision", None
+        )
+        if callable(publish_fee_priority):
+            publish_fee_priority(decision)
         self.last_signal_block_reason = decision.reason
         # A target is actionable only on the grid that produced it. Keeping an
         # older target through a non-due/invalid grid would quietly turn the
@@ -3179,6 +3404,9 @@ class Alpha003TargetStrategy(bt.Strategy):
                 quote_max_age=timedelta(seconds=float(quote_max_age_seconds)),
                 max_query_age=timedelta(seconds=float(query_max_age_seconds)),
                 execution_target_ids=execution_target_ids,
+                commission_identity_by_target=getattr(
+                    self.p.control_refresh_loop, "commission_identity_by_target", None
+                ),
             )
 
         try:

@@ -28,7 +28,9 @@ from decimal import (
     DecimalException,
     Inexact,
     InvalidOperation,
+    ROUND_CEILING,
     Rounded,
+    localcontext,
 )
 from typing import Any, Callable, List, Optional, Tuple
 
@@ -50,8 +52,10 @@ _REQUEST_TYPES = {
     "trades_result": "trades",
     "instruments_result": "instruments",
     "instrument_margin_rate_result": "margin_rate",
+    "instrument_commission_rate_result": "commission_rate",
 }
 _MARGIN_FILTERS = ("HedgeFlag",)
+_COMMISSION_FILTERS = frozenset({"InstrumentID", "ExchangeID"})
 _CAPITAL_BLOCKERS = frozenset(
     {
         "available_margin_unobserved",
@@ -440,6 +444,28 @@ class FactorExecutionInstrumentFacts:
     upper_limit: Optional[Decimal]
     stop_loss_ticks: Optional[int] = None
     max_hands: Optional[int] = None
+    round_trip_fee_upper_bound_per_contract: Optional[Decimal] = None
+    commission_fee_required: bool = False
+    commission_fee_status: str = "NOT_REQUIRED"
+
+    def __post_init__(self) -> None:
+        value = self.round_trip_fee_upper_bound_per_contract
+        if value is not None and (
+            not isinstance(value, Decimal) or not value.is_finite() or value < 0
+        ):
+            raise ValueError("round_trip_fee_upper_bound_per_contract must be finite and nonnegative")
+        if type(self.commission_fee_required) is not bool:
+            raise TypeError("commission_fee_required must be bool")
+        if self.commission_fee_status not in {
+            "NOT_REQUIRED",
+            "IDENTITY_UNAVAILABLE",
+            "QUERY_UNAVAILABLE",
+            "EVIDENCE_INVALID",
+            "RATE_UNAVAILABLE",
+            "RATE_INVALID",
+            "AVAILABLE",
+        }:
+            raise ValueError("commission_fee_status is unsupported")
 
 
 @dataclass(frozen=True)
@@ -506,6 +532,7 @@ class FactorExecutionFacts:
     # callers that construct this value directly.
     target_ids: Optional[Tuple[str, ...]] = None
     execution_target_ids: Optional[Tuple[str, ...]] = None
+    commission_required_for_open: bool = False
 
     def __post_init__(self) -> None:
         for name in ("target_ids", "execution_target_ids"):
@@ -537,6 +564,8 @@ class FactorExecutionFacts:
                 or not set(self.execution_target_ids).issubset(full_target_ids)
             ):
                 raise ValueError("execution_target_ids must be a non-empty immutable target subset")
+        if type(self.commission_required_for_open) is not bool:
+            raise TypeError("commission_required_for_open must be bool")
 
     @property
     def _full_target_ids(self) -> Tuple[str, ...]:
@@ -924,8 +953,28 @@ class FactorExecutionFacts:
         )
 
     @property
+    def open_risk_blockers(self) -> Tuple[str, ...]:
+        """Return opening blockers that apply before choosing an exact target.
+
+        Commission failures remain in ``blockers`` and
+        ``aggregate_write_blockers`` for audit, but are scoped to their target.
+        The planner checks that target's fee after selecting its desired OPEN.
+        """
+
+        return tuple(
+            code
+            for code in self.aggregate_write_blockers
+            if not code.startswith("commission_fee_")
+        )
+
+    @property
     def open_risk_ready(self) -> bool:
-        """True only when the live state is complete for a new-risk decision."""
+        """Whether target-independent opening facts are complete.
+
+        A target's optional sidecar fee is checked after the policy selects an
+        exact desired OPEN, so one unrelated target's missing fee does not
+        poison every other authorized target.
+        """
 
         authorized_ids = self._authorized_target_id_set
         authorized_instruments = tuple(
@@ -933,7 +982,7 @@ class FactorExecutionFacts:
         )
         return bool(
             self.risk_reduction_ready
-            and not self.aggregate_write_blockers
+            and not self.open_risk_blockers
             and self.account is not None
             and self.account.available_margin is not None
             and self.account.used_margin is not None
@@ -1787,6 +1836,7 @@ def _is_open_risk_only_blocker(code: str) -> bool:
         (
             "position_held_age_unavailable:",
             "position_opening_fee_unavailable:",
+            "commission_fee_",
             "position_risk_policy_metadata_unavailable:",
             "position_average_price_unobserved:",
             "position_stop_price_unobserved:",
@@ -1900,6 +1950,107 @@ def _decimal(value: Any, *, nonnegative: bool = False, positive: bool = False) -
     return result
 
 
+_RISK_FACT_DECIMAL_MAX_DIGITS = 128
+_RISK_FACT_DECIMAL_MAX_EXPONENT = 128
+_RISK_FACT_DECIMAL_MAX_ADJUSTED_EXPONENT = 255
+_RISK_FACT_CONTEXT_PRECISION = 2048
+
+
+def _risk_fact_decimal(value: Any, *, allow_negative: bool = False) -> Optional[Decimal]:
+    """Parse a bounded risk operand without decimalizing native floats downward."""
+
+    if type(value) is Decimal:
+        number = value
+    elif type(value) is float:
+        if not math.isfinite(value):
+            return None
+        number = Decimal.from_float(value)
+    elif type(value) is int:
+        if value.bit_length() > 426:
+            return None
+        number = Decimal(value)
+    elif type(value) is str:
+        if len(value) > 384:
+            return None
+        try:
+            number = Decimal(value.strip())
+        except (InvalidOperation, ValueError, OverflowError):
+            return None
+    else:
+        return None
+    if not number.is_finite() or (not allow_negative and number < 0):
+        return None
+    parts = number.as_tuple()
+    if (
+        len(parts.digits) > _RISK_FACT_DECIMAL_MAX_DIGITS
+        or type(parts.exponent) is not int
+        or abs(parts.exponent) > _RISK_FACT_DECIMAL_MAX_EXPONENT
+        or (
+            not number.is_zero()
+            and abs(number.adjusted()) > _RISK_FACT_DECIMAL_MAX_ADJUSTED_EXPONENT
+        )
+    ):
+        return None
+    return number
+
+
+def _risk_fact_result(value: Decimal) -> Optional[Decimal]:
+    """Apply the same finite domain cap to derived risk values."""
+
+    return _risk_fact_decimal(value)
+
+
+def _risk_fact_product_upper(*values: Any) -> Optional[Decimal]:
+    operands = tuple(_risk_fact_decimal(value) for value in values)
+    if not operands or any(value is None for value in operands):
+        return None
+    try:
+        with localcontext() as context:
+            context.prec = _RISK_FACT_CONTEXT_PRECISION
+            context.Emax = 1024
+            context.Emin = -1024
+            context.rounding = ROUND_CEILING
+            result = operands[0]
+            for value in operands[1:]:
+                result *= value
+    except DecimalException:
+        return None
+    return _risk_fact_result(result)
+
+
+def _risk_fact_sum_upper(*values: Any) -> Optional[Decimal]:
+    operands = tuple(_risk_fact_decimal(value) for value in values)
+    if not operands or any(value is None for value in operands):
+        return None
+    try:
+        with localcontext() as context:
+            context.prec = _RISK_FACT_CONTEXT_PRECISION
+            context.Emax = 1024
+            context.Emin = -1024
+            context.rounding = ROUND_CEILING
+            result = sum(operands, Decimal(0))
+    except DecimalException:
+        return None
+    return _risk_fact_result(result)
+
+
+def _risk_fact_difference_upper(left: Any, right: Any) -> Optional[Decimal]:
+    left_number = _risk_fact_decimal(left)
+    right_number = _risk_fact_decimal(right)
+    if left_number is None or right_number is None or left_number < right_number:
+        return None
+    try:
+        with localcontext() as context:
+            context.prec = _RISK_FACT_CONTEXT_PRECISION
+            context.Emax = 1024
+            context.Emin = -1024
+            context.rounding = ROUND_CEILING
+            result = left_number - right_number
+    except DecimalException:
+        return None
+    return _risk_fact_result(result)
+
+
 def _integer(value: Any, *, allow_zero: bool = True) -> Optional[int]:
     number = _decimal(value, nonnegative=allow_zero)
     if number is None or number != number.to_integral_value():
@@ -2001,6 +2152,17 @@ def _query_valid(
     rows = _field(result, "rows")
     source_filters = _field(result, "source_explicit_request_filters")
     filters = _field(result, "query_filters")
+    if require_full_scope:
+        source_filters_valid = source_filters == ()
+    elif family == "instrument_margin_rate_result":
+        source_filters_valid = source_filters == _MARGIN_FILTERS
+    elif family == "instrument_commission_rate_result":
+        source_filters_valid = bool(
+            source_filters == ()
+            and _field(result, "source_request_filters_valid") is True
+        )
+    else:
+        source_filters_valid = False
     return bool(
         _field(result, "family") == family
         and fact.request_type == _REQUEST_TYPES.get(family)
@@ -2037,7 +2199,7 @@ def _query_valid(
         and isinstance(rows, list)
         and all(isinstance(row, Mapping) and bool(row) for row in rows)
         and isinstance(source_filters, tuple)
-        and (source_filters == () if require_full_scope else source_filters == _MARGIN_FILTERS)
+        and source_filters_valid
         and (fact.scope_complete is True if require_full_scope else fact.scope_complete is False)
         and (
             dict(filters) == dict(expected_filters or {}) if expected_filters is not None else True
@@ -2680,7 +2842,7 @@ def _margin_rates(rows: Any, instrument: str, exchange: str, blockers: List[str]
         return None
     row = matches[0]
     values = tuple(
-        _decimal(row.get(name), nonnegative=True)
+        _risk_fact_decimal(row.get(name))
         for name in (
             "LongMarginRatioByMoney",
             "LongMarginRatioByVolume",
@@ -2692,6 +2854,155 @@ def _margin_rates(rows: Any, instrument: str, exchange: str, blockers: List[str]
         blockers.append("margin_rates_unobserved:{}".format(instrument))
         return None
     return values
+
+
+def _commission_rate_decimal(value: Any) -> Optional[Decimal]:
+    """Parse a native CTP commission ratio without rounding a C double down."""
+
+    if type(value) not in (str, int, float, Decimal):
+        return None
+    try:
+        if type(value) is float:
+            if not math.isfinite(value):
+                return None
+            # CTP's native ratio fields are doubles. Decimal(str(value)) can
+            # understate the exact binary value, which is unsafe for a fee
+            # upper bound. Keep the exact finite double representation.
+            result = Decimal.from_float(value)
+        elif type(value) is Decimal:
+            result = value
+        elif type(value) is int:
+            result = Decimal(value)
+        else:
+            text = value.strip()
+            if not text:
+                return None
+            result = Decimal(text)
+    except (InvalidOperation, ValueError, OverflowError):
+        return None
+    if not result.is_finite() or result < 0:
+        return None
+    return result
+
+
+def _commission_fee_upper_bound(
+    result: Any,
+    account_result: Any,
+    identity: Mapping,
+    target: FactorExecutionTarget,
+    *,
+    account_row_identity_valid: bool,
+) -> Tuple[Optional[Decimal], Optional[str]]:
+    """Return a source-bound one-contract fee reserve, never a guessed zero."""
+
+    account_id = identity.get("account_id")
+    invest_unit_id = identity.get("invest_unit_id")
+    if (
+        type(account_id) is not str
+        or not account_id
+        or account_id != account_id.strip()
+        or type(invest_unit_id) is not str
+        or invest_unit_id != ""
+    ):
+        return None, "identity_unavailable"
+    if not account_row_identity_valid:
+        return None, "account_identity_unavailable"
+    account_rows = _field(account_result, "rows")
+    if not isinstance(account_rows, list):
+        return None, "account_identity_unavailable"
+    account_row_ids = tuple(
+        row.get("AccountID")
+        for row in account_rows
+        if isinstance(row, Mapping)
+    )
+    if (
+        len(account_row_ids) != len(account_rows)
+        or not account_row_ids
+        or any(type(value) is not str or not value or value != value.strip() for value in account_row_ids)
+        or len(set(account_row_ids)) != 1
+        or account_row_ids[0] != account_id
+    ):
+        # Commission rows do not carry AccountID.  Bind them only when this
+        # query session's complete account snapshot names exactly one account.
+        return None, "account_identity_ambiguous"
+    account_matches = [
+        row
+        for row in account_rows
+        if isinstance(row, Mapping) and row.get("AccountID") == account_id
+    ]
+    account_broker_ids = tuple(row.get("BrokerID") for row in account_matches)
+    if (
+        not account_matches
+        or any(
+            type(value) is not str or not value or value != value.strip()
+            for value in account_broker_ids
+        )
+    ):
+        return None, "account_identity_unavailable"
+    if len(set(account_broker_ids)) != 1:
+        return None, "account_identity_ambiguous"
+    # CTP account snapshots may contain one row per currency.  Currency rows
+    # do not weaken fee ownership when every row is still tied to the same
+    # BrokerID/AccountID pair; the core capital projection retains its own
+    # stricter single-row currency contract.
+    account_broker_id = account_broker_ids[0]
+    rows = _field(result, "rows")
+    if not isinstance(rows, list) or not rows:
+        return None, "rate_unavailable"
+    if _field(result, "source_commission_rows_identity_valid") is not True:
+        return None, "response_identity_unavailable"
+    candidates = []
+    for row in rows:
+        if not isinstance(row, Mapping):
+            return None, "rate_unavailable"
+        if (
+            row.get("InstrumentID") != target.instrument
+            or row.get("ExchangeID") != target.exchange
+            or row.get("BrokerID") != account_broker_id
+            or row.get("InvestUnitID") != invest_unit_id
+        ):
+            return None, "response_identity_mismatch"
+        business_type = row.get("BizType")
+        investor_range = row.get("InvestorRange")
+        if business_type == "2":
+            continue  # Known CTP Stock; it is not a futures commission row.
+        if business_type != "1":
+            return None, "business_type_unrecognized"
+        if investor_range not in {"1", "3"}:
+            return None, "investor_range_unrecognized"
+        candidates.append(row)
+    if len(candidates) != 1:
+        return None, "rate_applicability_ambiguous"
+    row = candidates[0]
+    rates = tuple(
+        _commission_rate_decimal(row.get(name))
+        for name in (
+            "OpenRatioByMoney",
+            "OpenRatioByVolume",
+            "CloseRatioByMoney",
+            "CloseRatioByVolume",
+            "CloseTodayRatioByMoney",
+            "CloseTodayRatioByVolume",
+        )
+    )
+    if any(value is None for value in rates):
+        return None, "rate_fields_unavailable"
+    if any(len(value.as_tuple().digits) > 64 or abs(value.as_tuple().exponent) > 128 for value in rates):
+        return None, "rate_fields_out_of_range"
+    open_money, open_volume, close_money, close_volume, close_today_money, close_today_volume = rates
+    if open_money or close_money or close_today_money:
+        # A money-based rate has no finite full-holding-period bound without
+        # an independently proven upper price/horizon contract.
+        return None, "full_period_price_bound_unavailable"
+    try:
+        with localcontext() as context:
+            context.prec = 512
+            bound = open_volume + max(close_volume, close_today_volume)
+    except DecimalException:
+        return None, "rate_calculation_unavailable"
+    if not bound.is_finite() or bound < 0:
+        return None, "rate_calculation_unavailable"
+    return bound, None
 
 
 def _valid_targets(targets: Tuple[FactorExecutionTarget, ...]) -> Tuple[FactorExecutionTarget, ...]:
@@ -4189,6 +4500,7 @@ def _snapshot_identifier(
     targets: Tuple[FactorExecutionTarget, ...],
     query_set_id: str,
     valid_margin_target_ids: Tuple[str, ...] = (),
+    valid_commission_target_ids: Tuple[str, ...] = (),
 ) -> str:
     bindings = [
         ("query_set", query_set_id),
@@ -4198,6 +4510,9 @@ def _snapshot_identifier(
         if target.target_id in valid_margin_target_ids:
             fact = query_facts["margin:{}".format(target.target_id)]
             bindings.append(("margin", target.target_id, fact.request_id))
+        if target.target_id in valid_commission_target_ids:
+            fact = query_facts["commission:{}".format(target.target_id)]
+            bindings.append(("commission", target.target_id, fact.request_id))
     base = query_facts["account_result"]
     binding_digest = hashlib.sha256(
         json.dumps(bindings, ensure_ascii=True, separators=(",", ":")).encode("ascii")
@@ -4242,7 +4557,10 @@ def _risk_totals(
     for position in positions:
         if position.target_id is None or position.quantity is None:
             return None, None
-        if position.quantity == 0:
+        quantity = _risk_fact_decimal(position.quantity, allow_negative=True)
+        if quantity is None:
+            return None, None
+        if quantity == 0:
             continue
         risk = instruments_by_target.get(position.target_id)
         quote = quotes_by_instrument.get(position.instrument)
@@ -4257,16 +4575,59 @@ def _risk_totals(
             or position.stop_price is None
         ):
             return None, None
-        mark = max(quote.bid, quote.ask)
-        notional += abs(Decimal(position.quantity)) * risk.multiplier * mark
-        if position.quantity > 0:
-            distance = position.average_price - position.stop_price
-        else:
-            distance = position.stop_price - position.average_price
-        if distance < 0:
-            blockers.append("position_stop_side_invalid:{}".format(position.instrument))
+        multiplier = _risk_fact_decimal(risk.multiplier)
+        bid = _risk_fact_decimal(quote.bid)
+        ask = _risk_fact_decimal(quote.ask)
+        average_price = _risk_fact_decimal(position.average_price)
+        stop_price = _risk_fact_decimal(position.stop_price)
+        if any(
+            value is None
+            for value in (multiplier, bid, ask, average_price, stop_price)
+        ):
             return None, None
-        worst_loss += abs(Decimal(position.quantity)) * risk.multiplier * distance
+        mark = max(bid, ask)
+        position_notional = _risk_fact_product_upper(
+            quantity.copy_abs(), multiplier, mark
+        )
+        next_notional = (
+            _risk_fact_sum_upper(notional, position_notional)
+            if position_notional is not None
+            else None
+        )
+        if next_notional is None:
+            return None, None
+        notional = next_notional
+        if quantity > 0:
+            distance = _risk_fact_difference_upper(average_price, stop_price)
+        else:
+            distance = _risk_fact_difference_upper(stop_price, average_price)
+        if distance is None:
+            if (
+                quantity > 0
+                and average_price is not None
+                and stop_price is not None
+                and average_price < stop_price
+            ) or (
+                quantity < 0
+                and average_price is not None
+                and stop_price is not None
+                and stop_price < average_price
+            ):
+                blockers.append("position_stop_side_invalid:{}".format(position.instrument))
+            else:
+                return None, None
+            return None, None
+        position_loss = _risk_fact_product_upper(
+            quantity.copy_abs(), multiplier, distance
+        )
+        next_worst_loss = (
+            _risk_fact_sum_upper(worst_loss, position_loss)
+            if position_loss is not None
+            else None
+        )
+        if next_worst_loss is None:
+            return None, None
+        worst_loss = next_worst_loss
     return notional, worst_loss
 
 
@@ -4574,6 +4935,8 @@ def project_factor_execution_facts(
     max_query_age: timedelta,
     query_set: Optional[FactorExecutionQuerySetFacts] = None,
     execution_target_ids: Optional[Tuple[str, ...]] = None,
+    commission_identity_by_target: Optional[Mapping[str, Mapping[str, str]]] = None,
+    commission_required_for_open: Optional[bool] = None,
 ) -> FactorExecutionFacts:
     """Project cached live facts without running any SDK query.
 
@@ -4626,6 +4989,12 @@ def project_factor_execution_facts(
             for target_id in full_target_ids
             if target_id in requested_execution_target_ids
         )
+    if commission_required_for_open is None:
+        commission_required_for_open = commission_identity_by_target is not None
+    elif type(commission_required_for_open) is not bool:
+        raise TypeError("commission_required_for_open must be bool or None")
+    if not isinstance(commission_identity_by_target, Mapping):
+        commission_identity_by_target = {}
 
     blockers: List[str] = []
     diagnostics: List[str] = []
@@ -4835,13 +5204,112 @@ def project_factor_execution_facts(
             target_ids=full_target_ids,
             execution_target_ids=bound_execution_target_ids,
         )
+
+    # Commission is an independently refreshed optional sidecar.  It is read
+    # only after the core receipt is complete and only for authorized targets;
+    # it never participates in that receipt.  Missing or stale fee evidence is
+    # an OPEN-only fact.
+    commission_bounds = {}
+    commission_status_by_target = {
+        target_id: ("IDENTITY_UNAVAILABLE" if commission_required_for_open else "NOT_REQUIRED")
+        for target_id in full_target_ids
+    }
+    valid_commission_target_ids = []
+    account_result = query_results["account_result"]
+    account_identity_valid = bool(
+        _field(account_result, "source_account_rows_identity_valid") is True
+        and _field(account_result, "source_account_investor_mapping_valid") is True
+    )
+    targets_by_id = {target.target_id: target for target in bound_targets}
+    for target_id in bound_execution_target_ids if commission_required_for_open else ():
+        target = targets_by_id[target_id]
+        identity = commission_identity_by_target.get(target_id)
+        if not isinstance(identity, Mapping):
+            blockers.append("commission_fee_identity_unavailable:{}".format(target_id))
+            continue
+        write_route_getter = getattr(store, "registered_sim_write_route_invest_unit_id", None)
+        try:
+            write_route_unit_id = (
+                write_route_getter(target.instrument, target.exchange)
+                if callable(write_route_getter)
+                else None
+            )
+        except Exception:
+            write_route_unit_id = None
+        if (
+            type(write_route_unit_id) is not str
+            or identity.get("invest_unit_id") != write_route_unit_id
+        ):
+            blockers.append("commission_fee_identity_unavailable:{}".format(target_id))
+            continue
+        filters = {"instrument_id": target.instrument, "exchange_id": target.exchange}
+        try:
+            result = (
+                query_getter("instrument_commission_rate_result", **filters)
+                if callable(query_getter)
+                else None
+            )
+        except Exception:
+            result = None
+        fact = (
+            _query_fact("instrument_commission_rate_result", result, target_id=target_id)
+            if result is not None
+            else _missing_query_fact("instrument_commission_rate_result", target_id)
+        )
+        query_facts["commission:{}".format(target_id)] = fact
+        provenance.append(fact)
+        if result is None:
+            commission_status_by_target[target_id] = "QUERY_UNAVAILABLE"
+            blockers.append("commission_fee_query_unavailable:{}".format(target_id))
+            continue
+        if (
+            fact.connection_generation != base_identity[0]
+            or fact.trading_day != base_identity[1]
+            or _exact_text(_field(result, "account_fingerprint")) != base_identity[2]
+            or not _query_valid(
+                "instrument_commission_rate_result",
+                result,
+                now=now_utc,
+                max_age=max_query_age,
+                require_full_scope=False,
+                expected_filters=filters,
+            )
+            or _field(result, "source_session_identity_valid") is not True
+            or not account_identity_valid
+        ):
+            commission_status_by_target[target_id] = "EVIDENCE_INVALID"
+            blockers.append("commission_fee_evidence_invalid:{}".format(target_id))
+            continue
+        fee_bound, fee_reason = _commission_fee_upper_bound(
+            result,
+            account_result,
+            identity,
+            target,
+            account_row_identity_valid=account_identity_valid,
+        )
+        if fee_bound is None:
+            commission_status_by_target[target_id] = (
+                "RATE_UNAVAILABLE" if fee_reason == "rate_unavailable" else "RATE_INVALID"
+            )
+            blockers.append(
+                "commission_fee_{}:{}".format(fee_reason or "unavailable", target_id)
+            )
+            continue
+        commission_bounds[target_id] = fee_bound
+        commission_status_by_target[target_id] = "AVAILABLE"
+        valid_commission_target_ids.append(target_id)
+
     valid_margin_target_ids = tuple(
         target.target_id
         for target in bound_targets
         if valid_margin_results[target.target_id] is not None
     )
     snapshot_id = _snapshot_identifier(
-        query_facts, bound_targets, query_set.query_set_id, valid_margin_target_ids
+        query_facts,
+        bound_targets,
+        query_set.query_set_id,
+        valid_margin_target_ids,
+        tuple(valid_commission_target_ids),
     )
 
     # Every query is bound to the same account/generation/day. A margin miss is
@@ -4983,6 +5451,9 @@ def project_factor_execution_facts(
                         query_facts["margin:{}".format(target.target_id)].completed_at
                         if margin_result is not None
                         else None,
+                        query_facts["commission:{}".format(target.target_id)].completed_at
+                        if target.target_id in commission_bounds
+                        else None,
                     )
                     if value is not None
                 ),
@@ -4993,6 +5464,11 @@ def project_factor_execution_facts(
                 tick_size=_tick_size,
                 lower_limit=_lower,
                 upper_limit=_upper,
+                round_trip_fee_upper_bound_per_contract=commission_bounds.get(target.target_id),
+                commission_fee_required=commission_required_for_open,
+                commission_fee_status=commission_status_by_target.get(
+                    target.target_id, "NOT_REQUIRED"
+                ),
             )
         )
 
@@ -5029,11 +5505,19 @@ def project_factor_execution_facts(
         ):
             long_money, long_volume, short_money, short_volume = rates
             # CTP money ratio applies to notional; volume ratio is per hand.
-            long_margin = quote.ask * instrument.multiplier * long_money + long_volume
-            short_margin = quote.bid * instrument.multiplier * short_money + short_volume
-            if long_margin <= 0:
+            long_notional_margin = _risk_fact_product_upper(
+                quote.ask, instrument.multiplier, long_money
+            )
+            short_notional_margin = _risk_fact_product_upper(
+                quote.bid, instrument.multiplier, short_money
+            )
+            if long_notional_margin is not None:
+                long_margin = _risk_fact_sum_upper(long_notional_margin, long_volume)
+            if short_notional_margin is not None:
+                short_margin = _risk_fact_sum_upper(short_notional_margin, short_volume)
+            if long_margin is not None and long_margin <= 0:
                 long_margin = None
-            if short_margin <= 0:
+            if short_margin is not None and short_margin <= 0:
                 short_margin = None
         if long_margin is None:
             blockers.append("long_margin_per_hand_unobserved:{}".format(target.target_id))
@@ -5055,6 +5539,11 @@ def project_factor_execution_facts(
                 upper_limit=instrument.upper_limit,
                 stop_loss_ticks=None,
                 max_hands=None,
+                round_trip_fee_upper_bound_per_contract=(
+                    instrument.round_trip_fee_upper_bound_per_contract
+                ),
+                commission_fee_required=instrument.commission_fee_required,
+                commission_fee_status=instrument.commission_fee_status,
             )
         )
     instruments = tuple(instruments_with_margin)
@@ -5165,6 +5654,7 @@ def project_factor_execution_facts(
         query_set_id=query_set.query_set_id,
         target_ids=full_target_ids,
         execution_target_ids=bound_execution_target_ids,
+        commission_required_for_open=commission_required_for_open,
     )
     trade_blockers = _trade_reconciliation_blockers(coordinator, facts)
     terminal_blockers = _terminal_order_reconciliation_blockers(coordinator, facts)

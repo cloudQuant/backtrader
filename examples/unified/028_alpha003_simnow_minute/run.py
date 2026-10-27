@@ -43,6 +43,8 @@ DECISION_TAPE_SCHEMA = "backtrader.alpha003.decision_tape.v1"
 # journal's general 64 KiB default. Keep this run-local cap bounded and leave
 # the journal-wide default unchanged.
 _LIVE_DECISION_JOURNAL_MAX_PAYLOAD_BYTES = 131_072
+_LIVE_COMMISSION_QUERY_BUDGET_SECONDS = 3.0
+_LIVE_COMMISSION_CACHE_REFRESH_SECONDS = 30.0
 UTC = timezone.utc
 OHLCV_FIELDS = ("open", "high", "low", "close", "volume", "openinterest")
 RISK_FIELDS = (
@@ -334,6 +336,7 @@ _SECTION_KEYS = {
         "loss_guard_max_observation_age_seconds",
         "shutdown_grace_seconds",
         "golden_targets",
+        "commission_identity_by_target",
     },
     "output": {
         "directory",
@@ -385,6 +388,9 @@ def load_config(config_path: Path) -> dict[str, Any]:
             # write-enabled live run validates these explicitly before setup.
             row.setdefault("loss_guard_net_loss_threshold", None)
             row.setdefault("loss_guard_max_observation_age_seconds", None)
+            # Optional fee-query identity never becomes a startup requirement;
+            # an invalid or absent row simply leaves OPEN fee evidence blocked.
+            row.setdefault("commission_identity_by_target", None)
         extra = set(row).difference(expected)
         missing_section = expected.difference(row)
         if extra or missing_section:
@@ -1813,6 +1819,44 @@ def _risk_policy(config: Mapping[str, Any]):
         return Alpha003RiskPolicy(**values)
     except (TypeError, ValueError):
         raise RunnerError("RISK_POLICY_INVALID") from None
+
+
+def _commission_identity_by_target(
+    config: Mapping[str, Any], authorized_target_ids: Tuple[str, ...]
+) -> dict[str, dict[str, str]]:
+    """Return only exact non-credential account/unit mappings for live targets.
+
+    Invalid optional entries are omitted and therefore block OPEN through the
+    fee projection.  They must not make refresh startup or safe reductions
+    fail.  In particular, an empty investment-unit value is an explicit
+    operator mapping consumed only by the fee sidecar.
+    """
+
+    raw = config.get("live", {}).get("commission_identity_by_target")
+    if not isinstance(raw, Mapping):
+        return {}
+    allowed = set(authorized_target_ids)
+    result = {}
+    for target_id, identity in raw.items():
+        if type(target_id) is not str or target_id not in allowed or not isinstance(identity, Mapping):
+            continue
+        if set(identity) != {"account_id", "invest_unit_id"}:
+            continue
+        account_id = identity.get("account_id")
+        invest_unit_id = identity.get("invest_unit_id")
+        if (
+            type(account_id) is not str
+            or not account_id
+            or account_id != account_id.strip()
+            or type(invest_unit_id) is not str
+            or invest_unit_id != invest_unit_id.strip()
+        ):
+            continue
+        result[target_id] = {
+            "account_id": account_id,
+            "invest_unit_id": invest_unit_id,
+        }
+    return result
 
 
 def _run_loss_guard_policy(config: Mapping[str, Any], *, write_enabled: bool):
@@ -3855,6 +3899,8 @@ class QueryRefreshLoop:
         targets,
         *,
         execution_target_ids=None,
+        commission_identity_by_target=None,
+        commission_required_for_open=None,
         coordinator,
         account_scope,
         strategy_scope,
@@ -3900,6 +3946,31 @@ class QueryRefreshLoop:
         self._margin_targets = tuple(
             target for target in self.targets if target.target_id in execution_target_set
         )
+        self.commission_identity_by_target = {
+            target_id: dict(identity)
+            for target_id, identity in (
+                commission_identity_by_target.items()
+                if isinstance(commission_identity_by_target, Mapping)
+                else ()
+            )
+            if target_id in execution_target_set and isinstance(identity, Mapping)
+        }
+        if commission_required_for_open is None:
+            self.commission_required_for_open = commission_identity_by_target is not None
+        elif type(commission_required_for_open) is bool:
+            self.commission_required_for_open = commission_required_for_open
+        else:
+            raise RunnerError("LIVE_COMMISSION_REQUIREMENT_INVALID")
+        self._commission_targets = tuple(
+            target
+            for target in self.targets
+            if target.target_id in self.commission_identity_by_target
+            and type(self.commission_identity_by_target[target.target_id].get("account_id")) is str
+            and bool(self.commission_identity_by_target[target.target_id].get("account_id"))
+            and self.commission_identity_by_target[target.target_id].get("account_id")
+            == self.commission_identity_by_target[target.target_id].get("account_id").strip()
+            and self.commission_identity_by_target[target.target_id].get("invest_unit_id") == ""
+        )
         self.coordinator = coordinator
         self.account_scope = account_scope
         self.strategy_scope = strategy_scope
@@ -3917,10 +3988,16 @@ class QueryRefreshLoop:
         self._interrupt_refresh = threading.Event()
         self._refresh_start_lock = threading.Lock()
         self._strategy_lock = threading.RLock()
+        self._commission_target_lock = threading.Lock()
+        self._commission_target_decision = None
         # Store query snapshots and Strategy projections share one
         # non-reentrant consistency boundary.  Strategy only probes it
         # nonblocking so an engine turn never waits for provider I/O.
         self._fact_snapshot_lock = threading.Lock()
+        # Refreshers remain serialized while the projection lock is released
+        # around the optional native fee query.  Strategy never takes this
+        # lock, so a stalled sidecar cannot hide the last complete core view.
+        self._refresh_serialization_lock = threading.Lock()
         self._fact_projection_waiting = threading.Event()
         self._projection_wake_error = None
         self._strategy = None
@@ -3941,6 +4018,8 @@ class QueryRefreshLoop:
         self.joined = False
         self.started = False
         self._margin_index = 0
+        self._commission_index = 0
+        self._commission_priority_index = 0
         self._startup_recovery_scope_timeout = None
         self._startup_refresh_deadline = None
         # A scoped pass that does not complete must be retried under the same
@@ -3953,6 +4032,158 @@ class QueryRefreshLoop:
             if self._strategy is not None and self._strategy is not strategy:
                 raise RunnerError("LIVE_STRATEGY_BINDING_CONFLICT")
             self._strategy = strategy
+
+    def publish_commission_target_decision(self, decision):
+        """Publish only the latest immutable live pair for fee-query priority."""
+
+        snapshot = None
+        try:
+            targets = tuple(getattr(item, "target_id", None) for item in decision.targets)
+            authorized = tuple(decision.authorized_targets)
+            available_at = _aware_datetime(
+                decision.available_at, "commission target decision time"
+            )
+            if (
+                decision.status == "TARGETS_READY"
+                and decision.execution_mode == "LIVE"
+                and type(decision.batch_id) is str
+                and bool(decision.batch_id)
+                and len(targets) == 2
+                and all(type(value) is str and value for value in targets)
+                and len(set(targets)) == 2
+                and len(authorized) == len(set(authorized))
+                and all(type(value) is str and value for value in authorized)
+            ):
+                snapshot = (
+                    self.execution_target_ids,
+                    authorized,
+                    targets,
+                    available_at,
+                    time.monotonic(),
+                    decision.batch_id,
+                )
+        except (AttributeError, TypeError, ValueError, OverflowError):
+            snapshot = None
+        with self._commission_target_lock:
+            previous = self._commission_target_decision
+            if (
+                snapshot is None
+                or previous is None
+                or snapshot[:3] != previous[:3]
+            ):
+                self._commission_priority_index = 0
+            self._commission_target_decision = snapshot
+
+    def _commission_priority_target_ids(self):
+        """Read a fresh, same-grant selected pair without sharing mutable state."""
+
+        with self._commission_target_lock:
+            snapshot = self._commission_target_decision
+        if snapshot is None:
+            return ()
+        captured_execution_ids, authorized, target_ids, available_at, published_at, _batch_id = (
+            snapshot
+        )
+        execution_ids = self.execution_target_ids
+        if (
+            captured_execution_ids != execution_ids
+            or frozenset(authorized) != frozenset(execution_ids)
+            or not set(target_ids).issubset(set(execution_ids))
+        ):
+            return ()
+        try:
+            now = _aware_datetime(self.clock.utc_now(), "commission priority time")
+            age = now - available_at
+            monotonic_age = time.monotonic() - published_at
+            max_age = float(self.quote_max_age.total_seconds())
+        except (AttributeError, TypeError, ValueError, OverflowError):
+            return ()
+        if (
+            age.total_seconds() < 0
+            or age.total_seconds() > max_age
+            or monotonic_age < 0
+            or monotonic_age > max_age
+        ):
+            return ()
+        return target_ids
+
+    def _commission_query_is_fresh(self, target_id):
+        facts = self.last_facts
+        account = getattr(facts, "account", None) if facts is not None else None
+        if account is None:
+            return False
+        matches = tuple(
+            fact
+            for fact in getattr(facts, "query_provenance", ())
+            if getattr(fact, "family", None) == "instrument_commission_rate_result"
+            and getattr(fact, "target_id", None) == target_id
+        )
+        if len(matches) != 1:
+            return False
+        fact = matches[0]
+        completed_at = getattr(fact, "completed_at", None)
+        if (
+            getattr(fact, "source_owned", None) is not True
+            or getattr(fact, "query_complete", None) is not True
+            or type(getattr(fact, "request_id", None)) is not int
+            or getattr(fact, "request_id", 0) <= 0
+            or getattr(fact, "connection_generation", None)
+            != getattr(account, "connection_generation", None)
+            or getattr(fact, "trading_day", None) != getattr(account, "trading_day", None)
+            or getattr(fact, "account_fingerprint", None)
+            != getattr(account, "account_fingerprint", None)
+            or completed_at is None
+        ):
+            return False
+        try:
+            now = _aware_datetime(self.clock.utc_now(), "commission freshness time")
+            completed_at = _aware_datetime(completed_at, "commission completion time")
+            max_age = min(
+                float(self.max_query_age.total_seconds()),
+                _LIVE_COMMISSION_CACHE_REFRESH_SECONDS,
+            )
+            age = (now - completed_at).total_seconds()
+        except (AttributeError, TypeError, ValueError, OverflowError):
+            return False
+        return 0 <= age <= max_age
+
+    def _select_commission_target(self):
+        """Prioritize stale selected/held fees, then preserve full-pool RR."""
+
+        if not self._commission_targets:
+            return None
+        by_id = {target.target_id: target for target in self._commission_targets}
+        priority_ids = list(self._commission_priority_target_ids())
+        facts = self.last_facts
+        held_ids = tuple(
+            position.target_id
+            for position in getattr(facts, "positions", ())
+            if getattr(position, "target_id", None) in by_id
+            and getattr(position, "quantity", None) not in (None, 0)
+        )
+        priority_ids.extend(value for value in held_ids if value not in priority_ids)
+        if priority_ids:
+            start = self._commission_priority_index % len(priority_ids)
+            rotated = priority_ids[start:] + priority_ids[:start]
+            for target_id in rotated:
+                if target_id in by_id and not self._commission_query_is_fresh(target_id):
+                    self._commission_priority_index = (
+                        priority_ids.index(target_id) + 1
+                    ) % len(priority_ids)
+                    target = by_id[target_id]
+                    self._commission_index = (
+                        self._commission_targets.index(target) + 1
+                    ) % len(self._commission_targets)
+                    return target
+        count = len(self._commission_targets)
+        start = self._commission_index % count
+        for offset in range(count):
+            index = (start + offset) % count
+            target = self._commission_targets[index]
+            if not self._commission_query_is_fresh(target.target_id):
+                self._commission_index = (index + 1) % count
+                return target
+        return None
 
     @contextmanager
     def strategy_fact_projection_scope(self):
@@ -4306,19 +4537,36 @@ class QueryRefreshLoop:
     def refresh_once(self):
         # Clear, refresh, reconcile and republish as one unit with respect to
         # Strategy fact projection. Readers fail fast while this lock is held.
+        # The outer lock serializes refreshers but is not used by Strategy.
+        # Optional sidecar I/O can release only the inner projection lock while
+        # preventing a second core refresh from overlapping.
+        with self._refresh_serialization_lock:
+            try:
+                with self._fact_snapshot_lock:
+                    self._reconciliation_blockers_work = []
+                    self.last_reconciliation_blockers = ()
+                    try:
+                        return self._refresh_once_locked()
+                    except Exception:
+                        self.last_reconciliation_blockers = tuple(
+                            self._reconciliation_blockers_work[:16]
+                        )
+                        raise
+            finally:
+                self._wake_waiting_strategy_projection()
+
+    def _refresh_optional_commission_without_projection_lock(self):
+        """Query one optional fee target without hiding complete core facts."""
+
+        if not self._fact_snapshot_lock.locked():
+            raise RunnerError("LIVE_FACT_PROJECTION_LOCK_REQUIRED")
+        self._fact_snapshot_lock.release()
         try:
-            with self._fact_snapshot_lock:
-                self._reconciliation_blockers_work = []
-                self.last_reconciliation_blockers = ()
-                try:
-                    return self._refresh_once_locked()
-                except Exception:
-                    self.last_reconciliation_blockers = tuple(
-                        self._reconciliation_blockers_work[:16]
-                    )
-                    raise
+            self._refresh_commission_sidecar()
         finally:
-            self._wake_waiting_strategy_projection()
+            # Projection is in-memory and Strategy probes nonblocking. Reacquire
+            # before the refresh thread mutates any published state.
+            self._fact_snapshot_lock.acquire()
 
     def _refresh_once_locked(self):
         # Clear the previously published proof before inspecting durable
@@ -4417,6 +4665,8 @@ class QueryRefreshLoop:
                 max_query_age=self.max_query_age,
                 query_set=query_set,
                 execution_target_ids=self.execution_target_ids,
+                commission_identity_by_target=self.commission_identity_by_target,
+                commission_required_for_open=self.commission_required_for_open,
             )
             return receipt, query_set, facts
 
@@ -4468,6 +4718,8 @@ class QueryRefreshLoop:
                 max_query_age=self.max_query_age,
                 query_set=query_set,
                 execution_target_ids=self.execution_target_ids,
+                commission_identity_by_target=self.commission_identity_by_target,
+                commission_required_for_open=self.commission_required_for_open,
             )
             self._reconcile_all(
                 self.coordinator.trade_reconciliation_snapshot,
@@ -4494,7 +4746,77 @@ class QueryRefreshLoop:
         self.last_receipt = receipt
         self.last_facts = facts
         self.last_error_code = None
+        # Initial readiness is based on the five sealed core queries only.
+        # Once the live refresh thread is running, issue the optional fee query
+        # outside the projection lock; a native delay must leave safe strategy
+        # actions able to read this complete core receipt.
+        if self._startup_refresh_deadline is None and self._commission_targets:
+            self._refresh_optional_commission_without_projection_lock()
+            try:
+                facts = project_factor_execution_facts(
+                    self.store,
+                    self.broker,
+                    targets=self.targets,
+                    account_scope=self.account_scope,
+                    strategy_scope=self.strategy_scope,
+                    now=_aware_datetime(self.clock.utc_now(), "live refresh decision time"),
+                    quote_max_age=self.quote_max_age,
+                    max_query_age=self.max_query_age,
+                    query_set=query_set,
+                    execution_target_ids=self.execution_target_ids,
+                    commission_identity_by_target=self.commission_identity_by_target,
+                    commission_required_for_open=self.commission_required_for_open,
+                )
+            except Exception:
+                # A malformed/expired optional row cannot revoke the core seal.
+                return receipt
+            self.last_facts = facts
         return receipt
+
+    def _refresh_commission_sidecar(self):
+        """Attempt one bounded optional fee query without touching core status."""
+
+        if not self._commission_targets:
+            return
+        target = self._select_commission_target()
+        if target is None:
+            return
+        identity = self.commission_identity_by_target.get(target.target_id)
+        route_getter = getattr(
+            self.store, "registered_sim_write_route_invest_unit_id", None
+        )
+        try:
+            source_route_unit_id = (
+                route_getter(target.instrument, target.exchange)
+                if callable(route_getter)
+                else None
+            )
+        except Exception:
+            source_route_unit_id = None
+        if (
+            not isinstance(identity, Mapping)
+            or type(source_route_unit_id) is not str
+            or identity.get("invest_unit_id") != source_route_unit_id
+        ):
+            # The sidecar is optional and the native query may hold SDK state.
+            # A configuration value alone cannot authorize it: first bind the
+            # exact target to the source-owned CTP write route.
+            return
+        # This result remains outside the five-family receipt.  A sidecar
+        # failure cannot change the core deadline or status.  SDK versions
+        # without a source-bound issue deadline are rejected before dispatch.
+        try:
+            deadline = time.monotonic() + _LIVE_COMMISSION_QUERY_BUDGET_SECONDS
+            self.store.registered_sim_query(
+                "instrument_commission_rate_result",
+                timeout=_LIVE_COMMISSION_QUERY_BUDGET_SECONDS,
+                attempts=1,
+                deadline_monotonic=deadline,
+                instrument_id=target.instrument,
+                exchange_id=target.exchange,
+            )
+        except Exception:
+            return
 
     def _reconcile_dated_trades(self, facts, *, refresh_receipt, diagnostic_sink=None):
         """Apply complete trade pages to the durable execution and dated books."""
@@ -5900,8 +6222,6 @@ def run_live(
     risk_policy = _risk_policy(config)
     if write_enabled and risk_policy is None:
         raise RunnerError("LIVE_RISK_BUDGETS_REQUIRED")
-    if write_enabled and risk_policy.round_trip_fee_upper_bound_per_contract is None:
-        raise RunnerError("LIVE_FEE_BUDGET_REQUIRED")
     scopes = {
         name: _text(config["live"][name], f"live.{name}")
         for name in ("account_scope", "strategy_scope", "logical_run_id")
@@ -6327,6 +6647,12 @@ def run_live(
             broker,
             tuple(query_targets),
             execution_target_ids=tuple(plan["authorized_targets"]),
+            commission_identity_by_target=(
+                _commission_identity_by_target(config, tuple(plan["authorized_targets"]))
+                if write_enabled
+                else None
+            ),
+            commission_required_for_open=write_enabled,
             coordinator=coordinator,
             account_scope=scopes["account_scope"],
             strategy_scope=scopes["strategy_scope"],

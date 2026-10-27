@@ -24,6 +24,7 @@ from __future__ import annotations
 import collections
 import copy
 import contextlib
+import inspect
 import math
 import re
 import threading
@@ -33,7 +34,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any, Dict, Optional, Tuple
 
-from .btapistore import BtApiStore, BtApiStoreError
+from .btapistore import BtApiStore, BtApiStoreError, _ctp_order_route_invest_unit_id
 
 _HASH_RE = re.compile(r"^[0-9a-f]{64}$")
 _REGISTERED_SIM_TICK_SOURCE = "ctp-native-live"
@@ -61,6 +62,15 @@ _REQUIRED_QUERY_FAMILIES = frozenset(
 _TERMINAL_ORDER_STATUSES = frozenset({"0", "4", "5", "a"})
 _UNOBSERVED = object()
 _QUERY_SNAPSHOT_LIMIT = 512
+_COMMISSION_QUERY_SNAPSHOT_LIMIT = 256
+_COMMISSION_REQUEST_FILTER_FIELDS = {
+    "instrument_id": "InstrumentID",
+    "exchange_id": "ExchangeID",
+    "InstrumentID": "InstrumentID",
+    "ExchangeID": "ExchangeID",
+    "BrokerID": "BrokerID",
+    "InvestorID": "InvestorID",
+}
 
 
 class RegisteredSimExecutionUnknown(BtApiStoreError):
@@ -486,6 +496,89 @@ def _public_query_snapshot(facts: Mapping) -> Dict[str, Any]:
     }
 
 
+def _request_filter_map(value: Any) -> Optional[Dict[str, str]]:
+    """Normalize immutable SDK request-filter pairs for an internal comparison."""
+
+    if not isinstance(value, tuple):
+        return None
+    result = {}
+    for pair in value:
+        if (
+            not isinstance(pair, tuple)
+            or len(pair) != 2
+            or type(pair[0]) is not str
+            or type(pair[1]) is not str
+        ):
+            return None
+        name = _COMMISSION_REQUEST_FILTER_FIELDS.get(pair[0])
+        if name is None or name in result:
+            return None
+        result[name] = pair[1]
+    return result
+
+
+def _commission_request_filters_match(source: Any, scope: Any, filters: Mapping) -> bool:
+    """Bind a fee result to the exact contract plus the current CTP identity."""
+
+    instrument = filters.get("instrument_id")
+    exchange = filters.get("exchange_id")
+    broker_id = _read_fact(scope, "broker_id")
+    investor_id = _read_fact(scope, "investor_id")
+    if not all(
+        isinstance(value, str) and value and value == value.strip()
+        for value in (instrument, exchange, broker_id, investor_id)
+    ):
+        return False
+    expected = {
+        "InstrumentID": instrument,
+        "ExchangeID": exchange,
+        "BrokerID": broker_id,
+        "InvestorID": investor_id,
+    }
+    intent = _request_filter_map(_read_fact(source, "request_intent_filters"))
+    actual = _request_filter_map(_read_fact(source, "request_filters"))
+    explicit = _read_fact(source, "explicit_request_filters")
+    return bool(
+        intent == expected
+        and actual == expected
+        and explicit == ()
+    )
+
+
+def _commission_rows_match_session(
+    rows: Any, scope: Any, filters: Mapping
+) -> bool:
+    """Project only known CTP commission identities for the current session."""
+
+    broker_id = _read_fact(scope, "broker_id")
+    investor_id = _read_fact(scope, "investor_id")
+    instrument = filters.get("instrument_id")
+    exchange = filters.get("exchange_id")
+    if not isinstance(rows, list) or not rows:
+        return False
+    for row in rows:
+        if not isinstance(row, Mapping) or not (
+            row.get("BrokerID") == broker_id
+            and row.get("InstrumentID") == instrument
+            and row.get("ExchangeID") == exchange
+            and row.get("InvestUnitID") == ""
+            and row.get("BizType") in {"1", "2"}
+        ):
+            return False
+        investor_range = row.get("InvestorRange")
+        row_investor = row.get("InvestorID")
+        if investor_range == "1":
+            if row_investor not in ("", "\x00", investor_id):
+                return False
+        elif investor_range == "3":
+            if row_investor != investor_id:
+                return False
+        else:
+            # Group membership and unknown range codes cannot be proved here.
+            return False
+    return True
+
+
 def _instrument_is_trading(row: Mapping) -> Optional[bool]:
     raw = row.get("IsTrading", row.get("is_trading"))
     if raw is True or type(raw) is int and raw == 1:
@@ -530,7 +623,11 @@ def _instrument_eligibility_from_rows(
 
 
 def _query_result_facts(
-    result: Any, family: str, attempt: int, expected_scope: Any
+    result: Any,
+    family: str,
+    attempt: int,
+    expected_scope: Any,
+    requested_filters: Optional[Mapping] = None,
 ) -> Dict[str, Any]:
     """Copy completion facts only from the current SDK's sealed query source."""
     records = _read_fact(result, "records")
@@ -538,7 +635,13 @@ def _query_result_facts(
         records = _read_fact(result, "rows")
     public_rows = None
     if isinstance(records, (list, tuple)):
-        public_rows = [BtApiStore._ctp_query_record_to_public(row) for row in records]
+        public_rows = [
+            BtApiStore._ctp_query_record_to_public(
+                row,
+                include_commission_fields=family == "instrument_commission_rate_result",
+            )
+            for row in records
+        ]
     source = _read_fact(result, "query_source")
     expected_issuer = _read_fact(expected_scope, "issuer")
     error_code = _read_fact(result, "error_code", _UNOBSERVED)
@@ -571,6 +674,11 @@ def _query_result_facts(
         "account_fingerprint": _read_fact(result, "account_fingerprint"),
         "completed_at_utc": _read_fact(result, "completed_at_utc"),
         "source_owned": False,
+        "source_session_identity_valid": False,
+        "source_account_rows_identity_valid": False,
+        "source_account_investor_mapping_valid": False,
+        "source_request_filters_valid": None,
+        "source_commission_rows_identity_valid": None,
         "trading_day": None,
         "source_explicit_request_filters": None,
         "source_expires_monotonic": None,
@@ -591,9 +699,44 @@ def _query_result_facts(
     source_account = _read_fact(source, "account_fingerprint", _UNOBSERVED)
     source_request_type = _read_fact(source, "request_type", _UNOBSERVED)
     source_trading_day = _read_fact(source, "trading_day", _UNOBSERVED)
+    source_broker_id = _read_fact(source, "broker_id", _UNOBSERVED)
+    source_investor_id = _read_fact(source, "investor_id", _UNOBSERVED)
     scope_generation = _read_fact(expected_scope, "connection_generation", _UNOBSERVED)
     scope_account = _read_fact(expected_scope, "account_fingerprint", _UNOBSERVED)
     scope_trading_day = _read_fact(expected_scope, "trading_day", _UNOBSERVED)
+    scope_broker_id = _read_fact(expected_scope, "broker_id", _UNOBSERVED)
+    scope_investor_id = _read_fact(expected_scope, "investor_id", _UNOBSERVED)
+    source_session_identity_valid = bool(
+        type(source_broker_id) is str
+        and source_broker_id
+        and source_broker_id == source_broker_id.strip()
+        and source_broker_id == scope_broker_id
+        and type(source_investor_id) is str
+        and source_investor_id
+        and source_investor_id == source_investor_id.strip()
+        and source_investor_id == scope_investor_id
+    )
+    account_rows_identity_valid = bool(
+        family == "account_result"
+        and source_session_identity_valid
+        and isinstance(public_rows, list)
+        and public_rows
+        and all(
+            isinstance(row, Mapping)
+            and row.get("BrokerID") == scope_broker_id
+            and type(row.get("AccountID")) is str
+            and bool(row.get("AccountID"))
+            and row.get("AccountID") == row.get("AccountID").strip()
+            for row in public_rows
+        )
+    )
+    account_investor_mapping_valid = bool(
+        account_rows_identity_valid
+        and all(
+            row.get("InvestorID") in (None, "", "\x00", scope_investor_id)
+            for row in public_rows
+        )
+    )
     monotonic_now = time.monotonic()
     source_owned = bool(
         source is not None
@@ -639,6 +782,21 @@ def _query_result_facts(
     facts["source_started_monotonic"] = source_started_monotonic if source_owned else None
     facts["source_completed_monotonic"] = source_completed_monotonic if source_owned else None
     facts["_source_issuer"] = expected_issuer if source_owned else None
+    facts["source_session_identity_valid"] = source_session_identity_valid
+    facts["source_account_rows_identity_valid"] = account_rows_identity_valid
+    facts["source_account_investor_mapping_valid"] = account_investor_mapping_valid
+    facts["source_request_filters_valid"] = (
+        _commission_request_filters_match(source, expected_scope, requested_filters or {})
+        if family == "instrument_commission_rate_result"
+        else None
+    )
+    facts["source_commission_rows_identity_valid"] = (
+        _commission_rows_match_session(public_rows, expected_scope, requested_filters or {})
+        if family == "instrument_commission_rate_result"
+        else None
+    )
+    facts["_source_broker_id"] = scope_broker_id if source_session_identity_valid else None
+    facts["_source_investor_id"] = scope_investor_id if source_session_identity_valid else None
     submit_code_clear = submit_code is None or (type(submit_code) is int and submit_code == 0)
     records_are_public = isinstance(public_rows, list) and all(
         isinstance(row, Mapping) and bool(row) for row in public_rows
@@ -1362,7 +1520,68 @@ class RegisteredSimWrapper:
             raise BtApiStoreError(
                 "registered-sim capability is not current for outbound instrument"
             )
+        unit_id = getattr(field, "InvestUnitID", _UNOBSERVED)
+        expected_unit_id = _ctp_order_route_invest_unit_id(*key)
+        if unit_id is not _UNOBSERVED and (
+            type(unit_id) is not str or unit_id != expected_unit_id
+        ):
+            raise BtApiStoreError("registered-sim outbound unit does not match its CTP route")
         return key
+
+    def registered_sim_write_route_invest_unit_id(
+        self, instrument_id: str, exchange_id: str
+    ) -> Optional[str]:
+        """Return the sealed target route's unit for source-owned fee queries.
+
+        A sealed template authorizes one exact future route, while the SDK
+        capability itself remains single-instrument and is checked again at
+        native dispatch.  Fee reads may cover more than the currently armed
+        route because the native InputOrder writer and this proof share the
+        same fixed InvestUnitID helper.
+        """
+
+        try:
+            key = (
+                _exact_text(instrument_id, "InstrumentID"),
+                _exact_text(exchange_id, "ExchangeID"),
+            )
+        except (TypeError, ValueError):
+            return None
+        with self._registered_sim_lock:
+            if (
+                not self._registered_sim_allow_writes
+                or self._registered_sim_frozen
+                or not self._registered_sim_arm_templates_sealed
+                or key not in self._registered_sim_arm_templates
+            ):
+                return None
+            try:
+                expected = self._require_expected_session_locked()
+                current = _session_identity(getattr(self, "trader_client", None))
+                template = self._registered_sim_arm_templates[key]
+                template_is_valid = (
+                    isinstance(template, Mapping)
+                    and type(template.get("md_front")) is str
+                    and bool(template.get("md_front"))
+                    and type(template.get("strategy_identity_sha256")) is str
+                    and _HASH_RE.fullmatch(template["strategy_identity_sha256"]) is not None
+                    and type(template.get("execution_cycle_id")) is str
+                    and bool(template.get("execution_cycle_id"))
+                    and type(template.get("preflight_sha256")) is str
+                    and _HASH_RE.fullmatch(template["preflight_sha256"]) is not None
+                )
+                if (
+                    not template_is_valid
+                    or current.get("read_only_ready") is not True
+                    or not _session_matches(current, expected, require_trading_ready=True)
+                ):
+                    return None
+                unit_id = _ctp_order_route_invest_unit_id(*key)
+                if type(unit_id) is not str:
+                    return None
+            except Exception:
+                return None
+            return unit_id
 
     def _remember_order_state_locked(self, order_ref: str, state: str) -> None:
         if not order_ref:
@@ -1690,6 +1909,9 @@ class RegisteredSimStore(BtApiStore):
         self._ctp_query_result_lock = threading.RLock()
         self._ctp_query_results: Dict[str, Dict[str, Any]] = {}
         self._ctp_query_snapshots = collections.OrderedDict()
+        # The optional per-target commission sidecar has its own bounded LRU
+        # so a wide target pool cannot evict one of the five core seal rows.
+        self._ctp_commission_query_snapshots = collections.OrderedDict()
         self._ctp_query_instrument_rows: Dict[Tuple[str, str], Dict[str, Any]] = {}
 
     @staticmethod
@@ -2415,6 +2637,24 @@ class RegisteredSimStore(BtApiStore):
                 raise BtApiStoreError("registered-sim OrderRef reservation is unavailable")
             return reserve()
 
+    def registered_sim_write_route_invest_unit_id(
+        self, instrument_id: str, exchange_id: str
+    ) -> Optional[str]:
+        """Read the exact unit used by this target's source-owned CTP writer."""
+
+        api = self._api
+        getter = (
+            getattr(api, "registered_sim_write_route_invest_unit_id", None)
+            if isinstance(api, RegisteredSimWrapper)
+            else None
+        )
+        if not callable(getter):
+            return None
+        try:
+            return getter(instrument_id, exchange_id)
+        except Exception:
+            return None
+
     def registered_sim_write_health(self) -> Dict[str, Any]:
         gate = self.registered_sim_status()
         api = self._api
@@ -2710,7 +2950,12 @@ class RegisteredSimStore(BtApiStore):
             raise ValueError("unsupported registered-sim query family")
         cache_key = _query_snapshot_key(family, filters)
         with self._ctp_query_result_lock:
-            facts = self._ctp_query_snapshots.get(cache_key)
+            cache = (
+                self._ctp_commission_query_snapshots
+                if family == "instrument_commission_rate_result"
+                else self._ctp_query_snapshots
+            )
+            facts = cache.get(cache_key)
         if not isinstance(facts, Mapping):
             return None
 
@@ -2754,6 +2999,11 @@ class RegisteredSimStore(BtApiStore):
             and time.monotonic() < expiry
         ):
             return None
+        if facts.get("source_session_identity_valid") is True and not (
+            _read_fact(current_scope, "broker_id") == facts.get("_source_broker_id")
+            and _read_fact(current_scope, "investor_id") == facts.get("_source_investor_id")
+        ):
+            return None
 
         detached = _public_query_snapshot(facts)
         detached["query_filters"] = copy.deepcopy(dict(filters))
@@ -2789,12 +3039,33 @@ class RegisteredSimStore(BtApiStore):
         family: str,
         timeout: float = 8.0,
         attempts: int = 2,
+        *,
+        deadline_monotonic: Optional[float] = None,
         **filters: Any,
     ) -> Dict[str, Any]:
         """Run a bounded typed query; absent completion facts remain unknown."""
         method_name = _QUERY_METHODS.get(family) if isinstance(family, str) else None
         if method_name is None:
             raise ValueError("unsupported registered-sim query family")
+        if family == "instrument_commission_rate_result" and (
+            set(filters) != {"instrument_id", "exchange_id"}
+            or any(
+                type(filters.get(name)) is not str
+                or not filters[name]
+                or filters[name] != filters[name].strip()
+                for name in ("instrument_id", "exchange_id")
+            )
+        ):
+            raise ValueError("commission query requires an exact instrument and exchange")
+        commission_deadline = None
+        if family == "instrument_commission_rate_result":
+            if (
+                type(deadline_monotonic) not in (int, float)
+                or not math.isfinite(deadline_monotonic)
+                or deadline_monotonic <= time.monotonic()
+            ):
+                raise ValueError("commission query requires a live monotonic deadline")
+            commission_deadline = float(deadline_monotonic)
         snapshot_key = _query_snapshot_key(family, filters)
         try:
             timeout_value = float(timeout)
@@ -2808,18 +3079,40 @@ class RegisteredSimStore(BtApiStore):
         method = getattr(api, method_name, None)
         if not callable(method):
             raise BtApiStoreError("CTP query family is unavailable")
+        if commission_deadline is not None:
+            try:
+                method_parameters = inspect.signature(method).parameters
+            except (TypeError, ValueError):
+                method_parameters = {}
+            deadline_parameter = method_parameters.get("deadline_monotonic")
+            if deadline_parameter is None or deadline_parameter.kind not in (
+                inspect.Parameter.POSITIONAL_OR_KEYWORD,
+                inspect.Parameter.KEYWORD_ONLY,
+            ):
+                # An older SDK can wait indefinitely while holding its query
+                # issue lock.  Do not start a fee request unless the selected
+                # source exposes the end-to-end bound explicitly.
+                raise BtApiStoreError("CTP commission query deadline is unavailable")
         effective_timeout = timeout_value
         facts: Dict[str, Any] = {"family": family, "query_complete": False, "rows": None}
         if family == "instruments_result":
             with self._ctp_query_result_lock:
                 self._ctp_query_instrument_rows.clear()
         for attempt in range(1, attempts + 1):
+            if commission_deadline is not None:
+                remaining = commission_deadline - time.monotonic()
+                if remaining <= 0:
+                    break
+                effective_timeout = min(effective_timeout, remaining)
             try:
-                result = method(timeout=effective_timeout, **filters)
+                call_kwargs = dict(timeout=effective_timeout, **filters)
+                if commission_deadline is not None:
+                    call_kwargs["deadline_monotonic"] = commission_deadline
+                result = method(**call_kwargs)
                 api_client = getattr(api, "trader_client", None)
                 scope_getter = getattr(api_client, "get_query_session_scope", None)
                 scope = scope_getter() if callable(scope_getter) else None
-                facts = _query_result_facts(result, family, attempt, scope)
+                facts = _query_result_facts(result, family, attempt, scope, filters)
                 facts["scope_complete"] = bool(
                     not filters
                     and facts.get("source_owned") is True
@@ -2837,7 +3130,17 @@ class RegisteredSimStore(BtApiStore):
             with self._ctp_query_result_lock:
                 self._ctp_query_results[family] = facts
                 if facts.get("query_complete") is True and facts.get("source_owned") is True:
-                    previous = self._ctp_query_snapshots.get(snapshot_key)
+                    snapshot_cache = (
+                        self._ctp_commission_query_snapshots
+                        if family == "instrument_commission_rate_result"
+                        else self._ctp_query_snapshots
+                    )
+                    snapshot_limit = (
+                        _COMMISSION_QUERY_SNAPSHOT_LIMIT
+                        if family == "instrument_commission_rate_result"
+                        else _QUERY_SNAPSHOT_LIMIT
+                    )
+                    previous = snapshot_cache.get(snapshot_key)
                     previous_completed = (
                         previous.get("completed_at_utc") if isinstance(previous, Mapping) else None
                     )
@@ -2858,17 +3161,23 @@ class RegisteredSimStore(BtApiStore):
                         )
                     )
                     if is_newer:
-                        self._ctp_query_snapshots[snapshot_key] = facts
-                        self._ctp_query_snapshots.move_to_end(snapshot_key)
-                        while len(self._ctp_query_snapshots) > _QUERY_SNAPSHOT_LIMIT:
-                            self._ctp_query_snapshots.popitem(last=False)
+                        snapshot_cache[snapshot_key] = facts
+                        snapshot_cache.move_to_end(snapshot_key)
+                        while len(snapshot_cache) > snapshot_limit:
+                            snapshot_cache.popitem(last=False)
             if facts.get("query_complete") is True:
                 if family == "instruments_result":
                     with self._ctp_query_result_lock:
                         self._record_instrument_rows(facts, filters)
                 return _public_query_snapshot(facts)
             if attempt < attempts:
-                time.sleep(min(1.5 * attempt, 3.0))
+                retry_sleep = min(1.5 * attempt, 3.0)
+                if commission_deadline is not None:
+                    remaining = commission_deadline - time.monotonic()
+                    if remaining <= 0:
+                        break
+                    retry_sleep = min(retry_sleep, remaining)
+                time.sleep(retry_sleep)
                 effective_timeout = max(effective_timeout * 1.5, effective_timeout + 1.0)
         raise BtApiStoreError("registered-sim query completion is unobserved or incomplete")
 

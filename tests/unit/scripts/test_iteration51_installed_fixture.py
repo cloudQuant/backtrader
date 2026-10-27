@@ -501,6 +501,361 @@ def test_write_refresh_barrier_waits_on_the_real_query_refresh_thread(
         journal.close()
 
 
+def test_blocked_optional_fee_query_leaves_live_core_projection_available(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from backtrader.stores.factor_execution_facts import FactorExecutionTarget
+
+    runner_path = (
+        _FIXTURE_PATH.parents[1]
+        / "examples"
+        / "unified"
+        / "028_alpha003_simnow_minute"
+        / "run.py"
+    )
+    monkeypatch.syspath_prepend(str(runner_path.parent))
+    runner_spec = importlib.util.spec_from_file_location(
+        "alpha003_simnow_fee_lock_source_test", runner_path
+    )
+    assert runner_spec is not None and runner_spec.loader is not None
+    runner = importlib.util.module_from_spec(runner_spec)
+    sys.modules[runner_spec.name] = runner
+    runner_spec.loader.exec_module(runner)
+
+    strategy_path = runner_path.with_name("alpha003_strategy.py")
+    strategy_spec = importlib.util.spec_from_file_location(
+        "alpha003_simnow_fee_lock_strategy_test", strategy_path
+    )
+    assert strategy_spec is not None and strategy_spec.loader is not None
+    strategy_module = importlib.util.module_from_spec(strategy_spec)
+    sys.modules[strategy_spec.name] = strategy_module
+    strategy_spec.loader.exec_module(strategy_module)
+
+    helper = _load_iteration50_fixture()
+    clock = _FixedUTCClock(datetime.now(timezone.utc))
+    _api, _store, journal, target, loop = _source_loaded_refresh_case(
+        helper, runner, clock, bind_query_clock=True
+    )
+    entered = threading.Event()
+    release = threading.Event()
+    refresh = None
+    try:
+        initial = loop.refresh_initial(wait_timeout=2.0)
+        assert initial is loop.last_receipt and initial.query_set is not None
+
+        loop.commission_identity_by_target = {
+            target.target_id: {"account_id": "fixture-account", "invest_unit_id": ""}
+        }
+        loop._commission_targets = (target,)
+        loop._refresh_commission_sidecar = lambda: (entered.set(), release.wait(5.0))
+        refresh = threading.Thread(target=loop.refresh_once)
+        refresh.start()
+        assert entered.wait(3.0)
+
+        strategy = object.__new__(strategy_module.Alpha003TargetStrategy)
+        strategy.broker = loop.broker
+        strategy.p = SimpleNamespace(
+            control_refresh_loop=loop,
+            execution_enabled=True,
+        )
+        strategy._risk_policy = object()
+        strategy._quote_max_age_seconds = Decimal("60")
+        strategy._max_query_age_seconds = Decimal("60")
+        strategy._target_ids = (target.target_id,)
+        strategy._routes = {
+            target.target_id: (target.instrument, target.exchange),
+        }
+        strategy._data_by_target = {target.target_id: target.data}
+        strategy._authorized_targets = frozenset({target.target_id})
+        strategy._account_scope = loop.account_scope
+        strategy._strategy_scope = loop.strategy_scope
+        strategy.last_execution_facts = None
+        strategy._last_execution_facts_broker = None
+        strategy._last_execution_facts_store = None
+        strategy.last_execution_block_reason = None
+
+        facts = strategy_module.Alpha003TargetStrategy._live_facts(
+            strategy, clock.utc_now()
+        )
+
+        assert facts is not None, strategy.last_execution_block_reason
+        assert strategy.last_execution_block_reason is None
+        assert facts.snapshot_id is not None
+        assert facts.query_set_id == loop.last_receipt.query_set.query_set_id
+        assert {
+            item.family
+            for item in facts.query_provenance
+            if item.family
+            in {
+                "account_result",
+                "orders_result",
+                "trades_result",
+                "instruments_result",
+                "positions_result",
+            }
+        } == {
+            "account_result",
+            "orders_result",
+            "trades_result",
+            "instruments_result",
+            "positions_result",
+        }
+        assert loop._fact_snapshot_lock.locked() is False
+    finally:
+        release.set()
+        if refresh is not None:
+            refresh.join(timeout=3.0)
+            assert not refresh.is_alive()
+        journal.close()
+
+
+def test_commission_refresh_prioritizes_live_pair_and_held_fees_within_ttl(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from backtrader.stores.factor_execution_facts import FactorExecutionTarget
+
+    runner_path = (
+        _FIXTURE_PATH.parents[1]
+        / "examples"
+        / "unified"
+        / "028_alpha003_simnow_minute"
+        / "run.py"
+    )
+    monkeypatch.syspath_prepend(str(runner_path.parent))
+    runner_spec = importlib.util.spec_from_file_location(
+        "alpha003_simnow_fee_priority_source_test", runner_path
+    )
+    assert runner_spec is not None and runner_spec.loader is not None
+    runner = importlib.util.module_from_spec(runner_spec)
+    sys.modules[runner_spec.name] = runner
+    runner_spec.loader.exec_module(runner)
+
+    class VirtualTime:
+        monotonic_now = 100.0
+
+        @classmethod
+        def monotonic(cls):
+            return cls.monotonic_now
+
+    class MutableClock:
+        now = datetime(2026, 10, 27, 1, 0, tzinfo=timezone.utc)
+
+        @classmethod
+        def utc_now(cls):
+            return cls.now
+
+    monkeypatch.setattr(runner, "time", VirtualTime)
+    target_ids = tuple("T{:03d}".format(index) for index in range(128))
+    targets = tuple(
+        FactorExecutionTarget(
+            target_id,
+            "M{}".format(index),
+            "DCE",
+            SimpleNamespace(_name="M{}".format(index)),
+        )
+        for index, target_id in enumerate(target_ids)
+    )
+    loop = runner.QueryRefreshLoop(
+        SimpleNamespace(),
+        None,
+        targets,
+        execution_target_ids=target_ids,
+        commission_identity_by_target={
+            target_id: {"account_id": "synthetic-account", "invest_unit_id": ""}
+            for target_id in target_ids
+        },
+        commission_required_for_open=True,
+        coordinator=None,
+        account_scope="synthetic-scope",
+        strategy_scope="synthetic-strategy",
+        clock=MutableClock,
+        quote_max_age=timedelta(seconds=60),
+        max_query_age=timedelta(seconds=60),
+        timeout=5.0,
+        overall_timeout=20.0,
+        interval=1.0,
+        cerebro=None,
+        shutdown_grace_seconds=1.0,
+    )
+    account = SimpleNamespace(
+        account_fingerprint="synthetic-fingerprint",
+        connection_generation=7,
+        trading_day="20261027",
+    )
+    loop.last_facts = SimpleNamespace(account=account, positions=(), query_provenance=())
+
+    def decision(pair, *, available_at=None, authorized=target_ids, batch="batch-1"):
+        return SimpleNamespace(
+            status="TARGETS_READY",
+            execution_mode="LIVE",
+            batch_id=batch,
+            available_at=available_at or MutableClock.now,
+            authorized_targets=authorized,
+            targets=tuple(SimpleNamespace(target_id=value) for value in pair),
+        )
+
+    def record_complete_query(target_id):
+        fact = SimpleNamespace(
+            family="instrument_commission_rate_result",
+            target_id=target_id,
+            request_id=100 + target_ids.index(target_id),
+            source_owned=True,
+            query_complete=True,
+            connection_generation=account.connection_generation,
+            trading_day=account.trading_day,
+            account_fingerprint=account.account_fingerprint,
+            completed_at=MutableClock.now,
+        )
+        previous = tuple(loop.last_facts.query_provenance)
+        previous = tuple(item for item in previous if item.target_id != target_id)
+        loop.last_facts = SimpleNamespace(
+            account=account,
+            positions=loop.last_facts.positions,
+            query_provenance=previous + (fact,),
+        )
+
+    loop.publish_commission_target_decision(decision(("T000", "T001")))
+    assert loop._select_commission_target().target_id == "T000"
+    record_complete_query("T000")
+
+    # Simulate six serialized core queries and one bounded fee slot per cycle.
+    cadence = 6 * 1.05 + 3.0
+    MutableClock.now += timedelta(seconds=cadence)
+    VirtualTime.monotonic_now += cadence
+    assert loop._select_commission_target().target_id == "T001"
+    record_complete_query("T001")
+
+    # Many authorized but unselected targets remain in the pool. A held target
+    # is serviced after both currently selected pair fees are fresh.
+    loop.last_facts = SimpleNamespace(
+        account=account,
+        positions=(SimpleNamespace(target_id="T010", quantity=1),),
+        query_provenance=loop.last_facts.query_provenance,
+    )
+    assert loop._select_commission_target().target_id == "T010"
+    assert len(loop._commission_targets) == 128
+    record_complete_query("T010")
+
+    # After the 30s refresh horizon, the selected pair jumps ahead of the
+    # round-robin tail and can be refreshed within two bounded fee slots.
+    MutableClock.now += timedelta(seconds=31)
+    VirtualTime.monotonic_now += 31
+    loop.last_facts = SimpleNamespace(
+        account=account,
+        positions=(),
+        query_provenance=loop.last_facts.query_provenance,
+    )
+    assert loop._select_commission_target().target_id == "T000"
+    record_complete_query("T000")
+    MutableClock.now += timedelta(seconds=cadence)
+    VirtualTime.monotonic_now += cadence
+    assert loop._select_commission_target().target_id == "T001"
+
+
+def test_commission_priority_rejects_switched_or_expired_decision_snapshot(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from backtrader.stores.factor_execution_facts import FactorExecutionTarget
+
+    runner_path = (
+        _FIXTURE_PATH.parents[1]
+        / "examples"
+        / "unified"
+        / "028_alpha003_simnow_minute"
+        / "run.py"
+    )
+    monkeypatch.syspath_prepend(str(runner_path.parent))
+    runner_spec = importlib.util.spec_from_file_location(
+        "alpha003_simnow_fee_priority_stale_source_test", runner_path
+    )
+    assert runner_spec is not None and runner_spec.loader is not None
+    runner = importlib.util.module_from_spec(runner_spec)
+    sys.modules[runner_spec.name] = runner
+    runner_spec.loader.exec_module(runner)
+
+    class VirtualTime:
+        monotonic_now = 50.0
+
+        @classmethod
+        def monotonic(cls):
+            return cls.monotonic_now
+
+    class MutableClock:
+        now = datetime(2026, 10, 27, 1, 0, tzinfo=timezone.utc)
+
+        @classmethod
+        def utc_now(cls):
+            return cls.now
+
+    monkeypatch.setattr(runner, "time", VirtualTime)
+    targets = tuple(
+        FactorExecutionTarget(
+            target_id,
+            "M" + target_id,
+            "DCE",
+            SimpleNamespace(_name="M" + target_id),
+        )
+        for target_id in ("A", "B", "C", "D", "E")
+    )
+    target_ids = tuple(item.target_id for item in targets)
+    loop = runner.QueryRefreshLoop(
+        SimpleNamespace(),
+        None,
+        targets,
+        execution_target_ids=target_ids,
+        commission_identity_by_target={
+            target_id: {"account_id": "synthetic-account", "invest_unit_id": ""}
+            for target_id in target_ids
+        },
+        commission_required_for_open=True,
+        coordinator=None,
+        account_scope="synthetic-scope",
+        strategy_scope="synthetic-strategy",
+        clock=MutableClock,
+        quote_max_age=timedelta(seconds=10),
+        max_query_age=timedelta(seconds=60),
+        timeout=5.0,
+        overall_timeout=20.0,
+        interval=1.0,
+        cerebro=None,
+        shutdown_grace_seconds=1.0,
+    )
+    loop.last_facts = SimpleNamespace(account=None, positions=(), query_provenance=())
+
+    def decision(pair, available_at, authorized=target_ids, batch="batch"):
+        return SimpleNamespace(
+            status="TARGETS_READY",
+            execution_mode="LIVE",
+            batch_id=batch,
+            available_at=available_at,
+            authorized_targets=authorized,
+            targets=tuple(SimpleNamespace(target_id=value) for value in pair),
+        )
+
+    loop.publish_commission_target_decision(
+        decision(("A", "B"), MutableClock.now, authorized=target_ids[:2])
+    )
+    # A decision for a different execution grant must never seed priority.
+    assert loop._commission_priority_target_ids() == ()
+
+    loop.publish_commission_target_decision(decision(("A", "B"), MutableClock.now))
+    assert loop._select_commission_target().target_id == "A"
+    loop.publish_commission_target_decision(
+        decision(("C", "D"), MutableClock.now, batch="next-grid")
+    )
+    assert loop._commission_priority_target_ids() == ("C", "D")
+    assert loop._select_commission_target().target_id == "C"
+
+    MutableClock.now += timedelta(seconds=11)
+    VirtualTime.monotonic_now += 11
+    loop._commission_index = 4
+    assert loop._commission_priority_target_ids() == ()
+    # Stale selection falls back to the full authorized pool; it does not keep
+    # retrying the formerly selected C/D legs.
+    assert loop._select_commission_target().target_id == "E"
+    assert len(loop._commission_targets) == 5
+
+
 def test_refresh_barrier_rejects_missing_or_future_query_sets_and_noquote_preclose(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

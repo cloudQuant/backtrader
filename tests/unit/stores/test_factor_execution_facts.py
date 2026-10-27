@@ -2,11 +2,14 @@
 
 from dataclasses import dataclass, replace
 from datetime import datetime, timedelta, timezone
-from decimal import Decimal, Inexact, Overflow, Rounded, localcontext
+from decimal import Decimal, Inexact, Overflow, ROUND_HALF_EVEN, Rounded, localcontext
 from hashlib import sha256
 import json
+import importlib.util
 from types import SimpleNamespace
+import sys
 import time
+from pathlib import Path
 
 import pytest
 
@@ -22,12 +25,21 @@ from backtrader.stores.execution_decision_journal import (
 from backtrader.stores.factor_execution import FactorExecutionCoordinator
 from backtrader.stores.factor_execution_facts import (
     FactorExecutionTarget,
+    _account_values,
     _account_pnl_decimal,
+    _commission_fee_upper_bound,
+    _commission_rate_decimal,
     _exact_total_net_pnl,
+    _risk_totals,
     project_factor_execution_facts,
     refresh_factor_execution_queries,
 )
-from backtrader.stores.registered_sim import RegisteredSimStore, RegisteredSimWrapper
+from backtrader.stores.registered_sim import (
+    BtApiStoreError,
+    RegisteredSimStore,
+    RegisteredSimWrapper,
+    _query_snapshot_key,
+)
 
 
 _INSTRUMENT = "rb2510"
@@ -53,6 +65,10 @@ class _QuerySource:
     trusted_expires_monotonic: float
     records_sha256: str
     explicit_request_filters: tuple
+    broker_id: str = "fake-broker"
+    investor_id: str = "fake-investor"
+    request_intent_filters: tuple = ()
+    request_filters: tuple = ()
 
 
 @dataclass(frozen=True)
@@ -83,6 +99,8 @@ class _QueryClient:
         self._connection_generation = 1
         self._account_fingerprint = _ACCOUNT
         self._trading_day = _TRADING_DAY
+        self._broker_id = "fake-broker"
+        self._investor_id = "fake-investor"
         self.is_ready = True
         self.is_trading_ready = True
         self._gate_state = {
@@ -104,6 +122,8 @@ class _QueryClient:
             connection_generation=self._connection_generation,
             account_fingerprint=self._account_fingerprint,
             trading_day=self._trading_day,
+            broker_id=self._broker_id,
+            investor_id=self._investor_id,
             read_only_ready=True,
         )
 
@@ -155,11 +175,20 @@ class _ProviderLeaves:
         self.tick = tick
         self.ticks = dict(ticks or {})
         self.query_calls = []
+        self.commission_deadlines = []
         self._next_request_id = 0
         self._registered_sim_allow_writes = True
         self._use_observed_query_clock = False
 
-    def _query(self, request_type, rows, *, filters=()):
+    def _query(
+        self,
+        request_type,
+        rows,
+        *,
+        filters=(),
+        request_intent_filters=(),
+        request_filters=(),
+    ):
         self._next_request_id += 1
         request_id = self._next_request_id
         if self._use_observed_query_clock:
@@ -199,6 +228,10 @@ class _ProviderLeaves:
             trusted_expires_monotonic=mono + 30.0,
             records_sha256=records_sha256,
             explicit_request_filters=tuple(filters),
+            broker_id=self.trader_client._broker_id,
+            investor_id=self.trader_client._investor_id,
+            request_intent_filters=tuple(request_intent_filters),
+            request_filters=tuple(request_filters),
         )
         return _QueryResult(
             request_type=request_type,
@@ -248,6 +281,36 @@ class _ProviderLeaves:
     def query_instrument_margin_rate_result(self, *, timeout=5.0, **filters):
         del timeout
         return self._query_family("instrument_margin_rate_result", "margin_rate", **filters)
+
+    def query_instrument_commission_rate_result(
+        self, *, timeout=5.0, deadline_monotonic, instrument_id, exchange_id
+    ):
+        del timeout
+        assert type(deadline_monotonic) is float
+        assert deadline_monotonic > time.monotonic()
+        self.commission_deadlines.append(deadline_monotonic)
+        filters = {"instrument_id": instrument_id, "exchange_id": exchange_id}
+        self.query_calls.append(("instrument_commission_rate_result", dict(filters)))
+        request_filters = (
+            ("BrokerID", self.trader_client._broker_id),
+            ("InvestorID", self.trader_client._investor_id),
+            ("InstrumentID", instrument_id),
+            ("ExchangeID", exchange_id),
+        )
+        rows = [
+            row
+            for row in self.query_rows.get("instrument_commission_rate_result", [])
+            if isinstance(row, dict)
+            and row.get("InstrumentID") == instrument_id
+            and row.get("ExchangeID") == exchange_id
+        ]
+        return self._query(
+            "commission_rate",
+            rows,
+            filters=(),
+            request_intent_filters=request_filters,
+            request_filters=request_filters,
+        )
 
     def poll_tick(self, symbol):
         if symbol in self.ticks:
@@ -360,6 +423,38 @@ def _query_rows(*, positions=(), orders=(), trades=(), account=None, include_mar
         ),
     }
     return rows
+
+
+def _commission_row(
+    *,
+    instrument=_INSTRUMENT,
+    exchange=_EXCHANGE,
+    investor_range="1",
+    investor_id="",
+    business_type="1",
+    open_money="0",
+    open_volume="0.01",
+    close_money="0",
+    close_volume="0.02",
+    close_today_money="0",
+    close_today_volume="0.03",
+    invest_unit_id="",
+):
+    return {
+        "BrokerID": "fake-broker",
+        "InstrumentID": instrument,
+        "ExchangeID": exchange,
+        "InvestUnitID": invest_unit_id,
+        "InvestorRange": investor_range,
+        "InvestorID": investor_id,
+        "BizType": business_type,
+        "OpenRatioByMoney": open_money,
+        "OpenRatioByVolume": open_volume,
+        "CloseRatioByMoney": close_money,
+        "CloseRatioByVolume": close_volume,
+        "CloseTodayRatioByMoney": close_today_money,
+        "CloseTodayRatioByVolume": close_today_volume,
+    }
 
 
 def _dated_position_row(
@@ -979,10 +1074,10 @@ def _build_source_backed_read_only_reconciliation_case(scenario="positive"):
     )
 
 
-def _multi_target_system_under_test(*, now, target_specs, missing_template=()):
+def _multi_target_system_under_test(*, now, target_specs, missing_template=(), account=None):
     """Keep the real Store/Broker/coordinator path with only provider leaves faked."""
 
-    rows = _query_rows()
+    rows = _query_rows(account=account)
     rows["instruments_result"] = [
         {
             "InstrumentID": instrument,
@@ -1136,6 +1231,8 @@ def _project(
     query_set=None,
     max_query_age=timedelta(seconds=10),
     strategy_scope="alpha003",
+    commission_identity_by_target=None,
+    execution_target_ids=None,
 ):
     return project_factor_execution_facts(
         store,
@@ -1147,6 +1244,8 @@ def _project(
         quote_max_age=timedelta(seconds=2),
         max_query_age=max_query_age,
         query_set=query_set,
+        commission_identity_by_target=commission_identity_by_target,
+        execution_target_ids=execution_target_ids,
     )
 
 
@@ -1183,6 +1282,646 @@ def test_real_registered_store_and_broker_project_a_complete_flat_snapshot():
     assert coordinator.position_book is not None
     assert journal is coordinator.journal
     assert len(api.query_calls) == 6
+
+
+def test_position_risk_totals_use_bounded_ceiling_under_low_decimal_context():
+    position = SimpleNamespace(
+        target_id="rb",
+        quantity=Decimal("3"),
+        instrument=_INSTRUMENT,
+        average_price=Decimal("22.222"),
+        stop_price=Decimal("11.111"),
+    )
+    instrument = SimpleNamespace(target_id="rb", multiplier=Decimal("3.333"))
+    quote = SimpleNamespace(
+        instrument=_INSTRUMENT,
+        quality="GOOD",
+        bid=Decimal("11.111"),
+        ask=Decimal("11.111"),
+    )
+
+    with localcontext() as context:
+        context.prec = 2
+        context.Emax = 3
+        context.Emin = -3
+        context.rounding = ROUND_HALF_EVEN
+        old_notional_cap = (
+            abs(position.quantity) * instrument.multiplier * max(quote.bid, quote.ask)
+        )
+        old_loss_cap = (
+            abs(position.quantity)
+            * instrument.multiplier
+            * (position.average_price - position.stop_price)
+        )
+        assert old_notional_cap == Decimal("1.1E2")
+        assert old_loss_cap == Decimal("1.1E2")
+
+        notional, worst_loss = _risk_totals(
+            (position,), (instrument,), (quote,), (), []
+        )
+
+    with localcontext() as context:
+        context.prec = 2048
+        exact_total = Decimal("3") * Decimal("3.333") * Decimal("11.111")
+    assert notional == exact_total
+    assert worst_loss == exact_total
+    assert notional > old_notional_cap
+    assert worst_loss > old_loss_cap
+
+
+def test_position_risk_out_of_range_returns_unknown_totals():
+    position = SimpleNamespace(
+        target_id="rb",
+        quantity=Decimal("1"),
+        instrument=_INSTRUMENT,
+        average_price=Decimal("100"),
+        stop_price=Decimal("90"),
+    )
+    instrument = SimpleNamespace(target_id="rb", multiplier=Decimal("1e255"))
+    quote = SimpleNamespace(
+        instrument=_INSTRUMENT,
+        quality="GOOD",
+        bid=Decimal("100"),
+        ask=Decimal("101"),
+    )
+
+    totals = _risk_totals((position,), (instrument,), (quote,), (), [])
+
+    assert totals == (None, None)
+
+
+def test_margin_projection_keeps_exact_native_float_upper_bound_at_low_precision():
+    now = datetime.now(timezone.utc)
+    rows = _query_rows()
+    margin_row = rows["instrument_margin_rate_result"][0]
+    margin_row.update(
+        {
+            "LongMarginRatioByMoney": 0.1,
+            "LongMarginRatioByVolume": 0.2,
+            "ShortMarginRatioByMoney": 0.1,
+            "ShortMarginRatioByVolume": 0.2,
+        }
+    )
+    _api, store, broker, _journal, _coordinator, target = _system_under_test(
+        now=now, rows=rows
+    )
+    receipt = _refresh_all(store, target)
+    _arm(store)
+    assert _consume_quote(store) is not None
+
+    with localcontext() as context:
+        context.prec = 2
+        context.Emax = 3
+        context.Emin = -3
+        context.rounding = ROUND_HALF_EVEN
+        facts = _project(store, broker, target, now, query_set=receipt.query_set)
+        old_margin_cap = Decimal("101") * Decimal("10") * Decimal(str(0.1)) + Decimal(
+            str(0.2)
+        )
+
+    with localcontext() as context:
+        context.prec = 2048
+        exact_native_margin = (
+            Decimal("101") * Decimal("10") * Decimal.from_float(0.1)
+            + Decimal.from_float(0.2)
+        )
+    assert old_margin_cap == Decimal("1.0E2")
+    assert facts.instruments[0].long_margin_per_hand == exact_native_margin
+    assert facts.instruments[0].long_margin_per_hand > old_margin_cap
+
+
+def test_out_of_range_margin_projection_keeps_existing_open_blockers():
+    now = datetime.now(timezone.utc)
+    rows = _query_rows()
+    rows["instrument_margin_rate_result"][0]["LongMarginRatioByMoney"] = "1e129"
+    _api, store, broker, _journal, _coordinator, target = _system_under_test(
+        now=now, rows=rows
+    )
+    receipt = _refresh_all(store, target)
+    _arm(store)
+    assert _consume_quote(store) is not None
+
+    facts = _project(store, broker, target, now, query_set=receipt.query_set)
+
+    assert facts.instruments[0].long_margin_per_hand is None
+    assert "margin_rates_unobserved:rb2510" in facts.blockers
+    assert "long_margin_per_hand_unobserved:rb" in facts.blockers
+    assert facts.risk_reduction_ready is True
+    assert facts.open_risk_ready is False
+
+
+def test_extreme_quote_times_multiplier_overflow_keeps_close_and_cancel_readiness():
+    now = datetime.now(timezone.utc)
+    rows = _query_rows(
+        orders=(
+            {
+                "OrderRef": "94",
+                "OrderSysID": "sys-94",
+                "InstrumentID": _INSTRUMENT,
+                "ExchangeID": _EXCHANGE,
+                "OrderStatus": "3",
+                "Direction": "0",
+                "CombOffsetFlag": "0",
+                "VolumeTotal": "1",
+                "FrontID": 4,
+                "SessionID": 7,
+            },
+        )
+    )
+    rows["instruments_result"][0].update(
+        {"VolumeMultiple": 10**128, "UpperLimitPrice": "1e200"}
+    )
+    rows["instrument_margin_rate_result"][0].update(
+        {
+            "LongMarginRatioByMoney": "1",
+            "ShortMarginRatioByMoney": "1",
+        }
+    )
+    tick = _quote(event_time=now - timedelta(milliseconds=200))
+    tick.price = 1e128
+    tick.bid_price = 1e128
+    tick.ask_price = 1e128
+    _api, store, broker, _journal, _coordinator, target = _system_under_test(
+        now=now, rows=rows, tick=tick
+    )
+    receipt = _refresh_all(store, target)
+    _arm(store)
+    assert _consume_quote(store) is not None
+    order = BuyOrder(
+        owner=None,
+        data=target.data,
+        size=1,
+        price=100,
+        exectype=Order.Limit,
+        simulated=True,
+    )
+    order.status = Order.Accepted
+    order.info.update(
+        {
+            "external_order_ref": "94",
+            "order_sys_id": "sys-94",
+            "registered_sim_ctp_order_sys_id": "sys-94",
+            "registered_sim_ctp_order_sys_id_source": "ctp_order_callback",
+            "_registered_sim_ctp_identity_binding_captured": True,
+            "_registered_sim_ctp_identity_binding_valid": True,
+            "factor_position_effect": "OPEN",
+            "factor_strategy_scope": "alpha003",
+            "factor_intent_id": "intent-94",
+            "front_id": 4,
+            "session_id": 7,
+            "execution_unknown": False,
+            "cancel_requested_remote": False,
+            "cancel_intent_active": False,
+            "managed_execution_cancel_pending": False,
+        }
+    )
+    broker.orders[order.ref] = order
+
+    facts = _project(store, broker, target, now, query_set=receipt.query_set)
+
+    assert facts.quotes[0].quality == "GOOD"
+    assert facts.instruments[0].multiplier == Decimal(10) ** 128
+    assert facts.instruments[0].long_margin_per_hand is None
+    assert facts.instruments[0].short_margin_per_hand is None
+    assert "long_margin_per_hand_unobserved:rb" in facts.blockers
+    assert "short_margin_per_hand_unobserved:rb" in facts.blockers
+    assert facts.risk_reduction_ready is True, facts.risk_reduction_blockers
+    assert facts.open_risk_ready is False
+    assert facts.order_cancel_ready is True, facts.order_cancel_blockers
+
+
+def _commission_projection_case(commission_rows):
+    now = datetime.now(timezone.utc)
+    account = {
+        "Available": "100000",
+        "CurrMargin": "0",
+        "BrokerID": "fake-broker",
+        "AccountID": "configured-account",
+        "InvestorID": "fake-investor",
+    }
+    rows = _query_rows(account=account)
+    rows["instrument_commission_rate_result"] = list(commission_rows)
+    api, store, broker, _journal, _coordinator, target = _system_under_test(
+        now=now, rows=rows
+    )
+    assert store.registered_sim_write_route_invest_unit_id(_INSTRUMENT, _EXCHANGE) is None
+    receipt = _refresh_all(store, target)
+    _arm(store)
+    assert store.registered_sim_write_route_invest_unit_id(_INSTRUMENT, _EXCHANGE) == ""
+    assert _consume_quote(store) is not None
+    result = store.registered_sim_query(
+        "instrument_commission_rate_result",
+        timeout=1.0,
+        attempts=1,
+        deadline_monotonic=time.monotonic() + 5.0,
+        instrument_id=_INSTRUMENT,
+        exchange_id=_EXCHANGE,
+    )
+    facts = _project(
+        store,
+        broker,
+        target,
+        datetime.now(timezone.utc),
+        query_set=receipt.query_set,
+        commission_identity_by_target={
+            "rb": {"account_id": "configured-account", "invest_unit_id": ""}
+        },
+    )
+    return api, store, broker, receipt, result, facts
+
+
+def _multi_target_commission_projection_case(
+    commission_rows,
+    *,
+    execution_target_ids=("A", "B", "C"),
+    commission_identity_by_target=None,
+):
+    """Project real core/store facts for a configured three-target fee sidecar."""
+
+    now = datetime.now(timezone.utc)
+    account = {
+        "Available": "100000",
+        "CurrMargin": "0",
+        "BrokerID": "fake-broker",
+        "AccountID": "configured-account",
+        "InvestorID": "fake-investor",
+    }
+    target_specs = (
+        ("A", _INSTRUMENT, _EXCHANGE),
+        ("B", "i2510", "DCE"),
+        ("C", "j2510", "DCE"),
+    )
+    api, store, broker, _journal, _coordinator, targets, templates = (
+        _multi_target_system_under_test(now=now, target_specs=target_specs, account=account)
+    )
+    api.query_rows["instrument_commission_rate_result"] = list(commission_rows)
+    receipt = refresh_factor_execution_queries(
+        store,
+        targets=targets,
+        overall_timeout=4.0,
+        max_queries=8,
+    )
+    assert receipt.blockers == ()
+    assert receipt.pending_families == ()
+    assert len(receipt.query_provenance) == 8
+    assert len(receipt.query_set.query_ids) == 5
+
+    first = targets[0]
+    store.registered_sim_arm(
+        instrument=first.instrument,
+        exchange=first.exchange,
+        **templates[(first.instrument, first.exchange)],
+    )
+    assert all(
+        store.registered_sim_write_route_invest_unit_id(target.instrument, target.exchange) == ""
+        for target in targets
+    )
+    assert all(store.poll_tick(target.instrument) is not None for target in targets)
+
+    targets_by_id = {target.target_id: target for target in targets}
+    for target_id in execution_target_ids:
+        target = targets_by_id[target_id]
+        store.registered_sim_query(
+            "instrument_commission_rate_result",
+            timeout=1.0,
+            attempts=1,
+            deadline_monotonic=time.monotonic() + 5.0,
+            instrument_id=target.instrument,
+            exchange_id=target.exchange,
+        )
+    if commission_identity_by_target is None:
+        commission_identity_by_target = {
+            target_id: {"account_id": "configured-account", "invest_unit_id": ""}
+            for target_id in execution_target_ids
+        }
+    facts = project_factor_execution_facts(
+        store,
+        broker,
+        targets=targets,
+        account_scope="acct-scope",
+        strategy_scope="alpha003",
+        now=datetime.now(timezone.utc),
+        quote_max_age=timedelta(seconds=2),
+        max_query_age=timedelta(seconds=10),
+        query_set=receipt.query_set,
+        execution_target_ids=execution_target_ids,
+        commission_identity_by_target=commission_identity_by_target,
+        commission_required_for_open=True,
+    )
+    return SimpleNamespace(api=api, store=store, broker=broker, receipt=receipt, facts=facts)
+
+
+def test_commission_sidecar_uses_real_ctp_filter_shape_without_changing_core_seal():
+    api, _store, _broker, receipt, result, facts = _commission_projection_case(
+        (_commission_row(),)
+    )
+
+    assert len(receipt.query_provenance) == 6
+    assert len(receipt.query_set.query_ids) == 5
+    assert all(
+        fact.family != "instrument_commission_rate_result"
+        for fact in receipt.query_provenance
+    )
+    assert len(api.query_calls) == 7
+    assert api.query_calls[-1] == (
+        "instrument_commission_rate_result",
+        {"instrument_id": _INSTRUMENT, "exchange_id": _EXCHANGE},
+    )
+    assert api.commission_deadlines and api.commission_deadlines[-1] > time.monotonic()
+    assert result["source_explicit_request_filters"] == ()
+    assert result["source_request_filters_valid"] is True
+    assert result["source_commission_rows_identity_valid"] is True
+    assert facts.open_risk_ready is True, facts.blockers
+    assert facts.risk_reduction_ready is True, facts.risk_reduction_blockers
+    assert facts.instruments[0].round_trip_fee_upper_bound_per_contract == Decimal("0.04")
+    assert facts.instruments[0].commission_fee_required is True
+    assert facts.instruments[0].commission_fee_status == "AVAILABLE"
+    assert all("configured-account" not in repr(item) for item in facts.query_provenance)
+
+
+def test_commission_sidecar_reads_multiple_sealed_target_routes_without_switching_grants():
+    case = _multi_target_commission_projection_case(
+        (
+            _commission_row(instrument=_INSTRUMENT, exchange=_EXCHANGE),
+            _commission_row(instrument="i2510", exchange="DCE"),
+        )
+    )
+    facts = case.facts
+
+    assert len(case.receipt.query_set.query_ids) == 5
+    assert len(case.receipt.query_provenance) == 8
+    assert [fact.family for fact in facts.query_provenance].count(
+        "instrument_commission_rate_result"
+    ) == 3
+    assert [item.commission_fee_status for item in facts.instruments] == [
+        "AVAILABLE",
+        "AVAILABLE",
+        "RATE_UNAVAILABLE",
+    ]
+    assert [item.round_trip_fee_upper_bound_per_contract for item in facts.instruments] == [
+        Decimal("0.04"),
+        Decimal("0.04"),
+        None,
+    ]
+    assert "commission_fee_rate_unavailable:C" in facts.blockers
+    assert "commission_fee_rate_unavailable:C" not in facts.open_risk_blockers
+    assert facts.open_risk_ready is True, facts.open_risk_blockers
+    assert facts.risk_reduction_ready is True, facts.risk_reduction_blockers
+    assert len(
+        [call for call in case.api.query_calls if call[0] == "instrument_commission_rate_result"]
+    ) == 3
+
+
+def test_commission_required_status_covers_targets_outside_authorized_sidecar_scope():
+    case = _multi_target_commission_projection_case(
+        (_commission_row(instrument=_INSTRUMENT, exchange=_EXCHANGE),),
+        execution_target_ids=("A",),
+        commission_identity_by_target={
+            "A": {"account_id": "configured-account", "invest_unit_id": ""}
+        },
+    )
+
+    by_target = {item.target_id: item for item in case.facts.instruments}
+    assert case.facts.execution_target_ids == ("A",)
+    assert by_target["A"].commission_fee_required is True
+    assert by_target["A"].commission_fee_status == "AVAILABLE"
+    for target_id in ("B", "C"):
+        assert by_target[target_id].commission_fee_required is True
+        assert by_target[target_id].commission_fee_status == "IDENTITY_UNAVAILABLE"
+        assert by_target[target_id].round_trip_fee_upper_bound_per_contract is None
+    queried_fee_targets = {
+        fact.target_id
+        for fact in case.facts.query_provenance
+        if fact.family == "instrument_commission_rate_result"
+    }
+    assert queried_fee_targets == {"A"}
+
+
+@pytest.mark.parametrize(
+    "changed_field,changed_value",
+    (
+        ("source_expires_monotonic", -1.0),
+        ("connection_generation", 999),
+        ("trading_day", "20991231"),
+        ("account_fingerprint", "other-session"),
+    ),
+)
+def test_commission_snapshot_expiry_or_session_mismatch_fails_closed_without_staling_core(
+    changed_field, changed_value
+):
+    _api, store, broker, receipt, _result, _fresh_facts = _commission_projection_case(
+        (_commission_row(),)
+    )
+    cache_key = _query_snapshot_key(
+        "instrument_commission_rate_result",
+        {"instrument_id": _INSTRUMENT, "exchange_id": _EXCHANGE},
+    )
+    with store._ctp_query_result_lock:
+        cached = dict(store._ctp_commission_query_snapshots[cache_key])
+        cached[changed_field] = (
+            time.monotonic() - 1.0
+            if changed_field == "source_expires_monotonic"
+            else changed_value
+        )
+        store._ctp_commission_query_snapshots[cache_key] = cached
+
+    target = FactorExecutionTarget(
+        target_id="rb", instrument=_INSTRUMENT, exchange=_EXCHANGE, data=SimpleNamespace(_name=_INSTRUMENT)
+    )
+    facts = _project(
+        store,
+        broker,
+        target,
+        datetime.now(timezone.utc),
+        query_set=receipt.query_set,
+        commission_identity_by_target={
+            "rb": {"account_id": "configured-account", "invest_unit_id": ""}
+        },
+    )
+
+    assert facts.query_set_id == receipt.query_set.query_set_id
+    assert len(receipt.query_set.query_ids) == 5
+    assert facts.risk_reduction_ready is True, facts.risk_reduction_blockers
+    assert facts.open_risk_ready is True, facts.open_risk_blockers
+    assert "commission_fee_query_unavailable:rb" in facts.blockers
+    assert "commission_fee_query_unavailable:rb" not in facts.open_risk_blockers
+    assert facts.instruments[0].commission_fee_status == "QUERY_UNAVAILABLE"
+    assert facts.instruments[0].round_trip_fee_upper_bound_per_contract is None
+
+
+def test_old_sdk_commission_method_without_explicit_deadline_is_not_called():
+    class OldSdkWrapper(_FakeRegisteredSimWrapper):
+        def query_instrument_commission_rate_result(
+            self, *, timeout=5.0, instrument_id, exchange_id
+        ):
+            del timeout, instrument_id, exchange_id
+            self.query_calls.append(("should-not-run", {}))
+            raise AssertionError("old SDK method must not be invoked")
+
+    api = OldSdkWrapper(registered_sim_allow_writes=True)
+    store = RegisteredSimStore(api=api, allow_writes=True)
+    store._connected = True
+
+    with pytest.raises(BtApiStoreError, match="deadline is unavailable"):
+        store.registered_sim_query(
+            "instrument_commission_rate_result",
+            deadline_monotonic=time.monotonic() + 1.0,
+            instrument_id=_INSTRUMENT,
+            exchange_id=_EXCHANGE,
+        )
+    assert api.query_calls == []
+
+
+def test_commission_double_ratios_are_rounded_up_to_exact_binary_value():
+    value = _commission_rate_decimal(0.1)
+
+    assert value == Decimal.from_float(0.1)
+    assert value > Decimal("0.1")
+
+
+def test_commission_row_is_rejected_when_session_snapshot_contains_multiple_accounts():
+    target = FactorExecutionTarget(
+        target_id="rb",
+        instrument=_INSTRUMENT,
+        exchange=_EXCHANGE,
+        data=SimpleNamespace(_name=_INSTRUMENT),
+    )
+    result = SimpleNamespace(
+        rows=[_commission_row()],
+        source_commission_rows_identity_valid=True,
+    )
+    account_result = SimpleNamespace(
+        rows=[
+            {"AccountID": "configured-account", "BrokerID": "fake-broker"},
+            {"AccountID": "other-account", "BrokerID": "fake-broker"},
+        ]
+    )
+
+    bound, reason = _commission_fee_upper_bound(
+        result,
+        account_result,
+        {"account_id": "configured-account", "invest_unit_id": ""},
+        target,
+        account_row_identity_valid=True,
+    )
+
+    assert bound is None
+    assert reason == "account_identity_ambiguous"
+
+
+def test_commission_row_accepts_multiple_currency_rows_for_one_broker_account():
+    target = FactorExecutionTarget(
+        target_id="rb",
+        instrument=_INSTRUMENT,
+        exchange=_EXCHANGE,
+        data=SimpleNamespace(_name=_INSTRUMENT),
+    )
+    result = SimpleNamespace(
+        rows=[_commission_row()],
+        source_commission_rows_identity_valid=True,
+    )
+    account_rows = [
+        {
+            "BrokerID": "fake-broker",
+            "AccountID": "configured-account",
+            "CurrencyID": "CNY",
+        },
+        {
+            "BrokerID": "fake-broker",
+            "AccountID": "configured-account",
+            "CurrencyID": "USD",
+        },
+    ]
+
+    bound, reason = _commission_fee_upper_bound(
+        result,
+        SimpleNamespace(rows=account_rows),
+        {"account_id": "configured-account", "invest_unit_id": ""},
+        target,
+        account_row_identity_valid=True,
+    )
+
+    assert bound == Decimal("0.04")
+    assert reason is None
+    # The account-capital projection intentionally keeps its existing single
+    # currency-row contract; it does not invent a cross-currency sum.
+    blockers = []
+    values = _account_values(account_rows, blockers, trading_day=_TRADING_DAY)
+    assert values[0] is None and values[1] is None
+    assert "account_row_cardinality_unobserved" in blockers
+
+
+def test_commission_rows_with_one_account_but_conflicting_brokers_are_rejected():
+    target = FactorExecutionTarget(
+        target_id="rb",
+        instrument=_INSTRUMENT,
+        exchange=_EXCHANGE,
+        data=SimpleNamespace(_name=_INSTRUMENT),
+    )
+    result = SimpleNamespace(
+        rows=[_commission_row()],
+        source_commission_rows_identity_valid=True,
+    )
+    account_result = SimpleNamespace(
+        rows=[
+            {"AccountID": "configured-account", "BrokerID": "fake-broker"},
+            {"AccountID": "configured-account", "BrokerID": "other-broker"},
+        ]
+    )
+
+    bound, reason = _commission_fee_upper_bound(
+        result,
+        account_result,
+        {"account_id": "configured-account", "invest_unit_id": ""},
+        target,
+        account_row_identity_valid=True,
+    )
+
+    assert bound is None
+    assert reason == "account_identity_ambiguous"
+
+
+@pytest.mark.parametrize("value", (True, float("nan"), float("inf"), -0.1, None))
+def test_commission_ratio_parser_rejects_bool_nonfinite_negative_and_missing(value):
+    assert _commission_rate_decimal(value) is None
+
+
+@pytest.mark.parametrize(
+    "commission_rows,expected_blocker",
+    (
+        ((), "commission_fee_rate_unavailable:rb"),
+        ((_commission_row(), _commission_row(investor_range="3", investor_id="fake-investor")),
+         "commission_fee_rate_applicability_ambiguous:rb"),
+        (
+            (_commission_row(investor_range="2", investor_id="group-1"),),
+            "commission_fee_response_identity_unavailable:rb",
+        ),
+        (
+            (_commission_row(business_type="\x00"),),
+            "commission_fee_response_identity_unavailable:rb",
+        ),
+        ((_commission_row(open_volume=None),), "commission_fee_rate_fields_unavailable:rb"),
+        ((_commission_row(open_volume=-0.1),), "commission_fee_rate_fields_unavailable:rb"),
+        ((_commission_row(open_money=0.1),), "commission_fee_full_period_price_bound_unavailable:rb"),
+    ),
+)
+def test_unproven_commission_applicability_blocks_only_open_risk(
+    commission_rows, expected_blocker
+):
+    _api, _store, _broker, _receipt, _result, facts = _commission_projection_case(
+        commission_rows
+    )
+
+    assert expected_blocker in facts.blockers
+    # Fee evidence is retained in the complete audit, then applied to the
+    # selected OPEN target by the planner. It cannot globally block a different
+    # authorized target or safe reductions/cancels.
+    assert expected_blocker not in facts.open_risk_blockers
+    assert facts.open_risk_ready is True, facts.open_risk_blockers
+    assert facts.risk_reduction_ready is True, facts.risk_reduction_blockers
+    assert facts.instruments[0].commission_fee_required is True
+    assert facts.instruments[0].round_trip_fee_upper_bound_per_contract is None
+    assert facts.instruments[0].commission_fee_status != "AVAILABLE"
 
 
 def _project_account_row(account):
@@ -1419,6 +2158,57 @@ def test_configured_templates_keep_all_target_routes_plannable_with_one_active_g
     # identity is represented separately by `capability_matches_route`.
     assert [route.capability_armed for route in facts.route_eligibilities] == [True, True, True]
     assert len(api.registered_sim_arm_history()) == 1
+    assert all(
+        store.registered_sim_write_route_invest_unit_id(target.instrument, target.exchange) == ""
+        for target in targets
+    )
+    # This fixture exercises a real one-grant route switch. Supply the SDK's
+    # required revocation leaf; the shared query fake intentionally omits it.
+    client = api.trader_client
+    active_capability = api._registered_sim_capability
+
+    def disarm_execution_gate(capability, reason):
+        assert capability is active_capability
+        client._gate_state.update(
+            {
+                "armed": False,
+                "instrument": None,
+                "authorized_instruments": [],
+                "revocation_reason": reason,
+            }
+        )
+        return {"revoked": True}
+
+    client.disarm_execution_gate = disarm_execution_gate
+    second = targets[1]
+    valid_native_field = SimpleNamespace(
+        InstrumentID=second.instrument,
+        ExchangeID=second.exchange,
+        InvestUnitID="",
+    )
+    expected_session = {
+        "account_fingerprint": receipt.query_set.account_fingerprint,
+        "connection_generation": receipt.query_set.connection_generation,
+        "trading_day": receipt.query_set.trading_day,
+    }
+    # The native outbound validator belongs to the wrapper and is called with
+    # its re-entrant lock and exact query-session binding held by the real
+    # dispatch path.  Do not invent a Store-level API for this invariant.
+    with api.registered_sim_expected_session_scope(expected_session):
+        with api._registered_sim_lock:
+            assert api._outbound_key_locked(valid_native_field) == (
+                second.instrument,
+                second.exchange,
+            )
+        invalid_native_field = SimpleNamespace(
+            InstrumentID=second.instrument,
+            ExchangeID=second.exchange,
+            InvestUnitID="unproven-unit",
+        )
+        with api._registered_sim_lock:
+            with pytest.raises(BtApiStoreError, match="outbound unit does not match"):
+                api._outbound_key_locked(invalid_native_field)
+    assert len(api.registered_sim_arm_history()) == 2
 
 
 def test_read_only_reconciliation_accepts_coherent_flat_shadow_without_quote_or_grant():
