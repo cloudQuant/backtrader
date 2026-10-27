@@ -934,6 +934,39 @@ class FactorIndicator(Indicator):
             "coverage_matches": coverage_matches,
         }
 
+    @property
+    def lifecycle_capacity_facts(self) -> Dict[str, Any]:
+        """Return count-only lifecycle storage facts without copying samples.
+
+        Live capacity observers call this from the engine callback thread, the
+        same thread that appends lifecycle samples.  This projection never
+        iterates or copies the retained timestamps/ranges.  Non-live instances
+        use lists and are reported as unbounded rather than being mistaken for
+        a bounded zero-length cache.
+        """
+        calls = self._factor_call_times
+        ranges = self._factor_once_ranges
+        calls_bounded = type(calls) is deque and type(calls.maxlen) is int and calls.maxlen > 0
+        ranges_bounded = type(ranges) is deque and type(ranges.maxlen) is int and ranges.maxlen > 0
+        call_samples = len(calls)
+        range_samples = len(ranges)
+        sample_limit = calls.maxlen if calls_bounded and ranges_bounded else None
+        if calls_bounded and ranges_bounded and calls.maxlen != ranges.maxlen:
+            calls_bounded = False
+            ranges_bounded = False
+            sample_limit = None
+        return {
+            "schema": "backtrader.factor_lifecycle_capacity.v1",
+            "status": "OBSERVED" if calls_bounded and ranges_bounded else "UNBOUNDED",
+            "call_count": self._factor_call_count,
+            "once_range_count": self._factor_once_range_count,
+            "call_sample_count": call_samples,
+            "once_range_sample_count": range_samples,
+            "sample_limit": sample_limit,
+            "call_samples_bounded": calls_bounded,
+            "once_range_samples_bounded": ranges_bounded,
+        }
+
     def output_for(self, data: Any, line: str = "factor") -> Any:
         """Return the real Backtrader output line for one target/template."""
         try:

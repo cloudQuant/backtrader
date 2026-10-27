@@ -63,6 +63,7 @@ _TERMINAL_ORDER_STATUSES = frozenset({"0", "4", "5", "a"})
 _UNOBSERVED = object()
 _QUERY_SNAPSHOT_LIMIT = 512
 _COMMISSION_QUERY_SNAPSHOT_LIMIT = 256
+_REGISTERED_SIM_CAPACITY_ORDER_STATE_LIMIT = 100_000
 _COMMISSION_REQUEST_FILTER_FIELDS = {
     "instrument_id": "InstrumentID",
     "exchange_id": "ExchangeID",
@@ -1768,6 +1769,10 @@ class RegisteredSimWrapper:
                 "arm_templates_configured": templates_configured,
                 "arm_template_keys": template_keys,
             }
+
+        # Recheck after acquiring the main state lock. A dispatch may start
+        # after the fast projection above; preserve the established lock order
+        # and never expose order IDs from an in-flight transition.
         with self._registered_sim_lock:
             with self._registered_sim_observation_lock:
                 templates_configured, template_keys = self._registered_sim_arm_templates_projection
@@ -1817,6 +1822,99 @@ class RegisteredSimWrapper:
                 "arm_templates_configured": templates_configured,
                 "arm_template_keys": template_keys,
             }
+
+    def registered_sim_order_capacity_facts(self) -> Dict[str, Any]:
+        """Project count-only order state under the existing state locks.
+
+        The state lock is acquired without waiting so a sampler cannot stall a
+        live callback behind an in-flight native call.  Dispatching identities
+        are counted under their existing observation lock; no order IDs or
+        provider payloads leave this method.
+        """
+        state_lock = getattr(self, "_registered_sim_lock", None)
+        observation_lock = getattr(self, "_registered_sim_observation_lock", None)
+        projection_schema = "backtrader.registered_sim_order_capacity.v1"
+        if state_lock is None or observation_lock is None:
+            return {
+                "schema": projection_schema,
+                "status": "UNAVAILABLE",
+                "reason_code": "state_lock_missing",
+            }
+        if not state_lock.acquire(blocking=False):
+            return {
+                "schema": projection_schema,
+                "status": "UNAVAILABLE",
+                "reason_code": "state_lock_busy",
+            }
+        try:
+            if not observation_lock.acquire(blocking=False):
+                return {
+                    "schema": projection_schema,
+                    "status": "UNAVAILABLE",
+                    "reason_code": "observation_lock_busy",
+                }
+            try:
+                order_state = self._order_state
+                dispatching = self._dispatching_order_ids
+                terminal_limit = self._registered_sim_terminal_order_limit
+                if not isinstance(order_state, collections.OrderedDict):
+                    return {
+                        "schema": projection_schema,
+                        "status": "UNAVAILABLE",
+                        "reason_code": "order_state_unavailable",
+                    }
+                if not isinstance(dispatching, set):
+                    return {
+                        "schema": projection_schema,
+                        "status": "UNAVAILABLE",
+                        "reason_code": "dispatch_state_unavailable",
+                    }
+                if len(dispatching) > 0:
+                    return {
+                        "schema": projection_schema,
+                        "status": "UNAVAILABLE",
+                        "reason_code": "native_dispatch_in_progress",
+                        "dispatching_order_count": len(dispatching),
+                    }
+                if type(terminal_limit) is not int or terminal_limit <= 0:
+                    return {
+                        "schema": projection_schema,
+                        "status": "UNAVAILABLE",
+                        "reason_code": "terminal_limit_unavailable",
+                    }
+                if len(order_state) > _REGISTERED_SIM_CAPACITY_ORDER_STATE_LIMIT:
+                    return {
+                        "schema": projection_schema,
+                        "status": "UNAVAILABLE",
+                        "reason_code": "order_state_scan_bound_exceeded",
+                    }
+                counts = {"active": 0, "unknown": 0, "terminal": 0}
+                for state in order_state.values():
+                    if state not in counts:
+                        return {
+                            "schema": projection_schema,
+                            "status": "UNAVAILABLE",
+                            "reason_code": "unknown_order_state",
+                        }
+                    counts[state] += 1
+                dispatching_count = len(dispatching)
+                terminal_respected = counts["terminal"] <= terminal_limit
+                return {
+                    "schema": projection_schema,
+                    "status": "OBSERVED" if terminal_respected else "UNSTABLE_OR_OVER_CAPACITY",
+                    "active_order_count": counts["active"],
+                    "unknown_order_count": counts["unknown"],
+                    "terminal_order_count": counts["terminal"],
+                    "dispatching_order_count": dispatching_count,
+                    "active_unknown_limit": None,
+                    "active_unknown_bounded": False,
+                    "terminal_order_limit": terminal_limit,
+                    "terminal_limit_respected": terminal_respected,
+                }
+            finally:
+                observation_lock.release()
+        finally:
+            state_lock.release()
 
 
 def _make_api_factory(allow_writes: bool, history_limit: int, terminal_limit: int, api_cls: Any):
@@ -2121,6 +2219,114 @@ class RegisteredSimStore(BtApiStore):
                 and gate.get("armed") is True
                 and gate.get("frozen") is False
             )
+
+    def registered_sim_order_capacity_facts(self) -> Dict[str, Any]:
+        """Read an already-created wrapper's count-only order projection.
+
+        This method never calls ``_ensure_api_ready`` and never constructs a
+        client.  The API reference is checked again after projection because
+        Store shutdown may clear it concurrently.
+        """
+        api = self._api
+        if not isinstance(api, RegisteredSimWrapper):
+            return {
+                "schema": "backtrader.registered_sim_order_capacity.v1",
+                "status": "UNAVAILABLE",
+                "reason_code": "api_not_initialized",
+            }
+        project = getattr(api, "registered_sim_order_capacity_facts", None)
+        if not callable(project):
+            return {
+                "schema": "backtrader.registered_sim_order_capacity.v1",
+                "status": "UNAVAILABLE",
+                "reason_code": "projection_missing",
+            }
+        try:
+            facts = project()
+        except Exception:
+            return {
+                "schema": "backtrader.registered_sim_order_capacity.v1",
+                "status": "UNAVAILABLE",
+                "reason_code": "projection_failed",
+            }
+        if self._api is not api:
+            return {
+                "schema": "backtrader.registered_sim_order_capacity.v1",
+                "status": "UNAVAILABLE",
+                "reason_code": "api_changed_during_projection",
+            }
+        if not isinstance(facts, Mapping):
+            return {
+                "schema": "backtrader.registered_sim_order_capacity.v1",
+                "status": "UNAVAILABLE",
+                "reason_code": "invalid_projection",
+            }
+        schema = facts.get("schema")
+        status = facts.get("status")
+        if schema != "backtrader.registered_sim_order_capacity.v1":
+            return {
+                "schema": "backtrader.registered_sim_order_capacity.v1",
+                "status": "UNAVAILABLE",
+                "reason_code": "invalid_projection_schema",
+            }
+        if status == "UNAVAILABLE":
+            reason_code = facts.get("reason_code")
+            return {
+                "schema": "backtrader.registered_sim_order_capacity.v1",
+                "status": "UNAVAILABLE",
+                "reason_code": reason_code
+                if isinstance(reason_code, str) and reason_code
+                else "projection_unavailable",
+                "dispatching_order_count": facts.get("dispatching_order_count")
+                if type(facts.get("dispatching_order_count")) is int
+                and facts.get("dispatching_order_count") >= 0
+                else None,
+            }
+        required_counts = (
+            "active_order_count",
+            "unknown_order_count",
+            "terminal_order_count",
+            "dispatching_order_count",
+        )
+        if any(type(facts.get(name)) is not int or facts[name] < 0 for name in required_counts):
+            return {
+                "schema": "backtrader.registered_sim_order_capacity.v1",
+                "status": "UNAVAILABLE",
+                "reason_code": "invalid_projection_counts",
+            }
+        terminal_limit = facts.get("terminal_order_limit")
+        terminal_respected = facts.get("terminal_limit_respected")
+        store_terminal_limit = getattr(self, "_registered_sim_terminal_order_limit", None)
+        if (
+            type(terminal_limit) is not int
+            or terminal_limit <= 0
+            or type(store_terminal_limit) is not int
+            or terminal_limit != store_terminal_limit
+            or type(terminal_respected) is not bool
+            or terminal_respected != (facts["terminal_order_count"] <= terminal_limit)
+            or facts.get("active_unknown_limit", object()) is not None
+            or facts.get("active_unknown_bounded") is not False
+            or facts["dispatching_order_count"] != 0
+            or status not in ("OBSERVED", "UNSTABLE_OR_OVER_CAPACITY")
+            or (status == "OBSERVED") != terminal_respected
+        ):
+            return {
+                "schema": "backtrader.registered_sim_order_capacity.v1",
+                "status": "UNAVAILABLE",
+                "reason_code": "invalid_projection_limits",
+            }
+        return {
+            key: facts[key]
+            for key in (
+                "schema",
+                "status",
+                *required_counts,
+                "active_unknown_limit",
+                "active_unknown_bounded",
+                "terminal_order_limit",
+                "terminal_limit_respected",
+            )
+        }
 
     def registered_sim_arm(
         self,

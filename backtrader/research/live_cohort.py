@@ -1553,6 +1553,60 @@ class LiveBarCohort:
     def member_ids(self) -> Tuple[str, ...]:
         return tuple(self._members)
 
+    def capacity_facts(self) -> Mapping[str, Any]:
+        """Return a count-only snapshot of bounded cohort retention.
+
+        All mutable fields are read under the same lock used by capture and
+        delivery.  No source rows, member identifiers, or receipt contents are
+        returned.
+        """
+        with self._lock:
+            member_count = len(self._members)
+            pending_slot_count = len(self._pending)
+            pending_bar_count = sum(len(rows) for rows in self._pending.values())
+            window_receipt_count = sum(len(rows) for rows in self._window_receipts.values())
+            window_receipt_limits = tuple(
+                rows.maxlen if isinstance(rows, deque) else None
+                for rows in self._window_receipts.values()
+            )
+            recent_signature_limit = self.max_window_bars * max(member_count, 1)
+            gap_limit = self._gaps.maxlen if isinstance(self._gaps, deque) else None
+            gap_count = len(self._gaps)
+            signature_count = len(self._recent_signatures)
+            signature_order_count = len(self._recent_signature_order)
+            window_limits_match = len(window_receipt_limits) == member_count and all(
+                limit == self.max_window_bars for limit in window_receipt_limits
+            )
+            limits_respected = (
+                pending_slot_count <= self.max_pending_slots
+                and pending_bar_count <= self.max_pending_bars
+                and window_receipt_count <= self.max_window_bars * member_count
+                and signature_count <= recent_signature_limit
+                and signature_order_count <= recent_signature_limit
+                and gap_limit is not None
+                and gap_count <= gap_limit
+                and window_limits_match
+            )
+            return {
+                "schema": "backtrader.live_cohort_capacity.v1",
+                "status": "OBSERVED" if limits_respected else "OVER_CAPACITY_OR_UNAVAILABLE",
+                "member_count": member_count,
+                "pending_slot_count": pending_slot_count,
+                "pending_bar_count": pending_bar_count,
+                "max_pending_slots": self.max_pending_slots,
+                "max_pending_bars": self.max_pending_bars,
+                "window_receipt_count": window_receipt_count,
+                "window_receipt_limit": self.max_window_bars * member_count,
+                "window_receipt_member_limit": self.max_window_bars,
+                "window_receipt_member_limits_match": window_limits_match,
+                "recent_signature_count": signature_count,
+                "recent_signature_order_count": signature_order_count,
+                "recent_signature_limit": recent_signature_limit,
+                "diagnostic_gap_count": gap_count,
+                "diagnostic_gap_limit": gap_limit,
+                "limits_respected": limits_respected,
+            }
+
     def register_member(
         self,
         member_id: str,
