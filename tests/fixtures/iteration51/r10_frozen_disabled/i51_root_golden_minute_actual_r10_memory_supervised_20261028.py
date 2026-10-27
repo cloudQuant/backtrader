@@ -1108,6 +1108,13 @@ def supervisor_main(
         'status': 'INCOMPLETE',
         'run_id': run_id,
         'memory_acceptance': 'NOT_EVALUATED',
+        'supervisor_rss_report': {
+            'status': 'NOT_RECORDED',
+            'scope': 'R10_SIBLING_PROCESS_TREE_RSS',
+            'run_id': run_id,
+            'sample_file': SAMPLE_NAME,
+            'formal_memory_acceptance': 'NOT_EVALUATED',
+        },
         'rss_growth_diagnostic': _rss_growth_diagnostic(None),
         'object_growth_evidence': 'NOT_COLLECTED',
         'control_directory': str(control_dir),
@@ -1275,6 +1282,24 @@ def supervisor_main(
             window_summary=analysis['window_summary'],
             rss_growth_diagnostic=analysis.get('rss_growth_diagnostic'),
             object_growth_evidence=analysis.get('object_growth_evidence', 'NOT_COLLECTED'),
+            supervisor_rss_report={
+                'status': 'ANALYSIS_RECORDED',
+                'scope': 'R10_SIBLING_PROCESS_TREE_RSS',
+                'run_id': run_id,
+                'target_pid': target_identity['pid'],
+                'target_create_time': target_identity['create_time'],
+                'sampler_pid': sampler_identity['pid'],
+                'sample_file': SAMPLE_NAME,
+                'analysis_status': analysis['status'],
+                'window_summary_status': (
+                    analysis['window_summary'].get('status')
+                    if type(analysis.get('window_summary')) is dict else None
+                ),
+                'diagnostic_only': True,
+                'stable_rss_established': False,
+                'object_growth_evidence': analysis.get('object_growth_evidence', 'NOT_COLLECTED'),
+                'formal_memory_acceptance': 'NOT_EVALUATED',
+            },
             target_postflight_status=target_postflight['status'],
             target_postflight_failure_code=target_postflight['failure_code'],
             target_postflight_binding={
@@ -1903,6 +1928,8 @@ def main():
     span = load_public_module('i51_root_span_capture', SPAN_HELPER)
     postflight = load_public_module('i51_fullpool_golden_postflight', POSTFLIGHT_HELPER)
     saved_tape_validator = load_public_module('i51_saved_factor_tape_validator', SAVED_TAPE_VALIDATOR)
+    # This legacy field describes the R9 target's own scope. R10's sibling
+    # sampler reports same-run process-tree RSS separately in its result.
     result = {'schema': 'i51_root_golden_fullpool_readonly.r9.v1', 'status': 'PREPARING',
               'root_pid': os.getpid(), 'started_at': datetime.now(timezone.utc).isoformat(),
               'phase': 'protected_configuration', 'allow_writes': False,

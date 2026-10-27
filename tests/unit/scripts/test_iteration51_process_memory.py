@@ -31,7 +31,7 @@ R10_SCRIPT = (
     / "r10_frozen_disabled"
     / "i51_root_golden_minute_actual_r10_memory_supervised_20261028.py"
 )
-R10_FIXTURE_SHA256 = "4982e296a51ea46b7ef78e191d43f58d9ae1b2c3a3eeafafe118e4a1caffba50"
+R10_FIXTURE_SHA256 = "b42d238f021bb3ffe927a4c4fa0ab324eceea7988ef294748b8af3d9671dc883"
 SYNTHETIC_PROFILE_BYTES = b'{"selection":{"query_mode":"synthetic"}}\n'
 SYNTHETIC_POSTFLIGHT_BYTES = b"DRAFT_UNEXECUTABLE = True\nSYNTHETIC_POSTFLIGHT = True\n"
 R10_SPEC = importlib.util.spec_from_file_location("i51_root_memory_r10", R10_SCRIPT)
@@ -45,6 +45,10 @@ def test_r10_public_fixture_is_frozen_disabled_draft():
     assert r10.hashlib.sha256(fixture_bytes).hexdigest() == R10_FIXTURE_SHA256
     assert r10.DRAFT_UNEXECUTABLE is True
     assert r10.R10_SUPERVISOR_ENABLED is False
+    fixture_source = fixture_bytes.decode("utf-8")
+    assert "'process_tree_memory_observation': 'NOT_RUN_IN_R9'" in fixture_source
+    assert "'supervisor_rss_report': {" in fixture_source
+    assert "R10's sibling" in fixture_source
 
 
 def _synthetic_live_capacity_report(logical_run_id, pid, create_time, epoch_id, calendar_id):
@@ -1611,6 +1615,7 @@ def test_r10_supervisor_synthetic_sibling_gate_and_close_receipts(tmp_path: Path
                 "    'private_context_closed': True, 'fullpool_tape_witness_pass': all(checks.values()),",
                 "    'fullpool_acceptance_checks': checks,",
                 "    'postflight': {'status': 'PASS' if all(checks.values()) else 'FAIL'},",
+                "    'process_tree_memory_observation': 'NOT_RUN_IN_R9',",
                 "    'memory_binding': r10._memory_binding_projection(),",
                 "}",
                 "r10.publish_protocol_record(control / r10.TARGET_RESULT_NAME, target_result)",
@@ -1648,6 +1653,9 @@ def test_r10_supervisor_synthetic_sibling_gate_and_close_receipts(tmp_path: Path
     success = run_case("success")
     success_dir = Path(success["control_directory"])
     success_receipt = json.loads((success_dir / r10.RECEIPT_NAME).read_text(encoding="utf-8"))
+    success_target = json.loads(
+        (success_dir / r10.TARGET_RESULT_NAME).read_text(encoding="utf-8")
+    )
     sampler_ready_signal = json.loads(
         (success_dir / r10.READY_NAME).read_text(encoding="utf-8")
     )
@@ -1675,6 +1683,8 @@ def test_r10_supervisor_synthetic_sibling_gate_and_close_receipts(tmp_path: Path
     assert success["memory_acceptance"] == "NOT_EVALUATED"
     assert success["target_postflight_status"] == "PASS"
     assert success["fullpool_acceptance"] == "NOT_EVALUATED"
+    assert success_target["process_tree_memory_observation"] == "NOT_RUN_IN_R9"
+    assert success_target["memory_binding"]["run_id"] == success["run_id"]
     assert success_header["run_id"] == success["run_id"] == success_receipt["run_id"]
     assert success_header["root_pid"] == success_receipt["root_pid"]
     assert success_header["expected_create_time"] == success_receipt["root_create_time"]
@@ -1693,6 +1703,24 @@ def test_r10_supervisor_synthetic_sibling_gate_and_close_receipts(tmp_path: Path
     assert success_summary["stop_reason"] == "COMPLETION_RECEIPT"
     assert success_summary["completion_receipt_id"] == f"{success['run_id']}:close"
     assert success_samples
+    rss_report = success["supervisor_rss_report"]
+    assert rss_report["status"] == "ANALYSIS_RECORDED"
+    assert rss_report["scope"] == "R10_SIBLING_PROCESS_TREE_RSS"
+    assert rss_report["run_id"] == success["run_id"]
+    assert rss_report["target_pid"] == success_header["root_pid"]
+    assert rss_report["target_create_time"] == success_header["expected_create_time"]
+    assert rss_report["sampler_pid"] == success_header["sampler_pid"]
+    assert rss_report["sample_file"] == r10.SAMPLE_NAME
+    assert rss_report["analysis_status"] == success["status"]
+    assert (success_dir / rss_report["sample_file"]).is_file()
+    assert rss_report["diagnostic_only"] is True
+    assert rss_report["stable_rss_established"] is False
+    assert rss_report["object_growth_evidence"] == "NOT_COLLECTED"
+    assert rss_report["formal_memory_acceptance"] == "NOT_EVALUATED"
+    assert success["rss_growth_diagnostic"]["comparison_scope"] == "DIAGNOSTIC_ONLY"
+    assert success["rss_growth_diagnostic"]["stable_rss_established"] is False
+    assert success["object_growth_evidence"] == "NOT_COLLECTED"
+    assert success["memory_acceptance"] == "NOT_EVALUATED"
     first_sample = success_samples[0]
     assert first_sample["sampling_valid"] is True
     assert first_sample["monotonic_ns"] == sampler_ready_signal["sample_monotonic_ns"]
