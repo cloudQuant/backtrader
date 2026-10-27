@@ -20,6 +20,7 @@ import time
 from types import MappingProxyType
 from typing import Any, Dict, Iterable, Mapping, Optional, Tuple
 
+from ..feed import AbstractDataBase
 from ..linebuffer import LineBuffer
 from ..stores.registered_sim import RegisteredSimStore
 
@@ -129,6 +130,29 @@ def _line_facts(line: LineBuffer) -> Tuple[Optional[Dict[str, Any]], Optional[st
     return None, "line_array_type_unsupported"
 
 
+def _feed_filter_state_supported(feed: AbstractDataBase) -> bool:
+    """Accept only an unfiltered, non-resampled feed with empty filter queues."""
+    filters = getattr(feed, "_filters", _MISSING)
+    final_filters = getattr(feed, "_ffilters", _MISSING)
+    barstack = getattr(feed, "_barstack", _MISSING)
+    barstash = getattr(feed, "_barstash", _MISSING)
+    return (
+        type(filters) is list
+        and not filters
+        and type(final_filters) is list
+        and not final_filters
+        and type(barstack) is collections.deque
+        and not barstack
+        and type(barstash) is collections.deque
+        and not barstash
+        and type(getattr(feed, "resampling", _MISSING)) is int
+        and getattr(feed, "resampling", _MISSING) == 0
+        and type(getattr(feed, "replaying", _MISSING)) is int
+        and getattr(feed, "replaying", _MISSING) == 0
+        and not callable(getattr(feed, "getindicators", None))
+    )
+
+
 def _graph_capacity_facts(
     strategy: Any,
     live_factors: Any,
@@ -194,15 +218,24 @@ def _graph_capacity_facts(
         if isinstance(diagnostic_projection, property) or callable(diagnostic_projection):
             factor_nodes.append(owner)
 
-        getter = getattr(owner, "getindicators", None)
-        if not callable(getter):
-            budget.fail("indicator_graph_edge_unavailable")
-            break
-        try:
-            children = getter()
-        except Exception:
-            budget.fail("indicator_graph_edge_failed")
-            break
+        if isinstance(owner, AbstractDataBase):
+            # Standard feeds are leaves in the indicator graph. Their real
+            # LineBuffers are still counted below; filters and resampling can
+            # own additional retained state, so only the explicit empty state
+            # is observable by this count-only projection.
+            if not _feed_filter_state_supported(owner):
+                budget.fail("feed_filter_or_resampling_state_unsupported")
+            children = ()
+        else:
+            getter = getattr(owner, "getindicators", None)
+            if not callable(getter):
+                budget.fail("indicator_graph_edge_unavailable")
+                break
+            try:
+                children = getter()
+            except Exception:
+                budget.fail("indicator_graph_edge_failed")
+                break
         if type(children) not in (tuple, list) or len(children) > max_graph_references:
             budget.fail("indicator_graph_edge_unavailable")
             break
