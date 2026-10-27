@@ -13,6 +13,7 @@ from copy import deepcopy
 from collections import defaultdict, deque
 from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal, InvalidOperation
+import errno
 import hashlib
 import inspect
 import json
@@ -20,6 +21,7 @@ import math
 import os
 from pathlib import Path
 import signal
+import stat
 import sys
 import threading
 import time
@@ -2545,6 +2547,491 @@ def _decision_tape_record(
     return row
 
 
+_DECISION_TAPE_GENERATION_LEASE_SCHEMA = (
+    "backtrader.alpha003.decision_tape_generation_lease.v1"
+)
+_DECISION_TAPE_GENERATION_LEASE_SUFFIX = ".generation.lock"
+_DECISION_TAPE_GENERATION_LEASE_MAX_ANCHOR_BYTES = 512
+_DECISION_TAPE_GENERATION_LOCAL_OWNERS = {}
+_DECISION_TAPE_GENERATION_LOCAL_OWNERS_LOCK = threading.Lock()
+_DECISION_TAPE_GENERATION_FORK_LOCK = threading.RLock()
+
+
+def _generation_file_identity(metadata) -> tuple[int, int]:
+    if not stat.S_ISREG(metadata.st_mode):
+        raise RunnerError("DECISION_TAPE_GENERATION_LEASE_FILE_INVALID")
+    try:
+        device = int(metadata.st_dev)
+        file_id = int(metadata.st_ino)
+    except (AttributeError, TypeError, ValueError):
+        raise RunnerError("DECISION_TAPE_GENERATION_LEASE_IDENTITY_UNAVAILABLE") from None
+    if device < 0 or file_id <= 0:
+        raise RunnerError("DECISION_TAPE_GENERATION_LEASE_IDENTITY_UNAVAILABLE")
+    return device, file_id
+
+
+def _linux_local_filesystem_type(directory: Path) -> Optional[str]:
+    if not sys.platform.startswith("linux"):
+        return None
+    mountinfo = Path("/proc/self/mountinfo")
+    try:
+        lines = mountinfo.read_text(encoding="utf-8").splitlines()
+        resolved = directory.resolve(strict=True)
+    except (OSError, RuntimeError):
+        return None
+
+    def unescape(value: str) -> str:
+        return value.replace("\\040", " ").replace("\\011", "\t").replace("\\134", "\\")
+
+    matches = []
+    for line in lines:
+        fields = line.split()
+        try:
+            separator = fields.index("-")
+            mountpoint = Path(unescape(fields[4]))
+            filesystem = fields[separator + 1]
+            if os.path.commonpath((str(resolved), str(mountpoint))) == str(mountpoint):
+                matches.append((len(str(mountpoint)), filesystem))
+        except (IndexError, ValueError):
+            continue
+    return max(matches)[1] if matches else None
+
+
+def _require_local_generation_lease_filesystem(
+    directory: Path, *, platform_name: Optional[str] = None
+) -> None:
+    platform_name = os.name if platform_name is None else platform_name
+    if platform_name == "nt":
+        try:
+            import ctypes
+            from ctypes import wintypes
+
+            kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+            volume_path_fn = kernel32.GetVolumePathNameW
+            volume_path_fn.argtypes = [wintypes.LPCWSTR, wintypes.LPWSTR, wintypes.DWORD]
+            volume_path_fn.restype = wintypes.BOOL
+            drive_type_fn = kernel32.GetDriveTypeW
+            drive_type_fn.argtypes = [wintypes.LPCWSTR]
+            drive_type_fn.restype = wintypes.UINT
+            volume_info_fn = kernel32.GetVolumeInformationW
+            volume_info_fn.argtypes = [
+                wintypes.LPCWSTR,
+                wintypes.LPWSTR,
+                wintypes.DWORD,
+                ctypes.POINTER(wintypes.DWORD),
+                ctypes.POINTER(wintypes.DWORD),
+                ctypes.POINTER(wintypes.DWORD),
+                wintypes.LPWSTR,
+                wintypes.DWORD,
+            ]
+            volume_info_fn.restype = wintypes.BOOL
+            volume_path = ctypes.create_unicode_buffer(32768)
+            if not volume_path_fn(
+                str(directory), volume_path, len(volume_path)
+            ):
+                raise OSError(ctypes.get_last_error(), "GetVolumePathNameW")
+            if drive_type_fn(volume_path.value) != 3:  # DRIVE_FIXED
+                raise RunnerError("DECISION_TAPE_GENERATION_LEASE_FILESYSTEM_UNSUPPORTED")
+            filesystem = ctypes.create_unicode_buffer(64)
+            if not volume_info_fn(
+                volume_path.value,
+                None,
+                0,
+                None,
+                None,
+                None,
+                filesystem,
+                len(filesystem),
+            ):
+                raise OSError(ctypes.get_last_error(), "GetVolumeInformationW")
+            if filesystem.value.upper() not in {"NTFS", "REFS"}:
+                raise RunnerError("DECISION_TAPE_GENERATION_LEASE_FILESYSTEM_UNSUPPORTED")
+            return
+        except RunnerError:
+            raise
+        except (AttributeError, OSError):
+            raise RunnerError("DECISION_TAPE_GENERATION_LEASE_FILESYSTEM_UNSUPPORTED") from None
+
+    if platform_name != "posix":
+        raise RunnerError("DECISION_TAPE_GENERATION_LEASE_FILESYSTEM_UNSUPPORTED")
+    filesystem = _linux_local_filesystem_type(directory)
+    if filesystem not in {"btrfs", "ext2", "ext3", "ext4", "f2fs", "tmpfs", "xfs"}:
+        raise RunnerError("DECISION_TAPE_GENERATION_LEASE_FILESYSTEM_UNSUPPORTED")
+
+
+class _DecisionTapeGenerationLease:
+    """Non-expiring local OS lock for one tape pathname; never recovers a tape."""
+
+    def __init__(self, tape_path: Path) -> None:
+        self.tape_path = tape_path.resolve(strict=False)
+        self.path = self.tape_path.with_name(
+            self.tape_path.name + _DECISION_TAPE_GENERATION_LEASE_SUFFIX
+        )
+        self._file = None
+        self._identity = None
+        self._locked = False
+        self._registry_key = None
+        self._writer = None
+        self._tape_handle = None
+
+    @property
+    def held(self) -> bool:
+        return self._locked and self._file is not None and not self._file.closed
+
+    def _register_local_owner(self) -> None:
+        key = os.path.normcase(str(self.path))
+        with _DECISION_TAPE_GENERATION_LOCAL_OWNERS_LOCK:
+            if key in _DECISION_TAPE_GENERATION_LOCAL_OWNERS:
+                raise RunnerError("DECISION_TAPE_GENERATION_LEASE_BUSY")
+            _DECISION_TAPE_GENERATION_LOCAL_OWNERS[key] = self
+            self._registry_key = key
+
+    def _unregister_local_owner(self) -> None:
+        key = self._registry_key
+        if key is None:
+            return
+        with _DECISION_TAPE_GENERATION_LOCAL_OWNERS_LOCK:
+            if _DECISION_TAPE_GENERATION_LOCAL_OWNERS.get(key) is self:
+                del _DECISION_TAPE_GENERATION_LOCAL_OWNERS[key]
+        self._registry_key = None
+
+    @staticmethod
+    def _open_windows_lock_file(path: Path):
+        import ctypes
+        import msvcrt
+        from ctypes import wintypes
+
+        class _ByHandleFileInformation(ctypes.Structure):
+            _fields_ = [
+                ("dwFileAttributes", wintypes.DWORD),
+                ("ftCreationTimeLow", wintypes.DWORD),
+                ("ftCreationTimeHigh", wintypes.DWORD),
+                ("ftLastAccessTimeLow", wintypes.DWORD),
+                ("ftLastAccessTimeHigh", wintypes.DWORD),
+                ("ftLastWriteTimeLow", wintypes.DWORD),
+                ("ftLastWriteTimeHigh", wintypes.DWORD),
+                ("dwVolumeSerialNumber", wintypes.DWORD),
+                ("nFileSizeHigh", wintypes.DWORD),
+                ("nFileSizeLow", wintypes.DWORD),
+                ("nNumberOfLinks", wintypes.DWORD),
+                ("nFileIndexHigh", wintypes.DWORD),
+                ("nFileIndexLow", wintypes.DWORD),
+            ]
+
+        kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+        create_file = kernel32.CreateFileW
+        create_file.argtypes = [
+            wintypes.LPCWSTR,
+            wintypes.DWORD,
+            wintypes.DWORD,
+            wintypes.LPVOID,
+            wintypes.DWORD,
+            wintypes.DWORD,
+            wintypes.HANDLE,
+        ]
+        create_file.restype = wintypes.HANDLE
+        get_info = kernel32.GetFileInformationByHandle
+        get_info.argtypes = [wintypes.HANDLE, ctypes.POINTER(_ByHandleFileInformation)]
+        get_info.restype = wintypes.BOOL
+        close_handle = kernel32.CloseHandle
+        close_handle.argtypes = [wintypes.HANDLE]
+        close_handle.restype = wintypes.BOOL
+        set_handle_information = kernel32.SetHandleInformation
+        set_handle_information.argtypes = [wintypes.HANDLE, wintypes.DWORD, wintypes.DWORD]
+        set_handle_information.restype = wintypes.BOOL
+
+        ctypes.set_last_error(0)
+        handle = create_file(
+            str(path),
+            0x80000000 | 0x40000000,  # GENERIC_READ | GENERIC_WRITE
+            0x00000001 | 0x00000002,  # FILE_SHARE_READ | FILE_SHARE_WRITE; deny delete sharing
+            None,
+            4,  # OPEN_ALWAYS
+            0x00000080 | 0x00200000,  # FILE_ATTRIBUTE_NORMAL | FILE_FLAG_OPEN_REPARSE_POINT
+            None,
+        )
+        invalid_handle = wintypes.HANDLE(-1).value
+        if not handle or handle == invalid_handle:
+            raise OSError(ctypes.get_last_error(), "CreateFileW")
+        created = ctypes.get_last_error() != 183  # ERROR_ALREADY_EXISTS
+        try:
+            info = _ByHandleFileInformation()
+            if not get_info(handle, ctypes.byref(info)):
+                raise OSError(ctypes.get_last_error(), "GetFileInformationByHandle")
+            if info.dwFileAttributes & (0x00000400 | 0x00000010):
+                raise RunnerError("DECISION_TAPE_GENERATION_LEASE_FILE_INVALID")
+            if not set_handle_information(handle, 0x00000001, 0):
+                raise OSError(ctypes.get_last_error(), "SetHandleInformation")
+            fd = msvcrt.open_osfhandle(handle, os.O_RDWR | os.O_BINARY)
+            handle = None  # ownership transferred to the CRT descriptor
+            try:
+                os.set_inheritable(fd, False)
+            except OSError:
+                os.close(fd)
+                raise RunnerError(
+                    "DECISION_TAPE_GENERATION_LEASE_INHERITABLE_HANDLE"
+                ) from None
+            return fd, created
+        finally:
+            if handle:
+                close_handle(handle)
+
+    def _open_lock_file(self):
+        if os.name == "nt":
+            return self._open_windows_lock_file(self.path)
+        if os.name != "posix" or not hasattr(os, "O_NOFOLLOW"):
+            raise RunnerError("DECISION_TAPE_GENERATION_LEASE_UNSUPPORTED")
+        flags = os.O_RDWR | os.O_CREAT | os.O_NOFOLLOW
+        flags |= getattr(os, "O_CLOEXEC", 0)
+        try:
+            fd = os.open(self.path, flags | os.O_EXCL, 0o600)
+            created = True
+        except FileExistsError:
+            metadata = os.lstat(self.path)
+            identity = _generation_file_identity(metadata)
+            if identity is None or metadata.st_uid != os.geteuid() or metadata.st_mode & 0o077:
+                raise RunnerError("DECISION_TAPE_GENERATION_LEASE_FILE_INVALID") from None
+            fd = os.open(self.path, os.O_RDWR | os.O_NOFOLLOW | getattr(os, "O_CLOEXEC", 0))
+            created = False
+        try:
+            os.set_inheritable(fd, False)
+        except OSError:
+            os.close(fd)
+            raise RunnerError("DECISION_TAPE_GENERATION_LEASE_INHERITABLE_HANDLE") from None
+        return fd, created
+
+    def _lock_file(self, fd: int) -> None:
+        if os.name == "nt":
+            import msvcrt
+
+            os.lseek(fd, 0, os.SEEK_SET)
+            try:
+                msvcrt.locking(fd, msvcrt.LK_NBLCK, 1)
+            except OSError as error:
+                if getattr(error, "winerror", None) in {33, 158} or error.errno in {
+                    errno.EACCES,
+                    errno.EAGAIN,
+                    errno.EDEADLK,
+                }:
+                    raise RunnerError("DECISION_TAPE_GENERATION_LEASE_BUSY") from None
+                raise RunnerError("DECISION_TAPE_GENERATION_LEASE_ACQUIRE_FAILED") from None
+            return
+        import fcntl
+
+        try:
+            fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except OSError as error:
+            if error.errno in {errno.EACCES, errno.EAGAIN}:
+                raise RunnerError("DECISION_TAPE_GENERATION_LEASE_BUSY") from None
+            raise RunnerError("DECISION_TAPE_GENERATION_LEASE_ACQUIRE_FAILED") from None
+
+    def _unlock_file(self, fd: int) -> None:
+        if os.name == "nt":
+            import msvcrt
+
+            os.lseek(fd, 0, os.SEEK_SET)
+            msvcrt.locking(fd, msvcrt.LK_UNLCK, 1)
+            return
+        import fcntl
+
+        fcntl.flock(fd, fcntl.LOCK_UN)
+
+    def _assert_lock_path_identity(self) -> None:
+        try:
+            metadata = os.lstat(self.path)
+            identity = _generation_file_identity(metadata)
+        except OSError:
+            raise RunnerError("DECISION_TAPE_GENERATION_LEASE_IDENTITY_MISMATCH") from None
+        if os.name == "nt" and getattr(metadata, "st_file_attributes", 0) & 0x00000400:
+            raise RunnerError("DECISION_TAPE_GENERATION_LEASE_IDENTITY_MISMATCH")
+        if identity != self._identity:
+            raise RunnerError("DECISION_TAPE_GENERATION_LEASE_IDENTITY_MISMATCH")
+
+    def _anchor_bytes(self) -> bytes:
+        return _canonical_json_bytes(
+            {
+                "schema": _DECISION_TAPE_GENERATION_LEASE_SCHEMA,
+                "device": self._identity[0],
+                "file_id": self._identity[1],
+            }
+        )
+
+    def _check_or_write_anchor(self, *, allow_initialize: bool = False) -> None:
+        self._file.seek(0)
+        current = self._file.read(_DECISION_TAPE_GENERATION_LEASE_MAX_ANCHOR_BYTES + 1)
+        expected = self._anchor_bytes()
+        if not current:
+            if not allow_initialize:
+                raise RunnerError("DECISION_TAPE_GENERATION_LEASE_ANCHOR_INVALID")
+            self._file.seek(0)
+            written = self._file.write(expected)
+            if written != len(expected):
+                raise RunnerError("DECISION_TAPE_GENERATION_LEASE_ANCHOR_WRITE_FAILED")
+            self._file.flush()
+            os.fsync(self._file.fileno())
+        elif current != expected:
+            raise RunnerError("DECISION_TAPE_GENERATION_LEASE_ANCHOR_INVALID")
+
+    def acquire(self):
+        with _DECISION_TAPE_GENERATION_FORK_LOCK:
+            return self._acquire()
+
+    def _acquire(self):
+        if self.held:
+            return self
+        self._register_local_owner()
+        fd = None
+        try:
+            _require_local_generation_lease_filesystem(self.tape_path.parent)
+            fd, _created = self._open_lock_file()
+            if os.get_inheritable(fd):
+                raise RunnerError("DECISION_TAPE_GENERATION_LEASE_INHERITABLE_HANDLE")
+            metadata = os.fstat(fd)
+            self._identity = _generation_file_identity(metadata)
+            if os.name == "posix" and (
+                metadata.st_uid != os.geteuid() or metadata.st_mode & 0o077
+            ):
+                raise RunnerError("DECISION_TAPE_GENERATION_LEASE_FILE_INVALID")
+            self._file = os.fdopen(fd, "r+b", buffering=0)
+            fd = None
+            self._lock_file(self._file.fileno())
+            self._locked = True
+            self._assert_lock_path_identity()
+            self._check_or_write_anchor(allow_initialize=True)
+            self._assert_lock_path_identity()
+            return self
+        except BaseException:
+            if self._file is not None:
+                try:
+                    if self._locked:
+                        self._unlock_file(self._file.fileno())
+                except OSError:
+                    pass
+                try:
+                    self._file.close()
+                except OSError:
+                    pass
+                if self._file.closed:
+                    self._locked = False
+                    self._file = None
+                    self._unregister_local_owner()
+            elif fd is not None:
+                try:
+                    os.close(fd)
+                except OSError:
+                    pass
+                self._unregister_local_owner()
+            else:
+                self._unregister_local_owner()
+            raise
+
+    def validate(self, tape_handle=None) -> None:
+        with _DECISION_TAPE_GENERATION_FORK_LOCK:
+            self._validate(tape_handle)
+
+    def _validate(self, tape_handle=None) -> None:
+        if not self.held:
+            raise RunnerError("DECISION_TAPE_GENERATION_LEASE_NOT_HELD")
+        self._assert_lock_path_identity()
+        self._check_or_write_anchor()
+        if tape_handle is not None:
+            try:
+                handle_identity = _generation_file_identity(os.fstat(tape_handle.fileno()))
+                path_metadata = os.lstat(self.tape_path)
+                path_identity = _generation_file_identity(path_metadata)
+            except OSError:
+                raise RunnerError("DECISION_TAPE_GENERATION_TAPE_IDENTITY_MISMATCH") from None
+            if os.name == "nt" and getattr(path_metadata, "st_file_attributes", 0) & 0x00000400:
+                raise RunnerError("DECISION_TAPE_GENERATION_TAPE_IDENTITY_MISMATCH")
+            if handle_identity != path_identity:
+                raise RunnerError("DECISION_TAPE_GENERATION_TAPE_IDENTITY_MISMATCH")
+
+    def release(self) -> None:
+        with _DECISION_TAPE_GENERATION_FORK_LOCK:
+            self._release()
+
+    def _release(self) -> None:
+        if self._file is None:
+            self._unregister_local_owner()
+            return
+        fd = self._file.fileno()
+        error = None
+        if self._locked:
+            try:
+                self._unlock_file(fd)
+            except OSError:
+                error = "DECISION_TAPE_GENERATION_LEASE_RELEASE_FAILED"
+        try:
+            self._file.close()
+        except OSError:
+            error = "DECISION_TAPE_GENERATION_LEASE_RELEASE_FAILED"
+        if self._file.closed:
+            self._locked = False
+            self._file = None
+            self._writer = None
+            self._tape_handle = None
+            self._unregister_local_owner()
+        if error is not None:
+            raise RunnerError(error) from None
+
+    def bind_writer(self, writer) -> None:
+        if not self.held:
+            raise RunnerError("DECISION_TAPE_GENERATION_LEASE_NOT_HELD")
+        self._writer = writer
+        self._tape_handle = writer._handle
+
+    def _close_inherited_after_fork(self) -> None:
+        tape_handle = self._tape_handle
+        writer = self._writer
+        if tape_handle is not None:
+            try:
+                tape_handle.close()
+            except BaseException:
+                pass
+        if writer is not None:
+            writer._failed = True
+            writer._closed = bool(tape_handle is None or tape_handle.closed)
+            writer._lock = threading.RLock()
+        if self._file is not None:
+            try:
+                self._file.close()
+            except BaseException:
+                pass
+            if self._file.closed:
+                self._file = None
+                self._locked = False
+                self._writer = None
+                self._tape_handle = None
+        self._registry_key = None
+
+
+def _decision_tape_generation_before_fork() -> None:
+    _DECISION_TAPE_GENERATION_FORK_LOCK.acquire()
+
+
+def _decision_tape_generation_after_fork_parent() -> None:
+    _DECISION_TAPE_GENERATION_FORK_LOCK.release()
+
+
+def _decision_tape_generation_after_fork_child() -> None:
+    global _DECISION_TAPE_GENERATION_LOCAL_OWNERS_LOCK
+    global _DECISION_TAPE_GENERATION_FORK_LOCK
+    owners = tuple(_DECISION_TAPE_GENERATION_LOCAL_OWNERS.values())
+    for lease in owners:
+        lease._close_inherited_after_fork()
+    _DECISION_TAPE_GENERATION_LOCAL_OWNERS.clear()
+    _DECISION_TAPE_GENERATION_LOCAL_OWNERS_LOCK = threading.Lock()
+    _DECISION_TAPE_GENERATION_FORK_LOCK = threading.RLock()
+
+
+if hasattr(os, "register_at_fork"):
+    os.register_at_fork(
+        before=_decision_tape_generation_before_fork,
+        after_in_parent=_decision_tape_generation_after_fork_parent,
+        after_in_child=_decision_tape_generation_after_fork_child,
+    )
+
+
 class DecisionTapeWriter:
     """Exclusive, byte-bounded JSONL tape for replayable cohort decisions."""
 
@@ -2563,11 +3050,14 @@ class DecisionTapeWriter:
         restart_identity: Optional[Mapping[str, Any]] = None,
         selection_evidence: Optional[Mapping[str, Any]] = None,
         calendar_fingerprint: Optional[str] = None,
+        cross_process_generation_lease: bool = False,
     ) -> None:
         if type(max_bytes) is not int or max_bytes < 1:
             raise RunnerError("DECISION_TAPE_BYTE_BUDGET_INVALID")
         if mode not in {"replay", "live"}:
             raise RunnerError("DECISION_TAPE_MODE_INVALID")
+        if type(cross_process_generation_lease) is not bool:
+            raise RunnerError("DECISION_TAPE_GENERATION_LEASE_FLAG_INVALID")
         self.mode = mode
         self.factor_mode = factor_mode
         self.direction = direction
@@ -2611,11 +3101,11 @@ class DecisionTapeWriter:
             if restart_identity is None
             else json.loads(_canonical_json_bytes(restart_identity))
         )
-        try:
-            self.path.parent.mkdir(parents=True, exist_ok=True)
-            self._handle = self.path.open("xb")
-        except OSError:
-            raise RunnerError("DECISION_TAPE_CREATE_FAILED") from None
+        self._generation_lease = None
+
+        # Build the complete header before opening either the tape or the
+        # generation lease.  Serialization failures must not leave an open
+        # data handle or a held cross-process lock behind.
         header = {
             "schema": DECISION_TAPE_SCHEMA,
             "origin_partition_schema": SOURCE_ORIGIN_PARTITION_SCHEMA,
@@ -2640,14 +3130,70 @@ class DecisionTapeWriter:
         canonical = _canonical_json_bytes(header)
         self._header_record_id = hashlib.sha256(canonical.rstrip(b"\n")).hexdigest()
         header["record_id"] = self._header_record_id
+        header_raw = _canonical_json_bytes(header)
+
         try:
-            self._append(_canonical_json_bytes(header), count_record=False)
+            self.path.parent.mkdir(parents=True, exist_ok=True)
+            if cross_process_generation_lease:
+                with _DECISION_TAPE_GENERATION_FORK_LOCK:
+                    self._generation_lease = _DecisionTapeGenerationLease(self.path)
+                    self._generation_lease.acquire()
+                    self._handle = self.path.open("xb")
+                    self._generation_lease.bind_writer(self)
+            else:
+                self._handle = self.path.open("xb")
+        except OSError:
+            self._cleanup_initialization_failure()
+            raise RunnerError("DECISION_TAPE_CREATE_FAILED") from None
         except BaseException:
-            try:
-                self._handle.close()
-            finally:
-                self._closed = True
+            self._cleanup_initialization_failure()
             raise
+        try:
+            self._append(header_raw, count_record=False)
+        except BaseException:
+            self._cleanup_initialization_failure()
+            raise
+
+    def _cleanup_initialization_failure(self) -> None:
+        """Close constructor-owned resources without racing a POSIX fork."""
+        lease = self._generation_lease
+        handle = getattr(self, "_handle", None)
+
+        def close_handle_and_release() -> None:
+            if handle is not None:
+                try:
+                    handle.close()
+                except BaseException:
+                    self._failed = True
+                try:
+                    handle_closed = bool(handle.closed)
+                except BaseException:
+                    handle_closed = False
+                self._closed = handle_closed
+            else:
+                # No data handle was returned by Path.open, so releasing the
+                # lease cannot expose a live writer handle.
+                handle_closed = True
+                self._closed = True
+
+            if lease is not None and handle_closed:
+                try:
+                    lease.release()
+                except BaseException:
+                    self._failed = True
+            elif lease is not None:
+                self._failed = True
+
+        if lease is None:
+            close_handle_and_release()
+            return
+        try:
+            with _DECISION_TAPE_GENERATION_FORK_LOCK:
+                close_handle_and_release()
+        except BaseException:
+            # Preserve the constructor's original exception.  Failure to
+            # establish a closed handle leaves the lease held and failed.
+            self._failed = True
 
     @property
     def last_record_reference(self):
@@ -2656,32 +3202,51 @@ class DecisionTapeWriter:
 
     def _append(self, raw: bytes, *, count_record: bool) -> None:
         with self._lock:
-            if self._closed or self._failed:
-                raise RunnerError("DECISION_TAPE_UNAVAILABLE")
-            offset = self._bytes
-            if offset + len(raw) > self.max_bytes:
-                self._failed = True
-                raise RunnerError("DECISION_TAPE_BYTE_BUDGET_EXCEEDED")
+            if self._generation_lease is None:
+                self._append_locked(raw, count_record=count_record)
+            else:
+                with _DECISION_TAPE_GENERATION_FORK_LOCK:
+                    self._append_locked(raw, count_record=count_record)
+
+    def _append_locked(self, raw: bytes, *, count_record: bool) -> None:
+        if self._closed or self._failed:
+            raise RunnerError("DECISION_TAPE_UNAVAILABLE")
+        if self._generation_lease is not None:
             try:
-                written = self._handle.write(raw)
-                if written != len(raw):
-                    raise OSError("short decision tape write")
+                self._generation_lease.validate(self._handle)
+            except RunnerError:
+                self._failed = True
+                raise
+        offset = self._bytes
+        if offset + len(raw) > self.max_bytes:
+            self._failed = True
+            raise RunnerError("DECISION_TAPE_BYTE_BUDGET_EXCEEDED")
+        try:
+            written = self._handle.write(raw)
+            if written != len(raw):
+                raise OSError("short decision tape write")
+            self._handle.flush()
+            os.fsync(self._handle.fileno())
+        except BaseException:
+            try:
+                os.ftruncate(self._handle.fileno(), offset)
+                self._handle.seek(offset)
                 self._handle.flush()
                 os.fsync(self._handle.fileno())
             except BaseException:
-                try:
-                    os.ftruncate(self._handle.fileno(), offset)
-                    self._handle.seek(offset)
-                    self._handle.flush()
-                    os.fsync(self._handle.fileno())
-                except BaseException:
-                    pass
+                pass
+            self._failed = True
+            raise RunnerError("DECISION_TAPE_WRITE_FAILED") from None
+        if self._generation_lease is not None:
+            try:
+                self._generation_lease.validate(self._handle)
+            except RunnerError:
                 self._failed = True
-                raise RunnerError("DECISION_TAPE_WRITE_FAILED") from None
-            self._bytes += len(raw)
-            self._hash.update(raw)
-            if count_record:
-                self._record_count += 1
+                raise
+        self._bytes += len(raw)
+        self._hash.update(raw)
+        if count_record:
+            self._record_count += 1
 
     def record_decision(self, batch, snapshot, target_decision, order_plan):
         with self._lock:
@@ -3242,21 +3807,57 @@ class DecisionTapeWriter:
         with self._lock:
             if self._closed:
                 return self.summary()
-            try:
-                self._handle.flush()
-                os.fsync(self._handle.fileno())
-            except OSError:
-                self._failed = True
-                raise RunnerError("DECISION_TAPE_CLOSE_FAILED") from None
-            finally:
+            if self._generation_lease is None:
                 try:
-                    self._handle.close()
+                    self._handle.flush()
+                    os.fsync(self._handle.fileno())
                 except OSError:
                     self._failed = True
-            self._closed = True
-            if self._failed:
-                raise RunnerError("DECISION_TAPE_CLOSE_FAILED")
-            return self.summary()
+                    raise RunnerError("DECISION_TAPE_CLOSE_FAILED") from None
+                finally:
+                    try:
+                        self._handle.close()
+                    except OSError:
+                        self._failed = True
+                self._closed = True
+                if self._failed:
+                    raise RunnerError("DECISION_TAPE_CLOSE_FAILED")
+                return self.summary()
+            with _DECISION_TAPE_GENERATION_FORK_LOCK:
+                return self._close_with_generation_lease()
+
+    def _close_with_generation_lease(self):
+        close_error = None
+        try:
+            self._generation_lease.validate(self._handle)
+        except RunnerError as error:
+            self._failed = True
+            close_error = error.code
+        try:
+            self._handle.flush()
+            os.fsync(self._handle.fileno())
+        except OSError:
+            self._failed = True
+            close_error = "DECISION_TAPE_CLOSE_FAILED"
+        try:
+            self._handle.close()
+        except OSError:
+            self._failed = True
+            close_error = "DECISION_TAPE_CLOSE_FAILED"
+        self._closed = self._handle.closed
+        if self._generation_lease is not None and self._handle.closed:
+            try:
+                self._generation_lease.release()
+            except RunnerError:
+                self._failed = True
+                close_error = "DECISION_TAPE_GENERATION_LEASE_RELEASE_FAILED"
+        if close_error is not None:
+            raise RunnerError(close_error) from None
+        if not self._closed:
+            raise RunnerError("DECISION_TAPE_CLOSE_FAILED") from None
+        if self._failed:
+            raise RunnerError("DECISION_TAPE_CLOSE_FAILED")
+        return self.summary()
 
     def summary(self):
         return {
