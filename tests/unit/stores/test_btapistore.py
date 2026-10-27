@@ -4001,13 +4001,21 @@ def test_registered_sim_snapshot_uses_existing_session_and_records_source_proven
         "product_id",
         "timeout",
         "max_duration",
+        "deadline_monotonic",
     }
-    assert set(quote_kwargs) == {"instrument_id", "exchange_id", "timeout"}
+    assert set(quote_kwargs) == {
+        "instrument_id",
+        "exchange_id",
+        "timeout",
+        "deadline_monotonic",
+    }
     assert all(catalog_kwargs[key] == "" for key in ("instrument_id", "exchange_id", "product_id"))
     assert quote_kwargs["instrument_id"] == quote_kwargs["exchange_id"] == ""
     assert 0 < catalog_kwargs["timeout"] <= 30.0
     assert 0 < catalog_kwargs["max_duration"] <= 30.0
     assert 0 < quote_kwargs["timeout"] <= 30.0
+    assert type(catalog_kwargs["deadline_monotonic"]) is float
+    assert quote_kwargs["deadline_monotonic"] == catalog_kwargs["deadline_monotonic"]
     assert snapshot.catalog_source.source_id == (
         "backtrader.stores.btapistore.CtpClientWrapper."
         "bt_api_ctp.TraderClient.query_instruments_result"
@@ -4018,6 +4026,14 @@ def test_registered_sim_snapshot_uses_existing_session_and_records_source_proven
     )
     assert len(snapshot.catalog_source.source_sha256) == 64
     assert len(snapshot.quote_source.source_sha256) == 64
+
+    # Direct legacy wrapper calls omit the new optional SDK argument.
+    api.query_instruments_result(
+        instrument_id="", exchange_id="", product_id="", timeout=1.0, max_duration=1.0
+    )
+    api.query_depth_market_data_result(instrument_id="", exchange_id="", timeout=1.0)
+    assert "deadline_monotonic" not in trader.query_calls[-2][1]
+    assert "deadline_monotonic" not in trader.query_calls[-1][1]
 
 
 @pytest.mark.parametrize(

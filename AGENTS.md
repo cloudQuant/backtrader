@@ -588,7 +588,12 @@ strategy-driven exit integration remain separate work.
 The all-visible CTP snapshot collector attaches at most two typed, bounded
 query-stage observations to refusal errors. The 028 runner emits only a
 validated fixed schema; raw query rows, request IDs and provider messages are
-excluded. Synthetic installed-SDK callback composition does not establish
+excluded. First and latest completion origins use an explicit SDK whitelist;
+older results default to unknown, and nonzero errors alone do not identify a
+provider failure. Catalog and depth calls share one absolute monotonic deadline
+through Store and SDK lock/rate waits. Native request calls are checked before
+and after returning but cannot be forcibly interrupted by this deadline.
+Synthetic installed-SDK callback composition does not establish
 provider query or account acceptance.
 Registered-sim DISPATCHING-CANCEL recovery requires the current cross-process
 recovery lease, a complete fresh source-bound query, atomic journal terminal

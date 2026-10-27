@@ -2806,32 +2806,55 @@ def _create_ctp_wrapper_class():
             return self._query_result("query_trades_result", timeout=timeout, **kwargs)
 
         def query_instruments_result(
-            self, instrument_id="", exchange_id="", timeout=5, *, product_id="", max_duration=None
+            self,
+            instrument_id="",
+            exchange_id="",
+            timeout=5,
+            *,
+            product_id="",
+            max_duration=None,
+            deadline_monotonic=None,
         ):
             """Fetch the typed instrument query result.
 
             Empty filters request all instruments visible to this CTP session.
             ``max_duration`` bounds the SDK query when its public method supports
             the typed duration argument; this wrapper does not fall back to a
-            different query if the capability is absent.
+            different query if the capability is absent. An optional absolute
+            monotonic deadline is forwarded only when supplied.
             """
-            return self._query_result(
-                "query_instruments_result",
+            query_kwargs = dict(
                 instrument_id=instrument_id,
                 exchange_id=exchange_id,
                 product_id=product_id,
                 timeout=timeout,
                 max_duration=max_duration,
             )
+            if deadline_monotonic is not None:
+                query_kwargs["deadline_monotonic"] = deadline_monotonic
+            return self._query_result("query_instruments_result", **query_kwargs)
 
-        def query_depth_market_data_result(self, instrument_id="", exchange_id="", timeout=5):
-            """Fetch the typed depth result without an alternate-path fallback."""
-            return self._query_result(
-                "query_depth_market_data_result",
+        def query_depth_market_data_result(
+            self,
+            instrument_id="",
+            exchange_id="",
+            timeout=5,
+            *,
+            deadline_monotonic=None,
+        ):
+            """Fetch the typed depth result without an alternate-path fallback.
+
+            An optional absolute monotonic deadline is forwarded only when
+            supplied.
+            """
+            query_kwargs = dict(
                 instrument_id=instrument_id,
                 exchange_id=exchange_id,
                 timeout=timeout,
             )
+            if deadline_monotonic is not None:
+                query_kwargs["deadline_monotonic"] = deadline_monotonic
+            return self._query_result("query_depth_market_data_result", **query_kwargs)
 
         def query_instrument_margin_rate_result(
             self, instrument_id, exchange_id="", hedge_flag="1", timeout=5

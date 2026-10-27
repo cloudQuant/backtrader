@@ -286,13 +286,27 @@ def test_collects_complete_visible_catalog_and_quote_rows_without_ranking(
     assert feed.catalog_kwargs["exchange_id"] == ""
     assert feed.catalog_kwargs["product_id"] == ""
     assert feed.catalog_kwargs["max_duration"] > 0
+    assert type(feed.catalog_kwargs["deadline_monotonic"]) is float
     assert feed.quote_kwargs["instrument_id"] == ""
     assert feed.quote_kwargs["exchange_id"] == ""
     assert feed.quote_kwargs["timeout"] > 0
-    assert set(feed.catalog_kwargs).issubset(
-        {"instrument_id", "exchange_id", "product_id", "timeout", "max_duration"}
+    assert (
+        feed.quote_kwargs["deadline_monotonic"]
+        == feed.catalog_kwargs["deadline_monotonic"]
     )
-    assert set(feed.quote_kwargs).issubset({"instrument_id", "exchange_id", "timeout"})
+    assert set(feed.catalog_kwargs).issubset(
+        {
+            "instrument_id",
+            "exchange_id",
+            "product_id",
+            "timeout",
+            "max_duration",
+            "deadline_monotonic",
+        }
+    )
+    assert set(feed.quote_kwargs).issubset(
+        {"instrument_id", "exchange_id", "timeout", "deadline_monotonic"}
+    )
 
 
 def test_collector_accepts_a_valid_descriptive_source_prefix(monkeypatch, query_result_type):
@@ -619,7 +633,7 @@ def test_catalog_submit_observation_distinguishes_missing_from_zero(
                 "complete": False,
                 "late_callback_count": 1,
             },
-            "provider_error",
+            "query_error",
         ),
         (
             {"submit_code": 7, "complete": False, "late_callback_count": 1},
@@ -744,6 +758,82 @@ def test_wrong_result_type_is_recorded_without_inspecting_the_object(
     assert observation.error_category == "unavailable"
 
 
+def test_legacy_query_result_without_origins_projects_unknown():
+    class LegacyQueryResult:
+        request_type = "instruments"
+        request_id = 101
+        connection_generation = 7
+        timed_out = False
+        complete = True
+        is_last_seen = True
+        unsupported = False
+        records = ()
+        late_callback_count = 0
+        submit_code = 0
+        error_code = None
+        error_message = ""
+
+    observation = adapter._query_observation(
+        stage="catalog",
+        entered=True,
+        returned=True,
+        started_monotonic=10.0,
+        returned_monotonic=10.1,
+        prior_stage_complete=None,
+        result=LegacyQueryResult(),
+        query_type=LegacyQueryResult,
+        expected_request_type="instruments",
+        expected_generation=7,
+    )
+
+    assert observation.first_completion_origin == "unknown"
+    assert observation.completion_origin == "unknown"
+    legacy_observation = adapter.CtpFuturesSnapshotQueryObservation(
+        **{
+            name: getattr(observation, name)
+            for name in observation.__dataclass_fields__
+            if name not in {"first_completion_origin", "completion_origin"}
+        }
+    )
+    assert legacy_observation.first_completion_origin == "unknown"
+    assert legacy_observation.completion_origin == "unknown"
+
+
+def test_invalid_completion_origin_is_not_retained_in_diagnostics():
+    class MalformedQueryResult:
+        request_type = "instruments"
+        request_id = 101
+        connection_generation = 7
+        timed_out = False
+        complete = True
+        is_last_seen = True
+        unsupported = False
+        records = ()
+        late_callback_count = 0
+        submit_code = 0
+        error_code = None
+        error_message = ""
+        first_completion_origin = "private-origin-payload"
+        completion_origin = 42
+
+    observation = adapter._query_observation(
+        stage="catalog",
+        entered=True,
+        returned=True,
+        started_monotonic=10.0,
+        returned_monotonic=10.1,
+        prior_stage_complete=None,
+        result=MalformedQueryResult(),
+        query_type=MalformedQueryResult,
+        expected_request_type="instruments",
+        expected_generation=7,
+    )
+
+    assert observation.first_completion_origin is None
+    assert observation.completion_origin is None
+    assert "private-origin-payload" not in repr(observation)
+
+
 def test_request_type_mismatch_is_reported_without_exposing_request_id(
     monkeypatch, query_result_type
 ):
@@ -789,7 +879,7 @@ def test_query_error_text_is_reduced_to_presence_and_category(monkeypatch, query
     observation = caught.value.query_observations[0]
     assert observation.error_message_valid is True
     assert observation.error_message_present is True
-    assert observation.error_category == "provider_error"
+    assert observation.error_category == "query_error"
 
 
 @pytest.mark.parametrize(

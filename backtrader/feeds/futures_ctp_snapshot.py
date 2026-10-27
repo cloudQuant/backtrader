@@ -29,6 +29,22 @@ _DEFAULT_MAX_COLLECTION_SECONDS = 300.0
 _DEFAULT_MAX_SNAPSHOT_AGE_SECONDS = 300.0
 _MAX_CONFIGURED_SECONDS = 3600.0
 _MAX_QUERY_DIAGNOSTIC_RECORD_COUNT = 1_000_000
+_QUERY_COMPLETION_ORIGINS = frozenset(
+    {
+        "unknown",
+        "query_response",
+        "response_error",
+        "front_disconnected",
+        "client_stop",
+        "local_cancel",
+        "submit_exception",
+        "submit_rejected",
+        "timeout",
+        "deadline",
+        "success",
+        "local_preflight",
+    }
+)
 _DAY_FORMAT = "%Y%m%d"
 _SOURCE_PREFIX_RE = re.compile(r"[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*")
 
@@ -61,6 +77,8 @@ class CtpFuturesSnapshotQueryObservation:
     error_message_valid: Optional[bool]
     submit_category: str
     error_category: str
+    first_completion_origin: Optional[str] = "unknown"
+    completion_origin: Optional[str] = "unknown"
 
 
 class CtpFuturesSnapshotError(RuntimeError):
@@ -112,6 +130,7 @@ def _query_observation(
     error_message_present = error_message_valid = None
     submit_category = "unavailable"
     error_category = "unavailable"
+    first_completion_origin = completion_origin = "unknown"
 
     # Only inspect the SDK's exact public result type. Subclasses and malformed
     # objects remain subject to the existing validator but do not contribute
@@ -119,6 +138,18 @@ def _query_observation(
     if returned:
         result_type_matches = type(result) is query_type
         if result_type_matches:
+            first_origin = getattr(result, "first_completion_origin", "unknown")
+            completion = getattr(result, "completion_origin", "unknown")
+            first_completion_origin = (
+                first_origin
+                if type(first_origin) is str and first_origin in _QUERY_COMPLETION_ORIGINS
+                else None
+            )
+            completion_origin = (
+                completion
+                if type(completion) is str and completion in _QUERY_COMPLETION_ORIGINS
+                else None
+            )
             request_type = result.request_type
             request_type_matches = (
                 request_type == expected_request_type if type(request_type) is str else False
@@ -200,11 +231,11 @@ def _query_observation(
             elif unsupported is True:
                 error_category = "unsupported"
             elif error_code_nonzero is True:
-                error_category = "provider_error"
+                error_category = "query_error"
             elif submit_category == "rejected":
                 error_category = "submission_error"
             elif error_message:
-                error_category = "provider_error"
+                error_category = "query_error"
             elif complete is False or is_last_seen is False:
                 error_category = "incomplete"
             elif late_callbacks_reported is True:
@@ -237,6 +268,8 @@ def _query_observation(
         error_message_valid=error_message_valid,
         submit_category=submit_category,
         error_category=error_category,
+        first_completion_origin=first_completion_origin,
+        completion_origin=completion_origin,
     )
 
 
@@ -733,8 +766,10 @@ def _collect_ctp_futures_snapshot(
     ``feed`` is an injected ``CtpLiveFeed`` (or a source-faithful test double).
     The two public queries always use empty filters.  The configured duration
     is checked against both the local monotonic span and the SDK's sealed UTC
-    request timestamps.  SDK timeout arguments are bounded by the remaining
-    duration; an accepted result is never returned after that budget expires.
+    request timestamps. SDK timeout arguments are bounded by the remaining
+    duration, and both queries receive the same absolute monotonic deadline.
+    The collector rejects a result that returns after that deadline, but cannot
+    interrupt a native request call that itself blocks beyond the budget.
 
     Snapshot age is measured from each complete query's ``completed_at_utc``.
     The CTP depth row's UpdateTime is retained only for source audit and is not
@@ -775,6 +810,7 @@ def _collect_ctp_futures_snapshot(
             product_id="",
             timeout=remaining,
             max_duration=remaining,
+            deadline_monotonic=deadline,
         )
     except Exception:
         catalog_call_returned = time.monotonic()
@@ -835,6 +871,7 @@ def _collect_ctp_futures_snapshot(
             instrument_id="",
             exchange_id="",
             timeout=remaining,
+            deadline_monotonic=deadline,
         )
     except Exception:
         quote_call_returned = time.monotonic()

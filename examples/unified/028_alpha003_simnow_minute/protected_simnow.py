@@ -55,8 +55,8 @@ _SDK_PINS = MappingProxyType(
             module="bt_api_ctp",
             version="2.0.4+iteration41.i9",
             wheel_filename="bt_api_ctp-2.0.4+iteration41.i9-cp311-cp311-win_amd64.whl",
-            wheel_sha256="32811ab303cd875274fc9d69ee3ca3f29d83c33d9d5217f4eadd037cb07123d7",
-            record_sha256="928671c3cb7f211f2157b183e9d033e7afdddfbea153d6f4eba995e87956e8a1",
+            wheel_sha256="bc91d5df9b74422747d6b335adff9ca077a3c25d677ca28b97068a4822da80ba",
+            record_sha256="ec812e9940d462bf46c4725b20a7a06d934b0ceb1266ee6f96ae5d2c89829d43",
         ),
     }
 )

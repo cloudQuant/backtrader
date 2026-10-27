@@ -721,8 +721,24 @@ _CTP_QUERY_DIAGNOSTIC_CATEGORIES = frozenset(
         "incomplete",
         "late_callbacks",
         "submission_error",
-        "provider_error",
+        "query_error",
         "invalid",
+    }
+)
+_CTP_QUERY_COMPLETION_ORIGINS = frozenset(
+    {
+        "unknown",
+        "query_response",
+        "response_error",
+        "front_disconnected",
+        "client_stop",
+        "local_cancel",
+        "submit_exception",
+        "submit_rejected",
+        "timeout",
+        "deadline",
+        "success",
+        "local_preflight",
     }
 )
 _CTP_QUERY_SUBMIT_CATEGORIES = frozenset(
@@ -762,6 +778,8 @@ _CTP_QUERY_STAGE_FIELD_NAMES = (
         "error_message_present",
         "error_message_valid",
         "error_category",
+        "first_completion_origin",
+        "completion_origin",
 )
 _CTP_QUERY_STAGE_FIELDS = frozenset(
     _CTP_QUERY_STAGE_FIELD_NAMES
@@ -802,6 +820,10 @@ def _sanitize_ctp_query_diagnostics(value):
             or stage["submit_category"] not in _CTP_QUERY_SUBMIT_CATEGORIES
             or type(stage["error_category"]) is not str
             or stage["error_category"] not in _CTP_QUERY_DIAGNOSTIC_CATEGORIES
+            or type(stage["first_completion_origin"]) is not str
+            or stage["first_completion_origin"] not in _CTP_QUERY_COMPLETION_ORIGINS
+            or type(stage["completion_origin"]) is not str
+            or stage["completion_origin"] not in _CTP_QUERY_COMPLETION_ORIGINS
         ):
             return unavailable
         prior = stage["prior_stage_complete"]
@@ -843,6 +865,11 @@ def _sanitize_ctp_query_diagnostics(value):
             if type(stage["result_type_matches"]) is not bool:
                 return unavailable
         elif stage["result_type_matches"] is not None:
+            return unavailable
+        if stage["result_type_matches"] is not True and (
+            stage["first_completion_origin"] != "unknown"
+            or stage["completion_origin"] != "unknown"
+        ):
             return unavailable
 
         record_count = stage["record_count"]
@@ -914,11 +941,11 @@ def _sanitize_ctp_query_diagnostics(value):
             elif stage["unsupported"] is True:
                 expected_error_category = "unsupported"
             elif stage["error_code_nonzero"] is True:
-                expected_error_category = "provider_error"
+                expected_error_category = "query_error"
             elif stage["submit_category"] == "rejected":
                 expected_error_category = "submission_error"
             elif stage["error_message_present"] is True:
-                expected_error_category = "provider_error"
+                expected_error_category = "query_error"
             elif stage["complete"] is False or stage["is_last_seen"] is False:
                 expected_error_category = "incomplete"
             elif stage["late_callbacks_reported"] is True:

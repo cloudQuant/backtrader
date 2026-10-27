@@ -1,0 +1,42 @@
+{
+  "schema": "iteration51_golden_query_r5_closure.v1",
+  "source_commit": "29d32aeff0ef073b8eae03c085910d2d98ba39d3",
+  "delivery_parent": "0109413e20bef014cf341d5cf7a893d247fc2a74",
+  "actual_called_once": true,
+  "preflight_tool": "b21a29",
+  "launch_tool": "cd7abd",
+  "session": 30288,
+  "root_pid": 61520,
+  "readback_tool": "6f35a6",
+  "pre_exit_tool": "021380",
+  "normal_exit_tool": "9fba01",
+  "normal_exit_code": 0,
+  "original_observation": {
+    "path": "D:\\temp\\i51-root-golden-minute-readonly-20261027-r3.json",
+    "size_bytes": 4646,
+    "sha256": "b04ae83c20ea23eaf86e925f4c3f950f96d22bd2b41ee1fa62f3f6bfb6f05860"
+  },
+  "caller": {
+    "path": ".codex-tmp/i51_root_golden_minute_actual_r5_20261027.py",
+    "sha256": "4777bbe6e1fc5e4fa92dc6f1c4e79f54f27d5810056caf44c2902d3f72f1f8eb"
+  },
+  "phase": "catalog",
+  "reason": "QUERY_ERROR",
+  "diagnostic_category": "provider_error",
+  "category_limit": "This existing label classifies nonzero QueryResult error only; origin may be provider callback or SDK-created local error and is not established.",
+  "catalog_records_observed": 2438,
+  "catalog_elapsed_seconds": 223.31299999996554,
+  "catalog_complete": false,
+  "depth_entered": false,
+  "engine_entered": false,
+  "summary_present": false,
+  "postflight": "NOT_RUN_NO_SUMMARY",
+  "resource_cleanup_normal": true,
+  "private_context_closed": true,
+  "source_pins_unchanged": true,
+  "write_observation": "UNOBSERVED_ENGINE_NOT_ENTERED",
+  "allow_writes": false,
+  "formal_ac_increment": 0,
+  "new_retry": false,
+  "late_private_capture_read": false
+}

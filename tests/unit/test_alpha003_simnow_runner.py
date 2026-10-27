@@ -147,6 +147,8 @@ def test_ctp_query_plan_drops_malformed_snapshot_diagnostics_without_leaking_val
         {"timed_out": True},
         {"record_count": 5, "record_count_capped": True},
         {"error_code_nonzero": True},
+        {"first_completion_origin": "private-origin-payload"},
+        {"completion_origin": 42},
     ),
 )
 def test_cli_query_diagnostic_serializer_rejects_forged_payloads(forged_changes):
@@ -175,6 +177,8 @@ def test_cli_query_diagnostic_serializer_rejects_forged_payloads(forged_changes)
         "error_message_present": False,
         "error_message_valid": True,
         "error_category": "none",
+        "first_completion_origin": "success",
+        "completion_origin": "success",
     }
     valid = {"status": "AVAILABLE", "stages": [stage]}
     assert RUNNER._sanitize_ctp_query_diagnostics(valid) == valid
@@ -188,6 +192,7 @@ def test_cli_query_diagnostic_serializer_rejects_forged_payloads(forged_changes)
         "category": "INVALID_DIAGNOSTICS",
     }
     assert "timed_out" not in json.dumps(serialized)
+    assert "private-origin-payload" not in json.dumps(serialized)
 
 
 def test_replay_clock_deadline_samples_and_partial_waits_do_not_skip_slots():
@@ -1966,6 +1971,7 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
             *,
             product_id="",
             max_duration=None,
+            deadline_monotonic=None,
             **filters,
         ):
             if max_duration is not None:
@@ -1982,10 +1988,18 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
                 instrument_id=instrument_id,
                 exchange_id=exchange_id,
                 product_id=product_id,
+                deadline_monotonic=deadline_monotonic,
                 **filters,
             )
 
-        def query_depth_market_data_result(self, instrument_id="", exchange_id="", timeout=5.0):
+        def query_depth_market_data_result(
+            self,
+            instrument_id="",
+            exchange_id="",
+            timeout=5.0,
+            *,
+            deadline_monotonic=None,
+        ):
             assert instrument_id == exchange_id == ""
             trace.append(("selection_depth_query", self.context.epoch_id))
             if selection_source == "ctp_query":

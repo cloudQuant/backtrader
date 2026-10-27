@@ -69,6 +69,8 @@ _STAGE_FIELDS = frozenset(
         "error_message_present",
         "error_message_valid",
         "error_category",
+        "first_completion_origin",
+        "completion_origin",
     }
 )
 
@@ -80,7 +82,10 @@ class _SyntheticRequestApi:
         self.scenario = scenario
         self.spi = None
         self.request_names: list[str] = []
+        self.callback_error_messages: list[str] = []
         self._success = SimpleNamespace(ErrorID=0, ErrorMsg="")
+        self._connection_lost_text = SimpleNamespace(ErrorID=73, ErrorMsg="connection_lost")
+        self._response_error = SimpleNamespace(ErrorID=73, ErrorMsg="synthetic_response_error")
 
     def ReqQryInstrument(self, field, request_id):
         self.request_names.append("catalog")
@@ -93,6 +98,18 @@ class _SyntheticRequestApi:
             self.spi.OnRspQryInstrument(_catalog_row(), self._success, request_id, False)
         elif self.scenario == "empty_nonterminal_catalog_timeout":
             self.spi.OnRspQryInstrument(None, self._success, request_id, False)
+        elif self.scenario == "partial_catalog_response_error":
+            self.spi.OnRspQryInstrument(_catalog_row(), self._success, request_id, False)
+            self.callback_error_messages.append(self._response_error.ErrorMsg)
+            self.spi.OnRspError(self._response_error, request_id, False)
+        elif self.scenario == "partial_catalog_front_disconnect":
+            self.spi.OnRspQryInstrument(_catalog_row(), self._success, request_id, False)
+            self.spi.OnFrontDisconnected(100)
+        elif self.scenario == "typed_catalog_connection_lost_message":
+            self.callback_error_messages.append(self._connection_lost_text.ErrorMsg)
+            self.spi.OnRspQryInstrument(
+                _catalog_row(), self._connection_lost_text, request_id, True
+            )
         else:
             self.spi.OnRspQryInstrument(_catalog_row(), self._success, request_id, True)
         return 0
@@ -225,44 +242,173 @@ def _bound_fixture_query_timeouts(monkeypatch, client):
                     kwargs["max_duration"], SDK_QUERY_TIMEOUT_SECONDS
                 )
             stage = "catalog" if _method_name == "query_instruments_result" else "depth"
-            bounded_calls.append((stage, kwargs["timeout"], kwargs.get("max_duration")))
-            return _original(*args, **kwargs)
+            call = [
+                stage,
+                kwargs["timeout"],
+                kwargs.get("max_duration"),
+                kwargs.get("deadline_monotonic"),
+                None,
+            ]
+            bounded_calls.append(call)
+            result = _original(*args, **kwargs)
+            call[4] = result
+            return result
 
         monkeypatch.setattr(client, method_name, bounded)
     return bounded_calls
 
 
 @pytest.mark.parametrize(
-    ("scenario", "expected_requests", "expected_stages"),
+    ("scenario", "expected_requests", "expected_stages", "expected_detail"),
     [
         pytest.param(
             "partial_catalog_timeout",
             ["catalog"],
-            [("catalog", 1, False)],
+            [
+                {
+                    "stage": "catalog",
+                    "record_count": 1,
+                    "complete": False,
+                    "is_last_seen": False,
+                    "timed_out": True,
+                    "error_code_present": False,
+                    "error_message_present": True,
+                    "error_category": "timeout",
+                    "origin": "timeout",
+                }
+            ],
+            "QUERY_TIMED_OUT",
             id="partial-catalog-timeout",
         ),
         pytest.param(
             "wrong_id_catalog_timeout",
             ["catalog"],
-            [("catalog", 0, False)],
+            [
+                {
+                    "stage": "catalog",
+                    "record_count": 0,
+                    "complete": False,
+                    "is_last_seen": False,
+                    "timed_out": True,
+                    "error_code_present": False,
+                    "error_message_present": True,
+                    "error_category": "timeout",
+                    "origin": "timeout",
+                }
+            ],
+            "QUERY_TIMED_OUT",
             id="wrong-request-id-catalog-timeout",
         ),
         pytest.param(
             "empty_nonterminal_catalog_timeout",
             ["catalog"],
-            [("catalog", 0, False)],
+            [
+                {
+                    "stage": "catalog",
+                    "record_count": 0,
+                    "complete": False,
+                    "is_last_seen": False,
+                    "timed_out": True,
+                    "error_code_present": False,
+                    "error_message_present": True,
+                    "error_category": "timeout",
+                    "origin": "timeout",
+                }
+            ],
+            "QUERY_TIMED_OUT",
             id="empty-nonterminal-catalog-timeout",
         ),
         pytest.param(
             "valid_catalog_depth_timeout",
             ["catalog", "depth"],
-            [("catalog", 1, True), ("depth", 1, False)],
+            [
+                {
+                    "stage": "catalog",
+                    "record_count": 1,
+                    "complete": True,
+                    "is_last_seen": True,
+                    "timed_out": False,
+                    "error_code_present": False,
+                    "error_message_present": False,
+                    "error_category": "none",
+                    "origin": "success",
+                },
+                {
+                    "stage": "depth",
+                    "record_count": 1,
+                    "complete": False,
+                    "is_last_seen": False,
+                    "timed_out": True,
+                    "error_code_present": False,
+                    "error_message_present": True,
+                    "error_category": "timeout",
+                    "origin": "timeout",
+                },
+            ],
+            "QUERY_TIMED_OUT",
             id="valid-catalog-depth-timeout",
+        ),
+        pytest.param(
+            "partial_catalog_response_error",
+            ["catalog"],
+            [
+                {
+                    "stage": "catalog",
+                    "record_count": 1,
+                    "complete": False,
+                    "is_last_seen": False,
+                    "timed_out": False,
+                    "error_code_present": True,
+                    "error_message_present": True,
+                    "error_category": "query_error",
+                    "origin": "response_error",
+                }
+            ],
+            "QUERY_ERROR",
+            id="partial-response-error-origin",
+        ),
+        pytest.param(
+            "partial_catalog_front_disconnect",
+            ["catalog"],
+            [
+                {
+                    "stage": "catalog",
+                    "record_count": 1,
+                    "complete": False,
+                    "is_last_seen": False,
+                    "timed_out": False,
+                    "error_code_present": True,
+                    "error_message_present": True,
+                    "error_category": "query_error",
+                    "origin": "front_disconnected",
+                }
+            ],
+            "QUERY_ERROR",
+            id="partial-front-disconnect-origin",
+        ),
+        pytest.param(
+            "typed_catalog_connection_lost_message",
+            ["catalog"],
+            [
+                {
+                    "stage": "catalog",
+                    "record_count": 1,
+                    "complete": False,
+                    "is_last_seen": True,
+                    "timed_out": False,
+                    "error_code_present": True,
+                    "error_message_present": True,
+                    "error_category": "query_error",
+                    "origin": "query_response",
+                }
+            ],
+            "QUERY_ERROR",
+            id="typed-response-connection-lost-text-is-not-disconnect-origin",
         ),
     ],
 )
-def test_real_trader_client_timeout_diagnostics_are_bounded_and_runner_visible(
-    scenario, expected_requests, expected_stages, monkeypatch
+def test_real_trader_client_query_diagnostics_are_bounded_and_runner_visible(
+    scenario, expected_requests, expected_stages, expected_detail, monkeypatch
 ):
     """Failures traverse SDK SPI, QueryResult, Store, collector, and runner."""
 
@@ -297,7 +443,7 @@ def test_real_trader_client_timeout_diagnostics_are_bounded_and_runner_visible(
 
     error = caught.value
     assert error.code == "CTP_FUTURES_SNAPSHOT_COLLECTION_FAILED"
-    assert error.detail == "QUERY_TIMED_OUT"
+    assert error.detail == expected_detail
     diagnostics = error.query_diagnostics
     assert set(diagnostics) == {"status", "stages"}
     assert diagnostics["status"] == "AVAILABLE"
@@ -305,40 +451,35 @@ def test_real_trader_client_timeout_diagnostics_are_bounded_and_runner_visible(
     assert len(stages) == len(expected_stages)
 
     for index, (stage, expected) in enumerate(zip(stages, expected_stages)):
-        expected_stage, expected_record_count, expected_complete = expected
         assert set(stage) == _STAGE_FIELDS
-        assert stage["stage"] == expected_stage
+        assert stage["stage"] == expected["stage"]
         assert stage["entered"] is True
         assert stage["returned"] is True
         assert stage["result_type_matches"] is True
         assert stage["request_type_matches"] is True
         assert stage["generation_matches"] is True
         assert stage["request_id_positive"] is True
-        assert stage["complete"] is expected_complete
-        assert stage["is_last_seen"] is expected_complete
-        assert stage["record_count"] == expected_record_count
+        assert stage["complete"] is expected["complete"]
+        assert stage["is_last_seen"] is expected["is_last_seen"]
+        assert stage["timed_out"] is expected["timed_out"]
+        assert stage["record_count"] == expected["record_count"]
         assert stage["record_count_capped"] is False
         assert stage["submit_category"] == "accepted"
         assert stage["unsupported"] is False
         assert stage["late_callbacks_reported"] is False
         assert stage["late_callback_count_valid"] is True
-        assert stage["error_code_present"] is False
+        assert stage["error_code_present"] is expected["error_code_present"]
         assert stage["error_code_valid"] is True
-        assert stage["error_code_nonzero"] is False
+        assert stage["error_code_nonzero"] is expected["error_code_present"]
         assert stage["error_message_valid"] is True
+        assert stage["error_message_present"] is expected["error_message_present"]
+        assert stage["error_category"] == expected["error_category"]
+        assert stage["first_completion_origin"] == expected["origin"]
+        assert stage["completion_origin"] == expected["origin"]
         if index:
             assert stage["prior_stage_complete"] is True
         else:
             assert stage["prior_stage_complete"] is None
-
-        if expected_complete:
-            assert stage["timed_out"] is False
-            assert stage["error_category"] == "none"
-            assert stage["error_message_present"] is False
-        else:
-            assert stage["timed_out"] is True
-            assert stage["error_category"] == "timeout"
-            assert stage["error_message_present"] is True
 
     # The projection contains only fixed schema facts, never request IDs,
     # provider messages, account identifiers, or market-row contents.
@@ -350,9 +491,13 @@ def test_real_trader_client_timeout_diagnostics_are_bounded_and_runner_visible(
     assert all(item[1] == SDK_QUERY_TIMEOUT_SECONDS for item in bounded_calls)
     assert all(
         max_duration is None or max_duration == SDK_QUERY_TIMEOUT_SECONDS
-        for _, _, max_duration in bounded_calls
+        for _, _, max_duration, _, _ in bounded_calls
     )
+    assert len({item[3] for item in bounded_calls}) == 1
+    assert type(bounded_calls[0][3]) is float
     assert request_api.request_names == expected_requests
+    if scenario == "typed_catalog_connection_lost_message":
+        assert request_api.callback_error_messages == ["connection_lost"]
 
 
 def test_real_trader_client_valid_two_query_chain_builds_the_live_plan(monkeypatch):
@@ -396,3 +541,13 @@ def test_real_trader_client_valid_two_query_chain_builds_the_live_plan(monkeypat
     assert [item[0] for item in bounded_calls] == ["catalog", "depth"]
     assert all(item[1] == SDK_QUERY_TIMEOUT_SECONDS for item in bounded_calls)
     assert bounded_calls[0][2] == SDK_QUERY_TIMEOUT_SECONDS
+    assert len({item[3] for item in bounded_calls}) == 1
+    assert type(bounded_calls[0][3]) is float
+    assert [result.first_completion_origin for *_, result in bounded_calls] == [
+        "success",
+        "success",
+    ]
+    assert [result.completion_origin for *_, result in bounded_calls] == [
+        "success",
+        "success",
+    ]
