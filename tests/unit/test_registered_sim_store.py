@@ -1150,7 +1150,8 @@ def test_unknown_retirement_append_failure_keeps_latch_and_exact_retry_queues_on
     assert duplicate.status == "ALREADY_ABSENT"
     assert len(api._order_updates) == 1
     assert api._order_updates.attempts == 2
-    assert store.poll_broker_update() == terminal_event
+    expected_terminal_event = dict(terminal_event, execution_source="trades")
+    assert store.poll_broker_update() == expected_terminal_event
     assert store.poll_broker_update() is None
     assert store.registered_sim_retire_unknown(**retirement).status == "ALREADY_ABSENT"
     assert len(api._order_updates) == 0
@@ -1295,7 +1296,8 @@ def test_unknown_cancel_retirement_rejects_mismatched_lineage_and_retries_after_
     assert api._order_updates.attempts == 2
     assert len(api._order_updates) == 1
     assert len(api.trader_client.native_calls) == 2
-    assert store.poll_broker_update() == terminal_event
+    expected_terminal_event = dict(terminal_event, execution_source="trades")
+    assert store.poll_broker_update() == expected_terminal_event
     assert store.poll_broker_update() is None
     duplicate = store.registered_sim_retire_unknown(**retirement)
     assert duplicate.status == "ALREADY_ABSENT"
