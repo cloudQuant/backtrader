@@ -1112,3 +1112,651 @@ class LiveCapacityRunCapture:
                 "issues": tuple(issues),
             }
         )
+
+
+def _capacity_report_sequence(value: Any) -> bool:
+    return type(value) in (tuple, list)
+
+
+def _capacity_run_report_issue(report: Any) -> Optional[str]:
+    """Validate that a report contains the complete, predeclared run sample."""
+    if not isinstance(report, Mapping):
+        return "run_report_unavailable"
+    if report.get("schema") != "backtrader.live_capacity_run_report.v1":
+        return "run_report_schema_invalid"
+    run_id = report.get("run_id")
+    epoch_id = report.get("epoch_id")
+    calendar_id = report.get("calendar_id")
+    calendar_slots = report.get("calendar_slot_count")
+    max_samples = report.get("max_samples")
+    expected = report.get("expected_ordinals")
+    samples = report.get("samples")
+    process = report.get("process_identity")
+    issues = report.get("issues")
+    if (
+        not isinstance(run_id, str)
+        or not run_id
+        or type(epoch_id) is not int
+        or epoch_id <= 0
+        or not isinstance(calendar_id, str)
+        or not calendar_id
+        or type(calendar_slots) is not int
+        or calendar_slots <= 0
+        or type(max_samples) is not int
+        or not 1 <= max_samples <= MAX_RUN_CAPACITY_SAMPLES
+        or not _capacity_report_sequence(expected)
+        or not 1 <= len(expected) <= max_samples
+        or any(type(value) is not int or value < 0 or value >= calendar_slots for value in expected)
+        or any(left >= right for left, right in zip(expected, expected[1:]))
+        or not _capacity_report_sequence(samples)
+    ):
+        return "run_report_binding_fields_invalid"
+
+    start = expected[0]
+    remaining = calendar_slots - start
+    planned_count = min(max_samples, remaining)
+    if planned_count == 1:
+        planned = (start,)
+    else:
+        span = calendar_slots - 1 - start
+        planned = tuple(
+            start + (index * span // (planned_count - 1))
+            for index in range(planned_count)
+        )
+    if (
+        tuple(expected) != planned
+        or type(report.get("window_start_ordinal")) is not int
+        or report.get("window_start_ordinal") != expected[0]
+        or type(report.get("window_end_ordinal")) is not int
+        or report.get("window_end_ordinal") != expected[-1]
+        or type(report.get("sample_count")) is not int
+        or report.get("sample_count") != len(expected)
+        or len(samples) != len(expected)
+        or report.get("status") != "RECORDED_NOT_EVALUATED"
+        or report.get("acceptance_evaluated") is not False
+        or report.get("window_evaluation") != "NOT_EVALUATED"
+        or report.get("growth_evaluation") != "NOT_EVALUATED"
+        or report.get("stability_peak_claimed") is not False
+        or report.get("sampling_origin") != "first_observed_verified_live_ready_callback"
+        or report.get("first_ready_engine_phase") not in ("prenext_ready", "grid_recorded")
+        or not _capacity_report_sequence(issues)
+        or issues
+    ):
+        return "run_sample_sequence_incomplete"
+
+    if (
+        not isinstance(process, Mapping)
+        or process.get("status") != "OBSERVED"
+        or type(process.get("pid")) is not int
+        or process["pid"] <= 0
+        or type(process.get("create_time")) not in (int, float)
+        or not math.isfinite(process["create_time"])
+        or process["create_time"] <= 0
+    ):
+        return "process_identity_incomplete"
+
+    first_ready = report.get("first_ready_boundary")
+    if not isinstance(first_ready, Mapping):
+        return "first_ready_boundary_missing"
+    previous_monotonic_after = None
+    previous_utc = None
+    cohort_identity = None
+    for ordinal, row in zip(expected, samples):
+        if (
+            not isinstance(row, Mapping)
+            or row.get("schema") != "backtrader.live_capacity_snapshot.v1"
+            or row.get("status") != "OBSERVED"
+            or row.get("acceptance_evaluated") is not False
+            or row.get("run_id") != run_id
+            or type(row.get("ordinal")) is not int
+            or row.get("ordinal") != ordinal
+            or not isinstance(row.get("sampled_at_utc"), str)
+            or not row.get("sampled_at_utc")
+            or not _capacity_report_sequence(row.get("issues"))
+            or row.get("issues")
+        ):
+            return "capacity_snapshot_incomplete"
+        run_binding = row.get("run_binding")
+        if (
+            not isinstance(run_binding, Mapping)
+            or run_binding.get("run_id") != run_id
+            or type(run_binding.get("epoch_id")) is not int
+            or run_binding.get("epoch_id") != epoch_id
+            or type(run_binding.get("process_id")) is not int
+            or run_binding.get("process_id") != process["pid"]
+            or type(run_binding.get("process_create_time")) not in (int, float)
+            or type(run_binding.get("process_create_time")) is not type(process["create_time"])
+            or run_binding.get("process_create_time") != process["create_time"]
+        ):
+            return "sample_run_identity_mismatch"
+        identity = row.get("cohort_identity")
+        if (
+            not isinstance(identity, Mapping)
+            or identity.get("status") != "OBSERVED"
+            or not isinstance(identity.get("cohort_id"), str)
+            or not identity.get("cohort_id")
+            or type(identity.get("epoch_id")) is not int
+            or identity.get("epoch_id") != epoch_id
+        ):
+            return "sample_cohort_identity_incomplete"
+        this_cohort_identity = (identity["cohort_id"], identity["epoch_id"])
+        if cohort_identity is None:
+            cohort_identity = this_cohort_identity
+        elif cohort_identity != this_cohort_identity:
+            return "sample_cohort_identity_changed"
+
+        boundary = row.get("ready_boundary")
+        if not isinstance(boundary, Mapping):
+            return "sample_ready_boundary_missing"
+        utc_ns = boundary.get("system_utc_epoch_ns")
+        mono_before = boundary.get("monotonic_before_ns")
+        mono_after = boundary.get("monotonic_after_ns")
+        sample_mono_before = row.get("utc_monotonic_before_ns")
+        sample_mono_after = row.get("utc_monotonic_after_ns")
+        capture_mono = row.get("capture_monotonic_ns")
+        if (
+            any(type(value) is not int or value <= 0 for value in (utc_ns, mono_before, mono_after))
+            or mono_after < mono_before
+            or any(
+                type(value) is not int or value <= 0
+                for value in (sample_mono_before, sample_mono_after, capture_mono)
+            )
+            or type(boundary.get("grid_ordinal")) is not int
+            or sample_mono_before < mono_after
+            or sample_mono_after < sample_mono_before
+            or capture_mono < sample_mono_after
+            or boundary.get("ordinal_source") != "live_cohort_batch_slot_index_zero_based"
+            or boundary.get("grid_ordinal") != ordinal
+            or boundary.get("cohort_id") != identity["cohort_id"]
+            or type(boundary.get("epoch_id")) is not int
+            or boundary.get("epoch_id") != epoch_id
+            or boundary.get("calendar_id") != calendar_id
+            or not isinstance(boundary.get("batch_id"), str)
+            or not boundary["batch_id"]
+            or boundary.get("engine_phase") not in ("prenext_ready", "grid_recorded")
+        ):
+            return "sample_clock_or_grid_binding_invalid"
+        if previous_monotonic_after is not None and mono_before < previous_monotonic_after:
+            return "sample_monotonic_order_invalid"
+        if previous_utc is not None and utc_ns < previous_utc:
+            return "sample_system_utc_order_invalid"
+        previous_monotonic_after = mono_after
+        previous_utc = utc_ns
+
+    if samples[0]["ready_boundary"].get("engine_phase") != report.get(
+        "first_ready_engine_phase"
+    ):
+        return "first_ready_phase_mismatch"
+
+    first_sample_boundary = samples[0]["ready_boundary"]
+    if any(
+        first_ready.get(name) != first_sample_boundary.get(name)
+        for name in ("system_utc_epoch_ns", "monotonic_before_ns", "monotonic_after_ns")
+    ):
+        return "first_ready_sample_boundary_mismatch"
+    return None
+
+
+def _fixed_component_result(
+    *,
+    status: str,
+    reason_code: Optional[str] = None,
+    counts_by_ordinal: Tuple[Mapping[str, Any], ...] = (),
+    fixed_limits: Optional[Mapping[str, Any]] = None,
+) -> Dict[str, Any]:
+    result = {
+        "status": status,
+        "counts_by_ordinal": counts_by_ordinal,
+        "fixed_limits": fixed_limits,
+    }
+    if reason_code is not None:
+        result["reason_code"] = reason_code
+    return result
+
+
+def _evaluate_line_bounds(samples: Tuple[Mapping[str, Any], ...]) -> Dict[str, Any]:
+    required = (
+        "graph_node_count",
+        "graph_reference_count",
+        "graph_node_limit",
+        "graph_reference_limit",
+        "line_buffer_count",
+        "bounded_line_buffer_count",
+        "unbounded_line_buffer_count",
+        "line_capacity_unavailable_count",
+        "unobservable_line_reference_count",
+        "unobservable_line_collection_count",
+        "line_capacity_sum",
+        "max_line_capacity",
+        "retained_line_value_count",
+        "bounded_retained_line_value_count",
+        "unbounded_retained_line_value_count",
+        "max_retained_values_per_line",
+    )
+    rows = []
+    profiles = []
+    has_unbounded_line = False
+    for sample in samples:
+        facts = sample.get("lines")
+        if (
+            not isinstance(facts, Mapping)
+            or facts.get("schema") != "backtrader.live_line_capacity.v1"
+            or facts.get("status") != "OBSERVED"
+            or facts.get("observation_complete") is not True
+            or any(not _nonnegative_int(facts.get(name)) for name in required)
+        ):
+            return _fixed_component_result(status="INCOMPLETE", reason_code="line_facts_incomplete")
+        values = {name: facts[name] for name in required}
+        if (
+            values["graph_node_count"] > values["graph_node_limit"]
+            or values["graph_reference_count"] > values["graph_reference_limit"]
+            or values["line_buffer_count"] <= 0
+            or values["bounded_line_buffer_count"] + values["unbounded_line_buffer_count"]
+            != values["line_buffer_count"]
+            or values["bounded_retained_line_value_count"]
+            + values["unbounded_retained_line_value_count"]
+            != values["retained_line_value_count"]
+            or values["line_capacity_unavailable_count"]
+            or values["unobservable_line_reference_count"]
+            or values["unobservable_line_collection_count"]
+        ):
+            return _fixed_component_result(status="INCOMPLETE", reason_code="line_counts_invalid")
+        if values["unbounded_line_buffer_count"]:
+            has_unbounded_line = True
+            rows.append(
+                {
+                    "ordinal": sample["ordinal"],
+                    "line_buffer_count": values["line_buffer_count"],
+                    "unbounded_line_buffer_count": values["unbounded_line_buffer_count"],
+                    "retained_values": values["retained_line_value_count"],
+                }
+            )
+            profiles.append(None)
+            continue
+        if (
+            values["bounded_line_buffer_count"] != values["line_buffer_count"]
+            or values["unbounded_retained_line_value_count"] != 0
+            or values["bounded_retained_line_value_count"]
+            != values["retained_line_value_count"]
+            or values["line_capacity_sum"] <= 0
+            or values["retained_line_value_count"] > values["line_capacity_sum"]
+            or values["max_line_capacity"] <= 0
+            or values["max_line_capacity"] > values["line_capacity_sum"]
+            or values["max_retained_values_per_line"] > values["max_line_capacity"]
+        ):
+            return _fixed_component_result(status="INCOMPLETE", reason_code="line_capacity_invalid")
+        profiles.append(
+            tuple(
+                values[name]
+                for name in (
+                    "graph_node_count",
+                    "graph_reference_count",
+                    "graph_node_limit",
+                    "graph_reference_limit",
+                    "line_buffer_count",
+                    "bounded_line_buffer_count",
+                    "line_capacity_sum",
+                    "max_line_capacity",
+                )
+            )
+        )
+        rows.append(
+            {
+                "ordinal": sample["ordinal"],
+                "line_buffer_count": values["line_buffer_count"],
+                "retained_values": values["retained_line_value_count"],
+                "aggregate_capacity": values["line_capacity_sum"],
+            }
+        )
+    if has_unbounded_line:
+        return _fixed_component_result(
+            status="UNBOUNDED",
+            reason_code="unbounded_line_buffer_present",
+            counts_by_ordinal=tuple(rows),
+        )
+    if len(set(profiles)) != 1:
+        return _fixed_component_result(
+            status="INCOMPLETE",
+            reason_code="line_fixed_capacity_profile_changed",
+            counts_by_ordinal=tuple(rows),
+        )
+    profile = profiles[0]
+    return _fixed_component_result(
+        status="BOUNDED_BY_FIXED_LIMITS",
+        counts_by_ordinal=tuple(rows),
+        fixed_limits={
+            "graph_node_count": profile[0],
+            "graph_reference_count": profile[1],
+            "graph_node_limit": profile[2],
+            "graph_reference_limit": profile[3],
+            "line_buffer_count": profile[4],
+            "aggregate_line_capacity": profile[6],
+            "source": "observed_finite_linebuffer_capacities",
+        },
+    )
+
+
+def _evaluate_cohort_bounds(samples: Tuple[Mapping[str, Any], ...]) -> Dict[str, Any]:
+    counts = (
+        "member_count",
+        "pending_slot_count",
+        "pending_bar_count",
+        "window_receipt_count",
+        "recent_signature_count",
+        "recent_signature_order_count",
+        "diagnostic_gap_count",
+    )
+    limits = (
+        "max_pending_slots",
+        "max_pending_bars",
+        "window_receipt_limit",
+        "window_receipt_member_limit",
+        "recent_signature_limit",
+        "diagnostic_gap_limit",
+    )
+    rows = []
+    profiles = []
+    for sample in samples:
+        facts = sample.get("cohort")
+        if (
+            not isinstance(facts, Mapping)
+            or facts.get("schema") != "backtrader.live_cohort_capacity.v1"
+            or facts.get("status") != "OBSERVED"
+            or facts.get("limits_respected") is not True
+            or facts.get("window_receipt_member_limits_match") is not True
+            or any(not _nonnegative_int(facts.get(name)) for name in counts + limits)
+            or any(facts[count] > facts[limit] for count, limit in (
+                ("pending_slot_count", "max_pending_slots"),
+                ("pending_bar_count", "max_pending_bars"),
+                ("window_receipt_count", "window_receipt_limit"),
+                ("recent_signature_count", "recent_signature_limit"),
+                ("recent_signature_order_count", "recent_signature_limit"),
+                ("diagnostic_gap_count", "diagnostic_gap_limit"),
+            ))
+        ):
+            return _fixed_component_result(status="INCOMPLETE", reason_code="cohort_capacity_invalid")
+        profiles.append(tuple(facts[name] for name in limits + ("member_count",)))
+        rows.append(
+            {"ordinal": sample["ordinal"], **{name: facts[name] for name in counts}}
+        )
+    if len(set(profiles)) != 1:
+        return _fixed_component_result(
+            status="INCOMPLETE",
+            reason_code="cohort_fixed_capacity_profile_changed",
+            counts_by_ordinal=tuple(rows),
+        )
+    profile = profiles[0]
+    return _fixed_component_result(
+        status="BOUNDED_BY_FIXED_LIMITS",
+        counts_by_ordinal=tuple(rows),
+        fixed_limits={**dict(zip(limits, profile)), "member_count": profile[-1]},
+    )
+
+
+def _evaluate_diagnostic_sample_bounds(samples: Tuple[Mapping[str, Any], ...]) -> Dict[str, Any]:
+    rows = []
+    profiles = []
+    for sample in samples:
+        facts = sample.get("diagnostics")
+        sample_limits = facts.get("sample_limits") if isinstance(facts, Mapping) else None
+        if (
+            not isinstance(facts, Mapping)
+            or facts.get("schema") != "backtrader.live_factor_diagnostics_capacity.v1"
+            or facts.get("status") != "OBSERVED"
+            or not _nonnegative_int(facts.get("factor_count"))
+            or facts.get("factor_count") <= 0
+            or facts.get("factor_count") > MAX_GRAPH_NODES
+            or not _nonnegative_int(facts.get("call_sample_count"))
+            or not _nonnegative_int(facts.get("once_range_sample_count"))
+            or not _capacity_report_sequence(sample_limits)
+            or not sample_limits
+            or len(sample_limits) > MAX_GRAPH_NODES
+            or any(type(limit) is not int or limit <= 0 for limit in sample_limits)
+        ):
+            return _fixed_component_result(
+                status="INCOMPLETE", reason_code="diagnostic_sample_capacity_invalid"
+            )
+        factor_count = facts["factor_count"]
+        per_factor_limit = max(sample_limits)
+        aggregate_limit = factor_count * per_factor_limit
+        if (
+            facts["call_sample_count"] > aggregate_limit
+            or facts["once_range_sample_count"] > aggregate_limit
+        ):
+            return _fixed_component_result(
+                status="INCOMPLETE", reason_code="diagnostic_sample_count_exceeds_limit"
+            )
+        profiles.append((factor_count, tuple(sample_limits)))
+        rows.append(
+            {
+                "ordinal": sample["ordinal"],
+                "factor_count": factor_count,
+                "call_sample_count": facts["call_sample_count"],
+                "once_range_sample_count": facts["once_range_sample_count"],
+                "aggregate_sample_limit": aggregate_limit,
+            }
+        )
+    if len(set(profiles)) != 1:
+        return _fixed_component_result(
+            status="INCOMPLETE",
+            reason_code="diagnostic_fixed_capacity_profile_changed",
+            counts_by_ordinal=tuple(rows),
+        )
+    factor_count, sample_limits = profiles[0]
+    return _fixed_component_result(
+        status="BOUNDED_BY_FIXED_LIMITS",
+        counts_by_ordinal=tuple(rows),
+        fixed_limits={
+            "factor_count": factor_count,
+            "per_factor_sample_limits": sample_limits,
+            "aggregate_sample_limit_upper_bound": factor_count * max(sample_limits),
+            "work_counters_used": False,
+        },
+    )
+
+
+def _evaluate_strategy_event_bounds(samples: Tuple[Mapping[str, Any], ...]) -> Dict[str, Any]:
+    event_names = ("order_events", "trade_events")
+    rows = []
+    profiles = []
+    for sample in samples:
+        facts = sample.get("strategy_events")
+        events = facts.get("events") if isinstance(facts, Mapping) else None
+        if (
+            not isinstance(facts, Mapping)
+            or facts.get("schema") != "backtrader.live_strategy_event_capacity.v1"
+            or facts.get("status") != "OBSERVED"
+            or not isinstance(events, Mapping)
+        ):
+            return _fixed_component_result(status="INCOMPLETE", reason_code="strategy_event_capacity_invalid")
+        event_counts = {}
+        event_limits = []
+        for name in event_names:
+            item = events.get(name)
+            if (
+                not isinstance(item, Mapping)
+                or not _nonnegative_int(item.get("count"))
+                or type(item.get("limit")) is not int
+                or item["limit"] <= 0
+                or item.get("bounded") is not True
+                or item["count"] > item["limit"]
+            ):
+                return _fixed_component_result(
+                    status="INCOMPLETE", reason_code="strategy_event_ring_unbounded_or_invalid"
+                )
+            event_counts[name] = item["count"]
+            event_limits.append(item["limit"])
+        profiles.append(tuple(event_limits))
+        rows.append({"ordinal": sample["ordinal"], **event_counts})
+    if len(set(profiles)) != 1:
+        return _fixed_component_result(
+            status="INCOMPLETE",
+            reason_code="strategy_event_fixed_capacity_profile_changed",
+            counts_by_ordinal=tuple(rows),
+        )
+    return _fixed_component_result(
+        status="BOUNDED_BY_FIXED_LIMITS",
+        counts_by_ordinal=tuple(rows),
+        fixed_limits=dict(zip(event_names, profiles[0])),
+    )
+
+
+def _evaluate_order_bounds(samples: Tuple[Mapping[str, Any], ...]) -> Tuple[Dict[str, Any], Dict[str, Any]]:
+    rows = []
+    terminal_limits = []
+    for sample in samples:
+        facts = sample.get("orders")
+        required_counts = (
+            "active_order_count",
+            "unknown_order_count",
+            "terminal_order_count",
+            "dispatching_order_count",
+        )
+        if (
+            not isinstance(facts, Mapping)
+            or facts.get("schema") != "backtrader.registered_sim_order_capacity.v1"
+            or facts.get("status") != "OBSERVED"
+            or any(not _nonnegative_int(facts.get(name)) for name in required_counts)
+            or type(facts.get("terminal_order_limit")) is not int
+            or facts["terminal_order_limit"] <= 0
+            or facts.get("terminal_limit_respected") is not True
+            or facts["terminal_order_count"] > facts["terminal_order_limit"]
+            or facts["dispatching_order_count"] != 0
+            or facts.get("active_unknown_limit") is not None
+            or facts.get("active_unknown_bounded") is not False
+        ):
+            return (
+                _fixed_component_result(status="INCOMPLETE", reason_code="order_capacity_invalid"),
+                {"status": "NOT_EVALUATED", "reason_code": "order_snapshot_incomplete"},
+            )
+        terminal_limits.append(facts["terminal_order_limit"])
+        rows.append(
+            {
+                "ordinal": sample["ordinal"],
+                "terminal_order_count": facts["terminal_order_count"],
+                "active_order_count": facts["active_order_count"],
+                "unknown_order_count": facts["unknown_order_count"],
+            }
+        )
+    if len(set(terminal_limits)) != 1:
+        return (
+            _fixed_component_result(
+                status="INCOMPLETE",
+                reason_code="terminal_order_fixed_limit_changed",
+                counts_by_ordinal=tuple(rows),
+            ),
+            {
+                "status": "NOT_EVALUATED",
+                "reason_code": "active_unknown_retention_semantics_unbounded",
+                "counts_by_ordinal": tuple(
+                    {
+                        "ordinal": row["ordinal"],
+                        "active_order_count": row["active_order_count"],
+                        "unknown_order_count": row["unknown_order_count"],
+                    }
+                    for row in rows
+                ),
+            },
+        )
+    return (
+        _fixed_component_result(
+            status="BOUNDED_BY_FIXED_LIMITS",
+            counts_by_ordinal=tuple(
+                {"ordinal": row["ordinal"], "terminal_order_count": row["terminal_order_count"]}
+                for row in rows
+            ),
+            fixed_limits={"terminal_order_limit": terminal_limits[0]},
+        ),
+        {
+            "status": "NOT_EVALUATED",
+            "reason_code": "active_unknown_retention_semantics_unbounded",
+            "counts_by_ordinal": tuple(
+                {
+                    "ordinal": row["ordinal"],
+                    "active_order_count": row["active_order_count"],
+                    "unknown_order_count": row["unknown_order_count"],
+                }
+                for row in rows
+            ),
+        },
+    )
+
+
+def evaluate_live_capacity_container_bounds(report: Any) -> Mapping[str, Any]:
+    """Evaluate observed finite-container bounds, without an AC or growth verdict.
+
+    The input must be a complete ``LiveCapacityRunCapture`` report with every
+    predeclared ordinal, run/process/cohort identity and paired OS clock
+    boundary intact. This reports only whether the existing line, cohort,
+    diagnostic sample, strategy-event and terminal-order containers remained
+    within their fixed limits across those observations. It does not infer a
+    growth slope, stable RSS period, active/UNKNOWN order retention bound, or
+    formal AC51 result.
+    """
+    issue = _capacity_run_report_issue(report)
+    if issue is not None:
+        incomplete = {
+            name: _fixed_component_result(status="INCOMPLETE", reason_code=issue)
+            for name in (
+                "lines",
+                "cohort",
+                "factor_diagnostic_samples",
+                "strategy_event_rings",
+                "terminal_order_cache",
+            )
+        }
+        return MappingProxyType(
+            {
+                "schema": "backtrader.live_capacity_container_bounds.v1",
+                "status": "INCOMPLETE",
+                "observation_status": "INCOMPLETE",
+                "reason_code": issue,
+                "components": incomplete,
+                "active_unknown_order_retention": {"status": "NOT_EVALUATED"},
+                "growth_evaluation": "NOT_EVALUATED",
+                "rss_stability_evaluation": "NOT_EVALUATED",
+                "formal_acceptance_status": "NOT_EVALUATED",
+                "acceptance_evaluated": False,
+            }
+        )
+
+    samples = tuple(report["samples"])
+    lines = _evaluate_line_bounds(samples)
+    cohort = _evaluate_cohort_bounds(samples)
+    diagnostics = _evaluate_diagnostic_sample_bounds(samples)
+    events = _evaluate_strategy_event_bounds(samples)
+    terminal_orders, active_unknown = _evaluate_order_bounds(samples)
+    components = {
+        "lines": lines,
+        "cohort": cohort,
+        "factor_diagnostic_samples": diagnostics,
+        "strategy_event_rings": events,
+        "terminal_order_cache": terminal_orders,
+    }
+    component_statuses = tuple(value["status"] for value in components.values())
+    if "INCOMPLETE" in component_statuses:
+        bounded_status = "INCOMPLETE"
+        status = "INCOMPLETE"
+    elif "UNBOUNDED" in component_statuses:
+        bounded_status = "UNBOUNDED"
+        status = "NOT_EVALUATED"
+    else:
+        bounded_status = "OBSERVED_WITHIN_FIXED_LIMITS"
+        status = "NOT_EVALUATED"
+    return MappingProxyType(
+        {
+            "schema": "backtrader.live_capacity_container_bounds.v1",
+            "status": status,
+            "observation_status": "COMPLETE",
+            "bounded_component_status": bounded_status,
+            "run_id": report["run_id"],
+            "expected_ordinals": tuple(report["expected_ordinals"]),
+            "sample_count": len(samples),
+            "components": components,
+            "active_unknown_order_retention": active_unknown,
+            "growth_evaluation": "NOT_EVALUATED",
+            "rss_stability_evaluation": "NOT_EVALUATED",
+            "formal_acceptance_status": "NOT_EVALUATED",
+            "acceptance_evaluated": False,
+        }
+    )
