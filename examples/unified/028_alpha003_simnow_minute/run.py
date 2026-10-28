@@ -3079,6 +3079,7 @@ class DecisionTapeWriter:
         self._last_record_reference = None
         self._header_record_id = None
         self._fee_pair_source_scope = None
+        self._fee_pair_grid_append_observations = {}
         if calendar_fingerprint is not None and (
             type(calendar_fingerprint) is not str
             or len(calendar_fingerprint) != 64
@@ -3498,6 +3499,380 @@ class DecisionTapeWriter:
                 self._failed = True
                 raise
 
+    def record_fee_pair_grid_tape_append_observation(
+        self,
+        candidate_id,
+        candidate,
+        batch,
+        snapshot,
+        target_decision,
+        order_plan,
+        journal,
+        *,
+        owner_token: str,
+    ):
+        """Append one v20 fee-pair GRID row and return a writer-local observation.
+
+        This method binds the Journal's intent and one-way append claim to this
+        newly-created writer, its complete durable prefix, and a full strict
+        reread after fsync.  The Journal's report remains a caller statement:
+        this method neither verifies a restart nor settles GRID, creates OPEN
+        intents, nor submits an order.  An unresolved intent/claim is left
+        fail-closed for a later, separately implemented recovery protocol.
+        """
+        from backtrader.stores import execution_decision_journal as journal_api
+
+        if type(candidate) is not journal_api.ExecutionFeePairCandidate:
+            raise RunnerError("FEE_PAIR_CANDIDATE_TYPE_INVALID")
+        if type(journal) is not journal_api.ExecutionDecisionJournal:
+            raise RunnerError("FEE_PAIR_JOURNAL_TYPE_INVALID")
+        if type(candidate_id) is not str or not _is_lower_sha256(candidate_id):
+            raise RunnerError("FEE_PAIR_CANDIDATE_ID_INVALID")
+        if type(owner_token) is not str or not owner_token:
+            raise RunnerError("FEE_PAIR_OWNER_TOKEN_INVALID")
+
+        with self._lock:
+            if self._closed or self._failed:
+                raise RunnerError("DECISION_TAPE_UNAVAILABLE")
+            if self.mode != "live":
+                raise RunnerError("FEE_PAIR_TAPE_LIVE_MODE_REQUIRED")
+            if self.calendar_fingerprint is None:
+                raise RunnerError("FEE_PAIR_TAPE_CALENDAR_FINGERPRINT_REQUIRED")
+            if self._selection_evidence is None:
+                raise RunnerError("FEE_PAIR_TAPE_SELECTION_EVIDENCE_REQUIRED")
+
+            candidate_sha256 = hashlib.sha256(
+                journal_api._canonical_json(
+                    journal_api._fee_pair_candidate_values(candidate)
+                ).encode("utf-8")
+            ).hexdigest()
+            cached = self._fee_pair_grid_append_observations.get(candidate_id)
+            if cached is not None:
+                try:
+                    row = self._fee_pair_grid_row(
+                        candidate,
+                        batch,
+                        snapshot,
+                        target_decision,
+                        order_plan,
+                        candidate_id=candidate_id,
+                        candidate_sha256=candidate_sha256,
+                        index=cached["record_index"],
+                    )
+                    raw = _canonical_json_bytes(row)
+                    record_id = row["record_id"]
+                    record_sha256 = hashlib.sha256(raw).hexdigest()
+                    if (
+                        candidate_sha256 != cached["candidate_sha256"]
+                        or record_id != cached["record_id"]
+                        or record_sha256 != cached["record_sha256"]
+                        or len(raw) != cached["record_size_bytes"]
+                    ):
+                        raise RunnerError("FEE_PAIR_GRID_TAPE_APPEND_CONFLICT")
+                    self._verify_fee_pair_grid_append_row(
+                        journal,
+                        candidate,
+                        candidate_id=candidate_id,
+                        candidate_sha256=candidate_sha256,
+                        expected_index=cached["record_index"],
+                        expected_row=row,
+                    )
+                    workflow = journal.fee_pair_workflow_candidate(candidate_id)
+                    if (
+                        workflow is None
+                        or workflow.tape_append_state != "REPORTED"
+                        or workflow.tape_file_id != self.file_id
+                        or workflow.tape_record_index != cached["record_index"]
+                        or workflow.grid_settled_decision_id is not None
+                    ):
+                        raise RunnerError("FEE_PAIR_GRID_TAPE_APPEND_CONFLICT")
+                    return cached["observation"]
+                except BaseException:
+                    self._failed = True
+                    raise
+
+            try:
+                try:
+                    self._assert_fee_pair_tape_file_identity()
+                    self._verify_fee_pair_writer_prefix(journal)
+                except BaseException:
+                    self._failed = True
+                    raise
+                self._verify_fee_pair_candidate_writer_binding(candidate)
+                expected_index = self._record_count + 1
+                if (
+                    candidate.readiness != "LIVE_READY"
+                    or candidate.expected_tape_file_id != self.file_id
+                    or candidate.expected_tape_record_index >= expected_index
+                ):
+                    raise RunnerError("FEE_PAIR_TAPE_POSITION_MISMATCH")
+
+                workflow = journal.fee_pair_workflow_candidate(candidate_id)
+                if (
+                    workflow is None
+                    or workflow.candidate_sha256 != candidate_sha256
+                    or workflow.state != "RECEIPT_VERIFIED"
+                    or workflow.tape_append_state is not None
+                    or workflow.tape_file_id is not None
+                    or workflow.tape_record_index is not None
+                    or workflow.grid_settled_decision_id is not None
+                    or workflow.source_only_decision_id is not None
+                ):
+                    raise RunnerError("FEE_PAIR_GRID_TAPE_APPEND_NOT_READY")
+
+                row = self._fee_pair_grid_row(
+                    candidate,
+                    batch,
+                    snapshot,
+                    target_decision,
+                    order_plan,
+                    candidate_id=candidate_id,
+                    candidate_sha256=candidate_sha256,
+                    index=expected_index,
+                )
+                _validate_fee_pair_candidate_projection(
+                    candidate,
+                    row,
+                    journal_api,
+                    expected_tape_record_index=expected_index,
+                )
+                record_json = _canonical_json_bytes(row).decode("utf-8").rstrip("\n")
+                raw = (record_json + "\n").encode("utf-8")
+                if (
+                    len(raw) > _FEE_PAIR_SOURCE_ONLY_MAX_RECORD_BYTES
+                    or self._bytes + len(raw) > _FEE_PAIR_SOURCE_ONLY_MAX_TAPE_BYTES
+                    or self._bytes + len(raw) > self.max_bytes
+                ):
+                    raise RunnerError("FEE_PAIR_TAPE_BYTE_LIMIT_EXCEEDED")
+
+                prefix_sha256 = self._hash.hexdigest()
+                record_id = row["record_id"]
+                record_sha256 = hashlib.sha256(raw).hexdigest()
+                intent_started = False
+                try:
+                    intent_started = True
+                    reserved = journal.reserve_fee_pair_grid_tape_append_intent(
+                        candidate_id,
+                        owner_token=owner_token,
+                        tape_file_id=self.file_id,
+                        header_record_id=self._header_record_id,
+                        record_index=expected_index,
+                        prefix_sha256=prefix_sha256,
+                        record_json=record_json,
+                    )
+                    if (
+                        reserved.state != "RECEIPT_VERIFIED"
+                        or reserved.tape_append_state != "INTENT"
+                        or reserved.tape_file_id != self.file_id
+                        or reserved.tape_record_index != expected_index
+                        or reserved.candidate_sha256 != candidate_sha256
+                    ):
+                        raise RunnerError("FEE_PAIR_GRID_TAPE_INTENT_INVALID")
+
+                    claimed = journal.claim_fee_pair_grid_tape_append(
+                        candidate_id, owner_token=owner_token
+                    )
+                    if (
+                        claimed.state != "RECEIPT_VERIFIED"
+                        or claimed.tape_append_state != "CLAIMED"
+                        or claimed.tape_file_id != self.file_id
+                        or claimed.tape_record_index != expected_index
+                        or claimed.candidate_sha256 != candidate_sha256
+                    ):
+                        raise RunnerError("FEE_PAIR_GRID_TAPE_APPEND_CLAIM_INVALID")
+
+                    self._assert_fee_pair_tape_file_identity()
+                    self._append(raw, count_record=True)
+                    self._last_record_reference = MappingProxyType(
+                        {
+                            "file_id": self.file_id,
+                            "record_id": record_id,
+                            "record_index": expected_index,
+                            "batch_id": row["batch_id"],
+                        }
+                    )
+                    self._verify_fee_pair_grid_append_row(
+                        journal,
+                        candidate,
+                        candidate_id=candidate_id,
+                        candidate_sha256=candidate_sha256,
+                        expected_index=expected_index,
+                        expected_row=row,
+                    )
+                    self._assert_fee_pair_tape_file_identity()
+
+                    reported = journal.report_fee_pair_grid_tape_append(
+                        candidate_id,
+                        owner_token=owner_token,
+                        disposition="APPENDED",
+                        observed_file_id=self.file_id,
+                        observed_header_record_id=self._header_record_id,
+                        observed_record_index=expected_index,
+                        observed_prefix_sha256=prefix_sha256,
+                        observed_record_id=record_id,
+                        observed_record_sha256=record_sha256,
+                    )
+                    if (
+                        reported.state != "RECEIPT_VERIFIED"
+                        or reported.tape_append_state != "REPORTED"
+                        or reported.tape_file_id != self.file_id
+                        or reported.tape_record_index != expected_index
+                        or reported.candidate_sha256 != candidate_sha256
+                        or reported.grid_settled_decision_id is not None
+                    ):
+                        raise RunnerError("FEE_PAIR_GRID_TAPE_REPORT_NOT_VERIFIED")
+
+                    observation = MappingProxyType(
+                        {
+                            "schema": "backtrader.alpha003.grid_tape_append_observation.v1",
+                            "evidence_level": "WRITER_LOCAL_FSYNC_AND_READBACK",
+                            "status": "APPENDED",
+                            "candidate_id": candidate_id,
+                            "candidate_sha256": candidate_sha256,
+                            "file_id": self.file_id,
+                            "header_record_id": self._header_record_id,
+                            "record_index": expected_index,
+                            "prefix_sha256": prefix_sha256,
+                            "record_id": record_id,
+                            "record_sha256": record_sha256,
+                            "record_size_bytes": len(raw),
+                            "journal_tape_append_state": "REPORTED",
+                            "grid_settled": False,
+                            "open_authorized": False,
+                        }
+                    )
+                    self._fee_pair_grid_append_observations[candidate_id] = {
+                        "candidate_sha256": candidate_sha256,
+                        "file_id": self.file_id,
+                        "header_record_id": self._header_record_id,
+                        "record_index": expected_index,
+                        "prefix_sha256": prefix_sha256,
+                        "record_id": record_id,
+                        "record_sha256": record_sha256,
+                        "record_size_bytes": len(raw),
+                        "observation": observation,
+                    }
+                    return observation
+                except BaseException:
+                    if intent_started:
+                        self._failed = True
+                    raise
+            except BaseException:
+                raise
+
+    def _fee_pair_grid_row(
+        self,
+        candidate,
+        batch,
+        snapshot,
+        target_decision,
+        order_plan,
+        *,
+        candidate_id,
+        candidate_sha256,
+        index,
+    ):
+        row = _decision_tape_record(
+            batch,
+            snapshot,
+            target_decision,
+            order_plan,
+            file_id=self.file_id,
+            index=index,
+            targets=self.targets,
+            calendar_fingerprint=self.calendar_fingerprint,
+        )
+        row["fee_pair_workflow"] = {
+            "candidate_id": candidate_id,
+            "candidate_sha256": candidate_sha256,
+        }
+        if self._selection_evidence_sha256 is not None:
+            row["selection_evidence_sha256"] = self._selection_evidence_sha256
+        row["header_record_id"] = self._header_record_id
+        digest = hashlib.sha256(_canonical_json_bytes(row).rstrip(b"\n")).hexdigest()
+        row["record_id"] = digest
+        return row
+
+    def _assert_fee_pair_tape_file_identity(self) -> None:
+        try:
+            handle_metadata = os.fstat(self._handle.fileno())
+            path_metadata = os.lstat(self.path)
+            handle_identity = _generation_file_identity(handle_metadata)
+            path_identity = _generation_file_identity(path_metadata)
+        except (OSError, RunnerError):
+            raise RunnerError("FEE_PAIR_TAPE_FILE_IDENTITY_MISMATCH") from None
+        if (
+            os.name == "nt"
+            and getattr(path_metadata, "st_file_attributes", 0) & 0x00000400
+        ) or handle_identity != path_identity:
+            raise RunnerError("FEE_PAIR_TAPE_FILE_IDENTITY_MISMATCH")
+
+    def _verify_fee_pair_grid_append_row(
+        self,
+        journal,
+        candidate,
+        *,
+        candidate_id,
+        candidate_sha256,
+        expected_index,
+        expected_row,
+    ):
+        self._assert_fee_pair_tape_file_identity()
+        try:
+            handle_size = os.fstat(self._handle.fileno()).st_size
+            path_size = self.path.stat().st_size
+        except OSError:
+            raise RunnerError("FEE_PAIR_TAPE_WRITER_STATE_UNAVAILABLE") from None
+        if handle_size != self._bytes or path_size != self._bytes:
+            raise RunnerError("FEE_PAIR_TAPE_WRITER_SIZE_MISMATCH")
+
+        summary = self._stream_fee_pair_tape(
+            journal,
+            candidate=candidate,
+            candidate_id=candidate_id,
+            candidate_sha256=candidate_sha256,
+            expected_index=expected_index,
+        )
+        header = summary["header"]
+        matched = summary["matched"]
+        last = summary["last"]
+        actual_last = None
+        if last is not None:
+            actual_last = {
+                "file_id": last["file_id"],
+                "record_id": last["record_id"],
+                "record_index": last["record_index"],
+                "batch_id": last["batch_id"],
+            }
+        if (
+            header is None
+            or header.get("file_id") != self.file_id
+            or header.get("record_id") != self._header_record_id
+            or header.get("mode") != "live"
+            or header.get("factor_mode") != self.factor_mode
+            or header.get("direction") != self.direction
+            or tuple(header.get("targets", ())) != self.targets
+            or header.get("calendar_id") != self.calendar_id
+            or header.get("grid_sha256") != self.grid_sha256
+            or header.get("source_snapshot_id") != self.source_snapshot_id
+            or header.get("calendar_fingerprint") != self.calendar_fingerprint
+            or header.get("restart_identity") != self._restart_identity
+            or header.get("selection_evidence") != self._selection_evidence
+            or summary["row_count"] < 1
+            or summary["row_count"] - 1 != self._record_count
+            or summary["raw_sha256"] != self._hash.hexdigest()
+            or actual_last != self.last_record_reference
+            or matched is None
+            or dict(matched) != expected_row
+            or matched.get("file_id") != self.file_id
+            or matched.get("record_index") != expected_index
+            or matched.get("record_id") != expected_row.get("record_id")
+            or matched.get("header_record_id") != self._header_record_id
+        ):
+            raise RunnerError("FEE_PAIR_GRID_TAPE_READBACK_MISMATCH")
+        self._assert_fee_pair_tape_file_identity()
+        return matched
+
     def _verify_fee_pair_candidate_writer_binding(self, candidate) -> None:
         identity = self._restart_identity
         evidence = self._selection_evidence
@@ -3666,16 +4041,62 @@ class DecisionTapeWriter:
         ):
             raise RunnerError("FEE_PAIR_TAPE_EXTENSION_BINDING_MISMATCH")
         if candidate_id is not None and current_id == candidate_id:
+            legacy_claimed = (
+                workflow.state == "APPEND_CLAIMED"
+                and workflow.tape_append_state is None
+                and workflow.source_only_decision_id is None
+            )
+            grid_append_pending_or_reported = (
+                workflow.state == "RECEIPT_VERIFIED"
+                and workflow.tape_append_state in {"CLAIMED", "REPORTED"}
+                and workflow.tape_file_id == row.get("file_id")
+                and workflow.tape_record_index == row.get("record_index")
+                and workflow.grid_settled_decision_id is None
+                and workflow.source_only_decision_id is None
+            )
             if (
                 candidate is None
                 or current_sha256 != candidate_sha256
                 or row.get("record_index") != expected_index
-                or workflow.state != "APPEND_CLAIMED"
-                or workflow.source_only_decision_id is not None
+                or not (legacy_claimed or grid_append_pending_or_reported)
             ):
                 raise RunnerError("FEE_PAIR_TAPE_EXTENSION_BINDING_MISMATCH")
-            _validate_fee_pair_candidate_projection(candidate, row, journal_api)
+            _validate_fee_pair_candidate_projection(
+                candidate,
+                row,
+                journal_api,
+                expected_tape_record_index=(
+                    expected_index if grid_append_pending_or_reported else None
+                ),
+            )
             return row
+        cached_grid_append = self._fee_pair_grid_append_observations.get(current_id)
+        if cached_grid_append is not None:
+            grid_workflow_state = (
+                workflow.state == "RECEIPT_VERIFIED"
+                or (
+                    workflow.state == "SOURCE_ONLY"
+                    and type(workflow.source_only_decision_id) is str
+                )
+            )
+            row_raw = _canonical_json_bytes(dict(row))
+            if (
+                not grid_workflow_state
+                or workflow.tape_append_state != "REPORTED"
+                or workflow.tape_file_id != row.get("file_id")
+                or workflow.tape_record_index != row.get("record_index")
+                or workflow.grid_settled_decision_id is not None
+                or current_sha256 != cached_grid_append["candidate_sha256"]
+                or row.get("file_id") != cached_grid_append["file_id"]
+                or row.get("header_record_id") != cached_grid_append["header_record_id"]
+                or row.get("record_index") != cached_grid_append["record_index"]
+                or row.get("record_id") != cached_grid_append["record_id"]
+                or len(row_raw) != cached_grid_append["record_size_bytes"]
+                or hashlib.sha256(row_raw).hexdigest()
+                != cached_grid_append["record_sha256"]
+            ):
+                raise RunnerError("FEE_PAIR_TAPE_EXTENSION_BINDING_MISMATCH")
+            return None
         if workflow.state != "SOURCE_ONLY" or type(workflow.source_only_decision_id) is not str:
             raise RunnerError("FEE_PAIR_TAPE_EXTENSION_STATE_INVALID")
         decision = journal.decision(workflow.source_only_decision_id)
@@ -3938,7 +4359,12 @@ def _fee_pair_source_members_from_tape_row(row, journal_api):
 
 
 def _validate_fee_pair_candidate_projection(
-    candidate, row, journal_api, *, allow_missing_candidate=False
+    candidate,
+    row,
+    journal_api,
+    *,
+    allow_missing_candidate=False,
+    expected_tape_record_index=None,
 ):
     if candidate is None and allow_missing_candidate:
         candidate = None
@@ -3993,9 +4419,15 @@ def _validate_fee_pair_candidate_projection(
             raise RunnerError("FEE_PAIR_TAPE_TARGET_PROJECTION_INVALID")
         return members
 
+    expected_record_index = (
+        candidate.expected_tape_record_index
+        if expected_tape_record_index is None
+        else expected_tape_record_index
+    )
+
     if (
         candidate.expected_tape_file_id != row.get("file_id")
-        or candidate.expected_tape_record_index != row.get("record_index")
+        or expected_record_index != row.get("record_index")
         or candidate.batch_id != row.get("batch_id")
         or candidate.cohort_id != row.get("cohort_id")
         or candidate.calendar_id != row.get("calendar_id")
