@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import math
 import hashlib
+import struct
 import threading
 from collections import deque
 from collections.abc import Mapping
@@ -355,6 +356,10 @@ class Alpha003PositionFact:
     average_price: Optional[Decimal] = None
     stop_price: Optional[Decimal] = None
     held_eligible_bars: Optional[int] = None
+    risk_average_price_lower: Optional[Decimal] = None
+    risk_average_price_upper: Optional[Decimal] = None
+    risk_stop_price_lower: Optional[Decimal] = None
+    risk_stop_price_upper: Optional[Decimal] = None
 
     def __post_init__(self) -> None:
         if self.target_id is not None:
@@ -371,11 +376,44 @@ class Alpha003PositionFact:
             value = getattr(self, name)
             if value is not None:
                 _require_text(value, name)
+        price_sources = {
+            "average_price": self.average_price,
+            "stop_price": self.stop_price,
+        }
         for name in ("average_price", "stop_price"):
             value = getattr(self, name)
             if value is not None:
                 value = _positive_decimal(value, name)
                 object.__setattr__(self, name, value)
+        for source_name, lower_name, upper_name in (
+            ("average_price", "risk_average_price_lower", "risk_average_price_upper"),
+            ("stop_price", "risk_stop_price_lower", "risk_stop_price_upper"),
+        ):
+            source = price_sources[source_name]
+            lower = getattr(self, lower_name)
+            upper = getattr(self, upper_name)
+            if source is None:
+                lower = upper = None
+            else:
+                canonical_source = _positive_decimal(source, source_name)
+                if lower is None:
+                    lower = _risk_native_float_envelope(source, upward=False)
+                if upper is None:
+                    upper = _risk_native_float_envelope(source, upward=True)
+            if lower is not None:
+                lower = _nonnegative_decimal(lower, lower_name)
+                if lower > canonical_source:
+                    raise ValueError("{} exceeds its source price".format(lower_name))
+                object.__setattr__(self, lower_name, lower)
+            if upper is not None:
+                upper = _positive_decimal(upper, upper_name)
+                if upper < canonical_source:
+                    raise ValueError("{} is below its source price".format(upper_name))
+                object.__setattr__(self, upper_name, upper)
+            if lower is None:
+                object.__setattr__(self, lower_name, None)
+            if upper is None:
+                object.__setattr__(self, upper_name, None)
         if self.held_eligible_bars is not None and (
             type(self.held_eligible_bars) is not int or self.held_eligible_bars < 0
         ):
@@ -444,6 +482,13 @@ class Alpha003QuoteFact:
     quality: str = "GOOD"
     exchange: Optional[str] = None
     evidence_source: str = "REGISTERED_SIM"
+    risk_bid_lower: Optional[Decimal] = None
+    risk_bid_upper: Optional[Decimal] = None
+    risk_ask_lower: Optional[Decimal] = None
+    risk_ask_upper: Optional[Decimal] = None
+    risk_bid_size_lower: Optional[Decimal] = None
+    risk_ask_size_lower: Optional[Decimal] = None
+    risk_tick_size_upper: Optional[Decimal] = None
 
     def __post_init__(self) -> None:
         for name in ("instrument", "quality"):
@@ -466,6 +511,70 @@ class Alpha003QuoteFact:
             _require_utc_datetime(self.event_time, "quote event_time")
         if self.available_at is not None:
             _require_utc_datetime(self.available_at, "quote available_at")
+        for source_name, lower_name, upper_name in (
+            ("bid", "risk_bid_lower", "risk_bid_upper"),
+            ("ask", "risk_ask_lower", "risk_ask_upper"),
+        ):
+            source = getattr(self, source_name)
+            lower = getattr(self, lower_name)
+            upper = getattr(self, upper_name)
+            if source is None:
+                lower = upper = None
+            else:
+                canonical_source = _positive_decimal(source, source_name)
+                if lower is None:
+                    lower = _risk_native_float_envelope(source, upward=False)
+                if upper is None:
+                    upper = _risk_native_float_envelope(source, upward=True)
+            if lower is not None:
+                lower = _nonnegative_decimal(lower, lower_name)
+                if lower > canonical_source:
+                    raise ValueError("{} exceeds its source price".format(lower_name))
+                object.__setattr__(self, lower_name, lower)
+            if upper is not None:
+                upper = _positive_decimal(upper, upper_name)
+                if upper < canonical_source:
+                    raise ValueError("{} is below its source price".format(upper_name))
+                object.__setattr__(self, upper_name, upper)
+            if lower is None:
+                object.__setattr__(self, lower_name, None)
+            if upper is None:
+                object.__setattr__(self, upper_name, None)
+        for source_name, target_name in (
+            ("bid_size", "risk_bid_size_lower"),
+            ("ask_size", "risk_ask_size_lower"),
+        ):
+            source = getattr(self, source_name)
+            bound = getattr(self, target_name)
+            if source is None:
+                bound = None
+            else:
+                canonical_source = _positive_decimal(source, source_name)
+                if bound is None:
+                    bound = _risk_native_float_envelope(source, upward=False)
+            if bound is not None:
+                if _nonnegative_decimal(bound, target_name) > canonical_source:
+                    raise ValueError("{} exceeds its source size".format(target_name))
+                object.__setattr__(self, target_name, _nonnegative_decimal(bound, target_name))
+            else:
+                object.__setattr__(self, target_name, None)
+        risk_tick = self.risk_tick_size_upper
+        if self.tick_size is None:
+            risk_tick = None
+        else:
+            canonical_tick = _positive_decimal(self.tick_size, "tick_size")
+            if risk_tick is None:
+                risk_tick = _risk_native_float_envelope(self.tick_size, upward=True)
+        if risk_tick is not None:
+            if _positive_decimal(risk_tick, "risk_tick_size_upper") < canonical_tick:
+                raise ValueError("risk tick upper bound is below its source tick")
+            object.__setattr__(
+                self,
+                "risk_tick_size_upper",
+                _positive_decimal(risk_tick, "risk_tick_size_upper"),
+            )
+        else:
+            object.__setattr__(self, "risk_tick_size_upper", None)
         for name in (
             "bid",
             "ask",
@@ -504,6 +613,10 @@ class Alpha003InstrumentRiskFact:
     round_trip_fee_upper_bound_per_contract: Optional[Decimal] = None
     commission_fee_required: bool = False
     commission_fee_status: str = "NOT_REQUIRED"
+    risk_multiplier_upper: Optional[Decimal] = None
+    risk_long_margin_per_hand_upper: Optional[Decimal] = None
+    risk_short_margin_per_hand_upper: Optional[Decimal] = None
+    risk_tick_size_upper: Optional[Decimal] = None
 
     def __post_init__(self) -> None:
         for name in ("target_id", "instrument"):
@@ -530,6 +643,27 @@ class Alpha003InstrumentRiskFact:
             "AVAILABLE",
         }:
             raise ValueError("commission_fee_status is unsupported")
+        for source_name, bound_name in (
+            ("multiplier", "risk_multiplier_upper"),
+            ("long_margin_per_hand", "risk_long_margin_per_hand_upper"),
+            ("short_margin_per_hand", "risk_short_margin_per_hand_upper"),
+            ("tick_size", "risk_tick_size_upper"),
+        ):
+            source = getattr(self, source_name)
+            bound = getattr(self, bound_name)
+            if source is None:
+                bound = None
+            else:
+                canonical_source = _positive_decimal(source, source_name)
+                if bound is None:
+                    bound = _risk_native_float_envelope(source, upward=True)
+            if bound is not None:
+                bound = _positive_decimal(bound, bound_name)
+                if bound < canonical_source:
+                    raise ValueError("{} is below its source value".format(bound_name))
+                object.__setattr__(self, bound_name, bound)
+            else:
+                object.__setattr__(self, bound_name, None)
         for name in (
             "multiplier",
             "long_margin_per_hand",
@@ -587,6 +721,11 @@ class Alpha003AccountRiskFact:
         ):
             value = getattr(self, name)
             if value is not None:
+                value = _risk_native_float_envelope(
+                    value, upward=name != "available_margin"
+                )
+                if value is None:
+                    raise ValueError("{} must be a finite non-negative risk value".format(name))
                 value = _nonnegative_decimal(value, name)
                 object.__setattr__(self, name, value)
 
@@ -772,6 +911,195 @@ class Alpha003ReplayQuoteFact:
 
 
 @dataclass(frozen=True)
+class Alpha003OpenRiskLegCandidate:
+    """One planner-computed OPEN risk upper bound, not a durable reservation."""
+
+    target_id: str
+    instrument: str
+    exchange: str
+    side: str
+    quantity: int
+    entry_price: Decimal
+    stop_price: Decimal
+    multiplier: Decimal
+    margin: Decimal
+    notional: Decimal
+    stop_loss: Decimal
+    round_trip_fee_upper_bound: Decimal
+    worst_case_loss: Decimal
+    commission_fee_required: bool
+    commission_fee_status: str
+    instrument_snapshot_id: str
+    quote_source_ref: Optional[str]
+    quote_metadata_snapshot_id: str
+    quote_generation: Optional[int]
+    quote_sequence: Optional[int]
+    quote_event_time: datetime
+    quote_available_at: datetime
+    quote_bid: Decimal
+    quote_ask: Decimal
+    quote_bid_size: Optional[Decimal]
+    quote_ask_size: Optional[Decimal]
+
+    def __post_init__(self) -> None:
+        for name in (
+            "target_id",
+            "instrument",
+            "exchange",
+            "instrument_snapshot_id",
+            "quote_metadata_snapshot_id",
+        ):
+            _require_text(getattr(self, name), "open risk leg " + name)
+        if self.quote_source_ref is not None:
+            _require_text(self.quote_source_ref, "open risk quote_source_ref")
+        if self.side not in ("BUY", "SELL"):
+            raise ValueError("open risk leg side is invalid")
+        if type(self.commission_fee_required) is not bool:
+            raise TypeError("open risk commission_fee_required must be bool")
+        if self.commission_fee_status not in {
+            "NOT_REQUIRED",
+            "IDENTITY_UNAVAILABLE",
+            "QUERY_UNAVAILABLE",
+            "EVIDENCE_INVALID",
+            "RATE_UNAVAILABLE",
+            "RATE_INVALID",
+            "AVAILABLE",
+        }:
+            raise ValueError("open risk commission_fee_status is unsupported")
+        if type(self.quantity) is not int or self.quantity < 1:
+            raise ValueError("open risk leg quantity must be positive")
+        for name in ("quote_generation", "quote_sequence"):
+            value = getattr(self, name)
+            if value is not None and (type(value) is not int or value < 0):
+                raise ValueError("open risk quote identity must be non-negative or None")
+        for name in ("quote_event_time", "quote_available_at"):
+            _require_utc_datetime(getattr(self, name), "open risk " + name)
+        for name in (
+            "entry_price",
+            "stop_price",
+            "multiplier",
+            "margin",
+            "notional",
+            "quote_bid",
+            "quote_ask",
+        ):
+            value = _positive_decimal(getattr(self, name), "open risk " + name)
+            object.__setattr__(self, name, value)
+        for name in ("stop_loss", "round_trip_fee_upper_bound", "worst_case_loss"):
+            value = _nonnegative_decimal(getattr(self, name), "open risk " + name)
+            object.__setattr__(self, name, value)
+        for name in ("quote_bid_size", "quote_ask_size"):
+            value = getattr(self, name)
+            if value is not None:
+                object.__setattr__(self, name, _positive_decimal(value, "open risk " + name))
+        if self.quote_event_time > self.quote_available_at or self.quote_bid > self.quote_ask:
+            raise ValueError("open risk quote identity is invalid")
+        if self.worst_case_loss < self.stop_loss or self.worst_case_loss < self.round_trip_fee_upper_bound:
+            raise ValueError("open risk loss bound is below a component")
+
+
+@dataclass(frozen=True)
+class Alpha003OpenRiskCandidate:
+    """Planner output for a possible OPEN set; not an active risk reservation.
+
+    The Journal must separately persist and enforce a reservation before either
+    pair leg can dispatch. These values preserve the exact planner projection
+    so a later trusted Store/Journal path can verify it without recomputing from
+    rounded Broker fields.
+    """
+
+    schema: str
+    evidence_source: str
+    strategy_scope: str
+    batch_id: str
+    risk_policy_id: str
+    account_scope: str
+    account_snapshot_id: str
+    query_set_id: Optional[str]
+    account_fingerprint: Optional[str]
+    connection_generation: Optional[int]
+    trading_day: Optional[str]
+    source_snapshot_id: Optional[str]
+    eligible_grid_ordinal: Optional[int]
+    account_available_at: datetime
+    risk_evidence_available_at: datetime
+    available_margin: Decimal
+    used_margin: Decimal
+    current_notional: Decimal
+    current_worst_case_loss: Decimal
+    held_fee_reserve: Decimal
+    required_margin: Decimal
+    added_notional: Decimal
+    added_loss: Decimal
+    projected_total_margin: Decimal
+    projected_total_notional: Decimal
+    projected_total_worst_case_loss: Decimal
+    max_total_margin: Decimal
+    max_total_notional: Decimal
+    max_total_loss: Decimal
+    legs: Tuple[Alpha003OpenRiskLegCandidate, ...]
+
+    def __post_init__(self) -> None:
+        for name in (
+            "schema",
+            "evidence_source",
+            "strategy_scope",
+            "batch_id",
+            "risk_policy_id",
+            "account_scope",
+            "account_snapshot_id",
+        ):
+            _require_text(getattr(self, name), "open risk candidate " + name)
+        for name in (
+            "query_set_id",
+            "account_fingerprint",
+            "trading_day",
+            "source_snapshot_id",
+        ):
+            value = getattr(self, name)
+            if value is not None:
+                _require_text(value, "open risk candidate " + name)
+        if self.connection_generation is not None and (
+            type(self.connection_generation) is not int or self.connection_generation < 1
+        ):
+            raise ValueError("open risk candidate connection generation is invalid")
+        if self.eligible_grid_ordinal is not None and (
+            type(self.eligible_grid_ordinal) is not int or self.eligible_grid_ordinal < 1
+        ):
+            raise ValueError("open risk candidate grid ordinal is invalid")
+        if self.schema != "backtrader.alpha003.open_risk_candidate.v1":
+            raise ValueError("open risk candidate schema is invalid")
+        if self.evidence_source not in ("REGISTERED_SIM", "CAUSAL_REPLAY"):
+            raise ValueError("open risk candidate evidence source is invalid")
+        for name in ("account_available_at", "risk_evidence_available_at"):
+            _require_utc_datetime(getattr(self, name), "open risk candidate " + name)
+        for name in (
+            "available_margin",
+            "used_margin",
+            "current_notional",
+            "current_worst_case_loss",
+            "held_fee_reserve",
+            "required_margin",
+            "added_notional",
+            "added_loss",
+            "projected_total_margin",
+            "projected_total_notional",
+            "projected_total_worst_case_loss",
+            "max_total_margin",
+            "max_total_notional",
+            "max_total_loss",
+        ):
+            value = _nonnegative_decimal(getattr(self, name), "open risk candidate " + name)
+            object.__setattr__(self, name, value)
+        legs = tuple(self.legs)
+        if not legs or any(not isinstance(item, Alpha003OpenRiskLegCandidate) for item in legs):
+            raise ValueError("open risk candidate requires typed legs")
+        if len({item.target_id for item in legs}) != len(legs):
+            raise ValueError("open risk candidate targets must be unique")
+        object.__setattr__(self, "legs", legs)
+
+
+@dataclass(frozen=True)
 class Alpha003OrderPlan:
     """Pure actual-position/quote/risk projection for ordinary Strategy methods."""
 
@@ -781,6 +1109,7 @@ class Alpha003OrderPlan:
     decision_batch_id: Optional[str]
     decision_available_at: Optional[datetime]
     account_snapshot_id: Optional[str]
+    open_risk_candidate: Optional[Alpha003OpenRiskCandidate] = None
 
 
 # The example admits at most one contract per target. Preserve one first
@@ -1123,6 +1452,50 @@ def _decimal_number(value: Any, label: str) -> Decimal:
     return number
 
 
+def _next_float(value: float, *, upward: bool) -> float:
+    """Return the adjacent IEEE-754 double, including on supported Python 3.8."""
+
+    nextafter = getattr(math, "nextafter", None)
+    if callable(nextafter):
+        return nextafter(value, math.inf if upward else -math.inf)
+    bits = struct.unpack(">Q", struct.pack(">d", value))[0]
+    if value == 0.0:
+        bits = 1 if upward else (1 << 63) | 1
+    elif (value > 0) == upward:
+        bits += 1
+    else:
+        bits -= 1
+    return struct.unpack(">d", struct.pack(">Q", bits))[0]
+
+
+def _risk_native_float_envelope(
+    value: Any, *, upward: bool, allow_negative: bool = False
+) -> Optional[Decimal]:
+    """Keep exact decimal inputs and envelope an observed native float by one ULP.
+
+    This bounds arithmetic around the float received by Python. It does not
+    recover or prove the provider's original economic decimal representation.
+    """
+
+    if type(value) is float:
+        if not math.isfinite(value):
+            return None
+        # Reject a negative observed value before rounding it to an adjacent
+        # float. The least negative subnormal rounds upward to -0.0, which
+        # otherwise passes the downstream non-negative Decimal check.
+        if not allow_negative and value < 0.0:
+            return None
+        if value != 0.0:
+            value = _next_float(value, upward=upward)
+        number = Decimal.from_float(value)
+    else:
+        try:
+            number = _decimal_number(value, "risk value")
+        except (TypeError, ValueError):
+            return None
+    return _risk_decimal_operand(number, allow_negative=allow_negative)
+
+
 def _positive_decimal(value: Any, label: str) -> Decimal:
     number = _decimal_number(value, label)
     if number <= 0:
@@ -1310,19 +1683,29 @@ def _quote_for_order(
             return None
     elif quote.bid_size is None or quote.ask_size is None:
         return None
+    bid_depth_lower = (
+        quote.risk_bid_size_lower
+        if quote.risk_bid_size_lower is not None
+        else quote.bid_size
+    )
+    ask_depth_lower = (
+        quote.risk_ask_size_lower
+        if quote.risk_ask_size_lower is not None
+        else quote.ask_size
+    )
     if side == "BUY":
         if (
             quote.evidence_source != "REPLAY_TAPE"
-            and quote.ask_size is not None
-            and quote.ask_size < Decimal(1)
+            and ask_depth_lower is not None
+            and ask_depth_lower < Decimal(1)
         ):
             return None
         return quote.ask
     if side == "SELL":
         if (
             quote.evidence_source != "REPLAY_TAPE"
-            and quote.bid_size is not None
-            and quote.bid_size < Decimal(1)
+            and bid_depth_lower is not None
+            and bid_depth_lower < Decimal(1)
         ):
             return None
         return quote.bid
@@ -1381,7 +1764,12 @@ def plan_alpha003_orders(inputs: Alpha003OrderPlanningInput) -> Alpha003OrderPla
             account_snapshot_id,
         )
 
-    def completed(status: str, reason: Optional[str], actions=()) -> Alpha003OrderPlan:
+    def completed(
+        status: str,
+        reason: Optional[str],
+        actions=(),
+        open_risk_candidate: Optional[Alpha003OpenRiskCandidate] = None,
+    ) -> Alpha003OrderPlan:
         return Alpha003OrderPlan(
             status,
             reason,
@@ -1389,6 +1777,7 @@ def plan_alpha003_orders(inputs: Alpha003OrderPlanningInput) -> Alpha003OrderPla
             target.batch_id if target is not None else None,
             inputs.evaluated_at,
             account_snapshot_id,
+            open_risk_candidate,
         )
 
     if policy is None:
@@ -1995,6 +2384,7 @@ def plan_alpha003_orders(inputs: Alpha003OrderPlanningInput) -> Alpha003OrderPla
             return blocked("RISK_ARITHMETIC_VALUE_OUT_OF_RANGE")
 
     open_actions = []
+    open_risk_legs = []
     required_margin = Decimal(0)
     added_notional = Decimal(0)
     added_loss = Decimal(0)
@@ -2002,11 +2392,23 @@ def plan_alpha003_orders(inputs: Alpha003OrderPlanningInput) -> Alpha003OrderPla
         position = positions_by_target[signal.target_id]
         risk = instruments_by_target[signal.target_id]
         fee_bound = fee_bounds_by_target[signal.target_id]
+        multiplier_upper = risk.risk_multiplier_upper
+        long_margin_upper = risk.risk_long_margin_per_hand_upper
+        short_margin_upper = risk.risk_short_margin_per_hand_upper
         if (
-            risk.multiplier is None
-            or risk.long_margin_per_hand is None
-            or risk.short_margin_per_hand is None
+            multiplier_upper is None
+            or long_margin_upper is None
+            or short_margin_upper is None
         ):
+            if any(
+                source is not None and bound is None
+                for source, bound in (
+                    (risk.multiplier, multiplier_upper),
+                    (risk.long_margin_per_hand, long_margin_upper),
+                    (risk.short_margin_per_hand, short_margin_upper),
+                )
+            ):
+                return blocked("RISK_ARITHMETIC_VALUE_OUT_OF_RANGE")
             return blocked("INSTRUMENT_RISK_METADATA_UNAVAILABLE")
         quote = quotes_by_key.get((position.instrument, position.exchange))
         side = "BUY" if signal.target_position > 0 else "SELL"
@@ -2033,18 +2435,41 @@ def plan_alpha003_orders(inputs: Alpha003OrderPlanningInput) -> Alpha003OrderPla
         upper = quote.upper_limit
         if tick is None or lower is None or upper is None:
             return blocked("PRICE_METADATA_UNAVAILABLE")
-        margin = risk.long_margin_per_hand if side == "BUY" else risk.short_margin_per_hand
-        notional = _risk_ceiling_product(price, risk.multiplier)
+        margin = long_margin_upper if side == "BUY" else short_margin_upper
+        risk_price_values = (quote.risk_bid_upper, quote.risk_ask_upper)
+        if any(value is None for value in risk_price_values):
+            return blocked("RISK_ARITHMETIC_VALUE_OUT_OF_RANGE")
+        risk_notional_price = max(risk_price_values)
+        risk_tick = risk.risk_tick_size_upper
+        if risk_tick is None:
+            risk_tick = quote.risk_tick_size_upper
+        if (
+            risk.risk_tick_size_upper is not None
+            and quote.risk_tick_size_upper is not None
+            and risk.risk_tick_size_upper != quote.risk_tick_size_upper
+        ):
+            return blocked("PRICE_METADATA_UNAVAILABLE")
+        if risk_tick is None:
+            return blocked("RISK_ARITHMETIC_VALUE_OUT_OF_RANGE")
+        notional = _risk_ceiling_product(risk_notional_price, multiplier_upper)
+        # Keep the stop order on the exact canonical contract grid. The risk
+        # loss uses the outward tick envelope, which is a separate bound.
         stop_distance = _risk_ceiling_product(tick, policy.stop_loss_ticks)
+        risk_stop_distance = _risk_ceiling_product(risk_tick, policy.stop_loss_ticks)
         stop_loss_notional = _risk_ceiling_product(
-            stop_distance, risk.multiplier
+            risk_stop_distance, multiplier_upper
         )
         loss = (
             _risk_ceiling_sum(stop_loss_notional, fee_bound)
             if stop_loss_notional is not None
             else None
         )
-        if notional is None or stop_distance is None or loss is None:
+        if (
+            notional is None
+            or stop_distance is None
+            or risk_stop_distance is None
+            or loss is None
+        ):
             return blocked("RISK_ARITHMETIC_VALUE_OUT_OF_RANGE")
         stop_price = _risk_stop_price(price, stop_distance, side)
         if stop_price is None:
@@ -2080,6 +2505,36 @@ def plan_alpha003_orders(inputs: Alpha003OrderPlanningInput) -> Alpha003OrderPla
                 entry_grid_ordinal=inputs.eligible_grid_ordinal,
             )
         )
+        open_risk_legs.append(
+            Alpha003OpenRiskLegCandidate(
+                target_id=signal.target_id,
+                instrument=position.instrument,
+                exchange=position.exchange,
+                side=side,
+                quantity=1,
+                entry_price=price,
+                stop_price=stop_price,
+                multiplier=multiplier_upper,
+                margin=margin,
+                notional=notional,
+                stop_loss=stop_loss_notional,
+                round_trip_fee_upper_bound=fee_bound,
+                worst_case_loss=loss,
+                commission_fee_required=risk.commission_fee_required,
+                commission_fee_status=risk.commission_fee_status,
+                instrument_snapshot_id=risk.snapshot_id,
+                quote_source_ref=quote.source_ref,
+                quote_metadata_snapshot_id=quote.metadata_snapshot_id,
+                quote_generation=quote.generation,
+                quote_sequence=quote.sequence,
+                quote_event_time=quote.event_time,
+                quote_available_at=quote.available_at,
+                quote_bid=quote.bid,
+                quote_ask=quote.ask,
+                quote_bid_size=quote.bid_size,
+                quote_ask_size=quote.ask_size,
+            )
+        )
     total_margin = _risk_ceiling_sum(account.used_margin, required_margin)
     total_notional = _risk_ceiling_sum(account.current_notional, added_notional)
     total_worst_case_loss = _risk_ceiling_sum(
@@ -2106,9 +2561,42 @@ def plan_alpha003_orders(inputs: Alpha003OrderPlanningInput) -> Alpha003OrderPla
         > policy.max_order_intents_per_run
     ):
         return blocked("RUN_ORDER_BUDGET_EXCEEDED")
-    # A target lacking a provable fee is omitted from the proposed OPEN set;
-    # other selected targets with complete fees may proceed independently.
-    return completed("READY", None, open_actions)
+    open_risk_candidate = Alpha003OpenRiskCandidate(
+        schema="backtrader.alpha003.open_risk_candidate.v1",
+        evidence_source=inputs.evidence_source,
+        strategy_scope=inputs.strategy_scope,
+        batch_id=target.batch_id,
+        risk_policy_id=policy.risk_policy_id,
+        account_scope=account.account_scope,
+        account_snapshot_id=account.snapshot_id,
+        query_set_id=inputs.dated_query_set_id,
+        account_fingerprint=inputs.dated_account_fingerprint,
+        connection_generation=inputs.dated_connection_generation,
+        trading_day=inputs.dated_trading_day,
+        source_snapshot_id=inputs.dated_snapshot_id,
+        eligible_grid_ordinal=inputs.eligible_grid_ordinal,
+        account_available_at=account.available_at,
+        risk_evidence_available_at=inputs.risk_evidence_available_at,
+        available_margin=account.available_margin,
+        used_margin=account.used_margin,
+        current_notional=account.current_notional,
+        current_worst_case_loss=account.current_worst_case_loss,
+        held_fee_reserve=held_fee_reserve,
+        required_margin=required_margin,
+        added_notional=added_notional,
+        added_loss=added_loss,
+        projected_total_margin=total_margin,
+        projected_total_notional=total_notional,
+        projected_total_worst_case_loss=total_worst_case_loss,
+        max_total_margin=policy.max_total_margin,
+        max_total_notional=policy.max_total_notional,
+        max_total_loss=policy.max_total_loss,
+        legs=tuple(open_risk_legs),
+    )
+    # This immutable planner output records the exact per-leg and aggregate
+    # risk bounds. It is not a Journal reservation and grants no dispatch
+    # authority; the existing fee-pair OPEN fence remains authoritative.
+    return completed("READY", None, open_actions, open_risk_candidate)
 
 
 def _require_text(value: Any, label: str) -> None:
@@ -2713,6 +3201,10 @@ def _live_planning_input(
                 average_price=item.average_price,
                 stop_price=item.stop_price,
                 held_eligible_bars=item.held_eligible_bars,
+                risk_average_price_lower=getattr(item, "risk_average_price_lower", None),
+                risk_average_price_upper=getattr(item, "risk_average_price_upper", None),
+                risk_stop_price_lower=getattr(item, "risk_stop_price_lower", None),
+                risk_stop_price_upper=getattr(item, "risk_stop_price_upper", None),
             )
         )
     orders = []
@@ -2759,6 +3251,13 @@ def _live_planning_input(
             upper_limit=item.upper_limit,
             quality=item.quality,
             evidence_source="REGISTERED_SIM",
+            risk_bid_lower=getattr(item, "risk_bid_lower", None),
+            risk_bid_upper=getattr(item, "risk_bid_upper", None),
+            risk_ask_lower=getattr(item, "risk_ask_lower", None),
+            risk_ask_upper=getattr(item, "risk_ask_upper", None),
+            risk_bid_size_lower=getattr(item, "risk_bid_size_lower", None),
+            risk_ask_size_lower=getattr(item, "risk_ask_size_lower", None),
+            risk_tick_size_upper=getattr(item, "risk_tick_size_upper", None),
         )
         for item in facts.quotes
     ]
@@ -2786,6 +3285,14 @@ def _live_planning_input(
                 lower_limit=item.lower_limit,
                 upper_limit=item.upper_limit,
                 route_permitted=route_permitted,
+                risk_multiplier_upper=getattr(item, "risk_multiplier_upper", None),
+                risk_long_margin_per_hand_upper=(
+                    getattr(item, "risk_long_margin_per_hand_upper", None)
+                ),
+                risk_short_margin_per_hand_upper=(
+                    getattr(item, "risk_short_margin_per_hand_upper", None)
+                ),
+                risk_tick_size_upper=getattr(item, "risk_tick_size_upper", None),
                 round_trip_fee_upper_bound_per_contract=(
                     item.round_trip_fee_upper_bound_per_contract
                 ),
@@ -2953,6 +3460,92 @@ def _planned_action_payload(action: Alpha003OrderAction) -> Mapping[str, Any]:
                 if action.decision_available_at is not None
                 else None
             ),
+        }
+    )
+
+
+def _open_risk_leg_candidate_payload(
+    candidate: Alpha003OpenRiskLegCandidate,
+) -> Mapping[str, Any]:
+    """Serialize planner risk and quote identity without granting OPEN authority."""
+
+    return MappingProxyType(
+        {
+            "target_id": candidate.target_id,
+            "instrument": candidate.instrument,
+            "exchange": candidate.exchange,
+            "side": candidate.side,
+            "quantity": candidate.quantity,
+            "entry_price": str(candidate.entry_price),
+            "stop_price": str(candidate.stop_price),
+            "multiplier": str(candidate.multiplier),
+            "margin": str(candidate.margin),
+            "notional": str(candidate.notional),
+            "stop_loss": str(candidate.stop_loss),
+            "round_trip_fee_upper_bound": str(candidate.round_trip_fee_upper_bound),
+            "worst_case_loss": str(candidate.worst_case_loss),
+            "commission_fee_required": candidate.commission_fee_required,
+            "commission_fee_status": candidate.commission_fee_status,
+            "instrument_snapshot_id": candidate.instrument_snapshot_id,
+            "quote_source_ref": candidate.quote_source_ref,
+            "quote_metadata_snapshot_id": candidate.quote_metadata_snapshot_id,
+            "quote_generation": candidate.quote_generation,
+            "quote_sequence": candidate.quote_sequence,
+            "quote_event_time": _time_key(candidate.quote_event_time),
+            "quote_available_at": _time_key(candidate.quote_available_at),
+            "quote_bid": str(candidate.quote_bid),
+            "quote_ask": str(candidate.quote_ask),
+            "quote_bid_size": (
+                str(candidate.quote_bid_size) if candidate.quote_bid_size is not None else None
+            ),
+            "quote_ask_size": (
+                str(candidate.quote_ask_size) if candidate.quote_ask_size is not None else None
+            ),
+        }
+    )
+
+
+def _open_risk_candidate_payload(
+    candidate: Optional[Alpha003OpenRiskCandidate],
+) -> Optional[Mapping[str, Any]]:
+    """Keep the complete immutable planner projection on its grid decision."""
+
+    if candidate is None:
+        return None
+    return MappingProxyType(
+        {
+            "schema": candidate.schema,
+            "evidence_source": candidate.evidence_source,
+            "strategy_scope": candidate.strategy_scope,
+            "batch_id": candidate.batch_id,
+            "risk_policy_id": candidate.risk_policy_id,
+            "account_scope": candidate.account_scope,
+            "account_snapshot_id": candidate.account_snapshot_id,
+            "query_set_id": candidate.query_set_id,
+            "account_fingerprint": candidate.account_fingerprint,
+            "connection_generation": candidate.connection_generation,
+            "trading_day": candidate.trading_day,
+            "source_snapshot_id": candidate.source_snapshot_id,
+            "eligible_grid_ordinal": candidate.eligible_grid_ordinal,
+            "account_available_at": _time_key(candidate.account_available_at),
+            "risk_evidence_available_at": _time_key(candidate.risk_evidence_available_at),
+            "available_margin": str(candidate.available_margin),
+            "used_margin": str(candidate.used_margin),
+            "current_notional": str(candidate.current_notional),
+            "current_worst_case_loss": str(candidate.current_worst_case_loss),
+            "held_fee_reserve": str(candidate.held_fee_reserve),
+            "required_margin": str(candidate.required_margin),
+            "added_notional": str(candidate.added_notional),
+            "added_loss": str(candidate.added_loss),
+            "projected_total_margin": str(candidate.projected_total_margin),
+            "projected_total_notional": str(candidate.projected_total_notional),
+            "projected_total_worst_case_loss": str(
+                candidate.projected_total_worst_case_loss
+            ),
+            "max_total_margin": str(candidate.max_total_margin),
+            "max_total_notional": str(candidate.max_total_notional),
+            "max_total_loss": str(candidate.max_total_loss),
+            "legs": tuple(_open_risk_leg_candidate_payload(item) for item in candidate.legs),
         }
     )
 
@@ -4310,6 +4903,15 @@ class Alpha003TargetStrategy(bt.Strategy):
 
         keys = []
         economics = []
+        candidate = plan.open_risk_candidate
+        candidate_legs = (
+            {item.target_id: item for item in candidate.legs} if candidate is not None else {}
+        )
+        batch_id = _read(batch, "batch_id") if batch is not None else None
+        if candidate is not None and (
+            candidate.strategy_scope != self._strategy_scope or candidate.batch_id != batch_id
+        ):
+            raise ValueError("OPEN risk candidate is bound to another strategy batch")
         for leg, action in enumerate(plan.actions):
             keys.append(
                 ExecutionIntentKey(
@@ -4321,6 +4923,7 @@ class Alpha003TargetStrategy(bt.Strategy):
                 )
             )
             economic = {
+                "target_id": action.target_id,
                 "instrument": action.instrument,
                 "instrument_id": action.instrument,
                 "exchange": action.exchange,
@@ -4332,6 +4935,20 @@ class Alpha003TargetStrategy(bt.Strategy):
                 "reason": action.reason,
                 "batch_id": _read(batch, "batch_id") if batch is not None else None,
             }
+            if action.action == "SUBMIT" and action.position_effect == "OPEN" and candidate:
+                risk_leg = candidate_legs.get(action.target_id)
+                if risk_leg is None or len(candidate_legs) != len(candidate.legs):
+                    raise ValueError("OPEN action is missing its exact planner risk candidate")
+                if (
+                    risk_leg.instrument != action.instrument
+                    or risk_leg.exchange != action.exchange
+                    or risk_leg.side != action.side
+                    or risk_leg.quantity != action.quantity
+                    or risk_leg.entry_price != action.limit_price
+                    or risk_leg.stop_price != action.planned_stop_price
+                ):
+                    raise ValueError("OPEN action differs from its planner risk candidate")
+                economic["open_risk_candidate"] = _open_risk_leg_candidate_payload(risk_leg)
             if action.position_date is not None:
                 economic.update(
                     position_side=action.position_side,
@@ -4701,6 +5318,11 @@ class Alpha003TargetStrategy(bt.Strategy):
             "plan_status": plan.status,
             "plan_reason": plan.reason,
         }
+        risk_candidate_payload = _open_risk_candidate_payload(
+            proposed_plan.open_risk_candidate
+        )
+        if risk_candidate_payload is not None:
+            economic_payload["open_risk_candidate"] = risk_candidate_payload
         if decision_tape_reference is not None:
             for name in ("file_id", "record_id", "record_index", "batch_id"):
                 economic_payload["decision_tape_" + name] = decision_tape_reference[name]
@@ -5919,6 +6541,8 @@ class Alpha003TargetStrategy(bt.Strategy):
 __all__ = (
     "Alpha003AccountRiskFact",
     "Alpha003InstrumentRiskFact",
+    "Alpha003OpenRiskCandidate",
+    "Alpha003OpenRiskLegCandidate",
     "Alpha003OrderAction",
     "Alpha003OrderPlan",
     "Alpha003OrderPlanningInput",

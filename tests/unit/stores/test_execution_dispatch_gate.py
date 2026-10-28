@@ -167,7 +167,7 @@ def test_claim_and_recovery_share_gate_across_process_crash_boundary(tmp_path):
     assert recovery is not None
     with recovery.dispatch_serialization_gate(timeout_seconds=1.0, recovery=True) as lease:
         assert lease.cross_process is True
-        rows = recovery.execution_intent_snapshot(limit=8)
+        rows = recovery.execution_intent_snapshot(account_scope="account-a", limit=8)
         assert len(rows.items) == 1
         intent = rows.items[0]
         assert intent.state == "DISPATCHING"

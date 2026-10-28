@@ -44,7 +44,6 @@ _EXIT_CODES = {
     "callback_after_broker_apply": 83,
     "callback_after_ack": 84,
     "live_dispatching_submit_crash": 85,
-    "cancel_dispatching_crash": 86,
 }
 
 _INCOMPLETE_DISPATCHING_WITHOUT_TERMINAL_PROOF = (
@@ -146,8 +145,8 @@ def _source_dispatch_crash_worker(journal_path, checkpoint_path, boundary):
     elif boundary == "claim_commit":
         original = journal.claim_dispatch
 
-        def claim_then_crash(intent_id):
-            result = original(intent_id)
+        def claim_then_crash(intent_id, **kwargs):
+            result = original(intent_id, **kwargs)
             assert result is not None
             assert api.native_calls == []
             _crash(
@@ -234,7 +233,11 @@ def _source_dispatch_crash_worker(journal_path, checkpoint_path, boundary):
 
 
 def _read_intent_rows(journal):
-    return tuple(journal.execution_intent_snapshot(limit=16).items)
+    return tuple(
+        journal.execution_intent_snapshot(
+            account_scope=recovery_helpers._ACCOUNT_SCOPE, limit=16
+        ).items
+    )
 
 
 def _child_reopen_and_replay_decision(journal_path, checkpoint, result_queue):
@@ -1960,8 +1963,8 @@ def test_spawned_live_dispatch_gate_then_fresh_process_no_fill_recovery_and_new_
     )
 
 
-def _spawned_cancel_dispatching_crash_worker(journal_path, checkpoint_path):
-    """Create a real known submit, then die inside its claimed native cancel."""
+def _spawned_cancel_without_managed_sysid_worker(journal_path, result_queue):
+    """A known insert without provider SysID cannot enter managed CANCEL."""
 
     now = datetime.now(timezone.utc)
     (
@@ -1988,6 +1991,13 @@ def _spawned_cancel_dispatching_crash_worker(journal_path, checkpoint_path):
         assert order is not None and order.status == recovery_helpers.Order.Accepted
         submit_intent_id = order.info["factor_intent_id"]
         order_ref = order.info["external_order_ref"]
+        submit_intent = journal.intent(submit_intent_id)
+        assert submit_intent is not None and submit_intent.state == "KNOWN"
+        persisted_sys_id = (submit_intent.provider_identity or {}).get("order_sys_id")
+        # The normal insert dispatch receipt identifies the reserved OrderRef
+        # and current front/session, but ReqOrderInsert does not return the
+        # exchange-assigned OrderSysID. Do not manufacture one from a query row.
+        assert persisted_sys_id is None
         active_row = {
             **recovery_helpers._terminal_row(order_ref),
             "OrderSysID": "",
@@ -2003,7 +2013,13 @@ def _spawned_cancel_dispatching_crash_worker(journal_path, checkpoint_path):
             generation=1,
             sequence=20,
         )
-        assert active_facts.order_cancel_ready is True, active_facts.order_cancel_blockers
+        assert active_facts.order_cancel_ready is False
+        assert "remote_broker_order_sys_id_unobserved:{}".format(order_ref) in (
+            active_facts.order_cancel_blockers
+        )
+        assert "working_order_journal_owner_mismatch:{}".format(order_ref) in (
+            active_facts.order_cancel_blockers
+        )
 
         cancel_key = ExecutionDecisionKey(
             account_scope=recovery_helpers._ACCOUNT_SCOPE,
@@ -2039,133 +2055,37 @@ def _spawned_cancel_dispatching_crash_worker(journal_path, checkpoint_path):
             expected_run_order_intents_used=coordinator.run_order_count(),
             remaining_exit_intent_reserve=0,
         )
-        native_cancel = api.trader_client.submit_order_action
-
-        def cancel_then_crash(field, request_id, *, execution_capability):
-            native_code = native_cancel(
-                field,
-                request_id,
-                execution_capability=execution_capability,
-            )
-            active_owner = journal.active_instrument_owner(
-                recovery_helpers._ACCOUNT_SCOPE,
-                recovery_helpers._INSTRUMENT,
-            )
-            assert active_owner is not None and active_owner.cancel_intent_id is not None
-            cancel_intent = journal.intent(active_owner.cancel_intent_id)
-            assert cancel_intent is not None and cancel_intent.state == "DISPATCHING"
-            assert cancel_intent.dispatch_state is None
-            _write_checkpoint(
-                checkpoint_path,
-                {
-                    "boundary": "cancel_dispatching",
-                    "submit_intent_id": submit_intent_id,
-                    "cancel_intent_id": cancel_intent.intent_id,
-                    "order_ref": order_ref,
-                    "original_identity": dict(journal.intent(submit_intent_id).original_identity),
-                    "cancel_original_identity": dict(cancel_intent.original_identity),
-                    "native_return_code_before_crash": native_code,
-                    "native_call_count": len(api.native_calls),
-                },
-            )
-            os._exit(_EXIT_CODES["cancel_dispatching_crash"])
-
-        api.trader_client.submit_order_action = cancel_then_crash
-        with cancel_scope:
-            strategy.cancel(order)
-        raise AssertionError("the controlled native cancel returned normally")
-    finally:
-        journal.close()
-
-
-def _spawned_check_cancel_dispatching_stays_blocked(journal_path, terminal_row, result_queue):
-    now = datetime.now(timezone.utc)
-    (
-        api,
-        store,
-        broker,
-        journal,
-        coordinator,
-        target,
-        _data,
-        _strategy,
-        _cerebro,
-    ) = recovery_helpers._durable_system(journal_path, now=now)
-    stage = "fresh_cancel_terminal_query"
-    try:
-        recovery_helpers._bind_current_session_identity(api, generation=2, front_id=5, session_id=8)
-        api.query_rows["orders_result"] = [terminal_row]
-        # A complete-looking submit-side terminal query is still insufficient
-        # when it began before this process acquired the recovery lease.
-        receipt, facts = recovery_helpers._refresh_five_family_facts(
-            api,
-            store,
-            broker,
-            target,
-            generation=2,
-            sequence=21,
-        )
-        assert receipt.query_set is not None and receipt.blockers == ()
-        assert receipt.pending_families == ()
-        assert facts.trade_observations == ()
-        assert len(facts.terminal_orders) == 1
-        assert not broker.orders
-        assert not api.native_calls
-        with coordinator.terminal_recovery_scope(timeout_seconds=5.0) as scope_started_at:
-            assert receipt.query_set.started_at_utc < scope_started_at
-            page = coordinator.reconcile_terminal_order_observations(
-                facts,
-                refresh_receipt=receipt,
-                limit=128,
-            )
-        checkpoint_owner = journal.active_instrument_owner(
-            recovery_helpers._ACCOUNT_SCOPE,
-            recovery_helpers._INSTRUMENT,
-        )
-        assert checkpoint_owner is not None and checkpoint_owner.cancel_intent_id is not None
-        cancel_intent_id = checkpoint_owner.cancel_intent_id
-
-        assert len(page.items) == 1
-        item = page.items[0]
-        assert item.status == "BLOCKED", item
-        assert item.blocker_code == "DISPATCHING_RECOVERY_QUERY_PREDATES_SCOPE"
-        submit_intent = journal.intent(checkpoint_owner.intent_id)
-        cancel_intent = journal.intent(cancel_intent_id)
-        assert submit_intent is not None and submit_intent.dispatch_state == "KNOWN"
-        assert cancel_intent is not None
-        assert cancel_intent.key.action == "CANCEL"
-        assert cancel_intent.state == "DISPATCHING"
-        assert cancel_intent.dispatch_state is None
-        assert cancel_intent.provider_identity is None
-        assert cancel_intent.outcome_code is None
+        try:
+            with cancel_scope:
+                strategy.cancel(order)
+        except FactorExecutionError as error:
+            cancel_scope_error = error.code
+        else:
+            raise AssertionError("missing managed OrderSysID unexpectedly admitted CANCEL")
         owner_after = journal.active_instrument_owner(
             recovery_helpers._ACCOUNT_SCOPE,
             recovery_helpers._INSTRUMENT,
         )
-        assert owner_after is not None
-        assert owner_after.intent_id == submit_intent.intent_id
-        assert owner_after.cancel_intent_id == cancel_intent.intent_id
-        assert journal.instrument_resolution(submit_intent.intent_id) is None
-        assert not broker.orders
-        assert not api.native_calls
+        assert owner_after is not None and owner_after.intent_id == submit_intent_id
+        assert owner_after.cancel_intent_id is None
+        assert len(api.native_calls) == 1  # only the original insert
+        assert api.native_calls[0][0] == "insert"
         result_queue.put(
             {
                 "status": "OK",
-                "item_status": item.status,
-                "blocker_code": item.blocker_code,
-                "submit_intent_id": submit_intent.intent_id,
-                "cancel_intent_id": cancel_intent.intent_id,
-                "owner_retained": owner_after.cancel_intent_id == cancel_intent.intent_id,
-                "resolution_absent": journal.instrument_resolution(submit_intent.intent_id) is None,
-                "native_calls": len(api.native_calls),
-                "old_orders_rebuilt": bool(broker.orders),
+                "submit_intent_id": submit_intent_id,
+                "order_ref": order_ref,
+                "provider_sys_id": persisted_sys_id,
+                "order_cancel_ready": active_facts.order_cancel_ready,
+                "scope_error_code": cancel_scope_error,
+                "cancel_intent_absent": owner_after.cancel_intent_id is None,
+                "native_calls": tuple(call[0] for call in api.native_calls),
             }
         )
     except BaseException as error:
         result_queue.put(
             {
                 "status": "ERROR",
-                "stage": stage,
                 "error_type": type(error).__name__,
                 "error_code": getattr(error, "code", None),
                 "error_message": str(error)[:240],
@@ -2175,46 +2095,18 @@ def _spawned_check_cancel_dispatching_stays_blocked(journal_path, terminal_row, 
         journal.close()
 
 
-def test_spawned_cancel_dispatching_is_not_resolved_by_submit_terminal_query(tmp_path):
-    """A cancel with no durable result keeps the original submit owner held."""
+def test_spawned_managed_cancel_without_provider_sysid_fails_closed(tmp_path):
+    """A query-only SysID cannot retrofit an absent known-submit identity."""
 
-    path = tmp_path / "cancel-dispatching-remains-blocked.sqlite3"
-    checkpoint_path = tmp_path / "cancel-dispatching-crash.json"
+    path = tmp_path / "cancel-without-managed-sysid.sqlite3"
     context = multiprocessing.get_context("spawn")
-    child = context.Process(
-        target=_spawned_cancel_dispatching_crash_worker,
-        args=(str(path), str(checkpoint_path)),
-        name="factor-execution-cancel-dispatch-crash",
-    )
-    child.start()
-    child.join(timeout=45)
-    if child.is_alive():
-        child.terminate()
-        child.join(timeout=5)
-        pytest.fail("test-owned cancel DISPATCHING worker exceeded its bound")
-    assert child.exitcode == _EXIT_CODES["cancel_dispatching_crash"]
-    checkpoint = json.loads(checkpoint_path.read_text(encoding="utf-8"))
-    assert checkpoint["boundary"] == "cancel_dispatching"
-    assert checkpoint["native_call_count"] == 2  # original insert + one cancel
-    assert checkpoint["native_return_code_before_crash"] == 0
-    original = checkpoint["original_identity"]
-    assert checkpoint["order_ref"] == original["order_ref"]
-
-    terminal_row = recovery_helpers._terminal_row(
-        original["order_ref"],
-        front_id=original["front_id"],
-        session_id=original["session_id"],
-        trading_day=original["trading_day"],
-    )
     recovered = _spawn_result(
         context,
-        target=_spawned_check_cancel_dispatching_stays_blocked,
-        args=(str(path), terminal_row),
+        target=_spawned_cancel_without_managed_sysid_worker,
+        args=(str(path),),
     )
-    assert recovered["item_status"] == "BLOCKED"
-    assert recovered["submit_intent_id"] == checkpoint["submit_intent_id"]
-    assert recovered["cancel_intent_id"] == checkpoint["cancel_intent_id"]
-    assert recovered["owner_retained"] is True
-    assert recovered["resolution_absent"] is True
-    assert recovered["native_calls"] == 0
-    assert recovered["old_orders_rebuilt"] is False
+    assert recovered["provider_sys_id"] is None
+    assert recovered["order_cancel_ready"] is False
+    assert recovered["scope_error_code"] == "ORDER_CANCEL_FACTS_NOT_READY"
+    assert recovered["cancel_intent_absent"] is True
+    assert recovered["native_calls"] == ("insert",)

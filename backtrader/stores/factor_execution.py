@@ -493,7 +493,9 @@ class FactorExecutionCoordinator:
         return self.journal.decision_capacity_snapshot()
 
     def execution_intent_snapshot(self, *, limit: int = 128):
-        return self.journal.execution_intent_snapshot(limit=limit)
+        return self.journal.execution_intent_snapshot(
+            account_scope=self.account_scope, limit=limit
+        )
 
     def dispatching_cancel_store_absence_candidates(self, *, limit: int = 128):
         return self.journal.dispatching_cancel_store_absence_candidates(

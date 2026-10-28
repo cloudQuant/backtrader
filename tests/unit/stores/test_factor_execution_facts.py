@@ -30,6 +30,11 @@ from backtrader.stores.factor_execution_facts import (
     _commission_fee_upper_bound,
     _commission_rate_decimal,
     _exact_total_net_pnl,
+    _risk_fact_float_envelope,
+    _risk_fact_difference_upper,
+    _risk_fact_product_upper,
+    _risk_fact_sum_upper,
+    _margin_rates,
     _risk_totals,
     project_factor_execution_facts,
     refresh_factor_execution_queries,
@@ -48,6 +53,7 @@ _ACCOUNT = "fake-account-1"
 _TRADING_DAY = "20261024"
 _REGISTERED_TICK_SOURCE = "ctp-native-live"
 _UNTRUSTED_TICK_SOURCE = "fake-ctp-event"
+_NO_OWNER_INTENT_OVERRIDE = object()
 
 
 @dataclass(frozen=True)
@@ -99,6 +105,8 @@ class _QueryClient:
         self._connection_generation = 1
         self._account_fingerprint = _ACCOUNT
         self._trading_day = _TRADING_DAY
+        self._front_id = 4
+        self._session_id = 7
         self._broker_id = "fake-broker"
         self._investor_id = "fake-investor"
         self.is_ready = True
@@ -122,6 +130,8 @@ class _QueryClient:
             connection_generation=self._connection_generation,
             account_fingerprint=self._account_fingerprint,
             trading_day=self._trading_day,
+            front_id=self._front_id,
+            session_id=self._session_id,
             broker_id=self._broker_id,
             investor_id=self._investor_id,
             read_only_ready=True,
@@ -135,6 +145,8 @@ class _QueryClient:
             "account_fingerprint": self._account_fingerprint,
             "connection_generation": self._connection_generation,
             "trading_day": self._trading_day,
+            "front_id": self._front_id,
+            "session_id": self._session_id,
             "trading_ready": self.is_trading_ready,
         }
 
@@ -319,6 +331,24 @@ class _ProviderLeaves:
             return None
         tick, self.tick = self.tick, None
         return tick
+
+
+def _source_session_identity(api):
+    """Read the fake SDK's public, same-session identity for exact fixtures."""
+
+    client = api.trader_client
+    scope = client.get_query_session_scope()
+    state = client.get_session_state()
+    keys = (
+        "account_fingerprint",
+        "connection_generation",
+        "trading_day",
+        "front_id",
+        "session_id",
+    )
+    identity = {key: getattr(scope, key) for key in keys}
+    assert identity == {key: state[key] for key in keys}
+    return identity
 
 
 class _FakeRegisteredSimWrapper(RegisteredSimWrapper, _ProviderLeaves):
@@ -586,6 +616,113 @@ def _system_under_test(
     )
     target = FactorExecutionTarget("rb", _INSTRUMENT, _EXCHANGE, data)
     return api, store, broker, journal, coordinator, target
+
+
+def _record_known_submit_owner(
+    journal,
+    order,
+    target,
+    *,
+    api,
+    now,
+    external_order_ref,
+    order_sys_id,
+    strategy_scope="alpha003",
+    cohort_id="known-order-owner",
+    side="BUY",
+    position_effect="OPEN",
+    loss_guard_context=None,
+):
+    """Create a real Journal KNOWN submit bound to this Broker order object."""
+
+    session = _source_session_identity(api)
+
+    decision_key = ExecutionDecisionKey(
+        account_scope="acct-scope",
+        strategy_scope=strategy_scope,
+        logical_run_id="run-1",
+        cohort_id=cohort_id,
+        close_time=(now - timedelta(seconds=1)).isoformat().replace("+00:00", "Z"),
+        decision_kind="alpha003-rebalance",
+    )
+    intent_key = ExecutionIntentKey(
+        action="SUBMIT",
+        instrument=target.instrument,
+        side=side,
+        position_effect=position_effect,
+        leg=0,
+    )
+    decision = journal.record_decision(
+        decision_key,
+        {"batch_id": cohort_id, "mode": "native"},
+        intent_keys=(intent_key,),
+        loss_guard_context=loss_guard_context,
+    )
+    intent = journal.prepare_intent(
+        decision.decision_id,
+        intent_key,
+        {
+            "target_id": target.target_id,
+            "instrument": target.instrument,
+            "exchange": target.exchange,
+            "side": side,
+            "position_effect": position_effect,
+            "quantity": "1",
+            "price": "100",
+        },
+        original_identity={
+            "backtrader_order_ref": int(order.ref),
+            "operation": "insert",
+            "instrument_id": target.instrument,
+            "exchange_id": target.exchange,
+            "order_ref": external_order_ref,
+            "order_sys_id": order_sys_id,
+            "front_id": session["front_id"],
+            "session_id": session["session_id"],
+            "account_fingerprint": session["account_fingerprint"],
+            "connection_generation": session["connection_generation"],
+            "trading_day": session["trading_day"],
+        },
+        loss_guard_context=loss_guard_context,
+    )
+    order.info.update(
+        {
+            "front_id": session["front_id"],
+            "session_id": session["session_id"],
+        }
+    )
+    assert journal.claim_dispatch(
+        intent.intent_id,
+        loss_guard_context=loss_guard_context,
+    ) is not None
+    journal.record_dispatch_result(
+        intent.intent_id,
+        state="KNOWN",
+        provider_identity={"order_ref": external_order_ref, "order_sys_id": order_sys_id},
+        outcome_code="accepted",
+    )
+    order.info.update(
+        {
+            "external_order_ref": external_order_ref,
+            "order_sys_id": order_sys_id,
+            "registered_sim_ctp_order_sys_id": order_sys_id,
+            "registered_sim_ctp_order_sys_id_source": "ctp_order_callback",
+            "_registered_sim_ctp_identity_binding_captured": True,
+            "_registered_sim_ctp_identity_binding_valid": True,
+            "instrument_id": target.instrument,
+            "exchange_id": target.exchange,
+            "factor_position_effect": position_effect,
+            "factor_strategy_scope": strategy_scope,
+            "factor_intent_id": intent.intent_id,
+            "front_id": 4,
+            "session_id": 7,
+            "execution_unknown": False,
+            "cancel_requested_remote": False,
+            "cancel_intent_active": False,
+            "managed_execution_cancel_pending": False,
+        }
+    )
+    return intent
 
 
 def _build_source_backed_foreign_owner_case(api, store, broker, journal, target, now, *, reconcile):
@@ -876,7 +1013,13 @@ def _build_source_backed_foreign_owner_case(api, store, broker, journal, target,
     )
 
 
-def _build_source_backed_read_only_reconciliation_case(scenario="positive"):
+def _build_source_backed_read_only_reconciliation_case(
+    scenario="positive",
+    *,
+    instrument_overrides=None,
+    owner_intent_id=_NO_OWNER_INTENT_OVERRIDE,
+    allow_writes=False,
+):
     """Build read-only retirement facts through the real Store/Broker/Book path.
 
     Provider queries remain typed fake leaves. The returned ``facts`` are
@@ -939,12 +1082,14 @@ def _build_source_backed_read_only_reconciliation_case(scenario="positive"):
         positions=(external_position,) if external_position is not None else (),
         orders=(remote_order,) if remote_order is not None else (),
     )
+    if instrument_overrides:
+        rows["instruments_result"][0].update(instrument_overrides)
     api, store, broker, journal, coordinator, target = _system_under_test(
         now=now,
         rows=rows,
         query_time=query_time,
         tick=None,
-        allow_writes=False,
+        allow_writes=allow_writes,
     )
 
     if scenario in {"foreign_target", "foreign_target_unreconciled"}:
@@ -963,6 +1108,7 @@ def _build_source_backed_read_only_reconciliation_case(scenario="positive"):
 
     intent = None
     if scenario == "active_order":
+        source_session = _source_session_identity(api)
         decision_key = ExecutionDecisionKey(
             account_scope="acct-scope",
             strategy_scope="alpha003",
@@ -983,17 +1129,29 @@ def _build_source_backed_read_only_reconciliation_case(scenario="positive"):
             {"batch_id": "read-only-batch", "mode": "native"},
             intent_keys=(intent_key,),
         )
+        order = BuyOrder(
+            owner=None,
+            data=target.data,
+            size=1,
+            price=100,
+            exectype=Order.Limit,
+            simulated=True,
+        )
         intent = journal.prepare_intent(
             decision.decision_id,
             intent_key,
             {"exchange": _EXCHANGE, "quantity": "1", "price": "100"},
             original_identity={
-                "backtrader_order_ref": 94,
+                "backtrader_order_ref": order.ref,
                 "operation": "insert",
                 "instrument_id": _INSTRUMENT,
                 "exchange_id": _EXCHANGE,
                 "order_ref": "94",
                 "order_sys_id": "sys-active-94",
+            "front_id": 4,
+            "session_id": 7,
+            "account_fingerprint": _ACCOUNT,
+            "connection_generation": 1,
                 "trading_day": _TRADING_DAY,
             },
         )
@@ -1003,14 +1161,6 @@ def _build_source_backed_read_only_reconciliation_case(scenario="positive"):
             state="KNOWN",
             provider_identity={"order_ref": "94", "order_sys_id": "sys-active-94"},
             outcome_code="accepted",
-        )
-        order = BuyOrder(
-            owner=None,
-            data=target.data,
-            size=1,
-            price=100,
-            exectype=Order.Limit,
-            simulated=True,
         )
         order.status = Order.Accepted
         order.info.update(
@@ -1025,9 +1175,13 @@ def _build_source_backed_read_only_reconciliation_case(scenario="positive"):
                 "exchange_id": _EXCHANGE,
                 "factor_position_effect": "OPEN",
                 "factor_strategy_scope": "alpha003",
-                "factor_intent_id": intent.intent_id,
-                "front_id": 4,
-                "session_id": 7,
+                "factor_intent_id": (
+                    intent.intent_id
+                    if owner_intent_id is _NO_OWNER_INTENT_OVERRIDE
+                    else owner_intent_id
+                ),
+                "front_id": source_session["front_id"],
+                "session_id": source_session["session_id"],
                 "execution_unknown": False,
                 "cancel_requested_remote": False,
                 "cancel_intent_active": False,
@@ -1043,10 +1197,14 @@ def _build_source_backed_read_only_reconciliation_case(scenario="positive"):
     elif scenario == "frozen":
         store.registered_sim_freeze("read-only fixture freeze")
 
-    # Read-only session identity remains observable even without permission to
-    # trade; this is distinct from the current trading-ready fact.
-    api.trader_client.is_ready = False
-    api.trader_client.is_trading_ready = False
+    # Keep the default source-backed cases read-only. A narrow caller may arm
+    # the fake Store to verify that independently authorized cancellation
+    # remains available when quote/order metadata blocks price-based reduction.
+    if allow_writes:
+        _arm(store)
+    else:
+        api.trader_client.is_ready = False
+        api.trader_client.is_trading_ready = False
     projection_now = datetime.now(timezone.utc)
     facts = project_factor_execution_facts(
         store,
@@ -1275,13 +1433,112 @@ def test_real_registered_store_and_broker_project_a_complete_flat_snapshot():
     assert facts.positions[0].short_quantity == Decimal(0)
     assert facts.quotes[0].quality == "GOOD"
     assert facts.quotes[0].source_ref == consumed.event_id
-    assert facts.instruments[0].long_margin_per_hand == Decimal("101.0")
+    assert facts.quotes[0].ask == Decimal("101.0")
+    assert facts.quotes[0].risk_ask_upper > facts.quotes[0].ask
+    expected_long_margin = _risk_fact_product_upper(
+        facts.quotes[0].risk_ask_upper,
+        facts.instruments[0].risk_multiplier_upper,
+        Decimal("0.1"),
+    )
+    assert facts.instruments[0].long_margin_per_hand == expected_long_margin
+    assert facts.instruments[0].long_margin_per_hand > Decimal("101.0")
     assert facts.risk_reduction_ready is True, facts.blockers
     assert facts.open_risk_ready is True
     assert facts.blockers == ()
     assert coordinator.position_book is not None
     assert journal is coordinator.journal
     assert len(api.query_calls) == 6
+
+
+def test_store_facts_account_snapshot_filters_before_limit_and_retains_same_account_risk():
+    now = datetime.now(timezone.utc)
+    _api, store, broker, journal, _coordinator, target = _system_under_test(now=now)
+    receipt = _refresh_all(store, target)
+    _arm(store)
+    assert _consume_quote(store) is not None
+
+    # Foreign accounts have more active rows than the default journal page.
+    # The same account's different strategy/run remains visible because its
+    # unresolved order can still affect account-level capacity.
+    for index in range(130):
+        instrument = "foreign-{:03d}".format(index)
+        key = ExecutionIntentKey("SUBMIT", instrument, "BUY", "OPEN", 0)
+        decision = journal.record_decision(
+            ExecutionDecisionKey(
+                account_scope="other-account",
+                strategy_scope="other-strategy",
+                logical_run_id="foreign-run",
+                cohort_id="foreign-{:03d}".format(index),
+                close_time="2026-10-24T10:00:00Z",
+                decision_kind="bar",
+            ),
+            {"batch_id": "foreign-{:03d}".format(index)},
+            intent_keys=(key,),
+        )
+        journal.prepare_intent(
+            decision.decision_id,
+            key,
+            {"target_id": "foreign-target", "exchange": "SHFE"},
+        )
+
+    same_account_key = ExecutionIntentKey("SUBMIT", _INSTRUMENT, "BUY", "OPEN", 0)
+    same_account_decision = journal.record_decision(
+        ExecutionDecisionKey(
+            account_scope="acct-scope",
+            strategy_scope="other-strategy",
+            logical_run_id="another-run",
+            cohort_id="same-account-other-scope",
+            close_time="2026-10-24T10:00:00Z",
+            decision_kind="bar",
+        ),
+        {"batch_id": "same-account-other-scope"},
+        intent_keys=(same_account_key,),
+    )
+    same_account_intent = journal.prepare_intent(
+        same_account_decision.decision_id,
+        same_account_key,
+        {
+            "target_id": target.target_id,
+            "instrument": target.instrument,
+            "exchange": target.exchange,
+            "side": "BUY",
+            "position_effect": "OPEN",
+            "quantity": "1",
+            "price": "100",
+        },
+    )
+
+    facts = _project(store, broker, target, now, query_set=receipt.query_set)
+
+    assert len(facts.execution_intents) == 1
+    retained = facts.execution_intents[0]
+    assert retained.intent_id == same_account_intent.intent_id
+    assert retained.account_scope == "acct-scope"
+    assert retained.strategy_scope == "other-strategy"
+    assert "journal_intent_unresolved:PREPARED:{}".format(same_account_intent.intent_id) in (
+        facts.blockers
+    )
+    assert all(item.account_scope == "acct-scope" for item in facts.execution_intents)
+    assert not any(item.instrument.startswith("foreign-") for item in facts.execution_intents)
+    assert not any("foreign-" in blocker for blocker in facts.blockers)
+    assert facts.open_risk_ready is False
+
+
+def test_store_facts_rejects_journal_intent_page_for_another_account_scope():
+    now = datetime.now(timezone.utc)
+    _api, store, broker, _journal, coordinator, target = _system_under_test(now=now)
+    receipt = _refresh_all(store, target)
+    _arm(store)
+    assert _consume_quote(store) is not None
+    coordinator.execution_intent_snapshot = lambda *, limit=128: SimpleNamespace(
+        account_scope="other-account", items=(), truncated=False
+    )
+
+    facts = _project(store, broker, target, now, query_set=receipt.query_set)
+
+    assert "journal_intent_page_scope_mismatch" in facts.blockers
+    assert facts.order_cancel_ready is False
+    assert facts.open_risk_ready is False
 
 
 @pytest.mark.parametrize(
@@ -1424,8 +1681,15 @@ def test_off_grid_quote_keeps_exact_owned_order_cancel_ready():
     tick = _quote(event_time=now - timedelta(milliseconds=200))
     tick.bid_price = 99.5
     tick.ask_price = 101.0
-    _api, store, broker, _journal, _coordinator, target = _system_under_test(
+    api, store, broker, journal, _coordinator, target = _system_under_test(
         now=now, rows=_query_rows(orders=(remote,)), tick=tick
+    )
+    source_session = _source_session_identity(api)
+    remote.update(
+        {
+            "FrontID": source_session["front_id"],
+            "SessionID": source_session["session_id"],
+        }
     )
     receipt = _refresh_all(store, target)
     _arm(store)
@@ -1449,14 +1713,23 @@ def test_off_grid_quote_keeps_exact_owned_order_cancel_ready():
             "_registered_sim_ctp_identity_binding_valid": True,
             "factor_position_effect": "OPEN",
             "factor_strategy_scope": "alpha003",
-            "factor_intent_id": "intent-94",
-            "front_id": 4,
-            "session_id": 7,
+            "front_id": source_session["front_id"],
+            "session_id": source_session["session_id"],
             "execution_unknown": False,
             "cancel_requested_remote": False,
             "cancel_intent_active": False,
             "managed_execution_cancel_pending": False,
         }
+    )
+    _record_known_submit_owner(
+        journal,
+        order,
+        target,
+        api=api,
+        now=now,
+        external_order_ref="94",
+        order_sys_id="sys-94",
+        cohort_id="off-grid-cancel-owner",
     )
     broker.orders[order.ref] = order
 
@@ -1533,16 +1806,20 @@ def test_position_risk_out_of_range_returns_unknown_totals():
     assert totals == (None, None)
 
 
-def test_margin_projection_keeps_exact_native_float_upper_bound_at_low_precision():
+def test_margin_projection_uses_one_ulp_float_envelopes_at_low_precision():
     now = datetime.now(timezone.utc)
-    rows = _query_rows()
+    rows = _query_rows(account={"Available": 100000.0, "CurrMargin": 0.0})
+    rows["instruments_result"][0].update({"VolumeMultiple": 10.0, "PriceTick": 1.0})
     margin_row = rows["instrument_margin_rate_result"][0]
     margin_row.update(
         {
-            "LongMarginRatioByMoney": 0.1,
-            "LongMarginRatioByVolume": 0.2,
-            "ShortMarginRatioByMoney": 0.1,
-            "ShortMarginRatioByVolume": 0.2,
+            # Keep the rates exact so this assertion isolates the ULP
+            # envelopes on the native mark and multiplier inside the existing
+            # 128-digit risk domain.
+            "LongMarginRatioByMoney": "0.1",
+            "LongMarginRatioByVolume": "0.2",
+            "ShortMarginRatioByMoney": "0.1",
+            "ShortMarginRatioByVolume": "0.2",
         }
     )
     _api, store, broker, _journal, _coordinator, target = _system_under_test(
@@ -1562,15 +1839,32 @@ def test_margin_projection_keeps_exact_native_float_upper_bound_at_low_precision
             str(0.2)
         )
 
-    with localcontext() as context:
-        context.prec = 2048
-        exact_native_margin = (
-            Decimal("101") * Decimal("10") * Decimal.from_float(0.1)
-            + Decimal.from_float(0.2)
-        )
+    mark_upper = _risk_fact_float_envelope(101.0, upward=True)
+    multiplier_upper = _risk_fact_float_envelope(10.0, upward=True)
+    money_rate_upper = Decimal("0.1")
+    volume_rate_upper = Decimal("0.2")
+    exact_native_margin = _risk_fact_sum_upper(
+        _risk_fact_product_upper(mark_upper, multiplier_upper, money_rate_upper),
+        volume_rate_upper,
+    )
+    legacy_binary_margin = _risk_fact_sum_upper(
+        _risk_fact_product_upper(
+            Decimal.from_float(101.0), Decimal.from_float(10.0), Decimal("0.1")
+        ),
+        Decimal("0.2"),
+    )
     assert old_margin_cap == Decimal("1.0E2")
     assert facts.instruments[0].long_margin_per_hand == exact_native_margin
     assert facts.instruments[0].long_margin_per_hand > old_margin_cap
+    assert facts.account.available_margin < Decimal.from_float(100000.0)
+    assert facts.instruments[0].multiplier == Decimal("10.0")
+    assert facts.instruments[0].risk_multiplier_upper == multiplier_upper
+    assert facts.instruments[0].risk_multiplier_upper > facts.instruments[0].multiplier
+    assert facts.instruments[0].tick_size == Decimal("1.0")
+    assert facts.instruments[0].risk_tick_size_upper > facts.instruments[0].tick_size
+    assert facts.quotes[0].ask == Decimal("101.0")
+    assert facts.quotes[0].risk_ask_upper == mark_upper
+    assert facts.instruments[0].long_margin_per_hand > legacy_binary_margin
 
 
 def test_out_of_range_margin_projection_keeps_existing_open_blockers():
@@ -1593,7 +1887,7 @@ def test_out_of_range_margin_projection_keeps_existing_open_blockers():
     assert facts.open_risk_ready is False
 
 
-def test_extreme_quote_times_multiplier_overflow_keeps_close_and_cancel_readiness():
+def test_valid_quote_and_multiplier_with_derived_product_overflow_keeps_cancel_ready():
     now = datetime.now(timezone.utc)
     rows = _query_rows(
         orders=(
@@ -1612,7 +1906,7 @@ def test_extreme_quote_times_multiplier_overflow_keeps_close_and_cancel_readines
         )
     )
     rows["instruments_result"][0].update(
-        {"VolumeMultiple": 10**128, "UpperLimitPrice": "1e200"}
+        {"VolumeMultiple": 10**127, "UpperLimitPrice": "1e200"}
     )
     rows["instrument_margin_rate_result"][0].update(
         {
@@ -1621,11 +1915,18 @@ def test_extreme_quote_times_multiplier_overflow_keeps_close_and_cancel_readines
         }
     )
     tick = _quote(event_time=now - timedelta(milliseconds=200))
-    tick.price = 1e128
-    tick.bid_price = 1e128
-    tick.ask_price = 1e128
-    _api, store, broker, _journal, _coordinator, target = _system_under_test(
+    tick.price = 1e100
+    tick.bid_price = 1e100
+    tick.ask_price = 1e100
+    api, store, broker, journal, _coordinator, target = _system_under_test(
         now=now, rows=rows, tick=tick
+    )
+    source_session = _source_session_identity(api)
+    api.query_rows["orders_result"][0].update(
+        {
+            "FrontID": source_session["front_id"],
+            "SessionID": source_session["session_id"],
+        }
     )
     receipt = _refresh_all(store, target)
     _arm(store)
@@ -1649,26 +1950,38 @@ def test_extreme_quote_times_multiplier_overflow_keeps_close_and_cancel_readines
             "_registered_sim_ctp_identity_binding_valid": True,
             "factor_position_effect": "OPEN",
             "factor_strategy_scope": "alpha003",
-            "factor_intent_id": "intent-94",
-            "front_id": 4,
-            "session_id": 7,
+            "front_id": source_session["front_id"],
+            "session_id": source_session["session_id"],
             "execution_unknown": False,
             "cancel_requested_remote": False,
             "cancel_intent_active": False,
             "managed_execution_cancel_pending": False,
         }
     )
+    _record_known_submit_owner(
+        journal,
+        order,
+        target,
+        api=api,
+        now=now,
+        external_order_ref="94",
+        order_sys_id="sys-94",
+        cohort_id="product-overflow-cancel-owner",
+    )
     broker.orders[order.ref] = order
 
     facts = _project(store, broker, target, now, query_set=receipt.query_set)
 
     assert facts.quotes[0].quality == "GOOD"
-    assert facts.instruments[0].multiplier == Decimal(10) ** 128
+    assert facts.instruments[0].multiplier == Decimal(10) ** 127
+    assert facts.instruments[0].risk_multiplier_upper is not None
+    assert facts.quotes[0].risk_ask_upper is not None
     assert facts.instruments[0].long_margin_per_hand is None
     assert facts.instruments[0].short_margin_per_hand is None
     assert "long_margin_per_hand_unobserved:rb" in facts.blockers
     assert "short_margin_per_hand_unobserved:rb" in facts.blockers
-    assert facts.risk_reduction_ready is True, facts.risk_reduction_blockers
+    assert facts.risk_reduction_ready is False
+    assert "INSTRUMENT_ORDER_UNRESOLVED" in facts.risk_reduction_blockers
     assert facts.open_risk_ready is False
     assert facts.order_cancel_ready is True, facts.order_cancel_blockers
 
@@ -1811,8 +2124,15 @@ def _multi_target_commission_projection_case(
     )
 
 
-def _multi_target_facts_with_known_working_order(case, *, owner_intent_id, target_id="A"):
-    """Reproject a source-backed accepted OPEN order on a multi-target Store."""
+def _multi_target_facts_with_known_working_order(
+    case, *, economic_payload=None, owner_intent_id=None, target_id="A", partial=False
+):
+    """Reproject a real Journal-known OPEN order on the multi-target Store.
+
+    Existing Journal intents are accepted only by their persisted identity and
+    route.  The ``economic_payload`` path remains for tests that need this
+    helper to create its own synthetic intent.
+    """
 
     target = next(item for item in case.targets if item.target_id == target_id)
     external_ref = "94"
@@ -1822,12 +2142,12 @@ def _multi_target_facts_with_known_working_order(case, *, owner_intent_id, targe
         "OrderSysID": order_sys_id,
         "InstrumentID": target.instrument,
         "ExchangeID": target.exchange,
-        "OrderStatus": "3",
+        "OrderStatus": "1" if partial else "3",
         "Direction": "0",
         "CombOffsetFlag": "0",
         "VolumeTotalOriginal": "1",
-        "VolumeTraded": "0",
-        "VolumeTotal": "1",
+        "VolumeTraded": "0.5" if partial else "0",
+        "VolumeTotal": "0.5" if partial else "1",
         "FrontID": 4,
         "SessionID": 7,
         "TradingDay": _TRADING_DAY,
@@ -1842,6 +2162,10 @@ def _multi_target_facts_with_known_working_order(case, *, owner_intent_id, targe
         simulated=True,
     )
     order.status = Order.Accepted
+    if partial:
+        order.status = Order.Partial
+        order.executed.size = 0.5
+        order.executed.remsize = 0.5
     order.info.update(
         {
             "external_order_ref": external_ref,
@@ -1854,7 +2178,6 @@ def _multi_target_facts_with_known_working_order(case, *, owner_intent_id, targe
             "exchange_id": target.exchange,
             "factor_position_effect": "OPEN",
             "factor_strategy_scope": "alpha003",
-            "factor_intent_id": owner_intent_id,
             "front_id": 4,
             "session_id": 7,
             "execution_unknown": False,
@@ -1863,6 +2186,83 @@ def _multi_target_facts_with_known_working_order(case, *, owner_intent_id, targe
             "managed_execution_cancel_pending": False,
         }
     )
+    if owner_intent_id is not None:
+        assert economic_payload is None, "an existing owner must come from the Journal"
+        intent = case.journal.intent(owner_intent_id)
+        assert intent is not None
+        assert intent.key.action == "SUBMIT"
+        assert intent.key.instrument == target.instrument
+        assert intent.key.side == "BUY"
+        assert intent.key.position_effect == "OPEN"
+        assert intent.key.leg == 0
+        assert intent.state == "KNOWN"
+        assert intent.dispatch_state == "KNOWN"
+        assert dict(intent.provider_identity or {}) == {
+            "order_ref": external_ref,
+            "order_sys_id": order_sys_id,
+        }
+        decision = case.journal.decision(intent.decision_id)
+        assert decision is not None
+        assert decision.key.account_scope == case.facts.account_scope
+        assert decision.key.strategy_scope == case.facts.strategy_scope
+        assert dict(intent.economic_payload) == {
+            "exchange": target.exchange,
+            "quantity": "1",
+            "price": "100",
+        }
+        order.info["factor_intent_id"] = intent.intent_id
+    else:
+        assert economic_payload is not None, "a new synthetic intent requires its economics"
+        intent_key = ExecutionIntentKey(
+            action="SUBMIT",
+            instrument=target.instrument,
+            side="BUY",
+            position_effect="OPEN",
+            leg=0,
+        )
+        decision = case.journal.record_decision(
+            ExecutionDecisionKey(
+                account_scope="acct-scope",
+                strategy_scope="alpha003",
+                logical_run_id="run-1",
+                cohort_id="intent-facts-" + target_id,
+                close_time=case.facts.available_at.isoformat().replace("+00:00", "Z"),
+                decision_kind="alpha003-rebalance",
+            ),
+            {"batch_id": "intent-facts-" + target_id},
+            intent_keys=(intent_key,),
+        )
+        payload = dict(economic_payload)
+        payload.setdefault("target_id", target.target_id)
+        payload.setdefault("instrument", target.instrument)
+        payload.setdefault("exchange", target.exchange)
+        payload.setdefault("side", "BUY")
+        payload.setdefault("position_effect", "OPEN")
+        intent = case.journal.prepare_intent(
+            decision.decision_id,
+            intent_key,
+            payload,
+            original_identity={
+                "backtrader_order_ref": order.ref,
+                "operation": "insert",
+                "instrument_id": target.instrument,
+                "exchange_id": target.exchange,
+                "order_ref": external_ref,
+                "order_sys_id": order_sys_id,
+                "front_id": 4,
+                "session_id": 7,
+                "account_fingerprint": case.facts.account.account_fingerprint,
+                "trading_day": case.facts.account.trading_day,
+            },
+        )
+        assert case.journal.claim_dispatch(intent.intent_id) is not None
+        case.journal.record_dispatch_result(
+            intent.intent_id,
+            state="KNOWN",
+            provider_identity={"order_ref": external_ref, "order_sys_id": order_sys_id},
+            outcome_code="accepted",
+        )
+        order.info["factor_intent_id"] = intent.intent_id
     case.broker.orders[order.ref] = order
 
     # The SDK grant is singular. Switch to the other configured leg, then
@@ -1915,6 +2315,558 @@ def _multi_target_facts_with_known_working_order(case, *, owner_intent_id, targe
         },
         commission_required_for_open=True,
     )
+
+
+def _append_multi_target_known_working_order(
+    case,
+    target_id,
+    external_ref,
+    order_sys_id,
+    *,
+    parent_identity_overrides=None,
+):
+    """Add one complete fake CTP order backed by an actual Journal KNOWN row."""
+
+    target = next(item for item in case.targets if item.target_id == target_id)
+    order = BuyOrder(
+        owner=None,
+        data=target.data,
+        size=1,
+        price=100,
+        exectype=Order.Limit,
+        simulated=True,
+    )
+    order.status = Order.Accepted
+    source_session = _source_session_identity(case.api)
+    intent_key = ExecutionIntentKey(
+        action="SUBMIT",
+        instrument=target.instrument,
+        side="BUY",
+        position_effect="OPEN",
+        leg=0,
+    )
+    decision = case.journal.record_decision(
+        ExecutionDecisionKey(
+            account_scope="acct-scope",
+            strategy_scope="alpha003",
+            logical_run_id="run-1",
+            cohort_id="owner-swap-{}".format(target_id),
+            close_time=(case.facts.available_at - timedelta(seconds=1))
+            .isoformat()
+            .replace("+00:00", "Z"),
+            decision_kind="alpha003-rebalance",
+        ),
+        {"batch_id": "owner-swap-{}".format(target_id)},
+        intent_keys=(intent_key,),
+    )
+    original_identity = {
+        "backtrader_order_ref": int(order.ref),
+        "operation": "insert",
+        "instrument_id": target.instrument,
+        "exchange_id": target.exchange,
+        "order_ref": external_ref,
+        "order_sys_id": order_sys_id,
+        "front_id": source_session["front_id"],
+        "session_id": source_session["session_id"],
+        "account_fingerprint": source_session["account_fingerprint"],
+        "connection_generation": source_session["connection_generation"],
+        "trading_day": source_session["trading_day"],
+    }
+    if parent_identity_overrides:
+        original_identity.update(parent_identity_overrides)
+    intent = case.journal.prepare_intent(
+        decision.decision_id,
+        intent_key,
+        {
+            "target_id": target.target_id,
+            "instrument": target.instrument,
+            "exchange": target.exchange,
+            "side": "BUY",
+            "position_effect": "OPEN",
+            "quantity": "1",
+            "price": "100",
+        },
+        original_identity=original_identity,
+    )
+    assert case.journal.claim_dispatch(intent.intent_id) is not None
+    case.journal.record_dispatch_result(
+        intent.intent_id,
+        state="KNOWN",
+        provider_identity={
+            "order_ref": external_ref,
+            "order_sys_id": order_sys_id,
+            "instrument_id": target.instrument,
+            "exchange_id": target.exchange,
+        },
+        outcome_code="accepted",
+    )
+    order.info.update(
+        {
+            "factor_intent_id": intent.intent_id,
+            "factor_strategy_scope": "alpha003",
+            "external_order_ref": external_ref,
+            "instrument_id": target.instrument,
+            "exchange_id": target.exchange,
+            "factor_position_effect": "OPEN",
+            "order_sys_id": order_sys_id,
+            "registered_sim_ctp_order_sys_id": order_sys_id,
+            "registered_sim_ctp_order_sys_id_source": "ctp_order_callback",
+            "_registered_sim_ctp_identity_binding_captured": True,
+            "_registered_sim_ctp_identity_binding_valid": True,
+            "front_id": source_session["front_id"],
+            "session_id": source_session["session_id"],
+            "execution_unknown": False,
+            "cancel_requested_remote": False,
+            "cancel_intent_active": False,
+            "managed_execution_cancel_pending": False,
+        }
+    )
+    case.broker.orders[order.ref] = order
+    case.api.query_rows["orders_result"].append(
+        {
+            "OrderRef": external_ref,
+            "OrderSysID": order_sys_id,
+            "InstrumentID": target.instrument,
+            "ExchangeID": target.exchange,
+            "OrderStatus": "3",
+            "Direction": "0",
+            "CombOffsetFlag": "0",
+            "VolumeTotalOriginal": "1",
+            "VolumeTraded": "0",
+            "VolumeTotal": "1",
+            "FrontID": source_session["front_id"],
+            "SessionID": source_session["session_id"],
+            "TradingDay": source_session["trading_day"],
+        }
+    )
+    return order, intent
+
+
+def _project_multi_target_live_facts(case):
+    """Refresh the ordinary Store chain after adding Journal/CTP fixture rows."""
+
+    other = next(item for item in case.targets if item.target_id == "B")
+    case.api.trader_client.disarm_execution_gate = lambda _capability, _reason: {
+        "revoked": True
+    }
+    case.store.registered_sim_ensure_arm(
+        other.instrument,
+        other.exchange,
+        expected_session={
+            "account_fingerprint": case.facts.account.account_fingerprint,
+            "connection_generation": case.facts.account.connection_generation,
+            "trading_day": case.facts.account.trading_day,
+        },
+    )
+    receipt = refresh_factor_execution_queries(
+        case.store,
+        targets=case.targets,
+        overall_timeout=4.0,
+        max_queries=8,
+    )
+    assert receipt.blockers == ()
+    assert receipt.pending_families == ()
+    for target in case.targets:
+        if target.target_id in {"A", "B"}:
+            case.store.registered_sim_query(
+                "instrument_commission_rate_result",
+                timeout=1.0,
+                attempts=1,
+                deadline_monotonic=time.monotonic() + 5.0,
+                instrument_id=target.instrument,
+                exchange_id=target.exchange,
+            )
+    return project_factor_execution_facts(
+        case.store,
+        case.broker,
+        targets=case.targets,
+        account_scope="acct-scope",
+        strategy_scope="alpha003",
+        now=datetime.now(timezone.utc),
+        quote_max_age=timedelta(seconds=10),
+        max_query_age=timedelta(seconds=20),
+        query_set=receipt.query_set,
+        execution_target_ids=("A", "B"),
+        commission_identity_by_target={
+            "A": {"account_id": "configured-account", "invest_unit_id": ""},
+            "B": {"account_id": "configured-account", "invest_unit_id": ""},
+        },
+        commission_required_for_open=True,
+    )
+
+
+def _record_other_strategy_open_intent(case, *, instrument, exchange, state="PREPARED"):
+    key = ExecutionIntentKey("SUBMIT", instrument, "BUY", "OPEN", 0)
+    cohort_id = "other-open-{}-{}".format(instrument, state.lower())
+    decision = case.journal.record_decision(
+        ExecutionDecisionKey(
+            account_scope="acct-scope",
+            strategy_scope="other-strategy",
+            logical_run_id="other-run",
+            cohort_id=cohort_id,
+            close_time=(case.facts.available_at - timedelta(seconds=1))
+            .isoformat()
+            .replace("+00:00", "Z"),
+            decision_kind="bar",
+        ),
+        {"batch_id": cohort_id},
+        intent_keys=(key,),
+    )
+    intent = case.journal.prepare_intent(
+        decision.decision_id,
+        key,
+        {
+            "target_id": "other-{}".format(instrument),
+            "instrument": instrument,
+            "exchange": exchange,
+            "side": "BUY",
+            "position_effect": "OPEN",
+            "quantity": "1",
+            "price": "100",
+        },
+    )
+    if state == "UNKNOWN":
+        assert case.journal.claim_dispatch(intent.intent_id) is not None
+        case.journal.record_dispatch_result(
+            intent.intent_id, state="UNKNOWN", outcome_code="connection_lost"
+        )
+    return intent
+
+
+@pytest.mark.parametrize(
+    ("partial", "expected_state", "expected_remaining"),
+    ((False, "ACCEPTED", Decimal("1")), (True, "PARTIAL", Decimal("0.5"))),
+)
+def test_store_facts_join_durable_risk_candidate_to_known_open_order(
+    partial, expected_state, expected_remaining
+):
+    case = _multi_target_commission_projection_case(
+        (
+            _commission_row(instrument=_INSTRUMENT, exchange=_EXCHANGE),
+            _commission_row(instrument="i2510", exchange="DCE"),
+        )
+    )
+    candidate_leg = {
+        "target_id": "A",
+        "instrument": _INSTRUMENT,
+        "exchange": _EXCHANGE,
+        "side": "BUY",
+        "quantity": 1,
+        "entry_price": "100",
+        "stop_price": "95",
+        "margin": "1000",
+        "notional": "1000",
+        "stop_loss": "50",
+        "round_trip_fee_upper_bound": "0.04",
+        "worst_case_loss": "50.04",
+        "quote_metadata_snapshot_id": "metadata-A",
+    }
+    risk_payload = {
+        "schema": "backtrader.alpha003.open_risk_candidate.v1",
+        "batch_id": "intent-facts-A",
+        "totals": {"projected_total_worst_case_loss": "50.04"},
+        "leg": candidate_leg,
+    }
+
+    facts = _multi_target_facts_with_known_working_order(
+        case,
+        economic_payload={"open_risk_candidate": risk_payload},
+        partial=partial,
+    )
+
+    intent = next(item for item in facts.execution_intents if item.target_id == "A")
+    assert intent.state == "KNOWN"
+    assert intent.action == "SUBMIT"
+    assert (intent.instrument, intent.exchange, intent.side, intent.position_effect, intent.leg) == (
+        _INSTRUMENT,
+        _EXCHANGE,
+        "BUY",
+        "OPEN",
+        0,
+    )
+    assert intent.economic_payload["open_risk_candidate"]["leg"]["worst_case_loss"] == "50.04"
+    assert intent.provider_identity == {
+        "order_ref": "94",
+        "order_sys_id": "sys-pair-94",
+    }
+    with pytest.raises(TypeError):
+        intent.economic_payload["open_risk_candidate"]["leg"]["worst_case_loss"] = "0"
+    with pytest.raises(TypeError):
+        intent.provider_identity["order_ref"] = "other"
+
+    assert len(facts.working_orders) == 1
+    order = facts.working_orders[0]
+    assert order.owner_intent_id == intent.intent_id
+    assert order.state == expected_state
+    assert order.remaining_quantity == expected_remaining
+    # The candidate and order facts are available for later reconciliation,
+    # while an in-flight leg still makes whole-account exposure unknown.
+    assert facts.open_risk_ready is False
+    assert facts.account.current_notional is None
+    assert facts.account.current_worst_case_loss is None
+    assert "open_order_risk_capacity_unobserved" in facts.open_risk_blockers
+
+
+def test_store_cancel_join_rejects_swapped_known_journal_owners_and_accepts_exact_pair():
+    case = _multi_target_commission_projection_case(
+        (
+            _commission_row(instrument=_INSTRUMENT, exchange=_EXCHANGE),
+            _commission_row(instrument="i2510", exchange="DCE"),
+        )
+    )
+    order_a, intent_a = _append_multi_target_known_working_order(
+        case, "A", "94", "sys-pair-94"
+    )
+    order_b, intent_b = _append_multi_target_known_working_order(
+        case, "B", "95", "sys-pair-95"
+    )
+    receipt = refresh_factor_execution_queries(
+        case.store,
+        targets=case.targets,
+        overall_timeout=4.0,
+        max_queries=8,
+    )
+    assert receipt.blockers == ()
+    assert receipt.pending_families == ()
+    for target_id in ("A", "B"):
+        target = next(item for item in case.targets if item.target_id == target_id)
+        case.store.registered_sim_query(
+            "instrument_commission_rate_result",
+            timeout=1.0,
+            attempts=1,
+            deadline_monotonic=time.monotonic() + 5.0,
+            instrument_id=target.instrument,
+            exchange_id=target.exchange,
+        )
+
+    def project_orders():
+        return project_factor_execution_facts(
+            case.store,
+            case.broker,
+            targets=case.targets,
+            account_scope="acct-scope",
+            strategy_scope="alpha003",
+            now=datetime.now(timezone.utc),
+            quote_max_age=timedelta(seconds=10),
+            max_query_age=timedelta(seconds=20),
+            query_set=receipt.query_set,
+            execution_target_ids=("A", "B"),
+            commission_identity_by_target={
+                "A": {"account_id": "configured-account", "invest_unit_id": ""},
+                "B": {"account_id": "configured-account", "invest_unit_id": ""},
+            },
+            commission_required_for_open=True,
+        )
+
+    correct = project_orders()
+    assert {item.owner_intent_id for item in correct.working_orders} == {
+        intent_a.intent_id,
+        intent_b.intent_id,
+    }
+    assert correct.order_cancel_ready is True, correct.order_cancel_blockers
+    assert not any(
+        blocker.startswith("working_order_journal_owner_")
+        for blocker in correct.blockers
+    ), correct.blockers
+
+    # Broker order metadata is mutable, so readiness must join each order to
+    # the exact immutable Journal route/provider identity rather than merely
+    # checking that both IDs appear somewhere in a set.
+    order_a.info["factor_intent_id"] = intent_b.intent_id
+    order_b.info["factor_intent_id"] = intent_a.intent_id
+    swapped = project_orders()
+    assert swapped.order_cancel_ready is False
+    assert {
+        blocker
+        for blocker in swapped.blockers
+        if blocker.startswith("working_order_journal_owner_mismatch:")
+    } == {
+        "working_order_journal_owner_mismatch:94",
+        "working_order_journal_owner_mismatch:95",
+    }
+
+    order_a.info["factor_intent_id"] = intent_a.intent_id
+    order_b.info["factor_intent_id"] = intent_b.intent_id
+    restored = project_orders()
+    assert restored.order_cancel_ready is True, restored.order_cancel_blockers
+
+
+@pytest.mark.parametrize(
+    "parent_identity_overrides",
+    (
+        {"front_id": 5},
+        {"session_id": 8},
+        {"account_fingerprint": "other-account-fingerprint"},
+        {"connection_generation": 2},
+        {"trading_day": "20261025"},
+    ),
+)
+def test_store_cancel_join_requires_parent_submit_session_to_match_current_facts(
+    parent_identity_overrides,
+):
+    case = _multi_target_commission_projection_case(
+        (
+            _commission_row(instrument=_INSTRUMENT, exchange=_EXCHANGE),
+            _commission_row(instrument="i2510", exchange="DCE"),
+        )
+    )
+    _order, intent = _append_multi_target_known_working_order(
+        case,
+        "A",
+        "94",
+        "sys-parent-session-94",
+        parent_identity_overrides=parent_identity_overrides,
+    )
+
+    facts = _project_multi_target_live_facts(case)
+
+    assert any(item.intent_id == intent.intent_id for item in facts.execution_intents)
+    assert facts.order_cancel_ready is False
+    assert "working_order_journal_owner_mismatch:94" in facts.blockers
+
+
+@pytest.mark.parametrize(
+    ("instrument", "exchange", "state", "expected_cancel_ready"),
+    (
+        ("cu2510", "SHFE", "PREPARED", True),
+        ("cu2510", "SHFE", "UNKNOWN", False),
+    ),
+)
+def test_other_scope_unresolved_open_blocks_new_risk_but_only_unrelated_unclaimed_open_allows_cancel(
+    instrument, exchange, state, expected_cancel_ready
+):
+    case = _multi_target_commission_projection_case(
+        (
+            _commission_row(instrument=_INSTRUMENT, exchange=_EXCHANGE),
+            _commission_row(instrument="i2510", exchange="DCE"),
+        )
+    )
+    _order, _owner = _append_multi_target_known_working_order(
+        case, "A", "94", "sys-current-94"
+    )
+    unresolved = _record_other_strategy_open_intent(
+        case, instrument=instrument, exchange=exchange, state=state
+    )
+
+    facts = _project_multi_target_live_facts(case)
+
+    assert facts.open_risk_ready is False
+    if state == "PREPARED" and instrument == "cu2510":
+        assert (
+            "journal_prepared_open_risk_unresolved:{}".format(unresolved.intent_id)
+            in facts.open_risk_blockers
+        )
+        assert facts.order_cancel_ready is expected_cancel_ready, facts.order_cancel_blockers
+        assert not any(
+            blocker.startswith("journal_intent_unresolved:PREPARED:")
+            for blocker in facts.order_cancel_blockers
+        )
+    else:
+        assert facts.order_cancel_ready is False
+        expected = "journal_intent_unresolved:{}:".format(state)
+        assert any(blocker.startswith(expected) for blocker in facts.order_cancel_blockers)
+
+
+def test_store_facts_preserve_unknown_open_intent_without_treating_capacity_as_zero():
+    case = _multi_target_commission_projection_case(
+        (_commission_row(instrument=_INSTRUMENT, exchange=_EXCHANGE),)
+    )
+    target = case.targets[0]
+    key = ExecutionIntentKey(
+        action="SUBMIT",
+        instrument=target.instrument,
+        side="BUY",
+        position_effect="OPEN",
+        leg=0,
+    )
+    decision = case.journal.record_decision(
+        ExecutionDecisionKey(
+            account_scope="acct-scope",
+            strategy_scope="alpha003",
+            logical_run_id="run-1",
+            cohort_id="unknown-intent-facts",
+            close_time=case.facts.available_at.isoformat().replace("+00:00", "Z"),
+            decision_kind="alpha003-rebalance",
+        ),
+        {"batch_id": "unknown-intent-facts"},
+        intent_keys=(key,),
+    )
+    intent = case.journal.prepare_intent(
+        decision.decision_id,
+        key,
+        {
+            "target_id": target.target_id,
+            "instrument": target.instrument,
+            "exchange": target.exchange,
+            "side": "BUY",
+            "position_effect": "OPEN",
+            "quantity": "1",
+            "open_risk_candidate": {"worst_case_loss": "50.04"},
+        },
+        original_identity={
+            "operation": "insert",
+            "instrument_id": target.instrument,
+            "exchange_id": target.exchange,
+            "order_ref": "95",
+            "account_fingerprint": case.facts.account.account_fingerprint,
+            "trading_day": case.facts.account.trading_day,
+        },
+    )
+    assert case.journal.claim_dispatch(intent.intent_id) is not None
+    case.journal.record_dispatch_result(
+        intent.intent_id,
+        state="UNKNOWN",
+        provider_identity=None,
+        outcome_code="timeout",
+    )
+
+    facts = project_factor_execution_facts(
+        case.store,
+        case.broker,
+        targets=case.targets,
+        account_scope="acct-scope",
+        strategy_scope="alpha003",
+        now=datetime.now(timezone.utc),
+        quote_max_age=timedelta(seconds=10),
+        max_query_age=timedelta(seconds=20),
+        query_set=case.receipt.query_set,
+        execution_target_ids=("A", "B"),
+        commission_identity_by_target={
+            "A": {"account_id": "configured-account", "invest_unit_id": ""},
+            "B": {"account_id": "configured-account", "invest_unit_id": ""},
+        },
+        commission_required_for_open=True,
+    )
+
+    unknown = next(item for item in facts.execution_intents if item.intent_id == intent.intent_id)
+    assert unknown.state == "UNKNOWN"
+    assert unknown.economic_payload["open_risk_candidate"]["worst_case_loss"] == "50.04"
+    assert unknown.provider_identity == {}
+    assert any(
+        blocker.startswith("journal_intent_unresolved:UNKNOWN:")
+        for blocker in facts.blockers
+    )
+    assert facts.open_risk_ready is False
+    assert facts.account.current_notional is None
+    assert facts.account.current_worst_case_loss is None
+
+
+def test_store_facts_reject_intent_economics_route_mismatch():
+    case = _multi_target_commission_projection_case(
+        (_commission_row(instrument=_INSTRUMENT, exchange=_EXCHANGE),)
+    )
+    facts = _multi_target_facts_with_known_working_order(
+        case,
+        economic_payload={
+            "target_id": "B",
+            "exchange": _EXCHANGE,
+            "open_risk_candidate": {"worst_case_loss": "50.04"},
+        },
+    )
+
+    assert any("journal_intent_route_mismatch" in item for item in facts.blockers)
+    assert next(item for item in facts.execution_intents).target_id is None
+    assert facts.open_risk_ready is False
 
 
 def test_commission_sidecar_uses_real_ctp_filter_shape_without_changing_core_seal():
@@ -2081,8 +3033,218 @@ def test_old_sdk_commission_method_without_explicit_deadline_is_not_called():
 def test_commission_double_ratios_are_rounded_up_to_exact_binary_value():
     value = _commission_rate_decimal(0.1)
 
-    assert value == Decimal.from_float(0.1)
+    assert value == _risk_fact_float_envelope(0.1, upward=True)
+    assert value > Decimal.from_float(0.1)
     assert value > Decimal("0.1")
+
+
+def test_account_float_margin_bounds_are_directional_and_decimal_strings_stay_exact():
+    float_blockers = []
+    available_float, used_float, *_ = _account_values(
+        [{"Available": 0.1, "CurrMargin": 0.1}],
+        float_blockers,
+        trading_day=_TRADING_DAY,
+    )
+    decimal_blockers = []
+    available_decimal, used_decimal, *_ = _account_values(
+        [{"Available": "0.1", "CurrMargin": "0.1"}],
+        decimal_blockers,
+        trading_day=_TRADING_DAY,
+    )
+
+    assert not float_blockers
+    assert not decimal_blockers
+    assert available_float == _risk_fact_float_envelope(0.1, upward=False)
+    assert used_float == _risk_fact_float_envelope(0.1, upward=True)
+    assert available_float < Decimal.from_float(0.1) < used_float
+    assert (available_decimal, used_decimal) == (Decimal("0.1"), Decimal("0.1"))
+
+
+@pytest.mark.parametrize(
+    ("value", "expected_risk_upper", "expected_risk_lower", "negative_zero"),
+    (
+        (-5e-324, None, None, False),
+        (-0.0, Decimal.from_float(-0.0), Decimal.from_float(-0.0), True),
+        (0.0, Decimal(0), Decimal(0), False),
+        (5e-324, None, Decimal(0), False),
+    ),
+)
+def test_nonnegative_float_risk_inputs_check_sign_before_enveloping(
+    value, expected_risk_upper, expected_risk_lower, negative_zero
+):
+    # Fees and CTP margin ratios are risk costs; CurrMargin is occupied capital;
+    # Available is usable capital and therefore uses the lower envelope.
+    fee_upper = _commission_rate_decimal(value)
+    assert fee_upper == expected_risk_upper
+
+    blockers = []
+    available, used, *_ = _account_values(
+        [{"Available": value, "CurrMargin": value}],
+        blockers,
+        trading_day=_TRADING_DAY,
+    )
+    assert available == expected_risk_lower
+    assert used == expected_risk_upper
+    if expected_risk_lower is None:
+        assert "available_margin_unobserved" in blockers
+    if expected_risk_upper is None:
+        assert "used_margin_unobserved" in blockers
+
+    ratio_blockers = []
+    ratios = _margin_rates(
+        [
+            {
+                "InstrumentID": _INSTRUMENT,
+                "ExchangeID": _EXCHANGE,
+                "HedgeFlag": "1",
+                "LongMarginRatioByMoney": value,
+                "LongMarginRatioByVolume": value,
+                "ShortMarginRatioByMoney": value,
+                "ShortMarginRatioByVolume": value,
+            }
+        ],
+        _INSTRUMENT,
+        _EXCHANGE,
+        ratio_blockers,
+    )
+    if expected_risk_upper is None:
+        assert ratios is None
+        assert ratio_blockers == ["margin_rates_unobserved:{}".format(_INSTRUMENT)]
+    else:
+        assert ratios == (expected_risk_upper,) * 4
+
+    if negative_zero:
+        assert fee_upper.is_zero() and fee_upper.is_signed()
+        assert available.is_zero() and available.is_signed()
+        assert used.is_zero() and used.is_signed()
+    elif value == 0.0:
+        assert fee_upper.is_zero() and not fee_upper.is_signed()
+        assert available.is_zero() and not available.is_signed()
+        assert used.is_zero() and not used.is_signed()
+
+
+@pytest.mark.parametrize("quantity", (Decimal("1"), Decimal("-1")))
+def test_float_position_stop_loss_uses_side_correct_price_bounds(quantity):
+    position = SimpleNamespace(
+        target_id="rb",
+        quantity=quantity,
+        instrument=_INSTRUMENT,
+        average_price=100.1,
+        stop_price=90.1 if quantity > 0 else 110.1,
+    )
+    instrument = SimpleNamespace(target_id="rb", multiplier=10.0)
+    quote = SimpleNamespace(
+        instrument=_INSTRUMENT,
+        quality="GOOD",
+        bid=99.5,
+        ask=100.0,
+    )
+
+    notional, worst_loss = _risk_totals((position,), (instrument,), (quote,), (), [])
+    multiplier_upper = _risk_fact_float_envelope(10.0, upward=True)
+    mark_upper = max(
+        _risk_fact_float_envelope(99.5, upward=True),
+        _risk_fact_float_envelope(100.0, upward=True),
+    )
+    average_upper = _risk_fact_float_envelope(100.1, upward=True)
+    average_lower = _risk_fact_float_envelope(100.1, upward=False)
+    stop_lower = _risk_fact_float_envelope(90.1, upward=False)
+    stop_upper = _risk_fact_float_envelope(110.1, upward=True)
+    expected_distance = (
+        _risk_fact_difference_upper(average_upper, stop_lower)
+        if quantity > 0
+        else _risk_fact_difference_upper(stop_upper, average_lower)
+    )
+    expected_notional = _risk_fact_product_upper(
+        quantity.copy_abs(), multiplier_upper, mark_upper
+    )
+    expected_loss = _risk_fact_product_upper(
+        quantity.copy_abs(), multiplier_upper, expected_distance
+    )
+
+    assert notional == expected_notional
+    assert worst_loss == expected_loss
+    assert worst_loss > Decimal("100")
+
+
+def test_zero_position_price_lower_bound_is_not_replaced_by_fallback():
+    position = SimpleNamespace(
+        target_id="rb",
+        quantity=Decimal(1),
+        instrument=_INSTRUMENT,
+        average_price=Decimal("100"),
+        stop_price=Decimal("90"),
+        risk_average_price_upper=Decimal("100"),
+        risk_stop_price_lower=Decimal(0),
+    )
+    instrument = SimpleNamespace(
+        target_id="rb",
+        multiplier=Decimal(1),
+        risk_multiplier_upper=Decimal(1),
+    )
+    quote = SimpleNamespace(
+        instrument=_INSTRUMENT,
+        quality="GOOD",
+        bid=Decimal(1),
+        ask=Decimal(1),
+        risk_bid_upper=Decimal(1),
+        risk_ask_upper=Decimal(1),
+    )
+
+    _, worst_loss = _risk_totals((position,), (instrument,), (quote,), (), [])
+
+    assert worst_loss == Decimal("100")
+
+
+def test_three_float_ulp_margin_product_fails_closed_outside_risk_digit_bound():
+    operands = (
+        _risk_fact_float_envelope(101.0, upward=True),
+        _risk_fact_float_envelope(10.0, upward=True),
+        _risk_fact_float_envelope(0.1, upward=True),
+    )
+
+    assert all(value is not None for value in operands)
+    assert _risk_fact_product_upper(*operands) is None
+
+
+@pytest.mark.parametrize(
+    ("field", "blocker_prefix"),
+    (
+        ("VolumeMultiple", "instrument_multiplier_unobserved:"),
+        ("PriceTick", "instrument_tick_unobserved:"),
+    ),
+)
+def test_zero_instrument_risk_metadata_keeps_blocker_without_aborting_projection(
+    field, blocker_prefix
+):
+    case = _build_source_backed_read_only_reconciliation_case(
+        instrument_overrides={field: 0.0}
+    )
+
+    instrument = case.facts.instruments[0]
+    assert getattr(instrument, "multiplier" if field == "VolumeMultiple" else "tick_size") is None
+    assert getattr(
+        instrument,
+        "risk_multiplier_upper" if field == "VolumeMultiple" else "risk_tick_size_upper",
+    ) is None
+    assert blocker_prefix + _INSTRUMENT in case.facts.aggregate_write_blockers
+    # Preserve the current risk-reduction contract. This round only keeps the
+    # projection from raising; it does not broaden CLOSE authorization.
+    assert case.facts.risk_reduction_ready is False
+
+
+def test_zero_tick_does_not_authorize_cancel_with_unbound_order_identity():
+    case = _build_source_backed_read_only_reconciliation_case(
+        "active_order",
+        instrument_overrides={"PriceTick": 0.0},
+        owner_intent_id="untrusted-intent-id",
+        allow_writes=True,
+    )
+
+    assert case.facts.order_cancel_ready is False
+    assert case.facts.order_cancel_blockers
+    assert case.facts.working_orders[0].owner_intent_id == "untrusted-intent-id"
+    assert case.facts.working_orders[0].owner_intent_id != case.intent.intent_id
 
 
 def test_commission_row_is_rejected_when_session_snapshot_contains_multiple_accounts():
@@ -2848,6 +4010,7 @@ def _build_source_backed_partial_close_with_working_close_order(
         {"batch_id": "partial-close-cancel-1", "mode": "native"},
         intent_keys=(intent_key,),
     )
+    source_session = _source_session_identity(api)
     intent = journal.prepare_intent(
         decision.decision_id,
         intent_key,
@@ -2867,9 +4030,11 @@ def _build_source_backed_partial_close_with_working_close_order(
             "exchange_id": _EXCHANGE,
             "order_ref": "19",
             "order_sys_id": "native-cancel-19",
-            "front_id": 4,
-            "session_id": 7,
-            "trading_day": _TRADING_DAY,
+            "front_id": source_session["front_id"],
+            "session_id": source_session["session_id"],
+            "account_fingerprint": source_session["account_fingerprint"],
+            "connection_generation": source_session["connection_generation"],
+            "trading_day": source_session["trading_day"],
         },
     )
     assert journal.claim_dispatch(intent.intent_id) is not None
@@ -3940,9 +5105,16 @@ def test_order_cancel_readiness_does_not_depend_on_a_market_quote():
         "FrontID": 4,
         "SessionID": 7,
     }
-    _api, store, broker, _journal, _coordinator, target = _system_under_test(
+    api, store, broker, journal, _coordinator, target = _system_under_test(
         now=now,
         rows=_query_rows(orders=(remote,)),
+    )
+    source_session = _source_session_identity(api)
+    remote.update(
+        {
+            "FrontID": source_session["front_id"],
+            "SessionID": source_session["session_id"],
+        }
     )
     receipt = _refresh_all(store, target)
     _arm(store)
@@ -3965,14 +5137,23 @@ def test_order_cancel_readiness_does_not_depend_on_a_market_quote():
             "_registered_sim_ctp_identity_binding_valid": True,
             "factor_position_effect": "OPEN",
             "factor_strategy_scope": "alpha003",
-            "factor_intent_id": "intent-94",
-            "front_id": 4,
-            "session_id": 7,
+            "front_id": source_session["front_id"],
+            "session_id": source_session["session_id"],
             "execution_unknown": False,
             "cancel_requested_remote": False,
             "cancel_intent_active": False,
             "managed_execution_cancel_pending": False,
         }
+    )
+    _record_known_submit_owner(
+        journal,
+        order,
+        target,
+        api=api,
+        now=now,
+        external_order_ref="94",
+        order_sys_id="sys-94",
+        cohort_id="no-quote-cancel-owner",
     )
     broker.orders[order.ref] = order
     store._latest_ticks.clear()
@@ -4161,6 +5342,7 @@ def _build_source_backed_dated_close_facts(
     api, store, broker, journal, coordinator, target = _system_under_test(
         now=now, rows=rows, journal_path=journal_path
     )
+    source_session = _source_session_identity(api)
     decision_key = ExecutionDecisionKey(
         account_scope="acct-scope",
         strategy_scope="alpha003",
@@ -4203,10 +5385,11 @@ def _build_source_backed_dated_close_facts(
             "exchange_id": _EXCHANGE,
             "order_ref": "17",
             "order_sys_id": "native-17",
-            "front_id": 4,
-            "session_id": 7,
-            "account_fingerprint": _ACCOUNT,
-            "trading_day": _TRADING_DAY,
+            "front_id": source_session["front_id"],
+            "session_id": source_session["session_id"],
+            "account_fingerprint": source_session["account_fingerprint"],
+            "connection_generation": source_session["connection_generation"],
+            "trading_day": source_session["trading_day"],
         },
     )
     assert journal.claim_dispatch(intent.intent_id) is not None
@@ -4489,7 +5672,11 @@ def _build_source_backed_dated_close_facts(
                 "exchange_id": _EXCHANGE,
                 "order_ref": "18",
                 "order_sys_id": "native-18",
-                "trading_day": _TRADING_DAY,
+                "front_id": source_session["front_id"],
+                "session_id": source_session["session_id"],
+                "account_fingerprint": source_session["account_fingerprint"],
+                "connection_generation": source_session["connection_generation"],
+                "trading_day": source_session["trading_day"],
             },
         )
         assert journal.claim_dispatch(close_intent.intent_id) is not None

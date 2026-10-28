@@ -1285,6 +1285,9 @@ class ExecutionIntentRecord:
     outcome_code: Optional[str]
     created_at_ns: int
     updated_at_ns: int
+    # Present on the account-scoped execution snapshot. Other historical
+    # intent lookup APIs may omit the joined decision key.
+    decision_key: Optional[ExecutionDecisionKey] = None
 
 
 @dataclass(frozen=True)
@@ -1752,6 +1755,7 @@ class ExecutionIntentSnapshotPage:
     been reconciled does not appear here merely because a holding exists.
     """
 
+    account_scope: str
     items: Tuple[ExecutionIntentRecord, ...]
     truncated: bool
 
@@ -8124,6 +8128,143 @@ class ExecutionDecisionJournal:
         ) is not None:
             raise ExecutionDecisionJournalError("FEE_PAIR_OPEN_RISK_RESERVATION_REQUIRED")
 
+    def _validate_ctp_cancel_owner_binding_in_transaction(
+        self,
+        cursor: sqlite3.Cursor,
+        *,
+        account_scope: str,
+        strategy_scope: str,
+        intent_key: ExecutionIntentKey,
+        owner_intent_id: Optional[str],
+        original_identity_json: str,
+        economic_payload_json: str,
+    ) -> None:
+        """Bind a CTP cancel request to its exact persisted KNOWN submit.
+
+        The production CTP path marks its immutable cancel identity with
+        ``operation='cancel'``. Other route-neutral historical cancellation
+        records retain their existing provider-order-id contract.
+        """
+
+        try:
+            cancel_identity = _parse_object_json(
+                original_identity_json, "CANCEL_PROVIDER_IDENTITY_UNAVAILABLE"
+            )
+            if cancel_identity.get("operation") != "cancel":
+                return
+            if owner_intent_id is None:
+                raise ExecutionDecisionJournalError("CANCEL_OWNER_REQUIRED")
+            parent = cursor.execute(
+                """SELECT i.*,d.business_key_json AS parent_business_key_json
+                   FROM execution_decision_intents AS i
+                   JOIN execution_decisions AS d ON d.decision_id=i.decision_id
+                   WHERE i.intent_id=?""",
+                (owner_intent_id,),
+            ).fetchone()
+            if parent is None or parent["state"] != "KNOWN" or parent["dispatch_state"] != "KNOWN":
+                raise ExecutionDecisionJournalError("CANCEL_OWNER_NOT_KNOWN")
+            parent_key = ExecutionIntentKey(**_parse_object_json(
+                parent["intent_key_json"], "CANCEL_PROVIDER_IDENTITY_UNAVAILABLE"
+            ))
+            parent_decision_key = ExecutionDecisionKey(**_parse_object_json(
+                parent["parent_business_key_json"], "CANCEL_PROVIDER_IDENTITY_UNAVAILABLE"
+            ))
+            parent_identity = _parse_object_json(
+                parent["original_identity_json"], "CANCEL_PROVIDER_IDENTITY_UNAVAILABLE"
+            )
+            provider_identity = _parse_object_json(
+                parent["provider_identity_json"], "CANCEL_PROVIDER_IDENTITY_UNAVAILABLE"
+            )
+            parent_economics = _parse_object_json(
+                parent["economic_payload_json"], "CANCEL_PROVIDER_IDENTITY_UNAVAILABLE"
+            )
+            cancel_economics = _parse_object_json(
+                economic_payload_json, "CANCEL_PROVIDER_IDENTITY_UNAVAILABLE"
+            )
+        except ExecutionDecisionJournalError:
+            raise
+        except (KeyError, TypeError, ValueError) as error:
+            raise ExecutionDecisionJournalError(
+                "CANCEL_PROVIDER_IDENTITY_UNAVAILABLE"
+            ) from error
+
+        provider_order_ref = provider_identity.get("order_ref")
+        provider_sys_id = provider_identity.get("order_sys_id")
+        parent_order_ref = parent_identity.get("order_ref")
+        parent_instrument = parent_identity.get("instrument_id")
+        parent_exchange = parent_identity.get("exchange_id")
+        cancel_order_ref = cancel_identity.get("order_ref")
+        cancel_sys_id = cancel_identity.get("order_sys_id")
+        cancel_instrument = cancel_identity.get("instrument_id")
+        cancel_exchange = cancel_identity.get("exchange_id")
+        parent_economic_exchange = parent_economics.get("exchange")
+        cancel_economic_exchange = cancel_economics.get("exchange")
+        valid_text_identity = all(
+            type(value) is str and bool(value) and value == value.strip()
+            for value in (
+                provider_order_ref,
+                provider_sys_id,
+                parent_order_ref,
+                parent_instrument,
+                parent_exchange,
+                cancel_order_ref,
+                cancel_sys_id,
+                cancel_instrument,
+                cancel_exchange,
+                parent_economic_exchange,
+                cancel_economic_exchange,
+            )
+        )
+        parent_bt_order_ref = parent_identity.get("backtrader_order_ref")
+        cancel_bt_order_ref = cancel_identity.get("backtrader_order_ref")
+        same_route_and_owner = bool(
+            parent_key.action == "SUBMIT"
+            and intent_key.action == "CANCEL"
+            and parent_decision_key.account_scope == account_scope
+            and parent_decision_key.strategy_scope == strategy_scope
+            and parent_key.instrument == intent_key.instrument
+            and parent_key.side == intent_key.side
+            and parent_key.position_effect == intent_key.position_effect
+            and parent_key.instrument == parent_instrument == cancel_instrument
+            and parent_exchange == cancel_exchange == parent_economic_exchange
+            and cancel_economic_exchange == parent_exchange
+            and parent_identity.get("operation") == "insert"
+            and cancel_identity.get("owner_intent_id") == owner_intent_id
+            and type(parent_bt_order_ref) is int
+            and type(cancel_bt_order_ref) is int
+            and cancel_bt_order_ref == parent_bt_order_ref
+        )
+        provider_ids_match = bool(
+            provider_order_ref == parent_order_ref == cancel_order_ref
+            and provider_sys_id == cancel_sys_id
+        )
+        session_matches = all(
+            type(parent_identity.get(name)) is int
+            and type(cancel_identity.get(name)) is int
+            and cancel_identity.get(name) == parent_identity.get(name)
+            for name in ("front_id", "session_id", "connection_generation")
+        )
+        account_matches = all(
+            type(parent_identity.get(name)) is str
+            and bool(parent_identity.get(name))
+            and type(cancel_identity.get(name)) is str
+            and cancel_identity.get(name) == parent_identity.get(name)
+            for name in ("account_fingerprint", "trading_day")
+        )
+        provider_route_matches = (
+            provider_identity.get("instrument_id") in (None, parent_key.instrument)
+            and provider_identity.get("exchange_id") in (None, parent_exchange)
+        )
+        if not (
+            valid_text_identity
+            and same_route_and_owner
+            and provider_ids_match
+            and session_matches
+            and account_matches
+            and provider_route_matches
+        ):
+            raise ExecutionDecisionJournalError("CANCEL_PROVIDER_IDENTITY_MISMATCH")
+
     def prepare_intent(
         self,
         decision_id: str,
@@ -8172,6 +8313,16 @@ class ExecutionDecisionJournal:
                 decision_id=decision_id,
                 intent_key=intent_key,
             )
+            try:
+                decision_key = ExecutionDecisionKey(
+                    **_parse_object_json(
+                        decision_row["business_key_json"], "INVALID_DECISION_KEY"
+                    )
+                )
+            except (ExecutionDecisionJournalError, TypeError, ValueError) as error:
+                raise ExecutionDecisionJournalError("INVALID_DECISION_KEY") from error
+            account_scope = decision_key.account_scope
+            strategy_scope = decision_key.strategy_scope
             row = cursor.execute(
                 "SELECT * FROM execution_decision_intents WHERE intent_id = ?", (intent_id,)
             ).fetchone()
@@ -8183,11 +8334,24 @@ class ExecutionDecisionJournal:
                     or row["owner_intent_id"] != owner_intent_id
                 ):
                     raise ExecutionDecisionJournalError("INTENT_CONFLICT")
+                if (
+                    intent_key.action == "CANCEL"
+                    and json.loads(identity_json).get("operation") == "cancel"
+                ):
+                    self._validate_ctp_cancel_owner_binding_in_transaction(
+                        cursor,
+                        account_scope=account_scope,
+                        strategy_scope=strategy_scope,
+                        intent_key=intent_key,
+                        owner_intent_id=owner_intent_id,
+                        original_identity_json=identity_json,
+                        economic_payload_json=payload_json,
+                    )
                 self._index_native_intent_identity(
                     cursor,
                     intent_id=intent_id,
-                    account_scope=json.loads(decision_row["business_key_json"])["account_scope"],
-                    strategy_scope=json.loads(decision_row["business_key_json"])["strategy_scope"],
+                    account_scope=account_scope,
+                    strategy_scope=strategy_scope,
                     intent_key=intent_key,
                     original_identity=json.loads(identity_json),
                     capacity_class=(
@@ -8198,7 +8362,6 @@ class ExecutionDecisionJournal:
                 )
                 return _intent_record(row)
 
-            account_scope = json.loads(decision_row["business_key_json"])["account_scope"]
             intent_capacity_class = (
                 "SETTLEMENT"
                 if intent_key.action == "CANCEL" or intent_key.position_effect == "CLOSE"
@@ -8290,6 +8453,16 @@ class ExecutionDecisionJournal:
                 ).fetchone()
                 if owner_row is None or owner_row["state"] != "KNOWN":
                     raise ExecutionDecisionJournalError("CANCEL_OWNER_NOT_KNOWN")
+                if json.loads(identity_json).get("operation") == "cancel":
+                    self._validate_ctp_cancel_owner_binding_in_transaction(
+                        cursor,
+                        account_scope=account_scope,
+                        strategy_scope=strategy_scope,
+                        intent_key=intent_key,
+                        owner_intent_id=owner_intent_id,
+                        original_identity_json=identity_json,
+                        economic_payload_json=payload_json,
+                    )
                 if owner["cancel_intent_id"] not in (None, intent_id):
                     raise ExecutionDecisionJournalError("CANCEL_ALREADY_PREPARED")
                 with track_durable_row_change(
@@ -9709,10 +9882,20 @@ class ExecutionDecisionJournal:
             )
             if intent_key.action == "CANCEL":
                 decision_row = cursor.execute(
-                    "SELECT business_key_json FROM execution_decisions WHERE decision_id = ?",
+                    "SELECT * FROM execution_decisions WHERE decision_id = ?",
                     (row["decision_id"],),
                 ).fetchone()
-                account_scope = json.loads(decision_row["business_key_json"])["account_scope"]
+                if decision_row is None:
+                    raise ExecutionDecisionJournalError("DECISION_NOT_FOUND")
+                try:
+                    cancel_decision_key = ExecutionDecisionKey(
+                        **_parse_object_json(
+                            decision_row["business_key_json"], "INVALID_DECISION_KEY"
+                        )
+                    )
+                except (ExecutionDecisionJournalError, TypeError, ValueError) as error:
+                    raise ExecutionDecisionJournalError("INVALID_DECISION_KEY") from error
+                account_scope = cancel_decision_key.account_scope
                 owner_row = cursor.execute(
                     """SELECT owner_intent_id FROM execution_instrument_owners
                        WHERE account_scope = ? AND instrument = ?""",
@@ -9720,6 +9903,19 @@ class ExecutionDecisionJournal:
                 ).fetchone()
                 if owner_row is None or owner_row["owner_intent_id"] != row["owner_intent_id"]:
                     raise ExecutionDecisionJournalError("CANCEL_OWNER_RELEASED")
+                cancel_identity = _parse_object_json(
+                    row["original_identity_json"], "CANCEL_PROVIDER_IDENTITY_UNAVAILABLE"
+                )
+                if cancel_identity.get("operation") == "cancel":
+                    self._validate_ctp_cancel_owner_binding_in_transaction(
+                        cursor,
+                        account_scope=cancel_decision_key.account_scope,
+                        strategy_scope=cancel_decision_key.strategy_scope,
+                        intent_key=intent_key,
+                        owner_intent_id=row["owner_intent_id"],
+                        original_identity_json=row["original_identity_json"],
+                        economic_payload_json=row["economic_payload_json"],
+                    )
             prior_unresolved = int(
                 cursor.execute(
                     """SELECT COUNT(*) FROM execution_decision_slots AS s
@@ -9844,37 +10040,98 @@ class ExecutionDecisionJournal:
             ).fetchall()
         return tuple(_intent_record(row) for row in rows)
 
-    def execution_intent_snapshot(self, *, limit: int = 128) -> ExecutionIntentSnapshotPage:
+    def execution_intent_snapshot(
+        self, *, account_scope: str, limit: int = 128
+    ) -> ExecutionIntentSnapshotPage:
         """Return a bounded page of unresolved or still-owned intent evidence.
 
         The projection is read-only and contains no Backtrader objects. It is
         suitable for strategy/fact reconciliation, not as a command queue.
+        Scope classification and selection share one SQLite read transaction;
+        the requested account is applied in SQL before the bounded page limit.
         """
 
+        _require_identifier(account_scope, "INVALID_ACCOUNT_SCOPE")
         if type(limit) is not int or not 1 <= limit <= self.max_pending_intents:
             raise ExecutionDecisionJournalError("INVALID_INTENT_SNAPSHOT_LIMIT")
+        effective = """(
+            (i.state IN ('PREPARED','DISPATCHING','UNKNOWN')
+             AND NOT EXISTS (
+                 SELECT 1 FROM execution_intent_abandonments AS a
+                 WHERE a.intent_id=i.intent_id
+             ))
+            OR EXISTS (
+                SELECT 1 FROM execution_instrument_owners AS o
+                WHERE o.owner_intent_id=i.intent_id
+                   OR o.cancel_intent_id=i.intent_id
+            )
+        )"""
         with self._read_lock():
-            rows = self._connection.execute(
-                """SELECT i.*
-                   FROM execution_decision_intents AS i
-                   WHERE (
-                          i.state IN ('PREPARED','DISPATCHING','UNKNOWN')
-                          AND NOT EXISTS (
-                              SELECT 1 FROM execution_intent_abandonments AS a
-                              WHERE a.intent_id=i.intent_id
-                          )
-                   )
-                      OR EXISTS (
-                          SELECT 1 FROM execution_instrument_owners AS o
-                          WHERE o.owner_intent_id = i.intent_id
-                             OR o.cancel_intent_id = i.intent_id
-                      )
-                   ORDER BY i.created_at_ns, i.intent_id
-                   LIMIT ?""",
-                (limit + 1,),
-            ).fetchall()
+            self._connection.execute("BEGIN")
+            try:
+                # Do not silently lose an effective intent whose decision or
+                # key cannot be classified. Iterate in bounded chunks and do
+                # not materialize or return rows from another account.
+                validation_cursor = self._connection.execute(
+                    """SELECT i.intent_id,i.decision_id,i.intent_key_json,
+                              d.business_key_json
+                       FROM execution_decision_intents AS i
+                       LEFT JOIN execution_decisions AS d ON d.decision_id=i.decision_id
+                       WHERE {} ORDER BY i.intent_id""".format(effective)
+                )
+                try:
+                    while True:
+                        batch = validation_cursor.fetchmany(64)
+                        if not batch:
+                            break
+                        for item in batch:
+                            try:
+                                if (
+                                    item["business_key_json"] is None
+                                    or item["intent_id"] is None
+                                    or item["decision_id"] is None
+                                ):
+                                    raise ValueError("effective intent has no decision")
+                                decision_values = _parse_object_json(
+                                    item["business_key_json"], "INTENT_SCOPE_UNCLASSIFIABLE"
+                                )
+                                decision_key = ExecutionDecisionKey(**decision_values)
+                                if _canonical_json(_decision_key_values(decision_key)) != item[
+                                    "business_key_json"
+                                ]:
+                                    raise ValueError("effective decision key is not canonical")
+                                intent_values = _parse_object_json(
+                                    item["intent_key_json"], "INTENT_SCOPE_UNCLASSIFIABLE"
+                                )
+                                intent_key = ExecutionIntentKey(**intent_values)
+                                if _canonical_json(_intent_key_values(intent_key)) != item[
+                                    "intent_key_json"
+                                ]:
+                                    raise ValueError("effective intent key is not canonical")
+                            except (ExecutionDecisionJournalError, KeyError, TypeError, ValueError) as error:
+                                raise ExecutionDecisionJournalError(
+                                    "INTENT_SCOPE_UNCLASSIFIABLE"
+                                ) from error
+                finally:
+                    validation_cursor.close()
+
+                rows = self._connection.execute(
+                    """SELECT i.*,d.business_key_json AS snapshot_business_key_json
+                       FROM execution_decision_intents AS i
+                       JOIN execution_decisions AS d ON d.decision_id=i.decision_id
+                       WHERE {} AND json_extract(d.business_key_json,'$.account_scope')=?
+                       ORDER BY i.created_at_ns, i.intent_id
+                       LIMIT ?""".format(effective),
+                    (account_scope, limit + 1),
+                ).fetchall()
+                self._connection.execute("COMMIT")
+            except BaseException:
+                if self._connection.in_transaction:
+                    self._connection.execute("ROLLBACK")
+                raise
         truncated = len(rows) > limit
         return ExecutionIntentSnapshotPage(
+            account_scope=account_scope,
             items=tuple(_intent_record(row) for row in rows[:limit]),
             truncated=truncated,
         )
@@ -14423,6 +14680,14 @@ def _intent_record(row: sqlite3.Row) -> ExecutionIntentRecord:
     if row["provider_identity_json"] is not None:
         result = json.loads(row["provider_identity_json"])
     key = ExecutionIntentKey(**json.loads(row["intent_key_json"]))
+    row_names = set(row.keys())
+    decision_key = None
+    if "snapshot_business_key_json" in row_names:
+        decision_key = ExecutionDecisionKey(
+            **_parse_object_json(
+                row["snapshot_business_key_json"], "INTENT_SCOPE_UNCLASSIFIABLE"
+            )
+        )
     return ExecutionIntentRecord(
         intent_id=row["intent_id"],
         decision_id=row["decision_id"],
@@ -14436,6 +14701,7 @@ def _intent_record(row: sqlite3.Row) -> ExecutionIntentRecord:
         outcome_code=row["outcome_code"],
         created_at_ns=int(row["created_at_ns"]),
         updated_at_ns=int(row["updated_at_ns"]),
+        decision_key=decision_key,
     )
 
 

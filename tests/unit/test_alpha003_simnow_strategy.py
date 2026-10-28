@@ -2337,6 +2337,197 @@ def test_order_planner_refuses_new_risk_when_explicit_budgets_are_exceeded(
     assert plan.actions == ()
 
 
+def test_ready_pair_plan_preserves_per_leg_and_aggregate_risk_candidate():
+    inputs = _risk_facts()
+    plan = _STRATEGY.plan_alpha003_orders(inputs)
+
+    candidate = plan.open_risk_candidate
+    assert plan.status == "READY"
+    assert candidate is not None
+    assert candidate.schema == "backtrader.alpha003.open_risk_candidate.v1"
+    assert (candidate.strategy_scope, candidate.batch_id) == (
+        "alpha003-simnow-example",
+        "batch-1",
+    )
+    assert candidate.risk_policy_id == "alpha003-example-risk-v1"
+    assert (candidate.account_scope, candidate.account_snapshot_id) == (
+        "simnow-paper-account",
+        "account-snapshot-1",
+    )
+    assert candidate.query_set_id is None
+    assert candidate.account_fingerprint is None
+    assert candidate.connection_generation is None
+    assert candidate.trading_day is None
+    assert candidate.source_snapshot_id is None
+    assert candidate.eligible_grid_ordinal is None
+    assert candidate.held_fee_reserve == Decimal("0")
+    assert candidate.required_margin == Decimal("200")
+    assert candidate.added_notional == Decimal("2000")
+    assert candidate.added_loss == Decimal("22")
+    assert candidate.projected_total_margin == Decimal("200")
+    assert candidate.projected_total_notional == Decimal("2000")
+    assert candidate.projected_total_worst_case_loss == Decimal("22")
+    assert (candidate.max_total_margin, candidate.max_total_notional, candidate.max_total_loss) == (
+        Decimal("500"),
+        Decimal("3000"),
+        Decimal("40"),
+    )
+    assert tuple((item.target_id, item.side, item.entry_price, item.stop_price) for item in candidate.legs) == (
+        ("A", "BUY", Decimal("100"), Decimal("99.0")),
+        ("B", "SELL", Decimal("99.5"), Decimal("100.5")),
+    )
+    assert tuple(item.margin for item in candidate.legs) == (Decimal("100"), Decimal("100"))
+    assert tuple(item.notional for item in candidate.legs) == (Decimal("1000"), Decimal("1000.0"))
+    assert tuple(item.stop_loss for item in candidate.legs) == (Decimal("10"), Decimal("10"))
+    assert tuple(item.round_trip_fee_upper_bound for item in candidate.legs) == (
+        Decimal("1"),
+        Decimal("1"),
+    )
+    assert tuple(item.worst_case_loss for item in candidate.legs) == (
+        Decimal("11"),
+        Decimal("11"),
+    )
+    assert tuple(item.quote_source_ref for item in candidate.legs) == (
+        "quote-SHFE.rb",
+        "quote-DCE.i",
+    )
+
+    class _RiskIntentHarness:
+        _order_intents = _STRATEGY.Alpha003TargetStrategy._order_intents
+        _risk_policy_payload = _STRATEGY.Alpha003TargetStrategy._risk_policy_payload
+
+        def __init__(self):
+            self._strategy_scope = inputs.strategy_scope
+            self._risk_policy = inputs.risk_policy
+
+    _keys, economics = _RiskIntentHarness()._order_intents(
+        plan, SimpleNamespace(batch_id="batch-1")
+    )
+    assert tuple(item["target_id"] for item in economics) == ("A", "B")
+    assert tuple(
+        Decimal(item["open_risk_candidate"]["worst_case_loss"]) for item in economics
+    ) == (Decimal("11"), Decimal("11"))
+    assert economics[0]["open_risk_candidate"]["quote_metadata_snapshot_id"] == "metadata-SHFE.rb"
+    serialized = _STRATEGY._open_risk_candidate_payload(candidate)
+    assert tuple(item["target_id"] for item in serialized["legs"]) == ("A", "B")
+    assert Decimal(serialized["projected_total_worst_case_loss"]) == Decimal("22")
+
+
+def test_float_risk_inputs_use_directional_envelopes_without_changing_order_prices():
+    inputs = _risk_facts()
+    quote = _STRATEGY.Alpha003QuoteFact(
+        instrument="SHFE.rb",
+        source_ref="quote-SHFE.rb",
+        metadata_snapshot_id="metadata-SHFE.rb",
+        generation=1,
+        sequence=1,
+        event_time=AVAILABLE + timedelta(seconds=4),
+        available_at=AVAILABLE + timedelta(seconds=5),
+        bid=99.5,
+        ask=100.0,
+        bid_size=2.0,
+        ask_size=2.0,
+        tick_size=0.5,
+        lower_limit=90.0,
+        upper_limit=110.0,
+        exchange="SHFE",
+    )
+    instrument = _STRATEGY.Alpha003InstrumentRiskFact(
+        target_id="A",
+        instrument="SHFE.rb",
+        exchange="SHFE",
+        snapshot_id="metadata-SHFE.rb",
+        available_at=inputs.evaluated_at,
+        trading_permitted=True,
+        route_permitted=True,
+        multiplier=10.0,
+        long_margin_per_hand=100.0,
+        short_margin_per_hand=100.0,
+        tick_size=0.5,
+        lower_limit=90.0,
+        upper_limit=110.0,
+    )
+    inputs = replace(
+        inputs,
+        quotes=(quote, inputs.quotes[1]),
+        instruments=(instrument, inputs.instruments[1]),
+    )
+
+    plan = _STRATEGY.plan_alpha003_orders(inputs)
+
+    assert plan.status == "READY", plan.reason
+    candidate = plan.open_risk_candidate
+    assert candidate is not None
+    assert quote.bid == Decimal("99.5")
+    assert quote.ask == Decimal("100.0")
+    assert quote.risk_bid_lower < quote.bid < quote.risk_bid_upper
+    assert quote.risk_ask_lower < quote.ask < quote.risk_ask_upper
+    assert quote.tick_size == Decimal("0.5")
+    assert quote.risk_tick_size_upper > quote.tick_size
+    assert instrument.multiplier == Decimal("10.0")
+    assert instrument.risk_multiplier_upper > instrument.multiplier
+    assert instrument.long_margin_per_hand == Decimal("100.0")
+    assert instrument.risk_long_margin_per_hand_upper > instrument.long_margin_per_hand
+    assert candidate.legs[0].entry_price == Decimal("100.0")
+    assert candidate.legs[0].stop_price == Decimal("99.0")
+    assert candidate.legs[0].notional > Decimal("1000")
+    assert candidate.added_notional > Decimal("2000")
+    assert candidate.legs[0].stop_loss > Decimal("10")
+    assert plan.actions[0].limit_price == Decimal("100.0")
+    assert plan.actions[0].planned_stop_price == Decimal("99.0")
+    assert plan.actions[0].planned_stop_price % quote.tick_size == 0
+
+
+def test_native_float_available_margin_lower_bound_can_block_exact_cap_boundary():
+    float_inputs = _risk_facts(account_changes={"available_margin": 200.0})
+    exact_inputs = _risk_facts(account_changes={"available_margin": Decimal("200")})
+
+    float_plan = _STRATEGY.plan_alpha003_orders(float_inputs)
+    exact_plan = _STRATEGY.plan_alpha003_orders(exact_inputs)
+
+    assert float_inputs.account.available_margin < Decimal.from_float(200.0)
+    assert float_plan.status == "BLOCKED"
+    assert float_plan.reason == "ACCOUNT_RISK_LIMIT"
+    assert exact_inputs.account.available_margin == Decimal("200")
+    assert exact_plan.status == "READY"
+
+
+def test_strategy_float_envelope_rejects_negative_subnormal_before_nextafter():
+    envelope = _STRATEGY._risk_native_float_envelope
+
+    assert envelope(-5e-324, upward=True) is None
+    assert envelope(-5e-324, upward=False) is None
+    assert envelope(-0.0, upward=True) == Decimal.from_float(-0.0)
+    assert envelope(-0.0, upward=False) == Decimal.from_float(-0.0)
+    assert envelope(0.0, upward=True) == Decimal(0)
+    assert envelope(0.0, upward=False) == Decimal(0)
+    assert envelope(5e-324, upward=True) is None
+    assert envelope(5e-324, upward=False) == Decimal(0)
+
+
+def test_alpha_risk_envelopes_cannot_understate_replaced_source_values():
+    base = _risk_facts()
+
+    with pytest.raises(ValueError, match="risk_multiplier_upper is below its source value"):
+        replace(base.instruments[0], multiplier=Decimal("11"))
+    with pytest.raises(ValueError, match="risk_ask_upper is below its source price"):
+        replace(base.quotes[0], ask=Decimal("101"))
+
+
+def test_blocked_open_plan_does_not_publish_a_risk_candidate():
+    base = _risk_facts()
+    inputs = replace(
+        base,
+        account=replace(base.account, current_worst_case_loss=None),
+    )
+
+    plan = _STRATEGY.plan_alpha003_orders(inputs)
+
+    assert plan.status == "BLOCKED"
+    assert plan.actions == ()
+    assert plan.open_risk_candidate is None
+
+
 @pytest.mark.parametrize(
     ("denial", "expected_reason"),
     (
@@ -2416,6 +2607,35 @@ def test_live_run_keeps_source_backed_owned_order_cancel_during_warmup_without_o
     )
     request.addfinalizer(journal.close)
     receipt = facts_fixture._refresh_all(store, target)
+    # Establish the run policy from the same complete account/query receipt
+    # before the fixture creates its already-working OPEN intent. The journal
+    # intentionally refuses to enable a baseline after an OPEN has been
+    # prepared or dispatched.
+    baseline_facts = facts_fixture._project(
+        store,
+        broker,
+        target,
+        datetime.now(UTC),
+        query_set=receipt.query_set,
+    )
+    assert baseline_facts.account is not None
+    assert baseline_facts.account.total_net_pnl_available is True
+    loss_guard_context = (
+        facts_fixture.execution_decision_journal_module.ExecutionRunLossGuardContext(
+            account_scope="acct-scope",
+            strategy_scope="alpha003",
+            logical_run_id="run-1",
+            trading_day=baseline_facts.account.trading_day,
+            currency="CNY",
+            pnl_basis=_STRATEGY.RUN_LOSS_PNL_BASIS,
+        )
+    )
+    coordinator.enable_run_loss_guard(
+        loss_guard_context,
+        baseline_facts.account,
+        net_loss_threshold=Decimal("1000"),
+        max_observation_age_seconds=30,
+    )
     runner = _load_loss_guard_runner()
     assert runner.QueryRefreshLoop._receipt_complete(receipt) is True
     refresh_loop = runner.QueryRefreshLoop(
@@ -2446,27 +2666,23 @@ def test_live_run_keeps_source_backed_owned_order_cancel_during_warmup_without_o
         simulated=True,
     )
     order.status = facts_fixture.Order.Accepted
-    order.info.update(
-        {
-            "external_order_ref": "94",
-            "order_sys_id": "sys-94",
-            "registered_sim_ctp_order_sys_id": "sys-94",
-            "registered_sim_ctp_order_sys_id_source": "ctp_order_callback",
-            "_registered_sim_ctp_identity_binding_captured": True,
-            "_registered_sim_ctp_identity_binding_valid": True,
-            "instrument_id": facts_fixture._INSTRUMENT,
-            "exchange_id": facts_fixture._EXCHANGE,
-            "factor_position_effect": "OPEN",
-            "factor_strategy_scope": "alpha003",
-            "factor_intent_id": "intent-94",
-            "front_id": 4,
-            "session_id": 7,
-            "execution_unknown": False,
-            "cancel_requested_remote": False,
-            "cancel_intent_active": False,
-            "managed_execution_cancel_pending": False,
-        }
+    prepared_submit = facts_fixture._record_known_submit_owner(
+        journal,
+        order,
+        target,
+        api=api,
+        now=now,
+        external_order_ref="94",
+        order_sys_id="sys-94",
+        loss_guard_context=loss_guard_context,
     )
+    owned_submit = journal.intent(prepared_submit.intent_id)
+    assert owned_submit is not None
+    assert owned_submit.state == "KNOWN"
+    assert owned_submit.provider_identity == {
+        "order_ref": "94",
+        "order_sys_id": "sys-94",
+    }
     broker.orders[order.ref] = order
     store._latest_ticks.clear()
 
@@ -2570,7 +2786,7 @@ def test_live_run_keeps_source_backed_owned_order_cancel_during_warmup_without_o
     assert facts.account is not None and facts.account.route_permitted is True
     assert facts.account.total_net_pnl_available is True
     assert facts.working_orders[0].owner_strategy_scope == facts.strategy_scope
-    assert facts.working_orders[0].owner_intent_id == "intent-94"
+    assert facts.working_orders[0].owner_intent_id == owned_submit.intent_id
     assert facts.working_orders[0].order_sys_id == "sys-94"
     assert facts.working_orders[0].front_id == 4
     assert facts.working_orders[0].session_id == 7
@@ -2586,7 +2802,9 @@ def test_live_run_keeps_source_backed_owned_order_cancel_during_warmup_without_o
     assert len(scopes[0]["intent_keys"]) == 1
     assert scopes[0]["intent_keys"][0].action == "CANCEL"
     assert scopes[0]["intent_keys"][0].position_effect == "OPEN"
-    assert scopes[0]["economic_payload"]["intent_economics"][0]["owner_intent_id"] == ("intent-94")
+    assert scopes[0]["economic_payload"]["intent_economics"][0]["owner_intent_id"] == (
+        owned_submit.intent_id
+    )
     assert canceled == [order]
     assert strategy.last_execution_block_reason == "DECISION_TAPE_REFERENCE_INVALID"
     assert strategy.source_continuity_failure_count == 0
@@ -3899,7 +4117,11 @@ def test_tick_stop_multiplier_loss_just_above_cap_cannot_round_down():
     exact_multiplier = Decimal("10.000000000000000000000000001")
     rounded_down_cap = Decimal("10.00000000000000000000000000")
     instruments = (
-        replace(base.instruments[0], multiplier=exact_multiplier),
+        replace(
+            base.instruments[0],
+            multiplier=exact_multiplier,
+            risk_multiplier_upper=None,
+        ),
         base.instruments[1],
     )
     inputs = replace(
@@ -3972,7 +4194,11 @@ def test_margin_cap_equal_to_low_precision_legacy_value_rejects_open():
 
         base = _risk_facts()
         instruments = (
-            replace(base.instruments[0], long_margin_per_hand=exact_margin),
+            replace(
+                base.instruments[0],
+                long_margin_per_hand=exact_margin,
+                risk_long_margin_per_hand_upper=None,
+            ),
             base.instruments[1],
         )
         inputs = replace(
@@ -4047,7 +4273,14 @@ def test_risk_arithmetic_rejects_decimal_values_outside_bounded_domain(field, va
     base = _risk_facts()
     inputs = replace(
         base,
-        instruments=(replace(base.instruments[0], **{field: value}), base.instruments[1]),
+        instruments=(
+            replace(
+                base.instruments[0],
+                **{field: value},
+                risk_multiplier_upper=None,
+            ),
+            base.instruments[1],
+        ),
     )
 
     plan = _STRATEGY.plan_alpha003_orders(inputs)
@@ -4490,7 +4723,7 @@ def test_exhausted_run_budget_keeps_owned_residual_not_flat():
     assert strategy.shutdown_blocker == "SHUTDOWN_OWNED_POSITION_OPEN:" + target.target_id
 
 
-def _source_backed_read_only_reconciliation_case(scenario="positive"):
+def _source_backed_read_only_reconciliation_case(scenario="positive", **kwargs):
     """Use the facts suite's real Store/Broker/coordinator/query projection."""
 
     module_name = "_alpha003_source_backed_dated_facts_fixture"
@@ -4521,7 +4754,7 @@ def _source_backed_read_only_reconciliation_case(scenario="positive"):
     builder = getattr(module, "_build_source_backed_read_only_reconciliation_case", None)
     if not callable(builder):
         raise RuntimeError("read-only reconciliation source fixture is not available yet")
-    return builder(scenario=scenario)
+    return builder(scenario=scenario, **kwargs)
 
 
 def _source_backed_loss_guard_case(account_row):
@@ -5174,6 +5407,7 @@ def test_cerebro_strategy_blocks_open_then_replays_owned_close_once(
                 {"batch_id": "fee-pair-cancel-fixture", "mode": "native"},
                 intent_keys=(open_key,),
             )
+            active_session = active_module._source_session_identity(active_api)
             active_intent = active_journal.prepare_intent(
                 decision.decision_id,
                 open_key,
@@ -5185,7 +5419,11 @@ def test_cerebro_strategy_blocks_open_then_replays_owned_close_once(
                     "exchange_id": active_target.exchange,
                     "order_ref": "94",
                     "order_sys_id": "sys-active-94",
-                    "trading_day": active_module._TRADING_DAY,
+                    "front_id": active_session["front_id"],
+                    "session_id": active_session["session_id"],
+                    "account_fingerprint": active_session["account_fingerprint"],
+                    "connection_generation": active_session["connection_generation"],
+                    "trading_day": active_session["trading_day"],
                 },
             )
             assert active_journal.claim_dispatch(active_intent.intent_id) is not None
@@ -5208,8 +5446,8 @@ def test_cerebro_strategy_blocks_open_then_replays_owned_close_once(
                     "factor_position_effect": "OPEN",
                     "factor_strategy_scope": active_coordinator.strategy_scope,
                     "factor_intent_id": active_intent.intent_id,
-                    "front_id": 4,
-                    "session_id": 7,
+                    "front_id": active_session["front_id"],
+                    "session_id": active_session["session_id"],
                     "execution_unknown": False,
                     "cancel_requested_remote": False,
                     "cancel_intent_active": False,
@@ -5486,6 +5724,42 @@ def test_read_only_flat_shadow_can_retire_while_trading_plan_is_blocked():
     assert strategy.shutdown_ready is True
     assert strategy.shutdown_blocker is None
     assert strategy._last_shutdown_facts_id == facts.snapshot_id
+
+
+def test_zero_tick_blocks_reduction_but_preserves_exact_source_backed_cancel():
+    case = _source_backed_read_only_reconciliation_case(
+        "active_order",
+        instrument_overrides={"PriceTick": 0.0},
+        allow_writes=True,
+    )
+    try:
+        assert case.facts.order_cancel_ready is True
+        assert case.facts.risk_reduction_ready is False
+        assert "instrument_tick_unobserved:" + case.target.instrument in (
+            case.facts.aggregate_write_blockers
+        )
+        planning_input = _STRATEGY._live_planning_input(
+            case.facts,
+            strategy_scope=case.facts.strategy_scope,
+            evaluated_at=case.now + timedelta(seconds=1),
+            risk_evidence_available_at=case.facts.available_at,
+            session_close_at=None,
+            run_end=True,
+            risk_policy=_risk_policy(),
+            target_decision=None,
+            eligible_grid_ordinal=None,
+            run_order_intents_used=0,
+        )
+
+        plan = _STRATEGY.plan_alpha003_orders(planning_input)
+
+        assert plan.status == "READY"
+        assert plan.reason == "CANCEL_OPEN_ORDERS_BEFORE_EXIT"
+        assert len(plan.actions) == 1
+        assert plan.actions[0].action == "CANCEL"
+        assert plan.actions[0].owner_intent_id == case.intent.intent_id
+    finally:
+        case.journal.close()
 
 
 @pytest.mark.parametrize("scenario", ("active_order", "pending_order"))

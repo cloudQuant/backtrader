@@ -2228,6 +2228,377 @@ def test_cancel_is_bound_to_active_owner_and_does_not_replace_it(tmp_path):
     journal.close()
 
 
+def _prepare_known_ctp_submit_for_cancel(journal, *, suffix="safe", omit_sys_id=False):
+    instrument = "SIM-CTP-{}".format(suffix)
+    order_ref = "94"
+    order_sys_id = None if omit_sys_id else "sys-{}".format(suffix)
+    decision_key = ExecutionDecisionKey(
+        account_scope="account-a",
+        strategy_scope="strategy-a",
+        logical_run_id="run-{}".format(suffix),
+        cohort_id="cohort-{}".format(suffix),
+        close_time="2026-10-20T10:08:00Z",
+        decision_kind="alpha003-rebalance",
+    )
+    submit_key = _intent_key(instrument, side="BUY", effect="OPEN")
+    decision = journal.record_decision(
+        decision_key,
+        {"signal": "known-ctp-submit"},
+        intent_keys=(submit_key,),
+    )
+    submit = journal.prepare_intent(
+        decision.decision_id,
+        submit_key,
+        {"instrument": instrument, "exchange": "SHFE", "target_id": "target"},
+        original_identity={
+            "backtrader_order_ref": 94,
+            "operation": "insert",
+            "instrument_id": instrument,
+            "exchange_id": "SHFE",
+            "order_ref": order_ref,
+            "front_id": 4,
+            "session_id": 7,
+            "account_fingerprint": "account-fingerprint",
+            "connection_generation": 3,
+            "trading_day": "20261020",
+        },
+    )
+    assert journal.claim_dispatch(submit.intent_id) is not None
+    journal.record_dispatch_result(
+        submit.intent_id,
+        state="KNOWN",
+        provider_identity={
+            "operation": "insert",
+            "instrument_id": instrument,
+            "exchange_id": "SHFE",
+            "order_ref": order_ref,
+            "order_sys_id": order_sys_id,
+            "front_id": 4,
+            "session_id": 7,
+        },
+        outcome_code="accepted",
+    )
+    return submit, instrument, order_ref, order_sys_id
+
+
+@pytest.mark.parametrize(
+    "mismatch",
+    (
+        "order_ref",
+        "order_sys_id",
+        "backtrader_order_ref",
+        "instrument_id",
+        "exchange_id",
+        "front_id",
+        "session_id",
+        "connection_generation",
+        "account_fingerprint",
+        "trading_day",
+    ),
+)
+def test_ctp_cancel_prepare_rejects_provider_identity_not_owned_by_known_submit(
+    tmp_path, mismatch
+):
+    journal = ExecutionDecisionJournal(tmp_path / "cancel-provider-{}.sqlite3".format(mismatch))
+    try:
+        submit, instrument, order_ref, order_sys_id = _prepare_known_ctp_submit_for_cancel(
+            journal, suffix=mismatch
+        )
+        cancel_key = _intent_key(
+            instrument, action="CANCEL", side="BUY", effect="OPEN"
+        )
+        cancel_decision = journal.record_decision(
+            ExecutionDecisionKey(
+                account_scope="account-a",
+                strategy_scope="strategy-a",
+                logical_run_id="cancel-run-{}".format(mismatch),
+                cohort_id="cancel-cohort-{}".format(mismatch),
+                close_time="2026-10-20T10:09:00Z",
+                decision_kind="risk",
+            ),
+            {"signal": "cancel"},
+            intent_keys=(cancel_key,),
+        )
+        identity = {
+            "backtrader_order_ref": 95 if mismatch == "backtrader_order_ref" else 94,
+            "operation": "cancel",
+            "instrument_id": "wrong-instrument" if mismatch == "instrument_id" else instrument,
+            "exchange_id": "DCE" if mismatch == "exchange_id" else "SHFE",
+            "order_ref": "wrong-ref" if mismatch == "order_ref" else order_ref,
+            "order_sys_id": "wrong-sysid" if mismatch == "order_sys_id" else order_sys_id,
+            "front_id": 5 if mismatch == "front_id" else 4,
+            "session_id": 8 if mismatch == "session_id" else 7,
+            "account_fingerprint": (
+                "other-account-fingerprint"
+                if mismatch == "account_fingerprint"
+                else "account-fingerprint"
+            ),
+            "connection_generation": 2 if mismatch == "connection_generation" else 3,
+            "trading_day": "20261021" if mismatch == "trading_day" else "20261020",
+            "owner_intent_id": submit.intent_id,
+        }
+        with pytest.raises(ExecutionDecisionJournalError, match="CANCEL_PROVIDER_IDENTITY_MISMATCH"):
+            journal.prepare_intent(
+                cancel_decision.decision_id,
+                cancel_key,
+                {"target_id": "target", "instrument": instrument, "exchange": "SHFE"},
+                original_identity=identity,
+                owner_intent_id=submit.intent_id,
+            )
+        assert journal._connection.execute(
+            "SELECT COUNT(*) FROM execution_decision_intents WHERE decision_id=?",
+            (cancel_decision.decision_id,),
+        ).fetchone()[0] == 0
+        owner = journal.active_instrument_owner("account-a", instrument)
+        assert owner is not None and owner.intent_id == submit.intent_id
+        assert owner.cancel_intent_id is None
+    finally:
+        journal.close()
+
+
+def test_ctp_cancel_prepare_and_claim_accept_exact_parent_provider_identity(tmp_path):
+    journal = ExecutionDecisionJournal(tmp_path / "cancel-provider-exact.sqlite3")
+    try:
+        submit, instrument, order_ref, order_sys_id = _prepare_known_ctp_submit_for_cancel(
+            journal
+        )
+        cancel_key = _intent_key(instrument, action="CANCEL", side="BUY", effect="OPEN")
+        decision = journal.record_decision(
+            ExecutionDecisionKey(
+                account_scope="account-a",
+                strategy_scope="strategy-a",
+                logical_run_id="cancel-run-safe",
+                cohort_id="cancel-cohort-safe",
+                close_time="2026-10-20T10:09:00Z",
+                decision_kind="risk",
+            ),
+            {"signal": "cancel"},
+            intent_keys=(cancel_key,),
+        )
+        cancel = journal.prepare_intent(
+            decision.decision_id,
+            cancel_key,
+            {"target_id": "target", "instrument": instrument, "exchange": "SHFE"},
+            original_identity={
+                "backtrader_order_ref": 94,
+                "operation": "cancel",
+                "instrument_id": instrument,
+                "exchange_id": "SHFE",
+                "order_ref": order_ref,
+                "order_sys_id": order_sys_id,
+                "front_id": 4,
+                "session_id": 7,
+                "account_fingerprint": "account-fingerprint",
+                "connection_generation": 3,
+                "trading_day": "20261020",
+                "owner_intent_id": submit.intent_id,
+            },
+            owner_intent_id=submit.intent_id,
+        )
+        assert cancel.state == "PREPARED"
+        claim = journal.claim_dispatch(cancel.intent_id)
+        assert claim is not None
+        assert claim.intent.intent_id == cancel.intent_id
+    finally:
+        journal.close()
+
+
+def test_ctp_cancel_prepare_rejects_known_parent_without_provider_sysid(tmp_path):
+    journal = ExecutionDecisionJournal(tmp_path / "cancel-provider-missing-sysid.sqlite3")
+    try:
+        submit, instrument, order_ref, order_sys_id = _prepare_known_ctp_submit_for_cancel(
+            journal, suffix="missing-sysid", omit_sys_id=True
+        )
+        assert order_sys_id is None
+        cancel_key = _intent_key(instrument, action="CANCEL", side="BUY", effect="OPEN")
+        decision = journal.record_decision(
+            ExecutionDecisionKey(
+                account_scope="account-a",
+                strategy_scope="strategy-a",
+                logical_run_id="cancel-run-missing-sysid",
+                cohort_id="cancel-cohort-missing-sysid",
+                close_time="2026-10-20T10:09:00Z",
+                decision_kind="risk",
+            ),
+            {"signal": "cancel"},
+            intent_keys=(cancel_key,),
+        )
+        with pytest.raises(ExecutionDecisionJournalError, match="CANCEL_PROVIDER_IDENTITY_MISMATCH"):
+            journal.prepare_intent(
+                decision.decision_id,
+                cancel_key,
+                {"target_id": "target", "instrument": instrument, "exchange": "SHFE"},
+                original_identity={
+                    "backtrader_order_ref": 94,
+                    "operation": "cancel",
+                    "instrument_id": instrument,
+                    "exchange_id": "SHFE",
+                    "order_ref": order_ref,
+                    "order_sys_id": None,
+                    "front_id": 4,
+                    "session_id": 7,
+                    "account_fingerprint": "account-fingerprint",
+                    "connection_generation": 3,
+                    "trading_day": "20261020",
+                    "owner_intent_id": submit.intent_id,
+                },
+                owner_intent_id=submit.intent_id,
+            )
+        assert journal._connection.execute(
+            "SELECT COUNT(*) FROM execution_decision_intents WHERE decision_id=?",
+            (decision.decision_id,),
+        ).fetchone()[0] == 0
+        owner = journal.active_instrument_owner("account-a", instrument)
+        assert owner is not None and owner.intent_id == submit.intent_id
+        assert owner.cancel_intent_id is None
+    finally:
+        journal.close()
+
+
+def test_execution_intent_snapshot_filters_account_before_bounded_limit_and_keeps_strategy_scope(
+    tmp_path,
+):
+    journal = ExecutionDecisionJournal(tmp_path / "intent-snapshot-account-scope.sqlite3")
+    try:
+        # More rows than the bounded page from account B are deliberately
+        # older than account A's rows. Filtering after LIMIT would hide A.
+        for index in range(130):
+            instrument = "ACCOUNT-B-{:03d}".format(index)
+            key = ExecutionIntentKey("SUBMIT", instrument, "BUY", "OPEN", 0)
+            decision = journal.record_decision(
+                ExecutionDecisionKey(
+                    account_scope="account-b",
+                    strategy_scope="strategy-b",
+                    logical_run_id="run-b",
+                    cohort_id="cohort-b-{:03d}".format(index),
+                    close_time="2026-10-20T10:00:00Z",
+                    decision_kind="bar",
+                ),
+                {"signal": "unresolved"},
+                intent_keys=(key,),
+            )
+            journal.prepare_intent(
+                decision.decision_id,
+                key,
+                {"instrument": instrument, "exchange": "SHFE"},
+            )
+
+        for strategy, run, cohort in (
+            ("strategy-a", "old-run", "account-a-old-run"),
+            ("strategy-a", "new-run", "account-a-new-run"),
+            ("strategy-other", "other-run", "account-a-other-strategy"),
+        ):
+            instrument = "A-" + cohort
+            key = ExecutionIntentKey("SUBMIT", instrument, "BUY", "OPEN", 0)
+            decision = journal.record_decision(
+                ExecutionDecisionKey(
+                    account_scope="account-a",
+                    strategy_scope=strategy,
+                    logical_run_id=run,
+                    cohort_id=cohort,
+                    close_time="2026-10-20T10:00:00Z",
+                    decision_kind="bar",
+                ),
+                {"signal": "unresolved"},
+                intent_keys=(key,),
+            )
+            journal.prepare_intent(
+                decision.decision_id,
+                key,
+                {"instrument": instrument, "exchange": "SHFE"},
+            )
+
+        page = journal.execution_intent_snapshot(account_scope="account-a", limit=3)
+        assert page.account_scope == "account-a"
+        assert page.truncated is False
+        assert len(page.items) == 3
+        assert {item.decision_key.account_scope for item in page.items} == {"account-a"}
+        assert {
+            (item.decision_key.strategy_scope, item.decision_key.logical_run_id)
+            for item in page.items
+        } == {
+            ("strategy-a", "old-run"),
+            ("strategy-a", "new-run"),
+            ("strategy-other", "other-run"),
+        }
+        assert {item.decision_key.account_scope for item in page.items} == {"account-a"}
+        smaller_page = journal.execution_intent_snapshot(account_scope="account-a", limit=2)
+        assert smaller_page.truncated is True
+        assert all(item.decision_key.account_scope == "account-a" for item in smaller_page.items)
+    finally:
+        journal.close()
+
+
+@pytest.mark.parametrize(
+    "corrupt_field",
+    (
+        "decision_key",
+        "intent_key",
+        "malformed_decision_json",
+        "malformed_intent_json",
+        "duplicate_decision_scope",
+        "orphan_decision",
+    ),
+)
+def test_execution_intent_snapshot_fails_closed_on_unclassifiable_effective_key(
+    tmp_path, corrupt_field
+):
+    journal = ExecutionDecisionJournal(tmp_path / "intent-snapshot-corrupt.sqlite3")
+    try:
+        _decision, intent = _prepare(journal)
+        if corrupt_field == "decision_key":
+            journal._connection.execute(
+                "UPDATE execution_decisions SET business_key_json=? WHERE decision_id=?",
+                ('{"strategy_scope":"strategy-a"}', intent.decision_id),
+            )
+        elif corrupt_field == "intent_key":
+            journal._connection.execute(
+                "UPDATE execution_decision_intents SET intent_key_json=? WHERE intent_id=?",
+                ('{"action":"SUBMIT","instrument":"SIM-IF-1"}', intent.intent_id),
+            )
+        elif corrupt_field == "malformed_decision_json":
+            journal._connection.execute(
+                "UPDATE execution_decisions SET business_key_json=? WHERE decision_id=?",
+                ("{", intent.decision_id),
+            )
+        elif corrupt_field == "malformed_intent_json":
+            journal._connection.execute(
+                "UPDATE execution_decision_intents SET intent_key_json=? WHERE intent_id=?",
+                ("{", intent.intent_id),
+            )
+        elif corrupt_field == "duplicate_decision_scope":
+            current = journal._connection.execute(
+                "SELECT business_key_json FROM execution_decisions WHERE decision_id=?",
+                (intent.decision_id,),
+            ).fetchone()[0]
+            duplicate = current.replace(
+                '"account_scope":"account-a"',
+                '"account_scope":"other-account","account_scope":"account-a"',
+                1,
+            )
+            assert duplicate != current
+            journal._connection.execute(
+                "UPDATE execution_decisions SET business_key_json=? WHERE decision_id=?",
+                (duplicate, intent.decision_id),
+            )
+        else:
+            # Model a damaged on-disk database with a missing decision parent.
+            # SQLite's normal foreign-key guard is disabled only for this
+            # synthetic corruption fixture; the Journal reader remains the
+            # production API under test.
+            journal._connection.execute("PRAGMA foreign_keys=OFF")
+            journal._connection.execute(
+                "UPDATE execution_decision_intents SET decision_id=? WHERE intent_id=?",
+                ("missing-decision", intent.intent_id),
+            )
+        with pytest.raises(
+            ExecutionDecisionJournalError, match="INTENT_SCOPE_UNCLASSIFIABLE"
+        ):
+            journal.execution_intent_snapshot(account_scope="different-account", limit=8)
+    finally:
+        journal.close()
+
+
 def test_callbacks_are_deduplicated_bounded_and_acknowledged_after_delivery(tmp_path):
     path = tmp_path / "callbacks.sqlite3"
     journal = ExecutionDecisionJournal(path, max_pending_callbacks=1)
@@ -2465,7 +2836,7 @@ def test_prepared_intent_can_be_abandoned_without_dispatch(tmp_path):
     )
     assert journal.active_instrument_owner("account-a", "SIM-IF-1") is None
     assert journal.recoverable_intents(limit=1) == ()
-    assert journal.execution_intent_snapshot(limit=1).items == ()
+    assert journal.execution_intent_snapshot(account_scope="account-a", limit=1).items == ()
     assert journal.intent(stale.intent_id) == stale
     assert abandonment.intent_id == stale.intent_id
     with pytest.raises(ExecutionDecisionJournalError, match="INTENT_ABANDONED"):

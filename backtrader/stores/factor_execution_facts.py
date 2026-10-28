@@ -16,6 +16,7 @@ from __future__ import annotations
 import math
 import hashlib
 import json
+import struct
 import threading
 import time
 from collections import defaultdict
@@ -33,6 +34,7 @@ from decimal import (
     localcontext,
 )
 from typing import Any, Callable, List, Optional, Tuple
+from types import MappingProxyType
 
 from .registered_sim import RegisteredSimStore
 
@@ -72,6 +74,25 @@ _ACCOUNT_PNL_MAX_COEFFICIENT_DIGITS = 64
 _ACCOUNT_PNL_MAX_ABSOLUTE_EXPONENT = 1024
 _ACCOUNT_PNL_MAX_PRECISION = 1024
 _THREADING_EVENT_TYPE = type(threading.Event())
+
+
+def _freeze_json_payload(value: Any) -> Any:
+    """Copy a journal JSON value into recursively immutable public facts."""
+
+    if isinstance(value, Mapping):
+        copied = {}
+        for key, item in value.items():
+            if type(key) is not str:
+                raise TypeError("economic payload keys must be text")
+            copied[key] = _freeze_json_payload(item)
+        return MappingProxyType(copied)
+    if isinstance(value, (tuple, list)):
+        return tuple(_freeze_json_payload(item) for item in value)
+    if value is None or type(value) in (str, int, bool):
+        return value
+    if type(value) is float and math.isfinite(value):
+        return value
+    raise TypeError("economic payload contains a non-JSON value")
 
 
 @dataclass(frozen=True)
@@ -211,6 +232,10 @@ class FactorExecutionPositionFacts:
     # position uncertainty.  These fields never make retirement or CLOSE ready.
     position_book_status: Optional[str] = None
     position_book_blocker_code: Optional[str] = None
+    risk_average_price_lower: Optional[Decimal] = None
+    risk_average_price_upper: Optional[Decimal] = None
+    risk_stop_price_lower: Optional[Decimal] = None
+    risk_stop_price_upper: Optional[Decimal] = None
 
 
 @dataclass(frozen=True)
@@ -333,6 +358,63 @@ class FactorExecutionWorkingOrderFacts:
 
 
 @dataclass(frozen=True)
+class FactorExecutionIntentFacts:
+    """One immutable row from the Journal's bounded intent snapshot.
+
+    The record is an execution progress/economics source for reconciliation.
+    Its payload is not provider evidence and does not itself authorize an OPEN.
+    """
+
+    intent_id: Optional[str]
+    decision_id: Optional[str]
+    action: Optional[str]
+    instrument: Optional[str]
+    side: Optional[str]
+    position_effect: Optional[str]
+    leg: Optional[int]
+    state: Optional[str]
+    dispatch_state: Optional[str]
+    target_id: Optional[str]
+    exchange: Optional[str]
+    owner_intent_id: Optional[str]
+    outcome_code: Optional[str]
+    economic_payload: Optional[Mapping[str, Any]]
+    provider_identity: Optional[Mapping[str, Any]]
+    account_scope: Optional[str] = None
+    strategy_scope: Optional[str] = None
+    original_identity: Optional[Mapping[str, Any]] = None
+
+    def __post_init__(self) -> None:
+        for name in (
+            "intent_id",
+            "decision_id",
+            "action",
+            "instrument",
+            "side",
+            "position_effect",
+            "state",
+            "dispatch_state",
+            "target_id",
+            "exchange",
+            "owner_intent_id",
+            "outcome_code",
+            "account_scope",
+            "strategy_scope",
+        ):
+            value = getattr(self, name)
+            if value is not None and (type(value) is not str or not value or value != value.strip()):
+                raise ValueError("{} must be exact non-empty text or None".format(name))
+        if self.leg is not None and (type(self.leg) is not int or self.leg < 0):
+            raise ValueError("leg must be a non-negative integer or None")
+        for name in ("economic_payload", "provider_identity", "original_identity"):
+            value = getattr(self, name)
+            if value is not None:
+                if not isinstance(value, Mapping):
+                    raise TypeError("{} must be a mapping or None".format(name))
+                object.__setattr__(self, name, _freeze_json_payload(value))
+
+
+@dataclass(frozen=True)
 class FactorExecutionTerminalOrderFacts:
     """One terminal CTP order row observed in a complete query snapshot.
 
@@ -426,6 +508,18 @@ class FactorExecutionQuoteFacts:
     lower_limit: Optional[Decimal]
     upper_limit: Optional[Decimal]
     quality: str
+    # Risk-only outward envelopes for fields that may have crossed a native
+    # double boundary. Canonical bid/ask/size values above remain the values
+    # used by quote freshness, tick-grid checks, and order-price selection.
+    # These envelopes describe one ULP around the observed float; they do not
+    # prove the exchange's original decimal representation.
+    risk_bid_lower: Optional[Decimal] = None
+    risk_bid_upper: Optional[Decimal] = None
+    risk_ask_lower: Optional[Decimal] = None
+    risk_ask_upper: Optional[Decimal] = None
+    risk_bid_size_lower: Optional[Decimal] = None
+    risk_ask_size_lower: Optional[Decimal] = None
+    risk_tick_size_upper: Optional[Decimal] = None
 
 
 @dataclass(frozen=True)
@@ -447,6 +541,8 @@ class FactorExecutionInstrumentFacts:
     round_trip_fee_upper_bound_per_contract: Optional[Decimal] = None
     commission_fee_required: bool = False
     commission_fee_status: str = "NOT_REQUIRED"
+    risk_multiplier_upper: Optional[Decimal] = None
+    risk_tick_size_upper: Optional[Decimal] = None
 
     def __post_init__(self) -> None:
         value = self.round_trip_fee_upper_bound_per_contract
@@ -456,6 +552,12 @@ class FactorExecutionInstrumentFacts:
             raise ValueError("round_trip_fee_upper_bound_per_contract must be finite and nonnegative")
         if type(self.commission_fee_required) is not bool:
             raise TypeError("commission_fee_required must be bool")
+        for name in ("risk_multiplier_upper", "risk_tick_size_upper"):
+            value = getattr(self, name)
+            if value is not None and (
+                not isinstance(value, Decimal) or not value.is_finite() or value <= 0
+            ):
+                raise ValueError("{} must be a finite positive Decimal or None".format(name))
         if self.commission_fee_status not in {
             "NOT_REQUIRED",
             "IDENTITY_UNAVAILABLE",
@@ -504,6 +606,8 @@ class FactorExecutionRouteFacts:
     current_session_trading_day: Optional[str] = None
     current_session_trading_ready: Optional[bool] = None
     arm_template_membership: Optional[bool] = None
+    current_session_front_id: Optional[int] = None
+    current_session_id: Optional[int] = None
 
 
 @dataclass(frozen=True)
@@ -533,8 +637,14 @@ class FactorExecutionFacts:
     target_ids: Optional[Tuple[str, ...]] = None
     execution_target_ids: Optional[Tuple[str, ...]] = None
     commission_required_for_open: bool = False
+    execution_intents: Tuple[FactorExecutionIntentFacts, ...] = ()
 
     def __post_init__(self) -> None:
+        execution_intents = self.execution_intents
+        if type(execution_intents) is not tuple or any(
+            not isinstance(item, FactorExecutionIntentFacts) for item in execution_intents
+        ):
+            raise TypeError("execution_intents must be a tuple of typed intent facts")
         for name in ("target_ids", "execution_target_ids"):
             value = getattr(self, name)
             if value is not None and type(value) is not tuple:
@@ -1014,6 +1124,10 @@ class FactorExecutionFacts:
         ignored_prefixes = (
             "consumed_quote_",
             "consumed_stream_",
+            # Tick precision is needed to price a replacement CLOSE/OPEN, but
+            # not to cancel an already identified active order. The exact
+            # route and order identity checks below remain mandatory.
+            "instrument_tick_unobserved:",
             "position_",
             "position_book_",
             "broker_position_",
@@ -1647,6 +1761,7 @@ def _read_only_reconciliation_blockers(
                 (
                     "position_held_age_unavailable:",
                     "position_opening_fee_unavailable:",
+        "journal_prepared_open_risk_unresolved:",
                     "position_risk_policy_metadata_unavailable:",
                     "position_average_price_unobserved:",
                     "position_stop_price_unobserved:",
@@ -1840,9 +1955,13 @@ def _is_open_risk_only_blocker(code: str) -> bool:
     return code.startswith(
         (
             "consumed_quote_price_",
+            "consumed_quote_risk_bound_unavailable:",
+            "instrument_risk_tick_bound_unavailable:",
+            "position_risk_price_bound_unavailable:",
             "position_held_age_unavailable:",
             "position_opening_fee_unavailable:",
             "commission_fee_",
+            "journal_prepared_open_risk_unresolved:",
             "position_risk_policy_metadata_unavailable:",
             "position_average_price_unobserved:",
             "position_stop_price_unobserved:",
@@ -1998,6 +2117,45 @@ def _risk_fact_decimal(value: Any, *, allow_negative: bool = False) -> Optional[
     ):
         return None
     return number
+
+
+def _next_float(value: float, *, upward: bool) -> float:
+    """Return the adjacent IEEE-754 double, including on supported Python 3.8."""
+
+    nextafter = getattr(math, "nextafter", None)
+    if callable(nextafter):
+        return nextafter(value, math.inf if upward else -math.inf)
+    bits = struct.unpack(">Q", struct.pack(">d", value))[0]
+    if value == 0.0:
+        bits = 1 if upward else (1 << 63) | 1
+    elif (value > 0) == upward:
+        bits += 1
+    else:
+        bits -= 1
+    return struct.unpack(">d", struct.pack(">Q", bits))[0]
+
+
+def _risk_fact_float_envelope(
+    value: Any, *, upward: bool, allow_negative: bool = False
+) -> Optional[Decimal]:
+    """Parse exact decimal inputs or add one ULP around an observed native float.
+
+    For floats this is a conservative arithmetic envelope around the value
+    received by Python, not proof of the provider's original economic decimal.
+    String, integer, and Decimal inputs retain their exact existing meaning.
+    """
+
+    if type(value) is float:
+        if not math.isfinite(value):
+            return None
+        # Validate the observed input before nextafter. The least negative
+        # subnormal rounds upward to -0.0; checking only the adjusted value
+        # would incorrectly turn a negative rate/capital amount into zero.
+        if not allow_negative and value < 0.0:
+            return None
+        if value != 0.0:
+            value = _next_float(value, upward=upward)
+    return _risk_fact_decimal(value, allow_negative=allow_negative)
 
 
 def _quote_price_on_tick(value: Decimal, tick_size: Decimal) -> Optional[bool]:
@@ -2826,8 +2984,18 @@ def _account_values(rows: Any, blockers: List[str], *, trading_day: str):
         blockers.append("account_row_cardinality_unobserved")
         return None, None, None, None, False, "account_row_unavailable"
     row = rows[0]
-    available = _decimal(row.get("Available", row.get("available")), nonnegative=True)
-    used = _decimal(row.get("CurrMargin", row.get("current_margin")), nonnegative=True)
+    # New exposure consumes a lower-bound availability figure; existing
+    # capital usage is carried upward. Exact decimal strings remain exact.
+    available = _risk_fact_float_envelope(
+        row.get("Available", row.get("available")), upward=False
+    )
+    used = _risk_fact_float_envelope(
+        row.get("CurrMargin", row.get("current_margin")), upward=True
+    )
+    if available is not None and available < 0:
+        available = None
+    if used is not None and used < 0:
+        used = None
     if available is None:
         blockers.append("available_margin_unobserved")
     if used is None:
@@ -2872,7 +3040,7 @@ def _margin_rates(rows: Any, instrument: str, exchange: str, blockers: List[str]
         return None
     row = matches[0]
     values = tuple(
-        _risk_fact_decimal(row.get(name))
+        _risk_fact_float_envelope(row.get(name), upward=True)
         for name in (
             "LongMarginRatioByMoney",
             "LongMarginRatioByVolume",
@@ -2887,32 +3055,9 @@ def _margin_rates(rows: Any, instrument: str, exchange: str, blockers: List[str]
 
 
 def _commission_rate_decimal(value: Any) -> Optional[Decimal]:
-    """Parse a native CTP commission ratio without rounding a C double down."""
+    """Parse a fee ratio exactly or conservatively envelope its native float."""
 
-    if type(value) not in (str, int, float, Decimal):
-        return None
-    try:
-        if type(value) is float:
-            if not math.isfinite(value):
-                return None
-            # CTP's native ratio fields are doubles. Decimal(str(value)) can
-            # understate the exact binary value, which is unsafe for a fee
-            # upper bound. Keep the exact finite double representation.
-            result = Decimal.from_float(value)
-        elif type(value) is Decimal:
-            result = value
-        elif type(value) is int:
-            result = Decimal(value)
-        else:
-            text = value.strip()
-            if not text:
-                return None
-            result = Decimal(text)
-    except (InvalidOperation, ValueError, OverflowError):
-        return None
-    if not result.is_finite() or result < 0:
-        return None
-    return result
+    return _risk_fact_float_envelope(value, upward=True)
 
 
 def _commission_fee_upper_bound(
@@ -3273,6 +3418,8 @@ def _route_fact(
             current_session_connection_generation=None,
             current_session_trading_day=None,
             current_session_trading_ready=None,
+            current_session_front_id=None,
+            current_session_id=None,
         )
 
     unknown_count = _field(route, "unknown_order_count")
@@ -3301,6 +3448,18 @@ def _route_fact(
     current_session_account = _exact_text(_field(route, "current_session_account_fingerprint"))
     current_session_generation = _field(route, "current_session_connection_generation")
     current_session_day = _exact_text(_field(route, "current_session_trading_day"))
+    raw_current_session_front_id = _field(route, "current_session_front_id")
+    raw_current_session_id = _field(route, "current_session_id")
+    current_session_front_id = (
+        raw_current_session_front_id
+        if type(raw_current_session_front_id) is int and raw_current_session_front_id > 0
+        else None
+    )
+    current_session_id = (
+        raw_current_session_id
+        if type(raw_current_session_id) is int and raw_current_session_id > 0
+        else None
+    )
     current_session_trading_ready = optional_bool("current_session_trading_ready")
     current_session_matches = bool(
         query_identity is not None
@@ -3441,6 +3600,8 @@ def _route_fact(
         ),
         current_session_trading_day=current_session_day,
         current_session_trading_ready=current_session_trading_ready,
+        current_session_front_id=current_session_front_id,
+        current_session_id=current_session_id,
     )
 
 
@@ -3489,10 +3650,20 @@ def _quote_fact(
     ingest_sequence = _field(tick, "ingest_seq")
     event_time = _epoch_datetime(_field(tick, "exchange_time"))
     received_at = _epoch_datetime(_field(tick, "received_wall_time"))
-    bid = _decimal(_field(tick, "bid_price"), positive=True)
-    ask = _decimal(_field(tick, "ask_price"), positive=True)
-    bid_size = _decimal(_field(tick, "bid_volume"), positive=True)
-    ask_size = _decimal(_field(tick, "ask_volume"), positive=True)
+    bid_raw = _field(tick, "bid_price")
+    ask_raw = _field(tick, "ask_price")
+    bid_size_raw = _field(tick, "bid_volume")
+    ask_size_raw = _field(tick, "ask_volume")
+    bid = _decimal(bid_raw, positive=True)
+    ask = _decimal(ask_raw, positive=True)
+    bid_size = _decimal(bid_size_raw, positive=True)
+    ask_size = _decimal(ask_size_raw, positive=True)
+    risk_bid_lower = _risk_fact_float_envelope(bid_raw, upward=False)
+    risk_bid_upper = _risk_fact_float_envelope(bid_raw, upward=True)
+    risk_ask_lower = _risk_fact_float_envelope(ask_raw, upward=False)
+    risk_ask_upper = _risk_fact_float_envelope(ask_raw, upward=True)
+    risk_bid_size_lower = _risk_fact_float_envelope(bid_size_raw, upward=False)
+    risk_ask_size_lower = _risk_fact_float_envelope(ask_size_raw, upward=False)
 
     def fail(code: str, next_quality: str) -> None:
         nonlocal quality
@@ -3504,6 +3675,13 @@ def _quote_fact(
         quality = "UNAVAILABLE"
         fail("consumed_quote_unavailable", quality)
     else:
+        if (
+            (bid is not None and (risk_bid_lower is None or risk_bid_upper is None))
+            or (ask is not None and (risk_ask_lower is None or risk_ask_upper is None))
+            or (bid_size is not None and risk_bid_size_lower is None)
+            or (ask_size is not None and risk_ask_size_lower is None)
+        ):
+            blockers.append("consumed_quote_risk_bound_unavailable:{}".format(target.target_id))
         if stream_ready is not True:
             fail(
                 "consumed_stream_not_currently_ready",
@@ -3613,6 +3791,15 @@ def _quote_fact(
         lower_limit=instrument_fact.lower_limit if instrument_fact is not None else None,
         upper_limit=instrument_fact.upper_limit if instrument_fact is not None else None,
         quality=quality,
+        risk_bid_lower=risk_bid_lower,
+        risk_bid_upper=risk_bid_upper,
+        risk_ask_lower=risk_ask_lower,
+        risk_ask_upper=risk_ask_upper,
+        risk_bid_size_lower=risk_bid_size_lower,
+        risk_ask_size_lower=risk_ask_size_lower,
+        risk_tick_size_upper=(
+            instrument_fact.risk_tick_size_upper if instrument_fact is not None else None
+        ),
     )
 
 
@@ -3805,8 +3992,31 @@ def _position_facts(
             blockers.append("position_book_quantity_mismatch:{}".format(target.target_id))
         owner_scope = _exact_text(_field(book_snapshot, "owner_strategy_scope"))
         owner_intent = _exact_text(_field(book_snapshot, "owner_intent_id"))
-        average_price = _decimal(_field(book_snapshot, "average_price"), positive=True)
-        stop_price = _decimal(_field(book_snapshot, "stop_price"), positive=True)
+        average_price_raw = _field(book_snapshot, "average_price")
+        stop_price_raw = _field(book_snapshot, "stop_price")
+        average_price = _decimal(average_price_raw, positive=True)
+        stop_price = _decimal(stop_price_raw, positive=True)
+        risk_average_price_lower = _risk_fact_float_envelope(
+            average_price_raw, upward=False
+        )
+        risk_average_price_upper = _risk_fact_float_envelope(
+            average_price_raw, upward=True
+        )
+        risk_stop_price_lower = _risk_fact_float_envelope(stop_price_raw, upward=False)
+        risk_stop_price_upper = _risk_fact_float_envelope(stop_price_raw, upward=True)
+        if quantity not in (None, Decimal(0)) and (
+            (
+                average_price is not None
+                and (risk_average_price_lower is None or risk_average_price_upper is None)
+            )
+            or (
+                stop_price is not None
+                and (risk_stop_price_lower is None or risk_stop_price_upper is None)
+            )
+        ):
+            blockers.append(
+                "position_risk_price_bound_unavailable:{}".format(target.target_id)
+            )
         held_bars = _integer(_field(book_snapshot, "held_eligible_bars"))
         opening_fee_total = _decimal(_field(book_snapshot, "opening_fee_total"), nonnegative=True)
         opening_fees_known_raw = _field(book_snapshot, "opening_fees_known")
@@ -3874,6 +4084,10 @@ def _position_facts(
                 ),
                 position_book_status=status,
                 position_book_blocker_code=book_blocker,
+                risk_average_price_lower=risk_average_price_lower,
+                risk_average_price_upper=risk_average_price_upper,
+                risk_stop_price_lower=risk_stop_price_lower,
+                risk_stop_price_upper=risk_stop_price_upper,
             )
         )
     return tuple(projected)
@@ -4309,15 +4523,175 @@ def _terminal_order_reconciliation_blockers(
     return ()
 
 
+def _execution_intent_facts(
+    records: Tuple[Any, ...],
+    targets: Tuple[FactorExecutionTarget, ...],
+    *,
+    account_scope: str,
+    strategy_scope: str,
+    blockers: List[str],
+) -> Tuple[FactorExecutionIntentFacts, ...]:
+    """Project one Journal page, retaining economics and unresolved states."""
+
+    projected = []
+    for record in records:
+        intent_id = _exact_text(_field(record, "intent_id"))
+        decision_id = _exact_text(_field(record, "decision_id"))
+        key = _field(record, "key")
+        action = _exact_text(_field(key, "action"))
+        instrument = _exact_text(_field(key, "instrument"))
+        side = _exact_text(_field(key, "side"))
+        position_effect = _exact_text(_field(key, "position_effect"))
+        leg = _integer(_field(key, "leg"))
+        state = _exact_text(_field(record, "state", _field(record, "status")))
+        dispatch_state = _exact_text(_field(record, "dispatch_state"))
+        owner_intent_id = _exact_text(_field(record, "owner_intent_id"))
+        outcome_code = _exact_text(_field(record, "outcome_code"))
+        decision_key = _field(record, "decision_key")
+        record_account_scope = _exact_text(_field(decision_key, "account_scope"))
+        record_strategy_scope = _exact_text(_field(decision_key, "strategy_scope"))
+        if record_account_scope is None or record_strategy_scope is None:
+            blockers.append("journal_intent_scope_unobserved")
+        elif record_account_scope != account_scope:
+            blockers.append("journal_intent_account_scope_mismatch")
+        raw_provider_identity = _field(record, "provider_identity")
+        provider_identity = None
+        if isinstance(raw_provider_identity, Mapping):
+            try:
+                frozen_provider = _freeze_json_payload(raw_provider_identity)
+                provider_identity = frozen_provider if isinstance(frozen_provider, Mapping) else None
+            except (TypeError, ValueError):
+                blockers.append("journal_intent_provider_identity_invalid")
+        raw_economics = _field(record, "economic_payload")
+        economic_payload = None
+        if isinstance(raw_economics, Mapping):
+            try:
+                frozen = _freeze_json_payload(raw_economics)
+                economic_payload = frozen if isinstance(frozen, Mapping) else None
+            except (TypeError, ValueError):
+                blockers.append("journal_intent_economics_invalid")
+        else:
+            blockers.append("journal_intent_economics_unobserved")
+        raw_original_identity = _field(record, "original_identity")
+        original_identity = None
+        if isinstance(raw_original_identity, Mapping):
+            try:
+                frozen_original = _freeze_json_payload(raw_original_identity)
+                original_identity = (
+                    frozen_original if isinstance(frozen_original, Mapping) else None
+                )
+            except (TypeError, ValueError):
+                blockers.append("journal_intent_original_identity_invalid")
+        else:
+            blockers.append("journal_intent_original_identity_unobserved")
+
+        declared_exchange = (
+            _exact_text(economic_payload.get("exchange"))
+            if economic_payload is not None
+            else None
+        )
+        declared_target_id = (
+            _exact_text(economic_payload.get("target_id"))
+            if economic_payload is not None
+            else None
+        )
+        route_matches = tuple(
+            target
+            for target in targets
+            if target.instrument == instrument
+            and (declared_exchange is None or target.exchange == declared_exchange)
+        )
+        route_target_id = route_matches[0].target_id if len(route_matches) == 1 else None
+        route_exchange = route_matches[0].exchange if len(route_matches) == 1 else None
+        unrelated_prepared_open = bool(
+            state is not None
+            and state.upper() == "PREPARED"
+            and dispatch_state is None
+            and action == "SUBMIT"
+            and position_effect == "OPEN"
+            and record_account_scope == account_scope
+            and record_strategy_scope is not None
+            and record_strategy_scope != strategy_scope
+            and instrument not in {target.instrument for target in targets}
+            and declared_target_id is not None
+            and declared_exchange is not None
+            and economic_payload is not None
+            and _exact_text(economic_payload.get("instrument")) == instrument
+        )
+        if declared_target_id is not None and route_target_id != declared_target_id:
+            if route_target_id is None and unrelated_prepared_open:
+                # This is another Strategy's precise immutable, unclaimed OPEN
+                # outside the current target universe. Preserve its declared
+                # route for diagnostic purposes; the order remains an
+                # opening-risk blocker and cannot support current CLOSE/CANCEL
+                # ownership.
+                route_target_id = declared_target_id
+                route_exchange = declared_exchange
+            else:
+                blockers.append("journal_intent_route_mismatch")
+                route_target_id = None
+                route_exchange = declared_exchange
+        elif (
+            declared_target_id is not None
+            and declared_exchange is not None
+            and route_exchange != declared_exchange
+        ):
+            blockers.append("journal_intent_route_mismatch")
+            route_target_id = None
+        if economic_payload is not None:
+            for name, key_value in (
+                ("instrument", instrument),
+                ("side", side),
+                ("position_effect", position_effect),
+            ):
+                declared = _exact_text(economic_payload.get(name))
+                if declared is not None and key_value is not None and declared != key_value:
+                    blockers.append("journal_intent_economics_key_mismatch")
+                    break
+        if any(value is None for value in (intent_id, decision_id, action, instrument, side,
+                                           position_effect, leg, state)):
+            blockers.append("journal_intent_identity_unobserved")
+        projected.append(
+            FactorExecutionIntentFacts(
+                intent_id=intent_id,
+                decision_id=decision_id,
+                action=action,
+                instrument=instrument,
+                side=side,
+                position_effect=position_effect,
+                leg=leg,
+                state=state.upper() if state is not None else None,
+                dispatch_state=(
+                    dispatch_state.upper() if dispatch_state is not None else None
+                ),
+                target_id=route_target_id,
+                exchange=route_exchange,
+                owner_intent_id=owner_intent_id,
+                outcome_code=outcome_code,
+                economic_payload=economic_payload,
+                provider_identity=provider_identity,
+                account_scope=record_account_scope,
+                strategy_scope=record_strategy_scope,
+                original_identity=original_identity,
+            )
+        )
+    return tuple(projected)
+
+
 def _orders_facts(
     broker: Any,
     targets: Tuple[FactorExecutionTarget, ...],
     remote_rows: Any,
     *,
     coordinator: Any,
+    account_scope: str,
+    strategy_scope: str,
     trading_day: Optional[str],
+    account_fingerprint: Optional[str],
+    connection_generation: Optional[int],
+    route_facts: Tuple[FactorExecutionRouteFacts, ...],
     blockers: List[str],
-) -> Tuple[FactorExecutionWorkingOrderFacts, ...]:
+) -> Tuple[Tuple[FactorExecutionWorkingOrderFacts, ...], Tuple[FactorExecutionIntentFacts, ...]]:
     order_method = getattr(broker, "execution_order_snapshot", None)
     intent_method = getattr(coordinator, "execution_intent_snapshot", None)
     if not callable(order_method):
@@ -4341,15 +4715,34 @@ def _orders_facts(
         except Exception as exc:
             intent_page = None
             blockers.append("journal_intent_projection_failed:{}".format(type(exc).__name__))
-        intent_records = _field(intent_page, "items")
+        page_account_scope = _exact_text(_field(intent_page, "account_scope"))
+        if page_account_scope != account_scope:
+            intent_records = None
+            blockers.append("journal_intent_page_scope_mismatch")
+        else:
+            intent_records = _field(intent_page, "items")
         truncated = _field(intent_page, "truncated")
-        if not isinstance(intent_records, tuple) or type(truncated) is not bool:
+        if intent_records is None and page_account_scope != account_scope:
+            pass
+        elif not isinstance(intent_records, tuple) or type(truncated) is not bool:
             intent_records = None
             blockers.append("journal_intent_projection_shape_invalid")
         elif truncated:
             blockers.append("journal_intent_projection_truncated")
 
+    intent_facts = (
+        _execution_intent_facts(
+            intent_records,
+            targets,
+            account_scope=account_scope,
+            strategy_scope=strategy_scope,
+            blockers=blockers,
+        )
+        if intent_records is not None
+        else ()
+    )
     target_by_instrument = {target.instrument: target for target in targets}
+    route_by_target = {route.target_id: route for route in route_facts}
     local_by_key = {}
     projected = []
     if broker_orders is not None:
@@ -4434,7 +4827,7 @@ def _orders_facts(
 
     remote_active = _remote_order_rows(remote_rows, blockers, expected_trading_day=trading_day)
     if remote_active is None or local_by_key is None:
-        return tuple(projected)
+        return tuple(projected), intent_facts
     for key, row in remote_active.items():
         ref, instrument, exchange = key
         order = local_by_key.get(key)
@@ -4478,7 +4871,9 @@ def _orders_facts(
             continue
         remote_sys_id = _remote_ref(row.get("OrderSysID", row.get("order_sys_id")))
         local_sys_id = _remote_ref(_field(order, "order_sys_id"))
-        if remote_sys_id is not None and remote_sys_id != local_sys_id:
+        if remote_sys_id is None:
+            blockers.append("remote_broker_order_sys_id_unobserved:{}".format(ref))
+        elif remote_sys_id != local_sys_id:
             blockers.append("remote_broker_order_sys_id_mismatch:{}".format(ref))
         remote_front = _integer(row.get("FrontID", row.get("front_id")))
         remote_session = _integer(row.get("SessionID", row.get("session_id")))
@@ -4545,21 +4940,183 @@ def _orders_facts(
         active_local_intents = {
             item.owner_intent_id for item in projected if item.owner_intent_id is not None
         }
-        for record in intent_records:
-            intent_id = _exact_text(_field(record, "intent_id"))
-            state_value = _field(record, "state", _field(record, "status"))
-            state = _exact_text(state_value)
+        intents_by_id = {}
+        for intent in intent_facts:
+            if intent.intent_id is not None:
+                intents_by_id.setdefault(intent.intent_id, []).append(intent)
+        local_orders_by_owner = {}
+        for order in projected:
+            # REMOTE_ONLY observations have no local Broker owner object to
+            # dispatch a CANCEL against. They remain in the risk projection,
+            # but the exact local-owner join below applies only to an order
+            # that this Broker can actually address.
+            if order.broker_order_ref is None:
+                continue
+            if order.owner_intent_id is None:
+                blockers.append(
+                    "working_order_journal_owner_unjoined:{}".format(order.order_ref)
+                )
+                continue
+            local_orders_by_owner.setdefault(order.owner_intent_id, []).append(order)
+            matches = intents_by_id.get(order.owner_intent_id, ())
+            if len(matches) != 1:
+                blockers.append(
+                    "working_order_journal_owner_{}:{}".format(
+                        "ambiguous" if matches else "unjoined", order.order_ref
+                    )
+                )
+                continue
+            intent = matches[0]
+            original = intent.original_identity
+            provider = intent.provider_identity
+            original_order_ref = (
+                _exact_text(original.get("order_ref")) if original is not None else None
+            )
+            original_instrument = (
+                _exact_text(original.get("instrument_id")) if original is not None else None
+            )
+            original_exchange = (
+                _exact_text(original.get("exchange_id")) if original is not None else None
+            )
+            original_bt_ref = (
+                original.get("backtrader_order_ref") if original is not None else None
+            )
+            provider_order_ref = (
+                _exact_text(provider.get("order_ref")) if provider is not None else None
+            )
+            provider_sys_id = (
+                _remote_ref(provider.get("order_sys_id")) if provider is not None else None
+            )
+            provider_instrument = (
+                _exact_text(provider.get("instrument_id")) if provider is not None else None
+            )
+            provider_exchange = (
+                _exact_text(provider.get("exchange_id")) if provider is not None else None
+            )
+            original_front = (
+                original.get("front_id")
+                if original is not None
+                and type(original.get("front_id")) is int
+                and original.get("front_id") > 0
+                else None
+            )
+            original_session = (
+                original.get("session_id")
+                if original is not None
+                and type(original.get("session_id")) is int
+                and original.get("session_id") > 0
+                else None
+            )
+            original_account = (
+                _exact_text(original.get("account_fingerprint"))
+                if original is not None
+                else None
+            )
+            original_generation = (
+                original.get("connection_generation")
+                if original is not None
+                and type(original.get("connection_generation")) is int
+                and original.get("connection_generation") > 0
+                else None
+            )
+            original_trading_day = (
+                _exact_text(original.get("trading_day")) if original is not None else None
+            )
+            route = route_by_target.get(order.target_id)
+            route_identity_matches = bool(
+                route is not None
+                and route.instrument == order.instrument
+                and route.exchange == order.exchange
+                and route.current_session_front_id is not None
+                and route.current_session_id is not None
+                and route.current_session_front_id == order.front_id
+                and route.current_session_id == order.session_id
+                and route.current_session_account_fingerprint == account_fingerprint
+                and route.current_session_connection_generation == connection_generation
+                and route.current_session_trading_day == trading_day
+            )
+            exact_owner = bool(
+                intent.account_scope == account_scope
+                and intent.strategy_scope == strategy_scope
+                and intent.action == "SUBMIT"
+                and intent.state == "KNOWN"
+                and intent.dispatch_state == "KNOWN"
+                and intent.target_id == order.target_id
+                and intent.instrument == order.instrument
+                and intent.exchange == order.exchange
+                and intent.side == order.side
+                and intent.position_effect == order.position_effect
+                and original is not None
+                and original.get("operation") == "insert"
+                and original_order_ref == order.order_ref
+                and original_instrument == order.instrument
+                and original_exchange == order.exchange
+                and type(original_bt_ref) is int
+                and original_bt_ref == order.broker_order_ref
+                and original_front is not None
+                and original_front == order.front_id
+                and original_session is not None
+                and original_session == order.session_id
+                and route_identity_matches
+                and original_account is not None
+                and original_account == account_fingerprint
+                and original_generation is not None
+                and original_generation == connection_generation
+                and original_trading_day is not None
+                and original_trading_day == trading_day
+                and provider_order_ref == order.order_ref
+                and provider_sys_id is not None
+                and provider_sys_id == order.order_sys_id
+                and (provider_instrument is None or provider_instrument == order.instrument)
+                and (provider_exchange is None or provider_exchange == order.exchange)
+                and order.owner_strategy_scope == strategy_scope
+            )
+            if not exact_owner:
+                blockers.append(
+                    "working_order_journal_owner_mismatch:{}".format(order.order_ref)
+                )
+        for intent_id, owned_orders in local_orders_by_owner.items():
+            if len(owned_orders) != 1:
+                blockers.extend(
+                    "working_order_journal_owner_ambiguous:{}".format(order.order_ref)
+                    for order in owned_orders
+                )
+        for intent in intent_facts:
+            intent_id = intent.intent_id
+            state = intent.state
             if intent_id is None or state is None:
                 blockers.append("journal_intent_identity_unobserved")
                 continue
-            normalized = state.upper()
+            normalized = state
             if normalized in {"PREPARED", "DISPATCHING", "UNKNOWN", "CANCEL_PENDING"}:
-                blockers.append("journal_intent_unresolved:{}:{}".format(normalized, intent_id))
+                unrelated_prepared_open = bool(
+                    normalized == "PREPARED"
+                    and intent.dispatch_state is None
+                    and intent.action == "SUBMIT"
+                    and intent.position_effect == "OPEN"
+                    and intent.instrument not in {target.instrument for target in targets}
+                    and intent.account_scope == account_scope
+                    and intent.strategy_scope is not None
+                    and intent.strategy_scope != strategy_scope
+                    and intent.target_id is not None
+                    and intent.exchange is not None
+                )
+                if unrelated_prepared_open:
+                    blockers.append(
+                        "journal_prepared_open_risk_unresolved:{}".format(intent_id)
+                    )
+                else:
+                    blockers.append(
+                        "journal_intent_unresolved:{}:{}".format(normalized, intent_id)
+                    )
             elif normalized == "KNOWN" and intent_id not in active_local_intents:
                 blockers.append("journal_known_intent_not_joined:{}".format(intent_id))
             elif normalized not in {"KNOWN"}:
                 blockers.append("journal_intent_state_unrecognized:{}".format(normalized))
-    return tuple(sorted(projected, key=lambda item: (item.instrument, item.order_ref)))
+    return (
+        tuple(sorted(projected, key=lambda item: (item.instrument, item.order_ref))),
+        intent_facts,
+    )
 
 
 def _snapshot_identifier(
@@ -4646,9 +5203,15 @@ def _risk_totals(
             or position.stop_price is None
         ):
             return None, None
-        multiplier = _risk_fact_decimal(risk.multiplier)
-        bid = _risk_fact_decimal(quote.bid)
-        ask = _risk_fact_decimal(quote.ask)
+        multiplier = getattr(risk, "risk_multiplier_upper", None)
+        if multiplier is None:
+            multiplier = _risk_fact_float_envelope(risk.multiplier, upward=True)
+        bid = getattr(quote, "risk_bid_upper", None)
+        if bid is None:
+            bid = _risk_fact_float_envelope(quote.bid, upward=True)
+        ask = getattr(quote, "risk_ask_upper", None)
+        if ask is None:
+            ask = _risk_fact_float_envelope(quote.ask, upward=True)
         average_price = _risk_fact_decimal(position.average_price)
         stop_price = _risk_fact_decimal(position.stop_price)
         if any(
@@ -4669,9 +5232,29 @@ def _risk_totals(
             return None, None
         notional = next_notional
         if quantity > 0:
-            distance = _risk_fact_difference_upper(average_price, stop_price)
+            average_upper = getattr(position, "risk_average_price_upper", None)
+            if average_upper is None:
+                average_upper = _risk_fact_float_envelope(
+                    position.average_price, upward=True
+                )
+            stop_lower = getattr(position, "risk_stop_price_lower", None)
+            if stop_lower is None:
+                stop_lower = _risk_fact_float_envelope(
+                    position.stop_price, upward=False
+                )
+            distance = _risk_fact_difference_upper(average_upper, stop_lower)
         else:
-            distance = _risk_fact_difference_upper(stop_price, average_price)
+            stop_upper = getattr(position, "risk_stop_price_upper", None)
+            if stop_upper is None:
+                stop_upper = _risk_fact_float_envelope(
+                    position.stop_price, upward=True
+                )
+            average_lower = getattr(position, "risk_average_price_lower", None)
+            if average_lower is None:
+                average_lower = _risk_fact_float_envelope(
+                    position.average_price, upward=False
+                )
+            distance = _risk_fact_difference_upper(stop_upper, average_lower)
         if distance is None:
             if (
                 quantity > 0
@@ -5482,13 +6065,34 @@ def project_factor_execution_facts(
             blockers,
         )
         margin_result = valid_margin_results[target.target_id]
-        multiplier = _tick_size = _lower = _upper = None
+        multiplier = risk_multiplier_upper = _tick_size = risk_tick_size_upper = None
+        _lower = _upper = None
         trading = None
         if row is not None:
+            multiplier_raw = row.get("VolumeMultiple", row.get("volume_multiple"))
+            tick_size_raw = row.get("PriceTick", row.get("price_tick"))
             multiplier = _decimal(
-                row.get("VolumeMultiple", row.get("volume_multiple")), positive=True
+                multiplier_raw, positive=True
             )
-            _tick_size = _decimal(row.get("PriceTick", row.get("price_tick")), positive=True)
+            # Keep the risk-only envelope within the canonical positive-domain
+            # contract.  Exact zero/invalid source metadata is missing for
+            # this field; retaining Decimal(0) would fail the immutable fact
+            # validator and abort the entire projection, including reductions.
+            risk_multiplier_upper = (
+                _risk_fact_float_envelope(multiplier_raw, upward=True)
+                if multiplier is not None
+                else None
+            )
+            _tick_size = _decimal(tick_size_raw, positive=True)
+            risk_tick_size_upper = (
+                _risk_fact_float_envelope(tick_size_raw, upward=True)
+                if _tick_size is not None
+                else None
+            )
+            if _tick_size is not None and risk_tick_size_upper is None:
+                blockers.append(
+                    "instrument_risk_tick_bound_unavailable:{}".format(target.target_id)
+                )
             _lower = _decimal(row.get("LowerLimitPrice", row.get("lower_limit_price")))
             _upper = _decimal(row.get("UpperLimitPrice", row.get("upper_limit_price")))
             trading = _bool_fact(row.get("IsTrading", row.get("is_trading")))
@@ -5535,6 +6139,8 @@ def project_factor_execution_facts(
                 tick_size=_tick_size,
                 lower_limit=_lower,
                 upper_limit=_upper,
+                risk_multiplier_upper=risk_multiplier_upper,
+                risk_tick_size_upper=risk_tick_size_upper,
                 round_trip_fee_upper_bound_per_contract=commission_bounds.get(target.target_id),
                 commission_fee_required=commission_required_for_open,
                 commission_fee_status=commission_status_by_target.get(
@@ -5567,20 +6173,37 @@ def project_factor_execution_facts(
         rates = margin_rates_by_target[target.target_id]
         quote = quote_by_target[target.target_id]
         long_margin = short_margin = None
+        risk_multiplier_upper = instrument.risk_multiplier_upper
+        if risk_multiplier_upper is None and instrument.multiplier is not None:
+            # Compatibility for exact typed Decimal fixtures. Production
+            # native-float metadata captures the envelope before canonical
+            # decimal conversion above.
+            risk_multiplier_upper = _risk_fact_float_envelope(
+                instrument.multiplier, upward=True
+            )
+        risk_prices = tuple(
+            value
+            for value in (
+                quote.risk_bid_upper,
+                quote.risk_ask_upper,
+            )
+            if value is not None
+        )
+        risk_mark_upper = max(risk_prices) if len(risk_prices) == 2 else None
         if (
             rates is not None
-            and instrument.multiplier is not None
+            and risk_multiplier_upper is not None
             and quote.quality == "GOOD"
-            and quote.bid is not None
-            and quote.ask is not None
+            and risk_mark_upper is not None
         ):
             long_money, long_volume, short_money, short_volume = rates
-            # CTP money ratio applies to notional; volume ratio is per hand.
+            # Use the upper mark for both sides: notional and both CTP money
+            # rates are non-negative monotone risk terms.
             long_notional_margin = _risk_fact_product_upper(
-                quote.ask, instrument.multiplier, long_money
+                risk_mark_upper, risk_multiplier_upper, long_money
             )
             short_notional_margin = _risk_fact_product_upper(
-                quote.bid, instrument.multiplier, short_money
+                risk_mark_upper, risk_multiplier_upper, short_money
             )
             if long_notional_margin is not None:
                 long_margin = _risk_fact_sum_upper(long_notional_margin, long_volume)
@@ -5608,6 +6231,8 @@ def project_factor_execution_facts(
                 tick_size=instrument.tick_size,
                 lower_limit=instrument.lower_limit,
                 upper_limit=instrument.upper_limit,
+                risk_multiplier_upper=risk_multiplier_upper,
+                risk_tick_size_upper=instrument.risk_tick_size_upper,
                 stop_loss_ticks=None,
                 max_hands=None,
                 round_trip_fee_upper_bound_per_contract=(
@@ -5619,12 +6244,17 @@ def project_factor_execution_facts(
         )
     instruments = tuple(instruments_with_margin)
 
-    orders = _orders_facts(
+    orders, execution_intents = _orders_facts(
         broker,
         bound_targets,
         _field(query_results["orders_result"], "rows"),
         coordinator=coordinator,
+        account_scope=account_scope,
+        strategy_scope=strategy_scope,
         trading_day=trading_day,
+        account_fingerprint=account_fingerprint,
+        connection_generation=generation,
+        route_facts=route_facts,
         blockers=blockers,
     )
     terminal_orders = _terminal_order_facts(
@@ -5726,6 +6356,7 @@ def project_factor_execution_facts(
         target_ids=full_target_ids,
         execution_target_ids=bound_execution_target_ids,
         commission_required_for_open=commission_required_for_open,
+        execution_intents=execution_intents,
     )
     trade_blockers = _trade_reconciliation_blockers(coordinator, facts)
     terminal_blockers = _terminal_order_reconciliation_blockers(coordinator, facts)
@@ -5757,6 +6388,7 @@ __all__ = [
     "FactorExecutionDatedCloseLotFacts",
     "FactorExecutionDatedInventoryRow",
     "FactorExecutionFacts",
+    "FactorExecutionIntentFacts",
     "FactorExecutionInstrumentFacts",
     "FactorExecutionPositionFacts",
     "FactorExecutionQueryFact",
