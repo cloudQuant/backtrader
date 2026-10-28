@@ -3077,6 +3077,8 @@ class DecisionTapeWriter:
         self._failed = False
         self._lock = threading.RLock()
         self._last_record_reference = None
+        self._last_record_offset = None
+        self._last_record_raw = None
         self._header_record_id = None
         self._fee_pair_source_scope = None
         self._fee_pair_grid_append_observations = {}
@@ -3248,6 +3250,8 @@ class DecisionTapeWriter:
         self._hash.update(raw)
         if count_record:
             self._record_count += 1
+            self._last_record_offset = offset
+            self._last_record_raw = bytes(raw)
 
     def record_decision(self, batch, snapshot, target_decision, order_plan):
         with self._lock:
@@ -3280,6 +3284,152 @@ class DecisionTapeWriter:
                 }
             )
             return True
+
+    def record_verified_source_prewarm(
+        self,
+        *,
+        key,
+        batch,
+        source_receipt,
+        coordinator,
+    ):
+        """Verify this live writer's latest no-intent row before anchoring it."""
+
+        from backtrader.stores import execution_decision_journal as journal_api
+
+        with self._lock:
+            try:
+                readback = self._verified_source_tape_readback_locked(
+                    source_receipt, journal_api
+                )
+                return coordinator.record_verified_source_prewarm(
+                    key=key,
+                    batch=batch,
+                    tape_readback=readback,
+                )
+            except BaseException:
+                self._failed = True
+                raise
+
+    def _verified_source_tape_readback_locked(self, source_receipt, journal_api):
+        if (
+            self.mode != "live"
+            or self._closed
+            or self._failed
+            or type(source_receipt) is not journal_api.ExecutionSourceReceipt
+            or source_receipt.readiness not in ("WARMUP", "CATCHING_UP")
+            or self._generation_lease is None
+            or not self._generation_lease.held
+            or self._last_record_raw is None
+            or self._last_record_offset is None
+            or self._last_record_reference is None
+        ):
+            raise RunnerError("DECISION_TAPE_SOURCE_READBACK_UNAVAILABLE")
+        try:
+            self._generation_lease.validate(self._handle)
+            handle_metadata = os.fstat(self._handle.fileno())
+            path_metadata = os.lstat(self.path)
+            handle_identity = _generation_file_identity(handle_metadata)
+            path_identity = _generation_file_identity(path_metadata)
+            if (
+                handle_identity != path_identity
+                or handle_metadata.st_size != self._bytes
+                or path_metadata.st_size != self._bytes
+                or self._last_record_offset + len(self._last_record_raw) != self._bytes
+                or self._record_count != source_receipt.tape_record_index
+            ):
+                raise RunnerError("DECISION_TAPE_SOURCE_READBACK_IDENTITY_MISMATCH")
+
+            with self.path.open("rb") as readback_file:
+                before = os.fstat(readback_file.fileno())
+                if _generation_file_identity(before) != handle_identity:
+                    raise RunnerError("DECISION_TAPE_SOURCE_READBACK_IDENTITY_MISMATCH")
+                readback_file.seek(self._last_record_offset)
+                raw = readback_file.read(len(self._last_record_raw))
+                after = os.fstat(readback_file.fileno())
+            path_after = os.lstat(self.path)
+            self._generation_lease.validate(self._handle)
+            if (
+                raw != self._last_record_raw
+                or _generation_file_identity(after) != handle_identity
+                or after.st_size != self._bytes
+                or _generation_file_identity(path_after) != handle_identity
+                or path_after.st_size != self._bytes
+            ):
+                raise RunnerError("DECISION_TAPE_SOURCE_READBACK_MISMATCH")
+
+            row = json.loads(raw)
+            if not isinstance(row, Mapping) or _canonical_json_bytes(row) != raw:
+                raise RunnerError("DECISION_TAPE_SOURCE_READBACK_MISMATCH")
+            record_id = row.get("record_id")
+            unhashed = dict(row)
+            unhashed.pop("record_id", None)
+            calculated_record_id = hashlib.sha256(
+                _canonical_json_bytes(unhashed).rstrip(b"\n")
+            ).hexdigest()
+            reference = self._last_record_reference
+            plan = row.get("order_plan")
+            if (
+                row.get("schema") != DECISION_TAPE_SCHEMA
+                or row.get("record_type") != "DECISION"
+                or row.get("file_id") != self.file_id
+                or row.get("record_index") != self._record_count
+                or row.get("header_record_id") != self._header_record_id
+                or row.get("batch_id") != reference.get("batch_id")
+                or record_id != calculated_record_id
+                or record_id != reference.get("record_id")
+                or reference.get("file_id") != self.file_id
+                or reference.get("record_index") != self._record_count
+                or row.get("readiness") not in ("WARMUP", "CATCHING_UP")
+                or row.get("readiness") != source_receipt.readiness
+                or not isinstance(row.get("factors"), Mapping)
+                or not row.get("factors", {}).get("factors")
+                or not isinstance(row.get("members"), Mapping)
+                or tuple(sorted(row["members"])) != self.targets
+                or not isinstance(plan, Mapping)
+                or plan.get("status") != "NO_ACTION"
+                or plan.get("actions") != []
+            ):
+                raise RunnerError("DECISION_TAPE_SOURCE_READBACK_MISMATCH")
+
+            members = _fee_pair_source_members_from_tape_row(row, journal_api)
+            receipt = journal_api.ExecutionSourceReceipt(
+                source_kind=source_receipt.source_kind,
+                cohort_id=row["cohort_id"],
+                calendar_id=row["calendar_id"],
+                calendar_version=row["calendar_version"],
+                calendar_fingerprint=row["calendar_fingerprint"],
+                epoch_id=row["epoch_id"],
+                slot_index=row["slot_index"],
+                slot_id=row["slot_id"],
+                close_time=row["close_time"],
+                batch_id=row["batch_id"],
+                readiness=row["readiness"],
+                tape_file_id=row["file_id"],
+                tape_record_id=row["record_id"],
+                tape_record_index=row["record_index"],
+                members=members,
+                predecessor=source_receipt.predecessor,
+                restart_marker=source_receipt.restart_marker,
+            )
+            if receipt != source_receipt:
+                raise RunnerError("DECISION_TAPE_SOURCE_RECEIPT_MISMATCH")
+            return journal_api._make_verified_source_tape_readback(
+                receipt=receipt,
+                tape_file_identity=handle_identity,
+                tape_size=self._bytes,
+                record_offset=self._last_record_offset,
+                record_size=len(raw),
+                record_count=self._record_count,
+                record_sha256=hashlib.sha256(raw).hexdigest(),
+                prefix_sha256=self._hash.hexdigest(),
+                writer_instance_id=id(self),
+                generation_lock_identity=self._generation_lease._identity,
+            )
+        except RunnerError:
+            raise
+        except BaseException:
+            raise RunnerError("DECISION_TAPE_SOURCE_READBACK_FAILED") from None
 
     def record_fee_pair_source_only(
         self,
@@ -4224,6 +4374,10 @@ class DecisionTapeWriter:
         )
         return verified_row
 
+    def latch_failure(self):
+        with self._lock:
+            self._failed = True
+
     def close(self):
         with self._lock:
             if self._closed:
@@ -4659,6 +4813,7 @@ def _new_decision_tape(
         restart_identity=restart_identity,
         selection_evidence=selection_evidence,
         calendar_fingerprint=calendar_fingerprint,
+        cross_process_generation_lease=(mode == "live"),
     )
 
 
@@ -5518,7 +5673,8 @@ def _decision_tape_readback(
     header = None
     count = 0
     last_reference = None
-    for row in iter_decision_tape(path, max_bytes=max_bytes):
+    raw_hasher = hashlib.sha256()
+    for row in iter_decision_tape(path, max_bytes=max_bytes, _raw_hasher=raw_hasher):
         if header is None:
             header = row
             continue
@@ -5544,6 +5700,7 @@ def _decision_tape_readback(
         "record_count": count,
         "last_record_reference": last_reference,
         "actual_bytes": path.stat().st_size,
+        "raw_sha256": raw_hasher.hexdigest(),
     }
 
 
@@ -5675,6 +5832,7 @@ def _run_cerebro_with_decision_tape(
     if (
         readback["file_id"] != writer.file_id
         or readback["record_count"] != writer.summary()["record_count"]
+        or readback["raw_sha256"] != writer.summary()["sha256"]
     ):
         raise RunnerError("DECISION_TAPE_READBACK_MISMATCH")
     return strategy, writer.summary(), readback
@@ -9382,6 +9540,7 @@ def run_live(
         if (
             decision_tape_readback["file_id"] != decision_tape.file_id
             or decision_tape_readback["record_count"] != decision_tape.summary()["record_count"]
+            or decision_tape_readback["raw_sha256"] != decision_tape.summary()["sha256"]
         ):
             raise RunnerError("DECISION_TAPE_READBACK_MISMATCH")
     except BaseException as error:

@@ -1788,6 +1788,88 @@ class ExecutionSourceReceipt:
                 raise ExecutionDecisionJournalError("INVALID_SOURCE_RECEIPT_MEMBER")
 
 
+_VERIFIED_SOURCE_TAPE_READBACK_CAPABILITY = object()
+
+
+@dataclass(frozen=True)
+class _VerifiedExecutionSourceTapeReadback:
+    """Private capability minted after the production tape writer reads back a row."""
+
+    receipt: ExecutionSourceReceipt
+    tape_file_identity: Tuple[int, int]
+    tape_size: int
+    record_offset: int
+    record_size: int
+    record_count: int
+    record_sha256: str
+    prefix_sha256: str
+    writer_instance_id: int
+    generation_lock_identity: Tuple[int, int]
+    _capability: Any
+
+
+def _make_verified_source_tape_readback(
+    *,
+    receipt: ExecutionSourceReceipt,
+    tape_file_identity: Tuple[int, int],
+    tape_size: int,
+    record_offset: int,
+    record_size: int,
+    record_count: int,
+    record_sha256: str,
+    prefix_sha256: str,
+    writer_instance_id: int,
+    generation_lock_identity: Tuple[int, int],
+) -> _VerifiedExecutionSourceTapeReadback:
+    """Internal tape-writer hook; the journal revalidates the bounded proof."""
+
+    return _VerifiedExecutionSourceTapeReadback(
+        receipt=receipt,
+        tape_file_identity=tape_file_identity,
+        tape_size=tape_size,
+        record_offset=record_offset,
+        record_size=record_size,
+        record_count=record_count,
+        record_sha256=record_sha256,
+        prefix_sha256=prefix_sha256,
+        writer_instance_id=writer_instance_id,
+        generation_lock_identity=generation_lock_identity,
+        _capability=_VERIFIED_SOURCE_TAPE_READBACK_CAPABILITY,
+    )
+
+
+def _validate_verified_source_tape_readback(
+    value: Any,
+) -> _VerifiedExecutionSourceTapeReadback:
+    if (
+        type(value) is not _VerifiedExecutionSourceTapeReadback
+        or value._capability is not _VERIFIED_SOURCE_TAPE_READBACK_CAPABILITY
+        or type(value.receipt) is not ExecutionSourceReceipt
+        or value.receipt.readiness not in ("WARMUP", "CATCHING_UP")
+        or type(value.tape_file_identity) is not tuple
+        or len(value.tape_file_identity) != 2
+        or any(type(item) is not int or item < 0 for item in value.tape_file_identity)
+        or type(value.generation_lock_identity) is not tuple
+        or len(value.generation_lock_identity) != 2
+        or any(type(item) is not int or item < 0 for item in value.generation_lock_identity)
+        or type(value.tape_size) is not int
+        or value.tape_size < 1
+        or type(value.record_offset) is not int
+        or value.record_offset < 0
+        or type(value.record_size) is not int
+        or value.record_size < 1
+        or value.record_offset + value.record_size != value.tape_size
+        or type(value.record_count) is not int
+        or value.record_count != value.receipt.tape_record_index
+        or type(value.writer_instance_id) is not int
+        or value.writer_instance_id < 1
+        or not _source_sha256(value.record_sha256)
+        or not _source_sha256(value.prefix_sha256)
+    ):
+        raise ExecutionDecisionJournalError("VERIFIED_SOURCE_TAPE_READBACK_REQUIRED")
+    return value
+
+
 @dataclass(frozen=True)
 class ExecutionSourceHighWater:
     """Current indexed source-chain head and its exact persisted receipt."""
@@ -1960,6 +2042,7 @@ class ExecutionDecisionJournal:
         self._retained_dispatch_gate_context = None
         self._failed_closed = False
         self._closed = False
+        self._fee_pair_scope_prewarm_validation_cache = None
 
         if str(database_path) == ":memory:":
             self.path = ":memory:"
@@ -3239,6 +3322,42 @@ class ExecutionDecisionJournal:
         key_json = _canonical_json(_decision_key_values(key))
         return self.decision(_stable_id("decision", key_json))
 
+    def record_verified_source_prewarm(
+        self,
+        key: ExecutionDecisionKey,
+        tape_readback: _VerifiedExecutionSourceTapeReadback,
+    ) -> ExecutionGridDecision:
+        """Persist a no-intent WARMUP/CATCHING_UP anchor from a verified tape row.
+
+        This is the only source-only path permitted inside a registered
+        fee-pair scope. The production writer must supply its private readback
+        capability after verifying the current file identity, appended bytes,
+        and canonical row. Generic source receipts continue to fail closed.
+        """
+
+        if not isinstance(key, ExecutionDecisionKey):
+            raise ExecutionDecisionJournalError("INVALID_DECISION_KEY")
+        readback = _validate_verified_source_tape_readback(tape_readback)
+        receipt = readback.receipt
+        self._validate_source_receipt_binding(
+            key=key,
+            epoch_id=str(receipt.epoch_id),
+            batch_id=receipt.batch_id,
+            receipt=receipt,
+            grid_eligible=False,
+        )
+        if (
+            key.close_time != receipt.close_time
+            or key.cohort_id != receipt.cohort_id
+            or key.decision_kind != receipt.source_kind
+        ):
+            raise ExecutionDecisionJournalError("SOURCE_RECEIPT_DECISION_MISMATCH")
+        return self._record_source_only_grid_batch(
+            key=key,
+            receipt=receipt,
+            verified_tape_readback=readback,
+        )
+
     def source_highwater(
         self,
         account_scope: str,
@@ -3338,6 +3457,10 @@ class ExecutionDecisionJournal:
                 or (row["anchor_kind"] == "SOURCE_ONLY") != source_only
                 or (source_only and intent_values)
                 or (not source_only and _SOURCE_ANCHOR_ONLY_FIELD in economics)
+                or (
+                    receipt.readiness in ("WARMUP", "CATCHING_UP")
+                    and row["anchor_kind"] != "SOURCE_ONLY"
+                )
             ):
                 raise ExecutionDecisionJournalError("SOURCE_HIGHWATER_CORRUPT")
             return ExecutionSourceHighWater(
@@ -3377,6 +3500,56 @@ class ExecutionDecisionJournal:
             cursor,
             row,
             expected_scope=(account_scope, strategy_scope, logical_run_id, source_kind),
+        )
+
+    def _source_decision_highwater_in_transaction(
+        self,
+        cursor: sqlite3.Cursor,
+        *,
+        decision_id: str,
+        expected_scope: Tuple[str, str, str, str],
+    ) -> Tuple[ExecutionSourceHighWater, ExecutionDecisionKey]:
+        """Rebuild one immutable source-chain position from its decision row."""
+
+        row = cursor.execute(
+            "SELECT * FROM execution_decisions WHERE decision_id=?", (decision_id,)
+        ).fetchone()
+        if row is None:
+            raise ExecutionDecisionJournalError("SOURCE_HIGHWATER_CORRUPT")
+        decision = _decision_record(row)
+        key = decision.key
+        if (
+            _stable_id("decision", _canonical_json(_decision_key_values(key))) != decision_id
+            or (key.account_scope, key.strategy_scope, key.logical_run_id, key.decision_kind)
+            != expected_scope
+        ):
+            raise ExecutionDecisionJournalError("SOURCE_HIGHWATER_CORRUPT")
+        receipt, source_only = self._source_receipt_from_decision(decision)
+        receipt_json = self._validate_source_receipt_size(receipt)
+        economics = decision.economic_payload
+        if (
+            _canonical_json(economics.get(_SOURCE_RECEIPT_PAYLOAD_FIELD)) != receipt_json
+            or receipt.source_kind != key.decision_kind
+            or receipt.cohort_id != key.cohort_id
+            or receipt.close_time != key.close_time
+            or (source_only and decision.intent_keys)
+            or (
+                _SOURCE_ANCHOR_ONLY_FIELD in economics
+                and economics.get(_SOURCE_ANCHOR_ONLY_FIELD) is not True
+            )
+        ):
+            raise ExecutionDecisionJournalError("SOURCE_HIGHWATER_CORRUPT")
+        return (
+            ExecutionSourceHighWater(
+                account_scope=key.account_scope,
+                strategy_scope=key.strategy_scope,
+                logical_run_id=key.logical_run_id,
+                decision_id=decision_id,
+                receipt_sha256=_source_receipt_sha256(receipt),
+                anchor_kind="SOURCE_ONLY" if source_only else "GRID",
+                receipt=receipt,
+            ),
+            key,
         )
 
     @staticmethod
@@ -3428,7 +3601,14 @@ class ExecutionDecisionJournal:
         *,
         key: ExecutionDecisionKey,
         receipt: ExecutionSourceReceipt,
+        verified_tape_readback: Optional[_VerifiedExecutionSourceTapeReadback] = None,
     ) -> ExecutionGridDecision:
+        if verified_tape_readback is not None:
+            verified_tape_readback = _validate_verified_source_tape_readback(
+                verified_tape_readback
+            )
+            if verified_tape_readback.receipt != receipt:
+                raise ExecutionDecisionJournalError("VERIFIED_SOURCE_TAPE_RECEIPT_MISMATCH")
         receipt_json = self._validate_source_receipt_size(receipt)
         payload_json = self._payload_json(
             {
@@ -3442,11 +3622,18 @@ class ExecutionDecisionJournal:
         now_ns = time.time_ns()
         scope = (key.account_scope, key.strategy_scope, key.logical_run_id, receipt.source_kind)
         with self._transaction() as cursor:
-            self._raise_if_fee_pair_scope_grid_write(
-                cursor,
-                account_scope=key.account_scope,
-                strategy_scope=key.strategy_scope,
-            )
+            if verified_tape_readback is None:
+                self._raise_if_fee_pair_scope_grid_write(
+                    cursor,
+                    account_scope=key.account_scope,
+                    strategy_scope=key.strategy_scope,
+                )
+            else:
+                self._raise_if_fee_pair_scope_prewarm_busy(
+                    cursor,
+                    account_scope=key.account_scope,
+                    strategy_scope=key.strategy_scope,
+                )
             existing_row = cursor.execute(
                 "SELECT * FROM execution_decisions WHERE decision_id=?", (decision_id,)
             ).fetchone()
@@ -3506,6 +3693,7 @@ class ExecutionDecisionJournal:
                 decision=record,
                 created=True,
                 anchor_kind="SOURCE_ONLY",
+                verified_tape_readback=verified_tape_readback,
             )
             saved_cursor = cursor.execute(
                 """SELECT * FROM execution_grid_cursors
@@ -3542,13 +3730,26 @@ class ExecutionDecisionJournal:
         anchor_kind: str,
         fee_pair_workflow_candidate_id: Optional[str] = None,
         fee_pair_settlement_admission: Optional[_FeePairSettlementAdmission] = None,
+        verified_tape_readback: Optional[_VerifiedExecutionSourceTapeReadback] = None,
     ) -> None:
         if fee_pair_workflow_candidate_id is None:
-            self._raise_if_fee_pair_scope_grid_write(
-                cursor,
-                account_scope=key.account_scope,
-                strategy_scope=key.strategy_scope,
-            )
+            if verified_tape_readback is None:
+                self._raise_if_fee_pair_scope_grid_write(
+                    cursor,
+                    account_scope=key.account_scope,
+                    strategy_scope=key.strategy_scope,
+                )
+            else:
+                readback = _validate_verified_source_tape_readback(verified_tape_readback)
+                if anchor_kind != "SOURCE_ONLY" or readback.receipt != receipt:
+                    raise ExecutionDecisionJournalError(
+                        "VERIFIED_SOURCE_TAPE_RECEIPT_MISMATCH"
+                    )
+                self._raise_if_fee_pair_scope_prewarm_busy(
+                    cursor,
+                    account_scope=key.account_scope,
+                    strategy_scope=key.strategy_scope,
+                )
         else:
             if anchor_kind not in ("SOURCE_ONLY", "GRID"):
                 raise ExecutionDecisionJournalError("FEE_PAIR_WORKFLOW_ANCHOR_KIND_INVALID")
@@ -6683,14 +6884,12 @@ class ExecutionDecisionJournal:
                 ):
                     raise ValueError("source head changed")
                 self._validate_source_append(receipt=candidate, highwater=highwater, scope=source_scope)
-            elif row["state"] == "SOURCE_ONLY" and (
-                receipt is None
-                or highwater is None
-                or highwater.anchor_kind != "SOURCE_ONLY"
-                or highwater.receipt != receipt
-                or highwater.decision_id != _stable_id("decision", _canonical_json(_decision_key_values(key)))
-            ):
-                raise ValueError("terminal source highwater mismatch")
+            elif row["state"] == "SOURCE_ONLY" and receipt is None:
+                # The workflow's source anchor is immutable decision history.
+                # Its logical-run HWM may have advanced since this terminal
+                # transition; scope admission proves it remains on the current
+                # predecessor chain in one streaming pass.
+                raise ValueError("terminal source receipt missing")
 
             self._precheck_fee_pair_grid_tape_intent_storage_bound(
                 cursor, row["candidate_id"]
@@ -8085,6 +8284,239 @@ class ExecutionDecisionJournal:
             cursor, account_scope=account_scope, strategy_scope=strategy_scope
         )
         if registration is not None:
+            raise ExecutionDecisionJournalError("FEE_PAIR_SCOPE_FAIL_CLOSED")
+
+    def _raise_if_fee_pair_scope_prewarm_busy(
+        self, cursor: sqlite3.Cursor, *, account_scope: str, strategy_scope: str
+    ) -> None:
+        """Keep prewarm behind unresolved workflows and quarantined legacy rows.
+
+        The legacy candidate table has neither a terminal state nor a durable
+        link to the modern workflow table, so every legacy row remains a
+        conflict. Modern SOURCE_ONLY and GRID_SETTLED workflows are proven
+        terminal states and intentionally do not block a later source-only
+        prewarm in the registered scope.
+        """
+
+        data_version_row = cursor.execute("PRAGMA data_version").fetchone()
+        if (
+            data_version_row is None
+            or type(data_version_row[0]) is not int
+            or data_version_row[0] < 0
+        ):
+            raise ExecutionDecisionJournalError("FEE_PAIR_SCOPE_FAIL_CLOSED")
+        validation_identity = (
+            account_scope,
+            strategy_scope,
+            data_version_row[0],
+        )
+        if self._fee_pair_scope_prewarm_validation_cache != validation_identity:
+            workflow_ids = self._connection.cursor()
+            source_only_workflow_count = 0
+            try:
+                workflow_ids.execute(
+                    """SELECT candidate_id FROM execution_fee_pair_workflows
+                       WHERE account_scope=? AND strategy_scope=?
+                       ORDER BY candidate_id""",
+                    (account_scope, strategy_scope),
+                )
+                while True:
+                    workflow_id = workflow_ids.fetchone()
+                    if workflow_id is None:
+                        break
+                    workflow_row = cursor.execute(
+                        "SELECT * FROM execution_fee_pair_workflows WHERE candidate_id=?",
+                        (workflow_id[0],),
+                    ).fetchone()
+                    if workflow_row is None:
+                        raise ExecutionDecisionJournalError("FEE_PAIR_SCOPE_FAIL_CLOSED")
+                    try:
+                        validated = self._fee_pair_workflow_record_in_transaction(
+                            cursor, workflow_row
+                        )
+                    except ExecutionDecisionJournalError as error:
+                        raise ExecutionDecisionJournalError(
+                            "FEE_PAIR_SCOPE_FAIL_CLOSED"
+                        ) from error
+                    grid_decision_id = workflow_row["grid_decision_id"]
+                    if validated.state == "SOURCE_ONLY":
+                        source_only_workflow_count += 1
+                        if (
+                            grid_decision_id is not None
+                            or validated.grid_settled_decision_id is not None
+                        ):
+                            raise ExecutionDecisionJournalError(
+                                "FEE_PAIR_SCOPE_FAIL_CLOSED"
+                            )
+                    elif validated.state == "RECEIPT_VERIFIED" and grid_decision_id is not None:
+                        if validated.grid_settled_decision_id != grid_decision_id:
+                            raise ExecutionDecisionJournalError(
+                                "FEE_PAIR_SCOPE_FAIL_CLOSED"
+                            )
+                    elif validated.state in ("RESERVED", "APPEND_CLAIMED", "RECEIPT_VERIFIED"):
+                        if grid_decision_id is not None:
+                            raise ExecutionDecisionJournalError(
+                                "FEE_PAIR_SCOPE_FAIL_CLOSED"
+                            )
+                    else:
+                        raise ExecutionDecisionJournalError("FEE_PAIR_SCOPE_FAIL_CLOSED")
+            finally:
+                workflow_ids.close()
+            if source_only_workflow_count:
+                try:
+                    self._validate_fee_pair_source_only_workflow_chains(
+                        cursor,
+                        account_scope=account_scope,
+                        strategy_scope=strategy_scope,
+                        expected_source_only_workflow_count=source_only_workflow_count,
+                    )
+                except ExecutionDecisionJournalError as error:
+                    raise ExecutionDecisionJournalError(
+                        "FEE_PAIR_SCOPE_FAIL_CLOSED"
+                    ) from error
+            self._fee_pair_scope_prewarm_validation_cache = validation_identity
+
+        candidate = cursor.execute(
+            """SELECT state FROM execution_fee_pair_candidates
+               WHERE account_scope=? AND strategy_scope=? LIMIT 1""",
+            (account_scope, strategy_scope),
+        ).fetchone()
+        workflow = cursor.execute(
+            """SELECT state FROM execution_fee_pair_workflows
+               WHERE account_scope=? AND strategy_scope=?
+                 AND state IN ('RESERVED','APPEND_CLAIMED','RECEIPT_VERIFIED')
+                 AND grid_decision_id IS NULL
+               LIMIT 1""",
+            (account_scope, strategy_scope),
+        ).fetchone()
+        if candidate is not None or workflow is not None:
+            raise ExecutionDecisionJournalError("FEE_PAIR_SCOPE_FAIL_CLOSED")
+
+    def _validate_fee_pair_source_only_workflow_chains(
+        self,
+        cursor: sqlite3.Cursor,
+        *,
+        account_scope: str,
+        strategy_scope: str,
+        expected_source_only_workflow_count: int,
+    ) -> None:
+        """Prove every terminal SOURCE_ONLY workflow remains on its run chain.
+
+        Workflow validation is performed once above. This pass walks each
+        (logical_run_id, source_kind) highwater chain once, reconstructing each
+        predecessor from its immutable decision row and checking the typed
+        receipt link. It streams both workflow groups and decisions; history is
+        never materialized in Python memory.
+        """
+
+        groups = self._connection.cursor()
+        checked_source_only_workflows = 0
+        try:
+            groups.execute(
+                """SELECT logical_run_id,source_kind
+                   FROM execution_source_highwaters
+                   WHERE account_scope=? AND strategy_scope=?
+                   ORDER BY logical_run_id,source_kind""",
+                (account_scope, strategy_scope),
+            )
+            while True:
+                group_row = groups.fetchone()
+                if group_row is None:
+                    break
+                logical_run_id, source_kind = group_row
+                source_scope = (
+                    account_scope,
+                    strategy_scope,
+                    logical_run_id,
+                    source_kind,
+                )
+                count_row = cursor.execute(
+                    """SELECT COUNT(*) FROM execution_fee_pair_workflows
+                       WHERE account_scope=? AND strategy_scope=? AND logical_run_id=?
+                         AND decision_kind=? AND state='SOURCE_ONLY'""",
+                    source_scope,
+                ).fetchone()
+                if count_row is None or type(count_row[0]) is not int or count_row[0] < 0:
+                    raise ExecutionDecisionJournalError("FEE_PAIR_SCOPE_FAIL_CLOSED")
+                expected_group_count = count_row[0]
+                if expected_group_count == 0:
+                    continue
+                highwater = self._source_highwater_in_transaction(
+                    cursor,
+                    account_scope=source_scope[0],
+                    strategy_scope=source_scope[1],
+                    logical_run_id=source_scope[2],
+                    source_kind=source_scope[3],
+                )
+                if highwater is None:
+                    raise ExecutionDecisionJournalError("FEE_PAIR_SCOPE_FAIL_CLOSED")
+
+                expected_current = highwater
+                matched_group_count = 0
+                while True:
+                    current, key = self._source_decision_highwater_in_transaction(
+                        cursor,
+                        decision_id=expected_current.decision_id,
+                        expected_scope=source_scope,
+                    )
+                    if current != expected_current:
+                        raise ExecutionDecisionJournalError("SOURCE_HIGHWATER_CORRUPT")
+                    workflow = cursor.execute(
+                        """SELECT state,grid_decision_id FROM execution_fee_pair_workflows
+                           WHERE account_scope=? AND strategy_scope=? AND logical_run_id=?
+                             AND cohort_id=? AND close_time=? AND decision_kind=?""",
+                        (
+                            key.account_scope,
+                            key.strategy_scope,
+                            key.logical_run_id,
+                            key.cohort_id,
+                            key.close_time,
+                            key.decision_kind,
+                        ),
+                    ).fetchone()
+                    if workflow is not None and workflow["state"] == "SOURCE_ONLY":
+                        if (
+                            current.anchor_kind != "SOURCE_ONLY"
+                            or workflow["grid_decision_id"] is not None
+                        ):
+                            raise ExecutionDecisionJournalError("SOURCE_HIGHWATER_CORRUPT")
+                        matched_group_count += 1
+
+                    predecessor = current.receipt.predecessor
+                    if predecessor is None:
+                        self._validate_source_append(
+                            receipt=current.receipt,
+                            highwater=None,
+                            scope=source_scope,
+                        )
+                        break
+                    if (
+                        predecessor.account_scope,
+                        predecessor.strategy_scope,
+                        predecessor.logical_run_id,
+                        predecessor.source_kind,
+                    ) != source_scope:
+                        raise ExecutionDecisionJournalError("SOURCE_HIGHWATER_CORRUPT")
+                    prior, _prior_key = self._source_decision_highwater_in_transaction(
+                        cursor,
+                        decision_id=predecessor.decision_id,
+                        expected_scope=source_scope,
+                    )
+                    if prior.reference != predecessor:
+                        raise ExecutionDecisionJournalError("SOURCE_HIGHWATER_CORRUPT")
+                    self._validate_source_append(
+                        receipt=current.receipt,
+                        highwater=prior,
+                        scope=source_scope,
+                    )
+                    expected_current = prior
+
+                if matched_group_count != expected_group_count:
+                    raise ExecutionDecisionJournalError("FEE_PAIR_SCOPE_FAIL_CLOSED")
+                checked_source_only_workflows += matched_group_count
+        finally:
+            groups.close()
+        if checked_source_only_workflows != expected_source_only_workflow_count:
             raise ExecutionDecisionJournalError("FEE_PAIR_SCOPE_FAIL_CLOSED")
 
     def _validate_fee_pair_settlement_admission(

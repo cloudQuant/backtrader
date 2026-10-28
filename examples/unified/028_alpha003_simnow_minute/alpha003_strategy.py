@@ -5216,6 +5216,15 @@ class Alpha003TargetStrategy(bt.Strategy):
         self._source_restart_marker = None
         return True
 
+    def _latch_decision_tape_failure(self) -> None:
+        sink = getattr(self.p, "decision_tape", None)
+        latch = getattr(sink, "latch_failure", None) if sink is not None else None
+        if callable(latch):
+            try:
+                latch()
+            except Exception:
+                pass
+
     def _record_source_only(self, batch: Any, snapshot: Any, tape_reference: Any) -> bool:
         """Persist source continuity without entering an order-dispatch scope."""
 
@@ -5237,16 +5246,76 @@ class Alpha003TargetStrategy(bt.Strategy):
                 close_time=receipt.close_time,
                 decision_kind=self._source_kind,
             )
-            self._coordinator.record_source_receipt(
-                key=key,
-                batch=batch,
-                source_receipt=receipt,
-            )
-            return self._confirm_source_anchor(receipt, anchor_kind="SOURCE_ONLY")
+            if receipt.readiness in ("WARMUP", "CATCHING_UP"):
+                sink = self.p.decision_tape
+                verified_prewarm = (
+                    getattr(sink, "record_verified_source_prewarm", None)
+                    if sink is not None
+                    else None
+                )
+                if not callable(verified_prewarm):
+                    raise ValueError("verified source tape writer is unavailable")
+                verified_prewarm(
+                    key=key,
+                    batch=batch,
+                    source_receipt=receipt,
+                    coordinator=self._coordinator,
+                )
+            else:
+                self._coordinator.record_source_receipt(
+                    key=key,
+                    batch=batch,
+                    source_receipt=receipt,
+                )
+            if not self._confirm_source_anchor(receipt, anchor_kind="SOURCE_ONLY"):
+                self._latch_decision_tape_failure()
+                return False
+            return True
         except Exception:
+            self._latch_decision_tape_failure()
             self.last_execution_block_reason = "SOURCE_RECEIPT_WRITE_FAILED"
             self._note_source_continuity_failure("SOURCE_RECEIPT_WRITE_FAILED")
             return False
+
+    @staticmethod
+    def _live_good_source_batch(batch: Any, snapshot: Any) -> bool:
+        try:
+            readiness = _state_name(_read(snapshot, "readiness"), "snapshot readiness")
+            members = _read(batch, "members")
+            return bool(
+                readiness == "LIVE_READY"
+                and isinstance(members, Mapping)
+                and members
+                and all(
+                    _read(_read(member, "envelope"), "source_role") == "live"
+                    and _read(_read(member, "envelope"), "complete") is True
+                    and _read(_read(member, "envelope"), "quality") == "GOOD"
+                    and _read(_read(member, "envelope"), "present") is True
+                    and not _read(_read(member, "envelope"), "missing_fields")
+                    and set(
+                        _read(_read(member, "envelope"), "quality_flags")
+                    ).issubset({"LEGACY_SCHEMA"})
+                    for member in members.values()
+                )
+            )
+        except Exception:
+            return False
+
+    @staticmethod
+    def _no_intent_source_tape_plan(batch: Any, snapshot: Any) -> Alpha003OrderPlan:
+        readiness = _state_name(_read(snapshot, "readiness"), "snapshot readiness")
+        reason = {
+            "WARMUP": "CALCULATION_WARMUP",
+            "CATCHING_UP": "SOURCE_CATCHING_UP",
+        }.get(readiness, "SOURCE_NOT_LIVE_READY")
+        return Alpha003OrderPlan(
+            "NO_ACTION",
+            reason,
+            (),
+            _read(batch, "batch_id"),
+            _read(batch, "available_at"),
+            None,
+        )
 
     def _live_grid_decision(
         self,
@@ -5834,12 +5903,20 @@ class Alpha003TargetStrategy(bt.Strategy):
                 None,
             )
         proposed_plan = self.last_order_plan
+        tape_order_plan = proposed_plan
+        if (
+            is_new_batch
+            and batch is not None
+            and snapshot is not None
+            and not self._live_good_source_batch(batch, snapshot)
+        ):
+            tape_order_plan = self._no_intent_source_tape_plan(batch, snapshot)
         tape_durable = False
         tape_reference = None
         tape_error = None
         if is_new_batch and batch is not None and snapshot is not None:
             tape_durable, tape_reference, tape_error = self._record_decision_tape(
-                batch, snapshot, target_decision, proposed_plan
+                batch, snapshot, target_decision, tape_order_plan
             )
             if not tape_durable:
                 self.last_execution_block_reason = tape_error
@@ -5856,23 +5933,10 @@ class Alpha003TargetStrategy(bt.Strategy):
                 )
             if source_receipt is not None:
                 readiness = _state_name(_read(snapshot, "readiness"), "snapshot readiness")
-                batch_members = _read(batch, "members")
                 live_good_batch = (
                     readiness == "LIVE_READY"
                     and source_receipt.readiness == readiness
-                    and isinstance(batch_members, Mapping)
-                    and bool(batch_members)
-                    and all(
-                        _read(_read(receipt, "envelope"), "source_role") == "live"
-                        and _read(_read(receipt, "envelope"), "complete") is True
-                        and _read(_read(receipt, "envelope"), "quality") == "GOOD"
-                        and _read(_read(receipt, "envelope"), "present") is True
-                        and not _read(_read(receipt, "envelope"), "missing_fields")
-                        and set(_read(_read(receipt, "envelope"), "quality_flags")).issubset(
-                            {"LEGACY_SCHEMA"}
-                        )
-                        for receipt in batch_members.values()
-                    )
+                    and self._live_good_source_batch(batch, snapshot)
                 )
                 grid_recorded = False
                 if live_good_batch:

@@ -9,10 +9,13 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
+from dataclasses import replace
 import math
+import os
 from pathlib import Path
+import sqlite3
 import sys
-from types import MappingProxyType
+from types import MappingProxyType, SimpleNamespace
 
 import backtrader as bt
 import pytest
@@ -32,11 +35,14 @@ from backtrader.research.live_cohort import (
 from backtrader.stores.execution_decision_journal import (
     ExecutionDecisionKey,
     ExecutionDecisionJournal,
+    ExecutionDecisionJournalError,
     ExecutionIntentKey,
+    ExecutionSourceReceipt,
 )
 from backtrader.stores.factor_execution import FactorExecutionCoordinator
 from backtrader.stores.factor_execution_facts import FactorExecutionTarget
 from backtrader.stores.registered_sim import RegisteredSimStore
+from tests.unit.stores import test_execution_fee_pair_candidate_journal as fee_pair_fixtures
 from tests.unit.stores import test_factor_execution as execution_fixtures
 from tests.unit.stores import test_factor_execution_facts as facts_fixtures
 
@@ -482,7 +488,6 @@ def test_history_overlap_and_staggered_live_cutovers_block_orders_until_qualifie
     assert coordinator.run_order_count() == 1
     assert [call[0] for call in api.native_calls] == ["insert"]
     assert api.native_calls[0][1:3] == (INSTRUMENT, EXCHANGE)
-
     intent = journal.intent(strategy.order.info["factor_intent_id"])
     assert intent is not None
     assert intent.key == ExecutionIntentKey(
@@ -499,13 +504,754 @@ def test_history_overlap_and_staggered_live_cutovers_block_orders_until_qualifie
 
 
 @pytest.mark.integration
+def test_fee_pair_source_only_history_survives_same_run_warmup_chain_reopen(tmp_path):
+    """A terminal fee-pair source row stays valid as the run HWM advances."""
+
+    import importlib
+    import importlib.util
+
+    from backtrader.stores import execution_decision_journal as journal_api
+    from tests.integration import test_alpha003_fee_pair_source_only_tape as source_only
+
+    example_dir = (
+        Path(__file__).resolve().parents[2]
+        / "examples"
+        / "unified"
+        / "028_alpha003_simnow_minute"
+    )
+    runner_name = "_alpha003_same_run_source_chain_writer_fixture"
+    runner = sys.modules.get(runner_name)
+    if runner is None:
+        runner_spec = importlib.util.spec_from_file_location(runner_name, example_dir / "run.py")
+        assert runner_spec is not None and runner_spec.loader is not None
+        runner = importlib.util.module_from_spec(runner_spec)
+        sys.modules[runner_name] = runner
+        runner_spec.loader.exec_module(runner)
+    assert Path(runner.__file__).resolve() == example_dir / "run.py"
+
+    seed_writer, seed_journal, candidate, batch, snapshot, target_decision = (
+        source_only._fixture(tmp_path, filename="same-run-seed.jsonl")
+    )
+    journal_path = seed_journal.path
+    seed_writer.close()
+    seed_journal.close()
+
+    selection_evidence, restart_identity = source_only._selection_binding(
+        "saved_bundle_legacy"
+    )
+    writer = runner.DecisionTapeWriter(
+        tmp_path / "same-run-live.jsonl",
+        1_000_000,
+        mode="live",
+        factor_mode="native",
+        direction=1,
+        targets=source_only._TARGETS,
+        calendar_id=candidate.calendar_id,
+        grid_sha256="a" * 64,
+        source_snapshot_id="source-only-synthetic-snapshot",
+        restart_identity=restart_identity,
+        selection_evidence=selection_evidence,
+        calendar_fingerprint=candidate.calendar_fingerprint,
+        cross_process_generation_lease=True,
+    )
+    journal = ExecutionDecisionJournal(journal_path)
+    candidate = replace(candidate, expected_tape_file_id=writer.file_id)
+    source_only_result = None
+    journal_closed = False
+
+    def append_warmup_anchor(active_journal, coordinator, slot_index):
+        close_time = batch.close_time + timedelta(minutes=slot_index)
+        available_at = close_time + timedelta(seconds=2)
+        slot_id = "slot-{:04d}".format(slot_index)
+        batch_id = "{}:{}:{}:{}:{}".format(
+            batch.cohort_id,
+            batch.calendar_id,
+            batch.epoch_id,
+            batch.calendar_version,
+            slot_index,
+        )
+        members = {}
+        for member_id, old_member in batch.members.items():
+            old_envelope = old_member.envelope
+            envelope = replace(
+                old_envelope,
+                slot_index=slot_index,
+                slot_id=slot_id,
+                feed_sequence=old_envelope.feed_sequence + slot_index,
+                bucket_start=close_time - timedelta(minutes=1),
+                close_time=close_time,
+                available_at=available_at,
+                bar_id="same-run-warmup-{}-{}".format(member_id, slot_index),
+            )
+            members[member_id] = replace(
+                old_member,
+                batch_id=batch_id,
+                slot_index=slot_index,
+                envelope=envelope,
+                feed_sequence=envelope.feed_sequence,
+                close_time=close_time,
+                available_at=available_at,
+            )
+        warmup_batch = replace(
+            batch,
+            batch_id=batch_id,
+            slot_index=slot_index,
+            close_time=close_time,
+            available_at=available_at,
+            members=MappingProxyType(members),
+        )
+        warmup_snapshot = replace(
+            snapshot,
+            batch_id=batch_id,
+            close_time=close_time,
+            available_at=available_at,
+            readiness=LiveFactorReadiness.WARMUP,
+            readiness_reasons=("synthetic_source_warmup",),
+        )
+        no_action_plan = SimpleNamespace(
+            status="NO_ACTION",
+            reason="CALCULATION_WARMUP",
+            actions=(),
+            decision_batch_id=batch_id,
+            decision_available_at=available_at,
+        )
+        assert writer.record_decision(
+            warmup_batch, warmup_snapshot, None, no_action_plan
+        ) is True
+        row = tuple(runner.iter_decision_tape(writer.path, max_bytes=writer.max_bytes))[-1]
+        predecessor = active_journal.source_highwater(
+            candidate.key.account_scope,
+            candidate.key.strategy_scope,
+            candidate.key.logical_run_id,
+            candidate.source_kind,
+        )
+        assert predecessor is not None
+        receipt = ExecutionSourceReceipt(
+            source_kind=candidate.source_kind,
+            cohort_id=row["cohort_id"],
+            calendar_id=row["calendar_id"],
+            calendar_version=row["calendar_version"],
+            calendar_fingerprint=row["calendar_fingerprint"],
+            epoch_id=row["epoch_id"],
+            slot_index=row["slot_index"],
+            slot_id=row["slot_id"],
+            close_time=row["close_time"],
+            batch_id=row["batch_id"],
+            readiness=row["readiness"],
+            tape_file_id=row["file_id"],
+            tape_record_id=row["record_id"],
+            tape_record_index=row["record_index"],
+            members=runner._fee_pair_source_members_from_tape_row(row, journal_api),
+            predecessor=predecessor.reference,
+        )
+        key = ExecutionDecisionKey(
+            account_scope=candidate.key.account_scope,
+            strategy_scope=candidate.key.strategy_scope,
+            logical_run_id=candidate.key.logical_run_id,
+            cohort_id=receipt.cohort_id,
+            close_time=receipt.close_time,
+            decision_kind=receipt.source_kind,
+        )
+        result = writer.record_verified_source_prewarm(
+            key=key,
+            batch=warmup_batch,
+            source_receipt=receipt,
+            coordinator=coordinator,
+        )
+        assert result.eligible is False and result.is_new_grid is False
+        confirmed = active_journal.source_highwater(
+            key.account_scope,
+            key.strategy_scope,
+            key.logical_run_id,
+            receipt.source_kind,
+        )
+        assert confirmed is not None and confirmed.receipt == receipt
+        return confirmed
+
+    try:
+        journal.register_fee_pair_required_scope(
+            candidate.key.account_scope, candidate.key.strategy_scope
+        )
+        source_only_result = writer.record_fee_pair_source_only(
+            candidate,
+            batch,
+            snapshot,
+            target_decision,
+            journal,
+            owner_token=source_only._OWNER_TOKEN,
+            ttl_seconds=10,
+        )
+        first_hwm = journal.source_highwater(
+            candidate.key.account_scope,
+            candidate.key.strategy_scope,
+            candidate.key.logical_run_id,
+            candidate.source_kind,
+        )
+        assert first_hwm is not None
+        assert first_hwm.anchor_kind == "SOURCE_ONLY"
+        assert journal.fee_pair_workflow_candidate(
+            source_only_result["candidate_id"]
+        ).state == "SOURCE_ONLY"
+
+        def coordinator_for(active_journal):
+            broker = SimpleNamespace(
+                store=SimpleNamespace(
+                    registered_sim_route_id="simnow-registered-v1",
+                    allow_writes=True,
+                )
+            )
+            return FactorExecutionCoordinator(
+                broker,
+                active_journal,
+                account_scope=candidate.key.account_scope,
+                strategy_scope=candidate.key.strategy_scope,
+                logical_run_id=candidate.key.logical_run_id,
+                max_order_intents_per_grid=0,
+                max_order_intents_per_run=0,
+            )
+
+        first_coordinator = coordinator_for(journal)
+        second_hwm = append_warmup_anchor(journal, first_coordinator, 1)
+        journal.close()
+        journal_closed = True
+
+        reopened_journal = ExecutionDecisionJournal(journal_path)
+        try:
+            reopened_coordinator = coordinator_for(reopened_journal)
+            third_hwm = append_warmup_anchor(
+                reopened_journal, reopened_coordinator, 2
+            )
+            assert third_hwm.receipt.predecessor == second_hwm.reference
+            assert third_hwm.receipt.readiness == "WARMUP"
+            workflow = reopened_journal.fee_pair_workflow_candidate(
+                source_only_result["candidate_id"]
+            )
+            assert workflow.state == "SOURCE_ONLY"
+            assert workflow.source_only_decision_id == source_only_result["decision"].decision_id
+            assert reopened_journal.grid_cursor(
+                candidate.key.account_scope,
+                candidate.key.strategy_scope,
+                candidate.key.cohort_id,
+            ) is None
+            assert reopened_journal.run_order_count(
+                candidate.key.account_scope,
+                candidate.key.strategy_scope,
+                candidate.key.logical_run_id,
+            ) == 0
+            assert source_only_result["decision"].intent_keys == ()
+
+            writer.close()
+            rows = tuple(
+                runner.iter_decision_tape(writer.path, max_bytes=writer.max_bytes)
+            )
+            assert len(rows) == 4
+            assert rows[1]["order_plan"]["status"] == "SOURCE_ONLY"
+            assert all(row["order_plan"]["actions"] == [] for row in rows[1:])
+            assert all(row["target_decision"] is None for row in rows[2:])
+            final_readback = runner._decision_tape_readback(
+                writer.path, writer.max_bytes
+            )
+            assert final_readback["raw_sha256"] == writer.summary()["sha256"]
+            assert final_readback["record_count"] == writer.summary()["record_count"]
+        finally:
+            reopened_journal.close()
+    finally:
+        if not journal_closed:
+            try:
+                journal.close()
+            except Exception:
+                pass
+        if not writer.summary()["closed"]:
+            writer.close()
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize("factor_mode", ("native", "build"))
 @pytest.mark.parametrize(
-    ("tape_write_confirmed", "expected_tape_error"),
-    ((True, None), (False, "DECISION_TAPE_WRITE_NOT_CONFIRMED")),
-    ids=("durable-tape", "tape-write-failed"),
+    ("scope_history", "prewarm_expected"),
+    (
+        ("none", True),
+        ("SOURCE_ONLY", True),
+        ("GRID_SETTLED", True),
+        ("CORRUPT_GRID_SETTLED", False),
+        ("RESERVED", False),
+        ("APPEND_CLAIMED", False),
+        ("RECEIPT_VERIFIED", False),
+        ("LEGACY_APPEND_CLAIMED", False),
+    ),
+)
+def test_alpha003_catching_up_source_anchor_requires_verified_no_intent_tape(
+    factor_mode, scope_history, prewarm_expected, tmp_path
+):
+    """Production Strategy/Writers anchor catch-up without opening GRID.
+
+    Completed modern fee-pair workflows must permit a later prewarm. Active
+    workflows and unlinked legacy candidates remain fail-closed.
+    """
+
+    import importlib
+    import importlib.util
+
+    example_dir = (
+        Path(__file__).resolve().parents[2]
+        / "examples"
+        / "unified"
+        / "028_alpha003_simnow_minute"
+    )
+    if str(example_dir) not in sys.path:
+        sys.path.insert(0, str(example_dir))
+    strategy_module = importlib.import_module("alpha003_strategy")
+    runner_name = "_alpha003_catching_up_writer_fixture"
+    runner = sys.modules.get(runner_name)
+    if runner is None:
+        runner_spec = importlib.util.spec_from_file_location(runner_name, example_dir / "run.py")
+        assert runner_spec is not None and runner_spec.loader is not None
+        runner = importlib.util.module_from_spec(runner_spec)
+        sys.modules[runner_name] = runner
+        runner_spec.loader.exec_module(runner)
+
+    targets = ("rb", "cu")
+    history_lengths = {"rb": 10, "cu": 12}
+    member_sessions = {
+        target: LiveCalendarMemberSession(
+            trading_day="2026-10-24", session_segment="regular"
+        )
+        for target in targets
+    }
+    slots = tuple(
+        LiveCalendarSlot(
+            slot_id="catchup-minute-{}".format(index),
+            bucket_start=START + timedelta(minutes=index),
+            close_time=START + timedelta(minutes=index + 1),
+            trading_day="2026-10-24",
+            session_segment="regular",
+            member_sessions=member_sessions,
+        )
+        for index in range(12)
+    )
+    calendar = LiveCohortCalendar(
+        calendar_id="alpha003-catchup-source-v1",
+        version="v1",
+        epoch_id=1,
+        frequency="1min",
+        frequency_seconds=60,
+        timezone_id="UTC",
+        clock_domain_id="clock-alpha003-catchup-source",
+        session_semantics="ctp-regular-v1",
+        slots=slots,
+    )
+    now = slots[-1].close_time + timedelta(seconds=2)
+    clock = _ReplayClock(now)
+    cohort = LiveBarCohort(
+        "cohort-alpha003-catchup-source",
+        calendar,
+        max_pending_slots=2,
+        max_window_bars=10,
+        wait_timeout_ns=2_000_000_000,
+    )
+    feeds = {}
+    for asset_index, target in enumerate(targets):
+        bars = tuple(
+            MappingProxyType(
+                {
+                    "instrument": target,
+                    "symbol": target,
+                    "timestamp": slot.close_time.timestamp(),
+                    "datetime": slot.close_time,
+                    "bucket_start": slot.bucket_start,
+                    "bucket_end": slot.close_time,
+                    "available_at": slot.close_time,
+                    "trading_day": "2026-10-24",
+                    "session_segment": "regular",
+                    "timezone_id": "UTC",
+                    "clock_domain_id": "clock-alpha003-catchup-source",
+                    "connection_generation": "catchup-generation-1",
+                    "bar_sequence": index + 1,
+                    "bar_id": "{}-catchup-{}".format(target, index),
+                    "open": float(10 + ((asset_index + index) % 2)),
+                    "high": float(12 + ((asset_index + index) % 2)),
+                    "low": float(9 + ((asset_index + index) % 2)),
+                    "close": float(11 + ((asset_index + index) % 2)),
+                    "volume": float(100 + ((2 * asset_index + index) % 2)),
+                    "openinterest": 0.0,
+                    "present": True,
+                    "complete": True,
+                    "quality": "GOOD",
+                    "quality_flags": (),
+                    "source": "alpha003-catching-up-source-fixture",
+                }
+            )
+            for index, slot in enumerate(slots)
+        )
+        feed = bt.feeds.BtApiFeed(
+            dataname=target,
+            historical_bars=bars[: history_lengths[target]],
+            live_bars=bars[history_lengths[target] - 1 :],
+            cohort_source_mode=True,
+            backfill_start=False,
+            timeframe=bt.TimeFrame.Minutes,
+            compression=1,
+            clock=clock,
+        )
+        feeds[target] = feed
+        cohort.register_member(
+            target,
+            feed,
+            instrument=target,
+            source_ref="fixture-catching-up-" + target,
+            line_fields=("open", "high", "low", "close", "volume", "openinterest"),
+            raw_fields=("open", "high", "low", "close", "volume", "openinterest"),
+            numeric_fields=("open", "high", "low", "close", "volume", "openinterest"),
+        )
+    cohort.seal()
+
+    api, store, broker, journal, coordinator, *_unused = execution_fixtures._system(
+        now=now,
+        query_rows=facts_fixtures._query_rows(),
+        journal_path=(
+            tmp_path / "corrupt-terminal-workflow.sqlite3"
+            if scope_history == "CORRUPT_GRID_SETTLED"
+            else None
+        ),
+    )
+    journal.register_fee_pair_required_scope(ACCOUNT_SCOPE, STRATEGY_SCOPE)
+    if scope_history != "none":
+        if scope_history in ("GRID_SETTLED", "CORRUPT_GRID_SETTLED"):
+            fee_case, fee_candidate, quote_by_route = (
+                fee_pair_fixtures._fee_pair_settlement_fixture(
+                    "catchup-terminal-grid"
+                )
+            )
+        else:
+            fee_candidate = fee_pair_fixtures._candidate(
+                run_id="catchup-prior-{}".format(scope_history.lower()),
+                close_time="2026-10-28T10:00:00Z",
+            )
+            fee_candidate = replace(
+                fee_candidate,
+                key=replace(
+                    fee_candidate.key,
+                    account_scope=ACCOUNT_SCOPE,
+                    strategy_scope=STRATEGY_SCOPE,
+                ),
+            )
+            fee_case = None
+            quote_by_route = None
+        assert fee_candidate.key.account_scope == ACCOUNT_SCOPE
+        assert fee_candidate.key.strategy_scope == STRATEGY_SCOPE
+        owner_token = "catchup-fee-pair-owner-" + scope_history.lower() + "-" + "w" * 40
+        if scope_history == "LEGACY_APPEND_CLAIMED":
+            legacy = journal.reserve_fee_pair_candidate(
+                fee_candidate, owner_token=owner_token, ttl_seconds=10
+            )
+            claimed_legacy = journal.record_fee_pair_append_claim(
+                legacy.candidate_id, owner_token=owner_token
+            )
+            assert claimed_legacy.state == "APPEND_CLAIMED"
+        else:
+            reserved = journal.reserve_fee_pair_workflow_candidate(
+                fee_candidate, owner_token=owner_token, ttl_seconds=10
+            )
+            if scope_history in (
+                "APPEND_CLAIMED",
+                "RECEIPT_VERIFIED",
+                "SOURCE_ONLY",
+                "GRID_SETTLED",
+                "CORRUPT_GRID_SETTLED",
+            ):
+                claimed = journal.record_fee_pair_workflow_append_claim(
+                    reserved.candidate_id, owner_token=owner_token
+                )
+                assert claimed.state == "APPEND_CLAIMED"
+            if scope_history in (
+                "RECEIPT_VERIFIED",
+                "SOURCE_ONLY",
+                "GRID_SETTLED",
+                "CORRUPT_GRID_SETTLED",
+            ):
+                from backtrader.stores import execution_decision_journal as journal_module
+
+                receipt = journal_module._fee_pair_receipt_from_candidate(
+                    fee_candidate, "catchup-prior-verified-tape-row"
+                )
+                attached = journal.attach_verified_fee_pair_source_receipt(
+                    reserved.candidate_id, receipt, owner_token=owner_token
+                )
+                assert attached.state == "RECEIPT_VERIFIED"
+            if scope_history == "SOURCE_ONLY":
+                terminal = journal.finalize_fee_pair_source_only_from_attached_receipt(
+                    reserved.candidate_id, owner_token=owner_token
+                )
+                assert terminal.is_noop
+                assert journal.fee_pair_workflow_candidate(reserved.candidate_id).state == (
+                    "SOURCE_ONLY"
+                )
+            elif scope_history in ("GRID_SETTLED", "CORRUPT_GRID_SETTLED"):
+                payload = fee_pair_fixtures._fee_pair_grid_economic_payload(
+                    fee_candidate,
+                    fee_case.facts,
+                    quote_by_route,
+                    receipt,
+                )
+                settled = journal.settle_fee_pair_grid_decision(
+                    reserved.candidate_id,
+                    owner_token=owner_token,
+                    facts=fee_case.facts,
+                    current_account_session_id=fee_candidate.account_session_id,
+                    current_account_session_generation=(
+                        fee_candidate.account_session_generation
+                    ),
+                    max_query_age_seconds=20.0,
+                    max_quote_age_seconds=10.0,
+                    economic_payload=payload,
+                    max_order_intents_per_run=100,
+                    expected_run_order_intents_used=0,
+                    remaining_exit_intent_reserve=0,
+                )
+                assert settled.is_new_grid is True
+                terminal_workflow = journal.fee_pair_workflow_candidate(
+                    reserved.candidate_id
+                )
+                assert terminal_workflow.state == "RECEIPT_VERIFIED"
+                assert terminal_workflow.grid_settled_decision_id is not None
+                if scope_history == "CORRUPT_GRID_SETTLED":
+                    with journal._transaction() as cursor:
+                        journal._raise_if_fee_pair_scope_prewarm_busy(
+                            cursor,
+                            account_scope=ACCOUNT_SCOPE,
+                            strategy_scope=STRATEGY_SCOPE,
+                        )
+                    with sqlite3.connect(str(journal.path)) as corrupt_database:
+                        corrupt_database.execute(
+                            "DROP TRIGGER execution_fee_pair_workflow_state"
+                        )
+                        corrupt_database.execute(
+                            """UPDATE execution_fee_pair_workflows
+                               SET grid_decision_id=? WHERE candidate_id=?""",
+                            ("0" * 64, reserved.candidate_id),
+                        )
+            elif scope_history in ("RESERVED", "APPEND_CLAIMED", "RECEIPT_VERIFIED"):
+                current_workflow = journal.fee_pair_workflow_candidate(
+                    reserved.candidate_id
+                )
+                assert current_workflow.state == scope_history
+                assert current_workflow.grid_settled_decision_id is None
+    writer = runner.DecisionTapeWriter(
+        tmp_path / (factor_mode + "-catchup-source.jsonl"),
+        2_000_000,
+        mode="live",
+        factor_mode=factor_mode,
+        direction=1,
+        targets=targets,
+        calendar_id=calendar.calendar_id,
+        grid_sha256=None,
+        source_snapshot_id=None,
+        calendar_fingerprint=cohort.calendar_fingerprint,
+        cross_process_generation_lease=True,
+    )
+
+    class _ProductionCatchupStrategy(strategy_module.Alpha003TargetStrategy):
+        def __init__(self):
+            super().__init__()
+            self.source_observations = []
+
+        def _live_facts(self, now):
+            return None
+
+        def _observe(self, phase):
+            batch, snapshot = self._current_batch_snapshot()
+            if batch is not None and snapshot is not None:
+                self.source_observations.append((phase, batch, snapshot))
+
+        def prenext(self):
+            self._observe("prenext")
+            super().prenext()
+
+        def next(self):
+            self._observe("next")
+            super().next()
+
+    cerebro = bt.Cerebro(stdstats=False, exactbars=3, preload=False, runonce=False)
+    cerebro.setbroker(broker)
+    for target in targets:
+        cerebro.adddata(feeds[target], name=target)
+    cerebro.add_live_bar_cohort(cohort, clock=clock)
+    cerebro.addstrategy(
+        _ProductionCatchupStrategy,
+        cohort=cohort,
+        calendar_id=calendar.calendar_id,
+        factor_mode=factor_mode,
+        direction=1,
+        authorized_targets=targets,
+        product_keys={target: ("SYNTH", target) for target in targets},
+        preheat_bars=10,
+        max_pending_slots=2,
+        max_window_bars=10,
+        wait_timeout_ns=2_000_000_000,
+        rebalance_every=5,
+        replay_mode=False,
+        execution_enabled=False,
+        risk_policy=None,
+        routes={target: (target, "SYNTH") for target in targets},
+        session_calendars={},
+        account_scope=ACCOUNT_SCOPE,
+        strategy_scope=STRATEGY_SCOPE,
+        logical_run_id="run-1",
+        max_live_bar_age_seconds=120,
+        max_future_skew_seconds=0,
+        decision_tape=writer,
+    )
+
+    try:
+        result = cerebro.run(runonce=False, preload=False)
+        if prewarm_expected:
+            writer.close()
+        else:
+            with pytest.raises(runner.RunnerError, match="DECISION_TAPE_CLOSE_FAILED"):
+                writer.close()
+        strategy = result[0]
+        assert strategy.source_observations
+        assert any(
+            snapshot.readiness is LiveFactorReadiness.WARMUP
+            for _phase, _batch, snapshot in strategy.source_observations
+        )
+        catchup = [
+            (phase, batch, snapshot)
+            for phase, batch, snapshot in strategy.source_observations
+            if snapshot.readiness is LiveFactorReadiness.CATCHING_UP
+        ]
+        assert catchup and any(phase == "next" for phase, _batch, _snapshot in catchup)
+        assert all(
+            set(member.envelope.source_role for member in batch.members.values())
+            == {"history", "live"}
+            for _phase, batch, _snapshot in catchup
+        )
+        logical_run_id = "run-1"
+        highwater = journal.source_highwater(
+            ACCOUNT_SCOPE, STRATEGY_SCOPE, logical_run_id, strategy._source_kind
+        )
+        if not prewarm_expected:
+            assert highwater is None
+            assert writer.summary()["closed"] is True
+            assert writer.summary()["failed"] is True
+            assert writer._generation_lease.held is False
+            assert coordinator.run_order_count() == 0
+            assert journal.grid_cursor(
+                ACCOUNT_SCOPE, STRATEGY_SCOPE, cohort.cohort_id
+            ) is None
+            for _phase, blocked_batch, _snapshot in strategy.source_observations:
+                blocked_key = ExecutionDecisionKey(
+                    account_scope=ACCOUNT_SCOPE,
+                    strategy_scope=STRATEGY_SCOPE,
+                    logical_run_id=logical_run_id,
+                    cohort_id=blocked_batch.cohort_id,
+                    close_time=blocked_batch.close_time.isoformat().replace("+00:00", "Z"),
+                    decision_kind=strategy._source_kind,
+                )
+                assert journal.decision_for_key(blocked_key) is None
+            blocked_rows = tuple(
+                runner.iter_decision_tape(writer.path, max_bytes=2_000_000)
+            )
+            assert len(blocked_rows) >= 2
+            assert all(row["order_plan"]["actions"] == [] for row in blocked_rows[1:])
+            return
+        assert highwater is not None and highwater.anchor_kind == "SOURCE_ONLY"
+        assert highwater.receipt.readiness == "CATCHING_UP"
+        assert coordinator.run_order_count() == 0
+        assert journal.grid_cursor(
+            ACCOUNT_SCOPE, STRATEGY_SCOPE, cohort.cohort_id
+        ) is None
+        rows = tuple(runner.iter_decision_tape(writer.path, max_bytes=2_000_000))
+        assert len(rows) == writer.summary()["record_count"] + 1
+        assert rows[-1]["readiness"] == "CATCHING_UP"
+        assert "target_decision" in rows[-1]
+        assert rows[-1]["factors"]["factors"]
+        assert rows[-1]["members"]
+        assert all(row["order_plan"]["actions"] == [] for row in rows[1:])
+        final_batch = catchup[-1][1]
+        final_member_rows = rows[-1]["members"]
+        roles = set()
+        for target, member in final_batch.members.items():
+            envelope = member.envelope
+            roles.add(envelope.source_role)
+            saved_member = final_member_rows[target]
+            assert saved_member["source_role"] == envelope.source_role
+            assert set(saved_member["raw_values"]) == {
+                "open",
+                "high",
+                "low",
+                "close",
+                "volume",
+                "openinterest",
+            }
+            assert saved_member["raw_values"] == {
+                field: runner._tape_scalar(
+                    envelope.raw_values[field], "{}.{}".format(target, field)
+                )
+                for field in sorted(envelope.raw_values)
+            }
+        assert roles == {"history", "live"}
+        assert rows[-1]["record_index"] == highwater.receipt.tape_record_index
+
+        key = ExecutionDecisionKey(
+            account_scope=ACCOUNT_SCOPE,
+            strategy_scope=STRATEGY_SCOPE,
+            logical_run_id=logical_run_id,
+            cohort_id=highwater.receipt.cohort_id,
+            close_time=highwater.receipt.close_time,
+            decision_kind=strategy._source_kind,
+        )
+        with pytest.raises(ExecutionDecisionJournalError, match="VERIFIED_SOURCE_TAPE_READBACK_REQUIRED"):
+            journal.record_verified_source_prewarm(key, highwater.receipt)
+        with pytest.raises(ExecutionDecisionJournalError, match="FEE_PAIR_SCOPE_FAIL_CLOSED"):
+            coordinator.record_source_receipt(
+                key=key,
+                batch=catchup[-1][1],
+                source_receipt=highwater.receipt,
+            )
+        grid_receipt = replace(highwater.receipt, readiness="LIVE_READY")
+        with pytest.raises(ExecutionDecisionJournalError, match="FEE_PAIR_SCOPE_FAIL_CLOSED"):
+            journal.record_grid_decision(
+                key,
+                {},
+                intent_keys=(),
+                epoch_id=str(grid_receipt.epoch_id),
+                batch_id=grid_receipt.batch_id,
+                eligible=True,
+                complete=True,
+                live_ready=True,
+                inputs_complete=True,
+                source_receipt=grid_receipt,
+            )
+        final_readback = runner._decision_tape_readback(writer.path, 2_000_000)
+        assert final_readback["raw_sha256"] == writer.summary()["sha256"]
+        assert final_readback["record_count"] == writer.summary()["record_count"]
+    finally:
+        if not writer.summary()["closed"]:
+            writer.close()
+        journal.close()
+
+@pytest.mark.integration
+@pytest.mark.parametrize(
+    ("tape_write_confirmed", "tamper_mode", "expected_tape_errors"),
+    (
+        (True, None, (None, None)),
+        (
+            False,
+            None,
+            ("DECISION_TAPE_WRITE_NOT_CONFIRMED", "DECISION_TAPE_WRITE_NOT_CONFIRMED"),
+        ),
+        (
+            True,
+            "before_readback",
+            ("SOURCE_RECEIPT_WRITE_FAILED", "DECISION_TAPE_WRITE_FAILED"),
+        ),
+        (True, "after_anchor", (None, None)),
+    ),
+    ids=("durable-tape", "tape-write-failed", "tampered-before-anchor", "tampered-after-anchor"),
 )
 def test_alpha003_prenext_history_warmup_dispatches_owned_risk_cancel(
-    tape_write_confirmed, expected_tape_error, tmp_path
+    tape_write_confirmed, tamper_mode, expected_tape_errors, monkeypatch, tmp_path
 ):
     """Production WARMUP prenext adds only risk CANCEL after fixture seeding."""
     import importlib
@@ -632,20 +1378,24 @@ def test_alpha003_prenext_history_warmup_dispatches_owned_risk_cancel(
     )
     cohort.seal()
 
-    api, store, broker, journal, coordinator, _old_target, *_unused = execution_fixtures._system(
-        now=now,
-        query_rows=facts_fixtures._query_rows(
-            account={
-                "Available": "100000",
-                "CurrMargin": "0",
-                "CloseProfit": "1000",
-                "PositionProfit": "0",
-                "Commission": "0",
-                "CurrencyID": "CNY",
-                "TradingDay": TRADING_DAY,
-            }
-        ),
+    api, store, broker, journal, coordinator, _old_target, *_unused = (
+        execution_fixtures._source_sdk_system(
+            monkeypatch,
+            now=now,
+            query_rows=facts_fixtures._query_rows(
+                account={
+                    "Available": "100000",
+                    "CurrMargin": "0",
+                    "CloseProfit": "1000",
+                    "PositionProfit": "0",
+                    "Commission": "0",
+                    "CurrencyID": "CNY",
+                    "TradingDay": TRADING_DAY,
+                }
+            ),
+        )
     )
+    source_anchor_expected = tape_write_confirmed and tamper_mode != "before_readback"
     target = FactorExecutionTarget("rb", INSTRUMENT, EXCHANGE, feed)
     # _system() configures its Broker for the fixture's original instrument-
     # named PandasData. This Cerebro run binds the real history feed as "rb",
@@ -706,6 +1456,8 @@ def test_alpha003_prenext_history_warmup_dispatches_owned_risk_cancel(
         def __init__(self):
             self.rows = []
             self.path = tmp_path / "prenext-risk-decision-tape.jsonl"
+            self.tamper_done = False
+            self.close_error = None
             self.writer = runner.DecisionTapeWriter(
                 self.path,
                 1_000_000,
@@ -717,6 +1469,7 @@ def test_alpha003_prenext_history_warmup_dispatches_owned_risk_cancel(
                 grid_sha256=None,
                 source_snapshot_id=None,
                 calendar_fingerprint=cohort.calendar_fingerprint,
+                cross_process_generation_lease=True,
             )
 
         @property
@@ -735,13 +1488,49 @@ def test_alpha003_prenext_history_warmup_dispatches_owned_risk_cancel(
             self.rows.append((batch, snapshot, target_decision, order_plan))
             if not tape_write_confirmed:
                 return False
-            return self.writer.record_decision(batch, snapshot, target_decision, order_plan)
+            confirmed = self.writer.record_decision(batch, snapshot, target_decision, order_plan)
+            if tamper_mode == "before_readback" and self.writer.summary()["record_count"] == 1:
+                self._tamper_first_row()
+            return confirmed
+
+        def record_verified_source_prewarm(self, **kwargs):
+            result = self.writer.record_verified_source_prewarm(**kwargs)
+            if tamper_mode == "after_anchor" and not self.tamper_done:
+                self._tamper_first_row()
+            return result
+
+        def _tamper_first_row(self):
+            raw = self.path.read_bytes()
+            marker = b"CALCULATION_WARMUP"
+            offset = raw.find(marker)
+            assert offset >= 0
+            with self.path.open("r+b") as handle:
+                handle.seek(offset)
+                handle.write(b"X")
+                handle.flush()
+                os.fsync(handle.fileno())
+            self.tamper_done = True
+
+        def latch_failure(self):
+            self.writer.latch_failure()
 
         def summary(self):
             return self.writer.summary()
 
         def close(self):
-            return self.writer.close()
+            try:
+                return self.writer.close()
+            except runner.RunnerError as error:
+                self.close_error = error.code
+                summary = self.writer.summary()
+                if (
+                    tamper_mode == "before_readback"
+                    and summary["closed"]
+                    and summary["failed"]
+                    and not self.writer._generation_lease.held
+                ):
+                    return summary
+                raise
 
     tape = _DecisionTape()
     risk_policy = strategy_module.Alpha003RiskPolicy(
@@ -765,12 +1554,15 @@ def test_alpha003_prenext_history_warmup_dispatches_owned_risk_cancel(
     observations = []
     grid_decision_calls = []
     cancel_calls = []
+    fee_pair_scope_registered = False
 
     def ctp_order_row(order_ref, status, remaining):
         identity = api._provider_orders[str(order_ref)]
         return {
             "OrderRef": str(order_ref),
             "OrderSysID": identity["order_sys_id"] or "",
+            "BrokerID": api.trader_client._broker_id,
+            "InvestorID": api.trader_client._investor_id,
             "InstrumentID": identity["instrument_id"],
             "ExchangeID": identity["exchange_id"],
             "OrderStatus": status,
@@ -787,8 +1579,12 @@ def test_alpha003_prenext_history_warmup_dispatches_owned_risk_cancel(
 
     original_cancel = api.cancel_order
 
-    def ctp_cancel(order_ref, dataname=None):
-        response = original_cancel(order_ref, dataname=dataname)
+    def ctp_cancel(order_ref, dataname=None, *, registered_sim_cancel_target=None):
+        response = original_cancel(
+            order_ref,
+            dataname=dataname,
+            registered_sim_cancel_target=registered_sim_cancel_target,
+        )
         cancel_calls.append((str(order_ref), dataname))
         api.query_rows["orders_result"] = [ctp_order_row(order_ref, "5", 0)]
         api.emit_provider_order_callback(order_ref, status="canceled", filled=0, remaining=0)
@@ -812,7 +1608,24 @@ def test_alpha003_prenext_history_warmup_dispatches_owned_risk_cancel(
             # Cerebro starts the Store immediately before strategy.start();
             # that lifecycle intentionally clears pre-start quote/query facts.
             # Establish the seed OPEN's evidence only after that boundary.
-            facts_fixtures._arm(store)
+            store.registered_sim_configure_arm_templates(
+                {
+                    (INSTRUMENT, EXCHANGE): {
+                        "md_front": "tcp://182.254.243.31:30012",
+                        "strategy_identity_sha256": "a" * 64,
+                        "execution_cycle_id": "alpha003-prenext-risk-v1",
+                        "preflight_sha256": "b" * 64,
+                    }
+                }
+            )
+            store.registered_sim_arm(
+                instrument=INSTRUMENT,
+                exchange=EXCHANGE,
+                md_front="tcp://182.254.243.31:30012",
+                strategy_identity_sha256="a" * 64,
+                execution_cycle_id="alpha003-prenext-risk-v1",
+                preflight_sha256="b" * 64,
+            )
             _startup_receipt, startup_projection_now = refresh_post_callback_facts(
                 retain_quote=True
             )
@@ -894,6 +1707,9 @@ def test_alpha003_prenext_history_warmup_dispatches_owned_risk_cancel(
                 )
             self.seed_decision_id = seed_scope.decision_id
             self.seed_intent_id = self.seed_order.info["factor_intent_id"]
+            api._provider_orders[self.seed_order.info["external_order_ref"]][
+                "order_sys_id"
+            ] = "sys-501"
             api.emit_provider_order_callback(
                 self.seed_order.info["external_order_ref"],
                 status="accepted",
@@ -906,12 +1722,18 @@ def test_alpha003_prenext_history_warmup_dispatches_owned_risk_cancel(
                 ctp_order_row(self.seed_order.info["external_order_ref"], "3", 1)
             ]
             refresh_post_callback_facts()
+            binding_failures = coordinator.bind_known_order_sysids_from_current_query()
+            assert binding_failures == (), (
+                binding_failures,
+                store.get_registered_sim_query_snapshot("orders_result"),
+            )
 
         def _live_grid_decision(self, *args, **kwargs):
             grid_decision_calls.append((args, kwargs))
             return super()._live_grid_decision(*args, **kwargs)
 
         def prenext(self):
+            nonlocal fee_pair_scope_registered
             batch = cohort.current_batch()
             snapshot = self.live_factors.snapshot() if batch is not None else None
             if batch is not None and self.seed_order is None:
@@ -919,6 +1741,9 @@ def test_alpha003_prenext_history_warmup_dispatches_owned_risk_cancel(
                 assert snapshot is not None
                 assert snapshot.readiness is LiveFactorReadiness.WARMUP
                 self._seed_owned_open_before_history_prenext()
+            if not fee_pair_scope_registered:
+                journal.register_fee_pair_required_scope(ACCOUNT_SCOPE, STRATEGY_SCOPE)
+                fee_pair_scope_registered = True
             pre_production_order_count = coordinator.run_order_count()
             pre_production_native_actions = tuple(call[0] for call in api.native_calls)
             super().prenext()
@@ -1009,14 +1834,19 @@ def test_alpha003_prenext_history_warmup_dispatches_owned_risk_cancel(
         assert observations[0]["pre_production_order_count"] == 1
         assert observations[0]["pre_production_native_actions"] == ("insert",)
         assert observations[0]["facts"].open_risk_ready is False
-        assert observations[0]["facts"].order_cancel_ready is True
+        assert observations[0]["facts"].order_cancel_ready is True, (
+            "cancel_blockers={!r}; aggregate_blockers={!r}".format(
+                observations[0]["facts"].order_cancel_blockers,
+                observations[0]["facts"].aggregate_write_blockers,
+            )
+        )
         assert observations[0]["facts"].available_at > observations[0]["batch"].close_time
         assert observations[0]["plan"].status == "READY"
         assert tuple(action.action for action in observations[0]["plan"].actions) == ("CANCEL",)
         assert all(tape_row[2] is None for tape_row in tape.rows)
         assert all(tape_row[3].reason == "CALCULATION_WARMUP" for tape_row in tape.rows)
         assert all(tape_row[3].actions == () for tape_row in tape.rows)
-        assert all(row["block_reason"] == expected_tape_error for row in observations)
+        assert tuple(row["block_reason"] for row in observations) == expected_tape_errors
         assert grid_decision_calls == []
         assert strategy.seed_order is not None
         assert strategy.seed_order.info["factor_dispatch_state"] == "KNOWN"
@@ -1028,6 +1858,36 @@ def test_alpha003_prenext_history_warmup_dispatches_owned_risk_cancel(
         assert strategy.terminal_reconciliation_page.items[0].status == "RESOLVED"
         assert strategy.terminal_resolution is not None
         assert strategy.terminal_resolution.position_flat is True
+        source_highwater = journal.source_highwater(
+            ACCOUNT_SCOPE,
+            STRATEGY_SCOPE,
+            "run-1",
+            strategy._source_kind,
+        )
+        if source_anchor_expected:
+            assert source_highwater is not None
+            assert source_highwater.anchor_kind == "SOURCE_ONLY"
+            assert source_highwater.receipt.readiness == "WARMUP"
+            assert source_highwater.receipt.tape_record_index == 2
+            source_anchor = journal.decision(source_highwater.decision_id)
+            assert source_anchor is not None
+            assert source_anchor.intent_keys == ()
+            assert source_anchor.economic_payload["_execution_source_anchor_only"] is True
+            if tamper_mode is None:
+                tape_rows = tuple(runner.iter_decision_tape(tape.path, max_bytes=1_000_000))
+                assert len(tape_rows) == 3  # header plus both complete warmup rows
+                assert all(row["factors"]["factors"] for row in tape_rows[1:])
+                assert all(row["members"] for row in tape_rows[1:])
+                assert all(row["order_plan"]["actions"] == [] for row in tape_rows[1:])
+                readback = runner._decision_tape_readback(tape.path, 1_000_000)
+                assert readback["raw_sha256"] == tape.writer.summary()["sha256"]
+            else:
+                with pytest.raises(runner.RunnerError):
+                    runner._decision_tape_readback(tape.path, 1_000_000)
+        else:
+            assert source_highwater is None
+        if tamper_mode == "before_readback":
+            assert tape.writer.summary()["failed"] is True
         assert projection_clock_observations
         assert all(
             completed_at <= sampled_at
@@ -1082,7 +1942,7 @@ def test_alpha003_prenext_history_warmup_dispatches_owned_risk_cancel(
         assert [call[0] for call in api.native_calls] == ["insert", "cancel"]
         assert coordinator.run_order_count() == 2
         capacity = journal.decision_capacity_snapshot()
-        assert capacity.base_record_count == (3 if tape_write_confirmed else 1)
+        assert capacity.base_record_count == (3 if source_anchor_expected else 1)
         assert capacity.settlement_record_count == 1
         seed_decision = journal.decision(strategy.seed_decision_id)
         assert seed_decision is not None
@@ -1119,17 +1979,25 @@ def test_alpha003_prenext_history_warmup_dispatches_owned_risk_cancel(
         assert observations[1]["facts"].query_set_id != observations[0]["facts"].query_set_id
         assert observations[1]["facts"].available_at > observations[0]["facts"].available_at
         assert strategy.last_execution_facts.working_orders == ()
-        assert tape_write_confirmed is (expected_tape_error is None)
+        assert tuple(row["block_reason"] for row in observations) == expected_tape_errors
         tape_summary = tape.summary()
         assert tape_summary["closed"] is True
-        assert tape_summary["failed"] is False
+        if tamper_mode == "before_readback":
+            assert tape_summary["failed"] is True
+            assert tape.close_error == "DECISION_TAPE_CLOSE_FAILED"
+            assert tape.writer._generation_lease.held is False
+            with pytest.raises(runner.RunnerError):
+                runner._decision_tape_readback(tape.path, 1_000_000)
+        else:
+            assert tape_summary["failed"] is False
+            assert tape.close_error is None
         source_head = journal.source_highwater(
             ACCOUNT_SCOPE,
             STRATEGY_SCOPE,
             "run-1",
             "ALPHA003_GRID",
         )
-        if tape_write_confirmed:
+        if source_anchor_expected:
             assert tape_summary["record_count"] == len(observations) == 2
             last_reference = tape_summary["last_record_reference"]
             assert last_reference is not None and last_reference["record_index"] == 2
@@ -1139,6 +2007,10 @@ def test_alpha003_prenext_history_warmup_dispatches_owned_risk_cancel(
             assert source_head.receipt.tape_record_index == last_reference["record_index"]
             assert source_head.receipt.batch_id == observations[-1]["batch"].batch_id
             assert tuple(member.member_id for member in source_head.receipt.members) == ("rb",)
+        elif tamper_mode == "before_readback":
+            assert tape_summary["record_count"] == 1
+            assert tape_summary["last_record_reference"]["record_index"] == 1
+            assert source_head is None
         else:
             assert tape_summary["record_count"] == 0
             assert tape_summary["last_record_reference"] is None

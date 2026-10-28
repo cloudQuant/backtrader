@@ -4914,6 +4914,43 @@ class FactorExecutionCoordinator:
             source_receipt=source_receipt,
         )
 
+    def record_verified_source_prewarm(
+        self,
+        *,
+        key: ExecutionDecisionKey,
+        batch: Any,
+        tape_readback: Any,
+    ) -> Any:
+        """Persist verified WARMUP/CATCHING_UP evidence without opening dispatch."""
+
+        from . import execution_decision_journal as journal_api
+
+        if not isinstance(key, ExecutionDecisionKey):
+            raise FactorExecutionError("INVALID_DECISION_KEY")
+        if (
+            key.account_scope != self.account_scope
+            or key.strategy_scope != self.strategy_scope
+            or key.logical_run_id != self.logical_run_id
+        ):
+            raise FactorExecutionError("DECISION_SCOPE_IDENTITY_MISMATCH")
+        if self._active_scope.get() is not None:
+            raise FactorExecutionError("NESTED_DECISION_SCOPE")
+        try:
+            readback = journal_api._validate_verified_source_tape_readback(tape_readback)
+        except journal_api.ExecutionDecisionJournalError as error:
+            raise FactorExecutionError(error.code) from error
+        receipt = readback.receipt
+        if (
+            batch is None
+            or not self._batch_matches_source_key(batch, key)
+            or receipt.batch_id != batch.batch_id
+            or receipt.epoch_id != batch.epoch_id
+            or receipt.close_time != _utc_text(batch.close_time)
+            or receipt.cohort_id != batch.cohort_id
+        ):
+            raise FactorExecutionError("SOURCE_RECEIPT_BATCH_MISMATCH")
+        return self.journal.record_verified_source_prewarm(key, readback)
+
     @staticmethod
     def _batch_matches_source_key(batch: Any, key: ExecutionDecisionKey) -> bool:
         return bool(
