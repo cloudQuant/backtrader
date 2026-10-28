@@ -152,6 +152,11 @@ def test_alpha003_live_strategy_submits_and_cancels_through_registered_sim(
     causal_quote_receipt_by_bar_id = {}
     causal_quote_receipt_trace = []
     causal_quote_barrier_trace = []
+    store_callback_time_context = threading.local()
+    store_tick_fields_by_bar_id = {}
+    store_tick_fields_lock = threading.Lock()
+    post_dispatch_clock_advances_by_close = {}
+    post_dispatch_clock_advanced_closes = set()
     causal_quote_refresh_by_close = {}
     causal_quote_receipt_lock = threading.Lock()
     for instrument, source_rows in bars_by_instrument.items():
@@ -160,8 +165,16 @@ def test_alpha003_live_strategy_submits_and_cancels_through_registered_sim(
             causal_quote_rows_by_close.setdefault(row["bucket_end"], {})[target] = row
             causal_quote_receipt_events[row["bar_id"]] = threading.Event()
 
+    causal_quote_row_by_bar_id = {
+        row["bar_id"]: row
+        for source_rows in bars_by_instrument.values()
+        for row in source_rows
+    }
     source_calendar_trace = {}
     final_close = plan["grid"].minutes[-1].close_time
+    post_dispatch_probe_close = plan["grid"].minutes[
+        min(40, len(plan["grid"].minutes) - 1)
+    ].close_time
 
     def synthetic_ctp_tick_time(bucket_end):
         if _capacity_only:
@@ -1111,8 +1124,8 @@ def test_alpha003_live_strategy_submits_and_cancels_through_registered_sim(
 
     import backtrader.stores.btapistore as btapistore_module
 
-    # Preserve the generated CTP wrapper's callback timestamps while binding
-    # its wall clock to the explicit provider schedule used by this fixture.
+    # Bind Store wall time to the explicit synthetic provider clock. Observe
+    # completed production TickEvents below, after provenance stamping.
     # Monotonic time remains real for query TTLs and bounded waits.
     monkeypatch.setattr(
         btapistore_module,
@@ -1184,6 +1197,67 @@ def test_alpha003_live_strategy_submits_and_cancels_through_registered_sim(
             if not callable(callback):
                 raise AssertionError("production wrapper did not bind generation tick callback")
             callback(payload, generation)
+            bar_id = getattr(store_callback_time_context, "bar_id", None)
+            row = causal_quote_row_by_bar_id.get(bar_id)
+            if (
+                _causal_quote_barrier
+                and row is not None
+                and row["bucket_end"] == post_dispatch_probe_close
+            ):
+                close_time = row["bucket_end"]
+                expected_rows = causal_quote_rows_by_close.get(close_time, {})
+                expected_bar_ids = tuple(
+                    expected_rows[target]["bar_id"]
+                    for target in plan["targets"]
+                    if target in expected_rows
+                )
+                with store_tick_fields_lock:
+                    all_callbacks_returned = (
+                        len(expected_bar_ids) == len(plan["targets"])
+                        and all(
+                            expected_id in store_tick_fields_by_bar_id
+                            for expected_id in expected_bar_ids
+                        )
+                    )
+                    do_advance = (
+                        all_callbacks_returned
+                        and close_time not in post_dispatch_clock_advanced_closes
+                    )
+                    if do_advance:
+                        post_dispatch_clock_advanced_closes.add(close_time)
+                        callback_event = store_tick_fields_by_bar_id[bar_id]
+                        callback_fields = {
+                            "received_wall_time": getattr(
+                                callback_event, "received_wall_time", None
+                            ),
+                            "ctp_callback_received_wall_time": getattr(
+                                callback_event, "ctp_callback_received_wall_time", None
+                            ),
+                        }
+                if do_advance:
+                    before_advance = clock.utc_now()
+                    clock.advance(timedelta(milliseconds=12))
+                    after_advance = clock.utc_now()
+                    tick_received_at = datetime.fromtimestamp(
+                        callback_fields["received_wall_time"], UTC
+                    )
+                    advance = {
+                        "bar_id": bar_id,
+                        "close_time": close_time.isoformat(),
+                        "callback_returned_before_advance": True,
+                        "advance_milliseconds": 12,
+                        "clock_before": before_advance.isoformat(),
+                        "clock_after": after_advance.isoformat(),
+                        "tick_received_wall_time": tick_received_at.isoformat(),
+                        "clock_advanced_after_tick_by_milliseconds": (
+                            after_advance - tick_received_at
+                        ).total_seconds()
+                        * 1000,
+                    }
+                    if after_advance - before_advance != timedelta(milliseconds=12):
+                        raise AssertionError("synthetic post-callback clock advance was not 12ms")
+                    with store_tick_fields_lock:
+                        post_dispatch_clock_advances_by_close[close_time] = advance
             return generation
 
         def subscribe(self, instruments):
@@ -1216,7 +1290,11 @@ def test_alpha003_live_strategy_submits_and_cancels_through_registered_sim(
                             # This zero-volume quote cannot synthesize the last
                             # bar; that complete BarEvent is the source tape row.
                             assert payload.Volume == 0
-                        callback_generation = self._dispatch_tick(payload)
+                        store_callback_time_context.bar_id = bar_id
+                        try:
+                            callback_generation = self._dispatch_tick(payload)
+                        finally:
+                            del store_callback_time_context.bar_id
                         self._api.tick_observations.append(
                             (
                                 instrument,
@@ -1225,7 +1303,37 @@ def test_alpha003_live_strategy_submits_and_cancels_through_registered_sim(
                                 row["connection_generation"],
                             )
                         )
-                        received_at = clock.utc_now()
+                        with store_tick_fields_lock:
+                            tick_event = store_tick_fields_by_bar_id.get(bar_id)
+                        tick_fields = (
+                            {
+                                "event_id": getattr(tick_event, "event_id", None),
+                                "ctp_callback_received_wall_time": getattr(
+                                    tick_event, "ctp_callback_received_wall_time", None
+                                ),
+                                "received_wall_time": getattr(
+                                    tick_event, "received_wall_time", None
+                                ),
+                            }
+                            if tick_event is not None
+                            else {}
+                        )
+                        callback_wall_time = tick_fields.get(
+                            "ctp_callback_received_wall_time"
+                        )
+                        received_wall_time = tick_fields.get("received_wall_time")
+                        if (
+                            not tick_fields
+                            or type(callback_wall_time) not in (float, int)
+                            or type(received_wall_time) not in (float, int)
+                        ):
+                            raise AssertionError(
+                                "Store did not expose actual stamped TickEvent wall-time fields"
+                            )
+                        callback_received_at = datetime.fromtimestamp(
+                            callback_wall_time, UTC
+                        )
+                        received_at = datetime.fromtimestamp(received_wall_time, UTC)
                         with causal_quote_receipt_lock:
                             receipt = {
                                 "bar_id": bar_id,
@@ -1254,6 +1362,11 @@ def test_alpha003_live_strategy_submits_and_cancels_through_registered_sim(
                                 "tick_update_millisec": getattr(payload, "UpdateMillisec", None),
                                 "event_time": event_time.isoformat(),
                                 "scheduled_delivery_at": delivery_at.isoformat(),
+                                "tick_event_id": tick_fields.get("event_id"),
+                                "ctp_callback_received_wall_time": (
+                                    callback_received_at.isoformat()
+                                ),
+                                "received_wall_time": received_at.isoformat(),
                                 "received_at": received_at.isoformat(),
                             }
                             causal_quote_receipt_by_bar_id[bar_id] = receipt
@@ -1689,6 +1802,23 @@ def test_alpha003_live_strategy_submits_and_cancels_through_registered_sim(
     monkeypatch.setattr(ctp_client_module, "MdClient", Alpha003MdClient)
     monkeypatch.setattr(ctp_client_module, "TraderClient", Alpha003TraderClient)
 
+    # Retain the actual TickEvent object created by Store. Its fields are read
+    # only after the full callback returns, so later Store provenance stamping
+    # is included rather than reconstructed from a wrapper clock sample.
+    tick_event_class = btapistore_module.TickEvent
+    original_tick_event_init = tick_event_class.__init__
+
+    def observe_tick_event_init(event, *args, **kwargs):
+        result = original_tick_event_init(event, *args, **kwargs)
+        bar_id = getattr(store_callback_time_context, "bar_id", None)
+        if type(bar_id) is str and bar_id:
+            with store_tick_fields_lock:
+                if bar_id in store_tick_fields_by_bar_id:
+                    raise AssertionError("duplicate production TickEvent for source bar")
+                store_tick_fields_by_bar_id[bar_id] = event
+        return result
+
+    monkeypatch.setattr(tick_event_class, "__init__", observe_tick_event_init)
     CtpClientWrapper = btapistore_module._create_ctp_wrapper_class()
 
     class Alpha003BarTapeMixin(CtpClientWrapper):
@@ -2798,6 +2928,9 @@ def test_alpha003_live_strategy_submits_and_cancels_through_registered_sim(
                     ),
                     "barrier_released_at": barrier_at.isoformat(),
                     "risk_snapshot_evaluated_at": now.isoformat(),
+                    "post_dispatch_clock_advance": post_dispatch_clock_advances_by_close.get(
+                        close_time
+                    ),
                     "receipt_precedes_risk_snapshot": bool(
                         len(expected_rows) == len(plan["targets"])
                         and all(released for _target, _bar_id, released in receipt_results)
@@ -2849,9 +2982,66 @@ def test_alpha003_live_strategy_submits_and_cancels_through_registered_sim(
                     )
                     try:
                         received_at = datetime.fromisoformat(expected_receipt["received_at"])
+                        callback_received_at = datetime.fromisoformat(
+                            expected_receipt["ctp_callback_received_wall_time"]
+                        )
                         event_time = datetime.fromisoformat(expected_receipt["event_time"])
                     except (KeyError, TypeError, ValueError):
-                        received_at = event_time = None
+                        received_at = callback_received_at = event_time = None
+                    observed_tick_event = store_tick_fields_by_bar_id.get(
+                        receipt_row["bar_id"]
+                    )
+                    observed_tick_fields = (
+                        {
+                            "event_id": getattr(observed_tick_event, "event_id", None),
+                            "ctp_callback_received_wall_time": getattr(
+                                observed_tick_event,
+                                "ctp_callback_received_wall_time",
+                                None,
+                            ),
+                            "received_wall_time": getattr(
+                                observed_tick_event, "received_wall_time", None
+                            ),
+                        }
+                        if observed_tick_event is not None
+                        else {}
+                    )
+                    raw_callback_wall_time = getattr(
+                        raw_tick, "ctp_callback_received_wall_time", None
+                    )
+                    raw_received_wall_time = getattr(raw_tick, "received_wall_time", None)
+                    raw_callback_received_at = (
+                        datetime.fromtimestamp(raw_callback_wall_time, UTC)
+                        if type(raw_callback_wall_time) in (float, int)
+                        else None
+                    )
+                    raw_received_at = (
+                        datetime.fromtimestamp(raw_received_wall_time, UTC)
+                        if type(raw_received_wall_time) in (float, int)
+                        else None
+                    )
+                    actual_tick_fields_match = bool(
+                        raw_tick is not None
+                        and getattr(raw_tick, "event_id", None)
+                        == observed_tick_fields.get("event_id")
+                        and raw_callback_wall_time
+                        == observed_tick_fields.get("ctp_callback_received_wall_time")
+                        and raw_received_wall_time
+                        == observed_tick_fields.get("received_wall_time")
+                    )
+                    receipt_uses_actual_tick_received_time = bool(
+                        raw_received_at is not None and received_at == raw_received_at
+                    )
+                    callback_receipt_preserves_callback_time = bool(
+                        raw_callback_received_at is not None
+                        and callback_received_at == raw_callback_received_at
+                    )
+                    quote_uses_actual_tick_received_time = bool(
+                        raw_received_at is not None
+                        and isinstance(quote_available_at, datetime)
+                        and abs((quote_available_at - raw_received_at).total_seconds())
+                        <= 0.000001
+                    )
                     target_suffix = ":" + receipt_row["target"]
                     blocker_codes = tuple(
                         sorted(
@@ -2875,7 +3065,20 @@ def test_alpha003_live_strategy_submits_and_cancels_through_registered_sim(
                             "target_id": receipt_row["target"],
                             "instrument": receipt_row["instrument"],
                             "receipt_event_time": expected_receipt.get("event_time"),
+                            "receipt_callback_received_wall_time": expected_receipt.get(
+                                "ctp_callback_received_wall_time"
+                            ),
                             "receipt_available_at": expected_receipt.get("received_at"),
+                            "actual_tick_callback_received_wall_time": raw_callback_received_at.isoformat()
+                            if raw_callback_received_at is not None
+                            else None,
+                            "actual_tick_received_wall_time": raw_received_at.isoformat()
+                            if raw_received_at is not None
+                            else None,
+                            "actual_tick_fields_match_observed_event": actual_tick_fields_match,
+                            "receipt_uses_actual_tick_received_time": receipt_uses_actual_tick_received_time,
+                            "callback_receipt_preserves_callback_time": callback_receipt_preserves_callback_time,
+                            "quote_uses_actual_tick_received_time": quote_uses_actual_tick_received_time,
                             "risk_quote_event_time": quote_event_time.isoformat()
                             if hasattr(quote_event_time, "isoformat")
                             else None,
@@ -2931,6 +3134,10 @@ def test_alpha003_live_strategy_submits_and_cancels_through_registered_sim(
                                 and isinstance(quote_available_at, datetime)
                                 and abs((quote_available_at - received_at).total_seconds())
                                 <= 0.000001
+                                and actual_tick_fields_match
+                                and receipt_uses_actual_tick_received_time
+                                and callback_receipt_preserves_callback_time
+                                and quote_uses_actual_tick_received_time
                             ),
                         }
                     )
@@ -3533,6 +3740,9 @@ def test_alpha003_live_strategy_submits_and_cancels_through_registered_sim(
             "preheat_bars": config["factor"]["preheat_bars"],
             "source_clock_wait_boundary_probe": wait_boundary_probe,
             "causal_quote_barrier_trace": tuple(causal_quote_barrier_trace[-128:]),
+            "post_dispatch_clock_advance": post_dispatch_clock_advances_by_close.get(
+                post_dispatch_probe_close
+            ),
         }
 
     assert len(api_instances) == 1
@@ -4852,6 +5062,18 @@ def test_registered_sim_production_tape_and_live_capacity_exactbars_pair(tmp_pat
 
                 summary = outcome["summary"]
                 assert summary["factor_mode"] == factor_mode
+                post_dispatch_probe = outcome["post_dispatch_clock_advance"]
+                assert post_dispatch_probe is not None, (
+                    factor_mode,
+                    exactbars,
+                    outcome["causal_quote_barrier_trace"][-4:],
+                )
+                assert post_dispatch_probe["callback_returned_before_advance"] is True
+                assert post_dispatch_probe["advance_milliseconds"] == 12
+                assert abs(
+                    post_dispatch_probe["clock_advanced_after_tick_by_milliseconds"]
+                    - 12
+                ) <= 0.001
                 case_result["source_clock_wait_boundary_probe"] = outcome[
                     "source_clock_wait_boundary_probe"
                 ]
@@ -5064,8 +5286,36 @@ def test_registered_sim_production_tape_and_live_capacity_exactbars_pair(tmp_pat
                     all(row.get("receipt_precedes_risk_snapshot") is True for row in barrier_rows),
                 )
                 require(
-                    "risk_snapshot_quotes_match_receipts",
-                    all(row.get("all_risk_quotes_match_receipts") is True for row in barrier_rows),
+                    "risk_snapshot_quotes_match_actual_store_tick_fields",
+                    all(
+                        row.get("all_risk_quotes_match_receipts") is True
+                        and all(
+                            item.get("actual_tick_fields_match_observed_event") is True
+                            and item.get("receipt_uses_actual_tick_received_time") is True
+                            and item.get("callback_receipt_preserves_callback_time") is True
+                            and item.get("quote_uses_actual_tick_received_time") is True
+                            for item in row.get("risk_snapshot_quote_facts", ())
+                        )
+                        for row in barrier_rows
+                    ),
+                )
+                probe_barrier_rows = tuple(
+                    row
+                    for row in barrier_rows
+                    if row.get("close_time")
+                    == outcome["post_dispatch_clock_advance"].get("close_time")
+                )
+                require(
+                    "real_tick_receipt_and_quote_survive_12ms_post_callback_advance",
+                    len(probe_barrier_rows) == 1
+                    and probe_barrier_rows[0].get("post_dispatch_clock_advance")
+                    == outcome["post_dispatch_clock_advance"]
+                    and all(
+                        item.get("matches_receipt") is True
+                        for item in probe_barrier_rows[0].get(
+                            "risk_snapshot_quote_facts", ()
+                        )
+                    ),
                 )
                 require(
                     "post_receipt_real_query_refresh_completed",
