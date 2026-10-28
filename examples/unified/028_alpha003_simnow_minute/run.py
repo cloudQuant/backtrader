@@ -7505,6 +7505,36 @@ def _live_source_lineage_kind(plan):
     return _live_source_lineage_kind_from_days(trading_days)
 
 
+def _register_live_fee_pair_required_scope(journal, scopes):
+    """Persist and read back the live write-mode fee-pair scope fence."""
+
+    from backtrader.stores.execution_decision_journal import (
+        ExecutionFeePairScopeRegistration,
+    )
+
+    account_scope = scopes["account_scope"]
+    strategy_scope = scopes["strategy_scope"]
+    try:
+        registered = journal.register_fee_pair_required_scope(account_scope, strategy_scope)
+        observed = journal.fee_pair_required_scope(account_scope, strategy_scope)
+    except Exception:
+        raise RunnerError("LIVE_FEE_PAIR_SCOPE_REGISTRATION_FAILED") from None
+
+    if (
+        type(registered) is not ExecutionFeePairScopeRegistration
+        or type(observed) is not ExecutionFeePairScopeRegistration
+        or registered != observed
+        or registered.account_scope != account_scope
+        or registered.strategy_scope != strategy_scope
+        or type(registered.policy_id) is not str
+        or not registered.policy_id
+        or registered.state != "REQUIRE_PAIR_FAIL_CLOSED"
+        or type(registered.registered_at_ns) is not int
+        or registered.registered_at_ns <= 0
+    ):
+        raise RunnerError("LIVE_FEE_PAIR_SCOPE_REGISTRATION_UNPROVEN")
+
+
 def _reject_legacy_live_source_highwater(journal, scopes):
     if journal.source_highwater(
         scopes["account_scope"],
@@ -8201,6 +8231,20 @@ def run_live(
         if not callable(getattr(bt.Cerebro, "wake_live_bar_cohort", None)):
             raise RunnerError("LIVE_COHORT_WAKE_API_UNAVAILABLE")
         clock = RunnerWallClock()
+        tape_path = config["output"]["decision_tape_path"]
+        tape_budget = config["output"]["decision_tape_max_bytes"]
+        if tape_path is None or tape_budget is None:
+            raise RunnerError("DECISION_TAPE_PROFILE_REQUIRED")
+        if type(tape_budget) is not int or tape_budget < 1:
+            raise RunnerError("DECISION_TAPE_BYTE_BUDGET_INVALID")
+        journal = ExecutionDecisionJournal(
+            journal_path,
+            max_payload_bytes=_LIVE_DECISION_JOURNAL_MAX_PAYLOAD_BYTES,
+        )
+        if write_enabled:
+            _register_live_fee_pair_required_scope(journal, scopes)
+        _reject_legacy_live_source_highwater(journal, scopes)
+
         history_input = config["inputs"].get("history_decision_tape")
         if (
             history_input is not None
@@ -8249,17 +8293,6 @@ def run_live(
             direction=direction,
             simnow_profile=simnow_profile,
         )
-        tape_path = config["output"]["decision_tape_path"]
-        tape_budget = config["output"]["decision_tape_max_bytes"]
-        if tape_path is None or tape_budget is None:
-            raise RunnerError("DECISION_TAPE_PROFILE_REQUIRED")
-        if type(tape_budget) is not int or tape_budget < 1:
-            raise RunnerError("DECISION_TAPE_BYTE_BUDGET_INVALID")
-        journal = ExecutionDecisionJournal(
-            journal_path,
-            max_payload_bytes=_LIVE_DECISION_JOURNAL_MAX_PAYLOAD_BYTES,
-        )
-        _reject_legacy_live_source_highwater(journal, scopes)
         selection_evidence = _selection_evidence(
             plan,
             config["cohort"]["epoch_id"],
