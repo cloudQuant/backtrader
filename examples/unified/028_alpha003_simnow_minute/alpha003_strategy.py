@@ -3069,6 +3069,37 @@ def _time_key(value: datetime) -> str:
     return _as_utc(value, "decision close_time").isoformat().replace("+00:00", "Z")
 
 
+def _canonical_source_trading_day(value: Any) -> str:
+    """Return the decision tape's ISO day form without accepting loose dates."""
+
+    if type(value) is not str:
+        raise ValueError("source receipt trading_day is invalid")
+    if len(value) == 8 and value.isascii() and value.isdecimal():
+        try:
+            parsed = datetime.strptime(value, "%Y%m%d").date()
+        except ValueError:
+            raise ValueError("source receipt trading_day is invalid") from None
+        return parsed.isoformat()
+    if (
+        len(value) == 10
+        and value[4] == "-"
+        and value[7] == "-"
+        and value[:4].isascii()
+        and value[:4].isdecimal()
+        and value[5:7].isascii()
+        and value[5:7].isdecimal()
+        and value[8:].isascii()
+        and value[8:].isdecimal()
+    ):
+        try:
+            parsed = date.fromisoformat(value)
+        except ValueError:
+            raise ValueError("source receipt trading_day is invalid") from None
+        if parsed.isoformat() == value:
+            return value
+    raise ValueError("source receipt trading_day is invalid")
+
+
 def _decimal_or_none(value: Any) -> Optional[Decimal]:
     if value is None:
         return None
@@ -5147,7 +5178,9 @@ class Alpha003TargetStrategy(bt.Strategy):
                     bucket_start=_time_key(_read(envelope, "bucket_start")),
                     close_time=_time_key(_read(envelope, "close_time")),
                     available_at=_time_key(_read(envelope, "available_at")),
-                    trading_day=_read(envelope, "trading_day"),
+                    trading_day=_canonical_source_trading_day(
+                        _read(envelope, "trading_day")
+                    ),
                     session_segment=_read(envelope, "session_segment"),
                     timezone_id=_read(envelope, "timezone_id"),
                     clock_domain_id=_read(envelope, "clock_domain_id"),
