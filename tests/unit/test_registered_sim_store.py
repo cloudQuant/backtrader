@@ -886,37 +886,116 @@ def test_disarm_waits_for_native_dispatch_and_closes_capability_afterward():
     assert [item.status for item in wrapper.registered_sim_dispatch_history()] == ["KNOWN"]
 
 
-def test_ambiguous_native_insert_freezes_and_unknown_survives_callback_and_cache_trim():
+def test_ambiguous_native_insert_preserves_active_and_unknown_under_terminal_cache_pressure():
     wrapper = _wrapper(terminal_limit=2)
-    wrapper.trader_client.fail_next_insert = True
 
-    with wrapper.registered_sim_expected_session_scope(_expected_session()), pytest.raises(
-        RegisteredSimExecutionUnknown
-    ):
-        wrapper._send_native_order_insert(_field("rb2510", "SHFE", "unknown-1", 21), 21)
+    with wrapper.registered_sim_expected_session_scope(_expected_session()):
+        wrapper.ensure_registered_sim_arm_for("rb2510", "SHFE")
+        wrapper._send_native_order_insert(_field("rb2510", "SHFE", "active-1", 20), 20)
+        wrapper.trader_client.fail_next_insert = True
+        with pytest.raises(RegisteredSimExecutionUnknown):
+            wrapper._send_native_order_insert(_field("rb2510", "SHFE", "unknown-1", 21), 21)
 
     assert wrapper._registered_sim_frozen is True
     assert wrapper._registered_sim_capability is None
     assert wrapper.registered_sim_execution_facts()["unknown_ids"] == ["unknown-1"]
+    assert wrapper.registered_sim_execution_facts()["active_order_ids"] == ["active-1"]
     wrapper._handle_order({"OrderRef": "unknown-1", "OrderStatus": "0"})
     for index in range(5):
         wrapper._handle_order({"OrderRef": "terminal-{}".format(index), "OrderStatus": "0"})
     facts = wrapper.registered_sim_execution_facts()
     assert facts["unknown_ids"] == ["unknown-1"]
+    assert facts["active_order_ids"] == ["active-1"]
     assert len(facts["terminal_order_ids"]) == 2
+    capacity = wrapper.registered_sim_order_capacity_facts()
+    assert capacity["status"] == "OBSERVED"
+    assert capacity["active_order_count"] == 1
+    assert capacity["unknown_order_count"] == 1
+    assert capacity["terminal_order_count"] == capacity["terminal_order_limit"] == 2
     assert len(wrapper.registered_sim_arm_history()) == 1
     evidence = wrapper.registered_sim_dispatch_history()
-    assert len(evidence) == 1
-    assert evidence[0].status == "UNKNOWN"
+    assert len(evidence) == 2
+    assert [item.status for item in evidence] == ["KNOWN", "UNKNOWN"]
     assert evidence[0].operation == "insert"
-    assert evidence[0].request_id == 21
-    assert evidence[0].order_ref == "unknown-1"
-    assert evidence[0].error_type == "OSError"
-    assert evidence[0].resend_permitted is False
+    assert evidence[0].request_id == 20
+    assert evidence[0].order_ref == "active-1"
+    assert evidence[1].operation == "insert"
+    assert evidence[1].request_id == 21
+    assert evidence[1].order_ref == "unknown-1"
+    assert evidence[1].error_type == "OSError"
+    assert evidence[1].resend_permitted is False
     with pytest.raises(FrozenInstanceError):
-        evidence[0].status = "KNOWN"
+        evidence[1].status = "KNOWN"
     with pytest.raises(BtApiStoreError, match="frozen"):
         wrapper.ensure_registered_sim_arm_for("i2509", "DCE")
+
+
+def test_store_cancel_identity_requires_reopened_persistent_journal_and_coordinator(
+    monkeypatch, tmp_path
+):
+    from backtrader.stores.execution_decision_journal import ExecutionDecisionJournal
+    from tests.unit.stores import test_registered_sim_cancel_native_identity as native_tests
+
+    journal_path = tmp_path / "registered-sim-cancel-authority.sqlite3"
+    (
+        api,
+        store,
+        _broker,
+        journal,
+        coordinator,
+        _target,
+        order,
+        facts,
+        _trader,
+        _sdk_client_module,
+        native,
+    ) = native_tests._prepare_bound_order_with_sdk(
+        monkeypatch, journal_path=journal_path
+    )
+    reopened = None
+    native_calls_before = tuple(native.calls)
+    try:
+        with native_tests._cancel_scope(coordinator, order, facts):
+            scope = coordinator.active_scope_for_order(order)
+            attempt = scope.begin_order(order, action="CANCEL")
+
+        cancel_intent_id = attempt.intent.intent_id
+        owner_intent_id = order.info["factor_intent_id"]
+        assert order.info["factor_cancel_intent_id"] == cancel_intent_id
+        assert tuple(native.calls) == native_calls_before
+
+        # The caller-provided ID is only an index into the durable record. The
+        # Store's durable-record validator accepts it after the original SQLite
+        # Journal is closed and a new one reads the committed CANCEL and owner rows.
+        journal.close()
+        reopened = ExecutionDecisionJournal(journal_path)
+        coordinator.journal = reopened
+        assert reopened.intent(cancel_intent_id).state == "DISPATCHING"
+        assert reopened.intent(owner_intent_id).state == "KNOWN"
+        owner_instrument = reopened.intent(owner_intent_id).key.instrument
+        owner = reopened.active_instrument_owner(
+            coordinator.account_scope, owner_instrument
+        )
+        assert owner.intent_id == owner_intent_id
+        assert owner.cancel_intent_id == cancel_intent_id
+        records = store._factor_cancel_journal_records(order)
+        assert records["journal"] is reopened
+        assert records["cancel"].intent_id == cancel_intent_id
+        assert records["owner"].intent_id == owner_intent_id
+
+        order.info["factor_cancel_intent_id"] = "forged-cancel-intent"
+        with pytest.raises(BtApiStoreError, match="durable cancel owner is not KNOWN"):
+            store._factor_cancel_journal_records(order)
+        assert reopened.intent(cancel_intent_id).state == "DISPATCHING"
+        assert reopened.active_instrument_owner(
+            coordinator.account_scope, owner_instrument
+        ).cancel_intent_id == cancel_intent_id
+        assert tuple(native.calls) == native_calls_before
+    finally:
+        if reopened is not None:
+            reopened.close()
+        elif not journal._closed:
+            journal.close()
 
 
 def test_arm_history_is_bounded_and_freeze_is_permanent():
