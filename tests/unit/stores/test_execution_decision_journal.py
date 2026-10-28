@@ -82,6 +82,23 @@ def _drop_v12_durable_capacity_tables(connection: sqlite3.Connection) -> None:
 def _drop_v23_fee_pair_grid_single_row_objects(connection: sqlite3.Connection) -> None:
     """Restore the pre-v23 fee-pair schema before exercising older migrations."""
 
+    amount_table = connection.execute(
+        "SELECT 1 FROM sqlite_master WHERE type='table' "
+        "AND name='execution_fee_pair_amount_reservations'"
+    ).fetchone()
+    if amount_table is not None:
+        if connection.execute(
+            "SELECT COUNT(*) FROM execution_fee_pair_amount_reservations"
+        ).fetchone()[0]:
+            raise AssertionError("cannot downgrade a journal with v24 amount reservations")
+        connection.execute(
+            "DROP TRIGGER IF EXISTS execution_fee_pair_amount_reservation_no_update"
+        )
+        connection.execute(
+            "DROP TRIGGER IF EXISTS execution_fee_pair_amount_reservation_no_delete"
+        )
+        connection.execute("DROP TABLE execution_fee_pair_amount_reservations")
+
     for trigger in (
         "execution_fee_pair_grid_single_row_tape_intent_no_update",
         "execution_fee_pair_grid_single_row_tape_intent_no_delete",

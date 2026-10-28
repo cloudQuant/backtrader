@@ -30,7 +30,7 @@ from collections.abc import Mapping
 from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
-from decimal import Decimal, InvalidOperation, localcontext
+from decimal import Decimal, DecimalException, InvalidOperation, ROUND_CEILING, localcontext
 from pathlib import Path
 from types import MappingProxyType
 from threading import Lock, RLock
@@ -129,6 +129,7 @@ _FEE_PAIR_GRID_TAPE_APPEND_SCHEMA_VERSION = 20
 _KNOWN_CTP_ORDER_SYSID_BINDING_SCHEMA_VERSION = 21
 _REGISTERED_SIM_CANCEL_DISPATCH_CLAIM_SCHEMA_VERSION = 22
 _FEE_PAIR_GRID_SINGLE_ROW_TAPE_SCHEMA_VERSION = 23
+_FEE_PAIR_AMOUNT_RESERVATION_SCHEMA_VERSION = 24
 _FEE_PAIR_SINGLE_ROW_TAPE_MAX_HEADER_BYTES = 1024 * 1024
 _SOURCE_ORIGIN_PARTITION_SCHEMA = "backtrader.execution_source_origin_partition.v1"
 _SOURCE_ORIGIN_PARTITION_FIELDS = (
@@ -159,6 +160,40 @@ _MAX_FEE_PAIR_GRID_SETTLEMENT_BYTES = 131_072
 _MAX_FEE_PAIR_GRID_TAPE_RECORD_BYTES = 8 * 1024 * 1024
 _FEE_PAIR_GRID_TAPE_SCAN_CHUNK_BYTES = 64 * 1024
 _MAX_FEE_PAIR_GRID_TAPE_REPORT_BYTES = 8_192
+_MAX_FEE_PAIR_AMOUNT_RESERVATION_BYTES = 32_768
+_FEE_PAIR_AMOUNT_POLICY_ID = "ALPHA003_PAIR_AMOUNT_V1"
+_FEE_PAIR_AMOUNT_EVIDENCE_LEVEL = "STRUCTURE_ONLY_STORE_PROJECTION"
+_FEE_PAIR_AMOUNT_CURRENCY = "CNY"
+_FEE_PAIR_AMOUNT_RISK_POLICY_FIELDS = frozenset(
+    {
+        "risk_policy_id",
+        "max_hold_eligible_bars",
+        "preclose_grace_seconds",
+        "run_end_policy",
+        "quote_max_age_seconds",
+        "max_state_age_seconds",
+        "max_notional_per_position",
+        "max_total_notional",
+        "max_margin_per_position",
+        "max_total_margin",
+        "max_loss_per_position",
+        "max_total_loss",
+        "stop_loss_ticks",
+        "max_order_intents_per_grid",
+        "max_order_intents_per_run",
+        "round_trip_fee_upper_bound_per_contract",
+    }
+)
+_FEE_PAIR_AMOUNT_MAX_NOTIONAL_PER_LEG = Decimal("100000")
+_FEE_PAIR_AMOUNT_MAX_TOTAL_NOTIONAL = Decimal("200000")
+_FEE_PAIR_AMOUNT_MAX_MARGIN_PER_LEG = Decimal("20000")
+_FEE_PAIR_AMOUNT_MAX_TOTAL_MARGIN = Decimal("40000")
+_FEE_PAIR_AMOUNT_MAX_LOSS_PER_LEG = Decimal("500")
+_FEE_PAIR_AMOUNT_MAX_TOTAL_LOSS = Decimal("1000")
+_FEE_PAIR_AMOUNT_MAX_DECIMAL_DIGITS = 128
+_FEE_PAIR_AMOUNT_MAX_DECIMAL_EXPONENT = 128
+_FEE_PAIR_AMOUNT_MAX_ADJUSTED_EXPONENT = 255
+_FEE_PAIR_AMOUNT_CONTEXT_PRECISION = 2048
 _FEE_PAIR_COMMISSION_MAX_AGE_SECONDS = 30.0
 _FEE_PAIR_SCOPE_TABLE_SQL = """CREATE TABLE execution_fee_pair_required_scopes (
     account_scope TEXT NOT NULL,
@@ -936,6 +971,28 @@ execution_fee_pair_legacy_unresolved_v23_no_delete
 BEFORE DELETE ON execution_fee_pair_legacy_unresolved_v23
 BEGIN
     SELECT RAISE(ABORT, 'FEE_PAIR_LEGACY_UNRESOLVED_IMMUTABLE');
+END"""
+_FEE_PAIR_AMOUNT_RESERVATION_TABLE_SQL = """CREATE TABLE
+execution_fee_pair_amount_reservations (
+    candidate_id TEXT PRIMARY KEY REFERENCES execution_fee_pair_workflows(candidate_id),
+    decision_id TEXT NOT NULL UNIQUE REFERENCES execution_decisions(decision_id),
+    account_scope TEXT NOT NULL UNIQUE
+        CHECK(length(account_scope)>0 AND length(account_scope)<=256),
+    reservation_json TEXT NOT NULL,
+    reservation_sha256 TEXT NOT NULL CHECK(length(reservation_sha256)=64),
+    created_at_ns INTEGER NOT NULL CHECK(created_at_ns>0)
+)"""
+_FEE_PAIR_AMOUNT_RESERVATION_NO_UPDATE_TRIGGER_SQL = """CREATE TRIGGER
+execution_fee_pair_amount_reservation_no_update
+BEFORE UPDATE ON execution_fee_pair_amount_reservations
+BEGIN
+    SELECT RAISE(ABORT, 'FEE_PAIR_AMOUNT_RESERVATION_IMMUTABLE');
+END"""
+_FEE_PAIR_AMOUNT_RESERVATION_NO_DELETE_TRIGGER_SQL = """CREATE TRIGGER
+execution_fee_pair_amount_reservation_no_delete
+BEFORE DELETE ON execution_fee_pair_amount_reservations
+BEGIN
+    SELECT RAISE(ABORT, 'FEE_PAIR_AMOUNT_RESERVATION_IMMUTABLE');
 END"""
 _FEE_PAIR_WORKFLOW_SCHEMA_V18_SQL = (
     _FEE_PAIR_WORKFLOW_TABLE_SQL_V18,
@@ -2125,7 +2182,7 @@ class ExecutionDecisionJournal:
     and checks fresh matching context at each OPEN decision, prepare, and claim.
     """
 
-    _SCHEMA_VERSION = _FEE_PAIR_GRID_SINGLE_ROW_TAPE_SCHEMA_VERSION
+    _SCHEMA_VERSION = _FEE_PAIR_AMOUNT_RESERVATION_SCHEMA_VERSION
     _NATIVE_IDENTITY_SCHEMA_VERSION = 8
     _DECISION_CAPACITY_SCHEMA_VERSION = 9
     _DURABLE_CAPACITY_SCHEMA_VERSION = 12
@@ -4739,6 +4796,686 @@ class ExecutionDecisionJournal:
             finally:
                 cursor.close()
 
+    def _fee_pair_amount_reservation_projection(
+        self,
+        *,
+        candidate: ExecutionFeePairCandidate,
+        facts: Any,
+        original_payload: Mapping[str, Any],
+        settlement_proof: Mapping[str, Any],
+    ) -> Mapping[str, Any]:
+        """Validate the exact Alpha003 planner projection and pair amounts.
+
+        Values are sourced from the immutable planner projection already bound
+        into the settled decision. This recomputes its directed Decimal risk
+        arithmetic from the same typed Store projection; it does not infer
+        amounts from Broker floats or authenticate provider provenance.
+        """
+
+        code = "FEE_PAIR_AMOUNT_RESERVATION_INVALID"
+
+        def require(condition: bool) -> None:
+            if not condition:
+                raise ExecutionDecisionJournalError(code)
+
+        def decimal_field(values: Mapping[str, Any], name: str) -> Decimal:
+            if name not in values:
+                raise ExecutionDecisionJournalError(code)
+            return _fee_pair_amount_decimal(values[name], label=name)
+
+        def exact_int(value: Any) -> int:
+            return _fee_pair_amount_integer(value)
+
+        def time_value(value: Any) -> datetime:
+            if type(value) is not str:
+                raise ExecutionDecisionJournalError(code)
+            try:
+                parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+            except (TypeError, ValueError):
+                raise ExecutionDecisionJournalError(code) from None
+            if parsed.tzinfo is None or parsed.utcoffset() != timedelta(0):
+                raise ExecutionDecisionJournalError(code)
+            return parsed.astimezone(timezone.utc)
+
+        risk = original_payload.get("open_risk_candidate")
+        require(isinstance(risk, Mapping))
+        require(
+            risk.get("schema") == "backtrader.alpha003.open_risk_candidate.v1"
+            and risk.get("evidence_source") == "REGISTERED_SIM"
+            and risk.get("strategy_scope") == candidate.key.strategy_scope
+            and risk.get("batch_id") == candidate.batch_id
+            and risk.get("risk_policy_id") is not None
+            and risk.get("account_scope") == candidate.key.account_scope
+            and risk.get("account_fingerprint") == candidate.account_fingerprint
+            and risk.get("connection_generation") == candidate.connection_generation
+            and risk.get("trading_day") == candidate.trading_day
+        )
+        account = getattr(facts, "account", None)
+        if account is None or getattr(account, "currency", None) != _FEE_PAIR_AMOUNT_CURRENCY:
+            raise ExecutionDecisionJournalError("FEE_PAIR_AMOUNT_CURRENCY_UNAVAILABLE")
+        execution_evidence = original_payload.get("execution_evidence")
+        require(
+            isinstance(execution_evidence, Mapping)
+            and execution_evidence.get("account_currency") == _FEE_PAIR_AMOUNT_CURRENCY
+        )
+        if _canonical_json(execution_evidence.get("portfolio_exposure")) != _canonical_json(
+            self._fee_pair_amount_exposure_evidence_payload(facts)
+        ):
+            raise ExecutionDecisionJournalError("FEE_PAIR_AMOUNT_EXPOSURE_UNPROVEN")
+        self._validate_fee_pair_amount_flat_exposure(candidate, facts)
+        require(
+            account.snapshot_id == risk.get("account_snapshot_id")
+            and account.snapshot_id is not None
+            and facts.snapshot_id is not None
+            and facts.account_scope == candidate.key.account_scope
+            and facts.strategy_scope == candidate.key.strategy_scope
+            and account.account_scope == candidate.key.account_scope
+            and account.account_fingerprint == candidate.account_fingerprint
+            and account.connection_generation == candidate.connection_generation
+            and account.trading_day == candidate.trading_day
+            and risk.get("account_fingerprint") == account.account_fingerprint
+            and risk.get("connection_generation") == account.connection_generation
+            and risk.get("trading_day") == account.trading_day
+            and risk.get("query_set_id") == facts.query_set_id
+        )
+        account_projection = {
+            "available_margin": account.available_margin,
+            "used_margin": account.used_margin,
+            "current_notional": account.current_notional,
+            "current_worst_case_loss": account.current_worst_case_loss,
+        }
+        for name, value in account_projection.items():
+            require(value is not None)
+            require(decimal_field(risk, name) == _fee_pair_amount_decimal(value, label=name))
+
+        risk_policy_id = risk.get("risk_policy_id")
+        require(type(risk_policy_id) is str and risk_policy_id)
+        action_rows = original_payload.get("proposed_actions")
+        economics_rows = original_payload.get("intent_economics")
+        risk_legs = risk.get("legs")
+        require(
+            type(action_rows) in (list, tuple)
+            and len(action_rows) == 2
+            and type(economics_rows) in (list, tuple)
+            and len(economics_rows) == 2
+            and type(risk_legs) in (list, tuple)
+            and len(risk_legs) == 2
+            and candidate.target_routes is not None
+            and len(candidate.target_routes) == 2
+        )
+
+        policy = None
+        policy_decimal_names = (
+            "quote_max_age_seconds",
+            "max_state_age_seconds",
+            "max_notional_per_position",
+            "max_total_notional",
+            "max_margin_per_position",
+            "max_total_margin",
+            "max_loss_per_position",
+            "max_total_loss",
+        )
+        policy_totals = {}
+        policy_per_leg = {}
+        stop_loss_ticks = None
+        policy_without_parsed_fee = None
+        for action, economics, risk_leg, route, direction in zip(
+            action_rows,
+            economics_rows,
+            risk_legs,
+            candidate.target_routes,
+            candidate.directions,
+        ):
+            require(
+                isinstance(action, Mapping)
+                and isinstance(economics, Mapping)
+                and isinstance(risk_leg, Mapping)
+            )
+            current_policy = economics.get("risk_policy")
+            require(
+                isinstance(current_policy, Mapping)
+                and set(current_policy) == _FEE_PAIR_AMOUNT_RISK_POLICY_FIELDS
+                and current_policy.get("risk_policy_id") == risk_policy_id
+                and economics.get("risk_policy_id") == risk_policy_id
+            )
+            if policy is None:
+                policy = dict(current_policy)
+                policy_without_parsed_fee = dict(current_policy)
+                for name in policy_decimal_names:
+                    policy_per_leg[name] = decimal_field(policy, name)
+                stop_loss_ticks = policy.get("stop_loss_ticks")
+                require(type(stop_loss_ticks) is int and stop_loss_ticks >= 1)
+                fee_policy_value = policy.get("round_trip_fee_upper_bound_per_contract")
+                if fee_policy_value is not None:
+                    _fee_pair_amount_decimal(fee_policy_value, label="policy fee")
+                require(
+                    type(policy.get("max_order_intents_per_grid")) is int
+                    and policy["max_order_intents_per_grid"] >= 2
+                    and type(policy.get("max_order_intents_per_run")) is int
+                    and policy["max_order_intents_per_run"] >= 2
+                    and type(policy.get("max_hold_eligible_bars")) is int
+                    and policy["max_hold_eligible_bars"] >= 1
+                    and type(policy.get("preclose_grace_seconds")) is int
+                    and policy["preclose_grace_seconds"] >= 0
+                    and policy.get("run_end_policy") in ("CLOSE_ALL", "KEEP_POSITIONS")
+                )
+                policy_totals = {
+                    "notional": policy_per_leg["max_total_notional"],
+                    "margin": policy_per_leg["max_total_margin"],
+                    "loss": policy_per_leg["max_total_loss"],
+                }
+            else:
+                require(_canonical_json(current_policy) == _canonical_json(policy_without_parsed_fee))
+
+        # Compare the two per-leg policy records without the local Decimal cache.
+        require(isinstance(policy, Mapping))
+        require(isinstance(policy_without_parsed_fee, Mapping))
+        for economics in economics_rows:
+            require(_canonical_json(economics["risk_policy"]) == _canonical_json(policy_without_parsed_fee))
+        require(risk.get("risk_policy_id") == policy_without_parsed_fee["risk_policy_id"])
+        require(
+            decimal_field(risk, "max_total_notional") == policy_totals["notional"]
+            and decimal_field(risk, "max_total_margin") == policy_totals["margin"]
+            and decimal_field(risk, "max_total_loss") == policy_totals["loss"]
+        )
+        require(
+            exact_int(risk.get("eligible_grid_ordinal"))
+            == exact_int(settlement_proof["decision_plan"].get("grid_ordinal"))
+        )
+
+        instrument_by_target = {item.target_id: item for item in facts.instruments}
+        quote_by_route = {(item.instrument, item.exchange): item for item in facts.quotes}
+        commission_queries = {}
+        for query in facts.query_provenance:
+            if query.family != "instrument_commission_rate_result":
+                continue
+            if query.target_id in commission_queries:
+                raise ExecutionDecisionJournalError(code)
+            commission_queries[query.target_id] = query
+
+        legs = []
+        total_notional = Decimal(0)
+        total_margin = Decimal(0)
+        total_loss = Decimal(0)
+        for leg_index, (action, economics, risk_leg, route, direction) in enumerate(
+            zip(
+                action_rows,
+                economics_rows,
+                risk_legs,
+                candidate.target_routes,
+                candidate.directions,
+            )
+        ):
+            side = "BUY" if direction > 0 else "SELL"
+            require(
+                action.get("action") == "SUBMIT"
+                and action.get("position_effect") == "OPEN"
+                and action.get("target_id") == route.target_id
+                and action.get("instrument") == route.instrument
+                and action.get("exchange") == route.exchange
+                and action.get("side") == side
+                and exact_int(action.get("quantity")) == 1
+                and exact_int(action.get("entry_grid_ordinal"))
+                == exact_int(settlement_proof["decision_plan"].get("grid_ordinal"))
+                and economics.get("target_id") == route.target_id
+                and economics.get("instrument") == route.instrument
+                and economics.get("exchange") == route.exchange
+                and economics.get("side") == side
+                and exact_int(economics.get("quantity")) == 1
+                and economics.get("position_effect") == "OPEN"
+                and exact_int(economics.get("entry_grid_ordinal"))
+                == exact_int(settlement_proof["decision_plan"].get("grid_ordinal"))
+            )
+            require(
+                economics.get("open_risk_candidate") == risk_leg
+                and risk_leg.get("target_id") == route.target_id
+                and risk_leg.get("instrument") == route.instrument
+                and risk_leg.get("exchange") == route.exchange
+                and risk_leg.get("side") == side
+                and exact_int(risk_leg.get("quantity")) == 1
+            )
+            instrument = instrument_by_target.get(route.target_id)
+            quote = quote_by_route.get((route.instrument, route.exchange))
+            require(instrument is not None and quote is not None)
+            require(
+                instrument.instrument == route.instrument
+                and instrument.exchange == route.exchange
+                and instrument.snapshot_id == facts.snapshot_id
+                and instrument.trading_permitted is True
+                and instrument.commission_fee_required is True
+                and instrument.commission_fee_status == "AVAILABLE"
+                and quote.quality == "GOOD"
+                and quote.metadata_snapshot_id == instrument.snapshot_id
+                and quote.generation == candidate.connection_generation
+                and quote.trading_day == candidate.trading_day
+                and quote.risk_bid_upper is not None
+                and quote.risk_ask_upper is not None
+            )
+            entry = _fee_pair_amount_decimal(
+                quote.ask if side == "BUY" else quote.bid, label="entry quote"
+            )
+            require(
+                _fee_pair_amount_decimal(action.get("limit_price"), label="limit price") == entry
+                and decimal_field(risk_leg, "entry_price") == entry
+                and decimal_field(risk_leg, "quote_bid")
+                == _fee_pair_amount_decimal(quote.bid, label="quote bid")
+                and decimal_field(risk_leg, "quote_ask")
+                == _fee_pair_amount_decimal(quote.ask, label="quote ask")
+                and risk_leg.get("quote_source_ref") == quote.source_ref
+                and risk_leg.get("quote_metadata_snapshot_id") == quote.metadata_snapshot_id
+                and risk_leg.get("quote_generation") == quote.generation
+                and risk_leg.get("quote_sequence") == quote.sequence
+                and risk_leg.get("commission_fee_required") is True
+                and risk_leg.get("commission_fee_status") == "AVAILABLE"
+                and risk_leg.get("instrument_snapshot_id") == instrument.snapshot_id
+                and time_value(risk_leg.get("quote_event_time")) == quote.event_time
+                and time_value(risk_leg.get("quote_available_at")) == quote.available_at
+                and (
+                    quote.bid_size is None
+                    and risk_leg.get("quote_bid_size") is None
+                    or quote.bid_size is not None
+                    and risk_leg.get("quote_bid_size") is not None
+                    and _fee_pair_amount_decimal(
+                        risk_leg["quote_bid_size"], label="risk bid size"
+                    ) == _fee_pair_amount_decimal(quote.bid_size, label="bid size")
+                )
+                and (
+                    quote.ask_size is None
+                    and risk_leg.get("quote_ask_size") is None
+                    or quote.ask_size is not None
+                    and risk_leg.get("quote_ask_size") is not None
+                    and _fee_pair_amount_decimal(
+                        risk_leg["quote_ask_size"], label="risk ask size"
+                    ) == _fee_pair_amount_decimal(quote.ask_size, label="ask size")
+                )
+            )
+            if quote.available_at is None or quote.event_time is None:
+                raise ExecutionDecisionJournalError(code)
+            decision_at = time_value(action.get("decision_available_at"))
+            require(
+                quote.event_time <= quote.available_at <= decision_at
+                and facts.available_at is not None
+                and facts.available_at <= decision_at
+                and time_value(risk.get("account_available_at")) == account.available_at
+                and time_value(risk.get("risk_evidence_available_at")) == facts.available_at
+            )
+            query = commission_queries.get(route.target_id)
+            require(query is not None and query.completed_at is not None)
+            require(time_value(query.completed_at.isoformat().replace("+00:00", "Z")) <= decision_at)
+
+            multiplier_source = instrument.risk_multiplier_upper
+            if multiplier_source is None:
+                multiplier_source = instrument.multiplier
+            require(multiplier_source is not None)
+            multiplier = _fee_pair_amount_decimal(multiplier_source, label="multiplier")
+            margin_source = (
+                instrument.long_margin_per_hand
+                if side == "BUY"
+                else instrument.short_margin_per_hand
+            )
+            require(margin_source is not None)
+            margin = _fee_pair_amount_decimal(margin_source, label="margin")
+            risk_tick_source = instrument.risk_tick_size_upper
+            if (
+                risk_tick_source is not None
+                and quote.risk_tick_size_upper is not None
+                and risk_tick_source != quote.risk_tick_size_upper
+            ):
+                raise ExecutionDecisionJournalError(code)
+            if risk_tick_source is None:
+                risk_tick_source = quote.risk_tick_size_upper
+            require(risk_tick_source is not None)
+            risk_tick = _fee_pair_amount_decimal(risk_tick_source, label="risk tick")
+            fee_source = instrument.round_trip_fee_upper_bound_per_contract
+            require(fee_source is not None)
+            fee = _fee_pair_amount_decimal(fee_source, label="round trip fee")
+            risk_price = max(
+                _fee_pair_amount_decimal(quote.risk_bid_upper, label="risk bid"),
+                _fee_pair_amount_decimal(quote.risk_ask_upper, label="risk ask"),
+            )
+            notional = _fee_pair_amount_ceiling_product(risk_price, multiplier)
+            stop_distance = _fee_pair_amount_ceiling_product(
+                _fee_pair_amount_decimal(quote.tick_size, label="tick size"), stop_loss_ticks
+            )
+            risk_stop_distance = _fee_pair_amount_ceiling_product(risk_tick, stop_loss_ticks)
+            stop_loss = _fee_pair_amount_ceiling_product(risk_stop_distance, multiplier)
+            worst_case_loss = _fee_pair_amount_ceiling_sum(stop_loss, fee)
+            stop_price = _fee_pair_amount_stop_price(entry, stop_distance, side)
+            require(
+                decimal_field(risk_leg, "multiplier") == multiplier
+                and decimal_field(risk_leg, "margin") == margin
+                and decimal_field(risk_leg, "notional") == notional
+                and decimal_field(risk_leg, "stop_loss") == stop_loss
+                and decimal_field(risk_leg, "round_trip_fee_upper_bound") == fee
+                and decimal_field(risk_leg, "worst_case_loss") == worst_case_loss
+                and decimal_field(risk_leg, "stop_price") == stop_price
+                and _fee_pair_amount_decimal(action.get("planned_stop_price"), label="planned stop")
+                == stop_price
+                and instrument.commission_fee_required
+                and instrument.commission_fee_status == "AVAILABLE"
+            )
+            size_lower = (
+                quote.risk_ask_size_lower
+                if side == "BUY" and quote.risk_ask_size_lower is not None
+                else quote.risk_bid_size_lower
+                if side == "SELL" and quote.risk_bid_size_lower is not None
+                else quote.ask_size
+                if side == "BUY"
+                else quote.bid_size
+            )
+            require(
+                size_lower is not None
+                and _fee_pair_amount_decimal(size_lower, label="quote depth") >= 1
+                and quote.tick_size is not None
+                and quote.lower_limit is not None
+                and quote.upper_limit is not None
+                and stop_price >= _fee_pair_amount_decimal(quote.lower_limit, label="lower limit")
+                and stop_price <= _fee_pair_amount_decimal(quote.upper_limit, label="upper limit")
+            )
+            try:
+                with localcontext() as context:
+                    context.prec = _FEE_PAIR_AMOUNT_CONTEXT_PRECISION
+                    context.Emax = 1024
+                    context.Emin = -1024
+                    entry_tick_remainder = entry % _fee_pair_amount_decimal(
+                        quote.tick_size, label="tick size"
+                    )
+                    stop_tick_remainder = stop_price % _fee_pair_amount_decimal(
+                        quote.tick_size, label="tick size"
+                    )
+            except DecimalException as error:
+                raise ExecutionDecisionJournalError(code) from error
+            require(entry_tick_remainder == 0 and stop_tick_remainder == 0)
+            require(
+                notional <= min(
+                    _FEE_PAIR_AMOUNT_MAX_NOTIONAL_PER_LEG,
+                    policy_per_leg["max_notional_per_position"],
+                )
+                and margin <= min(
+                    _FEE_PAIR_AMOUNT_MAX_MARGIN_PER_LEG,
+                    policy_per_leg["max_margin_per_position"],
+                )
+                and worst_case_loss <= min(
+                    _FEE_PAIR_AMOUNT_MAX_LOSS_PER_LEG,
+                    policy_per_leg["max_loss_per_position"],
+                )
+            )
+            total_notional = _fee_pair_amount_ceiling_sum(total_notional, notional)
+            total_margin = _fee_pair_amount_ceiling_sum(total_margin, margin)
+            total_loss = _fee_pair_amount_ceiling_sum(total_loss, worst_case_loss)
+            legs.append(
+                {
+                    "target_id": route.target_id,
+                    "instrument": route.instrument,
+                    "exchange": route.exchange,
+                    "side": side,
+                    "quantity": 1,
+                    "notional": str(notional),
+                    "margin": str(margin),
+                    "stop_loss": str(stop_loss),
+                    "round_trip_fee_upper_bound": str(fee),
+                    "worst_case_loss": str(worst_case_loss),
+                }
+            )
+
+        require(
+            total_notional == decimal_field(risk, "added_notional")
+            and total_margin == decimal_field(risk, "required_margin")
+            and total_loss == decimal_field(risk, "added_loss")
+        )
+        available_margin = decimal_field(risk, "available_margin")
+        used_margin = decimal_field(risk, "used_margin")
+        current_notional = decimal_field(risk, "current_notional")
+        current_loss = decimal_field(risk, "current_worst_case_loss")
+        held_fee = decimal_field(risk, "held_fee_reserve")
+        require(held_fee == 0)
+        projected_margin = _fee_pair_amount_ceiling_sum(used_margin, total_margin)
+        projected_notional = _fee_pair_amount_ceiling_sum(current_notional, total_notional)
+        projected_loss = _fee_pair_amount_ceiling_sum(current_loss, held_fee, total_loss)
+        require(
+            total_margin <= available_margin
+            and projected_margin == decimal_field(risk, "projected_total_margin")
+            and projected_notional == decimal_field(risk, "projected_total_notional")
+            and projected_loss == decimal_field(risk, "projected_total_worst_case_loss")
+            and projected_margin
+            <= min(policy_totals["margin"], _FEE_PAIR_AMOUNT_MAX_TOTAL_MARGIN)
+            and projected_notional
+            <= min(policy_totals["notional"], _FEE_PAIR_AMOUNT_MAX_TOTAL_NOTIONAL)
+            and projected_loss
+            <= min(policy_totals["loss"], _FEE_PAIR_AMOUNT_MAX_TOTAL_LOSS)
+        )
+        return {
+            "risk_candidate": dict(risk),
+            "reserved_legs": legs,
+            "reserved_notional": str(total_notional),
+            "reserved_margin": str(total_margin),
+            "reserved_stop_loss_and_fees": str(total_loss),
+            "available_margin_at_decision": str(available_margin),
+            "used_margin_at_decision": str(used_margin),
+            "current_notional_at_decision": str(current_notional),
+            "current_worst_case_loss_at_decision": str(current_loss),
+            "held_fee_reserve_at_decision": str(held_fee),
+        }
+
+    def fee_pair_grid_amount_reservation(self, candidate_id: str) -> Optional[Mapping[str, Any]]:
+        """Read one retained ACTIVE amount reservation without releasing it."""
+
+        if not _source_sha256(candidate_id):
+            raise ExecutionDecisionJournalError("INVALID_FEE_PAIR_CANDIDATE_ID")
+        with self._read_lock():
+            cursor = self._connection.cursor()
+            try:
+                cursor.execute("BEGIN")
+                row = cursor.execute(
+                    "SELECT * FROM execution_fee_pair_amount_reservations WHERE candidate_id=?",
+                    (candidate_id,),
+                ).fetchone()
+                if row is None:
+                    cursor.execute("COMMIT")
+                    return None
+                result = self._fee_pair_amount_reservation_record_in_transaction(cursor, row)
+                cursor.execute("COMMIT")
+                return result
+            except BaseException:
+                if self._connection.in_transaction:
+                    try:
+                        cursor.execute("ROLLBACK")
+                    except sqlite3.Error:
+                        self._failed_closed = True
+                raise
+            finally:
+                cursor.close()
+
+    def reserve_fee_pair_grid_amounts(
+        self, candidate_id: str, *, owner_token: str, facts: Any
+    ) -> Mapping[str, Any]:
+        """Persist one capped, immutable two-leg amount reservation.
+
+        This records a structure-only projection and grants no order
+        authorization. The existing OPEN reservation fence remains in force;
+        this first round intentionally has no release transition.
+        """
+
+        if not _source_sha256(candidate_id):
+            raise ExecutionDecisionJournalError("INVALID_FEE_PAIR_CANDIDATE_ID")
+        token_sha256 = _fee_pair_candidate_owner_token_hash(owner_token)
+        with self._transaction() as cursor:
+            version = cursor.execute("PRAGMA user_version").fetchone()
+            if version is None or type(version[0]) is not int or version[0] < 24:
+                raise ExecutionDecisionJournalError("FEE_PAIR_AMOUNT_RESERVATION_SCHEMA_REQUIRED")
+            workflow = cursor.execute(
+                "SELECT * FROM execution_fee_pair_workflows WHERE candidate_id=?",
+                (candidate_id,),
+            ).fetchone()
+            if workflow is None:
+                raise ExecutionDecisionJournalError("FEE_PAIR_WORKFLOW_NOT_FOUND")
+            self._fee_pair_workflow_record_in_transaction(cursor, workflow)
+            self._require_fee_pair_workflow_owner(workflow, token_sha256)
+            existing = cursor.execute(
+                "SELECT * FROM execution_fee_pair_amount_reservations WHERE candidate_id=?",
+                (candidate_id,),
+            ).fetchone()
+            if existing is not None:
+                return self._fee_pair_amount_reservation_record_in_transaction(cursor, existing)
+            if workflow["state"] != "RECEIPT_VERIFIED" or workflow["grid_decision_id"] is None:
+                raise ExecutionDecisionJournalError("FEE_PAIR_GRID_SETTLEMENT_REQUIRED")
+            if time.monotonic_ns() >= workflow["deadline_monotonic_ns"]:
+                raise ExecutionDecisionJournalError("FEE_PAIR_WORKFLOW_EXPIRED")
+            candidate = _fee_pair_candidate_from_values(
+                json.loads(workflow["candidate_payload_json"])
+            )
+            single_row_intent = self._fee_pair_grid_single_row_tape_intent_in_transaction(
+                cursor, workflow, candidate
+            )
+            if single_row_intent is None:
+                raise ExecutionDecisionJournalError("FEE_PAIR_SINGLE_ROW_TAPE_READBACK_REQUIRED")
+            settlement = self._fee_pair_grid_settlement_in_transaction(cursor, workflow)
+            try:
+                settlement_proof = json.loads(settlement["settlement_payload_json"])
+                decision_plan = settlement_proof["decision_plan"]
+                decision = cursor.execute(
+                    "SELECT * FROM execution_decisions WHERE decision_id=?",
+                    (workflow["grid_decision_id"],),
+                ).fetchone()
+                if decision is None:
+                    raise ValueError("settled decision missing")
+                decision_payload = json.loads(decision["economic_payload_json"])
+            except (KeyError, TypeError, ValueError, sqlite3.Error) as error:
+                raise ExecutionDecisionJournalError(
+                    "FEE_PAIR_GRID_SETTLEMENT_CORRUPT"
+                ) from error
+            if not isinstance(settlement_proof, Mapping) or not isinstance(
+                decision_plan, Mapping
+            ) or not isinstance(decision_payload, Mapping):
+                raise ExecutionDecisionJournalError("FEE_PAIR_GRID_SETTLEMENT_CORRUPT")
+            original_payload = dict(decision_payload)
+            for reserved_field in (
+                _SOURCE_RECEIPT_PAYLOAD_FIELD,
+                _FEE_PAIR_WORKFLOW_PAYLOAD_FIELD,
+                _FEE_PAIR_SETTLEMENT_PAYLOAD_FIELD,
+                _RUN_ORDER_RESERVATION_FIELD,
+            ):
+                original_payload.pop(reserved_field, None)
+            economic_payload_sha256 = hashlib.sha256(
+                _canonical_json(original_payload).encode("utf-8")
+            ).hexdigest()
+            if economic_payload_sha256 != decision_plan.get("economic_payload_sha256"):
+                raise ExecutionDecisionJournalError("FEE_PAIR_GRID_SETTLEMENT_CORRUPT")
+
+            max_query_age = _fee_pair_age_seconds(
+                decision_plan.get("max_query_age_seconds"), "FEE_PAIR_QUERY_AGE_INVALID"
+            )
+            max_quote_age = _fee_pair_age_seconds(
+                decision_plan.get("max_quote_age_seconds"), "FEE_PAIR_QUOTE_AGE_INVALID"
+            )
+            proof_facts = self._fee_pair_grid_facts_proof(
+                candidate,
+                facts,
+                current_account_session_id=candidate.account_session_id,
+                current_account_session_generation=candidate.account_session_generation,
+                max_query_age_seconds=max_query_age,
+                max_quote_age_seconds=max_quote_age,
+                now=datetime.now(timezone.utc),
+                require_fresh=True,
+                # This is durable accounting only. Grid settlement proves
+                # both immutable arm templates; the concrete active grant is
+                # checked later at each dispatch boundary.
+                required_active_target_ids=frozenset(),
+            )
+            if _canonical_json(proof_facts) != _canonical_json(
+                settlement_proof.get("store_projection")
+            ):
+                raise ExecutionDecisionJournalError("FEE_PAIR_FACTS_SNAPSHOT_MISMATCH")
+            projection = self._fee_pair_amount_reservation_projection(
+                candidate=candidate,
+                facts=facts,
+                original_payload=original_payload,
+                settlement_proof=settlement_proof,
+            )
+            account = facts.account
+            if account is None or account.currency != _FEE_PAIR_AMOUNT_CURRENCY:
+                raise ExecutionDecisionJournalError("FEE_PAIR_AMOUNT_CURRENCY_UNAVAILABLE")
+            occupied = cursor.execute(
+                "SELECT candidate_id FROM execution_fee_pair_amount_reservations "
+                "WHERE account_scope=? LIMIT 1",
+                (candidate.key.account_scope,),
+            ).fetchone()
+            if occupied is not None:
+                raise ExecutionDecisionJournalError("FEE_PAIR_AMOUNT_RESERVATION_ALREADY_ACTIVE")
+
+            now_ns = time.time_ns()
+            risk_candidate_sha256 = hashlib.sha256(
+                _canonical_json(projection["risk_candidate"]).encode("utf-8")
+            ).hexdigest()
+            reservation = {
+                "schema": "backtrader.execution_fee_pair_amount_reservation.v1",
+                "status": "ACTIVE",
+                "evidence_level": _FEE_PAIR_AMOUNT_EVIDENCE_LEVEL,
+                "policy_id": _FEE_PAIR_AMOUNT_POLICY_ID,
+                "currency": _FEE_PAIR_AMOUNT_CURRENCY,
+                "candidate_id": candidate_id,
+                "candidate_sha256": workflow["candidate_sha256"],
+                "decision_id": workflow["grid_decision_id"],
+                "settlement_sha256": settlement["settlement_sha256"],
+                "economic_payload_sha256": economic_payload_sha256,
+                "risk_candidate_sha256": risk_candidate_sha256,
+                "account_scope": candidate.key.account_scope,
+                "strategy_scope": candidate.key.strategy_scope,
+                "logical_run_id": candidate.key.logical_run_id,
+                "cohort_id": candidate.key.cohort_id,
+                "close_time": candidate.key.close_time,
+                "batch_id": candidate.batch_id,
+                "epoch_id": str(candidate.epoch_id),
+                "account_session_id": candidate.account_session_id,
+                "account_session_generation": candidate.account_session_generation,
+                "account_fingerprint": candidate.account_fingerprint,
+                "connection_generation": candidate.connection_generation,
+                "trading_day": candidate.trading_day,
+                "account_snapshot_id": account.snapshot_id,
+                "risk_policy_id": projection["risk_candidate"]["risk_policy_id"],
+                "risk_candidate": projection["risk_candidate"],
+                "reserved_legs": projection["reserved_legs"],
+                "reserved_notional": projection["reserved_notional"],
+                "reserved_margin": projection["reserved_margin"],
+                "reserved_stop_loss_and_fees": projection["reserved_stop_loss_and_fees"],
+                "available_margin_at_decision": projection["available_margin_at_decision"],
+                "used_margin_at_decision": projection["used_margin_at_decision"],
+                "current_notional_at_decision": projection["current_notional_at_decision"],
+                "current_worst_case_loss_at_decision": projection[
+                    "current_worst_case_loss_at_decision"
+                ],
+                "held_fee_reserve_at_decision": projection["held_fee_reserve_at_decision"],
+                "created_at_ns": now_ns,
+            }
+            reservation_json = _canonical_json(reservation)
+            if len(reservation_json.encode("utf-8")) > _MAX_FEE_PAIR_AMOUNT_RESERVATION_BYTES:
+                raise ExecutionDecisionJournalError("FEE_PAIR_AMOUNT_RESERVATION_TOO_LARGE")
+            reservation_sha256 = hashlib.sha256(reservation_json.encode("utf-8")).hexdigest()
+            with track_durable_row_change(
+                cursor,
+                "execution_fee_pair_amount_reservations",
+                (candidate_id,),
+                "BASE",
+            ):
+                cursor.execute(
+                    """INSERT INTO execution_fee_pair_amount_reservations
+                       (candidate_id,decision_id,account_scope,reservation_json,
+                        reservation_sha256,created_at_ns) VALUES(?,?,?,?,?,?)""",
+                    (
+                        candidate_id,
+                        workflow["grid_decision_id"],
+                        candidate.key.account_scope,
+                        reservation_json,
+                        reservation_sha256,
+                        now_ns,
+                    ),
+                )
+            saved = cursor.execute(
+                "SELECT * FROM execution_fee_pair_amount_reservations WHERE candidate_id=?",
+                (candidate_id,),
+            ).fetchone()
+            return self._fee_pair_amount_reservation_record_in_transaction(cursor, saved)
+
     def record_fee_pair_workflow_append_claim(
         self, candidate_id: str, *, owner_token: str
     ) -> ExecutionFeePairWorkflowRecord:
@@ -6246,6 +6983,233 @@ class ExecutionDecisionJournal:
         )
 
     @staticmethod
+    def _fee_pair_amount_exposure_evidence_payload(facts: Any) -> Mapping[str, Any]:
+        """Freeze the typed portfolio exposure projection used by the decision.
+
+        This is a structural Store projection, not an authenticity claim about
+        the underlying account/provider facts.
+        """
+
+        def time_key(value: Optional[datetime]) -> Optional[str]:
+            if value is None:
+                return None
+            if not isinstance(value, datetime) or value.tzinfo is None or value.utcoffset() is None:
+                raise ExecutionDecisionJournalError("FEE_PAIR_FACTS_INVALID")
+            return value.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
+
+        def decimal_text(value: Any) -> Optional[str]:
+            return None if value is None else str(value)
+
+        account = getattr(facts, "account", None)
+        positions = tuple(
+            {
+                "target_id": position.target_id,
+                "instrument": position.instrument,
+                "exchange": position.exchange,
+                "snapshot_id": position.snapshot_id,
+                "available_at": time_key(position.available_at),
+                "quantity": decimal_text(position.quantity),
+                "broker_quantity": decimal_text(position.broker_quantity),
+                "long_quantity": decimal_text(position.long_quantity),
+                "short_quantity": decimal_text(position.short_quantity),
+                "attributed_signed_quantity": decimal_text(
+                    position.attributed_signed_quantity
+                ),
+                "position_book_status": position.position_book_status,
+                "position_book_blocker_code": position.position_book_blocker_code,
+                "dated_inventory_positions": tuple(
+                    decimal_text(row.position) for row in position.dated_inventory_rows
+                ),
+            }
+            for position in getattr(facts, "positions", ())
+        )
+        working_orders = tuple(
+            {
+                "target_id": order.target_id,
+                "instrument": order.instrument,
+                "exchange": order.exchange,
+                "order_ref": order.order_ref,
+                "state": order.state,
+                "side": order.side,
+                "position_effect": order.position_effect,
+                "remaining_quantity": decimal_text(order.remaining_quantity),
+                "owner_strategy_scope": order.owner_strategy_scope,
+                "owner_intent_id": order.owner_intent_id,
+                "execution_unknown": order.execution_unknown,
+                "cancel_pending": order.cancel_pending,
+            }
+            for order in getattr(facts, "working_orders", ())
+        )
+        execution_intents = tuple(
+            {
+                "intent_id": intent.intent_id,
+                "decision_id": intent.decision_id,
+                "action": intent.action,
+                "instrument": intent.instrument,
+                "side": intent.side,
+                "position_effect": intent.position_effect,
+                "state": intent.state,
+                "dispatch_state": intent.dispatch_state,
+                "target_id": intent.target_id,
+                "exchange": intent.exchange,
+                "account_scope": intent.account_scope,
+                "strategy_scope": intent.strategy_scope,
+            }
+            for intent in getattr(facts, "execution_intents", ())
+        )
+        query_coverage = tuple(
+            {
+                "family": query.family,
+                "target_id": query.target_id,
+                "request_type": query.request_type,
+                "request_id": query.request_id,
+                "connection_generation": query.connection_generation,
+                "account_fingerprint": query.account_fingerprint,
+                "trading_day": query.trading_day,
+                "started_at": time_key(query.started_at),
+                "completed_at": time_key(query.completed_at),
+                "source_owned": query.source_owned,
+                "query_complete": query.query_complete,
+                "scope_complete": query.scope_complete,
+                "row_count": query.row_count,
+            }
+            for query in getattr(facts, "query_provenance", ())
+            if query.family in {"positions_result", "orders_result"}
+        )
+        return {
+            "full_target_ids": tuple(getattr(facts, "_full_target_ids", ())),
+            "account_totals": {
+                "used_margin": decimal_text(
+                    None if account is None else account.used_margin
+                ),
+                "current_notional": decimal_text(
+                    None if account is None else account.current_notional
+                ),
+                "current_worst_case_loss": decimal_text(
+                    None if account is None else account.current_worst_case_loss
+                ),
+            },
+            "positions": positions,
+            "working_orders": working_orders,
+            "execution_intents": execution_intents,
+            "query_coverage": query_coverage,
+        }
+
+    @staticmethod
+    def _validate_fee_pair_amount_flat_exposure(
+        candidate: ExecutionFeePairCandidate, facts: Any
+    ) -> None:
+        """Require a complete, flat scope before persisting the two-leg amount hold."""
+
+        code = "FEE_PAIR_AMOUNT_EXPOSURE_UNPROVEN"
+
+        def require(condition: bool) -> None:
+            if not condition:
+                raise ExecutionDecisionJournalError(code)
+
+        full_ids = getattr(facts, "_full_target_ids", None)
+        require(
+            type(full_ids) is tuple
+            and bool(full_ids)
+            and all(type(target_id) is str and target_id for target_id in full_ids)
+            and len(set(full_ids)) == len(full_ids)
+        )
+        require(set(candidate.target_ids).issubset(set(full_ids)))
+        available_at = facts.available_at
+        require(
+            isinstance(available_at, datetime)
+            and available_at.tzinfo is not None
+            and available_at.utcoffset() == timedelta(0)
+        )
+        account = facts.account
+        require(account is not None)
+        for value in (
+            account.used_margin,
+            account.current_notional,
+            account.current_worst_case_loss,
+        ):
+            require(type(value) is Decimal and value.is_finite() and value == 0)
+
+        query_by_family = {}
+        for query in facts.query_provenance:
+            if query.family not in {"positions_result", "orders_result"}:
+                continue
+            require(query.family not in query_by_family)
+            query_by_family[query.family] = query
+        require(set(query_by_family) == {"positions_result", "orders_result"})
+        for family, request_type in (
+            ("positions_result", "positions"),
+            ("orders_result", "orders"),
+        ):
+            query = query_by_family[family]
+            require(
+                query.target_id is None
+                and query.request_type == request_type
+                and type(query.request_id) is int
+                and query.request_id >= 0
+                and query.connection_generation == candidate.connection_generation
+                and query.account_fingerprint == candidate.account_fingerprint
+                and query.trading_day == candidate.trading_day
+                and query.started_at is not None
+                and query.completed_at is not None
+                and query.started_at <= query.completed_at <= available_at
+                and query.source_owned is True
+                and query.query_complete is True
+                and query.scope_complete is True
+                and type(query.row_count) is int
+                and query.row_count >= 0
+            )
+
+        route_by_id = {}
+        for route in facts.route_eligibilities:
+            require(route.target_id not in route_by_id)
+            route_by_id[route.target_id] = route
+        require(set(route_by_id) == set(full_ids))
+
+        positions_by_id = {}
+        for position in facts.positions:
+            target_id = position.target_id
+            require(target_id is not None and target_id in full_ids)
+            require(target_id not in positions_by_id)
+            route = route_by_id[target_id]
+            require(
+                (position.instrument, position.exchange)
+                == (route.instrument, route.exchange)
+                and position.snapshot_id == facts.snapshot_id
+                and position.available_at == available_at
+                and position.position_book_status == "FLAT"
+                and position.position_book_blocker_code is None
+            )
+            for value in (
+                position.quantity,
+                position.broker_quantity,
+                position.long_quantity,
+                position.short_quantity,
+            ):
+                require(type(value) is Decimal and value.is_finite() and value == 0)
+            attributed = position.attributed_signed_quantity
+            require(
+                attributed is None
+                or type(attributed) is Decimal
+                and attributed.is_finite()
+                and attributed == 0
+            )
+            for row in position.dated_inventory_rows:
+                require(
+                    type(row.position) is Decimal
+                    and row.position.is_finite()
+                    and row.position == 0
+                )
+            positions_by_id[target_id] = position
+        require(set(positions_by_id) == set(full_ids))
+
+        # The position and order queries are full-scope, but their projection
+        # still cannot authorize a new amount hold while any exposure/order or
+        # effective Journal intent remains in the typed facts.
+        require(type(facts.working_orders) is tuple and not facts.working_orders)
+        require(type(facts.execution_intents) is tuple and not facts.execution_intents)
+
+    @staticmethod
     def _fee_pair_execution_evidence_payload(facts: Any) -> Mapping[str, Any]:
         """Mirror the 028 Strategy's immutable decision-evidence projection."""
 
@@ -6293,9 +7257,13 @@ class ExecutionDecisionJournal:
             "snapshot_id": facts.snapshot_id,
             "available_at": time_key(facts.available_at),
             "account_snapshot_id": None if account is None else account.snapshot_id,
+            "account_currency": None if account is None else account.currency,
             "account_available_at": None if account is None else time_key(account.available_at),
             "quotes": tuple(quotes),
             "query_provenance": tuple(queries),
+            "portfolio_exposure": ExecutionDecisionJournal._fee_pair_amount_exposure_evidence_payload(
+                facts
+            ),
         }
 
     def _fee_pair_grid_facts_proof(
@@ -6592,8 +7560,8 @@ class ExecutionDecisionJournal:
             or economic_payload.get("epoch_id") != str(candidate.epoch_id)
             or economic_payload.get("signal_batch_id") != candidate.batch_id
             or economic_payload.get("snapshot_id") != facts.snapshot_id
-            or economic_payload.get("execution_evidence")
-            != self._fee_pair_execution_evidence_payload(facts)
+            or _canonical_json(economic_payload.get("execution_evidence"))
+            != _canonical_json(self._fee_pair_execution_evidence_payload(facts))
             or economic_payload.get("decision_tape_file_id") != receipt.tape_file_id
             or economic_payload.get("decision_tape_record_id") != receipt.tape_record_id
             or economic_payload.get("decision_tape_record_index") != receipt.tape_record_index
@@ -15009,6 +15977,543 @@ class ExecutionDecisionJournal:
                 "FEE_PAIR_SINGLE_ROW_TAPE_SCHEMA_CORRUPT"
             ) from error
 
+    def _migrate_fee_pair_amount_reservation_v24(self, cursor: sqlite3.Cursor) -> None:
+        """Add one immutable, account-exclusive amount reservation per pair."""
+
+        names = (
+            "execution_fee_pair_amount_reservations",
+            "execution_fee_pair_amount_reservation_no_update",
+            "execution_fee_pair_amount_reservation_no_delete",
+        )
+        existing = cursor.execute(
+            "SELECT name FROM sqlite_master WHERE name IN ({})".format(
+                ",".join("?" for _ in names)
+            ),
+            names,
+        ).fetchall()
+        if existing:
+            raise ExecutionDecisionJournalError("FEE_PAIR_AMOUNT_RESERVATION_SCHEMA_CORRUPT")
+        try:
+            cursor.execute(_FEE_PAIR_AMOUNT_RESERVATION_TABLE_SQL)
+            cursor.execute(_FEE_PAIR_AMOUNT_RESERVATION_NO_UPDATE_TRIGGER_SQL)
+            cursor.execute(_FEE_PAIR_AMOUNT_RESERVATION_NO_DELETE_TRIGGER_SQL)
+        except sqlite3.Error as error:
+            raise ExecutionDecisionJournalError(
+                "FEE_PAIR_AMOUNT_RESERVATION_SCHEMA_MIGRATION_FAILED"
+            ) from error
+
+    @staticmethod
+    def _fee_pair_amount_reservation_record_in_transaction(
+        cursor: sqlite3.Cursor, row: sqlite3.Row
+    ) -> Mapping[str, Any]:
+        """Verify one immutable reservation against its decision and settlement."""
+
+        error_code = "FEE_PAIR_AMOUNT_RESERVATION_INVALID"
+        try:
+            reservation_json = row["reservation_json"]
+            if (
+                type(reservation_json) is not str
+                or len(reservation_json.encode("utf-8"))
+                > _MAX_FEE_PAIR_AMOUNT_RESERVATION_BYTES
+                or _canonical_json(json.loads(reservation_json)) != reservation_json
+                or hashlib.sha256(reservation_json.encode("utf-8")).hexdigest()
+                != row["reservation_sha256"]
+            ):
+                raise ValueError("reservation serialization mismatch")
+            payload = json.loads(reservation_json)
+            required = {
+                "schema",
+                "status",
+                "evidence_level",
+                "policy_id",
+                "currency",
+                "candidate_id",
+                "candidate_sha256",
+                "decision_id",
+                "settlement_sha256",
+                "economic_payload_sha256",
+                "risk_candidate_sha256",
+                "account_scope",
+                "strategy_scope",
+                "logical_run_id",
+                "cohort_id",
+                "close_time",
+                "batch_id",
+                "epoch_id",
+                "account_session_id",
+                "account_session_generation",
+                "account_fingerprint",
+                "connection_generation",
+                "trading_day",
+                "account_snapshot_id",
+                "risk_policy_id",
+                "risk_candidate",
+                "reserved_legs",
+                "reserved_notional",
+                "reserved_margin",
+                "reserved_stop_loss_and_fees",
+                "available_margin_at_decision",
+                "used_margin_at_decision",
+                "current_notional_at_decision",
+                "current_worst_case_loss_at_decision",
+                "held_fee_reserve_at_decision",
+                "created_at_ns",
+            }
+            if (
+                not isinstance(payload, Mapping)
+                or set(payload) != required
+                or payload["schema"] != "backtrader.execution_fee_pair_amount_reservation.v1"
+                or payload["status"] != "ACTIVE"
+                or payload["evidence_level"] != _FEE_PAIR_AMOUNT_EVIDENCE_LEVEL
+                or payload["policy_id"] != _FEE_PAIR_AMOUNT_POLICY_ID
+                or payload["currency"] != _FEE_PAIR_AMOUNT_CURRENCY
+                or payload["candidate_id"] != row["candidate_id"]
+                or payload["decision_id"] != row["decision_id"]
+                or payload["account_scope"] != row["account_scope"]
+                or type(row["created_at_ns"]) is not int
+                or row["created_at_ns"] <= 0
+                or payload["created_at_ns"] != row["created_at_ns"]
+                or not _source_sha256(row["candidate_id"])
+                or not _source_sha256(row["decision_id"])
+                or not _source_sha256(row["reservation_sha256"])
+                or not _source_sha256(payload["candidate_sha256"])
+                or not _source_sha256(payload["settlement_sha256"])
+                or not _source_sha256(payload["economic_payload_sha256"])
+                or not _source_sha256(payload["risk_candidate_sha256"])
+            ):
+                raise ValueError("reservation identity mismatch")
+
+            workflow = cursor.execute(
+                "SELECT * FROM execution_fee_pair_workflows WHERE candidate_id=?",
+                (row["candidate_id"],),
+            ).fetchone()
+            settlement = cursor.execute(
+                "SELECT * FROM execution_fee_pair_workflow_grid_settlements "
+                "WHERE candidate_id=?",
+                (row["candidate_id"],),
+            ).fetchone()
+            decision = cursor.execute(
+                "SELECT * FROM execution_decisions WHERE decision_id=?",
+                (row["decision_id"],),
+            ).fetchone()
+            if (
+                workflow is None
+                or settlement is None
+                or decision is None
+                or workflow["state"] != "RECEIPT_VERIFIED"
+                or workflow["grid_decision_id"] != row["decision_id"]
+                or workflow["candidate_sha256"] != payload["candidate_sha256"]
+                or workflow["account_scope"] != row["account_scope"]
+                or settlement["decision_id"] != row["decision_id"]
+                or settlement["candidate_sha256"] != payload["candidate_sha256"]
+                or settlement["settlement_sha256"] != payload["settlement_sha256"]
+                or decision["decision_id"] != row["decision_id"]
+            ):
+                raise ValueError("reservation is not linked to a settled GRID")
+            candidate = _fee_pair_candidate_from_values(
+                json.loads(workflow["candidate_payload_json"])
+            )
+            decision_key = json.loads(decision["business_key_json"])
+            if (
+                not isinstance(decision_key, Mapping)
+                or decision_key.get("account_scope") != payload["account_scope"]
+                or decision_key.get("strategy_scope") != payload["strategy_scope"]
+                or decision_key.get("logical_run_id") != payload["logical_run_id"]
+                or decision_key.get("cohort_id") != payload["cohort_id"]
+                or decision_key.get("close_time") != payload["close_time"]
+                or candidate.key.account_scope != payload["account_scope"]
+                or candidate.key.strategy_scope != payload["strategy_scope"]
+                or candidate.key.logical_run_id != payload["logical_run_id"]
+                or candidate.key.cohort_id != payload["cohort_id"]
+                or candidate.key.close_time != payload["close_time"]
+                or candidate.batch_id != payload["batch_id"]
+                or str(candidate.epoch_id) != payload["epoch_id"]
+                or candidate.account_session_id != payload["account_session_id"]
+                or candidate.account_session_generation
+                != payload["account_session_generation"]
+                or candidate.account_fingerprint != payload["account_fingerprint"]
+                or candidate.connection_generation != payload["connection_generation"]
+                or candidate.trading_day != payload["trading_day"]
+            ):
+                raise ValueError("reservation scope differs from its candidate")
+
+            try:
+                decision_payload = json.loads(decision["economic_payload_json"])
+                settlement_payload = json.loads(settlement["settlement_payload_json"])
+            except (TypeError, ValueError) as error:
+                raise ValueError("settled decision payload is invalid") from error
+            if not isinstance(decision_payload, Mapping) or not isinstance(
+                settlement_payload, Mapping
+            ):
+                raise ValueError("settled decision payload is not an object")
+            original_payload = dict(decision_payload)
+            for reserved_field in (
+                _SOURCE_RECEIPT_PAYLOAD_FIELD,
+                _FEE_PAIR_WORKFLOW_PAYLOAD_FIELD,
+                _FEE_PAIR_SETTLEMENT_PAYLOAD_FIELD,
+                _RUN_ORDER_RESERVATION_FIELD,
+            ):
+                original_payload.pop(reserved_field, None)
+            settlement_plan = settlement_payload.get("decision_plan")
+            execution_evidence = original_payload.get("execution_evidence")
+            if (
+                not isinstance(settlement_plan, Mapping)
+                or settlement_plan.get("economic_payload_sha256")
+                != payload["economic_payload_sha256"]
+                or hashlib.sha256(_canonical_json(original_payload).encode("utf-8")).hexdigest()
+                != payload["economic_payload_sha256"]
+                or not isinstance(settlement_payload.get("single_row_tape_readback"), Mapping)
+                or original_payload.get("open_risk_candidate") != payload["risk_candidate"]
+                or not isinstance(execution_evidence, Mapping)
+                or execution_evidence.get("account_currency") != _FEE_PAIR_AMOUNT_CURRENCY
+                or hashlib.sha256(
+                    _canonical_json(payload["risk_candidate"]).encode("utf-8")
+                ).hexdigest()
+                != payload["risk_candidate_sha256"]
+            ):
+                raise ValueError("reservation differs from its immutable decision plan")
+            if cursor.execute(
+                "SELECT 1 FROM execution_fee_pair_grid_single_row_tape_intents "
+                "WHERE candidate_id=? AND candidate_sha256=? LIMIT 1",
+                (row["candidate_id"], payload["candidate_sha256"]),
+            ).fetchone() is None:
+                raise ValueError("reservation is missing its v23 physical row intent")
+
+            risk = payload["risk_candidate"]
+            if not isinstance(risk, Mapping) or risk.get("evidence_source") != "REGISTERED_SIM":
+                raise ValueError("amount reservation requires registered-live planner projection")
+            if (
+                payload.get("account_snapshot_id") != risk.get("account_snapshot_id")
+                or payload.get("risk_policy_id") != risk.get("risk_policy_id")
+            ):
+                raise ValueError("reservation account or policy binding is invalid")
+
+            economics_rows = original_payload.get("intent_economics")
+            if (
+                type(economics_rows) is not list
+                or len(economics_rows) != 2
+                or any(not isinstance(item, Mapping) for item in economics_rows)
+            ):
+                raise ValueError("settled decision does not contain the exact pair")
+            risk_policy = economics_rows[0].get("risk_policy")
+            if (
+                not isinstance(risk_policy, Mapping)
+                or economics_rows[1].get("risk_policy") != risk_policy
+                or risk_policy.get("risk_policy_id") != payload["risk_policy_id"]
+            ):
+                raise ValueError("settled risk policy is not bound to both legs")
+
+            amount_baselines = (
+                ("available_margin_at_decision", "available_margin"),
+                ("used_margin_at_decision", "used_margin"),
+                ("current_notional_at_decision", "current_notional"),
+                (
+                    "current_worst_case_loss_at_decision",
+                    "current_worst_case_loss",
+                ),
+                ("held_fee_reserve_at_decision", "held_fee_reserve"),
+            )
+            baseline_values = {}
+            for reservation_name, risk_name in amount_baselines:
+                reserved_value = _fee_pair_amount_decimal(
+                    payload[reservation_name], label=reservation_name
+                )
+                risk_value = _fee_pair_amount_decimal(risk[risk_name], label=risk_name)
+                if reserved_value != risk_value:
+                    raise ValueError("reservation baseline differs from planner projection")
+                baseline_values[risk_name] = risk_value
+
+            per_leg_policy_caps = {
+                "notional": _fee_pair_amount_decimal(
+                    risk_policy["max_notional_per_position"], label="max per-leg notional"
+                ),
+                "margin": _fee_pair_amount_decimal(
+                    risk_policy["max_margin_per_position"], label="max per-leg margin"
+                ),
+                "loss": _fee_pair_amount_decimal(
+                    risk_policy["max_loss_per_position"], label="max per-leg loss"
+                ),
+            }
+            policy_total_caps = {
+                "notional": _fee_pair_amount_decimal(
+                    risk_policy["max_total_notional"], label="max total notional"
+                ),
+                "margin": _fee_pair_amount_decimal(
+                    risk_policy["max_total_margin"], label="max total margin"
+                ),
+                "loss": _fee_pair_amount_decimal(
+                    risk_policy["max_total_loss"], label="max total loss"
+                ),
+            }
+            for amount_name, risk_name in (
+                ("notional", "max_total_notional"),
+                ("margin", "max_total_margin"),
+                ("loss", "max_total_loss"),
+            ):
+                if (
+                    policy_total_caps[amount_name]
+                    != _fee_pair_amount_decimal(risk[risk_name], label=risk_name)
+                ):
+                    raise ValueError("risk policy caps differ from the decision projection")
+
+            risk_legs = risk.get("legs")
+            reserved_legs = payload["reserved_legs"]
+            if (
+                type(risk_legs) not in (tuple, list)
+                or len(risk_legs) != 2
+                or type(reserved_legs) is not list
+                or len(reserved_legs) != 2
+            ):
+                raise ValueError("reservation is not an exact pair")
+            computed = {"notional": Decimal(0), "margin": Decimal(0), "loss": Decimal(0)}
+            for source_leg, reserved_leg in zip(risk_legs, reserved_legs):
+                if not isinstance(source_leg, Mapping) or not isinstance(reserved_leg, Mapping):
+                    raise ValueError("amount leg is invalid")
+                if set(reserved_leg) != {
+                    "target_id",
+                    "instrument",
+                    "exchange",
+                    "side",
+                    "quantity",
+                    "notional",
+                    "margin",
+                    "stop_loss",
+                    "round_trip_fee_upper_bound",
+                    "worst_case_loss",
+                }:
+                    raise ValueError("amount leg fields are invalid")
+                for name in (
+                    "target_id",
+                    "instrument",
+                    "exchange",
+                    "side",
+                    "quantity",
+                    "notional",
+                    "margin",
+                    "stop_loss",
+                    "round_trip_fee_upper_bound",
+                    "worst_case_loss",
+                ):
+                    source_name = name
+                    if name == "round_trip_fee_upper_bound":
+                        source_name = "round_trip_fee_upper_bound"
+                    if reserved_leg.get(name) != source_leg.get(source_name):
+                        raise ValueError("amount leg differs from the decision plan")
+                if _fee_pair_amount_integer(reserved_leg["quantity"]) != 1:
+                    raise ValueError("amount reservation must be one hand per leg")
+                notional = _fee_pair_amount_decimal(reserved_leg["notional"], label="notional")
+                margin = _fee_pair_amount_decimal(reserved_leg["margin"], label="margin")
+                stop_loss = _fee_pair_amount_decimal(reserved_leg["stop_loss"], label="stop loss")
+                fee = _fee_pair_amount_decimal(
+                    reserved_leg["round_trip_fee_upper_bound"], label="fee"
+                )
+                loss = _fee_pair_amount_decimal(
+                    reserved_leg["worst_case_loss"], label="worst case loss"
+                )
+                if (
+                    notional <= 0
+                    or margin <= 0
+                    or loss != _fee_pair_amount_ceiling_sum(stop_loss, fee)
+                    or notional
+                    > min(
+                        _FEE_PAIR_AMOUNT_MAX_NOTIONAL_PER_LEG,
+                        per_leg_policy_caps["notional"],
+                    )
+                    or margin
+                    > min(
+                        _FEE_PAIR_AMOUNT_MAX_MARGIN_PER_LEG,
+                        per_leg_policy_caps["margin"],
+                    )
+                    or loss
+                    > min(_FEE_PAIR_AMOUNT_MAX_LOSS_PER_LEG, per_leg_policy_caps["loss"])
+                ):
+                    raise ValueError("amount leg exceeds the fixed hard limit")
+                computed["notional"] = _fee_pair_amount_ceiling_sum(
+                    computed["notional"], notional
+                )
+                computed["margin"] = _fee_pair_amount_ceiling_sum(
+                    computed["margin"], margin
+                )
+                computed["loss"] = _fee_pair_amount_ceiling_sum(computed["loss"], loss)
+
+            amount_columns = (
+                ("reserved_notional", "notional", _FEE_PAIR_AMOUNT_MAX_TOTAL_NOTIONAL),
+                ("reserved_margin", "margin", _FEE_PAIR_AMOUNT_MAX_TOTAL_MARGIN),
+                (
+                    "reserved_stop_loss_and_fees",
+                    "loss",
+                    _FEE_PAIR_AMOUNT_MAX_TOTAL_LOSS,
+                ),
+            )
+            for payload_name, computed_name, hard_cap in amount_columns:
+                stored = _fee_pair_amount_decimal(payload[payload_name], label=payload_name)
+                if stored != computed[computed_name] or stored > hard_cap:
+                    raise ValueError("reservation total differs from its legs")
+            if (
+                computed["notional"]
+                != _fee_pair_amount_decimal(risk.get("added_notional"), label="added notional")
+                or computed["margin"]
+                != _fee_pair_amount_decimal(risk.get("required_margin"), label="required margin")
+                or computed["loss"]
+                != _fee_pair_amount_decimal(risk.get("added_loss"), label="added loss")
+            ):
+                raise ValueError("reservation total differs from planner projection")
+            projected = {
+                "margin": _fee_pair_amount_ceiling_sum(
+                    baseline_values["used_margin"], computed["margin"]
+                ),
+                "notional": _fee_pair_amount_ceiling_sum(
+                    baseline_values["current_notional"], computed["notional"]
+                ),
+                "loss": _fee_pair_amount_ceiling_sum(
+                    baseline_values["current_worst_case_loss"],
+                    baseline_values["held_fee_reserve"],
+                    computed["loss"],
+                ),
+            }
+            if (
+                computed["margin"] > baseline_values["available_margin"]
+                or projected["margin"]
+                != _fee_pair_amount_decimal(
+                    risk["projected_total_margin"], label="projected total margin"
+                )
+                or projected["notional"]
+                != _fee_pair_amount_decimal(
+                    risk["projected_total_notional"], label="projected total notional"
+                )
+                or projected["loss"]
+                != _fee_pair_amount_decimal(
+                    risk["projected_total_worst_case_loss"],
+                    label="projected total worst-case loss",
+                )
+                or projected["margin"]
+                > min(policy_total_caps["margin"], _FEE_PAIR_AMOUNT_MAX_TOTAL_MARGIN)
+                or projected["notional"]
+                > min(policy_total_caps["notional"], _FEE_PAIR_AMOUNT_MAX_TOTAL_NOTIONAL)
+                or projected["loss"]
+                > min(policy_total_caps["loss"], _FEE_PAIR_AMOUNT_MAX_TOTAL_LOSS)
+            ):
+                raise ValueError("reservation projection exceeds available funds or fixed caps")
+            return _deep_freeze(dict(payload))
+        except ExecutionDecisionJournalError:
+            raise
+        except (KeyError, TypeError, ValueError, InvalidOperation, sqlite3.Error) as error:
+            raise ExecutionDecisionJournalError(error_code) from error
+
+    @staticmethod
+    def _validate_fee_pair_amount_reservation_schema(cursor: sqlite3.Cursor) -> None:
+        """Validate the exact v24 immutable reservation ledger and its rows."""
+
+        expected = {
+            "execution_fee_pair_amount_reservations": (
+                "table",
+                "execution_fee_pair_amount_reservations",
+                _FEE_PAIR_AMOUNT_RESERVATION_TABLE_SQL,
+            ),
+            "execution_fee_pair_amount_reservation_no_update": (
+                "trigger",
+                "execution_fee_pair_amount_reservations",
+                _FEE_PAIR_AMOUNT_RESERVATION_NO_UPDATE_TRIGGER_SQL,
+            ),
+            "execution_fee_pair_amount_reservation_no_delete": (
+                "trigger",
+                "execution_fee_pair_amount_reservations",
+                _FEE_PAIR_AMOUNT_RESERVATION_NO_DELETE_TRIGGER_SQL,
+            ),
+        }
+        try:
+            rows = cursor.execute(
+                "SELECT type,name,tbl_name,sql FROM sqlite_master WHERE name IN ({})".format(
+                    ",".join("?" for _ in expected)
+                ),
+                tuple(expected),
+            ).fetchall()
+            actual = {row["name"]: row for row in rows}
+            if set(actual) != set(expected):
+                raise ExecutionDecisionJournalError(
+                    "FEE_PAIR_AMOUNT_RESERVATION_SCHEMA_CORRUPT"
+                )
+            for name, (kind, table, ddl) in expected.items():
+                row = actual[name]
+                if (
+                    row["type"] != kind
+                    or row["tbl_name"] != table
+                    or _normalize_schema_sql(row["sql"]) != _normalize_schema_sql(ddl)
+                ):
+                    raise ExecutionDecisionJournalError(
+                        "FEE_PAIR_AMOUNT_RESERVATION_SCHEMA_CORRUPT"
+                    )
+            columns = tuple(
+                (row["name"], row["type"].upper(), int(row["notnull"]), int(row["pk"]))
+                for row in cursor.execute(
+                    "PRAGMA table_info(execution_fee_pair_amount_reservations)"
+                ).fetchall()
+            )
+            if columns != (
+                ("candidate_id", "TEXT", 0, 1),
+                ("decision_id", "TEXT", 1, 0),
+                ("account_scope", "TEXT", 1, 0),
+                ("reservation_json", "TEXT", 1, 0),
+                ("reservation_sha256", "TEXT", 1, 0),
+                ("created_at_ns", "INTEGER", 1, 0),
+            ):
+                raise ExecutionDecisionJournalError(
+                    "FEE_PAIR_AMOUNT_RESERVATION_SCHEMA_CORRUPT"
+                )
+            triggers = {
+                row["name"]
+                for row in cursor.execute(
+                    "SELECT name FROM sqlite_master WHERE type='trigger' "
+                    "AND tbl_name='execution_fee_pair_amount_reservations'"
+                ).fetchall()
+            }
+            indexes = {
+                row["name"]
+                for row in cursor.execute(
+                    "SELECT name FROM sqlite_master WHERE type='index' "
+                    "AND tbl_name='execution_fee_pair_amount_reservations' "
+                    "AND name NOT LIKE 'sqlite_autoindex%'"
+                ).fetchall()
+            }
+            if triggers != {
+                "execution_fee_pair_amount_reservation_no_update",
+                "execution_fee_pair_amount_reservation_no_delete",
+            } or indexes:
+                raise ExecutionDecisionJournalError(
+                    "FEE_PAIR_AMOUNT_RESERVATION_SCHEMA_CORRUPT"
+                )
+
+            oversized = cursor.execute(
+                "SELECT 1 FROM execution_fee_pair_amount_reservations "
+                "WHERE typeof(reservation_json)!='text' "
+                "OR length(CAST(reservation_json AS BLOB))>? LIMIT 1",
+                (2 * _MAX_FEE_PAIR_AMOUNT_RESERVATION_BYTES,),
+            ).fetchone()
+            if oversized is not None:
+                raise ExecutionDecisionJournalError(
+                    "FEE_PAIR_AMOUNT_RESERVATION_INVALID"
+                )
+            reservations = cursor.connection.cursor()
+            reservations.row_factory = sqlite3.Row
+            try:
+                reservations.execute(
+                    "SELECT * FROM execution_fee_pair_amount_reservations "
+                    "ORDER BY account_scope,candidate_id"
+                )
+                while batch := reservations.fetchmany(64):
+                    for reservation in batch:
+                        ExecutionDecisionJournal._fee_pair_amount_reservation_record_in_transaction(
+                            cursor, reservation
+                        )
+            finally:
+                reservations.close()
+        except ExecutionDecisionJournalError:
+            raise
+        except (KeyError, TypeError, ValueError, sqlite3.Error) as error:
+            raise ExecutionDecisionJournalError(
+                "FEE_PAIR_AMOUNT_RESERVATION_SCHEMA_CORRUPT"
+            ) from error
+
     @staticmethod
     def _validate_registered_sim_cancel_dispatch_claim_schema(
         cursor: sqlite3.Cursor,
@@ -15178,6 +16683,7 @@ class ExecutionDecisionJournal:
             _KNOWN_CTP_ORDER_SYSID_BINDING_SCHEMA_VERSION,
             _REGISTERED_SIM_CANCEL_DISPATCH_CLAIM_SCHEMA_VERSION,
             _FEE_PAIR_GRID_SINGLE_ROW_TAPE_SCHEMA_VERSION,
+            _FEE_PAIR_AMOUNT_RESERVATION_SCHEMA_VERSION,
         ):
             raise ExecutionDecisionJournalError("FEE_PAIR_WORKFLOW_SCHEMA_VERSION_INVALID")
         is_v19 = schema_version >= _FEE_PAIR_GRID_SETTLEMENT_SCHEMA_VERSION
@@ -15899,6 +17405,15 @@ class ExecutionDecisionJournal:
                 "execution_fee_pair_legacy_unresolved_v23",
                 lambda _row: "BASE",
             )
+        amount_reservation_table = cursor.execute(
+            "SELECT 1 FROM sqlite_master WHERE type='table' "
+            "AND name='execution_fee_pair_amount_reservations'"
+        ).fetchone()
+        if amount_reservation_table is not None:
+            account_rows(
+                "execution_fee_pair_amount_reservations",
+                lambda _row: "BASE",
+            )
 
         for capacity_class in ("BASE", "SETTLEMENT"):
             changed = cursor.execute(
@@ -15989,6 +17504,7 @@ class ExecutionDecisionJournal:
                 _FEE_PAIR_GRID_TAPE_APPEND_SCHEMA_VERSION,
                 _KNOWN_CTP_ORDER_SYSID_BINDING_SCHEMA_VERSION,
                 _REGISTERED_SIM_CANCEL_DISPATCH_CLAIM_SCHEMA_VERSION,
+                _FEE_PAIR_GRID_SINGLE_ROW_TAPE_SCHEMA_VERSION,
                 self._SCHEMA_VERSION,
             ):
                 raise ExecutionDecisionJournalError("UNSUPPORTED_SCHEMA_VERSION")
@@ -16084,6 +17600,12 @@ class ExecutionDecisionJournal:
                 cursor = self._connection.cursor()
                 try:
                     self._validate_fee_pair_candidate_schema(cursor)
+                finally:
+                    cursor.close()
+            if version >= _FEE_PAIR_AMOUNT_RESERVATION_SCHEMA_VERSION:
+                cursor = self._connection.cursor()
+                try:
+                    self._validate_fee_pair_amount_reservation_schema(cursor)
                 finally:
                     cursor.close()
             try:
@@ -16364,6 +17886,7 @@ class ExecutionDecisionJournal:
                     _FEE_PAIR_GRID_TAPE_APPEND_SCHEMA_VERSION,
                     _KNOWN_CTP_ORDER_SYSID_BINDING_SCHEMA_VERSION,
                     _REGISTERED_SIM_CANCEL_DISPATCH_CLAIM_SCHEMA_VERSION,
+                    _FEE_PAIR_GRID_SINGLE_ROW_TAPE_SCHEMA_VERSION,
                     self._SCHEMA_VERSION,
                 ):
                     raise ExecutionDecisionJournalError("UNSUPPORTED_SCHEMA_VERSION")
@@ -16603,6 +18126,8 @@ class ExecutionDecisionJournal:
                                 if locked_version == _KNOWN_CTP_ORDER_SYSID_BINDING_SCHEMA_VERSION
                                 else _REGISTERED_SIM_CANCEL_DISPATCH_CLAIM_SCHEMA_VERSION
                                 if locked_version == _REGISTERED_SIM_CANCEL_DISPATCH_CLAIM_SCHEMA_VERSION
+                                else _FEE_PAIR_GRID_SINGLE_ROW_TAPE_SCHEMA_VERSION
+                                if locked_version == _FEE_PAIR_GRID_SINGLE_ROW_TAPE_SCHEMA_VERSION
                                 else self._SCHEMA_VERSION
                             ),
                         )
@@ -16624,10 +18149,13 @@ class ExecutionDecisionJournal:
                         self._migrate_registered_sim_cancel_dispatch_claim_v22(cursor)
                     if locked_version < _FEE_PAIR_GRID_SINGLE_ROW_TAPE_SCHEMA_VERSION:
                         self._migrate_fee_pair_grid_single_row_tape_v23(cursor)
+                    if locked_version < _FEE_PAIR_AMOUNT_RESERVATION_SCHEMA_VERSION:
+                        self._migrate_fee_pair_amount_reservation_v24(cursor)
                     self._validate_fee_pair_workflow_schema(cursor)
                     self._validate_known_ctp_order_sysid_binding_schema(cursor)
                     self._validate_registered_sim_cancel_dispatch_claim_schema(cursor)
                     self._validate_fee_pair_grid_single_row_tape_schema(cursor)
+                    self._validate_fee_pair_amount_reservation_schema(cursor)
                     self._validate_fee_pair_workflow_capacity(cursor)
                 finally:
                     cursor.close()
@@ -17939,6 +19467,123 @@ def _normalize_schema_sql(value: Any) -> str:
     if type(value) is not str:
         raise ExecutionDecisionJournalError("FEE_PAIR_SCOPE_SCHEMA_CORRUPT")
     return "".join(value.split()).rstrip(";").casefold()
+
+
+def _fee_pair_amount_decimal(value: Any, *, label: str) -> Decimal:
+    """Parse one bounded non-negative amount using Alpha003 risk limits."""
+
+    try:
+        if type(value) is Decimal:
+            number = value
+        elif type(value) is str:
+            number = Decimal(value)
+        elif type(value) is int:
+            number = Decimal(value)
+        else:
+            raise InvalidOperation
+    except (InvalidOperation, TypeError, ValueError):
+        raise ExecutionDecisionJournalError("FEE_PAIR_AMOUNT_RESERVATION_INVALID") from None
+    if not number.is_finite() or number < 0:
+        raise ExecutionDecisionJournalError("FEE_PAIR_AMOUNT_RESERVATION_INVALID")
+    parts = number.as_tuple()
+    if (
+        len(parts.digits) > _FEE_PAIR_AMOUNT_MAX_DECIMAL_DIGITS
+        or type(parts.exponent) is not int
+        or abs(parts.exponent) > _FEE_PAIR_AMOUNT_MAX_DECIMAL_EXPONENT
+        or (
+            not number.is_zero()
+            and abs(number.adjusted()) > _FEE_PAIR_AMOUNT_MAX_ADJUSTED_EXPONENT
+        )
+    ):
+        raise ExecutionDecisionJournalError("FEE_PAIR_AMOUNT_RESERVATION_INVALID")
+    return number
+
+
+def _fee_pair_amount_integer(value: Any) -> int:
+    """Parse canonical integer fields from live or JSON-restored payloads."""
+
+    if type(value) is int:
+        return value
+    if (
+        type(value) is str
+        and 1 <= len(value) <= 20
+        and value.isascii()
+        and value.isdecimal()
+    ):
+        try:
+            parsed = int(value)
+        except ValueError:
+            parsed = -1
+        if parsed >= 0 and str(parsed) == value:
+            return parsed
+    raise ExecutionDecisionJournalError("FEE_PAIR_AMOUNT_RESERVATION_INVALID")
+
+
+def _fee_pair_amount_ceiling_product(*values: Any) -> Decimal:
+    """Match 028's bounded, directed ``_risk_ceiling_product`` semantics."""
+
+    operands = tuple(_fee_pair_amount_decimal(value, label="product") for value in values)
+    if not operands:
+        raise ExecutionDecisionJournalError("FEE_PAIR_AMOUNT_RESERVATION_INVALID")
+    try:
+        with localcontext() as context:
+            context.prec = _FEE_PAIR_AMOUNT_CONTEXT_PRECISION
+            context.Emax = 1024
+            context.Emin = -1024
+            context.rounding = ROUND_CEILING
+            result = operands[0]
+            for value in operands[1:]:
+                result *= value
+    except DecimalException as error:
+        raise ExecutionDecisionJournalError(
+            "FEE_PAIR_AMOUNT_RESERVATION_INVALID"
+        ) from error
+    return _fee_pair_amount_decimal(result, label="product result")
+
+
+def _fee_pair_amount_ceiling_sum(*values: Any) -> Decimal:
+    """Match 028's bounded, directed ``_risk_ceiling_sum`` semantics."""
+
+    operands = tuple(_fee_pair_amount_decimal(value, label="sum") for value in values)
+    if not operands:
+        raise ExecutionDecisionJournalError("FEE_PAIR_AMOUNT_RESERVATION_INVALID")
+    try:
+        with localcontext() as context:
+            context.prec = _FEE_PAIR_AMOUNT_CONTEXT_PRECISION
+            context.Emax = 1024
+            context.Emin = -1024
+            context.rounding = ROUND_CEILING
+            result = sum(operands, Decimal(0))
+    except DecimalException as error:
+        raise ExecutionDecisionJournalError(
+            "FEE_PAIR_AMOUNT_RESERVATION_INVALID"
+        ) from error
+    return _fee_pair_amount_decimal(result, label="sum result")
+
+
+def _fee_pair_amount_stop_price(price: Any, distance: Any, side: str) -> Decimal:
+    """Match Alpha003's outward-rounded stop-price arithmetic."""
+
+    price_number = _fee_pair_amount_decimal(price, label="stop price")
+    distance_number = _fee_pair_amount_decimal(distance, label="stop distance")
+    if side not in ("BUY", "SELL"):
+        raise ExecutionDecisionJournalError("FEE_PAIR_AMOUNT_RESERVATION_INVALID")
+    try:
+        with localcontext() as context:
+            context.prec = _FEE_PAIR_AMOUNT_CONTEXT_PRECISION
+            context.Emax = 1024
+            context.Emin = -1024
+            context.rounding = ROUND_CEILING
+            result = (
+                price_number - distance_number
+                if side == "BUY"
+                else price_number + distance_number
+            )
+    except DecimalException as error:
+        raise ExecutionDecisionJournalError(
+            "FEE_PAIR_AMOUNT_RESERVATION_INVALID"
+        ) from error
+    return _fee_pair_amount_decimal(result, label="stop price result")
 
 
 def _is_open_submit_intent(intent_key: ExecutionIntentKey) -> bool:

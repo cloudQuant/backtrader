@@ -224,6 +224,23 @@ def _record_source_grid(journal, *, run_id="candidate-run", close_time="2026-10-
 
 
 def _drop_v23_single_row_tape_schema(connection: sqlite3.Connection) -> None:
+    amount_schema = connection.execute(
+        "SELECT COUNT(*) FROM sqlite_master WHERE type='table' "
+        "AND name='execution_fee_pair_amount_reservations'"
+    ).fetchone()[0]
+    if amount_schema:
+        amount_rows = connection.execute(
+            "SELECT COUNT(*) FROM execution_fee_pair_amount_reservations"
+        ).fetchone()[0]
+        if amount_rows:
+            raise AssertionError("cannot downgrade a journal with v24 amount reservations")
+        connection.execute(
+            "DROP TRIGGER IF EXISTS execution_fee_pair_amount_reservation_no_update"
+        )
+        connection.execute(
+            "DROP TRIGGER IF EXISTS execution_fee_pair_amount_reservation_no_delete"
+        )
+        connection.execute("DROP TABLE execution_fee_pair_amount_reservations")
     count = connection.execute(
         "SELECT COUNT(*) FROM sqlite_master WHERE type='table' "
         "AND name='execution_fee_pair_grid_single_row_tape_intents'"
@@ -1149,7 +1166,7 @@ def test_v15_migration_preserves_history_and_adds_empty_candidate_schema(tmp_pat
 
     migrated = ExecutionDecisionJournal(path)
     try:
-        assert migrated._connection.execute("PRAGMA user_version").fetchone()[0] == 23
+        assert migrated._connection.execute("PRAGMA user_version").fetchone()[0] == 24
         assert migrated.decision(decision.decision_id) == decision
         assert migrated.fee_pair_required_scope("pair-account", "pair-strategy") is not None
         assert (
@@ -1419,7 +1436,7 @@ def test_v18_87_member_workflow_fits_default_payload_limit_and_archives(tmp_path
         archive_receipt = journal.archive_snapshot(archive_path)
         verified = archive_module.verify_execution_journal_archive(
             archive_path,
-            expected_schema_version=23,
+            expected_schema_version=24,
             expected_sha256=archive_receipt.sha256,
         )
         assert verified == archive_receipt
@@ -1530,11 +1547,11 @@ def test_v17_small_workflow_migrates_to_v20_and_remains_readable(tmp_path):
 
     migrated = ExecutionDecisionJournal(path)
     try:
-        assert migrated._connection.execute("PRAGMA user_version").fetchone()[0] == 23
+        assert migrated._connection.execute("PRAGMA user_version").fetchone()[0] == 24
         assert migrated.fee_pair_workflow_candidate(reserved.candidate_id).state == "SOURCE_ONLY"
         assert migrated.decision(expected.decision_id) == expected
         archive_receipt = migrated.archive_snapshot(archive_path)
-        assert archive_receipt.schema_version == 23
+        assert archive_receipt.schema_version == 24
     finally:
         migrated.close()
 
@@ -2570,7 +2587,7 @@ def test_v18_migration_preserves_events_and_quarantines_unresolved_receipt(tmp_p
 
     migrated = ExecutionDecisionJournal(path)
     try:
-        assert migrated._connection.execute("PRAGMA user_version").fetchone()[0] == 23
+        assert migrated._connection.execute("PRAGMA user_version").fetchone()[0] == 24
         assert migrated.fee_pair_workflow_candidate(candidate_id).state == "RECEIPT_VERIFIED"
         migrated_events = tuple(
             tuple(row)
@@ -2821,7 +2838,7 @@ def test_v19_workflow_migration_preserves_legacy_append_history(tmp_path):
 
     migrated = ExecutionDecisionJournal(path)
     try:
-        assert migrated._connection.execute("PRAGMA user_version").fetchone()[0] == 23
+        assert migrated._connection.execute("PRAGMA user_version").fetchone()[0] == 24
         assert migrated.fee_pair_workflow_candidate(candidate_id).state == "RECEIPT_VERIFIED"
         assert migrated.fee_pair_workflow_candidate(candidate_id).tape_append_state is None
         migrated_events = tuple(

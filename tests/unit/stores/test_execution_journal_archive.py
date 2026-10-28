@@ -30,6 +30,39 @@ def _decision_key(run_id: str, *, close_time: str) -> ExecutionDecisionKey:
     )
 
 
+def _drop_archive_v23_v24_objects(connection: sqlite3.Connection) -> None:
+    """Restore a pre-v23 archive without silently discarding newer rows."""
+
+    for table in (
+        "execution_fee_pair_grid_single_row_tape_intents",
+        "execution_fee_pair_legacy_unresolved_v23",
+        "execution_fee_pair_amount_reservations",
+    ):
+        exists = connection.execute(
+            "SELECT 1 FROM sqlite_master WHERE type='table' AND name=?", (table,)
+        ).fetchone()
+        if exists is not None and connection.execute(
+            "SELECT COUNT(*) FROM {}".format(table)
+        ).fetchone()[0]:
+            raise AssertionError("cannot downgrade an archive with newer fee-pair rows")
+    for trigger in (
+        "execution_fee_pair_grid_single_row_tape_intent_no_update",
+        "execution_fee_pair_grid_single_row_tape_intent_no_delete",
+        "execution_fee_pair_legacy_unresolved_v23_no_update",
+        "execution_fee_pair_legacy_unresolved_v23_no_delete",
+        "execution_fee_pair_amount_reservation_no_update",
+        "execution_fee_pair_amount_reservation_no_delete",
+    ):
+        connection.execute("DROP TRIGGER IF EXISTS {}".format(trigger))
+    connection.execute("DROP INDEX IF EXISTS execution_fee_pair_grid_single_row_tape_position")
+    for table in (
+        "execution_fee_pair_grid_single_row_tape_intents",
+        "execution_fee_pair_legacy_unresolved_v23",
+        "execution_fee_pair_amount_reservations",
+    ):
+        connection.execute("DROP TABLE IF EXISTS {}".format(table))
+
+
 def _downgrade_archive_to_v16(connection: sqlite3.Connection) -> None:
     """Remove only v17 objects before modeling a genuine v16 archive."""
 
@@ -55,6 +88,8 @@ def _downgrade_archive_to_v16(connection: sqlite3.Connection) -> None:
 
 def _downgrade_archive_to_v19(connection: sqlite3.Connection) -> None:
     """Restore the exact v19 workflow DDL from the current v20 archive schema."""
+
+    _drop_archive_v23_v24_objects(connection)
 
     connection.row_factory = sqlite3.Row
 

@@ -81,6 +81,7 @@ _REQUIRED_TABLES_BY_MINIMUM_SCHEMA_VERSION = {
             "execution_fee_pair_legacy_unresolved_v23",
         }
     ),
+    24: frozenset({"execution_fee_pair_amount_reservations"}),
 }
 
 
@@ -150,6 +151,14 @@ def _validate_required_schema_objects(
             )
         if schema_version >= journal_module._FEE_PAIR_GRID_SINGLE_ROW_TAPE_SCHEMA_VERSION:
             journal_module.ExecutionDecisionJournal._validate_fee_pair_grid_single_row_tape_schema(
+                cursor
+            )
+        if schema_version >= journal_module._FEE_PAIR_AMOUNT_RESERVATION_SCHEMA_VERSION:
+            _validate_fee_pair_amount_reservation_payload_bounds(
+                connection,
+                max_reservation_bytes=journal_module._MAX_FEE_PAIR_AMOUNT_RESERVATION_BYTES,
+            )
+            journal_module.ExecutionDecisionJournal._validate_fee_pair_amount_reservation_schema(
                 cursor
             )
     except journal_module.ExecutionDecisionJournalError as error:
@@ -294,6 +303,51 @@ def _validate_fee_pair_grid_tape_record_bounds(
                     or len(payload.encode("utf-8")) + 1 > max_record_bytes
                 ):
                     raise ExecutionJournalArchiveError(error_code)
+    except ExecutionJournalArchiveError:
+        raise
+    except (UnicodeError, sqlite3.Error) as error:
+        raise ExecutionJournalArchiveError(error_code) from error
+
+
+def _validate_fee_pair_amount_reservation_payload_bounds(
+    connection: sqlite3.Connection, *, max_reservation_bytes: int
+) -> None:
+    """Bound persisted amount proofs before archive code fetches their TEXT."""
+
+    error_code = "ARCHIVE_FEE_PAIR_AMOUNT_RESERVATION_TOO_LARGE"
+    if type(max_reservation_bytes) is not int or max_reservation_bytes < 1:
+        raise ExecutionJournalArchiveError(error_code)
+    encoding_row = connection.execute("PRAGMA encoding").fetchone()
+    encoding_value = encoding_row[0] if encoding_row is not None else None
+    if type(encoding_value) is not str:
+        raise ExecutionJournalArchiveError(error_code)
+    encoding = encoding_value.upper()
+    if encoding == "UTF-8":
+        storage_byte_multiplier = 1
+    elif encoding in ("UTF-16LE", "UTF-16BE"):
+        storage_byte_multiplier = 2
+    else:
+        raise ExecutionJournalArchiveError(error_code)
+    try:
+        oversized = connection.execute(
+            "SELECT 1 FROM execution_fee_pair_amount_reservations "
+            "WHERE typeof(reservation_json)!='text' "
+            "OR length(CAST(reservation_json AS BLOB))>? LIMIT 1",
+            (storage_byte_multiplier * max_reservation_bytes,),
+        ).fetchone()
+        if oversized is not None:
+            raise ExecutionJournalArchiveError(error_code)
+        payloads = connection.execute(
+            "SELECT typeof(reservation_json),reservation_json "
+            "FROM execution_fee_pair_amount_reservations"
+        )
+        for storage_type, payload in payloads:
+            if (
+                storage_type != "text"
+                or type(payload) is not str
+                or len(payload.encode("utf-8")) > max_reservation_bytes
+            ):
+                raise ExecutionJournalArchiveError(error_code)
     except ExecutionJournalArchiveError:
         raise
     except (UnicodeError, sqlite3.Error) as error:

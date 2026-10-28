@@ -3430,12 +3430,91 @@ def _live_execution_evidence_payload(facts: Any) -> Mapping[str, Any]:
                 "row_count": query.row_count,
             }
         )
+    def amount_decimal(value):
+        return None if value is None else str(value)
+
+    positions = tuple(
+        {
+            "target_id": position.target_id,
+            "instrument": position.instrument,
+            "exchange": position.exchange,
+            "snapshot_id": position.snapshot_id,
+            "available_at": _time_key(position.available_at),
+            "quantity": amount_decimal(position.quantity),
+            "broker_quantity": amount_decimal(position.broker_quantity),
+            "long_quantity": amount_decimal(position.long_quantity),
+            "short_quantity": amount_decimal(position.short_quantity),
+            "attributed_signed_quantity": amount_decimal(
+                position.attributed_signed_quantity
+            ),
+            "position_book_status": position.position_book_status,
+            "position_book_blocker_code": position.position_book_blocker_code,
+            "dated_inventory_positions": tuple(
+                amount_decimal(row.position) for row in position.dated_inventory_rows
+            ),
+        }
+        for position in getattr(facts, "positions", ())
+    )
+    working_orders = tuple(
+        {
+            "target_id": order.target_id,
+            "instrument": order.instrument,
+            "exchange": order.exchange,
+            "order_ref": order.order_ref,
+            "state": order.state,
+            "side": order.side,
+            "position_effect": order.position_effect,
+            "remaining_quantity": amount_decimal(order.remaining_quantity),
+            "owner_strategy_scope": order.owner_strategy_scope,
+            "owner_intent_id": order.owner_intent_id,
+            "execution_unknown": order.execution_unknown,
+            "cancel_pending": order.cancel_pending,
+        }
+        for order in getattr(facts, "working_orders", ())
+    )
+    execution_intents = tuple(
+        {
+            "intent_id": intent.intent_id,
+            "decision_id": intent.decision_id,
+            "action": intent.action,
+            "instrument": intent.instrument,
+            "side": intent.side,
+            "position_effect": intent.position_effect,
+            "state": intent.state,
+            "dispatch_state": intent.dispatch_state,
+            "target_id": intent.target_id,
+            "exchange": intent.exchange,
+            "account_scope": intent.account_scope,
+            "strategy_scope": intent.strategy_scope,
+        }
+        for intent in getattr(facts, "execution_intents", ())
+    )
+    query_coverage = tuple(
+        {
+            "family": query.family,
+            "target_id": query.target_id,
+            "request_type": query.request_type,
+            "request_id": query.request_id,
+            "connection_generation": query.connection_generation,
+            "account_fingerprint": query.account_fingerprint,
+            "trading_day": query.trading_day,
+            "started_at": _time_key(query.started_at) if query.started_at else None,
+            "completed_at": _time_key(query.completed_at) if query.completed_at else None,
+            "source_owned": query.source_owned,
+            "query_complete": query.query_complete,
+            "scope_complete": query.scope_complete,
+            "row_count": query.row_count,
+        }
+        for query in getattr(facts, "query_provenance", ())
+        if query.family in {"positions_result", "orders_result"}
+    )
     account = getattr(facts, "account", None)
     return MappingProxyType(
         {
             "snapshot_id": facts.snapshot_id,
             "available_at": _time_key(facts.available_at) if facts.available_at else None,
             "account_snapshot_id": getattr(account, "snapshot_id", None),
+            "account_currency": getattr(account, "currency", None),
             "account_available_at": (
                 _time_key(account.available_at)
                 if account is not None and account.available_at is not None
@@ -3443,6 +3522,24 @@ def _live_execution_evidence_payload(facts: Any) -> Mapping[str, Any]:
             ),
             "quotes": tuple(quotes),
             "query_provenance": tuple(queries),
+            "portfolio_exposure": {
+                "full_target_ids": tuple(getattr(facts, "_full_target_ids", ())),
+                "account_totals": {
+                    "used_margin": amount_decimal(
+                        None if account is None else account.used_margin
+                    ),
+                    "current_notional": amount_decimal(
+                        None if account is None else account.current_notional
+                    ),
+                    "current_worst_case_loss": amount_decimal(
+                        None if account is None else account.current_worst_case_loss
+                    ),
+                },
+                "positions": positions,
+                "working_orders": working_orders,
+                "execution_intents": execution_intents,
+                "query_coverage": query_coverage,
+            },
         }
     )
 

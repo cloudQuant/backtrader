@@ -3,6 +3,9 @@
 from __future__ import annotations
 
 from dataclasses import fields, replace
+from concurrent.futures import ThreadPoolExecutor
+from datetime import timedelta
+from decimal import Decimal
 import hashlib
 import importlib.util
 from pathlib import Path
@@ -335,7 +338,7 @@ def _build_harness(tmp_path, run_id="grid-writer"):
     )
 
 
-def _build_single_row_harness(tmp_path, run_id="grid-writer-v23"):
+def _build_single_row_harness(tmp_path, run_id="grid-writer-v23", journal_encoding=None):
     case, candidate, quote_by_route = workflow_fixtures._fee_pair_settlement_fixture(run_id)
     candidate = _candidate_with_origin_partitions(candidate)
     identity, evidence = _selection_inputs(candidate)
@@ -398,8 +401,12 @@ def _build_single_row_harness(tmp_path, run_id="grid-writer-v23"):
         decision_available_at=batch.available_at,
         actions=tuple(planned_actions),
     )
+    journal_path = tmp_path / (run_id + ".sqlite3")
+    if journal_encoding is not None:
+        with sqlite3.connect(journal_path) as bootstrap:
+            bootstrap.execute("PRAGMA encoding='{}'".format(journal_encoding))
     journal = ExecutionDecisionJournal(
-        tmp_path / (run_id + ".sqlite3"),
+        journal_path,
         max_payload_bytes=runner._LIVE_DECISION_JOURNAL_MAX_PAYLOAD_BYTES,
     )
     journal.register_fee_pair_required_scope(
@@ -473,6 +480,201 @@ def _settle_single_row(harness, *, economic_payload=None):
         expected_run_order_intents_used=0,
         remaining_exit_intent_reserve=0,
     )
+
+
+def _attach_amount_projection(
+    harness, *, currency="CNY", policy_overrides=None, account_overrides=None
+):
+    """Bind a real Alpha003 planner-shaped amount projection to this GRID."""
+
+    import alpha003_strategy as alpha003
+
+    policy = {
+        "risk_policy_id": "synthetic-risk-policy-v1",
+        "max_hold_eligible_bars": 12,
+        "preclose_grace_seconds": 0,
+        "run_end_policy": "CLOSE_ALL",
+        "quote_max_age_seconds": "10",
+        "max_state_age_seconds": "20",
+        "max_notional_per_position": "100000",
+        "max_total_notional": "200000",
+        "max_margin_per_position": "20000",
+        "max_total_margin": "40000",
+        "max_loss_per_position": "500",
+        "max_total_loss": "1000",
+        "stop_loss_ticks": 1,
+        "max_order_intents_per_grid": 2,
+        "max_order_intents_per_run": 100,
+        "round_trip_fee_upper_bound_per_contract": None,
+    }
+    if policy_overrides:
+        policy.update(policy_overrides)
+    facts = harness.facts
+    account = replace(facts.account, currency=currency, **(account_overrides or {}))
+    facts = replace(facts, account=account)
+    harness.facts = facts
+    latest_evidence = [facts.available_at, account.available_at]
+    latest_evidence.extend(
+        value
+        for quote in facts.quotes
+        for value in (quote.event_time, quote.available_at)
+        if value is not None
+    )
+    latest_evidence.extend(
+        query.completed_at
+        for query in facts.query_provenance
+        if query.family == "instrument_commission_rate_result"
+        and query.completed_at is not None
+    )
+    decision_at = max(latest_evidence) + timedelta(milliseconds=1)
+    decision_at_text = alpha003._time_key(decision_at)
+
+    instrument_by_target = {item.target_id: item for item in facts.instruments}
+    quote_by_route = {(item.instrument, item.exchange): item for item in facts.quotes}
+    risk_legs = []
+    total_notional = Decimal(0)
+    total_margin = Decimal(0)
+    total_loss = Decimal(0)
+    for route, direction in zip(harness.candidate.target_routes, harness.candidate.directions):
+        side = "BUY" if direction > 0 else "SELL"
+        instrument = instrument_by_target[route.target_id]
+        quote = quote_by_route[(route.instrument, route.exchange)]
+        multiplier = instrument.risk_multiplier_upper or instrument.multiplier
+        margin = instrument.long_margin_per_hand if side == "BUY" else instrument.short_margin_per_hand
+        risk_tick = instrument.risk_tick_size_upper or quote.risk_tick_size_upper
+        fee = instrument.round_trip_fee_upper_bound_per_contract
+        risk_price = max(quote.risk_bid_upper, quote.risk_ask_upper)
+        notional = alpha003._risk_ceiling_product(risk_price, multiplier)
+        stop_distance = alpha003._risk_ceiling_product(quote.tick_size, policy["stop_loss_ticks"])
+        stop_loss_distance = alpha003._risk_ceiling_product(risk_tick, policy["stop_loss_ticks"])
+        stop_loss = alpha003._risk_ceiling_product(stop_loss_distance, multiplier)
+        worst_case_loss = alpha003._risk_ceiling_sum(stop_loss, fee)
+        entry = quote.ask if side == "BUY" else quote.bid
+        stop_price = alpha003._risk_stop_price(entry, stop_distance, side)
+        leg = alpha003.Alpha003OpenRiskLegCandidate(
+            target_id=route.target_id,
+            instrument=route.instrument,
+            exchange=route.exchange,
+            side=side,
+            quantity=1,
+            entry_price=entry,
+            stop_price=stop_price,
+            multiplier=multiplier,
+            margin=margin,
+            notional=notional,
+            stop_loss=stop_loss,
+            round_trip_fee_upper_bound=fee,
+            worst_case_loss=worst_case_loss,
+            commission_fee_required=instrument.commission_fee_required,
+            commission_fee_status=instrument.commission_fee_status,
+            instrument_snapshot_id=instrument.snapshot_id,
+            quote_source_ref=quote.source_ref,
+            quote_metadata_snapshot_id=quote.metadata_snapshot_id,
+            quote_generation=quote.generation,
+            quote_sequence=quote.sequence,
+            quote_event_time=quote.event_time,
+            quote_available_at=quote.available_at,
+            quote_bid=quote.bid,
+            quote_ask=quote.ask,
+            quote_bid_size=quote.bid_size,
+            quote_ask_size=quote.ask_size,
+        )
+        risk_legs.append(leg)
+        total_notional = alpha003._risk_ceiling_sum(total_notional, notional)
+        total_margin = alpha003._risk_ceiling_sum(total_margin, margin)
+        total_loss = alpha003._risk_ceiling_sum(total_loss, worst_case_loss)
+
+    held_fee = Decimal(0)
+    candidate_risk = alpha003.Alpha003OpenRiskCandidate(
+        schema="backtrader.alpha003.open_risk_candidate.v1",
+        evidence_source="REGISTERED_SIM",
+        strategy_scope=harness.candidate.key.strategy_scope,
+        batch_id=harness.candidate.batch_id,
+        risk_policy_id=policy["risk_policy_id"],
+        account_scope=harness.candidate.key.account_scope,
+        account_snapshot_id=account.snapshot_id,
+        query_set_id=facts.query_set_id,
+        account_fingerprint=harness.candidate.account_fingerprint,
+        connection_generation=harness.candidate.connection_generation,
+        trading_day=harness.candidate.trading_day,
+        source_snapshot_id=facts.snapshot_id,
+        eligible_grid_ordinal=1,
+        account_available_at=account.available_at,
+        risk_evidence_available_at=facts.available_at,
+        available_margin=account.available_margin,
+        used_margin=account.used_margin,
+        current_notional=account.current_notional,
+        current_worst_case_loss=account.current_worst_case_loss,
+        held_fee_reserve=held_fee,
+        required_margin=total_margin,
+        added_notional=total_notional,
+        added_loss=total_loss,
+        projected_total_margin=alpha003._risk_ceiling_sum(account.used_margin, total_margin),
+        projected_total_notional=alpha003._risk_ceiling_sum(
+            account.current_notional, total_notional
+        ),
+        projected_total_worst_case_loss=alpha003._risk_ceiling_sum(
+            account.current_worst_case_loss, held_fee, total_loss
+        ),
+        max_total_margin=Decimal(policy["max_total_margin"]),
+        max_total_notional=Decimal(policy["max_total_notional"]),
+        max_total_loss=Decimal(policy["max_total_loss"]),
+        legs=tuple(risk_legs),
+    )
+    risk_payload = dict(alpha003._open_risk_candidate_payload(candidate_risk))
+    economics = []
+    for existing, leg in zip(harness.economic_payload["intent_economics"], risk_legs):
+        row = dict(existing)
+        row.update(
+            target_id=leg.target_id,
+            risk_policy_id=policy["risk_policy_id"],
+            risk_policy=policy,
+            open_risk_candidate=dict(alpha003._open_risk_leg_candidate_payload(leg)),
+        )
+        economics.append(row)
+    actions = []
+    planned_actions = []
+    for existing, action in zip(
+        harness.economic_payload["proposed_actions"], harness.order_plan.actions
+    ):
+        row = dict(existing)
+        row["decision_available_at"] = decision_at_text
+        actions.append(row)
+        planned_actions.append(
+            replace(action, decision_available_at=decision_at)
+            if hasattr(action, "__dataclass_fields__")
+            else SimpleNamespace(**{**vars(action), "decision_available_at": decision_at})
+        )
+    harness.order_plan.actions = tuple(planned_actions)
+    harness.order_plan.decision_available_at = decision_at
+    harness.economic_payload = {
+        **harness.economic_payload,
+        "execution_evidence": ExecutionDecisionJournal._fee_pair_execution_evidence_payload(
+            facts
+        ),
+        "open_risk_candidate": risk_payload,
+        "intent_economics": economics,
+        "proposed_actions": actions,
+    }
+    return harness
+
+
+def test_v24_strategy_and_journal_bind_account_currency_in_decision_evidence(
+    single_row_harness,
+):
+    import alpha003_strategy as alpha003
+
+    for currency in ("CNY", "USD", None):
+        facts = replace(
+            single_row_harness.facts,
+            account=replace(single_row_harness.facts.account, currency=currency),
+        )
+        strategy_evidence = alpha003._live_execution_evidence_payload(facts)
+        journal_evidence = ExecutionDecisionJournal._fee_pair_execution_evidence_payload(
+            facts
+        )
+        assert dict(strategy_evidence) == dict(journal_evidence)
+        assert strategy_evidence["account_currency"] == currency
 
 
 @pytest.fixture
@@ -786,6 +988,506 @@ def test_v23_writer_appends_one_row_and_settles_the_same_physical_receipt(
     assert _table_count(harness.journal, "execution_decision_intents") == 0
 
 
+def test_v24_amount_reservation_is_atomic_retained_and_does_not_open_the_fence(
+    single_row_harness,
+):
+    harness = _attach_amount_projection(single_row_harness)
+    settled = _settle_single_row(harness)
+    capacity_before = tuple(
+        harness.journal._connection.execute(
+            "SELECT record_count,payload_bytes FROM execution_durable_capacity_usage "
+            "WHERE capacity_class='BASE'"
+        ).fetchone()
+    )
+    reservation = harness.journal.reserve_fee_pair_grid_amounts(
+        settled["candidate_id"], owner_token=harness.owner_token, facts=harness.facts
+    )
+
+    assert reservation["status"] == "ACTIVE"
+    assert reservation["evidence_level"] == "STRUCTURE_ONLY_STORE_PROJECTION"
+    assert reservation["currency"] == "CNY"
+    assert len(reservation["reserved_legs"]) == 2
+    assert all(int(leg["quantity"]) == 1 for leg in reservation["reserved_legs"])
+    assert Decimal(reservation["reserved_notional"]) <= Decimal("200000")
+    assert Decimal(reservation["reserved_margin"]) <= Decimal("40000")
+    assert Decimal(reservation["reserved_stop_loss_and_fees"]) <= Decimal("1000")
+    assert _table_count(harness.journal, "execution_fee_pair_amount_reservations") == 1
+    saved_row = harness.journal._connection.execute(
+        "SELECT * FROM execution_fee_pair_amount_reservations WHERE candidate_id=?",
+        (settled["candidate_id"],),
+    ).fetchone()
+    capacity_after = tuple(
+        harness.journal._connection.execute(
+            "SELECT record_count,payload_bytes FROM execution_durable_capacity_usage "
+            "WHERE capacity_class='BASE'"
+        ).fetchone()
+    )
+    assert capacity_after == (
+        capacity_before[0] + 1,
+        capacity_before[1] + len(journal_module.canonical_sql_row_bytes(saved_row)),
+    )
+    assert harness.journal.reserve_fee_pair_grid_amounts(
+        settled["candidate_id"], owner_token=harness.owner_token, facts=harness.facts
+    ) == reservation
+    assert tuple(
+        harness.journal._connection.execute(
+            "SELECT record_count,payload_bytes FROM execution_durable_capacity_usage "
+            "WHERE capacity_class='BASE'"
+        ).fetchone()
+    ) == capacity_after
+    with pytest.raises(sqlite3.IntegrityError, match="FEE_PAIR_AMOUNT_RESERVATION_IMMUTABLE"):
+        harness.journal._connection.execute(
+            "UPDATE execution_fee_pair_amount_reservations SET reservation_json='{}' "
+            "WHERE candidate_id=?",
+            (settled["candidate_id"],),
+        )
+    with pytest.raises(sqlite3.IntegrityError, match="FEE_PAIR_AMOUNT_RESERVATION_IMMUTABLE"):
+        harness.journal._connection.execute(
+            "DELETE FROM execution_fee_pair_amount_reservations WHERE candidate_id=?",
+            (settled["candidate_id"],),
+        )
+    assert harness.journal.fee_pair_grid_amount_reservation(settled["candidate_id"]) == reservation
+    with pytest.raises(
+        ExecutionDecisionJournalError, match="FEE_PAIR_OPEN_RISK_RESERVATION_REQUIRED"
+    ):
+        harness.journal.prepare_intent(
+            settled["decision"].decision_id,
+            settled["decision"].intent_keys[0],
+            settled["decision"].economic_payload["intent_economics"][0],
+        )
+    assert _table_count(harness.journal, "execution_decision_intents") == 0
+
+    journal_path = harness.journal.path
+    harness.writer.close()
+    harness.journal.close()
+    reopened = ExecutionDecisionJournal(
+        journal_path,
+        max_payload_bytes=runner._LIVE_DECISION_JOURNAL_MAX_PAYLOAD_BYTES,
+    )
+    try:
+        assert reopened.fee_pair_grid_amount_reservation(settled["candidate_id"]) == reservation
+        assert _table_count(reopened, "execution_fee_pair_amount_reservations") == 1
+        with pytest.raises(
+            ExecutionDecisionJournalError, match="FEE_PAIR_OPEN_RISK_RESERVATION_REQUIRED"
+        ):
+            reopened.prepare_intent(
+                settled["decision"].decision_id,
+                settled["decision"].intent_keys[0],
+                settled["decision"].economic_payload["intent_economics"][0],
+            )
+    finally:
+        reopened.close()
+        harness.writer = SimpleNamespace(close=lambda: None)
+        harness.journal = SimpleNamespace(close=lambda: None)
+
+
+@pytest.mark.parametrize("extra_exposure", ("third_target_position", "third_target_open_order"))
+def test_v24_amount_reservation_rejects_unpriced_extra_exposure_without_capacity_change(
+    tmp_path, extra_exposure
+):
+    harness = _build_single_row_harness(
+        tmp_path, run_id="grid-writer-v24-exposure-" + extra_exposure
+    )
+    try:
+        facts = harness.facts
+        if extra_exposure == "third_target_position":
+            # Make C part of the complete execution target scope. The GRID
+            # candidate still selects only A/B, and its planner-shaped risk
+            # payload deliberately continues to report held_fee_reserve=0.
+            facts = replace(facts, execution_target_ids=facts._full_target_ids)
+            target_position = next(
+                item for item in facts.positions if item.target_id == "C"
+            )
+            target_position = replace(
+                target_position,
+                quantity=Decimal("1"),
+                broker_quantity=Decimal("1"),
+                long_quantity=Decimal("1"),
+                short_quantity=Decimal("0"),
+                attributed_signed_quantity=Decimal("1"),
+                owner_strategy_scope=facts.strategy_scope,
+                owner_intent_id="third-target-open-intent",
+                average_price=Decimal("100"),
+                stop_price=Decimal("99"),
+                held_eligible_bars=1,
+                opening_fee_total=Decimal("0"),
+                opening_fees_known=True,
+                position_book_status="MATCHED",
+            )
+            facts = replace(
+                facts,
+                positions=tuple(
+                    target_position if item.target_id == "C" else item
+                    for item in facts.positions
+                ),
+            )
+        else:
+            from backtrader.stores.factor_execution_facts import (
+                FactorExecutionWorkingOrderFacts,
+            )
+
+            open_order = FactorExecutionWorkingOrderFacts(
+                target_id="C",
+                instrument="j2510",
+                exchange="DCE",
+                order_ref="third-target-open-order",
+                state="ACCEPTED",
+                side="BUY",
+                position_effect="OPEN",
+                remaining_quantity=Decimal("1"),
+                owner_strategy_scope=facts.strategy_scope,
+                owner_intent_id="third-target-open-intent",
+                execution_unknown=False,
+                cancel_pending=False,
+                broker_order_ref=44,
+                order_sys_id="third-target-open-sysid",
+            )
+            facts = replace(
+                facts,
+                execution_target_ids=facts._full_target_ids,
+                working_orders=(open_order,),
+            )
+
+        harness.facts = facts
+        _attach_amount_projection(harness)
+        assert harness.economic_payload["open_risk_candidate"]["held_fee_reserve"] == "0"
+        settled = _settle_single_row(harness)
+        exposure = settled["decision"].economic_payload["execution_evidence"][
+            "portfolio_exposure"
+        ]
+        if extra_exposure == "third_target_position":
+            target = next(item for item in exposure["positions"] if item["target_id"] == "C")
+            assert target["quantity"] == target["long_quantity"] == "1"
+        else:
+            assert exposure["working_orders"][0]["position_effect"] == "OPEN"
+
+        capacity_before = tuple(
+            harness.journal._connection.execute(
+                "SELECT record_count,payload_bytes FROM execution_durable_capacity_usage "
+                "WHERE capacity_class='BASE'"
+            ).fetchone()
+        )
+        with pytest.raises(
+            ExecutionDecisionJournalError,
+            match="FEE_PAIR_AMOUNT_EXPOSURE_UNPROVEN",
+        ):
+            harness.journal.reserve_fee_pair_grid_amounts(
+                settled["candidate_id"],
+                owner_token=harness.owner_token,
+                facts=harness.facts,
+            )
+        assert _table_count(harness.journal, "execution_fee_pair_amount_reservations") == 0
+        assert tuple(
+            harness.journal._connection.execute(
+                "SELECT record_count,payload_bytes FROM execution_durable_capacity_usage "
+                "WHERE capacity_class='BASE'"
+            ).fetchone()
+        ) == capacity_before
+        highwater = harness.journal.source_highwater(
+            harness.candidate.key.account_scope,
+            harness.candidate.key.strategy_scope,
+            harness.candidate.key.logical_run_id,
+            harness.candidate.source_kind,
+        )
+        assert highwater.anchor_kind == "GRID"
+        assert highwater.decision_id == settled["decision"].decision_id
+    finally:
+        _safe_close(harness)
+
+
+def test_v24_amount_reservation_rejects_incomplete_position_query_without_mutation(
+    tmp_path,
+):
+    harness = _build_single_row_harness(
+        tmp_path, run_id="grid-writer-v24-exposure-incomplete-query"
+    )
+    try:
+        _attach_amount_projection(harness)
+        settled = _settle_single_row(harness)
+        incomplete = replace(
+            harness.facts,
+            query_provenance=tuple(
+                query
+                for query in harness.facts.query_provenance
+                if query.family != "positions_result"
+            ),
+        )
+        capacity_before = tuple(
+            harness.journal._connection.execute(
+                "SELECT record_count,payload_bytes FROM execution_durable_capacity_usage "
+                "WHERE capacity_class='BASE'"
+            ).fetchone()
+        )
+        with pytest.raises(ExecutionDecisionJournalError):
+            harness.journal.reserve_fee_pair_grid_amounts(
+                settled["candidate_id"],
+                owner_token=harness.owner_token,
+                facts=incomplete,
+            )
+        assert _table_count(harness.journal, "execution_fee_pair_amount_reservations") == 0
+        assert tuple(
+            harness.journal._connection.execute(
+                "SELECT record_count,payload_bytes FROM execution_durable_capacity_usage "
+                "WHERE capacity_class='BASE'"
+            ).fetchone()
+        ) == capacity_before
+        highwater = harness.journal.source_highwater(
+            harness.candidate.key.account_scope,
+            harness.candidate.key.strategy_scope,
+            harness.candidate.key.logical_run_id,
+            harness.candidate.source_kind,
+        )
+        assert highwater.anchor_kind == "GRID"
+        assert highwater.decision_id == settled["decision"].decision_id
+    finally:
+        _safe_close(harness)
+
+
+@pytest.mark.parametrize("currency", ("USD", None))
+def test_v24_amount_reservation_rejects_missing_or_non_cny_currency(
+    tmp_path, currency
+):
+    harness = _build_single_row_harness(
+        tmp_path, run_id="grid-writer-v24-currency-" + str(currency)
+    )
+    try:
+        _attach_amount_projection(harness, currency=currency)
+        settled = _settle_single_row(harness)
+        with pytest.raises(
+            ExecutionDecisionJournalError, match="FEE_PAIR_AMOUNT_CURRENCY_UNAVAILABLE"
+        ):
+            harness.journal.reserve_fee_pair_grid_amounts(
+                settled["candidate_id"],
+                owner_token=harness.owner_token,
+                facts=harness.facts,
+            )
+        assert _table_count(harness.journal, "execution_fee_pair_amount_reservations") == 0
+        assert harness.journal.fee_pair_grid_amount_reservation(settled["candidate_id"]) is None
+        assert harness.journal.source_highwater(
+            harness.candidate.key.account_scope,
+            harness.candidate.key.strategy_scope,
+            harness.candidate.key.logical_run_id,
+            harness.candidate.source_kind,
+        ).anchor_kind == "GRID"
+    finally:
+        _safe_close(harness)
+
+
+def test_v24_amount_reservation_rejects_currency_changed_after_grid_settlement(
+    tmp_path,
+):
+    harness = _build_single_row_harness(tmp_path, run_id="grid-writer-v24-currency-swap")
+    try:
+        _attach_amount_projection(harness, currency="USD")
+        settled = _settle_single_row(harness)
+        cny_facts = replace(
+            harness.facts,
+            account=replace(harness.facts.account, currency="CNY"),
+        )
+        with pytest.raises(
+            ExecutionDecisionJournalError, match="FEE_PAIR_FACTS_SNAPSHOT_MISMATCH"
+        ):
+            harness.journal.reserve_fee_pair_grid_amounts(
+                settled["candidate_id"],
+                owner_token=harness.owner_token,
+                facts=cny_facts,
+            )
+        assert _table_count(harness.journal, "execution_fee_pair_amount_reservations") == 0
+    finally:
+        _safe_close(harness)
+
+
+def test_v24_amount_reservation_rejects_legacy_settlement_without_currency_binding(
+    tmp_path, monkeypatch
+):
+    original_evidence = ExecutionDecisionJournal._fee_pair_execution_evidence_payload
+
+    def legacy_evidence(facts):
+        result = dict(original_evidence(facts))
+        result.pop("account_currency", None)
+        return result
+
+    with monkeypatch.context() as patch:
+        patch.setattr(
+            ExecutionDecisionJournal,
+            "_fee_pair_execution_evidence_payload",
+            staticmethod(legacy_evidence),
+        )
+        harness = _build_single_row_harness(
+            tmp_path, run_id="grid-writer-v24-legacy-currency"
+        )
+        try:
+            _attach_amount_projection(harness, currency="CNY")
+            settled = _settle_single_row(harness)
+        finally:
+            # Retain the Journal row for the negative check below; close only
+            # the writer whose physical append has already completed.
+            harness.writer.close()
+    try:
+        with pytest.raises(
+            ExecutionDecisionJournalError, match="FEE_PAIR_FACTS_SNAPSHOT_MISMATCH"
+        ):
+            harness.journal.reserve_fee_pair_grid_amounts(
+                settled["candidate_id"],
+                owner_token=harness.owner_token,
+                facts=harness.facts,
+            )
+        assert _table_count(harness.journal, "execution_fee_pair_amount_reservations") == 0
+    finally:
+        harness.journal.close()
+
+
+@pytest.mark.parametrize(
+    "failure_case,expected_code",
+    (
+        ("per_leg_policy", "FEE_PAIR_AMOUNT_RESERVATION_INVALID"),
+        ("available_margin", "FEE_PAIR_AMOUNT_RESERVATION_INVALID"),
+    ),
+)
+def test_v24_amount_reservation_rejects_limits_without_consuming_capacity(
+    tmp_path, failure_case, expected_code
+):
+    harness = _build_single_row_harness(
+        tmp_path, run_id="grid-writer-v24-limit-" + failure_case
+    )
+    try:
+        if failure_case == "per_leg_policy":
+            _attach_amount_projection(
+                harness, policy_overrides={"max_margin_per_position": "1"}
+            )
+        else:
+            _attach_amount_projection(
+                harness,
+                account_overrides={"available_margin": Decimal("1")},
+            )
+        settled = _settle_single_row(harness)
+        durable_before = tuple(
+            harness.journal._connection.execute(
+                "SELECT record_count,payload_bytes FROM execution_durable_capacity_usage "
+                "WHERE capacity_class='BASE'"
+            ).fetchone()
+        )
+        with pytest.raises(ExecutionDecisionJournalError, match=expected_code):
+            harness.journal.reserve_fee_pair_grid_amounts(
+                settled["candidate_id"],
+                owner_token=harness.owner_token,
+                facts=harness.facts,
+            )
+        assert _table_count(harness.journal, "execution_fee_pair_amount_reservations") == 0
+        assert tuple(
+            harness.journal._connection.execute(
+                "SELECT record_count,payload_bytes FROM execution_durable_capacity_usage "
+                "WHERE capacity_class='BASE'"
+            ).fetchone()
+        ) == durable_before
+        assert harness.journal.source_highwater(
+            harness.candidate.key.account_scope,
+            harness.candidate.key.strategy_scope,
+            harness.candidate.key.logical_run_id,
+            harness.candidate.source_kind,
+        ).anchor_kind == "GRID"
+    finally:
+        _safe_close(harness)
+
+
+def test_v24_amount_reservation_capacity_failure_rolls_back_atomically(
+    tmp_path,
+):
+    harness = _build_single_row_harness(tmp_path, run_id="grid-writer-v24-capacity")
+    try:
+        _attach_amount_projection(harness)
+        settled = _settle_single_row(harness)
+        usage = harness.journal._connection.execute(
+            "SELECT record_count,payload_bytes FROM execution_durable_capacity_usage "
+            "WHERE capacity_class='BASE'"
+        ).fetchone()
+        harness.journal.durable_capacity_limits = DurableCapacityLimits(
+            max_durable_base_records=usage["record_count"],
+            max_durable_base_bytes=usage["payload_bytes"],
+            max_durable_settlement_records=100_000,
+            max_durable_settlement_bytes=1_073_741_824,
+        )
+        with pytest.raises(
+            ExecutionDecisionJournalError, match="DURABLE_BASE_RECORDS_EXHAUSTED"
+        ):
+            harness.journal.reserve_fee_pair_grid_amounts(
+                settled["candidate_id"],
+                owner_token=harness.owner_token,
+                facts=harness.facts,
+            )
+        assert _table_count(harness.journal, "execution_fee_pair_amount_reservations") == 0
+        assert tuple(
+            harness.journal._connection.execute(
+                "SELECT record_count,payload_bytes FROM execution_durable_capacity_usage "
+                "WHERE capacity_class='BASE'"
+            ).fetchone()
+        ) == tuple(usage)
+        assert harness.journal.fee_pair_grid_amount_reservation(settled["candidate_id"]) is None
+    finally:
+        _safe_close(harness)
+
+
+def test_v24_amount_reservation_is_idempotent_across_concurrent_journal_connections(
+    tmp_path,
+):
+    harness = _build_single_row_harness(tmp_path, run_id="grid-writer-v24-concurrent")
+    second_journal = None
+    try:
+        _attach_amount_projection(harness)
+        settled = _settle_single_row(harness)
+        second_journal = ExecutionDecisionJournal(
+            harness.journal.path,
+            max_payload_bytes=runner._LIVE_DECISION_JOURNAL_MAX_PAYLOAD_BYTES,
+        )
+
+        def reserve(journal):
+            return journal.reserve_fee_pair_grid_amounts(
+                settled["candidate_id"],
+                owner_token=harness.owner_token,
+                facts=harness.facts,
+            )
+
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            futures = (executor.submit(reserve, harness.journal), executor.submit(reserve, second_journal))
+            results = tuple(future.result(timeout=10) for future in futures)
+        assert results[0] == results[1]
+        assert _table_count(harness.journal, "execution_fee_pair_amount_reservations") == 1
+    finally:
+        if second_journal is not None:
+            second_journal.close()
+        _safe_close(harness)
+
+
+def test_v24_migration_adds_amount_reservation_without_rewriting_v23_workflow(
+    tmp_path,
+):
+    harness = _build_single_row_harness(tmp_path, run_id="grid-writer-v24-migration")
+    settled = _settle_single_row(harness)
+    journal_path = harness.journal.path
+    candidate_id = settled["candidate_id"]
+    harness.writer.close()
+    harness.journal.close()
+    try:
+        with sqlite3.connect(journal_path) as connection:
+            connection.execute("DROP TRIGGER execution_fee_pair_amount_reservation_no_update")
+            connection.execute("DROP TRIGGER execution_fee_pair_amount_reservation_no_delete")
+            connection.execute("DROP TABLE execution_fee_pair_amount_reservations")
+            connection.execute("PRAGMA user_version=23")
+        reopened = ExecutionDecisionJournal(
+            journal_path,
+            max_payload_bytes=runner._LIVE_DECISION_JOURNAL_MAX_PAYLOAD_BYTES,
+        )
+        try:
+            assert reopened._connection.execute("PRAGMA user_version").fetchone()[0] == 24
+            assert reopened.fee_pair_workflow_candidate(candidate_id).state == "RECEIPT_VERIFIED"
+            assert _table_count(reopened, "execution_fee_pair_amount_reservations") == 0
+        finally:
+            reopened.close()
+    finally:
+        harness.writer = SimpleNamespace(close=lambda: None)
+        harness.journal = SimpleNamespace(close=lambda: None)
+
+
 @pytest.mark.parametrize("changed_component", ("leg_action", "leg_economics"))
 def test_v23_settlement_rejects_economics_different_from_the_tape_row(
     tmp_path, monkeypatch, changed_component
@@ -993,7 +1695,7 @@ def test_v23_archive_rejects_an_oversized_single_row_tape_intent(
     settled = _settle_single_row(harness)
     archive_path = tmp_path / "grid-writer-v23-archive.sqlite3"
     archived = harness.journal.archive_snapshot(archive_path)
-    assert archived.schema_version == 23
+    assert archived.schema_version == 24
 
     oversized = "x" * journal_module._MAX_FEE_PAIR_GRID_TAPE_RECORD_BYTES
     with sqlite3.connect(archive_path) as connection:
@@ -1011,5 +1713,47 @@ def test_v23_archive_rejects_an_oversized_single_row_tape_intent(
         match="ARCHIVE_FEE_PAIR_TAPE_RECORD_TOO_LARGE",
     ):
         archive_module.verify_execution_journal_archive(
-            archive_path, expected_schema_version=23
+            archive_path, expected_schema_version=24
         )
+
+
+@pytest.mark.parametrize("encoding", ("UTF-8", "UTF-16le"))
+def test_v24_archive_rejects_an_oversized_amount_reservation(tmp_path, encoding):
+    harness = _build_single_row_harness(
+        tmp_path,
+        run_id="grid-writer-v24-archive-" + encoding.replace("-", ""),
+        journal_encoding=encoding,
+    )
+    try:
+        _attach_amount_projection(harness)
+        settled = _settle_single_row(harness)
+        harness.journal.reserve_fee_pair_grid_amounts(
+            settled["candidate_id"],
+            owner_token=harness.owner_token,
+            facts=harness.facts,
+        )
+        archive_path = tmp_path / "grid-writer-v24-archive-copy.sqlite3"
+        archived = harness.journal.archive_snapshot(archive_path)
+        assert archived.schema_version == 24
+        assert archived.table_row_counts["execution_fee_pair_amount_reservations"] == 1
+
+        oversized = "x" * (journal_module._MAX_FEE_PAIR_AMOUNT_RESERVATION_BYTES + 1)
+        with sqlite3.connect(archive_path) as connection:
+            connection.execute(
+                "DROP TRIGGER execution_fee_pair_amount_reservation_no_update"
+            )
+            connection.execute(
+                "UPDATE execution_fee_pair_amount_reservations SET reservation_json=? "
+                "WHERE candidate_id=?",
+                (oversized, settled["candidate_id"]),
+            )
+
+        with pytest.raises(
+            archive_module.ExecutionJournalArchiveError,
+            match="ARCHIVE_FEE_PAIR_AMOUNT_RESERVATION_TOO_LARGE",
+        ):
+            archive_module.verify_execution_journal_archive(
+                archive_path, expected_schema_version=24
+            )
+    finally:
+        _safe_close(harness)
