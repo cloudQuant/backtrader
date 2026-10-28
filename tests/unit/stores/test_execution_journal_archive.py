@@ -33,11 +33,19 @@ def _decision_key(run_id: str, *, close_time: str) -> ExecutionDecisionKey:
 def _downgrade_archive_to_v16(connection: sqlite3.Connection) -> None:
     """Remove only v17 objects before modeling a genuine v16 archive."""
 
-    # V19's workflow-state trigger references this table, so remove it before
-    # dropping its parent. A real v16 database has no v17-v19 workflow objects.
-    connection.execute(
-        "DROP TABLE IF EXISTS execution_fee_pair_workflow_grid_settlements"
-    )
+    _downgrade_archive_to_v18(connection)
+    for trigger in (
+        "execution_fee_pair_workflow_state",
+        "execution_fee_pair_workflow_no_delete",
+        "execution_fee_pair_workflow_event_no_update",
+        "execution_fee_pair_workflow_event_no_delete",
+        "execution_fee_pair_workflow_durable_reservation_state",
+        "execution_fee_pair_workflow_decision_reservation_state",
+        "execution_fee_pair_workflow_durable_reservation_no_delete",
+        "execution_fee_pair_workflow_decision_reservation_no_delete",
+    ):
+        connection.execute("DROP TRIGGER IF EXISTS {}".format(trigger))
+    connection.execute("DROP INDEX IF EXISTS execution_fee_pair_workflow_one_active")
     connection.execute("DROP TABLE execution_fee_pair_workflow_decision_reservations")
     connection.execute("DROP TABLE execution_fee_pair_workflow_durable_reservations")
     connection.execute("DROP TABLE execution_fee_pair_workflow_events")
@@ -45,8 +53,107 @@ def _downgrade_archive_to_v16(connection: sqlite3.Connection) -> None:
     connection.execute("PRAGMA user_version=16")
 
 
+def _downgrade_archive_to_v19(connection: sqlite3.Connection) -> None:
+    """Restore the exact v19 workflow DDL from the current v20 archive schema."""
+
+    connection.row_factory = sqlite3.Row
+
+    def table_bytes(table):
+        return sum(
+            len(journal_module.canonical_sql_row_bytes(row))
+            for row in connection.execute("SELECT * FROM {}".format(table))
+        )
+
+    changed_tables = (
+        "execution_fee_pair_workflow_events",
+        "execution_fee_pair_workflow_durable_reservations",
+    )
+    old_bytes = sum(table_bytes(table) for table in changed_tables)
+    usage = connection.execute(
+        "SELECT payload_bytes FROM execution_durable_capacity_usage WHERE capacity_class='BASE'"
+    ).fetchone()
+    if usage is None:
+        raise AssertionError("BASE capacity usage row is missing")
+    old_usage_bytes = usage["payload_bytes"]
+    old_event = {
+        "event_id": "e" * 64,
+        "candidate_id": "c" * 64,
+        "event_sequence": 4,
+        "event_kind": "GRID_SETTLED",
+        "event_payload_json": "{}",
+        "created_at_ns": 1,
+    }
+    v20_event = {
+        **old_event,
+        "tape_file_id": None,
+        "record_index": None,
+        "tape_record_json": None,
+    }
+    event_column_growth = len(journal_module.canonical_sql_row_bytes(v20_event)) - len(
+        journal_module.canonical_sql_row_bytes(old_event)
+    )
+
+    for trigger in (
+        "execution_fee_pair_workflow_state",
+        "execution_fee_pair_workflow_grid_settlement_insert",
+        "execution_fee_pair_workflow_durable_reservation_state",
+        "execution_fee_pair_workflow_event_no_update",
+        "execution_fee_pair_workflow_event_no_delete",
+    ):
+        connection.execute("DROP TRIGGER IF EXISTS {}".format(trigger))
+    connection.execute("DROP INDEX IF EXISTS execution_fee_pair_workflow_tape_position")
+    connection.execute(
+        "ALTER TABLE execution_fee_pair_workflow_events "
+        "RENAME TO execution_fee_pair_workflow_events_v20"
+    )
+    connection.execute(journal_module._FEE_PAIR_WORKFLOW_EVENT_TABLE_SQL)
+    connection.execute(
+        """INSERT INTO execution_fee_pair_workflow_events
+           (event_id,candidate_id,event_sequence,event_kind,event_payload_json,created_at_ns)
+           SELECT event_id,candidate_id,event_sequence,event_kind,event_payload_json,created_at_ns
+           FROM execution_fee_pair_workflow_events_v20"""
+    )
+    connection.execute("DROP TABLE execution_fee_pair_workflow_events_v20")
+
+    reservation_rows = connection.execute(
+        """SELECT candidate_id,reserved_bytes FROM
+           execution_fee_pair_workflow_durable_reservations WHERE state='ACTIVE'"""
+    ).fetchall()
+    for reservation in reservation_rows:
+        last_event = connection.execute(
+            """SELECT MAX(event_sequence) AS sequence FROM
+               execution_fee_pair_workflow_events WHERE candidate_id=?""",
+            (reservation["candidate_id"],),
+        ).fetchone()["sequence"]
+        if type(last_event) is not int or not 1 <= last_event <= 3:
+            raise AssertionError("unexpected active workflow event sequence")
+        restored_bytes = reservation["reserved_bytes"] - (4 - last_event) * event_column_growth
+        if restored_bytes <= 0:
+            raise AssertionError("v20 reservation cannot be restored to v19")
+        connection.execute(
+            """UPDATE execution_fee_pair_workflow_durable_reservations
+               SET reserved_bytes=? WHERE candidate_id=? AND state='ACTIVE'""",
+            (restored_bytes, reservation["candidate_id"]),
+        )
+
+    connection.execute(journal_module._FEE_PAIR_WORKFLOW_EVENT_NO_UPDATE_TRIGGER_SQL)
+    connection.execute(journal_module._FEE_PAIR_WORKFLOW_EVENT_NO_DELETE_TRIGGER_SQL)
+    connection.execute(journal_module._FEE_PAIR_WORKFLOW_STATE_TRIGGER_SQL)
+    connection.execute(journal_module._FEE_PAIR_WORKFLOW_GRID_SETTLEMENT_INSERT_TRIGGER_SQL)
+    connection.execute(journal_module._FEE_PAIR_WORKFLOW_DURABLE_RESERVATION_TRIGGER_SQL)
+    new_bytes = sum(table_bytes(table) for table in changed_tables)
+    connection.execute(
+        """UPDATE execution_durable_capacity_usage SET payload_bytes=?
+           WHERE capacity_class='BASE'""",
+        (old_usage_bytes + new_bytes - old_bytes,),
+    )
+    connection.execute("PRAGMA user_version=19")
+
+
 def _downgrade_archive_to_v18(connection: sqlite3.Connection) -> None:
-    """Restore the exact v18 workflow DDL before testing old archives."""
+    """Restore the exact v18 workflow DDL from the current v20 archive schema."""
+
+    _downgrade_archive_to_v19(connection)
 
     connection.execute("DROP TRIGGER execution_fee_pair_workflow_state")
     connection.execute("DROP INDEX execution_fee_pair_workflow_one_active")
@@ -829,6 +936,7 @@ def test_v19_archive_rejects_incomplete_or_unexpected_settlement_schema(
         journal.close()
 
     with sqlite3.connect(archive_path) as archived:
+        _downgrade_archive_to_v19(archived)
         archived.executescript(statement)
 
     with pytest.raises(

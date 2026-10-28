@@ -1,10 +1,11 @@
-"""Focused contracts for v16 candidates and v17-v19 journal-only workflows."""
+"""Focused contracts for v16 candidates and v17-v20 journal-only workflows."""
 
 from __future__ import annotations
 
 from contextlib import contextmanager
 from dataclasses import replace
 import hashlib
+import json
 import shutil
 import sqlite3
 import time
@@ -242,37 +243,224 @@ def _downgrade_to_v15(connection: sqlite3.Connection) -> None:
     connection.execute("PRAGMA user_version=15")
 
 
-def _downgrade_v19_workflow_to_v18(connection: sqlite3.Connection) -> None:
-    """Restore the actual v18 workflow DDL before setting an older version tag."""
+def _downgrade_v20_workflow_to_v18(connection: sqlite3.Connection) -> None:
+    """Restore v18 DDL and its exact capacity projection for migration tests."""
+
+    connection.row_factory = sqlite3.Row
+
+    def table_bytes(table: str) -> int:
+        return sum(
+            len(journal_module.canonical_sql_row_bytes(row))
+            for row in connection.execute("SELECT * FROM {}".format(table))
+        )
+
+    changed_tables = (
+        "execution_fee_pair_workflows",
+        "execution_fee_pair_workflow_events",
+        "execution_fee_pair_workflow_durable_reservations",
+    )
+    old_bytes = sum(table_bytes(table) for table in changed_tables)
+    usage = connection.execute(
+        "SELECT payload_bytes FROM execution_durable_capacity_usage WHERE capacity_class='BASE'"
+    ).fetchone()
+    if usage is None:
+        raise AssertionError("BASE capacity usage row is missing")
+    old_usage_bytes = usage["payload_bytes"]
+    if connection.execute(
+        "SELECT COUNT(*) FROM execution_fee_pair_workflow_grid_settlements"
+    ).fetchone()[0]:
+        raise AssertionError("cannot downgrade a journal with settled grid rows")
+    if connection.execute(
+        "SELECT COUNT(*) FROM execution_fee_pair_workflow_events "
+        "WHERE event_sequence>4 OR event_kind='GRID_TAPE_APPEND_INTENT'"
+    ).fetchone()[0]:
+        raise AssertionError("cannot downgrade a journal with v20 tape-intent rows")
+
+    old_event = {
+        "event_id": "e" * 64,
+        "candidate_id": "c" * 64,
+        "event_sequence": 4,
+        "event_kind": "SOURCE_ONLY",
+        "event_payload_json": "{}",
+        "created_at_ns": 1,
+    }
+    v20_event = {
+        **old_event,
+        "tape_file_id": None,
+        "record_index": None,
+        "tape_record_json": None,
+    }
+    event_column_growth = len(journal_module.canonical_sql_row_bytes(v20_event)) - len(
+        journal_module.canonical_sql_row_bytes(old_event)
+    )
 
     for trigger in (
         "execution_fee_pair_workflow_grid_settlement_insert",
         "execution_fee_pair_workflow_grid_settlement_no_update",
         "execution_fee_pair_workflow_grid_settlement_no_delete",
         "execution_fee_pair_workflow_state",
+        "execution_fee_pair_workflow_durable_reservation_state",
+        "execution_fee_pair_workflow_event_no_update",
+        "execution_fee_pair_workflow_event_no_delete",
     ):
         connection.execute("DROP TRIGGER IF EXISTS {}".format(trigger))
+    connection.execute("DROP INDEX IF EXISTS execution_fee_pair_workflow_tape_position")
     connection.execute("DROP INDEX IF EXISTS execution_fee_pair_workflow_one_active")
-    connection.execute("DROP TABLE IF EXISTS execution_fee_pair_workflow_grid_settlements")
-    connection.execute("DROP TRIGGER execution_fee_pair_workflow_event_no_update")
-    connection.execute("DROP TRIGGER execution_fee_pair_workflow_event_no_delete")
+    connection.execute("DROP TABLE execution_fee_pair_workflow_grid_settlements")
     connection.execute(
         "ALTER TABLE execution_fee_pair_workflow_events "
-        "RENAME TO execution_fee_pair_workflow_events_v19"
+        "RENAME TO execution_fee_pair_workflow_events_v20"
     )
     connection.execute(journal_module._FEE_PAIR_WORKFLOW_EVENT_TABLE_SQL_V18)
     connection.execute(
         """INSERT INTO execution_fee_pair_workflow_events
            (event_id,candidate_id,event_sequence,event_kind,event_payload_json,created_at_ns)
            SELECT event_id,candidate_id,event_sequence,event_kind,event_payload_json,created_at_ns
-           FROM execution_fee_pair_workflow_events_v19"""
+           FROM execution_fee_pair_workflow_events_v20"""
     )
-    connection.execute("DROP TABLE execution_fee_pair_workflow_events_v19")
+    connection.execute("DROP TABLE execution_fee_pair_workflow_events_v20")
     connection.execute("ALTER TABLE execution_fee_pair_workflows DROP COLUMN grid_decision_id")
+
+    reservation_rows = connection.execute(
+        """SELECT candidate_id,reserved_records,reserved_bytes FROM
+           execution_fee_pair_workflow_durable_reservations WHERE state='ACTIVE'"""
+    ).fetchall()
+    for reservation in reservation_rows:
+        last_event = connection.execute(
+            """SELECT MAX(event_sequence) AS sequence FROM
+               execution_fee_pair_workflow_events WHERE candidate_id=?""",
+            (reservation["candidate_id"],),
+        ).fetchone()["sequence"]
+        if type(last_event) is not int or not 1 <= last_event <= 3:
+            raise AssertionError("unexpected active workflow event sequence")
+        future_rows = 4 - last_event
+        restored_bytes = reservation["reserved_bytes"] - future_rows * event_column_growth
+        if restored_bytes <= 0:
+            raise AssertionError("v20 reservation cannot be restored to v18")
+        connection.execute(
+            """UPDATE execution_fee_pair_workflow_durable_reservations
+               SET reserved_bytes=? WHERE candidate_id=? AND state='ACTIVE'""",
+            (restored_bytes, reservation["candidate_id"]),
+        )
+
     connection.execute(journal_module._FEE_PAIR_WORKFLOW_ACTIVE_INDEX_SQL_V18)
     connection.execute(journal_module._FEE_PAIR_WORKFLOW_STATE_TRIGGER_SQL_V18)
     connection.execute(journal_module._FEE_PAIR_WORKFLOW_EVENT_NO_UPDATE_TRIGGER_SQL)
     connection.execute(journal_module._FEE_PAIR_WORKFLOW_EVENT_NO_DELETE_TRIGGER_SQL)
+    connection.execute(journal_module._FEE_PAIR_WORKFLOW_DURABLE_RESERVATION_TRIGGER_SQL)
+    new_bytes = sum(table_bytes(table) for table in changed_tables)
+    connection.execute(
+        """UPDATE execution_durable_capacity_usage SET payload_bytes=?
+           WHERE capacity_class='BASE'""",
+        (old_usage_bytes + new_bytes - old_bytes,),
+    )
+
+
+def _downgrade_v20_workflow_to_v19(connection: sqlite3.Connection) -> None:
+    """Restore the v19 event DDL and reservation accounting for migration tests."""
+
+    connection.row_factory = sqlite3.Row
+
+    def table_bytes(table: str) -> int:
+        return sum(
+            len(journal_module.canonical_sql_row_bytes(row))
+            for row in connection.execute("SELECT * FROM {}".format(table))
+        )
+
+    changed_tables = (
+        "execution_fee_pair_workflow_events",
+        "execution_fee_pair_workflow_durable_reservations",
+    )
+    old_bytes = sum(table_bytes(table) for table in changed_tables)
+    usage = connection.execute(
+        "SELECT payload_bytes FROM execution_durable_capacity_usage WHERE capacity_class='BASE'"
+    ).fetchone()
+    if usage is None:
+        raise AssertionError("BASE capacity usage row is missing")
+    old_usage_bytes = usage["payload_bytes"]
+    if connection.execute(
+        "SELECT COUNT(*) FROM execution_fee_pair_workflow_events "
+        "WHERE event_sequence>4 OR event_kind='GRID_TAPE_APPEND_INTENT'"
+    ).fetchone()[0]:
+        raise AssertionError("cannot downgrade a journal with v20 tape-intent rows")
+    if connection.execute(
+        "SELECT COUNT(*) FROM execution_fee_pair_workflow_grid_settlements"
+    ).fetchone()[0]:
+        raise AssertionError("cannot downgrade a journal with settled grid rows")
+
+    old_event = {
+        "event_id": "e" * 64,
+        "candidate_id": "c" * 64,
+        "event_sequence": 4,
+        "event_kind": "GRID_SETTLED",
+        "event_payload_json": "{}",
+        "created_at_ns": 1,
+    }
+    v20_event = {
+        **old_event,
+        "tape_file_id": None,
+        "record_index": None,
+        "tape_record_json": None,
+    }
+    event_column_growth = len(journal_module.canonical_sql_row_bytes(v20_event)) - len(
+        journal_module.canonical_sql_row_bytes(old_event)
+    )
+
+    for trigger in (
+        "execution_fee_pair_workflow_grid_settlement_insert",
+        "execution_fee_pair_workflow_state",
+        "execution_fee_pair_workflow_durable_reservation_state",
+        "execution_fee_pair_workflow_event_no_update",
+        "execution_fee_pair_workflow_event_no_delete",
+    ):
+        connection.execute("DROP TRIGGER IF EXISTS {}".format(trigger))
+    connection.execute("DROP INDEX IF EXISTS execution_fee_pair_workflow_tape_position")
+    connection.execute(
+        "ALTER TABLE execution_fee_pair_workflow_events "
+        "RENAME TO execution_fee_pair_workflow_events_v20"
+    )
+    connection.execute(journal_module._FEE_PAIR_WORKFLOW_EVENT_TABLE_SQL)
+    connection.execute(
+        """INSERT INTO execution_fee_pair_workflow_events
+           (event_id,candidate_id,event_sequence,event_kind,event_payload_json,created_at_ns)
+           SELECT event_id,candidate_id,event_sequence,event_kind,event_payload_json,created_at_ns
+           FROM execution_fee_pair_workflow_events_v20"""
+    )
+    connection.execute("DROP TABLE execution_fee_pair_workflow_events_v20")
+
+    reservation_rows = connection.execute(
+        """SELECT candidate_id,reserved_records,reserved_bytes FROM
+           execution_fee_pair_workflow_durable_reservations WHERE state='ACTIVE'"""
+    ).fetchall()
+    for reservation in reservation_rows:
+        last_event = connection.execute(
+            """SELECT MAX(event_sequence) AS sequence FROM
+               execution_fee_pair_workflow_events WHERE candidate_id=?""",
+            (reservation["candidate_id"],),
+        ).fetchone()["sequence"]
+        if type(last_event) is not int or not 1 <= last_event <= 3:
+            raise AssertionError("unexpected active workflow event sequence")
+        future_rows = 4 - last_event
+        restored_bytes = reservation["reserved_bytes"] - future_rows * event_column_growth
+        if restored_bytes <= 0:
+            raise AssertionError("v20 reservation cannot be restored to v19")
+        connection.execute(
+            """UPDATE execution_fee_pair_workflow_durable_reservations
+               SET reserved_bytes=? WHERE candidate_id=? AND state='ACTIVE'""",
+            (restored_bytes, reservation["candidate_id"]),
+        )
+
+    connection.execute(journal_module._FEE_PAIR_WORKFLOW_STATE_TRIGGER_SQL)
+    connection.execute(journal_module._FEE_PAIR_WORKFLOW_EVENT_NO_UPDATE_TRIGGER_SQL)
+    connection.execute(journal_module._FEE_PAIR_WORKFLOW_EVENT_NO_DELETE_TRIGGER_SQL)
+    connection.execute(journal_module._FEE_PAIR_WORKFLOW_GRID_SETTLEMENT_INSERT_TRIGGER_SQL)
+    connection.execute(journal_module._FEE_PAIR_WORKFLOW_DURABLE_RESERVATION_TRIGGER_SQL)
+    new_bytes = sum(table_bytes(table) for table in changed_tables)
+    connection.execute(
+        """UPDATE execution_durable_capacity_usage SET payload_bytes=?
+           WHERE capacity_class='BASE'""",
+        (old_usage_bytes + new_bytes - old_bytes,),
+    )
 
 
 def test_candidate_capacity_reservation_is_atomic_and_settlement_neutral(tmp_path):
@@ -890,7 +1078,7 @@ def test_v15_migration_preserves_history_and_adds_empty_candidate_schema(tmp_pat
 
     migrated = ExecutionDecisionJournal(path)
     try:
-        assert migrated._connection.execute("PRAGMA user_version").fetchone()[0] == 19
+        assert migrated._connection.execute("PRAGMA user_version").fetchone()[0] == 20
         assert migrated.decision(decision.decision_id) == decision
         assert migrated.fee_pair_required_scope("pair-account", "pair-strategy") is not None
         assert (
@@ -1160,7 +1348,7 @@ def test_v18_87_member_workflow_fits_default_payload_limit_and_archives(tmp_path
         archive_receipt = journal.archive_snapshot(archive_path)
         verified = archive_module.verify_execution_journal_archive(
             archive_path,
-            expected_schema_version=19,
+            expected_schema_version=20,
             expected_sha256=archive_receipt.sha256,
         )
         assert verified == archive_receipt
@@ -1168,7 +1356,7 @@ def test_v18_87_member_workflow_fits_default_payload_limit_and_archives(tmp_path
     finally:
         journal.close()
 
-    # A reader implementing the v17 version ceiling rejects the v19 writer's
+    # A reader implementing the v17 version ceiling rejects the v20 writer's
     # larger-candidate schema before interpreting any of its rows.
     with monkeypatch.context() as patch:
         patch.setattr(ExecutionDecisionJournal, "_SCHEMA_VERSION", 17)
@@ -1180,7 +1368,7 @@ def test_v18_87_member_workflow_fits_default_payload_limit_and_archives(tmp_path
     legacy_archive = tmp_path / "workflow-87-member-as-v17.archive.sqlite3"
     shutil.copyfile(archive_path, legacy_archive)
     with sqlite3.connect(legacy_archive) as connection:
-        _downgrade_v19_workflow_to_v18(connection)
+        _downgrade_v20_workflow_to_v18(connection)
         connection.execute("PRAGMA user_version=17")
     with pytest.raises(
         archive_module.ExecutionJournalArchiveError,
@@ -1236,7 +1424,7 @@ def test_v18_rejects_candidate_above_workflow_limit_without_partial_rows(tmp_pat
         journal.close()
 
 
-def test_v17_small_workflow_migrates_to_v19_and_remains_readable(tmp_path):
+def test_v17_small_workflow_migrates_to_v20_and_remains_readable(tmp_path):
     path = tmp_path / "workflow-v17-to-v18.sqlite3"
     archive_path = tmp_path / "workflow-v17-small.archive.sqlite3"
     legacy_archive = tmp_path / "workflow-v17-small-legacy.archive.sqlite3"
@@ -1266,22 +1454,22 @@ def test_v17_small_workflow_migrates_to_v19_and_remains_readable(tmp_path):
     # Restore the actual v17/v18 workflow schema, then let the new reader
     # migrate that bounded row without rewriting its history.
     with sqlite3.connect(path) as connection:
-        _downgrade_v19_workflow_to_v18(connection)
+        _downgrade_v20_workflow_to_v18(connection)
         connection.execute("PRAGMA user_version=17")
 
     migrated = ExecutionDecisionJournal(path)
     try:
-        assert migrated._connection.execute("PRAGMA user_version").fetchone()[0] == 19
+        assert migrated._connection.execute("PRAGMA user_version").fetchone()[0] == 20
         assert migrated.fee_pair_workflow_candidate(reserved.candidate_id).state == "SOURCE_ONLY"
         assert migrated.decision(expected.decision_id) == expected
         archive_receipt = migrated.archive_snapshot(archive_path)
-        assert archive_receipt.schema_version == 19
+        assert archive_receipt.schema_version == 20
     finally:
         migrated.close()
 
     shutil.copyfile(archive_path, legacy_archive)
     with sqlite3.connect(legacy_archive) as connection:
-        _downgrade_v19_workflow_to_v18(connection)
+        _downgrade_v20_workflow_to_v18(connection)
         connection.execute("PRAGMA user_version=17")
     verified = archive_module.verify_execution_journal_archive(
         legacy_archive, expected_schema_version=17
@@ -2282,7 +2470,7 @@ def _attach_fee_pair_receipt(journal, candidate, owner_token):
 
 
 def test_v18_workflow_migration_preserves_events_and_allows_grid_settlement(tmp_path):
-    path = tmp_path / "workflow-v18-to-v19.sqlite3"
+    path = tmp_path / "workflow-v18-to-v20.sqlite3"
     case, candidate, quote_by_route = _fee_pair_settlement_fixture("typed-grid-v18-migration")
     owner_token = "typed-grid-v18-migration-owner-" + "m" * 32
     journal = ExecutionDecisionJournal(path)
@@ -2303,15 +2491,15 @@ def test_v18_workflow_migration_preserves_events_and_allows_grid_settlement(tmp_
         journal.close()
 
     # Reconstruct the exact committed v18 schema and data before changing the
-    # version tag. Opening it exercises the production v18 -> v19 migration.
+    # version tag. Opening it exercises the production v18 -> v19 -> v20 migrations.
     with sqlite3.connect(path) as connection:
-        _downgrade_v19_workflow_to_v18(connection)
+        _downgrade_v20_workflow_to_v18(connection)
         connection.execute("PRAGMA user_version=18")
         connection.commit()
 
     migrated = ExecutionDecisionJournal(path)
     try:
-        assert migrated._connection.execute("PRAGMA user_version").fetchone()[0] == 19
+        assert migrated._connection.execute("PRAGMA user_version").fetchone()[0] == 20
         assert migrated.fee_pair_workflow_candidate(candidate_id).state == "RECEIPT_VERIFIED"
         migrated_events = tuple(
             tuple(row)
@@ -2337,12 +2525,105 @@ def test_v18_workflow_migration_preserves_events_and_allows_grid_settlement(tmp_
             remaining_exit_intent_reserve=0,
         )
         assert settled.is_new_grid is True
+        legacy_workflow = migrated.fee_pair_workflow_candidate(candidate_id)
+        assert legacy_workflow.tape_append_state is None
+        settlement_proof_json = migrated._connection.execute(
+            "SELECT settlement_payload_json FROM execution_fee_pair_workflow_grid_settlements "
+            "WHERE candidate_id=?",
+            (candidate_id,),
+        ).fetchone()[0]
+        settlement_proof = json.loads(settlement_proof_json)
+        # The v19 GRID settlement retains its original source receipt and
+        # decision proof; it does not certify a physical tape append.
+        assert "physical_tape_verification" not in settlement_proof
+        assert "tape_append_report" not in settlement_proof
         terminal_event = migrated._connection.execute(
             """SELECT event_sequence,event_kind FROM execution_fee_pair_workflow_events
                WHERE candidate_id=? ORDER BY event_sequence DESC LIMIT 1""",
             (candidate_id,),
         ).fetchone()
         assert tuple(terminal_event) == (4, "GRID_SETTLED")
+    finally:
+        migrated.close()
+
+
+def test_v19_workflow_migration_preserves_legacy_append_history(tmp_path):
+    path = tmp_path / "workflow-v19-to-v20.sqlite3"
+    candidate = _candidate(run_id="typed-grid-v19-migration")
+    owner_token = "typed-grid-v19-migration-owner-" + "n" * 32
+    journal = ExecutionDecisionJournal(path)
+    try:
+        journal.register_fee_pair_required_scope("pair-account", "pair-strategy")
+        candidate_id, _receipt = _attach_fee_pair_receipt(journal, candidate, owner_token)
+        old_events = tuple(
+            tuple(row)
+            for row in journal._connection.execute(
+                """SELECT event_id,candidate_id,event_sequence,event_kind,event_payload_json,
+                          created_at_ns FROM execution_fee_pair_workflow_events
+                   WHERE candidate_id=? ORDER BY event_sequence""",
+                (candidate_id,),
+            )
+        )
+        reserved_before = tuple(
+            journal._connection.execute(
+                """SELECT reserved_records,reserved_bytes,state
+                   FROM execution_fee_pair_workflow_durable_reservations
+                   WHERE candidate_id=?""",
+                (candidate_id,),
+            ).fetchone()
+        )
+        capacity_before = tuple(
+            tuple(row)
+            for row in journal._connection.execute(
+                "SELECT capacity_class,record_count,payload_bytes "
+                "FROM execution_durable_capacity_usage ORDER BY capacity_class"
+            )
+        )
+    finally:
+        journal.close()
+
+    with sqlite3.connect(path) as connection:
+        _downgrade_v20_workflow_to_v19(connection)
+        connection.execute("PRAGMA user_version=19")
+        connection.commit()
+
+    migrated = ExecutionDecisionJournal(path)
+    try:
+        assert migrated._connection.execute("PRAGMA user_version").fetchone()[0] == 20
+        assert migrated.fee_pair_workflow_candidate(candidate_id).state == "RECEIPT_VERIFIED"
+        assert migrated.fee_pair_workflow_candidate(candidate_id).tape_append_state is None
+        migrated_events = tuple(
+            tuple(row)
+            for row in migrated._connection.execute(
+                """SELECT event_id,candidate_id,event_sequence,event_kind,event_payload_json,
+                          created_at_ns FROM execution_fee_pair_workflow_events
+                   WHERE candidate_id=? ORDER BY event_sequence""",
+                (candidate_id,),
+            )
+        )
+        assert migrated_events == old_events
+        assert tuple(
+            migrated._connection.execute(
+                """SELECT reserved_records,reserved_bytes,state
+                   FROM execution_fee_pair_workflow_durable_reservations
+                   WHERE candidate_id=?""",
+                (candidate_id,),
+            ).fetchone()
+        ) == reserved_before
+        assert tuple(
+            tuple(row)
+            for row in migrated._connection.execute(
+                "SELECT capacity_class,record_count,payload_bytes "
+                "FROM execution_durable_capacity_usage ORDER BY capacity_class"
+            )
+        ) == capacity_before
+        extra_columns = tuple(
+            row["name"]
+            for row in migrated._connection.execute(
+                "PRAGMA table_info(execution_fee_pair_workflow_events)"
+            ).fetchall()
+        )[-3:]
+        assert extra_columns == ("tape_file_id", "record_index", "tape_record_json")
     finally:
         migrated.close()
 
