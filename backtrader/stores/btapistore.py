@@ -3463,23 +3463,62 @@ def _create_ctp_wrapper_class():
             """Create an order."""
             return self.submit_order(kwargs)
 
-        def cancel_order(self, order_ref, dataname=None):
+        def cancel_order(
+            self,
+            order_ref,
+            dataname=None,
+            *,
+            registered_sim_cancel_target=None,
+        ):
             """Cancel an order."""
             if not self.trader_client or not self.trader_client.is_ready:
                 raise BtApiStoreError("CTP trader client is not ready")
 
-            ref = str(order_ref or "").strip()
-            if not ref:
-                raise BtApiStoreError("CTP cancel requires an order reference")
+            target = registered_sim_cancel_target
+            if target is not None:
+                from .registered_sim import RegisteredSimCancelTarget, RegisteredSimStore
 
-            pending = self._pending_orders.get(ref) or self._pending_orders_by_sys_id.get(ref, {})
-            data_name = str(dataname or pending.get("data_name") or "").strip()
-            instrument, exchange_id = _split_ctp_symbol(data_name)
-            exchange_id = self._resolve_gate_exchange(instrument, exchange_id)
-            instrument = instrument or pending.get("instrument") or ""
-            exchange_id = exchange_id or pending.get("exchange_id") or ""
-            if not instrument:
-                raise BtApiStoreError("CTP cancel requires a symbol")
+                if (
+                    type(target) is not RegisteredSimCancelTarget
+                    or getattr(self, "_registered_sim_active_cancel_target", None) is not target
+                    or type(target._issuer) is not RegisteredSimStore
+                    or target._issuer._api is not self
+                    or target._seal is not target._issuer._registered_sim_cancel_target_seal
+                    or type(order_ref) is not str
+                    or order_ref != target.order_ref
+                    or dataname != "{}.{}".format(target.exchange_id, target.instrument_id)
+                    or self.broker_id != target.broker_id
+                    or self.user_id != target.investor_id
+                ):
+                    raise BtApiStoreError("CTP cancel target is not the active Store-issued identity")
+                # Pending state can reject a contradiction but never fills a
+                # missing field in this typed path.
+                pending = self._pending_orders.get(target.order_ref)
+                if pending is not None and not (
+                    pending.get("order_ref") == target.order_ref
+                    and pending.get("instrument") == target.instrument_id
+                    and pending.get("exchange_id") == target.exchange_id
+                    and pending.get("front_id") == target.front_id
+                    and pending.get("session_id") == target.session_id
+                    and pending.get("order_sys_id") in (None, "", target.order_sys_id)
+                ):
+                    raise BtApiStoreError("CTP pending identity conflicts with verified cancel target")
+                ref = target.order_ref
+                instrument = target.instrument_id
+                exchange_id = target.exchange_id
+            else:
+                ref = str(order_ref or "").strip()
+                if not ref:
+                    raise BtApiStoreError("CTP cancel requires an order reference")
+
+                pending = self._pending_orders.get(ref) or self._pending_orders_by_sys_id.get(ref, {})
+                data_name = str(dataname or pending.get("data_name") or "").strip()
+                instrument, exchange_id = _split_ctp_symbol(data_name)
+                exchange_id = self._resolve_gate_exchange(instrument, exchange_id)
+                instrument = instrument or pending.get("instrument") or ""
+                exchange_id = exchange_id or pending.get("exchange_id") or ""
+                if not instrument:
+                    raise BtApiStoreError("CTP cancel requires a symbol")
 
             field = CThostFtdcInputOrderActionField()
             field.BrokerID = self.broker_id
@@ -3493,30 +3532,45 @@ def _create_ctp_wrapper_class():
             if exchange_id:
                 field.ExchangeID = exchange_id
 
-            order_sys_id = str(pending.get("order_sys_id") or "").strip()
-            if order_sys_id:
-                field.OrderSysID = order_sys_id
+            if target is not None:
+                field.BrokerID = target.broker_id
+                field.InvestorID = target.investor_id
+                field.OrderSysID = target.order_sys_id
+                field.OrderRef = target.order_ref
+                field.FrontID = target.front_id
+                field.SessionID = target.session_id
+            else:
+                order_sys_id = str(pending.get("order_sys_id") or "").strip()
+                if order_sys_id:
+                    field.OrderSysID = order_sys_id
 
-            field.OrderRef = str(pending.get("order_ref") or ref)
-            field.FrontID = int(
-                pending.get("front_id") or getattr(self.trader_client, "_front_id", 0) or 0
-            )
-            field.SessionID = int(
-                pending.get("session_id") or getattr(self.trader_client, "_session_id", 0) or 0
-            )
+                field.OrderRef = str(pending.get("order_ref") or ref)
+                field.FrontID = int(
+                    pending.get("front_id") or getattr(self.trader_client, "_front_id", 0) or 0
+                )
+                field.SessionID = int(
+                    pending.get("session_id") or getattr(self.trader_client, "_session_id", 0) or 0
+                )
 
             req_id = self._next_request_id()
             # Same dispatch convention as the order-insert path: the field
             # must carry the exact request id that is passed alongside it.
             field.RequestID = int(req_id)
+            if target is not None:
+                # The SDK keys immutable action evidence by both request id
+                # and OrderActionRef. Use this one-shot native request id as
+                # the exact action reference; it is generated here rather than
+                # inferred from the submitted order or pending cache.
+                field.OrderActionRef = int(req_id)
             ret = self._send_native_order_action(field, req_id)
             if ret != 0:
                 raise BtApiStoreError(f"CTP cancel send failed: ret={ret}")
 
             return {
-                "id": order_sys_id or field.OrderRef,
+                "id": (target.order_sys_id if target is not None else order_sys_id)
+                or field.OrderRef,
                 "order_ref": field.OrderRef,
-                "order_sys_id": order_sys_id,
+                "order_sys_id": target.order_sys_id if target is not None else order_sys_id,
                 "front_id": field.FrontID,
                 "session_id": field.SessionID,
                 "exchange_id": exchange_id,
@@ -9803,8 +9857,25 @@ class BtApiStore(LiveStoreBase):
         )
         return response
 
-    def _cancel_order_ref_legacy(self, order_ref, dataname: Optional[str] = None):
+    def _cancel_order_ref_legacy(
+        self,
+        order_ref,
+        dataname: Optional[str] = None,
+        *,
+        registered_sim_cancel_target: Any = None,
+    ):
         """Run the historic provider cancellation mapping for a managed adapter port."""
+        if registered_sim_cancel_target is not None:
+            from .registered_sim import RegisteredSimCancelTarget
+
+            if (
+                getattr(self, "registered_sim_route_id", None) != "simnow-registered-v1"
+                or self.provider != "ctp"
+                or self.backend != "direct"
+                or type(registered_sim_cancel_target) is not RegisteredSimCancelTarget
+                or self._sdk_mode
+            ):
+                raise BtApiStoreError("typed registered-sim cancellation route is unavailable")
         if self._service_read_only:
             raise BtApiStoreError("read-only service proxy cannot cancel orders")
         api_was_missing = getattr(self, "_api", None) is None
@@ -9819,6 +9890,8 @@ class BtApiStore(LiveStoreBase):
                 )
             self._ensure_api_ready()
             self._require_async_sdk_commands()
+            if registered_sim_cancel_target is not None:
+                raise BtApiStoreError("typed registered-sim cancellation cannot use an async route")
             return self.enqueue_cancel(order_ref, dataname=dataname)
         api = self._ensure_api_ready()
         details = {"order_ref": order_ref, "data_name": dataname}
@@ -9832,7 +9905,14 @@ class BtApiStore(LiveStoreBase):
         try:
             self._assert_write_route_identity(require_live_route=api_was_missing)
             if hasattr(api, "cancel_order"):
-                response = api.cancel_order(order_ref, dataname=dataname)
+                if registered_sim_cancel_target is None:
+                    response = api.cancel_order(order_ref, dataname=dataname)
+                else:
+                    response = api.cancel_order(
+                        order_ref,
+                        dataname=dataname,
+                        registered_sim_cancel_target=registered_sim_cancel_target,
+                    )
             else:
                 raise BtApiStoreError(
                     "Underlying bt_api_py client does not support order cancellation"

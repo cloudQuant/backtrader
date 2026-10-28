@@ -123,6 +123,8 @@ _FEE_PAIR_WORKFLOW_SCHEMA_VERSION = 17
 _FEE_PAIR_WORKFLOW_CANDIDATE_SCHEMA_VERSION = 18
 _FEE_PAIR_GRID_SETTLEMENT_SCHEMA_VERSION = 19
 _FEE_PAIR_GRID_TAPE_APPEND_SCHEMA_VERSION = 20
+_KNOWN_CTP_ORDER_SYSID_BINDING_SCHEMA_VERSION = 21
+_REGISTERED_SIM_CANCEL_DISPATCH_CLAIM_SCHEMA_VERSION = 22
 _SOURCE_ORIGIN_PARTITION_SCHEMA = "backtrader.execution_source_origin_partition.v1"
 _SOURCE_ORIGIN_PARTITION_FIELDS = (
     "schema",
@@ -773,6 +775,96 @@ _FEE_PAIR_WORKFLOW_SCHEMA_V20_SQL = (
     _FEE_PAIR_WORKFLOW_NO_RESERVATION_DELETE_TRIGGER_SQL,
     _FEE_PAIR_WORKFLOW_DECISION_NO_RESERVATION_DELETE_TRIGGER_SQL,
 )
+_KNOWN_CTP_ORDER_SYSID_BINDING_TABLE_SQL = """CREATE TABLE execution_known_ctp_order_sysid_bindings (
+    intent_id TEXT PRIMARY KEY REFERENCES execution_decision_intents(intent_id),
+    account_scope TEXT NOT NULL,
+    strategy_scope TEXT NOT NULL,
+    account_fingerprint TEXT NOT NULL,
+    broker_id TEXT NOT NULL,
+    investor_id TEXT NOT NULL,
+    connection_generation INTEGER NOT NULL CHECK(connection_generation > 0),
+    trading_day TEXT NOT NULL CHECK(length(trading_day)=8 AND trading_day NOT GLOB '*[^0-9]*'),
+    instrument TEXT NOT NULL,
+    exchange TEXT NOT NULL,
+    order_ref TEXT NOT NULL,
+    order_sys_id TEXT NOT NULL,
+    front_id INTEGER NOT NULL CHECK(front_id > 0),
+    session_id INTEGER NOT NULL CHECK(session_id > 0),
+    query_request_id INTEGER NOT NULL CHECK(query_request_id > 0),
+    query_started_at_utc TEXT NOT NULL,
+    query_completed_at_utc TEXT NOT NULL,
+    query_rows_sha256 TEXT NOT NULL CHECK(length(query_rows_sha256)=64),
+    matched_row_sha256 TEXT NOT NULL CHECK(length(matched_row_sha256)=64),
+    created_at_ns INTEGER NOT NULL,
+    UNIQUE(account_scope,trading_day,order_ref),
+    UNIQUE(account_scope,trading_day,exchange,order_sys_id)
+)"""
+_KNOWN_CTP_ORDER_SYSID_BINDING_NO_UPDATE_TRIGGER_SQL = """CREATE TRIGGER
+    execution_known_ctp_order_sysid_binding_no_update
+BEFORE UPDATE ON execution_known_ctp_order_sysid_bindings
+BEGIN
+    SELECT RAISE(ABORT, 'KNOWN_CTP_ORDER_SYSID_BINDING_IMMUTABLE');
+END"""
+_KNOWN_CTP_ORDER_SYSID_BINDING_NO_DELETE_TRIGGER_SQL = """CREATE TRIGGER
+    execution_known_ctp_order_sysid_binding_no_delete
+BEFORE DELETE ON execution_known_ctp_order_sysid_bindings
+BEGIN
+    SELECT RAISE(ABORT, 'KNOWN_CTP_ORDER_SYSID_BINDING_IMMUTABLE');
+END"""
+_REGISTERED_SIM_CANCEL_DISPATCH_CLAIM_TABLE_SQL = """CREATE TABLE
+execution_registered_sim_cancel_dispatch_claims (
+    cancel_intent_id TEXT PRIMARY KEY REFERENCES execution_decision_intents(intent_id),
+    owner_intent_id TEXT NOT NULL REFERENCES execution_decision_intents(intent_id),
+    account_scope TEXT NOT NULL,
+    strategy_scope TEXT NOT NULL,
+    account_fingerprint TEXT NOT NULL,
+    broker_id TEXT NOT NULL,
+    investor_id TEXT NOT NULL,
+    connection_generation INTEGER NOT NULL CHECK(connection_generation>0),
+    trading_day TEXT NOT NULL CHECK(length(trading_day)=8 AND trading_day NOT GLOB '*[^0-9]*'),
+    instrument TEXT NOT NULL,
+    exchange TEXT NOT NULL,
+    order_ref TEXT NOT NULL,
+    order_sys_id TEXT NOT NULL,
+    front_id INTEGER NOT NULL CHECK(front_id>0),
+    session_id INTEGER NOT NULL CHECK(session_id>0),
+    query_request_id INTEGER NOT NULL CHECK(query_request_id>0),
+    query_rows_sha256 TEXT NOT NULL CHECK(length(query_rows_sha256)=64),
+    matched_row_sha256 TEXT NOT NULL CHECK(length(matched_row_sha256)=64),
+    source_expires_monotonic REAL NOT NULL,
+    created_at_ns INTEGER NOT NULL
+)"""
+_REGISTERED_SIM_CANCEL_DISPATCH_CLAIM_NO_UPDATE_TRIGGER_SQL = """CREATE TRIGGER
+execution_registered_sim_cancel_dispatch_claim_no_update
+BEFORE UPDATE ON execution_registered_sim_cancel_dispatch_claims
+BEGIN
+    SELECT RAISE(ABORT, 'REGISTERED_SIM_CANCEL_DISPATCH_CLAIM_IMMUTABLE');
+END"""
+_REGISTERED_SIM_CANCEL_DISPATCH_CLAIM_NO_DELETE_TRIGGER_SQL = """CREATE TRIGGER
+execution_registered_sim_cancel_dispatch_claim_no_delete
+BEFORE DELETE ON execution_registered_sim_cancel_dispatch_claims
+BEGIN
+    SELECT RAISE(ABORT, 'REGISTERED_SIM_CANCEL_DISPATCH_CLAIM_IMMUTABLE');
+END"""
+_REGISTERED_SIM_CANCEL_DISPATCH_TOMBSTONE_TABLE_SQL = """CREATE TABLE
+execution_registered_sim_cancel_dispatch_tombstones (
+    cancel_intent_id TEXT PRIMARY KEY REFERENCES execution_decision_intents(intent_id),
+    migration_schema_version INTEGER NOT NULL CHECK(migration_schema_version=22),
+    reason TEXT NOT NULL CHECK(reason='LEGACY_DISPATCHING_CANCEL_AMBIGUOUS'),
+    created_at_ns INTEGER NOT NULL
+)"""
+_REGISTERED_SIM_CANCEL_DISPATCH_TOMBSTONE_NO_UPDATE_TRIGGER_SQL = """CREATE TRIGGER
+execution_registered_sim_cancel_dispatch_tombstone_no_update
+BEFORE UPDATE ON execution_registered_sim_cancel_dispatch_tombstones
+BEGIN
+    SELECT RAISE(ABORT, 'REGISTERED_SIM_CANCEL_DISPATCH_TOMBSTONE_IMMUTABLE');
+END"""
+_REGISTERED_SIM_CANCEL_DISPATCH_TOMBSTONE_NO_DELETE_TRIGGER_SQL = """CREATE TRIGGER
+execution_registered_sim_cancel_dispatch_tombstone_no_delete
+BEFORE DELETE ON execution_registered_sim_cancel_dispatch_tombstones
+BEGIN
+    SELECT RAISE(ABORT, 'REGISTERED_SIM_CANCEL_DISPATCH_TOMBSTONE_IMMUTABLE');
+END"""
 _FEE_PAIR_WORKFLOW_SCHEMA_V18_SQL = (
     _FEE_PAIR_WORKFLOW_TABLE_SQL_V18,
     _FEE_PAIR_WORKFLOW_ACTIVE_INDEX_SQL_V18,
@@ -1288,6 +1380,10 @@ class ExecutionIntentRecord:
     # Present on the account-scoped execution snapshot. Other historical
     # intent lookup APIs may omit the joined decision key.
     decision_key: Optional[ExecutionDecisionKey] = None
+    # The exchange-assigned CTP identity is learned from a complete, fresh
+    # Store-owned orders_result query. It is separate from immutable submit
+    # dispatch provider_identity, which may not contain OrderSysID.
+    order_sys_id_binding: Optional[Mapping[str, Any]] = None
 
 
 @dataclass(frozen=True)
@@ -1801,7 +1897,7 @@ class ExecutionDecisionJournal:
     and checks fresh matching context at each OPEN decision, prepare, and claim.
     """
 
-    _SCHEMA_VERSION = _FEE_PAIR_GRID_TAPE_APPEND_SCHEMA_VERSION
+    _SCHEMA_VERSION = _REGISTERED_SIM_CANCEL_DISPATCH_CLAIM_SCHEMA_VERSION
     _NATIVE_IDENTITY_SCHEMA_VERSION = 8
     _DECISION_CAPACITY_SCHEMA_VERSION = 9
     _DURABLE_CAPACITY_SCHEMA_VERSION = 12
@@ -8143,7 +8239,10 @@ class ExecutionDecisionJournal:
 
         The production CTP path marks its immutable cancel identity with
         ``operation='cancel'``. Other route-neutral historical cancellation
-        records retain their existing provider-order-id contract.
+        records retain their existing provider-order-id contract. A SysID
+        already returned by the immutable KNOWN submit response remains valid
+        evidence; when that response omitted SysID, the full-query binding is
+        required.
         """
 
         try:
@@ -8181,6 +8280,10 @@ class ExecutionDecisionJournal:
             cancel_economics = _parse_object_json(
                 economic_payload_json, "CANCEL_PROVIDER_IDENTITY_UNAVAILABLE"
             )
+            binding = cursor.execute(
+                "SELECT * FROM execution_known_ctp_order_sysid_bindings WHERE intent_id=?",
+                (owner_intent_id,),
+            ).fetchone()
         except ExecutionDecisionJournalError:
             raise
         except (KeyError, TypeError, ValueError) as error:
@@ -8203,7 +8306,6 @@ class ExecutionDecisionJournal:
             type(value) is str and bool(value) and value == value.strip()
             for value in (
                 provider_order_ref,
-                provider_sys_id,
                 parent_order_ref,
                 parent_instrument,
                 parent_exchange,
@@ -8234,9 +8336,23 @@ class ExecutionDecisionJournal:
             and type(cancel_bt_order_ref) is int
             and cancel_bt_order_ref == parent_bt_order_ref
         )
-        provider_ids_match = bool(
-            provider_order_ref == parent_order_ref == cancel_order_ref
+        provider_order_ref_matches = provider_order_ref == parent_order_ref == cancel_order_ref
+        provider_callback_sysid_matches = bool(
+            binding is None
+            and type(provider_sys_id) is str
+            and provider_sys_id
+            and provider_sys_id == provider_sys_id.strip()
             and provider_sys_id == cancel_sys_id
+            and parent_identity.get("order_sys_id") in (None, "", provider_sys_id)
+        )
+        provider_binding_sysid_matches = bool(
+            binding is not None
+            and binding["order_sys_id"] == cancel_sys_id
+            and provider_sys_id in (None, "", binding["order_sys_id"])
+        )
+        provider_ids_match = bool(
+            provider_order_ref_matches
+            and (provider_callback_sysid_matches or provider_binding_sysid_matches)
         )
         session_matches = all(
             type(parent_identity.get(name)) is int
@@ -8255,6 +8371,24 @@ class ExecutionDecisionJournal:
             provider_identity.get("instrument_id") in (None, parent_key.instrument)
             and provider_identity.get("exchange_id") in (None, parent_exchange)
         )
+        binding_matches = bool(
+            binding is not None
+            and binding["account_scope"] == account_scope
+            and binding["strategy_scope"] == strategy_scope
+            and binding["instrument"] == parent_key.instrument == parent_instrument
+            and binding["exchange"] == parent_exchange
+            and binding["order_ref"] == parent_order_ref
+            and binding["front_id"] == parent_identity.get("front_id")
+            and binding["session_id"] == parent_identity.get("session_id")
+            and binding["connection_generation"]
+                == parent_identity.get("connection_generation")
+            and binding["account_fingerprint"]
+                == parent_identity.get("account_fingerprint")
+            and binding["trading_day"] == parent_identity.get("trading_day")
+            and binding["order_sys_id"] == cancel_sys_id
+            and binding["broker_id"]
+            and binding["investor_id"]
+        )
         if not (
             valid_text_identity
             and same_route_and_owner
@@ -8262,6 +8396,7 @@ class ExecutionDecisionJournal:
             and session_matches
             and account_matches
             and provider_route_matches
+            and (binding_matches or provider_callback_sysid_matches)
         ):
             raise ExecutionDecisionJournalError("CANCEL_PROVIDER_IDENTITY_MISMATCH")
 
@@ -8518,6 +8653,389 @@ class ExecutionDecisionJournal:
                 "SELECT * FROM execution_decision_intents WHERE intent_id = ?", (intent_id,)
             ).fetchone()
         return None if row is None else _intent_record(row)
+
+    def registered_sim_cancel_dispatch_records(
+        self, cancel_intent_id: str
+    ) -> Mapping[str, Any]:
+        """Return the exact claimed CTP cancel and KNOWN owner records.
+
+        This is an internal Store boundary.  Re-run the same transactional
+        owner/SysID validator used by dispatch admission so the native Store
+        path cannot authorize a target from mutable ``order.info`` alone.
+        """
+        _require_identifier(cancel_intent_id, "INVALID_INTENT_ID")
+        with self._read_lock():
+            cursor = self._connection.cursor()
+            try:
+                child = cursor.execute(
+                    """SELECT i.*,d.business_key_json AS snapshot_business_key_json
+                       FROM execution_decision_intents AS i
+                       JOIN execution_decisions AS d ON d.decision_id=i.decision_id
+                       WHERE i.intent_id=?""",
+                    (cancel_intent_id,),
+                ).fetchone()
+                if child is None:
+                    raise ExecutionDecisionJournalError("CANCEL_INTENT_UNAVAILABLE")
+                child_record = _intent_record(child)
+                if (
+                    child_record.key.action != "CANCEL"
+                    or child_record.state != "DISPATCHING"
+                    or child_record.dispatch_state is not None
+                    or child_record.provider_identity is not None
+                    or child_record.outcome_code is not None
+                    or child_record.original_identity.get("operation") != "cancel"
+                    or child_record.owner_intent_id is None
+                ):
+                    raise ExecutionDecisionJournalError("CANCEL_INTENT_NOT_CLAIMED")
+                if cursor.execute(
+                    "SELECT 1 FROM execution_registered_sim_cancel_dispatch_tombstones "
+                    "WHERE cancel_intent_id=?",
+                    (cancel_intent_id,),
+                ).fetchone() is not None:
+                    raise ExecutionDecisionJournalError(
+                        "CANCEL_NATIVE_DISPATCH_LEGACY_AMBIGUOUS"
+                    )
+                if child_record.decision_key is None:
+                    raise ExecutionDecisionJournalError("CANCEL_INTENT_SCOPE_UNAVAILABLE")
+                self._validate_ctp_cancel_owner_binding_in_transaction(
+                    cursor,
+                    account_scope=child_record.decision_key.account_scope,
+                    strategy_scope=child_record.decision_key.strategy_scope,
+                    intent_key=child_record.key,
+                    owner_intent_id=child_record.owner_intent_id,
+                    original_identity_json=child["original_identity_json"],
+                    economic_payload_json=child["economic_payload_json"],
+                )
+                owner = cursor.execute(
+                    """SELECT p.*,d.business_key_json AS snapshot_business_key_json
+                       FROM execution_decision_intents AS p
+                       JOIN execution_decisions AS d ON d.decision_id=p.decision_id
+                       WHERE p.intent_id=?""",
+                    (child_record.owner_intent_id,),
+                ).fetchone()
+                if owner is None:
+                    raise ExecutionDecisionJournalError("CANCEL_OWNER_NOT_KNOWN")
+                owner_record = _intent_record(owner)
+                binding_row = cursor.execute(
+                    "SELECT * FROM execution_known_ctp_order_sysid_bindings WHERE intent_id=?",
+                    (owner_record.intent_id,),
+                ).fetchone()
+                binding = (
+                    None
+                    if binding_row is None
+                    else MappingProxyType({name: binding_row[name] for name in binding_row.keys()})
+                )
+                return MappingProxyType(
+                    {
+                        "cancel": child_record,
+                        "owner": owner_record,
+                        "binding": binding,
+                    }
+                )
+            finally:
+                cursor.close()
+
+    def claim_registered_sim_cancel_dispatch(
+        self,
+        cancel_intent_id: str,
+        identity: Mapping[str, Any],
+    ) -> Mapping[str, Any]:
+        """Persist the one-shot native admission for an exact KNOWN-owner CANCEL.
+
+        This is committed before the Store enters its locks or calls the native
+        client.  A crash after this transaction therefore blocks replay even
+        when the process cannot tell whether the CTP Action was sent.
+        """
+        _require_identifier(cancel_intent_id, "INVALID_INTENT_ID")
+        fields = (
+            "order_ref",
+            "order_sys_id",
+            "instrument_id",
+            "exchange_id",
+            "broker_id",
+            "investor_id",
+            "front_id",
+            "session_id",
+            "account_fingerprint",
+            "connection_generation",
+            "trading_day",
+            "query_request_id",
+            "query_rows_sha256",
+            "matched_row_sha256",
+            "source_expires_monotonic",
+        )
+        if type(identity) is not dict or set(identity) != set(fields):
+            raise ExecutionDecisionJournalError("REGISTERED_SIM_CANCEL_IDENTITY_INVALID")
+        for name in (
+            "order_ref",
+            "order_sys_id",
+            "instrument_id",
+            "exchange_id",
+            "broker_id",
+            "investor_id",
+            "account_fingerprint",
+        ):
+            value = identity[name]
+            if type(value) is not str or not value or value != value.strip():
+                raise ExecutionDecisionJournalError("REGISTERED_SIM_CANCEL_IDENTITY_INVALID")
+        for name in ("front_id", "session_id", "connection_generation", "query_request_id"):
+            if type(identity[name]) is not int or identity[name] <= 0:
+                raise ExecutionDecisionJournalError("REGISTERED_SIM_CANCEL_IDENTITY_INVALID")
+        if (
+            type(identity["trading_day"]) is not str
+            or re.fullmatch(r"[0-9]{8}", identity["trading_day"]) is None
+            or any(
+                type(identity[name]) is not str
+                or re.fullmatch(r"[0-9a-f]{64}", identity[name]) is None
+                for name in ("query_rows_sha256", "matched_row_sha256")
+            )
+            or type(identity["source_expires_monotonic"]) not in (int, float)
+            or not math.isfinite(identity["source_expires_monotonic"])
+            or identity["source_expires_monotonic"] <= time.monotonic()
+        ):
+            raise ExecutionDecisionJournalError("REGISTERED_SIM_CANCEL_IDENTITY_INVALID")
+
+        with self._transaction() as cursor:
+            child = cursor.execute(
+                """SELECT i.*,d.business_key_json AS snapshot_business_key_json
+                   FROM execution_decision_intents AS i
+                   JOIN execution_decisions AS d ON d.decision_id=i.decision_id
+                   WHERE i.intent_id=?""",
+                (cancel_intent_id,),
+            ).fetchone()
+            if child is None:
+                raise ExecutionDecisionJournalError("CANCEL_INTENT_UNAVAILABLE")
+            child_record = _intent_record(child)
+            if (
+                child_record.key.action != "CANCEL"
+                or child_record.state != "DISPATCHING"
+                or child_record.dispatch_state is not None
+                or child_record.provider_identity is not None
+                or child_record.outcome_code is not None
+                or child_record.original_identity.get("operation") != "cancel"
+                or child_record.owner_intent_id is None
+                or child_record.decision_key is None
+            ):
+                raise ExecutionDecisionJournalError("CANCEL_INTENT_NOT_CLAIMED")
+            if cursor.execute(
+                "SELECT 1 FROM execution_registered_sim_cancel_dispatch_tombstones "
+                "WHERE cancel_intent_id=?",
+                (cancel_intent_id,),
+            ).fetchone() is not None:
+                raise ExecutionDecisionJournalError(
+                    "CANCEL_NATIVE_DISPATCH_LEGACY_AMBIGUOUS"
+                )
+            if cursor.execute(
+                "SELECT 1 FROM execution_registered_sim_cancel_dispatch_claims "
+                "WHERE cancel_intent_id=?",
+                (cancel_intent_id,),
+            ).fetchone() is not None:
+                raise ExecutionDecisionJournalError("CANCEL_NATIVE_DISPATCH_ALREADY_CLAIMED")
+            self._validate_ctp_cancel_owner_binding_in_transaction(
+                cursor,
+                account_scope=child_record.decision_key.account_scope,
+                strategy_scope=child_record.decision_key.strategy_scope,
+                intent_key=child_record.key,
+                owner_intent_id=child_record.owner_intent_id,
+                original_identity_json=child["original_identity_json"],
+                economic_payload_json=child["economic_payload_json"],
+            )
+            owner = cursor.execute(
+                """SELECT i.*,d.business_key_json AS snapshot_business_key_json
+                   FROM execution_decision_intents AS i
+                   JOIN execution_decisions AS d ON d.decision_id=i.decision_id
+                   WHERE i.intent_id=?""",
+                (child_record.owner_intent_id,),
+            ).fetchone()
+            if owner is None:
+                raise ExecutionDecisionJournalError("CANCEL_OWNER_NOT_KNOWN")
+            owner_record = _intent_record(owner)
+            parent_identity = owner_record.original_identity
+            cancel_identity = child_record.original_identity
+            account_scope = child_record.decision_key.account_scope
+            strategy_scope = child_record.decision_key.strategy_scope
+            expected_identity = {
+                "order_ref": parent_identity.get("order_ref"),
+                "instrument_id": parent_identity.get("instrument_id"),
+                "exchange_id": parent_identity.get("exchange_id"),
+                "account_fingerprint": parent_identity.get("account_fingerprint"),
+                "connection_generation": parent_identity.get("connection_generation"),
+                "trading_day": parent_identity.get("trading_day"),
+                "front_id": parent_identity.get("front_id"),
+                "session_id": parent_identity.get("session_id"),
+            }
+            if (
+                owner_record.state != "KNOWN"
+                or owner_record.dispatch_state != "KNOWN"
+                or owner_record.key.action != "SUBMIT"
+                or owner_record.decision_key is None
+                or owner_record.decision_key.account_scope != account_scope
+                or owner_record.decision_key.strategy_scope != strategy_scope
+                or child_record.owner_intent_id != owner_record.intent_id
+                or cancel_identity.get("owner_intent_id") != owner_record.intent_id
+                or cancel_identity.get("order_sys_id") != identity["order_sys_id"]
+                or any(identity[name] != value for name, value in expected_identity.items())
+            ):
+                raise ExecutionDecisionJournalError("CANCEL_NATIVE_DISPATCH_OWNER_MISMATCH")
+            binding = cursor.execute(
+                "SELECT * FROM execution_known_ctp_order_sysid_bindings WHERE intent_id=?",
+                (owner_record.intent_id,),
+            ).fetchone()
+            if binding is None:
+                callback = owner_record.provider_identity
+                if (
+                    not isinstance(callback, Mapping)
+                    or callback.get("order_ref") != identity["order_ref"]
+                    or callback.get("order_sys_id") != identity["order_sys_id"]
+                    or callback.get("broker_id") != identity["broker_id"]
+                    or callback.get("investor_id") != identity["investor_id"]
+                ):
+                    raise ExecutionDecisionJournalError(
+                        "CANCEL_NATIVE_DISPATCH_CALLBACK_IDENTITY_UNPROVEN"
+                    )
+            elif any(
+                binding[name] != expected
+                for name, expected in (
+                    ("account_scope", account_scope),
+                    ("strategy_scope", strategy_scope),
+                    ("account_fingerprint", identity["account_fingerprint"]),
+                    ("broker_id", identity["broker_id"]),
+                    ("investor_id", identity["investor_id"]),
+                    ("connection_generation", identity["connection_generation"]),
+                    ("trading_day", identity["trading_day"]),
+                    ("instrument", identity["instrument_id"]),
+                    ("exchange", identity["exchange_id"]),
+                    ("order_ref", identity["order_ref"]),
+                    ("order_sys_id", identity["order_sys_id"]),
+                    ("front_id", identity["front_id"]),
+                    ("session_id", identity["session_id"]),
+                )
+            ):
+                raise ExecutionDecisionJournalError("CANCEL_NATIVE_DISPATCH_BINDING_MISMATCH")
+            active_owner = cursor.execute(
+                "SELECT owner_intent_id,cancel_intent_id FROM execution_instrument_owners "
+                "WHERE account_scope=? AND instrument=?",
+                (account_scope, identity["instrument_id"]),
+            ).fetchone()
+            if (
+                active_owner is None
+                or active_owner["owner_intent_id"] != owner_record.intent_id
+                or active_owner["cancel_intent_id"] != cancel_intent_id
+            ):
+                raise ExecutionDecisionJournalError("CANCEL_NATIVE_DISPATCH_OWNER_NOT_ACTIVE")
+            record = {
+                "cancel_intent_id": cancel_intent_id,
+                "owner_intent_id": owner_record.intent_id,
+                "account_scope": account_scope,
+                "strategy_scope": strategy_scope,
+                "account_fingerprint": identity["account_fingerprint"],
+                "broker_id": identity["broker_id"],
+                "investor_id": identity["investor_id"],
+                "connection_generation": identity["connection_generation"],
+                "trading_day": identity["trading_day"],
+                "instrument": identity["instrument_id"],
+                "exchange": identity["exchange_id"],
+                "order_ref": identity["order_ref"],
+                "order_sys_id": identity["order_sys_id"],
+                "front_id": identity["front_id"],
+                "session_id": identity["session_id"],
+                "query_request_id": identity["query_request_id"],
+                "query_rows_sha256": identity["query_rows_sha256"],
+                "matched_row_sha256": identity["matched_row_sha256"],
+                "source_expires_monotonic": identity["source_expires_monotonic"],
+                "created_at_ns": time.time_ns(),
+            }
+            try:
+                with track_durable_row_change(
+                    cursor,
+                    "execution_registered_sim_cancel_dispatch_claims",
+                    (cancel_intent_id,),
+                    "SETTLEMENT",
+                ):
+                    cursor.execute(
+                        """INSERT INTO execution_registered_sim_cancel_dispatch_claims (
+                               cancel_intent_id,owner_intent_id,account_scope,strategy_scope,
+                               account_fingerprint,broker_id,investor_id,connection_generation,
+                               trading_day,instrument,exchange,order_ref,order_sys_id,front_id,
+                               session_id,query_request_id,query_rows_sha256,matched_row_sha256,
+                               source_expires_monotonic,created_at_ns
+                           ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                        tuple(record[name] for name in record),
+                    )
+            except sqlite3.IntegrityError as error:
+                raise ExecutionDecisionJournalError(
+                    "CANCEL_NATIVE_DISPATCH_ALREADY_CLAIMED"
+                ) from error
+            return MappingProxyType(record)
+
+    def native_order_ref_exists_in_account_day(
+        self,
+        *,
+        account_scope: str,
+        trading_day: str,
+        order_ref: Optional[str],
+        broker_order_ref: Optional[int] = None,
+    ) -> bool:
+        """Check account-wide refs and SysIDs for a legacy cancel bypass."""
+        for name, value in (("account_scope", account_scope), ("trading_day", trading_day)):
+            _require_identifier(value, "INVALID_" + name.upper())
+        if order_ref is not None:
+            _require_identifier(order_ref, "INVALID_ORDER_REF")
+        if len(trading_day) != 8 or not trading_day.isdigit():
+            raise ExecutionDecisionJournalError("INVALID_TRADING_DAY")
+        if broker_order_ref is not None and (
+            type(broker_order_ref) is not int or broker_order_ref <= 0
+        ):
+            raise ExecutionDecisionJournalError("INVALID_BROKER_ORDER_REF")
+        if order_ref is None and broker_order_ref is None:
+            raise ExecutionDecisionJournalError("NATIVE_ORDER_IDENTITY_LOOKUP_INCOMPLETE")
+        with self._read_lock():
+            rows = self._connection.execute(
+                """SELECT DISTINCT i.intent_id
+                   FROM execution_native_intent_identities AS n
+                   JOIN execution_decision_intents AS i ON i.intent_id=n.intent_id
+                   LEFT JOIN execution_known_ctp_order_sysid_bindings AS b
+                     ON b.intent_id=i.intent_id
+                   WHERE n.account_scope=? AND n.trading_day=?
+                     AND ((? IS NOT NULL AND n.order_ref=?) OR
+                          (? IS NOT NULL AND json_type(i.original_identity_json,
+                              '$.backtrader_order_ref')='integer'
+                           AND json_extract(i.original_identity_json,
+                              '$.backtrader_order_ref')=? ) OR
+                          (? IS NOT NULL AND b.order_sys_id=?) OR
+                          (? IS NOT NULL AND
+                           json_extract(i.provider_identity_json,'$.order_sys_id')=?) OR
+                          (? IS NOT NULL AND
+                           json_extract(i.original_identity_json,'$.order_sys_id')=?))
+                   LIMIT 2""",
+                (
+                    account_scope,
+                    trading_day,
+                    order_ref,
+                    order_ref,
+                    broker_order_ref,
+                    broker_order_ref,
+                    order_ref,
+                    order_ref,
+                    order_ref,
+                    order_ref,
+                    order_ref,
+                    order_ref,
+                ),
+            ).fetchall()
+        if len(rows) > 1:
+            raise ExecutionDecisionJournalError("NATIVE_ORDER_IDENTITY_AMBIGUOUS")
+        return bool(rows)
+
+    def known_ctp_order_sysid_binding(self, intent_id: str) -> Optional[Mapping[str, Any]]:
+        """Read the immutable full-query OrderSysID binding for one KNOWN intent."""
+        _require_identifier(intent_id, "INVALID_INTENT_ID")
+        with self._read_lock():
+            row = self._connection.execute(
+                "SELECT * FROM execution_known_ctp_order_sysid_bindings WHERE intent_id=?",
+                (intent_id,),
+            ).fetchone()
+        return None if row is None else MappingProxyType({name: row[name] for name in row.keys()})
 
     def intent_by_native_order_ref(
         self,
@@ -10124,6 +10642,18 @@ class ExecutionDecisionJournal:
                        LIMIT ?""".format(effective),
                     (account_scope, limit + 1),
                 ).fetchall()
+                binding_by_intent = {}
+                page_intent_ids = tuple(row["intent_id"] for row in rows[:limit])
+                if page_intent_ids:
+                    binding_rows = self._connection.execute(
+                        "SELECT * FROM execution_known_ctp_order_sysid_bindings "
+                        "WHERE intent_id IN ({})".format(",".join("?" for _ in page_intent_ids)),
+                        page_intent_ids,
+                    ).fetchall()
+                    binding_by_intent = {
+                        row["intent_id"]: {name: row[name] for name in row.keys()}
+                        for row in binding_rows
+                    }
                 self._connection.execute("COMMIT")
             except BaseException:
                 if self._connection.in_transaction:
@@ -10132,9 +10662,421 @@ class ExecutionDecisionJournal:
         truncated = len(rows) > limit
         return ExecutionIntentSnapshotPage(
             account_scope=account_scope,
-            items=tuple(_intent_record(row) for row in rows[:limit]),
+            items=tuple(
+                _intent_record(
+                    row,
+                    order_sys_id_binding=binding_by_intent.get(row["intent_id"]),
+                )
+                for row in rows[:limit]
+            ),
             truncated=truncated,
         )
+
+    def bind_known_ctp_order_sysid_from_query(
+        self,
+        intent_id: str,
+        receipt: Any,
+        *,
+        source_store: Any,
+        broker_order_ref: int,
+        expected_side: str,
+        expected_position_effect: str,
+        expected_remaining_quantity: Decimal,
+        expected_instrument: str,
+        expected_exchange: str,
+        expected_front_id: int,
+        expected_session_id: int,
+    ) -> Mapping[str, Any]:
+        """Append the first exact Store-query binding for one KNOWN CTP submit.
+
+        The Store-minted receipt is a trusted in-process caller contract.  This
+        method rechecks its Store/session validity, the full-query digest and
+        unique source row, then compares that row with immutable Journal submit
+        identity and the caller's current local-order projection.  It does not
+        alter ``provider_identity`` and does not authenticate same-process
+        arbitrary code or the underlying physical provider source.
+        """
+        _require_identifier(intent_id, "INVALID_INTENT_ID")
+        from .registered_sim import (
+            RegisteredSimOrderIdentityQueryReceipt,
+            RegisteredSimStore,
+        )
+
+        if type(receipt) is not RegisteredSimOrderIdentityQueryReceipt:
+            raise ExecutionDecisionJournalError("KNOWN_CTP_ORDER_SYSID_QUERY_UNTRUSTED")
+        store = source_store
+        if (
+            type(store) is not RegisteredSimStore
+            or receipt._store is not store
+            or getattr(
+                store.registered_sim_order_identity_query_receipt, "__func__", None
+            ) is not RegisteredSimStore.registered_sim_order_identity_query_receipt
+            or getattr(
+                store.registered_sim_validate_order_identity_query_receipt, "__func__", None
+            ) is not RegisteredSimStore.registered_sim_validate_order_identity_query_receipt
+        ):
+            raise ExecutionDecisionJournalError("KNOWN_CTP_ORDER_SYSID_QUERY_UNTRUSTED")
+        validator = RegisteredSimStore.registered_sim_validate_order_identity_query_receipt
+        if (
+            receipt._issuer is None
+            or type(receipt.request_id) is not int
+            or receipt.request_id <= 0
+            or type(receipt.connection_generation) is not int
+            or receipt.connection_generation <= 0
+            or type(receipt.account_fingerprint) is not str
+            or not receipt.account_fingerprint
+            or receipt.account_fingerprint != receipt.account_fingerprint.strip()
+            or type(receipt.trading_day) is not str
+            or re.fullmatch(r"[0-9]{8}", receipt.trading_day) is None
+            or not isinstance(receipt.started_at_utc, datetime)
+            or receipt.started_at_utc.tzinfo is None
+            or receipt.started_at_utc.utcoffset() is None
+            or not isinstance(receipt.completed_at_utc, datetime)
+            or receipt.completed_at_utc.tzinfo is None
+            or receipt.completed_at_utc.utcoffset() is None
+            or receipt.started_at_utc > receipt.completed_at_utc
+            or type(receipt.front_id) is not int
+            or receipt.front_id <= 0
+            or type(receipt.session_id) is not int
+            or receipt.session_id <= 0
+            or type(receipt.broker_id) is not str
+            or not receipt.broker_id
+            or receipt.broker_id != receipt.broker_id.strip()
+            or type(receipt.investor_id) is not str
+            or not receipt.investor_id
+            or receipt.investor_id != receipt.investor_id.strip()
+            or type(receipt.rows) is not tuple
+            or type(receipt.rows_sha256) is not str
+            or re.fullmatch(r"[0-9a-f]{64}", receipt.rows_sha256) is None
+            or type(receipt.source_expires_monotonic) not in (int, float)
+            or not math.isfinite(receipt.source_expires_monotonic)
+            or time.monotonic() >= receipt.source_expires_monotonic
+            or validator(store, receipt) is not True
+        ):
+            raise ExecutionDecisionJournalError("KNOWN_CTP_ORDER_SYSID_QUERY_STALE")
+        if (
+            type(expected_side) is not str
+            or expected_side not in ("BUY", "SELL")
+            or type(expected_position_effect) is not str
+            or expected_position_effect not in ("OPEN", "CLOSE")
+            or type(expected_remaining_quantity) is not Decimal
+            or not expected_remaining_quantity.is_finite()
+            or expected_remaining_quantity <= 0
+            or type(broker_order_ref) is not int
+            or broker_order_ref <= 0
+            or type(expected_front_id) is not int
+            or expected_front_id <= 0
+            or type(expected_session_id) is not int
+            or expected_session_id <= 0
+            or not _identifier(expected_instrument)
+            or not _identifier(expected_exchange)
+        ):
+            raise ExecutionDecisionJournalError("KNOWN_CTP_ORDER_SYSID_EXPECTED_IDENTITY_INVALID")
+
+        def exact_ref(value: Any) -> Optional[str]:
+            if type(value) is str and value and value == value.strip():
+                return value
+            if type(value) is int and value >= 0:
+                return str(value)
+            return None
+
+        def exact_field(row: Mapping, *names: str) -> Any:
+            present = [name for name in names if name in row]
+            if not present:
+                return None
+            values = [row[name] for name in present]
+            return values[0] if all(value == values[0] for value in values[1:]) else None
+
+        def exact_text(row: Mapping, upper: str, lower: str) -> Optional[str]:
+            value = exact_field(row, upper, lower)
+            if type(value) is str and value and value == value.strip():
+                return value
+            return None
+
+        def exact_positive_int(row: Mapping, upper: str, lower: str) -> Optional[int]:
+            value = exact_field(row, upper, lower)
+            if type(value) is int and value > 0:
+                return value
+            return None
+
+        def exact_decimal(row: Mapping, upper: str, lower: str) -> Optional[Decimal]:
+            value = exact_field(row, upper, lower)
+            if type(value) not in (int, str, float, Decimal):
+                return None
+            if type(value) is int and value < 0:
+                return None
+            if type(value) is float and (not math.isfinite(value) or value < 0):
+                return None
+            if type(value) is float and not value.is_integer():
+                return None
+            try:
+                result = value if type(value) is Decimal else Decimal(str(value))
+            except (InvalidOperation, ValueError):
+                return None
+            return result if result.is_finite() and result >= 0 else None
+
+        def normalized_side(row: Mapping) -> Optional[str]:
+            candidates = []
+            for name in ("Direction", "direction"):
+                if name not in row:
+                    continue
+                value = row[name]
+                if type(value) is int:
+                    value = str(value)
+                if type(value) is not str:
+                    return None
+                normalized = {"0": "BUY", "buy": "BUY", "1": "SELL", "sell": "SELL"}.get(
+                    value.strip().lower()
+                )
+                if normalized is None:
+                    return None
+                candidates.append(normalized)
+            return candidates[0] if candidates and all(item == candidates[0] for item in candidates) else None
+
+        def normalized_effect(row: Mapping) -> Optional[str]:
+            candidates = []
+            for name in ("CombOffsetFlag", "OffsetFlag", "offset_flag"):
+                if name not in row:
+                    continue
+                value = row[name]
+                if type(value) is int:
+                    value = str(value)
+                if type(value) is not str:
+                    return None
+                normalized = value.strip()
+                effect = (
+                    "OPEN"
+                    if normalized == "0"
+                    else "CLOSE"
+                    if normalized in {"1", "2", "3", "4", "5", "6"}
+                    else None
+                )
+                if effect is None:
+                    return None
+                candidates.append(effect)
+            return candidates[0] if candidates and all(item == candidates[0] for item in candidates) else None
+
+        def exact_order_sys_id(value: Any) -> Optional[str]:
+            if type(value) is str and value and value == value.strip():
+                return value
+            return None
+
+        try:
+            normalized_rows = tuple(dict(row) for row in receipt.rows)
+            rows_json = _canonical_json(normalized_rows)
+            rows_sha256 = hashlib.sha256(rows_json.encode("utf-8")).hexdigest()
+        except (TypeError, ValueError, OverflowError) as error:
+            raise ExecutionDecisionJournalError("KNOWN_CTP_ORDER_SYSID_QUERY_INVALID") from error
+        if rows_sha256 != receipt.rows_sha256:
+            raise ExecutionDecisionJournalError("KNOWN_CTP_ORDER_SYSID_QUERY_DIGEST_MISMATCH")
+
+        @contextmanager
+        def source_locked_transaction():
+            # Query updates take only this Store lock; no Store code calls back
+            # into the Journal while holding it. Use the established Store ->
+            # Journal order and hold it through COMMIT so the validated query
+            # cannot be replaced between the second check and durable append.
+            with store._ctp_query_result_lock:
+                with self._transaction() as locked_cursor:
+                    yield locked_cursor
+
+        with source_locked_transaction() as cursor:
+            # Revalidate after BEGIN IMMEDIATE: the query must still be current
+            # while the Store cache is locked through the durable COMMIT.
+            if (
+                time.monotonic() >= receipt.source_expires_monotonic
+                or validator(store, receipt) is not True
+            ):
+                raise ExecutionDecisionJournalError("KNOWN_CTP_ORDER_SYSID_QUERY_STALE")
+            intent = cursor.execute(
+                """SELECT i.*,d.business_key_json AS binding_business_key_json
+                   FROM execution_decision_intents AS i
+                   JOIN execution_decisions AS d ON d.decision_id=i.decision_id
+                   WHERE i.intent_id=?""",
+                (intent_id,),
+            ).fetchone()
+            if intent is None or intent["state"] != "KNOWN" or intent["dispatch_state"] != "KNOWN":
+                raise ExecutionDecisionJournalError("KNOWN_CTP_ORDER_SYSID_PARENT_NOT_KNOWN")
+            try:
+                key = ExecutionIntentKey(**_parse_object_json(
+                    intent["intent_key_json"], "KNOWN_CTP_ORDER_SYSID_PARENT_INVALID"
+                ))
+                decision_key = ExecutionDecisionKey(**_parse_object_json(
+                    intent["binding_business_key_json"], "KNOWN_CTP_ORDER_SYSID_PARENT_INVALID"
+                ))
+                original = _parse_object_json(
+                    intent["original_identity_json"], "KNOWN_CTP_ORDER_SYSID_PARENT_INVALID"
+                )
+                provider = _parse_object_json(
+                    intent["provider_identity_json"], "KNOWN_CTP_ORDER_SYSID_PARENT_INVALID"
+                )
+                economic = _parse_object_json(
+                    intent["economic_payload_json"], "KNOWN_CTP_ORDER_SYSID_PARENT_INVALID"
+                )
+            except (ExecutionDecisionJournalError, TypeError, ValueError) as error:
+                raise ExecutionDecisionJournalError("KNOWN_CTP_ORDER_SYSID_PARENT_INVALID") from error
+            native_identity = cursor.execute(
+                "SELECT * FROM execution_native_intent_identities WHERE intent_id=?",
+                (intent_id,),
+            ).fetchone()
+            order_ref = original.get("order_ref")
+            if not (
+                key.action == "SUBMIT"
+                and decision_key.account_scope == native_identity["account_scope"]
+                and decision_key.strategy_scope == native_identity["strategy_scope"]
+                and original.get("operation") == "insert"
+                and original.get("account_fingerprint") == receipt.account_fingerprint
+                and original.get("connection_generation") == receipt.connection_generation
+                and original.get("trading_day") == receipt.trading_day
+                and original.get("instrument_id") == expected_instrument == key.instrument
+                and original.get("exchange_id") == expected_exchange
+                and original.get("front_id") == receipt.front_id == expected_front_id
+                and original.get("session_id") == receipt.session_id == expected_session_id
+                and type(original.get("backtrader_order_ref")) is int
+                and original.get("backtrader_order_ref") == broker_order_ref
+                and type(order_ref) is str
+                and order_ref == order_ref.strip()
+                and exact_ref(provider.get("order_ref")) == order_ref
+                and provider.get("instrument_id") in (None, expected_instrument)
+                and provider.get("exchange_id") in (None, expected_exchange)
+                and key.side == expected_side
+                and key.position_effect == expected_position_effect
+                and economic.get("exchange") == expected_exchange
+                and native_identity is not None
+                and native_identity["account_scope"] == decision_key.account_scope
+                and native_identity["strategy_scope"] == decision_key.strategy_scope
+                and native_identity["trading_day"] == receipt.trading_day
+                and native_identity["instrument"] == expected_instrument
+                and native_identity["exchange"] == expected_exchange
+                and native_identity["order_ref"] == order_ref
+            ):
+                raise ExecutionDecisionJournalError("KNOWN_CTP_ORDER_SYSID_PARENT_IDENTITY_MISMATCH")
+            matching_rows = [
+                row
+                for row in normalized_rows
+                if exact_ref(row.get("OrderRef")) == order_ref
+                or exact_ref(row.get("order_ref")) == order_ref
+            ]
+            if len(matching_rows) != 1:
+                raise ExecutionDecisionJournalError("KNOWN_CTP_ORDER_SYSID_QUERY_ORDER_REF_AMBIGUOUS")
+            row = matching_rows[0]
+            status = exact_field(row, "OrderStatus", "order_status")
+            if type(status) is int:
+                status = str(status)
+            active_status = {
+                "1", "3", "b", "c", "parttradedqueueing", "notradequeueing", "nottouched", "touched"
+            }
+            if type(status) is not str or status.strip().lower() not in active_status:
+                raise ExecutionDecisionJournalError("KNOWN_CTP_ORDER_SYSID_QUERY_ORDER_NOT_ACTIVE")
+            sys_id = exact_order_sys_id(exact_field(row, "OrderSysID", "order_sys_id"))
+            raw_provider_sys_id = provider.get("order_sys_id")
+            provider_sys_id = exact_order_sys_id(raw_provider_sys_id)
+            provider_sys_id_valid = raw_provider_sys_id in (None, "") or provider_sys_id is not None
+            row_day = exact_text(row, "TradingDay", "trading_day")
+            row_instrument = exact_text(row, "InstrumentID", "instrument_id")
+            row_exchange = exact_text(row, "ExchangeID", "exchange_id")
+            row_front = exact_positive_int(row, "FrontID", "front_id")
+            row_session = exact_positive_int(row, "SessionID", "session_id")
+            row_side = normalized_side(row)
+            row_effect = normalized_effect(row)
+            row_remaining = exact_decimal(row, "VolumeTotal", "volume_total")
+            if not (
+                sys_id is not None
+                and exact_ref(exact_field(row, "OrderRef", "order_ref")) == order_ref
+                and row_day == receipt.trading_day
+                and row_instrument == expected_instrument
+                and row_exchange == expected_exchange
+                and row_front == receipt.front_id == expected_front_id
+                and row_session == receipt.session_id == expected_session_id
+                and row_side == expected_side
+                and row_effect == expected_position_effect
+                and row_remaining == expected_remaining_quantity
+                and exact_text(row, "BrokerID", "broker_id") == receipt.broker_id
+                and exact_text(row, "InvestorID", "investor_id") == receipt.investor_id
+                and provider_sys_id_valid
+                and provider_sys_id in (None, sys_id)
+            ):
+                raise ExecutionDecisionJournalError("KNOWN_CTP_ORDER_SYSID_QUERY_ROW_MISMATCH")
+            matched_json = _canonical_json(row)
+            matched_sha256 = hashlib.sha256(matched_json.encode("utf-8")).hexdigest()
+            binding = {
+                "intent_id": intent_id,
+                "account_scope": decision_key.account_scope,
+                "strategy_scope": decision_key.strategy_scope,
+                "account_fingerprint": receipt.account_fingerprint,
+                "broker_id": receipt.broker_id,
+                "investor_id": receipt.investor_id,
+                "connection_generation": receipt.connection_generation,
+                "trading_day": receipt.trading_day,
+                "instrument": expected_instrument,
+                "exchange": expected_exchange,
+                "order_ref": order_ref,
+                "order_sys_id": sys_id,
+                "front_id": receipt.front_id,
+                "session_id": receipt.session_id,
+                "query_request_id": receipt.request_id,
+                "query_started_at_utc": receipt.started_at_utc.astimezone(timezone.utc).isoformat().replace("+00:00", "Z"),
+                "query_completed_at_utc": receipt.completed_at_utc.astimezone(timezone.utc).isoformat().replace("+00:00", "Z"),
+                "query_rows_sha256": receipt.rows_sha256,
+                "matched_row_sha256": matched_sha256,
+            }
+            existing = cursor.execute(
+                "SELECT * FROM execution_known_ctp_order_sysid_bindings WHERE intent_id=?",
+                (intent_id,),
+            ).fetchone()
+            if existing is not None:
+                immutable_columns = (
+                    "intent_id", "account_scope", "strategy_scope", "account_fingerprint",
+                    "broker_id", "investor_id", "connection_generation", "trading_day",
+                    "instrument", "exchange", "order_ref", "order_sys_id", "front_id", "session_id",
+                )
+                if any(existing[name] != binding[name] for name in immutable_columns):
+                    raise ExecutionDecisionJournalError("KNOWN_CTP_ORDER_SYSID_BINDING_CONFLICT")
+                return MappingProxyType({name: existing[name] for name in existing.keys()})
+            conflicting_ref = cursor.execute(
+                """SELECT intent_id FROM execution_known_ctp_order_sysid_bindings
+                   WHERE account_scope=? AND trading_day=? AND order_ref=? AND intent_id<>?""",
+                (binding["account_scope"], binding["trading_day"], binding["order_ref"], intent_id),
+            ).fetchone()
+            conflicting_sys_id = cursor.execute(
+                """SELECT intent_id FROM execution_known_ctp_order_sysid_bindings
+                   WHERE account_scope=? AND trading_day=? AND exchange=? AND order_sys_id=?
+                         AND intent_id<>?""",
+                (
+                    binding["account_scope"],
+                    binding["trading_day"],
+                    binding["exchange"],
+                    binding["order_sys_id"],
+                    intent_id,
+                ),
+            ).fetchone()
+            if conflicting_ref is not None or conflicting_sys_id is not None:
+                raise ExecutionDecisionJournalError("KNOWN_CTP_ORDER_SYSID_BINDING_CONFLICT")
+            binding["created_at_ns"] = time.time_ns()
+            with track_durable_row_change(
+                cursor,
+                "execution_known_ctp_order_sysid_bindings",
+                (intent_id,),
+                "SETTLEMENT",
+            ):
+                cursor.execute(
+                    """INSERT INTO execution_known_ctp_order_sysid_bindings (
+                        intent_id,account_scope,strategy_scope,account_fingerprint,broker_id,
+                        investor_id,connection_generation,trading_day,instrument,exchange,
+                        order_ref,order_sys_id,front_id,session_id,query_request_id,
+                        query_started_at_utc,query_completed_at_utc,query_rows_sha256,
+                        matched_row_sha256,created_at_ns
+                    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                    tuple(binding[name] for name in (
+                        "intent_id", "account_scope", "strategy_scope", "account_fingerprint",
+                        "broker_id", "investor_id", "connection_generation", "trading_day",
+                        "instrument", "exchange", "order_ref", "order_sys_id", "front_id",
+                        "session_id", "query_request_id", "query_started_at_utc",
+                        "query_completed_at_utc", "query_rows_sha256", "matched_row_sha256",
+                        "created_at_ns",
+                    )),
+                )
+            return MappingProxyType(binding)
 
     def dispatching_cancel_store_absence_candidates(
         self, account_scope: str, *, limit: int = 128
@@ -12106,6 +13048,383 @@ class ExecutionDecisionJournal:
             ) from error
 
     @staticmethod
+    def _migrate_known_ctp_order_sysid_binding_v21(cursor: sqlite3.Cursor) -> None:
+        """Add an empty append-only binding table without rewriting v20 rows."""
+
+        names = (
+            "execution_known_ctp_order_sysid_bindings",
+            "execution_known_ctp_order_sysid_binding_no_update",
+            "execution_known_ctp_order_sysid_binding_no_delete",
+        )
+        existing = cursor.execute(
+            "SELECT name FROM sqlite_master WHERE name IN ({})".format(
+                ",".join("?" for _ in names)
+            ),
+            names,
+        ).fetchall()
+        if existing:
+            raise ExecutionDecisionJournalError("KNOWN_CTP_ORDER_SYSID_BINDING_SCHEMA_CORRUPT")
+        try:
+            cursor.execute(_KNOWN_CTP_ORDER_SYSID_BINDING_TABLE_SQL)
+            cursor.execute(_KNOWN_CTP_ORDER_SYSID_BINDING_NO_UPDATE_TRIGGER_SQL)
+            cursor.execute(_KNOWN_CTP_ORDER_SYSID_BINDING_NO_DELETE_TRIGGER_SQL)
+        except sqlite3.Error as error:
+            raise ExecutionDecisionJournalError(
+                "KNOWN_CTP_ORDER_SYSID_BINDING_SCHEMA_MIGRATION_FAILED"
+            ) from error
+
+    @staticmethod
+    def _validate_known_ctp_order_sysid_binding_schema(cursor: sqlite3.Cursor) -> None:
+        expected = {
+            "execution_known_ctp_order_sysid_bindings": (
+                "table",
+                _KNOWN_CTP_ORDER_SYSID_BINDING_TABLE_SQL,
+            ),
+            "execution_known_ctp_order_sysid_binding_no_update": (
+                "trigger",
+                _KNOWN_CTP_ORDER_SYSID_BINDING_NO_UPDATE_TRIGGER_SQL,
+            ),
+            "execution_known_ctp_order_sysid_binding_no_delete": (
+                "trigger",
+                _KNOWN_CTP_ORDER_SYSID_BINDING_NO_DELETE_TRIGGER_SQL,
+            ),
+        }
+        try:
+            rows = cursor.execute(
+                "SELECT type,name,tbl_name,sql FROM sqlite_master WHERE name IN (?,?,?)",
+                tuple(expected),
+            ).fetchall()
+            actual = {row["name"]: row for row in rows}
+            if set(actual) != set(expected):
+                raise ExecutionDecisionJournalError(
+                    "KNOWN_CTP_ORDER_SYSID_BINDING_SCHEMA_CORRUPT"
+                )
+            for name, (expected_type, expected_sql) in expected.items():
+                row = actual[name]
+                expected_table = (
+                    "execution_known_ctp_order_sysid_bindings"
+                    if expected_type == "trigger"
+                    else name
+                )
+                if (
+                    row["type"] != expected_type
+                    or row["tbl_name"] != expected_table
+                    or _normalize_schema_sql(row["sql"]) != _normalize_schema_sql(expected_sql)
+                ):
+                    raise ExecutionDecisionJournalError(
+                        "KNOWN_CTP_ORDER_SYSID_BINDING_SCHEMA_CORRUPT"
+                    )
+            columns = tuple(
+                (row["name"], row["type"].upper(), int(row["notnull"]), int(row["pk"]))
+                for row in cursor.execute(
+                    "PRAGMA table_info(execution_known_ctp_order_sysid_bindings)"
+                ).fetchall()
+            )
+            expected_columns = (
+                ("intent_id", "TEXT", 0, 1),
+                ("account_scope", "TEXT", 1, 0),
+                ("strategy_scope", "TEXT", 1, 0),
+                ("account_fingerprint", "TEXT", 1, 0),
+                ("broker_id", "TEXT", 1, 0),
+                ("investor_id", "TEXT", 1, 0),
+                ("connection_generation", "INTEGER", 1, 0),
+                ("trading_day", "TEXT", 1, 0),
+                ("instrument", "TEXT", 1, 0),
+                ("exchange", "TEXT", 1, 0),
+                ("order_ref", "TEXT", 1, 0),
+                ("order_sys_id", "TEXT", 1, 0),
+                ("front_id", "INTEGER", 1, 0),
+                ("session_id", "INTEGER", 1, 0),
+                ("query_request_id", "INTEGER", 1, 0),
+                ("query_started_at_utc", "TEXT", 1, 0),
+                ("query_completed_at_utc", "TEXT", 1, 0),
+                ("query_rows_sha256", "TEXT", 1, 0),
+                ("matched_row_sha256", "TEXT", 1, 0),
+                ("created_at_ns", "INTEGER", 1, 0),
+            )
+            if columns != expected_columns:
+                raise ExecutionDecisionJournalError(
+                    "KNOWN_CTP_ORDER_SYSID_BINDING_SCHEMA_CORRUPT"
+                )
+            trigger_rows = cursor.execute(
+                "SELECT name FROM sqlite_master WHERE type='trigger' "
+                "AND tbl_name='execution_known_ctp_order_sysid_bindings'"
+            ).fetchall()
+            if {row["name"] for row in trigger_rows} != {
+                "execution_known_ctp_order_sysid_binding_no_update",
+                "execution_known_ctp_order_sysid_binding_no_delete",
+            }:
+                raise ExecutionDecisionJournalError(
+                    "KNOWN_CTP_ORDER_SYSID_BINDING_SCHEMA_CORRUPT"
+                )
+            index_rows = cursor.execute(
+                "SELECT name FROM sqlite_master WHERE type='index' "
+                "AND tbl_name='execution_known_ctp_order_sysid_bindings' "
+                "AND name NOT LIKE 'sqlite_autoindex%'"
+            ).fetchall()
+            if index_rows:
+                raise ExecutionDecisionJournalError(
+                    "KNOWN_CTP_ORDER_SYSID_BINDING_SCHEMA_CORRUPT"
+                )
+        except ExecutionDecisionJournalError:
+            raise
+        except (KeyError, TypeError, ValueError, sqlite3.Error) as error:
+            raise ExecutionDecisionJournalError(
+                "KNOWN_CTP_ORDER_SYSID_BINDING_SCHEMA_CORRUPT"
+            ) from error
+
+    def _migrate_registered_sim_cancel_dispatch_claim_v22(
+        self, cursor: sqlite3.Cursor
+    ) -> None:
+        names = (
+            "execution_registered_sim_cancel_dispatch_claims",
+            "execution_registered_sim_cancel_dispatch_claim_no_update",
+            "execution_registered_sim_cancel_dispatch_claim_no_delete",
+            "execution_registered_sim_cancel_dispatch_tombstones",
+            "execution_registered_sim_cancel_dispatch_tombstone_no_update",
+            "execution_registered_sim_cancel_dispatch_tombstone_no_delete",
+        )
+        existing = cursor.execute(
+            "SELECT name FROM sqlite_master WHERE name IN ({})".format(
+                ",".join("?" for _ in names)
+            ),
+            names,
+        ).fetchall()
+        if existing:
+            raise ExecutionDecisionJournalError("REGISTERED_SIM_CANCEL_CLAIM_SCHEMA_CORRUPT")
+        try:
+            cursor.execute(_REGISTERED_SIM_CANCEL_DISPATCH_CLAIM_TABLE_SQL)
+            cursor.execute(_REGISTERED_SIM_CANCEL_DISPATCH_CLAIM_NO_UPDATE_TRIGGER_SQL)
+            cursor.execute(_REGISTERED_SIM_CANCEL_DISPATCH_CLAIM_NO_DELETE_TRIGGER_SQL)
+            cursor.execute(_REGISTERED_SIM_CANCEL_DISPATCH_TOMBSTONE_TABLE_SQL)
+            cursor.execute(_REGISTERED_SIM_CANCEL_DISPATCH_TOMBSTONE_NO_UPDATE_TRIGGER_SQL)
+            cursor.execute(_REGISTERED_SIM_CANCEL_DISPATCH_TOMBSTONE_NO_DELETE_TRIGGER_SQL)
+            # A v21 process may have died after its durable DISPATCHING claim
+            # and after the CTP Action was submitted, but before recording the
+            # result. The current order query cannot prove that old request was
+            # not delivered. Keep those exact historical CTP CANCEL intents
+            # permanently ambiguous instead of granting them a fresh v22
+            # one-shot claim on restart.
+            with durable_capacity_transaction(cursor, self.durable_capacity_limits):
+                pending = cursor.connection.cursor()
+                try:
+                    pending.execute(
+                        """SELECT intent_id,intent_key_json,original_identity_json
+                           FROM execution_decision_intents
+                           WHERE state='DISPATCHING' AND dispatch_state IS NULL
+                           ORDER BY intent_id"""
+                    )
+                    while rows := pending.fetchmany(256):
+                        for row in rows:
+                            try:
+                                key_values = json.loads(row["intent_key_json"])
+                                original_identity = json.loads(row["original_identity_json"])
+                                if not isinstance(key_values, Mapping) or not isinstance(
+                                    original_identity, Mapping
+                                ):
+                                    raise ValueError("cancel migration identity is not an object")
+                                key = ExecutionIntentKey(**key_values)
+                                if (
+                                    _canonical_json(_intent_key_values(key))
+                                    != row["intent_key_json"]
+                                    or _canonical_json(dict(original_identity))
+                                    != row["original_identity_json"]
+                                ):
+                                    raise ValueError("cancel migration identity is not canonical")
+                            except (TypeError, ValueError, ExecutionDecisionJournalError) as error:
+                                raise ExecutionDecisionJournalError(
+                                    "REGISTERED_SIM_CANCEL_CLAIM_MIGRATION_IDENTITY_INVALID"
+                                ) from error
+                            if key.action != "CANCEL":
+                                continue
+                            try:
+                                with track_durable_row_change(
+                                    cursor,
+                                    "execution_registered_sim_cancel_dispatch_tombstones",
+                                    (row["intent_id"],),
+                                    "SETTLEMENT",
+                                ):
+                                    cursor.execute(
+                                        """INSERT INTO
+                                           execution_registered_sim_cancel_dispatch_tombstones (
+                                               cancel_intent_id,migration_schema_version,reason,
+                                               created_at_ns
+                                           ) VALUES (?,22,?,?)""",
+                                        (
+                                            row["intent_id"],
+                                            "LEGACY_DISPATCHING_CANCEL_AMBIGUOUS",
+                                            time.time_ns(),
+                                        ),
+                                    )
+                            except DurableCapacityError as error:
+                                raise ExecutionDecisionJournalError(error.code) from error
+                finally:
+                    pending.close()
+        except ExecutionDecisionJournalError:
+            raise
+        except DurableCapacityError as error:
+            raise ExecutionDecisionJournalError(error.code) from error
+        except sqlite3.Error as error:
+            raise ExecutionDecisionJournalError(
+                "REGISTERED_SIM_CANCEL_CLAIM_SCHEMA_MIGRATION_FAILED"
+            ) from error
+
+    @staticmethod
+    def _validate_registered_sim_cancel_dispatch_claim_schema(
+        cursor: sqlite3.Cursor,
+    ) -> None:
+        expected = {
+            "execution_registered_sim_cancel_dispatch_claims": (
+                "table",
+                _REGISTERED_SIM_CANCEL_DISPATCH_CLAIM_TABLE_SQL,
+            ),
+            "execution_registered_sim_cancel_dispatch_claim_no_update": (
+                "trigger",
+                _REGISTERED_SIM_CANCEL_DISPATCH_CLAIM_NO_UPDATE_TRIGGER_SQL,
+            ),
+            "execution_registered_sim_cancel_dispatch_claim_no_delete": (
+                "trigger",
+                _REGISTERED_SIM_CANCEL_DISPATCH_CLAIM_NO_DELETE_TRIGGER_SQL,
+            ),
+            "execution_registered_sim_cancel_dispatch_tombstones": (
+                "table",
+                _REGISTERED_SIM_CANCEL_DISPATCH_TOMBSTONE_TABLE_SQL,
+            ),
+            "execution_registered_sim_cancel_dispatch_tombstone_no_update": (
+                "trigger",
+                _REGISTERED_SIM_CANCEL_DISPATCH_TOMBSTONE_NO_UPDATE_TRIGGER_SQL,
+            ),
+            "execution_registered_sim_cancel_dispatch_tombstone_no_delete": (
+                "trigger",
+                _REGISTERED_SIM_CANCEL_DISPATCH_TOMBSTONE_NO_DELETE_TRIGGER_SQL,
+            ),
+        }
+        try:
+            rows = cursor.execute(
+                "SELECT type,name,tbl_name,sql FROM sqlite_master WHERE name IN ({})".format(
+                    ",".join("?" for _ in expected)
+                ),
+                tuple(expected),
+            ).fetchall()
+            actual = {row["name"]: row for row in rows}
+            if set(actual) != set(expected):
+                raise ExecutionDecisionJournalError(
+                    "REGISTERED_SIM_CANCEL_CLAIM_SCHEMA_CORRUPT"
+                )
+            for name, (expected_type, expected_sql) in expected.items():
+                row = actual[name]
+                if expected_type == "trigger":
+                    expected_table = (
+                        "execution_registered_sim_cancel_dispatch_claims"
+                        if "_claim_" in name
+                        else "execution_registered_sim_cancel_dispatch_tombstones"
+                    )
+                else:
+                    expected_table = name
+                if (
+                    row["type"] != expected_type
+                    or row["tbl_name"] != expected_table
+                    or _normalize_schema_sql(row["sql"])
+                    != _normalize_schema_sql(expected_sql)
+                ):
+                    raise ExecutionDecisionJournalError(
+                        "REGISTERED_SIM_CANCEL_CLAIM_SCHEMA_CORRUPT"
+                    )
+            columns = tuple(
+                (row["name"], row["type"].upper(), int(row["notnull"]), int(row["pk"]))
+                for row in cursor.execute(
+                    "PRAGMA table_info(execution_registered_sim_cancel_dispatch_claims)"
+                ).fetchall()
+            )
+            expected_columns = (
+                ("cancel_intent_id", "TEXT", 0, 1),
+                ("owner_intent_id", "TEXT", 1, 0),
+                ("account_scope", "TEXT", 1, 0),
+                ("strategy_scope", "TEXT", 1, 0),
+                ("account_fingerprint", "TEXT", 1, 0),
+                ("broker_id", "TEXT", 1, 0),
+                ("investor_id", "TEXT", 1, 0),
+                ("connection_generation", "INTEGER", 1, 0),
+                ("trading_day", "TEXT", 1, 0),
+                ("instrument", "TEXT", 1, 0),
+                ("exchange", "TEXT", 1, 0),
+                ("order_ref", "TEXT", 1, 0),
+                ("order_sys_id", "TEXT", 1, 0),
+                ("front_id", "INTEGER", 1, 0),
+                ("session_id", "INTEGER", 1, 0),
+                ("query_request_id", "INTEGER", 1, 0),
+                ("query_rows_sha256", "TEXT", 1, 0),
+                ("matched_row_sha256", "TEXT", 1, 0),
+                ("source_expires_monotonic", "REAL", 1, 0),
+                ("created_at_ns", "INTEGER", 1, 0),
+            )
+            if columns != expected_columns:
+                raise ExecutionDecisionJournalError(
+                    "REGISTERED_SIM_CANCEL_CLAIM_SCHEMA_CORRUPT"
+                )
+            tombstone_columns = tuple(
+                (row["name"], row["type"].upper(), int(row["notnull"]), int(row["pk"]))
+                for row in cursor.execute(
+                    "PRAGMA table_info(execution_registered_sim_cancel_dispatch_tombstones)"
+                ).fetchall()
+            )
+            if tombstone_columns != (
+                ("cancel_intent_id", "TEXT", 0, 1),
+                ("migration_schema_version", "INTEGER", 1, 0),
+                ("reason", "TEXT", 1, 0),
+                ("created_at_ns", "INTEGER", 1, 0),
+            ):
+                raise ExecutionDecisionJournalError(
+                    "REGISTERED_SIM_CANCEL_CLAIM_SCHEMA_CORRUPT"
+                )
+            triggers = cursor.execute(
+                "SELECT name FROM sqlite_master WHERE type='trigger' "
+                "AND tbl_name='execution_registered_sim_cancel_dispatch_claims'"
+            ).fetchall()
+            if {row["name"] for row in triggers} != {
+                "execution_registered_sim_cancel_dispatch_claim_no_update",
+                "execution_registered_sim_cancel_dispatch_claim_no_delete",
+            }:
+                raise ExecutionDecisionJournalError(
+                    "REGISTERED_SIM_CANCEL_CLAIM_SCHEMA_CORRUPT"
+                )
+            indexes = cursor.execute(
+                "SELECT name FROM sqlite_master WHERE type='index' "
+                "AND tbl_name='execution_registered_sim_cancel_dispatch_claims' "
+                "AND name NOT LIKE 'sqlite_autoindex%'"
+            ).fetchall()
+            if indexes:
+                raise ExecutionDecisionJournalError(
+                    "REGISTERED_SIM_CANCEL_CLAIM_SCHEMA_CORRUPT"
+                )
+            tombstone_triggers = cursor.execute(
+                "SELECT name FROM sqlite_master WHERE type='trigger' "
+                "AND tbl_name='execution_registered_sim_cancel_dispatch_tombstones'"
+            ).fetchall()
+            if {row["name"] for row in tombstone_triggers} != {
+                "execution_registered_sim_cancel_dispatch_tombstone_no_update",
+                "execution_registered_sim_cancel_dispatch_tombstone_no_delete",
+            }:
+                raise ExecutionDecisionJournalError(
+                    "REGISTERED_SIM_CANCEL_CLAIM_SCHEMA_CORRUPT"
+                )
+            tombstone_indexes = cursor.execute(
+                "SELECT name FROM sqlite_master WHERE type='index' "
+                "AND tbl_name='execution_registered_sim_cancel_dispatch_tombstones' "
+                "AND name NOT LIKE 'sqlite_autoindex%'"
+            ).fetchall()
+            if tombstone_indexes:
+                raise ExecutionDecisionJournalError(
+                    "REGISTERED_SIM_CANCEL_CLAIM_SCHEMA_CORRUPT"
+                )
+        except ExecutionDecisionJournalError:
+            raise
+        except (KeyError, TypeError, ValueError, sqlite3.Error) as error:
+            raise ExecutionDecisionJournalError(
+                "REGISTERED_SIM_CANCEL_CLAIM_SCHEMA_CORRUPT"
+            ) from error
+
+    @staticmethod
     def _validate_fee_pair_workflow_schema(
         cursor: sqlite3.Cursor, *, schema_version: int = _FEE_PAIR_GRID_TAPE_APPEND_SCHEMA_VERSION
     ) -> None:
@@ -12114,6 +13433,8 @@ class ExecutionDecisionJournal:
             _FEE_PAIR_WORKFLOW_CANDIDATE_SCHEMA_VERSION,
             _FEE_PAIR_GRID_SETTLEMENT_SCHEMA_VERSION,
             _FEE_PAIR_GRID_TAPE_APPEND_SCHEMA_VERSION,
+            _KNOWN_CTP_ORDER_SYSID_BINDING_SCHEMA_VERSION,
+            _REGISTERED_SIM_CANCEL_DISPATCH_CLAIM_SCHEMA_VERSION,
         ):
             raise ExecutionDecisionJournalError("FEE_PAIR_WORKFLOW_SCHEMA_VERSION_INVALID")
         is_v19 = schema_version >= _FEE_PAIR_GRID_SETTLEMENT_SCHEMA_VERSION
@@ -12755,6 +14076,36 @@ class ExecutionDecisionJournal:
             lambda row: intent_preparation_classes.get(row["intent_id"])
             or self._raise_capacity_classification_invalid(),
         )
+        # A durable query-derived identity binding is settlement evidence for
+        # an already claimed/known native order. It is charged independently
+        # from the immutable submit/provider row. Pre-v21 schemas do not have
+        # this table yet; their binding set is necessarily empty.
+        binding_table = cursor.execute(
+            "SELECT 1 FROM sqlite_master WHERE type='table' "
+            "AND name='execution_known_ctp_order_sysid_bindings'"
+        ).fetchone()
+        if binding_table is not None:
+            account_rows(
+                "execution_known_ctp_order_sysid_bindings", lambda _row: "SETTLEMENT"
+            )
+        cancel_claim_table = cursor.execute(
+            "SELECT 1 FROM sqlite_master WHERE type='table' "
+            "AND name='execution_registered_sim_cancel_dispatch_claims'"
+        ).fetchone()
+        if cancel_claim_table is not None:
+            account_rows(
+                "execution_registered_sim_cancel_dispatch_claims",
+                lambda _row: "SETTLEMENT",
+            )
+        cancel_tombstone_table = cursor.execute(
+            "SELECT 1 FROM sqlite_master WHERE type='table' "
+            "AND name='execution_registered_sim_cancel_dispatch_tombstones'"
+        ).fetchone()
+        if cancel_tombstone_table is not None:
+            account_rows(
+                "execution_registered_sim_cancel_dispatch_tombstones",
+                lambda _row: "SETTLEMENT",
+            )
 
         def owner_class(row: sqlite3.Row) -> str:
             if row["owner_intent_id"] is None or row["cancel_intent_id"] is not None:
@@ -12870,6 +14221,8 @@ class ExecutionDecisionJournal:
                 _FEE_PAIR_WORKFLOW_SCHEMA_VERSION,
                 _FEE_PAIR_WORKFLOW_CANDIDATE_SCHEMA_VERSION,
                 _FEE_PAIR_GRID_SETTLEMENT_SCHEMA_VERSION,
+                _FEE_PAIR_GRID_TAPE_APPEND_SCHEMA_VERSION,
+                _KNOWN_CTP_ORDER_SYSID_BINDING_SCHEMA_VERSION,
                 self._SCHEMA_VERSION,
             ):
                 raise ExecutionDecisionJournalError("UNSUPPORTED_SCHEMA_VERSION")
@@ -13242,6 +14595,8 @@ class ExecutionDecisionJournal:
                     _FEE_PAIR_WORKFLOW_SCHEMA_VERSION,
                     _FEE_PAIR_WORKFLOW_CANDIDATE_SCHEMA_VERSION,
                     _FEE_PAIR_GRID_SETTLEMENT_SCHEMA_VERSION,
+                    _FEE_PAIR_GRID_TAPE_APPEND_SCHEMA_VERSION,
+                    _KNOWN_CTP_ORDER_SYSID_BINDING_SCHEMA_VERSION,
                     self._SCHEMA_VERSION,
                 ):
                     raise ExecutionDecisionJournalError("UNSUPPORTED_SCHEMA_VERSION")
@@ -13475,6 +14830,8 @@ class ExecutionDecisionJournal:
                                 if locked_version == _FEE_PAIR_WORKFLOW_CANDIDATE_SCHEMA_VERSION
                                 else _FEE_PAIR_GRID_SETTLEMENT_SCHEMA_VERSION
                                 if locked_version == _FEE_PAIR_GRID_SETTLEMENT_SCHEMA_VERSION
+                                else _FEE_PAIR_GRID_TAPE_APPEND_SCHEMA_VERSION
+                                if locked_version == _FEE_PAIR_GRID_TAPE_APPEND_SCHEMA_VERSION
                                 else self._SCHEMA_VERSION
                             ),
                         )
@@ -13486,14 +14843,17 @@ class ExecutionDecisionJournal:
                     ):
                         self._migrate_fee_pair_workflow_v19(cursor)
                     if (
-                        locked_version >= _FEE_PAIR_GRID_SETTLEMENT_SCHEMA_VERSION
-                        and locked_version < self._SCHEMA_VERSION
-                    ) or (
                         locked_version >= _FEE_PAIR_WORKFLOW_SCHEMA_VERSION
-                        and locked_version < _FEE_PAIR_GRID_SETTLEMENT_SCHEMA_VERSION
+                        and locked_version < _FEE_PAIR_GRID_TAPE_APPEND_SCHEMA_VERSION
                     ):
                         self._migrate_fee_pair_workflow_v20(cursor)
+                    if locked_version < _KNOWN_CTP_ORDER_SYSID_BINDING_SCHEMA_VERSION:
+                        self._migrate_known_ctp_order_sysid_binding_v21(cursor)
+                    if locked_version < _REGISTERED_SIM_CANCEL_DISPATCH_CLAIM_SCHEMA_VERSION:
+                        self._migrate_registered_sim_cancel_dispatch_claim_v22(cursor)
                     self._validate_fee_pair_workflow_schema(cursor)
+                    self._validate_known_ctp_order_sysid_binding_schema(cursor)
+                    self._validate_registered_sim_cancel_dispatch_claim_schema(cursor)
                     self._validate_fee_pair_workflow_capacity(cursor)
                 finally:
                     cursor.close()
@@ -14675,7 +16035,9 @@ def _grid_cursor_record(row: sqlite3.Row) -> ExecutionGridCursor:
     )
 
 
-def _intent_record(row: sqlite3.Row) -> ExecutionIntentRecord:
+def _intent_record(
+    row: sqlite3.Row, *, order_sys_id_binding: Optional[Mapping[str, Any]] = None
+) -> ExecutionIntentRecord:
     result = None
     if row["provider_identity_json"] is not None:
         result = json.loads(row["provider_identity_json"])
@@ -14702,6 +16064,9 @@ def _intent_record(row: sqlite3.Row) -> ExecutionIntentRecord:
         created_at_ns=int(row["created_at_ns"]),
         updated_at_ns=int(row["updated_at_ns"]),
         decision_key=decision_key,
+        order_sys_id_binding=(
+            None if order_sys_id_binding is None else _deep_freeze(order_sys_id_binding)
+        ),
     )
 
 

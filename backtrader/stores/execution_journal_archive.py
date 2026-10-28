@@ -68,6 +68,13 @@ _REQUIRED_TABLES_BY_MINIMUM_SCHEMA_VERSION = {
         }
     ),
     19: frozenset({"execution_fee_pair_workflow_grid_settlements"}),
+    21: frozenset({"execution_known_ctp_order_sysid_bindings"}),
+    22: frozenset(
+        {
+            "execution_registered_sim_cancel_dispatch_claims",
+            "execution_registered_sim_cancel_dispatch_tombstones",
+        }
+    ),
 }
 
 
@@ -126,6 +133,14 @@ def _validate_required_schema_objects(
             _validate_fee_pair_grid_tape_record_bounds(
                 connection,
                 max_record_bytes=journal_module._MAX_FEE_PAIR_GRID_TAPE_RECORD_BYTES,
+            )
+        if schema_version >= journal_module._KNOWN_CTP_ORDER_SYSID_BINDING_SCHEMA_VERSION:
+            journal_module.ExecutionDecisionJournal._validate_known_ctp_order_sysid_binding_schema(
+                cursor
+            )
+        if schema_version >= journal_module._REGISTERED_SIM_CANCEL_DISPATCH_CLAIM_SCHEMA_VERSION:
+            journal_module.ExecutionDecisionJournal._validate_registered_sim_cancel_dispatch_claim_schema(
+                cursor
             )
     except journal_module.ExecutionDecisionJournalError as error:
         raise ExecutionJournalArchiveError("ARCHIVE_SCHEMA_INCOMPLETE") from error

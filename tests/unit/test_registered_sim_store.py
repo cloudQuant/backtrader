@@ -89,6 +89,10 @@ class FakeSdkTrader:
             account_fingerprint=self._account_fingerprint,
             trading_day=self._trading_day,
             read_only_ready=True,
+            front_id=4,
+            session_id=7,
+            broker_id="BTEST",
+            investor_id="ITEST",
         )
 
     def get_session_state(self):
@@ -1309,13 +1313,22 @@ def _complete_query_result(api, request_type, *, request_id, records=(), filters
     started = datetime.now(timezone.utc)
     completed = datetime.now(timezone.utc)
     now = time.monotonic()
+    client = api.trader_client
+    session_scope = client.get_query_session_scope()
+    generation = session_scope.connection_generation
+    account_fingerprint = session_scope.account_fingerprint
+    trading_day = session_scope.trading_day
+    broker_id = session_scope.broker_id
+    investor_id = session_scope.investor_id
     source = SimpleNamespace(
-        issuer=api.trader_client._query_issuer,
+        issuer=session_scope.issuer,
         request_type=request_type,
         request_id=request_id,
-        connection_generation=1,
-        account_fingerprint="fake-account-1",
-        trading_day="20261024",
+        connection_generation=generation,
+        account_fingerprint=account_fingerprint,
+        trading_day=trading_day,
+        broker_id=broker_id,
+        investor_id=investor_id,
         started_at_utc=started,
         completed_at_utc=completed,
         started_monotonic=now - 0.001,
@@ -1327,8 +1340,8 @@ def _complete_query_result(api, request_type, *, request_id, records=(), filters
     return SimpleNamespace(
         request_type=request_type,
         request_id=request_id,
-        connection_generation=1,
-        account_fingerprint="fake-account-1",
+        connection_generation=generation,
+        account_fingerprint=account_fingerprint,
         started_at_utc=started,
         completed_at_utc=completed,
         is_last_seen=True,
@@ -1876,6 +1889,87 @@ def test_query_snapshot_is_no_io_detached_and_bound_to_current_session():
 
     api.trader_client._connection_generation = 2
     assert store.get_registered_sim_query_snapshot("account_result") is None
+
+
+def test_order_identity_query_receipt_requires_current_complete_full_query(monkeypatch):
+    api = _wrapper(allow_writes=False)
+    from tests.unit.stores import test_registered_sim_cancel_native_identity as native_tests
+
+    _sdk_module, trader, _native = native_tests._sdk_trader_fixture(monkeypatch)
+    api.trader_client = trader
+    request_ids = iter((31, 32, 33))
+    records = [
+        {
+            "BrokerID": trader._broker_id,
+            "InvestorID": trader._investor_id,
+            "TradingDay": trader._trading_day,
+            "OrderRef": "501",
+            "OrderSysID": "SYS-501",
+            "InstrumentID": "rb2510",
+            "ExchangeID": "SHFE",
+            "FrontID": 4,
+            "SessionID": 7,
+            "OrderStatus": "3",
+            "Direction": "0",
+            "CombOffsetFlag": "0",
+            "VolumeTotal": 2,
+        }
+    ]
+    api.query_orders_result = lambda **kwargs: _complete_query_result(
+        api,
+        "orders",
+        request_id=next(request_ids),
+        records=records,
+        filters=tuple(name for name in kwargs if name != "timeout"),
+    )
+    store = RegisteredSimStore(api=api)
+    store._connected = True
+
+    store.registered_sim_query("orders_result", attempts=1)
+    receipt = store.registered_sim_order_identity_query_receipt()
+
+    assert receipt is not None
+    assert receipt.request_id == 31
+    assert receipt.rows_sha256
+    assert receipt.rows[0]["OrderSysID"] == "SYS-501"
+    with pytest.raises(TypeError):
+        receipt.rows[0]["OrderSysID"] = "forged"
+    assert store.registered_sim_validate_order_identity_query_receipt(receipt) is True
+
+    # A filtered request and then a newer full request each invalidate this
+    # exact source receipt instead of silently retargeting it.
+    store.registered_sim_query("orders_result", instrument_id="rb2510", attempts=1)
+    assert store.registered_sim_validate_order_identity_query_receipt(receipt) is False
+    store.registered_sim_query("orders_result", attempts=1)
+    assert store.registered_sim_validate_order_identity_query_receipt(receipt) is False
+
+
+def test_order_identity_query_receipt_fails_closed_on_missing_source_or_stale_session(
+    monkeypatch,
+):
+    api = _wrapper(allow_writes=False)
+    from tests.unit.stores import test_registered_sim_cancel_native_identity as native_tests
+
+    _sdk_module, trader, _native = native_tests._sdk_trader_fixture(monkeypatch)
+    api.trader_client = trader
+    api.query_orders_result = lambda **kwargs: _complete_query_result(
+        api,
+        "orders",
+        request_id=41,
+        records=[{"OrderRef": "501", "OrderSysID": "SYS-501"}],
+        filters=tuple(name for name in kwargs if name != "timeout"),
+    )
+    store = RegisteredSimStore(api=api)
+    store._connected = True
+    assert store.registered_sim_order_identity_query_receipt() is None
+
+    store.registered_sim_query("orders_result", instrument_id="rb2510", attempts=1)
+    assert store.registered_sim_order_identity_query_receipt() is None
+    store.registered_sim_query("orders_result", attempts=1)
+    receipt = store.registered_sim_order_identity_query_receipt()
+    assert receipt is not None
+    api.trader_client._connection_generation = 2
+    assert store.registered_sim_validate_order_identity_query_receipt(receipt) is False
 
 
 def test_margin_query_snapshots_are_keyed_by_exact_contract_filters():

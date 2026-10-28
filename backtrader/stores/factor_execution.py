@@ -329,6 +329,10 @@ class FactorExecutionCoordinator:
             "factor_terminal_recovery_scope_{}".format(id(self)), default=None
         )
         self._active_terminal_recovery_scope_state = None
+        # Keep a Store-local fence after the Broker binding is removed or
+        # replaced.  Otherwise a raw legacy OrderRef cancel could bypass the
+        # account-wide durable owner lookup during this Store lifetime.
+        setattr(store, "_registered_sim_durable_owner_configured", True)
         broker.factor_execution_coordinator = self
 
     def grid_cursor(self, cohort_id: str):
@@ -496,6 +500,95 @@ class FactorExecutionCoordinator:
         return self.journal.execution_intent_snapshot(
             account_scope=self.account_scope, limit=limit
         )
+
+    def bind_known_order_sysids_from_current_query(self) -> Tuple[str, ...]:
+        """Persist missing SysIDs from this Store's current complete order query.
+
+        This is called only while facts consume a valid complete query set. It
+        issues no query and never trusts callback tags or the mutable Broker
+        SysID cache. The Journal rechecks each candidate against its immutable
+        KNOWN submit and the Store-minted source receipt.
+        """
+        receipt_factory = getattr(
+            self.store, "registered_sim_order_identity_query_receipt", None
+        )
+        if not callable(receipt_factory):
+            return ("KNOWN_CTP_ORDER_SYSID_RECEIPT_UNAVAILABLE",)
+        try:
+            receipt = receipt_factory()
+        except Exception as error:
+            code = getattr(error, "code", None)
+            return (
+                code if _exact_identifier(code) else "KNOWN_CTP_ORDER_SYSID_RECEIPT_UNAVAILABLE",
+            )
+        if receipt is None:
+            return ("KNOWN_CTP_ORDER_SYSID_RECEIPT_UNAVAILABLE",)
+        try:
+            orders = execution_order_snapshot(self.broker)
+            # The Journal's configured pending-intent bound also bounds this
+            # lookup. A smaller fixed page could permanently starve otherwise
+            # valid owners when an account has more active known orders.
+            page = self.execution_intent_snapshot(
+                limit=self.journal.max_pending_intents
+            )
+        except Exception as error:
+            code = getattr(error, "code", None)
+            return (
+                code if _exact_identifier(code) else "KNOWN_CTP_ORDER_SYSID_OWNER_SNAPSHOT_UNAVAILABLE",
+            )
+        if getattr(page, "truncated", True) is not False:
+            return ("KNOWN_CTP_ORDER_SYSID_OWNER_SNAPSHOT_TRUNCATED",)
+        intents_by_id = {}
+        for intent in getattr(page, "items", ()):
+            intent_id = getattr(intent, "intent_id", None)
+            if type(intent_id) is str:
+                intents_by_id.setdefault(intent_id, []).append(intent)
+        orders_by_owner = {}
+        for order in orders:
+            owner = getattr(order, "owner_intent_id", None)
+            if type(owner) is str:
+                orders_by_owner.setdefault(owner, []).append(order)
+        failures = []
+        for owner_id, owned_orders in orders_by_owner.items():
+            if len(owned_orders) != 1:
+                failures.append("KNOWN_CTP_ORDER_SYSID_LOCAL_OWNER_AMBIGUOUS")
+                continue
+            matches = intents_by_id.get(owner_id, ())
+            if len(matches) != 1:
+                continue
+            order = owned_orders[0]
+            intent = matches[0]
+            if (
+                getattr(intent, "state", None) != "KNOWN"
+                or getattr(intent, "dispatch_state", None) != "KNOWN"
+                or getattr(intent, "key", None) is None
+                or getattr(intent.key, "action", None) != "SUBMIT"
+                or getattr(order, "execution_unknown", None) is not False
+                or getattr(order, "cancel_pending", None) is not False
+            ):
+                continue
+            try:
+                self.journal.bind_known_ctp_order_sysid_from_query(
+                    owner_id,
+                    receipt,
+                    source_store=self.store,
+                    broker_order_ref=order.order_ref,
+                    expected_side=order.side,
+                    expected_position_effect=order.position_effect,
+                    expected_remaining_quantity=order.remaining_quantity,
+                    expected_instrument=order.instrument_id,
+                    expected_exchange=order.exchange_id,
+                    expected_front_id=order.front_id,
+                    expected_session_id=order.session_id,
+                )
+            except ExecutionDecisionJournalError as error:
+                failures.append(error.code)
+            except Exception as error:
+                code = getattr(error, "code", None)
+                failures.append(
+                    code if _exact_identifier(code) else "KNOWN_CTP_ORDER_SYSID_BINDING_UNAVAILABLE"
+                )
+        return tuple(failures)
 
     def dispatching_cancel_store_absence_candidates(self, *, limit: int = 128):
         return self.journal.dispatching_cancel_store_absence_candidates(
@@ -5226,13 +5319,33 @@ class FactorExecutionDecisionScope:
             owner_intent_id = _first_text(get("factor_intent_id"))
             if order_ref is None or owner_intent_id is None:
                 raise FactorExecutionError("CANCEL_REMOTE_IDENTITY_REQUIRED")
+            current_order_sys_id = self._known_cancel_order_sys_id(
+                order,
+                owner_intent_id=owner_intent_id,
+                order_ref=order_ref,
+                instrument_id=instrument_id,
+                exchange_id=exchange_id,
+                expected_session=expected_session,
+            )
+            cached_order_sys_id = _first_text(get("order_sys_id"))
+            if cached_order_sys_id is not None and cached_order_sys_id != current_order_sys_id:
+                raise FactorExecutionError("CANCEL_REMOTE_SYSID_CONFLICT")
+            # The source query and durable binding are the authority when the
+            # original submit response/callback did not carry OrderSysID.  Keep
+            # the immutable submit dispatch record untouched; this only fills
+            # the framework order projection used by the Store's CANCEL path.
+            order.addinfo(order_sys_id=current_order_sys_id)
             economics.setdefault("owner_intent_id", owner_intent_id)
             identity = {
                 "backtrader_order_ref": int(order.ref),
                 "order_ref": order_ref,
-                "order_sys_id": _first_text(get("order_sys_id")),
-                "front_id": _positive_int(get("front_id")),
-                "session_id": _positive_int(get("session_id")),
+                "order_sys_id": current_order_sys_id,
+                # The current query-bound session is authoritative. Older
+                # Backtrader orders may carry only the namespaced factor
+                # session tags, and the binding above has already checked
+                # those tags against this exact FrontID/SessionID pair.
+                "front_id": expected_session["front_id"],
+                "session_id": expected_session["session_id"],
                 "instrument_id": instrument_id,
                 "exchange_id": exchange_id,
                 "account_fingerprint": expected_session["account_fingerprint"],
@@ -5340,6 +5453,124 @@ class FactorExecutionDecisionScope:
             order_ref=identity["order_ref"],
             before_sequence=before_sequence,
         )
+
+    def _known_cancel_order_sys_id(
+        self,
+        order: Any,
+        *,
+        owner_intent_id: str,
+        order_ref: str,
+        instrument_id: str,
+        exchange_id: str,
+        expected_session: Mapping[str, Any],
+    ) -> str:
+        """Return only the SysID joined through this scope's bound live facts."""
+        facts = self.execution_facts
+        working_matches = tuple(
+            row
+            for row in getattr(facts, "working_orders", ())
+            if getattr(row, "owner_intent_id", None) == owner_intent_id
+            and getattr(row, "broker_order_ref", None) == int(order.ref)
+            and getattr(row, "order_ref", None) == order_ref
+            and getattr(row, "instrument", None) == instrument_id
+            and getattr(row, "exchange", None) == exchange_id
+        )
+        intent_matches = tuple(
+            item
+            for item in getattr(facts, "execution_intents", ())
+            if getattr(item, "intent_id", None) == owner_intent_id
+        )
+        if len(working_matches) != 1 or len(intent_matches) != 1:
+            raise FactorExecutionError("CANCEL_REMOTE_SYSID_BINDING_UNAVAILABLE")
+        working = working_matches[0]
+        intent = intent_matches[0]
+        binding = getattr(intent, "order_sys_id_binding", None)
+        account = getattr(facts, "account", None)
+        original = getattr(intent, "original_identity", None)
+        provider = getattr(intent, "provider_identity", None)
+        binding_sys_id = (
+            _first_text(binding.get("order_sys_id")) if isinstance(binding, Mapping) else None
+        )
+        provider_sys_id = (
+            _first_text(provider.get("order_sys_id")) if isinstance(provider, Mapping) else None
+        )
+        callback_identity_matches = bool(
+            binding is None
+            and provider_sys_id is not None
+            and provider_sys_id == getattr(working, "order_sys_id", None)
+            and isinstance(provider, Mapping)
+            and provider.get("order_ref") == order_ref
+            and isinstance(original, Mapping)
+            and original.get("order_sys_id") in (None, "", provider_sys_id)
+        )
+        sys_id = binding_sys_id if binding_sys_id is not None else provider_sys_id
+        local_info = getattr(order, "info", {})
+        get = getattr(local_info, "get", lambda name, default=None: default)
+        if not (
+            sys_id is not None
+            and getattr(facts, "account_scope", None) == self.coordinator.account_scope
+            and getattr(facts, "strategy_scope", None) == self.coordinator.strategy_scope
+            and getattr(intent, "account_scope", None) == self.coordinator.account_scope
+            and getattr(intent, "strategy_scope", None) == self.coordinator.strategy_scope
+            and getattr(intent, "action", None) == "SUBMIT"
+            and getattr(intent, "state", None) == "KNOWN"
+            and getattr(intent, "dispatch_state", None) == "KNOWN"
+            and getattr(working, "state", None) in ("ACCEPTED", "PARTIAL")
+            and getattr(working, "execution_unknown", None) is False
+            and getattr(working, "cancel_pending", None) is False
+            and getattr(working, "owner_strategy_scope", None)
+                == self.coordinator.strategy_scope
+            and getattr(working, "order_sys_id", None) == sys_id
+            and (
+                callback_identity_matches
+                or (
+                    isinstance(binding, Mapping)
+                    and binding.get("intent_id") == owner_intent_id
+                    and binding.get("account_scope") == self.coordinator.account_scope
+                    and binding.get("strategy_scope") == self.coordinator.strategy_scope
+                    and binding.get("account_fingerprint")
+                        == expected_session.get("account_fingerprint")
+                    and binding.get("connection_generation")
+                        == expected_session.get("connection_generation")
+                    and binding.get("trading_day") == expected_session.get("trading_day")
+                    and binding.get("instrument") == instrument_id
+                    and binding.get("exchange") == exchange_id
+                    and binding.get("order_ref") == order_ref
+                    and binding.get("front_id") == expected_session.get("front_id")
+                    and binding.get("session_id") == expected_session.get("session_id")
+                    and type(binding.get("query_request_id")) is int
+                    and binding.get("query_request_id") > 0
+                    and _exact_identifier(binding.get("query_rows_sha256"))
+                    and _exact_identifier(binding.get("matched_row_sha256"))
+                )
+            )
+            and isinstance(original, Mapping)
+            and original.get("operation") == "insert"
+            and original.get("backtrader_order_ref") == int(order.ref)
+            and original.get("order_ref") == order_ref
+            and original.get("instrument_id") == instrument_id
+            and original.get("exchange_id") == exchange_id
+            and original.get("account_fingerprint")
+                == expected_session.get("account_fingerprint")
+            and original.get("connection_generation")
+                == expected_session.get("connection_generation")
+            and original.get("trading_day") == expected_session.get("trading_day")
+            and original.get("front_id") == expected_session.get("front_id")
+            and original.get("session_id") == expected_session.get("session_id")
+            and isinstance(provider, Mapping)
+            and provider.get("order_ref") == order_ref
+            and (provider.get("order_sys_id") in (None, "", sys_id))
+            and getattr(account, "account_fingerprint", None)
+                == expected_session.get("account_fingerprint")
+            and getattr(account, "connection_generation", None)
+                == expected_session.get("connection_generation")
+            and getattr(account, "trading_day", None) == expected_session.get("trading_day")
+            and getattr(working, "front_id", None) == expected_session.get("front_id")
+            and getattr(working, "session_id", None) == expected_session.get("session_id")
+            and get("execution_unknown") is not True
+        ):
+            raise FactorExecutionError("CANCEL_REMOTE_SYSID_BINDING_MISMATCH")
+        return sys_id
 
     def complete_order(
         self, order: Any, attempt: FactorDispatchAttempt, *, response=None, error=None

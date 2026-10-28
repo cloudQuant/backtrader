@@ -49,6 +49,33 @@ def _usage(journal: ExecutionDecisionJournal):
 def _restore_v11_journal_schema(connection: sqlite3.Connection) -> None:
     """Remove schema added after v11 before modeling a historical database."""
 
+    # These fixtures are built by downgrading the current schema. A real v11
+    # database cannot already contain the v21 CTP identity binding objects.
+    connection.execute(
+        "DROP TRIGGER IF EXISTS execution_known_ctp_order_sysid_binding_no_update"
+    )
+    connection.execute(
+        "DROP TRIGGER IF EXISTS execution_known_ctp_order_sysid_binding_no_delete"
+    )
+    connection.execute("DROP TABLE IF EXISTS execution_known_ctp_order_sysid_bindings")
+    connection.execute(
+        "DROP TRIGGER IF EXISTS execution_registered_sim_cancel_dispatch_claim_no_update"
+    )
+    connection.execute(
+        "DROP TRIGGER IF EXISTS execution_registered_sim_cancel_dispatch_claim_no_delete"
+    )
+    connection.execute(
+        "DROP TABLE IF EXISTS execution_registered_sim_cancel_dispatch_claims"
+    )
+    connection.execute(
+        "DROP TRIGGER IF EXISTS execution_registered_sim_cancel_dispatch_tombstone_no_update"
+    )
+    connection.execute(
+        "DROP TRIGGER IF EXISTS execution_registered_sim_cancel_dispatch_tombstone_no_delete"
+    )
+    connection.execute(
+        "DROP TABLE IF EXISTS execution_registered_sim_cancel_dispatch_tombstones"
+    )
     # V19 added an append-only settlement ledger whose trigger references the
     # workflow table, so remove it first when reconstructing a true v11 schema.
     connection.execute(

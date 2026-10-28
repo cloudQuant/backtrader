@@ -188,7 +188,10 @@ class _ProviderLeaves:
         self.ticks = dict(ticks or {})
         self.query_calls = []
         self.commission_deadlines = []
-        self._next_request_id = 0
+        # Keep the fake query sequence separate from the production CTP
+        # wrapper's `_next_request_id()` method, which the native-action
+        # fixture exposes after its first cancel dispatch.
+        self._query_request_id = 0
         self._registered_sim_allow_writes = True
         self._use_observed_query_clock = False
 
@@ -201,8 +204,8 @@ class _ProviderLeaves:
         request_intent_filters=(),
         request_filters=(),
     ):
-        self._next_request_id += 1
-        request_id = self._next_request_id
+        self._query_request_id += 1
+        request_id = self._query_request_id
         if self._use_observed_query_clock:
             # After a durable execution receipt, model the provider query's
             # actual synchronous start/completion boundary. A static planned
@@ -412,7 +415,18 @@ def _quote(
 
 
 def _query_rows(*, positions=(), orders=(), trades=(), account=None, include_margin=True):
-    orders = tuple(dict(row, TradingDay=row.get("TradingDay", _TRADING_DAY)) for row in orders)
+    # Complete order-query fixtures carry the same account identity that the
+    # fake CTP query source reports. Tests for malformed rows override either
+    # value explicitly with None or a conflicting identifier.
+    orders = tuple(
+        {
+            "BrokerID": "fake-broker",
+            "InvestorID": "fake-investor",
+            **dict(row),
+            "TradingDay": row.get("TradingDay", _TRADING_DAY),
+        }
+        for row in orders
+    )
     trades = tuple(dict(row, TradingDay=row.get("TradingDay", _TRADING_DAY)) for row in trades)
     rows = {
         "account_result": [
@@ -2424,6 +2438,8 @@ def _append_multi_target_known_working_order(
     case.broker.orders[order.ref] = order
     case.api.query_rows["orders_result"].append(
         {
+            "BrokerID": "fake-broker",
+            "InvestorID": "fake-investor",
             "OrderRef": external_ref,
             "OrderSysID": order_sys_id,
             "InstrumentID": target.instrument,

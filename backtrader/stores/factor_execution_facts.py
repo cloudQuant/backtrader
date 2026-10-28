@@ -383,6 +383,7 @@ class FactorExecutionIntentFacts:
     account_scope: Optional[str] = None
     strategy_scope: Optional[str] = None
     original_identity: Optional[Mapping[str, Any]] = None
+    order_sys_id_binding: Optional[Mapping[str, Any]] = None
 
     def __post_init__(self) -> None:
         for name in (
@@ -406,7 +407,12 @@ class FactorExecutionIntentFacts:
                 raise ValueError("{} must be exact non-empty text or None".format(name))
         if self.leg is not None and (type(self.leg) is not int or self.leg < 0):
             raise ValueError("leg must be a non-negative integer or None")
-        for name in ("economic_payload", "provider_identity", "original_identity"):
+        for name in (
+            "economic_payload",
+            "provider_identity",
+            "original_identity",
+            "order_sys_id_binding",
+        ):
             value = getattr(self, name)
             if value is not None:
                 if not isinstance(value, Mapping):
@@ -4585,6 +4591,17 @@ def _execution_intent_facts(
         else:
             blockers.append("journal_intent_original_identity_unobserved")
 
+        raw_order_sys_id_binding = _field(record, "order_sys_id_binding")
+        order_sys_id_binding = None
+        if isinstance(raw_order_sys_id_binding, Mapping):
+            try:
+                frozen_binding = _freeze_json_payload(raw_order_sys_id_binding)
+                order_sys_id_binding = (
+                    frozen_binding if isinstance(frozen_binding, Mapping) else None
+                )
+            except (TypeError, ValueError):
+                blockers.append("journal_intent_order_sys_id_binding_invalid")
+
         declared_exchange = (
             _exact_text(economic_payload.get("exchange"))
             if economic_payload is not None
@@ -4673,6 +4690,7 @@ def _execution_intent_facts(
                 account_scope=record_account_scope,
                 strategy_scope=record_strategy_scope,
                 original_identity=original_identity,
+                order_sys_id_binding=order_sys_id_binding,
             )
         )
     return tuple(projected)
@@ -4873,7 +4891,7 @@ def _orders_facts(
         local_sys_id = _remote_ref(_field(order, "order_sys_id"))
         if remote_sys_id is None:
             blockers.append("remote_broker_order_sys_id_unobserved:{}".format(ref))
-        elif remote_sys_id != local_sys_id:
+        elif local_sys_id is not None and remote_sys_id != local_sys_id:
             blockers.append("remote_broker_order_sys_id_mismatch:{}".format(ref))
         remote_front = _integer(row.get("FrontID", row.get("front_id")))
         remote_session = _integer(row.get("SessionID", row.get("session_id")))
@@ -4993,6 +5011,57 @@ def _orders_facts(
             provider_exchange = (
                 _exact_text(provider.get("exchange_id")) if provider is not None else None
             )
+            binding = intent.order_sys_id_binding
+            binding_sys_id = (
+                _remote_ref(binding.get("order_sys_id")) if binding is not None else None
+            )
+            current_remote_row = remote_active.get((order.order_ref, order.instrument, order.exchange))
+            current_remote_sys_id = (
+                _remote_ref(
+                    current_remote_row.get("OrderSysID", current_remote_row.get("order_sys_id"))
+                )
+                if isinstance(current_remote_row, Mapping)
+                else None
+            )
+            binding_identity_matches = bool(
+                binding is not None
+                and binding_sys_id is not None
+                and binding.get("intent_id") == intent.intent_id
+                and binding.get("account_scope") == intent.account_scope == account_scope
+                and binding.get("strategy_scope") == intent.strategy_scope == strategy_scope
+                and binding.get("account_fingerprint") == account_fingerprint
+                and binding.get("connection_generation") == connection_generation
+                and binding.get("trading_day") == trading_day
+                and binding.get("instrument") == order.instrument
+                and binding.get("exchange") == order.exchange
+                and binding.get("order_ref") == order.order_ref
+                and binding.get("front_id") == order.front_id
+                and binding.get("session_id") == order.session_id
+                and binding.get("query_request_id") is not None
+                and binding.get("query_rows_sha256") is not None
+                and binding.get("matched_row_sha256") is not None
+                and current_remote_sys_id == binding_sys_id
+                and (order.order_sys_id is None or order.order_sys_id == binding_sys_id)
+            )
+            # Some CTP submits return OrderSysID on the original KNOWN
+            # response. That immutable provider identity remains sufficient
+            # when the current complete orders query agrees exactly. The
+            # query binding is required only when submit did not return it;
+            # an existing conflicting binding never falls back to callback
+            # identity.
+            provider_callback_sysid_matches = bool(
+                binding is None
+                and provider_sys_id is not None
+                and provider_sys_id == current_remote_sys_id
+                and (order.order_sys_id is None or order.order_sys_id == provider_sys_id)
+            )
+            validated_order_sys_id = (
+                binding_sys_id
+                if binding_identity_matches
+                else provider_sys_id
+                if provider_callback_sysid_matches
+                else None
+            )
             original_front = (
                 original.get("front_id")
                 if original is not None
@@ -5065,8 +5134,11 @@ def _orders_facts(
                 and original_trading_day is not None
                 and original_trading_day == trading_day
                 and provider_order_ref == order.order_ref
-                and provider_sys_id is not None
-                and provider_sys_id == order.order_sys_id
+                and (binding_identity_matches or provider_callback_sysid_matches)
+                and (
+                    provider_callback_sysid_matches
+                    or provider_sys_id in (None, binding_sys_id)
+                )
                 and (provider_instrument is None or provider_instrument == order.instrument)
                 and (provider_exchange is None or provider_exchange == order.exchange)
                 and order.owner_strategy_scope == strategy_scope
@@ -5075,6 +5147,16 @@ def _orders_facts(
                 blockers.append(
                     "working_order_journal_owner_mismatch:{}".format(order.order_ref)
                 )
+            else:
+                for index, item in enumerate(projected):
+                    if (
+                        item.order_ref == order.order_ref
+                        and item.instrument == order.instrument
+                        and item.exchange == order.exchange
+                        and item.owner_intent_id == intent.intent_id
+                    ):
+                        projected[index] = replace(item, order_sys_id=validated_order_sys_id)
+                        break
         for intent_id, owned_orders in local_orders_by_owner.items():
             if len(owned_orders) != 1:
                 blockers.extend(
@@ -6243,6 +6325,28 @@ def project_factor_execution_facts(
             )
         )
     instruments = tuple(instruments_with_margin)
+
+    bind_order_sysids = getattr(
+        coordinator, "bind_known_order_sysids_from_current_query", None
+    )
+    if callable(bind_order_sysids):
+        try:
+            binding_failures = bind_order_sysids()
+        except Exception as error:
+            code = _exact_text(getattr(error, "code", None))
+            binding_failures = (
+                code or "KNOWN_CTP_ORDER_SYSID_BINDING_UNAVAILABLE",
+            )
+        if isinstance(binding_failures, tuple):
+            diagnostics.extend(
+                "known_ctp_order_sysid_binding_failed:{}".format(code)
+                for code in binding_failures
+                if _exact_text(code) is not None
+            )
+        else:
+            diagnostics.append("known_ctp_order_sysid_binding_result_invalid")
+    else:
+        diagnostics.append("known_ctp_order_sysid_binding_unavailable")
 
     orders, execution_intents = _orders_facts(
         broker,

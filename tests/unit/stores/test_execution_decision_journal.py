@@ -25,6 +25,11 @@ from backtrader.stores.execution_decision_journal import (
     ExecutionSourceHighWaterRef,
     ExecutionSourceMemberReceipt,
 )
+from backtrader.stores.execution_durable_capacity import (
+    read_durable_capacity_usage,
+    track_durable_row_change,
+)
+from backtrader.stores.registered_sim import RegisteredSimOrderIdentityQueryReceipt
 from backtrader.stores.factor_position_book import apply_factor_execution_fill
 
 
@@ -46,6 +51,31 @@ def _drop_v12_durable_capacity_tables(connection: sqlite3.Connection) -> None:
     connection.execute("DROP TABLE IF EXISTS execution_durable_capacity_limits")
     connection.execute("DROP TABLE IF EXISTS execution_run_loss_guards")
     connection.execute("DROP TABLE IF EXISTS execution_source_highwaters")
+    connection.execute(
+        "DROP TRIGGER IF EXISTS execution_known_ctp_order_sysid_binding_no_update"
+    )
+    connection.execute(
+        "DROP TRIGGER IF EXISTS execution_known_ctp_order_sysid_binding_no_delete"
+    )
+    connection.execute("DROP TABLE IF EXISTS execution_known_ctp_order_sysid_bindings")
+    connection.execute(
+        "DROP TRIGGER IF EXISTS execution_registered_sim_cancel_dispatch_claim_no_update"
+    )
+    connection.execute(
+        "DROP TRIGGER IF EXISTS execution_registered_sim_cancel_dispatch_claim_no_delete"
+    )
+    connection.execute(
+        "DROP TABLE IF EXISTS execution_registered_sim_cancel_dispatch_claims"
+    )
+    connection.execute(
+        "DROP TRIGGER IF EXISTS execution_registered_sim_cancel_dispatch_tombstone_no_update"
+    )
+    connection.execute(
+        "DROP TRIGGER IF EXISTS execution_registered_sim_cancel_dispatch_tombstone_no_delete"
+    )
+    connection.execute(
+        "DROP TABLE IF EXISTS execution_registered_sim_cancel_dispatch_tombstones"
+    )
 
 
 def _drop_v17_fee_pair_workflow_tables(connection: sqlite3.Connection) -> None:
@@ -65,6 +95,56 @@ def _drop_v17_fee_pair_workflow_tables(connection: sqlite3.Connection) -> None:
     )
     connection.execute("DROP TABLE IF EXISTS execution_fee_pair_workflow_events")
     connection.execute("DROP TABLE IF EXISTS execution_fee_pair_workflows")
+    connection.execute(
+        "DROP TRIGGER IF EXISTS execution_known_ctp_order_sysid_binding_no_update"
+    )
+    connection.execute(
+        "DROP TRIGGER IF EXISTS execution_known_ctp_order_sysid_binding_no_delete"
+    )
+    connection.execute("DROP TABLE IF EXISTS execution_known_ctp_order_sysid_bindings")
+    connection.execute(
+        "DROP TRIGGER IF EXISTS execution_registered_sim_cancel_dispatch_claim_no_update"
+    )
+    connection.execute(
+        "DROP TRIGGER IF EXISTS execution_registered_sim_cancel_dispatch_claim_no_delete"
+    )
+    connection.execute(
+        "DROP TABLE IF EXISTS execution_registered_sim_cancel_dispatch_claims"
+    )
+    connection.execute(
+        "DROP TRIGGER IF EXISTS execution_registered_sim_cancel_dispatch_tombstone_no_update"
+    )
+    connection.execute(
+        "DROP TRIGGER IF EXISTS execution_registered_sim_cancel_dispatch_tombstone_no_delete"
+    )
+    connection.execute(
+        "DROP TABLE IF EXISTS execution_registered_sim_cancel_dispatch_tombstones"
+    )
+
+
+def _drop_v22_registered_sim_cancel_objects(connection: sqlite3.Connection) -> None:
+    for trigger in (
+        "execution_registered_sim_cancel_dispatch_claim_no_update",
+        "execution_registered_sim_cancel_dispatch_claim_no_delete",
+        "execution_registered_sim_cancel_dispatch_tombstone_no_update",
+        "execution_registered_sim_cancel_dispatch_tombstone_no_delete",
+    ):
+        connection.execute("DROP TRIGGER IF EXISTS " + trigger)
+    connection.execute(
+        "DROP TABLE IF EXISTS execution_registered_sim_cancel_dispatch_claims"
+    )
+    connection.execute(
+        "DROP TABLE IF EXISTS execution_registered_sim_cancel_dispatch_tombstones"
+    )
+
+
+def _durable_usage(journal: ExecutionDecisionJournal):
+    with journal._read_lock():
+        cursor = journal._connection.cursor()
+        try:
+            return read_durable_capacity_usage(cursor)
+        finally:
+            cursor.close()
 
 
 def _restore_v15_journal_schema(connection: sqlite3.Connection) -> None:
@@ -1225,6 +1305,461 @@ def test_v15_schema_migrates_to_v19_without_rewriting_history(tmp_path):
         assert after_usage.settlement_payload_bytes == before_usage.settlement_payload_bytes
     finally:
         migrated.close()
+
+
+def test_v11_upgrade_creates_empty_order_sysid_bindings_after_capacity_backfill(tmp_path):
+    path = tmp_path / "v11-to-v21-order-sysid-binding.sqlite3"
+    journal = ExecutionDecisionJournal(path)
+    decision = journal.record_decision(
+        _decision_key("v11-binding-upgrade"),
+        {"signal": "preserve"},
+    )
+    before_capacity = journal.decision_capacity_snapshot()
+    journal.close()
+
+    with sqlite3.connect(path) as connection:
+        _drop_v17_fee_pair_workflow_tables(connection)
+        connection.execute(
+            "DROP TABLE IF EXISTS execution_fee_pair_candidate_capacity_reservations"
+        )
+        connection.execute("DROP TABLE IF EXISTS execution_fee_pair_candidate_events")
+        connection.execute("DROP TABLE IF EXISTS execution_fee_pair_candidates")
+        connection.execute("DROP TABLE IF EXISTS execution_fee_pair_scope_events")
+        connection.execute("DROP TABLE IF EXISTS execution_fee_pair_required_scopes")
+        _drop_v12_durable_capacity_tables(connection)
+        connection.execute("PRAGMA user_version = 11")
+
+    migrated = ExecutionDecisionJournal(path)
+    try:
+        assert (
+            migrated._connection.execute("PRAGMA user_version").fetchone()[0]
+            == ExecutionDecisionJournal._SCHEMA_VERSION
+        )
+        assert migrated.decision(decision.decision_id) == decision
+        assert migrated._connection.execute(
+            "SELECT COUNT(*) FROM execution_known_ctp_order_sysid_bindings"
+        ).fetchone()[0] == 0
+        assert migrated._connection.execute(
+            "SELECT COUNT(*) FROM execution_registered_sim_cancel_dispatch_claims"
+        ).fetchone()[0] == 0
+        after_capacity = migrated.decision_capacity_snapshot()
+        assert after_capacity.base_record_count == before_capacity.base_record_count
+        assert after_capacity.base_payload_bytes == before_capacity.base_payload_bytes
+        assert after_capacity.settlement_record_count == before_capacity.settlement_record_count
+        assert after_capacity.settlement_payload_bytes == before_capacity.settlement_payload_bytes
+    finally:
+        migrated.close()
+
+
+def test_fresh_journal_creates_empty_order_sysid_binding_schema():
+    journal = ExecutionDecisionJournal(":memory:")
+    try:
+        assert (
+            journal._connection.execute("PRAGMA user_version").fetchone()[0]
+            == ExecutionDecisionJournal._SCHEMA_VERSION
+        )
+        assert journal._connection.execute(
+            "SELECT COUNT(*) FROM execution_known_ctp_order_sysid_bindings"
+        ).fetchone()[0] == 0
+        assert journal._connection.execute(
+            "SELECT COUNT(*) FROM execution_registered_sim_cancel_dispatch_claims"
+        ).fetchone()[0] == 0
+    finally:
+        journal.close()
+
+
+def test_v21_journal_migrates_one_shot_cancel_claim_schema(tmp_path):
+    path = tmp_path / "v21-to-v22-registered-cancel-claim.sqlite3"
+    journal = ExecutionDecisionJournal(path)
+    decision = journal.record_decision(
+        _decision_key("v21-cancel-admission"), {"signal": "preserve"}
+    )
+    before_capacity = journal.decision_capacity_snapshot()
+    journal.close()
+
+    with sqlite3.connect(path) as connection:
+        connection.execute(
+            "DROP TRIGGER IF EXISTS execution_registered_sim_cancel_dispatch_claim_no_update"
+        )
+        connection.execute(
+            "DROP TRIGGER IF EXISTS execution_registered_sim_cancel_dispatch_claim_no_delete"
+        )
+        connection.execute(
+            "DROP TABLE IF EXISTS execution_registered_sim_cancel_dispatch_claims"
+        )
+        connection.execute(
+            "DROP TRIGGER IF EXISTS execution_registered_sim_cancel_dispatch_tombstone_no_update"
+        )
+        connection.execute(
+            "DROP TRIGGER IF EXISTS execution_registered_sim_cancel_dispatch_tombstone_no_delete"
+        )
+        connection.execute(
+            "DROP TABLE IF EXISTS execution_registered_sim_cancel_dispatch_tombstones"
+        )
+        connection.execute("PRAGMA user_version=21")
+
+    migrated = ExecutionDecisionJournal(path)
+    try:
+        assert migrated._connection.execute("PRAGMA user_version").fetchone()[0] == 22
+        assert migrated.decision(decision.decision_id) == decision
+        assert migrated._connection.execute(
+            "SELECT COUNT(*) FROM execution_registered_sim_cancel_dispatch_claims"
+        ).fetchone()[0] == 0
+        after_capacity = migrated.decision_capacity_snapshot()
+        assert after_capacity.base_record_count == before_capacity.base_record_count
+        assert after_capacity.base_payload_bytes == before_capacity.base_payload_bytes
+        assert after_capacity.settlement_record_count == before_capacity.settlement_record_count
+        assert after_capacity.settlement_payload_bytes == before_capacity.settlement_payload_bytes
+        cursor = migrated._connection.cursor()
+        try:
+            migrated._validate_registered_sim_cancel_dispatch_claim_schema(cursor)
+        finally:
+            cursor.close()
+    finally:
+        migrated.close()
+
+
+def _create_v21_unresolved_ctp_cancel(path):
+    journal = ExecutionDecisionJournal(path)
+    submit, instrument, order_ref, order_sys_id = _prepare_known_ctp_submit_for_cancel(
+        journal, suffix="legacy-v21"
+    )
+    cancel_key = _intent_key(instrument, action="CANCEL", side="BUY", effect="OPEN")
+    decision = journal.record_decision(
+        ExecutionDecisionKey(
+            account_scope="account-a",
+            strategy_scope="strategy-a",
+            logical_run_id="legacy-cancel-run",
+            cohort_id="legacy-cancel-cohort",
+            close_time="2026-10-20T10:09:00Z",
+            decision_kind="risk",
+        ),
+        {"signal": "cancel"},
+        intent_keys=(cancel_key,),
+    )
+    cancel = journal.prepare_intent(
+        decision.decision_id,
+        cancel_key,
+        {"target_id": "target", "instrument": instrument, "exchange": "SHFE"},
+        original_identity={
+            "backtrader_order_ref": 94,
+            "operation": "cancel",
+            "instrument_id": instrument,
+            "exchange_id": "SHFE",
+            "order_ref": order_ref,
+            "order_sys_id": order_sys_id,
+            "front_id": 4,
+            "session_id": 7,
+            "account_fingerprint": "account-fingerprint",
+            "connection_generation": 3,
+            "trading_day": "20261020",
+            "owner_intent_id": submit.intent_id,
+        },
+        owner_intent_id=submit.intent_id,
+    )
+    assert journal.claim_dispatch(cancel.intent_id) is not None
+    before_usage = _durable_usage(journal)
+    journal.close()
+    with sqlite3.connect(path) as connection:
+        _drop_v22_registered_sim_cancel_objects(connection)
+        connection.execute("PRAGMA user_version=21")
+    return cancel, instrument, order_ref, order_sys_id, before_usage
+
+
+def _legacy_cancel_target_identity(instrument, order_ref, order_sys_id):
+    digest = hashlib.sha256(b"legacy-complete-query").hexdigest()
+    return {
+        "order_ref": order_ref,
+        "order_sys_id": order_sys_id,
+        "instrument_id": instrument,
+        "exchange_id": "SHFE",
+        "broker_id": "broker-a",
+        "investor_id": "investor-a",
+        "front_id": 4,
+        "session_id": 7,
+        "account_fingerprint": "account-fingerprint",
+        "connection_generation": 3,
+        "trading_day": "20261020",
+        "query_request_id": 3,
+        "query_rows_sha256": digest,
+        "matched_row_sha256": digest,
+        "source_expires_monotonic": time.monotonic() + 60.0,
+    }
+
+
+def test_v21_migration_tombstones_unresolved_cancel_and_charges_capacity(tmp_path):
+    path = tmp_path / "v21-unresolved-cancel-tombstone.sqlite3"
+    cancel, instrument, order_ref, order_sys_id, before = _create_v21_unresolved_ctp_cancel(
+        path
+    )
+
+    migrated = ExecutionDecisionJournal(path)
+    try:
+        row = migrated._connection.execute(
+            "SELECT * FROM execution_registered_sim_cancel_dispatch_tombstones"
+        ).fetchone()
+        assert row["cancel_intent_id"] == cancel.intent_id
+        assert row["migration_schema_version"] == 22
+        assert row["reason"] == "LEGACY_DISPATCHING_CANCEL_AMBIGUOUS"
+        with pytest.raises(
+            ExecutionDecisionJournalError,
+            match="CANCEL_NATIVE_DISPATCH_LEGACY_AMBIGUOUS",
+        ):
+            migrated.registered_sim_cancel_dispatch_records(cancel.intent_id)
+        with pytest.raises(
+            ExecutionDecisionJournalError,
+            match="CANCEL_NATIVE_DISPATCH_LEGACY_AMBIGUOUS",
+        ):
+            migrated.claim_registered_sim_cancel_dispatch(
+                cancel.intent_id,
+                _legacy_cancel_target_identity(instrument, order_ref, order_sys_id),
+            )
+        after = _durable_usage(migrated)
+        assert after.settlement_records == before.settlement_records + 1
+        assert after.settlement_bytes > before.settlement_bytes
+        assert migrated._connection.execute(
+            "SELECT state,dispatch_state FROM execution_decision_intents WHERE intent_id=?",
+            (cancel.intent_id,),
+        ).fetchone()[:] == ("DISPATCHING", None)
+    finally:
+        migrated.close()
+
+
+def test_v21_migration_cancel_tombstone_capacity_exhaustion_rolls_back(tmp_path):
+    path = tmp_path / "v21-unresolved-cancel-capacity.sqlite3"
+    cancel, _instrument, _order_ref, _order_sys_id, before = (
+        _create_v21_unresolved_ctp_cancel(path)
+    )
+    with sqlite3.connect(path) as connection:
+        connection.execute(
+            "UPDATE execution_durable_capacity_limits "
+            "SET max_durable_settlement_records=? WHERE singleton=1",
+            (before.settlement_records,),
+        )
+
+    with pytest.raises(
+        ExecutionDecisionJournalError,
+        match="DURABLE_SETTLEMENT_RECORDS_EXHAUSTED",
+    ):
+        ExecutionDecisionJournal(
+            path, max_durable_settlement_records=before.settlement_records
+        )
+
+    with sqlite3.connect(path) as connection:
+        assert connection.execute("PRAGMA user_version").fetchone()[0] == 21
+        assert connection.execute(
+            "SELECT COUNT(*) FROM execution_decision_intents "
+            "WHERE intent_id=? AND state='DISPATCHING' AND dispatch_state IS NULL",
+            (cancel.intent_id,),
+        ).fetchone()[0] == 1
+        assert connection.execute(
+            "SELECT COUNT(*) FROM execution_durable_capacity_usage "
+            "WHERE capacity_class='SETTLEMENT' AND record_count=?",
+            (before.settlement_records,),
+        ).fetchone()[0] == 1
+        assert connection.execute(
+            "SELECT COUNT(*) FROM sqlite_master WHERE name IN (?,?)",
+            (
+                "execution_registered_sim_cancel_dispatch_claims",
+                "execution_registered_sim_cancel_dispatch_tombstones",
+            ),
+        ).fetchone()[0] == 0
+
+
+def test_v21_migration_unclassifiable_dispatching_cancel_rolls_back(tmp_path):
+    path = tmp_path / "v21-unresolved-cancel-malformed.sqlite3"
+    cancel, _instrument, _order_ref, _order_sys_id, before = (
+        _create_v21_unresolved_ctp_cancel(path)
+    )
+    with sqlite3.connect(path) as connection:
+        connection.execute(
+            "UPDATE execution_decision_intents SET original_identity_json='{' "
+            "WHERE intent_id=?",
+            (cancel.intent_id,),
+        )
+
+    with pytest.raises(
+        ExecutionDecisionJournalError,
+        match="REGISTERED_SIM_CANCEL_CLAIM_MIGRATION_IDENTITY_INVALID",
+    ):
+        ExecutionDecisionJournal(path)
+
+    with sqlite3.connect(path) as connection:
+        assert connection.execute("PRAGMA user_version").fetchone()[0] == 21
+        assert connection.execute(
+            "SELECT COUNT(*) FROM execution_durable_capacity_usage "
+            "WHERE capacity_class='SETTLEMENT' AND record_count=?",
+            (before.settlement_records,),
+        ).fetchone()[0] == 1
+        assert connection.execute(
+            "SELECT COUNT(*) FROM sqlite_master WHERE name IN (?,?)",
+            (
+                "execution_registered_sim_cancel_dispatch_claims",
+                "execution_registered_sim_cancel_dispatch_tombstones",
+            ),
+        ).fetchone()[0] == 0
+
+
+def test_v21_migration_tombstones_every_cancel_across_batches_and_skips_submit(tmp_path):
+    path = tmp_path / "v21-many-unresolved-cancels.sqlite3"
+    journal = ExecutionDecisionJournal(path)
+    cancel_count = 258
+    cancel_keys = tuple(
+        _intent_key(
+            "SIM-LEGACY-CANCEL-{:03d}".format(index),
+            action="CANCEL",
+            leg=index,
+        )
+        for index in range(cancel_count)
+    )
+    submit_key = _intent_key("SIM-LEGACY-SUBMIT", action="SUBMIT", leg=cancel_count)
+    all_keys = cancel_keys + (submit_key,)
+    decision = journal.record_decision(
+        ExecutionDecisionKey(
+            account_scope="account-a",
+            strategy_scope="strategy-a",
+            logical_run_id="legacy-many-cancel-run",
+            cohort_id="legacy-many-cancel-cohort",
+            close_time="2026-10-20T10:09:00Z",
+            decision_kind="risk",
+        ),
+        {"signal": "legacy-cancel-batch"},
+        intent_keys=all_keys,
+    )
+    slots = journal._connection.execute(
+        "SELECT intent_id,intent_key_json FROM execution_decision_slots "
+        "WHERE decision_id=? ORDER BY leg",
+        (decision.decision_id,),
+    ).fetchall()
+    assert len(slots) == cancel_count + 1
+    cancel_ids = []
+    submit_id = None
+    now_ns = time.time_ns()
+    with journal._transaction() as cursor:
+        for slot in slots:
+            key_values = json.loads(slot["intent_key_json"])
+            is_cancel = key_values["action"] == "CANCEL"
+            intent_id = slot["intent_id"]
+            original_identity = (
+                {"operation": "cancel", "backtrader_order_ref": 1000 + len(cancel_ids)}
+                if is_cancel
+                else {"operation": "insert", "backtrader_order_ref": 2000}
+            )
+            if is_cancel:
+                cancel_ids.append(intent_id)
+            else:
+                submit_id = intent_id
+            identity_json = json.dumps(
+                original_identity, ensure_ascii=True, separators=(",", ":"), sort_keys=True
+            )
+            economic_json = json.dumps(
+                {"instrument": key_values["instrument"], "exchange": "SHFE"},
+                ensure_ascii=True,
+                separators=(",", ":"),
+                sort_keys=True,
+            )
+            with track_durable_row_change(
+                cursor, "execution_decision_intents", (intent_id,), "SETTLEMENT"
+            ):
+                cursor.execute(
+                    """INSERT INTO execution_decision_intents (
+                           intent_id,decision_id,intent_key_json,economic_payload_json,
+                           original_identity_json,owner_intent_id,state,dispatch_state,
+                           provider_identity_json,outcome_code,dispatch_result_json,
+                           created_at_ns,updated_at_ns
+                       ) VALUES (?,?,?,?,?,?, 'DISPATCHING',NULL,NULL,NULL,NULL,?,?)""",
+                    (
+                        intent_id,
+                        decision.decision_id,
+                        slot["intent_key_json"],
+                        economic_json,
+                        identity_json,
+                        "legacy-owner" if is_cancel else None,
+                        now_ns,
+                        now_ns,
+                    ),
+                )
+    before = _durable_usage(journal)
+    journal.close()
+
+    with sqlite3.connect(path) as connection:
+        _drop_v22_registered_sim_cancel_objects(connection)
+        connection.execute("PRAGMA user_version=21")
+
+    migrated = ExecutionDecisionJournal(path)
+    try:
+        tombstone_ids = tuple(
+            row[0]
+            for row in migrated._connection.execute(
+                "SELECT cancel_intent_id FROM "
+                "execution_registered_sim_cancel_dispatch_tombstones"
+            ).fetchall()
+        )
+        assert set(tombstone_ids) == set(cancel_ids)
+        assert len(tombstone_ids) == cancel_count
+        assert submit_id not in set(tombstone_ids)
+        identity = _legacy_cancel_target_identity(
+            "SIM-LEGACY-CANCEL-000", "94", "legacy-sysid"
+        )
+        for cancel_id in cancel_ids:
+            with pytest.raises(
+                ExecutionDecisionJournalError,
+                match="CANCEL_NATIVE_DISPATCH_LEGACY_AMBIGUOUS",
+            ):
+                migrated.registered_sim_cancel_dispatch_records(cancel_id)
+            with pytest.raises(
+                ExecutionDecisionJournalError,
+                match="CANCEL_NATIVE_DISPATCH_LEGACY_AMBIGUOUS",
+            ):
+                migrated.claim_registered_sim_cancel_dispatch(cancel_id, identity)
+        after = _durable_usage(migrated)
+        assert after.settlement_records == before.settlement_records + cancel_count
+        assert after.settlement_bytes > before.settlement_bytes
+    finally:
+        migrated.close()
+
+
+def test_order_sysid_binding_rejects_publicly_constructed_fake_store_receipt():
+    journal = ExecutionDecisionJournal(":memory:")
+    fake_store = object()
+    now = datetime.now(timezone.utc)
+    receipt = RegisteredSimOrderIdentityQueryReceipt(
+        request_id=1,
+        connection_generation=1,
+        account_fingerprint="fake-account",
+        trading_day="20261024",
+        started_at_utc=now,
+        completed_at_utc=now,
+        front_id=4,
+        session_id=7,
+        broker_id="fake-broker",
+        investor_id="fake-investor",
+        rows_sha256="a" * 64,
+        rows=(),
+        source_expires_monotonic=time.monotonic() + 30,
+        _store=fake_store,
+        _issuer=object(),
+    )
+    try:
+        with pytest.raises(
+            ExecutionDecisionJournalError,
+            match="KNOWN_CTP_ORDER_SYSID_QUERY_UNTRUSTED",
+        ):
+            journal.bind_known_ctp_order_sysid_from_query(
+                "fabricated-intent",
+                receipt,
+                source_store=fake_store,
+                broker_order_ref=1,
+                expected_side="BUY",
+                expected_position_effect="OPEN",
+                expected_remaining_quantity=Decimal("1"),
+                expected_instrument="rb2510",
+                expected_exchange="SHFE",
+                expected_front_id=4,
+                expected_session_id=7,
+            )
+    finally:
+        journal.close()
 
 
 def test_committed_v16_candidate_history_survives_v19_upgrade_without_reclassification(

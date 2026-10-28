@@ -438,6 +438,13 @@ def test_archive_snapshot_verifies_terminal_chain_and_preserves_unknown(tmp_path
         assert receipt.table_row_counts["execution_fee_pair_scope_events"] == 1
         assert receipt.table_row_counts["execution_fee_pair_candidates"] == 0
         assert receipt.table_row_counts["execution_fee_pair_candidate_events"] == 0
+        assert receipt.table_row_counts["execution_registered_sim_cancel_dispatch_claims"] == 0
+        assert (
+            receipt.table_row_counts[
+                "execution_registered_sim_cancel_dispatch_tombstones"
+            ]
+            == 0
+        )
 
         with closing(_readonly_connection(archive_path)) as archived:
             terminal_row = archived.execute(

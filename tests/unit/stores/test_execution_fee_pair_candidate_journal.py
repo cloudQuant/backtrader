@@ -224,6 +224,7 @@ def _record_source_grid(journal, *, run_id="candidate-run", close_time="2026-10-
 
 
 def _downgrade_to_v15(connection: sqlite3.Connection) -> None:
+    _drop_v21_order_sysid_binding_schema(connection)
     for trigger in (
         "execution_fee_pair_workflow_grid_settlement_insert",
         "execution_fee_pair_workflow_grid_settlement_no_update",
@@ -243,9 +244,41 @@ def _downgrade_to_v15(connection: sqlite3.Connection) -> None:
     connection.execute("PRAGMA user_version=15")
 
 
+def _drop_v21_order_sysid_binding_schema(connection: sqlite3.Connection) -> None:
+    """Remove the current-only identity/dispatch schemas from old fixtures."""
+
+    connection.execute(
+        "DROP TRIGGER IF EXISTS execution_registered_sim_cancel_dispatch_claim_no_update"
+    )
+    connection.execute(
+        "DROP TRIGGER IF EXISTS execution_registered_sim_cancel_dispatch_claim_no_delete"
+    )
+    connection.execute(
+        "DROP TABLE IF EXISTS execution_registered_sim_cancel_dispatch_claims"
+    )
+    connection.execute(
+        "DROP TRIGGER IF EXISTS execution_registered_sim_cancel_dispatch_tombstone_no_update"
+    )
+    connection.execute(
+        "DROP TRIGGER IF EXISTS execution_registered_sim_cancel_dispatch_tombstone_no_delete"
+    )
+    connection.execute(
+        "DROP TABLE IF EXISTS execution_registered_sim_cancel_dispatch_tombstones"
+    )
+
+    connection.execute(
+        "DROP TRIGGER IF EXISTS execution_known_ctp_order_sysid_binding_no_update"
+    )
+    connection.execute(
+        "DROP TRIGGER IF EXISTS execution_known_ctp_order_sysid_binding_no_delete"
+    )
+    connection.execute("DROP TABLE IF EXISTS execution_known_ctp_order_sysid_bindings")
+
+
 def _downgrade_v20_workflow_to_v18(connection: sqlite3.Connection) -> None:
     """Restore v18 DDL and its exact capacity projection for migration tests."""
 
+    _drop_v21_order_sysid_binding_schema(connection)
     connection.row_factory = sqlite3.Row
 
     def table_bytes(table: str) -> int:
@@ -359,6 +392,7 @@ def _downgrade_v20_workflow_to_v18(connection: sqlite3.Connection) -> None:
 def _downgrade_v20_workflow_to_v19(connection: sqlite3.Connection) -> None:
     """Restore the v19 event DDL and reservation accounting for migration tests."""
 
+    _drop_v21_order_sysid_binding_schema(connection)
     connection.row_factory = sqlite3.Row
 
     def table_bytes(table: str) -> int:
@@ -1078,7 +1112,7 @@ def test_v15_migration_preserves_history_and_adds_empty_candidate_schema(tmp_pat
 
     migrated = ExecutionDecisionJournal(path)
     try:
-        assert migrated._connection.execute("PRAGMA user_version").fetchone()[0] == 20
+        assert migrated._connection.execute("PRAGMA user_version").fetchone()[0] == 22
         assert migrated.decision(decision.decision_id) == decision
         assert migrated.fee_pair_required_scope("pair-account", "pair-strategy") is not None
         assert (
@@ -1348,7 +1382,7 @@ def test_v18_87_member_workflow_fits_default_payload_limit_and_archives(tmp_path
         archive_receipt = journal.archive_snapshot(archive_path)
         verified = archive_module.verify_execution_journal_archive(
             archive_path,
-            expected_schema_version=20,
+            expected_schema_version=22,
             expected_sha256=archive_receipt.sha256,
         )
         assert verified == archive_receipt
@@ -1459,11 +1493,11 @@ def test_v17_small_workflow_migrates_to_v20_and_remains_readable(tmp_path):
 
     migrated = ExecutionDecisionJournal(path)
     try:
-        assert migrated._connection.execute("PRAGMA user_version").fetchone()[0] == 20
+        assert migrated._connection.execute("PRAGMA user_version").fetchone()[0] == 22
         assert migrated.fee_pair_workflow_candidate(reserved.candidate_id).state == "SOURCE_ONLY"
         assert migrated.decision(expected.decision_id) == expected
         archive_receipt = migrated.archive_snapshot(archive_path)
-        assert archive_receipt.schema_version == 20
+        assert archive_receipt.schema_version == 22
     finally:
         migrated.close()
 
@@ -2499,7 +2533,7 @@ def test_v18_workflow_migration_preserves_events_and_allows_grid_settlement(tmp_
 
     migrated = ExecutionDecisionJournal(path)
     try:
-        assert migrated._connection.execute("PRAGMA user_version").fetchone()[0] == 20
+        assert migrated._connection.execute("PRAGMA user_version").fetchone()[0] == 22
         assert migrated.fee_pair_workflow_candidate(candidate_id).state == "RECEIPT_VERIFIED"
         migrated_events = tuple(
             tuple(row)
@@ -2589,7 +2623,7 @@ def test_v19_workflow_migration_preserves_legacy_append_history(tmp_path):
 
     migrated = ExecutionDecisionJournal(path)
     try:
-        assert migrated._connection.execute("PRAGMA user_version").fetchone()[0] == 20
+        assert migrated._connection.execute("PRAGMA user_version").fetchone()[0] == 22
         assert migrated.fee_pair_workflow_candidate(candidate_id).state == "RECEIPT_VERIFIED"
         assert migrated.fee_pair_workflow_candidate(candidate_id).tape_append_state is None
         migrated_events = tuple(

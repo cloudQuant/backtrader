@@ -11,6 +11,7 @@ import collections
 import contextvars
 from contextlib import ExitStack
 from dataclasses import replace
+import sqlite3
 import threading
 import time
 from datetime import datetime, timedelta, timezone
@@ -21,6 +22,7 @@ import pandas as pd
 import pytest
 
 import backtrader as bt
+import backtrader.stores.factor_execution as factor_execution_module
 from backtrader.metabase import OwnerContext
 from backtrader.order import Order
 from backtrader.research.live import LiveFactorReadiness, LiveFactorSnapshot
@@ -32,6 +34,7 @@ from backtrader.stores.execution_decision_journal import (
     ExecutionIntentKey,
     ExecutionRunLossGuardContext,
 )
+from backtrader.stores.execution_durable_capacity import DurableCapacityLimits
 from backtrader.stores.factor_execution import FactorExecutionCoordinator, FactorExecutionError
 from backtrader.stores.factor_execution_facts import (
     FactorExecutionAccountFacts,
@@ -228,6 +231,7 @@ class _FakeProviderClient(facts_helpers._ProviderLeaves):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.native_calls = []
+        self.native_action_fields = []
         self._native_request_id = 100
         self._next_order_reference = 500
         self.trader_client._front_id = 4
@@ -312,8 +316,27 @@ class _FakeProviderClient(facts_helpers._ProviderLeaves):
         )
         return 0
 
-    def _native_cancel(self, field, request_id, *, execution_capability):
+    def _native_cancel(
+        self, field, request_id, *, execution_capability, deadline_monotonic=None
+    ):
         assert execution_capability is not None
+        self.native_action_fields.append(
+            {
+                name: getattr(field, name, None)
+                for name in (
+                    "BrokerID",
+                    "InvestorID",
+                    "InstrumentID",
+                    "ExchangeID",
+                    "OrderRef",
+                    "OrderSysID",
+                    "FrontID",
+                    "SessionID",
+                    "RequestID",
+                    "ActionFlag",
+                )
+            }
+        )
         self.native_calls.append(
             ("cancel", field.InstrumentID, field.ExchangeID, field.OrderRef, request_id)
         )
@@ -409,6 +432,9 @@ class _FakeProviderClient(facts_helpers._ProviderLeaves):
     def submit_order(self, payload):
         request_id = self._next_request()
         field = SimpleNamespace(
+            BrokerID=getattr(self.trader_client, "_broker_id", "fake-broker"),
+            InvestorID=getattr(self.trader_client, "_user_id", "fake-investor"),
+            UserID=getattr(self.trader_client, "_user_id", "fake-investor"),
             InstrumentID=payload["instrument_id"],
             ExchangeID=payload["exchange_id"],
             OrderRef=payload["order_ref"],
@@ -437,18 +463,41 @@ class _FakeProviderClient(facts_helpers._ProviderLeaves):
             "exchange_id": field.ExchangeID,
         }
 
-    def cancel_order(self, order_ref, dataname=None):
-        del dataname
-        identity = self._provider_orders[str(order_ref)]
+    def cancel_order(self, order_ref, dataname=None, *, registered_sim_cancel_target=None):
+        if registered_sim_cancel_target is not None:
+            target = registered_sim_cancel_target
+            if (
+                type(order_ref) is not str
+                or order_ref != target.order_ref
+                or dataname != "{}.{}".format(target.exchange_id, target.instrument_id)
+            ):
+                raise ValueError("target mismatch")
+            identity = {
+                "instrument_id": target.instrument_id,
+                "exchange_id": target.exchange_id,
+                "order_ref": target.order_ref,
+                "order_sys_id": target.order_sys_id,
+                "front_id": target.front_id,
+                "session_id": target.session_id,
+                "broker_id": target.broker_id,
+                "investor_id": target.investor_id,
+            }
+        else:
+            del dataname
+            identity = self._provider_orders[str(order_ref)]
         request_id = self._next_request()
         field = SimpleNamespace(
             InstrumentID=identity["instrument_id"],
             ExchangeID=identity["exchange_id"],
-            OrderRef=str(order_ref),
+            OrderRef=identity.get("order_ref", str(order_ref)),
             OrderSysID=identity["order_sys_id"] or "",
             FrontID=identity["front_id"],
             SessionID=identity["session_id"],
             RequestID=request_id,
+            OrderActionRef=request_id,
+            BrokerID=identity.get("broker_id", "fake-broker"),
+            InvestorID=identity.get("investor_id", "fake-investor"),
+            ActionFlag="0",
         )
         self._send_native_order_action(field, request_id)
         return {
@@ -496,7 +545,17 @@ class _GatedPandasData(bt.feeds.PandasData):
         return super()._load()
 
 
-def _system(*, now, query_rows=None, bars=1, bar_advance_gate=None, exchange=_EXCHANGE):
+def _system(
+    *,
+    now,
+    query_rows=None,
+    bars=1,
+    bar_advance_gate=None,
+    exchange=_EXCHANGE,
+    journal_path=None,
+    journal_kwargs=None,
+    api_cls=None,
+):
     query_rows = query_rows or facts_helpers._query_rows()
     for family_rows in query_rows.values():
         if not isinstance(family_rows, list):
@@ -509,7 +568,7 @@ def _system(*, now, query_rows=None, bars=1, bar_advance_gate=None, exchange=_EX
     tick.exchange_id = exchange
     store = RegisteredSimStore(
         allow_writes=True,
-        api_cls=_FakeProviderClient,
+        api_cls=_FakeProviderClient if api_cls is None else api_cls,
         live_tick_provenance={"source": "fake-ctp-event"},
     )
     # Exercise the Store's production factory: RegisteredSimWrapper is the
@@ -520,7 +579,8 @@ def _system(*, now, query_rows=None, bars=1, bar_advance_gate=None, exchange=_EX
         tick=tick,
     )
     assert isinstance(api, RegisteredSimWrapper)
-    assert _FakeProviderClient in type(api).__mro__
+    expected_api_base = _FakeProviderClient if api_cls is None else api_cls
+    assert expected_api_base in type(api).__mro__
     store._api = api
     store._connected = True
     store.live_tick_provenance = {"source": "fake-ctp-event"}
@@ -563,7 +623,10 @@ def _system(*, now, query_rows=None, bars=1, bar_advance_gate=None, exchange=_EX
     with OwnerContext.set_owner(cerebro):
         strategy = _PlainStrategy(data)
 
-    journal = ExecutionDecisionJournal(":memory:")
+    journal = ExecutionDecisionJournal(
+        ":memory:" if journal_path is None else journal_path,
+        **(dict(journal_kwargs or {})),
+    )
     coordinator = FactorExecutionCoordinator(
         broker,
         journal,
@@ -575,6 +638,134 @@ def _system(*, now, query_rows=None, bars=1, bar_advance_gate=None, exchange=_EX
     )
     target = FactorExecutionTarget("rb", _INSTRUMENT, exchange, data)
     return api, store, broker, journal, coordinator, target, data, strategy, cerebro
+
+
+def _source_sdk_system(monkeypatch, **system_kwargs):
+    """Build the factor fixture with the canonical SDK and a fake native leaf."""
+
+    from tests.unit.stores import test_registered_sim_cancel_native_identity as native_tests
+
+    sdk_client_module, trader, native = native_tests._sdk_trader_fixture(monkeypatch)
+    api_cls = native_tests._production_test_api_base(
+        monkeypatch,
+        trader_factory=lambda: trader,
+        sdk_client_module=sdk_client_module,
+    )
+    system = _system(api_cls=api_cls, **system_kwargs)
+    api = system[0]
+    # Preserve the familiar deterministic references while leaving the
+    # canonical SDK send methods untouched.
+    trader.next_order_ref = api._reserve_order_ref
+
+    req_order_insert = native.ReqOrderInsert
+
+    def capture_insert(field, request_id):
+        api.native_calls.append(
+            ("insert", field.InstrumentID, field.ExchangeID, field.OrderRef, request_id)
+        )
+        trader._req_id = max(trader._req_id, request_id)
+        return req_order_insert(field, request_id)
+
+    req_order_action = native.ReqOrderAction
+
+    def capture_action(field, request_id):
+        api.native_calls.append(
+            ("cancel", field.InstrumentID, field.ExchangeID, field.OrderRef, request_id)
+        )
+        api._native_request_id = max(api._native_request_id, request_id)
+        trader._req_id = max(trader._req_id, request_id)
+        api.native_action_fields.append(
+            {
+                name: getattr(field, name, None)
+                for name in (
+                    "BrokerID",
+                    "InvestorID",
+                    "InstrumentID",
+                    "ExchangeID",
+                    "OrderRef",
+                    "OrderSysID",
+                    "FrontID",
+                    "SessionID",
+                    "RequestID",
+                    "ActionFlag",
+                    "OrderActionRef",
+                )
+            }
+        )
+        return req_order_action(field, request_id)
+
+    native.ReqOrderInsert = capture_insert
+    native.ReqOrderAction = capture_action
+    return (*system, trader, native)
+
+
+def _known_order_sysid_binding_system(now, *, monkeypatch=None):
+    """Return one real Store/Broker known submit without query-derived SysID."""
+    if monkeypatch is None:
+        system = _system(now=now)
+    else:
+        system = _source_sdk_system(monkeypatch, now=now)
+    api, store, broker, journal, coordinator, target, data, strategy, _cerebro = system[:9]
+    initial = facts_helpers._refresh_all(store, target)
+    store.registered_sim_configure_arm_templates(
+        {
+            (_INSTRUMENT, _EXCHANGE): {
+                "md_front": "tcp://127.0.0.1:1",
+                "strategy_identity_sha256": "a" * 64,
+                "execution_cycle_id": "sysid-binding-test",
+                "preflight_sha256": "b" * 64,
+            }
+        }
+    )
+    assert facts_helpers._consume_quote(store) is not None
+    facts = facts_helpers._project(store, broker, target, now, query_set=initial.query_set)
+    assert facts.open_risk_ready is True, facts.blockers
+    key = ExecutionIntentKey(
+        action="SUBMIT",
+        instrument=_INSTRUMENT,
+        side="BUY",
+        position_effect="OPEN",
+        leg=0,
+    )
+    economics = {
+        "instrument": _INSTRUMENT,
+        "exchange": _EXCHANGE,
+        "side": "BUY",
+        "position_effect": "OPEN",
+        "quantity": "1",
+        "limit_price": "100",
+        "factor_stop_price": "95",
+        "risk_policy_id": "sysid-binding-test",
+        "risk_policy": {"stop_loss_ticks": 5, "max_loss_per_position": "25"},
+        "entry_grid_ordinal": 1,
+        "batch_id": "sysid-binding-test",
+        "price": "100",
+    }
+    with _live_scope(
+        coordinator,
+        strategy,
+        facts,
+        now=now,
+        intent_key=key,
+        economics=economics,
+    ):
+        order = strategy.buy(
+            data=data,
+            size=1,
+            price=100,
+            exectype=Order.Limit,
+            instrument_id=_INSTRUMENT,
+            exchange_id=_EXCHANGE,
+            factor_position_effect="OPEN",
+            factor_strategy_scope=_SCOPE,
+            offset="open",
+        )
+    assert order is not None and order.alive()
+    assert order.info["factor_dispatch_state"] == "KNOWN"
+    assert journal.intent(order.info["factor_intent_id"]).provider_identity[
+        "order_sys_id"
+    ] is None
+    return api, store, broker, journal, coordinator, target, order
 
 
 def _live_scope(
@@ -1075,20 +1266,30 @@ def test_coordinator_run_loss_guard_survives_sqlite_close_reopen(tmp_path):
             journal.close()
 
 
-def test_sourcefake_plain_strategy_buy_manual_fill_component_only():
+def test_sourcefake_plain_strategy_buy_manual_fill_component_only(monkeypatch):
     """Prove component dispatch/dedupe; the actual engine lifecycle is below."""
     now = datetime.now(timezone.utc)
     # This component-level callback fixture deliberately uses DCE so it does
     # not imply SHFE close-today/yesterday inventory from a net position row.
     exchange = "DCE"
-    api, store, broker, journal, coordinator, target, data, strategy, _cerebro = _system(
-        now=now, exchange=exchange
-    )
+    (
+        api,
+        store,
+        broker,
+        journal,
+        coordinator,
+        target,
+        data,
+        strategy,
+        _cerebro,
+        _trader,
+        _native,
+    ) = _source_sdk_system(monkeypatch, now=now, exchange=exchange)
     query = facts_helpers._refresh_all(store, target)
     store.registered_sim_configure_arm_templates(
         {
             (_INSTRUMENT, exchange): {
-                "md_front": "tcp://127.0.0.1:1",
+                "md_front": "tcp://182.254.243.31:30012",
                 "strategy_identity_sha256": "a" * 64,
                 "execution_cycle_id": "cycle-1",
                 "preflight_sha256": "b" * 64,
@@ -1098,7 +1299,7 @@ def test_sourcefake_plain_strategy_buy_manual_fill_component_only():
     store.registered_sim_arm(
         instrument=_INSTRUMENT,
         exchange=exchange,
-        md_front="tcp://127.0.0.1:1",
+        md_front="tcp://182.254.243.31:30012",
         strategy_identity_sha256="a" * 64,
         execution_cycle_id="cycle-1",
         preflight_sha256="b" * 64,
@@ -1214,6 +1415,7 @@ def test_sourcefake_plain_strategy_buy_manual_fill_component_only():
     }
     active_order_row = {
         "OrderRef": "501",
+        "OrderSysID": "sys-501",
         "InstrumentID": _INSTRUMENT,
         "ExchangeID": exchange,
         "OrderStatus": "1",
@@ -1320,7 +1522,8 @@ def test_sourcefake_plain_strategy_buy_manual_fill_component_only():
 
     assert cancel_decision.decision_id is not None
     assert len(api.native_calls) == 2
-    assert api.native_calls[1] == ("cancel", _INSTRUMENT, exchange, "501", 102)
+    assert api.native_calls[1][:4] == ("cancel", _INSTRUMENT, exchange, "501")
+    assert api.native_calls[1][4] == api.native_action_fields[0]["RequestID"]
     assert order.alive()
     assert order.info["cancel_requested_remote"] is True
 
@@ -1609,7 +1812,202 @@ def test_no_template_facts_reject_same_key_sdk_rearm_as_active_route():
     assert target_route.capability_matches_route is False
 
 
-def test_actual_cerebro_open_cancel_terminal_and_risk_close_chain():
+def test_known_sysid_binding_scans_beyond_128_active_owners(monkeypatch):
+    owner_count = 129
+    receipt = object()
+    store = SimpleNamespace(registered_sim_order_identity_query_receipt=lambda: receipt)
+    calls = []
+    journal = SimpleNamespace(
+        max_pending_intents=1024,
+        bind_known_ctp_order_sysid_from_query=lambda *args, **kwargs: calls.append(
+            (args, kwargs)
+        ),
+    )
+    coordinator = FactorExecutionCoordinator.__new__(FactorExecutionCoordinator)
+    coordinator.store = store
+    coordinator.journal = journal
+    coordinator.broker = SimpleNamespace()
+    coordinator.account_scope = _ACCOUNT_SCOPE
+    coordinator.strategy_scope = _SCOPE
+    owner_ids = tuple("known-owner-{}".format(index) for index in range(owner_count))
+    orders = tuple(
+        SimpleNamespace(
+            owner_intent_id=owner_id,
+            execution_unknown=False,
+            cancel_pending=False,
+            order_ref=str(index + 1),
+            side="BUY",
+            position_effect="OPEN",
+            remaining_quantity=Decimal("1"),
+            instrument_id=_INSTRUMENT,
+            exchange_id=_EXCHANGE,
+            front_id=4,
+            session_id=7,
+        )
+        for index, owner_id in enumerate(owner_ids)
+    )
+    intents = tuple(
+        SimpleNamespace(
+            intent_id=owner_id,
+            state="KNOWN",
+            dispatch_state="KNOWN",
+            key=SimpleNamespace(action="SUBMIT"),
+        )
+        for owner_id in owner_ids
+    )
+    requested_limits = []
+    coordinator.execution_intent_snapshot = lambda *, limit: (
+        requested_limits.append(limit)
+        or SimpleNamespace(items=intents, truncated=False)
+    )
+    monkeypatch.setattr(
+        factor_execution_module,
+        "execution_order_snapshot",
+        lambda _broker: orders,
+    )
+
+    failures = coordinator.bind_known_order_sysids_from_current_query()
+
+    assert failures == ()
+    assert requested_limits == [1024]
+    assert len(calls) == owner_count
+    assert all(call_kwargs["source_store"] is store for _args, call_kwargs in calls)
+
+
+def test_unknown_submit_owner_is_never_given_a_query_sysid_binding(monkeypatch):
+    calls = []
+    receipt = object()
+    store = SimpleNamespace(registered_sim_order_identity_query_receipt=lambda: receipt)
+    journal = SimpleNamespace(
+        max_pending_intents=1024,
+        bind_known_ctp_order_sysid_from_query=lambda *args, **kwargs: calls.append(
+            (args, kwargs)
+        ),
+    )
+    coordinator = FactorExecutionCoordinator.__new__(FactorExecutionCoordinator)
+    coordinator.store = store
+    coordinator.journal = journal
+    coordinator.broker = SimpleNamespace()
+    coordinator.account_scope = _ACCOUNT_SCOPE
+    coordinator.strategy_scope = _SCOPE
+    order = SimpleNamespace(
+        owner_intent_id="unknown-owner",
+        execution_unknown=True,
+        cancel_pending=False,
+    )
+    intent = SimpleNamespace(
+        intent_id="unknown-owner",
+        state="UNKNOWN",
+        dispatch_state="UNKNOWN",
+        key=SimpleNamespace(action="SUBMIT"),
+    )
+    coordinator.execution_intent_snapshot = lambda *, limit: SimpleNamespace(
+        items=(intent,), truncated=False
+    )
+    monkeypatch.setattr(
+        factor_execution_module,
+        "execution_order_snapshot",
+        lambda _broker: (order,),
+    )
+
+    failures = coordinator.bind_known_order_sysids_from_current_query()
+
+    assert failures == ()
+    assert calls == []
+
+
+def test_sysid_binding_capacity_exhaustion_rolls_back_binding_and_ledger(monkeypatch):
+    now = datetime.now(timezone.utc)
+    api, store, _broker, journal, coordinator, _target, order = (
+        _known_order_sysid_binding_system(now, monkeypatch=monkeypatch)
+    )
+    try:
+        # Seed one durable settlement record so the binding append is tested
+        # against a genuinely exhausted class budget, not a zero-count table.
+        journal.record_decision(
+            ExecutionDecisionKey(
+                account_scope=_ACCOUNT_SCOPE,
+                strategy_scope=_SCOPE,
+                logical_run_id="run-1",
+                cohort_id="capacity-primer",
+                close_time=now.isoformat().replace("+00:00", "Z"),
+                decision_kind="ALPHA003_RISK_REDUCTION",
+            ),
+            {"signal": "capacity-primer"},
+            intent_keys=(
+                ExecutionIntentKey(
+                    action="CANCEL",
+                    instrument="SIM-CAPACITY-PRIMER",
+                    side="BUY",
+                    position_effect="OPEN",
+                    leg=0,
+                ),
+            ),
+        )
+        row = {
+            "BrokerID": "fake-broker",
+            "InvestorID": "fake-investor",
+            "TradingDay": facts_helpers._TRADING_DAY,
+            "OrderRef": order.info["external_order_ref"],
+            "OrderSysID": "sys-capacity-501",
+            "InstrumentID": _INSTRUMENT,
+            "ExchangeID": _EXCHANGE,
+            "OrderStatus": "3",
+            "Direction": "0",
+            "CombOffsetFlag": "0",
+            "VolumeTotalOriginal": "1",
+            "VolumeTraded": "0",
+            "VolumeTotal": "1",
+            "FrontID": 4,
+            "SessionID": 7,
+        }
+        api.query_rows = facts_helpers._query_rows(orders=(row,))
+        store.registered_sim_query("orders_result", attempts=1)
+
+        usage_before = tuple(
+            tuple(item)
+            for item in journal._connection.execute(
+                "SELECT capacity_class,record_count,payload_bytes "
+                "FROM execution_durable_capacity_usage ORDER BY capacity_class"
+            )
+        )
+        settlement_records = next(
+            count for capacity_class, count, _bytes in usage_before
+            if capacity_class == "SETTLEMENT"
+        )
+        current_limits = journal.durable_capacity_limits
+        constrained_limits = DurableCapacityLimits(
+            max_durable_base_records=current_limits.max_durable_base_records,
+            max_durable_base_bytes=current_limits.max_durable_base_bytes,
+            max_durable_settlement_records=settlement_records,
+            max_durable_settlement_bytes=current_limits.max_durable_settlement_bytes,
+        )
+        journal._connection.execute(
+            "UPDATE execution_durable_capacity_limits "
+            "SET max_durable_settlement_records=? WHERE singleton=1",
+            (constrained_limits.max_durable_settlement_records,),
+        )
+        journal.durable_capacity_limits = constrained_limits
+
+        failures = coordinator.bind_known_order_sysids_from_current_query()
+
+        assert failures == ("DURABLE_SETTLEMENT_RECORDS_EXHAUSTED",)
+        assert journal._connection.execute(
+            "SELECT COUNT(*) FROM execution_known_ctp_order_sysid_bindings"
+        ).fetchone()[0] == 0
+        usage_after = tuple(
+            tuple(item)
+            for item in journal._connection.execute(
+                "SELECT capacity_class,record_count,payload_bytes "
+                "FROM execution_durable_capacity_usage ORDER BY capacity_class"
+            )
+        )
+        assert usage_after == usage_before
+    finally:
+        journal.close()
+
+
+def test_actual_cerebro_open_cancel_terminal_and_risk_close_chain(monkeypatch, tmp_path, request):
     now = datetime.now(timezone.utc)
     exchange = "DCE"
 
@@ -1626,14 +2024,31 @@ def test_actual_cerebro_open_cancel_terminal_and_risk_close_chain():
         return rows
 
     gate = _BarAdvanceGate()
-    api, store, broker, journal, coordinator, target, data, _strategy, cerebro = _system(
-        now=now, bars=7, bar_advance_gate=gate, exchange=exchange
+    (
+        api,
+        store,
+        broker,
+        journal,
+        coordinator,
+        target,
+        data,
+        _strategy,
+        cerebro,
+        _trader,
+        _native,
+    ) = _source_sdk_system(
+        monkeypatch,
+        now=now,
+        bars=7,
+        bar_advance_gate=gate,
+        exchange=exchange,
+        journal_path=tmp_path / "ctp-order-sysid.sqlite3",
     )
     initial = facts_helpers._refresh_all(store, target)
     store.registered_sim_configure_arm_templates(
         {
             (_INSTRUMENT, exchange): {
-                "md_front": "tcp://127.0.0.1:1",
+                "md_front": "tcp://182.254.243.31:30012",
                 "strategy_identity_sha256": "a" * 64,
                 "execution_cycle_id": "cycle-1",
                 "preflight_sha256": "b" * 64,
@@ -1643,7 +2058,7 @@ def test_actual_cerebro_open_cancel_terminal_and_risk_close_chain():
     store.registered_sim_arm(
         instrument=_INSTRUMENT,
         exchange=exchange,
-        md_front="tcp://127.0.0.1:1",
+        md_front="tcp://182.254.243.31:30012",
         strategy_identity_sha256="a" * 64,
         execution_cycle_id="cycle-1",
         preflight_sha256="b" * 64,
@@ -1711,6 +2126,7 @@ def test_actual_cerebro_open_cancel_terminal_and_risk_close_chain():
         "bar3": threading.Event(),
         "bar4": threading.Event(),
         "bar6": threading.Event(),
+        "final_refresh_seen": threading.Event(),
         "close_sent": threading.Event(),
         "order": None,
         "close_order": None,
@@ -1859,6 +2275,7 @@ def test_actual_cerebro_open_cancel_terminal_and_risk_close_chain():
             assert state["close_order"].status == Order.Completed
             assert broker.execution_position_snapshot(data).quantity == Decimal("0")
             state["bar6"].set()
+            assert state["final_refresh_seen"].wait(10)
 
     def run_engine():
         try:
@@ -1873,6 +2290,15 @@ def test_actual_cerebro_open_cancel_terminal_and_risk_close_chain():
 
     cerebro.addstrategy(_OrchestratedExecutionStrategy, command=command, notifications=state)
     engine_thread = threading.Thread(target=run_engine, name="factor-engine-test")
+
+    def release_and_join_engine():
+        state["final_refresh_seen"].set()
+        if engine_thread.ident is not None:
+            engine_thread.join(timeout=10)
+        if engine_thread.is_alive():
+            pytest.fail("factor engine thread did not leave its final-query barrier")
+
+    request.addfinalizer(release_and_join_engine)
     engine_thread.start()
 
     assert state["open_sent"].wait(10), state["error"]
@@ -1975,7 +2401,10 @@ def test_actual_cerebro_open_cancel_terminal_and_risk_close_chain():
         "TradeTime": trade_time.strftime("%H:%M:%S"),
     }
     active_order = {
+        "BrokerID": "fake-broker",
+        "InvestorID": "fake-investor",
         "OrderRef": "501",
+        "OrderSysID": "sys-501",
         "InstrumentID": _INSTRUMENT,
         "ExchangeID": exchange,
         "OrderStatus": "1",
@@ -2060,6 +2489,7 @@ def test_actual_cerebro_open_cancel_terminal_and_risk_close_chain():
     ).fetchone()[0]
     assert cancel_facts.order_cancel_ready is True, (
         cancel_facts.order_cancel_blockers,
+        cancel_facts.diagnostics,
         cancel_facts.positions,
         callback_created_at_ns,
         datetime.fromtimestamp(callback_created_at_ns / 1_000_000_000, timezone.utc),
@@ -2069,12 +2499,150 @@ def test_actual_cerebro_open_cancel_terminal_and_risk_close_chain():
     )
     assert cancel_facts.positions[0].broker_quantity == Decimal("1")
     assert cancel_facts.positions[0].quantity == Decimal("1")
+    assert len(cancel_facts.working_orders) == 1
+    assert cancel_facts.working_orders[0].order_sys_id == "sys-501"
+    submit_intent_id = order.info["factor_intent_id"]
+    submit_intent = journal.intent(submit_intent_id)
+    assert submit_intent.provider_identity["order_sys_id"] is None
+    binding = journal._connection.execute(
+        "SELECT order_sys_id,query_request_id,query_rows_sha256,matched_row_sha256 "
+        "FROM execution_known_ctp_order_sysid_bindings WHERE intent_id=?",
+        (submit_intent_id,),
+    ).fetchone()
+    assert binding is not None
+    assert binding["order_sys_id"] == "sys-501"
+    assert binding["query_request_id"] > 0
+    assert len(binding["query_rows_sha256"]) == 64
+    assert len(binding["matched_row_sha256"]) == 64
+    archive_path = tmp_path / "ctp-order-sysid-archive.sqlite3"
+    archived = journal.archive_snapshot(archive_path)
+    assert archived.schema_version == ExecutionDecisionJournal._SCHEMA_VERSION
+    with sqlite3.connect(archive_path) as archive_connection:
+        archived_binding = archive_connection.execute(
+            "SELECT order_sys_id,query_request_id,query_rows_sha256,matched_row_sha256 "
+            "FROM execution_known_ctp_order_sysid_bindings WHERE intent_id=?",
+            (submit_intent_id,),
+        ).fetchone()
+    assert archived_binding == (
+        "sys-501",
+        binding["query_request_id"],
+        binding["query_rows_sha256"],
+        binding["matched_row_sha256"],
+    )
+
+    # A changed SysID for this immutable submit and a duplicate OrderRef are
+    # both ambiguous source evidence. Neither one may rebind the owner or make
+    # the Broker cancellation decision ready.
+    api.query_rows = route_query_rows(
+        positions=(position_row,),
+        orders=(dict(active_order, OrderSysID="conflicting-sys-id"),),
+        trades=(trade_row,),
+    )
+    conflict_query = facts_helpers._refresh_all(store, target)
+    conflict_facts = facts_helpers._project(
+        store,
+        broker,
+        target,
+        datetime.now(timezone.utc) + timedelta(milliseconds=2),
+        query_set=conflict_query.query_set,
+    )
+    assert not conflict_facts.order_cancel_ready
+    assert (
+        "known_ctp_order_sysid_binding_failed:KNOWN_CTP_ORDER_SYSID_BINDING_CONFLICT"
+        in conflict_facts.diagnostics
+    )
+    assert journal._connection.execute(
+        "SELECT order_sys_id FROM execution_known_ctp_order_sysid_bindings WHERE intent_id=?",
+        (submit_intent_id,),
+    ).fetchone()[0] == "sys-501"
+
+    api.query_rows = route_query_rows(
+        positions=(position_row,),
+        orders=(active_order, dict(active_order)),
+        trades=(trade_row,),
+    )
+    duplicate_query = facts_helpers._refresh_all(store, target)
+    duplicate_facts = facts_helpers._project(
+        store,
+        broker,
+        target,
+        datetime.now(timezone.utc) + timedelta(milliseconds=2),
+        query_set=duplicate_query.query_set,
+    )
+    assert not duplicate_facts.order_cancel_ready
+    assert (
+        "known_ctp_order_sysid_binding_failed:KNOWN_CTP_ORDER_SYSID_QUERY_ORDER_REF_AMBIGUOUS"
+        in duplicate_facts.diagnostics
+    )
+
+    api.query_rows = route_query_rows(
+        positions=(position_row,), orders=(active_order,), trades=(trade_row,)
+    )
+    refreshed = facts_helpers._refresh_all(store, target)
+    cancel_facts = facts_helpers._project(
+        store,
+        broker,
+        target,
+        datetime.now(timezone.utc) + timedelta(milliseconds=2),
+        query_set=refreshed.query_set,
+    )
+    assert cancel_facts.order_cancel_ready is True
     state["cancel_facts"] = cancel_facts
+    # Legacy Order objects can have only FactorExecution's namespaced session
+    # tags. The fresh complete order query supplies the native CTP pair used
+    # by the bound CANCEL identity.
+    order.info.pop("front_id", None)
+    order.info.pop("session_id", None)
+    assert order.info["factor_session_front_id"] == 4
+    assert order.info["factor_session_id"] == 7
     gate.allow_through(2)
     assert state["cancel_sent"].wait(10), state["error"]
     assert order.alive(), "native cancel ACK must not be treated as terminal"
     assert order.info["factor_cancel_dispatch_state"] == "KNOWN"
-    assert api.native_calls[1] == ("cancel", _INSTRUMENT, exchange, "501", 102)
+    assert order.info["order_sys_id"] == "sys-501"
+    cancel_intent = journal.intent(order.info["factor_cancel_intent_id"])
+    assert cancel_intent.original_identity["order_sys_id"] == "sys-501"
+    assert cancel_intent.original_identity["front_id"] == 4
+    assert cancel_intent.original_identity["session_id"] == 7
+    assert api.native_calls[1][:4] == ("cancel", _INSTRUMENT, exchange, "501")
+    assert api.native_calls[1][4] == api.native_action_fields[0]["RequestID"]
+    assert api.native_action_fields[0] == {
+        "BrokerID": "fake-broker",
+        "InvestorID": "fake-investor",
+        "InstrumentID": _INSTRUMENT,
+        "ExchangeID": exchange,
+        "OrderRef": "501",
+        "OrderSysID": "sys-501",
+        "FrontID": 4,
+        "SessionID": 7,
+        "RequestID": api.native_calls[1][4],
+        "ActionFlag": "0",
+        "OrderActionRef": api.native_calls[1][4],
+    }
+    # Open a fresh Journal connection while the order is still active. The
+    # durable facts page must recover the same immutable binding on restart.
+    reopened = ExecutionDecisionJournal(tmp_path / "ctp-order-sysid.sqlite3")
+    try:
+        restored_submit = reopened.intent(submit_intent_id)
+        assert restored_submit.provider_identity["order_sys_id"] is None
+        restored_binding = reopened._connection.execute(
+            "SELECT order_sys_id FROM execution_known_ctp_order_sysid_bindings "
+            "WHERE intent_id=?",
+            (submit_intent_id,),
+        ).fetchone()
+        assert restored_binding[0] == "sys-501"
+        restored_page = reopened.execution_intent_snapshot(
+            account_scope=_ACCOUNT_SCOPE, limit=1024
+        )
+        restored_intent = next(
+            item for item in restored_page.items if item.intent_id == submit_intent_id
+        )
+        assert restored_intent.order_sys_id_binding["order_sys_id"] == "sys-501"
+        assert reopened.intent(order.info["factor_cancel_intent_id"]).original_identity[
+            "order_sys_id"
+        ] == "sys-501"
+    finally:
+        reopened.close()
 
     # Let a broker cycle run with no terminal provider callback.  The ordinary
     # order remains alive after the native cancel acknowledgement.
@@ -2154,7 +2722,38 @@ def test_actual_cerebro_open_cancel_terminal_and_risk_close_chain():
     assert close_order.info["factor_position_effect"] == "CLOSE"
     assert close_order.info["factor_intent_id"]
     assert len(api.native_calls) == 3
-    assert api.native_calls[2] == ("insert", _INSTRUMENT, exchange, "502", 103)
+    assert api.native_calls[2][:4] == ("insert", _INSTRUMENT, exchange, "502")
+    assert api.native_calls[2][4] == _native.calls[-1][2]
+    assert _native.calls[-1][1].RequestID == _native.calls[-1][2]
+    native_request_ids = tuple(call[4] for call in api.native_calls)
+    sdk_request_ids = tuple(call[2] for call in _native.calls)
+    assert native_request_ids == sdk_request_ids
+    assert all(
+        type(request_id) is int and request_id > 0
+        for request_id in native_request_ids
+    )
+    assert all(left < right for left, right in zip(native_request_ids, native_request_ids[1:]))
+    for _operation, native_field, request_id in _native.calls:
+        assert native_field.RequestID == request_id
+    open_callback_evidence = _trader.get_order_insert_evidence(
+        native_request_ids[0], order_ref="501"
+    )
+    assert open_callback_evidence is not None
+    assert open_callback_evidence.request_id == native_request_ids[0]
+    assert open_callback_evidence.callback_received is True
+    cancel_action_evidence = _trader.get_order_action_evidence(
+        native_request_ids[1], order_action_ref=_native.calls[1][1].OrderActionRef
+    )
+    assert cancel_action_evidence is not None
+    assert cancel_action_evidence.request_id == native_request_ids[1]
+    assert cancel_action_evidence.callback_received is False
+    assert cancel_action_evidence.status == "unknown"
+    journal_request_ids = (
+        journal.intent(order.info["factor_intent_id"]).provider_identity["request_id"],
+        journal.intent(order.info["factor_cancel_intent_id"]).provider_identity["request_id"],
+        journal.intent(close_order.info["factor_intent_id"]).provider_identity["request_id"],
+    )
+    assert journal_request_ids == native_request_ids
     assert coordinator.run_loss_guard(loss_guard_context).tripped
 
     # Reconcile a complete query first, then deliver the same close through
@@ -2232,32 +2831,6 @@ def test_actual_cerebro_open_cancel_terminal_and_risk_close_chain():
     assert '"trade_date":"not-a-trade-date"' in close_raw_callback[0]
     assert '"execution_id"' not in close_raw_callback[0]
 
-    engine_thread.join(timeout=10)
-    assert not engine_thread.is_alive()
-    assert state["error"] is None
-    assert len(state["result"]) == 1
-    statuses = [status for status, _size, _ack in state["order_notifications"]]
-    assert "Partial" in statuses
-    assert "Canceled" in statuses
-    assert "Completed" in statuses
-    assert (
-        sum(
-            1
-            for just_opened, closed, size in state["trade_notifications"]
-            if just_opened and not closed and size == 1.0
-        )
-        == 1
-    )
-    assert any(
-        not just_opened and closed and size == 0.0
-        for just_opened, closed, size in state["trade_notifications"]
-    )
-    assert float(order.executed.size) == pytest.approx(1.0)
-    assert float(close_order.executed.size) == pytest.approx(-1.0)
-    assert journal.intent(order.info["factor_intent_id"]).state == "KNOWN"
-    assert journal.intent(close_order.info["factor_intent_id"]).state == "KNOWN"
-    assert coordinator.run_order_count() == 3
-
     # Repeated terminal history is reusable only while the complete current
     # trade query still agrees with durable callback fills.  A changed volume
     # for the same source TradeID blocks terminal reconciliation for the whole
@@ -2334,3 +2907,30 @@ def test_actual_cerebro_open_cancel_terminal_and_risk_close_chain():
         available_at=final_facts.available_at,
     )
     assert position.status == "FLAT", position
+    state["final_refresh_seen"].set()
+    engine_thread.join(timeout=10)
+    assert not engine_thread.is_alive()
+    assert state["error"] is None
+    assert len(state["result"]) == 1
+    statuses = [status for status, _size, _ack in state["order_notifications"]]
+    assert "Partial" in statuses
+    assert "Canceled" in statuses
+    assert "Completed" in statuses
+    assert (
+        sum(
+            1
+            for just_opened, closed, size in state["trade_notifications"]
+            if just_opened and not closed and size == 1.0
+        )
+        == 1
+    )
+    assert any(
+        not just_opened and closed and size == 0.0
+        for just_opened, closed, size in state["trade_notifications"]
+    )
+    assert float(order.executed.size) == pytest.approx(1.0)
+    assert float(close_order.executed.size) == pytest.approx(-1.0)
+    assert journal.intent(order.info["factor_intent_id"]).state == "KNOWN"
+    assert journal.intent(close_order.info["factor_intent_id"]).state == "KNOWN"
+    assert coordinator.run_order_count() == 3
+    journal.close()

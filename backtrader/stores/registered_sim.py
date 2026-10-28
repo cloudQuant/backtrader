@@ -24,14 +24,18 @@ from __future__ import annotations
 import collections
 import copy
 import contextlib
+import hashlib
 import inspect
+import json
 import math
 import re
+import sys
 import threading
 import time
 from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from types import MappingProxyType
 from typing import Any, Dict, Optional, Tuple
 
 from .btapistore import BtApiStore, BtApiStoreError, _ctp_order_route_invest_unit_id
@@ -119,6 +123,96 @@ class RegisteredSimDispatchEvidence:
     def resend_permitted(self) -> bool:
         """Native requests are never automatically safe to replay."""
         return False
+
+
+@dataclass(frozen=True)
+class RegisteredSimOrderIdentityQueryReceipt:
+    """Current Store-owned complete orders query used for durable identity binding.
+
+    This in-process receipt records a query that the Store revalidated against
+    its live SDK session. It does not claim that the Journal independently
+    authenticates a provider or the physical query source.
+    """
+
+    request_id: int
+    connection_generation: int
+    account_fingerprint: str
+    trading_day: str
+    started_at_utc: datetime
+    completed_at_utc: datetime
+    front_id: int
+    session_id: int
+    broker_id: str
+    investor_id: str
+    rows_sha256: str
+    rows: Tuple[Mapping, ...]
+    source_expires_monotonic: float
+    _store: Any
+    _issuer: Any
+
+
+@dataclass(frozen=True)
+class RegisteredSimCancelTarget:
+    """Exact one-shot CTP target issued by a Journal-validated Store path."""
+
+    order_ref: str
+    order_sys_id: str
+    instrument_id: str
+    exchange_id: str
+    broker_id: str
+    investor_id: str
+    front_id: int
+    session_id: int
+    account_fingerprint: str
+    connection_generation: int
+    trading_day: str
+    query_request_id: int
+    query_rows_sha256: str
+    matched_row_sha256: str
+    source_expires_monotonic: float
+    _issuer: Any
+    _seal: Any
+
+    def __post_init__(self) -> None:
+        for name in (
+            "order_ref",
+            "order_sys_id",
+            "instrument_id",
+            "exchange_id",
+            "broker_id",
+            "investor_id",
+            "account_fingerprint",
+            "query_rows_sha256",
+            "matched_row_sha256",
+        ):
+            _exact_text(getattr(self, name), name)
+        for name in (
+            "front_id",
+            "session_id",
+            "connection_generation",
+            "query_request_id",
+        ):
+            if not _positive_int(getattr(self, name)):
+                raise ValueError("{} must be a positive int".format(name))
+        if (
+            type(self.trading_day) is not str
+            or len(self.trading_day) != 8
+            or not self.trading_day.isdigit()
+        ):
+            raise ValueError("trading_day must be an exact YYYYMMDD")
+        if any(
+            _HASH_RE.fullmatch(getattr(self, name)) is None
+            for name in ("query_rows_sha256", "matched_row_sha256")
+        ):
+            raise ValueError("cancel target query digests must be lowercase SHA-256")
+        if (
+            type(self.source_expires_monotonic) not in (int, float)
+            or not math.isfinite(self.source_expires_monotonic)
+            or self.source_expires_monotonic <= 0
+        ):
+            raise ValueError("source_expires_monotonic must be a finite positive deadline")
+        if self._issuer is None or self._seal is None:
+            raise ValueError("cancel target requires its validated Store issuer")
 
 
 @dataclass(frozen=True)
@@ -224,32 +318,160 @@ def _expected_session(value: Any) -> Dict[str, Any]:
     return result
 
 
-def _session_identity(client: Any) -> Dict[str, Any]:
-    """Read the SDK's public live session identity without performing I/O."""
+def _canonical_sdk_session_getters(client: Any) -> Optional[Tuple[Any, Any, Any]]:
+    """Return canonical session getters and their shared SDK lock, if exact."""
+    module_name = type(client).__module__
+    if module_name not in ("bt_api_ctp.ctp.client", "bt_api_py.ctp.client"):
+        return None
+    sdk_module = sys.modules.get(module_name)
+    client_type = getattr(sdk_module, "TraderClient", None) if sdk_module else None
+    if not isinstance(client_type, type) or type(client) is not client_type:
+        return None
+    scope_getter = getattr(client, "get_query_session_scope", None)
+    state_getter = getattr(client, "get_session_state", None)
+    if (
+        not callable(scope_getter)
+        or getattr(scope_getter, "__self__", None) is not client
+        or getattr(scope_getter, "__func__", None)
+        is not getattr(client_type, "get_query_session_scope", None)
+        or not callable(state_getter)
+        or getattr(state_getter, "__self__", None) is not client
+        or getattr(state_getter, "__func__", None)
+        is not getattr(client_type, "get_session_state", None)
+    ):
+        return None
+    session_lock = getattr(client, "_query_state_lock", None)
+    if (
+        session_lock is None
+        or type(session_lock) is not type(threading.RLock())
+        or not callable(getattr(session_lock, "__enter__", None))
+        or not callable(getattr(session_lock, "__exit__", None))
+    ):
+        return None
+    return scope_getter, state_getter, session_lock
+
+
+def _session_scope_state_snapshot(
+    client: Any, *, require_canonical: bool = False
+) -> Optional[Tuple[Dict[str, Any], Dict[str, Any]]]:
+    """Read detached scope/state projections as one session observation.
+
+    The canonical SDK scope omits CTP FrontID/SessionID, so these must be
+    paired with its session state under the same RLock used by the SDK login
+    callback.  Non-SDK fake clients remain useful for ordinary, non-authority
+    execution facts, but never satisfy ``require_canonical``.
+    """
+    canonical_module = type(client).__module__ in (
+        "bt_api_ctp.ctp.client",
+        "bt_api_py.ctp.client",
+    )
+    exact = _canonical_sdk_session_getters(client)
+    if require_canonical and exact is None:
+        return None
+    if canonical_module and exact is None:
+        return None
+    if exact is not None:
+        scope_method, state_method, session_lock = exact
+        try:
+            with session_lock:
+                raw_scope = scope_method()
+                raw_state = state_method()
+                client_ready = getattr(client, "is_ready", None)
+                scope = {
+                    name: _read_fact(raw_scope, name)
+                    for name in (
+                        "account_fingerprint",
+                        "connection_generation",
+                        "trading_day",
+                        "read_only_ready",
+                        "issuer",
+                        "broker_id",
+                        "investor_id",
+                        "user_id",
+                    )
+                }
+                state = {
+                    name: _read_fact(raw_state, name)
+                    for name in (
+                        "account_fingerprint",
+                        "connection_generation",
+                        "trading_day",
+                        "trading_ready",
+                        "read_only_ready",
+                        "front_id",
+                        "session_id",
+                        "broker_id",
+                        "investor_id",
+                        "user_id",
+                    )
+                }
+                state["client_is_ready"] = client_ready
+        except Exception:
+            return None
+        return scope, state
+
     scope_method = getattr(client, "get_query_session_scope", None)
     state_method = getattr(client, "get_session_state", None)
     if not callable(scope_method) or not callable(state_method):
-        return {
-            "account_fingerprint": None,
-            "connection_generation": None,
-            "trading_day": None,
-            "trading_ready": None,
-            "read_only_ready": None,
-            "front_id": None,
-            "session_id": None,
-        }
+        return None
     try:
-        scope = scope_method()
-        state = state_method()
+        raw_scope = scope_method()
+        raw_state = state_method()
+        scope = {
+            name: _read_fact(raw_scope, name)
+            for name in (
+                "account_fingerprint",
+                "connection_generation",
+                "trading_day",
+                "read_only_ready",
+                "issuer",
+                "broker_id",
+                "investor_id",
+                "user_id",
+            )
+        }
+        state = {
+            name: _read_fact(raw_state, name)
+            for name in (
+                "account_fingerprint",
+                "connection_generation",
+                "trading_day",
+                "trading_ready",
+                "read_only_ready",
+                "front_id",
+                "session_id",
+                "broker_id",
+                "investor_id",
+                "user_id",
+            )
+        }
+        state["client_is_ready"] = getattr(client, "is_ready", None)
     except Exception:
+        return None
+    return scope, state
+
+
+def _empty_session_identity() -> Dict[str, Any]:
+    return {
+        "account_fingerprint": None,
+        "connection_generation": None,
+        "trading_day": None,
+        "trading_ready": None,
+        "read_only_ready": None,
+        "front_id": None,
+        "session_id": None,
+    }
+
+
+def _session_identity(client: Any) -> Dict[str, Any]:
+    """Read the SDK's public live session identity without performing I/O."""
+    snapshot = _session_scope_state_snapshot(client)
+    if snapshot is None:
+        return _empty_session_identity()
+    scope, state = snapshot
+    if not isinstance(scope, Mapping) or not isinstance(state, Mapping):
         return {
-            "account_fingerprint": None,
-            "connection_generation": None,
-            "trading_day": None,
-            "trading_ready": None,
-            "read_only_ready": None,
-            "front_id": None,
-            "session_id": None,
+            **_empty_session_identity(),
         }
     scope_values = (
         _read_fact(scope, "account_fingerprint"),
@@ -280,7 +502,9 @@ def _session_identity(client: Any) -> Dict[str, Any]:
         "connection_generation": generation if identity_valid else None,
         "trading_day": trading_day if identity_valid else None,
         "trading_ready": (
-            ready if type(ready) is bool and getattr(client, "is_ready", None) is ready else None
+            ready
+            if type(ready) is bool and _read_fact(state, "client_is_ready") is ready
+            else None
         ),
         "read_only_ready": (
             _read_fact(scope, "read_only_ready")
@@ -317,37 +541,130 @@ def _session_matches(
     return all(current.get(name) == value for name, value in normalized.items())
 
 
-def _gate_state_snapshot(state: Any, key: Tuple[str, str]) -> Optional[Dict[str, Any]]:
-    """Return immutable public proof identity for one exact armed SDK grant."""
-    if not isinstance(state, Mapping):
+def _canonical_sdk_direct_grant_client(client: Any) -> Optional[Tuple[Any, Any]]:
+    """Return the canonical SDK module/type for its one-contract direct grant."""
+    module_name = type(client).__module__
+    if module_name not in ("bt_api_ctp.ctp.client", "bt_api_py.ctp.client"):
         return None
-    authorized = state.get("authorized_instruments")
-    if not isinstance(authorized, (tuple, list)):
+    sdk_module = sys.modules.get(module_name)
+    trader_client_type = getattr(sdk_module, "TraderClient", None) if sdk_module else None
+    if not isinstance(trader_client_type, type) or type(client) is not trader_client_type:
         return None
-    authorized_tuple = tuple(authorized)
+    state_getter = getattr(client, "get_execution_gate_state", None)
+    sdk_state_getter = getattr(trader_client_type, "get_execution_gate_state", None)
+    scalar_armer = getattr(client, "arm_execution_for_registered_sim", None)
+    sdk_scalar_armer = getattr(trader_client_type, "arm_execution_for_registered_sim", None)
     if (
-        not authorized_tuple
-        or any(
-            not isinstance(item, str) or not item or item != item.strip()
-            for item in authorized_tuple
-        )
-        or len(set(authorized_tuple)) != len(authorized_tuple)
-        or key[0] not in authorized_tuple
+        not callable(state_getter)
+        or getattr(state_getter, "__func__", None) is not sdk_state_getter
+        or not callable(sdk_scalar_armer)
+        or getattr(scalar_armer, "__func__", None) is not sdk_scalar_armer
     ):
         return None
+    return sdk_module, trader_client_type
+
+
+def _canonical_sdk_route_instrument(
+    client: Any,
+    key: Tuple[str, str],
+    *,
+    bundle: bool,
+) -> Optional[str]:
+    canonical_client = _canonical_sdk_direct_grant_client(client)
+    if canonical_client is None:
+        return None
+    sdk_module, _trader_client_type = canonical_client
+    canonicalize = getattr(
+        sdk_module,
+        "canonical_ctp_bundle_instrument" if bundle else "canonical_ctp_instrument",
+        None,
+    )
+    if not callable(canonicalize):
+        return None
+    try:
+        result = canonicalize(key[0], key[1])
+    except Exception:
+        return None
+    if type(result) is not str or not result or result != result.strip():
+        return None
+    return result
+
+
+def _gate_state_snapshot(
+    state: Any,
+    key: Tuple[str, str],
+    client: Any = None,
+) -> Optional[Dict[str, Any]]:
+    """Return an immutable route-bound snapshot of an armed SDK grant.
+
+    The bundle contract keeps its full authorized-instrument set. The public
+    direct registered-simulation SDK contract is a distinct single-contract
+    grant; accept it only from the canonical TraderClient and only when its
+    exchange-qualified SDK identity resolves to this exact Store route.
+    """
+    if (
+        not isinstance(state, Mapping)
+        or not isinstance(key, tuple)
+        or len(key) != 2
+        or not all(type(value) is str and value and value == value.strip() for value in key)
+    ):
+        return None
+
+    authorized = state.get("authorized_instruments")
     scope_version = state.get("scope_version")
+    sdk_instrument = state.get("instrument")
+    canonical_client = _canonical_sdk_direct_grant_client(client)
+    authorized_tuple: Optional[Tuple[str, ...]] = None
+    grant_kind = "bundle"
+
+    if scope_version is None and authorized is None:
+        if canonical_client is None:
+            return None
+        expected_sdk_instrument = _canonical_sdk_route_instrument(
+            client, key, bundle=False
+        )
+        if expected_sdk_instrument is None or sdk_instrument != expected_sdk_instrument:
+            return None
+        grant_kind = "direct_single_instrument"
+    else:
+        if not isinstance(authorized, (tuple, list)):
+            return None
+        authorized_tuple = tuple(authorized)
+        if (
+            not authorized_tuple
+            or any(
+                not isinstance(item, str) or not item or item != item.strip()
+                for item in authorized_tuple
+            )
+            or len(set(authorized_tuple)) != len(authorized_tuple)
+        ):
+            return None
+        expected_sdk_instrument = _canonical_sdk_route_instrument(
+            client, key, bundle=True
+        )
+        if expected_sdk_instrument is None and canonical_client is None:
+            expected_sdk_instrument = key[0]
+        if expected_sdk_instrument is None:
+            return None
+        if (
+            type(expected_sdk_instrument) is not str
+            or not expected_sdk_instrument
+            or sdk_instrument != expected_sdk_instrument
+            or expected_sdk_instrument not in authorized_tuple
+            or not isinstance(scope_version, str)
+            or not scope_version
+        ):
+            return None
+
     proof_sha256 = state.get("proof_sha256")
     environment_profile = state.get("environment_profile")
     if (
         state.get("managed") is not True
         or state.get("armed") is not True
-        or state.get("instrument") != key[0]
         or type(state.get("connection_generation")) is not int
         or state.get("connection_generation") <= 0
         or not isinstance(state.get("trading_day"), str)
         or re.fullmatch(r"[0-9]{8}", state.get("trading_day", "")) is None
-        or not isinstance(scope_version, str)
-        or not scope_version
         or not isinstance(proof_sha256, str)
         or _HASH_RE.fullmatch(proof_sha256) is None
         or not isinstance(environment_profile, str)
@@ -356,15 +673,18 @@ def _gate_state_snapshot(state: Any, key: Tuple[str, str]) -> Optional[Dict[str,
         or state.get("revocation_reason") is not None
     ):
         return None
-    # SDK bundle grants publish canonical sorted instrument lists. Preserve
-    # their exact order and contents; do not reduce a multi-instrument proof
-    # to the one route currently being dispatched.
+
+    # Keep the complete bundle scope. The scalar form is explicitly labelled
+    # as one SDK-issued contract; no bundle scope or authorized list is
+    # synthesized for it.
     return {
         "managed": True,
         "armed": True,
         "instrument": key[0],
+        "sdk_instrument": sdk_instrument,
         "connection_generation": state["connection_generation"],
         "trading_day": state["trading_day"],
+        "grant_kind": grant_kind,
         "scope_version": scope_version,
         "authorized_instruments": authorized_tuple,
         "environment_profile": environment_profile,
@@ -376,7 +696,8 @@ def _gate_state_snapshot(state: Any, key: Tuple[str, str]) -> Optional[Dict[str,
 def _detached_gate_state(snapshot: Mapping[str, Any]) -> Dict[str, Any]:
     """Copy cached proof evidence without exposing its tuple-backed authority."""
     result = dict(snapshot)
-    result["authorized_instruments"] = list(snapshot["authorized_instruments"])
+    authorized = snapshot["authorized_instruments"]
+    result["authorized_instruments"] = list(authorized) if authorized is not None else None
     return result
 
 
@@ -434,12 +755,130 @@ def _order_expected_session(order: Any) -> Optional[Dict[str, Any]]:
     return _expected_session(expected)
 
 
-def _is_sdk_pre_dispatch_gate_error(error: BaseException) -> bool:
-    error_type = type(error)
-    return (
-        error_type.__name__ == "CtpExecutionGateError"
-        and error_type.__module__ == "bt_api_ctp.ctp.client"
+class _RegisteredSimPreDispatchRejected(BtApiStoreError):
+    """A cancel was rejected before its native SDK call could start."""
+
+
+def _supports_explicit_keyword(method: Any, name: str) -> bool:
+    if not callable(method):
+        return False
+    try:
+        parameter = inspect.signature(method).parameters.get(name)
+    except (TypeError, ValueError):
+        return False
+    return parameter is not None and parameter.kind in (
+        inspect.Parameter.POSITIONAL_OR_KEYWORD,
+        inspect.Parameter.KEYWORD_ONLY,
     )
+
+
+def _mark_execution_unknown(error: BaseException, code: str) -> None:
+    """Carry UNKNOWN through Store layers while preserving control exceptions."""
+
+    try:
+        setattr(error, "execution_unknown", True)
+        setattr(error, "code", code)
+    except BaseException:
+        # The wrapper's frozen state is also checked by the Store boundary.
+        pass
+
+
+def _sdk_cancel_deadline_contract(client: Any, submit_method: Any = None) -> bool:
+    """Require the exact SDK client and its native-boundary deadline contract.
+
+    The contract is the canonical TraderClient implementation plus its typed
+    deadline outcome/error API and explicit deadline arguments at both method
+    boundaries. Duck-typed or instance-overridden methods are not a supported
+    substitute, even when they accept a keyword with the same name.
+    """
+
+    module_name = type(client).__module__
+    if module_name not in ("bt_api_ctp.ctp.client", "bt_api_py.ctp.client"):
+        return False
+    sdk_module = sys.modules.get(module_name)
+    trader_client_type = getattr(sdk_module, "TraderClient", None) if sdk_module else None
+    gate_error = getattr(sdk_module, "CtpExecutionGateError", None) if sdk_module else None
+    deadline_error = (
+        getattr(sdk_module, "_CtpNativeRequestDeadlineExpired", None) if sdk_module else None
+    )
+    dispatch_outcome_type = (
+        getattr(sdk_module, "_CtpNativeRequestDispatchOutcome", None) if sdk_module else None
+    )
+    if (
+        not isinstance(trader_client_type, type)
+        or type(client) is not trader_client_type
+        or not isinstance(gate_error, type)
+        or gate_error.__module__ != module_name
+        or not isinstance(deadline_error, type)
+        or deadline_error.__module__ != module_name
+        or not issubclass(deadline_error, gate_error)
+        or not isinstance(dispatch_outcome_type, type)
+        or dispatch_outcome_type.__module__ != module_name
+        or "native_call_started"
+        not in getattr(dispatch_outcome_type, "__dataclass_fields__", {})
+    ):
+        return False
+
+    submit_method = (
+        getattr(client, "submit_order_action", None)
+        if submit_method is None
+        else submit_method
+    )
+    sdk_submit = getattr(trader_client_type, "submit_order_action", None)
+    getter = getattr(client, "get_order_action_evidence", None)
+    sdk_getter = getattr(trader_client_type, "get_order_action_evidence", None)
+    invoke = getattr(client, "_invoke_session_native_request", None)
+    sdk_invoke = getattr(trader_client_type, "_invoke_session_native_request", None)
+    if (
+        not callable(sdk_submit)
+        or getattr(submit_method, "__func__", None) is not sdk_submit
+        or not _supports_explicit_keyword(submit_method, "deadline_monotonic")
+        or not callable(sdk_getter)
+        or getattr(getter, "__func__", None) is not sdk_getter
+        or not callable(sdk_invoke)
+        or getattr(invoke, "__func__", None) is not sdk_invoke
+        or not _supports_explicit_keyword(invoke, "deadline_monotonic")
+        or not _supports_explicit_keyword(invoke, "dispatch_outcome")
+    ):
+        return False
+
+    return True
+
+
+def _is_sdk_pre_dispatch_gate_error(
+    error: BaseException,
+    *,
+    client: Any,
+    request_id: Any,
+    order_action_ref: Any,
+) -> bool:
+    """Accept canonical SDK gate failures only when its action row is absent.
+
+    Class identity binds the error to the loaded SDK module; the evidence
+    lookup distinguishes a gate rejection from the same exception escaping
+    after ReqOrderAction was entered. Missing or unreadable evidence fails
+    closed as ambiguous.
+    """
+
+    module_name = type(error).__module__
+    if module_name not in ("bt_api_ctp.ctp.client", "bt_api_py.ctp.client"):
+        return False
+    sdk_module = sys.modules.get(module_name)
+    gate_error = getattr(sdk_module, "CtpExecutionGateError", None) if sdk_module else None
+    if (
+        not isinstance(gate_error, type)
+        or gate_error.__module__ != module_name
+        or gate_error not in type(error).__mro__
+        or not _sdk_cancel_deadline_contract(client)
+        or type(request_id) is not int
+        or request_id <= 0
+        or type(order_action_ref) not in (int, str)
+    ):
+        return False
+    evidence = client.get_order_action_evidence(
+        request_id, order_action_ref=order_action_ref
+    )
+    return evidence is None
 
 
 def _query_error_is_clear(value: Any) -> bool:
@@ -863,6 +1302,11 @@ class RegisteredSimWrapper:
         self._registered_sim_arm_history = collections.deque(maxlen=history_limit)
         self._registered_sim_dispatch_history = collections.deque(maxlen=history_limit)
         self._registered_sim_unknown_dispatch: Optional[RegisteredSimDispatchEvidence] = None
+        # Targets are issued only by the Store after durable owner and current
+        # complete-query checks.  Keep object identity, not dataclass equality,
+        # as the one-shot authority so callers cannot reconstruct a target.
+        self._registered_sim_cancel_targets: Dict[int, RegisteredSimCancelTarget] = {}
+        self._registered_sim_active_cancel_target: Optional[RegisteredSimCancelTarget] = None
         self._registered_sim_retired_reconciliation_ids = collections.OrderedDict()
         self._registered_sim_dispatch_sequence = 0
         self._registered_sim_terminal_order_limit = terminal_limit
@@ -959,12 +1403,27 @@ class RegisteredSimWrapper:
 
     def _sdk_gate_state_locked(self) -> Optional[Mapping]:
         client = getattr(self, "trader_client", None)
-        method = getattr(client, "get_execution_gate_state", None) if client is not None else None
-        if not callable(method):
-            return None
         try:
+            method = (
+                getattr(client, "get_execution_gate_state", None)
+                if client is not None
+                else None
+            )
+            if not callable(method):
+                return None
             state = method()
-        except Exception:
+        except BaseException as exc:
+            reason = "native_gate_state_unobserved"
+            self._registered_sim_frozen = True
+            self._registered_sim_freeze_reason = reason
+            try:
+                self._disarm_locked(reason)
+            except BaseException:
+                # A failed observation already closed local admission. Preserve
+                # the original SDK exception and never reuse the local token.
+                pass
+            if not isinstance(exc, Exception):
+                raise
             return None
         return state if isinstance(state, Mapping) else None
 
@@ -977,10 +1436,13 @@ class RegisteredSimWrapper:
     ) -> bool:
         if not isinstance(key, tuple) or len(key) != 2:
             return False
+        client = getattr(self, "trader_client", None)
         if state is _UNOBSERVED:
             state = self._sdk_gate_state_locked()
-        cached_snapshot = _gate_state_snapshot(self._registered_sim_state, key)
-        current_snapshot = _gate_state_snapshot(state, key)
+        cached_snapshot = _gate_state_snapshot(
+            self._registered_sim_state, key, client=client
+        )
+        current_snapshot = _gate_state_snapshot(state, key, client=client)
         if (
             cached_snapshot is None
             or current_snapshot is None
@@ -989,7 +1451,7 @@ class RegisteredSimWrapper:
             or self._registered_sim_armed_key != key
         ):
             return False
-        current = _session_identity(getattr(self, "trader_client", None))
+        current = _session_identity(client)
         if not _session_matches(current, expected, require_trading_ready=True):
             return False
         return current_snapshot["connection_generation"] == current.get(
@@ -1001,6 +1463,18 @@ class RegisteredSimWrapper:
             raise BtApiStoreError("registered-sim writes are disabled in shadow mode")
         if self._registered_sim_frozen:
             raise BtApiStoreError("registered-sim native gate is frozen")
+
+    def _freeze_after_admission_interruption_locked(self, reason: str) -> None:
+        if not self._registered_sim_frozen or not self._registered_sim_freeze_reason:
+            self._registered_sim_frozen = True
+            self._registered_sim_freeze_reason = reason
+        reason = self._registered_sim_freeze_reason
+        if self._registered_sim_capability is not None:
+            try:
+                self._disarm_locked(reason)
+            except BaseException:
+                # Keep the original control exception and the local gate closed.
+                pass
 
     def _resolve_gate_exchange(self, instrument: Any, exchange_id: Any) -> str:
         """Resolve only the exact currently armed spelling when exchange is omitted.
@@ -1046,11 +1520,14 @@ class RegisteredSimWrapper:
                 execution_cycle_id=execution_cycle_id,
                 preflight_sha256=preflight_sha256,
             )
-        except Exception as exc:
+        except BaseException as exc:
             self._registered_sim_frozen = True
             self._registered_sim_freeze_reason = "native_admission_outcome_unknown"
             self._registered_sim_capability = None
             self._registered_sim_armed_key = None
+            self._registered_sim_state = {}
+            if not isinstance(exc, Exception):
+                raise
             raise BtApiStoreError(
                 "SDK registered-simulation admission failed ({})".format(type(exc).__name__)
             ) from None
@@ -1059,62 +1536,61 @@ class RegisteredSimWrapper:
             self._registered_sim_freeze_reason = "native_admission_result_unobserved"
             self._registered_sim_capability = None
             self._registered_sim_armed_key = None
+            self._registered_sim_state = {}
             raise BtApiStoreError("SDK registered-simulation admission returned no capability")
         capability, state = admitted
         route_key = (instrument_id, exchange_id)
-        route_key = (instrument_id, exchange_id)
-        admitted_snapshot = _gate_state_snapshot(state, route_key)
-        if (
-            admitted_snapshot is None
-            or admitted_snapshot["connection_generation"] != current.get("connection_generation")
-            or admitted_snapshot["trading_day"] != current.get("trading_day")
-        ):
-            self._registered_sim_frozen = True
-            self._registered_sim_freeze_reason = "native_admission_state_unobserved"
-            self._registered_sim_capability = capability
-            self._registered_sim_armed_key = route_key
-            try:
-                self._disarm_locked(self._registered_sim_freeze_reason)
-            except Exception:
-                pass
-            raise BtApiStoreError("SDK registered-simulation admission state is not armed")
-        key = route_key
-        current_gate_state = self._sdk_gate_state_locked()
-        current_gate_snapshot = _gate_state_snapshot(current_gate_state, key)
-        if current_gate_snapshot != admitted_snapshot:
-            self._registered_sim_frozen = True
-            self._registered_sim_freeze_reason = "native_admission_proof_changed"
-            self._registered_sim_capability = capability
-            self._registered_sim_armed_key = key
-            try:
-                self._disarm_locked(self._registered_sim_freeze_reason)
-            except Exception:
-                pass
-            raise BtApiStoreError("SDK registered-simulation proof changed during admission")
-        current_after = _session_identity(client)
-        if not _session_matches(current_after, current, require_trading_ready=True):
-            self._registered_sim_capability = capability
-            self._registered_sim_armed_key = key
-            self._registered_sim_frozen = True
-            self._registered_sim_freeze_reason = "session_changed_during_native_admission"
-            try:
-                self._disarm_locked(self._registered_sim_freeze_reason)
-            except Exception:
-                pass
-            raise BtApiStoreError("CTP session changed during registered-sim admission")
         self._registered_sim_capability = capability
-        self._registered_sim_armed_key = key
-        self._registered_sim_state = dict(admitted_snapshot)
-        self._registered_sim_arm_history.append(
-            {"instrument": instrument_id, "exchange": exchange_id, "at_epoch": time.time()}
-        )
-        return {
-            "armed": True,
-            "instrument": instrument_id,
-            "exchange_id": exchange_id,
-            "switched": switched,
-            "state": _detached_gate_state(self._registered_sim_state),
-        }
+        self._registered_sim_armed_key = route_key
+        try:
+            admitted_snapshot = _gate_state_snapshot(state, route_key, client=client)
+            if (
+                admitted_snapshot is None
+                or admitted_snapshot["connection_generation"]
+                != current.get("connection_generation")
+                or admitted_snapshot["trading_day"] != current.get("trading_day")
+            ):
+                self._registered_sim_frozen = True
+                self._registered_sim_freeze_reason = "native_admission_state_unobserved"
+                raise BtApiStoreError("SDK registered-simulation admission state is not armed")
+            current_gate_state = self._sdk_gate_state_locked()
+            current_gate_snapshot = _gate_state_snapshot(
+                current_gate_state, route_key, client=client
+            )
+            if current_gate_snapshot != admitted_snapshot:
+                self._registered_sim_frozen = True
+                self._registered_sim_freeze_reason = "native_admission_proof_changed"
+                raise BtApiStoreError("SDK registered-simulation proof changed during admission")
+            current_after = _session_identity(client)
+            if not _session_matches(current_after, current, require_trading_ready=True):
+                self._registered_sim_frozen = True
+                self._registered_sim_freeze_reason = "session_changed_during_native_admission"
+                raise BtApiStoreError("CTP session changed during registered-sim admission")
+            # Retain the provider's public state shape so the next revalidation
+            # runs the same canonical identity check as the admission check. The
+            # normalized snapshot is returned only as a detached observation.
+            self._registered_sim_state = dict(current_gate_state)
+            self._registered_sim_arm_history.append(
+                {"instrument": instrument_id, "exchange": exchange_id, "at_epoch": time.time()}
+            )
+            return {
+                "armed": True,
+                "instrument": instrument_id,
+                "exchange_id": exchange_id,
+                "switched": switched,
+                "state": _detached_gate_state(self._registered_sim_state),
+            }
+        except BaseException:
+            if not self._registered_sim_frozen:
+                self._registered_sim_frozen = True
+                self._registered_sim_freeze_reason = "native_admission_verification_failed"
+            if self._registered_sim_capability is not None:
+                try:
+                    self._disarm_locked(self._registered_sim_freeze_reason)
+                except BaseException:
+                    # Do not mask the admission/readback failure with revocation.
+                    pass
+            raise
 
     def arm_registered_sim_execution(
         self,
@@ -1138,17 +1614,24 @@ class RegisteredSimWrapper:
         if _HASH_RE.fullmatch(preflight_sha256) is None:
             raise ValueError("preflight_sha256 must be lowercase SHA-256")
         with self._registered_sim_lock:
-            if self._registered_sim_capability is not None:
-                raise BtApiStoreError("disarm the current instrument before explicit re-arm")
-            return self._arm_locked(
-                instrument_id,
-                exchange_id,
-                md_front=md_front,
-                strategy_identity_sha256=strategy_identity_sha256,
-                execution_cycle_id=execution_cycle_id,
-                preflight_sha256=preflight_sha256,
-                switched=False,
-            )
+            try:
+                if self._registered_sim_capability is not None:
+                    raise BtApiStoreError("disarm the current instrument before explicit re-arm")
+                return self._arm_locked(
+                    instrument_id,
+                    exchange_id,
+                    md_front=md_front,
+                    strategy_identity_sha256=strategy_identity_sha256,
+                    execution_cycle_id=execution_cycle_id,
+                    preflight_sha256=preflight_sha256,
+                    switched=False,
+                )
+            except BaseException as exc:
+                if not isinstance(exc, Exception):
+                    self._freeze_after_admission_interruption_locked(
+                        "native_admission_interrupted"
+                    )
+                raise
 
     def _disarm_locked(self, reason: str) -> Dict[str, Any]:
         client = getattr(self, "trader_client", None)
@@ -1165,9 +1648,11 @@ class RegisteredSimWrapper:
             raise BtApiStoreError("SDK native disarm is unavailable; gate frozen")
         try:
             state = disarm(capability, reason)
-        except Exception as exc:
+        except BaseException as exc:
             self._registered_sim_frozen = True
             self._registered_sim_freeze_reason = "native_disarm_failed"
+            if not isinstance(exc, Exception):
+                raise
             raise BtApiStoreError(
                 "SDK native disarm failed ({})".format(type(exc).__name__)
             ) from None
@@ -1196,49 +1681,56 @@ class RegisteredSimWrapper:
         exchange_id = _exact_text(exchange, "ExchangeID")
         key = (instrument_id, exchange_id)
         with self._registered_sim_lock:
-            self._require_armable_locked()
-            expected = self._require_expected_session_locked()
-            current = _session_identity(getattr(self, "trader_client", None))
-            if not _session_matches(current, expected, require_trading_ready=True):
-                raise BtApiStoreError("CTP trader session is not trading ready")
-            templates_configured = self._registered_sim_arm_templates_sealed
-            template = self._registered_sim_arm_templates.get(key)
-            if templates_configured and template is None:
-                raise BtApiStoreError("registered-sim arm template is missing for outbound leg")
-            if self._current_grant_matches_locked(key, expected):
-                return {"armed": True, "instrument": instrument_id, "switched": False}
-            sdk_gate = self._sdk_gate_state_locked()
-            if sdk_gate is None:
-                raise BtApiStoreError("SDK registered-simulation grant state is unobserved")
-            sdk_armed = sdk_gate.get("armed")
-            if sdk_armed is True:
-                if self._registered_sim_capability is None:
-                    raise BtApiStoreError("SDK has an unowned registered-simulation grant")
-                local_key = self._registered_sim_armed_key
-                if not self._current_grant_matches_locked(local_key, expected):
-                    raise BtApiStoreError("SDK registered-simulation grant is stale or mismatched")
-                switched = local_key != key
-                self._disarm_locked("registered_sim_instrument_switch")
-            elif sdk_armed is False:
-                # An explicit unarmed observation means a local token may have
-                # been revoked by reconnect or SDK cleanup. Never reuse it.
-                switched = self._registered_sim_armed_key is not None
-                self._registered_sim_capability = None
-                self._registered_sim_armed_key = None
-                self._registered_sim_state = {}
-            else:
-                raise BtApiStoreError("SDK registered-simulation grant state is malformed")
-            if not templates_configured:
-                raise BtApiStoreError("no exact registered-sim template can arm this route")
-            return self._arm_locked(
-                instrument_id,
-                exchange_id,
-                md_front=template["md_front"],
-                strategy_identity_sha256=template["strategy_identity_sha256"],
-                execution_cycle_id=template["execution_cycle_id"],
-                preflight_sha256=template["preflight_sha256"],
-                switched=switched,
-            )
+            try:
+                self._require_armable_locked()
+                expected = self._require_expected_session_locked()
+                current = _session_identity(getattr(self, "trader_client", None))
+                if not _session_matches(current, expected, require_trading_ready=True):
+                    raise BtApiStoreError("CTP trader session is not trading ready")
+                templates_configured = self._registered_sim_arm_templates_sealed
+                template = self._registered_sim_arm_templates.get(key)
+                if templates_configured and template is None:
+                    raise BtApiStoreError("registered-sim arm template is missing for outbound leg")
+                if self._current_grant_matches_locked(key, expected):
+                    return {"armed": True, "instrument": instrument_id, "switched": False}
+                sdk_gate = self._sdk_gate_state_locked()
+                if sdk_gate is None:
+                    raise BtApiStoreError("SDK registered-simulation grant state is unobserved")
+                sdk_armed = sdk_gate.get("armed")
+                if sdk_armed is True:
+                    if self._registered_sim_capability is None:
+                        raise BtApiStoreError("SDK has an unowned registered-simulation grant")
+                    local_key = self._registered_sim_armed_key
+                    if not self._current_grant_matches_locked(local_key, expected):
+                        raise BtApiStoreError("SDK registered-simulation grant is stale or mismatched")
+                    switched = local_key != key
+                    self._disarm_locked("registered_sim_instrument_switch")
+                elif sdk_armed is False:
+                    # An explicit unarmed observation means a local token may have
+                    # been revoked by reconnect or SDK cleanup. Never reuse it.
+                    switched = self._registered_sim_armed_key is not None
+                    self._registered_sim_capability = None
+                    self._registered_sim_armed_key = None
+                    self._registered_sim_state = {}
+                else:
+                    raise BtApiStoreError("SDK registered-simulation grant state is malformed")
+                if not templates_configured:
+                    raise BtApiStoreError("no exact registered-sim template can arm this route")
+                return self._arm_locked(
+                    instrument_id,
+                    exchange_id,
+                    md_front=template["md_front"],
+                    strategy_identity_sha256=template["strategy_identity_sha256"],
+                    execution_cycle_id=template["execution_cycle_id"],
+                    preflight_sha256=template["preflight_sha256"],
+                    switched=switched,
+                )
+            except BaseException as exc:
+                if not isinstance(exc, Exception):
+                    self._freeze_after_admission_interruption_locked(
+                        "native_arm_switch_interrupted"
+                    )
+                raise
 
     def registered_sim_arm_history(self):
         with self._registered_sim_lock:
@@ -1654,8 +2146,67 @@ class RegisteredSimWrapper:
         # revocation reports an error, this wrapper can never reuse the token.
         try:
             self._disarm_locked(self._registered_sim_freeze_reason)
-        except BtApiStoreError:
+        except BaseException:
             pass
+
+    def _discard_registered_sim_cancel_target(self, target: Any) -> None:
+        with self._registered_sim_lock:
+            if (
+                type(target) is RegisteredSimCancelTarget
+                and self._registered_sim_cancel_targets.get(id(target)) is target
+            ):
+                self._registered_sim_cancel_targets.pop(id(target), None)
+
+    def cancel_order(
+        self,
+        order_ref: Any,
+        dataname: Optional[str] = None,
+        *,
+        registered_sim_cancel_target: Any = None,
+    ) -> Any:
+        """Validate a one-shot Store target before entering the CTP client."""
+        if registered_sim_cancel_target is None:
+            return super().cancel_order(order_ref, dataname=dataname)
+        target = registered_sim_cancel_target
+        with self._registered_sim_lock:
+            if (
+                type(target) is not RegisteredSimCancelTarget
+                or type(target._issuer) is not RegisteredSimStore
+                or target._issuer._api is not self
+                or target._seal is not target._issuer._registered_sim_cancel_target_seal
+                or time.monotonic() >= target.source_expires_monotonic
+                or self._registered_sim_cancel_targets.get(id(target)) is not target
+                or type(order_ref) is not str
+                or order_ref != target.order_ref
+                or dataname != "{}.{}".format(target.exchange_id, target.instrument_id)
+                or self._registered_sim_active_cancel_target is not None
+            ):
+                raise BtApiStoreError("registered-sim cancel target is not Store-issued")
+            expected = self._require_expected_session_locked()
+            if not isinstance(expected, Mapping) or any(
+                expected.get(name) != getattr(target, name)
+                for name in (
+                    "account_fingerprint",
+                    "connection_generation",
+                    "trading_day",
+                    "front_id",
+                    "session_id",
+                )
+            ):
+                raise BtApiStoreError("registered-sim cancel target session changed")
+            key = (target.instrument_id, target.exchange_id)
+            if not self._current_grant_matches_locked(key, expected):
+                raise BtApiStoreError("registered-sim cancel target route grant changed")
+            self._registered_sim_active_cancel_target = target
+            try:
+                return super().cancel_order(
+                    order_ref,
+                    dataname=dataname,
+                    registered_sim_cancel_target=target,
+                )
+            finally:
+                self._registered_sim_active_cancel_target = None
+                self._registered_sim_cancel_targets.pop(id(target), None)
 
     def _send_registered_sim_native(self, operation: str, field: Any, req_id: int) -> Any:
         with self._registered_sim_lock:
@@ -1671,6 +2222,27 @@ class RegisteredSimWrapper:
                 or getattr(field, "RequestID", None) != req_id
             ):
                 raise BtApiStoreError("native request identity does not match outbound field")
+            target = self._registered_sim_active_cancel_target
+            if operation == "cancel" and target is not None and not (
+                type(target) is RegisteredSimCancelTarget
+                and type(target._issuer) is RegisteredSimStore
+                and target._issuer._api is self
+                and target._seal is target._issuer._registered_sim_cancel_target_seal
+                and time.monotonic() < target.source_expires_monotonic
+                and getattr(field, "InstrumentID", None) == target.instrument_id
+                and getattr(field, "ExchangeID", None) == target.exchange_id
+                and getattr(field, "OrderRef", None) == target.order_ref
+                and getattr(field, "OrderSysID", None) == target.order_sys_id
+                and getattr(field, "FrontID", None) == target.front_id
+                and getattr(field, "SessionID", None) == target.session_id
+                and getattr(field, "BrokerID", None) == target.broker_id
+                and getattr(field, "InvestorID", None) == target.investor_id
+                and getattr(field, "OrderActionRef", None) == req_id
+                and getattr(field, "ActionFlag", None) == "0"
+                and getattr(self, "_registered_sim_cancel_targets", {}).get(id(target)) is target
+                and (target.instrument_id, target.exchange_id) == self._outbound_key_locked(field)
+            ):
+                raise BtApiStoreError("native CTP Action differs from its verified cancel target")
             state_ref = order_ref or "UNKNOWN-{}-{}".format(operation, req_id)
             key = self._outbound_key_locked(field)
             capability = self._registered_sim_capability
@@ -1679,18 +2251,69 @@ class RegisteredSimWrapper:
             method = getattr(client, method_name, None) if client is not None else None
             if not callable(method):
                 raise BtApiStoreError("SDK native {} capability is unavailable".format(operation))
+            if operation == "cancel" and target is not None and not _sdk_cancel_deadline_contract(
+                client, method
+            ):
+                raise BtApiStoreError(
+                    "SDK native cancel does not explicitly support query deadlines "
+                    "through the verified native boundary"
+                )
             self._require_expected_session_locked()
             if not self._current_grant_matches_locked(key, self._registered_sim_expected_session):
                 raise BtApiStoreError("registered-sim grant changed before native dispatch")
             with self._registered_sim_observation_lock:
                 self._dispatching_order_ids.add(state_ref)
             try:
-                result = method(field, req_id, execution_capability=capability)
-            except Exception as exc:
-                if _is_sdk_pre_dispatch_gate_error(exc):
-                    raise BtApiStoreError(
-                        "SDK rejected registered-sim session before native dispatch"
-                    ) from None
+                if (
+                    operation == "cancel"
+                    and target is not None
+                    and time.monotonic() >= target.source_expires_monotonic
+                ):
+                    raise _RegisteredSimPreDispatchRejected(
+                        "registered-sim order query expired before native Action submission"
+                    )
+                if operation == "cancel" and target is not None:
+                    result = method(
+                        field,
+                        req_id,
+                        execution_capability=capability,
+                        deadline_monotonic=target.source_expires_monotonic,
+                    )
+                else:
+                    result = method(field, req_id, execution_capability=capability)
+            except _RegisteredSimPreDispatchRejected:
+                raise
+            except BaseException as exc:
+                if operation == "cancel" and target is not None:
+                    try:
+                        pre_dispatch_gate = _is_sdk_pre_dispatch_gate_error(
+                            exc,
+                            client=client,
+                            request_id=req_id,
+                            order_action_ref=getattr(field, "OrderActionRef", None),
+                        )
+                    except BaseException as proof_error:
+                        evidence = self._make_dispatch_evidence_locked(
+                            operation,
+                            "UNKNOWN",
+                            field,
+                            req_id,
+                            key[0],
+                            key[1],
+                            error_type=type(proof_error).__name__,
+                        )
+                        self._freeze_after_unknown_locked(evidence, state_ref)
+                        if isinstance(proof_error, Exception):
+                            raise RegisteredSimExecutionUnknown(evidence) from None
+                        _mark_execution_unknown(
+                            proof_error,
+                            "registered_sim_{}_unknown".format(operation),
+                        )
+                        raise
+                    if pre_dispatch_gate:
+                        raise _RegisteredSimPreDispatchRejected(
+                            "SDK rejected registered-sim session before native dispatch"
+                        ) from None
                 evidence = self._make_dispatch_evidence_locked(
                     operation,
                     "UNKNOWN",
@@ -1701,7 +2324,13 @@ class RegisteredSimWrapper:
                     error_type=type(exc).__name__,
                 )
                 self._freeze_after_unknown_locked(evidence, state_ref)
-                raise RegisteredSimExecutionUnknown(evidence) from None
+                if isinstance(exc, Exception):
+                    raise RegisteredSimExecutionUnknown(evidence) from None
+                _mark_execution_unknown(
+                    exc,
+                    "registered_sim_{}_unknown".format(operation),
+                )
+                raise
             finally:
                 with self._registered_sim_observation_lock:
                     self._dispatching_order_ids.discard(state_ref)
@@ -1985,6 +2614,7 @@ class RegisteredSimStore(BtApiStore):
         if kwargs.get("managed_execution_adapter") is not None:
             raise ValueError("RegisteredSimStore does not accept a managed execution adapter")
         self._registered_sim_allow_writes = allow_writes
+        self._registered_sim_cancel_target_seal = object()
         self._registered_sim_arm_history_limit = arm_history_limit
         self._registered_sim_terminal_order_limit = terminal_order_limit
         super().__init__(provider=provider, backend=backend, api=api, api_cls=None, **kwargs)
@@ -2190,6 +2820,369 @@ class RegisteredSimStore(BtApiStore):
                 raise BtApiStoreError("order.info exchange does not match the subscribed feed")
         return instrument, exchange
 
+    @staticmethod
+    def _exact_cancel_row_field(row: Mapping, *names: str) -> Any:
+        present = [name for name in names if name in row]
+        if not present:
+            return None
+        values = [row[name] for name in present]
+        return values[0] if all(value == values[0] for value in values[1:]) else None
+
+    @classmethod
+    def _exact_cancel_row_text(cls, row: Mapping, *names: str) -> Optional[str]:
+        value = cls._exact_cancel_row_field(row, *names)
+        if type(value) is str and value and value == value.strip():
+            return value
+        return None
+
+    @classmethod
+    def _exact_cancel_row_ref(cls, row: Mapping) -> Optional[str]:
+        value = cls._exact_cancel_row_field(row, "OrderRef", "order_ref")
+        if type(value) is str and value and value == value.strip():
+            return value
+        if type(value) is int and value >= 0:
+            return str(value)
+        return None
+
+    @classmethod
+    def _exact_cancel_row_positive_int(cls, row: Mapping, *names: str) -> Optional[int]:
+        value = cls._exact_cancel_row_field(row, *names)
+        return value if _positive_int(value) else None
+
+    def _factor_cancel_journal_records(self, order: Any) -> Optional[Mapping[str, Any]]:
+        """Read and validate Journal authority before taking Store/Wrapper locks."""
+        info = getattr(order, "info", None)
+        get = getattr(info, "get", None)
+        if not callable(get):
+            return None
+        cancel_intent_id = get("factor_cancel_intent_id")
+        owner_intent_id = get("factor_intent_id")
+        factor_scope = get("factor_strategy_scope")
+        factor_order = cancel_intent_id is not None or owner_intent_id is not None
+        if not factor_order:
+            return None
+        if (
+            type(cancel_intent_id) is not str
+            or not cancel_intent_id
+            or type(owner_intent_id) is not str
+            or not owner_intent_id
+            or type(factor_scope) is not str
+            or not factor_scope
+        ):
+            raise BtApiStoreError("registered-sim factor cancel owner is incomplete")
+        broker = getattr(self, "_broker", None)
+        coordinator = getattr(broker, "factor_execution_coordinator", None)
+        from .execution_decision_journal import ExecutionDecisionJournal
+        from .factor_execution import FactorExecutionCoordinator
+
+        if (
+            not isinstance(coordinator, FactorExecutionCoordinator)
+            or coordinator.broker is not broker
+            or coordinator.store is not self
+            or type(coordinator.journal) is not ExecutionDecisionJournal
+            or coordinator.strategy_scope != factor_scope
+        ):
+            raise BtApiStoreError("registered-sim factor cancel coordinator is unavailable")
+        journal = coordinator.journal
+        records_getter = getattr(journal, "registered_sim_cancel_dispatch_records", None)
+        if not callable(records_getter):
+            raise BtApiStoreError("registered-sim durable cancel validator is unavailable")
+        try:
+            records = records_getter(cancel_intent_id)
+        except Exception as error:
+            raise BtApiStoreError("registered-sim durable cancel owner is not KNOWN") from error
+        cancel = records.get("cancel") if isinstance(records, Mapping) else None
+        owner = records.get("owner") if isinstance(records, Mapping) else None
+        binding = records.get("binding") if isinstance(records, Mapping) else None
+        if (
+            cancel is None
+            or owner is None
+            or cancel.intent_id != cancel_intent_id
+            or cancel.state != "DISPATCHING"
+            or cancel.dispatch_state is not None
+            or cancel.key.action != "CANCEL"
+            or cancel.owner_intent_id != owner_intent_id
+            or owner.intent_id != owner_intent_id
+            or owner.state != "KNOWN"
+            or owner.dispatch_state != "KNOWN"
+            or owner.key.action != "SUBMIT"
+            or owner.decision_key is None
+            or owner.decision_key.account_scope != coordinator.account_scope
+            or owner.decision_key.strategy_scope != coordinator.strategy_scope
+            or cancel.decision_key is None
+            or cancel.decision_key.account_scope != coordinator.account_scope
+            or cancel.decision_key.strategy_scope != coordinator.strategy_scope
+        ):
+            raise BtApiStoreError("registered-sim durable cancel owner is mismatched")
+        active_owner = journal.active_instrument_owner(
+            coordinator.account_scope, owner.key.instrument
+        )
+        if (
+            active_owner is None
+            or active_owner.intent_id != owner_intent_id
+            or active_owner.cancel_intent_id != cancel_intent_id
+        ):
+            raise BtApiStoreError("registered-sim cancel does not own the active order")
+        return MappingProxyType(
+            {
+                "coordinator": coordinator,
+                "journal": journal,
+                "cancel": cancel,
+                "owner": owner,
+                "binding": binding,
+            }
+        )
+
+    def _registered_sim_cancel_target_identity(
+        self,
+        order: Any,
+        *,
+        order_ref: str,
+        instrument: str,
+        exchange: str,
+        expected_session: Mapping[str, Any],
+        records: Mapping[str, Any],
+    ) -> Dict[str, Any]:
+        """Join durable owner identity to one current complete source row."""
+        coordinator = records["coordinator"]
+        cancel = records["cancel"]
+        owner = records["owner"]
+        binding = records["binding"]
+        cancel_identity = cancel.original_identity
+        parent_identity = owner.original_identity
+        provider_identity = owner.provider_identity
+        info = getattr(order, "info", {})
+        get = getattr(info, "get", lambda name, default=None: default)
+        order_ref_candidates = tuple(
+            value
+            for value in (
+                get("external_order_ref"),
+                get("external_order_id"),
+                get("ctp_order_ref"),
+                get("order_ref"),
+            )
+            if value not in (None, "")
+        )
+        local_front = get("front_id")
+        local_session = get("session_id")
+        if not (
+            type(order_ref) is str
+            and order_ref
+            and order_ref == order_ref.strip()
+            and order_ref_candidates
+            and all(value == order_ref for value in order_ref_candidates)
+            and get("order_sys_id") == cancel_identity.get("order_sys_id")
+            and get("factor_session_account_fingerprint")
+                == expected_session.get("account_fingerprint")
+            and get("factor_session_connection_generation")
+                == expected_session.get("connection_generation")
+            and get("factor_session_trading_day") == expected_session.get("trading_day")
+            and get("factor_session_front_id") == expected_session.get("front_id")
+            and get("factor_session_id") == expected_session.get("session_id")
+            and (local_front is None or local_front == expected_session.get("front_id"))
+            and (local_session is None or local_session == expected_session.get("session_id"))
+            and get("execution_unknown") is not True
+            and type(getattr(order, "ref", None)) is int
+            and cancel_identity.get("backtrader_order_ref") == order.ref
+            and parent_identity.get("backtrader_order_ref") == order.ref
+            and cancel_identity.get("owner_intent_id") == owner.intent_id
+            and cancel_identity.get("operation") == "cancel"
+            and parent_identity.get("operation") == "insert"
+            and cancel_identity.get("order_ref") == order_ref
+            and parent_identity.get("order_ref") == order_ref
+            and cancel_identity.get("instrument_id") == instrument
+            and parent_identity.get("instrument_id") == instrument
+            and cancel_identity.get("exchange_id") == exchange
+            and parent_identity.get("exchange_id") == exchange
+            and cancel_identity.get("account_fingerprint")
+                == expected_session.get("account_fingerprint")
+            and parent_identity.get("account_fingerprint")
+                == expected_session.get("account_fingerprint")
+            and cancel_identity.get("connection_generation")
+                == expected_session.get("connection_generation")
+            and parent_identity.get("connection_generation")
+                == expected_session.get("connection_generation")
+            and cancel_identity.get("trading_day") == expected_session.get("trading_day")
+            and parent_identity.get("trading_day") == expected_session.get("trading_day")
+            and cancel_identity.get("front_id") == expected_session.get("front_id")
+            and parent_identity.get("front_id") == expected_session.get("front_id")
+            and cancel_identity.get("session_id") == expected_session.get("session_id")
+            and parent_identity.get("session_id") == expected_session.get("session_id")
+            and isinstance(provider_identity, Mapping)
+            and provider_identity.get("order_ref") == order_ref
+            and provider_identity.get("instrument_id") in (None, instrument)
+            and provider_identity.get("exchange_id") in (None, exchange)
+            and cancel.key.instrument == owner.key.instrument == instrument
+            and cancel.economic_payload.get("exchange") == exchange
+        ):
+            raise BtApiStoreError("registered-sim cancel owner identity is incomplete or stale")
+        if binding is not None:
+            if not isinstance(binding, Mapping) or not (
+                binding.get("intent_id") == owner.intent_id
+                and binding.get("account_scope") == coordinator.account_scope
+                and binding.get("strategy_scope") == coordinator.strategy_scope
+                and binding.get("account_fingerprint")
+                    == expected_session.get("account_fingerprint")
+                and binding.get("connection_generation")
+                    == expected_session.get("connection_generation")
+                and binding.get("trading_day") == expected_session.get("trading_day")
+                and binding.get("instrument") == instrument
+                and binding.get("exchange") == exchange
+                and binding.get("order_ref") == order_ref
+                and binding.get("order_sys_id") == cancel_identity.get("order_sys_id")
+                and binding.get("front_id") == expected_session.get("front_id")
+                and binding.get("session_id") == expected_session.get("session_id")
+                and _positive_int(binding.get("query_request_id"))
+                and type(binding.get("query_rows_sha256")) is str
+                and _HASH_RE.fullmatch(binding.get("query_rows_sha256")) is not None
+                and type(binding.get("matched_row_sha256")) is str
+                and _HASH_RE.fullmatch(binding.get("matched_row_sha256")) is not None
+                and type(binding.get("broker_id")) is str
+                and binding.get("broker_id") == binding.get("broker_id").strip()
+                and type(binding.get("investor_id")) is str
+                and binding.get("investor_id") == binding.get("investor_id").strip()
+            ):
+                raise BtApiStoreError("registered-sim immutable query binding conflicts")
+            if provider_identity.get("order_sys_id") not in (
+                None,
+                "",
+                binding.get("order_sys_id"),
+            ):
+                raise BtApiStoreError("registered-sim callback and query SysID conflict")
+            expected_sys_id = binding.get("order_sys_id")
+        else:
+            callback_identity = provider_identity
+            callback_sys_id = provider_identity.get("order_sys_id")
+            if (
+                type(callback_sys_id) is not str
+                or not callback_sys_id
+                or callback_sys_id != callback_sys_id.strip()
+                or cancel_identity.get("order_sys_id") != callback_sys_id
+                or parent_identity.get("order_sys_id") not in (None, "", callback_sys_id)
+            ):
+                raise BtApiStoreError("registered-sim KNOWN callback SysID is unavailable")
+            expected_sys_id = callback_sys_id
+
+        # The Journal locks precede Store locks.  This method is called only
+        # after those reads complete; the caller holds _ctp_query_result_lock
+        # through native dispatch so a new query cannot replace this source
+        # epoch between validation and Action submission.
+        receipt_factory = self.registered_sim_order_identity_query_receipt
+        validator = self.registered_sim_validate_order_identity_query_receipt
+        if (
+            getattr(receipt_factory, "__func__", None)
+            is not RegisteredSimStore.registered_sim_order_identity_query_receipt
+            or getattr(validator, "__func__", None)
+            is not RegisteredSimStore.registered_sim_validate_order_identity_query_receipt
+        ):
+            raise BtApiStoreError("registered-sim current order-query source is untrusted")
+        receipt = receipt_factory()
+        if (
+            type(receipt) is not RegisteredSimOrderIdentityQueryReceipt
+            or receipt._store is not self
+            or validator(receipt) is not True
+            or receipt.account_fingerprint != expected_session.get("account_fingerprint")
+            or receipt.connection_generation != expected_session.get("connection_generation")
+            or receipt.trading_day != expected_session.get("trading_day")
+            or receipt.front_id != expected_session.get("front_id")
+            or receipt.session_id != expected_session.get("session_id")
+        ):
+            raise BtApiStoreError("registered-sim current complete order query is stale")
+        rows = tuple(receipt.rows)
+        ref_rows = tuple(
+            row
+            for row in rows
+            if isinstance(row, Mapping) and self._exact_cancel_row_ref(row) == order_ref
+        )
+        if len(ref_rows) != 1:
+            raise BtApiStoreError("registered-sim current query OrderRef is missing or ambiguous")
+        row = ref_rows[0]
+        row_sys_id = self._exact_cancel_row_text(row, "OrderSysID", "order_sys_id")
+        row_instrument = self._exact_cancel_row_text(row, "InstrumentID", "instrument_id")
+        row_exchange = self._exact_cancel_row_text(row, "ExchangeID", "exchange_id")
+        row_broker = self._exact_cancel_row_text(row, "BrokerID", "broker_id")
+        row_investor = self._exact_cancel_row_text(row, "InvestorID", "investor_id")
+        row_day = self._exact_cancel_row_text(row, "TradingDay", "trading_day")
+        row_front = self._exact_cancel_row_positive_int(row, "FrontID", "front_id")
+        row_session = self._exact_cancel_row_positive_int(row, "SessionID", "session_id")
+        status = self._exact_cancel_row_field(row, "OrderStatus", "order_status")
+        if type(status) is int:
+            status = str(status)
+        if not (
+            row_sys_id == expected_sys_id
+            and row_instrument == instrument
+            and row_exchange == exchange
+            and row_broker == receipt.broker_id
+            and row_investor == receipt.investor_id
+            and row_day == receipt.trading_day
+            and row_front == receipt.front_id
+            and row_session == receipt.session_id
+            and row_front == expected_session.get("front_id")
+            and row_session == expected_session.get("session_id")
+            and row_sys_id == cancel_identity.get("order_sys_id")
+            and type(status) is str
+            and status.strip().lower()
+                in {"1", "3", "b", "c", "parttradedqueueing", "notradequeueing", "nottouched", "touched"}
+        ):
+            raise BtApiStoreError("registered-sim current query row differs from KNOWN owner")
+        sys_rows = tuple(
+            candidate
+            for candidate in rows
+            if isinstance(candidate, Mapping)
+            and self._exact_cancel_row_text(candidate, "OrderSysID", "order_sys_id") == row_sys_id
+            and self._exact_cancel_row_text(candidate, "ExchangeID", "exchange_id") == row_exchange
+        )
+        if len(sys_rows) != 1:
+            raise BtApiStoreError("registered-sim current query OrderSysID is ambiguous")
+        try:
+            from .execution_decision_journal import _canonical_json
+
+            matched_row_sha256 = hashlib.sha256(
+                _canonical_json(dict(row)).encode("utf-8")
+            ).hexdigest()
+        except Exception:
+            raise BtApiStoreError("registered-sim current query row digest is invalid") from None
+        if binding is not None and any(
+            binding.get(name) != value
+            for name, value in (
+                ("order_sys_id", row_sys_id),
+                ("broker_id", row_broker),
+                ("investor_id", row_investor),
+                ("instrument", row_instrument),
+                ("exchange", row_exchange),
+                ("order_ref", order_ref),
+                ("front_id", row_front),
+                ("session_id", row_session),
+                ("trading_day", row_day),
+            )
+        ):
+            raise BtApiStoreError("registered-sim current query conflicts with immutable binding")
+        if binding is None and (
+            not isinstance(callback_identity, Mapping)
+            or callback_identity.get("broker_id") != row_broker
+            or callback_identity.get("investor_id") != row_investor
+        ):
+            raise BtApiStoreError(
+                "registered-sim KNOWN callback account identity differs from current query"
+            )
+        return {
+            "order_ref": order_ref,
+            "order_sys_id": row_sys_id,
+            "instrument_id": row_instrument,
+            "exchange_id": row_exchange,
+            "broker_id": row_broker,
+            "investor_id": row_investor,
+            "front_id": row_front,
+            "session_id": row_session,
+            "account_fingerprint": receipt.account_fingerprint,
+            "connection_generation": receipt.connection_generation,
+            "trading_day": receipt.trading_day,
+            "query_request_id": receipt.request_id,
+            "query_rows_sha256": receipt.rows_sha256,
+            "matched_row_sha256": matched_row_sha256,
+            "source_expires_monotonic": receipt.source_expires_monotonic,
+        }
+
     def _order_to_payload(self, order):
         payload = super()._order_to_payload(order)
         route = self._order_route_from_info(order)
@@ -2350,8 +3343,9 @@ class RegisteredSimStore(BtApiStore):
             arm = getattr(api, "arm_registered_sim_execution", None)
             if not callable(arm):
                 raise BtApiStoreError("registered-sim admission capability is unavailable")
+            grant_returned = False
             try:
-                result = arm(
+                raw_result = arm(
                     instrument,
                     exchange,
                     md_front=md_front,
@@ -2359,20 +3353,33 @@ class RegisteredSimStore(BtApiStore):
                     execution_cycle_id=execution_cycle_id,
                     preflight_sha256=preflight_sha256,
                 )
-            except Exception:
-                self._sync_gate_after_arm_failure_locked(api, "native_admission_failed")
+                grant_returned = True
+                result = dict(raw_result)
+                self._registered_sim_gate.update(
+                    {
+                        "armed": True,
+                        "frozen": False,
+                        "reason": "",
+                        "execution_cycle_id": execution_cycle_id,
+                        "instrument": instrument,
+                        "exchange": exchange,
+                    }
+                )
+                return result
+            except BaseException as exc:
+                if grant_returned or not isinstance(exc, Exception):
+                    try:
+                        self._freeze_store_after_arm_failure_locked(
+                            api, "native_admission_publication_failed"
+                        )
+                    except BaseException:
+                        pass
+                else:
+                    try:
+                        self._sync_gate_after_arm_failure_locked(api, "native_admission_failed")
+                    except BaseException:
+                        pass
                 raise
-            self._registered_sim_gate.update(
-                {
-                    "armed": True,
-                    "frozen": False,
-                    "reason": "",
-                    "execution_cycle_id": execution_cycle_id,
-                    "instrument": instrument,
-                    "exchange": exchange,
-                }
-            )
-            return dict(result)
 
     def registered_sim_configure_arm_templates(self, templates: Mapping) -> None:
         if not self._registered_sim_allow_writes:
@@ -2404,9 +3411,12 @@ class RegisteredSimStore(BtApiStore):
             ensure = getattr(api, "ensure_registered_sim_arm_for", None)
             if not callable(ensure):
                 raise BtApiStoreError("registered-sim multi-instrument arming is unavailable")
+            grant_returned = False
             try:
                 if expected_session is None:
-                    result = dict(ensure(instrument, exchange))
+                    raw_result = ensure(instrument, exchange)
+                    grant_returned = True
+                    result = dict(raw_result)
                 else:
                     session_scope = getattr(api, "registered_sim_expected_session_scope", None)
                     if not callable(session_scope):
@@ -2414,23 +3424,65 @@ class RegisteredSimStore(BtApiStore):
                             "registered-sim expected-session binding is unavailable"
                         )
                     with session_scope(expected_session):
-                        result = dict(ensure(instrument, exchange))
-            except Exception:
-                self._sync_gate_after_arm_failure_locked(api, "native_arm_switch_failed")
+                        raw_result = ensure(instrument, exchange)
+                        grant_returned = True
+                        result = dict(raw_result)
+                self._registered_sim_gate.update(
+                    {
+                        "armed": result.get("armed") is True,
+                        "reason": "",
+                        "instrument": instrument,
+                        "exchange": exchange,
+                    }
+                )
+                return result
+            except BaseException as exc:
+                if grant_returned or not isinstance(exc, Exception):
+                    try:
+                        self._freeze_store_after_arm_failure_locked(
+                            api, "native_arm_switch_publication_failed"
+                        )
+                    except BaseException:
+                        pass
+                else:
+                    try:
+                        self._sync_gate_after_arm_failure_locked(api, "native_arm_switch_failed")
+                    except BaseException:
+                        pass
                 raise
+
+    def _freeze_store_after_arm_failure_locked(self, api: Any, reason: str) -> None:
+        """Close Store and SDK admission if a returned grant cannot be published."""
+        try:
             self._registered_sim_gate.update(
                 {
-                    "armed": result.get("armed") is True,
-                    "reason": "",
-                    "instrument": instrument,
-                    "exchange": exchange,
+                    "armed": False,
+                    "frozen": True,
+                    "reason": reason,
+                    "instrument": None,
+                    "exchange": None,
                 }
             )
-            return result
+        finally:
+            # Even if a second control exception interrupts local publication,
+            # make the wrapper close its native gate before returning to the
+            # caller. The caller preserves the original publication exception.
+            try:
+                freeze = getattr(api, "freeze_registered_sim_execution", None)
+                if callable(freeze):
+                    freeze(reason)
+            except BaseException:
+                pass
 
     def _sync_gate_after_arm_failure_locked(self, api: Any, reason: str) -> None:
-        facts_method = getattr(api, "registered_sim_execution_facts", None)
-        facts = facts_method() if callable(facts_method) else None
+        try:
+            facts_method = getattr(api, "registered_sim_execution_facts", None)
+            facts = facts_method() if callable(facts_method) else None
+        except BaseException:
+            self._registered_sim_gate.update(
+                {"frozen": True, "armed": False, "reason": reason}
+            )
+            return
         if not isinstance(facts, Mapping):
             return
         if facts.get("frozen") is True or facts.get("armed_key") is None:
@@ -2452,8 +3504,10 @@ class RegisteredSimStore(BtApiStore):
                 raise BtApiStoreError("SDK native disarm is unavailable; Store gate frozen")
             try:
                 result = dict(method(str(reason)))
-            except Exception as exc:
+            except BaseException as exc:
                 self._registered_sim_gate.update({"frozen": True, "reason": "native_disarm_failed"})
+                if not isinstance(exc, Exception):
+                    raise
                 raise BtApiStoreError(
                     "SDK native disarm failed ({})".format(type(exc).__name__)
                 ) from None
@@ -2576,6 +3630,21 @@ class RegisteredSimStore(BtApiStore):
             and all(isinstance(value, str) for value in authorized_value)
             else None
         )
+        canonical_route_instrument = _canonical_sdk_route_instrument(
+            sdk_client,
+            (instrument, exchange),
+            bundle=authorized_instruments is not None,
+        )
+        expected_route_instrument = (
+            canonical_route_instrument
+            if canonical_route_instrument is not None
+            else instrument
+        )
+        sdk_instrument_matches_route = (
+            sdk_instrument in (instrument, expected_route_instrument)
+            if sdk_instrument is not None
+            else False
+        )
         adapter_key = wrapper_facts.get("armed_key") if wrapper_observed else None
         cached_grant_matches = (
             wrapper_facts.get("current_grant_matches_sdk")
@@ -2588,12 +3657,14 @@ class RegisteredSimStore(BtApiStore):
                 sdk_managed is not True
                 or sdk_armed is not True
                 or adapter_key != (instrument, exchange)
-                or (sdk_instrument is not None and sdk_instrument != instrument)
+                or (sdk_instrument is not None and not sdk_instrument_matches_route)
                 or cached_grant_matches is False
             ):
                 sdk_capability_matches_route = False
             elif cached_grant_matches is True and authorized_instruments is not None:
-                sdk_capability_matches_route = instrument in authorized_instruments
+                sdk_capability_matches_route = (
+                    expected_route_instrument in authorized_instruments
+                )
             elif cached_grant_matches is True or cached_grant_matches is None:
                 sdk_capability_matches_route = None
 
@@ -2673,7 +3744,8 @@ class RegisteredSimStore(BtApiStore):
             and sdk_gate_observed
             and sdk_managed is True
             and sdk_armed is True
-            and sdk_instrument == instrument
+            and sdk_instrument is not None
+            and sdk_instrument_matches_route
             and adapter_key == (instrument, exchange)
             and sdk_gate.get("connection_generation") == current_session_generation
             and sdk_gate.get("trading_day") == current_session_day
@@ -2681,9 +3753,11 @@ class RegisteredSimStore(BtApiStore):
             and cached_grant_matches is True
         ):
             # The SDK exposes only the instrument grant here; exact exchange
-            # identity remains bound by the wrapper key and per-write SDK call.
+            # identity remains bound by this canonical contract and per-write SDK call.
             sdk_capability_matches_route = (
-                instrument in authorized_instruments if authorized_instruments is not None else True
+                expected_route_instrument in authorized_instruments
+                if authorized_instruments is not None
+                else True
             )
         elif arm_templates_configured is True and sdk_capability_matches_route is None:
             # The grant can legitimately be absent before the first per-route
@@ -3215,6 +4289,194 @@ class RegisteredSimStore(BtApiStore):
         detached["query_filters"] = copy.deepcopy(dict(filters))
         return detached
 
+    def registered_sim_order_identity_query_receipt(
+        self,
+    ) -> Optional[RegisteredSimOrderIdentityQueryReceipt]:
+        """Seal the current complete, unfiltered orders query for Journal use.
+
+        This does not issue I/O. It reuses the same current Store snapshot used
+        by the facts projection, then verifies its source-owned request and
+        session against the Store cache and the live SDK scope. A result from a
+        callback, Broker ``info``, or caller-created mapping cannot produce
+        this receipt.
+        """
+        snapshot = self.get_registered_sim_query_snapshot("orders_result")
+        if not isinstance(snapshot, Mapping):
+            return None
+        rows = snapshot.get("rows")
+
+        def public_order_row(row: Any) -> bool:
+            return bool(
+                isinstance(row, Mapping)
+                and row
+                and all(
+                    type(name) is str
+                    and bool(name)
+                    and name == name.strip()
+                    and (
+                        value is None
+                        or type(value) in (str, int, float, bool)
+                        and (type(value) is not float or math.isfinite(value))
+                    )
+                    for name, value in row.items()
+                )
+            )
+
+        if not (
+            snapshot.get("family") == "orders_result"
+            and snapshot.get("request_type") == "orders"
+            and snapshot.get("expected_request_type") == "orders"
+            and snapshot.get("query_complete") is True
+            and snapshot.get("scope_complete") is True
+            and snapshot.get("source_owned") is True
+            and snapshot.get("source_session_identity_valid") is True
+            and snapshot.get("query_filters") == {}
+            and snapshot.get("source_explicit_request_filters") == ()
+            and isinstance(rows, list)
+            and all(public_order_row(row) for row in rows)
+        ):
+            return None
+        request_id = snapshot.get("request_id")
+        generation = snapshot.get("connection_generation")
+        account = snapshot.get("account_fingerprint")
+        day = snapshot.get("trading_day")
+        started = snapshot.get("started_at_utc")
+        completed = snapshot.get("completed_at_utc")
+        if not (
+            _positive_int(request_id)
+            and _positive_int(generation)
+            and type(account) is str
+            and account
+            and account == account.strip()
+            and type(day) is str
+            and re.fullmatch(r"[0-9]{8}", day) is not None
+            and _is_aware_datetime(started)
+            and _is_aware_datetime(completed)
+            and started <= completed
+        ):
+            return None
+        cache_key = _query_snapshot_key("orders_result", {})
+        with self._ctp_query_result_lock:
+            cached = self._ctp_query_snapshots.get(cache_key)
+            current = self._ctp_query_results.get("orders_result")
+            if not isinstance(cached, Mapping) or not isinstance(current, Mapping):
+                return None
+            issuer = cached.get("_source_issuer")
+            expiry = cached.get("source_expires_monotonic")
+            # The query result and bounded snapshot cache must still denote the
+            # same request. A concurrent refresh cannot mix their rows.
+            if not (
+                current.get("request_id") == request_id
+                and current.get("connection_generation") == generation
+                and current.get("account_fingerprint") == account
+                and current.get("trading_day") == day
+                and current.get("completed_at_utc") == completed
+                and current.get("rows") == rows
+                and cached.get("request_id") == request_id
+                and cached.get("connection_generation") == generation
+                and cached.get("account_fingerprint") == account
+                and cached.get("trading_day") == day
+                and cached.get("query_complete") is True
+                and cached.get("scope_complete") is True
+                and cached.get("source_owned") is True
+                and cached.get("source_session_identity_valid") is True
+                and cached.get("source_explicit_request_filters") == ()
+                and cached.get("started_at_utc") == started
+                and cached.get("completed_at_utc") == completed
+                and cached.get("rows") == rows
+                and issuer is not None
+                and type(expiry) in (int, float)
+                and math.isfinite(expiry)
+                and time.monotonic() < expiry
+            ):
+                return None
+        api = self._api
+        client = getattr(api, "trader_client", None) if api is not None else None
+        session_snapshot = _session_scope_state_snapshot(client, require_canonical=True)
+        if session_snapshot is None:
+            return None
+        scope, session_state = session_snapshot
+        front_id = _read_fact(session_state, "front_id")
+        session_id = _read_fact(session_state, "session_id")
+        broker_id = _read_fact(scope, "broker_id")
+        investor_id = _read_fact(scope, "investor_id")
+        if not (
+            _read_fact(scope, "read_only_ready") is True
+            and _read_fact(scope, "issuer") is issuer
+            and _read_fact(scope, "connection_generation") == generation
+            and _read_fact(scope, "account_fingerprint") == account
+            and _read_fact(scope, "trading_day") == day
+            and _read_fact(session_state, "read_only_ready") is True
+            and _read_fact(session_state, "connection_generation") == generation
+            and _read_fact(session_state, "account_fingerprint") == account
+            and _read_fact(session_state, "trading_day") == day
+            and _positive_int(front_id)
+            and _positive_int(session_id)
+            and type(broker_id) is str
+            and broker_id
+            and broker_id == broker_id.strip()
+            and type(investor_id) is str
+            and investor_id
+            and investor_id == investor_id.strip()
+            and time.monotonic() < expiry
+        ):
+            return None
+        try:
+            canonical_rows = json.dumps(
+                rows,
+                allow_nan=False,
+                ensure_ascii=True,
+                separators=(",", ":"),
+                sort_keys=True,
+            ).encode("ascii")
+            rows_digest = hashlib.sha256(canonical_rows).hexdigest()
+            frozen_rows = tuple(MappingProxyType(copy.deepcopy(dict(row))) for row in rows)
+        except (TypeError, ValueError, OverflowError):
+            return None
+        return RegisteredSimOrderIdentityQueryReceipt(
+            request_id=request_id,
+            connection_generation=generation,
+            account_fingerprint=account,
+            trading_day=day,
+            started_at_utc=started,
+            completed_at_utc=completed,
+            front_id=front_id,
+            session_id=session_id,
+            broker_id=broker_id,
+            investor_id=investor_id,
+            rows_sha256=rows_digest,
+            rows=frozen_rows,
+            source_expires_monotonic=float(expiry),
+            _store=self,
+            _issuer=issuer,
+        )
+
+    def registered_sim_validate_order_identity_query_receipt(self, receipt: Any) -> bool:
+        """Recheck a Store-minted receipt against the still-current query/session."""
+        if (
+            type(receipt) is not RegisteredSimOrderIdentityQueryReceipt
+            or receipt._store is not self
+        ):
+            return False
+        current = self.registered_sim_order_identity_query_receipt()
+        return bool(
+            current is not None
+            and current._issuer is receipt._issuer
+            and current.request_id == receipt.request_id
+            and current.connection_generation == receipt.connection_generation
+            and current.account_fingerprint == receipt.account_fingerprint
+            and current.trading_day == receipt.trading_day
+            and current.started_at_utc == receipt.started_at_utc
+            and current.completed_at_utc == receipt.completed_at_utc
+            and current.front_id == receipt.front_id
+            and current.session_id == receipt.session_id
+            and current.broker_id == receipt.broker_id
+            and current.investor_id == receipt.investor_id
+            and current.rows_sha256 == receipt.rows_sha256
+            and current.rows == receipt.rows
+            and current.source_expires_monotonic == receipt.source_expires_monotonic
+        )
+
     def _record_instrument_rows(self, facts: Mapping, filters: Mapping) -> None:
         requested_instrument = filters.get("instrument_id")
         requested_exchange = filters.get("exchange_id")
@@ -3522,11 +4784,14 @@ class RegisteredSimStore(BtApiStore):
                     raise BtApiStoreError("registered-sim Store gate is frozen")
                 with session_scope:
                     return super().submit_order(order)
-        except Exception as exc:
-            if getattr(exc, "execution_unknown", False) is True:
+        except BaseException as exc:
+            if (
+                getattr(exc, "execution_unknown", False) is True
+                or getattr(self._api, "_registered_sim_frozen", False) is True
+            ):
                 try:
                     self.registered_sim_freeze(getattr(exc, "code", "submit_unknown"))
-                except Exception:
+                except BaseException:
                     pass
             raise
 
@@ -3534,8 +4799,41 @@ class RegisteredSimStore(BtApiStore):
         self._require_registered_sim_not_frozen()
         try:
             session_scope = self._order_expected_session_scope(order)
+            route = self._order_route_from_info(order)
+            journal_records = self._factor_cancel_journal_records(order)
+            expected_session = _order_expected_session(order) if journal_records is not None else None
+            if journal_records is not None and (route is None or expected_session is None):
+                raise BtApiStoreError("registered-sim factor cancel has no exact route/session")
+            if journal_records is not None and session_scope is None:
+                raise BtApiStoreError("registered-sim factor cancel has no held session scope")
+            dispatch_claim = None
+            if journal_records is not None:
+                cancel = journal_records["cancel"]
+                # Prove the source before the durable one-shot admission.  The
+                # query lock is released before entering Journal, preserving
+                # the established Journal->Store lock order.  The exact same
+                # source receipt is revalidated under the final Store locks
+                # below; any change after this claim fails closed.
+                try:
+                    with self._ctp_query_result_lock:
+                        initial_identity = self._registered_sim_cancel_target_identity(
+                            order,
+                            order_ref=cancel.original_identity["order_ref"],
+                            instrument=route[0],
+                            exchange=route[1],
+                            expected_session=expected_session,
+                            records=journal_records,
+                        )
+                    dispatch_claim = (
+                        journal_records["journal"].claim_registered_sim_cancel_dispatch(
+                            cancel.intent_id, initial_identity
+                        )
+                    )
+                except Exception as error:
+                    raise BtApiStoreError(
+                        "registered-sim durable cancel dispatch admission failed"
+                    ) from error
             if session_scope is None:
-                route = self._order_route_from_info(order)
                 if route is not None:
                     info = getattr(order, "info", {})
                     order_ref = (
@@ -3545,13 +4843,20 @@ class RegisteredSimStore(BtApiStore):
                     )
                     instrument, exchange = route
                     dataname = "{}.{}".format(exchange, instrument)
+                    if journal_records is None:
+                        self._reject_legacy_cancel_for_durable_owner(
+                            order_ref, broker_order_ref=getattr(order, "ref", None)
+                        )
                     return self.cancel_order_ref(order_ref, dataname=dataname)
+                if journal_records is None:
+                    self._reject_legacy_cancel_for_durable_owner(
+                        None, broker_order_ref=getattr(order, "ref", None)
+                    )
                 return super().cancel_order(order)
             with self._registered_sim_gate_lock:
                 if self._registered_sim_gate.get("frozen") is True:
                     raise BtApiStoreError("registered-sim Store gate is frozen")
                 with session_scope:
-                    route = self._order_route_from_info(order)
                     if route is not None:
                         info = getattr(order, "info", {})
                         order_ref = (
@@ -3561,27 +4866,179 @@ class RegisteredSimStore(BtApiStore):
                         )
                         instrument, exchange = route
                         dataname = "{}.{}".format(exchange, instrument)
+                        if journal_records is not None:
+                            if type(order_ref) is not str or not order_ref:
+                                raise BtApiStoreError(
+                                    "registered-sim factor cancel requires its exact OrderRef"
+                                )
+                            # Lock order is Store gate -> wrapper session ->
+                            # query result.  Journal reads above have completed
+                            # before any of these locks are acquired, matching
+                            # the Journal -> query-result order used on append.
+                            with self._ctp_query_result_lock:
+                                identity = self._registered_sim_cancel_target_identity(
+                                    order,
+                                    order_ref=order_ref,
+                                    instrument=instrument,
+                                    exchange=exchange,
+                                    expected_session=expected_session,
+                                    records=journal_records,
+                                )
+                                if not self._registered_sim_cancel_claim_matches_identity(
+                                    dispatch_claim, identity
+                                ):
+                                    raise BtApiStoreError(
+                                        "registered-sim cancel source changed after durable admission"
+                                    )
+                                api = self._api
+                                discard = getattr(
+                                    api, "_discard_registered_sim_cancel_target", None
+                                )
+                                if (
+                                    api is not self._api
+                                    or not isinstance(api, RegisteredSimWrapper)
+                                    or not callable(discard)
+                                    or len(api._registered_sim_cancel_targets) >= 8
+                                ):
+                                    raise BtApiStoreError(
+                                        "registered-sim typed native cancel is unavailable"
+                                    )
+                                try:
+                                    target = RegisteredSimCancelTarget(
+                                        _issuer=self,
+                                        _seal=self._registered_sim_cancel_target_seal,
+                                        **identity,
+                                    )
+                                except (TypeError, ValueError):
+                                    raise BtApiStoreError(
+                                        "registered-sim cancel target identity is invalid"
+                                    ) from None
+                                api._registered_sim_cancel_targets[id(target)] = target
+                                try:
+                                    return self._cancel_order_ref_legacy(
+                                        order_ref,
+                                        dataname=dataname,
+                                        registered_sim_cancel_target=target,
+                                    )
+                                finally:
+                                    discard(target)
+                        self._reject_legacy_cancel_for_durable_owner(
+                            order_ref, broker_order_ref=getattr(order, "ref", None)
+                        )
                         return self.cancel_order_ref(order_ref, dataname=dataname)
+                    if journal_records is None:
+                        self._reject_legacy_cancel_for_durable_owner(
+                            None, broker_order_ref=getattr(order, "ref", None)
+                        )
                     return super().cancel_order(order)
-        except Exception as exc:
-            if getattr(exc, "execution_unknown", False) is True:
+        except BaseException as exc:
+            if (
+                getattr(exc, "execution_unknown", False) is True
+                or getattr(self._api, "_registered_sim_frozen", False) is True
+            ):
                 try:
                     self.registered_sim_freeze(getattr(exc, "code", "cancel_unknown"))
-                except Exception:
+                except BaseException:
                     pass
             raise
+
+    @staticmethod
+    def _registered_sim_cancel_claim_matches_identity(
+        claim: Any, identity: Mapping[str, Any]
+    ) -> bool:
+        if not isinstance(claim, Mapping) or not isinstance(identity, Mapping):
+            return False
+        pairs = (
+            ("order_ref", "order_ref"),
+            ("order_sys_id", "order_sys_id"),
+            ("instrument", "instrument_id"),
+            ("exchange", "exchange_id"),
+            ("broker_id", "broker_id"),
+            ("investor_id", "investor_id"),
+            ("front_id", "front_id"),
+            ("session_id", "session_id"),
+            ("account_fingerprint", "account_fingerprint"),
+            ("connection_generation", "connection_generation"),
+            ("trading_day", "trading_day"),
+            ("query_request_id", "query_request_id"),
+            ("query_rows_sha256", "query_rows_sha256"),
+            ("matched_row_sha256", "matched_row_sha256"),
+            ("source_expires_monotonic", "source_expires_monotonic"),
+        )
+        return all(claim.get(claim_name) == identity.get(identity_name) for claim_name, identity_name in pairs)
 
     def cancel_order_ref(self, order_ref, dataname: Optional[str] = None):
         self._require_registered_sim_not_frozen()
         try:
+            self._reject_legacy_cancel_for_durable_owner(order_ref)
             return super().cancel_order_ref(order_ref, dataname=dataname)
-        except Exception as exc:
-            if getattr(exc, "execution_unknown", False) is True:
+        except BaseException as exc:
+            if (
+                getattr(exc, "execution_unknown", False) is True
+                or getattr(self._api, "_registered_sim_frozen", False) is True
+            ):
                 try:
                     self.registered_sim_freeze(getattr(exc, "code", "cancel_unknown"))
-                except Exception:
+                except BaseException:
                     pass
             raise
+
+    def _reject_legacy_cancel_for_durable_owner(
+        self, order_ref: Any, *, broker_order_ref: Optional[int] = None
+    ) -> None:
+        broker = getattr(self, "_broker", None)
+        coordinator = getattr(broker, "factor_execution_coordinator", None)
+        if coordinator is None:
+            if getattr(self, "_registered_sim_durable_owner_configured", False) is True:
+                raise BtApiStoreError(
+                    "registered-sim durable cancel coordinator is unavailable"
+                )
+            return
+        from .execution_decision_journal import ExecutionDecisionJournal
+        from .factor_execution import FactorExecutionCoordinator
+
+        if (
+            not isinstance(coordinator, FactorExecutionCoordinator)
+            or coordinator.broker is not broker
+            or coordinator.store is not self
+            or type(coordinator.journal) is not ExecutionDecisionJournal
+        ):
+            raise BtApiStoreError("registered-sim legacy cancel owner scope is unavailable")
+        api = self._api
+        if not isinstance(api, RegisteredSimWrapper):
+            # Without a held current session we cannot prove this OrderRef is
+            # outside every Strategy/run in the account.
+            raise BtApiStoreError("registered-sim raw cancel requires a held current session")
+        with api._registered_sim_lock:
+            expected = api._registered_sim_expected_session
+            if not isinstance(expected, Mapping):
+                raise BtApiStoreError("registered-sim raw cancel session is unavailable")
+            account_fingerprint = expected.get("account_fingerprint")
+            trading_day = expected.get("trading_day")
+        if (
+            (order_ref is not None and (
+                type(order_ref) is not str
+                or not order_ref
+                or order_ref != order_ref.strip()
+            ))
+            or type(account_fingerprint) is not str
+            or not account_fingerprint
+            or type(trading_day) is not str
+        ):
+            raise BtApiStoreError("registered-sim raw cancel identity is incomplete")
+        try:
+            exists = coordinator.journal.native_order_ref_exists_in_account_day(
+                account_scope=coordinator.account_scope,
+                trading_day=trading_day,
+                order_ref=order_ref,
+                broker_order_ref=broker_order_ref,
+            )
+        except Exception as error:
+            raise BtApiStoreError("registered-sim raw cancel owner lookup failed") from error
+        if exists:
+            raise BtApiStoreError(
+                "registered-sim durable factor owner requires its exact CANCEL intent"
+            )
 
 
 __all__ = [
