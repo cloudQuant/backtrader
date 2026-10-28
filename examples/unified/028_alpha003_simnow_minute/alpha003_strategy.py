@@ -3870,6 +3870,7 @@ class Alpha003TargetStrategy(bt.Strategy):
         self._source_receipt_batch_id: Optional[str] = None
         self._source_receipt_tape_reference: Optional[Mapping[str, Any]] = None
         self._source_receipt_cache: Any = None
+        self._fee_pair_source_only_sequence_blocked = False
         self.source_continuity_failure_count = 0
         self.source_continuity_first_error: Optional[str] = None
         refresh_loop = self.p.control_refresh_loop
@@ -5201,6 +5202,126 @@ class Alpha003TargetStrategy(bt.Strategy):
         self._last_decision_tape_error = None
         return True, frozen_reference, None
 
+    def _record_fee_pair_source_only_tape(
+        self,
+        batch: Any,
+        snapshot: Any,
+        target_decision: Optional[Alpha003TargetDecision],
+        facts: Any,
+    ) -> Tuple[bool, Optional[Mapping[str, Any]], Optional[str]]:
+        """Append the registered fee-pair grid as an immutable no-intent row."""
+
+        if self._fee_pair_source_only_sequence_blocked:
+            return False, None, "FEE_PAIR_SOURCE_SEQUENCE_BLOCKED"
+        batch_id = _read(batch, "batch_id") if batch is not None else None
+        if not isinstance(batch_id, str) or not batch_id:
+            return False, None, "DECISION_TAPE_BATCH_UNAVAILABLE"
+        if self._last_decision_tape_batch_id == batch_id:
+            reference = self._last_decision_tape_reference
+            return (reference is not None), reference, self._last_decision_tape_error
+
+        # A possibly durable append must never be retried for this grid.
+        self._last_decision_tape_batch_id = batch_id
+        self._last_decision_tape_reference = None
+        self._last_decision_tape_error = "FEE_PAIR_SOURCE_ONLY_WRITE_NOT_CONFIRMED"
+        sink = self.p.decision_tape
+        writer = (
+            getattr(sink, "record_fee_pair_source_only_from_live", None)
+            if sink is not None
+            else None
+        )
+        if not callable(writer) or self._coordinator is None:
+            self._last_decision_tape_error = "FEE_PAIR_SOURCE_ONLY_WRITER_UNAVAILABLE"
+            return False, None, self._last_decision_tape_error
+
+        try:
+            result = writer(
+                batch,
+                snapshot,
+                target_decision,
+                facts,
+                self._coordinator.journal,
+                account_scope=self._account_scope,
+                strategy_scope=self._strategy_scope,
+                logical_run_id=self._logical_run_id,
+                source_kind=self._source_kind,
+                source_restart_marker=self._source_restart_marker,
+            )
+            if not isinstance(result, Mapping):
+                raise ValueError("fee-pair source-only receipt is unavailable")
+            raw_reference = result.get("tape_reference")
+            if not isinstance(raw_reference, Mapping):
+                raise ValueError("fee-pair tape reference is unavailable")
+            reference = {
+                name: raw_reference.get(name)
+                for name in ("file_id", "record_id", "record_index", "batch_id")
+            }
+            if (
+                type(reference["file_id"]) is not str
+                or not reference["file_id"]
+                or type(reference["record_id"]) is not str
+                or not reference["record_id"]
+                or type(reference["record_index"]) is not int
+                or reference["record_index"] < 1
+                or reference["batch_id"] != batch_id
+            ):
+                raise ValueError("fee-pair tape reference is invalid")
+            physical_receipt = result.get("source_receipt")
+            strategy_receipt = self._source_receipt(batch, snapshot, reference)
+            if physical_receipt != strategy_receipt:
+                raise ValueError("fee-pair source receipt differs from Strategy projection")
+            if not self._confirm_source_anchor(strategy_receipt, anchor_kind="SOURCE_ONLY"):
+                self._latch_decision_tape_failure()
+                self._last_decision_tape_error = "SOURCE_HIGHWATER_CONFIRMATION_FAILED"
+                return False, None, self._last_decision_tape_error
+        except Exception as error:
+            raw_code = getattr(error, "code", None)
+            code = (
+                raw_code
+                if type(raw_code) is str
+                and 1 <= len(raw_code) <= 96
+                and raw_code.isascii()
+                and raw_code[0].isalpha()
+                and all(character.isupper() or character.isdigit() or character == "_"
+                        for character in raw_code)
+                else "FEE_PAIR_SOURCE_ONLY_WRITE_FAILED"
+            )
+            self._last_decision_tape_error = code
+            # Candidate validation can fail before any reservation or append.
+            # It is a known no-candidate outcome, but the Journal requires a
+            # contiguous same-epoch source chain, so later slots cannot be
+            # anchored truthfully across this missing grid. Preserve the
+            # original failure code and stop only this Strategy's source
+            # sequence; uncertain writer/Journal failures also latch the tape.
+            no_candidate_codes = {
+                "FEE_PAIR_LIVE_SOURCE_CANDIDATE_UNAVAILABLE",
+                "FEE_PAIR_SELECTED_PAIR_REQUIRED",
+                "FEE_PAIR_SELECTED_PAIR_INVALID",
+                "FEE_PAIR_SELECTED_PAIR_NOT_AUTHORIZED",
+                "FEE_PAIR_ACCOUNT_SESSION_UNAVAILABLE",
+                "FEE_PAIR_ROUTE_AMBIGUOUS",
+                "FEE_PAIR_QUOTE_AMBIGUOUS",
+                "FEE_PAIR_ROUTE_SESSION_UNAVAILABLE",
+                "FEE_PAIR_QUOTE_MISSING",
+                "FEE_PAIR_QUOTE_IDENTITY_INVALID",
+            }
+            if code not in no_candidate_codes:
+                self._latch_decision_tape_failure()
+                self._note_source_continuity_failure("SOURCE_RECEIPT_WRITE_FAILED")
+            else:
+                # The Journal's same-epoch source chain requires contiguous
+                # slot and physical-row indexes. Once a LIVE_READY grid cannot
+                # form the required pair, no later grid in this run can append
+                # a truthful anchor across that gap. Keep writes stopped for
+                # this run while ordinary risk reductions continue.
+                self._fee_pair_source_only_sequence_blocked = True
+            return False, None, self._last_decision_tape_error
+
+        frozen_reference = MappingProxyType(reference)
+        self._last_decision_tape_reference = frozen_reference
+        self._last_decision_tape_error = None
+        return True, frozen_reference, None
+
     @staticmethod
     def _gate_open_actions(plan: Alpha003OrderPlan, *, tape_durable: bool) -> Alpha003OrderPlan:
         if tape_durable or plan.status != "READY":
@@ -6041,13 +6162,45 @@ class Alpha003TargetStrategy(bt.Strategy):
             and not self._live_good_source_batch(batch, snapshot)
         ):
             tape_order_plan = self._no_intent_source_tape_plan(batch, snapshot)
+        fee_pair_scope_required = False
+        fee_pair_scope_unavailable = False
+        fee_pair_source_only_durable = False
+        if self.p.execution_enabled and self._coordinator is not None:
+            try:
+                fee_pair_scope_required = (
+                    self._coordinator.journal.fee_pair_required_scope(
+                        self._account_scope, self._strategy_scope
+                    )
+                    is not None
+                )
+            except Exception:
+                # Do not append an ordinary OPEN-bearing row if the immutable
+                # scope fence cannot be read immediately before the tape path.
+                fee_pair_scope_unavailable = True
         tape_durable = False
         tape_reference = None
         tape_error = None
         if is_new_batch and batch is not None and snapshot is not None:
-            tape_durable, tape_reference, tape_error = self._record_decision_tape(
-                batch, snapshot, target_decision, tape_order_plan
-            )
+            readiness = _state_name(_read(snapshot, "readiness"), "snapshot readiness")
+            if fee_pair_scope_unavailable:
+                tape_error = "FEE_PAIR_SCOPE_STATUS_UNAVAILABLE"
+            elif fee_pair_scope_required and readiness == "LIVE_READY":
+                if not self._live_good_source_batch(batch, snapshot):
+                    tape_error = "FEE_PAIR_LIVE_SOURCE_CANDIDATE_UNAVAILABLE"
+                else:
+                    tape_durable, tape_reference, tape_error = (
+                        self._record_fee_pair_source_only_tape(
+                            batch,
+                            snapshot,
+                            target_decision,
+                            facts,
+                        )
+                    )
+                    fee_pair_source_only_durable = tape_durable
+            else:
+                tape_durable, tape_reference, tape_error = self._record_decision_tape(
+                    batch, snapshot, target_decision, tape_order_plan
+                )
             if not tape_durable:
                 self.last_execution_block_reason = tape_error
             self.last_order_plan = self._gate_open_actions(proposed_plan, tape_durable=tape_durable)
@@ -6094,7 +6247,45 @@ class Alpha003TargetStrategy(bt.Strategy):
                     if grid_recorded and callable(capacity_callback) and callable(capture_capacity):
                         capture_capacity(batch, snapshot, engine_phase="grid_recorded")
                 if not grid_recorded:
-                    if not getattr(self, "_last_grid_fee_pair_blocked", False):
+                    if fee_pair_source_only_durable:
+                        # The SOURCE_ONLY row already advanced the durable
+                        # source highwater for this slot. A later stale-snapshot
+                        # or Journal rejection must not fall through to the
+                        # ordinary source writer and retry the same key. Keep
+                        # OPEN filtered while the independent risk path below
+                        # still sees CANCEL/CLOSE actions.
+                        open_actions = tuple(
+                            action
+                            for action in proposed_plan.actions
+                            if action.action == "SUBMIT"
+                            and action.position_effect == "OPEN"
+                        )
+                        if open_actions:
+                            retained_actions = tuple(
+                                action
+                                for action in proposed_plan.actions
+                                if action.action == "CANCEL"
+                                or action.action != "SUBMIT"
+                                or action.position_effect != "OPEN"
+                            )
+                            self.last_order_plan = replace(
+                                proposed_plan,
+                                status=(
+                                    "READY"
+                                    if retained_actions and proposed_plan.status == "READY"
+                                    else "BLOCKED"
+                                ),
+                                reason="FEE_PAIR_SOURCE_ONLY_GRID_NOT_SETTLED",
+                                actions=retained_actions,
+                            )
+                        else:
+                            self.last_order_plan = proposed_plan
+                        if self.last_execution_block_reason is None:
+                            self.last_execution_block_reason = (
+                                "FEE_PAIR_SOURCE_ONLY_GRID_NOT_SETTLED"
+                            )
+                        self._last_grid_fee_pair_blocked = True
+                    elif not getattr(self, "_last_grid_fee_pair_blocked", False):
                         self._record_source_only(batch, snapshot, tape_reference)
         elif is_new_batch and batch is not None and snapshot is not None:
             # No tape row means there is no source identity to anchor and no

@@ -3649,6 +3649,299 @@ class DecisionTapeWriter:
                 self._failed = True
                 raise
 
+    def record_fee_pair_source_only_from_live(
+        self,
+        batch,
+        snapshot,
+        target_decision,
+        facts,
+        journal,
+        *,
+        account_scope: str,
+        strategy_scope: str,
+        logical_run_id: str,
+        source_kind: str,
+        source_restart_marker=None,
+        ttl_seconds: float = 10.0,
+    ):
+        """Commit one live selected-pair grid as no-intent SOURCE_ONLY.
+
+        This adapter derives the fee-independent candidate from the current
+        Strategy/Store projections while holding the same writer lock used by
+        the append path.  It never reads or authorizes a commission and never
+        dispatches an order.  A live grid without exactly two selected,
+        route-bound targets is rejected before any Journal reservation or tape
+        append; callers must keep that grid fail-closed.
+        """
+        import secrets
+
+        from backtrader.stores import execution_decision_journal as journal_api
+        from backtrader.stores.factor_execution_facts import FactorExecutionFacts
+
+        if type(journal) is not journal_api.ExecutionDecisionJournal:
+            raise RunnerError("FEE_PAIR_JOURNAL_TYPE_INVALID")
+        if type(facts) is not FactorExecutionFacts:
+            raise RunnerError("FEE_PAIR_FACTS_INVALID")
+        for name, value in (
+            ("account_scope", account_scope),
+            ("strategy_scope", strategy_scope),
+            ("logical_run_id", logical_run_id),
+            ("source_kind", source_kind),
+        ):
+            if type(value) is not str or not value or value != value.strip():
+                raise RunnerError("FEE_PAIR_SOURCE_SCOPE_INVALID")
+
+        with self._lock:
+            if self._closed or self._failed:
+                raise RunnerError("DECISION_TAPE_UNAVAILABLE")
+            if self.mode != "live":
+                raise RunnerError("FEE_PAIR_TAPE_LIVE_MODE_REQUIRED")
+            if self.calendar_fingerprint is None or self._selection_evidence is None:
+                raise RunnerError("FEE_PAIR_TAPE_SELECTION_BINDING_REQUIRED")
+
+            if (
+                facts.account_scope != account_scope
+                or facts.strategy_scope != strategy_scope
+                or getattr(snapshot, "readiness", None) != "LIVE_READY"
+                or getattr(snapshot, "batch_complete", None) is not True
+                or getattr(target_decision, "status", None) != "TARGETS_READY"
+                or getattr(target_decision, "batch_id", None)
+                != getattr(batch, "batch_id", None)
+                or getattr(target_decision, "cohort_id", None)
+                != getattr(batch, "cohort_id", None)
+            ):
+                raise RunnerError("FEE_PAIR_LIVE_SOURCE_CANDIDATE_UNAVAILABLE")
+
+            expected_index = self._record_count + 1
+            row = _decision_tape_record(
+                batch,
+                snapshot,
+                target_decision,
+                None,
+                file_id=self.file_id,
+                index=expected_index,
+                targets=self.targets,
+                calendar_fingerprint=self.calendar_fingerprint,
+            )
+            target_decision_row = row.get("target_decision")
+            target_rows = (
+                target_decision_row.get("targets")
+                if isinstance(target_decision_row, Mapping)
+                else None
+            )
+            if (
+                not isinstance(target_rows, list)
+                or len(target_rows) != 2
+                or any(not isinstance(item, Mapping) for item in target_rows)
+            ):
+                raise RunnerError("FEE_PAIR_SELECTED_PAIR_REQUIRED")
+            target_positions = {}
+            for item in target_rows:
+                target_id = item.get("target_id")
+                position = item.get("target_position")
+                if (
+                    type(target_id) is not str
+                    or target_id in target_positions
+                    or type(position) is not int
+                    or position not in (-1, 1)
+                ):
+                    raise RunnerError("FEE_PAIR_SELECTED_PAIR_INVALID")
+                target_positions[target_id] = position
+            target_ids = tuple(sorted(target_positions))
+            if (
+                len(set(target_ids)) != 2
+                or not set(target_ids).issubset(set(self.targets))
+                or not set(target_ids).issubset(set(facts._authorized_target_id_set))
+                or not set(target_ids).issubset(set(facts._full_target_ids))
+            ):
+                raise RunnerError("FEE_PAIR_SELECTED_PAIR_NOT_AUTHORIZED")
+            directions = tuple(target_positions[target] for target in target_ids)
+
+            account = facts.account
+            if (
+                account is None
+                or type(account.account_fingerprint) is not str
+                or not account.account_fingerprint
+                or type(account.connection_generation) is not int
+                or account.connection_generation <= 0
+                or type(account.trading_day) is not str
+                or not account.trading_day
+                or account.account_scope != account_scope
+            ):
+                raise RunnerError("FEE_PAIR_ACCOUNT_SESSION_UNAVAILABLE")
+
+            route_by_target = {}
+            for route in facts.route_eligibilities:
+                if route.target_id in route_by_target:
+                    raise RunnerError("FEE_PAIR_ROUTE_AMBIGUOUS")
+                route_by_target[route.target_id] = route
+            quote_by_route = {}
+            for quote in facts.quotes:
+                identity = (quote.instrument, quote.exchange)
+                if identity in quote_by_route:
+                    raise RunnerError("FEE_PAIR_QUOTE_AMBIGUOUS")
+                quote_by_route[identity] = quote
+
+            routes = []
+            quote_hashes = []
+            session_pairs = set()
+            for target_id in target_ids:
+                route = route_by_target.get(target_id)
+                if (
+                    route is None
+                    or type(route.instrument) is not str
+                    or not route.instrument
+                    or type(route.exchange) is not str
+                    or not route.exchange
+                    or route.connection_generation != account.connection_generation
+                    or route.trading_day != account.trading_day
+                    or route.current_session_account_fingerprint
+                    != account.account_fingerprint
+                    or route.current_session_connection_generation
+                    != account.connection_generation
+                    or route.current_session_trading_day != account.trading_day
+                    or type(route.current_session_front_id) is not int
+                    or route.current_session_front_id <= 0
+                    or type(route.current_session_id) is not int
+                    or route.current_session_id <= 0
+                ):
+                    raise RunnerError("FEE_PAIR_ROUTE_SESSION_UNAVAILABLE")
+                session_pairs.add((route.current_session_front_id, route.current_session_id))
+                routes.append(
+                    journal_api.ExecutionFeePairTargetRoute(
+                        target_id=target_id,
+                        instrument=route.instrument,
+                        exchange=route.exchange,
+                    )
+                )
+                quote = quote_by_route.get((route.instrument, route.exchange))
+                if quote is None:
+                    raise RunnerError("FEE_PAIR_QUOTE_MISSING")
+                try:
+                    quote_hashes.append(
+                        journal_api._fee_pair_quote_identity_sha256(quote)
+                    )
+                except journal_api.ExecutionDecisionJournalError as error:
+                    raise RunnerError(error.code) from None
+            if len(session_pairs) != 1:
+                raise RunnerError("FEE_PAIR_SESSION_MISMATCH")
+            front_id, session_id = next(iter(session_pairs))
+            account_session_id = "ctp-front-session:{}:{}".format(front_id, session_id)
+            account_session_generation = "ctp-connection-generation:{}".format(
+                account.connection_generation
+            )
+
+            source_members = _fee_pair_source_members_from_tape_row(row, journal_api)
+            close_time = row.get("close_time")
+            if type(close_time) is not str or not close_time:
+                raise RunnerError("FEE_PAIR_SOURCE_CLOSE_TIME_INVALID")
+            key = journal_api.ExecutionDecisionKey(
+                account_scope=account_scope,
+                strategy_scope=strategy_scope,
+                logical_run_id=logical_run_id,
+                cohort_id=row["cohort_id"],
+                close_time=close_time,
+                decision_kind=source_kind,
+            )
+            highwater = journal.source_highwater(
+                account_scope,
+                strategy_scope,
+                logical_run_id,
+                source_kind,
+            )
+            predecessor = None if highwater is None else highwater.reference
+            predecessor_sha256 = (
+                None if highwater is None else highwater.receipt_sha256
+            )
+            factor_source = row["factors"]["factors"]["alpha003"]["source_sha256"]
+            if (
+                type(factor_source) is not str
+                or factor_source != target_decision_row.get("source_sha256")
+            ):
+                raise RunnerError("FEE_PAIR_FACTOR_SOURCE_MISMATCH")
+            signal_sha256 = hashlib.sha256(
+                _canonical_json_bytes(target_decision_row).rstrip(b"\n")
+            ).hexdigest()
+            candidate_projection = {
+                "schema": "backtrader.alpha003.fee_pair_source_candidate.v1",
+                "decision_key": journal_api._decision_key_values(key),
+                "source_kind": source_kind,
+                "calendar_id": row["calendar_id"],
+                "calendar_version": row["calendar_version"],
+                "calendar_fingerprint": row["calendar_fingerprint"],
+                "epoch_id": row["epoch_id"],
+                "slot_index": row["slot_index"],
+                "slot_id": row["slot_id"],
+                "batch_id": row["batch_id"],
+                "expected_tape_file_id": self.file_id,
+                "expected_tape_record_index": expected_index,
+                "source_predecessor_sha256": predecessor_sha256,
+                "source_members": [
+                    journal_api._source_member_values(member)
+                    for member in source_members
+                ],
+                "signal_sha256": signal_sha256,
+                "factor_snapshot_sha256": factor_source,
+                "target_ids": list(target_ids),
+                "directions": list(directions),
+                "quote_identity_sha256s": list(quote_hashes),
+                "account_session_id": account_session_id,
+                "account_session_generation": account_session_generation,
+                "target_routes": [
+                    journal_api._fee_pair_target_route_values(route) for route in routes
+                ],
+                "account_fingerprint": account.account_fingerprint,
+                "connection_generation": account.connection_generation,
+                "trading_day": account.trading_day,
+            }
+            source_candidate_sha256 = hashlib.sha256(
+                journal_api._canonical_json(candidate_projection).encode("utf-8")
+            ).hexdigest()
+            candidate = journal_api.ExecutionFeePairCandidate(
+                key=key,
+                source_kind=source_kind,
+                calendar_id=row["calendar_id"],
+                calendar_version=row["calendar_version"],
+                calendar_fingerprint=row["calendar_fingerprint"],
+                epoch_id=row["epoch_id"],
+                slot_index=row["slot_index"],
+                slot_id=row["slot_id"],
+                batch_id=row["batch_id"],
+                readiness=row["readiness"],
+                expected_tape_file_id=self.file_id,
+                expected_tape_record_index=expected_index,
+                source_candidate_sha256=source_candidate_sha256,
+                source_predecessor_sha256=predecessor_sha256,
+                source_predecessor=predecessor,
+                source_restart_marker=source_restart_marker,
+                source_members=source_members,
+                signal_sha256=signal_sha256,
+                factor_snapshot_sha256=factor_source,
+                target_ids=target_ids,
+                directions=directions,
+                quote_identity_sha256s=tuple(quote_hashes),
+                account_session_id=account_session_id,
+                account_session_generation=account_session_generation,
+                target_routes=tuple(routes),
+                account_fingerprint=account.account_fingerprint,
+                connection_generation=account.connection_generation,
+                trading_day=account.trading_day,
+            )
+            if (
+                candidate.source_restart_marker is not None
+                and candidate.source_restart_marker.prior_highwater != predecessor
+            ):
+                raise RunnerError("FEE_PAIR_SOURCE_RESTART_MARKER_MISMATCH")
+            return self.record_fee_pair_source_only(
+                candidate,
+                batch,
+                snapshot,
+                target_decision,
+                journal,
+                owner_token=secrets.token_hex(32),
+                ttl_seconds=ttl_seconds,
+            )
+
     def record_fee_pair_grid_tape_append_observation(
         self,
         candidate_id,

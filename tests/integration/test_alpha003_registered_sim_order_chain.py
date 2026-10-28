@@ -89,15 +89,101 @@ def _bounded_capacity_fact_projection(facts, *, group):
     return result
 
 
-def test_alpha003_live_strategy_submits_and_cancels_through_registered_sim(
+def _synthetic_live_config(tmp_path, mode="live"):
+    """Build the runner's complete public config shape without reading example files."""
+    return {
+        "schema": RUNNER.SCHEMA,
+        "mode": mode,
+        "entry": {"tier": "dry" if mode == "research" else mode},
+        "factor": {
+            "mode": "native",
+            "direction": 1,
+            "preheat_bars": 20,
+            "rebalance_every": 1,
+        },
+        "selection": {
+            "source": "bundle",
+            "query_mode": "legacy_two_query",
+            "bundle": str(tmp_path / "selection.json"),
+            "authorized_products": None,
+            "daily_bundles": [],
+            "max_epochs": 1,
+        },
+        "inputs": {
+            "minute_tape": None,
+            "execution_quotes": None,
+            "instrument_metadata": None,
+            "history_decision_tape": None,
+        },
+        "research": {
+            "start": None,
+            "end": None,
+            "source_timezone": "Asia/Shanghai",
+            "price_basis": "raw-close-v1",
+        },
+        "cohort": {
+            "calendar_id": "synthetic-alpha003-calendar",
+            "calendar_version": "fixture-v1",
+            "epoch_id": 1,
+            "clock_domain_id": "synthetic-ctp-clock-v1",
+            # The synthetic source rows carry UTC bucket timestamps and declare
+            # timezone_id="UTC"; keep the exact cohort/feed member contract aligned.
+            "timezone_id": "UTC",
+            "session_semantics": "ctp-trading-day-v1",
+            "max_pending_slots": 1,
+            "max_window_bars": 256,
+            "wait_timeout_seconds": 1.0,
+            "max_live_bar_age_seconds": 30.0,
+            "max_future_skew_seconds": 0.0,
+        },
+        "replay": {"starting_cash": 1_000_000, "commission": 0},
+        "risk": {
+            "policy_id": None,
+            **{name: None for name in RUNNER.RISK_FIELDS},
+        },
+        "live": {
+            "store_config_env": "synthetic-test-only",
+            "allow_writes": True,
+            "account_scope": "synthetic-alpha003-account",
+            "strategy_scope": "synthetic-alpha003-strategy",
+            "logical_run_id": "synthetic-alpha003-run",
+            "journal_path": str(tmp_path / "execution-journal.sqlite"),
+            "arm_templates": [],
+            "ready_timeout_seconds": 1.0,
+            "refresh_timeout_seconds": 1.0,
+            "refresh_overall_timeout_seconds": 5.0,
+            "refresh_interval_seconds": 0.01,
+            "quote_max_age_seconds": 60.0,
+            "query_max_age_seconds": 7200.0,
+            "loss_guard_net_loss_threshold": "1000.00",
+            "loss_guard_max_observation_age_seconds": 7200,
+            "shutdown_grace_seconds": 5.0,
+            "golden_targets": None,
+            # Preserve this order-chain fixture's existing no-fee-identity case.
+            "commission_identity_by_target": None,
+        },
+        "output": {
+            "directory": str(tmp_path / "output"),
+            "evaluate_with_fincore": False,
+            "decision_tape_path": str(tmp_path / "decision-tape.jsonl"),
+            "decision_tape_max_bytes": 50_000_000,
+        },
+    }
+
+
+def _run_alpha003_live_strategy_order_chain_fixture(
     tmp_path,
     monkeypatch,
     *,
+    _fee_pair_source_only=False,
+    _fee_pair_missing_pair_then_block=False,
+    _fee_pair_stale_snapshot_after_append=False,
     _capacity_only=False,
     _factor_mode="native",
     _capture_capacity=False,
     _causal_quote_barrier=False,
     _defer_capacity_status_assertion=False,
+    _diagnostic_path=None,
 ):
     """Ordinary Alpha003 decisions traverse real Store/Broker/query lifecycles."""
     import backtrader.stores.execution_decision_journal as journal_module
@@ -112,10 +198,229 @@ def test_alpha003_live_strategy_submits_and_cancels_through_registered_sim(
         raise TypeError("_defer_capacity_status_assertion must be bool")
     if type(_causal_quote_barrier) is not bool:
         raise TypeError("_causal_quote_barrier must be bool")
+    if type(_fee_pair_source_only) is not bool:
+        raise TypeError("_fee_pair_source_only must be bool")
+    if type(_fee_pair_missing_pair_then_block) is not bool:
+        raise TypeError("_fee_pair_missing_pair_then_block must be bool")
+    if type(_fee_pair_stale_snapshot_after_append) is not bool:
+        raise TypeError("_fee_pair_stale_snapshot_after_append must be bool")
+    if (
+        (_fee_pair_missing_pair_then_block or _fee_pair_stale_snapshot_after_append)
+        and not _fee_pair_source_only
+    ):
+        raise ValueError("fee-pair failure modes require fee-pair source-only mode")
+
+    decision_tape_failure_probe = []
+    source_receipt_field_probe = []
+    fee_pair_source_attempts = []
+    fee_pair_writer_attempts = []
+    fee_pair_reservation_attempts = []
+    fee_pair_stale_snapshot_events = []
+    fee_pair_stale_grid_inputs = []
+    fee_pair_stale_grid_results = []
+    fee_pair_live_ordinary_fallbacks = []
+    fee_pair_risk_path_batches = []
+    fee_pair_stale_batch_ids = set()
+
+    def _safe_receipt_equal(left, right):
+        try:
+            return bool(left == right)
+        except BaseException:
+            return False
+
+    def _receipt_member_differences(left, right):
+        from collections.abc import Mapping as MappingABC
+        from dataclasses import fields as dataclass_fields, is_dataclass
+
+        if isinstance(left, MappingABC) and isinstance(right, MappingABC):
+            keys = list(left)
+            keys.extend(key for key in right if key not in left)
+            differences = []
+            for index, key in enumerate(keys[:128]):
+                left_present = key in left
+                right_present = key in right
+                row = {
+                    "member_index": index,
+                    "left_present": left_present,
+                    "right_present": right_present,
+                }
+                if left_present and right_present:
+                    row["unequal_fields"] = _receipt_member_differences(left[key], right[key])
+                differences.append(row)
+            return differences
+        if isinstance(left, (tuple, list)) and isinstance(right, (tuple, list)):
+            differences = []
+            for index in range(min(max(len(left), len(right)), 128)):
+                left_present = index < len(left)
+                right_present = index < len(right)
+                row = {
+                    "member_index": index,
+                    "left_present": left_present,
+                    "right_present": right_present,
+                }
+                if left_present and right_present:
+                    row["unequal_fields"] = _receipt_member_differences(
+                        left[index], right[index]
+                    )
+                differences.append(row)
+            return differences
+        if is_dataclass(left) and is_dataclass(right):
+            unequal = []
+            for item in dataclass_fields(type(left)):
+                if not _safe_receipt_equal(getattr(left, item.name), getattr(right, item.name)):
+                    unequal.append(item.name[:64])
+            return unequal
+        if isinstance(left, MappingABC) or isinstance(right, MappingABC):
+            return ["member_shape"]
+        return [] if _safe_receipt_equal(left, right) else ["member_value"]
+
+    receipt_type = journal_module.ExecutionSourceReceipt
+    original_receipt_eq = receipt_type.__eq__
+
+    def observe_source_receipt_eq(receipt, other):
+        equal = original_receipt_eq(receipt, other)
+        caller = sys._getframe(1)
+        if (
+            equal is False
+            and type(receipt) is receipt_type
+            and type(other) is receipt_type
+            and caller.f_code.co_name == "_verified_source_tape_readback_locked"
+            and not source_receipt_field_probe
+        ):
+            from dataclasses import fields as dataclass_fields
+
+            field_rows = []
+            member_differences = None
+            for item in dataclass_fields(receipt_type):
+                left = getattr(receipt, item.name)
+                right = getattr(other, item.name)
+                is_equal = _safe_receipt_equal(left, right)
+                field_rows.append({"field": item.name[:64], "equal": is_equal})
+                if item.name == "members" and not is_equal:
+                    member_differences = _receipt_member_differences(left, right)
+            source_receipt_field_probe.append(
+                {
+                    "fields": field_rows,
+                    "members_differences": member_differences,
+                }
+            )
+        return equal
+
+    monkeypatch.setattr(receipt_type, "__eq__", observe_source_receipt_eq)
+
+    def _safe_writer_error_projection(error):
+        if error is None:
+            return None
+        raw_code = getattr(error, "code", None)
+        code = None
+        if (
+            type(raw_code) is str
+            and 1 <= len(raw_code) <= 96
+            and raw_code.isascii()
+            and raw_code[0].isalpha()
+            and all(
+                character.isupper() or character.isdigit() or character == "_"
+                for character in raw_code
+            )
+        ):
+            code = raw_code
+        frames = []
+        traceback = getattr(error, "__traceback__", None)
+        while traceback is not None and len(frames) < 5:
+            frame = traceback.tb_frame
+            frames.append(
+                {
+                    "file": Path(frame.f_code.co_filename).name[:64],
+                    "function": frame.f_code.co_name[:64],
+                    "line": int(traceback.tb_lineno),
+                }
+            )
+            traceback = traceback.tb_next
+        return {
+            "type": type(error).__name__[:64],
+            "code": code,
+            "frames": frames,
+        }
+
+    def _record_decision_tape_failure(row):
+        if len(decision_tape_failure_probe) < 12:
+            decision_tape_failure_probe.append(row)
+
+    writer_class = RUNNER.DecisionTapeWriter
+    original_writer_setattr = writer_class.__setattr__
+
+    if _fee_pair_missing_pair_then_block:
+        original_fee_pair_writer = writer_class.record_fee_pair_source_only_from_live
+        original_fee_pair_reserve = (
+            journal_module.ExecutionDecisionJournal.reserve_fee_pair_workflow_candidate
+        )
+
+        def observe_fee_pair_reservation(journal, candidate, *args, **kwargs):
+            fee_pair_reservation_attempts.append(
+                getattr(candidate, "batch_id", None)
+            )
+            return original_fee_pair_reserve(journal, candidate, *args, **kwargs)
+
+        monkeypatch.setattr(
+            journal_module.ExecutionDecisionJournal,
+            "reserve_fee_pair_workflow_candidate",
+            observe_fee_pair_reservation,
+        )
+
+        def observe_fee_pair_writer_attempt(writer, batch, *args, **kwargs):
+            fee_pair_writer_attempts.append(
+                {
+                    "batch_id": getattr(batch, "batch_id", None),
+                    "slot_index": getattr(batch, "slot_index", None),
+                }
+            )
+            return original_fee_pair_writer(writer, batch, *args, **kwargs)
+
+        monkeypatch.setattr(
+            writer_class,
+            "record_fee_pair_source_only_from_live",
+            observe_fee_pair_writer_attempt,
+        )
+
+    def observe_writer_setattr(writer, name, value):
+        was_failed = getattr(writer, "_failed", False) if name == "_failed" else None
+        original_writer_setattr(writer, name, value)
+        if name == "_failed" and value is True and was_failed is not True:
+            caller = sys._getframe(1)
+            _record_decision_tape_failure(
+                {
+                    "phase": "failed_flag_first_set",
+                    "caller_file": Path(caller.f_code.co_filename).name[:64],
+                    "caller_function": caller.f_code.co_name[:64],
+                    "caller_line": int(caller.f_lineno),
+                    "active_error": _safe_writer_error_projection(sys.exc_info()[1]),
+                }
+            )
+
+    monkeypatch.setattr(writer_class, "__setattr__", observe_writer_setattr)
+    original_writer_close = writer_class.close
+
+    def observe_writer_close(writer, *args, **kwargs):
+        before_failed = getattr(writer, "_failed", None)
+        before_closed = getattr(writer, "_closed", None)
+        try:
+            return original_writer_close(writer, *args, **kwargs)
+        except BaseException as error:
+            _record_decision_tape_failure(
+                {
+                    "phase": "close_exception",
+                    "before_failed": before_failed,
+                    "before_closed": before_closed,
+                    "error": _safe_writer_error_projection(error),
+                }
+            )
+            raise
+
+    monkeypatch.setattr(writer_class, "close", observe_writer_close)
 
     start_day = runner_fixtures.CURRENT_DAY
     decision_at = runner_fixtures.DECISION_AT
-    config = runner_fixtures._base_config(tmp_path, "live")
+    config = _synthetic_live_config(tmp_path, "live")
     config_path, config, full_plan, tape, _quotes = runner_fixtures._write_source_inputs(
         tmp_path,
         config,
@@ -1894,11 +2199,13 @@ def test_alpha003_live_strategy_submits_and_cancels_through_registered_sim(
             rows = self._source_bars.get(instrument)
             if not rows or rows[0]["available_at"] > clock.utc_now():
                 return None
-            row = rows.popleft()
+            row = dict(rows.popleft())
             self._sent_tick_for.discard(row["bar_id"])
-            if _capacity_only:
-                row = dict(row)
-                row["trading_day"] = row["trading_day"].replace("-", "")
+            # The source fixture stores ISO dates, while the live CTP cohort
+            # calendar and native bar contract use compact YYYYMMDD trading
+            # days. Convert at this synthetic live-provider boundary so both
+            # ordinary order-chain and capacity runs exercise the same shape.
+            row["trading_day"] = row["trading_day"].replace("-", "")
             return row
 
     def client_generation(api):
@@ -1912,15 +2219,44 @@ def test_alpha003_live_strategy_submits_and_cancels_through_registered_sim(
             allow_writes, history_limit, terminal_limit, Alpha003BarTapeMixin
         ),
     )
-    synthetic_store_config, synthetic_api_kwargs = runner_fixtures._official_simnow_store_config()
-    synthetic_store_config.update(
-        {
-            "environment": "simnow",
-            "broker_id": "9999",
-            "investor_id": "fixture",
-            "password": "unused",
-        }
+    synthetic_profile = "synthetic-simnow-profile-v1"
+    synthetic_td_front = "fixture://simnow/trader"
+    synthetic_md_front = "fixture://simnow/market-data"
+
+    def synthetic_fronts(profile):
+        if profile != synthetic_profile:
+            raise KeyError(profile)
+        return synthetic_td_front, synthetic_md_front
+
+    def synthetic_profile_for_td_front(td_front):
+        return synthetic_profile if td_front == synthetic_td_front else None
+
+    def verify_synthetic_profile(td_front, md_front, profile):
+        return (td_front, md_front, profile) == (
+            synthetic_td_front,
+            synthetic_md_front,
+            synthetic_profile,
+        )
+
+    monkeypatch.setattr(
+        RUNNER,
+        "_sdk_profile_contract",
+        lambda: (
+            synthetic_fronts,
+            synthetic_profile_for_td_front,
+            verify_synthetic_profile,
+        ),
     )
+    synthetic_store_config = {
+        "td_address": synthetic_td_front,
+        "md_address": synthetic_md_front,
+        "ctp_env_profile": synthetic_profile,
+        "environment": "simnow",
+        "broker_id": "9999",
+        "investor_id": "fixture",
+        "password": "unused synthetic placeholder",
+    }
+    synthetic_api_kwargs = {}
     monkeypatch.setattr(
         RUNNER,
         "_live_env_config",
@@ -1949,7 +2285,9 @@ def test_alpha003_live_strategy_submits_and_cancels_through_registered_sim(
     }
     bar_source_trace_lock = threading.Lock()
     diagnostic_path = (
-        tmp_path / "alpha003-capacity-diagnostic.json"
+        Path(_diagnostic_path)
+        if _diagnostic_path is not None
+        else tmp_path / "alpha003-capacity-diagnostic.json"
         if _capacity_only
         else Path(__file__).resolve().parents[2]
         / ".codex-tmp"
@@ -2955,6 +3293,58 @@ def test_alpha003_live_strategy_submits_and_cancels_through_registered_sim(
             result = original_run_live(
                 batch, snapshot, now, ordinal, session_close, run_end, **kwargs
             )
+            if (
+                _fee_pair_stale_snapshot_after_append
+                and getattr(batch, "batch_id", None) in fee_pair_stale_batch_ids
+            ):
+                current_plan = strategy.last_order_plan
+                current_actions = tuple(getattr(current_plan, "actions", ()) or ())
+                grid_input = next(
+                    (
+                        item
+                        for item in fee_pair_stale_grid_inputs
+                        if item["batch_id"] == getattr(batch, "batch_id", None)
+                    ),
+                    None,
+                )
+                input_actions = () if grid_input is None else grid_input["actions"]
+                input_reductions = tuple(
+                    action
+                    for action in input_actions
+                    if getattr(action, "action", None) == "CANCEL"
+                    or (
+                        getattr(action, "action", None) == "SUBMIT"
+                        and getattr(action, "position_effect", None) == "CLOSE"
+                    )
+                )
+                fee_pair_stale_grid_results.append(
+                    {
+                        "batch_id": getattr(batch, "batch_id", None),
+                        "block_reason": strategy.last_execution_block_reason,
+                        "input_open_action_count": sum(
+                            getattr(action, "action", None) == "SUBMIT"
+                            and getattr(action, "position_effect", None) == "OPEN"
+                            for action in input_actions
+                        ),
+                        "input_reduction_action_count": len(input_reductions),
+                        "has_open_action": any(
+                            getattr(action, "action", None) == "SUBMIT"
+                            and getattr(action, "position_effect", None) == "OPEN"
+                            for action in current_actions
+                        ),
+                        "input_reductions_retained": all(
+                            any(retained is action for retained in current_actions)
+                            for action in input_reductions
+                        ),
+                        "actions": tuple(
+                            (
+                                getattr(action, "action", None),
+                                getattr(action, "position_effect", None),
+                            )
+                            for action in current_actions
+                        ),
+                    }
+                )
             if barrier_record is not None:
                 facts = strategy.last_execution_facts
                 facts_quotes = tuple(getattr(facts, "quotes", ()) or ())
@@ -3249,6 +3639,101 @@ def test_alpha003_live_strategy_submits_and_cancels_through_registered_sim(
             return result
 
         strategy._run_live = traced_run_live
+
+        if _fee_pair_missing_pair_then_block or _fee_pair_stale_snapshot_after_append:
+            original_fee_pair_record = strategy._record_fee_pair_source_only_tape
+            missing_pair_forced = False
+            stale_snapshot_forced = False
+
+            def observe_fee_pair_source_attempt(batch, snapshot, target_decision, facts):
+                nonlocal missing_pair_forced, stale_snapshot_forced
+                readiness_value = getattr(snapshot, "readiness", None)
+                readiness = getattr(readiness_value, "name", readiness_value)
+                readiness = str(readiness) if readiness is not None else "UNAVAILABLE"
+                forced_missing_pair = bool(
+                    _fee_pair_missing_pair_then_block
+                    and readiness == "LIVE_READY"
+                    and not missing_pair_forced
+                )
+                if forced_missing_pair:
+                    # Exercise the real writer's production missing-pair check:
+                    # its source projection is absent for this LIVE_READY slot.
+                    target_decision = None
+                    missing_pair_forced = True
+                recorded = original_fee_pair_record(
+                    batch, snapshot, target_decision, facts
+                )
+                fee_pair_source_attempts.append(
+                    {
+                        "batch_id": getattr(batch, "batch_id", None),
+                        "slot_index": getattr(batch, "slot_index", None),
+                        "readiness": str(readiness),
+                        "forced_missing_pair": forced_missing_pair,
+                        "durable": recorded[0],
+                        "reason": recorded[2],
+                    }
+                )
+                if (
+                    _fee_pair_stale_snapshot_after_append
+                    and recorded[0]
+                    and not stale_snapshot_forced
+                ):
+                    original_snapshot = strategy.live_factors.snapshot
+                    pending = [True]
+                    batch_id = getattr(batch, "batch_id", None)
+                    fee_pair_stale_batch_ids.add(batch_id)
+                    stale_snapshot_forced = True
+
+                    def return_stale_snapshot_once():
+                        if pending[0]:
+                            pending[0] = False
+                            fee_pair_stale_snapshot_events.append(batch_id)
+                            return None
+                        return original_snapshot()
+
+                    monkeypatch.setattr(
+                        strategy.live_factors, "snapshot", return_stale_snapshot_once
+                    )
+                return recorded
+
+            strategy._record_fee_pair_source_only_tape = observe_fee_pair_source_attempt
+
+        if _fee_pair_stale_snapshot_after_append:
+            original_record_source_only = strategy._record_source_only
+            original_live_risk_decision = strategy._live_risk_decision
+            original_live_grid_decision = strategy._live_grid_decision
+
+            def observe_record_source_only(batch, snapshot, tape_reference):
+                readiness_value = getattr(snapshot, "readiness", None)
+                readiness = getattr(readiness_value, "name", readiness_value)
+                if str(readiness) == "LIVE_READY":
+                    fee_pair_live_ordinary_fallbacks.append(
+                        getattr(batch, "batch_id", None)
+                    )
+                return original_record_source_only(batch, snapshot, tape_reference)
+
+            def observe_live_risk_decision(batch, *args, **kwargs):
+                if getattr(batch, "batch_id", None) in fee_pair_stale_batch_ids:
+                    fee_pair_risk_path_batches.append(getattr(batch, "batch_id", None))
+                return original_live_risk_decision(batch, *args, **kwargs)
+
+            def observe_live_grid_decision(*args, **kwargs):
+                result = original_live_grid_decision(*args, **kwargs)
+                batch = args[0] if args else kwargs.get("batch")
+                plan = args[3] if len(args) > 3 else kwargs.get("plan")
+                batch_id = getattr(batch, "batch_id", None)
+                if batch_id in fee_pair_stale_batch_ids:
+                    fee_pair_stale_grid_inputs.append(
+                        {
+                            "batch_id": batch_id,
+                            "actions": tuple(getattr(plan, "actions", ()) or ()),
+                        }
+                    )
+                return result
+
+            strategy._record_source_only = observe_record_source_only
+            strategy._live_risk_decision = observe_live_risk_decision
+            strategy._live_grid_decision = observe_live_grid_decision
 
         original_dispatch_live_actions = strategy._dispatch_live_actions
 
@@ -3574,6 +4059,18 @@ def test_alpha003_live_strategy_submits_and_cancels_through_registered_sim(
         )
     except Exception as exc:
         persist_diagnostic("known_cancel_run_exception", error=exc)
+        print(
+            "DECISION_TAPE_FAILURE_PROBE="
+            + json.dumps(decision_tape_failure_probe, sort_keys=True, separators=(",", ":"))
+        )
+        print(
+            "DECISION_TAPE_SOURCE_RECEIPT_FIELD_PROBE="
+            + json.dumps(
+                source_receipt_field_probe,
+                sort_keys=True,
+                separators=(",", ":"),
+            )
+        )
         observations = tuple(item for api in api_instances for item in api.tick_observations[-9:])
         cleanup = getattr(exc, "cleanup_results", None)
         failure = getattr(exc, "live_epoch_evidence", None)
@@ -3745,6 +4242,218 @@ def test_alpha003_live_strategy_submits_and_cancels_through_registered_sim(
             ),
         }
 
+    if _fee_pair_source_only:
+        tape = result["decision_tape"]
+        assert result["write_mode"] is True
+        assert result["cleanup_complete"] is True
+        assert tape["closed"] is True and tape["failed"] is False
+        assert refresh_state["errors"] == []
+        assert refresh_state["started"] == refresh_state["completed"]
+        assert len(api_instances) == 1 and api_instances[0].closed is True
+        assert not [call for call in api_instances[0].native_calls if call[0] == "insert"]
+        assert store_write_calls == []
+
+        tape_rows = tuple(
+            RUNNER.iter_decision_tape(Path(tape["path"]), max_bytes=tape["max_bytes"])
+        )
+        decision_rows = tuple(row for row in tape_rows if row["record_type"] == "DECISION")
+
+        if _fee_pair_missing_pair_then_block:
+            live_rows = tuple(
+                row for row in decision_rows if row["readiness"] == "LIVE_READY"
+            )
+            pre_live_rows = tuple(
+                row for row in decision_rows if row["readiness"] in {"WARMUP", "CATCHING_UP"}
+            )
+            assert not live_rows
+            assert pre_live_rows, "the synthetic gap case must first exercise the pre-live path"
+            assert len(fee_pair_source_attempts) >= 2, fee_pair_source_attempts
+            first_attempt = fee_pair_source_attempts[0]
+            later_attempts = tuple(fee_pair_source_attempts[1:])
+            assert first_attempt["forced_missing_pair"] is True
+            assert first_attempt["durable"] is False
+            assert first_attempt["reason"] == "FEE_PAIR_LIVE_SOURCE_CANDIDATE_UNAVAILABLE"
+            assert all(
+                item["reason"] == "FEE_PAIR_SOURCE_SEQUENCE_BLOCKED"
+                and item["durable"] is False
+                and item["batch_id"] != first_attempt["batch_id"]
+                and item["slot_index"] > first_attempt["slot_index"]
+                for item in later_attempts
+            ), later_attempts
+            assert fee_pair_writer_attempts == [
+                {
+                    "batch_id": first_attempt["batch_id"],
+                    "slot_index": first_attempt["slot_index"],
+                }
+            ]
+            assert all(
+                row["order_plan"]["status"] == "NO_ACTION"
+                and not row["order_plan"]["actions"]
+                for row in pre_live_rows
+            )
+            assert not [call for call in api_instances[0].native_calls if call[0] == "insert"]
+            assert store_write_calls == []
+
+            strategy = captured_strategies[-1]
+            journal = journal_module.ExecutionDecisionJournal(tmp_path / "factor-chain.sqlite")
+            try:
+                assert journal.fee_pair_required_scope(
+                    strategy._account_scope, strategy._strategy_scope
+                ) is not None
+                highwater = journal.source_highwater(
+                    strategy._account_scope,
+                    strategy._strategy_scope,
+                    strategy._logical_run_id,
+                    strategy._source_kind,
+                )
+                if pre_live_rows:
+                    last_pre_live = pre_live_rows[-1]
+                    assert highwater is not None
+                    assert highwater.receipt.tape_file_id == last_pre_live["file_id"]
+                    assert highwater.receipt.tape_record_id == last_pre_live["record_id"]
+                    assert highwater.receipt.tape_record_index == last_pre_live["record_index"]
+                    assert highwater.receipt.batch_id == last_pre_live["batch_id"]
+                else:
+                    assert highwater is None
+            finally:
+                journal.close()
+            return {
+                "evidence_level": "SOURCE_FAKE_REGISTERED_SIM_MISSING_PAIR_SEQUENCE_BLOCK_ONLY",
+                "decision_rows": len(decision_rows),
+                "pre_live_no_intent_rows": len(pre_live_rows),
+                "live_source_only_rows": 0,
+                "first_terminal_reason": first_attempt["reason"],
+                "subsequent_terminal_reason": "FEE_PAIR_SOURCE_SEQUENCE_BLOCKED",
+                "first_missing_batch_id": first_attempt["batch_id"],
+                "writer_attempt_count": len(fee_pair_writer_attempts),
+                "reservation_attempt_count": len(fee_pair_reservation_attempts),
+                "complete_live_grid_coverage": False,
+                "grid_acceptance": "SOURCE_ONLY_ONLY_NO_COMPLETE_GRID_ACCEPTANCE",
+                "open_fill_close_cancel_chain": "NOT_COVERED_BY_THIS_REGISTERED_SCOPE_FIXTURE",
+                "tape_closed": tape["closed"],
+                "pre_live_highwater_matches_last_tape_row": bool(pre_live_rows),
+            }
+
+        live_rows = tuple(row for row in decision_rows if row["readiness"] == "LIVE_READY")
+        assert live_rows
+        assert all(
+            row.get("fee_pair_workflow")
+            and row["order_plan"]
+            == {
+                "status": "SOURCE_ONLY",
+                "reason": "FEE_PAIR_NOT_AUTHORIZED",
+                "decision_batch_id": row["batch_id"],
+                "decision_available_at": row["available_at"],
+                "actions": [],
+            }
+            for row in live_rows
+        )
+        journal = journal_module.ExecutionDecisionJournal(tmp_path / "factor-chain.sqlite")
+        try:
+            scope = journal.fee_pair_required_scope(
+                "alpha003-factor-chain-account", "alpha003-factor-chain"
+            )
+            assert scope is not None
+            workflow_rows = []
+            source_kind = None
+            for row in live_rows:
+                extension = row["fee_pair_workflow"]
+                workflow = journal.fee_pair_workflow_candidate(extension["candidate_id"])
+                assert workflow is not None and workflow.state == "SOURCE_ONLY"
+                assert workflow.candidate_sha256 == extension["candidate_sha256"]
+                assert workflow.source_only_decision_id is not None
+                decision = journal.decision(workflow.source_only_decision_id)
+                assert decision is not None
+                assert decision.intent_keys == () and decision.is_noop
+                assert decision.economic_payload.get("_execution_source_anchor_only") is True
+                assert decision.economic_payload.get("_execution_fee_pair_workflow") == dict(
+                    extension
+                )
+                source_kind = decision.key.decision_kind
+                workflow_rows.append(workflow)
+            assert source_kind is not None
+            highwater = journal.source_highwater(
+                "alpha003-factor-chain-account",
+                "alpha003-factor-chain",
+                "alpha003-factor-chain-run",
+                source_kind,
+            )
+            last_live = live_rows[-1]
+            assert highwater is not None and highwater.anchor_kind == "SOURCE_ONLY"
+            assert highwater.receipt.tape_file_id == last_live["file_id"]
+            assert highwater.receipt.tape_record_id == last_live["record_id"]
+            assert highwater.receipt.tape_record_index == last_live["record_index"]
+            assert highwater.receipt.batch_id == last_live["batch_id"]
+            assert len(workflow_rows) == len(live_rows)
+        finally:
+            journal.close()
+        if _fee_pair_stale_snapshot_after_append:
+            assert len(fee_pair_stale_snapshot_events) == 1
+            stale_batch_id = fee_pair_stale_snapshot_events[0]
+            assert stale_batch_id in {row["batch_id"] for row in live_rows}
+            stale_results = tuple(
+                row for row in fee_pair_stale_grid_results if row["batch_id"] == stale_batch_id
+            )
+            assert len(stale_results) == 1, stale_results
+            assert (
+                stale_results[0]["block_reason"]
+                == "FACTOR_SNAPSHOT_CHANGED_BEFORE_DECISION"
+            )
+            assert stale_results[0]["has_open_action"] is False
+            assert stale_batch_id in fee_pair_risk_path_batches
+            assert fee_pair_live_ordinary_fallbacks == []
+            return {
+                "evidence_level": "SOURCE_FAKE_REGISTERED_SIM_SOURCE_ONLY_STALE_GRID_BLOCK_ONLY",
+                "decision_rows": len(decision_rows),
+                "live_source_only_rows": len(live_rows),
+                "stale_batch_id": stale_batch_id,
+                "stale_grid_reason": stale_results[0]["block_reason"],
+                "input_open_action_count": stale_results[0]["input_open_action_count"],
+                "input_reduction_action_count": stale_results[0][
+                    "input_reduction_action_count"
+                ],
+                "open_filter_action_coverage": (
+                    "EXERCISED"
+                    if stale_results[0]["input_open_action_count"]
+                    else "NOT_EXERCISED_NO_PLANNED_OPEN_ACTION"
+                ),
+                "owned_position_reduction_coverage": (
+                    "EXERCISED"
+                    if stale_results[0]["input_reduction_action_count"]
+                    else "NOT_EXERCISED_NO_POSITION_ACTION"
+                ),
+                "open_action_after_stale_grid": stale_results[0]["has_open_action"],
+                "ordinary_live_source_fallback_count": len(
+                    fee_pair_live_ordinary_fallbacks
+                ),
+                "risk_path_reached_stale_batch": stale_batch_id
+                in fee_pair_risk_path_batches,
+                "owned_position_reduction_observed": False,
+                "complete_live_grid_coverage": False,
+                "grid_acceptance": "SOURCE_ONLY_ONLY_NO_COMPLETE_GRID_ACCEPTANCE",
+                "open_fill_close_cancel_chain": "NOT_COVERED_BY_THIS_REGISTERED_SCOPE_FIXTURE",
+                "tape_closed": tape["closed"],
+                "tape_failed": tape["failed"],
+                "highwater_matches_last_live_row": True,
+            }
+        return {
+            "evidence_level": "SOURCE_FAKE_REGISTERED_SIM_FEE_PAIR_SOURCE_ONLY",
+            "decision_rows": len(decision_rows),
+            "live_source_only_rows": len(live_rows),
+            "native_insert_count": 0,
+            "store_submit_count": 0,
+            "tape_closed": tape["closed"],
+            "highwater_matches_last_live_row": True,
+            "complete_live_grid_coverage": False,
+            "observed_live_rows_all_source_only": True,
+            "grid_acceptance": "SOURCE_ONLY_ONLY_NO_COMPLETE_GRID_ACCEPTANCE",
+            "open_fill_close_cancel_chain": "NOT_COVERED_BY_THIS_REGISTERED_SCOPE_FIXTURE",
+        }
+
+    # The legacy OPEN/fill/CLOSE/CANCEL assertions below remain available to
+    # historical callers, but current registered-scope tests return through the
+    # SOURCE_ONLY branches above. This fixture has no pre-owned position, so it
+    # does not currently cover owned-position CANCEL/CLOSE dispatch.
     assert len(api_instances) == 1
     cancel_api = api_instances[0]
     assert cancel_api.closed is True
@@ -4638,6 +5347,48 @@ def _live_tape_semantic_projection(rows):
 
 
 @pytest.mark.integration
+def test_registered_sim_fee_pair_scope_fails_closed_before_open_dispatch(
+    tmp_path, monkeypatch
+):
+    """Registered fee-pair scope writes SOURCE_ONLY and dispatches no OPEN."""
+
+    outcome = _run_alpha003_live_strategy_order_chain_fixture(
+        tmp_path,
+        monkeypatch,
+        _fee_pair_source_only=True,
+        _diagnostic_path=tmp_path / "registered-fee-pair-fail-closed.json",
+    )
+    assert outcome["evidence_level"] == "SOURCE_FAKE_REGISTERED_SIM_FEE_PAIR_SOURCE_ONLY"
+    assert outcome["live_source_only_rows"] > 0
+    assert outcome["highwater_matches_last_live_row"] is True
+    assert outcome["native_insert_count"] == 0
+    assert outcome["store_submit_count"] == 0
+    assert outcome["complete_live_grid_coverage"] is False
+    assert (
+        outcome["open_fill_close_cancel_chain"]
+        == "NOT_COVERED_BY_THIS_REGISTERED_SCOPE_FIXTURE"
+    )
+
+
+@pytest.mark.skip(
+    reason=(
+        "Legacy OPEN/fill/CLOSE/CANCEL chain is pending a synthetic owned-position and "
+        "working-order fixture compatible with the registered fee-pair OPEN fence."
+    )
+)
+@pytest.mark.integration
+def test_alpha003_live_strategy_submits_and_cancels_through_registered_sim(
+    tmp_path, monkeypatch
+):
+    """Original order-chain acceptance remains pending; see the internal fixture helper."""
+    _run_alpha003_live_strategy_order_chain_fixture(
+        tmp_path,
+        monkeypatch,
+        _fee_pair_source_only=False,
+    )
+
+
+@pytest.mark.integration
 def test_registered_sim_production_tape_and_live_capacity_exactbars_pair(tmp_path):
     """Compare the production live Strategy/tape and exactbars capacity.
 
@@ -5037,7 +5788,7 @@ def test_registered_sim_production_tape_and_live_capacity_exactbars_pair(tmp_pat
                     # checks the real QBuffer effect of that production call.
                     assert bt.Cerebro is original_cerebro
                     case_result["production_cerebro_unpatched"] = True
-                outcome = test_alpha003_live_strategy_submits_and_cancels_through_registered_sim(
+                outcome = _run_alpha003_live_strategy_order_chain_fixture(
                     case_root,
                     patch,
                     _capacity_only=True,
