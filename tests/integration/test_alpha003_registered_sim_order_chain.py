@@ -13,6 +13,7 @@ from dataclasses import replace
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 import json
+import math
 from pathlib import Path
 import sqlite3
 import sys
@@ -30,13 +31,87 @@ RUNNER = runner_fixtures.RUNNER
 UTC = timezone.utc
 
 
-def test_alpha003_live_strategy_submits_and_cancels_through_registered_sim(tmp_path, monkeypatch):
+def _bounded_capacity_fact_projection(facts, *, group):
+    """Keep only finite status, issue, and count facts from one capacity sample."""
+    if not hasattr(facts, "get"):
+        return {"status": "UNAVAILABLE"}
+    fields_by_group = {
+        "lines": (
+            "schema",
+            "status",
+            "observation_complete",
+            "graph_node_count",
+            "graph_reference_count",
+            "graph_node_limit",
+            "graph_reference_limit",
+            "line_buffer_count",
+            "bounded_line_buffer_count",
+            "unbounded_line_buffer_count",
+            "line_capacity_unavailable_count",
+            "unobservable_line_reference_count",
+            "unobservable_line_collection_count",
+            "line_capacity_sum",
+            "max_line_capacity",
+            "retained_line_value_count",
+            "bounded_retained_line_value_count",
+            "unbounded_retained_line_value_count",
+            "retained_line_value_count_status",
+            "max_retained_values_per_line",
+            "value_line_count",
+            "reason_line_count",
+            "issues",
+        ),
+        "diagnostics": (
+            "schema",
+            "status",
+            "factor_count",
+            "call_count",
+            "once_range_count",
+            "call_sample_count",
+            "once_range_sample_count",
+            "sample_limits",
+            "issues",
+        ),
+    }
+    fields = fields_by_group.get(group)
+    if fields is None:
+        raise ValueError("unsupported capacity diagnostic group")
+    result = {}
+    for name in fields:
+        if name not in facts:
+            continue
+        value = facts.get(name)
+        if name == "issues":
+            value = tuple(value or ())[:16]
+        elif name == "sample_limits":
+            value = tuple(value or ())[:8]
+        result[name] = value
+    return result
+
+
+def test_alpha003_live_strategy_submits_and_cancels_through_registered_sim(
+    tmp_path,
+    monkeypatch,
+    *,
+    _capacity_only=False,
+    _factor_mode="native",
+    _capture_capacity=False,
+    _causal_quote_barrier=False,
+    _defer_capacity_status_assertion=False,
+):
     """Ordinary Alpha003 decisions traverse real Store/Broker/query lifecycles."""
     import backtrader.stores.execution_decision_journal as journal_module
     import backtrader.stores.registered_sim as registered_sim_module
     import backtrader.brokers.btapibroker as broker_module
+    import backtrader.feeds.btapifeed as btapifeed_module
+    import backtrader.feeds.ctp_factor_source as ctp_factor_source_module
     import backtrader.stores.factor_execution as factor_execution_module
     import backtrader.stores.factor_position_book as factor_position_book_module
+
+    if type(_defer_capacity_status_assertion) is not bool:
+        raise TypeError("_defer_capacity_status_assertion must be bool")
+    if type(_causal_quote_barrier) is not bool:
+        raise TypeError("_causal_quote_barrier must be bool")
 
     start_day = runner_fixtures.CURRENT_DAY
     decision_at = runner_fixtures.DECISION_AT
@@ -48,12 +123,16 @@ def test_alpha003_live_strategy_submits_and_cancels_through_registered_sim(tmp_p
         decision_at=decision_at,
     )
 
-    # Fifty actual factor bars are enough to reach the fixture's first Alpha003
-    # target while keeping this order-chain regression small.
-    minute_count = 50
+    # Fifty bars keep the order-chain regression small. The capacity pairing
+    # below uses the complete 120-minute DCE fixture session; the formal
+    # all-pool acceptance grid remains 195 minutes.
+    minute_count = len(full_plan["grid"].minutes) if _capacity_only else 50
     plan = dict(full_plan)
     plan["grid"] = replace(full_plan["grid"], minutes=full_plan["grid"].minutes[:minute_count])
     planned_closes = {minute.close_time for minute in plan["grid"].minutes}
+    target_by_instrument = {
+        plan["routes"][plan["product_by_target"][target]]: target for target in plan["targets"]
+    }
     bars_by_instrument = defaultdict(deque)
 
     def refill_bars():
@@ -67,6 +146,123 @@ def test_alpha003_live_strategy_submits_and_cancels_through_registered_sim(tmp_p
             bars_by_instrument[event["instrument"]].append(event)
 
     refill_bars()
+
+    causal_quote_rows_by_close = {}
+    causal_quote_receipt_events = {}
+    causal_quote_receipt_by_bar_id = {}
+    causal_quote_receipt_trace = []
+    causal_quote_barrier_trace = []
+    causal_quote_refresh_by_close = {}
+    causal_quote_receipt_lock = threading.Lock()
+    for instrument, source_rows in bars_by_instrument.items():
+        target = target_by_instrument[instrument]
+        for row in source_rows:
+            causal_quote_rows_by_close.setdefault(row["bucket_end"], {})[target] = row
+            causal_quote_receipt_events[row["bar_id"]] = threading.Event()
+
+    source_calendar_trace = {}
+    final_close = plan["grid"].minutes[-1].close_time
+
+    def synthetic_ctp_tick_time(bucket_end):
+        if _capacity_only:
+            if bucket_end == final_close:
+                # Keep the final quote inside DCE day-am and map it to the
+                # planned 11:00 close. The completed final BarEvent comes from
+                # the source tape row, not from a post-session CTP tick.
+                return bucket_end - timedelta(milliseconds=1)
+            # The full source row becomes available 2 seconds after close;
+            # keep each synthetic CTP event no later than that row boundary.
+            return bucket_end + timedelta(seconds=1, milliseconds=990)
+        return bucket_end + timedelta(seconds=2, milliseconds=10)
+
+    if _capacity_only:
+        source_calendar = ctp_factor_source_module.CtpFactorSourceCalendar.from_grid(
+            plan["grid"],
+            config["cohort"]["clock_domain_id"],
+            plan["session_calendars"],
+        )
+        minutes_by_close = {minute.close_time: minute for minute in plan["grid"].minutes}
+        source_calendar_trace = {}
+        for target in plan["targets"]:
+            product = plan["product_by_target"][target]
+            rows = sorted(
+                (row for row in tape["bars"] if row["target"] == target),
+                key=lambda row: row["bucket_end"],
+            )
+            assert len(rows) == len(plan["grid"].minutes) == minute_count
+            mapped_tick_count = 0
+            outside_session_tick_count = 0
+            day_counts = {}
+            session_counts = {}
+            for row, minute in zip(rows, plan["grid"].minutes):
+                member = next(item for item in minute.members if item.product == product)
+                bucket_start = datetime.fromisoformat(row["bucket_start"].replace("Z", "+00:00"))
+                bucket_end = datetime.fromisoformat(row["bucket_end"].replace("Z", "+00:00"))
+                available_at = datetime.fromisoformat(row["available_at"].replace("Z", "+00:00"))
+                event_time = synthetic_ctp_tick_time(bucket_end)
+                callback_delivery_at = (
+                    event_time
+                    if _causal_quote_barrier
+                    else available_at + timedelta(milliseconds=200)
+                )
+                assert row["instrument"] == plan["routes"][product]
+                assert row["exchange"] == product.exchange_id
+                assert row["trading_day"] == member.trading_day.isoformat()
+                assert row["trading_day"].replace("-", "") == member.trading_day.strftime("%Y%m%d")
+                assert row["session_segment"] == member.session_id
+                assert bucket_start == minute.close_time - timedelta(minutes=1)
+                assert bucket_end == minute.close_time
+                assert minutes_by_close[bucket_end] is minute
+                assert available_at >= bucket_end
+                assert available_at >= event_time
+                assert callback_delivery_at >= event_time
+                day_counts[row["trading_day"]] = day_counts.get(row["trading_day"], 0) + 1
+                session_counts[row["session_segment"]] = (
+                    session_counts.get(row["session_segment"], 0) + 1
+                )
+
+                # Verify the event-time/session projection for every target and
+                # every source row before executing the chain. In the capacity
+                # profile, delivery still follows source-row availability.
+                trading_day = datetime.fromisoformat(row["trading_day"]).date()
+                action_day = event_time.astimezone(timezone(timedelta(hours=8))).date()
+                selected_session = source_calendar.session_for(product, event_time, trading_day)
+                allowed_action_days = source_calendar.action_days_by_product_day.get(
+                    (product, trading_day), frozenset()
+                )
+                assert action_day in allowed_action_days
+                if selected_session is None:
+                    outside_session_tick_count += 1
+                    continue
+                mapped_tick_count += 1
+                projected_close = event_time.replace(second=0, microsecond=0) + timedelta(minutes=1)
+                projected_member = source_calendar.members_by_close.get(projected_close, {}).get(
+                    product
+                )
+                assert projected_member is not None
+                assert selected_session == (
+                    projected_member.session_date,
+                    projected_member.session_id,
+                )
+                assert action_day in {projected_member.action_day, projected_member.session_date}
+            assert mapped_tick_count == len(rows)
+            assert outside_session_tick_count == 0
+            source_calendar_trace[target] = {
+                "product": f"{product.exchange_id}.{product.product_id}",
+                "instrument": plan["routes"][product],
+                "source_bar_count": len(rows),
+                "source_bar_member_matches": len(rows),
+                "ctp_tick_session_mapped_count": mapped_tick_count,
+                "ctp_tick_outside_session_count": outside_session_tick_count,
+                "trading_day_counts": day_counts,
+                "session_segment_counts": session_counts,
+                "first_source_trading_day": rows[0]["trading_day"],
+                "last_source_trading_day": rows[-1]["trading_day"],
+                "first_source_session_segment": rows[0]["session_segment"],
+                "last_source_session_segment": rows[-1]["session_segment"],
+                "first_close_time": plan["grid"].minutes[0].close_time,
+                "last_close_time": plan["grid"].minutes[-1].close_time,
+            }
 
     def make_query_rows():
         rows = facts_fixtures._query_rows()
@@ -126,10 +322,138 @@ def test_alpha003_live_strategy_submits_and_cancels_through_registered_sim(tmp_p
             # bucket begins about one minute before event availability.
             self._now = self._times[0] - timedelta(seconds=65)
             self._lock = threading.RLock()
+            self.snapshot_clock_trace = {
+                "call_count": 0,
+                "observer_errors": 0,
+                "sample_limit": 256,
+                "samples": [],
+            }
 
         def utc_now(self):
             with self._lock:
-                return self._now
+                now = self._now
+                virtual_bar_index = self._index
+                next_synthetic_bar = (
+                    self._times[self._index] if self._index < len(self._times) else None
+                )
+                next_provider_event = self._scheduled[0][0] if self._scheduled else None
+            if _capture_capacity:
+                try:
+                    caller = sys._getframe(1)
+                    if (
+                        caller.f_globals.get("__name__") == "backtrader.research.live"
+                        and caller.f_code.co_name == "snapshot"
+                    ):
+                        live_factors = caller.f_locals.get("self")
+                        batch = caller.f_locals.get("batch")
+                        close_time = getattr(batch, "close_time", None)
+                        available_at = getattr(batch, "available_at", None)
+                        plan = getattr(live_factors, "_plan", None)
+                        max_age = getattr(plan, "max_live_bar_age_seconds", None)
+                        max_future_skew = getattr(plan, "max_future_skew_seconds", None)
+                        age_seconds = (
+                            (now - close_time).total_seconds()
+                            if isinstance(close_time, datetime)
+                            else None
+                        )
+                        future_skew_seconds = (
+                            max(
+                                (close_time - now).total_seconds(),
+                                (available_at - now).total_seconds(),
+                            )
+                            if isinstance(close_time, datetime)
+                            and isinstance(available_at, datetime)
+                            else None
+                        )
+                        engine_state = {"runnext_frame_found": False}
+                        engine_frame = caller.f_back
+                        for _depth in range(16):
+                            if engine_frame is None:
+                                break
+                            if (
+                                engine_frame.f_globals.get("__name__")
+                                == "backtrader._cerebro.runnext"
+                                and engine_frame.f_code.co_name == "_runnext"
+                            ):
+                                engine_locals = engine_frame.f_locals
+                                prepared = engine_locals.get("prepared_result")
+                                prepared_status = getattr(prepared, "status", None)
+                                prepared_status = getattr(prepared_status, "value", prepared_status)
+                                engine_state = {
+                                    "runnext_frame_found": True,
+                                    "cohort_wait": engine_locals.get("cohort_wait")
+                                    if type(engine_locals.get("cohort_wait")) is bool
+                                    else None,
+                                    "cohort_prepare_budget_exhausted": engine_locals.get(
+                                        "cohort_prepare_budget_exhausted"
+                                    )
+                                    if type(engine_locals.get("cohort_prepare_budget_exhausted"))
+                                    is bool
+                                    else None,
+                                    "cohort_source_collection_active": engine_locals.get(
+                                        "cohort_source_collection_active"
+                                    )
+                                    if type(engine_locals.get("cohort_source_collection_active"))
+                                    is bool
+                                    else None,
+                                    "cohort_status": prepared_status
+                                    if type(prepared_status) is str
+                                    else None,
+                                }
+                                break
+                            engine_frame = engine_frame.f_back
+                        trace = self.snapshot_clock_trace
+                        with self._lock:
+                            trace["call_count"] += 1
+                            if len(trace["samples"]) < trace["sample_limit"]:
+                                trace["samples"].append(
+                                    {
+                                        "slot_index": getattr(batch, "slot_index", None),
+                                        "batch_id": getattr(batch, "batch_id", None),
+                                        "close_time": (
+                                            close_time.isoformat()
+                                            if isinstance(close_time, datetime)
+                                            else None
+                                        ),
+                                        "available_at": (
+                                            available_at.isoformat()
+                                            if isinstance(available_at, datetime)
+                                            else None
+                                        ),
+                                        "scheduler_now": now.isoformat(),
+                                        "observer_monotonic_ns": time.monotonic_ns(),
+                                        "virtual_bar_index": virtual_bar_index,
+                                        "runnext_engine_state": engine_state,
+                                        "next_synthetic_bar": (
+                                            next_synthetic_bar.isoformat()
+                                            if isinstance(next_synthetic_bar, datetime)
+                                            else None
+                                        ),
+                                        "next_provider_event": (
+                                            next_provider_event.isoformat()
+                                            if isinstance(next_provider_event, datetime)
+                                            else None
+                                        ),
+                                        "age_seconds": age_seconds,
+                                        "max_live_bar_age_seconds": max_age,
+                                        "future_skew_seconds": future_skew_seconds,
+                                        "max_future_skew_seconds": max_future_skew,
+                                        "stale": (
+                                            type(age_seconds) in (int, float)
+                                            and type(max_age) in (int, float)
+                                            and age_seconds > max_age
+                                        ),
+                                        "future_skew_exceeded": (
+                                            type(future_skew_seconds) in (int, float)
+                                            and type(max_future_skew) in (int, float)
+                                            and future_skew_seconds > max_future_skew
+                                        ),
+                                    }
+                                )
+                except Exception:
+                    with self._lock:
+                        self.snapshot_clock_trace["observer_errors"] += 1
+            return now
 
         def monotonic_ns(self):
             return time.monotonic_ns()
@@ -172,6 +496,12 @@ def test_alpha003_live_strategy_submits_and_cancels_through_registered_sim(tmp_p
                 self._index = 0
                 self._scheduled.clear()
                 self._now = self._times[0] - timedelta(seconds=65)
+                self.snapshot_clock_trace = {
+                    "call_count": 0,
+                    "observer_errors": 0,
+                    "sample_limit": 256,
+                    "samples": [],
+                }
 
         def time_ns(self):
             return int(self.utc_now().timestamp() * 1_000_000_000)
@@ -182,27 +512,67 @@ def test_alpha003_live_strategy_submits_and_cancels_through_registered_sim(tmp_p
         def wait_interruptibly(self, timeout_seconds, wait_for_event):
             if wait_for_event(0.0):
                 return True
+            timeout_seconds = float(timeout_seconds)
+            if timeout_seconds <= 0.0:
+                return False
             with self._lock:
                 while self._index < len(self._times) and self._times[self._index] <= self._now:
                     self._index += 1
                 next_bar = self._times[self._index] if self._index < len(self._times) else None
                 next_provider = self._scheduled[0][0] if self._scheduled else None
                 candidates = [item for item in (next_bar, next_provider) if item is not None]
-                if candidates:
-                    next_event = min(candidates)
-                    self._now = max(self._now, next_event)
-                    if next_bar == next_event:
-                        self._index += 1
-                    ready = self._take_due_locked()
-                has_event = bool(candidates)
-                if not has_event:
-                    ready = []
-            if not has_event:
-                return wait_for_event(min(float(timeout_seconds), 0.01))
+                next_event = min(candidates) if candidates else None
+                now = self._now
+                timeout_deadline = now + timedelta(seconds=timeout_seconds)
+                # Model an interruptible wait faithfully: a synthetic clock
+                # advances only through the requested timeout or to the next
+                # scheduled source event, whichever comes first. If the
+                # timeout expires before that event, Cerebro gets a chance to
+                # retry its cohort decision without receiving future data.
+                self._now = max(
+                    now, min(timeout_deadline, next_event) if next_event else timeout_deadline
+                )
+                while self._index < len(self._times) and self._times[self._index] <= self._now:
+                    self._index += 1
+                ready = self._take_due_locked()
+            # Synthetic time already advanced by the bounded wait. Returning
+            # False tells the engine to re-evaluate its decision; an event
+            # waker observed before the wait is the only interrupt result.
             self._dispatch(ready)
             return False
 
     clock = SourceClock(event_times)
+
+    def source_clock_wait_boundary_probe():
+        event_at = datetime(2025, 1, 2, tzinfo=timezone.utc)
+        probe = SourceClock((event_at,))
+        fired_at = []
+        probe.schedule_at(event_at, lambda: fired_at.append(probe.utc_now()))
+        started_at = probe.utc_now()
+        short_return = probe.wait_interruptibly(0.5, lambda _timeout: False)
+        after_short = probe.utc_now()
+        short_advance = (after_short - started_at).total_seconds()
+        fired_after_short = len(fired_at)
+        long_return = probe.wait_interruptibly(120.0, lambda _timeout: False)
+        finished_at = probe.utc_now()
+        return {
+            "short_wait_returned": short_return,
+            "short_wait_advance_seconds": short_advance,
+            "event_not_delivered_before_deadline": fired_after_short == 0,
+            "long_wait_returned": long_return,
+            "event_delivered_at_scheduled_time": (
+                len(fired_at) == 1 and fired_at[0] == event_at and finished_at == event_at
+            ),
+        }
+
+    wait_boundary_probe = source_clock_wait_boundary_probe()
+    assert wait_boundary_probe == {
+        "short_wait_returned": False,
+        "short_wait_advance_seconds": 0.5,
+        "event_not_delivered_before_deadline": True,
+        "long_wait_returned": False,
+        "event_delivered_at_scheduled_time": True,
+    }
     refresh_condition = threading.Condition()
     # Keep the ordinary Strategy projection and the real refresh/publication
     # transaction on one deterministic fake-provider turn.  SourceClock's
@@ -211,6 +581,7 @@ def test_alpha003_live_strategy_submits_and_cancels_through_registered_sim(tmp_p
     fact_turn_lock = threading.RLock()
     refresh_state = {"started": 0, "completed": 0, "errors": []}
     refresh_receipts = []
+    refresh_attempt_events = []
     api_instances = []
     fill_timeline = []
 
@@ -714,6 +1085,30 @@ def test_alpha003_live_strategy_submits_and_cancels_through_registered_sim(tmp_p
     if ctp_client_module is None:
         pytest.skip("CTP SDK client module is unavailable")
 
+    class SyntheticCtpNativeStopReceipt:
+        """Typed fake shutdown receipt for the provider clients above."""
+
+        def __init__(self, connection_generation):
+            self.connection_generation = connection_generation
+            self.join_required = False
+            self.join_completed = True
+            self.native_released = True
+            self.thread_alive = False
+            self.timed_out = False
+
+        @property
+        def complete(self):
+            return (
+                self.native_released is True
+                and self.join_completed is True
+                and self.thread_alive is False
+                and self.timed_out is False
+            )
+
+    monkeypatch.setattr(
+        ctp_client_module, "CtpNativeStopReceipt", SyntheticCtpNativeStopReceipt, raising=False
+    )
+
     import backtrader.stores.btapistore as btapistore_module
 
     # Preserve the generated CTP wrapper's callback timestamps while binding
@@ -751,8 +1146,9 @@ def test_alpha003_live_strategy_submits_and_cancels_through_registered_sim(tmp_p
             with self._state_lock:
                 return self._connection_generation
 
-        def start(self, block=False):
+        def start(self, block=False, join_observer=True):
             assert block is False
+            assert join_observer is False
 
         def wait_ready(self, timeout=20):
             del timeout
@@ -802,16 +1198,24 @@ def test_alpha003_live_strategy_submits_and_cancels_through_registered_sim(tmp_p
                     if bar_id in self._scheduled_bar_ids:
                         continue
                     self._scheduled_bar_ids.add(bar_id)
-                    delivery_at = row["available_at"] + timedelta(milliseconds=200)
+                    delivery_at = (
+                        synthetic_ctp_tick_time(row["bucket_end"])
+                        if _causal_quote_barrier
+                        else row["available_at"] + timedelta(milliseconds=200)
+                    )
 
                     def deliver(instrument=instrument, row=row, bar_id=bar_id):
-                        event_time = row["bucket_end"] + timedelta(seconds=2, milliseconds=10)
+                        event_time = synthetic_ctp_tick_time(row["bucket_end"])
                         payload = self._raw_tick(
                             instrument,
                             row["exchange"],
                             row["trading_day"],
                             event_time,
                         )
+                        if _capacity_only and row["bucket_end"] == final_close:
+                            # This zero-volume quote cannot synthesize the last
+                            # bar; that complete BarEvent is the source tape row.
+                            assert payload.Volume == 0
                         callback_generation = self._dispatch_tick(payload)
                         self._api.tick_observations.append(
                             (
@@ -821,6 +1225,43 @@ def test_alpha003_live_strategy_submits_and_cancels_through_registered_sim(tmp_p
                                 row["connection_generation"],
                             )
                         )
+                        received_at = clock.utc_now()
+                        with causal_quote_receipt_lock:
+                            receipt = {
+                                "bar_id": bar_id,
+                                "instrument": instrument,
+                                "target_id": target_by_instrument[instrument],
+                                "connection_generation": callback_generation,
+                                "source_generation": row.get(
+                                    "source_generation", row.get("connection_generation")
+                                ),
+                                "source_session_generation": row.get(
+                                    "source_session_generation", row.get("session_generation")
+                                ),
+                                "source_stream_generation": row.get(
+                                    "stream_generation", getattr(payload, "stream_generation", None)
+                                ),
+                                "source_sequence": row.get(
+                                    "sequence", getattr(payload, "sequence", None)
+                                ),
+                                "source_clock_domain_id": row.get("clock_domain_id"),
+                                "source_role": row.get("source_role"),
+                                "trading_day": row.get("trading_day"),
+                                "session_segment": row.get("session_segment"),
+                                "tick_trading_day": getattr(payload, "TradingDay", None),
+                                "tick_action_day": getattr(payload, "ActionDay", None),
+                                "tick_update_time": getattr(payload, "UpdateTime", None),
+                                "tick_update_millisec": getattr(payload, "UpdateMillisec", None),
+                                "event_time": event_time.isoformat(),
+                                "scheduled_delivery_at": delivery_at.isoformat(),
+                                "received_at": received_at.isoformat(),
+                            }
+                            causal_quote_receipt_by_bar_id[bar_id] = receipt
+                            if len(causal_quote_receipt_trace) < 512:
+                                causal_quote_receipt_trace.append(receipt)
+                        receipt_event = causal_quote_receipt_events.get(bar_id)
+                        if receipt_event is not None:
+                            receipt_event.set()
                         if (
                             self._api._phase == 1
                             and not any(self._api._source_bars.values())
@@ -881,6 +1322,10 @@ def test_alpha003_live_strategy_submits_and_cancels_through_registered_sim(tmp_p
         def stop(self):
             self.stopped = True
 
+        def stop_and_wait(self, timeout=2.0):
+            assert 0.0 <= timeout <= 2.0
+            return SyntheticCtpNativeStopReceipt(self.connection_generation)
+
         def capture_tick_callback(self, payload):
             """Capture generation with callback under SDK lock, invoke outside it."""
             with self._state_lock:
@@ -908,6 +1353,12 @@ def test_alpha003_live_strategy_submits_and_cancels_through_registered_sim(tmp_p
             self.trader_client._account_fingerprint = "alpha003-factor-chain-account"
             self.trader_client._trading_day = start_day.strftime("%Y%m%d")
             self.trader_client._connection_generation = 1
+            # RegisteredSimStore reads the public fake client's generation/day
+            # directly when binding the live factor source; the nested query
+            # leaf separately supplies typed query provenance.
+            self._account_fingerprint = "alpha003-factor-chain-account"
+            self._trading_day = start_day.strftime("%Y%m%d")
+            self._connection_generation = 1
             self._front_id = 4
             self._session_id = 7
             self._req_id = 0
@@ -920,8 +1371,9 @@ def test_alpha003_live_strategy_submits_and_cancels_through_registered_sim(tmp_p
             self._provider_orders = {}
             self._fake_active_capability = None
 
-        def start(self, block=False):
+        def start(self, block=False, join_observer=True):
             assert block is False
+            assert join_observer is False
 
         def wait_ready(self, timeout=20):
             del timeout
@@ -929,6 +1381,10 @@ def test_alpha003_live_strategy_submits_and_cancels_through_registered_sim(tmp_p
 
         def stop(self):
             self.stopped = True
+
+        def stop_and_wait(self, timeout=2.0):
+            assert 0.0 <= timeout <= 2.0
+            return SyntheticCtpNativeStopReceipt(self._connection_generation)
 
         def next_order_ref(self):
             self._next_order_ref_value += 1
@@ -1310,6 +1766,9 @@ def test_alpha003_live_strategy_submits_and_cancels_through_registered_sim(tmp_p
                 return None
             row = rows.popleft()
             self._sent_tick_for.discard(row["bar_id"])
+            if _capacity_only:
+                row = dict(row)
+                row["trading_day"] = row["trading_day"].replace("-", "")
             return row
 
     def client_generation(api):
@@ -1323,7 +1782,6 @@ def test_alpha003_live_strategy_submits_and_cancels_through_registered_sim(tmp_p
             allow_writes, history_limit, terminal_limit, Alpha003BarTapeMixin
         ),
     )
-    first_source_bar = tape["bars"][0]
     synthetic_store_config, synthetic_api_kwargs = runner_fixtures._official_simnow_store_config()
     synthetic_store_config.update(
         {
@@ -1333,14 +1791,6 @@ def test_alpha003_live_strategy_submits_and_cancels_through_registered_sim(tmp_p
             "password": "unused",
         }
     )
-    synthetic_api_kwargs = {
-        **synthetic_api_kwargs,
-        "live_tick_provenance": {
-            "clock_domain_id": first_source_bar["clock_domain_id"],
-            "rules_hash": "a" * 64,
-            "session_segment": first_source_bar["session_segment"],
-        },
-    }
     monkeypatch.setattr(
         RUNNER,
         "_live_env_config",
@@ -1356,13 +1806,187 @@ def test_alpha003_live_strategy_submits_and_cancels_through_registered_sim(tmp_p
     chain_trace = []
     risk_scope_trace = []
     risk_dispatch_trace = []
+    bar_source_trace = {
+        "count": 0,
+        "samples": [],
+        "sample_limit": 24,
+        "first_by_target": {},
+        "by_target_count": {target: 0 for target in plan["targets"]},
+        "mapping_match_count": {target: 0 for target in plan["targets"]},
+        "mapping_mismatch_count": {target: 0 for target in plan["targets"]},
+        "first_error": None,
+        "observer_errors": 0,
+    }
+    bar_source_trace_lock = threading.Lock()
     diagnostic_path = (
-        Path(__file__).resolve().parents[2]
+        tmp_path / "alpha003-capacity-diagnostic.json"
+        if _capacity_only
+        else Path(__file__).resolve().parents[2]
         / ".codex-tmp"
         / "alpha003_registered_sim_order_chain_{}.json".format(time.time_ns())
     )
 
+    original_capture_cohort_source = btapifeed_module.BtApiFeed._cohort_capture_source
+
+    def traced_capture_cohort_source(feed, event, source_role, received_monotonic_ns, max_slot):
+        sample = None
+        try:
+
+            def value(*names, default=None):
+                return btapifeed_module._tick_value(event, *names, default=default)
+
+            cohort = getattr(feed, "_live_bar_cohort", None)
+            member = cohort.member_for_feed(feed) if cohort is not None else None
+            slot_index = feed._cohort_event_slot_index(event)
+            slots = getattr(getattr(cohort, "_calendar", None), "slots", ())
+            slot = (
+                slots[slot_index]
+                if isinstance(slot_index, int) and 0 <= slot_index < len(slots)
+                else None
+            )
+            member_sessions = getattr(slot, "member_sessions", {}) if slot is not None else {}
+            expected_member_session = (
+                member_sessions.get(member.member_id)
+                if member is not None and hasattr(member_sessions, "get")
+                else None
+            )
+            sample = {
+                "feed_member_id": getattr(member, "member_id", None),
+                "feed_instrument": getattr(feed, "_dataname", None),
+                "feed_name": getattr(feed, "_name", None),
+                "source_role": source_role,
+                "source_ref": value("source_ref"),
+                "source_route": value(
+                    "route", "instrument", "instrument_id", "InstrumentID", "source", "symbol"
+                ),
+                "source_exchange": value("exchange", "exchange_id", "ExchangeID"),
+                "source_generation": value("connection_generation"),
+                "source_target": value("target", "ctp_factor_target_id"),
+                "source_binding_target": value("ctp_factor_target_id"),
+                "source_product": value("ctp_factor_product"),
+                "source_calendar_hash": value("ctp_source_calendar_hash"),
+                "source_clock_domain_id": value("clock_domain_id"),
+                "actual_trading_day": value("trading_day"),
+                "actual_session_segment": value("session_segment"),
+                "actual_bucket_start": value("bucket_start"),
+                "actual_close_time": value("bucket_end"),
+                "actual_timestamp": value("timestamp"),
+                "actual_available_at": value("available_at"),
+                "planned_slot_index": slot_index,
+                "planned_slot_id": getattr(slot, "slot_id", None),
+                "planned_bucket_start": getattr(slot, "bucket_start", None),
+                "planned_close_time": getattr(slot, "close_time", None),
+                "planned_trading_day": getattr(
+                    expected_member_session, "trading_day", getattr(slot, "trading_day", None)
+                ),
+                "planned_session_segment": getattr(
+                    expected_member_session,
+                    "session_segment",
+                    getattr(slot, "session_segment", None),
+                ),
+            }
+            sample["time_session_route_matches_planned_slot"] = bool(
+                slot is not None
+                and member is not None
+                and sample["actual_bucket_start"] == sample["planned_bucket_start"]
+                and sample["actual_close_time"] == slot.close_time
+                and sample["actual_trading_day"] == sample["planned_trading_day"]
+                and sample["actual_session_segment"] == sample["planned_session_segment"]
+                and sample["feed_instrument"] == member.instrument
+                and sample["source_generation"] not in (None, "", 0)
+                and isinstance(sample["actual_available_at"], datetime)
+                and sample["actual_available_at"] >= slot.close_time
+                and (
+                    sample["actual_timestamp"] is None
+                    or (
+                        type(sample["actual_timestamp"]) in (int, float)
+                        and abs(sample["actual_timestamp"] - slot.close_time.timestamp()) <= 1.0e-6
+                    )
+                )
+            )
+            target = sample["source_target"]
+            if target not in bar_source_trace["by_target_count"]:
+                target = target_by_instrument.get(sample["feed_instrument"])
+            with bar_source_trace_lock:
+                bar_source_trace["count"] += 1
+                if target in bar_source_trace["by_target_count"]:
+                    bar_source_trace["by_target_count"][target] += 1
+                    mapping_key = (
+                        "mapping_match_count"
+                        if sample["time_session_route_matches_planned_slot"]
+                        else "mapping_mismatch_count"
+                    )
+                    bar_source_trace[mapping_key][target] += 1
+                    bar_source_trace["first_by_target"].setdefault(target, sample)
+                if len(bar_source_trace["samples"]) < bar_source_trace["sample_limit"]:
+                    bar_source_trace["samples"].append(sample)
+        except Exception:
+            with bar_source_trace_lock:
+                bar_source_trace["observer_errors"] += 1
+        try:
+            return original_capture_cohort_source(
+                feed, event, source_role, received_monotonic_ns, max_slot
+            )
+        except Exception as exc:
+            if sample is not None:
+                with bar_source_trace_lock:
+                    if bar_source_trace["first_error"] is None:
+                        bar_source_trace["first_error"] = {
+                            "type": type(exc).__name__,
+                            "message": str(exc)[:256],
+                            "sample": sample,
+                        }
+            raise
+
+    monkeypatch.setattr(
+        btapifeed_module.BtApiFeed,
+        "_cohort_capture_source",
+        traced_capture_cohort_source,
+    )
+
     def persist_diagnostic(stage, *, result_value=None, error=None, archive_evidence=None):
+        def capacity_summary(report):
+            if not hasattr(report, "get"):
+                return None
+            expected = tuple(
+                ordinal
+                for ordinal in (report.get("expected_ordinals") or ())
+                if type(ordinal) is int
+            )
+            samples = []
+            for sample in tuple(report.get("samples") or ())[:16]:
+                if not hasattr(sample, "get"):
+                    continue
+                ordinal = sample.get("ordinal")
+                samples.append(
+                    {
+                        "ordinal": ordinal if type(ordinal) is int else None,
+                        "status": sample.get("status"),
+                        "issues": tuple(sample.get("issues") or ())[:16],
+                        "lines": _bounded_capacity_fact_projection(
+                            sample.get("lines"), group="lines"
+                        ),
+                        "diagnostics": _bounded_capacity_fact_projection(
+                            sample.get("diagnostics"), group="diagnostics"
+                        ),
+                    }
+                )
+            observed = tuple(
+                sample["ordinal"] for sample in samples if type(sample.get("ordinal")) is int
+            )
+            return {
+                "run_id": report.get("run_id"),
+                "status": report.get("status"),
+                "issues": tuple(report.get("issues") or ())[:32],
+                "first_ready_engine_phase": report.get("first_ready_engine_phase"),
+                "calendar_slot_count": report.get("calendar_slot_count"),
+                "sample_count": report.get("sample_count"),
+                "expected_ordinals": expected,
+                "observed_ordinals": observed,
+                "missing_ordinals": tuple(value for value in expected if value not in observed),
+                "samples": tuple(samples),
+            }
+
         def result_summary(value):
             if not isinstance(value, dict):
                 return None
@@ -1386,6 +2010,8 @@ def test_alpha003_live_strategy_submits_and_cancels_through_registered_sim(tmp_p
                 )
                 if key in value
             }
+            if "live_capacity" in value:
+                summary["live_capacity"] = capacity_summary(value.get("live_capacity"))
             events = value.get("strategy_order_events")
             if isinstance(events, dict):
                 summary["strategy_order_events"] = {
@@ -1508,6 +2134,21 @@ def test_alpha003_live_strategy_submits_and_cancels_through_registered_sim(tmp_p
             "provider_timeline": tuple(fill_timeline[-512:]),
             "store_ticks": tuple(store_tick_trace[-128:]),
             "chain_trace": tuple(chain_trace[-128:]),
+            "source_calendar_trace": source_calendar_trace,
+            "source_clock_freshness_trace": (
+                {
+                    "call_count": clock.snapshot_clock_trace["call_count"],
+                    "observer_errors": clock.snapshot_clock_trace["observer_errors"],
+                    "sample_limit": clock.snapshot_clock_trace["sample_limit"],
+                    "samples": tuple(clock.snapshot_clock_trace["samples"]),
+                }
+                if _capture_capacity
+                else None
+            ),
+            "bar_source_trace": {
+                **bar_source_trace,
+                "samples": tuple(bar_source_trace["samples"]),
+            },
             "risk_scopes": tuple(risk_scope_trace[-64:]),
             "risk_dispatch": tuple(risk_dispatch_trace[-32:]),
             "reconciliation": tuple(reconciliation_observations[-32:]),
@@ -1624,7 +2265,314 @@ def test_alpha003_live_strategy_submits_and_cancels_through_registered_sim(tmp_p
 
         strategy.notify_trade = observe_notify_trade
 
+        def parse_refresh_time(record, key):
+            try:
+                value = datetime.fromisoformat(record[key])
+            except (KeyError, TypeError, ValueError):
+                return None
+            return value if isinstance(value, datetime) else None
+
+        def project_refresh_attempt(record, latest_quote_received_at):
+            started_at = parse_refresh_time(record, "started_at")
+            completed_at = parse_refresh_time(record, "completed_at")
+            provenance = tuple(record.get("provenance") or ())
+            query_set_id = record.get("query_set_id")
+            return {
+                "attempt": record.get("attempt"),
+                "attempt_status": record.get("attempt_status"),
+                "return_category": record.get("return_category"),
+                "exception_type": record.get("exception_type"),
+                "last_error_code": record.get("last_error_code"),
+                "started_at": record.get("started_at"),
+                "completed_at": record.get("completed_at"),
+                "started_after_quote_receipt": bool(
+                    started_at is not None and started_at > latest_quote_received_at
+                ),
+                "completed_at_or_after_quote_receipt": bool(
+                    completed_at is not None and completed_at >= latest_quote_received_at
+                ),
+                "error_code": record.get("error_code"),
+                "blockers": tuple(record.get("blockers") or ())[:8],
+                "pending_families": tuple(record.get("pending_families") or ())[:8],
+                "cancelled": record.get("cancelled"),
+                "deadline_reached": record.get("deadline_reached"),
+                "requested_families": tuple(record.get("requested_families") or ())[:8],
+                "attempted_families": tuple(record.get("attempted_families") or ())[:8],
+                "query_set_id_present": type(query_set_id) is str and bool(query_set_id),
+                "query_set_id": query_set_id if type(query_set_id) is str else None,
+                "last_facts_present": record.get("last_facts_present"),
+                "last_facts_query_set_id_present": bool(
+                    record.get("last_facts_query_set_id")
+                ),
+                "last_facts_query_set_id": record.get("last_facts_query_set_id"),
+                "last_facts_available_at": record.get("last_facts_available_at"),
+                "last_facts_blockers": tuple(record.get("last_facts_blockers") or ())[:8],
+                "provenance_count": len(provenance),
+                "query_complete_count": sum(
+                    len(row) > 2 and row[2] is True for row in provenance
+                ),
+                "source_owned_count": sum(
+                    len(row) > 3 and row[3] is True for row in provenance
+                ),
+                "scope_complete_count": sum(
+                    len(row) > 4 and row[4] is True for row in provenance
+                ),
+            }
+
+        def post_quote_refresh_attempts(latest_quote_received_at):
+            projected = []
+            with refresh_condition:
+                attempt_events = tuple(refresh_attempt_events)
+            for record in attempt_events:
+                started_at = parse_refresh_time(record, "started_at")
+                completed_at = parse_refresh_time(record, "completed_at")
+                if (
+                    started_at is not None
+                    and (
+                        started_at > latest_quote_received_at
+                        or (
+                            completed_at is not None
+                            and completed_at >= latest_quote_received_at
+                        )
+                    )
+                ):
+                    projected.append(project_refresh_attempt(record, latest_quote_received_at))
+            if len(projected) <= 8:
+                return tuple(projected), len(projected), False
+            return tuple(projected[:4] + projected[-4:]), len(projected), True
+
+        def refresh_loop_projection(refresh_loop):
+            receipt = getattr(refresh_loop, "last_receipt", None)
+            query_set = getattr(receipt, "query_set", None)
+            receipt_query_set_id = getattr(query_set, "query_set_id", None)
+            facts = getattr(refresh_loop, "last_facts", None)
+            facts_query_set_id = getattr(facts, "query_set_id", None)
+            receipt_blockers = tuple(getattr(receipt, "blockers", ()) or ())[:8]
+            receipt_pending = tuple(getattr(receipt, "pending_families", ()) or ())[:8]
+            facts_blockers = tuple(getattr(facts, "blockers", ()) or ())[:8]
+            return {
+                "receipt_present": receipt is not None,
+                "receipt_query_set_id_present": (
+                    type(receipt_query_set_id) is str and bool(receipt_query_set_id)
+                ),
+                "receipt_query_set_id": (
+                    receipt_query_set_id if type(receipt_query_set_id) is str else None
+                ),
+                "receipt_blockers": receipt_blockers,
+                "receipt_pending_families": receipt_pending,
+                "receipt_cancelled": getattr(receipt, "cancelled", None),
+                "receipt_deadline_reached": getattr(receipt, "deadline_reached", None),
+                "last_error_code": getattr(refresh_loop, "last_error_code", None),
+                "last_reconciliation_blocker_count": len(
+                    tuple(getattr(refresh_loop, "last_reconciliation_blockers", ()) or ())
+                ),
+                "last_facts_present": facts is not None,
+                "last_facts_query_set_id_present": (
+                    type(facts_query_set_id) is str and bool(facts_query_set_id)
+                ),
+                "last_facts_query_set_id": (
+                    facts_query_set_id if type(facts_query_set_id) is str else None
+                ),
+                "last_facts_available_at": getattr(facts, "available_at", None),
+                "last_facts_snapshot_id_present": bool(getattr(facts, "snapshot_id", None)),
+                "last_facts_blockers": facts_blockers,
+            }
+
+        def refresh_attempt_is_successful_after_quote(record, latest_quote_received_at):
+            started_at = parse_refresh_time(record, "started_at")
+            completed_at = parse_refresh_time(record, "completed_at")
+            query_set_id = record.get("query_set_id")
+            return bool(
+                started_at is not None
+                and started_at > latest_quote_received_at
+                and completed_at is not None
+                and completed_at >= latest_quote_received_at
+                and record.get("error_code") is None
+                and not record.get("blockers")
+                and not record.get("pending_families")
+                and record.get("cancelled") is False
+                and record.get("deadline_reached") is False
+                and type(query_set_id) is str
+                and bool(query_set_id)
+                and record.get("last_facts_present") is True
+                and record.get("last_facts_query_set_id") == query_set_id
+            )
+
+        def successful_refresh_for_query_set(query_set_id, latest_quote_received_at):
+            if type(query_set_id) is not str or not query_set_id:
+                return None
+            return next(
+                (
+                    attempt
+                    for attempt in reversed(refresh_receipts)
+                    if attempt.get("query_set_id") == query_set_id
+                    and refresh_attempt_is_successful_after_quote(
+                        attempt, latest_quote_received_at
+                    )
+                ),
+                None,
+            )
+
+        def wait_for_post_receipt_query_refresh(callback_name):
+            """Wait outside the Strategy/query lock for one real refresh after quote receipt."""
+            if not _causal_quote_barrier or callback_name not in {"next", "notify_idle"}:
+                return None
+            try:
+                close_time = strategy.data0.datetime.datetime(0)
+                if close_time.tzinfo is None:
+                    close_time = close_time.replace(tzinfo=UTC)
+                else:
+                    close_time = close_time.astimezone(UTC)
+            except (AttributeError, IndexError, TypeError, ValueError):
+                return {"status": "UNOBSERVABLE", "reason": "CURRENT_BAR_CLOSE_UNAVAILABLE"}
+            rows_by_target = causal_quote_rows_by_close.get(close_time)
+            if not rows_by_target or len(rows_by_target) != len(plan["targets"]):
+                return {
+                    "status": "UNOBSERVABLE",
+                    "reason": "CURRENT_BAR_QUOTE_SET_INCOMPLETE",
+                    "close_time": close_time.isoformat(),
+                    "expected_targets": len(plan["targets"]),
+                    "observed_targets": len(rows_by_target or {}),
+                }
+            expected_rows = tuple(rows_by_target[target] for target in plan["targets"])
+            receipt_rows = []
+            for row in expected_rows:
+                event = causal_quote_receipt_events[row["bar_id"]]
+                if not event.is_set():
+                    event.wait(timeout=0.25)
+                receipt = causal_quote_receipt_by_bar_id.get(row["bar_id"])
+                if not event.is_set() or not isinstance(receipt, dict):
+                    return {
+                        "status": "UNOBSERVABLE",
+                        "reason": "CURRENT_BAR_QUOTE_RECEIPT_MISSING",
+                        "close_time": close_time.isoformat(),
+                    }
+                receipt_rows.append(receipt)
+            try:
+                latest_receipt_at = max(
+                    datetime.fromisoformat(item["received_at"]) for item in receipt_rows
+                )
+            except (KeyError, TypeError, ValueError):
+                return {
+                    "status": "UNOBSERVABLE",
+                    "reason": "CURRENT_BAR_QUOTE_RECEIPT_TIME_MISSING",
+                    "close_time": close_time.isoformat(),
+                }
+
+            def successful_refresh_started_after_receipt():
+                for attempt in reversed(refresh_receipts):
+                    if refresh_attempt_is_successful_after_quote(attempt, latest_receipt_at):
+                        return attempt
+                return None
+
+            refresh_loop = getattr(strategy.p, "control_refresh_loop", None)
+            wait_started_at = clock.utc_now()
+            wait_started_monotonic = time.monotonic()
+            with refresh_condition:
+                refresh_started_before = refresh_state["started"]
+                refresh_completed_before = refresh_state["completed"]
+                selected_refresh = successful_refresh_started_after_receipt()
+                if selected_refresh is None:
+                    # Wait for the exact causal predicate, not an arbitrary
+                    # refresh completion (which could have started before the
+                    # quote receipt). Condition.wait_for releases this lock.
+                    completed = refresh_condition.wait_for(
+                        lambda: successful_refresh_started_after_receipt() is not None,
+                        timeout=4.0,
+                    )
+                    selected_refresh = successful_refresh_started_after_receipt()
+                else:
+                    completed = True
+                refresh_started_after = refresh_state["started"]
+                refresh_completed_after = refresh_state["completed"]
+            wait_completed_at = clock.utc_now()
+            wait_duration_seconds = time.monotonic() - wait_started_monotonic
+            attempt_samples, attempt_sample_count, attempt_samples_truncated = (
+                post_quote_refresh_attempts(latest_receipt_at)
+            )
+            selected_attempt_projection = (
+                project_refresh_attempt(selected_refresh, latest_receipt_at)
+                if selected_refresh is not None
+                else None
+            )
+            observed_return_categories = (
+                ("NO_REFRESH_ATTEMPT_OBSERVED",)
+                if not attempt_samples
+                else tuple(
+                    sorted(
+                        {
+                            "REFRESH_RAISED"
+                            if item.get("attempt_status") == "RAISED"
+                            else "ATTEMPT_IN_PROGRESS_AT_OBSERVATION"
+                            if item.get("attempt_status") == "IN_PROGRESS"
+                            else "ERROR_CODE_PRESENT"
+                            if item.get("error_code") is not None
+                            else "STARTED_BEFORE_OR_AT_QUOTE"
+                            if item.get("started_after_quote_receipt") is not True
+                            else "BLOCKERS_PRESENT"
+                            if item.get("blockers")
+                            else "PENDING_FAMILIES"
+                            if item.get("pending_families")
+                            else "CANCELLED"
+                            if item.get("cancelled") is True
+                            else "DEADLINE_REACHED"
+                            if item.get("deadline_reached") is True
+                            else "QUERY_SET_ID_MISSING"
+                            if not item.get("query_set_id_present")
+                            else "FACTS_NOT_PUBLISHED"
+                            if item.get("last_facts_present") is not True
+                            or item.get("last_facts_query_set_id")
+                            != item.get("query_set_id")
+                            else "COMPLETE_QUERY_SET"
+                            for item in attempt_samples
+                        }
+                    )
+                )
+            )
+            result = {
+                "status": "PASS" if completed and selected_refresh is not None else "INCOMPLETE",
+                "reason": None if selected_refresh is not None else "POST_RECEIPT_REFRESH_UNAVAILABLE",
+                "close_time": close_time.isoformat(),
+                "latest_quote_received_at": latest_receipt_at.isoformat(),
+                "wait_started_at": wait_started_at.isoformat(),
+                "wait_completed_at": wait_completed_at.isoformat(),
+                "wait_duration_seconds": round(wait_duration_seconds, 6),
+                "wait_timeout_seconds": 4.0,
+                "wait_timed_out": bool(not completed),
+                "refresh_started_before": refresh_started_before,
+                "refresh_completed_before": refresh_completed_before,
+                "refresh_started_after": refresh_started_after,
+                "refresh_completed_after": refresh_completed_after,
+                "observed_post_quote_attempt_count": attempt_sample_count,
+                "post_quote_attempt_samples_truncated": attempt_samples_truncated,
+                "post_quote_attempt_samples": attempt_samples,
+                "observed_return_categories": observed_return_categories,
+                "loop_state_after_wait": refresh_loop_projection(refresh_loop),
+                "refresh_attempt": (
+                    selected_refresh.get("attempt") if selected_refresh is not None else None
+                ),
+                "refresh_started_at": (
+                    selected_refresh.get("started_at") if selected_refresh is not None else None
+                ),
+                "refresh_completed_at": (
+                    selected_refresh.get("completed_at") if selected_refresh is not None else None
+                ),
+                "refresh_query_set_id_present": bool(
+                    selected_refresh.get("query_set_id") if selected_refresh is not None else False
+                ),
+                "refresh_query_set_id": (
+                    selected_refresh.get("query_set_id") if selected_refresh is not None else None
+                ),
+                "selected_refresh_attempt": selected_attempt_projection,
+            }
+            causal_quote_refresh_by_close[close_time] = result
+            return result
+
         def trace_strategy_turn(callback_name, callback, *args, **kwargs):
+            # The synthetic event barrier is outside fact_turn_lock so the real
+            # QueryRefreshLoop thread can publish a post-receipt snapshot. The
+            # Strategy callback then uses its ordinary production projection.
+            post_receipt_refresh = wait_for_post_receipt_query_refresh(callback_name)
             with fact_turn_lock:
                 # This timestamp is the strategy turn's first source-clock
                 # observation, after it owns the same lock as query refresh.
@@ -1635,6 +2583,71 @@ def test_alpha003_live_strategy_submits_and_cancels_through_registered_sim(tmp_p
                     getattr(receipt_before, "query_set", None), "query_set_id", None
                 )
                 before_refresh = (refresh_state["started"], refresh_state["completed"])
+                if (
+                    isinstance(post_receipt_refresh, dict)
+                    and post_receipt_refresh.get("latest_quote_received_at")
+                ):
+                    try:
+                        latest_quote_received_at = datetime.fromisoformat(
+                            post_receipt_refresh["latest_quote_received_at"]
+                        )
+                    except (TypeError, ValueError):
+                        latest_quote_received_at = None
+                    callback_loop_state = refresh_loop_projection(refresh_loop)
+                    callback_query_set_id = callback_loop_state.get(
+                        "receipt_query_set_id"
+                    )
+                    callback_attempt = (
+                        None
+                        if latest_quote_received_at is None
+                        else successful_refresh_for_query_set(
+                            callback_query_set_id, latest_quote_received_at
+                        )
+                    )
+                    attempt_samples, attempt_sample_count, attempt_samples_truncated = (
+                        post_quote_refresh_attempts(latest_quote_received_at)
+                        if latest_quote_received_at is not None
+                        else ((), 0, False)
+                    )
+                    post_receipt_refresh.update(
+                        {
+                            "callback_entry_at": callback_requested_at.isoformat(),
+                            "callback_entry_loop_state": callback_loop_state,
+                            "callback_entry_query_set_id": callback_query_set_id,
+                            "callback_entry_query_set_id_matches_post_quote_refresh": (
+                                callback_attempt is not None
+                            ),
+                            "callback_entry_refresh_attempt": (
+                                callback_attempt.get("attempt")
+                                if callback_attempt is not None
+                                else None
+                            ),
+                            "post_quote_attempt_samples": attempt_samples,
+                            "observed_post_quote_attempt_count": attempt_sample_count,
+                            "post_quote_attempt_samples_truncated": attempt_samples_truncated,
+                        }
+                    )
+                    if callback_attempt is not None:
+                        post_receipt_refresh.update(
+                            {
+                                "refresh_attempt": callback_attempt.get("attempt"),
+                                "refresh_started_at": callback_attempt.get("started_at"),
+                                "refresh_completed_at": callback_attempt.get("completed_at"),
+                                "refresh_query_set_id_present": True,
+                                "refresh_query_set_id": callback_query_set_id,
+                            }
+                        )
+                    if post_receipt_refresh.get("wait_timed_out") is True:
+                        post_receipt_refresh["status"] = "INCOMPLETE"
+                        post_receipt_refresh["reason"] = "POST_RECEIPT_REFRESH_WAIT_TIMED_OUT"
+                    elif callback_attempt is None:
+                        post_receipt_refresh["status"] = "INCOMPLETE"
+                        post_receipt_refresh["reason"] = (
+                            "CALLBACK_ENTRY_QUERY_SET_NOT_PROVEN_POST_QUOTE"
+                        )
+                    else:
+                        post_receipt_refresh["status"] = "PASS"
+                        post_receipt_refresh["reason"] = None
                 try:
                     result = callback(*args, **kwargs)
                 except Exception as exc:
@@ -1646,6 +2659,7 @@ def test_alpha003_live_strategy_submits_and_cancels_through_registered_sim(tmp_p
                                 "requested_at": callback_requested_at.isoformat(),
                                 "query_set_before": before_query_set,
                                 "refresh_started_completed_before": before_refresh,
+                            "post_receipt_refresh": post_receipt_refresh,
                                 "error": (type(exc).__name__, str(exc)[:512]),
                             }
                         )
@@ -1666,6 +2680,7 @@ def test_alpha003_live_strategy_submits_and_cancels_through_registered_sim(tmp_p
                                 refresh_state["started"],
                                 refresh_state["completed"],
                             ),
+                            "post_receipt_refresh": post_receipt_refresh,
                             "query_set_before": before_query_set,
                             "query_set_after": getattr(
                                 getattr(receipt_after, "query_set", None),
@@ -1735,9 +2750,232 @@ def test_alpha003_live_strategy_submits_and_cancels_through_registered_sim(tmp_p
         strategy.notify_idle = traced_notify_idle
 
         def traced_run_live(batch, snapshot, now, ordinal, session_close, run_end, **kwargs):
+            barrier_record = None
+            if _causal_quote_barrier and batch is not None:
+                close_time = getattr(batch, "close_time", None)
+                rows_by_target = causal_quote_rows_by_close.get(close_time, {})
+                expected_rows = tuple(
+                    rows_by_target[target]
+                    for target in plan["targets"]
+                    if target in rows_by_target
+                )
+                expected_delivery = max(
+                    (
+                        synthetic_ctp_tick_time(row["bucket_end"])
+                        for row in expected_rows
+                    ),
+                    default=None,
+                )
+                before_barrier = clock.utc_now()
+                if expected_delivery is not None and before_barrier < expected_delivery:
+                    clock.advance(expected_delivery - before_barrier)
+                receipt_results = tuple(
+                    (
+                        row["target"],
+                        row["bar_id"],
+                        causal_quote_receipt_events[row["bar_id"]].wait(timeout=0.25),
+                    )
+                    for row in expected_rows
+                )
+                barrier_at = clock.utc_now()
+                now = max(now, barrier_at)
+                barrier_record = {
+                    "batch_id": getattr(batch, "batch_id", None),
+                    "slot_index": getattr(batch, "slot_index", None),
+                    "close_time": close_time.isoformat()
+                    if hasattr(close_time, "isoformat")
+                    else None,
+                    "expected_target_count": len(plan["targets"]),
+                    "expected_receipt_count": len(expected_rows),
+                    "receipt_events": tuple(
+                        {
+                            "target_id": target,
+                            "bar_id": bar_id,
+                            "released": released,
+                            "receipt": causal_quote_receipt_by_bar_id.get(bar_id),
+                        }
+                        for target, bar_id, released in receipt_results
+                    ),
+                    "barrier_released_at": barrier_at.isoformat(),
+                    "risk_snapshot_evaluated_at": now.isoformat(),
+                    "receipt_precedes_risk_snapshot": bool(
+                        len(expected_rows) == len(plan["targets"])
+                        and all(released for _target, _bar_id, released in receipt_results)
+                        and all(
+                            causal_quote_receipt_by_bar_id.get(row["bar_id"], {}).get(
+                                "received_at"
+                            )
+                            is not None
+                            and datetime.fromisoformat(
+                                causal_quote_receipt_by_bar_id[row["bar_id"]]["received_at"]
+                            )
+                            <= now
+                            for row in expected_rows
+                        )
+                    ),
+                }
+                with causal_quote_receipt_lock:
+                    if len(causal_quote_barrier_trace) < 128:
+                        causal_quote_barrier_trace.append(barrier_record)
+                if not barrier_record["receipt_precedes_risk_snapshot"]:
+                    raise AssertionError("causal quote receipt barrier did not release")
             result = original_run_live(
                 batch, snapshot, now, ordinal, session_close, run_end, **kwargs
             )
+            if barrier_record is not None:
+                facts = strategy.last_execution_facts
+                facts_quotes = tuple(getattr(facts, "quotes", ()) or ())
+                quotes_by_instrument = {
+                    getattr(quote, "instrument", None): quote for quote in facts_quotes
+                }
+                facts_available_at = getattr(facts, "available_at", None)
+                facts_snapshot_id = getattr(facts, "snapshot_id", None)
+                store = getattr(getattr(strategy, "broker", None), "store", None)
+                get_latest_tick = getattr(store, "get_latest_tick_snapshot", None)
+                fact_matches = []
+                for receipt_row in causal_quote_rows_by_close.get(
+                    getattr(batch, "close_time", None), {}
+                ).values():
+                    expected_receipt = causal_quote_receipt_by_bar_id.get(
+                        receipt_row["bar_id"], {}
+                    )
+                    quote = quotes_by_instrument.get(receipt_row["instrument"])
+                    quote_event_time = getattr(quote, "event_time", None)
+                    quote_available_at = getattr(quote, "available_at", None)
+                    raw_tick = (
+                        get_latest_tick(receipt_row["instrument"])
+                        if callable(get_latest_tick)
+                        else None
+                    )
+                    try:
+                        received_at = datetime.fromisoformat(expected_receipt["received_at"])
+                        event_time = datetime.fromisoformat(expected_receipt["event_time"])
+                    except (KeyError, TypeError, ValueError):
+                        received_at = event_time = None
+                    target_suffix = ":" + receipt_row["target"]
+                    blocker_codes = tuple(
+                        sorted(
+                            blocker[: -len(target_suffix)]
+                            for blocker in (getattr(facts, "blockers", ()) or ())
+                            if isinstance(blocker, str) and blocker.endswith(target_suffix)
+                        )
+                    )
+                    fact_event_after_snapshot = bool(
+                        isinstance(facts_available_at, datetime)
+                        and isinstance(quote_event_time, datetime)
+                        and quote_event_time >= facts_available_at
+                    )
+                    fact_receive_after_snapshot = bool(
+                        isinstance(facts_available_at, datetime)
+                        and isinstance(quote_available_at, datetime)
+                        and quote_available_at >= facts_available_at
+                    )
+                    fact_matches.append(
+                        {
+                            "target_id": receipt_row["target"],
+                            "instrument": receipt_row["instrument"],
+                            "receipt_event_time": expected_receipt.get("event_time"),
+                            "receipt_available_at": expected_receipt.get("received_at"),
+                            "risk_quote_event_time": quote_event_time.isoformat()
+                            if hasattr(quote_event_time, "isoformat")
+                            else None,
+                            "risk_quote_available_at": quote_available_at.isoformat()
+                            if hasattr(quote_available_at, "isoformat")
+                            else None,
+                            "risk_facts_available_at": facts_available_at.isoformat()
+                            if hasattr(facts_available_at, "isoformat")
+                            else None,
+                            "risk_facts_snapshot_id_present": bool(facts_snapshot_id),
+                            "quote_metadata_snapshot_matches_facts": bool(
+                                quote is not None
+                                and getattr(quote, "metadata_snapshot_id", None)
+                                == facts_snapshot_id
+                            ),
+                            "quote_event_at_or_after_risk_facts": fact_event_after_snapshot,
+                            "quote_receive_at_or_after_risk_facts": fact_receive_after_snapshot,
+                            "quote_quality": getattr(quote, "quality", None),
+                            "quote_generation": getattr(quote, "generation", None),
+                            "quote_sequence": getattr(quote, "sequence", None),
+                            "quote_blocker_codes": blocker_codes[:16],
+                            "consumed_tick_envelope": {
+                                "snapshot_or_delta": getattr(raw_tick, "snapshot_or_delta", None),
+                                "coalesced_count": getattr(raw_tick, "coalesced_count", None),
+                                "continuity_status": getattr(raw_tick, "continuity_status", None),
+                                "stale": getattr(raw_tick, "stale", None),
+                                "connection_generation": getattr(
+                                    raw_tick, "connection_generation", None
+                                ),
+                                "stream_generation": getattr(
+                                    raw_tick, "stream_generation", None
+                                ),
+                                "sequence": getattr(raw_tick, "sequence", None),
+                                "previous_sequence": getattr(raw_tick, "previous_sequence", None),
+                                "source_present": bool(getattr(raw_tick, "source", None)),
+                                "event_id_present": bool(getattr(raw_tick, "event_id", None)),
+                                "volume_semantics": getattr(raw_tick, "volume_semantics", None),
+                                "volume_complete": getattr(raw_tick, "volume_complete", None),
+                                "delta_volume_present": getattr(
+                                    raw_tick, "delta_volume", None
+                                )
+                                is not None,
+                                "delta_volume_is_zero": getattr(
+                                    raw_tick, "delta_volume", None
+                                )
+                                == 0,
+                            },
+                            "matches_receipt": bool(
+                                quote is not None
+                                and event_time is not None
+                                and received_at is not None
+                                and quote_event_time == event_time
+                                and isinstance(quote_available_at, datetime)
+                                and abs((quote_available_at - received_at).total_seconds())
+                                <= 0.000001
+                            ),
+                        }
+                    )
+                barrier_record["risk_snapshot_quote_facts"] = tuple(fact_matches)
+                barrier_record["all_risk_quotes_match_receipts"] = bool(
+                    len(fact_matches) == len(plan["targets"])
+                    and all(item["matches_receipt"] for item in fact_matches)
+                )
+                post_receipt_refresh = causal_quote_refresh_by_close.get(
+                    getattr(batch, "close_time", None)
+                )
+                barrier_record["post_receipt_refresh"] = post_receipt_refresh
+                barrier_record["all_quote_receipts_precede_risk_facts_snapshot"] = bool(
+                    post_receipt_refresh is not None
+                    and post_receipt_refresh.get("status") == "PASS"
+                    and isinstance(facts_available_at, datetime)
+                    and all(
+                        isinstance(
+                            datetime.fromisoformat(item["received_at"]), datetime
+                        )
+                        and datetime.fromisoformat(item["received_at"]) < facts_available_at
+                        for item in (
+                            causal_quote_receipt_by_bar_id.get(row["bar_id"], {})
+                            for row in causal_quote_rows_by_close.get(
+                                getattr(batch, "close_time", None), {}
+                            ).values()
+                        )
+                    )
+                )
+                barrier_record["risk_facts_query_set_matches_post_receipt_refresh"] = bool(
+                    post_receipt_refresh is not None
+                    and post_receipt_refresh.get("status") == "PASS"
+                    and facts is not None
+                    and getattr(facts, "query_set_id", None)
+                    == post_receipt_refresh.get("refresh_query_set_id")
+                )
+                barrier_record["order_plan_reason"] = getattr(
+                    getattr(strategy, "last_order_plan", None), "reason", None
+                )
+                barrier_record["execution_block_reason"] = getattr(
+                    strategy, "last_execution_block_reason", None
+                )
+                with causal_quote_receipt_lock:
+                    if causal_quote_barrier_trace:
+                        causal_quote_barrier_trace[-1] = barrier_record
             api = api_instances[-1] if api_instances else None
             if api is not None and api._phase == 1 and strategy.shutdown_requested:
                 facts = strategy.last_execution_facts
@@ -1902,8 +3140,31 @@ def test_alpha003_live_strategy_submits_and_cancels_through_registered_sim(tmp_p
                 started = refresh_state["started"]
                 refresh_condition.notify_all()
             refresh_started_at = clock.utc_now()
+            attempt_event = {
+                "attempt": started,
+                "attempt_status": "IN_PROGRESS",
+                "return_category": None,
+                "started_at": refresh_started_at.isoformat(),
+                "completed_at": None,
+                "error_code": None,
+                "query_set_id": None,
+                "blockers": (),
+                "pending_families": (),
+                "cancelled": None,
+                "deadline_reached": None,
+                "last_facts_present": False,
+                "last_facts_query_set_id": None,
+                "provenance": (),
+            }
+            with refresh_condition:
+                refresh_attempt_events.append(attempt_event)
             try:
                 receipt = original_refresh(loop)
+                loop_facts = getattr(loop, "last_facts", None)
+                loop_facts_available_at = getattr(loop_facts, "available_at", None)
+                loop_facts_blockers = tuple(
+                    getattr(loop_facts, "blockers", ()) or ()
+                )[:8]
                 refresh_receipts.append(
                     {
                         "attempt": started,
@@ -1919,6 +3180,22 @@ def test_alpha003_live_strategy_submits_and_cancels_through_registered_sim(tmp_p
                         "cancelled": getattr(receipt, "cancelled", None),
                         "deadline_reached": getattr(receipt, "deadline_reached", None),
                         "blockers": getattr(receipt, "blockers", None),
+                        "last_facts_present": loop_facts is not None,
+                        "last_facts_query_set_id": getattr(
+                            loop_facts, "query_set_id", None
+                        ),
+                        "last_facts_available_at": (
+                            loop_facts_available_at.isoformat()
+                            if hasattr(loop_facts_available_at, "isoformat")
+                            else None
+                        ),
+                        "last_facts_snapshot_id_present": bool(
+                            getattr(loop_facts, "snapshot_id", None)
+                        ),
+                        "last_facts_blockers": loop_facts_blockers,
+                        "last_reconciliation_blockers": tuple(
+                            getattr(loop, "last_reconciliation_blockers", ()) or ()
+                        )[:8],
                         "provenance": tuple(
                             (
                                 getattr(item, "family", None),
@@ -1933,6 +3210,28 @@ def test_alpha003_live_strategy_submits_and_cancels_through_registered_sim(tmp_p
                         ),
                     }
                 )
+                with refresh_condition:
+                    attempt_event.update(refresh_receipts[-1])
+                    attempt_event["attempt_status"] = "RETURNED"
+                    attempt_event["return_category"] = (
+                        "BLOCKERS_PRESENT"
+                        if getattr(receipt, "blockers", ())
+                        else "PENDING_FAMILIES"
+                        if getattr(receipt, "pending_families", ())
+                        else "CANCELLED"
+                        if getattr(receipt, "cancelled", None) is True
+                        else "DEADLINE_REACHED"
+                        if getattr(receipt, "deadline_reached", None) is True
+                        else "QUERY_SET_MISSING"
+                        if not getattr(
+                            getattr(receipt, "query_set", None), "query_set_id", None
+                        )
+                        else "FACTS_NOT_PUBLISHED"
+                        if loop_facts is None
+                        or getattr(loop_facts, "query_set_id", None)
+                        != getattr(getattr(receipt, "query_set", None), "query_set_id", None)
+                        else "COMPLETE_QUERY_SET"
+                    )
                 query_set = getattr(receipt, "query_set", None)
                 api = api_instances[-1] if api_instances else None
                 if (
@@ -1968,6 +3267,22 @@ def test_alpha003_live_strategy_submits_and_cancels_through_registered_sim(tmp_p
                             reconciliation_blockers,
                         )
                     )
+                with refresh_condition:
+                    attempt_event.update(
+                        {
+                            "attempt_status": "RAISED",
+                            "return_category": "REFRESH_RAISED",
+                            "completed_at": clock.utc_now().isoformat(),
+                            "error_code": getattr(exc, "code", None),
+                            "exception_type": type(exc).__name__,
+                            "last_error_code": getattr(loop, "last_error_code", None),
+                            "last_reconciliation_blockers": reconciliation_blockers,
+                            "last_facts_present": getattr(loop, "last_facts", None) is not None,
+                            "last_facts_query_set_id": getattr(
+                                getattr(loop, "last_facts", None), "query_set_id", None
+                            ),
+                        }
+                    )
                 note_fill_event(
                     "refresh_failed",
                     exception_type=type(exc).__name__,
@@ -1978,6 +3293,14 @@ def test_alpha003_live_strategy_submits_and_cancels_through_registered_sim(tmp_p
                 raise
             finally:
                 with refresh_condition:
+                    if attempt_event.get("attempt_status") == "IN_PROGRESS":
+                        attempt_event.update(
+                            {
+                                "attempt_status": "FINALLY_WITHOUT_RETURN_FACTS",
+                                "return_category": "UNCLASSIFIED_TERMINAL",
+                                "completed_at": clock.utc_now().isoformat(),
+                            }
+                        )
                     refresh_state["completed"] = max(refresh_state["completed"], started)
                     refresh_condition.notify_all()
 
@@ -1987,7 +3310,11 @@ def test_alpha003_live_strategy_submits_and_cancels_through_registered_sim(tmp_p
     monkeypatch.setattr(
         journal_module,
         "time",
-        SimpleNamespace(time_ns=clock.time_ns, monotonic=time.monotonic),
+        SimpleNamespace(
+            time_ns=clock.time_ns,
+            monotonic=time.monotonic,
+            monotonic_ns=time.monotonic_ns,
+        ),
     )
 
     config["live"].update(
@@ -2002,7 +3329,7 @@ def test_alpha003_live_strategy_submits_and_cancels_through_registered_sim(tmp_p
         quote_max_age_seconds=60.0,
         query_max_age_seconds=7200.0,
         shutdown_grace_seconds=5.0,
-        allow_writes=True,
+        allow_writes=not _capacity_only,
         arm_templates=[
             {
                 "target": target,
@@ -2031,10 +3358,12 @@ def test_alpha003_live_strategy_submits_and_cancels_through_registered_sim(tmp_p
             config,
             config_path,
             plan,
-            "native",
+            _factor_mode,
             1,
             decision=SimpleNamespace(effective_tier="live"),
-            allow_write_flag=True,
+            allow_write_flag=not _capacity_only,
+            _capture_live_capacity=_capture_capacity,
+            _include_plan=_capacity_only,
         )
     except Exception as exc:
         persist_diagnostic("known_cancel_run_exception", error=exc)
@@ -2091,6 +3420,121 @@ def test_alpha003_live_strategy_submits_and_cancels_through_registered_sim(tmp_p
         ) from exc
 
     persist_diagnostic("known_cancel_run_returned", result_value={"phase1": result})
+    if _capacity_only:
+        tape = result["decision_tape"]
+        readback = result["decision_tape_readback"]
+        capacity = result.get("live_capacity")
+        assert len(api_instances) == 1
+        assert api_instances[0].closed is True
+        assert api_instances[0].native_calls == []
+        assert store_write_calls == []
+        assert refresh_state["errors"] == []
+        assert refresh_state["started"] == refresh_state["completed"]
+        assert result["write_mode"] is False
+        assert result["cleanup_complete"] is True
+        assert result["strategy_shutdown_ready"] is True
+        assert result["strategy_shutdown_post_join_confirmed"] is True
+        assert tape["closed"] is True and tape["failed"] is False
+        assert readback["record_count"] == tape["record_count"] == minute_count
+        shutdown = {row["resource"]: row for row in result["resource_shutdown"]}
+        assert shutdown["query_refresh"]["joined"] is True
+        assert shutdown["decision_tape"]["status"] == "CLOSED"
+        assert shutdown["store"]["shutdown_state"] == "PASS"
+        factor_source_shutdown = shutdown["store"]["ctp_factor_source_shutdown"]
+        assert factor_source_shutdown["status"] == "PASS"
+        assert factor_source_shutdown["md_receipt"]["complete"] is True
+        assert factor_source_shutdown["trader_receipt"]["complete"] is True
+        assert capacity is not None
+
+        def bounded_capacity_facts(facts):
+            if not hasattr(facts, "get"):
+                return {"status": "UNAVAILABLE"}
+            return {
+                key: facts.get(key)
+                for key in (
+                    "status",
+                    "reason_code",
+                    "line_buffer_count",
+                    "bounded_line_buffer_count",
+                    "unbounded_line_buffer_count",
+                    "line_capacity_unavailable_count",
+                    "line_capacity_sum",
+                    "max_line_capacity",
+                    "retained_line_value_count",
+                    "retained_line_value_count_status",
+                    "observation_complete",
+                    "object_count",
+                    "factor_call_count",
+                )
+                if key in facts
+            }
+
+        if not _defer_capacity_status_assertion:
+            assert capacity["status"] == "RECORDED_NOT_EVALUATED", {
+                "run_id": capacity.get("run_id"),
+                "issues": capacity.get("issues"),
+                "process_identity": capacity.get("process_identity"),
+                "first_ready_engine_phase": capacity.get("first_ready_engine_phase"),
+                "sample_count": capacity.get("sample_count"),
+                "expected_ordinals": capacity.get("expected_ordinals"),
+                "samples": tuple(
+                    {
+                        "ordinal": sample.get("ordinal"),
+                        "status": sample.get("status"),
+                        "issues": sample.get("issues"),
+                        "cohort_identity": bounded_capacity_facts(sample.get("cohort_identity")),
+                        "lines": bounded_capacity_facts(sample.get("lines")),
+                        "cohort": bounded_capacity_facts(sample.get("cohort")),
+                        "diagnostics": bounded_capacity_facts(sample.get("diagnostics")),
+                        "orders": bounded_capacity_facts(sample.get("orders")),
+                        "strategy_events": bounded_capacity_facts(sample.get("strategy_events")),
+                    }
+                    for sample in capacity.get("samples", ())
+                ),
+            }
+        assert capacity["acceptance_evaluated"] is False
+        assert capacity["run_id"] == "alpha003-factor-chain-run"
+        assert capacity["postflight"] == {
+            "status": "OBSERVED",
+            "run_id": "alpha003-factor-chain-run",
+            "epoch_id": result["epoch_id"],
+            "cleanup_complete": True,
+            "run_completed": True,
+        }
+        tape_path = Path(tape["path"])
+        tape_rows = tuple(
+            json.loads(line) for line in tape_path.read_text(encoding="utf-8").splitlines()
+        )
+        assert tape_rows[0]["record_type"] == "HEADER"
+        assert len(tape_rows) - 1 == minute_count
+        assert all(row["record_type"] == "DECISION" for row in tape_rows[1:])
+        assert bar_source_trace["observer_errors"] == 0
+        assert set(bar_source_trace["first_by_target"]) == set(plan["targets"])
+        assert all(bar_source_trace["by_target_count"][target] > 0 for target in plan["targets"])
+        for target in plan["targets"]:
+            sample = bar_source_trace["first_by_target"][target]
+            product = plan["product_by_target"][target]
+            assert sample["source_role"] in {"history", "live"}
+            assert sample["feed_member_id"] == target
+            assert sample["feed_instrument"] == plan["routes"][product]
+            assert sample["source_route"] == plan["routes"][product]
+            assert sample["source_generation"] is not None
+            assert sample["actual_bucket_start"] == sample["planned_bucket_start"]
+            assert sample["actual_close_time"] == sample["planned_close_time"]
+            assert sample["actual_trading_day"] == sample["planned_trading_day"]
+            assert sample["actual_session_segment"] == sample["planned_session_segment"]
+            assert sample["time_session_route_matches_planned_slot"] is True
+            assert bar_source_trace["mapping_mismatch_count"][target] == 0
+            assert bar_source_trace["mapping_match_count"][target] > 0
+        return {
+            "summary": result,
+            "plan": result["_plan"],
+            "tape_rows": tape_rows,
+            "preheat_bars": config["factor"]["preheat_bars"],
+            "source_clock_wait_boundary_probe": wait_boundary_probe,
+            "causal_quote_barrier_trace": tuple(causal_quote_barrier_trace[-128:]),
+        }
+
     assert len(api_instances) == 1
     cancel_api = api_instances[0]
     assert cancel_api.closed is True
@@ -2875,3 +4319,891 @@ def test_alpha003_live_strategy_submits_and_cancels_through_registered_sim(tmp_p
             "trade_notify_observations": trade_observations,
         },
     )
+
+
+def _live_tape_semantic_projection(rows):
+    member_fields = (
+        "slot_index",
+        "instrument",
+        "source_ref",
+        "source_role",
+        "connection_generation",
+        "feed_sequence",
+        "bucket_start",
+        "close_time",
+        "available_at",
+        "trading_day",
+        "session_segment",
+        "timezone_id",
+        "clock_domain_id",
+        "bar_id",
+        "complete",
+        "quality",
+        "present",
+        "missing_fields",
+        "quality_flags",
+        "event_source",
+        "raw_values",
+    )
+    factor_value_fields = (
+        "value",
+        "status",
+        "reason",
+        "present",
+        "complete",
+        "quality",
+        "source_role",
+        "member_id",
+        "source_ref",
+        "sequence",
+        "generation",
+    )
+    projected = []
+    for row in rows[1:]:
+        factors = row["factors"]["factors"]
+        target_decision = row["target_decision"]
+        if target_decision is None:
+            decision = None
+        else:
+            decision = {
+                key: target_decision.get(key)
+                for key in (
+                    "status",
+                    "reason",
+                    "factor_name",
+                    "direction",
+                    "rebalance_every",
+                    "authorized_targets",
+                    "eligible_targets",
+                )
+            }
+            decision["targets"] = tuple(
+                {
+                    key: item.get(key)
+                    for key in (
+                        "target_id",
+                        "product_key",
+                        "target_position",
+                        "raw_score",
+                        "oriented_score",
+                    )
+                }
+                for item in target_decision.get("targets", ())
+            )
+        projected.append(
+            {
+                "slot_index": row["slot_index"],
+                "calendar_id": row["calendar_id"],
+                "calendar_version": row["calendar_version"],
+                "slot_id": row.get("slot_id"),
+                "close_time": row["close_time"],
+                "available_at": row["available_at"],
+                "readiness": row["readiness"],
+                "readiness_reasons": tuple(row["readiness_reasons"]),
+                "members": {
+                    target: {key: member.get(key) for key in member_fields}
+                    for target, member in sorted(row["members"].items())
+                },
+                "factors": {
+                    name: {
+                        target: {key: value.get(key) for key in factor_value_fields}
+                        for target, value in sorted(factor["values"].items())
+                    }
+                    for name, factor in sorted(factors.items())
+                },
+                "target_decision": decision,
+                "order_plan": {
+                    "status": row["order_plan"]["status"],
+                    "reason": row["order_plan"]["reason"],
+                    "actions": tuple(row["order_plan"]["actions"]),
+                },
+            }
+        )
+    # Some non-ready rows use IEEE NaN for an unavailable factor value. JSON
+    # normalization keeps equal NaN projections comparable without erasing
+    # any finite values or reason/membership differences.
+    return len(projected), json.dumps(
+        projected, allow_nan=True, sort_keys=True, separators=(",", ":")
+    )
+
+
+@pytest.mark.integration
+def test_registered_sim_production_tape_and_live_capacity_exactbars_pair(tmp_path):
+    """Compare the production live Strategy/tape and exactbars capacity.
+
+    The source fixture selects from a saved bundle, so the formal saved-tape
+    validator must reject its source contract.  A separate ordinary
+    Cerebro/Research recomputation checks the synthetic tape values without
+    claiming query-validator or formal acceptance evidence.
+    """
+    import backtrader as bt
+
+    from scripts import validate_iteration51_saved_factor_tape as saved_tape_validator
+
+    project_expected_plan = saved_tape_validator.project_expected_plan
+
+    def bounded_capacity_report(report):
+        if not hasattr(report, "get"):
+            return None
+        expected_ordinals = tuple(report.get("expected_ordinals") or ())
+        samples = tuple(report.get("samples") or ())[:16]
+        observed_ordinals = tuple(
+            sample.get("ordinal")
+            for sample in samples
+            if hasattr(sample, "get") and type(sample.get("ordinal")) is int
+        )
+        return {
+            "status": report.get("status"),
+            "issues": tuple(report.get("issues") or ())[:32],
+            "first_ready_engine_phase": report.get("first_ready_engine_phase"),
+            "calendar_slot_count": report.get("calendar_slot_count"),
+            "sample_count": report.get("sample_count"),
+            "expected_ordinals": expected_ordinals,
+            "observed_ordinals": observed_ordinals,
+            "missing_ordinals": tuple(
+                ordinal for ordinal in expected_ordinals if ordinal not in observed_ordinals
+            ),
+            "samples": tuple(
+                {
+                    "ordinal": sample.get("ordinal"),
+                    "status": sample.get("status"),
+                    "issues": tuple(sample.get("issues") or ())[:16],
+                    "lines": _bounded_capacity_fact_projection(sample.get("lines"), group="lines"),
+                    "diagnostics": _bounded_capacity_fact_projection(
+                        sample.get("diagnostics"), group="diagnostics"
+                    ),
+                }
+                for sample in samples
+                if hasattr(sample, "get")
+            ),
+        }
+
+    def saved_diagnostic(case_root):
+        diagnostic_path = case_root / "alpha003-capacity-diagnostic.json"
+        if not diagnostic_path.is_file():
+            return None
+        try:
+            return json.loads(diagnostic_path.read_text(encoding="utf-8"))
+        except (OSError, ValueError, TypeError):
+            return None
+
+    def saved_capacity_report(case_root):
+        diagnostic = saved_diagnostic(case_root)
+        result = diagnostic.get("result") if isinstance(diagnostic, dict) else None
+        if isinstance(result, dict) and "phase1" in result:
+            result = result.get("phase1")
+        return result.get("live_capacity") if isinstance(result, dict) else None
+
+    cases = {}
+    case_results = []
+    semantic_pairing = {"status": "NOT_EVALUATED"}
+    original_cerebro = bt.Cerebro
+    aggregate_path = tmp_path / "exactbars-capacity-ab-diagnostic.json"
+
+    def write_aggregate_diagnostic():
+        payload = {
+            "schema": "alpha003_exactbars_capacity_ab_diagnostic_v1",
+            "case_count": len(case_results),
+            "cases": tuple(case_results),
+            "semantic_pairing": semantic_pairing,
+        }
+        aggregate_path.write_text(
+            json.dumps(payload, default=str, sort_keys=True, indent=2), encoding="utf-8"
+        )
+
+    def synthetic_offline_recompute(tape_rows, preheat_bars, factor_mode, source_factor_mode):
+        """Recompute one synthetic tape through ordinary Cerebro/Research.
+
+        This intentionally bypasses only the saved-tape *query-source*
+        projection.  The formal validator remains unchanged and is not
+        reported as passing for this saved-bundle fixture.
+        """
+
+        def decode_synthetic_factor_point(point, member):
+            """Validate one synthetic point while preserving source generation types.
+
+            The ordinary offline comparator does not invoke the formal tape
+            validator: this fixture is deliberately a saved-bundle source and
+            that validator rejects it before row validation.  Its factor
+            generation field is bound to the source member, whose public
+            contract permits a non-empty string or a positive integer.
+            """
+            expected_point_fields = {
+                "value",
+                "status",
+                "reason",
+                "present",
+                "complete",
+                "quality",
+                "source_role",
+                "member_id",
+                "source_ref",
+                "sequence",
+                "generation",
+            }
+            if not hasattr(point, "keys") or set(point) != expected_point_fields:
+                raise ValueError("synthetic factor point fields are invalid")
+            value_row = point.get("value")
+            if (
+                not hasattr(value_row, "keys")
+                or set(value_row) != {"finite", "value", "float64_hex"}
+                or type(value_row.get("finite")) is not bool
+                or type(value_row.get("float64_hex")) is not str
+                or not value_row["float64_hex"]
+            ):
+                raise ValueError("synthetic factor value fields are invalid")
+            if value_row["finite"]:
+                raw_number = value_row.get("value")
+                if raw_number is None or isinstance(raw_number, bool):
+                    raise ValueError("synthetic finite factor value is invalid")
+                number = float(raw_number)
+                if not math.isfinite(number) or number.hex() != value_row["float64_hex"]:
+                    raise ValueError("synthetic finite factor value encoding is invalid")
+            else:
+                if value_row.get("value") is not None or value_row["float64_hex"] != "nan":
+                    raise ValueError("synthetic unavailable factor value is invalid")
+                number = None
+
+            status = point.get("status")
+            reason = point.get("reason")
+            if (
+                type(status) is not str
+                or status not in {"OUTPUT_AVAILABLE", "OUTPUT_UNAVAILABLE"}
+                or (
+                    reason is not None
+                    and (type(reason) is not str or not reason or reason != reason.strip())
+                )
+                or (number is not None) != (status == "OUTPUT_AVAILABLE")
+                or (number is not None) != (reason is None)
+            ):
+                raise ValueError("synthetic factor status/reason is invalid")
+            if type(point.get("present")) is not bool or type(point.get("complete")) is not bool:
+                raise ValueError("synthetic factor membership flags are invalid")
+            for field in ("quality", "source_role", "member_id"):
+                value = point.get(field)
+                if type(value) is not str or not value or value != value.strip():
+                    raise ValueError("synthetic factor receipt text is invalid")
+            source_ref = point.get("source_ref")
+            if source_ref is not None and (
+                type(source_ref) is not str or not source_ref or source_ref != source_ref.strip()
+            ):
+                raise ValueError("synthetic factor source reference is invalid")
+            sequence = point.get("sequence")
+            if type(sequence) is not int or sequence < 1:
+                raise ValueError("synthetic factor sequence is invalid")
+            generation = point.get("generation")
+            member_generation = member.get("connection_generation")
+            if (
+                type(generation) not in (str, int)
+                or type(generation) is not type(member_generation)
+                or generation != member_generation
+                or (
+                    type(generation) is str
+                    and (
+                        not generation or generation != generation.strip() or len(generation) > 256
+                    )
+                )
+                or (type(generation) is int and generation < 1)
+            ):
+                raise ValueError("synthetic factor generation is not source-bound")
+            return number, status, reason
+
+        header = tape_rows[0]
+        targets = tuple(header["targets"])
+        decisions = tuple(tape_rows[1:])
+        source_identity = header["source_snapshot_id"]
+        calendar_id = header["calendar_id"]
+        selection_evidence = header["selection_evidence"]
+        authorized_targets = tuple(selection_evidence["authorized_targets"])
+        expected = {
+            "targets": targets,
+            "minutes": tuple({"close_time": row["close_time"]} for row in decisions),
+            "source_snapshot_id": source_identity,
+            "calendar_id": calendar_id,
+        }
+        field_names = tuple(saved_tape_validator._OHLCV_FIELDS)
+        raw_by_target = {
+            target: {
+                field: [float(row["members"][target]["raw_values"][field]) for row in decisions]
+                for field in field_names
+            }
+            for target in targets
+        }
+        offline = saved_tape_validator._run_factor_strategy(
+            expected,
+            raw_by_target,
+            factor_mode=factor_mode,
+            direction=1,
+        )
+        failed_checks = []
+        value_comparisons = 0
+        reason_comparisons = 0
+        membership_comparisons = 0
+        live_ready_rows = 0
+        finite_witnesses = set()
+        finite_targets = set()
+        two_candidate_witness_rows = 0
+        source_sha256 = None
+        plan_id = None
+        for row_index, row in enumerate(decisions):
+            if (
+                row.get("record_index") != row_index + 1
+                or row.get("slot_index") != row_index
+                or row.get("calendar_id") != calendar_id
+                or row.get("close_time") != expected["minutes"][row_index]["close_time"]
+            ):
+                failed_checks.append("tape_record_grid_binding")
+            factor_block = row.get("factors")
+            factor_rows = factor_block.get("factors") if hasattr(factor_block, "get") else None
+            factor = factor_rows.get("alpha003") if hasattr(factor_rows, "get") else None
+            if not hasattr(factor, "get"):
+                failed_checks.append("tape_alpha003_factor_missing")
+                continue
+            current_source_sha = factor.get("source_sha256")
+            current_plan_id = factor_block.get("plan_id")
+            if source_sha256 is None:
+                source_sha256 = current_source_sha
+                plan_id = current_plan_id
+            elif current_source_sha != source_sha256 or current_plan_id != plan_id:
+                failed_checks.append("tape_factor_plan_or_source_changed")
+            if (
+                factor.get("mode") != header.get("factor_mode")
+                or factor.get("mode") != source_factor_mode
+                or factor.get("direction") != 1
+                or factor.get("panel_line") != "factor"
+                or not hasattr(factor.get("values"), "keys")
+                or set(factor["values"]) != set(targets)
+            ):
+                failed_checks.append("tape_factor_metadata_or_membership")
+            values = factor.get("values") if hasattr(factor.get("values"), "get") else {}
+            members = row.get("members") if hasattr(row.get("members"), "get") else {}
+            if set(members) != set(targets):
+                failed_checks.append("tape_member_set")
+            finite_candidates = {}
+            for target in targets:
+                saved = values.get(target)
+                member = members.get(target)
+                if not hasattr(saved, "get") or not hasattr(member, "get"):
+                    failed_checks.append("tape_factor_or_member_missing")
+                    continue
+                try:
+                    saved_number, saved_status, saved_reason = decode_synthetic_factor_point(
+                        saved, member
+                    )
+                except Exception:
+                    failed_checks.append("tape_factor_value_invalid")
+                    continue
+                actual = offline["values"][target][row_index]
+                actual_reason = offline["reasons"][target][row_index]
+                saved_value = saved["value"]
+                if math.isfinite(actual):
+                    value_matches = (
+                        saved_number is not None
+                        and saved_value.get("float64_hex") == actual.hex()
+                        and float(saved_value.get("value")).hex() == actual.hex()
+                    )
+                else:
+                    value_matches = saved_number is None and saved_value.get("float64_hex") == "nan"
+                if not value_matches:
+                    failed_checks.append("alpha003_value_hex_mismatch")
+                if saved_reason != actual_reason:
+                    failed_checks.append("alpha003_reason_mismatch")
+                if (
+                    saved.get("present") is not True
+                    or saved.get("complete") is not True
+                    or saved.get("quality") != member.get("quality")
+                    or saved.get("source_role") != member.get("source_role")
+                    or saved.get("member_id") != target
+                    or saved.get("source_ref") != member.get("source_ref")
+                    or saved.get("sequence") != member.get("feed_sequence")
+                    or saved.get("generation") != member.get("connection_generation")
+                    or (saved_number is not None) != (saved_status == "OUTPUT_AVAILABLE")
+                ):
+                    failed_checks.append("alpha003_member_receipt_mismatch")
+                value_comparisons += 1
+                reason_comparisons += 1
+                membership_comparisons += 1
+                if row_index >= preheat_bars - 1 and saved_number is not None:
+                    finite_witnesses.add(saved_number.hex())
+                    finite_targets.add(target)
+                    if target in authorized_targets:
+                        finite_candidates[target] = saved_number
+            if (
+                len(finite_candidates) >= 2
+                and len({value.hex() for value in finite_candidates.values()}) >= 2
+            ):
+                two_candidate_witness_rows += 1
+
+            expected_readiness = "LIVE_READY" if row_index >= preheat_bars - 1 else "WARMUP"
+            if row.get("readiness") != expected_readiness:
+                failed_checks.append("tape_readiness_cutoff")
+            elif expected_readiness == "LIVE_READY":
+                live_ready_rows += 1
+                if row.get("readiness_reasons") != []:
+                    failed_checks.append("live_ready_reasons_not_empty")
+            try:
+                saved_tape_validator._check_decision_membership(
+                    row.get("target_decision"),
+                    expected={"authorized_targets": list(authorized_targets)},
+                    row=row,
+                    factor_points=values,
+                    source_sha256=current_source_sha,
+                    source_factor_mode=header["factor_mode"],
+                    direction=1,
+                )
+            except Exception:
+                failed_checks.append("tape_decision_factor_membership")
+
+        if offline.get("source_sha256") != source_sha256:
+            failed_checks.append("offline_factor_source_mismatch")
+        if header.get("factor_mode") != source_factor_mode:
+            failed_checks.append("live_factor_mode_mismatch")
+        if len(decisions) != 120:
+            failed_checks.append("full_120_grid_missing")
+        if live_ready_rows < 100:
+            failed_checks.append("live_ready_threshold")
+        if len(finite_witnesses) < 2:
+            failed_checks.append("distinct_finite_witness_threshold")
+        if len(finite_targets) < 2:
+            failed_checks.append("distinct_target_witness_threshold")
+        if two_candidate_witness_rows < 1:
+            failed_checks.append("two_candidate_witness_threshold")
+        expected_comparisons = len(decisions) * len(targets)
+        if not (
+            value_comparisons
+            == reason_comparisons
+            == membership_comparisons
+            == expected_comparisons
+        ):
+            failed_checks.append("factor_comparison_count_mismatch")
+        return {
+            "status": "PASS" if not failed_checks else "FAIL",
+            "evidence_level": "SYNTHETIC_ORDINARY_CEREBRO_RECOMPUTE_ONLY",
+            "offline_factor_mode": factor_mode,
+            "source_factor_mode": source_factor_mode,
+            "selection_source": selection_evidence.get("selection_source"),
+            "query_validator": "NOT_RUN_SAVED_BUNDLE_SOURCE_CONTRACT",
+            "grid_count": len(decisions),
+            "target_count": len(targets),
+            "value_comparisons": value_comparisons,
+            "reason_comparisons": reason_comparisons,
+            "membership_comparisons": membership_comparisons,
+            "live_ready_rows": live_ready_rows,
+            "distinct_finite_witnesses": len(finite_witnesses),
+            "distinct_finite_targets": len(finite_targets),
+            "two_candidate_witness_rows": two_candidate_witness_rows,
+            "factor_source_matches_tape": offline.get("source_sha256") == source_sha256,
+            "failed_checks": tuple(sorted(set(failed_checks))),
+        }
+
+    for factor_mode in ("native", "build"):
+        for exactbars in (0, 1):
+            key = (factor_mode, exactbars)
+            case_root = tmp_path / f"{factor_mode}-exactbars-{exactbars}"
+            patch = pytest.MonkeyPatch()
+            created_engines = []
+            case_result = {
+                "factor_mode": factor_mode,
+                "exactbars": exactbars,
+                "status": "FAIL",
+                "diagnostic_path": str(case_root / "alpha003-capacity-diagnostic.json"),
+            }
+            try:
+                case_root.mkdir()
+                if exactbars == 0:
+                    class ConfiguredCerebro(original_cerebro):
+                        def __init__(self, *args, **kwargs):
+                            assert kwargs.get("runonce") is False
+                            assert kwargs.get("preload") is False
+                            kwargs["exactbars"] = 0
+                            super().__init__(*args, **kwargs)
+                            created_engines.append(self)
+
+                    patch.setattr(bt, "Cerebro", ConfiguredCerebro)
+                else:
+                    # This case exercises the actual run.py live entry, whose
+                    # constructor must enable exactbars=1.  Do not patch or
+                    # wrap Cerebro here: the line-capacity evidence below
+                    # checks the real QBuffer effect of that production call.
+                    assert bt.Cerebro is original_cerebro
+                    case_result["production_cerebro_unpatched"] = True
+                outcome = test_alpha003_live_strategy_submits_and_cancels_through_registered_sim(
+                    case_root,
+                    patch,
+                    _capacity_only=True,
+                    _factor_mode=factor_mode,
+                    _capture_capacity=True,
+                    _causal_quote_barrier=True,
+                    _defer_capacity_status_assertion=True,
+                )
+
+                if exactbars == 0:
+                    assert len(created_engines) == 1
+                    engine = created_engines[0]
+                    assert engine.p.exactbars == 0
+                    assert engine.p.runonce is False
+                    assert engine.p.preload is False
+                else:
+                    assert not created_engines
+                    assert bt.Cerebro is original_cerebro
+                    case_result["production_cerebro_unpatched"] = True
+                patch.undo()
+                assert bt.Cerebro is original_cerebro
+
+                summary = outcome["summary"]
+                assert summary["factor_mode"] == factor_mode
+                case_result["source_clock_wait_boundary_probe"] = outcome[
+                    "source_clock_wait_boundary_probe"
+                ]
+                case_result["causal_quote_barrier_trace"] = outcome[
+                    "causal_quote_barrier_trace"
+                ]
+                expected_grid_count = len(outcome["plan"]["grid"].minutes)
+                assert len(outcome["tape_rows"]) - 1 == expected_grid_count
+                signature = _live_tape_semantic_projection(outcome["tape_rows"])
+                cases[key] = signature
+                case_result["decision_record_count"] = expected_grid_count
+                case_result["semantic_projection_rows"] = signature[0]
+                try:
+                    project_expected_plan(
+                        outcome["plan"],
+                        clock_domain_id=summary["source_clock_domain_id"],
+                        calendar_id=outcome["tape_rows"][0]["calendar_id"],
+                    )
+                except Exception as error:
+                    query_source_preflight = {
+                        "status": "REJECTED_SOURCE_CONTRACT",
+                        "error_type": type(error).__name__,
+                        "error_code": getattr(error, "code", None),
+                        "selection_source": outcome["plan"].get("selection_source"),
+                        "tape_selection_source": outcome["tape_rows"][0]
+                        .get("selection_evidence", {})
+                        .get("selection_source"),
+                    }
+                else:
+                    query_source_preflight = {
+                        "status": "UNEXPECTEDLY_ACCEPTED_SOURCE_CONTRACT",
+                        "selection_source": outcome["plan"].get("selection_source"),
+                    }
+                case_result["formal_query_validator_preflight"] = query_source_preflight
+                offline_recomputations = {}
+                for offline_mode in ("native", "build"):
+                    try:
+                        recomputation = synthetic_offline_recompute(
+                            outcome["tape_rows"],
+                            outcome["preheat_bars"],
+                            offline_mode,
+                            factor_mode,
+                        )
+                    except Exception as error:
+                        offline_recomputations[offline_mode] = {
+                            "status": "EXCEPTION",
+                            "error_type": type(error).__name__,
+                            "error_code": getattr(error, "code", None),
+                        }
+                    else:
+                        offline_recomputations[offline_mode] = recomputation
+                case_result["offline_recomputations"] = offline_recomputations
+                report = summary["live_capacity"]
+                case_result["capacity"] = bounded_capacity_report(report)
+                samples = report["samples"]
+                failed_checks = []
+
+                def require(check, condition):
+                    if not condition:
+                        failed_checks.append(check)
+
+                require(
+                    "capacity_report_complete", report.get("status") == "RECORDED_NOT_EVALUATED"
+                )
+                require(
+                    "capacity_not_acceptance_evaluated", report.get("acceptance_evaluated") is False
+                )
+                require(
+                    "source_clock_wait_boundary_contract",
+                    case_result["source_clock_wait_boundary_probe"]
+                    == {
+                        "short_wait_returned": False,
+                        "short_wait_advance_seconds": 0.5,
+                        "event_not_delivered_before_deadline": True,
+                        "long_wait_returned": False,
+                        "event_delivered_at_scheduled_time": True,
+                    },
+                )
+                require(
+                    "capacity_sample_count_matches_grid",
+                    report.get("sample_count") == len(report.get("expected_ordinals") or ()) == 16,
+                )
+                require(
+                    "capacity_expected_ordinals_present",
+                    tuple(report.get("expected_ordinals") or ())
+                    == tuple(sample.get("ordinal") for sample in samples),
+                )
+                require(
+                    "all_capacity_samples_observed",
+                    all(sample.get("status") == "OBSERVED" for sample in samples),
+                )
+                line_rows = [sample.get("lines", {}) for sample in samples]
+                require(
+                    "all_line_facts_observed",
+                    all(facts.get("status") == "OBSERVED" for facts in line_rows),
+                )
+                require(
+                    "line_capacity_available",
+                    all(facts.get("line_capacity_unavailable_count") == 0 for facts in line_rows),
+                )
+                require(
+                    "line_buffers_observed",
+                    all(facts.get("line_buffer_count", 0) > 0 for facts in line_rows),
+                )
+                if exactbars == 0:
+                    require(
+                        "unbounded_lines_present_for_exactbars_zero",
+                        all(facts.get("unbounded_line_buffer_count", 0) > 0 for facts in line_rows),
+                    )
+                    require(
+                        "unbounded_retained_values_grow_for_exactbars_zero",
+                        len(line_rows) >= 2
+                        and line_rows[-1].get("unbounded_retained_line_value_count", 0)
+                        > line_rows[0].get("unbounded_retained_line_value_count", 0),
+                    )
+                else:
+                    require(
+                        "no_unbounded_lines_for_exactbars_one",
+                        all(facts.get("unbounded_line_buffer_count") == 0 for facts in line_rows),
+                    )
+                    require(
+                        "all_lines_bounded_for_exactbars_one",
+                        all(
+                            facts.get("bounded_line_buffer_count") == facts.get("line_buffer_count")
+                            for facts in line_rows
+                        ),
+                    )
+                    require(
+                        "qbuffer_capacity_stable_for_exactbars_one",
+                        len(
+                            {
+                                (
+                                    facts.get("line_buffer_count"),
+                                    facts.get("line_capacity_sum"),
+                                    facts.get("max_line_capacity"),
+                                )
+                                for facts in line_rows
+                            }
+                        )
+                        == 1,
+                    )
+                    require(
+                        "production_live_entry_cerebro_unpatched",
+                        case_result.get("production_cerebro_unpatched") is True
+                        and bt.Cerebro is original_cerebro
+                        and not created_engines,
+                    )
+                require(
+                    "formal_query_validator_source_contract_rejected",
+                    query_source_preflight.get("status") == "REJECTED_SOURCE_CONTRACT"
+                    and query_source_preflight.get("error_code") == "PLAN_SELECTION_SOURCE_INVALID"
+                    and query_source_preflight.get("selection_source") == "saved_bundle_legacy"
+                    and query_source_preflight.get("tape_selection_source")
+                    == "saved_bundle_legacy",
+                )
+                for offline_mode in ("native", "build"):
+                    recomputation = offline_recomputations.get(offline_mode, {})
+                    require(
+                        f"synthetic_{offline_mode}_recomputation_completed",
+                        recomputation.get("status") == "PASS",
+                    )
+                    require(
+                        f"synthetic_{offline_mode}_source_mode_matches",
+                        recomputation.get("source_factor_mode") == factor_mode,
+                    )
+                    require(
+                        f"synthetic_{offline_mode}_mode_matches",
+                        recomputation.get("offline_factor_mode") == offline_mode,
+                    )
+                    require(
+                        f"synthetic_{offline_mode}_grid_matches",
+                        recomputation.get("grid_count") == 120
+                        and recomputation.get("target_count") == len(outcome["plan"]["targets"]),
+                    )
+                    expected_comparisons = expected_grid_count * len(outcome["plan"]["targets"])
+                    require(
+                        f"synthetic_{offline_mode}_value_comparisons_match",
+                        recomputation.get("value_comparisons") == expected_comparisons,
+                    )
+                    require(
+                        f"synthetic_{offline_mode}_reason_and_membership_match",
+                        recomputation.get("reason_comparisons")
+                        == recomputation.get("membership_comparisons")
+                        == expected_comparisons,
+                    )
+                    require(
+                        f"synthetic_{offline_mode}_live_ready_threshold",
+                        recomputation.get("live_ready_rows", 0) >= 100,
+                    )
+                barrier_rows = case_result["causal_quote_barrier_trace"]
+                barrier_slots = tuple(row.get("slot_index") for row in barrier_rows)
+                live_ready_slots = tuple(
+                    row["slot_index"]
+                    for row in outcome["tape_rows"][1:]
+                    if row.get("readiness") == "LIVE_READY"
+                )
+                contiguous_run_live_slots = (
+                    tuple(range(barrier_slots[0], expected_grid_count))
+                    if barrier_slots
+                    else ()
+                )
+                require(
+                    "causal_quote_barrier_covers_all_run_live_batches_and_live_ready_slots",
+                    barrier_slots == contiguous_run_live_slots
+                    and bool(live_ready_slots)
+                    and set(live_ready_slots).issubset(barrier_slots),
+                )
+                require(
+                    "all_quote_receipts_precede_risk_snapshot",
+                    all(row.get("receipt_precedes_risk_snapshot") is True for row in barrier_rows),
+                )
+                require(
+                    "risk_snapshot_quotes_match_receipts",
+                    all(row.get("all_risk_quotes_match_receipts") is True for row in barrier_rows),
+                )
+                require(
+                    "post_receipt_real_query_refresh_completed",
+                    bool(barrier_rows)
+                    and all(
+                        isinstance(row.get("post_receipt_refresh"), dict)
+                        and row["post_receipt_refresh"].get("status") == "PASS"
+                        for row in barrier_rows
+                    ),
+                )
+                require(
+                    "post_receipt_refresh_has_real_query_set_id",
+                    bool(barrier_rows)
+                    and all(
+                        row["post_receipt_refresh"].get("refresh_query_set_id_present") is True
+                        for row in barrier_rows
+                        if isinstance(row.get("post_receipt_refresh"), dict)
+                    )
+                    and all(isinstance(row.get("post_receipt_refresh"), dict) for row in barrier_rows),
+                )
+                require(
+                    "all_quote_receipts_precede_risk_facts_snapshot",
+                    bool(barrier_rows)
+                    and all(
+                        row.get("all_quote_receipts_precede_risk_facts_snapshot") is True
+                        for row in barrier_rows
+                    ),
+                )
+                require(
+                    "risk_facts_use_same_post_receipt_query_set",
+                    bool(barrier_rows)
+                    and all(
+                        row.get("risk_facts_query_set_matches_post_receipt_refresh") is True
+                        for row in barrier_rows
+                    ),
+                )
+                case_result["failed_checks"] = tuple(failed_checks)
+                case_result["offline_recomputation_modes"] = (
+                    ("native", "build")
+                    if all(
+                        offline_recomputations.get(mode, {}).get("status") == "PASS"
+                        for mode in ("native", "build")
+                    )
+                    else ()
+                )
+                assert not failed_checks, {"failed_checks": tuple(failed_checks)}
+                case_result["status"] = "PASS"
+            except Exception as error:
+                case_result["status"] = "FAIL"
+                case_result["error_type"] = type(error).__name__
+                case_result["error"] = str(error)[:512]
+                report = saved_capacity_report(case_root)
+                if report is not None:
+                    case_result["capacity"] = bounded_capacity_report(report)
+            finally:
+                diagnostic = saved_diagnostic(case_root)
+                if isinstance(diagnostic, dict):
+                    clock_trace = diagnostic.get("source_clock_freshness_trace")
+                    if isinstance(clock_trace, dict):
+                        case_result["source_clock_freshness_trace"] = clock_trace
+                try:
+                    patch.undo()
+                except Exception as error:
+                    case_result["status"] = "FAIL"
+                    case_result["cleanup_error_type"] = type(error).__name__
+                    case_result["cleanup_error"] = str(error)[:256]
+                case_results.append(case_result)
+                write_aggregate_diagnostic()
+
+    if len(cases) == 4:
+        baseline = cases[("native", 0)]
+        all_match = all(signature == baseline for signature in cases.values())
+        baseline_rows = json.loads(baseline[1])
+        comparison_diagnostics = {}
+        for (factor_mode, exactbars), signature in sorted(cases.items()):
+            candidate_rows = json.loads(signature[1])
+            differing_slots = 0
+            order_plan_reason_slots = 0
+            target_decision_reason_slots = 0
+            factor_reason_points = 0
+            readiness_reason_slots = 0
+            for expected_row, candidate_row in zip(baseline_rows, candidate_rows):
+                if expected_row != candidate_row:
+                    differing_slots += 1
+                if (
+                    expected_row["order_plan"].get("reason")
+                    != candidate_row["order_plan"].get("reason")
+                ):
+                    order_plan_reason_slots += 1
+                expected_decision = expected_row.get("target_decision")
+                candidate_decision = candidate_row.get("target_decision")
+                if (expected_decision or {}).get("reason") != (
+                    candidate_decision or {}
+                ).get("reason"):
+                    target_decision_reason_slots += 1
+                if expected_row.get("readiness_reasons") != candidate_row.get(
+                    "readiness_reasons"
+                ):
+                    readiness_reason_slots += 1
+                expected_factors = expected_row.get("factors", {})
+                candidate_factors = candidate_row.get("factors", {})
+                for factor_name in set(expected_factors) | set(candidate_factors):
+                    expected_values = expected_factors.get(factor_name, {})
+                    candidate_values = candidate_factors.get(factor_name, {})
+                    for target in set(expected_values) | set(candidate_values):
+                        if expected_values.get(target, {}).get("reason") != (
+                            candidate_values.get(target, {}).get("reason")
+                        ):
+                            factor_reason_points += 1
+            comparison_diagnostics[f"{factor_mode}/exactbars={exactbars}"] = {
+                "full_projection_matches_baseline": signature == baseline,
+                "differing_slots": differing_slots,
+                "order_plan_reason_slots": order_plan_reason_slots,
+                "target_decision_reason_slots": target_decision_reason_slots,
+                "factor_reason_points": factor_reason_points,
+                "readiness_reason_slots": readiness_reason_slots,
+            }
+        semantic_pairing = {
+            "status": "PASS" if baseline[0] == 120 and all_match else "FAIL",
+            "grid_count": baseline[0],
+            "all_combinations_match": all_match,
+            "comparison_diagnostics": comparison_diagnostics,
+        }
+    else:
+        semantic_pairing = {
+            "status": "INCOMPLETE",
+            "completed_combination_count": len(cases),
+        }
+    write_aggregate_diagnostic()
+    assert (
+        len(case_results) == 4
+        and all(result["status"] == "PASS" for result in case_results)
+        and semantic_pairing["status"] == "PASS"
+    ), {
+        "cases": tuple(case_results),
+        "semantic_pairing": semantic_pairing,
+        "aggregate_diagnostic_path": str(aggregate_path),
+    }
+    baseline = cases[("native", 0)]
+    assert baseline[0] == 120
+    assert all(signature == baseline for signature in cases.values())

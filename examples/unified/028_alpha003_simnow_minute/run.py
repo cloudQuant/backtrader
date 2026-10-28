@@ -8440,7 +8440,7 @@ def run_live(
             max_order_intents_per_grid=grid_budget,
             max_order_intents_per_run=run_budget,
         )
-        cerebro = bt.Cerebro(stdstats=False, runonce=False, preload=False)
+        cerebro = bt.Cerebro(stdstats=False, exactbars=1, runonce=False, preload=False)
         cerebro.setbroker(broker)
         query_targets = []
         for target in plan["targets"]:
