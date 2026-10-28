@@ -223,7 +223,42 @@ def _record_source_grid(journal, *, run_id="candidate-run", close_time="2026-10-
     )
 
 
+def _drop_v23_single_row_tape_schema(connection: sqlite3.Connection) -> None:
+    count = connection.execute(
+        "SELECT COUNT(*) FROM sqlite_master WHERE type='table' "
+        "AND name='execution_fee_pair_grid_single_row_tape_intents'"
+    ).fetchone()[0]
+    if count:
+        rows = connection.execute(
+            "SELECT COUNT(*) FROM execution_fee_pair_grid_single_row_tape_intents"
+        ).fetchone()[0]
+        if rows:
+            raise AssertionError("cannot downgrade a journal with v23 single-row intents")
+    quarantine_count = connection.execute(
+        "SELECT COUNT(*) FROM sqlite_master WHERE type='table' "
+        "AND name='execution_fee_pair_legacy_unresolved_v23'"
+    ).fetchone()[0]
+    if quarantine_count:
+        quarantined = connection.execute(
+            "SELECT COUNT(*) FROM execution_fee_pair_legacy_unresolved_v23"
+        ).fetchone()[0]
+        if quarantined:
+            raise AssertionError("cannot downgrade a journal with v23 legacy quarantine rows")
+    for trigger in (
+        "execution_fee_pair_grid_single_row_tape_intent_no_update",
+        "execution_fee_pair_grid_single_row_tape_intent_no_delete",
+        "execution_fee_pair_legacy_unresolved_v23_no_update",
+        "execution_fee_pair_legacy_unresolved_v23_no_delete",
+        "execution_fee_pair_workflow_durable_reservation_state",
+    ):
+        connection.execute("DROP TRIGGER IF EXISTS {}".format(trigger))
+    connection.execute("DROP INDEX IF EXISTS execution_fee_pair_grid_single_row_tape_position")
+    connection.execute("DROP TABLE IF EXISTS execution_fee_pair_grid_single_row_tape_intents")
+    connection.execute("DROP TABLE IF EXISTS execution_fee_pair_legacy_unresolved_v23")
+
+
 def _downgrade_to_v15(connection: sqlite3.Connection) -> None:
+    _drop_v23_single_row_tape_schema(connection)
     _drop_v21_order_sysid_binding_schema(connection)
     for trigger in (
         "execution_fee_pair_workflow_grid_settlement_insert",
@@ -278,6 +313,7 @@ def _drop_v21_order_sysid_binding_schema(connection: sqlite3.Connection) -> None
 def _downgrade_v20_workflow_to_v18(connection: sqlite3.Connection) -> None:
     """Restore v18 DDL and its exact capacity projection for migration tests."""
 
+    _drop_v23_single_row_tape_schema(connection)
     _drop_v21_order_sysid_binding_schema(connection)
     connection.row_factory = sqlite3.Row
 
@@ -392,6 +428,7 @@ def _downgrade_v20_workflow_to_v18(connection: sqlite3.Connection) -> None:
 def _downgrade_v20_workflow_to_v19(connection: sqlite3.Connection) -> None:
     """Restore the v19 event DDL and reservation accounting for migration tests."""
 
+    _drop_v23_single_row_tape_schema(connection)
     _drop_v21_order_sysid_binding_schema(connection)
     connection.row_factory = sqlite3.Row
 
@@ -1112,7 +1149,7 @@ def test_v15_migration_preserves_history_and_adds_empty_candidate_schema(tmp_pat
 
     migrated = ExecutionDecisionJournal(path)
     try:
-        assert migrated._connection.execute("PRAGMA user_version").fetchone()[0] == 22
+        assert migrated._connection.execute("PRAGMA user_version").fetchone()[0] == 23
         assert migrated.decision(decision.decision_id) == decision
         assert migrated.fee_pair_required_scope("pair-account", "pair-strategy") is not None
         assert (
@@ -1382,7 +1419,7 @@ def test_v18_87_member_workflow_fits_default_payload_limit_and_archives(tmp_path
         archive_receipt = journal.archive_snapshot(archive_path)
         verified = archive_module.verify_execution_journal_archive(
             archive_path,
-            expected_schema_version=22,
+            expected_schema_version=23,
             expected_sha256=archive_receipt.sha256,
         )
         assert verified == archive_receipt
@@ -1493,11 +1530,11 @@ def test_v17_small_workflow_migrates_to_v20_and_remains_readable(tmp_path):
 
     migrated = ExecutionDecisionJournal(path)
     try:
-        assert migrated._connection.execute("PRAGMA user_version").fetchone()[0] == 22
+        assert migrated._connection.execute("PRAGMA user_version").fetchone()[0] == 23
         assert migrated.fee_pair_workflow_candidate(reserved.candidate_id).state == "SOURCE_ONLY"
         assert migrated.decision(expected.decision_id) == expected
         archive_receipt = migrated.archive_snapshot(archive_path)
-        assert archive_receipt.schema_version == 22
+        assert archive_receipt.schema_version == 23
     finally:
         migrated.close()
 
@@ -2503,7 +2540,7 @@ def _attach_fee_pair_receipt(journal, candidate, owner_token):
     return reserved.candidate_id, receipt
 
 
-def test_v18_workflow_migration_preserves_events_and_allows_grid_settlement(tmp_path):
+def test_v18_migration_preserves_events_and_quarantines_unresolved_receipt(tmp_path):
     path = tmp_path / "workflow-v18-to-v20.sqlite3"
     case, candidate, quote_by_route = _fee_pair_settlement_fixture("typed-grid-v18-migration")
     owner_token = "typed-grid-v18-migration-owner-" + "m" * 32
@@ -2533,7 +2570,7 @@ def test_v18_workflow_migration_preserves_events_and_allows_grid_settlement(tmp_
 
     migrated = ExecutionDecisionJournal(path)
     try:
-        assert migrated._connection.execute("PRAGMA user_version").fetchone()[0] == 22
+        assert migrated._connection.execute("PRAGMA user_version").fetchone()[0] == 23
         assert migrated.fee_pair_workflow_candidate(candidate_id).state == "RECEIPT_VERIFIED"
         migrated_events = tuple(
             tuple(row)
@@ -2545,38 +2582,199 @@ def test_v18_workflow_migration_preserves_events_and_allows_grid_settlement(tmp_
             )
         )
         assert migrated_events == old_events
-        settled = migrated.settle_fee_pair_grid_decision(
-            candidate_id,
-            owner_token=owner_token,
-            facts=case.facts,
-            current_account_session_id=candidate.account_session_id,
-            current_account_session_generation=candidate.account_session_generation,
-            max_query_age_seconds=20.0,
-            max_quote_age_seconds=10.0,
-            economic_payload=payload,
-            max_order_intents_per_run=100,
-            expected_run_order_intents_used=0,
-            remaining_exit_intent_reserve=0,
-        )
-        assert settled.is_new_grid is True
-        legacy_workflow = migrated.fee_pair_workflow_candidate(candidate_id)
-        assert legacy_workflow.tape_append_state is None
-        settlement_proof_json = migrated._connection.execute(
-            "SELECT settlement_payload_json FROM execution_fee_pair_workflow_grid_settlements "
-            "WHERE candidate_id=?",
-            (candidate_id,),
-        ).fetchone()[0]
-        settlement_proof = json.loads(settlement_proof_json)
-        # The v19 GRID settlement retains its original source receipt and
-        # decision proof; it does not certify a physical tape append.
-        assert "physical_tape_verification" not in settlement_proof
-        assert "tape_append_report" not in settlement_proof
-        terminal_event = migrated._connection.execute(
-            """SELECT event_sequence,event_kind FROM execution_fee_pair_workflow_events
-               WHERE candidate_id=? ORDER BY event_sequence DESC LIMIT 1""",
+        marker = migrated._connection.execute(
+            """SELECT candidate_sha256,legacy_state,migration_schema_version,reason
+               FROM execution_fee_pair_legacy_unresolved_v23 WHERE candidate_id=?""",
             (candidate_id,),
         ).fetchone()
-        assert tuple(terminal_event) == (4, "GRID_SETTLED")
+        assert tuple(marker) == (
+            migrated.fee_pair_workflow_candidate(candidate_id).candidate_sha256,
+            "RECEIPT_VERIFIED",
+            23,
+            "LEGACY_UNRESOLVED_V23_UPGRADE",
+        )
+        with pytest.raises(
+            ExecutionDecisionJournalError,
+            match="FEE_PAIR_WORKFLOW_LEGACY_UNRESOLVED_AFTER_V23",
+        ):
+            migrated.attach_verified_fee_pair_source_receipt(
+                candidate_id, receipt, owner_token=owner_token
+            )
+        with pytest.raises(
+            ExecutionDecisionJournalError,
+            match="FEE_PAIR_WORKFLOW_LEGACY_UNRESOLVED_AFTER_V23",
+        ):
+            migrated.finalize_fee_pair_source_only_from_attached_receipt(
+                candidate_id, owner_token=owner_token
+            )
+        with pytest.raises(
+            ExecutionDecisionJournalError,
+            match="FEE_PAIR_WORKFLOW_LEGACY_UNRESOLVED_AFTER_V23",
+        ):
+            migrated.settle_fee_pair_grid_decision(
+                candidate_id,
+                owner_token=owner_token,
+                facts=case.facts,
+                current_account_session_id=candidate.account_session_id,
+                current_account_session_generation=candidate.account_session_generation,
+                max_query_age_seconds=20.0,
+                max_quote_age_seconds=10.0,
+                economic_payload=payload,
+                max_order_intents_per_run=100,
+                expected_run_order_intents_used=0,
+                remaining_exit_intent_reserve=0,
+            )
+        legacy_workflow = migrated.fee_pair_workflow_candidate(candidate_id)
+        assert legacy_workflow.state == "RECEIPT_VERIFIED"
+        assert legacy_workflow.tape_append_state is None
+        assert legacy_workflow.grid_settled_decision_id is None
+        assert migrated.decision_for_key(candidate.key) is None
+        assert migrated._connection.execute(
+            "SELECT COUNT(*) FROM execution_fee_pair_workflow_grid_settlements"
+        ).fetchone()[0] == 0
+        assert migrated._connection.execute(
+            "SELECT COUNT(*) FROM execution_source_highwaters"
+        ).fetchone()[0] == 0
+    finally:
+        migrated.close()
+
+
+def test_v22_upgrade_quarantines_unresolved_append_claim_from_legacy_transitions(
+    tmp_path,
+):
+    path = tmp_path / "workflow-v22-unresolved-append.sqlite3"
+    case, candidate, quote_by_route = _fee_pair_settlement_fixture(
+        "typed-grid-v22-unresolved-append"
+    )
+    owner_token = "typed-grid-v22-unresolved-owner-" + "q" * 32
+    journal = ExecutionDecisionJournal(path)
+    try:
+        journal.register_fee_pair_required_scope("acct-scope", "alpha003")
+        reserved = journal.reserve_fee_pair_workflow_candidate(
+            candidate, owner_token=owner_token, ttl_seconds=10
+        )
+        candidate_id = reserved.candidate_id
+        journal.record_fee_pair_workflow_append_claim(
+            candidate_id, owner_token=owner_token
+        )
+        events_before_upgrade = tuple(
+            tuple(row)
+            for row in journal._connection.execute(
+                """SELECT event_sequence,event_kind,event_payload_json
+                   FROM execution_fee_pair_workflow_events WHERE candidate_id=?
+                   ORDER BY event_sequence""",
+                (candidate_id,),
+            )
+        )
+    finally:
+        journal.close()
+
+    # Reopen as an exact v22 journal: only the new v23 objects are absent.
+    with sqlite3.connect(path) as connection:
+        _drop_v23_single_row_tape_schema(connection)
+        connection.execute(
+            journal_module._FEE_PAIR_WORKFLOW_DURABLE_RESERVATION_TRIGGER_SQL_V20
+        )
+        connection.execute("PRAGMA user_version=22")
+        connection.commit()
+
+    migrated = ExecutionDecisionJournal(path)
+    try:
+        workflow_before = migrated.fee_pair_workflow_candidate(candidate_id)
+        assert workflow_before.state == "APPEND_CLAIMED"
+        assert workflow_before.tape_append_state is None
+        marker = migrated._connection.execute(
+            """SELECT candidate_sha256,legacy_state,migration_schema_version,reason
+               FROM execution_fee_pair_legacy_unresolved_v23 WHERE candidate_id=?""",
+            (candidate_id,),
+        ).fetchone()
+        assert tuple(marker) == (
+            workflow_before.candidate_sha256,
+            "APPEND_CLAIMED",
+            23,
+            "LEGACY_UNRESOLVED_V23_UPGRADE",
+        )
+        receipt = journal_module._fee_pair_receipt_from_candidate(
+            candidate, "synthetic-v22-unresolved-record"
+        )
+        payload = _fee_pair_grid_economic_payload(
+            candidate, case.facts, quote_by_route, receipt
+        )
+        snapshots = {
+            table: tuple(
+                tuple(row)
+                for row in migrated._connection.execute(
+                    "SELECT * FROM {} ORDER BY 1".format(table)
+                )
+            )
+            for table in (
+                "execution_fee_pair_workflows",
+                "execution_fee_pair_workflow_events",
+                "execution_fee_pair_workflow_durable_reservations",
+                "execution_fee_pair_workflow_decision_reservations",
+                "execution_durable_capacity_usage",
+                "execution_source_highwaters",
+                "execution_decisions",
+                "execution_fee_pair_workflow_grid_settlements",
+                "execution_grid_cursors",
+                "execution_grid_highwaters",
+                "execution_run_order_budgets",
+            )
+        }
+        assert tuple(
+            tuple(row)
+            for row in migrated._connection.execute(
+                """SELECT event_sequence,event_kind,event_payload_json
+                   FROM execution_fee_pair_workflow_events WHERE candidate_id=?
+                   ORDER BY event_sequence""",
+                (candidate_id,),
+            )
+        ) == events_before_upgrade
+
+        with pytest.raises(
+            ExecutionDecisionJournalError,
+            match="FEE_PAIR_WORKFLOW_LEGACY_UNRESOLVED_AFTER_V23",
+        ):
+            migrated.attach_verified_fee_pair_source_receipt(
+                candidate_id, receipt, owner_token=owner_token
+            )
+        with pytest.raises(
+            ExecutionDecisionJournalError,
+            match="FEE_PAIR_WORKFLOW_LEGACY_UNRESOLVED_AFTER_V23",
+        ):
+            migrated.finalize_fee_pair_source_only_from_attached_receipt(
+                candidate_id, owner_token=owner_token
+            )
+        with pytest.raises(
+            ExecutionDecisionJournalError,
+            match="FEE_PAIR_WORKFLOW_LEGACY_UNRESOLVED_AFTER_V23",
+        ):
+            migrated.settle_fee_pair_grid_decision(
+                candidate_id,
+                owner_token=owner_token,
+                facts=case.facts,
+                current_account_session_id=candidate.account_session_id,
+                current_account_session_generation=candidate.account_session_generation,
+                max_query_age_seconds=20.0,
+                max_quote_age_seconds=10.0,
+                economic_payload=payload,
+                max_order_intents_per_run=100,
+                expected_run_order_intents_used=0,
+                remaining_exit_intent_reserve=0,
+            )
+
+        for table, before in snapshots.items():
+            after = tuple(
+                tuple(row)
+                for row in migrated._connection.execute(
+                    "SELECT * FROM {} ORDER BY 1".format(table)
+                )
+            )
+            assert after == before, table
+        assert migrated.fee_pair_workflow_candidate(candidate_id) == workflow_before
+        assert migrated._connection.execute(
+            "SELECT COUNT(*) FROM execution_fee_pair_grid_single_row_tape_intents"
+        ).fetchone()[0] == 0
     finally:
         migrated.close()
 
@@ -2623,7 +2821,7 @@ def test_v19_workflow_migration_preserves_legacy_append_history(tmp_path):
 
     migrated = ExecutionDecisionJournal(path)
     try:
-        assert migrated._connection.execute("PRAGMA user_version").fetchone()[0] == 22
+        assert migrated._connection.execute("PRAGMA user_version").fetchone()[0] == 23
         assert migrated.fee_pair_workflow_candidate(candidate_id).state == "RECEIPT_VERIFIED"
         assert migrated.fee_pair_workflow_candidate(candidate_id).tape_append_state is None
         migrated_events = tuple(
@@ -2644,13 +2842,25 @@ def test_v19_workflow_migration_preserves_legacy_append_history(tmp_path):
                 (candidate_id,),
             ).fetchone()
         ) == reserved_before
-        assert tuple(
+        after_capacity = tuple(
             tuple(row)
             for row in migrated._connection.execute(
                 "SELECT capacity_class,record_count,payload_bytes "
                 "FROM execution_durable_capacity_usage ORDER BY capacity_class"
             )
-        ) == capacity_before
+        )
+        quarantine_row = migrated._connection.execute(
+            "SELECT * FROM execution_fee_pair_legacy_unresolved_v23 WHERE candidate_id=?",
+            (candidate_id,),
+        ).fetchone()
+        quarantine_bytes = len(journal_module.canonical_sql_row_bytes(quarantine_row))
+        before_by_class = {row[0]: row[1:] for row in capacity_before}
+        after_by_class = {row[0]: row[1:] for row in after_capacity}
+        assert after_by_class["BASE"] == (
+            before_by_class["BASE"][0] + 1,
+            before_by_class["BASE"][1] + quarantine_bytes,
+        )
+        assert after_by_class["SETTLEMENT"] == before_by_class["SETTLEMENT"]
         extra_columns = tuple(
             row["name"]
             for row in migrated._connection.execute(

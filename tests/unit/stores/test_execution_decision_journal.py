@@ -16,6 +16,7 @@ from threading import Barrier, Event, RLock
 
 import pytest
 
+from backtrader.stores import execution_decision_journal as journal_module
 from backtrader.stores.execution_decision_journal import (
     ExecutionFeePairCandidate,
     ExecutionDecisionJournal,
@@ -78,9 +79,40 @@ def _drop_v12_durable_capacity_tables(connection: sqlite3.Connection) -> None:
     )
 
 
+def _drop_v23_fee_pair_grid_single_row_objects(connection: sqlite3.Connection) -> None:
+    """Restore the pre-v23 fee-pair schema before exercising older migrations."""
+
+    for trigger in (
+        "execution_fee_pair_grid_single_row_tape_intent_no_update",
+        "execution_fee_pair_grid_single_row_tape_intent_no_delete",
+        "execution_fee_pair_legacy_unresolved_v23_no_update",
+        "execution_fee_pair_legacy_unresolved_v23_no_delete",
+    ):
+        connection.execute("DROP TRIGGER IF EXISTS " + trigger)
+    connection.execute("DROP INDEX IF EXISTS execution_fee_pair_grid_single_row_tape_position")
+    connection.execute("DROP TABLE IF EXISTS execution_fee_pair_grid_single_row_tape_intents")
+    connection.execute("DROP TABLE IF EXISTS execution_fee_pair_legacy_unresolved_v23")
+
+    reservation_trigger = connection.execute(
+        """SELECT 1 FROM sqlite_master
+           WHERE type='trigger' AND name='execution_fee_pair_workflow_durable_reservation_state'"""
+    ).fetchone()
+    reservation_table = connection.execute(
+        """SELECT 1 FROM sqlite_master
+           WHERE type='table' AND name='execution_fee_pair_workflow_durable_reservations'"""
+    ).fetchone()
+    if reservation_trigger is not None:
+        connection.execute(
+            "DROP TRIGGER execution_fee_pair_workflow_durable_reservation_state"
+        )
+    if reservation_table is not None:
+        connection.execute(journal_module._FEE_PAIR_WORKFLOW_DURABLE_RESERVATION_TRIGGER_SQL_V20)
+
+
 def _drop_v17_fee_pair_workflow_tables(connection: sqlite3.Connection) -> None:
     """Remove all v17+ workflow objects from a historical-schema fixture."""
 
+    _drop_v23_fee_pair_grid_single_row_objects(connection)
     # The fixture starts from today's schema, so remove the v19 settlement
     # ledger before lowering user_version. Historical v17/v18 databases never
     # contained this table or its append-only triggers.
@@ -123,6 +155,7 @@ def _drop_v17_fee_pair_workflow_tables(connection: sqlite3.Connection) -> None:
 
 
 def _drop_v22_registered_sim_cancel_objects(connection: sqlite3.Connection) -> None:
+    _drop_v23_fee_pair_grid_single_row_objects(connection)
     for trigger in (
         "execution_registered_sim_cancel_dispatch_claim_no_update",
         "execution_registered_sim_cancel_dispatch_claim_no_delete",
@@ -1378,6 +1411,7 @@ def test_v21_journal_migrates_one_shot_cancel_claim_schema(tmp_path):
     journal.close()
 
     with sqlite3.connect(path) as connection:
+        _drop_v23_fee_pair_grid_single_row_objects(connection)
         connection.execute(
             "DROP TRIGGER IF EXISTS execution_registered_sim_cancel_dispatch_claim_no_update"
         )
@@ -1400,7 +1434,10 @@ def test_v21_journal_migrates_one_shot_cancel_claim_schema(tmp_path):
 
     migrated = ExecutionDecisionJournal(path)
     try:
-        assert migrated._connection.execute("PRAGMA user_version").fetchone()[0] == 22
+        assert (
+            migrated._connection.execute("PRAGMA user_version").fetchone()[0]
+            == ExecutionDecisionJournal._SCHEMA_VERSION
+        )
         assert migrated.decision(decision.decision_id) == decision
         assert migrated._connection.execute(
             "SELECT COUNT(*) FROM execution_registered_sim_cancel_dispatch_claims"

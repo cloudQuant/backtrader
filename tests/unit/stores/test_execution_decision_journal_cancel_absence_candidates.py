@@ -57,6 +57,10 @@ class _UniqueDecisionJournal:
                 order_ref=order_ref,
                 order_sys_id=f"sys-{order_ref}",
             )
+        elif intent_key.action == "CANCEL":
+            economic_payload = dict(economic_payload)
+            economic_payload["target_order_ref"] = str(500 + self._ordinal)
+            original_identity["backtrader_order_ref"] = 100 + self._ordinal
         return self._journal.prepare_intent(
             decision_id,
             intent_key,
@@ -70,7 +74,10 @@ class _UniqueDecisionJournal:
         if intent is not None and intent.original_identity.get("operation") == "insert":
             provider_identity = dict(kwargs["provider_identity"])
             provider_identity.update(
+                order_ref=intent.original_identity["order_ref"],
                 order_id=intent.original_identity["order_ref"],
+                instrument_id=intent.original_identity["instrument_id"],
+                exchange_id=intent.original_identity["exchange_id"],
                 order_sys_id=intent.original_identity.get("order_sys_id"),
             )
             kwargs["provider_identity"] = provider_identity

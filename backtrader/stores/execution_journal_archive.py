@@ -75,6 +75,12 @@ _REQUIRED_TABLES_BY_MINIMUM_SCHEMA_VERSION = {
             "execution_registered_sim_cancel_dispatch_tombstones",
         }
     ),
+    23: frozenset(
+        {
+            "execution_fee_pair_grid_single_row_tape_intents",
+            "execution_fee_pair_legacy_unresolved_v23",
+        }
+    ),
 }
 
 
@@ -140,6 +146,10 @@ def _validate_required_schema_objects(
             )
         if schema_version >= journal_module._REGISTERED_SIM_CANCEL_DISPATCH_CLAIM_SCHEMA_VERSION:
             journal_module.ExecutionDecisionJournal._validate_registered_sim_cancel_dispatch_claim_schema(
+                cursor
+            )
+        if schema_version >= journal_module._FEE_PAIR_GRID_SINGLE_ROW_TAPE_SCHEMA_VERSION:
+            journal_module.ExecutionDecisionJournal._validate_fee_pair_grid_single_row_tape_schema(
                 cursor
             )
     except journal_module.ExecutionDecisionJournalError as error:
@@ -212,7 +222,7 @@ def _validate_fee_pair_candidate_payload_bounds(
 def _validate_fee_pair_grid_tape_record_bounds(
     connection: sqlite3.Connection, *, max_record_bytes: int
 ) -> None:
-    """Reject oversized v20 tape-intent rows before fetching archive text."""
+    """Reject oversized legacy and v23 tape-intent rows before fetching text."""
 
     error_code = "ARCHIVE_FEE_PAIR_TAPE_RECORD_TOO_LARGE"
     if type(max_record_bytes) is not int or max_record_bytes < 2:
@@ -234,31 +244,56 @@ def _validate_fee_pair_grid_tape_record_bounds(
     # row after this query has ruled out unbounded text reads.
     max_payload_bytes = max_record_bytes - 1
     max_storage_bytes = storage_byte_multiplier * max_payload_bytes
-    oversized = connection.execute(
-        """SELECT 1 FROM execution_fee_pair_workflow_events
-           WHERE event_kind='GRID_TAPE_APPEND_INTENT'
-             AND (typeof(tape_record_json)!='text'
-                  OR length(CAST(tape_record_json AS BLOB))>?)
-           LIMIT 1""",
-        (max_storage_bytes,),
-    ).fetchone()
-    if oversized is not None:
-        raise ExecutionJournalArchiveError(error_code)
-
     try:
-        payloads = connection.execute(
-            """SELECT typeof(tape_record_json),tape_record_json
-               FROM execution_fee_pair_workflow_events
-               WHERE event_kind='GRID_TAPE_APPEND_INTENT'"""
-        )
-        for storage_type, payload in payloads:
-            if (
-                storage_type != "text"
-                or type(payload) is not str
-                or len(payload) > max_payload_bytes
-                or len(payload.encode("utf-8")) + 1 > max_record_bytes
-            ):
+        payload_sources = [
+            (
+                "execution_fee_pair_workflow_events",
+                "tape_record_json",
+                "WHERE event_kind='GRID_TAPE_APPEND_INTENT'",
+            )
+        ]
+        single_row_table = connection.execute(
+            """SELECT 1 FROM sqlite_master
+               WHERE type='table' AND name='execution_fee_pair_grid_single_row_tape_intents'"""
+        ).fetchone()
+        if single_row_table is not None:
+            payload_sources.append(
+                (
+                    "execution_fee_pair_grid_single_row_tape_intents",
+                    "record_json",
+                    "",
+                )
+            )
+
+        for table_name, column_name, predicate in payload_sources:
+            oversized = connection.execute(
+                "SELECT 1 FROM {} {} AND (typeof({})!='text' "
+                "OR length(CAST({} AS BLOB))>?) LIMIT 1".format(
+                    table_name,
+                    predicate if predicate else "WHERE 1=1",
+                    column_name,
+                    column_name,
+                ),
+                (max_storage_bytes,),
+            ).fetchone()
+            if oversized is not None:
                 raise ExecutionJournalArchiveError(error_code)
+
+            payloads = connection.execute(
+                "SELECT typeof({0}),{0} FROM {1} {2}".format(
+                    column_name,
+                    table_name,
+                    predicate,
+                )
+            )
+            for storage_type, payload in payloads:
+                if (
+                    storage_type != "text"
+                    or type(payload) is not str
+                    or len(payload) > max_payload_bytes
+                    or len(payload.encode("utf-8")) + 1 > max_record_bytes
+                ):
+                    raise ExecutionJournalArchiveError(error_code)
     except ExecutionJournalArchiveError:
         raise
     except (UnicodeError, sqlite3.Error) as error:

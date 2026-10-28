@@ -255,7 +255,7 @@ def test_intent_claim_and_matching_report_are_idempotent_and_caller_only(tmp_pat
         archived_receipt = journal.archive_snapshot(archive_path)
         verified = archive_module.verify_execution_journal_archive(
             archive_path,
-            expected_schema_version=20,
+            expected_schema_version=23,
             expected_sha256=archived_receipt.sha256,
         )
         assert verified == archived_receipt
@@ -453,7 +453,7 @@ def test_tape_position_and_numeric_identity_are_exact(tmp_path):
 
 
 @pytest.mark.parametrize("encoding", ("UTF-8", "UTF-16le"))
-def test_v20_archive_roundtrip_bounds_tape_intent_rows(tmp_path, encoding):
+def test_v23_archive_roundtrip_bounds_legacy_tape_intent_rows(tmp_path, encoding):
     candidate = workflow_fixtures._candidate(run_id="grid-tape-archive-bounds")
     token = "grid-tape-append-owner-" + "f" * 32
     source_path = tmp_path / "grid-tape-archive-bounds-source.sqlite3"
@@ -471,14 +471,14 @@ def test_v20_archive_roundtrip_bounds_tape_intent_rows(tmp_path, encoding):
         intent = _intent(candidate, candidate_id)
         _record_intent(journal, candidate_id, token, intent)
         receipt = journal.archive_snapshot(archive_path)
-        assert receipt.schema_version == 20
+        assert receipt.schema_version == 23
     finally:
         journal.close()
 
     verified = archive_module.verify_execution_journal_archive(
-        archive_path, expected_schema_version=20
+        archive_path, expected_schema_version=23
     )
-    assert verified.schema_version == 20
+    assert verified.schema_version == 23
     archived_journal = ExecutionDecisionJournal(archive_path)
     try:
         restored = archived_journal.fee_pair_workflow_candidate(candidate_id)
@@ -498,7 +498,7 @@ def test_v20_archive_roundtrip_bounds_tape_intent_rows(tmp_path, encoding):
         archive_module.ExecutionJournalArchiveError,
         match="ARCHIVE_FEE_PAIR_TAPE_RECORD_TOO_LARGE",
     ):
-        archive_module.verify_execution_journal_archive(archive_path, expected_schema_version=20)
+        archive_module.verify_execution_journal_archive(archive_path, expected_schema_version=23)
 
 
 @pytest.mark.parametrize("encoding", ("UTF-8", "UTF-16le"))

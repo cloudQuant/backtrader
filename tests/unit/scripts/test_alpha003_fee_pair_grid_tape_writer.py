@@ -7,16 +7,19 @@ import hashlib
 import importlib.util
 from pathlib import Path
 import shutil
+import sqlite3
 import sys
 from types import SimpleNamespace
 
 import pytest
 
 from backtrader.stores import execution_decision_journal as journal_module
+from backtrader.stores import execution_journal_archive as archive_module
 from backtrader.stores.execution_decision_journal import (
     ExecutionDecisionJournal,
     ExecutionDecisionJournalError,
 )
+from backtrader.stores.execution_durable_capacity import DurableCapacityLimits
 from tests.unit.stores import test_execution_fee_pair_candidate_journal as workflow_fixtures
 
 
@@ -45,8 +48,11 @@ def _digest(value: str) -> str:
 
 
 def _selection_inputs(candidate):
-    routes = {"SIM-A": "rb2510", "SIM-B": "i2510"}
-    authorized = ["SIM-A", "SIM-B"]
+    if candidate.target_routes is not None:
+        routes = {route.target_id: route.instrument for route in candidate.target_routes}
+    else:
+        routes = {"SIM-A": "rb2510", "SIM-B": "i2510"}
+    authorized = list(candidate.target_ids)
     manifest = {"fixture": "synthetic-public"}
     manifest_sha256 = hashlib.sha256(
         runner._canonical_json_bytes(manifest).rstrip(b"\n")
@@ -84,7 +90,7 @@ def _selection_inputs(candidate):
         },
         "selection_source": "saved_bundle_legacy",
         "source_snapshot_id": None,
-        "targets": ["SIM-A", "SIM-B"],
+        "targets": list(candidate.target_ids),
         "authorized_targets": authorized,
         "routes": routes,
         "calendar": {
@@ -96,6 +102,9 @@ def _selection_inputs(candidate):
 
 
 def _candidate_with_origin_partitions(candidate):
+    targets = tuple(candidate.target_ids)
+    if len(targets) != 2 or len(candidate.source_members) not in (1, 2):
+        raise AssertionError("the pair writer fixture requires exactly two source targets")
     source_members = []
     for member in candidate.source_members:
         partition = {
@@ -114,24 +123,29 @@ def _candidate_with_origin_partitions(candidate):
                 origin_partition=partition,
             )
         )
-    template = source_members[0]
-    second_partition = {
-        "schema": runner.SOURCE_ORIGIN_PARTITION_SCHEMA,
-        "cohort_id": candidate.key.cohort_id,
-        "epoch_id": candidate.epoch_id,
-        "member_id": "SIM-B",
-        "source_ref": "synthetic-ctp-b",
-        "source_role": "live",
-        "connection_generation": template.connection_generation,
-    }
-    second = replace(
-        template,
-        member_id="SIM-B",
-        source_ref="synthetic-ctp-b",
-        feed_sequence=2,
-        bar_id="bar-2",
-        origin_partition=second_partition,
-    )
+    if len(source_members) == 2:
+        second = source_members[1]
+    else:
+        template = source_members[0]
+        second_id = targets[1]
+        second_source_ref = "synthetic-ctp-{}".format(second_id.lower())
+        second_partition = {
+            "schema": runner.SOURCE_ORIGIN_PARTITION_SCHEMA,
+            "cohort_id": candidate.key.cohort_id,
+            "epoch_id": candidate.epoch_id,
+            "member_id": second_id,
+            "source_ref": second_source_ref,
+            "source_role": "live",
+            "connection_generation": template.connection_generation,
+        }
+        second = replace(
+            template,
+            member_id=second_id,
+            source_ref=second_source_ref,
+            feed_sequence=2,
+            bar_id="bar-2",
+            origin_partition=second_partition,
+        )
     return replace(
         candidate,
         source_members=(source_members[0], second),
@@ -140,7 +154,16 @@ def _candidate_with_origin_partitions(candidate):
 
 def _objects(candidate):
     member_rows = {}
-    instrument_by_target = {"SIM-A": "rb2510", "SIM-B": "i2510"}
+    if candidate.target_routes is not None:
+        instrument_by_target = {
+            route.target_id: route.instrument for route in candidate.target_routes
+        }
+        exchange_by_target = {
+            route.target_id: route.exchange for route in candidate.target_routes
+        }
+    else:
+        instrument_by_target = {"SIM-A": "rb2510", "SIM-B": "i2510"}
+        exchange_by_target = {"SIM-A": "SHFE", "SIM-B": "DCE"}
     for member in candidate.source_members:
         envelope_values = {
             field.name: getattr(member, field.name) for field in fields(member)
@@ -180,7 +203,7 @@ def _objects(candidate):
     )
     factor_values = {
         member.member_id: SimpleNamespace(
-            value=0.25 if member.member_id == "SIM-A" else -0.25,
+            value=0.25 * candidate.directions[candidate.target_ids.index(member.member_id)],
             status="READY",
             reason=None,
             present=True,
@@ -216,12 +239,12 @@ def _objects(candidate):
             SimpleNamespace(
                 target_id=target,
                 product_key=SimpleNamespace(
-                    exchange_id="SHFE" if target == "SIM-A" else "DCE",
+                    exchange_id=exchange_by_target[target],
                     product_id=instrument_by_target[target],
                 ),
                 target_position=candidate.directions[index],
-                raw_score=0.25 if target == "SIM-A" else -0.25,
-                oriented_score=0.25,
+                raw_score=0.25 * candidate.directions[index],
+                oriented_score=0.25 * candidate.directions[index],
             )
         )
     target_decision = SimpleNamespace(
@@ -312,6 +335,91 @@ def _build_harness(tmp_path, run_id="grid-writer"):
     )
 
 
+def _build_single_row_harness(tmp_path, run_id="grid-writer-v23"):
+    case, candidate, quote_by_route = workflow_fixtures._fee_pair_settlement_fixture(run_id)
+    candidate = _candidate_with_origin_partitions(candidate)
+    identity, evidence = _selection_inputs(candidate)
+    writer = runner.DecisionTapeWriter(
+        tmp_path / (run_id + ".jsonl"),
+        2 * 1024 * 1024,
+        mode="live",
+        factor_mode="native",
+        direction=1,
+        targets=tuple(candidate.target_ids),
+        calendar_id=candidate.calendar_id,
+        grid_sha256=identity["calendar"]["grid_sha256"],
+        source_snapshot_id=None,
+        restart_identity=identity,
+        selection_evidence=evidence,
+        calendar_fingerprint=candidate.calendar_fingerprint,
+        cross_process_generation_lease=True,
+    )
+    candidate = replace(
+        candidate,
+        expected_tape_file_id=writer.file_id,
+        expected_tape_record_index=writer._record_count + 1,
+    )
+    batch, snapshot, target_decision, _empty_plan = _objects(candidate)
+    target_decision.status = "TARGETS_READY"
+    receipt = journal_module._fee_pair_receipt_from_candidate(candidate, "0" * 64)
+    payload = dict(
+        workflow_fixtures._fee_pair_grid_economic_payload(
+            candidate, case.facts, quote_by_route, receipt
+        )
+    )
+    payload["decision_tape_record_id"] = None
+    payload["proposed_actions"] = [
+        {**action, "decision_available_at": batch.available_at}
+        for action in payload["proposed_actions"]
+    ]
+    planned_actions = []
+    for action in payload["proposed_actions"]:
+        planned_actions.append(
+            SimpleNamespace(
+                action=action["action"],
+                target_id=action["target_id"],
+                instrument=action["instrument"],
+                side=action["side"],
+                position_effect=action["position_effect"],
+                quantity=action["quantity"],
+                limit_price=action["limit_price"],
+                offset="OPEN",
+                reason="synthetic-ready-pair",
+                planned_stop_price=action["planned_stop_price"],
+                exchange=action["exchange"],
+                decision_available_at=action["decision_available_at"],
+                entry_grid_ordinal=action["entry_grid_ordinal"],
+            )
+        )
+    order_plan = SimpleNamespace(
+        status="READY",
+        reason=None,
+        decision_batch_id=candidate.batch_id,
+        decision_available_at=batch.available_at,
+        actions=tuple(planned_actions),
+    )
+    journal = ExecutionDecisionJournal(
+        tmp_path / (run_id + ".sqlite3"),
+        max_payload_bytes=runner._LIVE_DECISION_JOURNAL_MAX_PAYLOAD_BYTES,
+    )
+    journal.register_fee_pair_required_scope(
+        candidate.key.account_scope, candidate.key.strategy_scope
+    )
+    owner_token = "writer-v23-owner-" + run_id + "-" + "x" * 24
+    return SimpleNamespace(
+        candidate=candidate,
+        batch=batch,
+        snapshot=snapshot,
+        target_decision=target_decision,
+        order_plan=order_plan,
+        journal=journal,
+        owner_token=owner_token,
+        writer=writer,
+        facts=case.facts,
+        economic_payload=payload,
+    )
+
+
 def _safe_close(harness):
     try:
         harness.writer.close()
@@ -342,6 +450,38 @@ def _append(harness, *, order_plan=_DEFAULT_ORDER_PLAN):
         harness.journal,
         owner_token=harness.owner_token,
     )
+
+
+def _settle_single_row(harness, *, economic_payload=None):
+    return harness.writer.settle_fee_pair_grid_single_row(
+        harness.candidate,
+        harness.batch,
+        harness.snapshot,
+        harness.target_decision,
+        harness.order_plan,
+        harness.journal,
+        owner_token=harness.owner_token,
+        facts=harness.facts,
+        economic_payload=(
+            harness.economic_payload if economic_payload is None else economic_payload
+        ),
+        current_account_session_id=harness.candidate.account_session_id,
+        current_account_session_generation=harness.candidate.account_session_generation,
+        max_query_age_seconds=20.0,
+        max_quote_age_seconds=10.0,
+        max_order_intents_per_run=100,
+        expected_run_order_intents_used=0,
+        remaining_exit_intent_reserve=0,
+    )
+
+
+@pytest.fixture
+def single_row_harness(tmp_path):
+    value = _build_single_row_harness(tmp_path)
+    try:
+        yield value
+    finally:
+        _safe_close(value)
 
 
 def _workflow_events(harness):
@@ -536,3 +676,340 @@ def test_changed_repeat_is_a_conflict_without_a_second_physical_row(harness):
     assert workflow.tape_append_state == "REPORTED"
     assert workflow.grid_settled_decision_id is None
     assert first["status"] == "APPENDED"
+
+
+def test_v23_writer_appends_one_row_and_settles_the_same_physical_receipt(
+    single_row_harness,
+):
+    harness = single_row_harness
+    append_calls = []
+    original_append = harness.writer._append
+
+    def counted_append(raw, *, count_record):
+        append_calls.append((raw, count_record))
+        return original_append(raw, count_record=count_record)
+
+    harness.writer._append = counted_append
+    result = _settle_single_row(harness)
+
+    assert len(append_calls) == 1
+    assert append_calls[0][1] is True
+    assert result["schema"] == "backtrader.alpha003.single_row_grid_settlement.v1"
+    assert result["evidence_level"] == (
+        "WRITER_LEASED_PHYSICAL_READBACK_AND_JOURNAL_SETTLEMENT"
+    )
+    assert result["is_new_grid"] is True
+    assert result["open_dispatch_authorized"] is False
+    assert result["source_receipt"].tape_file_id == harness.writer.file_id
+    assert result["source_receipt"].tape_record_id == result["tape_reference"]["record_id"]
+    assert result["source_receipt"].tape_record_index == 1
+
+    rows = list(
+        runner.iter_decision_tape(
+            harness.writer.path,
+            max_bytes=harness.writer.max_bytes,
+            max_record_bytes=runner._FEE_PAIR_SOURCE_ONLY_MAX_RECORD_BYTES,
+        )
+    )
+    assert len(rows) == 2  # header plus exactly one complete LIVE_READY GRID row
+    tape_row = rows[1]
+    assert tape_row["record_index"] == 1
+    assert tape_row["readiness"] == "LIVE_READY"
+    assert tape_row["target_decision"]["status"] == "TARGETS_READY"
+    assert tape_row["order_plan"]["status"] == "READY"
+    assert len(tape_row["order_plan"]["actions"]) == 2
+    for target, member in tape_row["members"].items():
+        source = next(
+            item for item in harness.candidate.source_members if item.member_id == target
+        )
+        assert member["raw_values"] == {
+            "close": 101.0,
+            "high": 102.0,
+            "low": 99.0,
+            "open": 100.0,
+            "openinterest": 0.0,
+            "volume": 7.0,
+        }
+        assert member["source_role"] == source.source_role
+        assert member["origin_partition"] == dict(source.origin_partition)
+    assert harness.writer.summary()["record_count"] == 1
+    assert harness.writer.summary()["sha256"] == hashlib.sha256(
+        harness.writer.path.read_bytes()
+    ).hexdigest()
+
+    workflow = harness.journal.fee_pair_workflow_candidate(result["candidate_id"])
+    assert workflow.state == "RECEIPT_VERIFIED"
+    assert workflow.grid_settled_decision_id == result["decision"].decision_id
+    assert workflow.source_only_decision_id is None
+    assert harness.journal._connection.execute(
+        "SELECT COUNT(*) FROM execution_fee_pair_grid_single_row_tape_intents"
+    ).fetchone()[0] == 1
+    stored_intent = harness.journal._connection.execute(
+        """SELECT record_json,record_id,tape_file_id,record_index
+           FROM execution_fee_pair_grid_single_row_tape_intents WHERE candidate_id=?""",
+        (result["candidate_id"],),
+    ).fetchone()
+    assert stored_intent["record_json"] == runner._canonical_json_bytes(dict(tape_row)).decode(
+        "utf-8"
+    ).rstrip("\n")
+    assert stored_intent["record_id"] == tape_row["record_id"]
+    assert stored_intent["tape_file_id"] == harness.writer.file_id
+    assert stored_intent["record_index"] == 1
+
+    highwater = harness.journal.source_highwater(
+        harness.candidate.key.account_scope,
+        harness.candidate.key.strategy_scope,
+        harness.candidate.key.logical_run_id,
+        harness.candidate.source_kind,
+    )
+    assert highwater.anchor_kind == "GRID"
+    assert highwater.receipt == result["source_receipt"]
+    assert harness.journal.grid_cursor(
+        harness.candidate.key.account_scope,
+        harness.candidate.key.strategy_scope,
+        harness.candidate.key.cohort_id,
+    ).ordinal == 1
+    assert _table_count(harness.journal, "execution_decisions") == 1
+    assert _table_count(harness.journal, "execution_source_highwaters") == 1
+    assert _table_count(harness.journal, "execution_fee_pair_workflow_grid_settlements") == 1
+    assert _table_count(harness.journal, "execution_decision_intents") == 0
+
+    with pytest.raises(
+        ExecutionDecisionJournalError,
+        match="FEE_PAIR_OPEN_RISK_RESERVATION_REQUIRED",
+    ):
+        harness.journal.prepare_intent(
+            result["decision"].decision_id,
+            result["decision"].intent_keys[0],
+            result["decision"].economic_payload["intent_economics"][0],
+        )
+    assert _table_count(harness.journal, "execution_decision_intents") == 0
+
+
+@pytest.mark.parametrize("changed_component", ("leg_action", "leg_economics"))
+def test_v23_settlement_rejects_economics_different_from_the_tape_row(
+    tmp_path, monkeypatch, changed_component
+):
+    harness = _build_single_row_harness(
+        tmp_path, run_id="grid-writer-v23-bind-" + changed_component
+    )
+    try:
+        original_settle = harness.journal.settle_fee_pair_grid_decision
+
+        def settle_changed_plan(*args, **kwargs):
+            changed = dict(kwargs["economic_payload"])
+            if changed_component == "leg_action":
+                actions = [dict(item) for item in changed["proposed_actions"]]
+                actions[0]["quantity"] += 1
+                changed["proposed_actions"] = actions
+            else:
+                economics = [dict(item) for item in changed["intent_economics"]]
+                economics[1]["quantity"] += 1
+                changed["intent_economics"] = economics
+            kwargs["economic_payload"] = changed
+            return original_settle(*args, **kwargs)
+
+        monkeypatch.setattr(harness.journal, "settle_fee_pair_grid_decision", settle_changed_plan)
+        with pytest.raises(
+            ExecutionDecisionJournalError,
+            match="FEE_PAIR_SINGLE_ROW_TAPE_PLAN_BINDING_INVALID",
+        ):
+            _settle_single_row(harness)
+        assert harness.writer.summary()["failed"] is True
+        rows = list(
+            runner.iter_decision_tape(
+                harness.writer.path,
+                max_bytes=harness.writer.max_bytes,
+                max_record_bytes=runner._FEE_PAIR_SOURCE_ONLY_MAX_RECORD_BYTES,
+            )
+        )
+        assert len(rows) == 2
+        workflow = harness.journal.fee_pair_workflow_candidate(
+            _table_count(harness.journal, "execution_fee_pair_workflows")
+            and harness.journal._connection.execute(
+                "SELECT candidate_id FROM execution_fee_pair_workflows"
+            ).fetchone()[0]
+        )
+        assert workflow.state == "APPEND_CLAIMED"
+        assert workflow.grid_settled_decision_id is None
+        assert harness.journal.source_highwater(
+            harness.candidate.key.account_scope,
+            harness.candidate.key.strategy_scope,
+            harness.candidate.key.logical_run_id,
+            harness.candidate.source_kind,
+        ) is None
+        for table in (
+            "execution_decisions",
+            "execution_source_highwaters",
+            "execution_grid_cursors",
+            "execution_grid_highwaters",
+            "execution_fee_pair_workflow_grid_settlements",
+            "execution_decision_intents",
+        ):
+            assert _table_count(harness.journal, table) == 0
+    finally:
+        _safe_close(harness)
+
+
+@pytest.mark.parametrize("failure_point", ("append", "readback"))
+def test_v23_post_claim_failure_keeps_grid_unresolved_and_no_highwater(
+    tmp_path, monkeypatch, failure_point
+):
+    harness = _build_single_row_harness(
+        tmp_path, run_id="grid-writer-v23-failure-" + failure_point
+    )
+    try:
+        if failure_point == "append":
+            def fail_append(_raw, *, count_record):
+                assert count_record is True
+                raise OSError("synthetic single-row append failure")
+
+            monkeypatch.setattr(harness.writer, "_append", fail_append)
+            expected = "synthetic single-row append failure"
+        else:
+            def fail_readback(**_kwargs):
+                raise ExecutionDecisionJournalError("SYNTHETIC_V23_READBACK_FAILURE")
+
+            monkeypatch.setattr(
+                harness.journal,
+                "_verify_fee_pair_grid_single_row_tape_readback_in_transaction",
+                fail_readback,
+            )
+            expected = "SYNTHETIC_V23_READBACK_FAILURE"
+        with pytest.raises(Exception, match=expected):
+            _settle_single_row(harness)
+
+        assert harness.writer.summary()["failed"] is True
+        rows = list(
+            runner.iter_decision_tape(
+                harness.writer.path,
+                max_bytes=harness.writer.max_bytes,
+                max_record_bytes=runner._FEE_PAIR_SOURCE_ONLY_MAX_RECORD_BYTES,
+            )
+        )
+        assert len(rows) == (1 if failure_point == "append" else 2)
+        candidate_id = harness.journal._connection.execute(
+            "SELECT candidate_id FROM execution_fee_pair_workflows"
+        ).fetchone()[0]
+        workflow = harness.journal.fee_pair_workflow_candidate(candidate_id)
+        assert workflow.state == "APPEND_CLAIMED"
+        assert workflow.grid_settled_decision_id is None
+        assert harness.journal.source_highwater(
+            harness.candidate.key.account_scope,
+            harness.candidate.key.strategy_scope,
+            harness.candidate.key.logical_run_id,
+            harness.candidate.source_kind,
+        ) is None
+        for table in (
+            "execution_decisions",
+            "execution_source_highwaters",
+            "execution_grid_cursors",
+            "execution_grid_highwaters",
+            "execution_fee_pair_workflow_grid_settlements",
+        ):
+            assert _table_count(harness.journal, table) == 0
+    finally:
+        _safe_close(harness)
+
+
+def test_v23_claim_capacity_reserves_intent_before_any_physical_append(
+    tmp_path, monkeypatch
+):
+    harness = _build_single_row_harness(tmp_path, run_id="grid-writer-v23-capacity")
+    try:
+        original_claim = harness.journal.record_fee_pair_grid_single_row_append_claim
+
+        def cap_at_existing_reservation(*args, **kwargs):
+            base = harness.journal._connection.execute(
+                """SELECT record_count FROM execution_durable_capacity_usage
+                   WHERE capacity_class='BASE'"""
+            ).fetchone()[0]
+            workflow_reserved = harness.journal._connection.execute(
+                """SELECT COALESCE(SUM(reserved_records),0)
+                   FROM execution_fee_pair_workflow_durable_reservations
+                   WHERE state='ACTIVE'"""
+            ).fetchone()[0]
+            candidate_reserved = harness.journal._connection.execute(
+                """SELECT COALESCE(SUM(reserved_records),0)
+                   FROM execution_fee_pair_candidate_capacity_reservations
+                   WHERE state='RESERVED'"""
+            ).fetchone()[0]
+            current_bytes = harness.journal._connection.execute(
+                """SELECT payload_bytes FROM execution_durable_capacity_usage
+                   WHERE capacity_class='BASE'"""
+            ).fetchone()[0]
+            workflow_bytes = harness.journal._connection.execute(
+                """SELECT COALESCE(SUM(reserved_bytes),0)
+                   FROM execution_fee_pair_workflow_durable_reservations
+                   WHERE state='ACTIVE'"""
+            ).fetchone()[0]
+            candidate_bytes = harness.journal._connection.execute(
+                """SELECT COALESCE(SUM(reserved_bytes),0)
+                   FROM execution_fee_pair_candidate_capacity_reservations
+                   WHERE state='RESERVED'"""
+            ).fetchone()[0]
+            harness.journal.durable_capacity_limits = DurableCapacityLimits(
+                max_durable_base_records=base + workflow_reserved + candidate_reserved,
+                max_durable_base_bytes=current_bytes + workflow_bytes + candidate_bytes,
+                max_durable_settlement_records=100_000,
+                max_durable_settlement_bytes=1_073_741_824,
+            )
+            return original_claim(*args, **kwargs)
+
+        monkeypatch.setattr(
+            harness.journal,
+            "record_fee_pair_grid_single_row_append_claim",
+            cap_at_existing_reservation,
+        )
+        with pytest.raises(
+            ExecutionDecisionJournalError, match="DURABLE_BASE_RECORDS_EXHAUSTED"
+        ):
+            _settle_single_row(harness)
+        assert harness.writer.summary()["failed"] is True
+        assert harness.writer.summary()["record_count"] == 0
+        rows = list(
+            runner.iter_decision_tape(
+                harness.writer.path,
+                max_bytes=harness.writer.max_bytes,
+                max_record_bytes=runner._FEE_PAIR_SOURCE_ONLY_MAX_RECORD_BYTES,
+            )
+        )
+        assert len(rows) == 1
+        workflow = harness.journal._connection.execute(
+            """SELECT state,grid_decision_id FROM execution_fee_pair_workflows"""
+        ).fetchone()
+        assert tuple(workflow) == ("RESERVED", None)
+        assert _table_count(harness.journal, "execution_fee_pair_grid_single_row_tape_intents") == 0
+        assert _table_count(harness.journal, "execution_decisions") == 0
+        assert _table_count(harness.journal, "execution_source_highwaters") == 0
+    finally:
+        _safe_close(harness)
+
+
+def test_v23_archive_rejects_an_oversized_single_row_tape_intent(
+    tmp_path, single_row_harness
+):
+    harness = single_row_harness
+    settled = _settle_single_row(harness)
+    archive_path = tmp_path / "grid-writer-v23-archive.sqlite3"
+    archived = harness.journal.archive_snapshot(archive_path)
+    assert archived.schema_version == 23
+
+    oversized = "x" * journal_module._MAX_FEE_PAIR_GRID_TAPE_RECORD_BYTES
+    with sqlite3.connect(archive_path) as connection:
+        connection.execute(
+            "DROP TRIGGER execution_fee_pair_grid_single_row_tape_intent_no_update"
+        )
+        connection.execute(
+            """UPDATE execution_fee_pair_grid_single_row_tape_intents
+               SET record_json=? WHERE candidate_id=?""",
+            (oversized, settled["candidate_id"]),
+        )
+
+    with pytest.raises(
+        archive_module.ExecutionJournalArchiveError,
+        match="ARCHIVE_FEE_PAIR_TAPE_RECORD_TOO_LARGE",
+    ):
+        archive_module.verify_execution_journal_archive(
+            archive_path, expected_schema_version=23
+        )

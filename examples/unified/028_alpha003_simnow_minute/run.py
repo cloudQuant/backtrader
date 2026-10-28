@@ -3910,6 +3910,325 @@ class DecisionTapeWriter:
             except BaseException:
                 raise
 
+    def settle_fee_pair_grid_single_row(
+        self,
+        candidate,
+        batch,
+        snapshot,
+        target_decision,
+        order_plan,
+        journal,
+        *,
+        owner_token,
+        facts,
+        economic_payload,
+        current_account_session_id,
+        current_account_session_generation,
+        max_query_age_seconds,
+        max_quote_age_seconds,
+        max_order_intents_per_run,
+        expected_run_order_intents_used,
+        remaining_exit_intent_reserve,
+        loss_guard_context=None,
+        ttl_seconds=10.0,
+    ):
+        """Append one v23 LIVE_READY GRID row, then settle that same row.
+
+        This narrow path owns one physical append and hands Journal a private
+        capability backed by this live writer's generation lease and handle.
+        It does not create a separate SOURCE_ONLY anchor or dispatch either
+        OPEN leg. A failed post-claim operation latches the writer and leaves
+        the durable workflow unresolved for explicit reconciliation.
+        """
+
+        from backtrader.stores import execution_decision_journal as journal_api
+
+        if type(candidate) is not journal_api.ExecutionFeePairCandidate:
+            raise RunnerError("FEE_PAIR_CANDIDATE_TYPE_INVALID")
+        if type(journal) is not journal_api.ExecutionDecisionJournal:
+            raise RunnerError("FEE_PAIR_JOURNAL_TYPE_INVALID")
+        if type(owner_token) is not str or not owner_token:
+            raise RunnerError("FEE_PAIR_OWNER_TOKEN_INVALID")
+        if not isinstance(economic_payload, Mapping):
+            raise RunnerError("FEE_PAIR_GRID_PLAN_INVALID")
+
+        with self._lock:
+            if self._closed or self._failed:
+                raise RunnerError("DECISION_TAPE_UNAVAILABLE")
+            lease = self._generation_lease
+            if (
+                self.mode != "live"
+                or lease is None
+                or not lease.held
+                or getattr(lease, "_writer", None) is not self
+                or getattr(lease, "_tape_handle", None) is not self._handle
+            ):
+                raise RunnerError("FEE_PAIR_SINGLE_ROW_TAPE_LEASE_REQUIRED")
+            if self.calendar_fingerprint is None or self._selection_evidence is None:
+                raise RunnerError("FEE_PAIR_TAPE_PLAN_BINDING_MISMATCH")
+            self._verify_fee_pair_candidate_writer_binding(candidate)
+
+            expected_index = self._record_count + 1
+            if (
+                candidate.expected_tape_file_id != self.file_id
+                or candidate.expected_tape_record_index != expected_index
+                or candidate.readiness != "LIVE_READY"
+            ):
+                raise RunnerError("FEE_PAIR_TAPE_POSITION_MISMATCH")
+
+            try:
+                # O(1) append-boundary checks only: full historic re-read is a
+                # final EOF verification, not a per-grid operation.
+                lease.validate(self._handle)
+                self._assert_fee_pair_tape_file_identity()
+                handle_metadata = os.fstat(self._handle.fileno())
+                path_metadata = os.lstat(self.path)
+                if (
+                    int(handle_metadata.st_size) != self._bytes
+                    or int(path_metadata.st_size) != self._bytes
+                    or self._handle.tell() != self._bytes
+                    or self._record_count + 1 != expected_index
+                ):
+                    raise RunnerError("FEE_PAIR_TAPE_WRITER_SIZE_MISMATCH")
+            except BaseException:
+                self._failed = True
+                raise
+
+            payload_template = dict(economic_payload)
+            tape_bindings = {
+                "decision_tape_status": "DURABLE",
+                "decision_tape_file_id": self.file_id,
+                "decision_tape_record_index": expected_index,
+                "decision_tape_batch_id": candidate.batch_id,
+            }
+            for name, expected in tape_bindings.items():
+                if name in payload_template and payload_template[name] != expected:
+                    raise RunnerError("FEE_PAIR_GRID_PLAN_INVALID")
+                payload_template[name] = expected
+            if (
+                payload_template.get("decision_tape_record_id") is not None
+                or payload_template.get("decision_tape_error") not in (None,)
+            ):
+                raise RunnerError("FEE_PAIR_GRID_PLAN_INVALID")
+            payload_template["decision_tape_record_id"] = None
+            economic_binding_sha256 = (
+                journal_api._fee_pair_single_row_economic_payload_sha256(payload_template)
+            )
+
+            # Candidate identifiers are fixed-width hashes, so this exact-size
+            # probe validates line/file bounds before creating a durable claim.
+            size_row = self._fee_pair_grid_row(
+                candidate,
+                batch,
+                snapshot,
+                target_decision,
+                order_plan,
+                candidate_id="0" * 64,
+                candidate_sha256="0" * 64,
+                index=expected_index,
+                economic_payload_sha256=economic_binding_sha256,
+            )
+            if not journal_api._fee_pair_single_row_tape_plan_matches_economics(
+                size_row, payload_template
+            ):
+                raise RunnerError("FEE_PAIR_SINGLE_ROW_TAPE_PLAN_BINDING_INVALID")
+            _validate_fee_pair_candidate_projection(
+                candidate,
+                size_row,
+                journal_api,
+                expected_tape_record_index=expected_index,
+            )
+            size_raw = _canonical_json_bytes(size_row)
+            if (
+                len(size_raw) > _FEE_PAIR_SOURCE_ONLY_MAX_RECORD_BYTES
+                or self._bytes + len(size_raw) > _FEE_PAIR_SOURCE_ONLY_MAX_TAPE_BYTES
+                or self._bytes + len(size_raw) > self.max_bytes
+            ):
+                raise RunnerError("FEE_PAIR_TAPE_BYTE_LIMIT_EXCEEDED")
+
+            journal_started = True
+            try:
+                reserved = journal.reserve_fee_pair_workflow_candidate(
+                    candidate,
+                    owner_token=owner_token,
+                    ttl_seconds=ttl_seconds,
+                )
+                candidate_id = reserved.candidate_id
+                candidate_sha256 = reserved.candidate_sha256
+                if (
+                    reserved.state != "RESERVED"
+                    or type(candidate_id) is not str
+                    or not _is_lower_sha256(candidate_id)
+                    or not _is_lower_sha256(candidate_sha256)
+                ):
+                    raise RunnerError("FEE_PAIR_CANDIDATE_RESERVATION_INVALID")
+
+                row = self._fee_pair_grid_row(
+                    candidate,
+                    batch,
+                    snapshot,
+                    target_decision,
+                    order_plan,
+                    candidate_id=candidate_id,
+                    candidate_sha256=candidate_sha256,
+                    index=expected_index,
+                    economic_payload_sha256=economic_binding_sha256,
+                )
+                if len(_canonical_json_bytes(row)) != len(size_raw):
+                    raise RunnerError("FEE_PAIR_TAPE_RECORD_SIZE_PROJECTION_MISMATCH")
+                if not journal_api._fee_pair_single_row_tape_plan_matches_economics(
+                    row, payload_template
+                ):
+                    raise RunnerError("FEE_PAIR_SINGLE_ROW_TAPE_PLAN_BINDING_INVALID")
+                record_json = _canonical_json_bytes(row).decode("utf-8").rstrip("\n")
+                raw = (record_json + "\n").encode("utf-8")
+                prefix_sha256 = self._hash.hexdigest()
+
+                claimed = journal.record_fee_pair_grid_single_row_append_claim(
+                    candidate_id,
+                    owner_token=owner_token,
+                    tape_file_id=self.file_id,
+                    header_record_id=self._header_record_id,
+                    record_index=expected_index,
+                    prefix_sha256=prefix_sha256,
+                    record_json=record_json,
+                )
+                if (
+                    claimed.state != "APPEND_CLAIMED"
+                    or claimed.candidate_sha256 != candidate_sha256
+                ):
+                    raise RunnerError("FEE_PAIR_SINGLE_ROW_APPEND_CLAIM_INVALID")
+
+                intent = journal.reserve_fee_pair_grid_single_row_tape_intent(
+                    candidate_id,
+                    owner_token=owner_token,
+                    tape_file_id=self.file_id,
+                    header_record_id=self._header_record_id,
+                    record_index=expected_index,
+                    prefix_sha256=prefix_sha256,
+                    record_json=record_json,
+                )
+                if (
+                    intent.get("candidate_id") != candidate_id
+                    or intent.get("record_id") != row["record_id"]
+                    or intent.get("record_index") != expected_index
+                ):
+                    raise RunnerError("FEE_PAIR_SINGLE_ROW_TAPE_INTENT_INVALID")
+
+                # The one and only physical append for this candidate.
+                lease.validate(self._handle)
+                self._assert_fee_pair_tape_file_identity()
+                if (
+                    os.fstat(self._handle.fileno()).st_size != self._bytes
+                    or self.path.stat().st_size != self._bytes
+                    or self._handle.tell() != self._bytes
+                ):
+                    raise RunnerError("FEE_PAIR_TAPE_WRITER_SIZE_MISMATCH")
+                record_offset = self._bytes
+                self._append(raw, count_record=True)
+                self._last_record_reference = MappingProxyType(
+                    {
+                        "file_id": self.file_id,
+                        "record_id": row["record_id"],
+                        "record_index": expected_index,
+                        "batch_id": row["batch_id"],
+                    }
+                )
+                lease.validate(self._handle)
+                self._assert_fee_pair_tape_file_identity()
+                metadata = os.fstat(self._handle.fileno())
+                if (
+                    int(metadata.st_size) != self._bytes
+                    or self.path.stat().st_size != self._bytes
+                    or self._record_count != expected_index
+                    or self._last_record_offset != record_offset
+                    or self._last_record_raw != raw
+                ):
+                    raise RunnerError("FEE_PAIR_TAPE_WRITER_STATE_MISMATCH")
+
+                file_identity = _generation_file_identity(metadata)
+                final_payload = dict(payload_template)
+                final_payload["decision_tape_record_id"] = row["record_id"]
+                readback = journal_api._make_verified_fee_pair_single_row_tape_readback(
+                    candidate_id=candidate_id,
+                    candidate_sha256=candidate_sha256,
+                    tape_path=str(self.path),
+                    tape_file_identity=file_identity,
+                    tape_size=self._bytes,
+                    record_offset=record_offset,
+                    record_size=len(raw),
+                    record_index=expected_index,
+                    file_id=self.file_id,
+                    header_record_id=self._header_record_id,
+                    prefix_sha256=prefix_sha256,
+                    record_id=row["record_id"],
+                    record_sha256=hashlib.sha256(raw).hexdigest(),
+                    writer_instance_id=id(self),
+                    generation_lock_identity=tuple(lease._identity),
+                    writer_handle=self._handle,
+                    generation_lease=lease,
+                )
+                settled = journal.settle_fee_pair_grid_decision(
+                    candidate_id,
+                    owner_token=owner_token,
+                    facts=facts,
+                    current_account_session_id=current_account_session_id,
+                    current_account_session_generation=current_account_session_generation,
+                    max_query_age_seconds=max_query_age_seconds,
+                    max_quote_age_seconds=max_quote_age_seconds,
+                    economic_payload=final_payload,
+                    max_order_intents_per_run=max_order_intents_per_run,
+                    expected_run_order_intents_used=expected_run_order_intents_used,
+                    remaining_exit_intent_reserve=remaining_exit_intent_reserve,
+                    loss_guard_context=loss_guard_context,
+                    verified_tape_readback=readback,
+                )
+                receipt = journal_api._fee_pair_receipt_from_candidate(
+                    candidate, row["record_id"]
+                )
+                workflow = journal.fee_pair_workflow_candidate(candidate_id)
+                highwater = journal.source_highwater(
+                    candidate.key.account_scope,
+                    candidate.key.strategy_scope,
+                    candidate.key.logical_run_id,
+                    candidate.source_kind,
+                )
+                if (
+                    not settled.is_new_grid
+                    or settled.decision.key != candidate.key
+                    or workflow is None
+                    # The Journal keeps the workflow's source state at
+                    # RECEIPT_VERIFIED and records GRID settlement through
+                    # its immutable grid_decision_id. Preserve that v20 state
+                    # transition contract while verifying the terminal link.
+                    or workflow.state != "RECEIPT_VERIFIED"
+                    or workflow.grid_settled_decision_id != settled.decision.decision_id
+                    or highwater is None
+                    or highwater.anchor_kind != "GRID"
+                    or highwater.receipt != receipt
+                ):
+                    raise RunnerError("FEE_PAIR_SINGLE_ROW_GRID_SETTLEMENT_INVALID")
+                return MappingProxyType(
+                    {
+                        "schema": "backtrader.alpha003.single_row_grid_settlement.v1",
+                        "evidence_level": "WRITER_LEASED_PHYSICAL_READBACK_AND_JOURNAL_SETTLEMENT",
+                        "candidate_id": candidate_id,
+                        "candidate_sha256": candidate_sha256,
+                        "tape_reference": dict(self._last_record_reference),
+                        "source_receipt": receipt,
+                        "decision": settled.decision,
+                        "cursor": settled.cursor,
+                        "is_new_grid": settled.is_new_grid,
+                        "open_dispatch_authorized": False,
+                    }
+                )
+            except BaseException:
+                # Once reservation is attempted, preserve uncertainty and do
+                # not append another row on this writer after any failure.
+                if journal_started:
+                    self._failed = True
+                raise
+
     def _fee_pair_grid_row(
         self,
         candidate,
@@ -3921,6 +4240,7 @@ class DecisionTapeWriter:
         candidate_id,
         candidate_sha256,
         index,
+        economic_payload_sha256=None,
     ):
         row = _decision_tape_record(
             batch,
@@ -3939,6 +4259,8 @@ class DecisionTapeWriter:
         if self._selection_evidence_sha256 is not None:
             row["selection_evidence_sha256"] = self._selection_evidence_sha256
         row["header_record_id"] = self._header_record_id
+        if economic_payload_sha256 is not None:
+            row["fee_pair_economic_payload_sha256"] = economic_payload_sha256
         digest = hashlib.sha256(_canonical_json_bytes(row).rstrip(b"\n")).hexdigest()
         row["record_id"] = digest
         return row

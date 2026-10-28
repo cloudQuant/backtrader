@@ -63,7 +63,13 @@ def _make_dispatching_cancel(journal, *, instrument="IF2701"):
     parent = journal.record_dispatch_result(
         parent.intent_id,
         state="KNOWN",
-        provider_identity={"order_id": "501", "status": "ACCEPTED"},
+        provider_identity={
+            "order_ref": "501",
+            "order_sys_id": "sys-501",
+            "instrument_id": instrument,
+            "exchange_id": "CFFEX",
+            "status": "ACCEPTED",
+        },
         outcome_code="accepted",
     )
 
@@ -74,6 +80,13 @@ def _make_dispatching_cancel(journal, *, instrument="IF2701"):
         position_effect="OPEN",
         leg=0,
     )
+    cancel_economics = {
+        "target_order_ref": "501",
+        "instrument": instrument,
+        "exchange": "CFFEX",
+        "side": "BUY",
+        "position_effect": "OPEN",
+    }
     cancel_decision = journal.record_decision(
         ExecutionDecisionKey(
             account_scope="account-a",
@@ -83,19 +96,19 @@ def _make_dispatching_cancel(journal, *, instrument="IF2701"):
             close_time="2026-10-24T10:01:00Z",
             decision_kind="cancel",
         ),
-        {"target_order_ref": "501"},
+        cancel_economics,
         intent_keys=(cancel_key,),
     )
     cancel_identity = {
         **parent_identity,
-        "backtrader_order_ref": 12,
+        "backtrader_order_ref": parent_identity["backtrader_order_ref"],
         "owner_intent_id": parent.intent_id,
         "operation": "cancel",
     }
     cancel = journal.prepare_intent(
         cancel_decision.decision_id,
         cancel_key,
-        {"target_order_ref": "501"},
+        cancel_economics,
         original_identity=cancel_identity,
         owner_intent_id=parent.intent_id,
     )

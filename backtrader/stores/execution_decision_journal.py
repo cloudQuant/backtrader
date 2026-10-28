@@ -23,6 +23,7 @@ import math
 import os
 import re
 import sqlite3
+import stat
 import time
 import uuid
 from collections.abc import Mapping
@@ -55,8 +56,10 @@ from .execution_durable_capacity import (
     DEFAULT_MAX_DURABLE_SETTLEMENT_BYTES,
     DEFAULT_MAX_DURABLE_SETTLEMENT_RECORDS,
     DurableCapacityError,
+    DurableCapacityCharge,
     DurableCapacityLimits,
     DurableCapacityUsage,
+    charge_durable_capacity,
     canonical_sql_row_bytes,
     durable_capacity_transaction,
     ensure_durable_capacity_usage_schema,
@@ -125,6 +128,8 @@ _FEE_PAIR_GRID_SETTLEMENT_SCHEMA_VERSION = 19
 _FEE_PAIR_GRID_TAPE_APPEND_SCHEMA_VERSION = 20
 _KNOWN_CTP_ORDER_SYSID_BINDING_SCHEMA_VERSION = 21
 _REGISTERED_SIM_CANCEL_DISPATCH_CLAIM_SCHEMA_VERSION = 22
+_FEE_PAIR_GRID_SINGLE_ROW_TAPE_SCHEMA_VERSION = 23
+_FEE_PAIR_SINGLE_ROW_TAPE_MAX_HEADER_BYTES = 1024 * 1024
 _SOURCE_ORIGIN_PARTITION_SCHEMA = "backtrader.execution_source_origin_partition.v1"
 _SOURCE_ORIGIN_PARTITION_FIELDS = (
     "schema",
@@ -713,6 +718,22 @@ WHEN NOT (
 BEGIN
     SELECT RAISE(ABORT, 'FEE_PAIR_WORKFLOW_DURABLE_RESERVATION_INVALID');
 END"""
+_FEE_PAIR_WORKFLOW_DURABLE_RESERVATION_TRIGGER_SQL_V23 = (
+    _FEE_PAIR_WORKFLOW_DURABLE_RESERVATION_TRIGGER_SQL_V20.replace(
+        "        OR (NEW.state='CONSUMED' AND NEW.reserved_records=0 AND NEW.reserved_bytes=0)",
+        "        OR (NEW.state='ACTIVE' AND OLD.state='ACTIVE'\n"
+        "            AND NEW.reserved_records=OLD.reserved_records+1\n"
+        "            AND NEW.reserved_bytes>OLD.reserved_bytes\n"
+        "            AND EXISTS (SELECT 1 FROM execution_fee_pair_workflows AS workflow\n"
+        "                        WHERE workflow.candidate_id=OLD.candidate_id\n"
+        "                          AND workflow.state='RESERVED')\n"
+        "            AND NOT EXISTS (SELECT 1 FROM execution_fee_pair_workflow_events AS legacy\n"
+        "                            WHERE legacy.candidate_id=OLD.candidate_id\n"
+        "                              AND legacy.event_sequence=4\n"
+        "                              AND legacy.event_kind='GRID_TAPE_APPEND_INTENT'))\n"
+        "        OR (NEW.state='CONSUMED' AND NEW.reserved_records=0 AND NEW.reserved_bytes=0)",
+    )
+)
 _FEE_PAIR_WORKFLOW_DECISION_RESERVATION_TRIGGER_SQL = """CREATE TRIGGER execution_fee_pair_workflow_decision_reservation_state
 BEFORE UPDATE ON execution_fee_pair_workflow_decision_reservations
 WHEN NOT (
@@ -864,6 +885,57 @@ execution_registered_sim_cancel_dispatch_tombstone_no_delete
 BEFORE DELETE ON execution_registered_sim_cancel_dispatch_tombstones
 BEGIN
     SELECT RAISE(ABORT, 'REGISTERED_SIM_CANCEL_DISPATCH_TOMBSTONE_IMMUTABLE');
+END"""
+_FEE_PAIR_GRID_SINGLE_ROW_TAPE_INTENT_TABLE_SQL = """CREATE TABLE
+execution_fee_pair_grid_single_row_tape_intents (
+    candidate_id TEXT PRIMARY KEY REFERENCES execution_fee_pair_workflows(candidate_id),
+    candidate_sha256 TEXT NOT NULL CHECK(length(candidate_sha256)=64),
+    tape_file_id TEXT NOT NULL CHECK(length(tape_file_id)>0 AND length(tape_file_id)<=512),
+    header_record_id TEXT NOT NULL CHECK(length(header_record_id)=64),
+    record_index INTEGER NOT NULL CHECK(record_index>0),
+    prefix_sha256 TEXT NOT NULL CHECK(length(prefix_sha256)=64),
+    record_id TEXT NOT NULL CHECK(length(record_id)=64),
+    record_sha256 TEXT NOT NULL CHECK(length(record_sha256)=64),
+    record_size_bytes INTEGER NOT NULL CHECK(record_size_bytes>0),
+    record_json TEXT NOT NULL,
+    intent_sha256 TEXT NOT NULL CHECK(length(intent_sha256)=64),
+    created_at_ns INTEGER NOT NULL CHECK(created_at_ns>0)
+)"""
+_FEE_PAIR_GRID_SINGLE_ROW_TAPE_POSITION_INDEX_SQL = """CREATE UNIQUE INDEX
+execution_fee_pair_grid_single_row_tape_position
+ON execution_fee_pair_grid_single_row_tape_intents(tape_file_id,record_index)"""
+_FEE_PAIR_GRID_SINGLE_ROW_TAPE_INTENT_NO_UPDATE_TRIGGER_SQL = """CREATE TRIGGER
+execution_fee_pair_grid_single_row_tape_intent_no_update
+BEFORE UPDATE ON execution_fee_pair_grid_single_row_tape_intents
+BEGIN
+    SELECT RAISE(ABORT, 'FEE_PAIR_SINGLE_ROW_TAPE_INTENT_IMMUTABLE');
+END"""
+_FEE_PAIR_GRID_SINGLE_ROW_TAPE_INTENT_NO_DELETE_TRIGGER_SQL = """CREATE TRIGGER
+execution_fee_pair_grid_single_row_tape_intent_no_delete
+BEFORE DELETE ON execution_fee_pair_grid_single_row_tape_intents
+BEGIN
+    SELECT RAISE(ABORT, 'FEE_PAIR_SINGLE_ROW_TAPE_INTENT_IMMUTABLE');
+END"""
+_FEE_PAIR_LEGACY_UNRESOLVED_V23_TABLE_SQL = """CREATE TABLE
+execution_fee_pair_legacy_unresolved_v23 (
+    candidate_id TEXT PRIMARY KEY REFERENCES execution_fee_pair_workflows(candidate_id),
+    candidate_sha256 TEXT NOT NULL CHECK(length(candidate_sha256)=64),
+    legacy_state TEXT NOT NULL CHECK(legacy_state IN ('APPEND_CLAIMED','RECEIPT_VERIFIED')),
+    migration_schema_version INTEGER NOT NULL CHECK(migration_schema_version=23),
+    reason TEXT NOT NULL CHECK(reason='LEGACY_UNRESOLVED_V23_UPGRADE'),
+    created_at_ns INTEGER NOT NULL CHECK(created_at_ns>0)
+)"""
+_FEE_PAIR_LEGACY_UNRESOLVED_V23_NO_UPDATE_TRIGGER_SQL = """CREATE TRIGGER
+execution_fee_pair_legacy_unresolved_v23_no_update
+BEFORE UPDATE ON execution_fee_pair_legacy_unresolved_v23
+BEGIN
+    SELECT RAISE(ABORT, 'FEE_PAIR_LEGACY_UNRESOLVED_IMMUTABLE');
+END"""
+_FEE_PAIR_LEGACY_UNRESOLVED_V23_NO_DELETE_TRIGGER_SQL = """CREATE TRIGGER
+execution_fee_pair_legacy_unresolved_v23_no_delete
+BEFORE DELETE ON execution_fee_pair_legacy_unresolved_v23
+BEGIN
+    SELECT RAISE(ABORT, 'FEE_PAIR_LEGACY_UNRESOLVED_IMMUTABLE');
 END"""
 _FEE_PAIR_WORKFLOW_SCHEMA_V18_SQL = (
     _FEE_PAIR_WORKFLOW_TABLE_SQL_V18,
@@ -1789,6 +1861,7 @@ class ExecutionSourceReceipt:
 
 
 _VERIFIED_SOURCE_TAPE_READBACK_CAPABILITY = object()
+_VERIFIED_FEE_PAIR_SINGLE_ROW_TAPE_CAPABILITY = object()
 
 
 @dataclass(frozen=True)
@@ -1867,6 +1940,79 @@ def _validate_verified_source_tape_readback(
         or not _source_sha256(value.prefix_sha256)
     ):
         raise ExecutionDecisionJournalError("VERIFIED_SOURCE_TAPE_READBACK_REQUIRED")
+    return value
+
+
+@dataclass(frozen=True)
+class _VerifiedFeePairSingleRowTapeReadback:
+    """Private writer capability for one fsynced fee-pair row at tape EOF."""
+
+    candidate_id: str
+    candidate_sha256: str
+    tape_path: str
+    tape_file_identity: Tuple[int, int]
+    tape_size: int
+    record_offset: int
+    record_size: int
+    record_index: int
+    file_id: str
+    header_record_id: str
+    prefix_sha256: str
+    record_id: str
+    record_sha256: str
+    writer_instance_id: int
+    generation_lock_identity: Tuple[int, int]
+    writer_handle: Any
+    generation_lease: Any
+    _capability: Any
+
+
+def _make_verified_fee_pair_single_row_tape_readback(**values: Any) -> _VerifiedFeePairSingleRowTapeReadback:
+    """Internal DecisionTapeWriter hook; Journal still performs its own bounded read."""
+
+    return _VerifiedFeePairSingleRowTapeReadback(
+        **values, _capability=_VERIFIED_FEE_PAIR_SINGLE_ROW_TAPE_CAPABILITY
+    )
+
+
+def _validate_verified_fee_pair_single_row_tape_readback(
+    value: Any,
+) -> _VerifiedFeePairSingleRowTapeReadback:
+    if (
+        type(value) is not _VerifiedFeePairSingleRowTapeReadback
+        or value._capability is not _VERIFIED_FEE_PAIR_SINGLE_ROW_TAPE_CAPABILITY
+        or not _source_sha256(value.candidate_id)
+        or not _source_sha256(value.candidate_sha256)
+        or type(value.tape_path) is not str
+        or not value.tape_path
+        or type(value.tape_file_identity) is not tuple
+        or len(value.tape_file_identity) != 2
+        or any(type(part) is not int or part < 0 for part in value.tape_file_identity)
+        or type(value.generation_lock_identity) is not tuple
+        or len(value.generation_lock_identity) != 2
+        or any(type(part) is not int or part < 0 for part in value.generation_lock_identity)
+        or type(value.tape_size) is not int
+        or value.tape_size < 1
+        or type(value.record_offset) is not int
+        or value.record_offset < 0
+        or type(value.record_size) is not int
+        or value.record_size < 1
+        or value.record_size > _MAX_FEE_PAIR_GRID_TAPE_RECORD_BYTES
+        or value.record_offset + value.record_size != value.tape_size
+        or type(value.record_index) is not int
+        or value.record_index < 1
+        or type(value.file_id) is not str
+        or not value.file_id
+        or not _source_sha256(value.header_record_id)
+        or not _source_sha256(value.prefix_sha256)
+        or not _source_sha256(value.record_id)
+        or not _source_sha256(value.record_sha256)
+        or type(value.writer_instance_id) is not int
+        or value.writer_instance_id < 1
+        or value.writer_handle is None
+        or value.generation_lease is None
+    ):
+        raise ExecutionDecisionJournalError("FEE_PAIR_SINGLE_ROW_TAPE_READBACK_REQUIRED")
     return value
 
 
@@ -1979,7 +2125,7 @@ class ExecutionDecisionJournal:
     and checks fresh matching context at each OPEN decision, prepare, and claim.
     """
 
-    _SCHEMA_VERSION = _REGISTERED_SIM_CANCEL_DISPATCH_CLAIM_SCHEMA_VERSION
+    _SCHEMA_VERSION = _FEE_PAIR_GRID_SINGLE_ROW_TAPE_SCHEMA_VERSION
     _NATIVE_IDENTITY_SCHEMA_VERSION = 8
     _DECISION_CAPACITY_SCHEMA_VERSION = 9
     _DURABLE_CAPACITY_SCHEMA_VERSION = 12
@@ -4625,6 +4771,360 @@ class ExecutionDecisionJournal:
                 cursor, row=row, state="APPEND_CLAIMED"
             )
 
+    def record_fee_pair_grid_single_row_append_claim(
+        self,
+        candidate_id: str,
+        *,
+        owner_token: str,
+        tape_file_id: str,
+        header_record_id: str,
+        record_index: int,
+        prefix_sha256: str,
+        record_json: str,
+    ) -> ExecutionFeePairWorkflowRecord:
+        """Claim the v23 single-row route and reserve its intent row atomically.
+
+        The immutable APPEND_CLAIMED event carries the route marker. Older
+        unmarked claims therefore cannot be adopted by this path. One extra
+        bounded durable row and its exact canonical SQL bytes are reserved
+        before the claim commits, then consumed when the side intent is stored.
+        """
+
+        if not _source_sha256(candidate_id):
+            raise ExecutionDecisionJournalError("INVALID_FEE_PAIR_CANDIDATE_ID")
+        token_sha256 = _fee_pair_candidate_owner_token_hash(owner_token)
+        decoded, provisional_values, _record_bytes, _intent_sha256 = (
+            _prepare_fee_pair_grid_single_row_tape_intent(
+                candidate_id=candidate_id,
+                tape_file_id=tape_file_id,
+                header_record_id=header_record_id,
+                record_index=record_index,
+                prefix_sha256=prefix_sha256,
+                record_json=record_json,
+            )
+        )
+        with self._transaction() as cursor:
+            version = cursor.execute("PRAGMA user_version").fetchone()
+            if version is None or type(version[0]) is not int or version[0] < 23:
+                raise ExecutionDecisionJournalError("FEE_PAIR_SINGLE_ROW_TAPE_SCHEMA_REQUIRED")
+            row = cursor.execute(
+                "SELECT * FROM execution_fee_pair_workflows WHERE candidate_id=?",
+                (candidate_id,),
+            ).fetchone()
+            if row is None:
+                raise ExecutionDecisionJournalError("FEE_PAIR_WORKFLOW_NOT_FOUND")
+            self._fee_pair_workflow_record_in_transaction(cursor, row)
+            self._require_fee_pair_workflow_owner(row, token_sha256)
+            candidate = _fee_pair_candidate_from_values(json.loads(row["candidate_payload_json"]))
+            marker = decoded.get("fee_pair_workflow")
+            if (
+                row["state"] != "RESERVED"
+                or row["grid_decision_id"] is not None
+                or row["verified_receipt_json"] is not None
+                or row["verified_receipt_sha256"] is not None
+                or candidate.readiness != "LIVE_READY"
+                or marker != {
+                    "candidate_id": candidate_id,
+                    "candidate_sha256": row["candidate_sha256"],
+                }
+                or decoded.get("file_id") != candidate.expected_tape_file_id
+                or tape_file_id != candidate.expected_tape_file_id
+                or record_index != candidate.expected_tape_record_index
+                or decoded.get("batch_id") != candidate.batch_id
+                or decoded.get("cohort_id") != candidate.key.cohort_id
+                or decoded.get("calendar_id") != candidate.calendar_id
+                or decoded.get("calendar_version") != candidate.calendar_version
+                or decoded.get("calendar_fingerprint") != candidate.calendar_fingerprint
+                or decoded.get("epoch_id") != candidate.epoch_id
+                or decoded.get("slot_index") != candidate.slot_index
+                or decoded.get("slot_id") != candidate.slot_id
+                or decoded.get("close_time") != candidate.key.close_time
+                or decoded.get("readiness") != "LIVE_READY"
+            ):
+                raise ExecutionDecisionJournalError(
+                    "FEE_PAIR_SINGLE_ROW_TAPE_INTENT_BINDING_INVALID"
+                )
+            if time.monotonic_ns() >= row["deadline_monotonic_ns"]:
+                raise ExecutionDecisionJournalError("FEE_PAIR_WORKFLOW_EXPIRED")
+            if cursor.execute(
+                """SELECT 1 FROM execution_fee_pair_workflow_events
+                   WHERE candidate_id=? AND event_sequence=4
+                     AND event_kind='GRID_TAPE_APPEND_INTENT'""",
+                (candidate_id,),
+            ).fetchone() is not None:
+                raise ExecutionDecisionJournalError(
+                    "FEE_PAIR_SINGLE_ROW_TAPE_LEGACY_INTENT_CONFLICT"
+                )
+            reservation = cursor.execute(
+                """SELECT * FROM execution_fee_pair_workflow_durable_reservations
+                   WHERE candidate_id=?""",
+                (candidate_id,),
+            ).fetchone()
+            if (
+                reservation is None
+                or reservation["state"] != "ACTIVE"
+                or reservation["capacity_class"] != "BASE"
+                or reservation["reserved_records"] <= 1
+                or reservation["reserved_bytes"] <= 0
+            ):
+                raise ExecutionDecisionJournalError("FEE_PAIR_WORKFLOW_CAPACITY_CORRUPT")
+            now_ns = time.time_ns()
+            intent_values = {
+                **provisional_values,
+                "candidate_sha256": row["candidate_sha256"],
+            }
+            intent_sha256 = _fee_pair_single_row_tape_intent_sha256(intent_values)
+            intent_row = {
+                **intent_values,
+                "record_json": record_json,
+                "intent_sha256": intent_sha256,
+                "created_at_ns": now_ns,
+            }
+            intent_row_bytes = len(canonical_sql_row_bytes(intent_row))
+            base_claim_payload = {
+                "candidate_sha256": row["candidate_sha256"],
+                "state": "APPEND_CLAIMED",
+            }
+            tagged_claim_payload = {
+                **base_claim_payload,
+                "tape_contract": "SINGLE_ROW_V23",
+            }
+            event_row = {
+                "event_id": _fee_pair_workflow_event_id(candidate_id, 2),
+                "candidate_id": candidate_id,
+                "event_sequence": 2,
+                "event_kind": "APPEND_CLAIMED",
+                "event_payload_json": _canonical_json(tagged_claim_payload),
+                "created_at_ns": now_ns,
+                "tape_file_id": None,
+                "record_index": None,
+                "tape_record_json": None,
+            }
+            legacy_event_row = {
+                **event_row,
+                "event_payload_json": _canonical_json(base_claim_payload),
+            }
+            reserve_bytes = intent_row_bytes + max(
+                0,
+                len(canonical_sql_row_bytes(event_row))
+                - len(canonical_sql_row_bytes(legacy_event_row)),
+            )
+            with track_durable_row_change(
+                cursor,
+                "execution_fee_pair_workflow_durable_reservations",
+                (candidate_id,),
+                "BASE",
+            ):
+                cursor.execute(
+                    """UPDATE execution_fee_pair_workflow_durable_reservations
+                       SET reserved_records=reserved_records+1,
+                           reserved_bytes=reserved_bytes+?,updated_at_ns=?
+                       WHERE candidate_id=? AND state='ACTIVE'""",
+                    (reserve_bytes, now_ns, candidate_id),
+                )
+            if cursor.rowcount != 1:
+                raise ExecutionDecisionJournalError("FEE_PAIR_WORKFLOW_CAPACITY_CONFLICT")
+            return self._transition_fee_pair_workflow_in_transaction(
+                cursor,
+                row=row,
+                state="APPEND_CLAIMED",
+                append_contract="SINGLE_ROW_V23",
+            )
+
+    def reserve_fee_pair_grid_single_row_tape_intent(
+        self,
+        candidate_id: str,
+        *,
+        owner_token: str,
+        tape_file_id: str,
+        header_record_id: str,
+        record_index: int,
+        prefix_sha256: str,
+        record_json: str,
+    ) -> Mapping[str, Any]:
+        """Persist one immutable, bounded row intent before its physical append.
+
+        This v23 path has no caller-report or legacy tape-event escape hatch.
+        The row is an intent only until ``settle_fee_pair_grid_decision`` reads
+        this exact row from the lease-owned writer path and atomically records
+        its receipt, source highwater, and GRID settlement.
+        """
+
+        if not _source_sha256(candidate_id):
+            raise ExecutionDecisionJournalError("INVALID_FEE_PAIR_CANDIDATE_ID")
+        token_sha256 = _fee_pair_candidate_owner_token_hash(owner_token)
+        decoded, intent_values, record_bytes, intent_sha256 = (
+            _prepare_fee_pair_grid_single_row_tape_intent(
+                candidate_id=candidate_id,
+                tape_file_id=tape_file_id,
+                header_record_id=header_record_id,
+                record_index=record_index,
+                prefix_sha256=prefix_sha256,
+                record_json=record_json,
+            )
+        )
+        record_id = intent_values["record_id"]
+        record_sha256 = intent_values["record_sha256"]
+
+        with self._transaction() as cursor:
+            version = cursor.execute("PRAGMA user_version").fetchone()
+            if version is None or type(version[0]) is not int or version[0] < 23:
+                raise ExecutionDecisionJournalError("FEE_PAIR_SINGLE_ROW_TAPE_SCHEMA_REQUIRED")
+            row = cursor.execute(
+                "SELECT * FROM execution_fee_pair_workflows WHERE candidate_id=?",
+                (candidate_id,),
+            ).fetchone()
+            if row is None:
+                raise ExecutionDecisionJournalError("FEE_PAIR_WORKFLOW_NOT_FOUND")
+            self._fee_pair_workflow_record_in_transaction(cursor, row)
+            self._require_fee_pair_workflow_owner(row, token_sha256)
+            candidate = _fee_pair_candidate_from_values(json.loads(row["candidate_payload_json"]))
+            marker = {
+                "candidate_id": candidate_id,
+                "candidate_sha256": row["candidate_sha256"],
+            }
+            if (
+                row["state"] != "APPEND_CLAIMED"
+                or row["grid_decision_id"] is not None
+                or row["verified_receipt_json"] is not None
+                or row["verified_receipt_sha256"] is not None
+                or candidate.readiness != "LIVE_READY"
+                or tape_file_id != candidate.expected_tape_file_id
+                or record_index != candidate.expected_tape_record_index
+                or decoded.get("fee_pair_workflow") != marker
+                or decoded.get("batch_id") != candidate.batch_id
+                or decoded.get("cohort_id") != candidate.key.cohort_id
+                or decoded.get("calendar_id") != candidate.calendar_id
+                or decoded.get("calendar_version") != candidate.calendar_version
+                or decoded.get("calendar_fingerprint") != candidate.calendar_fingerprint
+                or decoded.get("epoch_id") != candidate.epoch_id
+                or decoded.get("slot_index") != candidate.slot_index
+                or decoded.get("slot_id") != candidate.slot_id
+                or decoded.get("close_time") != candidate.key.close_time
+                or decoded.get("readiness") != "LIVE_READY"
+                or not self._fee_pair_single_row_v23_claim_in_transaction(
+                    cursor, candidate_id
+                )
+            ):
+                raise ExecutionDecisionJournalError(
+                    "FEE_PAIR_SINGLE_ROW_TAPE_INTENT_BINDING_INVALID"
+                )
+            if cursor.execute(
+                """SELECT 1 FROM execution_fee_pair_workflow_events
+                   WHERE candidate_id=? AND event_sequence=4
+                     AND event_kind='GRID_TAPE_APPEND_INTENT'""",
+                (candidate_id,),
+            ).fetchone() is not None:
+                raise ExecutionDecisionJournalError(
+                    "FEE_PAIR_SINGLE_ROW_TAPE_LEGACY_INTENT_CONFLICT"
+                )
+            intent_values = {**intent_values, "candidate_sha256": row["candidate_sha256"]}
+            intent_sha256 = _fee_pair_single_row_tape_intent_sha256(intent_values)
+            existing = cursor.execute(
+                "SELECT * FROM execution_fee_pair_grid_single_row_tape_intents "
+                "WHERE candidate_id=?",
+                (candidate_id,),
+            ).fetchone()
+            if existing is not None:
+                expected = {
+                    **intent_values,
+                    "intent_sha256": intent_sha256,
+                    "record_json": record_json,
+                }
+                if any(existing[name] != value for name, value in expected.items()):
+                    raise ExecutionDecisionJournalError(
+                        "FEE_PAIR_SINGLE_ROW_TAPE_INTENT_CONFLICT"
+                    )
+                return self._fee_pair_grid_single_row_tape_intent_in_transaction(
+                    cursor, row, candidate
+                )
+            collision = cursor.execute(
+                """SELECT 1 FROM execution_fee_pair_grid_single_row_tape_intents
+                   WHERE tape_file_id=? AND record_index=? LIMIT 1""",
+                (tape_file_id, record_index),
+            ).fetchone()
+            if collision is not None:
+                raise ExecutionDecisionJournalError(
+                    "FEE_PAIR_SINGLE_ROW_TAPE_POSITION_ALREADY_RESERVED"
+                )
+            created_at_ns = time.time_ns()
+            values = {
+                **intent_values,
+                "intent_sha256": intent_sha256,
+                "record_json": record_json,
+                "created_at_ns": created_at_ns,
+            }
+            reservation = cursor.execute(
+                """SELECT * FROM execution_fee_pair_workflow_durable_reservations
+                   WHERE candidate_id=?""",
+                (candidate_id,),
+            ).fetchone()
+            intent_row_bytes = len(canonical_sql_row_bytes(values))
+            if (
+                reservation is None
+                or reservation["state"] != "ACTIVE"
+                or reservation["capacity_class"] != "BASE"
+                or reservation["reserved_records"] <= 1
+                or reservation["reserved_bytes"] < intent_row_bytes
+            ):
+                raise ExecutionDecisionJournalError("FEE_PAIR_WORKFLOW_CAPACITY_CORRUPT")
+            try:
+                with track_durable_row_change(
+                    cursor,
+                    "execution_fee_pair_workflow_durable_reservations",
+                    (candidate_id,),
+                    "BASE",
+                ):
+                    cursor.execute(
+                        """UPDATE execution_fee_pair_workflow_durable_reservations
+                           SET reserved_records=reserved_records-1,
+                               reserved_bytes=reserved_bytes-?,updated_at_ns=?
+                           WHERE candidate_id=? AND state='ACTIVE'
+                             AND reserved_records>1 AND reserved_bytes>=?""",
+                        (intent_row_bytes, created_at_ns, candidate_id, intent_row_bytes),
+                    )
+                if cursor.rowcount != 1:
+                    raise ExecutionDecisionJournalError(
+                        "FEE_PAIR_WORKFLOW_CAPACITY_CONFLICT"
+                    )
+                with track_durable_row_change(
+                    cursor,
+                    "execution_fee_pair_grid_single_row_tape_intents",
+                    (candidate_id,),
+                    "BASE",
+                ):
+                    cursor.execute(
+                        """INSERT INTO execution_fee_pair_grid_single_row_tape_intents
+                           (candidate_id,candidate_sha256,tape_file_id,header_record_id,
+                            record_index,prefix_sha256,record_id,record_sha256,
+                            record_size_bytes,record_json,intent_sha256,created_at_ns)
+                           VALUES(?,?,?,?,?,?,?,?,?,?,?,?)""",
+                        tuple(values[name] for name in (
+                            "candidate_id",
+                            "candidate_sha256",
+                            "tape_file_id",
+                            "header_record_id",
+                            "record_index",
+                            "prefix_sha256",
+                            "record_id",
+                            "record_sha256",
+                            "record_size_bytes",
+                            "record_json",
+                            "intent_sha256",
+                            "created_at_ns",
+                        )),
+                    )
+            except DurableCapacityError as error:
+                raise ExecutionDecisionJournalError(error.code) from error
+            persisted = cursor.execute(
+                "SELECT * FROM execution_fee_pair_grid_single_row_tape_intents "
+                "WHERE candidate_id=?",
+                (candidate_id,),
+            ).fetchone()
+            return self._fee_pair_grid_single_row_tape_intent_in_transaction(
+                cursor, row, candidate
+            )
+
     def reserve_fee_pair_grid_tape_append_intent(
         self,
         candidate_id: str,
@@ -4696,7 +5196,12 @@ class ExecutionDecisionJournal:
                 raise ExecutionDecisionJournalError("FEE_PAIR_WORKFLOW_NOT_FOUND")
             workflow = self._fee_pair_workflow_record_in_transaction(cursor, row)
             self._require_fee_pair_workflow_owner(row, token_sha256)
+            self._raise_if_fee_pair_legacy_unresolved_v23_in_transaction(cursor, row)
             candidate = _fee_pair_candidate_from_values(json.loads(row["candidate_payload_json"]))
+            if self._fee_pair_single_row_v23_claim_in_transaction(cursor, candidate_id):
+                raise ExecutionDecisionJournalError(
+                    "FEE_PAIR_SINGLE_ROW_TAPE_LEGACY_APPEND_FORBIDDEN"
+                )
             marker = {
                 "candidate_id": candidate_id,
                 "candidate_sha256": row["candidate_sha256"],
@@ -4824,6 +5329,7 @@ class ExecutionDecisionJournal:
                 raise ExecutionDecisionJournalError("FEE_PAIR_WORKFLOW_NOT_FOUND")
             workflow = self._fee_pair_workflow_record_in_transaction(cursor, row)
             self._require_fee_pair_workflow_owner(row, token_sha256)
+            self._raise_if_fee_pair_legacy_unresolved_v23_in_transaction(cursor, row)
             intent = cursor.execute(
                 """SELECT event_payload_json FROM execution_fee_pair_workflow_events
                    WHERE candidate_id=? AND event_sequence=4
@@ -4923,6 +5429,7 @@ class ExecutionDecisionJournal:
                 raise ExecutionDecisionJournalError("FEE_PAIR_WORKFLOW_NOT_FOUND")
             workflow = self._fee_pair_workflow_record_in_transaction(cursor, row)
             self._require_fee_pair_workflow_owner(row, token_sha256)
+            self._raise_if_fee_pair_legacy_unresolved_v23_in_transaction(cursor, row)
             intent_row = cursor.execute(
                 """SELECT event_payload_json FROM execution_fee_pair_workflow_events
                    WHERE candidate_id=? AND event_sequence=4
@@ -5010,7 +5517,12 @@ class ExecutionDecisionJournal:
                 raise ExecutionDecisionJournalError("FEE_PAIR_WORKFLOW_NOT_FOUND")
             self._fee_pair_workflow_record_in_transaction(cursor, row)
             self._require_fee_pair_workflow_owner(row, token_sha256)
+            self._raise_if_fee_pair_legacy_unresolved_v23_in_transaction(cursor, row)
             candidate = _fee_pair_candidate_from_values(json.loads(row["candidate_payload_json"]))
+            if self._fee_pair_single_row_v23_claim_in_transaction(cursor, candidate_id):
+                raise ExecutionDecisionJournalError(
+                    "FEE_PAIR_SINGLE_ROW_SOURCE_RECEIPT_ATTACH_FORBIDDEN"
+                )
             self._validate_fee_pair_workflow_receipt(candidate, receipt)
             if row["state"] == "RECEIPT_VERIFIED":
                 if (
@@ -5054,6 +5566,11 @@ class ExecutionDecisionJournal:
                 raise ExecutionDecisionJournalError("FEE_PAIR_WORKFLOW_NOT_FOUND")
             workflow_record = self._fee_pair_workflow_record_in_transaction(cursor, row)
             self._require_fee_pair_workflow_owner(row, token_sha256)
+            self._raise_if_fee_pair_legacy_unresolved_v23_in_transaction(cursor, row)
+            if self._fee_pair_single_row_v23_claim_in_transaction(cursor, candidate_id):
+                raise ExecutionDecisionJournalError(
+                    "FEE_PAIR_SINGLE_ROW_SOURCE_ONLY_FORBIDDEN"
+                )
             if row["grid_decision_id"] is not None:
                 raise ExecutionDecisionJournalError("FEE_PAIR_WORKFLOW_ALREADY_GRID_SETTLED")
             if row["state"] == "SOURCE_ONLY":
@@ -5168,6 +5685,7 @@ class ExecutionDecisionJournal:
         expected_run_order_intents_used: int,
         remaining_exit_intent_reserve: int,
         loss_guard_context: Optional[ExecutionRunLossGuardContext] = None,
+        verified_tape_readback: Any = None,
     ) -> ExecutionGridDecision:
         """Atomically settle one attached pair as a GRID and reserve exactly two OPEN slots.
 
@@ -5175,9 +5693,11 @@ class ExecutionDecisionJournal:
         execution plan it just evaluated. Journal checks exact session,
         selected route, quote, commission-query and plan bindings, then commits
         the immutable decision, two slots, source/grid cursors, budget, fee
-        proof and workflow pointer in one SQLite transaction. A typed fact is
-        still a trusted-caller projection: this Journal does not authenticate
-        provider rows or the physical tape file.
+        proof and workflow pointer in one SQLite transaction. The v23 physical
+        readback capability is accepted only for an immutable one-row intent
+        and is independently checked against the active lease-owned path here.
+        A typed Store fact remains a trusted-caller projection; it does not
+        authenticate provider rows.
 
         This method performs no tape/provider I/O and does not submit orders.
         Dispatch remains at-most-once and needs the exact current Store facts
@@ -5221,9 +5741,50 @@ class ExecutionDecisionJournal:
                 raise ExecutionDecisionJournalError("FEE_PAIR_WORKFLOW_NOT_FOUND")
             workflow = self._fee_pair_workflow_record_in_transaction(cursor, row)
             self._require_fee_pair_workflow_owner(row, token_sha256)
+            self._raise_if_fee_pair_legacy_unresolved_v23_in_transaction(cursor, row)
             candidate = _fee_pair_candidate_from_values(json.loads(row["candidate_payload_json"]))
             if candidate.target_routes is None or candidate.account_fingerprint is None:
                 raise ExecutionDecisionJournalError("FEE_PAIR_CANDIDATE_ROUTE_BINDING_REQUIRED")
+            single_row_tape_intent = self._fee_pair_grid_single_row_tape_intent_in_transaction(
+                cursor, row, candidate
+            )
+            physical_tape_proof = None
+            if single_row_tape_intent is not None:
+                if verified_tape_readback is None:
+                    raise ExecutionDecisionJournalError(
+                        "FEE_PAIR_SINGLE_ROW_TAPE_READBACK_REQUIRED"
+                    )
+                physical_tape_proof = self._verify_fee_pair_grid_single_row_tape_readback_in_transaction(
+                    workflow=row,
+                    candidate=candidate,
+                    intent=single_row_tape_intent,
+                    readback=verified_tape_readback,
+                )
+                if row["state"] == "APPEND_CLAIMED":
+                    receipt = _fee_pair_receipt_from_candidate(
+                        candidate, single_row_tape_intent["record_id"]
+                    )
+                    receipt_json = self._validate_source_receipt_size(receipt)
+                    receipt_sha256 = _source_receipt_sha256(receipt)
+                    self._validate_fee_pair_workflow_receipt(candidate, receipt)
+                    self._transition_fee_pair_workflow_in_transaction(
+                        cursor,
+                        row=row,
+                        state="RECEIPT_VERIFIED",
+                        receipt_json=receipt_json,
+                        receipt_sha256=receipt_sha256,
+                    )
+                    row = cursor.execute(
+                        "SELECT * FROM execution_fee_pair_workflows WHERE candidate_id=?",
+                        (candidate_id,),
+                    ).fetchone()
+                    workflow = self._fee_pair_workflow_record_in_transaction(cursor, row)
+                elif row["state"] != "RECEIPT_VERIFIED":
+                    raise ExecutionDecisionJournalError(
+                        "FEE_PAIR_SINGLE_ROW_TAPE_WORKFLOW_STATE_INVALID"
+                    )
+            elif verified_tape_readback is not None:
+                raise ExecutionDecisionJournalError("FEE_PAIR_SINGLE_ROW_TAPE_INTENT_REQUIRED")
             receipt_json = row["verified_receipt_json"]
             if row["state"] not in ("RECEIPT_VERIFIED", "SOURCE_ONLY") or receipt_json is None:
                 raise ExecutionDecisionJournalError("FEE_PAIR_WORKFLOW_RECEIPT_REQUIRED")
@@ -5274,6 +5835,19 @@ class ExecutionDecisionJournal:
                     or saved_plan.get("max_quote_age_seconds") != quote_age
                 ):
                     raise ExecutionDecisionJournalError("FEE_PAIR_GRID_SETTLEMENT_CONFLICT")
+            if single_row_tape_intent is not None:
+                try:
+                    intended_row = json.loads(single_row_tape_intent["record_json"])
+                except (TypeError, ValueError) as error:
+                    raise ExecutionDecisionJournalError(
+                        "FEE_PAIR_SINGLE_ROW_TAPE_INTENT_INVALID"
+                    ) from error
+                if not _fee_pair_single_row_tape_plan_matches_economics(
+                    intended_row, economic_payload
+                ):
+                    raise ExecutionDecisionJournalError(
+                        "FEE_PAIR_SINGLE_ROW_TAPE_PLAN_BINDING_INVALID"
+                    )
             keys, ordinal = self._validate_fee_pair_grid_plan(
                 cursor,
                 candidate,
@@ -5316,6 +5890,8 @@ class ExecutionDecisionJournal:
                     "max_quote_age_seconds": quote_age,
                 },
             }
+            if physical_tape_proof is not None:
+                proof["single_row_tape_readback"] = dict(physical_tape_proof)
             settlement_json = _canonical_json(proof)
             if len(settlement_json.encode("utf-8")) > _MAX_FEE_PAIR_GRID_SETTLEMENT_BYTES:
                 raise ExecutionDecisionJournalError("FEE_PAIR_GRID_SETTLEMENT_TOO_LARGE")
@@ -6379,6 +6955,7 @@ class ExecutionDecisionJournal:
         receipt_json: Optional[str] = None,
         receipt_sha256: Optional[str] = None,
         decision_id: Optional[str] = None,
+        append_contract: Optional[str] = None,
     ) -> ExecutionFeePairWorkflowRecord:
         candidate_id = row["candidate_id"]
         previous_state = row["state"]
@@ -6417,6 +6994,10 @@ class ExecutionDecisionJournal:
             "candidate_sha256": row["candidate_sha256"],
             "state": state,
         }
+        if append_contract is not None:
+            if state != "APPEND_CLAIMED" or append_contract != "SINGLE_ROW_V23":
+                raise ExecutionDecisionJournalError("FEE_PAIR_WORKFLOW_STATE_INVALID")
+            payload["tape_contract"] = append_contract
         if state == "RECEIPT_VERIFIED":
             if receipt_json is None or not _source_sha256(receipt_sha256):
                 raise ExecutionDecisionJournalError("FEE_PAIR_WORKFLOW_RECEIPT_REQUIRED")
@@ -6873,6 +7454,22 @@ class ExecutionDecisionJournal:
             elif row["verified_receipt_json"] is not None or row["verified_receipt_sha256"] is not None:
                 raise ValueError("unexpected receipt")
 
+            single_row_tape_intent = self._fee_pair_grid_single_row_tape_intent_in_transaction(
+                cursor, row, candidate
+            )
+            if single_row_tape_intent is not None:
+                if row["state"] not in ("APPEND_CLAIMED", "RECEIPT_VERIFIED"):
+                    raise ValueError("single-row tape intent workflow state mismatch")
+                if row["state"] == "APPEND_CLAIMED" and receipt is not None:
+                    raise ValueError("single-row receipt preceded physical readback")
+                if row["state"] == "RECEIPT_VERIFIED" and (
+                    receipt is None
+                    or receipt.tape_file_id != single_row_tape_intent["tape_file_id"]
+                    or receipt.tape_record_index != single_row_tape_intent["record_index"]
+                    or receipt.tape_record_id != single_row_tape_intent["record_id"]
+                ):
+                    raise ValueError("single-row receipt binding mismatch")
+
             grid_decision_id = row["grid_decision_id"]
             grid_settled = grid_decision_id is not None
             if row["state"] != "SOURCE_ONLY" and not grid_settled:
@@ -6907,6 +7504,13 @@ class ExecutionDecisionJournal:
                 intent_event is not None
                 and intent_event["event_kind"] == "GRID_TAPE_APPEND_INTENT"
             )
+            single_row_mode = self._fee_pair_single_row_v23_claim_in_transaction(
+                cursor, row["candidate_id"]
+            )
+            if single_row_mode and (has_tape_intent or row["state"] == "SOURCE_ONLY"):
+                raise ValueError("v23 single-row workflow conflicts with legacy terminal path")
+            if has_tape_intent and single_row_tape_intent is not None:
+                raise ValueError("legacy and single-row tape intents conflict")
             tape_append_state = None
             tape_file_id = None
             tape_record_index = None
@@ -7160,6 +7764,19 @@ class ExecutionDecisionJournal:
                     payload = tape_report_payload
                 else:
                     payload = {"candidate_sha256": candidate_sha256, "state": kind}
+                    if kind == "APPEND_CLAIMED":
+                        try:
+                            stored_claim = json.loads(event["event_payload_json"])
+                        except (TypeError, ValueError) as error:
+                            raise ValueError("claim event payload invalid") from error
+                        if isinstance(stored_claim, Mapping) and "tape_contract" in stored_claim:
+                            if (
+                                stored_claim.get("tape_contract") != "SINGLE_ROW_V23"
+                                or not single_row_mode
+                                or candidate.readiness != "LIVE_READY"
+                            ):
+                                raise ValueError("single-row claim marker invalid")
+                            payload["tape_contract"] = "SINGLE_ROW_V23"
                     if kind == "RESERVED":
                         payload = {
                             "candidate_sha256": candidate_sha256,
@@ -7284,6 +7901,400 @@ class ExecutionDecisionJournal:
             raise
         except (KeyError, TypeError, ValueError, OverflowError, sqlite3.Error) as error:
             raise ExecutionDecisionJournalError("FEE_PAIR_WORKFLOW_LEDGER_CORRUPT") from error
+
+    def _fee_pair_grid_single_row_tape_intent_in_transaction(
+        self,
+        cursor: sqlite3.Cursor,
+        workflow: sqlite3.Row,
+        candidate: ExecutionFeePairCandidate,
+    ) -> Optional[Mapping[str, Any]]:
+        """Load and validate one bounded v23 row intent for this workflow."""
+
+        version = cursor.execute("PRAGMA user_version").fetchone()
+        if version is None or type(version[0]) is not int or version[0] < 23:
+            return None
+        single_row_mode = self._fee_pair_single_row_v23_claim_in_transaction(
+            cursor, workflow["candidate_id"]
+        )
+        metadata = cursor.execute(
+            """SELECT typeof(record_json),length(CAST(record_json AS BLOB))
+               FROM execution_fee_pair_grid_single_row_tape_intents
+               WHERE candidate_id=?""",
+            (workflow["candidate_id"],),
+        ).fetchone()
+        if metadata is None:
+            return None
+        if not single_row_mode:
+            raise ValueError("single-row intent lacks its immutable v23 claim marker")
+        storage_type, stored_size = metadata
+        if (
+            storage_type != "text"
+            or type(stored_size) is not int
+            or stored_size < 1
+            or stored_size + 1 > _MAX_FEE_PAIR_GRID_TAPE_RECORD_BYTES
+        ):
+            raise ValueError("single-row tape intent exceeds storage bound")
+        record = cursor.execute(
+            "SELECT * FROM execution_fee_pair_grid_single_row_tape_intents "
+            "WHERE candidate_id=?",
+            (workflow["candidate_id"],),
+        ).fetchone()
+        if record is None:
+            raise ValueError("single-row tape intent disappeared")
+        record_json = record["record_json"]
+        raw = _bounded_fee_pair_grid_tape_record_bytes(record_json)
+        if (
+            len(record_json.encode("utf-8")) != stored_size
+            or len(raw) != record["record_size_bytes"]
+            or not _source_sha256(record["candidate_sha256"])
+            or record["candidate_sha256"] != workflow["candidate_sha256"]
+            or record["tape_file_id"] != candidate.expected_tape_file_id
+            or type(record["record_index"]) is not int
+            or record["record_index"] != candidate.expected_tape_record_index
+            or not _source_sha256(record["header_record_id"])
+            or not _source_sha256(record["prefix_sha256"])
+            or not _source_sha256(record["record_id"])
+            or hashlib.sha256(raw).hexdigest() != record["record_sha256"]
+            or not _source_sha256(record["record_sha256"])
+            or not _source_sha256(record["intent_sha256"])
+            or type(record["created_at_ns"]) is not int
+            or record["created_at_ns"] <= 0
+        ):
+            raise ValueError("single-row tape intent metadata mismatch")
+        decoded = json.loads(record_json)
+        if not isinstance(decoded, Mapping) or _canonical_tape_record_json(decoded) != record_json:
+            raise ValueError("single-row tape intent is not canonical")
+        row_id = decoded.get("record_id")
+        unsigned = dict(decoded)
+        unsigned.pop("record_id", None)
+        if (
+            not _source_sha256(row_id)
+            or row_id != record["record_id"]
+            or hashlib.sha256(_canonical_tape_record_json(unsigned).encode("utf-8")).hexdigest()
+            != row_id
+            or decoded.get("schema") != "backtrader.alpha003.decision_tape.v2"
+            or decoded.get("record_type") != "DECISION"
+            or decoded.get("file_id") != record["tape_file_id"]
+            or decoded.get("header_record_id") != record["header_record_id"]
+            or type(decoded.get("record_index")) is not int
+            or decoded.get("record_index") != record["record_index"]
+            or decoded.get("readiness") != "LIVE_READY"
+            or decoded.get("batch_id") != candidate.batch_id
+            or decoded.get("cohort_id") != candidate.key.cohort_id
+            or decoded.get("calendar_id") != candidate.calendar_id
+            or decoded.get("calendar_version") != candidate.calendar_version
+            or decoded.get("calendar_fingerprint") != candidate.calendar_fingerprint
+            or decoded.get("epoch_id") != candidate.epoch_id
+            or decoded.get("slot_index") != candidate.slot_index
+            or decoded.get("slot_id") != candidate.slot_id
+            or decoded.get("close_time") != candidate.key.close_time
+            or decoded.get("fee_pair_workflow")
+            != {
+                "candidate_id": workflow["candidate_id"],
+                "candidate_sha256": workflow["candidate_sha256"],
+            }
+            or not _source_sha256(decoded.get("fee_pair_economic_payload_sha256"))
+        ):
+            raise ValueError("single-row tape decision identity mismatch")
+        target_decision = decoded.get("target_decision")
+        order_plan = decoded.get("order_plan")
+        members = decoded.get("members")
+        factors = decoded.get("factors")
+        if (
+            not isinstance(target_decision, Mapping)
+            or target_decision.get("status") != "TARGETS_READY"
+            or target_decision.get("source_sha256") != candidate.factor_snapshot_sha256
+            or target_decision.get("cohort_id") != candidate.key.cohort_id
+            or target_decision.get("batch_id") != candidate.batch_id
+            or target_decision.get("close_time") != candidate.key.close_time
+            or not isinstance(order_plan, Mapping)
+            or type(order_plan.get("actions")) is not list
+            or not isinstance(members, Mapping)
+            or set(members) != {member.member_id for member in candidate.source_members}
+            or not isinstance(factors, Mapping)
+            or not isinstance(factors.get("factors"), Mapping)
+        ):
+            raise ValueError("single-row tape complete decision projection missing")
+        if not any(
+            isinstance(factor, Mapping)
+            and factor.get("source_sha256") == candidate.factor_snapshot_sha256
+            for factor in factors["factors"].values()
+        ):
+            raise ValueError("single-row tape factor commitment mismatch")
+        for source_member in candidate.source_members:
+            member = members[source_member.member_id]
+            if not isinstance(member, Mapping) or not isinstance(member.get("raw_values"), Mapping):
+                raise ValueError("single-row tape raw member values missing")
+            raw_values = member["raw_values"]
+            if not {"open", "high", "low", "close", "volume"} <= set(raw_values):
+                raise ValueError("single-row tape OHLCV fields missing")
+            expected_member = _source_member_values(source_member)
+            expected_member.pop("member_id", None)
+            if any(member.get(name) != value for name, value in expected_member.items()):
+                raise ValueError("single-row tape source member projection mismatch")
+        intent_values = {
+            "candidate_id": workflow["candidate_id"],
+            "candidate_sha256": workflow["candidate_sha256"],
+            "tape_file_id": record["tape_file_id"],
+            "header_record_id": record["header_record_id"],
+            "record_index": record["record_index"],
+            "prefix_sha256": record["prefix_sha256"],
+            "record_id": record["record_id"],
+            "record_sha256": record["record_sha256"],
+            "record_size_bytes": record["record_size_bytes"],
+        }
+        if hashlib.sha256(_canonical_json(intent_values).encode("utf-8")).hexdigest() != record[
+            "intent_sha256"
+        ]:
+            raise ValueError("single-row tape intent digest mismatch")
+        return MappingProxyType(dict(record))
+
+    @staticmethod
+    def _fee_pair_single_row_v23_claim_in_transaction(
+        cursor: sqlite3.Cursor, candidate_id: str
+    ) -> bool:
+        event = cursor.execute(
+            """SELECT event_kind,event_payload_json FROM execution_fee_pair_workflow_events
+               WHERE candidate_id=? AND event_sequence=2""",
+            (candidate_id,),
+        ).fetchone()
+        if event is None or event["event_kind"] != "APPEND_CLAIMED":
+            return False
+        try:
+            payload = json.loads(event["event_payload_json"])
+        except (TypeError, ValueError) as error:
+            raise ExecutionDecisionJournalError("FEE_PAIR_WORKFLOW_LEDGER_CORRUPT") from error
+        contract = payload.get("tape_contract") if isinstance(payload, Mapping) else None
+        if contract is None:
+            if isinstance(payload, Mapping) and "tape_contract" in payload:
+                raise ExecutionDecisionJournalError("FEE_PAIR_WORKFLOW_LEDGER_CORRUPT")
+            return False
+        if (
+            contract != "SINGLE_ROW_V23"
+            or set(payload) != {"candidate_sha256", "state", "tape_contract"}
+            or payload.get("state") != "APPEND_CLAIMED"
+            or not _source_sha256(payload.get("candidate_sha256"))
+        ):
+            raise ExecutionDecisionJournalError("FEE_PAIR_WORKFLOW_LEDGER_CORRUPT")
+        return True
+
+    @staticmethod
+    def _raise_if_fee_pair_legacy_unresolved_v23_in_transaction(
+        cursor: sqlite3.Cursor, workflow: sqlite3.Row
+    ) -> None:
+        """Keep pre-v23 ambiguous append claims unresolved after migration.
+
+        The immutable migration marker applies only to workflows that were
+        already claimed when the v23 schema upgrade ran. A new workflow may
+        still use the legacy SOURCE_ONLY warmup APIs; it has no marker row.
+        """
+
+        marker = cursor.execute(
+            """SELECT candidate_sha256,legacy_state,migration_schema_version,reason
+               FROM execution_fee_pair_legacy_unresolved_v23 WHERE candidate_id=?""",
+            (workflow["candidate_id"],),
+        ).fetchone()
+        if marker is None:
+            return
+        if (
+            marker["candidate_sha256"] != workflow["candidate_sha256"]
+            or marker["legacy_state"] != workflow["state"]
+            or marker["migration_schema_version"] != 23
+            or marker["reason"] != "LEGACY_UNRESOLVED_V23_UPGRADE"
+            or workflow["state"] not in ("APPEND_CLAIMED", "RECEIPT_VERIFIED")
+            or workflow["grid_decision_id"] is not None
+        ):
+            raise ExecutionDecisionJournalError("FEE_PAIR_WORKFLOW_LEDGER_CORRUPT")
+        raise ExecutionDecisionJournalError(
+            "FEE_PAIR_WORKFLOW_LEGACY_UNRESOLVED_AFTER_V23"
+        )
+
+    def _verify_fee_pair_grid_single_row_tape_readback_in_transaction(
+        self,
+        *,
+        workflow: sqlite3.Row,
+        candidate: ExecutionFeePairCandidate,
+        intent: Mapping[str, Any],
+        readback: Any,
+    ) -> Mapping[str, Any]:
+        """Independently read the exact intended row from its active writer path."""
+
+        value = _validate_verified_fee_pair_single_row_tape_readback(readback)
+        lease = value.generation_lease
+        writer_handle = value.writer_handle
+        writer = getattr(lease, "_writer", None)
+        if writer is None:
+            raise ExecutionDecisionJournalError("FEE_PAIR_SINGLE_ROW_TAPE_LEASE_REQUIRED")
+        try:
+            lease_path = Path(lease.tape_path).resolve(strict=True)
+            token_path = Path(value.tape_path).resolve(strict=True)
+            writer_path = Path(writer.path).resolve(strict=True)
+            lease_identity = tuple(lease._identity)
+            writer_identity = os.fstat(writer_handle.fileno())
+            handle_identity = (int(writer_identity.st_dev), int(writer_identity.st_ino))
+            path_before = os.lstat(token_path)
+            path_identity = (int(path_before.st_dev), int(path_before.st_ino))
+            writer_size = int(writer_identity.st_size)
+        except (AttributeError, OSError, TypeError, ValueError):
+            raise ExecutionDecisionJournalError(
+                "FEE_PAIR_SINGLE_ROW_TAPE_FILE_IDENTITY_MISMATCH"
+            ) from None
+        expected_raw = (intent["record_json"] + "\n").encode("utf-8")
+        if (
+            not bool(getattr(lease, "held", False))
+            or getattr(lease, "_writer", None) is not writer
+            or getattr(lease, "_tape_handle", None) is not writer_handle
+            or getattr(writer, "_generation_lease", None) is not lease
+            or getattr(writer, "_handle", None) is not writer_handle
+            or getattr(writer, "_closed", True)
+            or getattr(writer, "_failed", True)
+            or id(writer) != value.writer_instance_id
+            or writer_path != lease_path
+            or token_path != lease_path
+            or lease_path != Path(value.tape_path)
+            or lease_identity != value.generation_lock_identity
+            or handle_identity != value.tape_file_identity
+            or path_identity != value.tape_file_identity
+            or writer_size != value.tape_size
+            or type(getattr(writer, "_bytes", None)) is not int
+            or writer._bytes != value.tape_size
+            or type(getattr(writer, "_record_count", None)) is not int
+            or writer._record_count != value.record_index
+            or getattr(writer, "file_id", None) != value.file_id
+            or getattr(writer, "_header_record_id", None) != value.header_record_id
+            or getattr(writer, "_last_record_offset", None) != value.record_offset
+            or getattr(writer, "_last_record_raw", None) != expected_raw
+            or value.candidate_id != workflow["candidate_id"]
+            or value.candidate_sha256 != workflow["candidate_sha256"]
+            or value.file_id != candidate.expected_tape_file_id
+            or value.record_index != candidate.expected_tape_record_index
+            or value.file_id != intent["tape_file_id"]
+            or value.header_record_id != intent["header_record_id"]
+            or value.record_index != intent["record_index"]
+            or value.prefix_sha256 != intent["prefix_sha256"]
+            or value.record_id != intent["record_id"]
+            or value.record_sha256 != intent["record_sha256"]
+            or value.record_size != intent["record_size_bytes"]
+            or value.record_offset + value.record_size != value.tape_size
+            or len(expected_raw) != value.record_size
+            or not stat.S_ISREG(path_before.st_mode)
+        ):
+            raise ExecutionDecisionJournalError("FEE_PAIR_SINGLE_ROW_TAPE_READBACK_MISMATCH")
+
+        read_fd = None
+        try:
+            lease.validate(writer_handle)
+            flags = os.O_RDONLY | getattr(os, "O_BINARY", 0) | getattr(os, "O_NOFOLLOW", 0)
+            read_fd = os.open(token_path, flags)
+            with os.fdopen(read_fd, "rb", closefd=True) as tape_file:
+                read_fd = None
+                before = os.fstat(tape_file.fileno())
+                if (
+                    not stat.S_ISREG(before.st_mode)
+                    or (int(before.st_dev), int(before.st_ino)) != value.tape_file_identity
+                    or int(before.st_size) != value.tape_size
+                ):
+                    raise ExecutionDecisionJournalError(
+                        "FEE_PAIR_SINGLE_ROW_TAPE_FILE_IDENTITY_MISMATCH"
+                    )
+                header_raw = tape_file.readline(_FEE_PAIR_SINGLE_ROW_TAPE_MAX_HEADER_BYTES + 1)
+                if (
+                    len(header_raw) > _FEE_PAIR_SINGLE_ROW_TAPE_MAX_HEADER_BYTES
+                    or not header_raw.endswith(b"\n")
+                ):
+                    raise ExecutionDecisionJournalError(
+                        "FEE_PAIR_SINGLE_ROW_TAPE_HEADER_INVALID"
+                    )
+                try:
+                    header = json.loads(header_raw)
+                    canonical_header = _canonical_tape_record_json(header)
+                    header_record_id = header.get("record_id")
+                    header_unsigned = dict(header)
+                    header_unsigned.pop("record_id", None)
+                    calculated_header_id = hashlib.sha256(
+                        _canonical_tape_record_json(header_unsigned).encode("utf-8")
+                    ).hexdigest()
+                except (AttributeError, TypeError, ValueError, UnicodeError):
+                    raise ExecutionDecisionJournalError(
+                        "FEE_PAIR_SINGLE_ROW_TAPE_HEADER_INVALID"
+                    ) from None
+                if (
+                    canonical_header.encode("utf-8") + b"\n" != header_raw
+                    or header_record_id != value.header_record_id
+                    or calculated_header_id != value.header_record_id
+                    or header.get("schema") != "backtrader.alpha003.decision_tape.v2"
+                    or header.get("record_type") != "HEADER"
+                    or header.get("file_id") != value.file_id
+                    or tape_file.tell() > value.record_offset
+                ):
+                    raise ExecutionDecisionJournalError(
+                        "FEE_PAIR_SINGLE_ROW_TAPE_HEADER_MISMATCH"
+                    )
+                tape_file.seek(value.record_offset)
+                actual_raw = tape_file.read(value.record_size)
+                extra = tape_file.read(1)
+                after = os.fstat(tape_file.fileno())
+            path_after = os.lstat(token_path)
+            lease.validate(writer_handle)
+            writer_after = os.fstat(writer_handle.fileno())
+        except ExecutionDecisionJournalError:
+            raise
+        except (AttributeError, OSError, TypeError, ValueError) as error:
+            raise ExecutionDecisionJournalError(
+                "FEE_PAIR_SINGLE_ROW_TAPE_READBACK_FAILED"
+            ) from error
+        finally:
+            if read_fd is not None:
+                try:
+                    os.close(read_fd)
+                except OSError:
+                    pass
+        if (
+            actual_raw != expected_raw
+            or extra != b""
+            or not stat.S_ISREG(after.st_mode)
+            or (int(after.st_dev), int(after.st_ino)) != value.tape_file_identity
+            or int(after.st_size) != value.tape_size
+            or (int(path_after.st_dev), int(path_after.st_ino)) != value.tape_file_identity
+            or int(path_after.st_size) != value.tape_size
+            or (int(writer_after.st_dev), int(writer_after.st_ino)) != value.tape_file_identity
+            or int(writer_after.st_size) != value.tape_size
+        ):
+            raise ExecutionDecisionJournalError("FEE_PAIR_SINGLE_ROW_TAPE_READBACK_MISMATCH")
+        try:
+            physical_row = json.loads(actual_raw)
+            if (
+                not isinstance(physical_row, Mapping)
+                or _canonical_tape_record_json(physical_row) + "\n"
+                != actual_raw.decode("utf-8")
+                or physical_row.get("record_id") != value.record_id
+            ):
+                raise ValueError("row is not canonical")
+        except (TypeError, ValueError, UnicodeError) as error:
+            raise ExecutionDecisionJournalError(
+                "FEE_PAIR_SINGLE_ROW_TAPE_READBACK_MISMATCH"
+            ) from error
+        return MappingProxyType(
+            {
+                "schema": "backtrader.execution_fee_pair_single_row_tape_readback.v1",
+                "evidence_level": "JOURNAL_SINGLE_ROW_PHYSICAL_READBACK",
+                "candidate_id": value.candidate_id,
+                "candidate_sha256": value.candidate_sha256,
+                "file_id": value.file_id,
+                "header_record_id": value.header_record_id,
+                "record_index": value.record_index,
+                "record_id": value.record_id,
+                "record_sha256": value.record_sha256,
+                "record_size_bytes": value.record_size,
+                "record_offset": value.record_offset,
+                "tape_size": value.tape_size,
+                "tape_file_identity": list(value.tape_file_identity),
+                "generation_lock_identity": list(value.generation_lock_identity),
+                "writer_instance_id": value.writer_instance_id,
+                "intent_sha256": intent["intent_sha256"],
+                "writer_prefix_sha256_intent_only": value.prefix_sha256,
+            }
+        )
 
     @staticmethod
     def _precheck_fee_pair_grid_tape_intent_storage_bound(
@@ -7452,6 +8463,9 @@ class ExecutionDecisionJournal:
                      AND event_kind='GRID_TAPE_APPEND_INTENT'""",
                 (workflow["candidate_id"],),
             ).fetchone()
+            single_row_intent = self._fee_pair_grid_single_row_tape_intent_in_transaction(
+                cursor, workflow, candidate
+            )
             if intent_event is None:
                 if "tape_append" in proof:
                     raise ValueError("unexpected tape append settlement proof")
@@ -7483,6 +8497,56 @@ class ExecutionDecisionJournal:
                 }
                 if proof.get("tape_append") != expected_tape_append:
                     raise ValueError("tape append settlement binding mismatch")
+            if single_row_intent is None:
+                if "single_row_tape_readback" in proof:
+                    raise ValueError("unexpected single-row physical proof")
+            else:
+                single_row_proof = proof.get("single_row_tape_readback")
+                if not isinstance(single_row_proof, Mapping):
+                    raise ValueError("single-row physical proof missing")
+                identity = single_row_proof.get("tape_file_identity")
+                lock_identity = single_row_proof.get("generation_lock_identity")
+                offset = single_row_proof.get("record_offset")
+                record_size = single_row_proof.get("record_size_bytes")
+                tape_size = single_row_proof.get("tape_size")
+                if (
+                    single_row_proof.get("schema")
+                    != "backtrader.execution_fee_pair_single_row_tape_readback.v1"
+                    or single_row_proof.get("evidence_level")
+                    != "JOURNAL_SINGLE_ROW_PHYSICAL_READBACK"
+                    or single_row_proof.get("candidate_id") != workflow["candidate_id"]
+                    or single_row_proof.get("candidate_sha256") != workflow["candidate_sha256"]
+                    or single_row_proof.get("file_id") != single_row_intent["tape_file_id"]
+                    or single_row_proof.get("header_record_id")
+                    != single_row_intent["header_record_id"]
+                    or single_row_proof.get("record_index")
+                    != single_row_intent["record_index"]
+                    or single_row_proof.get("record_id") != single_row_intent["record_id"]
+                    or single_row_proof.get("record_sha256")
+                    != single_row_intent["record_sha256"]
+                    or single_row_proof.get("intent_sha256")
+                    != single_row_intent["intent_sha256"]
+                    or single_row_proof.get("record_size_bytes")
+                    != single_row_intent["record_size_bytes"]
+                    or single_row_proof.get("writer_prefix_sha256_intent_only")
+                    != single_row_intent["prefix_sha256"]
+                    or type(offset) is not int
+                    or offset < 0
+                    or type(record_size) is not int
+                    or record_size != single_row_intent["record_size_bytes"]
+                    or type(tape_size) is not int
+                    or tape_size < record_size
+                    or offset + record_size != tape_size
+                    or type(identity) is not list
+                    or len(identity) != 2
+                    or any(type(item) is not int or item < 0 for item in identity)
+                    or type(lock_identity) is not list
+                    or len(lock_identity) != 2
+                    or any(type(item) is not int or item < 0 for item in lock_identity)
+                    or type(single_row_proof.get("writer_instance_id")) is not int
+                    or single_row_proof["writer_instance_id"] < 1
+                ):
+                    raise ValueError("single-row physical proof binding mismatch")
             plan = proof.get("decision_plan")
             if not isinstance(plan, Mapping) or not _source_sha256(
                 plan.get("economic_payload_sha256")
@@ -13701,6 +14765,250 @@ class ExecutionDecisionJournal:
                 "REGISTERED_SIM_CANCEL_CLAIM_SCHEMA_MIGRATION_FAILED"
             ) from error
 
+    def _migrate_fee_pair_grid_single_row_tape_v23(self, cursor: sqlite3.Cursor) -> None:
+        """Add v23 tape intents and quarantine unresolved pre-v23 workflows."""
+
+        names = (
+            "execution_fee_pair_grid_single_row_tape_intents",
+            "execution_fee_pair_grid_single_row_tape_position",
+            "execution_fee_pair_grid_single_row_tape_intent_no_update",
+            "execution_fee_pair_grid_single_row_tape_intent_no_delete",
+            "execution_fee_pair_legacy_unresolved_v23",
+            "execution_fee_pair_legacy_unresolved_v23_no_update",
+            "execution_fee_pair_legacy_unresolved_v23_no_delete",
+        )
+        existing = cursor.execute(
+            "SELECT name FROM sqlite_master WHERE name IN ({})".format(
+                ",".join("?" for _ in names)
+            ),
+            names,
+        ).fetchall()
+        if existing:
+            raise ExecutionDecisionJournalError("FEE_PAIR_SINGLE_ROW_TAPE_SCHEMA_CORRUPT")
+        try:
+            cursor.execute(
+                "DROP TRIGGER execution_fee_pair_workflow_durable_reservation_state"
+            )
+            cursor.execute(_FEE_PAIR_WORKFLOW_DURABLE_RESERVATION_TRIGGER_SQL_V23)
+            cursor.execute(_FEE_PAIR_GRID_SINGLE_ROW_TAPE_INTENT_TABLE_SQL)
+            cursor.execute(_FEE_PAIR_GRID_SINGLE_ROW_TAPE_POSITION_INDEX_SQL)
+            cursor.execute(_FEE_PAIR_GRID_SINGLE_ROW_TAPE_INTENT_NO_UPDATE_TRIGGER_SQL)
+            cursor.execute(_FEE_PAIR_GRID_SINGLE_ROW_TAPE_INTENT_NO_DELETE_TRIGGER_SQL)
+            cursor.execute(_FEE_PAIR_LEGACY_UNRESOLVED_V23_TABLE_SQL)
+            cursor.execute(_FEE_PAIR_LEGACY_UNRESOLVED_V23_NO_UPDATE_TRIGGER_SQL)
+            cursor.execute(_FEE_PAIR_LEGACY_UNRESOLVED_V23_NO_DELETE_TRIGGER_SQL)
+        except sqlite3.Error as error:
+            raise ExecutionDecisionJournalError(
+                "FEE_PAIR_SINGLE_ROW_TAPE_SCHEMA_MIGRATION_FAILED"
+            ) from error
+
+        # An old APPEND_CLAIMED/RECEIPT_VERIFIED row may have crossed the
+        # physical append boundary before v23 introduced a single-row proof.
+        # Preserve that ambiguity across restart. New v23 workflows are not
+        # inserted here, so their legacy SOURCE_ONLY warmup path remains usable.
+        pending = cursor.connection.cursor()
+        try:
+            pending.execute(
+                """SELECT candidate_id,candidate_sha256,state
+                   FROM execution_fee_pair_workflows
+                   WHERE state IN ('APPEND_CLAIMED','RECEIPT_VERIFIED')
+                     AND grid_decision_id IS NULL
+                   ORDER BY candidate_id"""
+            )
+            while rows := pending.fetchmany(128):
+                for workflow in rows:
+                    created_at_ns = max(1, time.time_ns())
+                    quarantine = {
+                        "candidate_id": workflow["candidate_id"],
+                        "candidate_sha256": workflow["candidate_sha256"],
+                        "legacy_state": workflow["state"],
+                        "migration_schema_version": 23,
+                        "reason": "LEGACY_UNRESOLVED_V23_UPGRADE",
+                        "created_at_ns": created_at_ns,
+                    }
+                    byte_count = len(canonical_sql_row_bytes(quarantine))
+                    try:
+                        charge_durable_capacity(
+                            cursor,
+                            self.durable_capacity_limits,
+                            DurableCapacityCharge(base_records=1, base_bytes=byte_count),
+                        )
+                    except DurableCapacityError as error:
+                        raise ExecutionDecisionJournalError(error.code) from error
+                    cursor.execute(
+                        """INSERT INTO execution_fee_pair_legacy_unresolved_v23
+                           (candidate_id,candidate_sha256,legacy_state,
+                            migration_schema_version,reason,created_at_ns)
+                           VALUES(?,?,?,?,?,?)""",
+                        tuple(quarantine.values()),
+                    )
+        except ExecutionDecisionJournalError:
+            raise
+        except (DurableCapacityError, sqlite3.Error) as error:
+            code = getattr(error, "code", "FEE_PAIR_SINGLE_ROW_TAPE_SCHEMA_MIGRATION_FAILED")
+            raise ExecutionDecisionJournalError(code) from error
+        finally:
+            pending.close()
+
+    @staticmethod
+    def _validate_fee_pair_grid_single_row_tape_schema(cursor: sqlite3.Cursor) -> None:
+        """Require the exact v23 append-only single-row intent schema."""
+
+        expected = {
+            "execution_fee_pair_grid_single_row_tape_intents": (
+                "table",
+                "execution_fee_pair_grid_single_row_tape_intents",
+                _FEE_PAIR_GRID_SINGLE_ROW_TAPE_INTENT_TABLE_SQL,
+            ),
+            "execution_fee_pair_grid_single_row_tape_position": (
+                "index",
+                "execution_fee_pair_grid_single_row_tape_intents",
+                _FEE_PAIR_GRID_SINGLE_ROW_TAPE_POSITION_INDEX_SQL,
+            ),
+            "execution_fee_pair_grid_single_row_tape_intent_no_update": (
+                "trigger",
+                "execution_fee_pair_grid_single_row_tape_intents",
+                _FEE_PAIR_GRID_SINGLE_ROW_TAPE_INTENT_NO_UPDATE_TRIGGER_SQL,
+            ),
+            "execution_fee_pair_grid_single_row_tape_intent_no_delete": (
+                "trigger",
+                "execution_fee_pair_grid_single_row_tape_intents",
+                _FEE_PAIR_GRID_SINGLE_ROW_TAPE_INTENT_NO_DELETE_TRIGGER_SQL,
+            ),
+            "execution_fee_pair_legacy_unresolved_v23": (
+                "table",
+                "execution_fee_pair_legacy_unresolved_v23",
+                _FEE_PAIR_LEGACY_UNRESOLVED_V23_TABLE_SQL,
+            ),
+            "execution_fee_pair_legacy_unresolved_v23_no_update": (
+                "trigger",
+                "execution_fee_pair_legacy_unresolved_v23",
+                _FEE_PAIR_LEGACY_UNRESOLVED_V23_NO_UPDATE_TRIGGER_SQL,
+            ),
+            "execution_fee_pair_legacy_unresolved_v23_no_delete": (
+                "trigger",
+                "execution_fee_pair_legacy_unresolved_v23",
+                _FEE_PAIR_LEGACY_UNRESOLVED_V23_NO_DELETE_TRIGGER_SQL,
+            ),
+            "execution_fee_pair_workflow_durable_reservation_state": (
+                "trigger",
+                "execution_fee_pair_workflow_durable_reservations",
+                _FEE_PAIR_WORKFLOW_DURABLE_RESERVATION_TRIGGER_SQL_V23,
+            ),
+        }
+        try:
+            rows = cursor.execute(
+                "SELECT type,name,tbl_name,sql FROM sqlite_master WHERE name IN ({})".format(
+                    ",".join("?" for _ in expected)
+                ),
+                tuple(expected),
+            ).fetchall()
+            actual = {row["name"]: row for row in rows}
+            if set(actual) != set(expected):
+                raise ExecutionDecisionJournalError(
+                    "FEE_PAIR_SINGLE_ROW_TAPE_SCHEMA_CORRUPT"
+                )
+            for name, (kind, table, ddl) in expected.items():
+                row = actual[name]
+                if (
+                    row["type"] != kind
+                    or row["tbl_name"] != table
+                    or _normalize_schema_sql(row["sql"]) != _normalize_schema_sql(ddl)
+                ):
+                    raise ExecutionDecisionJournalError(
+                        "FEE_PAIR_SINGLE_ROW_TAPE_SCHEMA_CORRUPT"
+                    )
+            columns = tuple(
+                (row["name"], row["type"].upper(), int(row["notnull"]), int(row["pk"]))
+                for row in cursor.execute(
+                    "PRAGMA table_info(execution_fee_pair_grid_single_row_tape_intents)"
+                ).fetchall()
+            )
+            if columns != (
+                ("candidate_id", "TEXT", 0, 1),
+                ("candidate_sha256", "TEXT", 1, 0),
+                ("tape_file_id", "TEXT", 1, 0),
+                ("header_record_id", "TEXT", 1, 0),
+                ("record_index", "INTEGER", 1, 0),
+                ("prefix_sha256", "TEXT", 1, 0),
+                ("record_id", "TEXT", 1, 0),
+                ("record_sha256", "TEXT", 1, 0),
+                ("record_size_bytes", "INTEGER", 1, 0),
+                ("record_json", "TEXT", 1, 0),
+                ("intent_sha256", "TEXT", 1, 0),
+                ("created_at_ns", "INTEGER", 1, 0),
+            ):
+                raise ExecutionDecisionJournalError(
+                    "FEE_PAIR_SINGLE_ROW_TAPE_SCHEMA_CORRUPT"
+                )
+            trigger_names = {
+                row["name"]
+                for row in cursor.execute(
+                    "SELECT name FROM sqlite_master WHERE type='trigger' "
+                    "AND tbl_name='execution_fee_pair_grid_single_row_tape_intents'"
+                ).fetchall()
+            }
+            index_names = {
+                row["name"]
+                for row in cursor.execute(
+                    "SELECT name FROM sqlite_master WHERE type='index' "
+                    "AND tbl_name='execution_fee_pair_grid_single_row_tape_intents' "
+                    "AND name NOT LIKE 'sqlite_autoindex%'"
+                ).fetchall()
+            }
+            if trigger_names != {
+                "execution_fee_pair_grid_single_row_tape_intent_no_update",
+                "execution_fee_pair_grid_single_row_tape_intent_no_delete",
+            } or index_names != {"execution_fee_pair_grid_single_row_tape_position"}:
+                raise ExecutionDecisionJournalError(
+                    "FEE_PAIR_SINGLE_ROW_TAPE_SCHEMA_CORRUPT"
+                )
+            quarantine_columns = tuple(
+                (row["name"], row["type"].upper(), int(row["notnull"]), int(row["pk"]))
+                for row in cursor.execute(
+                    "PRAGMA table_info(execution_fee_pair_legacy_unresolved_v23)"
+                ).fetchall()
+            )
+            if quarantine_columns != (
+                ("candidate_id", "TEXT", 0, 1),
+                ("candidate_sha256", "TEXT", 1, 0),
+                ("legacy_state", "TEXT", 1, 0),
+                ("migration_schema_version", "INTEGER", 1, 0),
+                ("reason", "TEXT", 1, 0),
+                ("created_at_ns", "INTEGER", 1, 0),
+            ):
+                raise ExecutionDecisionJournalError(
+                    "FEE_PAIR_SINGLE_ROW_TAPE_SCHEMA_CORRUPT"
+                )
+            quarantine_triggers = {
+                row["name"]
+                for row in cursor.execute(
+                    "SELECT name FROM sqlite_master WHERE type='trigger' "
+                    "AND tbl_name='execution_fee_pair_legacy_unresolved_v23'"
+                ).fetchall()
+            }
+            quarantine_indexes = {
+                row["name"]
+                for row in cursor.execute(
+                    "SELECT name FROM sqlite_master WHERE type='index' "
+                    "AND tbl_name='execution_fee_pair_legacy_unresolved_v23' "
+                    "AND name NOT LIKE 'sqlite_autoindex%'"
+                ).fetchall()
+            }
+            if quarantine_triggers != {
+                "execution_fee_pair_legacy_unresolved_v23_no_update",
+                "execution_fee_pair_legacy_unresolved_v23_no_delete",
+            } or quarantine_indexes:
+                raise ExecutionDecisionJournalError(
+                    "FEE_PAIR_SINGLE_ROW_TAPE_SCHEMA_CORRUPT"
+                )
+        except ExecutionDecisionJournalError:
+            raise
+        except (KeyError, TypeError, ValueError, sqlite3.Error) as error:
+            raise ExecutionDecisionJournalError(
+                "FEE_PAIR_SINGLE_ROW_TAPE_SCHEMA_CORRUPT"
+            ) from error
+
     @staticmethod
     def _validate_registered_sim_cancel_dispatch_claim_schema(
         cursor: sqlite3.Cursor,
@@ -13858,7 +15166,9 @@ class ExecutionDecisionJournal:
 
     @staticmethod
     def _validate_fee_pair_workflow_schema(
-        cursor: sqlite3.Cursor, *, schema_version: int = _FEE_PAIR_GRID_TAPE_APPEND_SCHEMA_VERSION
+        cursor: sqlite3.Cursor,
+        *,
+        schema_version: int = _FEE_PAIR_GRID_SINGLE_ROW_TAPE_SCHEMA_VERSION,
     ) -> None:
         if schema_version not in (
             _FEE_PAIR_WORKFLOW_SCHEMA_VERSION,
@@ -13867,10 +15177,12 @@ class ExecutionDecisionJournal:
             _FEE_PAIR_GRID_TAPE_APPEND_SCHEMA_VERSION,
             _KNOWN_CTP_ORDER_SYSID_BINDING_SCHEMA_VERSION,
             _REGISTERED_SIM_CANCEL_DISPATCH_CLAIM_SCHEMA_VERSION,
+            _FEE_PAIR_GRID_SINGLE_ROW_TAPE_SCHEMA_VERSION,
         ):
             raise ExecutionDecisionJournalError("FEE_PAIR_WORKFLOW_SCHEMA_VERSION_INVALID")
         is_v19 = schema_version >= _FEE_PAIR_GRID_SETTLEMENT_SCHEMA_VERSION
         is_v20 = schema_version >= _FEE_PAIR_GRID_TAPE_APPEND_SCHEMA_VERSION
+        is_v23 = schema_version >= _FEE_PAIR_GRID_SINGLE_ROW_TAPE_SCHEMA_VERSION
         expected = {
             "execution_fee_pair_workflows": (
                 "table",
@@ -13922,7 +15234,9 @@ class ExecutionDecisionJournal:
             ),
             "execution_fee_pair_workflow_durable_reservation_state": (
                 "trigger",
-                _FEE_PAIR_WORKFLOW_DURABLE_RESERVATION_TRIGGER_SQL_V20
+                _FEE_PAIR_WORKFLOW_DURABLE_RESERVATION_TRIGGER_SQL_V23
+                if is_v23
+                else _FEE_PAIR_WORKFLOW_DURABLE_RESERVATION_TRIGGER_SQL_V20
                 if is_v20
                 else _FEE_PAIR_WORKFLOW_DURABLE_RESERVATION_TRIGGER_SQL,
             ),
@@ -14567,6 +15881,25 @@ class ExecutionDecisionJournal:
         ):
             account_rows(table, lambda _row: "SETTLEMENT")
 
+        single_row_intent_table = cursor.execute(
+            "SELECT 1 FROM sqlite_master WHERE type='table' "
+            "AND name='execution_fee_pair_grid_single_row_tape_intents'"
+        ).fetchone()
+        if single_row_intent_table is not None:
+            account_rows(
+                "execution_fee_pair_grid_single_row_tape_intents",
+                lambda _row: "BASE",
+            )
+        legacy_unresolved_table = cursor.execute(
+            "SELECT 1 FROM sqlite_master WHERE type='table' "
+            "AND name='execution_fee_pair_legacy_unresolved_v23'"
+        ).fetchone()
+        if legacy_unresolved_table is not None:
+            account_rows(
+                "execution_fee_pair_legacy_unresolved_v23",
+                lambda _row: "BASE",
+            )
+
         for capacity_class in ("BASE", "SETTLEMENT"):
             changed = cursor.execute(
                 """UPDATE execution_durable_capacity_usage
@@ -14655,6 +15988,7 @@ class ExecutionDecisionJournal:
                 _FEE_PAIR_GRID_SETTLEMENT_SCHEMA_VERSION,
                 _FEE_PAIR_GRID_TAPE_APPEND_SCHEMA_VERSION,
                 _KNOWN_CTP_ORDER_SYSID_BINDING_SCHEMA_VERSION,
+                _REGISTERED_SIM_CANCEL_DISPATCH_CLAIM_SCHEMA_VERSION,
                 self._SCHEMA_VERSION,
             ):
                 raise ExecutionDecisionJournalError("UNSUPPORTED_SCHEMA_VERSION")
@@ -15029,6 +16363,7 @@ class ExecutionDecisionJournal:
                     _FEE_PAIR_GRID_SETTLEMENT_SCHEMA_VERSION,
                     _FEE_PAIR_GRID_TAPE_APPEND_SCHEMA_VERSION,
                     _KNOWN_CTP_ORDER_SYSID_BINDING_SCHEMA_VERSION,
+                    _REGISTERED_SIM_CANCEL_DISPATCH_CLAIM_SCHEMA_VERSION,
                     self._SCHEMA_VERSION,
                 ):
                     raise ExecutionDecisionJournalError("UNSUPPORTED_SCHEMA_VERSION")
@@ -15264,6 +16599,10 @@ class ExecutionDecisionJournal:
                                 if locked_version == _FEE_PAIR_GRID_SETTLEMENT_SCHEMA_VERSION
                                 else _FEE_PAIR_GRID_TAPE_APPEND_SCHEMA_VERSION
                                 if locked_version == _FEE_PAIR_GRID_TAPE_APPEND_SCHEMA_VERSION
+                                else _KNOWN_CTP_ORDER_SYSID_BINDING_SCHEMA_VERSION
+                                if locked_version == _KNOWN_CTP_ORDER_SYSID_BINDING_SCHEMA_VERSION
+                                else _REGISTERED_SIM_CANCEL_DISPATCH_CLAIM_SCHEMA_VERSION
+                                if locked_version == _REGISTERED_SIM_CANCEL_DISPATCH_CLAIM_SCHEMA_VERSION
                                 else self._SCHEMA_VERSION
                             ),
                         )
@@ -15283,9 +16622,12 @@ class ExecutionDecisionJournal:
                         self._migrate_known_ctp_order_sysid_binding_v21(cursor)
                     if locked_version < _REGISTERED_SIM_CANCEL_DISPATCH_CLAIM_SCHEMA_VERSION:
                         self._migrate_registered_sim_cancel_dispatch_claim_v22(cursor)
+                    if locked_version < _FEE_PAIR_GRID_SINGLE_ROW_TAPE_SCHEMA_VERSION:
+                        self._migrate_fee_pair_grid_single_row_tape_v23(cursor)
                     self._validate_fee_pair_workflow_schema(cursor)
                     self._validate_known_ctp_order_sysid_binding_schema(cursor)
                     self._validate_registered_sim_cancel_dispatch_claim_schema(cursor)
+                    self._validate_fee_pair_grid_single_row_tape_schema(cursor)
                     self._validate_fee_pair_workflow_capacity(cursor)
                 finally:
                     cursor.close()
@@ -15451,6 +16793,169 @@ def _bounded_fee_pair_grid_tape_record_bytes(value: Any) -> bytes:
     if len(encoded) + 1 > _MAX_FEE_PAIR_GRID_TAPE_RECORD_BYTES:
         raise ValueError("tape record exceeds its byte bound")
     return encoded + b"\n"
+
+
+def _fee_pair_single_row_tape_intent_sha256(values: Mapping[str, Any]) -> str:
+    names = (
+        "candidate_id",
+        "candidate_sha256",
+        "tape_file_id",
+        "header_record_id",
+        "record_index",
+        "prefix_sha256",
+        "record_id",
+        "record_sha256",
+        "record_size_bytes",
+    )
+    return hashlib.sha256(
+        _canonical_json({name: values[name] for name in names}).encode("utf-8")
+    ).hexdigest()
+
+
+def _fee_pair_single_row_economic_payload_sha256(payload: Mapping[str, Any]) -> str:
+    """Bind v23 tape intent to its settlement economics without the row-id cycle.
+
+    The physical row id is derived from the row bytes, while settlement must
+    point back to that row id. It is the only omitted field; tape file, index,
+    batch, both actions, both leg economics, fee/risk evidence and all other
+    payload fields remain in the digest.
+    """
+
+    if not isinstance(payload, Mapping):
+        raise ExecutionDecisionJournalError("FEE_PAIR_GRID_PLAN_INVALID")
+    values = dict(payload)
+    values.pop("decision_tape_record_id", None)
+    try:
+        encoded = _canonical_json(values).encode("utf-8")
+    except (TypeError, ValueError, UnicodeError, OverflowError) as error:
+        raise ExecutionDecisionJournalError("FEE_PAIR_GRID_PLAN_INVALID") from error
+    return hashlib.sha256(encoded).hexdigest()
+
+
+def _fee_pair_single_row_tape_plan_matches_economics(
+    row: Mapping[str, Any], payload: Mapping[str, Any]
+) -> bool:
+    """Require the one physical LIVE_READY plan row to encode this GRID plan."""
+
+    if not isinstance(row, Mapping) or not isinstance(payload, Mapping):
+        return False
+    expected_digest = row.get("fee_pair_economic_payload_sha256")
+    if (
+        not _source_sha256(expected_digest)
+        or expected_digest != _fee_pair_single_row_economic_payload_sha256(payload)
+    ):
+        return False
+    tape_plan = row.get("order_plan")
+    actions = tape_plan.get("actions") if isinstance(tape_plan, Mapping) else None
+    proposed = payload.get("proposed_actions")
+    if (
+        not isinstance(tape_plan, Mapping)
+        or tape_plan.get("status") != "READY"
+        or tape_plan.get("status") != payload.get("plan_status")
+        or tape_plan.get("reason") != payload.get("plan_reason")
+        or tape_plan.get("decision_batch_id") != payload.get("batch_id")
+        or row.get("batch_id") != payload.get("batch_id")
+        or type(actions) is not list
+        or type(proposed) not in (list, tuple)
+        or len(actions) != 2
+        or len(proposed) != 2
+    ):
+        return False
+    bound_fields = (
+        "action",
+        "target_id",
+        "instrument",
+        "exchange",
+        "side",
+        "position_effect",
+        "quantity",
+        "limit_price",
+        "planned_stop_price",
+        "entry_grid_ordinal",
+        "decision_available_at",
+    )
+    for tape_action, economic_action in zip(actions, proposed):
+        if not isinstance(tape_action, Mapping) or not isinstance(economic_action, Mapping):
+            return False
+        if any(
+            tape_action.get(name) != economic_action.get(name)
+            for name in bound_fields
+        ) or tape_action.get("decision_available_at") != tape_plan.get(
+            "decision_available_at"
+        ):
+            return False
+    return True
+
+
+def _prepare_fee_pair_grid_single_row_tape_intent(
+    *,
+    candidate_id: str,
+    tape_file_id: str,
+    header_record_id: str,
+    record_index: int,
+    prefix_sha256: str,
+    record_json: str,
+) -> Tuple[Mapping[str, Any], Mapping[str, Any], bytes, str]:
+    """Validate and project a bounded v23 tape row before Journal mutation."""
+
+    if not _source_sha256(candidate_id):
+        raise ExecutionDecisionJournalError("INVALID_FEE_PAIR_CANDIDATE_ID")
+    _source_text(tape_file_id, 512, "FEE_PAIR_SINGLE_ROW_TAPE_INTENT_INVALID")
+    if (
+        not _source_sha256(header_record_id)
+        or type(record_index) is not int
+        or not 1 <= record_index <= 9_223_372_036_854_775_807
+        or not _source_sha256(prefix_sha256)
+    ):
+        raise ExecutionDecisionJournalError("FEE_PAIR_SINGLE_ROW_TAPE_INTENT_INVALID")
+    try:
+        record_bytes = _bounded_fee_pair_grid_tape_record_bytes(record_json)
+        decoded = json.loads(record_json)
+        canonical_record_json = _canonical_tape_record_json(decoded)
+    except (UnicodeError, TypeError, ValueError, OverflowError) as error:
+        raise ExecutionDecisionJournalError(
+            "FEE_PAIR_SINGLE_ROW_TAPE_INTENT_INVALID"
+        ) from error
+    if canonical_record_json != record_json or not isinstance(decoded, Mapping):
+        raise ExecutionDecisionJournalError("FEE_PAIR_SINGLE_ROW_TAPE_INTENT_INVALID")
+    record_id = decoded.get("record_id")
+    unsigned_record = dict(decoded)
+    unsigned_record.pop("record_id", None)
+    workflow_marker = decoded.get("fee_pair_workflow")
+    record_sha256 = hashlib.sha256(record_bytes).hexdigest()
+    if (
+        not _source_sha256(record_id)
+        or hashlib.sha256(_canonical_tape_record_json(unsigned_record).encode("utf-8")).hexdigest()
+        != record_id
+        or decoded.get("file_id") != tape_file_id
+        or decoded.get("header_record_id") != header_record_id
+        or type(decoded.get("record_index")) is not int
+        or decoded.get("record_index") != record_index
+        or decoded.get("record_type") != "DECISION"
+        or decoded.get("schema") != "backtrader.alpha003.decision_tape.v2"
+        or not _source_sha256(decoded.get("fee_pair_economic_payload_sha256"))
+        or not isinstance(workflow_marker, Mapping)
+        or workflow_marker.get("candidate_id") != candidate_id
+        or not _source_sha256(workflow_marker.get("candidate_sha256"))
+    ):
+        raise ExecutionDecisionJournalError("FEE_PAIR_SINGLE_ROW_TAPE_INTENT_INVALID")
+    values = {
+        "candidate_id": candidate_id,
+        "candidate_sha256": workflow_marker["candidate_sha256"],
+        "tape_file_id": tape_file_id,
+        "header_record_id": header_record_id,
+        "record_index": record_index,
+        "prefix_sha256": prefix_sha256,
+        "record_id": record_id,
+        "record_sha256": record_sha256,
+        "record_size_bytes": len(record_bytes),
+    }
+    return (
+        decoded,
+        MappingProxyType(values),
+        record_bytes,
+        _fee_pair_single_row_tape_intent_sha256(values),
+    )
 
 
 def _sha256_text(value: Any) -> Optional[str]:
