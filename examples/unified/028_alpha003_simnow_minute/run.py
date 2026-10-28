@@ -3090,7 +3090,11 @@ class DecisionTapeWriter:
             raise RunnerError("DECISION_TAPE_CALENDAR_FINGERPRINT_INVALID")
         self.calendar_fingerprint = calendar_fingerprint
         self._selection_evidence = (
-            _validate_selection_evidence(selection_evidence)
+            json.loads(
+                _canonical_json_bytes(
+                    _validate_selection_evidence(selection_evidence)
+                )
+            )
             if selection_evidence is not None
             else None
         )
@@ -3311,13 +3315,30 @@ class DecisionTapeWriter:
                 self._failed = True
                 raise
 
-    def _verified_source_tape_readback_locked(self, source_receipt, journal_api):
+    def _verified_source_tape_readback_locked(
+        self,
+        source_receipt,
+        journal_api,
+        *,
+        purpose="PREWARM",
+        expected_grid_cursor=None,
+    ):
+        receipt_is_valid = type(source_receipt) is journal_api.ExecutionSourceReceipt
+        readiness_allowed = (
+            purpose == "PREWARM"
+            and receipt_is_valid
+            and source_receipt.readiness in ("WARMUP", "CATCHING_UP")
+        ) or (
+            purpose == "NO_LEGAL_FEE_PAIR"
+            and receipt_is_valid
+            and source_receipt.readiness == "LIVE_READY"
+        )
         if (
             self.mode != "live"
             or self._closed
             or self._failed
-            or type(source_receipt) is not journal_api.ExecutionSourceReceipt
-            or source_receipt.readiness not in ("WARMUP", "CATCHING_UP")
+            or not receipt_is_valid
+            or not readiness_allowed
             or self._generation_lease is None
             or not self._generation_lease.held
             or self._last_record_raw is None
@@ -3369,6 +3390,56 @@ class DecisionTapeWriter:
             ).hexdigest()
             reference = self._last_record_reference
             plan = row.get("order_plan")
+            if purpose == "PREWARM":
+                plan_matches = (
+                    isinstance(plan, Mapping)
+                    and plan.get("status") == "NO_ACTION"
+                    and plan.get("actions") == []
+                )
+                decision_matches = True
+            elif purpose == "NO_LEGAL_FEE_PAIR":
+                target_decision = row.get("target_decision")
+                factor_rows = row.get("factors", {}).get("factors") if isinstance(
+                    row.get("factors"), Mapping
+                ) else None
+                alpha003 = factor_rows.get("alpha003") if isinstance(factor_rows, Mapping) else None
+                factor_values = alpha003.get("values") if isinstance(alpha003, Mapping) else None
+                plan_matches = (
+                    isinstance(plan, Mapping)
+                    and plan.get("status") == "SOURCE_ONLY"
+                    and plan.get("reason") == "NO_LEGAL_FEE_PAIR"
+                    and plan.get("decision_batch_id") == row.get("batch_id")
+                    and plan.get("decision_available_at") == row.get("available_at")
+                    and plan.get("actions") == []
+                )
+                decision_matches = (
+                    isinstance(target_decision, Mapping)
+                    and target_decision.get("status") == "BLOCKED"
+                    and target_decision.get("reason") == "NO_VALID_SIGNAL"
+                    and target_decision.get("execution_mode") == "LIVE"
+                    and target_decision.get("factor_name") == "alpha003"
+                    and target_decision.get("mode") == self.factor_mode
+                    and target_decision.get("direction") == self.direction
+                    and target_decision.get("batch_id") == row.get("batch_id")
+                    and target_decision.get("cohort_id") == row.get("cohort_id")
+                    and target_decision.get("targets") == []
+                    and isinstance(factor_values, Mapping)
+                    and tuple(sorted(factor_values)) == self.targets
+                    and all(
+                        isinstance(factor_values.get(target), Mapping)
+                        and factor_values[target].get("present") is True
+                        and factor_values[target].get("complete") is True
+                        and factor_values[target].get("quality") == "GOOD"
+                        and factor_values[target].get("source_role") == "live"
+                        and factor_values[target].get("member_id") == target
+                        for target in self.targets
+                    )
+                    and isinstance(alpha003, Mapping)
+                    and target_decision.get("source_sha256")
+                    == alpha003.get("source_sha256")
+                )
+            else:
+                raise RunnerError("DECISION_TAPE_SOURCE_READBACK_UNAVAILABLE")
             if (
                 row.get("schema") != DECISION_TAPE_SCHEMA
                 or row.get("record_type") != "DECISION"
@@ -3380,19 +3451,27 @@ class DecisionTapeWriter:
                 or record_id != reference.get("record_id")
                 or reference.get("file_id") != self.file_id
                 or reference.get("record_index") != self._record_count
-                or row.get("readiness") not in ("WARMUP", "CATCHING_UP")
                 or row.get("readiness") != source_receipt.readiness
                 or not isinstance(row.get("factors"), Mapping)
                 or not row.get("factors", {}).get("factors")
                 or not isinstance(row.get("members"), Mapping)
                 or tuple(sorted(row["members"])) != self.targets
-                or not isinstance(plan, Mapping)
-                or plan.get("status") != "NO_ACTION"
-                or plan.get("actions") != []
+                or not plan_matches
+                or not decision_matches
             ):
                 raise RunnerError("DECISION_TAPE_SOURCE_READBACK_MISMATCH")
 
             members = _fee_pair_source_members_from_tape_row(row, journal_api)
+            if purpose == "NO_LEGAL_FEE_PAIR" and any(
+                member.source_role != "live"
+                or member.complete is not True
+                or member.quality != "GOOD"
+                or member.present is not True
+                or member.missing_fields
+                or not set(member.quality_flags).issubset({"LEGACY_SCHEMA"})
+                for member in members
+            ):
+                raise RunnerError("DECISION_TAPE_SOURCE_READBACK_MISMATCH")
             receipt = journal_api.ExecutionSourceReceipt(
                 source_kind=source_receipt.source_kind,
                 cohort_id=row["cohort_id"],
@@ -3425,6 +3504,8 @@ class DecisionTapeWriter:
                 prefix_sha256=self._hash.hexdigest(),
                 writer_instance_id=id(self),
                 generation_lock_identity=self._generation_lease._identity,
+                purpose=purpose,
+                expected_grid_cursor=expected_grid_cursor,
             )
         except RunnerError:
             raise
@@ -3941,6 +4022,273 @@ class DecisionTapeWriter:
                 owner_token=secrets.token_hex(32),
                 ttl_seconds=ttl_seconds,
             )
+
+    def record_fee_pair_no_pair_source_only_from_live(
+        self,
+        batch,
+        snapshot,
+        target_decision,
+        journal,
+        *,
+        account_scope: str,
+        strategy_scope: str,
+        logical_run_id: str,
+        source_kind: str,
+        source_restart_marker=None,
+    ):
+        """Append one LIVE_READY ``NO_VALID_SIGNAL`` slot without a candidate.
+
+        The selection reason is the only accepted no-pair case. The row is
+        source evidence, not a grid decision or an order authorization.
+        """
+
+        from backtrader.stores import execution_decision_journal as journal_api
+        from alpha003_strategy import Alpha003TargetDecision
+
+        if type(journal) is not journal_api.ExecutionDecisionJournal:
+            raise RunnerError("FEE_PAIR_JOURNAL_TYPE_INVALID")
+        if type(target_decision) is not Alpha003TargetDecision:
+            raise RunnerError("FEE_PAIR_NO_PAIR_SELECTION_INVALID")
+        for name, value in (
+            ("account_scope", account_scope),
+            ("strategy_scope", strategy_scope),
+            ("logical_run_id", logical_run_id),
+            ("source_kind", source_kind),
+        ):
+            if type(value) is not str or not value or value != value.strip():
+                raise RunnerError("FEE_PAIR_SOURCE_SCOPE_INVALID")
+        if source_restart_marker is not None and type(
+            source_restart_marker
+        ) is not journal_api.ExecutionSourceRestartMarker:
+            raise RunnerError("FEE_PAIR_SOURCE_RESTART_MARKER_INVALID")
+
+        with self._lock:
+            if self._closed or self._failed:
+                raise RunnerError("DECISION_TAPE_UNAVAILABLE")
+            if self.mode != "live":
+                raise RunnerError("FEE_PAIR_TAPE_LIVE_MODE_REQUIRED")
+            if self.calendar_fingerprint is None or self._selection_evidence is None:
+                raise RunnerError("FEE_PAIR_TAPE_SELECTION_BINDING_REQUIRED")
+            if (
+                getattr(batch, "status", None) != "COMPLETE"
+                or getattr(snapshot, "readiness", None) != "LIVE_READY"
+                or getattr(snapshot, "batch_complete", None) is not True
+                or getattr(snapshot, "batch_id", None) != getattr(batch, "batch_id", None)
+                or getattr(snapshot, "cohort_id", None) != getattr(batch, "cohort_id", None)
+                or getattr(snapshot, "close_time", None) != getattr(batch, "close_time", None)
+                or getattr(target_decision, "status", None) != "BLOCKED"
+                or getattr(target_decision, "reason", None) != "NO_VALID_SIGNAL"
+                or getattr(target_decision, "execution_mode", None) != "LIVE"
+                or getattr(target_decision, "batch_id", None) != getattr(batch, "batch_id", None)
+                or getattr(target_decision, "cohort_id", None) != getattr(batch, "cohort_id", None)
+                or tuple(getattr(target_decision, "targets", ()))
+            ):
+                raise RunnerError("FEE_PAIR_NO_PAIR_SOURCE_UNAVAILABLE")
+
+            expected_index = self._record_count + 1
+            row = _decision_tape_record(
+                batch,
+                snapshot,
+                target_decision,
+                None,
+                file_id=self.file_id,
+                index=expected_index,
+                targets=self.targets,
+                calendar_fingerprint=self.calendar_fingerprint,
+            )
+            decision_row = row.get("target_decision")
+            factor_rows = row.get("factors", {}).get("factors")
+            alpha003 = factor_rows.get("alpha003") if isinstance(factor_rows, Mapping) else None
+            factor_values = alpha003.get("values") if isinstance(alpha003, Mapping) else None
+            if (
+                not isinstance(decision_row, Mapping)
+                or decision_row.get("status") != "BLOCKED"
+                or decision_row.get("reason") != "NO_VALID_SIGNAL"
+                or decision_row.get("execution_mode") != "LIVE"
+                or decision_row.get("factor_name") != "alpha003"
+                or decision_row.get("mode") != self.factor_mode
+                or decision_row.get("direction") != self.direction
+                or decision_row.get("source_sha256")
+                != (alpha003.get("source_sha256") if isinstance(alpha003, Mapping) else None)
+                or decision_row.get("targets") != []
+                or not isinstance(factor_values, Mapping)
+                or tuple(sorted(factor_values)) != self.targets
+                or any(
+                    not isinstance(factor_values.get(target), Mapping)
+                    or factor_values[target].get("present") is not True
+                    or factor_values[target].get("complete") is not True
+                    or factor_values[target].get("quality") != "GOOD"
+                    or factor_values[target].get("source_role") != "live"
+                    or factor_values[target].get("member_id") != target
+                    for target in self.targets
+                )
+            ):
+                raise RunnerError("FEE_PAIR_NO_PAIR_SOURCE_UNAVAILABLE")
+            row["order_plan"] = {
+                "status": "SOURCE_ONLY",
+                "reason": "NO_LEGAL_FEE_PAIR",
+                "decision_batch_id": row["batch_id"],
+                "decision_available_at": row["available_at"],
+                "actions": [],
+            }
+
+            member_rows = row.get("members")
+            if (
+                not isinstance(member_rows, Mapping)
+                or tuple(sorted(member_rows)) != self.targets
+                or any(
+                    not isinstance(member_rows.get(target), Mapping)
+                    or member_rows[target].get("source_role") != "live"
+                    or member_rows[target].get("complete") is not True
+                    or member_rows[target].get("quality") != "GOOD"
+                    or member_rows[target].get("present") is not True
+                    or member_rows[target].get("missing_fields")
+                    or not set(member_rows[target].get("quality_flags", ())).issubset(
+                        {"LEGACY_SCHEMA"}
+                    )
+                    for target in self.targets
+                )
+            ):
+                raise RunnerError("FEE_PAIR_NO_PAIR_SOURCE_UNAVAILABLE")
+            try:
+                source_members = _fee_pair_source_members_from_tape_row(row, journal_api)
+            except RunnerError:
+                raise RunnerError("FEE_PAIR_NO_PAIR_SOURCE_UNAVAILABLE") from None
+
+            key = journal_api.ExecutionDecisionKey(
+                account_scope=account_scope,
+                strategy_scope=strategy_scope,
+                logical_run_id=logical_run_id,
+                cohort_id=row["cohort_id"],
+                close_time=row["close_time"],
+                decision_kind=source_kind,
+            )
+            self._verify_fee_pair_writer_prefix(journal)
+            expected_grid_cursor = self._verify_fee_pair_no_pair_selector_projection(
+                batch,
+                snapshot,
+                target_decision,
+                journal,
+                key,
+            )
+            highwater = journal.validate_fee_pair_no_pair_source_only_preflight(key)
+            expected_scope = (
+                account_scope,
+                strategy_scope,
+                logical_run_id,
+                source_kind,
+                row["cohort_id"],
+                row["epoch_id"],
+                row["calendar_id"],
+                row["calendar_version"],
+                row["calendar_fingerprint"],
+            )
+            if self._fee_pair_source_scope is not None and self._fee_pair_source_scope != expected_scope:
+                raise RunnerError("FEE_PAIR_TAPE_SOURCE_SCOPE_MISMATCH")
+            if highwater is not None and (
+                row["epoch_id"] < highwater.receipt.epoch_id
+                or (
+                    row["epoch_id"] == highwater.receipt.epoch_id
+                    and row["slot_index"] <= highwater.receipt.slot_index
+                )
+            ):
+                raise RunnerError("FEE_PAIR_TAPE_SLOT_ALREADY_CONSUMED")
+            if expected_index != row["record_index"]:
+                raise RunnerError("FEE_PAIR_TAPE_POSITION_MISMATCH")
+
+            if self._selection_evidence_sha256 is not None:
+                row["selection_evidence_sha256"] = self._selection_evidence_sha256
+            row["header_record_id"] = self._header_record_id
+            record_id = hashlib.sha256(
+                _canonical_json_bytes(row).rstrip(b"\n")
+            ).hexdigest()
+            row["record_id"] = record_id
+            raw = _canonical_json_bytes(row)
+            receipt = journal_api.ExecutionSourceReceipt(
+                source_kind=source_kind,
+                cohort_id=row["cohort_id"],
+                calendar_id=row["calendar_id"],
+                calendar_version=row["calendar_version"],
+                calendar_fingerprint=row["calendar_fingerprint"],
+                epoch_id=row["epoch_id"],
+                slot_index=row["slot_index"],
+                slot_id=row["slot_id"],
+                close_time=row["close_time"],
+                batch_id=row["batch_id"],
+                readiness=row["readiness"],
+                tape_file_id=row["file_id"],
+                tape_record_id=record_id,
+                tape_record_index=row["record_index"],
+                members=source_members,
+                predecessor=None if highwater is None else highwater.reference,
+                restart_marker=source_restart_marker,
+            )
+            try:
+                journal_api.ExecutionDecisionJournal._validate_source_append(
+                    receipt=receipt,
+                    highwater=highwater,
+                    scope=(account_scope, strategy_scope, logical_run_id, source_kind),
+                )
+            except journal_api.ExecutionDecisionJournalError as error:
+                raise RunnerError(error.code) from None
+
+            offset = self._bytes
+            try:
+                self._append(raw, count_record=True)
+                self._last_record_reference = MappingProxyType(
+                    {
+                        "file_id": self.file_id,
+                        "record_id": record_id,
+                        "record_index": expected_index,
+                        "batch_id": row["batch_id"],
+                    }
+                )
+                readback = self._verified_source_tape_readback_locked(
+                    receipt,
+                    journal_api,
+                    purpose="NO_LEGAL_FEE_PAIR",
+                    expected_grid_cursor=expected_grid_cursor,
+                )
+                anchored = journal.record_verified_fee_pair_no_pair_source_only(
+                    key, readback
+                )
+                decision = anchored.source_anchor
+                highwater_after = journal.source_highwater(
+                    account_scope,
+                    strategy_scope,
+                    logical_run_id,
+                    source_kind,
+                )
+                if (
+                    decision is None
+                    or decision.key != key
+                    or decision.intent_keys
+                    or decision.economic_payload.get("_execution_source_anchor_only") is not True
+                    or decision.economic_payload.get(
+                        "_execution_fee_pair_no_pair_source_only"
+                    )
+                    != {
+                        "reason_code": "NO_LEGAL_FEE_PAIR",
+                        "selection_reason": "NO_VALID_SIGNAL",
+                    }
+                    or decision.economic_payload.get("_execution_fee_pair_workflow") is not None
+                    or highwater_after is None
+                    or highwater_after.anchor_kind != "SOURCE_ONLY"
+                    or highwater_after.receipt != receipt
+                ):
+                    raise RunnerError("FEE_PAIR_NO_PAIR_HIGHWATER_INVALID")
+                self._fee_pair_source_scope = expected_scope
+                return MappingProxyType(
+                    {
+                        "tape_reference": dict(self._last_record_reference),
+                        "source_receipt": receipt,
+                        "decision": decision,
+                    }
+                )
+            except BaseException:
+                # Once bytes may be durable, never retry this source identity.
+                self._failed = True
+                raise
 
     def record_fee_pair_grid_tape_append_observation(
         self,
@@ -4680,6 +5028,141 @@ class DecisionTapeWriter:
             or not candidate.source_kind
         ):
             raise RunnerError("FEE_PAIR_TAPE_PLAN_BINDING_MISMATCH")
+
+    def _verify_fee_pair_no_pair_selector_projection(
+        self, batch, snapshot, target_decision, journal, key
+    ):
+        """Recompute the LIVE selector from this writer's bound plan and source.
+
+        A caller-supplied ``BLOCKED/NO_VALID_SIGNAL`` object is not authority.
+        The selected policy is bound into the validated run identity and tape
+        header; the selector below is recomputed from the same immutable batch
+        and factor snapshot that will be serialized.
+        """
+
+        from alpha003_strategy import (
+            _preselection_block_reason,
+            policy_input_from_shared_snapshot,
+            select_alpha003_targets,
+        )
+
+        identity = self._restart_identity
+        evidence = self._selection_evidence
+        scope_hashes = identity.get("scope_sha256") if isinstance(identity, Mapping) else None
+        calendar = identity.get("calendar") if isinstance(identity, Mapping) else None
+        identity_targets = identity.get("targets") if isinstance(identity, Mapping) else None
+        routes = identity.get("routes") if isinstance(identity, Mapping) else None
+        policy = identity.get("selector_policy") if isinstance(identity, Mapping) else None
+        expected_scope_hashes = {
+            "account_scope": hashlib.sha256(key.account_scope.encode("utf-8")).hexdigest(),
+            "strategy_scope": hashlib.sha256(key.strategy_scope.encode("utf-8")).hexdigest(),
+            "logical_run_id": hashlib.sha256(key.logical_run_id.encode("utf-8")).hexdigest(),
+        }
+        evidence_routes = evidence.get("active_routes", evidence.get("routes")) if isinstance(
+            evidence, Mapping
+        ) else None
+        authorized_targets = (
+            evidence.get("active_authorized_targets", evidence.get("authorized_targets"))
+            if isinstance(evidence, Mapping)
+            else None
+        )
+        product_keys = policy.get("product_keys") if isinstance(policy, Mapping) else None
+        if (
+            not isinstance(identity, Mapping)
+            or not isinstance(evidence, Mapping)
+            or not isinstance(scope_hashes, Mapping)
+            or not isinstance(calendar, Mapping)
+            or type(identity_targets) is not list
+            or not isinstance(routes, Mapping)
+            or not isinstance(evidence_routes, Mapping)
+            or not isinstance(policy, Mapping)
+            or not isinstance(product_keys, Mapping)
+            or identity.get("schema") != "backtrader.alpha003.live_restart_identity.v1"
+            or identity.get("mode") != "live"
+            or identity.get("factor_mode") != self.factor_mode
+            or identity.get("direction") != self.direction
+            or identity.get("epoch_id") != getattr(batch, "epoch_id", None)
+            or identity.get("scope_sha256") != expected_scope_hashes
+            or tuple(identity_targets) != self.targets
+            or set(routes) != set(self.targets)
+            or set(evidence_routes) != set(self.targets)
+            or evidence.get("selection_source") != identity.get("selection_source")
+            or evidence.get("source_snapshot_id") != self.source_snapshot_id
+            or not _selection_evidence_matches_identity(evidence, identity)
+            or identity.get("selector_policy") != evidence.get("selector_policy")
+            or calendar.get("calendar_id") != self.calendar_id
+            or calendar.get("grid_sha256") != self.grid_sha256
+            or policy.get("rebalance_every") is None
+            or type(policy.get("rebalance_every")) is not int
+            or policy["rebalance_every"] < 1
+            or set(product_keys) != set(self.targets)
+            or type(authorized_targets) is not list
+            or not authorized_targets
+            or len(authorized_targets) != len(set(authorized_targets))
+            or not set(authorized_targets).issubset(self.targets)
+            or sorted(authorized_targets) != identity.get("authorized_targets")
+            or key.cohort_id != getattr(batch, "cohort_id", None)
+        ):
+            raise RunnerError("FEE_PAIR_NO_PAIR_SELECTION_BINDING_MISMATCH")
+
+        canonical_product_keys = {}
+        try:
+            for target in self.targets:
+                product = product_keys[target]
+                if not isinstance(product, Mapping):
+                    raise TypeError("product key projection is invalid")
+                _exact_keys(
+                    product,
+                    {"exchange_id", "product_id"},
+                    "selection product key",
+                )
+                exchange_id = product.get("exchange_id")
+                product_id = product.get("product_id")
+                if any(
+                    type(value) is not str or not value or value != value.strip()
+                    for value in (exchange_id, product_id)
+                ):
+                    raise TypeError("product key projection is invalid")
+                canonical_product_keys[target] = (exchange_id, product_id)
+            cursor = journal.grid_cursor(
+                key.account_scope,
+                key.strategy_scope,
+                key.cohort_id,
+            )
+            # Registered LIVE strategies use the durable Journal cursor. Their
+            # in-memory eligible count remains zero, and a SOURCE_ONLY anchor
+            # deliberately does not advance this cursor. Match
+            # Alpha003TargetStrategy._cursor_ordinal exactly for a new slot.
+            if cursor is None:
+                eligible_grid_index = 1
+            elif cursor.batch_id == getattr(batch, "batch_id", None):
+                eligible_grid_index = cursor.ordinal
+            else:
+                eligible_grid_index = cursor.ordinal + 1
+            policy_input = policy_input_from_shared_snapshot(
+                batch,
+                snapshot,
+                required_targets=self.targets,
+                authorized_targets=authorized_targets,
+                product_keys=canonical_product_keys,
+                factor_name="alpha003",
+                execution_mode="LIVE",
+                eligible_grid_index=eligible_grid_index,
+                rebalance_every=policy["rebalance_every"],
+            )
+            recomputed = select_alpha003_targets(policy_input)
+        except RunnerError:
+            raise
+        except Exception:
+            raise RunnerError("FEE_PAIR_NO_PAIR_SELECTION_UNAVAILABLE") from None
+        if (
+            _preselection_block_reason(policy_input) is not None
+            or recomputed.status != "BLOCKED"
+            or recomputed.reason != "NO_VALID_SIGNAL"
+            or recomputed != target_decision
+        ):
+            raise RunnerError("FEE_PAIR_NO_PAIR_SELECTION_MISMATCH")
+        return cursor
 
     def _verify_fee_pair_writer_prefix(self, journal) -> None:
         try:
@@ -5457,6 +5940,9 @@ def _live_restart_identity(config, config_path, plan, *, factor_mode, direction,
         "source_snapshot_id": plan.get("source_snapshot_id"),
         "targets": sorted(plan["targets"]),
         "authorized_targets": sorted(plan["authorized_targets"]),
+        "selector_policy": _selector_policy_projection(
+            plan, config["factor"]["rebalance_every"]
+        ),
         "routes": {
             target: plan["routes"][plan["product_by_target"][target]]
             for target in sorted(plan["targets"])
@@ -5505,6 +5991,7 @@ def _selection_evidence_matches_identity(evidence, identity):
             and evidence["active_shadow_targets"] == identity.get("active_shadow_targets")
             and evidence["active_routes"] == identity.get("routes")
             and evidence["active_authorized_targets"] == identity.get("authorized_targets")
+            and evidence.get("selector_policy") == identity.get("selector_policy")
             and evidence["grid_semantics_sha256"] == identity.get("full_grid_semantics_sha256")
             and evidence["active_grid_semantics_sha256"]
             == identity.get("active_grid_semantics_sha256")
@@ -5516,6 +6003,7 @@ def _selection_evidence_matches_identity(evidence, identity):
         and evidence["routes"] == identity.get("routes")
         and sorted(evidence["routes"]) == identity.get("targets")
         and sorted(evidence["authorized_targets"]) == identity.get("authorized_targets")
+        and evidence.get("selector_policy") == identity.get("selector_policy")
     )
 
 
@@ -8750,7 +9238,53 @@ def _reject_legacy_live_source_highwater(journal, scopes):
         raise RunnerError("LIVE_LEGACY_SOURCE_HIGHWATER_UNSUPPORTED")
 
 
-def _selection_evidence(plan, epoch_id, *, max_bytes):
+def _selector_policy_projection(plan, rebalance_every):
+    """Bind the canonical Alpha003 selector inputs to the validated plan."""
+
+    if type(rebalance_every) is not int or rebalance_every < 1:
+        raise RunnerError("SELECTION_EVIDENCE_REBALANCE_INVALID")
+    targets = plan.get("targets") if isinstance(plan, Mapping) else None
+    products = plan.get("product_by_target") if isinstance(plan, Mapping) else None
+    if (
+        type(targets) not in (tuple, list)
+        or not targets
+        or any(type(target) is not str or not target for target in targets)
+        or len(targets) != len(set(targets))
+        or not isinstance(products, Mapping)
+        or set(products) != set(targets)
+    ):
+        raise RunnerError("SELECTION_EVIDENCE_PRODUCT_KEYS_INVALID")
+    product_keys = {}
+    try:
+        for target in sorted(targets):
+            product = products[target]
+            if isinstance(product, (tuple, list)) and len(product) == 2:
+                exchange_id, product_id = product
+            else:
+                exchange_id = getattr(product, "exchange_id", None)
+                product_id = getattr(product, "product_id", None)
+            if (
+                type(exchange_id) is not str
+                or not exchange_id
+                or exchange_id != exchange_id.strip()
+                or type(product_id) is not str
+                or not product_id
+                or product_id != product_id.strip()
+            ):
+                raise ValueError("product key fields are invalid")
+            product_keys[target] = {
+                "exchange_id": exchange_id,
+                "product_id": product_id,
+            }
+    except Exception:
+        raise RunnerError("SELECTION_EVIDENCE_PRODUCT_KEYS_INVALID") from None
+    return {
+        "rebalance_every": rebalance_every,
+        "product_keys": product_keys,
+    }
+
+
+def _selection_evidence(plan, epoch_id, *, max_bytes, rebalance_every=None):
     """Return bounded, JSON-safe selection evidence bound to one epoch route set."""
 
     if type(max_bytes) is not int or max_bytes < 1:
@@ -8796,6 +9330,10 @@ def _selection_evidence(plan, epoch_id, *, max_bytes):
             "routes": routes,
             "authorized_targets": authorized_targets,
         }
+        if rebalance_every is not None:
+            binding["selector_policy"] = _selector_policy_projection(
+                plan, rebalance_every
+            )
         if binding["selection_source"] == "ctp_query_snapshot_equal_weight_v1":
             evidence_grid = plan.get("full_grid") if golden_subset else plan.get("grid")
             binding["grid_semantics_sha256"] = _grid_semantics_sha256(evidence_grid)
@@ -8852,6 +9390,8 @@ def _validate_selection_evidence(value):
             raise TypeError("selection evidence is not a mapping")
         if golden_keys.intersection(value):
             expected_keys.update(golden_keys)
+        if "selector_policy" in value:
+            expected_keys.add("selector_policy")
         if value.get("selection_source") == "ctp_query_snapshot_equal_weight_v1":
             expected_keys.add("grid_semantics_sha256")
         _exact_keys(value, expected_keys, "selection evidence")
@@ -8890,6 +9430,40 @@ def _validate_selection_evidence(value):
         if value["selection_source"] == "ctp_query_snapshot_equal_weight_v1":
             if type(value["source_snapshot_id"]) is not str or not value["source_snapshot_id"]:
                 raise TypeError("query selection snapshot is missing")
+        selector_policy = value.get("selector_policy")
+        if selector_policy is not None:
+            _exact_keys(
+                selector_policy,
+                {"rebalance_every", "product_keys"},
+                "selection selector policy",
+            )
+            product_keys = selector_policy.get("product_keys")
+            selector_targets = (
+                value.get("active_routes")
+                if "active_shadow_targets" in value
+                else value["routes"]
+            )
+            if (
+                type(selector_policy.get("rebalance_every")) is not int
+                or selector_policy["rebalance_every"] < 1
+                or not isinstance(product_keys, dict)
+                or not isinstance(selector_targets, Mapping)
+                or set(product_keys) != set(selector_targets)
+            ):
+                raise TypeError("selection selector policy is invalid")
+            for target, product_key in product_keys.items():
+                _exact_keys(
+                    product_key,
+                    {"exchange_id", "product_id"},
+                    "selection product key",
+                )
+                if any(
+                    type(product_key.get(name)) is not str
+                    or not product_key[name]
+                    or product_key[name] != product_key[name].strip()
+                    for name in ("exchange_id", "product_id")
+                ):
+                    raise TypeError("selection product key is invalid")
         routes = value["routes"]
         if not routes or any(
             type(target) is not str
@@ -8959,6 +9533,8 @@ def _validate_selection_evidence(value):
             "authorized_targets",
         )
         binding = {key: value[key] for key in binding_keys}
+        if "selector_policy" in value:
+            binding["selector_policy"] = value["selector_policy"]
         if "grid_semantics_sha256" in value:
             binding["grid_semantics_sha256"] = value["grid_semantics_sha256"]
         for key in golden_keys:
@@ -9502,6 +10078,7 @@ def run_live(
             plan,
             config["cohort"]["epoch_id"],
             max_bytes=tape_budget,
+            rebalance_every=config["factor"]["rebalance_every"],
         )
         saved_history = _load_saved_live_history(
             config,

@@ -258,6 +258,7 @@ def _config(targets=GOLDEN_TARGETS, authorized=None):
             "timezone_id": "Asia/Shanghai",
             "session_semantics": "planned-minute-close-v1",
         },
+        "factor": {"rebalance_every": 1},
         "risk": {name: None for name in ("policy_id", *RUNNER.RISK_FIELDS)},
         "output": {"decision_tape_path": "golden.jsonl", "decision_tape_max_bytes": 1_000_000},
     }
@@ -336,13 +337,18 @@ def test_golden_subset_rejects_incompatible_and_malformed_inputs_before_store_im
     assert imported == []
 
 
-def test_public_template_keeps_the_complete_pool_as_default():
-    config = RUNNER.load_config(EXAMPLE / "config.yaml")
+def test_synthetic_config_keeps_the_complete_pool_as_default():
+    config = _config(targets=None)
     assert config["live"]["golden_targets"] is None
     plan = _full_plan()
-    evidence = RUNNER._selection_evidence(plan, 1, max_bytes=1_000_000)
+    evidence = RUNNER._selection_evidence(
+        plan,
+        1,
+        max_bytes=1_000_000,
+        rebalance_every=config["factor"]["rebalance_every"],
+    )
     identity = RUNNER._live_restart_identity(
-        _config(targets=None),
+        config,
         EXAMPLE / "config.yaml",
         plan,
         factor_mode="native",
@@ -410,7 +416,13 @@ def test_subset_selection_evidence_restart_identity_and_tape_bind_full_and_activ
     full_plan = _full_plan()
     full_plan["authorized_targets"] = ("DCE.A", "CFFEX.IF")
     plan = RUNNER._apply_golden_target_subset(full_plan, GOLDEN_TARGETS)
-    evidence = RUNNER._selection_evidence(plan, 1, max_bytes=1_000_000)
+    config = _config()
+    evidence = RUNNER._selection_evidence(
+        plan,
+        1,
+        max_bytes=1_000_000,
+        rebalance_every=config["factor"]["rebalance_every"],
+    )
     full_manifest = _full_plan()["manifest"].to_dict()
     assert evidence["routes"] == RUNNER._full_route_summary(plan)
     assert evidence["full_selected_targets"] == list(TARGETS)
@@ -427,7 +439,6 @@ def test_subset_selection_evidence_restart_identity_and_tape_bind_full_and_activ
     assert RUNNER._query_history_selection_projection(evidence) != b""
     assert RUNNER._validate_selection_evidence(evidence) == evidence
 
-    config = _config()
     identity = RUNNER._live_restart_identity(
         config,
         tmp_path / "config.yaml",
@@ -444,7 +455,12 @@ def test_subset_selection_evidence_restart_identity_and_tape_bind_full_and_activ
     other_plan = RUNNER._apply_golden_target_subset(
         _full_plan(), ("DCE.A", "DCE.M", "SHFE.CU")
     )
-    other_evidence = RUNNER._selection_evidence(other_plan, 1, max_bytes=1_000_000)
+    other_evidence = RUNNER._selection_evidence(
+        other_plan,
+        1,
+        max_bytes=1_000_000,
+        rebalance_every=config["factor"]["rebalance_every"],
+    )
     assert not RUNNER._selection_evidence_matches_identity(other_evidence, identity)
     assert RUNNER._query_history_selection_projection(other_evidence) != (
         RUNNER._query_history_selection_projection(evidence)

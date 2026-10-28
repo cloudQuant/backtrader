@@ -5322,6 +5322,117 @@ class Alpha003TargetStrategy(bt.Strategy):
         self._last_decision_tape_error = None
         return True, frozen_reference, None
 
+    def _record_fee_pair_no_pair_source_only_tape(
+        self,
+        batch: Any,
+        snapshot: Any,
+        target_decision: Alpha003TargetDecision,
+    ) -> Tuple[bool, Optional[Mapping[str, Any]], Optional[str]]:
+        """Record only the exact selector result that proves no legal pair."""
+
+        if self._fee_pair_source_only_sequence_blocked:
+            return False, None, "FEE_PAIR_SOURCE_SEQUENCE_BLOCKED"
+        batch_id = _read(batch, "batch_id") if batch is not None else None
+        if not isinstance(batch_id, str) or not batch_id:
+            return False, None, "DECISION_TAPE_BATCH_UNAVAILABLE"
+        if self._last_decision_tape_batch_id == batch_id:
+            reference = self._last_decision_tape_reference
+            return (reference is not None), reference, self._last_decision_tape_error
+
+        self._last_decision_tape_batch_id = batch_id
+        self._last_decision_tape_reference = None
+        self._last_decision_tape_error = "FEE_PAIR_NO_PAIR_SOURCE_ONLY_WRITE_NOT_CONFIRMED"
+        sink = self.p.decision_tape
+        writer = (
+            getattr(sink, "record_fee_pair_no_pair_source_only_from_live", None)
+            if sink is not None
+            else None
+        )
+        if not callable(writer) or self._coordinator is None:
+            self._last_decision_tape_error = "FEE_PAIR_NO_PAIR_SOURCE_ONLY_WRITER_UNAVAILABLE"
+            self._fee_pair_source_only_sequence_blocked = True
+            return False, None, self._last_decision_tape_error
+
+        try:
+            result = writer(
+                batch,
+                snapshot,
+                target_decision,
+                self._coordinator.journal,
+                account_scope=self._account_scope,
+                strategy_scope=self._strategy_scope,
+                logical_run_id=self._logical_run_id,
+                source_kind=self._source_kind,
+                source_restart_marker=self._source_restart_marker,
+            )
+            if not isinstance(result, Mapping):
+                raise ValueError("no-pair source-only result is unavailable")
+            raw_reference = result.get("tape_reference")
+            if not isinstance(raw_reference, Mapping):
+                raise ValueError("no-pair tape reference is unavailable")
+            reference = {
+                name: raw_reference.get(name)
+                for name in ("file_id", "record_id", "record_index", "batch_id")
+            }
+            if (
+                type(reference["file_id"]) is not str
+                or not reference["file_id"]
+                or type(reference["record_id"]) is not str
+                or not reference["record_id"]
+                or type(reference["record_index"]) is not int
+                or reference["record_index"] < 1
+                or reference["batch_id"] != batch_id
+            ):
+                raise ValueError("no-pair tape reference is invalid")
+            source_receipt = result.get("source_receipt")
+            strategy_receipt = self._source_receipt(batch, snapshot, reference)
+            if source_receipt != strategy_receipt:
+                raise ValueError("no-pair source receipt differs from Strategy projection")
+            decision = result.get("decision")
+            if (
+                decision is None
+                or decision.key.close_time != strategy_receipt.close_time
+                or decision.key.cohort_id != strategy_receipt.cohort_id
+                or decision.intent_keys
+                or decision.economic_payload.get("_execution_source_anchor_only") is not True
+                or decision.economic_payload.get("_execution_fee_pair_no_pair_source_only")
+                != {
+                    "reason_code": "NO_LEGAL_FEE_PAIR",
+                    "selection_reason": "NO_VALID_SIGNAL",
+                }
+                or decision.economic_payload.get("_execution_fee_pair_workflow") is not None
+            ):
+                raise ValueError("no-pair Journal decision is invalid")
+            if not self._confirm_source_anchor(strategy_receipt, anchor_kind="SOURCE_ONLY"):
+                self._latch_decision_tape_failure()
+                self._last_decision_tape_error = "SOURCE_HIGHWATER_CONFIRMATION_FAILED"
+                self._fee_pair_source_only_sequence_blocked = True
+                return False, None, self._last_decision_tape_error
+        except Exception as error:
+            raw_code = getattr(error, "code", None)
+            code = (
+                raw_code
+                if type(raw_code) is str
+                and 1 <= len(raw_code) <= 96
+                and raw_code.isascii()
+                and raw_code[0].isalpha()
+                and all(
+                    character.isupper() or character.isdigit() or character == "_"
+                    for character in raw_code
+                )
+                else "FEE_PAIR_NO_PAIR_SOURCE_ONLY_WRITE_FAILED"
+            )
+            self._latch_decision_tape_failure()
+            self._fee_pair_source_only_sequence_blocked = True
+            self._last_decision_tape_error = code
+            self._note_source_continuity_failure("SOURCE_RECEIPT_WRITE_FAILED")
+            return False, None, code
+
+        frozen_reference = MappingProxyType(reference)
+        self._last_decision_tape_reference = frozen_reference
+        self._last_decision_tape_error = None
+        return True, frozen_reference, None
+
     @staticmethod
     def _gate_open_actions(plan: Alpha003OrderPlan, *, tape_durable: bool) -> Alpha003OrderPlan:
         if tape_durable or plan.status != "READY":
@@ -6165,6 +6276,7 @@ class Alpha003TargetStrategy(bt.Strategy):
         fee_pair_scope_required = False
         fee_pair_scope_unavailable = False
         fee_pair_source_only_durable = False
+        fee_pair_no_pair_source_only_durable = False
         if self.p.execution_enabled and self._coordinator is not None:
             try:
                 fee_pair_scope_required = (
@@ -6188,14 +6300,38 @@ class Alpha003TargetStrategy(bt.Strategy):
                 if not self._live_good_source_batch(batch, snapshot):
                     tape_error = "FEE_PAIR_LIVE_SOURCE_CANDIDATE_UNAVAILABLE"
                 else:
-                    tape_durable, tape_reference, tape_error = (
-                        self._record_fee_pair_source_only_tape(
-                            batch,
-                            snapshot,
-                            target_decision,
-                            facts,
-                        )
+                    no_pair_decision = self.last_target_decision
+                    no_pair_selection = (
+                        type(no_pair_decision) is Alpha003TargetDecision
+                        and no_pair_decision.status == "BLOCKED"
+                        and no_pair_decision.reason == "NO_VALID_SIGNAL"
+                        and no_pair_decision.execution_mode == "LIVE"
+                        and no_pair_decision.batch_id == _read(batch, "batch_id")
+                        and no_pair_decision.cohort_id == _read(batch, "cohort_id")
+                        and not no_pair_decision.targets
                     )
+                    if (
+                        no_pair_selection
+                        and _read(batch, "status") == "COMPLETE"
+                        and _read(snapshot, "batch_complete") is True
+                    ):
+                        tape_durable, tape_reference, tape_error = (
+                            self._record_fee_pair_no_pair_source_only_tape(
+                                batch,
+                                snapshot,
+                                no_pair_decision,
+                            )
+                        )
+                        fee_pair_no_pair_source_only_durable = tape_durable
+                    else:
+                        tape_durable, tape_reference, tape_error = (
+                            self._record_fee_pair_source_only_tape(
+                                batch,
+                                snapshot,
+                                target_decision,
+                                facts,
+                            )
+                        )
                     fee_pair_source_only_durable = tape_durable
             else:
                 tape_durable, tape_reference, tape_error = self._record_decision_tape(
@@ -6223,19 +6359,20 @@ class Alpha003TargetStrategy(bt.Strategy):
                 )
                 grid_recorded = False
                 if live_good_batch:
-                    grid_recorded = self._live_grid_decision(
-                        batch,
-                        snapshot,
-                        facts,
-                        self.last_order_plan,
-                        decision_tape_reference=tape_reference,
-                        tape_error=tape_error,
-                        source_receipt=source_receipt,
-                        proposed_plan=proposed_plan,
-                        planning=planning,
-                        loss_guard_context=loss_guard_context,
-                        loss_guard_blocker=loss_guard_blocker,
-                    )
+                    if not fee_pair_no_pair_source_only_durable:
+                        grid_recorded = self._live_grid_decision(
+                            batch,
+                            snapshot,
+                            facts,
+                            self.last_order_plan,
+                            decision_tape_reference=tape_reference,
+                            tape_error=tape_error,
+                            source_receipt=source_receipt,
+                            proposed_plan=proposed_plan,
+                            planning=planning,
+                            loss_guard_context=loss_guard_context,
+                            loss_guard_blocker=loss_guard_blocker,
+                        )
                     ready_callback = getattr(self.p, "live_ready_callback", None)
                     capture_ready = getattr(self, "_capture_live_ready_boundary", None)
                     if grid_recorded and callable(ready_callback) and callable(capture_ready):
@@ -6280,10 +6417,28 @@ class Alpha003TargetStrategy(bt.Strategy):
                             )
                         else:
                             self.last_order_plan = proposed_plan
-                        if self.last_execution_block_reason is None:
-                            self.last_execution_block_reason = (
-                                "FEE_PAIR_SOURCE_ONLY_GRID_NOT_SETTLED"
+                        if fee_pair_no_pair_source_only_durable:
+                            retained_actions = tuple(
+                                action
+                                for action in proposed_plan.actions
+                                if action.action == "CANCEL"
+                                or action.action != "SUBMIT"
+                                or action.position_effect != "OPEN"
                             )
+                            self.last_order_plan = replace(
+                                proposed_plan,
+                                status=(
+                                    "READY"
+                                    if retained_actions and proposed_plan.status == "READY"
+                                    else "BLOCKED"
+                                ),
+                                reason="NO_LEGAL_FEE_PAIR",
+                                actions=retained_actions,
+                            )
+                            if self.last_execution_block_reason is None:
+                                self.last_execution_block_reason = "NO_LEGAL_FEE_PAIR"
+                        elif self.last_execution_block_reason is None:
+                            self.last_execution_block_reason = "FEE_PAIR_SOURCE_ONLY_GRID_NOT_SETTLED"
                         self._last_grid_fee_pair_blocked = True
                     elif not getattr(self, "_last_grid_fee_pair_blocked", False):
                         self._record_source_only(batch, snapshot, tape_reference)

@@ -38,13 +38,75 @@ _SOURCE_REF = "ctp-live"
 _BASE = datetime(2026, 10, 26, 9, 0, tzinfo=timezone.utc)
 
 
-def _drop_v17_workflow_tables(connection: sqlite3.Connection) -> None:
-    """Remove only the v17 addition before presenting a historical schema."""
+def _drop_empty_fee_pair_tables_from_version(
+    connection: sqlite3.Connection, first_version: int
+) -> None:
+    """Drop only empty fee-pair tables added at or after ``first_version``."""
 
-    connection.execute("DROP TABLE execution_fee_pair_workflow_decision_reservations")
-    connection.execute("DROP TABLE execution_fee_pair_workflow_durable_reservations")
-    connection.execute("DROP TABLE execution_fee_pair_workflow_events")
-    connection.execute("DROP TABLE execution_fee_pair_workflows")
+    versioned_tables = (
+        (24, ("execution_fee_pair_amount_reservations",)),
+        (
+            23,
+            (
+                "execution_fee_pair_legacy_unresolved_v23",
+                "execution_fee_pair_grid_single_row_tape_intents",
+            ),
+        ),
+        (
+            22,
+            (
+                "execution_registered_sim_cancel_dispatch_tombstones",
+                "execution_registered_sim_cancel_dispatch_claims",
+            ),
+        ),
+        (21, ("execution_known_ctp_order_sysid_bindings",)),
+        (19, ("execution_fee_pair_workflow_grid_settlements",)),
+        (
+            17,
+            (
+                "execution_fee_pair_workflow_decision_reservations",
+                "execution_fee_pair_workflow_durable_reservations",
+                "execution_fee_pair_workflow_events",
+                "execution_fee_pair_workflows",
+            ),
+        ),
+        (
+            16,
+            (
+                "execution_fee_pair_candidate_capacity_reservations",
+                "execution_fee_pair_candidate_events",
+                "execution_fee_pair_candidates",
+            ),
+        ),
+        (
+            15,
+            (
+                "execution_fee_pair_scope_events",
+                "execution_fee_pair_required_scopes",
+            ),
+        ),
+    )
+    tables = tuple(
+        table
+        for version, names in versioned_tables
+        if version >= first_version
+        for table in names
+    )
+    existing = {
+        row[0]
+        for row in connection.execute(
+            "SELECT name FROM sqlite_master WHERE type='table'"
+        ).fetchall()
+    }
+    present = tuple(name for name in tables if name in existing)
+    for name in present:
+        if not name.isidentifier():
+            raise AssertionError("unexpected schema table name")
+        count = connection.execute('SELECT COUNT(*) FROM "{}"'.format(name)).fetchone()[0]
+        if type(count) is not int or count != 0:
+            raise AssertionError("cannot downgrade nonempty schema table: {}".format(name))
+    for name in present:
+        connection.execute('DROP TABLE "{}"'.format(name))
 
 
 def _time(value: datetime) -> str:
@@ -53,6 +115,31 @@ def _time(value: datetime) -> str:
 
 def _datetime(value: str) -> datetime:
     return datetime.fromisoformat(value.replace("Z", "+00:00"))
+
+
+def test_fee_pair_schema_downgrade_refuses_nonempty_new_table():
+    connection = sqlite3.connect(":memory:")
+    try:
+        connection.execute("CREATE TABLE execution_fee_pair_amount_reservations (payload TEXT)")
+        connection.execute("CREATE TABLE execution_fee_pair_legacy_unresolved_v23 (payload TEXT)")
+        connection.execute(
+            "INSERT INTO execution_fee_pair_legacy_unresolved_v23 VALUES ('preserve-me')"
+        )
+
+        with pytest.raises(
+            AssertionError,
+            match="cannot downgrade nonempty schema table: execution_fee_pair_legacy_unresolved_v23",
+        ):
+            _drop_empty_fee_pair_tables_from_version(connection, first_version=23)
+
+        assert connection.execute(
+            "SELECT COUNT(*) FROM execution_fee_pair_amount_reservations"
+        ).fetchone()[0] == 0
+        assert connection.execute(
+            "SELECT payload FROM execution_fee_pair_legacy_unresolved_v23"
+        ).fetchone()[0] == "preserve-me"
+    finally:
+        connection.close()
 
 
 def _calendar(epoch: int, *, count: int = 12) -> LiveCohortCalendar:
@@ -838,20 +925,16 @@ def test_v13_schema_upgrade_adds_empty_source_highwater_and_preserves_usage(tmp_
     journal.close()
 
     with sqlite3.connect(path) as connection:
-        _drop_v17_workflow_tables(connection)
-        connection.execute(
-            "DROP TABLE execution_fee_pair_candidate_capacity_reservations"
-        )
-        connection.execute("DROP TABLE execution_fee_pair_candidate_events")
-        connection.execute("DROP TABLE execution_fee_pair_candidates")
-        connection.execute("DROP TABLE execution_fee_pair_scope_events")
-        connection.execute("DROP TABLE execution_fee_pair_required_scopes")
+        _drop_empty_fee_pair_tables_from_version(connection, first_version=15)
         connection.execute("DROP TABLE execution_source_highwaters")
         connection.execute("PRAGMA user_version=13")
 
     migrated = ExecutionDecisionJournal(path)
     try:
-        assert migrated._connection.execute("PRAGMA user_version").fetchone()[0] == 18
+        assert (
+            migrated._connection.execute("PRAGMA user_version").fetchone()[0]
+            == ExecutionDecisionJournal._SCHEMA_VERSION
+        )
         assert _durable_usage(migrated._connection) == before
         assert migrated._connection.execute(
             "SELECT COUNT(*) FROM execution_source_highwaters"
@@ -893,19 +976,15 @@ def test_v14_to_v16_migration_preserves_existing_journal_rows(tmp_path):
 
     # Remove the v15/v16 additions and present the exact previous user_version.
     with sqlite3.connect(path) as connection:
-        _drop_v17_workflow_tables(connection)
-        connection.execute(
-            "DROP TABLE execution_fee_pair_candidate_capacity_reservations"
-        )
-        connection.execute("DROP TABLE execution_fee_pair_candidate_events")
-        connection.execute("DROP TABLE execution_fee_pair_candidates")
-        connection.execute("DROP TABLE execution_fee_pair_scope_events")
-        connection.execute("DROP TABLE execution_fee_pair_required_scopes")
+        _drop_empty_fee_pair_tables_from_version(connection, first_version=15)
         connection.execute("PRAGMA user_version=14")
 
     migrated = ExecutionDecisionJournal(path)
     try:
-        assert migrated._connection.execute("PRAGMA user_version").fetchone()[0] == 18
+        assert (
+            migrated._connection.execute("PRAGMA user_version").fetchone()[0]
+            == ExecutionDecisionJournal._SCHEMA_VERSION
+        )
         assert tuple(
             tuple(row)
             for row in migrated._connection.execute(
@@ -931,7 +1010,10 @@ def test_v14_to_v16_migration_preserves_existing_journal_rows(tmp_path):
     # Reopening an already migrated current journal is idempotent.
     reopened = ExecutionDecisionJournal(path)
     try:
-        assert reopened._connection.execute("PRAGMA user_version").fetchone()[0] == 18
+        assert (
+            reopened._connection.execute("PRAGMA user_version").fetchone()[0]
+            == ExecutionDecisionJournal._SCHEMA_VERSION
+        )
         assert tuple(
             tuple(row)
             for row in reopened._connection.execute(
@@ -1098,7 +1180,7 @@ def test_source_highwater_archive_preserves_exact_anchor(tmp_path):
             expected_sha256=archive_receipt.sha256,
         )
         assert verified == archive_receipt
-        assert archive_receipt.schema_version == 18
+        assert archive_receipt.schema_version == ExecutionDecisionJournal._SCHEMA_VERSION
         assert archive_receipt.table_row_counts["execution_source_highwaters"] == 1
     finally:
         journal.close()
@@ -1121,7 +1203,7 @@ def test_current_schema_rejects_source_highwater_table_without_composite_primary
     journal = ExecutionDecisionJournal(path)
     journal.close()
     with sqlite3.connect(path) as connection:
-        _drop_v17_workflow_tables(connection)
+        _drop_empty_fee_pair_tables_from_version(connection, first_version=17)
         connection.execute("PRAGMA foreign_keys=OFF")
         connection.execute("DROP TABLE execution_source_highwaters")
         connection.execute(

@@ -52,8 +52,13 @@ class _Manifest:
 def _selection_binding(selection_source, *, targets=_TARGETS):
     targets = tuple(targets)
     manifest = _Manifest()
-    product_by_target = {target: target for target in targets}
-    routes = {target: _test_route(target)[0] for target in targets}
+    product_by_target = {
+        target: (_test_route(target)[1], target) for target in targets
+    }
+    routes = {
+        product_by_target[target]: _test_route(target)[0]
+        for target in targets
+    }
     plan = {
         "selection_source": selection_source,
         "selection_path": "synthetic://" + selection_source,
@@ -76,7 +81,12 @@ def _selection_binding(selection_source, *, targets=_TARGETS):
                 "minutes": [],
             }
         )
-    evidence = _RUNNER._selection_evidence(plan, 1, max_bytes=1_000_000)
+    evidence = _RUNNER._selection_evidence(
+        plan,
+        1,
+        max_bytes=1_000_000,
+        rebalance_every=1,
+    )
     identity = {
         "schema": "backtrader.alpha003.live_restart_identity.v1",
         "epoch_id": 1,
@@ -92,7 +102,8 @@ def _selection_binding(selection_source, *, targets=_TARGETS):
         "source_snapshot_id": plan["source_snapshot_id"],
         "targets": sorted(targets),
         "authorized_targets": sorted(targets),
-        "routes": {target: routes[target] for target in sorted(targets)},
+        "selector_policy": evidence["selector_policy"],
+        "routes": evidence["routes"],
         "calendar": {"calendar_id": "alpha003-calendar-v1", "grid_sha256": "a" * 64},
     }
     return evidence, identity
@@ -127,7 +138,13 @@ def _with_origin_partitions(batch, *, slot_index=0):
     return replace(batch, slot_index=slot_index, members=members)
 
 
-def _writer(path: Path, *, selection_source: str, targets=_TARGETS):
+def _writer(
+    path: Path,
+    *,
+    selection_source: str,
+    targets=_TARGETS,
+    cross_process_generation_lease=False,
+):
     targets = tuple(targets)
     selection_evidence, restart_identity = _selection_binding(selection_source, targets=targets)
     return _RUNNER.DecisionTapeWriter(
@@ -143,6 +160,7 @@ def _writer(path: Path, *, selection_source: str, targets=_TARGETS):
         calendar_fingerprint=_CALENDAR_FINGERPRINT,
         restart_identity=restart_identity,
         selection_evidence=selection_evidence,
+        cross_process_generation_lease=cross_process_generation_lease,
     )
 
 
@@ -151,6 +169,7 @@ def _fixture(
     *,
     filename="source-only.jsonl",
     selection_source="saved_bundle_legacy",
+    cross_process_generation_lease=False,
 ):
     # The first durable source anchor has no predecessor; Journal v17
     # requires the initial grid slot and tape row to both start at zero/one.
@@ -168,7 +187,11 @@ def _fixture(
     )
     batch, snapshot = capacity._complete_batch_snapshot(target_decision)
     batch = _with_origin_partitions(batch)
-    writer = _writer(tmp_path / filename, selection_source=selection_source)
+    writer = _writer(
+        tmp_path / filename,
+        selection_source=selection_source,
+        cross_process_generation_lease=cross_process_generation_lease,
+    )
     row = _RUNNER._decision_tape_record(
         batch,
         snapshot,
@@ -404,6 +427,429 @@ def _multi_target_fixture(tmp_path, *, targets, filename):
     journal = journal_api.ExecutionDecisionJournal(tmp_path / (filename + ".sqlite3"))
     journal.register_fee_pair_required_scope(_ACCOUNT_SCOPE, _STRATEGY_SCOPE)
     return writer, journal, candidate, batch, snapshot, target_decision
+
+
+def _no_valid_signal_projection(batch, snapshot, *, eligible_grid_index=1):
+    """Run the production selector after constructing a complete equal-score cohort."""
+
+    strategy_api = __import__("alpha003_strategy")
+    targets = tuple(sorted(batch.members))
+    factor_result = snapshot.factors["alpha003"]
+    factor_values = {
+        target: replace(factor_result.values[target], value=0.5)
+        for target in targets
+    }
+    snapshot = replace(
+        snapshot,
+        factors=MappingProxyType(
+            {
+                "alpha003": replace(
+                    factor_result,
+                    values=MappingProxyType(factor_values),
+                )
+            }
+        ),
+    )
+    product_keys = {
+        target: (_test_route(target)[1], target)
+        for target in targets
+    }
+    policy_input = strategy_api.policy_input_from_shared_snapshot(
+        batch,
+        snapshot,
+        required_targets=targets,
+        authorized_targets=targets,
+        product_keys=product_keys,
+        factor_name="alpha003",
+        execution_mode="LIVE",
+        eligible_grid_index=eligible_grid_index,
+        rebalance_every=1,
+    )
+    assert strategy_api._preselection_block_reason(policy_input) is None
+    decision = strategy_api.select_alpha003_targets(policy_input)
+    assert decision.status == "BLOCKED"
+    assert decision.reason == "NO_VALID_SIGNAL"
+    assert decision.targets == ()
+    return snapshot, decision
+
+
+def _next_complete_slot(batch, snapshot, *, slot_index):
+    close_time = batch.close_time + economics.timedelta(minutes=1)
+    available_at = close_time + economics.timedelta(seconds=2)
+    slot_id = "slot-{:04d}".format(slot_index)
+    batch_id = "{}:{}:{}:{}:{}".format(
+        batch.cohort_id,
+        batch.calendar_id,
+        batch.epoch_id,
+        batch.calendar_version,
+        slot_index,
+    )
+    members = {}
+    for member_id, receipt in batch.members.items():
+        feed_sequence = receipt.feed_sequence + 1
+        envelope = replace(
+            receipt.envelope,
+            slot_index=slot_index,
+            slot_id=slot_id,
+            feed_sequence=feed_sequence,
+            bucket_start=close_time - economics.timedelta(minutes=1),
+            close_time=close_time,
+            available_at=available_at,
+        )
+        members[member_id] = replace(
+            receipt,
+            batch_id=batch_id,
+            slot_index=slot_index,
+            feed_sequence=feed_sequence,
+            close_time=close_time,
+            available_at=available_at,
+            envelope=envelope,
+        )
+    next_batch = replace(
+        batch,
+        batch_id=batch_id,
+        slot_index=slot_index,
+        close_time=close_time,
+        available_at=available_at,
+        members=MappingProxyType(members),
+    )
+    factor_result = snapshot.factors["alpha003"]
+    factor_values = {
+        target: replace(
+            value,
+            sequence=value.sequence + 1,
+        )
+        for target, value in factor_result.values.items()
+    }
+    next_factor = replace(
+        factor_result,
+        values=MappingProxyType(factor_values),
+    )
+    next_snapshot = replace(
+        snapshot,
+        batch_id=batch_id,
+        close_time=close_time,
+        available_at=available_at,
+        factors=MappingProxyType({"alpha003": next_factor}),
+    )
+    return _with_origin_partitions(next_batch, slot_index=slot_index), next_snapshot
+
+
+@pytest.mark.integration
+def test_no_legal_fee_pair_writes_source_only_and_next_slot_continues_chain(tmp_path):
+    writer, journal, _candidate, batch, snapshot, _ready_decision = _fixture(
+        tmp_path,
+        filename="no-legal-fee-pair.jsonl",
+        cross_process_generation_lease=True,
+    )
+    journal_path = journal.path
+    try:
+        snapshot, no_pair = _no_valid_signal_projection(batch, snapshot)
+        result = writer.record_fee_pair_no_pair_source_only_from_live(
+            batch,
+            snapshot,
+            no_pair,
+            journal,
+            account_scope=_ACCOUNT_SCOPE,
+            strategy_scope=_STRATEGY_SCOPE,
+            logical_run_id=_RUN_ID,
+            source_kind=_SOURCE_KIND,
+        )
+        first = result["source_receipt"]
+        first_decision = result["decision"]
+        first_highwater = journal.source_highwater(
+            _ACCOUNT_SCOPE, _STRATEGY_SCOPE, _RUN_ID, _SOURCE_KIND
+        )
+        rows = tuple(_RUNNER.iter_decision_tape(writer.path, max_bytes=writer.max_bytes))
+        row = rows[-1]
+
+        assert no_pair.reason == "NO_VALID_SIGNAL"
+        assert no_pair.eligible_grid_index == 1
+        assert journal.grid_cursor(_ACCOUNT_SCOPE, _STRATEGY_SCOPE, batch.cohort_id) is None
+        assert row["target_decision"]["status"] == "BLOCKED"
+        assert row["target_decision"]["reason"] == "NO_VALID_SIGNAL"
+        assert row["target_decision"]["targets"] == []
+        assert row["order_plan"] == {
+            "status": "SOURCE_ONLY",
+            "reason": "NO_LEGAL_FEE_PAIR",
+            "decision_batch_id": batch.batch_id,
+            "decision_available_at": _RUNNER._json_time(batch.available_at),
+            "actions": [],
+        }
+        assert first_highwater is not None
+        assert first_highwater.anchor_kind == "SOURCE_ONLY"
+        assert first_highwater.receipt == first
+        assert first_decision.is_noop and first_decision.intent_keys == ()
+        assert first_decision.economic_payload["_execution_fee_pair_no_pair_source_only"] == {
+            "reason_code": "NO_LEGAL_FEE_PAIR",
+            "selection_reason": "NO_VALID_SIGNAL",
+        }
+        assert "_execution_fee_pair_workflow" not in first_decision.economic_payload
+        assert journal._connection.execute(
+            "SELECT COUNT(*) FROM execution_fee_pair_candidates"
+        ).fetchone()[0] == 0
+        assert journal._connection.execute(
+            "SELECT COUNT(*) FROM execution_fee_pair_workflows"
+        ).fetchone()[0] == 0
+        assert writer.summary()["record_count"] == 1
+
+        journal.close()
+        journal = journal_api.ExecutionDecisionJournal(journal_path)
+        next_batch, next_snapshot = _next_complete_slot(batch, snapshot, slot_index=1)
+        next_snapshot, next_no_pair = _no_valid_signal_projection(next_batch, next_snapshot)
+        assert next_no_pair.eligible_grid_index == 1
+        second = writer.record_fee_pair_no_pair_source_only_from_live(
+            next_batch,
+            next_snapshot,
+            next_no_pair,
+            journal,
+            account_scope=_ACCOUNT_SCOPE,
+            strategy_scope=_STRATEGY_SCOPE,
+            logical_run_id=_RUN_ID,
+            source_kind=_SOURCE_KIND,
+        )
+        highwater = journal.source_highwater(
+            _ACCOUNT_SCOPE, _STRATEGY_SCOPE, _RUN_ID, _SOURCE_KIND
+        )
+        assert highwater is not None
+        assert highwater.anchor_kind == "SOURCE_ONLY"
+        assert highwater.receipt == second["source_receipt"]
+        assert highwater.receipt.predecessor == first_highwater.reference
+        assert highwater.receipt.slot_index == 1
+        assert highwater.receipt.tape_record_index == 2
+        assert journal.grid_cursor(_ACCOUNT_SCOPE, _STRATEGY_SCOPE, next_batch.cohort_id) is None
+        assert writer.summary()["record_count"] == 2
+    finally:
+        _close(writer, journal)
+
+
+@pytest.mark.integration
+def test_no_pair_source_only_does_not_accept_other_selection_or_incomplete_source(tmp_path):
+    writer, journal, _candidate, batch, snapshot, _ready_decision = _fixture(
+        tmp_path,
+        filename="no-pair-invalid.jsonl",
+    )
+    try:
+        snapshot, no_pair = _no_valid_signal_projection(batch, snapshot)
+        before = writer.path.read_bytes()
+        with pytest.raises(_RUNNER.RunnerError, match="FEE_PAIR_NO_PAIR_SOURCE_UNAVAILABLE"):
+            writer.record_fee_pair_no_pair_source_only_from_live(
+                batch,
+                snapshot,
+                replace(no_pair, reason="INPUT_INCOMPLETE"),
+                journal,
+                account_scope=_ACCOUNT_SCOPE,
+                strategy_scope=_STRATEGY_SCOPE,
+                logical_run_id=_RUN_ID,
+                source_kind=_SOURCE_KIND,
+            )
+        assert writer.path.read_bytes() == before
+        assert writer.summary()["record_count"] == 0
+
+        member_id = sorted(batch.members)[0]
+        members = dict(batch.members)
+        receipt = members[member_id]
+        members[member_id] = replace(
+            receipt,
+            complete=False,
+            envelope=replace(receipt.envelope, complete=False),
+        )
+        incomplete_batch = replace(batch, members=MappingProxyType(members))
+        with pytest.raises(_RUNNER.RunnerError, match="FEE_PAIR_NO_PAIR_SOURCE_UNAVAILABLE"):
+            writer.record_fee_pair_no_pair_source_only_from_live(
+                incomplete_batch,
+                snapshot,
+                no_pair,
+                journal,
+                account_scope=_ACCOUNT_SCOPE,
+                strategy_scope=_STRATEGY_SCOPE,
+                logical_run_id=_RUN_ID,
+                source_kind=_SOURCE_KIND,
+            )
+        assert writer.path.read_bytes() == before
+        assert writer.summary()["record_count"] == 0
+        assert journal.source_highwater(
+            _ACCOUNT_SCOPE, _STRATEGY_SCOPE, _RUN_ID, _SOURCE_KIND
+        ) is None
+    finally:
+        _close(writer, journal)
+
+
+@pytest.mark.integration
+def test_no_pair_source_only_recomputes_full_bound_selector_projection(tmp_path):
+    writer, journal, _candidate, batch, snapshot, _ready_decision = _fixture(
+        tmp_path,
+        filename="no-pair-forged-selection.jsonl",
+    )
+    try:
+        snapshot, no_pair = _no_valid_signal_projection(batch, snapshot)
+        highwater_args = (_ACCOUNT_SCOPE, _STRATEGY_SCOPE, _RUN_ID, _SOURCE_KIND)
+        original_bytes = writer.path.read_bytes()
+
+        distinct_values = {
+            target: replace(value, value=float(index + 1))
+            for index, (target, value) in enumerate(
+                sorted(snapshot.factors["alpha003"].values.items())
+            )
+        }
+        assert len({row.value for row in distinct_values.values()}) >= 2
+        distinct_factor = replace(
+            snapshot.factors["alpha003"],
+            values=MappingProxyType(distinct_values),
+        )
+        distinct_snapshot = replace(
+            snapshot,
+            factors=MappingProxyType({"alpha003": distinct_factor}),
+        )
+
+        forged_decisions = (
+            no_pair,
+            replace(no_pair, close_time=no_pair.close_time + economics.timedelta(seconds=1)),
+            replace(no_pair, available_at=no_pair.available_at + economics.timedelta(seconds=1)),
+            replace(no_pair, eligible_grid_index=no_pair.eligible_grid_index + 1),
+            replace(no_pair, rebalance_every=no_pair.rebalance_every + 1),
+            replace(no_pair, authorized_targets=no_pair.authorized_targets[:1]),
+            replace(
+                no_pair,
+                eligible_targets=tuple(reversed(no_pair.eligible_targets)),
+            ),
+        )
+
+        attempts = [(snapshot, decision) for decision in forged_decisions[1:]]
+        attempts.append((distinct_snapshot, no_pair))
+        for attempted_snapshot, forged in attempts:
+            with pytest.raises(
+                _RUNNER.RunnerError,
+                match="FEE_PAIR_NO_PAIR_SELECTION_MISMATCH",
+            ):
+                writer.record_fee_pair_no_pair_source_only_from_live(
+                    batch,
+                    attempted_snapshot,
+                    forged,
+                    journal,
+                    account_scope=_ACCOUNT_SCOPE,
+                    strategy_scope=_STRATEGY_SCOPE,
+                    logical_run_id=_RUN_ID,
+                    source_kind=_SOURCE_KIND,
+                )
+            assert writer.path.read_bytes() == original_bytes
+            assert writer.summary()["record_count"] == 0
+            assert journal.source_highwater(*highwater_args) is None
+    finally:
+        _close(writer, journal)
+
+
+@pytest.mark.integration
+def test_no_pair_strategy_keeps_risk_actions_and_blocks_open_only_plan(tmp_path, monkeypatch):
+    writer, journal, _candidate, batch, snapshot, _ready_decision = _fixture(
+        tmp_path,
+        filename="no-pair-risk-actions.jsonl",
+    )
+    try:
+        snapshot, no_pair = _no_valid_signal_projection(batch, snapshot)
+        strategy_api = __import__("alpha003_strategy")
+        open_action = SimpleNamespace(action="SUBMIT", position_effect="OPEN")
+        cancel_action = SimpleNamespace(action="CANCEL", position_effect="OPEN")
+        close_action = SimpleNamespace(action="SUBMIT", position_effect="CLOSE")
+        plan_holder = {
+            "value": strategy_api.Alpha003OrderPlan(
+                "READY",
+                None,
+                (open_action, cancel_action, close_action),
+                batch.batch_id,
+                batch.available_at,
+                None,
+            )
+        }
+        monkeypatch.setattr(
+            strategy_api,
+            "_live_planning_input",
+            lambda *args, **kwargs: SimpleNamespace(run_order_intents_used=0),
+        )
+        monkeypatch.setattr(
+            strategy_api,
+            "plan_alpha003_orders",
+            lambda _planning: plan_holder["value"],
+        )
+        risk_plans = []
+        grid_attempts = []
+        fake_strategy = SimpleNamespace(
+            _last_grid_fee_pair_blocked=False,
+            _live_facts=lambda _now: SimpleNamespace(available_at=batch.available_at),
+            _refresh_run_loss_guard=lambda *_args: (None, None),
+            _last_signal_target=no_pair,
+            last_target_decision=no_pair,
+            last_execution_block_reason=None,
+            _coordinator=SimpleNamespace(
+                journal=SimpleNamespace(
+                    fee_pair_required_scope=lambda *_args: SimpleNamespace(
+                        state="REQUIRE_PAIR_FAIL_CLOSED"
+                    )
+                ),
+                run_order_count=lambda: 0,
+            ),
+            _live_shadow_order_count=0,
+            _risk_policy=object(),
+            _strategy_scope=_STRATEGY_SCOPE,
+            _account_scope=_ACCOUNT_SCOPE,
+            p=SimpleNamespace(
+                execution_enabled=True,
+                live_ready_callback=None,
+                live_capacity_callback=None,
+            ),
+            _live_good_source_batch=lambda *_args: True,
+            _gate_open_actions=strategy_api.Alpha003TargetStrategy._gate_open_actions,
+            _record_fee_pair_no_pair_source_only_tape=lambda *_args: (
+                True,
+                {
+                    "file_id": "synthetic-file",
+                    "record_id": "a" * 64,
+                    "record_index": 1,
+                    "batch_id": batch.batch_id,
+                },
+                None,
+            ),
+            _source_receipt=lambda *_args: SimpleNamespace(readiness="LIVE_READY"),
+            _live_grid_decision=lambda *args, **kwargs: grid_attempts.append((args, kwargs)),
+            _live_risk_decision=lambda _batch, _facts, plan, **kwargs: risk_plans.append(plan),
+            _shutdown_requested=SimpleNamespace(is_set=lambda: False),
+        )
+
+        def run_live_once():
+            strategy_api.Alpha003TargetStrategy._run_live(
+                fake_strategy,
+                batch,
+                snapshot,
+                batch.available_at,
+                5,
+                None,
+                False,
+                is_new_batch=True,
+            )
+
+        run_live_once()
+        risk_ready_plan = fake_strategy.last_order_plan
+        assert risk_ready_plan.status == "READY"
+        assert risk_ready_plan.reason == "NO_LEGAL_FEE_PAIR"
+        assert risk_ready_plan.actions == (cancel_action, close_action)
+        assert risk_plans[-1] is risk_ready_plan
+        assert grid_attempts == []
+
+        plan_holder["value"] = strategy_api.Alpha003OrderPlan(
+            "READY",
+            None,
+            (open_action,),
+            batch.batch_id,
+            batch.available_at,
+            None,
+        )
+        run_live_once()
+        assert fake_strategy.last_order_plan.status == "BLOCKED"
+        assert fake_strategy.last_order_plan.reason == "NO_LEGAL_FEE_PAIR"
+        assert fake_strategy.last_order_plan.actions == ()
+        assert risk_plans[-1] is fake_strategy.last_order_plan
+    finally:
+        _close(writer, journal)
 
 
 def _three_target_fixture(tmp_path, *, filename="three-target.jsonl"):
