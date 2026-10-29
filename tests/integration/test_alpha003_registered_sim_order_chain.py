@@ -536,9 +536,13 @@ def _run_alpha003_live_strategy_order_chain_fixture(
     if _fee_pair_missing_commission_target_index is not None:
         # The missing-row scenario must observe the fail-closed OPEN decision
         # for the A/Y pair formed on the first live-ready grid and must not
-        # drift into a later, different pair after that proof. End the window
-        # one valid grid after the first pair so no post-proof pair can open.
-        minute_count = min(minute_count, 36)
+        # drift into a later, different pair after that proof. Only the first
+        # live-ready grid is guaranteed to select the missing-fee leg: the
+        # factor ranks rotate afterwards, so a later grid can legitimately
+        # select a pair whose two fee rows are both present and open it.
+        # Ending exactly on the first live-ready grid (preheat bars consumed)
+        # keeps the proof bound to that pair and leaves no post-proof pair.
+        minute_count = min(minute_count, config["factor"]["preheat_bars"])
     if _registered_owned_reduction:
         # The owned-cancel scenario seeds a held DCE.A position and the shared
         # factor tape rebalances away from it on the sixth live-ready grid
@@ -2481,6 +2485,26 @@ def _run_alpha003_live_strategy_order_chain_fixture(
                 "CloseTodayRatioByMoney": "0",
                 "CloseTodayRatioByVolume": "0",
             }
+
+        def query_instrument_commission_rate_result(
+            self, *, timeout=5.0, deadline_monotonic, instrument_id, exchange_id
+        ):
+            # The fee-pair projection and its sidecar refresh call the typed
+            # ``..._result`` leaf (registered_sim._QUERY_METHODS), not the
+            # legacy symbol-spec method above. Record that exact query so the
+            # probe observes the real Store/SDK sidecar call. Rows still come
+            # from query_rows, whose missing-instrument omission is what the
+            # production projection must fail closed on.
+            if _fee_pair_open_probe:
+                fee_pair_commission_query_calls.append(
+                    {"instrument": instrument_id, "exchange": exchange_id}
+                )
+            return super().query_instrument_commission_rate_result(
+                timeout=timeout,
+                deadline_monotonic=deadline_monotonic,
+                instrument_id=instrument_id,
+                exchange_id=exchange_id,
+            )
 
         def submit_order_insert(self, field, request_id, *, execution_capability):
             if execution_capability is not self._fake_active_capability:
