@@ -35,6 +35,7 @@ class FakeQueryResult:
         record_limit,
         complete=True,
         record_limit_exceeded=False,
+        completion_origin=None,
     ):
         self.request_type = request_type
         self.request_id = request_id
@@ -51,8 +52,10 @@ class FakeQueryResult:
         self.late_callback_count = 0
         self.unsupported = False
         self.submit_code = 0
-        self.first_completion_origin = "success"
-        self.completion_origin = "success" if complete else "record_limit"
+        if completion_origin is None:
+            completion_origin = "success" if complete else "record_limit"
+        self.first_completion_origin = completion_origin
+        self.completion_origin = completion_origin
         self.record_limit = record_limit
         self.record_limit_exceeded = record_limit_exceeded
         self.query_source = SimpleNamespace(
@@ -79,12 +82,12 @@ def _instrument_row(exchange, product_id, instrument_id, product_class="1"):
     }
 
 
-def _depth_row(exchange, instrument_id):
+def _depth_row(exchange, instrument_id, open_interest=1000):
     return {
         "ExchangeID": exchange,
         "InstrumentID": instrument_id,
         "TradingDay": "20261023",
-        "OpenInterest": 1000,
+        "OpenInterest": open_interest,
         "Volume": 800,
         "ActionDay": "20261023",
         "UpdateTime": "09:30:00",
@@ -111,7 +114,16 @@ def _normalize_instrument(row):
 
 
 class StagedQueryFeed:
-    def __init__(self, *, products=None, instruments=None, depth=None, overflow_stage=None):
+    def __init__(
+        self,
+        *,
+        products=None,
+        instruments=None,
+        depth=None,
+        depth_by_product=None,
+        incomplete_depth_for=(),
+        overflow_stage=None,
+    ):
         self.products = tuple(
             products
             if products is not None
@@ -123,6 +135,10 @@ class StagedQueryFeed:
             if depth is not None
             else (_depth_row("DCE", "i2611"), _depth_row("SHFE", "rb2611"))
         )
+        self.depth_by_product = {
+            key: tuple(rows) for key, rows in dict(depth_by_product or {}).items()
+        }
+        self.incomplete_depth_for = frozenset(incomplete_depth_for)
         self.overflow_stage = overflow_stage
         self.calls = []
         self.query_instances = []
@@ -136,18 +152,23 @@ class StagedQueryFeed:
             "trading_day": "20261023",
         }
 
-    def _result(self, kind, rows, kwargs, filters):
+    def _result(self, kind, rows, kwargs, filters, complete=None):
         self.next_request_id += 1
         self.query_instances.append(self)
         overflow = self.overflow_stage == kind
+        if complete is None:
+            complete = not overflow
         return FakeQueryResult(
             request_type=kind,
             request_id=self.next_request_id,
             records=rows,
             request_filters=filters,
             record_limit=kwargs["max_records"],
-            complete=not overflow,
+            complete=complete,
             record_limit_exceeded=overflow,
+            completion_origin=(
+                "record_limit" if overflow else "success"
+            ),
         )
 
     def query_products_result(self, **kwargs):
@@ -183,15 +204,24 @@ class StagedQueryFeed:
 
     def query_depth_market_data_result(self, **kwargs):
         self.calls.append(("depth", dict(kwargs)))
+        key = (kwargs["exchange_id"], kwargs["instrument_id"])
+        complete = True
+        if kwargs["instrument_id"]:
+            rows = self.depth_by_product.get(key, ())
+            if key in self.incomplete_depth_for:
+                complete = False
+        else:
+            rows = self.depth
         return self._result(
             "depth_market_data",
-            self.depth,
+            rows,
             kwargs,
             (
                 ("ExchangeID", kwargs["exchange_id"]),
                 ("InstrumentID", kwargs["instrument_id"]),
                 ("ProductClass", kwargs["product_class"]),
             ),
+            complete=complete,
         )
 
 
@@ -797,3 +827,220 @@ def test_depth_rows_outside_the_catalog_are_retained_and_block_selection(monkeyp
     assert snapshot.query_set.excluded_products[0].product_class == "2"
     assert manifest.status == "BLOCKED"
     assert "QUOTE_ID_NOT_IN_CATALOG" in manifest.blockers
+
+
+def _per_product_feed(**overrides):
+    defaults = dict(
+        products=(_product_row("DCE", "i"), _product_row("SHFE", "rb")),
+        instruments={
+            ("DCE", "i"): (
+                _instrument_row("DCE", "i", "i2611"),
+                _instrument_row("DCE", "i", "i2612"),
+            ),
+            ("SHFE", "rb"): (_instrument_row("SHFE", "rb", "rb2611"),),
+        },
+        depth_by_product={
+            ("DCE", "i"): (
+                _depth_row("DCE", "i2611", open_interest=1000),
+                _depth_row("DCE", "i2612", open_interest=900),
+            ),
+            ("SHFE", "rb"): (_depth_row("SHFE", "rb2611"),),
+        },
+    )
+    defaults.update(overrides)
+    return StagedQueryFeed(**defaults)
+
+
+def test_per_product_depth_query_layout_is_ready_and_digest_bound(monkeypatch):
+    _install_fake_contract(monkeypatch)
+    from backtrader.feeds.futures_main_contract import query_snapshot_set_digest
+
+    feed = _per_product_feed()
+    snapshot = adapter.collect_ctp_futures_snapshot(feed, query_mode="staged_product_depth")
+
+    assert [kind for kind, _ in feed.calls] == [
+        "products",
+        "instruments",
+        "instruments",
+        "depth",
+        "depth",
+    ]
+    assert [kwargs["max_records"] for _, kwargs in feed.calls] == [
+        256,
+        20_000,
+        19_998,
+        20_000,
+        19_998,
+    ]
+    depth_calls = [kwargs for kind, kwargs in feed.calls if kind == "depth"]
+    assert [call["instrument_id"] for call in depth_calls] == ["i", "rb"]
+    assert [call["exchange_id"] for call in depth_calls] == ["DCE", "SHFE"]
+    assert [call["product_class"] for call in depth_calls] == ["1", "1"]
+
+    query_set = snapshot.query_set
+    assert query_set.request_layout == "per_product_depth"
+    assert len(query_set.requests) == 2 * len(query_set.products) + 1
+    assert [source.source_kind for source in query_set.requests] == [
+        "products",
+        "instruments",
+        "instruments",
+        "depth_market_data",
+        "depth_market_data",
+    ]
+    assert query_set.requests[3].request_filters == (
+        ("ExchangeID", "DCE"),
+        ("InstrumentID", "i"),
+        ("ProductClass", "1"),
+    )
+    assert query_set.requests[4].request_filters == (
+        ("ExchangeID", "SHFE"),
+        ("InstrumentID", "rb"),
+        ("ProductClass", "1"),
+    )
+    assert [source.record_count for source in query_set.requests[3:]] == [2, 1]
+    assert query_snapshot_set_digest(
+        query_set.products,
+        query_set.requests,
+        query_set.excluded_products,
+        request_layout="per_product_depth",
+    ) == query_set.source_sha256
+    # The default digest form must not match the layout-bound digest.
+    assert query_snapshot_set_digest(
+        query_set.products, query_set.requests, query_set.excluded_products
+    ) != query_set.source_sha256
+
+    manifest = _select(snapshot)
+    assert manifest.status == "READY"
+    assert manifest.blockers == ()
+    assert dict(manifest.selected_mapping()) == {
+        ProductKey("DCE", "I"): "i2611",
+        ProductKey("SHFE", "RB"): "rb2611",
+    }
+    projection = manifest.to_dict()["query_snapshot"]["query_set"]
+    assert projection["request_layout"] == "per_product_depth"
+
+
+def test_per_product_depth_queries_zero_instrument_product(monkeypatch):
+    _install_fake_contract(monkeypatch)
+    feed = _per_product_feed(
+        products=(_product_row("DCE", "i"), _product_row("DCE", "lr")),
+        instruments={
+            ("DCE", "i"): (_instrument_row("DCE", "i", "i2611"),),
+            ("DCE", "lr"): (),
+        },
+        depth_by_product={
+            ("DCE", "i"): (_depth_row("DCE", "i2611"),),
+            ("DCE", "lr"): (),
+        },
+    )
+
+    snapshot = adapter.collect_ctp_futures_snapshot(feed, query_mode="staged_product_depth")
+
+    depth_calls = [kwargs for kind, kwargs in feed.calls if kind == "depth"]
+    assert [call["instrument_id"] for call in depth_calls] == ["i", "lr"]
+    assert [source.record_count for source in snapshot.query_set.requests[3:]] == [1, 0]
+    assert [row.instrument_id for row in snapshot.quote_records] == ["i2611"]
+    manifest = _select(snapshot)
+    assert manifest.status == "READY"
+    assert manifest.blockers == ()
+    assert tuple(manifest.target_products) == (ProductKey("DCE", "I"),)
+    excluded = next(item for item in manifest.products if item.product.product_id == "LR")
+    assert excluded.exclusion_reason == "NO_LISTED_CONTRACTS"
+
+
+def test_incomplete_per_product_depth_blocks_collection(monkeypatch):
+    _install_fake_contract(monkeypatch)
+    feed = _per_product_feed(incomplete_depth_for=(("SHFE", "rb"),))
+
+    with pytest.raises(adapter.CtpFuturesSnapshotError) as caught:
+        adapter.collect_ctp_futures_snapshot(feed, query_mode="staged_product_depth")
+
+    assert caught.value.code == "QUERY_INCOMPLETE"
+    assert [kind for kind, _ in feed.calls] == [
+        "products",
+        "instruments",
+        "instruments",
+        "depth",
+        "depth",
+    ]
+
+
+def test_per_product_depth_row_outside_every_catalog_blocks(monkeypatch):
+    _install_fake_contract(monkeypatch)
+    feed = _per_product_feed(
+        depth_by_product={
+            ("DCE", "i"): (_depth_row("DCE", "zz2611"),),
+            ("SHFE", "rb"): (_depth_row("SHFE", "rb2611"),),
+        }
+    )
+
+    with pytest.raises(adapter.CtpFuturesSnapshotError) as caught:
+        adapter.collect_ctp_futures_snapshot(feed, query_mode="staged_product_depth")
+
+    assert caught.value.code == "DEPTH_PRODUCT_ROW_SCOPE_MISMATCH"
+
+
+def test_per_product_depth_discards_sibling_product_prefix_spillover(monkeypatch):
+    _install_fake_contract(monkeypatch)
+    # Live CTP treats InstrumentID as a prefix: the DCE "j" query also returns
+    # sibling "jd" rows. A row attributed to another class-1 product's catalog
+    # is discarded here and retained by that product's own depth query.
+    feed = _per_product_feed(
+        products=(_product_row("DCE", "j"), _product_row("DCE", "jd")),
+        instruments={
+            ("DCE", "j"): (_instrument_row("DCE", "j", "j2611"),),
+            ("DCE", "jd"): (_instrument_row("DCE", "jd", "jd2611"),),
+        },
+        depth_by_product={
+            ("DCE", "j"): (
+                _depth_row("DCE", "j2611"),
+                _depth_row("DCE", "jd2611"),
+            ),
+            ("DCE", "jd"): (_depth_row("DCE", "jd2611"),),
+        },
+    )
+
+    snapshot = adapter.collect_ctp_futures_snapshot(feed, query_mode="staged_product_depth")
+
+    assert [row.instrument_id for row in snapshot.quote_records] == [
+        "j2611",
+        "jd2611",
+    ]
+    query_set = snapshot.query_set
+    assert [source.record_count for source in query_set.requests[3:]] == [1, 1]
+    manifest = _select(snapshot)
+    assert manifest.status == "READY"
+    assert manifest.blockers == ()
+
+
+def test_per_product_duplicate_depth_rows_block(monkeypatch):
+    _install_fake_contract(monkeypatch)
+    duplicate = _depth_row("SHFE", "rb2611")
+    feed = _per_product_feed(
+        depth_by_product={
+            ("DCE", "i"): (_depth_row("DCE", "i2611"),),
+            ("SHFE", "rb"): (duplicate, dict(duplicate)),
+        }
+    )
+
+    with pytest.raises(adapter.CtpFuturesSnapshotError) as caught:
+        adapter.collect_ctp_futures_snapshot(feed, query_mode="staged_product_depth")
+
+    assert caught.value.code == "QUOTE_ROW_DUPLICATE"
+
+
+def test_legacy_single_depth_layout_is_explicit_and_unchanged(monkeypatch):
+    _install_fake_contract(monkeypatch)
+    from backtrader.feeds.futures_main_contract import query_snapshot_set_digest
+
+    snapshot = adapter.collect_ctp_futures_snapshot(
+        StagedQueryFeed(), query_mode="staged_product_set"
+    )
+
+    query_set = snapshot.query_set
+    assert query_set.request_layout == "single_depth"
+    assert len(query_set.requests) == len(query_set.products) + 2
+    assert query_snapshot_set_digest(
+        query_set.products, query_set.requests, query_set.excluded_products
+    ) == query_set.source_sha256
+    assert _select(snapshot).status == "READY"

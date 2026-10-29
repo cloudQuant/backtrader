@@ -1112,7 +1112,15 @@ def _query_set_request(
     )
 
 
-def _query_set_snapshot(*, catalog_rows, quote_rows, product_records):
+def _query_set_snapshot(
+    *,
+    catalog_rows,
+    quote_rows,
+    product_records,
+    request_layout="single_depth",
+    depth_complete=None,
+    depth_counts=None,
+):
     products = tuple(
         QuerySnapshotProductEvidence(
             product=ProductKey(exchange_id.upper(), native_product_id.upper()),
@@ -1151,18 +1159,63 @@ def _query_set_snapshot(*, catalog_rows, quote_rows, product_records):
             )
         )
         instrument_count += count
-    requests.append(
-        _query_set_request(
-            len(product_records) + 1,
-            method="query_depth_market_data_result",
-            kind="depth_market_data",
-            filters=(("ExchangeID", ""), ("InstrumentID", ""), ("ProductClass", "1")),
-            record_count=len(quote_rows),
-            record_limit=20_000,
+    if request_layout == "per_product_depth":
+        per_product_counts = dict(
+            zip(
+                (native_product_id for _, native_product_id, _, _ in product_records),
+                depth_counts
+                if depth_counts is not None
+                else (
+                    sum(
+                        1
+                        for row in quote_rows
+                        if row.instrument_id.startswith(native_product_id.upper())
+                    )
+                    for _, native_product_id, _, _ in product_records
+                ),
+            )
         )
-    )
+        depth_count = 0
+        for offset, (exchange_id, native_product_id, _count, _complete) in enumerate(
+            product_records
+        ):
+            index = len(product_records) + 1 + offset
+            count = per_product_counts[native_product_id]
+            requests.append(
+                _query_set_request(
+                    index,
+                    method="query_depth_market_data_result",
+                    kind="depth_market_data",
+                    filters=(
+                        ("ExchangeID", exchange_id),
+                        ("InstrumentID", native_product_id),
+                        ("ProductClass", "1"),
+                    ),
+                    record_count=count,
+                    record_limit=20_000 - depth_count,
+                    complete=(
+                        depth_complete[offset] if depth_complete is not None else True
+                    ),
+                )
+            )
+            depth_count += count
+    else:
+        requests.append(
+            _query_set_request(
+                len(product_records) + 1,
+                method="query_depth_market_data_result",
+                kind="depth_market_data",
+                filters=(("ExchangeID", ""), ("InstrumentID", ""), ("ProductClass", "1")),
+                record_count=len(quote_rows),
+                record_limit=20_000,
+            )
+        )
     requests = tuple(requests)
-    digest = query_snapshot_set_digest(products, requests)
+    digest = query_snapshot_set_digest(
+        products,
+        requests,
+        request_layout=request_layout,
+    )
     query_set = QuerySnapshotSetEvidence(
         source_id="{}.staged_futures_query_set".format(QUERY_SET_PREFIX),
         snapshot_id="ctp-visible-futures-set:{}:{}:{}".format(
@@ -1171,6 +1224,7 @@ def _query_set_snapshot(*, catalog_rows, quote_rows, product_records):
         source_sha256=digest,
         products=products,
         requests=requests,
+        request_layout=request_layout,
     )
     return MainContractQuerySnapshot(
         catalog_source=None,
@@ -1273,6 +1327,88 @@ def test_query_set_contractless_product_without_complete_empty_evidence_still_bl
     assert selection.status == "BLOCKED"
     assert selection.exclusion_reason is None
     assert "PRODUCT_CATALOG_COVERAGE_UNAVAILABLE" in selection.blockers
+
+
+def test_query_set_per_product_depth_layout_is_ready():
+    snapshot = _query_set_snapshot(
+        catalog_rows=(_catalog("M2611", product=CONTRACT_PRODUCT),),
+        quote_rows=(_query_quote("M2611"),),
+        product_records=_query_set_product_rows(),
+        request_layout="per_product_depth",
+        depth_counts=(0, 1),
+    )
+    products = (LISTED_WITHOUT_CONTRACTS, CONTRACT_PRODUCT)
+
+    manifest = _query_set_select(snapshot, products)
+
+    assert manifest.status == "READY"
+    assert manifest.blockers == ()
+    assert manifest.target_products == (CONTRACT_PRODUCT,)
+    query_set = snapshot.query_set
+    assert query_set.request_layout == "per_product_depth"
+    assert len(query_set.requests) == 2 * len(query_set.products) + 1
+    assert [source.source_kind for source in query_set.requests] == [
+        "products",
+        "instruments",
+        "instruments",
+        "depth_market_data",
+        "depth_market_data",
+    ]
+    assert [source.request_filters for source in query_set.requests[3:]] == [
+        (("ExchangeID", "DCE"), ("InstrumentID", "c"), ("ProductClass", "1")),
+        (("ExchangeID", "DCE"), ("InstrumentID", "m"), ("ProductClass", "1")),
+    ]
+    projection = manifest.to_dict()["query_snapshot"]["query_set"]
+    assert projection["request_layout"] == "per_product_depth"
+
+
+def test_query_set_per_product_depth_incomplete_blocks():
+    snapshot = _query_set_snapshot(
+        catalog_rows=(_catalog("M2611", product=CONTRACT_PRODUCT),),
+        quote_rows=(_query_quote("M2611"),),
+        product_records=_query_set_product_rows(),
+        request_layout="per_product_depth",
+        depth_counts=(0, 1),
+        depth_complete=(True, False),
+    )
+    products = (LISTED_WITHOUT_CONTRACTS, CONTRACT_PRODUCT)
+
+    manifest = _query_set_select(snapshot, products)
+
+    assert manifest.status == "BLOCKED"
+    assert "QUERY_SET_REQUEST_5_QUERY_INCOMPLETE" in manifest.blockers
+    assert "QUERY_SET_REQUEST_5_QUERY_TERMINAL_NOT_SEEN" in manifest.blockers
+
+
+def test_query_set_per_product_depth_record_count_mismatch_blocks():
+    snapshot = _query_set_snapshot(
+        catalog_rows=(_catalog("M2611", product=CONTRACT_PRODUCT),),
+        quote_rows=(_query_quote("M2611"),),
+        product_records=_query_set_product_rows(),
+        request_layout="per_product_depth",
+        depth_counts=(0, 2),
+    )
+    products = (LISTED_WITHOUT_CONTRACTS, CONTRACT_PRODUCT)
+
+    manifest = _query_set_select(snapshot, products)
+
+    assert manifest.status == "BLOCKED"
+    assert "QUERY_SET_DEPTH_RECORD_COUNT_MISMATCH" in manifest.blockers
+
+
+def test_query_set_invalid_layout_marker_blocks():
+    snapshot = _query_set_snapshot(
+        catalog_rows=(_catalog("M2611", product=CONTRACT_PRODUCT),),
+        quote_rows=(_query_quote("M2611"),),
+        product_records=_query_set_product_rows(),
+    )
+    object.__setattr__(snapshot.query_set, "request_layout", "unknown_layout")
+    products = (LISTED_WITHOUT_CONTRACTS, CONTRACT_PRODUCT)
+
+    manifest = _query_set_select(snapshot, products)
+
+    assert manifest.status == "BLOCKED"
+    assert "QUERY_SET_REQUEST_LAYOUT_INVALID" in manifest.blockers
 
 
 def _rollover_manifests():

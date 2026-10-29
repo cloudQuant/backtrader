@@ -29,7 +29,9 @@ _DEFAULT_MAX_COLLECTION_SECONDS = 300.0
 _DEFAULT_MAX_SNAPSHOT_AGE_SECONDS = 300.0
 _MAX_CONFIGURED_SECONDS = 3600.0
 _MAX_QUERY_DIAGNOSTIC_RECORD_COUNT = 20_000
-_MAX_QUERY_DIAGNOSTIC_OBSERVATIONS = 258
+# One product query plus one instrument and one depth receipt per visible
+# class-1 product (2 * 256 + 1) when the staged per-product depth layout is used.
+_MAX_QUERY_DIAGNOSTIC_OBSERVATIONS = 513
 _MAX_PRODUCT_QUERY_HARD_SECONDS = 30.0
 _MAX_QUERY_IDLE_SECONDS = 5.0
 _QUERY_COMPLETION_ORIGINS = frozenset(
@@ -840,6 +842,7 @@ def _query_source_evidence(
     source_sha256: str,
     request_filters: tuple,
     record_limit: int,
+    record_count: Optional[int] = None,
 ) -> Any:
     from backtrader.feeds.futures_main_contract import QuerySnapshotSourceEvidence
 
@@ -862,11 +865,14 @@ def _query_source_evidence(
         retrieved_at=retrieved_at,
         complete=True,
         is_last_seen=True,
-        record_count=len(result.records),
+        record_count=len(result.records) if record_count is None else record_count,
         request_filters=request_filters,
         record_limit=record_limit,
         record_limit_exceeded=False,
     )
+
+
+_STAGED_DEPTH_MODES = frozenset({"single_depth", "per_product_depth"})
 
 
 def _collect_staged_ctp_futures_snapshot(
@@ -876,6 +882,7 @@ def _collect_staged_ctp_futures_snapshot(
     max_snapshot_age_seconds: float,
     source_prefix: str,
     observations: list,
+    depth_mode: str = "single_depth",
 ) -> Any:
     """Collect a bounded all-class product and futures-only query set.
 
@@ -884,7 +891,17 @@ def _collect_staged_ctp_futures_snapshot(
     all-class product, cumulative futures-instrument, and depth caps bound
     those retained rows. Known non-futures product classes remain explicit in
     the query-set evidence and do not trigger per-product instrument queries.
+
+    ``depth_mode`` selects how current-day depth rows are requested:
+
+    - ``single_depth`` keeps the legacy all-instrument depth query.
+    - ``per_product_depth`` issues one depth query per class-1 product using
+      that product's native exchange/product IDs. During the night session the
+      single all-instrument request can stall on some fronts while the
+      per-product prefix-filtered requests complete promptly.
     """
+    if depth_mode not in _STAGED_DEPTH_MODES:
+        _fail("DEPTH_MODE_INVALID")
 
     from backtrader.feeds.futures_main_contract import (
         _CTP_PRODUCT_CLASS_ASSET_TYPE,
@@ -1050,6 +1067,7 @@ def _collect_staged_ctp_futures_snapshot(
     del product_result
 
     catalog_records = []
+    catalog_ids_by_product = {}
     request_sources = [product_source]
     request_ids = [product_request_id]
     for product_index, product in enumerate(product_evidence):
@@ -1129,6 +1147,9 @@ def _collect_staged_ctp_futures_snapshot(
         if len(catalog_records) + len(rows) > MAX_PRODUCT_INSTRUMENT_ROWS:
             _fail("INSTRUMENT_RECORD_CAP_EXCEEDED", tuple(observations))
         catalog_records.extend(rows)
+        catalog_ids_by_product[product.product] = frozenset(
+            record.instrument_id for record in rows
+        )
         del raw
         request_sources.append(
             _query_source_evidence(
@@ -1150,54 +1171,151 @@ def _collect_staged_ctp_futures_snapshot(
         request_ids.append(request_id)
         del instrument_result
 
-    depth_filters = (
-        ("ExchangeID", ""),
-        ("InstrumentID", ""),
-        ("ProductClass", "1"),
-    )
-    depth_remaining = deadline - time.monotonic()
-    (
-        depth_result,
-        depth_started,
-        depth_completed,
-        depth_retrieved,
-        depth_request_id,
-        depth_digest,
-    ) = run_query(
-        stage="depth",
-        method=query_depth,
-        kwargs={
-            "instrument_id": "",
-            "exchange_id": "",
-            "product_class": "1",
-            "_hard_limit": depth_remaining,
-        },
-        request_type="depth_market_data",
-        prior_complete=True,
-        max_records=MAX_VISIBLE_DEPTH_ROWS,
-        request_filters=depth_filters,
-    )
-    if depth_request_id in request_ids:
-        _fail("QUERY_REQUEST_ID_COLLISION", tuple(observations))
-    quote_records = _quote_records(depth_result.records)
-    request_sources.append(
-        _query_source_evidence(
-            source_prefix=source_prefix,
-            method_name="query_depth_market_data_result",
-            source_kind="depth_market_data",
-            result=depth_result,
-            generation=generation_before,
-            trading_day=day_before,
-            started_at=depth_started,
-            completed_at=depth_completed,
-            retrieved_at=depth_retrieved,
-            request_id=depth_request_id,
-            source_sha256=depth_digest,
-            request_filters=depth_filters,
-            record_limit=MAX_VISIBLE_DEPTH_ROWS,
+    instrument_owner_by_key = {}
+    for owner_product, instrument_ids in catalog_ids_by_product.items():
+        for instrument_id in instrument_ids:
+            instrument_owner_by_key[
+                (owner_product.exchange_id, instrument_id)
+            ] = owner_product
+
+    if depth_mode == "single_depth":
+        depth_filters = (
+            ("ExchangeID", ""),
+            ("InstrumentID", ""),
+            ("ProductClass", "1"),
         )
-    )
-    del depth_result
+        depth_remaining = deadline - time.monotonic()
+        (
+            depth_result,
+            depth_started,
+            depth_completed,
+            depth_retrieved,
+            depth_request_id,
+            depth_digest,
+        ) = run_query(
+            stage="depth",
+            method=query_depth,
+            kwargs={
+                "instrument_id": "",
+                "exchange_id": "",
+                "product_class": "1",
+                "_hard_limit": depth_remaining,
+            },
+            request_type="depth_market_data",
+            prior_complete=True,
+            max_records=MAX_VISIBLE_DEPTH_ROWS,
+            request_filters=depth_filters,
+        )
+        if depth_request_id in request_ids:
+            _fail("QUERY_REQUEST_ID_COLLISION", tuple(observations))
+        quote_records = _quote_records(depth_result.records)
+        request_sources.append(
+            _query_source_evidence(
+                source_prefix=source_prefix,
+                method_name="query_depth_market_data_result",
+                source_kind="depth_market_data",
+                result=depth_result,
+                generation=generation_before,
+                trading_day=day_before,
+                started_at=depth_started,
+                completed_at=depth_completed,
+                retrieved_at=depth_retrieved,
+                request_id=depth_request_id,
+                source_sha256=depth_digest,
+                request_filters=depth_filters,
+                record_limit=MAX_VISIBLE_DEPTH_ROWS,
+            )
+        )
+        del depth_result
+    else:
+        # One depth query per class-1 product. The product ID is passed as the
+        # native InstrumentID prefix so the front applies its own product
+        # filter; every receipt keeps the exact per-product filters and the
+        # cumulative depth cap.
+        #
+        # CTP treats InstrumentID as a prefix filter. A product ID that is also
+        # a prefix of sibling products (CFFEX ``T`` vs ``TF``/``TS``/``TL``,
+        # DCE ``j`` vs ``jd``/``jm``) therefore returns those sibling rows too.
+        # Rows that the fully-collected catalog attributes to another class-1
+        # product are discarded here: that product's own depth query retains
+        # them, so the union stays complete and no row is counted twice. A row
+        # that belongs to no visible catalog product still blocks the snapshot.
+        collected_quotes = []
+        for depth_index, product in enumerate(product_evidence):
+            remaining_rows = MAX_VISIBLE_DEPTH_ROWS - len(collected_quotes)
+            if remaining_rows <= 0:
+                _fail("DEPTH_RECORD_CAP_EXHAUSTED", tuple(observations))
+            depth_filters = (
+                ("ExchangeID", product.native_exchange_id),
+                ("InstrumentID", product.native_product_id),
+                ("ProductClass", "1"),
+            )
+            stage = "depth_{:03d}".format(depth_index + 1)
+            (
+                depth_result,
+                depth_started,
+                depth_completed,
+                depth_retrieved,
+                depth_request_id,
+                depth_digest,
+            ) = run_query(
+                stage=stage,
+                method=query_depth,
+                kwargs={
+                    "instrument_id": product.native_product_id,
+                    "exchange_id": product.native_exchange_id,
+                    "product_class": "1",
+                    "_hard_limit": deadline - time.monotonic(),
+                },
+                request_type="depth_market_data",
+                prior_complete=True,
+                max_records=remaining_rows,
+                request_filters=depth_filters,
+            )
+            if depth_request_id in request_ids:
+                _fail("QUERY_REQUEST_ID_COLLISION", tuple(observations))
+            rows = _quote_records(depth_result.records)
+            catalog_ids = catalog_ids_by_product.get(product.product, frozenset())
+            scoped_rows = []
+            for record in rows:
+                if record.exchange_id != product.native_exchange_id:
+                    _fail("DEPTH_PRODUCT_ROW_SCOPE_MISMATCH", tuple(observations))
+                if record.instrument_id in catalog_ids:
+                    scoped_rows.append(record)
+                    continue
+                owner = instrument_owner_by_key.get(
+                    (record.exchange_id.upper(), record.instrument_id)
+                )
+                if owner is None or owner == product.product:
+                    _fail("DEPTH_PRODUCT_ROW_SCOPE_MISMATCH", tuple(observations))
+                # Prefix spillover from a sibling class-1 product: its own
+                # depth query retains this row.
+            collected_quotes.extend(scoped_rows)
+            request_sources.append(
+                _query_source_evidence(
+                    source_prefix=source_prefix,
+                    method_name="query_depth_market_data_result",
+                    source_kind="depth_market_data",
+                    result=depth_result,
+                    generation=generation_before,
+                    trading_day=day_before,
+                    started_at=depth_started,
+                    completed_at=depth_completed,
+                    retrieved_at=depth_retrieved,
+                    request_id=depth_request_id,
+                    source_sha256=depth_digest,
+                    request_filters=depth_filters,
+                    record_limit=remaining_rows,
+                    record_count=len(scoped_rows),
+                )
+            )
+            request_ids.append(depth_request_id)
+            del depth_result
+        quote_keys = [(row.exchange_id.upper(), row.instrument_id) for row in collected_quotes]
+        if len(quote_keys) != len(set(quote_keys)):
+            _fail("QUOTE_ROW_DUPLICATE", tuple(observations))
+        quote_records = tuple(collected_quotes)
+        del collected_quotes
 
     day_after, generation_after = _session_facts(feed)
     if day_before != day_after or generation_before != generation_after:
@@ -1211,6 +1329,7 @@ def _collect_staged_ctp_futures_snapshot(
         product_tuple,
         query_sources,
         excluded_product_tuple,
+        request_layout=depth_mode,
     )
     query_set = QuerySnapshotSetEvidence(
         source_id="{}.staged_futures_query_set".format(source_prefix),
@@ -1223,6 +1342,7 @@ def _collect_staged_ctp_futures_snapshot(
         products=product_tuple,
         requests=query_sources,
         excluded_products=excluded_product_tuple,
+        request_layout=depth_mode,
     )
     snapshot = MainContractQuerySnapshot(
         catalog_source=None,
@@ -1607,6 +1727,16 @@ def collect_ctp_futures_snapshot(
                 max_snapshot_age_seconds=max_snapshot_age_seconds,
                 source_prefix=source_prefix,
                 observations=observations,
+                depth_mode="single_depth",
+            )
+        if query_mode == "staged_product_depth":
+            return _collect_staged_ctp_futures_snapshot(
+                feed,
+                max_collection_seconds=max_collection_seconds,
+                max_snapshot_age_seconds=max_snapshot_age_seconds,
+                source_prefix=source_prefix,
+                observations=observations,
+                depth_mode="per_product_depth",
             )
         if query_mode != "legacy_two_query":
             _fail("QUERY_MODE_INVALID")

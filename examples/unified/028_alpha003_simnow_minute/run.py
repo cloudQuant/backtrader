@@ -160,6 +160,10 @@ _CTP_FUTURES_SNAPSHOT_ERROR_CODES = frozenset(
         "INSTRUMENT_PRODUCT_CLASS_MISMATCH",
         "CATALOG_PRODUCT_CLASS_UNKNOWN",
         "DEPTH_QUERY_CALL_FAILED",
+        "DEPTH_MODE_INVALID",
+        "DEPTH_PRODUCT_ROW_SCOPE_MISMATCH",
+        "DEPTH_RECORD_CAP_EXHAUSTED",
+        "QUOTE_ROW_DUPLICATE",
         "QUOTE_ACTION_DAY_INVALID",
         "QUOTE_EXCHANGE_ID_MISSING",
         "QUOTE_IDENTITY_INVALID",
@@ -428,6 +432,7 @@ def load_config(config_path: Path) -> dict[str, Any]:
     if type(selection["query_mode"]) is not str or selection["query_mode"] not in {
         "legacy_two_query",
         "staged_product_set",
+        "staged_product_depth",
     }:
         raise RunnerError("SELECTION_QUERY_MODE_INVALID")
     if selection["source"] != "ctp_query" and selection["query_mode"] != "legacy_two_query":
@@ -648,9 +653,10 @@ def build_ctp_query_market_plan(store, config, *, clock):
     if type(query_mode) is not str or query_mode not in {
         "legacy_two_query",
         "staged_product_set",
+        "staged_product_depth",
     }:
         raise RunnerError("SELECTION_QUERY_MODE_INVALID")
-    if query_mode == "staged_product_set":
+    if query_mode in {"staged_product_set", "staged_product_depth"}:
         collector_kwargs = {
             "max_collection_seconds": 300.0,
             "max_snapshot_age_seconds": 300.0,
@@ -672,16 +678,18 @@ def build_ctp_query_market_plan(store, config, *, clock):
             code = getattr(error, "code", None)
             if type(code) is str:
                 numbered_instrument_failure = False
-                prefix = "INSTRUMENTS_"
                 suffix = "_QUERY_CALL_FAILED"
-                if code.startswith(prefix) and code.endswith(suffix):
-                    request_ordinal = code[len(prefix) : -len(suffix)]
-                    numbered_instrument_failure = (
-                        len(request_ordinal) == 3
-                        and request_ordinal.isascii()
-                        and request_ordinal.isdigit()
-                        and 1 <= int(request_ordinal) <= 256
-                    )
+                for prefix in ("INSTRUMENTS_", "DEPTH_"):
+                    if code.startswith(prefix) and code.endswith(suffix):
+                        request_ordinal = code[len(prefix) : -len(suffix)]
+                        if (
+                            len(request_ordinal) == 3
+                            and request_ordinal.isascii()
+                            and request_ordinal.isdigit()
+                            and 1 <= int(request_ordinal) <= 256
+                        ):
+                            numbered_instrument_failure = True
+                            break
                 if code in _CTP_FUTURES_SNAPSHOT_ERROR_CODES or numbered_instrument_failure:
                     detail = code
         runner_error = RunnerError("CTP_FUTURES_SNAPSHOT_COLLECTION_FAILED", detail)
@@ -692,7 +700,7 @@ def build_ctp_query_market_plan(store, config, *, clock):
 
     if not isinstance(snapshot, MainContractQuerySnapshot):
         raise RunnerError("CTP_FUTURES_SNAPSHOT_TYPE_INVALID")
-    if query_mode == "staged_product_set":
+    if query_mode in {"staged_product_set", "staged_product_depth"}:
         query_set = snapshot.query_set
         if query_set is None:
             raise RunnerError("CTP_FUTURES_QUERY_SET_UNAVAILABLE")
@@ -803,7 +811,7 @@ def build_ctp_query_market_plan(store, config, *, clock):
         if len(set(authorized)) != len(authorized) or not set(authorized).issubset(target_names):
             raise RunnerError("AUTHORIZED_PRODUCTS_OUTSIDE_POOL")
 
-    if query_mode == "staged_product_set":
+    if query_mode in {"staged_product_set", "staged_product_depth"}:
         source_snapshot_id = snapshot.query_set.snapshot_id
         if type(source_snapshot_id) is not str or not source_snapshot_id:
             raise RunnerError("CTP_FUTURES_SNAPSHOT_ID_UNAVAILABLE")
@@ -1368,7 +1376,7 @@ def _project_ctp_snapshot_query_diagnostics(error):
         type(observations[0]) is CtpFuturesSnapshotQueryObservation
         and getattr(observations[0], "stage", None) == "products"
     )
-    max_observations = 258 if staged_query_set else 2
+    max_observations = 513 if staged_query_set else 2
     if len(observations) > max_observations or any(
         type(item) is not CtpFuturesSnapshotQueryObservation for item in observations
     ):

@@ -60,7 +60,13 @@ MAX_VISIBLE_CTP_PRODUCTS = 256
 MAX_VISIBLE_FUTURE_PRODUCTS = MAX_VISIBLE_CTP_PRODUCTS
 MAX_PRODUCT_INSTRUMENT_ROWS = 20_000
 MAX_VISIBLE_DEPTH_ROWS = 20_000
-MAX_STAGED_QUERY_REQUESTS = MAX_VISIBLE_FUTURE_PRODUCTS + 2
+MAX_SINGLE_DEPTH_QUERY_REQUESTS = MAX_VISIBLE_FUTURE_PRODUCTS + 2
+MAX_STAGED_QUERY_REQUESTS = 2 * MAX_VISIBLE_FUTURE_PRODUCTS + 1
+QUERY_SET_LAYOUT_SINGLE_DEPTH = "single_depth"
+QUERY_SET_LAYOUT_PER_PRODUCT_DEPTH = "per_product_depth"
+QUERY_SET_REQUEST_LAYOUTS = frozenset(
+    {QUERY_SET_LAYOUT_SINGLE_DEPTH, QUERY_SET_LAYOUT_PER_PRODUCT_DEPTH}
+)
 EXCLUSION_REASON_NO_LISTED_CONTRACTS = "NO_LISTED_CONTRACTS"
 
 
@@ -503,7 +509,18 @@ class QuerySnapshotExcludedProductEvidence:
 
 @dataclass(frozen=True)
 class QuerySnapshotSetEvidence:
-    """One typed product query, exact per-product instrument queries, and depth."""
+    """One typed product query, exact per-product instrument queries, and depth.
+
+    ``request_layout`` names how the depth receipts are arranged:
+
+    - ``single_depth`` (default, legacy) is one product query, N instrument
+      queries, then one all-instrument depth query.
+    - ``per_product_depth`` is one product query, N instrument queries, then N
+      product-scoped depth queries in the same product order.
+
+    The explicit marker keeps readers from inferring the layout from the
+    request count alone and leaves legacy evidence readable.
+    """
 
     source_id: Any
     snapshot_id: Any
@@ -511,6 +528,7 @@ class QuerySnapshotSetEvidence:
     products: Tuple[QuerySnapshotProductEvidence, ...]
     requests: Tuple[QuerySnapshotSourceEvidence, ...]
     excluded_products: Tuple[QuerySnapshotExcludedProductEvidence, ...] = ()
+    request_layout: Any = QUERY_SET_LAYOUT_SINGLE_DEPTH
 
     def __post_init__(self) -> None:
         products = tuple(self.products)
@@ -531,7 +549,18 @@ class QuerySnapshotSetEvidence:
             )
         if any(not isinstance(item, QuerySnapshotSourceEvidence) for item in requests):
             raise ValueError("query-set requests must contain QuerySnapshotSourceEvidence")
-        if len(requests) != len(products) + 2 or len(requests) > MAX_STAGED_QUERY_REQUESTS:
+        if (
+            type(self.request_layout) is not str
+            or self.request_layout not in QUERY_SET_REQUEST_LAYOUTS
+        ):
+            raise ValueError("query-set request layout is invalid")
+        if self.request_layout == QUERY_SET_LAYOUT_PER_PRODUCT_DEPTH:
+            expected_requests = 2 * len(products) + 1
+            request_cap = MAX_STAGED_QUERY_REQUESTS
+        else:
+            expected_requests = len(products) + 2
+            request_cap = MAX_SINGLE_DEPTH_QUERY_REQUESTS
+        if len(requests) != expected_requests or len(requests) > request_cap:
             raise ValueError("query-set request count does not match its products")
         product_keys = tuple(item.product for item in products)
         excluded_keys = tuple(item.product for item in excluded_products)
@@ -551,12 +580,17 @@ def query_snapshot_set_digest(
     products: Sequence[QuerySnapshotProductEvidence],
     requests: Sequence[QuerySnapshotSourceEvidence],
     excluded_products: Sequence[QuerySnapshotExcludedProductEvidence] = (),
+    *,
+    request_layout: str = QUERY_SET_LAYOUT_SINGLE_DEPTH,
 ) -> str:
     """Digest classified product rows and request receipts without retaining raw rows.
 
-    The empty-exclusion form retains the exact v1 encoding so existing class-1
-    query-set evidence remains readable.  A non-empty exclusion set is added
-    to the v2 payload and is therefore bound to the query-set digest.
+    The empty-exclusion, single-depth form retains the exact v1 encoding so
+    existing class-1 query-set evidence remains readable.  A non-empty
+    exclusion set is added to the v2 payload and is therefore bound to the
+    query-set digest.  A non-default ``request_layout`` (per-product depth)
+    is also added to the payload, so the layout is digest-bound while the
+    legacy single-depth digest bytes stay unchanged.
     """
 
     def time_value(value: Any) -> Optional[str]:
@@ -633,6 +667,8 @@ def query_snapshot_set_digest(
             }
             for item in excluded_products
         ]
+    if request_layout != QUERY_SET_LAYOUT_SINGLE_DEPTH:
+        payload["request_layout"] = scalar(request_layout)
     encoded = json.dumps(
         payload,
         ensure_ascii=False,
@@ -1543,7 +1579,17 @@ def _query_set_source_blockers(
     expected_keys = tuple(sorted(target_products, key=_key_order))
     if product_keys != expected_keys:
         blockers.append("QUERY_SET_PRODUCT_POOL_MISMATCH")
-    if len(requests) != len(products) + 2 or len(requests) > MAX_STAGED_QUERY_REQUESTS:
+    request_layout = getattr(query_set, "request_layout", QUERY_SET_LAYOUT_SINGLE_DEPTH)
+    if type(request_layout) is not str or request_layout not in QUERY_SET_REQUEST_LAYOUTS:
+        blockers.append("QUERY_SET_REQUEST_LAYOUT_INVALID")
+        return tuple(dict.fromkeys(blockers))
+    if request_layout == QUERY_SET_LAYOUT_PER_PRODUCT_DEPTH:
+        expected_query_count = 2 * len(products) + 1
+        query_count_cap = MAX_STAGED_QUERY_REQUESTS
+    else:
+        expected_query_count = len(products) + 2
+        query_count_cap = MAX_SINGLE_DEPTH_QUERY_REQUESTS
+    if len(requests) != expected_query_count or len(requests) > query_count_cap:
         blockers.append("QUERY_SET_REQUEST_COUNT_INVALID")
         return tuple(dict.fromkeys(blockers))
 
@@ -1554,6 +1600,7 @@ def _query_set_source_blockers(
     # those rows into catalog_records.
     product_by_key = {item.product: item for item in products}
     catalog_counts = {}
+    catalog_product_by_instrument = {}
     for record in snapshot.catalog_records:
         expected_product = product_by_key.get(record.product)
         if expected_product is None:
@@ -1564,6 +1611,9 @@ def _query_set_source_blockers(
         ):
             blockers.append("QUERY_SET_CATALOG_PRODUCT_CLASS_MISMATCH")
         catalog_counts[record.product] = catalog_counts.get(record.product, 0) + 1
+        catalog_product_by_instrument[
+            (record.product.exchange_id, record.instrument_id)
+        ] = record.product
     for product, source in zip(products, requests[1:-1]):
         if (
             type(source.record_count) is int
@@ -1581,7 +1631,12 @@ def _query_set_source_blockers(
     ):
         blockers.append("QUERY_SET_SOURCE_DIGEST_INVALID")
     elif (
-        query_snapshot_set_digest(products, requests, excluded_products)
+        query_snapshot_set_digest(
+            products,
+            requests,
+            excluded_products,
+            request_layout=request_layout,
+        )
         != query_set.source_sha256
     ):
         blockers.append("QUERY_SET_SOURCE_DIGEST_MISMATCH")
@@ -1654,21 +1709,52 @@ def _query_set_source_blockers(
         )
         for item in products
     )
-    depth_filters = (
-        ("ExchangeID", ""),
-        ("InstrumentID", ""),
-        ("ProductClass", "1"),
-    )
-    expected_filters = (product_filters,) + instrument_filters + (depth_filters,)
-    expected_kinds = ("products",) + ("instruments",) * len(products) + (
-        "depth_market_data",
-    )
-    expected_methods = ("query_products_result",) + ("query_instruments_result",) * len(
-        products
-    ) + ("query_depth_market_data_result",)
+    if request_layout == QUERY_SET_LAYOUT_PER_PRODUCT_DEPTH:
+        depth_filters = tuple(
+            (
+                ("ExchangeID", item.native_exchange_id),
+                ("InstrumentID", item.native_product_id),
+                ("ProductClass", "1"),
+            )
+            for item in products
+        )
+        expected_kinds = (
+            ("products",)
+            + ("instruments",) * len(products)
+            + ("depth_market_data",) * len(products)
+        )
+        expected_methods = (
+            ("query_products_result",)
+            + ("query_instruments_result",) * len(products)
+            + ("query_depth_market_data_result",) * len(products)
+        )
+        expected_filters = (product_filters,) + instrument_filters + depth_filters
+    else:
+        depth_filters = (
+            ("ExchangeID", ""),
+            ("InstrumentID", ""),
+            ("ProductClass", "1"),
+        )
+        expected_kinds = ("products",) + ("instruments",) * len(products) + (
+            "depth_market_data",
+        )
+        expected_methods = ("query_products_result",) + (
+            "query_instruments_result",
+        ) * len(products) + ("query_depth_market_data_result",)
+        expected_filters = (product_filters,) + instrument_filters + (depth_filters,)
+    quote_counts_by_product = {}
+    for quote in snapshot.quote_records:
+        quote_product = catalog_product_by_instrument.get(
+            (quote.exchange_id.upper(), quote.instrument_id)
+        )
+        if quote_product is not None:
+            quote_counts_by_product[quote_product] = (
+                quote_counts_by_product.get(quote_product, 0) + 1
+            )
     request_ids = []
     span_timestamps = []
     instrument_count = 0
+    depth_count = 0
     for index, (source, expected_kind, expected_method, filters) in enumerate(
         zip(requests, expected_kinds, expected_methods, expected_filters)
     ):
@@ -1749,13 +1835,12 @@ def _query_set_source_blockers(
             blockers.append("{}_QUERY_TERMINAL_NOT_SEEN".format(name))
         if type(source.record_count) is not int or source.record_count < 0:
             blockers.append("{}_RECORD_COUNT_UNAVAILABLE".format(name))
-        expected_record_limit = (
-            MAX_VISIBLE_CTP_PRODUCTS
-            if index == 0
-            else MAX_VISIBLE_DEPTH_ROWS
-            if index == len(requests) - 1
-            else MAX_PRODUCT_INSTRUMENT_ROWS - instrument_count
-        )
+        if index == 0:
+            expected_record_limit = MAX_VISIBLE_CTP_PRODUCTS
+        elif expected_kind == "instruments":
+            expected_record_limit = MAX_PRODUCT_INSTRUMENT_ROWS - instrument_count
+        else:
+            expected_record_limit = MAX_VISIBLE_DEPTH_ROWS - depth_count
         if type(source.record_limit) is not int or source.record_limit != expected_record_limit:
             blockers.append("{}_RECORD_LIMIT_MISMATCH".format(name))
         if source.record_limit_exceeded is not False:
@@ -1771,13 +1856,19 @@ def _query_set_source_blockers(
             or source.record_count != product_query_record_count
         ):
             blockers.append("QUERY_SET_PRODUCT_RECORD_COUNT_MISMATCH")
-        elif 0 < index < len(requests) - 1:
+        elif expected_kind == "instruments":
             if type(source.record_count) is int and source.record_count >= 0:
                 instrument_count += source.record_count
-        elif index == len(requests) - 1 and source.record_count != len(
-            snapshot.quote_records
-        ):
-            blockers.append("QUERY_SET_DEPTH_RECORD_COUNT_MISMATCH")
+        elif expected_kind == "depth_market_data":
+            if request_layout == QUERY_SET_LAYOUT_PER_PRODUCT_DEPTH:
+                depth_index = index - 1 - len(products)
+                depth_product = products[depth_index].product
+                if source.record_count != quote_counts_by_product.get(depth_product, 0):
+                    blockers.append("QUERY_SET_DEPTH_RECORD_COUNT_MISMATCH")
+                if type(source.record_count) is int and source.record_count >= 0:
+                    depth_count += source.record_count
+            elif source.record_count != len(snapshot.quote_records):
+                blockers.append("QUERY_SET_DEPTH_RECORD_COUNT_MISMATCH")
 
     if len(request_ids) != len(set(request_ids)):
         blockers.append("QUERY_SET_REQUEST_ID_COLLISION")
@@ -1785,6 +1876,11 @@ def _query_set_source_blockers(
         blockers.append("QUERY_SET_INSTRUMENT_RECORD_CAP_EXCEEDED")
     if instrument_count != len(snapshot.catalog_records):
         blockers.append("QUERY_SET_INSTRUMENT_RECORD_COUNT_MISMATCH")
+    if request_layout == QUERY_SET_LAYOUT_PER_PRODUCT_DEPTH:
+        if depth_count > MAX_VISIBLE_DEPTH_ROWS:
+            blockers.append("QUERY_SET_DEPTH_RECORD_CAP_EXCEEDED")
+        if depth_count != len(snapshot.quote_records):
+            blockers.append("QUERY_SET_DEPTH_RECORD_COUNT_MISMATCH")
     if span_timestamps:
         span = (max(span_timestamps) - min(span_timestamps)).total_seconds()
         if span < 0 or span > policy.max_collection_span_seconds:
@@ -1948,6 +2044,11 @@ def _query_snapshot_dict(
             "snapshot_id": _source_text(snapshot.query_set.snapshot_id),
             "sha256": _source_digest(snapshot.query_set.source_sha256),
             "digest_schema": "v2" if snapshot.query_set.excluded_products else "v1",
+            "request_layout": (
+                snapshot.query_set.request_layout
+                if type(snapshot.query_set.request_layout) is str
+                else "<invalid>"
+            ),
             "products": [
                 {
                     "product": _product_dict(item.product),
@@ -2448,11 +2549,19 @@ def _no_listed_contracts_products(
     query_set = snapshot.query_set
     products = query_set.products
     requests = query_set.requests
-    if len(requests) != len(products) + 2:
-        return frozenset()
+    if getattr(query_set, "request_layout", QUERY_SET_LAYOUT_SINGLE_DEPTH) == (
+        QUERY_SET_LAYOUT_PER_PRODUCT_DEPTH
+    ):
+        if len(requests) != 2 * len(products) + 1:
+            return frozenset()
+        instrument_requests = requests[1 : 1 + len(products)]
+    else:
+        if len(requests) != len(products) + 2:
+            return frozenset()
+        instrument_requests = requests[1:-1]
     target_set = set(target_ids)
     excluded = set()
-    for product_evidence, request in zip(products, requests[1:-1]):
+    for product_evidence, request in zip(products, instrument_requests):
         key = _key_order(product_evidence.product)
         if key not in target_set or key in catalog_by_product:
             continue
@@ -2519,7 +2628,21 @@ def _select_query_snapshot(
         if snapshot.quote_source is not None:
             query_quote_trading_day = snapshot.quote_source.trading_day
         elif snapshot.query_set is not None and snapshot.query_set.requests:
-            query_quote_trading_day = snapshot.query_set.requests[-1].trading_day
+            query_requests = snapshot.query_set.requests
+            query_products_count = len(snapshot.query_set.products)
+            if (
+                getattr(
+                    snapshot.query_set, "request_layout", QUERY_SET_LAYOUT_SINGLE_DEPTH
+                )
+                == QUERY_SET_LAYOUT_PER_PRODUCT_DEPTH
+                and len(query_requests) == 2 * query_products_count + 1
+            ):
+                # Every per-product depth receipt shares the same session day;
+                # bind the check to the first depth receipt in the layout.
+                depth_receipt = query_requests[query_products_count + 1]
+            else:
+                depth_receipt = query_requests[-1]
+            query_quote_trading_day = depth_receipt.trading_day
 
     if snapshot is not None:
         for record in snapshot.catalog_records:

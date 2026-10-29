@@ -201,9 +201,15 @@ class FakeStagedQueryFeed:
             ("InstrumentID", kwargs["instrument_id"]),
             ("ProductClass", kwargs["product_class"]),
         )
-        return self._result(
-            "depth_market_data", tuple(map(_depth_row, PRODUCT_IDS)), filters, kwargs
-        )
+        if kwargs["instrument_id"]:
+            rows = tuple(
+                _depth_row(product_id)
+                for product_id in PRODUCT_IDS
+                if product_id == kwargs["instrument_id"]
+            )
+        else:
+            rows = tuple(map(_depth_row, PRODUCT_IDS))
+        return self._result("depth_market_data", rows, filters, kwargs)
 
 
 class EmptyContractStagedQueryFeed(FakeStagedQueryFeed):
@@ -216,11 +222,19 @@ class EmptyContractStagedQueryFeed(FakeStagedQueryFeed):
             ("InstrumentID", kwargs["instrument_id"]),
             ("ProductClass", kwargs["product_class"]),
         )
-        rows = tuple(
-            _depth_row(product_id)
-            for product_id in PRODUCT_IDS
-            if product_id not in self.missing_instruments
-        )
+        if kwargs["instrument_id"]:
+            rows = tuple(
+                _depth_row(product_id)
+                for product_id in PRODUCT_IDS
+                if product_id == kwargs["instrument_id"]
+                and product_id not in self.missing_instruments
+            )
+        else:
+            rows = tuple(
+                _depth_row(product_id)
+                for product_id in PRODUCT_IDS
+                if product_id not in self.missing_instruments
+            )
         return self._result("depth_market_data", rows, filters, kwargs)
 
 
@@ -248,8 +262,8 @@ def _install_query_fixture(monkeypatch):
     monkeypatch.setattr(snapshot_adapter, "time", SimpleNamespace(monotonic=lambda: 100.0))
 
 
-def _query_config():
-    return {"selection": {"query_mode": "staged_product_set", "authorized_products": None}}
+def _query_config(query_mode="staged_product_set"):
+    return {"selection": {"query_mode": query_mode, "authorized_products": None}}
 
 
 class FixedClock:
@@ -298,6 +312,58 @@ def test_staged_query_plan_uses_real_full_product_query_set_and_its_identity(mon
         ["ProductClass", ""],
         ["ProductID", ""],
     ]
+
+
+def test_staged_product_depth_query_plan_uses_per_product_depth(monkeypatch):
+    _install_query_fixture(monkeypatch)
+    feed = FakeStagedQueryFeed()
+    store = SnapshotStore(feed)
+
+    plan = RUNNER.build_ctp_query_market_plan(
+        store, _query_config("staged_product_depth"), clock=FixedClock()
+    )
+
+    expected_products = tuple(
+        futures_main_contract.ProductKey("DCE", item) for item in sorted(PRODUCT_IDS)
+    )
+    assert store.collect_calls == [
+        {
+            "max_collection_seconds": 300.0,
+            "max_snapshot_age_seconds": 300.0,
+            "query_mode": "staged_product_depth",
+        }
+    ]
+    assert [kind for kind, _ in feed.calls] == [
+        "products",
+        "instruments",
+        "instruments",
+        "instruments",
+        "depth",
+        "depth",
+        "depth",
+    ]
+    assert [kwargs["instrument_id"] for kind, kwargs in feed.calls if kind == "depth"] == [
+        "A",
+        "M",
+        "Y",
+    ]
+    assert [kwargs["exchange_id"] for kind, kwargs in feed.calls if kind == "depth"] == [
+        "DCE",
+        "DCE",
+        "DCE",
+    ]
+    assert all(
+        kwargs["product_class"] == "1" for kind, kwargs in feed.calls if kind == "depth"
+    )
+    query_set = store.snapshot.query_set
+    assert query_set.request_layout == "per_product_depth"
+    assert len(query_set.requests) == 2 * len(expected_products) + 1
+    assert plan["manifest"].status == "READY"
+    assert tuple(plan["products"]) == expected_products
+    assert tuple(plan["targets"]) == tuple("DCE." + item for item in sorted(PRODUCT_IDS))
+    query_evidence = plan["manifest"].to_dict()["query_snapshot"]["query_set"]
+    assert query_evidence["request_layout"] == "per_product_depth"
+    assert len(query_evidence["requests"]) == 2 * len(expected_products) + 1
 
 
 def test_mixed_product_query_retains_exclusions_without_querying_or_selecting_them(monkeypatch):
