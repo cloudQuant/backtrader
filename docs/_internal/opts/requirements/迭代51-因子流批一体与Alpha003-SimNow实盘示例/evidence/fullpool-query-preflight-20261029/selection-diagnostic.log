@@ -1,0 +1,17 @@
+PROTECTED_OK set1_group1_vpn
+WAIT_READY True
+SNAPSHOT products 88 excluded 46 catalog_rows 852 quote_rows 852 trading_day 2026-10-30
+EXCLUDED_CLASSES {'6': 3, '2': 43}
+CATALOG_PER_PRODUCT zero 1 min 0 max 20
+ZERO_SAMPLE [('CZCE', 'LR')]
+FATAL MainContractSelectionBlocked None
+Traceback (most recent call last):
+  File "D:\temp\i51-preflight-20261029\diagnose_selection.py", line 137, in <module>
+    sys.exit(main())
+             ^^^^^^
+  File "D:\temp\i51-preflight-20261029\diagnose_selection.py", line 102, in main
+    "selected", len(manifest.selected_mapping()),
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\temp\i51-preflight-20261029\consumer\Lib\site-packages\backtrader\feeds\futures_main_contract.py", line 916, in selected_mapping
+    raise MainContractSelectionBlocked(
+backtrader.feeds.futures_main_contract.MainContractSelectionBlocked: main-contract manifest is blocked: CATALOG_PRODUCT_POOL_MISMATCH, PRODUCT_CATALOG_COVERAGE_UNAVAILABLE

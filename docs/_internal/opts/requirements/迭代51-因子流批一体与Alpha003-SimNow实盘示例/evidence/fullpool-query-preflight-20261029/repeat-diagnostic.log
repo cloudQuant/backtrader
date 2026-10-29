@@ -1,0 +1,26 @@
+PROTECTED_OK set1_group1_vpn
+WAIT_READY True
+SNAPSHOT products 88 excluded 46 catalog_rows 852 quote_rows 852 trading_day 2026-10-30
+EXCLUDED_CLASSES {'6': 3, '2': 43}
+CATALOG_PER_PRODUCT zero 1 min 0 max 20
+ZERO_SAMPLE [('CZCE', 'LR')]
+MANIFEST BLOCKED blockers 2 products 88 candidates 852 selected BLOCKED
+GLOBAL_BLOCKERS ['CATALOG_PRODUCT_POOL_MISMATCH', 'PRODUCT_CATALOG_COVERAGE_UNAVAILABLE']
+PRODUCT_BLOCKER_COUNTS {'CATALOG_PRODUCT_POOL_MISMATCH': 88, 'PRODUCT_CATALOG_COVERAGE_UNAVAILABLE': 1}
+PRODUCT_BLOCKER_SAMPLE [('CFFEX', 'IC', 'BLOCKED', ('CATALOG_PRODUCT_POOL_MISMATCH',)), ('CFFEX', 'IF', 'BLOCKED', ('CATALOG_PRODUCT_POOL_MISMATCH',)), ('CFFEX', 'IH', 'BLOCKED', ('CATALOG_PRODUCT_POOL_MISMATCH',)), ('CFFEX', 'IM', 'BLOCKED', ('CATALOG_PRODUCT_POOL_MISMATCH',)), ('CFFEX', 'T', 'BLOCKED', ('CATALOG_PRODUCT_POOL_MISMATCH',)), ('CFFEX', 'TF', 'BLOCKED', ('CATALOG_PRODUCT_POOL_MISMATCH',)), ('CFFEX', 'TL', 'BLOCKED', ('CATALOG_PRODUCT_POOL_MISMATCH',)), ('CFFEX', 'TS', 'BLOCKED', ('CATALOG_PRODUCT_POOL_MISMATCH',)), ('CZCE', 'AP', 'BLOCKED', ('CATALOG_PRODUCT_POOL_MISMATCH',)), ('CZCE', 'CF', 'BLOCKED', ('CATALOG_PRODUCT_POOL_MISMATCH',)), ('CZCE', 'CJ', 'BLOCKED', ('CATALOG_PRODUCT_POOL_MISMATCH',)), ('CZCE', 'CY', 'BLOCKED', ('CATALOG_PRODUCT_POOL_MISMATCH',)), ('CZCE', 'FG', 'BLOCKED', ('CATALOG_PRODUCT_POOL_MISMATCH',)), ('CZCE', 'JR', 'BLOCKED', ('CATALOG_PRODUCT_POOL_MISMATCH',)), ('CZCE', 'LR', 'BLOCKED', ('CATALOG_PRODUCT_POOL_MISMATCH', 'PRODUCT_CATALOG_COVERAGE_UNAVAILABLE'))]
+FATAL AttributeError None
+Traceback (most recent call last):
+  File "D:\temp\i51-preflight-20261029\diagnose_selection.py", line 141, in <module>
+    sys.exit(main())
+             ^^^^^^
+  File "D:\temp\i51-preflight-20261029\diagnose_selection.py", line 128, in main
+    dict(Counter(item.status for item in manifest.query_coverage)),
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\anaconda3\Lib\collections\__init__.py", line 599, in __init__
+    self.update(iterable, **kwds)
+  File "C:\anaconda3\Lib\collections\__init__.py", line 690, in update
+    _count_elements(self, iterable)
+  File "D:\temp\i51-preflight-20261029\diagnose_selection.py", line 128, in <genexpr>
+    dict(Counter(item.status for item in manifest.query_coverage)),
+                 ^^^^^^^^^^^
+AttributeError: 'MainContractQueryCoverage' object has no attribute 'status'

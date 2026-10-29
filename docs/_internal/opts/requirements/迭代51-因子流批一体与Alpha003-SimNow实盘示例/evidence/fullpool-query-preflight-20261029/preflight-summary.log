@@ -1,0 +1,5 @@
+IMPORT_BT D:\temp\i51-preflight-20261029\consumer\Lib\site-packages\backtrader\__init__.py
+PROTECTED_OK set1_group1_vpn
+WAIT_READY True
+QUERY_FAIL RunnerError('POINT_IN_TIME_SELECTION_BLOCKED') | CATALOG_PRODUCT_POOL_MISMATCH,PRODUCT_CATALOG_COVERAGE_UNAVAILABLE elapsed_s 96.4
+FATAL SystemExit(2)

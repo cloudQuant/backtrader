@@ -708,6 +708,10 @@ def build_ctp_query_market_plan(store, config, *, clock):
         )
     if not products or any(not isinstance(product, ProductKey) for product in products):
         raise RunnerError("CTP_FUTURES_PRODUCT_POOL_UNAVAILABLE")
+    # The selector still validates every requested product and its request
+    # receipts.  Only the executable plan pool narrows to the manifest targets
+    # after a READY selection (a listed product may have no contracts at all).
+    expected_products = products
     trading_day = snapshot.session_trading_day_after
     if type(trading_day) is not date:
         raise RunnerError("CTP_FUTURES_TRADING_DAY_UNAVAILABLE")
@@ -718,14 +722,14 @@ def build_ctp_query_market_plan(store, config, *, clock):
 
     try:
         calendar_build = build_expected_daytime_calendars(
-            products,
+            expected_products,
             current_days,
             as_of=decision_at,
             retrieved_at=RULE_REVIEW_RETRIEVED_AT_UTC,
         )
         manifest = select_main_contracts(
             snapshot,
-            products,
+            expected_products,
             day_rows,
             calendar_build.trading_calendars,
             decision_at=decision_at,
@@ -748,7 +752,7 @@ def build_ctp_query_market_plan(store, config, *, clock):
                 selected_last_days[product] = (assessment.expiry_date,)
         if selected_last_days:
             calendar_build = build_expected_daytime_calendars(
-                products,
+                expected_products,
                 current_days,
                 as_of=decision_at,
                 retrieved_at=RULE_REVIEW_RETRIEVED_AT_UTC,
@@ -756,7 +760,7 @@ def build_ctp_query_market_plan(store, config, *, clock):
             )
             manifest = select_main_contracts(
                 snapshot,
-                products,
+                expected_products,
                 day_rows,
                 calendar_build.trading_calendars,
                 decision_at=decision_at,
@@ -765,6 +769,11 @@ def build_ctp_query_market_plan(store, config, *, clock):
             if manifest.status != "READY":
                 raise RunnerError("POINT_IN_TIME_SELECTION_BLOCKED", ",".join(manifest.blockers))
             routes = dict(manifest.selected_mapping())
+        # The manifest may narrow a listed-but-contractless product out of the
+        # rankable pool; the executable plan and grid follow that same pool.
+        products = tuple(manifest.target_products)
+        if not products:
+            raise RunnerError("CTP_FUTURES_PRODUCT_POOL_UNAVAILABLE")
         product_days = dict.fromkeys(products, (trading_day,))
         grid = build_common_minute_grid(
             products,

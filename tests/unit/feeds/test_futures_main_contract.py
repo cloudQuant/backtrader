@@ -17,13 +17,16 @@ from backtrader.feeds.futures_main_contract import (
     MainContractQuerySnapshot,
     MainContractRankingSnapshot,
     MainContractSelectionBlocked,
+    QuerySnapshotProductEvidence,
     QuerySnapshotSourceEvidence,
+    QuerySnapshotSetEvidence,
     ProductKey,
     ProductRankingCoverage,
     RolloverBoundaryEvidence,
     RolloverReadiness,
     authorize_main_contract_rollover,
     plan_main_contract_rollover,
+    query_snapshot_set_digest,
     select_main_contracts,
 )
 
@@ -1060,6 +1063,216 @@ def test_query_catalog_class_i_is_a_known_non_future_exclusion():
     assert excluded.status == "EXCLUDED"
     assert excluded.reason == "NOT_ORDINARY_FUTURE"
     assert "CATALOG_PRODUCT_CLASS_UNKNOWN" not in manifest.blockers
+
+
+QUERY_SET_PREFIX = "fixture.ctp.staged"
+QUERY_SET_GENERATION = 7
+QUERY_SET_BASE_AT = datetime(2026, 10, 21, 15, 56, tzinfo=UTC)
+LISTED_WITHOUT_CONTRACTS = ProductKey("DCE", "C")
+CONTRACT_PRODUCT = ProductKey("DCE", "M")
+
+
+def _query_set_request(
+    index,
+    *,
+    method,
+    kind,
+    filters,
+    record_count,
+    record_limit,
+    complete=True,
+):
+    request_id = 51 + index
+    sha256 = "{:064x}".format(1001 + index)
+    started = QUERY_SET_BASE_AT + timedelta(seconds=index * 2)
+    completed = started + timedelta(seconds=1)
+    return QuerySnapshotSourceEvidence(
+        source_id="{}.{}".format(QUERY_SET_PREFIX, method),
+        source_kind=kind,
+        snapshot_id="ctp-visible-{}:{}:{}:{}:{}".format(
+            kind,
+            QUERY_SET_GENERATION,
+            CURRENT_DAY.strftime("%Y%m%d"),
+            request_id,
+            sha256[:16],
+        ),
+        source_sha256=sha256,
+        request_id=request_id,
+        connection_generation=QUERY_SET_GENERATION,
+        trading_day=CURRENT_DAY,
+        started_at=started,
+        completed_at=completed,
+        retrieved_at=completed + timedelta(seconds=1),
+        complete=complete,
+        is_last_seen=complete,
+        record_count=record_count,
+        request_filters=filters,
+        record_limit=record_limit,
+        record_limit_exceeded=False,
+    )
+
+
+def _query_set_snapshot(*, catalog_rows, quote_rows, product_records):
+    products = tuple(
+        QuerySnapshotProductEvidence(
+            product=ProductKey(exchange_id.upper(), native_product_id.upper()),
+            native_exchange_id=exchange_id,
+            native_product_id=native_product_id,
+        )
+        for exchange_id, native_product_id, _count, _complete in product_records
+    )
+    requests = [
+        _query_set_request(
+            0,
+            method="query_products_result",
+            kind="products",
+            filters=(("ExchangeID", ""), ("ProductClass", ""), ("ProductID", "")),
+            record_count=len(product_records),
+            record_limit=256,
+        )
+    ]
+    instrument_count = 0
+    for index, (exchange_id, native_product_id, count, complete) in enumerate(
+        product_records, 1
+    ):
+        requests.append(
+            _query_set_request(
+                index,
+                method="query_instruments_result",
+                kind="instruments",
+                filters=(
+                    ("ExchangeID", exchange_id),
+                    ("InstrumentID", ""),
+                    ("ProductID", native_product_id),
+                ),
+                record_count=count,
+                record_limit=20_000 - instrument_count,
+                complete=complete,
+            )
+        )
+        instrument_count += count
+    requests.append(
+        _query_set_request(
+            len(product_records) + 1,
+            method="query_depth_market_data_result",
+            kind="depth_market_data",
+            filters=(("ExchangeID", ""), ("InstrumentID", ""), ("ProductClass", "1")),
+            record_count=len(quote_rows),
+            record_limit=20_000,
+        )
+    )
+    requests = tuple(requests)
+    digest = query_snapshot_set_digest(products, requests)
+    query_set = QuerySnapshotSetEvidence(
+        source_id="{}.staged_futures_query_set".format(QUERY_SET_PREFIX),
+        snapshot_id="ctp-visible-futures-set:{}:{}:{}".format(
+            QUERY_SET_GENERATION, CURRENT_DAY.strftime("%Y%m%d"), digest[:16]
+        ),
+        source_sha256=digest,
+        products=products,
+        requests=requests,
+    )
+    return MainContractQuerySnapshot(
+        catalog_source=None,
+        quote_source=None,
+        catalog_records=tuple(catalog_rows),
+        quote_records=tuple(quote_rows),
+        session_trading_day_before=CURRENT_DAY,
+        session_trading_day_after=CURRENT_DAY,
+        session_generation_before=QUERY_SET_GENERATION,
+        session_generation_after=QUERY_SET_GENERATION,
+        query_set=query_set,
+    )
+
+
+def _query_set_select(snapshot, products):
+    return select_main_contracts(
+        snapshot,
+        products,
+        (ExchangeTradingDay("DCE", CURRENT_DAY),),
+        (_calendar(),),
+        decision_at=DECISION_AT,
+        policy=CTP_QUERY_SNAPSHOT_EQUAL_WEIGHT_POLICY,
+    )
+
+
+def _query_set_product_rows(contractless_complete=True, contractless_count=0):
+    return (
+        ("DCE", "c", contractless_count, contractless_complete),
+        ("DCE", "m", 1, True),
+    )
+
+
+def test_query_set_listed_product_without_contracts_is_explicitly_excluded():
+    snapshot = _query_set_snapshot(
+        catalog_rows=(_catalog("M2611", product=CONTRACT_PRODUCT),),
+        quote_rows=(_query_quote("M2611"),),
+        product_records=_query_set_product_rows(),
+    )
+    products = (LISTED_WITHOUT_CONTRACTS, CONTRACT_PRODUCT)
+
+    manifest = _query_set_select(snapshot, products)
+
+    assert manifest.status == "READY"
+    assert manifest.blockers == ()
+    assert manifest.target_products == (CONTRACT_PRODUCT,)
+    assert manifest.selected_mapping() == ((CONTRACT_PRODUCT, "M2611"),)
+    excluded = next(
+        item for item in manifest.products if item.product == LISTED_WITHOUT_CONTRACTS
+    )
+    assert excluded.in_target_pool is False
+    assert excluded.status == "EXCLUDED"
+    assert excluded.exclusion_reason == "NO_LISTED_CONTRACTS"
+    assert excluded.blockers == ()
+    assert excluded.selected_instrument_id is None
+    coverage = next(
+        item for item in manifest.query_coverage if item.product == LISTED_WITHOUT_CONTRACTS
+    )
+    assert coverage.catalog_instrument_ids == ()
+    assert coverage.expected_quote_instrument_ids == ()
+    assert coverage.observed_quote_instrument_ids == ()
+    projection = manifest.to_dict()
+    excluded_row = next(
+        row for row in projection["products"] if row["product"]["product_id"] == "C"
+    )
+    assert excluded_row["exclusion_reason"] == "NO_LISTED_CONTRACTS"
+    kept_row = next(
+        row for row in projection["products"] if row["product"]["product_id"] == "M"
+    )
+    assert "exclusion_reason" not in kept_row
+
+
+@pytest.mark.parametrize(
+    "product_records",
+    [
+        _query_set_product_rows(contractless_complete=False),
+        _query_set_product_rows(contractless_count=1),
+    ],
+    ids=["incomplete-zero-row-query", "nonzero-record-count"],
+)
+def test_query_set_contractless_product_without_complete_empty_evidence_still_blocks(
+    product_records,
+):
+    snapshot = _query_set_snapshot(
+        catalog_rows=(_catalog("M2611", product=CONTRACT_PRODUCT),),
+        quote_rows=(_query_quote("M2611"),),
+        product_records=product_records,
+    )
+    products = (LISTED_WITHOUT_CONTRACTS, CONTRACT_PRODUCT)
+
+    manifest = _query_set_select(snapshot, products)
+
+    assert manifest.status == "BLOCKED"
+    assert "PRODUCT_CATALOG_COVERAGE_UNAVAILABLE" in manifest.blockers
+    assert "CATALOG_PRODUCT_POOL_MISMATCH" in manifest.blockers
+    assert manifest.target_products == products
+    selection = next(
+        item for item in manifest.products if item.product == LISTED_WITHOUT_CONTRACTS
+    )
+    assert selection.in_target_pool is True
+    assert selection.status == "BLOCKED"
+    assert selection.exclusion_reason is None
+    assert "PRODUCT_CATALOG_COVERAGE_UNAVAILABLE" in selection.blockers
 
 
 def _rollover_manifests():

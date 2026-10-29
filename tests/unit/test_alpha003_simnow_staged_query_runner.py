@@ -206,6 +206,24 @@ class FakeStagedQueryFeed:
         )
 
 
+class EmptyContractStagedQueryFeed(FakeStagedQueryFeed):
+    """A feed whose complete instrument query legitimately returns zero rows."""
+
+    def query_depth_market_data_result(self, **kwargs):
+        self.calls.append(("depth", dict(kwargs)))
+        filters = (
+            ("ExchangeID", kwargs["exchange_id"]),
+            ("InstrumentID", kwargs["instrument_id"]),
+            ("ProductClass", kwargs["product_class"]),
+        )
+        rows = tuple(
+            _depth_row(product_id)
+            for product_id in PRODUCT_IDS
+            if product_id not in self.missing_instruments
+        )
+        return self._result("depth_market_data", rows, filters, kwargs)
+
+
 class SnapshotStore:
     def __init__(self, feed):
         self.feed = feed
@@ -341,6 +359,44 @@ def test_missing_instrument_coverage_still_selects_against_full_product_set(monk
         "instruments",
         "depth",
     ]
+
+
+def test_listed_product_without_contracts_narrows_the_plan_pool_only(monkeypatch):
+    _install_query_fixture(monkeypatch)
+    feed = EmptyContractStagedQueryFeed(missing_instruments=("Y",))
+    store = SnapshotStore(feed)
+    selector = futures_main_contract.select_main_contracts
+    requested_pools = []
+
+    def record_full_pool(snapshot, target_products, *args, **kwargs):
+        requested_pools.append(tuple(target_products))
+        return selector(snapshot, target_products, *args, **kwargs)
+
+    monkeypatch.setattr(futures_main_contract, "select_main_contracts", record_full_pool)
+
+    plan = RUNNER.build_ctp_query_market_plan(store, _query_config(), clock=FixedClock())
+
+    expected_products = tuple(
+        futures_main_contract.ProductKey("DCE", item) for item in sorted(PRODUCT_IDS)
+    )
+    narrowed = tuple(product for product in expected_products if product.product_id != "Y")
+    # The query set itself still covers every requested product.
+    assert tuple(item.product for item in store.snapshot.query_set.products) == expected_products
+    assert requested_pools == [expected_products]
+    assert plan["manifest"].status == "READY"
+    assert tuple(plan["manifest"].target_products) == narrowed
+    assert tuple(plan["products"]) == narrowed
+    assert tuple(plan["targets"]) == tuple("DCE." + product.product_id for product in narrowed)
+    assert set(plan["routes"]) == set(narrowed)
+    assert set(plan["product_by_target"]) == set(plan["targets"])
+    assert set(plan["grid"].target_products) == set(narrowed)
+    assert {product for product, _ in plan["grid"].product_trading_days} == set(narrowed)
+    excluded = next(
+        item for item in plan["manifest"].products if item.product.product_id == "Y"
+    )
+    assert excluded.in_target_pool is False
+    assert excluded.status == "EXCLUDED"
+    assert excluded.exclusion_reason == "NO_LISTED_CONTRACTS"
 
 
 @pytest.mark.parametrize(

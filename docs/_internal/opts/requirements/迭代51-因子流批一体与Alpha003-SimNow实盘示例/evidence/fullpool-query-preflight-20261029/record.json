@@ -53,7 +53,18 @@
       "CATALOG_PRODUCT_POOL_MISMATCH",
       "PRODUCT_CATALOG_COVERAGE_UNAVAILABLE"
     ],
-    "previous_attempt_failure_resolved": "PRODUCT_CLASS_MISMATCH no longer occurs after 46aecc87a and SDK 6c7d9b77; the all-class product query, classification and per-product instrument query complete."
+    "previous_attempt_failure_resolved": "PRODUCT_CLASS_MISMATCH no longer occurs after 46aecc87a and SDK 6c7d9b77; the all-class product query, classification and per-product instrument query complete.",
+    "repeat_query_at_local": "2026-10-29T20:09+08:00",
+    "repeat_query_identical": {
+      "classified_futures_products": 88,
+      "catalog_rows": 852,
+      "quote_rows": 852,
+      "zero_catalog_product": "CZCE.LR",
+      "selection_blockers": [
+        "CATALOG_PRODUCT_POOL_MISMATCH",
+        "PRODUCT_CATALOG_COVERAGE_UNAVAILABLE"
+      ]
+    }
   },
   "interpretation": {
     "fixed_today": "The full-pool query now completes and classifies all 134 visible products; 852 catalog and depth rows were returned for the 88 class-1 products.",
@@ -69,7 +80,8 @@
     "preflight_detail_log_sha256": "1DDB6D28E28506D86ED9AE4E7B771215D5EF5BD1D8761B39CA974F9724895A2E",
     "diagnostic_log_sha256": "CC164B3FE024D16B33099B95FE561F17E3DD16D7488383C910642E7D6200F8C7",
     "preflight_script": "D:/temp/i51-preflight-20261029/preflight_query.py",
-    "diagnostic_script": "D:/temp/i51-preflight-20261029/diagnose_selection.py"
+    "diagnostic_script": "D:/temp/i51-preflight-20261029/diagnose_selection.py",
+    "repeat_diagnostic_log_sha256": "29FA1E2EFE49EAAC05EDB6B6168CE205FF7770337A468A1D91D1F9481A96A15A"
   },
   "ac_status_change": "NONE; AC51-18/19 remain NOT_RUN, AC51-23 BLOCKED."
 }

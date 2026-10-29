@@ -61,6 +61,7 @@ MAX_VISIBLE_FUTURE_PRODUCTS = MAX_VISIBLE_CTP_PRODUCTS
 MAX_PRODUCT_INSTRUMENT_ROWS = 20_000
 MAX_VISIBLE_DEPTH_ROWS = 20_000
 MAX_STAGED_QUERY_REQUESTS = MAX_VISIBLE_FUTURE_PRODUCTS + 2
+EXCLUSION_REASON_NO_LISTED_CONTRACTS = "NO_LISTED_CONTRACTS"
 
 
 class TradingCalendarContractError(ValueError):
@@ -866,6 +867,15 @@ class ProductSelection:
     excluded_instrument_ids: Tuple[str, ...]
     blockers: Tuple[str, ...]
     selected_score: Optional[str] = None
+    exclusion_reason: Optional[str] = None
+
+    def __post_init__(self) -> None:
+        if self.exclusion_reason is None:
+            return
+        if self.exclusion_reason != EXCLUSION_REASON_NO_LISTED_CONTRACTS:
+            raise ValueError("unsupported product exclusion_reason")
+        if self.in_target_pool or self.status != "EXCLUDED":
+            raise ValueError("exclusion_reason requires an out-of-pool EXCLUDED product")
 
 
 @dataclass(frozen=True)
@@ -1049,6 +1059,11 @@ class MainContractManifest:
                     "excluded_instrument_ids": list(item.excluded_instrument_ids),
                     "blockers": list(item.blockers),
                     **({"selected_score": item.selected_score} if query_mode else {}),
+                    **(
+                        {"exclusion_reason": item.exclusion_reason}
+                        if item.exclusion_reason
+                        else {}
+                    ),
                 }
                 for item in self.products
             ],
@@ -2412,6 +2427,43 @@ def _query_contract_assessment(
     return assessment, eligible, score
 
 
+def _no_listed_contracts_products(
+    snapshot: Optional[MainContractQuerySnapshot],
+    *,
+    target_ids: Sequence[Tuple[str, str]],
+    catalog_by_product: Mapping[Tuple[str, str], Sequence[Any]],
+) -> frozenset:
+    """Return target products whose own complete instrument query returned no rows.
+
+    AC51-18 permits a listed but non-trading product to leave the rankable pool
+    only when the catalog holds no row for it at all *and* its per-product
+    instrument query was complete with exactly zero records.  Anything weaker
+    (an incomplete query, an unusable count, a catalog row) keeps the existing
+    catalog-coverage/pool blockers unchanged.  The query set itself is never
+    rewritten; this only narrows the selector's rankable target set.
+    """
+
+    if snapshot is None or snapshot.query_set is None:
+        return frozenset()
+    query_set = snapshot.query_set
+    products = query_set.products
+    requests = query_set.requests
+    if len(requests) != len(products) + 2:
+        return frozenset()
+    target_set = set(target_ids)
+    excluded = set()
+    for product_evidence, request in zip(products, requests[1:-1]):
+        key = _key_order(product_evidence.product)
+        if key not in target_set or key in catalog_by_product:
+            continue
+        if request.complete is not True:
+            continue
+        if type(request.record_count) is not int or request.record_count != 0:
+            continue
+        excluded.add(key)
+    return frozenset(excluded)
+
+
 def _select_query_snapshot(
     snapshot: Optional[MainContractQuerySnapshot],
     expected_products: Sequence[ProductKey],
@@ -2461,6 +2513,7 @@ def _select_query_snapshot(
     catalog_by_product = {}
     expected_quotes_by_product = {}
     quote_rows_by_key = {}
+    no_listed_ids = frozenset()
     query_quote_trading_day = None
     if snapshot is not None:
         if snapshot.quote_source is not None:
@@ -2512,6 +2565,14 @@ def _select_query_snapshot(
         if any(len(rows) > 1 for rows in quote_rows_by_key.values()):
             global_blockers.append("DUPLICATE_QUOTE_ROW")
 
+        # A listed product with no contracts at all is excluded only when its
+        # own complete instrument query proves zero records (AC51-18).
+        no_listed_ids = _no_listed_contracts_products(
+            snapshot,
+            target_ids=tuple(target_by_id),
+            catalog_by_product=catalog_by_product,
+        )
+        rankable_target_ids = set(target_by_id).difference(no_listed_ids)
         catalog_future_products = set()
         for record in snapshot.catalog_records:
             catalog_asset_type, classification_issue = _query_catalog_classification(record)
@@ -2519,7 +2580,7 @@ def _select_query_snapshot(
                 global_blockers.append(classification_issue)
             if catalog_asset_type == "future":
                 catalog_future_products.add(_key_order(record.product))
-        if catalog_future_products != set(target_by_id):
+        if catalog_future_products != rankable_target_ids:
             global_blockers.append("CATALOG_PRODUCT_POOL_MISMATCH")
         if not catalog_future_products:
             global_blockers.append("CATALOG_FUTURE_UNIVERSE_EMPTY")
@@ -2541,6 +2602,31 @@ def _select_query_snapshot(
         product = target_by_id.get(product_id, ProductKey(*product_id))
         records = catalog_by_product.get(product_id, ())
         in_target = product_id in target_by_id
+        if product_id in no_listed_ids:
+            # Out of the rankable pool, but kept visible with explicit evidence.
+            selections.append(
+                ProductSelection(
+                    product=product,
+                    in_target_pool=False,
+                    status="EXCLUDED",
+                    expected_prior_trading_day=None,
+                    ranking_trading_day=day_index.get(product.exchange_id),
+                    selected_instrument_id=None,
+                    ranked_instrument_ids=(),
+                    excluded_instrument_ids=(),
+                    blockers=(),
+                    exclusion_reason=EXCLUSION_REASON_NO_LISTED_CONTRACTS,
+                )
+            )
+            query_coverage.append(
+                MainContractQueryCoverage(
+                    product=product,
+                    catalog_instrument_ids=(),
+                    expected_quote_instrument_ids=(),
+                    observed_quote_instrument_ids=(),
+                )
+            )
+            continue
         if not in_target:
             for record in records:
                 catalog_asset_type, classification_issue = _query_catalog_classification(record)
@@ -2711,15 +2797,18 @@ def _select_query_snapshot(
             )
         )
 
+    narrowed_targets = tuple(
+        item for item in targets if _key_order(item) not in no_listed_ids
+    )
     target_selections = [item for item in selections if item.in_target_pool]
     manifest_blockers = list(global_blockers)
     manifest_blockers.extend(reason for item in target_selections for reason in item.blockers)
-    if not targets:
+    if not narrowed_targets:
         manifest_blockers.append("TARGET_PRODUCT_POOL_EMPTY")
     manifest_blockers = list(dict.fromkeys(manifest_blockers))
     status = (
         "READY"
-        if targets and all(item.status == "READY" for item in target_selections)
+        if narrowed_targets and all(item.status == "READY" for item in target_selections)
         else "BLOCKED"
     )
     quote_source = snapshot.quote_source if snapshot is not None else None
@@ -2728,7 +2817,7 @@ def _select_query_snapshot(
         status=status,
         decision_at=decision_at,
         policy=policy,
-        target_products=targets,
+        target_products=narrowed_targets,
         source_id=_source_text(quote_source.source_id) if quote_source is not None else None,
         source_snapshot_id=_source_text(quote_source.snapshot_id)
         if quote_source is not None
@@ -3379,6 +3468,7 @@ def authorize_main_contract_rollover(
 __all__ = [
     "CTP_QUERY_SNAPSHOT_EQUAL_WEIGHT_POLICY",
     "CTP_QUERY_SNAPSHOT_EQUAL_WEIGHT_V1",
+    "EXCLUSION_REASON_NO_LISTED_CONTRACTS",
     "CalendarEvidence",
     "ContractAssessment",
     "DEFAULT_MAIN_CONTRACT_POLICY",
