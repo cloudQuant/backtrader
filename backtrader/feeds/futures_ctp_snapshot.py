@@ -30,8 +30,16 @@ _DEFAULT_MAX_SNAPSHOT_AGE_SECONDS = 300.0
 _MAX_CONFIGURED_SECONDS = 3600.0
 _MAX_QUERY_DIAGNOSTIC_RECORD_COUNT = 20_000
 # One product query plus one instrument and one depth receipt per visible
-# class-1 product (2 * 256 + 1) when the staged per-product depth layout is used.
-_MAX_QUERY_DIAGNOSTIC_OBSERVATIONS = 513
+# class-1 product (2 * 256 + 1), plus at most two products retries.
+_MAX_QUERY_DIAGNOSTIC_OBSERVATIONS = 515
+# Bounded products-stage retry for the per-product depth mode. The products
+# query is issued first on a cold front and can miss the short idle timeout
+# before any callback arrives; instrument and depth queries are not retried.
+_PRODUCTS_QUERY_MAX_ATTEMPTS = 3
+_PRODUCTS_QUERY_RETRY_PAUSE_SECONDS = 1.0
+_RETRYABLE_PRODUCTS_QUERY_CODES = frozenset(
+    {"QUERY_TIMED_OUT", "QUERY_INCOMPLETE", "QUERY_TERMINAL_PACKET_MISSING"}
+)
 _MAX_PRODUCT_QUERY_HARD_SECONDS = 30.0
 _MAX_QUERY_IDLE_SECONDS = 5.0
 _QUERY_COMPLETION_ORIGINS = frozenset(
@@ -92,6 +100,7 @@ class CtpFuturesSnapshotQueryObservation:
     request_filters_match: Optional[bool] = None
     classified_future_product_count: Optional[int] = None
     classified_excluded_product_count: Optional[int] = None
+    products_retry_count: Optional[int] = None
 
 
 class CtpFuturesSnapshotError(RuntimeError):
@@ -941,14 +950,22 @@ def _collect_staged_ctp_futures_snapshot(
         prior_complete: Optional[bool],
         max_records: int,
         request_filters: tuple,
-    ) -> tuple[Any, datetime, datetime, datetime, int, str]:
+        retryable_incomplete: bool = False,
+        observation_sink: Optional[list] = None,
+    ) -> Optional[tuple[Any, datetime, datetime, datetime, int, str]]:
+        sink = observations if observation_sink is None else observation_sink
+
+        def fail_with(code: str) -> None:
+            extra = () if observation_sink is None else tuple(observation_sink)
+            _fail(code, tuple(observations) + extra)
+
         remaining = deadline - time.monotonic()
         if remaining <= 0:
-            _fail("COLLECTION_TIMEOUT", tuple(observations))
+            fail_with("COLLECTION_TIMEOUT")
         call_hard_limit = kwargs.pop("_hard_limit")
         hard_limit = min(remaining, call_hard_limit)
         if hard_limit <= 0:
-            _fail("COLLECTION_TIMEOUT", tuple(observations))
+            fail_with("COLLECTION_TIMEOUT")
         idle_limit = min(_MAX_QUERY_IDLE_SECONDS, hard_limit)
         call_kwargs = dict(kwargs)
         call_kwargs.update(
@@ -962,7 +979,7 @@ def _collect_staged_ctp_futures_snapshot(
             result = method(**call_kwargs)
         except Exception:
             call_returned = time.monotonic()
-            observations.append(
+            sink.append(
                 _query_observation(
                     stage=stage,
                     entered=True,
@@ -978,9 +995,9 @@ def _collect_staged_ctp_futures_snapshot(
                     expected_request_filters=request_filters,
                 )
             )
-            _fail("{}_QUERY_CALL_FAILED".format(stage.upper()), tuple(observations))
+            fail_with("{}_QUERY_CALL_FAILED".format(stage.upper()))
         call_returned = time.monotonic()
-        observations.append(
+        sink.append(
             _query_observation(
                 stage=stage,
                 entered=True,
@@ -1008,9 +1025,13 @@ def _collect_staged_ctp_futures_snapshot(
                 max_records=max_records,
             )
         except CtpFuturesSnapshotError as error:
-            _fail(error.code, tuple(observations))
+            if retryable_incomplete and error.code in _RETRYABLE_PRODUCTS_QUERY_CODES:
+                # The caller decides whether a bounded retry remains. The
+                # failed attempt stays in its private sink.
+                return None
+            fail_with(error.code)
         if time.monotonic() > deadline:
-            _fail("COLLECTION_TIMEOUT", tuple(observations))
+            fail_with("COLLECTION_TIMEOUT")
         return result, started_at, completed_at, retrieved_at, request_id, digest
 
     product_filters = (
@@ -1018,29 +1039,67 @@ def _collect_staged_ctp_futures_snapshot(
         ("ProductClass", ""),
         ("ProductID", ""),
     )
-    first_remaining = deadline - time.monotonic()
-    product_hard_limit = min(_MAX_PRODUCT_QUERY_HARD_SECONDS, first_remaining / 10.0)
-    (
-        product_result,
-        product_started,
-        product_completed,
-        product_retrieved,
-        product_request_id,
-        product_digest,
-    ) = run_query(
-        stage="products",
-        method=query_products,
-        kwargs={
-            "product_class": "",
-            "exchange_id": "",
-            "product_id": "",
-            "_hard_limit": product_hard_limit,
-        },
-        request_type="products",
-        prior_complete=None,
-        max_records=MAX_VISIBLE_CTP_PRODUCTS,
-        request_filters=product_filters,
+    # Only the per-product depth mode retries the products stage. The legacy
+    # staged mode keeps its single-attempt behavior.
+    max_product_attempts = (
+        _PRODUCTS_QUERY_MAX_ATTEMPTS if depth_mode == "per_product_depth" else 1
     )
+    retry_products = max_product_attempts > 1
+    product_attempt = 0
+    while True:
+        product_attempt += 1
+        first_remaining = deadline - time.monotonic()
+        product_hard_limit = min(_MAX_PRODUCT_QUERY_HARD_SECONDS, first_remaining / 10.0)
+        attempt_observations = []
+        product_outcome = run_query(
+            stage="products",
+            method=query_products,
+            kwargs={
+                "product_class": "",
+                "exchange_id": "",
+                "product_id": "",
+                "_hard_limit": product_hard_limit,
+            },
+            request_type="products",
+            prior_complete=None,
+            max_records=MAX_VISIBLE_CTP_PRODUCTS,
+            request_filters=product_filters,
+            retryable_incomplete=retry_products,
+            observation_sink=attempt_observations,
+        )
+        # Publish exactly one products-stage observation: the finally
+        # successful (or finally failed) attempt, annotated with the number of
+        # bounded retries used.
+        if product_outcome is not None:
+            observations.append(
+                replace(
+                    attempt_observations[-1],
+                    products_retry_count=product_attempt - 1,
+                )
+            )
+            (
+                product_result,
+                product_started,
+                product_completed,
+                product_retrieved,
+                product_request_id,
+                product_digest,
+            ) = product_outcome
+            break
+        if product_attempt >= max_product_attempts:
+            # Incomplete/timed-out after every bounded attempt: fail closed.
+            observations.append(
+                replace(
+                    attempt_observations[-1],
+                    products_retry_count=product_attempt - 1,
+                )
+            )
+            _fail("PRODUCTS_QUERY_CALL_FAILED", tuple(observations))
+        remaining = deadline - time.monotonic()
+        pause = min(_PRODUCTS_QUERY_RETRY_PAUSE_SECONDS, remaining)
+        if pause <= 0:
+            _fail("COLLECTION_TIMEOUT", tuple(observations))
+        time.sleep(pause)
     product_evidence, excluded_product_evidence = _product_evidence(product_result.records)
     observations[-1] = replace(
         observations[-1],

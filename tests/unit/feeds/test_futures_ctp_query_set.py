@@ -36,6 +36,7 @@ class FakeQueryResult:
         complete=True,
         record_limit_exceeded=False,
         completion_origin=None,
+        timed_out=False,
     ):
         self.request_type = request_type
         self.request_id = request_id
@@ -43,17 +44,19 @@ class FakeQueryResult:
         self.account_fingerprint = "fixture-only"
         self.started_at_utc = NOW - timedelta(seconds=5)
         self.completed_at_utc = NOW - timedelta(seconds=1)
-        self.is_last_seen = complete
+        self.is_last_seen = complete and not timed_out
         self.error_code = None
         self.error_message = ""
-        self.timed_out = False
-        self.complete = complete
+        self.timed_out = timed_out
+        self.complete = complete and not timed_out
         self.records = tuple(records)
         self.late_callback_count = 0
         self.unsupported = False
         self.submit_code = 0
         if completion_origin is None:
-            completion_origin = "success" if complete else "record_limit"
+            completion_origin = "timeout" if timed_out else (
+                "success" if complete else "record_limit"
+            )
         self.first_completion_origin = completion_origin
         self.completion_origin = completion_origin
         self.record_limit = record_limit
@@ -123,12 +126,15 @@ class StagedQueryFeed:
         depth_by_product=None,
         incomplete_depth_for=(),
         overflow_stage=None,
+        products_timeouts=0,
     ):
         self.products = tuple(
             products
             if products is not None
             else (_product_row("DCE", "i"), _product_row("SHFE", "rb"))
         )
+        self.products_timeouts = products_timeouts
+        self.products_timeouts_seen = 0
         self.instruments = dict(instruments or {})
         self.depth = tuple(
             depth
@@ -152,7 +158,7 @@ class StagedQueryFeed:
             "trading_day": "20261023",
         }
 
-    def _result(self, kind, rows, kwargs, filters, complete=None):
+    def _result(self, kind, rows, kwargs, filters, complete=None, timed_out=False):
         self.next_request_id += 1
         self.query_instances.append(self)
         overflow = self.overflow_stage == kind
@@ -166,13 +172,26 @@ class StagedQueryFeed:
             record_limit=kwargs["max_records"],
             complete=complete,
             record_limit_exceeded=overflow,
-            completion_origin=(
-                "record_limit" if overflow else "success"
-            ),
+            completion_origin=("record_limit" if overflow else "success"),
+            timed_out=timed_out,
         )
 
     def query_products_result(self, **kwargs):
         self.calls.append(("products", dict(kwargs)))
+        if self.products_timeouts_seen < self.products_timeouts:
+            self.products_timeouts_seen += 1
+            return self._result(
+                "products",
+                (),
+                kwargs,
+                (
+                    ("ExchangeID", kwargs["exchange_id"]),
+                    ("ProductClass", kwargs["product_class"]),
+                    ("ProductID", kwargs["product_id"]),
+                ),
+                complete=False,
+                timed_out=True,
+            )
         return self._result(
             "products",
             self.products,
@@ -232,8 +251,13 @@ def _install_fake_contract(monkeypatch):
         lambda: (FakeQueryResult, _normalize_instrument),
     )
     monkeypatch.setattr(adapter, "_now_utc", lambda: NOW)
-    # A stable monotonic clock makes the per-request hard-cap allocation exact.
-    monkeypatch.setattr(adapter, "time", SimpleNamespace(monotonic=lambda: 100.0))
+    # A stable monotonic clock makes the per-request hard-cap allocation exact;
+    # the bounded retry pause is a no-op in tests.
+    monkeypatch.setattr(
+        adapter,
+        "time",
+        SimpleNamespace(monotonic=lambda: 100.0, sleep=lambda _seconds: None),
+    )
 
 
 def _install_synthetic_ctp_modules(monkeypatch):
@@ -1044,3 +1068,61 @@ def test_legacy_single_depth_layout_is_explicit_and_unchanged(monkeypatch):
         query_set.products, query_set.requests, query_set.excluded_products
     ) == query_set.source_sha256
     assert _select(snapshot).status == "READY"
+
+
+def test_products_stage_retries_after_timeout_then_succeeds(monkeypatch):
+    _install_fake_contract(monkeypatch)
+    feed = _per_product_feed(products_timeouts=1)
+
+    snapshot = adapter.collect_ctp_futures_snapshot(feed, query_mode="staged_product_depth")
+
+    product_calls = [kwargs for kind, kwargs in feed.calls if kind == "products"]
+    assert len(product_calls) == 2
+    assert [kind for kind, _ in feed.calls] == [
+        "products",
+        "products",
+        "instruments",
+        "instruments",
+        "depth",
+        "depth",
+    ]
+    query_set = snapshot.query_set
+    # The evidence binds the finally successful products request, not the
+    # timed-out first attempt.
+    assert query_set.requests[0].request_id == 102
+    assert query_set.requests[0].record_count == 2
+    assert [source.request_id for source in query_set.requests] == [102, 103, 104, 105, 106]
+    manifest = _select(snapshot)
+    assert manifest.status == "READY"
+    assert manifest.blockers == ()
+
+
+def test_products_stage_all_retries_timeout_fail_closed(monkeypatch):
+    _install_fake_contract(monkeypatch)
+    feed = _per_product_feed(products_timeouts=3)
+
+    with pytest.raises(adapter.CtpFuturesSnapshotError) as caught:
+        adapter.collect_ctp_futures_snapshot(feed, query_mode="staged_product_depth")
+
+    assert caught.value.code == "PRODUCTS_QUERY_CALL_FAILED"
+    assert [kind for kind, _ in feed.calls] == ["products", "products", "products"]
+    observations = caught.value.query_observations
+    # One published products stage: the final failed attempt, annotated with
+    # the number of bounded retries used.
+    assert len(observations) == 1
+    assert observations[0].stage == "products"
+    assert observations[0].products_retry_count == 2
+    assert observations[0].timed_out is True
+    assert observations[0].complete is False
+
+
+def test_legacy_staged_mode_does_not_retry_products(monkeypatch):
+    _install_fake_contract(monkeypatch)
+    feed = StagedQueryFeed(products_timeouts=1)
+
+    with pytest.raises(adapter.CtpFuturesSnapshotError) as caught:
+        adapter.collect_ctp_futures_snapshot(feed, query_mode="staged_product_set")
+
+    assert caught.value.code == "QUERY_TIMED_OUT"
+    assert [kind for kind, _ in feed.calls] == ["products"]
+    assert caught.value.query_observations[0].products_retry_count is None

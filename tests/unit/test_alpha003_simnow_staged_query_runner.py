@@ -51,23 +51,28 @@ class FakeQueryResult:
         record_limit,
         complete=True,
         record_limit_exceeded=False,
+        timed_out=False,
     ):
         self.request_type = request_type
         self.request_id = request_id
         self.connection_generation = 7
         self.started_at_utc = NOW - timedelta(seconds=5)
         self.completed_at_utc = NOW - timedelta(seconds=1)
-        self.is_last_seen = complete
+        self.is_last_seen = complete and not timed_out
         self.error_code = None
         self.error_message = ""
-        self.timed_out = False
-        self.complete = complete
+        self.timed_out = timed_out
+        self.complete = complete and not timed_out
         self.records = tuple(records)
         self.late_callback_count = 0
         self.unsupported = False
         self.submit_code = 0
-        self.first_completion_origin = "success"
-        self.completion_origin = "success" if complete else "record_limit"
+        if timed_out:
+            self.first_completion_origin = "timeout"
+            self.completion_origin = "timeout"
+        else:
+            self.first_completion_origin = "success"
+            self.completion_origin = "success" if complete else "record_limit"
         self.record_limit = record_limit
         self.record_limit_exceeded = record_limit_exceeded
         self.query_source = SimpleNamespace(request_filters=tuple(sorted(request_filters)))
@@ -125,6 +130,7 @@ class FakeStagedQueryFeed:
         oversized_stage=None,
         oversized_count=0,
         wrong_product_filter=False,
+        products_timeouts=0,
     ):
         self.missing_instruments = frozenset(missing_instruments)
         self.excluded_products = tuple(excluded_products)
@@ -134,6 +140,8 @@ class FakeStagedQueryFeed:
         self.oversized_stage = oversized_stage
         self.oversized_count = oversized_count
         self.wrong_product_filter = wrong_product_filter
+        self.products_timeouts = products_timeouts
+        self.products_timeouts_seen = 0
         self.calls = []
         self.request_id = 100
 
@@ -145,20 +153,23 @@ class FakeStagedQueryFeed:
             "trading_day": TRADING_DAY.strftime("%Y%m%d"),
         }
 
-    def _result(self, kind, records, filters, kwargs):
+    def _result(self, kind, records, filters, kwargs, complete=None, timed_out=False):
         self.request_id += 1
         overflow = self.overflow_stage == kind
         diagnostic_stage = "depth" if kind == "depth_market_data" else kind
         if self.oversized_stage == diagnostic_stage and records:
             records = (records[0],) * self.oversized_count
+        if complete is None:
+            complete = not overflow
         return FakeQueryResult(
             request_type=kind,
             request_id=self.request_id,
             records=records,
             request_filters=filters,
             record_limit=kwargs["max_records"],
-            complete=not overflow,
+            complete=complete,
             record_limit_exceeded=overflow,
+            timed_out=timed_out,
         )
 
     def query_products_result(self, **kwargs):
@@ -171,6 +182,11 @@ class FakeStagedQueryFeed:
             ),
             ("ProductID", kwargs["product_id"]),
         )
+        if self.products_timeouts_seen < self.products_timeouts:
+            self.products_timeouts_seen += 1
+            return self._result(
+                "products", (), filters, kwargs, complete=False, timed_out=True
+            )
         if self.product_rows is None:
             rows = tuple(map(_product_row, PRODUCT_IDS)) + tuple(
                 _excluded_product_row(product_id) for product_id in self.excluded_products
@@ -259,7 +275,11 @@ def _install_query_fixture(monkeypatch):
         lambda: (FakeQueryResult, _normalize_instrument),
     )
     monkeypatch.setattr(snapshot_adapter, "_now_utc", lambda: NOW)
-    monkeypatch.setattr(snapshot_adapter, "time", SimpleNamespace(monotonic=lambda: 100.0))
+    monkeypatch.setattr(
+        snapshot_adapter,
+        "time",
+        SimpleNamespace(monotonic=lambda: 100.0, sleep=lambda _seconds: None),
+    )
 
 
 def _query_config(query_mode="staged_product_set"):
@@ -364,6 +384,45 @@ def test_staged_product_depth_query_plan_uses_per_product_depth(monkeypatch):
     query_evidence = plan["manifest"].to_dict()["query_snapshot"]["query_set"]
     assert query_evidence["request_layout"] == "per_product_depth"
     assert len(query_evidence["requests"]) == 2 * len(expected_products) + 1
+
+
+def test_staged_product_depth_retries_the_products_stage_then_builds_ready_plan(monkeypatch):
+    _install_query_fixture(monkeypatch)
+    feed = FakeStagedQueryFeed(products_timeouts=1)
+    store = SnapshotStore(feed)
+
+    plan = RUNNER.build_ctp_query_market_plan(
+        store, _query_config("staged_product_depth"), clock=FixedClock()
+    )
+
+    assert [kind for kind, _ in feed.calls].count("products") == 2
+    assert plan["manifest"].status == "READY"
+    assert plan["manifest"].blockers == ()
+    assert len(store.snapshot.query_set.requests) == 2 * len(PRODUCT_IDS) + 1
+
+
+def test_staged_product_depth_products_retry_exhaustion_reports_safe_retry_diagnostic(
+    monkeypatch,
+):
+    _install_query_fixture(monkeypatch)
+    feed = FakeStagedQueryFeed(products_timeouts=3)
+    store = SnapshotStore(feed)
+
+    with pytest.raises(RUNNER.RunnerError) as caught:
+        RUNNER.build_ctp_query_market_plan(
+            store, _query_config("staged_product_depth"), clock=FixedClock()
+        )
+
+    assert caught.value.code == "CTP_FUTURES_SNAPSHOT_COLLECTION_FAILED"
+    assert caught.value.detail == "PRODUCTS_QUERY_CALL_FAILED"
+    diagnostic = caught.value.query_diagnostics
+    assert diagnostic["status"] == "AVAILABLE"
+    assert diagnostic["schema_version"] == 3
+    assert [stage["stage"] for stage in diagnostic["stages"]] == ["products"]
+    assert diagnostic["stages"][0]["products_retry_count"] == 2
+    assert diagnostic["stages"][0]["timed_out"] is True
+    assert diagnostic["stages"][0]["record_count"] == 0
+    assert [kind for kind, _ in feed.calls] == ["products", "products", "products"]
 
 
 def test_mixed_product_query_retains_exclusions_without_querying_or_selecting_them(monkeypatch):
@@ -531,7 +590,7 @@ def test_new_staged_product_class_errors_keep_finite_error_projection(
 
     diagnostic = caught.value.query_diagnostics
     assert caught.value.detail == expected_detail
-    assert diagnostic["schema_version"] == 2
+    assert diagnostic["schema_version"] == 3
     assert diagnostic["status"] == "AVAILABLE"
     assert len(diagnostic["stages"]) == stage_count
     if expected_detail in {"PRODUCT_CLASS_UNKNOWN", "PRODUCT_CLASS_CONFLICT"}:
@@ -560,7 +619,7 @@ def test_instrument_normalizer_class_mismatch_keeps_finite_error_projection(monk
 
     diagnostic = caught.value.query_diagnostics
     assert caught.value.detail == "CATALOG_PRODUCT_CLASS_MISMATCH"
-    assert diagnostic["schema_version"] == 2
+    assert diagnostic["schema_version"] == 3
     assert [stage["stage"] for stage in diagnostic["stages"]] == [
         "products",
         "instruments_001",
@@ -582,7 +641,7 @@ def test_staged_error_projection_uses_classified_future_count_for_instrument_sta
 
     diagnostic = caught.value.query_diagnostics
     assert diagnostic["status"] == "AVAILABLE"
-    assert diagnostic["schema_version"] == 2
+    assert diagnostic["schema_version"] == 3
     assert [stage["stage"] for stage in diagnostic["stages"]] == [
         "products",
         "instruments_001",

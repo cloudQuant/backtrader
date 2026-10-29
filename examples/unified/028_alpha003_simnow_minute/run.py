@@ -55,7 +55,7 @@ _FEE_PAIR_SOURCE_ONLY_MAX_RECORD_BYTES = 8 * 1024 * 1024
 _LIVE_DECISION_JOURNAL_MAX_PAYLOAD_BYTES = 131_072
 _LIVE_COMMISSION_QUERY_BUDGET_SECONDS = 3.0
 _LIVE_COMMISSION_CACHE_REFRESH_SECONDS = 30.0
-_CTP_QUERY_DIAGNOSTIC_SCHEMA_VERSION = 2
+_CTP_QUERY_DIAGNOSTIC_SCHEMA_VERSION = 3
 _CTP_QUERY_DIAGNOSTIC_MAX_PRODUCTS = 256
 UTC = timezone.utc
 OHLCV_FIELDS = ("open", "high", "low", "close", "volume", "openinterest")
@@ -921,12 +921,16 @@ _CTP_QUERY_STAGED_STAGE_FIELD_NAMES_V1 = _CTP_QUERY_STAGE_FIELD_NAMES + (
     "record_limit_exceeded",
     "request_filters_match",
 )
-_CTP_QUERY_STAGED_STAGE_FIELD_NAMES = _CTP_QUERY_STAGED_STAGE_FIELD_NAMES_V1 + (
+_CTP_QUERY_STAGED_STAGE_FIELD_NAMES_V2 = _CTP_QUERY_STAGED_STAGE_FIELD_NAMES_V1 + (
     "classified_future_product_count",
     "classified_excluded_product_count",
 )
+_CTP_QUERY_STAGED_STAGE_FIELD_NAMES = _CTP_QUERY_STAGED_STAGE_FIELD_NAMES_V2 + (
+    "products_retry_count",
+)
 _CTP_QUERY_STAGE_FIELDS = frozenset(_CTP_QUERY_STAGE_FIELD_NAMES)
 _CTP_QUERY_STAGED_STAGE_FIELDS_V1 = frozenset(_CTP_QUERY_STAGED_STAGE_FIELD_NAMES_V1)
+_CTP_QUERY_STAGED_STAGE_FIELDS_V2 = frozenset(_CTP_QUERY_STAGED_STAGE_FIELD_NAMES_V2)
 _CTP_QUERY_STAGED_STAGE_FIELDS = frozenset(_CTP_QUERY_STAGED_STAGE_FIELD_NAMES)
 
 
@@ -946,6 +950,7 @@ def _sanitize_ctp_query_diagnostics(value):
         return unavailable
     if value.get("status") != "AVAILABLE":
         return unavailable
+    had_version_marker = False
     if set(value) == {"status", "stages"}:
         # Unversioned available payloads are the historical v1 form. If both
         # a v2 marker and its new fields are removed, the remaining payload is
@@ -954,13 +959,15 @@ def _sanitize_ctp_query_diagnostics(value):
     elif (
         set(value) == {"schema_version", "status", "stages"}
         and type(value.get("schema_version")) is int
-        and value["schema_version"] == _CTP_QUERY_DIAGNOSTIC_SCHEMA_VERSION
+        and value["schema_version"]
+        in (2, _CTP_QUERY_DIAGNOSTIC_SCHEMA_VERSION)
     ):
-        schema_version = _CTP_QUERY_DIAGNOSTIC_SCHEMA_VERSION
+        schema_version = value["schema_version"]
+        had_version_marker = True
     else:
         return unavailable
     stages = value.get("stages")
-    if type(stages) is not list or not 1 <= len(stages) <= 258:
+    if type(stages) is not list or not 1 <= len(stages) <= 515:
         return unavailable
     if type(stages[0]) is not dict or type(stages[0].get("stage")) is not str:
         return unavailable
@@ -976,6 +983,9 @@ def _sanitize_ctp_query_diagnostics(value):
         ):
             staged_product_count_facts = True
             staged_stage_fields = _CTP_QUERY_STAGED_STAGE_FIELDS
+        elif schema_version == 2 and first_fields == _CTP_QUERY_STAGED_STAGE_FIELDS_V2:
+            staged_product_count_facts = True
+            staged_stage_fields = _CTP_QUERY_STAGED_STAGE_FIELDS_V2
         elif schema_version == 1 and first_fields == _CTP_QUERY_STAGED_STAGE_FIELDS_V1:
             staged_stage_fields = _CTP_QUERY_STAGED_STAGE_FIELDS_V1
         else:
@@ -985,6 +995,17 @@ def _sanitize_ctp_query_diagnostics(value):
             for stage in stages
         ):
             return unavailable
+        if schema_version == _CTP_QUERY_DIAGNOSTIC_SCHEMA_VERSION:
+            retry_count = stages[0].get("products_retry_count")
+            if retry_count is not None and (
+                type(retry_count) is not int or not 0 <= retry_count <= 2
+            ):
+                return unavailable
+            if any(
+                stage.get("products_retry_count") is not None
+                for stage in stages[1:]
+            ):
+                return unavailable
     else:
         staged_stage_fields = None
     product_count = stages[0].get("record_count") if staged_query_set else None
@@ -1349,8 +1370,8 @@ def _sanitize_ctp_query_diagnostics(value):
             ):
                 return unavailable
     output = {"status": "AVAILABLE", "stages": sanitized}
-    if schema_version == _CTP_QUERY_DIAGNOSTIC_SCHEMA_VERSION:
-        output["schema_version"] = _CTP_QUERY_DIAGNOSTIC_SCHEMA_VERSION
+    if had_version_marker:
+        output["schema_version"] = schema_version
     return output
 
 
@@ -1376,7 +1397,7 @@ def _project_ctp_snapshot_query_diagnostics(error):
         type(observations[0]) is CtpFuturesSnapshotQueryObservation
         and getattr(observations[0], "stage", None) == "products"
     )
-    max_observations = 513 if staged_query_set else 2
+    max_observations = 515 if staged_query_set else 2
     if len(observations) > max_observations or any(
         type(item) is not CtpFuturesSnapshotQueryObservation for item in observations
     ):
