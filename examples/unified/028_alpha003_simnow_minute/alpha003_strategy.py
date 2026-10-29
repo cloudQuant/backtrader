@@ -5851,7 +5851,9 @@ class Alpha003TargetStrategy(bt.Strategy):
                 )
                 self._last_grid_fee_pair_blocked = True
                 return False
-            if type(code) is not str or code not in _RUN_LOSS_OPEN_REJECTION_CODES:
+            if type(code) is not str or (
+                code not in _RUN_LOSS_OPEN_REJECTION_CODES and code != "JOURNAL_READ_FAILED"
+            ):
                 raise
             self.last_execution_block_reason = code
             open_actions = tuple(
@@ -6222,9 +6224,42 @@ class Alpha003TargetStrategy(bt.Strategy):
         loss_guard_context = None
         loss_guard_blocker = None
         if facts is not None and self.p.execution_enabled:
-            loss_guard_context, loss_guard_blocker = self._refresh_run_loss_guard(facts, now)
+            from backtrader.stores.factor_execution import FactorExecutionError
+
+            try:
+                loss_guard_context, loss_guard_blocker = self._refresh_run_loss_guard(facts, now)
+            except FactorExecutionError as error:
+                if error.code != "JOURNAL_READ_FAILED":
+                    raise
+                loss_guard_blocker = error.code
             if loss_guard_blocker is not None:
                 self.last_execution_block_reason = loss_guard_blocker
+        if self.p.execution_enabled and self._coordinator is not None:
+            # Read the persisted latch after refreshing it: the current query
+            # may have tripped it, and a restarted run may already be tripped
+            # even when current account facts are unavailable.  Only the
+            # confirmed latch starts winddown; an unrelated guard blocker does
+            # not prove that the loss threshold was reached.
+            from backtrader.stores.execution_decision_journal import (
+                ExecutionDecisionJournalError,
+                ExecutionRunLossGuardSnapshot,
+            )
+
+            try:
+                loss_guard = self._coordinator.journal.run_loss_guard(
+                    self._account_scope, self._strategy_scope, self._logical_run_id
+                )
+            except ExecutionDecisionJournalError as error:
+                # A read failure is not evidence of a trip or permission to
+                # open. Preserve the independent risk-reduction path.
+                loss_guard = None
+                loss_guard_context = None
+                loss_guard_blocker = error.code
+                self.last_execution_block_reason = error.code
+            if type(loss_guard) is ExecutionRunLossGuardSnapshot and loss_guard.tripped is True:
+                if not self._shutdown_requested.is_set():
+                    self.request_shutdown()
+        run_end = run_end or self._shutdown_requested.is_set()
         target_decision = None if run_end else self._last_signal_target
         planning = None
         run_order_intents_used = (
@@ -6521,6 +6556,8 @@ class Alpha003TargetStrategy(bt.Strategy):
     def request_shutdown(self) -> None:
         """Request graceful winddown; order decisions stay on the engine thread."""
 
+        if self._shutdown_requested.is_set():
+            return
         self._shutdown_requested.set()
         self._shutdown_post_join_confirmed_state = False
         self._shutdown_post_join_blocker_state = "SHUTDOWN_POST_JOIN_CONFIRMATION_PENDING"
