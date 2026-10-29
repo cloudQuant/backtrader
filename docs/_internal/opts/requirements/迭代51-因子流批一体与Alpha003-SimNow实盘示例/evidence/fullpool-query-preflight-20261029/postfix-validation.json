@@ -1,0 +1,43 @@
+{
+  "schema": "i51.fullpool_query_postfix.v1",
+  "date": "2026-10-29",
+  "status": "PASS_QUERY_AND_SELECTION_READY_READONLY",
+  "scope": "Same bounded read-only query preflight after the NO_LISTED_CONTRACTS selector fix. No Cerebro session, bars, orders, arm or writes.",
+  "source": {
+    "backtrader_commit": "cd8004686",
+    "wheel_sha256": "69C79AE45E4CC5F4CC5B280820D45BF6EA1C5FFFD5CB3663056D7CFB57CB5FA4",
+    "wheel_size_bytes": 2665986,
+    "installed_bt_record_sha256": "2296F710F0F03516BAE6CEED83D4EF3C8621E8FE8F795843DC23FA6C1C939781",
+    "sdk_ctp_commit": "6c7d9b77d97d5ec19cb9c535f4d1ad16f941fae9",
+    "sdk_records_pinned": true
+  },
+  "profile_category": "set1_group1_vpn",
+  "observations": {
+    "ready": true,
+    "elapsed_seconds": 98.7,
+    "targets": 87,
+    "products": 87,
+    "routes": 87,
+    "selection_source": "ctp_query_snapshot_equal_weight_v1",
+    "snapshot_present": true,
+    "calendar_rules_present": true,
+    "grid_status": "READY",
+    "grid_minutes": 195,
+    "excluded_listed_product": "CZCE.LR",
+    "exclusion_reason": "NO_LISTED_CONTRACTS",
+    "writes": 0,
+    "arm_templates": []
+  },
+  "interpretation": {
+    "resolved": "The full-pool real query and selection now complete: 87 rankable products/routes and the 195-minute common daytime grid. CZCE.LR is explicitly excluded with its completed zero-record instrument query.",
+    "not_proven": [
+      "No common session, minute bars or factor values.",
+      "This is the 2026-10-29 pre-night-session query; the 2026-10-30 pre-open query must be re-run and bound to the actual run.",
+      "No account, order, cancel, restart or cleanup acceptance."
+    ]
+  },
+  "artifacts": {
+    "preflight_log_sha256": "282702012A54DCA05352E2C06F176E6B90DBFDA2A9B1BA58C78D29366B37D5D7"
+  },
+  "ac_status_change": "NONE; AC51-18/19 remain NOT_RUN until the real session."
+}
