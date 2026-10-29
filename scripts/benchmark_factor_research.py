@@ -29,7 +29,6 @@ import importlib.util
 import json
 import os
 import platform
-import resource
 import subprocess
 import sys
 import tempfile
@@ -37,6 +36,11 @@ import time
 import traceback
 from pathlib import Path
 from typing import Any, Dict, Mapping, Optional
+
+try:
+    import resource
+except ImportError:  # pragma: no cover - Windows has no resource module
+    resource = None  # type: ignore[assignment]
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 EXAMPLES = {
@@ -83,6 +87,10 @@ def _rss() -> int:
 
 
 def _peak_rss() -> int:
+    if resource is None:
+        # The Unix-only resource module is unavailable (for example Windows);
+        # report the same unavailable sentinel as _rss().
+        return -1
     value = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
     # macOS reports bytes, Linux kilobytes.
     return int(value if sys.platform == "darwin" else value * 1024)

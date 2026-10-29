@@ -28,9 +28,17 @@ _INSTRUMENT = execution_helpers._INSTRUMENT
 _EXCHANGE = execution_helpers._EXCHANGE
 _ACCOUNT_SCOPE = execution_helpers._ACCOUNT_SCOPE
 _SCOPE = execution_helpers._SCOPE
+_SDK_MD_FRONT = "tcp://182.254.243.31:30012"
 
 
-def _durable_system(path, *, now):
+def _durable_system(path, *, now, monkeypatch=None):
+    if monkeypatch is None:
+        system = execution_helpers._system(now=now)
+    else:
+        # The cancel path needs a Store-minted, source-owned order-identity
+        # query receipt, which only the canonical SDK leaves can attest. The
+        # shared helper keeps the production Store/Broker/journal path intact.
+        system = execution_helpers._source_sdk_system(monkeypatch, now=now)
     (
         api,
         store,
@@ -41,7 +49,7 @@ def _durable_system(path, *, now):
         data,
         strategy,
         _cerebro,
-    ) = execution_helpers._system(now=now)
+    ) = system[:9]
     memory_journal.close()
     broker.factor_execution_coordinator = None
     journal = ExecutionDecisionJournal(path)
@@ -57,12 +65,12 @@ def _durable_system(path, *, now):
     return api, store, broker, journal, coordinator, target, data, strategy
 
 
-def _ready_facts(store, broker, target, *, now):
+def _ready_facts(store, broker, target, *, now, md_front="tcp://127.0.0.1:1"):
     query = facts_helpers._refresh_all(store, target)
     store.registered_sim_configure_arm_templates(
         {
             (_INSTRUMENT, _EXCHANGE): {
-                "md_front": "tcp://127.0.0.1:1",
+                "md_front": md_front,
                 "strategy_identity_sha256": "a" * 64,
                 "execution_cycle_id": "cycle-1",
                 "preflight_sha256": "b" * 64,
@@ -72,7 +80,7 @@ def _ready_facts(store, broker, target, *, now):
     store.registered_sim_arm(
         instrument=_INSTRUMENT,
         exchange=_EXCHANGE,
-        md_front="tcp://127.0.0.1:1",
+        md_front=md_front,
         strategy_identity_sha256="a" * 64,
         execution_cycle_id="cycle-1",
         preflight_sha256="b" * 64,
@@ -204,14 +212,14 @@ def test_claim_write_failure_rolls_back_before_native_submit(tmp_path):
         journal.close()
 
 
-def test_cancel_claim_write_failure_prevents_native_cancel(tmp_path):
+def test_cancel_claim_write_failure_prevents_native_cancel(tmp_path, monkeypatch):
     path = tmp_path / "cancel-claim-failure.sqlite3"
     now = datetime.now(timezone.utc)
     api, store, broker, journal, coordinator, target, data, strategy = _durable_system(
-        path, now=now
+        path, now=now, monkeypatch=monkeypatch
     )
     try:
-        facts = _ready_facts(store, broker, target, now=now)
+        facts = _ready_facts(store, broker, target, now=now, md_front=_SDK_MD_FRONT)
         order = _opening_order(coordinator, strategy, data, facts, now=now)
         assert order is not None and order.alive()
         assert order.info["factor_dispatch_state"] == "KNOWN"
@@ -220,7 +228,7 @@ def test_cancel_claim_write_failure_prevents_native_cancel(tmp_path):
         provider_order = api._provider_orders[order.info["external_order_ref"]]
         active_order = {
             "OrderRef": order.info["external_order_ref"],
-            "OrderSysID": "",
+            "OrderSysID": "sys-501",
             "InstrumentID": provider_order["instrument_id"],
             "ExchangeID": provider_order["exchange_id"],
             "OrderStatus": "3",
