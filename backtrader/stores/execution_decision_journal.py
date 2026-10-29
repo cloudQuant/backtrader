@@ -99,6 +99,11 @@ _RFC3339_TIMESTAMP = re.compile(
     r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?(?:Z|[+-]\d{2}:\d{2})$"
 )
 _MAX_RUN_LOSS_ENABLE_SCAN_ROWS = 100_000
+# Bounded reader wait while a claimed-but-unpersisted dispatch retains the
+# fail-closed gate.  Long enough to ride out a transient owner release, short
+# enough that a worker which must be joined can never block for the journal's
+# remaining lifetime.
+_RETAINED_GATE_READ_TIMEOUT_SECONDS = 1.0
 _RUN_ORDER_RESERVATION_FIELD = "_journal_run_order_reservation"
 _SOURCE_RECEIPT_PAYLOAD_FIELD = "_execution_source_receipt"
 _SOURCE_ANCHOR_ONLY_FIELD = "_execution_source_anchor_only"
@@ -15339,29 +15344,76 @@ class ExecutionDecisionJournal:
         provider_identity: Optional[Mapping[str, Any]] = None,
         outcome_code: Optional[str] = None,
         fee_pair_open_context: Optional[ExecutionFeePairOpenContext] = None,
+        claimed_native_result: bool = False,
     ) -> ExecutionIntentRecord:
-        """Record a known or unknown result for the already claimed dispatch."""
+        """Record a known or unknown result for the already claimed dispatch.
+
+        ``claimed_native_result`` is the caller's assertion that this result is
+        the actual outcome of a native dispatch it claimed in the same decision
+        scope.  The native call itself may legitimately change the Broker
+        working-order projection that the fee-pair OPEN source lease captured
+        before dispatch (the just-submitted order is now working).  Such a
+        post-dispatch probe mismatch must not reject a determinate native
+        result and turn it into UNKNOWN: that leaves the intent DISPATCHING and
+        retains the fail-closed dispatch gate.  Instead the mismatch is stored
+        as a durable diagnostic on the result, while every later OPEN claim
+        still revalidates the same lease and fails closed.  The persisted state
+        is exactly the caller-supplied state; this flag never promotes an
+        unknown or unclaimed result to KNOWN.
+        """
 
         _require_identifier(intent_id, "INVALID_INTENT_ID")
         if state not in ("KNOWN", "UNKNOWN"):
             raise ExecutionDecisionJournalError("INVALID_DISPATCH_STATE")
         if outcome_code is not None and not _identifier(outcome_code):
             raise ExecutionDecisionJournalError("INVALID_OUTCOME_CODE")
+        if type(claimed_native_result) is not bool:
+            raise ExecutionDecisionJournalError("INVALID_DISPATCH_RESULT_CLAIM")
         identity_json = self._payload_json({} if provider_identity is None else provider_identity)
-        result_json = _canonical_json(
-            {"provider_identity": json.loads(identity_json), "outcome_code": outcome_code}
-        )
         now_ns = time.time_ns()
-        source_guard = (
-            _fee_pair_facts_source_before_commit(
-                fee_pair_open_context.facts,
-                fee_pair_open_context.source_lease,
-                operation="OPEN",
-            )
-            if type(fee_pair_open_context) is ExecutionFeePairOpenContext
+        source_guard = None
+        source_guard_diagnostic = None
+        if (
+            type(fee_pair_open_context) is ExecutionFeePairOpenContext
             and fee_pair_open_context.source_lease is not None
-            else None
-        )
+        ):
+            try:
+                guard = _fee_pair_facts_source_before_commit(
+                    fee_pair_open_context.facts,
+                    fee_pair_open_context.source_lease,
+                    operation="OPEN",
+                )
+            except ExecutionDecisionJournalError as error:
+                if not claimed_native_result or error.code != "FEE_PAIR_SOURCE_BINDING_REQUIRED":
+                    raise
+                source_guard_diagnostic = error.code
+            else:
+                if claimed_native_result:
+                    # Probe only: record the stale source as a durable
+                    # diagnostic, but do not bind COMMIT to a pre-dispatch
+                    # projection the native dispatch has already changed.
+                    try:
+                        guard()
+                    except ExecutionDecisionJournalError as probe_error:
+                        if probe_error.code != "FEE_PAIR_SOURCE_BINDING_REQUIRED":
+                            raise
+                        source_guard_diagnostic = probe_error.code
+                else:
+                    source_guard = guard
+        def build_result_json(diagnostic: Optional[str]) -> str:
+            payload = {
+                "provider_identity": json.loads(identity_json),
+                "outcome_code": outcome_code,
+            }
+            if diagnostic is not None:
+                # Durable diagnostic/blocker evidence: an OPEN admitted against
+                # the pre-dispatch snapshot can no longer be reconciled with
+                # the same lease after dispatch.  Later OPEN admission uses its
+                # own fresh lease and this exact result remains auditable.
+                payload["post_dispatch_source_guard"] = diagnostic
+            return _canonical_json(payload)
+
+        result_json = build_result_json(source_guard_diagnostic)
         with self._transaction(before_commit=source_guard) as cursor:
             row = cursor.execute(
                 "SELECT * FROM execution_decision_intents WHERE intent_id = ?", (intent_id,)
@@ -15370,13 +15422,27 @@ class ExecutionDecisionJournal:
                 raise ExecutionDecisionJournalError("INTENT_NOT_PREPARED")
             result_key = ExecutionIntentKey(**json.loads(row["intent_key_json"]))
             if _is_open_submit_intent(result_key):
-                self._reject_unreserved_fee_pair_open_in_transaction(
-                    cursor,
-                    decision_id=row["decision_id"],
-                    intent_key=result_key,
-                    economic_payload=json.loads(row["economic_payload_json"]),
-                    context=fee_pair_open_context,
-                )
+                try:
+                    self._reject_unreserved_fee_pair_open_in_transaction(
+                        cursor,
+                        decision_id=row["decision_id"],
+                        intent_key=result_key,
+                        economic_payload=json.loads(row["economic_payload_json"]),
+                        context=fee_pair_open_context,
+                    )
+                except ExecutionDecisionJournalError as error:
+                    if (
+                        not claimed_native_result
+                        or error.code != "FEE_PAIR_SOURCE_BINDING_REQUIRED"
+                    ):
+                        raise
+                    # The same post-dispatch working-order change invalidates
+                    # this in-transaction recheck.  The authorization fields
+                    # above it were already verified at claim time; keep the
+                    # durable diagnostic and still settle the native result.
+                    if source_guard_diagnostic is None:
+                        source_guard_diagnostic = error.code
+                        result_json = build_result_json(source_guard_diagnostic)
             if row["dispatch_state"] in ("KNOWN", "UNKNOWN"):
                 if (
                     row["dispatch_state"] == state
@@ -21231,6 +21297,27 @@ class ExecutionDecisionJournal:
 
     @contextmanager
     def _read_lock(self) -> Iterator[None]:
+        # A retained dispatch gate deliberately keeps this lock (and the
+        # dispatch lock) held until close to fence same-process recovery after
+        # an unpersisted claim.  That hold must never wedge an unrelated
+        # reader -- notably the runner's query-refresh worker -- for the life
+        # of the journal: retirement joins that worker before close, so an
+        # unbounded wait would deadlock the join.  Readers therefore wait only
+        # a bounded interval while a gate is retained and then fail closed.
+        # The owning thread still re-enters its own RLock immediately.
+        retained_gate = self._retained_dispatch_gate_context is not None
+        if retained_gate:
+            if not self._lock.acquire(timeout=_RETAINED_GATE_READ_TIMEOUT_SECONDS):
+                raise ExecutionDecisionJournalError("JOURNAL_READ_BUSY")
+            try:
+                self._ensure_open()
+                try:
+                    yield
+                except sqlite3.Error as error:
+                    raise ExecutionDecisionJournalError("JOURNAL_READ_FAILED") from error
+            finally:
+                self._lock.release()
+            return
         with self._lock:
             self._ensure_open()
             try:

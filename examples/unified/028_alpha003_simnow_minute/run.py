@@ -2605,35 +2605,61 @@ def _decision_tape_record(
     plan_row = None
     if order_plan is not None:
         actions = []
-        for action in getattr(order_plan, "actions", ()):
+        plan_mapping = order_plan if isinstance(order_plan, Mapping) else None
+        if plan_mapping is not None:
+            required_plan_fields = {
+                "status",
+                "reason",
+                "decision_batch_id",
+                "decision_available_at",
+                "actions",
+            }
+            if not required_plan_fields.issubset(plan_mapping):
+                raise RunnerError("DECISION_TAPE_ORDER_PLAN_INVALID")
+            raw_actions = plan_mapping.get("actions")
+        else:
+            raw_actions = getattr(order_plan, "actions", ())
+        if not isinstance(raw_actions, (tuple, list)):
+            raise RunnerError("DECISION_TAPE_ORDER_PLAN_INVALID")
+        action_fields = (
+            "action",
+            "target_id",
+            "instrument",
+            "side",
+            "position_effect",
+            "quantity",
+            "limit_price",
+            "offset",
+            "reason",
+            "planned_stop_price",
+            "exchange",
+            "decision_available_at",
+            "entry_grid_ordinal",
+        )
+        for action in raw_actions:
+            if isinstance(action, Mapping):
+                if not set(action_fields).issubset(action):
+                    raise RunnerError("DECISION_TAPE_ORDER_ACTION_INVALID")
+                read_action = action.get
+            else:
+                read_action = lambda name, _default=None, item=action: getattr(item, name, _default)
             actions.append(
                 {
-                    name: _tape_scalar(getattr(action, name), f"order action {name}")
-                    for name in (
-                        "action",
-                        "target_id",
-                        "instrument",
-                        "side",
-                        "position_effect",
-                        "quantity",
-                        "limit_price",
-                        "offset",
-                        "reason",
-                        "planned_stop_price",
-                        "exchange",
-                        "decision_available_at",
-                        "entry_grid_ordinal",
-                    )
+                    name: _tape_scalar(read_action(name), f"order action {name}")
+                    for name in action_fields
                 }
             )
+        def plan_value(name):
+            if plan_mapping is not None:
+                return plan_mapping.get(name)
+            return getattr(order_plan, name, None)
+
         plan_row = {
-            "status": _tape_scalar(getattr(order_plan, "status", None), "plan status"),
-            "reason": _tape_scalar(getattr(order_plan, "reason", None), "plan reason"),
-            "decision_batch_id": _tape_scalar(
-                getattr(order_plan, "decision_batch_id", None), "plan batch"
-            ),
+            "status": _tape_scalar(plan_value("status"), "plan status"),
+            "reason": _tape_scalar(plan_value("reason"), "plan reason"),
+            "decision_batch_id": _tape_scalar(plan_value("decision_batch_id"), "plan batch"),
             "decision_available_at": _tape_scalar(
-                getattr(order_plan, "decision_available_at", None), "plan availability"
+                plan_value("decision_available_at"), "plan availability"
             ),
             "actions": actions,
         }
@@ -3445,6 +3471,8 @@ class DecisionTapeWriter:
         purpose="PREWARM",
         expected_grid_cursor=None,
     ):
+        from alpha003_strategy import TARGET_FREE_SELECTION_REASONS
+
         receipt_is_valid = type(source_receipt) is journal_api.ExecutionSourceReceipt
         readiness_allowed = (
             purpose == "PREWARM"
@@ -3537,7 +3565,7 @@ class DecisionTapeWriter:
                 decision_matches = (
                     isinstance(target_decision, Mapping)
                     and target_decision.get("status") == "BLOCKED"
-                    and target_decision.get("reason") == "NO_VALID_SIGNAL"
+                    and target_decision.get("reason") in TARGET_FREE_SELECTION_REASONS
                     and target_decision.get("execution_mode") == "LIVE"
                     and target_decision.get("factor_name") == "alpha003"
                     and target_decision.get("mode") == self.factor_mode
@@ -3866,15 +3894,16 @@ class DecisionTapeWriter:
         source_kind: str,
         source_restart_marker=None,
         ttl_seconds: float = 10.0,
+        settlement: Optional[Mapping[str, Any]] = None,
+        source_lease: Any = None,
     ):
-        """Commit one live selected-pair grid as no-intent SOURCE_ONLY.
+        """Append a selected live pair as SOURCE_ONLY or an admitted GRID.
 
         This adapter derives the fee-independent candidate from the current
         Strategy/Store projections while holding the same writer lock used by
-        the append path.  It never reads or authorizes a commission and never
-        dispatches an order.  A live grid without exactly two selected,
-        route-bound targets is rejected before any Journal reservation or tape
-        append; callers must keep that grid fail-closed.
+        the append path. The default remains SOURCE_ONLY. A GRID caller must
+        supply the complete settlement plan; the Journal validates fees and
+        the amount hold before this writer returns an OPEN context.
         """
         import secrets
 
@@ -4135,6 +4164,62 @@ class DecisionTapeWriter:
                 and candidate.source_restart_marker.prior_highwater != predecessor
             ):
                 raise RunnerError("FEE_PAIR_SOURCE_RESTART_MARKER_MISMATCH")
+            if settlement is not None:
+                required = {
+                    "order_plan",
+                    "owner_token",
+                    "economic_payload",
+                    "current_account_session_id",
+                    "current_account_session_generation",
+                    "max_query_age_seconds",
+                    "max_quote_age_seconds",
+                    "max_order_intents_per_run",
+                    "expected_run_order_intents_used",
+                    "remaining_exit_intent_reserve",
+                    "loss_guard_context",
+                }
+                if (
+                    set(settlement) != required
+                    or not isinstance(settlement["order_plan"], Mapping)
+                    or not isinstance(settlement["economic_payload"], Mapping)
+                    or type(settlement["owner_token"]) is not str
+                    or not settlement["owner_token"]
+                ):
+                    raise RunnerError("FEE_PAIR_GRID_SETTLEMENT_INVALID")
+                if source_lease is None:
+                    raise RunnerError("FEE_PAIR_OPEN_SOURCE_LEASE_REQUIRED")
+                return self.settle_fee_pair_grid_single_row(
+                    candidate,
+                    batch,
+                    snapshot,
+                    target_decision,
+                    settlement["order_plan"],
+                    journal,
+                    owner_token=settlement["owner_token"],
+                    facts=facts,
+                    economic_payload=settlement["economic_payload"],
+                    current_account_session_id=settlement[
+                        "current_account_session_id"
+                    ],
+                    current_account_session_generation=settlement[
+                        "current_account_session_generation"
+                    ],
+                    max_query_age_seconds=settlement["max_query_age_seconds"],
+                    max_quote_age_seconds=settlement["max_quote_age_seconds"],
+                    max_order_intents_per_run=settlement[
+                        "max_order_intents_per_run"
+                    ],
+                    expected_run_order_intents_used=settlement[
+                        "expected_run_order_intents_used"
+                    ],
+                    remaining_exit_intent_reserve=settlement[
+                        "remaining_exit_intent_reserve"
+                    ],
+                    loss_guard_context=settlement["loss_guard_context"],
+                    reserve_for_open=True,
+                    source_lease=source_lease,
+                    ttl_seconds=ttl_seconds,
+                )
             return self.record_fee_pair_source_only(
                 candidate,
                 batch,
@@ -4157,15 +4242,19 @@ class DecisionTapeWriter:
         logical_run_id: str,
         source_kind: str,
         source_restart_marker=None,
+        eligible_grid_index: Optional[int] = None,
     ):
-        """Append one LIVE_READY ``NO_VALID_SIGNAL`` slot without a candidate.
+        """Append one target-free LIVE_READY slot without a candidate.
 
-        The selection reason is the only accepted no-pair case. The row is
-        source evidence, not a grid decision or an order authorization.
+        Any target-free ``BLOCKED`` LIVE selector result that the live
+        preselection gate admits is source evidence, not a grid decision or an
+        order authorization.  ``eligible_grid_index`` is the caller's cadence
+        counter; the selector is still recomputed from the bound live snapshot
+        and the row is rejected unless that exact decision is reproduced.
         """
 
         from backtrader.stores import execution_decision_journal as journal_api
-        from alpha003_strategy import Alpha003TargetDecision
+        from alpha003_strategy import Alpha003TargetDecision, TARGET_FREE_SELECTION_REASONS
 
         if type(journal) is not journal_api.ExecutionDecisionJournal:
             raise RunnerError("FEE_PAIR_JOURNAL_TYPE_INVALID")
@@ -4199,7 +4288,8 @@ class DecisionTapeWriter:
                 or getattr(snapshot, "cohort_id", None) != getattr(batch, "cohort_id", None)
                 or getattr(snapshot, "close_time", None) != getattr(batch, "close_time", None)
                 or getattr(target_decision, "status", None) != "BLOCKED"
-                or getattr(target_decision, "reason", None) != "NO_VALID_SIGNAL"
+                or getattr(target_decision, "reason", None)
+                not in TARGET_FREE_SELECTION_REASONS
                 or getattr(target_decision, "execution_mode", None) != "LIVE"
                 or getattr(target_decision, "batch_id", None) != getattr(batch, "batch_id", None)
                 or getattr(target_decision, "cohort_id", None) != getattr(batch, "cohort_id", None)
@@ -4225,7 +4315,7 @@ class DecisionTapeWriter:
             if (
                 not isinstance(decision_row, Mapping)
                 or decision_row.get("status") != "BLOCKED"
-                or decision_row.get("reason") != "NO_VALID_SIGNAL"
+                or decision_row.get("reason") not in TARGET_FREE_SELECTION_REASONS
                 or decision_row.get("execution_mode") != "LIVE"
                 or decision_row.get("factor_name") != "alpha003"
                 or decision_row.get("mode") != self.factor_mode
@@ -4292,6 +4382,7 @@ class DecisionTapeWriter:
                 target_decision,
                 journal,
                 key,
+                eligible_grid_index=eligible_grid_index,
             )
             highwater = journal.validate_fee_pair_no_pair_source_only_preflight(key)
             expected_scope = (
@@ -4693,6 +4784,8 @@ class DecisionTapeWriter:
         expected_run_order_intents_used,
         remaining_exit_intent_reserve,
         loss_guard_context=None,
+        reserve_for_open=False,
+        source_lease=None,
         ttl_seconds=10.0,
     ):
         """Append one v23 LIVE_READY GRID row, then settle that same row.
@@ -4714,6 +4807,8 @@ class DecisionTapeWriter:
             raise RunnerError("FEE_PAIR_OWNER_TOKEN_INVALID")
         if not isinstance(economic_payload, Mapping):
             raise RunnerError("FEE_PAIR_GRID_PLAN_INVALID")
+        if reserve_for_open and source_lease is None:
+            raise RunnerError("FEE_PAIR_OPEN_SOURCE_LEASE_REQUIRED")
 
         with self._lock:
             if self._closed or self._failed:
@@ -4815,6 +4910,8 @@ class DecisionTapeWriter:
                     candidate,
                     owner_token=owner_token,
                     ttl_seconds=ttl_seconds,
+                    facts=facts if reserve_for_open else None,
+                    source_lease=source_lease if reserve_for_open else None,
                 )
                 candidate_id = reserved.candidate_id
                 candidate_sha256 = reserved.candidate_sha256
@@ -4855,6 +4952,8 @@ class DecisionTapeWriter:
                     record_index=expected_index,
                     prefix_sha256=prefix_sha256,
                     record_json=record_json,
+                    facts=facts if reserve_for_open else None,
+                    source_lease=source_lease if reserve_for_open else None,
                 )
                 if (
                     claimed.state != "APPEND_CLAIMED"
@@ -4870,6 +4969,8 @@ class DecisionTapeWriter:
                     record_index=expected_index,
                     prefix_sha256=prefix_sha256,
                     record_json=record_json,
+                    facts=facts if reserve_for_open else None,
+                    source_lease=source_lease if reserve_for_open else None,
                 )
                 if (
                     intent.get("candidate_id") != candidate_id
@@ -4945,6 +5046,8 @@ class DecisionTapeWriter:
                     remaining_exit_intent_reserve=remaining_exit_intent_reserve,
                     loss_guard_context=loss_guard_context,
                     verified_tape_readback=readback,
+                    reserve_for_open=reserve_for_open,
+                    source_lease=source_lease if reserve_for_open else None,
                 )
                 receipt = journal_api._fee_pair_receipt_from_candidate(
                     candidate, row["record_id"]
@@ -4971,6 +5074,45 @@ class DecisionTapeWriter:
                     or highwater.receipt != receipt
                 ):
                     raise RunnerError("FEE_PAIR_SINGLE_ROW_GRID_SETTLEMENT_INVALID")
+                # The settled GRID row is this writer's immutable source
+                # anchor. Every later SOURCE_ONLY/NO_LEGAL_FEE_PAIR append
+                # re-streams and re-verifies the prefix, and that verification
+                # requires the same source scope the ordinary source-only path
+                # records. Publish it here so a GRID anchor is not invisible to
+                # the next slot's binding check.
+                self._fee_pair_source_scope = (
+                    candidate.key.account_scope,
+                    candidate.key.strategy_scope,
+                    candidate.key.logical_run_id,
+                    candidate.source_kind,
+                    candidate.cohort_id,
+                    candidate.epoch_id,
+                    candidate.calendar_id,
+                    candidate.calendar_version,
+                    candidate.calendar_fingerprint,
+                )
+                amount_reservation = settled.amount_reservation
+                open_context = None
+                if reserve_for_open:
+                    if (
+                        not isinstance(amount_reservation, Mapping)
+                        or amount_reservation.get("status") != "ACTIVE"
+                        or amount_reservation.get("candidate_id") != candidate_id
+                        or not _is_lower_sha256(
+                            amount_reservation.get("reservation_sha256")
+                        )
+                    ):
+                        raise RunnerError("FEE_PAIR_AMOUNT_RESERVATION_INVALID")
+                    open_context = journal_api.ExecutionFeePairOpenContext(
+                        facts=facts,
+                        account_session_id=current_account_session_id,
+                        account_session_generation=current_account_session_generation,
+                        owner_token=owner_token,
+                        max_query_age_seconds=max_query_age_seconds,
+                        max_quote_age_seconds=max_quote_age_seconds,
+                        candidate_id=candidate_id,
+                        reservation_sha256=amount_reservation["reservation_sha256"],
+                    )
                 return MappingProxyType(
                     {
                         "schema": "backtrader.alpha003.single_row_grid_settlement.v1",
@@ -4982,7 +5124,9 @@ class DecisionTapeWriter:
                         "decision": settled.decision,
                         "cursor": settled.cursor,
                         "is_new_grid": settled.is_new_grid,
-                        "open_dispatch_authorized": False,
+                        "amount_reservation": amount_reservation,
+                        "fee_pair_open_context": open_context,
+                        "open_dispatch_authorized": open_context is not None,
                     }
                 )
             except BaseException:
@@ -5152,17 +5296,21 @@ class DecisionTapeWriter:
             raise RunnerError("FEE_PAIR_TAPE_PLAN_BINDING_MISMATCH")
 
     def _verify_fee_pair_no_pair_selector_projection(
-        self, batch, snapshot, target_decision, journal, key
+        self, batch, snapshot, target_decision, journal, key, *, eligible_grid_index=None
     ):
         """Recompute the LIVE selector from this writer's bound plan and source.
 
-        A caller-supplied ``BLOCKED/NO_VALID_SIGNAL`` object is not authority.
-        The selected policy is bound into the validated run identity and tape
-        header; the selector below is recomputed from the same immutable batch
-        and factor snapshot that will be serialized.
+        A caller-supplied ``BLOCKED`` object is not authority.  The selected
+        policy is bound into the validated run identity and tape header; the
+        selector below is recomputed from the same immutable batch and factor
+        snapshot that will be serialized.  ``eligible_grid_index`` is only the
+        caller's cadence counter: it is accepted when it agrees with the
+        durable cursor floor, and the recomputed decision must still equal the
+        caller's decision exactly.
         """
 
         from alpha003_strategy import (
+            TARGET_FREE_SELECTION_REASONS,
             _preselection_block_reason,
             policy_input_from_shared_snapshot,
             select_alpha003_targets,
@@ -5251,16 +5399,29 @@ class DecisionTapeWriter:
                 key.strategy_scope,
                 key.cohort_id,
             )
-            # Registered LIVE strategies use the durable Journal cursor. Their
-            # in-memory eligible count remains zero, and a SOURCE_ONLY anchor
-            # deliberately does not advance this cursor. Match
-            # Alpha003TargetStrategy._cursor_ordinal exactly for a new slot.
+            # Registered LIVE strategies keep an in-memory cadence counter
+            # because a SOURCE_ONLY anchor deliberately does not advance the
+            # durable Journal cursor.  The durable cursor is still the
+            # monotonic floor: a new slot may count further ahead, never
+            # behind an ordinal a prior GRID already consumed.
+            batch_id = getattr(batch, "batch_id", None)
             if cursor is None:
-                eligible_grid_index = 1
-            elif cursor.batch_id == getattr(batch, "batch_id", None):
-                eligible_grid_index = cursor.ordinal
+                durable_ordinal = 1
+            elif cursor.batch_id == batch_id:
+                durable_ordinal = cursor.ordinal
             else:
-                eligible_grid_index = cursor.ordinal + 1
+                durable_ordinal = cursor.ordinal + 1
+            if eligible_grid_index is None:
+                requested_ordinal = durable_ordinal
+            else:
+                if type(eligible_grid_index) is not int or eligible_grid_index < 1:
+                    raise RunnerError("FEE_PAIR_NO_PAIR_SELECTION_MISMATCH")
+                if cursor is not None and cursor.batch_id == batch_id:
+                    if eligible_grid_index != cursor.ordinal:
+                        raise RunnerError("FEE_PAIR_NO_PAIR_SELECTION_MISMATCH")
+                elif eligible_grid_index < durable_ordinal:
+                    raise RunnerError("FEE_PAIR_NO_PAIR_SELECTION_MISMATCH")
+                requested_ordinal = eligible_grid_index
             policy_input = policy_input_from_shared_snapshot(
                 batch,
                 snapshot,
@@ -5269,7 +5430,7 @@ class DecisionTapeWriter:
                 product_keys=canonical_product_keys,
                 factor_name="alpha003",
                 execution_mode="LIVE",
-                eligible_grid_index=eligible_grid_index,
+                eligible_grid_index=requested_ordinal,
                 rebalance_every=policy["rebalance_every"],
             )
             recomputed = select_alpha003_targets(policy_input)
@@ -5280,7 +5441,8 @@ class DecisionTapeWriter:
         if (
             _preselection_block_reason(policy_input) is not None
             or recomputed.status != "BLOCKED"
-            or recomputed.reason != "NO_VALID_SIGNAL"
+            or recomputed.reason not in TARGET_FREE_SELECTION_REASONS
+            or recomputed.targets
             or recomputed != target_decision
         ):
             raise RunnerError("FEE_PAIR_NO_PAIR_SELECTION_MISMATCH")
@@ -5440,7 +5602,20 @@ class DecisionTapeWriter:
                 ),
             )
             return row
+        grid_settled = (
+            workflow.state == "RECEIPT_VERIFIED"
+            and type(workflow.grid_settled_decision_id) is str
+        )
         cached_grid_append = self._fee_pair_grid_append_observations.get(current_id)
+        if grid_settled:
+            # A single-row v23 GRID keeps the workflow state at
+            # RECEIPT_VERIFIED and records settlement through
+            # grid_settled_decision_id. Later SOURCE_ONLY/NO_LEGAL_FEE_PAIR
+            # prefix verification must accept that terminal state without
+            # mistaking it for an ordinary source-only anchor.
+            return self._validate_settled_fee_pair_grid_extension_row(
+                row, journal, workflow, extension, journal_api
+            )
         if cached_grid_append is not None:
             grid_workflow_state = (
                 workflow.state == "RECEIPT_VERIFIED"
@@ -5489,6 +5664,60 @@ class DecisionTapeWriter:
         receipt_values = decision.economic_payload.get("_execution_source_receipt")
         if not isinstance(receipt_values, Mapping):
             raise RunnerError("FEE_PAIR_TAPE_EXTENSION_BINDING_MISMATCH")
+        self._validate_fee_pair_extension_receipt(
+            row, receipt_values, source_scope[3], journal_api
+        )
+        return None
+
+    def _validate_settled_fee_pair_grid_extension_row(
+        self, row, journal, workflow, extension, journal_api
+    ) -> None:
+        """Bind a physically appended v23 GRID row to its settled decision.
+
+        A settled GRID row is not a source-only anchor: its decision carries
+        the two OPEN intents plus the fee-pair workflow/settlement markers.
+        Validate that terminal identity against the same receipt fields the
+        source-only branch uses, so later prefix scans keep the durable source
+        chain contiguous without accepting an unbound extension row.
+        """
+
+        decision = journal.decision(workflow.grid_settled_decision_id)
+        source_scope = self._fee_pair_source_scope
+        if (
+            decision is None
+            or decision.decision_id != workflow.grid_settled_decision_id
+            or source_scope is None
+            or decision.key.account_scope != source_scope[0]
+            or decision.key.strategy_scope != source_scope[1]
+            or decision.key.logical_run_id != source_scope[2]
+            or decision.key.decision_kind != source_scope[3]
+            or decision.key.cohort_id != row.get("cohort_id")
+            or decision.key.close_time != row.get("close_time")
+            or not decision.intent_keys
+            or decision.economic_payload.get("_execution_source_anchor_only") is True
+            or decision.economic_payload.get("_execution_fee_pair_workflow")
+            != dict(extension)
+        ):
+            raise RunnerError("FEE_PAIR_TAPE_EXTENSION_BINDING_MISMATCH")
+        settlement = decision.economic_payload.get("_execution_fee_pair_settlement")
+        if (
+            not isinstance(settlement, Mapping)
+            or settlement.get("candidate_id") != workflow.candidate_id
+            or settlement.get("candidate_sha256") != workflow.candidate_sha256
+            or not _is_lower_sha256(settlement.get("settlement_sha256"))
+        ):
+            raise RunnerError("FEE_PAIR_TAPE_EXTENSION_BINDING_MISMATCH")
+        receipt_values = decision.economic_payload.get("_execution_source_receipt")
+        if not isinstance(receipt_values, Mapping):
+            raise RunnerError("FEE_PAIR_TAPE_EXTENSION_BINDING_MISMATCH")
+        self._validate_fee_pair_extension_receipt(
+            row, receipt_values, source_scope[3], journal_api
+        )
+        return None
+
+    def _validate_fee_pair_extension_receipt(
+        self, row, receipt_values, source_kind, journal_api
+    ) -> None:
         row_receipt_fields = (
             ("cohort_id", "cohort_id"),
             ("calendar_id", "calendar_id"),
@@ -5505,7 +5734,7 @@ class DecisionTapeWriter:
             ("record_index", "tape_record_index"),
         )
         if (
-            receipt_values.get("source_kind") != source_scope[3]
+            receipt_values.get("source_kind") != source_kind
             or any(
                 receipt_values.get(receipt_name) != row.get(row_name)
                 for row_name, receipt_name in row_receipt_fields
@@ -8528,7 +8757,11 @@ class QueryRefreshLoop:
                     else "TERMINAL_WINDDOWN_NOT_CONFIRMED"
                 )
                 self.shutdown_completed_at = time.monotonic()
-            preserve_current_refresh = requested and ready
+            # A requested shutdown must still hand the strategy a complete
+            # final query-set receipt. Interrupting the in-flight pass would
+            # replace the last complete receipt with a partial one and make
+            # UNKNOWN reconciliation fail closed on a missing receipt.
+            preserve_current_refresh = bool(requested)
         with self._refresh_start_lock:
             self._stop.set()
             if not preserve_current_refresh:

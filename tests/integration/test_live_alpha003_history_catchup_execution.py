@@ -1055,7 +1055,7 @@ def test_alpha003_catching_up_source_anchor_requires_verified_no_intent_tape(
             super().__init__()
             self.source_observations = []
 
-        def _live_facts(self, now):
+        def _live_facts(self, now, *, hold_projection=False):
             return None
 
         def _observe(self, phase):
@@ -1595,13 +1595,13 @@ def test_alpha003_prenext_history_warmup_dispatches_owned_risk_cancel(
     api.cancel_order = ctp_cancel
 
     class _PrenextRiskStrategy(alpha_strategy):
-        def _live_facts(self, now):
+        def _live_facts(self, now, *, hold_projection=False):
             receipt = refresh_loop.last_receipt
             completed_at = None if receipt is None else receipt.query_set.completed_at_utc
             assert completed_at is None or completed_at <= now, (completed_at, now)
             if completed_at is not None:
                 projection_clock_observations.append((completed_at, now))
-            return super()._live_facts(now)
+            return super()._live_facts(now, hold_projection=hold_projection)
 
         def start(self):
             super().start()

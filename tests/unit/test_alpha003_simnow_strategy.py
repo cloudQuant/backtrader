@@ -1210,7 +1210,7 @@ def test_live_shadow_records_complete_source_grid_without_risk_budget_facts():
         strategy._shutdown_requested = Event()
         strategy.last_order_plan = None
         strategy.last_execution_block_reason = None
-        strategy._live_facts = lambda _now: None
+        strategy._live_facts = lambda _now, **_kwargs: None
         strategy._dispatch_live_actions = lambda *_args: pytest.fail(
             "shadow mode must not dispatch live actions"
         )
@@ -1406,10 +1406,14 @@ def test_live_execution_evidence_payload_binds_quote_and_query_times():
     query = SimpleNamespace(
         family="positions_result",
         target_id=None,
+        request_type="query",
         request_id=11,
         connection_generation=4,
+        account_fingerprint="account-1",
+        trading_day="20261024",
         started_at=AVAILABLE,
         completed_at=AVAILABLE + timedelta(seconds=1),
+        source_owned=True,
         query_complete=True,
         scope_complete=True,
         row_count=2,
@@ -1418,7 +1422,12 @@ def test_live_execution_evidence_payload_binds_quote_and_query_times():
         snapshot_id="facts-2",
         available_at=AVAILABLE + timedelta(seconds=2),
         account=SimpleNamespace(
-            snapshot_id="account-2", available_at=AVAILABLE + timedelta(seconds=1)
+            snapshot_id="account-2",
+            available_at=AVAILABLE + timedelta(seconds=1),
+            currency="CNY",
+            used_margin=Decimal("0"),
+            current_notional=Decimal("0"),
+            current_worst_case_loss=Decimal("0"),
         ),
         quotes=(quote,),
         query_provenance=(query,),
@@ -5259,7 +5268,7 @@ def test_cerebro_strategy_blocks_open_then_replays_owned_close_once(
         # decision-scope and _live_risk_decision wiring. The planner result
         # combines one source-backed owned CLOSE with a single synthetic OPEN
         # so this case isolates the guard's boundary behavior.
-        strategy._live_facts = lambda _now: facts
+        strategy._live_facts = lambda _now, **_kwargs: facts
         strategy._record_decision_tape = lambda *_args: (
             True,
             {

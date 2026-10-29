@@ -12,6 +12,7 @@ from contextlib import closing
 from dataclasses import replace
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
+from hashlib import sha256
 import json
 import math
 from pathlib import Path
@@ -29,6 +30,69 @@ from tests.unit.stores import test_factor_execution_facts as facts_fixtures
 
 RUNNER = runner_fixtures.RUNNER
 UTC = timezone.utc
+
+
+def _install_registered_sim_fake_audit_guards(monkeypatch, tmp_path):
+    """Reject private config access and all socket connections in this fixture."""
+    import builtins
+    import io
+    import os
+    import socket
+
+    allowed_root = Path(tmp_path).resolve()
+    audit = {"protected_path_attempts": [], "network_attempts": []}
+
+    def is_within_allowed_root(path):
+        try:
+            candidate = Path(os.fsdecode(os.fspath(path))).resolve(strict=False)
+        except (OSError, TypeError, ValueError):
+            return False
+        return candidate == allowed_root or allowed_root in candidate.parents
+
+    def check_protected_path(path, operation):
+        try:
+            candidate = Path(os.fsdecode(os.fspath(path)))
+        except (OSError, TypeError, ValueError):
+            return
+        name = candidate.name.lower()
+        is_protected = name in {"config.yaml", "config.yml", ".env"} or name.startswith(
+            ".env."
+        )
+        if is_protected and not is_within_allowed_root(path):
+            audit["protected_path_attempts"].append((operation, name))
+            raise AssertionError("synthetic registered-Sim fixture blocked protected path access")
+
+    original_builtin_open = builtins.open
+    original_io_open = io.open
+    original_os_open = os.open
+
+    def guarded_builtin_open(file, mode="r", *args, **kwargs):
+        check_protected_path(file, "builtins.open")
+        return original_builtin_open(file, mode, *args, **kwargs)
+
+    def guarded_io_open(file, mode="r", *args, **kwargs):
+        check_protected_path(file, "io.open")
+        return original_io_open(file, mode, *args, **kwargs)
+
+    def guarded_os_open(path, flags, *args, **kwargs):
+        check_protected_path(path, "os.open")
+        return original_os_open(path, flags, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "open", guarded_builtin_open)
+    monkeypatch.setattr(io, "open", guarded_io_open)
+    monkeypatch.setattr(os, "open", guarded_os_open)
+
+    def deny_network(operation):
+        def denied(*_args, **_kwargs):
+            audit["network_attempts"].append(operation)
+            raise AssertionError("synthetic registered-Sim fixture blocked network access")
+
+        return denied
+
+    monkeypatch.setattr(socket.socket, "connect", deny_network("socket.connect"))
+    monkeypatch.setattr(socket.socket, "connect_ex", deny_network("socket.connect_ex"))
+    monkeypatch.setattr(socket, "create_connection", deny_network("socket.create_connection"))
+    return audit
 
 
 def _bounded_capacity_fact_projection(facts, *, group):
@@ -176,6 +240,10 @@ def _run_alpha003_live_strategy_order_chain_fixture(
     monkeypatch,
     *,
     _fee_pair_source_only=False,
+    _fee_pair_open_probe=False,
+    _fee_pair_missing_commission_target_index=None,
+    _fee_pair_first_insert_unknown=False,
+    _registered_owned_reduction=False,
     _fee_pair_missing_pair_then_block=False,
     _fee_pair_stale_snapshot_after_append=False,
     _capacity_only=False,
@@ -200,6 +268,9 @@ def _run_alpha003_live_strategy_order_chain_fixture(
         raise TypeError("_causal_quote_barrier must be bool")
     if type(_fee_pair_source_only) is not bool:
         raise TypeError("_fee_pair_source_only must be bool")
+    if type(_registered_owned_reduction) is not bool:
+        raise TypeError("_registered_owned_reduction must be bool")
+    synthetic_sdk_account_fingerprint = sha256(b"fake-broker:fake-investor").hexdigest()[:16]
     if type(_fee_pair_missing_pair_then_block) is not bool:
         raise TypeError("_fee_pair_missing_pair_then_block must be bool")
     if type(_fee_pair_stale_snapshot_after_append) is not bool:
@@ -209,10 +280,32 @@ def _run_alpha003_live_strategy_order_chain_fixture(
         and not _fee_pair_source_only
     ):
         raise ValueError("fee-pair failure modes require fee-pair source-only mode")
-
+    if type(_fee_pair_open_probe) is not bool:
+        raise TypeError("_fee_pair_open_probe must be bool")
+    if type(_fee_pair_first_insert_unknown) is not bool:
+        raise TypeError("_fee_pair_first_insert_unknown must be bool")
+    if _fee_pair_missing_commission_target_index is not None and (
+        type(_fee_pair_missing_commission_target_index) is not int
+        or _fee_pair_missing_commission_target_index not in (0, 1)
+    ):
+        raise ValueError("commission target index must select one of the two pair legs")
+    if _fee_pair_open_probe and (
+        _registered_owned_reduction
+        or _fee_pair_missing_pair_then_block
+        or _fee_pair_stale_snapshot_after_append
+    ):
+        raise ValueError("fee-pair open probe cannot combine with another fixture scenario")
+    if not _fee_pair_open_probe and (
+        _fee_pair_missing_commission_target_index is not None
+        or _fee_pair_first_insert_unknown
+    ):
+        raise ValueError("fee-pair leaf outcomes require the open probe")
     decision_tape_failure_probe = []
     source_receipt_field_probe = []
     fee_pair_source_attempts = []
+    fee_pair_commission_query_calls = []
+    fee_pair_unknown_native_calls = []
+    fee_pair_settlement_probes = []
     fee_pair_writer_attempts = []
     fee_pair_reservation_attempts = []
     fee_pair_stale_snapshot_events = []
@@ -427,17 +520,51 @@ def _run_alpha003_live_strategy_order_chain_fixture(
         current_day=start_day,
         decision_at=decision_at,
     )
+    if _fee_pair_open_probe:
+        config["live"]["commission_identity_by_target"] = {
+            target_id: {
+                "account_id": "fake-investor",
+                "invest_unit_id": "",
+            }
+            for target_id in full_plan["authorized_targets"]
+        }
 
     # Fifty bars keep the order-chain regression small. The capacity pairing
     # below uses the complete 120-minute DCE fixture session; the formal
     # all-pool acceptance grid remains 195 minutes.
     minute_count = len(full_plan["grid"].minutes) if _capacity_only else 50
+    if _fee_pair_missing_commission_target_index is not None:
+        # The missing-row scenario must observe the fail-closed OPEN decision
+        # for the A/Y pair formed on the first live-ready grid and must not
+        # drift into a later, different pair after that proof. End the window
+        # one valid grid after the first pair so no post-proof pair can open.
+        minute_count = min(minute_count, 36)
+    if _registered_owned_reduction:
+        # The owned-cancel scenario seeds a held DCE.A position and the shared
+        # factor tape rebalances away from it on the sixth live-ready grid
+        # (the target becomes DCE.M +1). The seeded partial OPEN is canceled
+        # under the registered fence at that rebalance. If the run keeps
+        # consuming bars after it, the reduction planner re-evaluates the now
+        # unwelcome position and submits a CLOSE, which the winddown cannot
+        # reconcile. End the grid on the bar after the rebalance so the run
+        # shuts down with the owned position still nonflat
+        # (run_end_policy=KEEP_POSITIONS). The cancel is either the rebalance
+        # reduction or, on the final batch, the exit-window cancellation of
+        # the same owned partial OPEN; both are the real production paths and
+        # no synthetic CLOSE is fabricated, accepted, or asserted away.
+        minute_count = min(minute_count, 27)
     plan = dict(full_plan)
     plan["grid"] = replace(full_plan["grid"], minutes=full_plan["grid"].minutes[:minute_count])
     planned_closes = {minute.close_time for minute in plan["grid"].minutes}
     target_by_instrument = {
         plan["routes"][plan["product_by_target"][target]]: target for target in plan["targets"]
     }
+    missing_commission_instrument = None
+    if _fee_pair_missing_commission_target_index is not None:
+        if _fee_pair_missing_commission_target_index >= len(plan["targets"]):
+            raise ValueError("fee-pair commission probe target index is outside the configured plan")
+        missing_target_id = plan["targets"][_fee_pair_missing_commission_target_index]
+        missing_commission_instrument = plan["routes"][plan["product_by_target"][missing_target_id]]
     bars_by_instrument = defaultdict(deque)
 
     def refill_bars():
@@ -608,6 +735,37 @@ def _run_alpha003_live_strategy_order_chain_fixture(
             }
             for instrument, exchange in route_rows
         ]
+        if _fee_pair_open_probe:
+            account_row = dict(rows["account_result"][0])
+            account_row.update(
+                BrokerID="fake-broker",
+                AccountID="fake-investor",
+                TradingDay=start_day.strftime("%Y%m%d"),
+                CurrencyID="CNY",
+                CloseProfit="0",
+                PositionProfit="0",
+                Commission="0",
+            )
+            rows["account_result"] = [account_row]
+            rows["instrument_commission_rate_result"] = [
+                {
+                    "BrokerID": "fake-broker",
+                    "InstrumentID": instrument,
+                    "ExchangeID": exchange,
+                    "InvestUnitID": "",
+                    "InvestorRange": "1",
+                    "InvestorID": "",
+                    "BizType": "1",
+                    "OpenRatioByMoney": "0",
+                    "OpenRatioByVolume": "0",
+                    "CloseRatioByMoney": "0",
+                    "CloseRatioByVolume": "0",
+                    "CloseTodayRatioByMoney": "0",
+                    "CloseTodayRatioByVolume": "0",
+                }
+                for instrument, exchange in route_rows
+                if instrument != missing_commission_instrument
+            ]
         return rows
 
     route_rows = [
@@ -901,7 +1059,243 @@ def _run_alpha003_live_strategy_order_chain_fixture(
     refresh_receipts = []
     refresh_attempt_events = []
     api_instances = []
+    synthetic_sdk_native_apis = []
+    synthetic_sdk_lifecycle = {
+        "start_calls": 0,
+        "login_callbacks": 0,
+        "stop_calls": 0,
+        "stop_and_wait_calls": 0,
+    }
+    registered_reduction_query_identity_observations = []
+    registered_reduction_sdk_identity_observations = []
+    registered_reduction_native_action_evidence = []
     fill_timeline = []
+    registered_reduction_trace = []
+    registered_reduction_seed = {}
+    registered_reduction_admission_trace = []
+    registered_reduction_first_admission_failure = None
+    registered_reduction_trace_started = time.monotonic()
+    registered_reduction_trace_sequence = {"value": 0}
+
+    if _registered_owned_reduction:
+        safe_cancel_messages = {
+            "registered-sim durable cancel dispatch admission failed": (
+                "DURABLE_CANCEL_DISPATCH_ADMISSION_FAILED"
+            ),
+            "registered-sim current complete order query is stale": (
+                "CURRENT_COMPLETE_ORDER_QUERY_UNAVAILABLE"
+            ),
+            "registered-sim current query OrderRef is missing or ambiguous": (
+                "CURRENT_QUERY_ORDER_REF_CARDINALITY"
+            ),
+            "registered-sim current query row differs from KNOWN owner": (
+                "CURRENT_QUERY_ROW_BINDING_MISMATCH"
+            ),
+            "registered-sim current query OrderSysID is ambiguous": (
+                "CURRENT_QUERY_SYSID_CARDINALITY"
+            ),
+            "registered-sim current query conflicts with immutable binding": (
+                "CURRENT_QUERY_IMMUTABLE_BINDING_CONFLICT"
+            ),
+            "registered-sim KNOWN callback account identity differs from current query": (
+                "CALLBACK_ACCOUNT_QUERY_BINDING_MISMATCH"
+            ),
+            "registered-sim factor cancel has no exact route/session": (
+                "FACTOR_CANCEL_ROUTE_SESSION_UNAVAILABLE"
+            ),
+            "registered-sim factor cancel has no held session scope": (
+                "FACTOR_CANCEL_SESSION_SCOPE_UNAVAILABLE"
+            ),
+        }
+
+        def append_registered_reduction_admission_fact(**fact):
+            registered_reduction_trace_sequence["value"] += 1
+            fact["sequence"] = registered_reduction_trace_sequence["value"]
+            fact["elapsed_ms"] = max(
+                0,
+                int((time.monotonic() - registered_reduction_trace_started) * 1000),
+            )
+            registered_reduction_admission_trace.append(fact)
+            if len(registered_reduction_admission_trace) > 192:
+                del registered_reduction_admission_trace[:-192]
+            return fact
+
+        def safe_cancel_exception_chain(error):
+            rows = []
+            current = error
+            seen = set()
+            for _ in range(4):
+                if current is None or id(current) in seen:
+                    break
+                seen.add(id(current))
+                code = getattr(current, "code", None)
+                if not (
+                    type(code) is str
+                    and 0 < len(code) <= 96
+                    and all(char.isupper() or char.isdigit() or char == "_" for char in code)
+                ):
+                    code = None
+                args = getattr(current, "args", ())
+                reason = None
+                if type(args) is tuple and len(args) == 1 and type(args[0]) is str:
+                    reason = safe_cancel_messages.get(args[0])
+                rows.append(
+                    {
+                        "exception_type": type(current).__name__,
+                        "error_code": code,
+                        "reason": reason,
+                    }
+                )
+                current = getattr(current, "__cause__", None) or getattr(
+                    current, "__context__", None
+                )
+            return tuple(rows)
+
+        registered_sim_store_type = registered_sim_module.RegisteredSimStore
+        original_registered_store_cancel = registered_sim_store_type.cancel_order
+        original_factor_begin_order = factor_execution_module.FactorExecutionDecisionScope.begin_order
+
+        def probe_registered_order_query_receipt(store, target_ref):
+            try:
+                # This is a read-only public Store projection. It issues no
+                # provider query and does not replace either source-bound
+                # receipt method used by the production cancellation path.
+                receipt = store.registered_sim_order_identity_query_receipt()
+            except Exception as error:
+                return {
+                    "outcome": "error",
+                    "available": False,
+                    "exception_chain": safe_cancel_exception_chain(error),
+                }
+            row_count = 0
+            order_ref_match_count = 0
+            expiry_remaining_ms = None
+            active_order_row = False
+            request_id_valid = False
+            if receipt is not None:
+                rows = getattr(receipt, "rows", ())
+                try:
+                    row_count = min(512, len(rows))
+                except (TypeError, ValueError):
+                    row_count = 0
+                matching_rows = []
+                for row in rows:
+                    getter = getattr(row, "get", None)
+                    if callable(getter) and getter("OrderRef", getter("order_ref")) == target_ref:
+                        matching_rows.append(row)
+                order_ref_match_count = min(len(matching_rows), 512)
+                if len(matching_rows) == 1:
+                    row_get = getattr(matching_rows[0], "get", None)
+                    status = row_get("OrderStatus", row_get("order_status"))
+                    if type(status) is int:
+                        status = str(status)
+                    active_order_row = (
+                        type(status) is str
+                        and status.strip().lower()
+                        in {
+                            "1",
+                            "3",
+                            "b",
+                            "c",
+                            "parttradedqueueing",
+                            "notradequeueing",
+                            "nottouched",
+                            "touched",
+                        }
+                    )
+                expiry = getattr(receipt, "source_expires_monotonic", None)
+                if type(expiry) in (int, float) and math.isfinite(expiry):
+                    expiry_remaining_ms = max(
+                        -60000, min(3600000, int((expiry - time.monotonic()) * 1000))
+                    )
+                request_id = getattr(receipt, "request_id", None)
+                request_id_valid = type(request_id) is int and request_id > 0
+            return {
+                "outcome": "returned",
+                "available": receipt is not None,
+                "request_id_valid": request_id_valid,
+                "row_count": row_count,
+                "order_ref_match_count": order_ref_match_count,
+                "active_order_row": active_order_row,
+                "expiry_remaining_ms": expiry_remaining_ms,
+            }
+
+        def trace_registered_store_cancel(store, order):
+            nonlocal registered_reduction_first_admission_failure
+            info = getattr(order, "info", {})
+            getter = getattr(info, "get", None)
+            target_ref = getter("external_order_ref") if callable(getter) else None
+            if type(target_ref) is not str or not target_ref:
+                target_ref = None
+            query_probe = probe_registered_order_query_receipt(store, target_ref)
+            append_registered_reduction_admission_fact(
+                phase="store.order_identity_query_preflight",
+                **query_probe,
+            )
+            append_registered_reduction_admission_fact(
+                phase="store.cancel_order",
+                outcome="entered",
+                target_ref_present=target_ref is not None,
+                query_receipt_available=query_probe.get("available"),
+                query_order_ref_match_count=query_probe.get("order_ref_match_count"),
+                query_active_order_row=query_probe.get("active_order_row"),
+                query_expiry_remaining_ms=query_probe.get("expiry_remaining_ms"),
+            )
+            try:
+                result = original_registered_store_cancel(store, order)
+            except BaseException as error:
+                chain = safe_cancel_exception_chain(error)
+                failure = append_registered_reduction_admission_fact(
+                    phase="store.cancel_order",
+                    outcome="error",
+                    exception_chain=chain,
+                    query_receipt_available_before_dispatch=query_probe.get("available"),
+                )
+                if registered_reduction_first_admission_failure is None:
+                    registered_reduction_first_admission_failure = failure
+                raise
+            append_registered_reduction_admission_fact(
+                phase="store.cancel_order",
+                outcome="returned",
+                result_present=result is not None,
+            )
+            return result
+
+        def trace_factor_begin_order(scope, order, *, action):
+            if action != "CANCEL":
+                return original_factor_begin_order(scope, order, action=action)
+            append_registered_reduction_admission_fact(
+                phase="coordinator.begin_order",
+                outcome="entered",
+                action_cancel=True,
+                active_scope=scope.dispatch_allowed is True,
+            )
+            try:
+                attempt = original_factor_begin_order(scope, order, action=action)
+            except BaseException as error:
+                append_registered_reduction_admission_fact(
+                    phase="coordinator.begin_order",
+                    outcome="error",
+                    action_cancel=True,
+                    exception_chain=safe_cancel_exception_chain(error),
+                )
+                raise
+            append_registered_reduction_admission_fact(
+                phase="coordinator.begin_order",
+                outcome="returned",
+                action_cancel=True,
+                intent_present=getattr(attempt, "intent", None) is not None,
+            )
+            return attempt
+
+        monkeypatch.setattr(
+            registered_sim_store_type, "cancel_order", trace_registered_store_cancel
+        )
+        monkeypatch.setattr(
+            factor_execution_module.FactorExecutionDecisionScope,
+            "begin_order",
+            trace_factor_begin_order,
+        )
 
     def note_fill_event(kind, **facts):
         if len(fill_timeline) >= 512 or not api_instances or api_instances[-1]._phase != 1:
@@ -1393,13 +1787,19 @@ def _run_alpha003_live_strategy_order_chain_fixture(
         registered_sim_module.RegisteredSimStore, "submit_order", traced_store_submit
     )
 
-    ctp_client_module = None
-    for module_name in ("bt_api_ctp.ctp.client", "bt_api_py.ctp.client"):
-        try:
-            ctp_client_module = __import__(module_name, fromlist=["MdClient", "TraderClient"])
-            break
-        except ImportError:
-            continue
+    cancel_native_fixtures = None
+    if _registered_owned_reduction:
+        from tests.unit.stores import test_registered_sim_cancel_native_identity as cancel_native_fixtures
+
+        ctp_client_module = cancel_native_fixtures._load_sdk_source(monkeypatch)
+    else:
+        ctp_client_module = None
+        for module_name in ("bt_api_ctp.ctp.client", "bt_api_py.ctp.client"):
+            try:
+                ctp_client_module = __import__(module_name, fromlist=["MdClient", "TraderClient"])
+                break
+            except ImportError:
+                continue
     if ctp_client_module is None:
         pytest.skip("CTP SDK client module is unavailable")
 
@@ -1426,6 +1826,101 @@ def _run_alpha003_live_strategy_order_chain_fixture(
     monkeypatch.setattr(
         ctp_client_module, "CtpNativeStopReceipt", SyntheticCtpNativeStopReceipt, raising=False
     )
+
+    if _registered_owned_reduction:
+        sdk_trader_client_type = ctp_client_module.TraderClient
+        canonical_sdk_module = sys.modules.get("bt_api_ctp.ctp.client")
+        if canonical_sdk_module is not ctp_client_module:
+            raise AssertionError("owned-cancel fixture lost canonical SDK module identity")
+        canonical_sdk_query_scope_getter = sdk_trader_client_type.get_query_session_scope
+        canonical_sdk_session_state_getter = sdk_trader_client_type.get_session_state
+
+        def synthetic_sdk_start(client, block=False, join_observer=True):
+            """Drive the real SDK login callback over a fake native API leaf."""
+            assert type(client) is sdk_trader_client_type
+            assert block is False
+            assert join_observer is False
+            registered_reduction_sdk_identity_observations.append(
+                {
+                    "canonical_module_identity": (
+                        sys.modules.get("bt_api_ctp.ctp.client") is ctp_client_module
+                    ),
+                    "canonical_trader_client_type": (
+                        type(client) is ctp_client_module.TraderClient
+                    ),
+                    "query_session_getter_identity": (
+                        getattr(client.get_query_session_scope, "__func__", None)
+                        is canonical_sdk_query_scope_getter
+                    ),
+                    "session_state_getter_identity": (
+                        getattr(client.get_session_state, "__func__", None)
+                        is canonical_sdk_session_state_getter
+                    ),
+                }
+            )
+            synthetic_sdk_lifecycle["start_calls"] += 1
+            native_api = cancel_native_fixtures._SdkNativeApi()
+            native_api.trader = client
+            client._api = native_api
+            client._session_native_api = native_api
+            client._session_native_front = client.front
+            client._connected = True
+            client._authentication_state = "authenticated"
+            client._login_state = "logging_in"
+            client._connection_generation = 1
+            client._login_request_id = 1
+            client._login_connection_generation = 1
+            client._query_issuer = client._query_evidence_issuer
+            client._broker_id = "fake-broker"
+            client._investor_id = "fake-investor"
+            client.stopped = False
+            client._spi = ctp_client_module._TraderSpi(client)
+            native_api.trader_spi = client._spi
+            client._spi.OnRspUserLogin(
+                SimpleNamespace(
+                    BrokerID="fake-broker",
+                    UserID="fake-investor",
+                    FrontID=4,
+                    SessionID=7,
+                    TradingDay=start_day.strftime("%Y%m%d"),
+                    MaxOrderRef="7",
+                ),
+                SimpleNamespace(ErrorID=0, ErrorMsg=""),
+                1,
+                True,
+            )
+            synthetic_sdk_lifecycle["login_callbacks"] += 1
+            client._settlement_state = "confirmed"
+            client._settlement_readback_verified = True
+            client._settlement_account_fingerprint = client._account_fingerprint
+            client._settlement_trading_day = client._trading_day
+            client._settlement_connection_generation = 1
+            client._ready = True
+            client._has_current_settlement_readback_locked = lambda: True
+            synthetic_sdk_native_apis.append(native_api)
+            if _registered_owned_reduction:
+                api = getattr(client.on_order, "__self__", None)
+                if api is None or api not in api_instances:
+                    raise AssertionError("synthetic SDK client lost its production wrapper owner")
+                install_owned_cancel_provider_leaves(api, client)
+
+        def synthetic_sdk_wait_ready(client, timeout=15, *, should_stop=None):
+            del timeout, should_stop
+            return client.is_ready
+
+        def synthetic_sdk_stop(client):
+            synthetic_sdk_lifecycle["stop_calls"] += 1
+            client.stopped = True
+
+        def synthetic_sdk_stop_and_wait(client, timeout=2.0):
+            assert 0.0 <= timeout <= 2.0
+            synthetic_sdk_lifecycle["stop_and_wait_calls"] += 1
+            return SyntheticCtpNativeStopReceipt(client._connection_generation)
+
+        monkeypatch.setattr(sdk_trader_client_type, "start", synthetic_sdk_start)
+        monkeypatch.setattr(sdk_trader_client_type, "wait_ready", synthetic_sdk_wait_ready)
+        monkeypatch.setattr(sdk_trader_client_type, "stop", synthetic_sdk_stop)
+        monkeypatch.setattr(sdk_trader_client_type, "stop_and_wait", synthetic_sdk_stop_and_wait)
 
     import backtrader.stores.btapistore as btapistore_module
 
@@ -1456,6 +1951,7 @@ def _run_alpha003_live_strategy_order_chain_fixture(
             self.on_error = None
             self._subscribed = set()
             self._scheduled_bar_ids = set()
+            self._last_dispatched_event_time = {}
             self.stopped = False
             self._api = api_instances[-1]
 
@@ -1580,7 +2076,8 @@ def _run_alpha003_live_strategy_order_chain_fixture(
                     delivery_at = (
                         synthetic_ctp_tick_time(row["bucket_end"])
                         if _causal_quote_barrier
-                        else row["available_at"] + timedelta(milliseconds=200)
+                        else row["available_at"]
+                        + timedelta(milliseconds=200)
                     )
 
                     def deliver(instrument=instrument, row=row, bar_id=bar_id):
@@ -1600,6 +2097,7 @@ def _run_alpha003_live_strategy_order_chain_fixture(
                             callback_generation = self._dispatch_tick(payload)
                         finally:
                             del store_callback_time_context.bar_id
+                        self._last_dispatched_event_time[instrument] = event_time
                         self._api.tick_observations.append(
                             (
                                 instrument,
@@ -1683,12 +2181,9 @@ def _run_alpha003_live_strategy_order_chain_fixture(
                         if (
                             self._api._phase == 1
                             and not any(self._api._source_bars.values())
-                            and self._api._pending_close_instrument == instrument
-                            and self._api._pending_close_callback is not None
+                            and instrument in self._api._pending_close_by_instrument
                         ):
-                            order_ref = self._api._pending_close_callback
-                            self._api._pending_close_callback = None
-                            self._api._pending_close_instrument = None
+                            order_ref = self._api._pending_close_by_instrument.pop(instrument)
                             self._api.trader_client.emit_fill(order_ref)
 
                     clock.schedule_at(delivery_at, deliver)
@@ -1703,18 +2198,34 @@ def _run_alpha003_live_strategy_order_chain_fixture(
             if route is None:
                 raise AssertionError("winddown quote route was not configured")
             _instrument, exchange = route
-            event_time = query_completed_at + timedelta(milliseconds=5)
             delivery_at = query_completed_at + timedelta(milliseconds=25)
             api._winddown_scheduled_instruments.add(instrument)
             api._winddown_query_set_for[instrument] = query_set_id
-            api._winddown_metadata[instrument] = {
+            metadata = {
                 "query_set_id": query_set_id,
                 "query_completed_at": query_completed_at.isoformat(),
-                "event_time": event_time.isoformat(),
                 "delivery_at": delivery_at.isoformat(),
             }
+            api._winddown_metadata[instrument] = metadata
 
             def deliver():
+                # Derive the source event time at delivery: a time precomputed
+                # from query_completed_at + 5ms can predate the last regular
+                # tick (bucket_end + 2.01s) and the Store rejects it as an
+                # out-of-order quote (VOLUME_DISCONTINUITY). Keep it strictly
+                # after both the completed refresh and every dispatched tick.
+                # The capacity probe relies on the bar's own tick remaining the
+                # latest snapshot, so it keeps the historical offset.
+                if _capacity_only:
+                    event_time = query_completed_at + timedelta(milliseconds=5)
+                else:
+                    floor = query_completed_at + timedelta(milliseconds=5)
+                    last_dispatched = self._last_dispatched_event_time.get(instrument)
+                    if last_dispatched is not None:
+                        floor = max(floor, last_dispatched + timedelta(milliseconds=1))
+                    event_time = max(floor, clock.utc_now())
+                metadata["event_time"] = event_time.isoformat()
+                self._last_dispatched_event_time[instrument] = event_time
                 payload = self._raw_tick(
                     instrument,
                     exchange,
@@ -1727,12 +2238,9 @@ def _run_alpha003_live_strategy_order_chain_fixture(
                 )
                 if (
                     api._phase == 1
-                    and api._pending_close_instrument == instrument
-                    and api._pending_close_callback is not None
+                    and instrument in api._pending_close_by_instrument
                 ):
-                    order_ref = api._pending_close_callback
-                    api._pending_close_callback = None
-                    api._pending_close_instrument = None
+                    order_ref = api._pending_close_by_instrument.pop(instrument)
                     api.trader_client.emit_fill(order_ref)
 
             clock.schedule_at(delivery_at, deliver)
@@ -1781,12 +2289,36 @@ def _run_alpha003_live_strategy_order_chain_fixture(
             self._session_id = 7
             self._req_id = 0
             self._next_order_ref_value = 100
+            self._query_state_lock = threading.RLock()
             self.is_ready = True
             self.is_read_only_ready = True
             self.is_trading_ready = True
             self.stopped = False
             self.native_calls = self._api.native_calls
             self._provider_orders = {}
+            if _registered_owned_reduction:
+                for row in query_rows["orders_result"]:
+                    order_ref = str(row["OrderRef"])
+                    self._provider_orders[order_ref] = {
+                        "order_ref": order_ref,
+                        "order_sys_id": str(row["OrderSysID"]),
+                        "instrument_id": str(row["InstrumentID"]),
+                        "exchange_id": str(row["ExchangeID"]),
+                        "side": "buy" if str(row["Direction"]) == "0" else "sell",
+                        "offset_flag": str(row["CombOffsetFlag"]),
+                        "offset": {
+                            "0": "open",
+                            "1": "close",
+                            "3": "close_today",
+                            "4": "close_yesterday",
+                        }.get(str(row["CombOffsetFlag"])),
+                        "size": int(row["VolumeTotalOriginal"]),
+                        "filled": int(row["VolumeTraded"]),
+                        "remaining": int(row["VolumeTotal"]),
+                        "price": float(row["LimitPrice"]),
+                        "front_id": int(row["FrontID"]),
+                        "session_id": int(row["SessionID"]),
+                    }
             self._fake_active_capability = None
 
         def start(self, block=False, join_observer=True):
@@ -1827,6 +2359,20 @@ def _run_alpha003_live_strategy_order_chain_fixture(
         def arm_execution_for_registered_sim(self, **kwargs):
             capability, state = self.trader_client.arm_execution_for_registered_sim(**kwargs)
             self._fake_active_capability = capability
+            if _fee_pair_open_probe:
+                # This synthetic leaf carries the canonical SDK module identity
+                # for the open probe, so the Store's armed-grant readback
+                # resolves the exchange-qualified SDK instrument through the
+                # SDK's own canonicalizer. Publish that exact spelling on the
+                # fake gate projection instead of the bare route instrument.
+                canonical = ctp_client_module.canonical_ctp_bundle_instrument(
+                    kwargs["instrument_id"], kwargs.get("exchange_id", "")
+                )
+                if not canonical:
+                    raise AssertionError("synthetic SDK could not canonicalize the arm route")
+                state = dict(state)
+                state.update(instrument=canonical, authorized_instruments=[canonical])
+                self.trader_client._gate_state = dict(state)
             return capability, state
 
         def disarm_execution_gate(self, capability, reason):
@@ -1846,10 +2392,29 @@ def _run_alpha003_live_strategy_order_chain_fixture(
 
         def _query_family(self, family, request_type, **filters):
             self.query_rows = dict(query_rows)
+            if _fee_pair_open_probe and family == "instrument_commission_rate_result":
+                fee_pair_commission_query_calls.append(
+                    {
+                        "instrument": filters.get("instrument_id"),
+                        "exchange": filters.get("exchange_id"),
+                    }
+                )
             started_at = clock.utc_now()
-            self.query_time = started_at + timedelta(milliseconds=2)
+            if _fee_pair_open_probe:
+                # One sealed query batch publishes a single risk snapshot: all
+                # of its family (and sidecar) completions must share one source
+                # instant so the projection's instrument.available_at equals
+                # facts.available_at. Advance once at the batch start instead of
+                # once per family; the quote barrier still observes strictly
+                # later refreshes because each new batch advances the clock.
+                if family == "account_result":
+                    clock.advance(timedelta(milliseconds=2))
+                self.query_time = clock.utc_now()
+            else:
+                self.query_time = started_at + timedelta(milliseconds=2)
             result = super()._query_family(family, request_type, **filters)
-            clock.advance(timedelta(milliseconds=2))
+            if not _fee_pair_open_probe:
+                clock.advance(timedelta(milliseconds=2))
             note_fill_event(
                 "query_completed",
                 family=family,
@@ -1897,6 +2462,15 @@ def _run_alpha003_live_strategy_order_chain_fixture(
 
         def query_instrument_commission_rate(self, instrument, exchange_id="", timeout=5):
             del timeout
+            if _fee_pair_open_probe:
+                fee_pair_commission_query_calls.append(
+                    {"instrument": instrument, "exchange": exchange_id}
+                )
+            if (
+                _fee_pair_open_probe
+                and instrument == missing_commission_instrument
+            ):
+                return None
             return {
                 "InstrumentID": instrument,
                 "ExchangeID": exchange_id,
@@ -1933,7 +2507,6 @@ def _run_alpha003_live_strategy_order_chain_fixture(
             }
             if identity["offset"] is None:
                 raise AssertionError("unexpected CTP offset in source-backed order")
-            self._provider_orders[order_ref] = identity
             self.native_calls.append(
                 (
                     "insert",
@@ -1943,6 +2516,47 @@ def _run_alpha003_live_strategy_order_chain_fixture(
                     request_id,
                 )
             )
+            if (
+                _fee_pair_open_probe
+                and _fee_pair_first_insert_unknown
+                and identity["offset"] == "open"
+                and not fee_pair_unknown_native_calls
+            ):
+                fee_pair_unknown_native_calls.append(
+                    {
+                        "instrument": identity["instrument_id"],
+                        "exchange": identity["exchange_id"],
+                        "order_ref": order_ref,
+                    }
+                )
+                # The native call timed out from the caller's perspective, but
+                # the synthetic provider models the exchange having processed
+                # the request into a terminal no-fill cancellation. Publishing
+                # that exact row lets the next complete orders query reconcile
+                # the UNKNOWN and retire the Store latch. The dispatch itself
+                # still raises, so the Journal keeps dispatch_state=UNKNOWN.
+                self._provider_orders[order_ref] = identity
+                # The submit response itself was UNKNOWN, so the provider
+                # cannot attest an OrderSysID for this lineage. Publish the
+                # terminal no-fill row with an empty SysID so the original
+                # identity join is exact rather than a fabricated mismatch.
+                terminal_identity = dict(identity)
+                terminal_identity["order_sys_id"] = ""
+                self._publish_order(
+                    terminal_identity, status="5", filled=0, remaining=identity["size"]
+                )
+                self._api._mark_refresh_required()
+                raise TimeoutError("synthetic_registered_sim_submit_outcome_unknown")
+            self._provider_orders[order_ref] = identity
+            if _registered_owned_reduction and self._api._phase == 1:
+                registered_reduction_trace.append(
+                    {
+                        "kind": "native_insert",
+                        "offset": identity["offset"],
+                        "instrument": identity["instrument_id"],
+                        "order_ref": order_ref,
+                    }
+                )
             self._publish_order(identity, status="3", filled=0, remaining=identity["size"])
             order_callback = self.on_order
             if not callable(order_callback):
@@ -1951,22 +2565,42 @@ def _run_alpha003_live_strategy_order_chain_fixture(
             if (
                 self._api._phase == 1
                 and identity["offset"] == "open"
-                and self._api._pending_fill_callback is None
+                and not _fee_pair_open_probe
+                and identity["instrument_id"]
+                not in self._api._pending_fill_by_instrument
                 and not self._api._applied_fill_query
             ):
-                self._api._pending_fill_callback = order_ref
-                self._api._pending_fill_instrument = identity["instrument_id"]
+                self._api._pending_fill_by_instrument[identity["instrument_id"]] = order_ref
             elif self._api._phase == 1 and identity["offset"].startswith("close"):
-                self._api._pending_close_callback = order_ref
-                self._api._pending_close_instrument = identity["instrument_id"]
+                self._api._pending_close_by_instrument[identity["instrument_id"]] = order_ref
+            if _fee_pair_open_probe:
+                # A synchronous KNOWN insert acknowledgement in this synthetic
+                # provider carries the exact response identity (as a provider
+                # that returns a binding in the submit receipt would). The
+                # production Store records that immutable binding, letting the
+                # unfilled working order join its Journal owner exactly so the
+                # exit window can cancel it.
+                field.OrderSysID = identity["order_sys_id"]
+                field.FrontID = identity["front_id"]
+                field.SessionID = identity["session_id"]
             self._api._mark_refresh_required()
             return 0
 
-        def submit_order_action(self, field, request_id, *, execution_capability):
+        def submit_order_action(
+            self,
+            field,
+            request_id,
+            *,
+            execution_capability,
+            deadline_monotonic=None,
+        ):
             if execution_capability is not self._fake_active_capability:
                 raise AssertionError("native cancel did not receive the exact SDK grant")
+            del deadline_monotonic
             order_ref = str(field.OrderRef)
             identity = self._provider_orders[order_ref]
+            filled = int(identity.get("filled", 0))
+            remaining = int(identity.get("remaining", identity["size"] - filled))
             self.native_calls.append(
                 (
                     "cancel",
@@ -1976,10 +2610,44 @@ def _run_alpha003_live_strategy_order_chain_fixture(
                     request_id,
                 )
             )
-            self._publish_order(identity, status="5", filled=0, remaining=identity["size"])
-            self.on_order(self._ctp_order_event(identity, "5", 0, identity["size"]))
+            if _registered_owned_reduction and self._api._phase == 1:
+                registered_reduction_trace.append(
+                    {
+                        "kind": "native_cancel",
+                        "order_ref": order_ref,
+                        "filled": filled,
+                        "remaining": remaining,
+                    }
+                )
+            self._publish_order(identity, status="5", filled=filled, remaining=remaining)
+            self.on_order(self._ctp_order_event(identity, "5", filled, remaining))
             self._api._mark_refresh_required()
             return 0
+
+        def get_order_action_evidence(self, request_id, *, order_action_ref=None):
+            """Expose the canonical SDK evidence lookup shape for the probe.
+
+            Cancels dispatched by this synthetic leaf are answered
+            synchronously, so no stale action evidence survives the call.
+            """
+
+            del request_id, order_action_ref
+            return None
+
+        def _invoke_session_native_request(
+            self,
+            *args,
+            deadline_monotonic=None,
+            dispatch_outcome=None,
+            **kwargs,
+        ):
+            """Carry the SDK's explicit deadline/dispatch-outcome boundary."""
+
+            del args, deadline_monotonic, dispatch_outcome, kwargs
+            raise AssertionError(
+                "synthetic registered-sim probe never routes native calls through "
+                "the session native boundary"
+            )
 
         def _ctp_order_event(self, identity, status, filled, remaining):
             local = clock.utc_now().astimezone(timezone(timedelta(hours=8)))
@@ -2005,6 +2673,8 @@ def _run_alpha003_live_strategy_order_chain_fixture(
 
         def _publish_order(self, identity, *, status, filled, remaining):
             row = {
+                "BrokerID": getattr(self.trader_client, "_broker_id", "fake-broker"),
+                "InvestorID": getattr(self.trader_client, "_investor_id", "fake-investor"),
                 "OrderRef": identity["order_ref"],
                 "OrderSysID": identity["order_sys_id"],
                 "InstrumentID": identity["instrument_id"],
@@ -2028,6 +2698,15 @@ def _run_alpha003_live_strategy_order_chain_fixture(
         def emit_fill(self, order_ref):
             identity = self._provider_orders[str(order_ref)]
             quantity = identity["size"]
+            if _registered_owned_reduction and self._api._phase == 1:
+                registered_reduction_trace.append(
+                    {
+                        "kind": "native_fill",
+                        "offset": identity["offset"],
+                        "order_ref": str(order_ref),
+                        "quantity": quantity,
+                    }
+                )
             self._publish_order(identity, status="0", filled=quantity, remaining=0)
             self.on_order(self._ctp_order_event(identity, "0", quantity, 0))
             local = clock.utc_now().astimezone(timezone(timedelta(hours=8)))
@@ -2100,12 +2779,84 @@ def _run_alpha003_live_strategy_order_chain_fixture(
             )
             self._api._mark_refresh_required()
             if identity["offset"] == "open":
-                self._api._pending_fill_callback = None
-                self._api._pending_fill_instrument = None
+                self._api._pending_fill_by_instrument.pop(identity["instrument_id"], None)
                 self._api._applied_fill_query = True
+            else:
+                self._api._pending_close_by_instrument.pop(identity["instrument_id"], None)
 
     monkeypatch.setattr(ctp_client_module, "MdClient", Alpha003MdClient)
-    monkeypatch.setattr(ctp_client_module, "TraderClient", Alpha003TraderClient)
+    if not _registered_owned_reduction:
+        monkeypatch.setattr(ctp_client_module, "TraderClient", Alpha003TraderClient)
+        if _fee_pair_open_probe:
+            # Source-issued fact markers require exact module/type identity,
+            # and only the open probe exercises the synthetic source lease
+            # that validates them. Other scenarios keep the ordinary
+            # non-canonical fake leaf so shared fixtures are unaffected.
+            Alpha003TraderClient.__module__ = ctp_client_module.__name__
+            # The open probe must exercise the real Store's typed cancel
+            # boundary when the exit window terminates the unfilled pair legs.
+            # Publish the canonical SDK deadline/outcome types on this module
+            # so that boundary's identity checks resolve against this synthetic
+            # leaf; installed SDK builds predating that contract lack them.
+            class CtpExecutionGateError(Exception):
+                pass
+
+            class _CtpNativeRequestDeadlineExpired(CtpExecutionGateError):
+                pass
+
+            class _CtpNativeRequestDispatchOutcome:
+                __dataclass_fields__ = {"native_call_started": object()}
+
+            for _synthetic_type in (
+                CtpExecutionGateError,
+                _CtpNativeRequestDeadlineExpired,
+                _CtpNativeRequestDispatchOutcome,
+            ):
+                _synthetic_type.__module__ = ctp_client_module.__name__
+            monkeypatch.setattr(
+                ctp_client_module,
+                "CtpExecutionGateError",
+                CtpExecutionGateError,
+                raising=False,
+            )
+            monkeypatch.setattr(
+                ctp_client_module,
+                "_CtpNativeRequestDeadlineExpired",
+                _CtpNativeRequestDeadlineExpired,
+                raising=False,
+            )
+            monkeypatch.setattr(
+                ctp_client_module,
+                "_CtpNativeRequestDispatchOutcome",
+                _CtpNativeRequestDispatchOutcome,
+                raising=False,
+            )
+            # The installed SWIG structs enforce CTP's fixed char widths
+            # (BrokerID is char[11], so the synthetic "fake-broker" login
+            # identity cannot be stamped by the real setter). The open probe
+            # only needs attribute storage: the synthetic native leaf reads
+            # the exact values the production wrapper built. Replace the two
+            # order structs for this scenario before the wrapper class is
+            # created.
+            import importlib
+
+            order_structs = importlib.import_module(
+                ctp_client_module.__name__.rsplit(".", 1)[0] + ".ctp_structs_order"
+            )
+
+            class _SyntheticCtpOrderField:
+                pass
+
+            for _field_name in (
+                "CThostFtdcInputOrderField",
+                "CThostFtdcInputOrderActionField",
+            ):
+                monkeypatch.setattr(
+                    order_structs,
+                    _field_name,
+                    _SyntheticCtpOrderField,
+                    raising=False,
+                )
 
     # Retain the actual TickEvent object created by Store. Its fields are read
     # only after the full callback returns, so later Store provenance stamping
@@ -2124,7 +2875,13 @@ def _run_alpha003_live_strategy_order_chain_fixture(
         return result
 
     monkeypatch.setattr(tick_event_class, "__init__", observe_tick_event_init)
-    CtpClientWrapper = btapistore_module._create_ctp_wrapper_class()
+    CtpClientWrapper = (
+        cancel_native_fixtures._fake_ctp_modules(
+            monkeypatch, sdk_client_module=ctp_client_module
+        )
+        if _registered_owned_reduction
+        else btapistore_module._create_ctp_wrapper_class()
+    )
 
     class Alpha003BarTapeMixin(CtpClientWrapper):
         """Only the completed-bar tape is fake; all live CTP paths stay real."""
@@ -2132,15 +2889,21 @@ def _run_alpha003_live_strategy_order_chain_fixture(
         def __init__(self, **kwargs):
             super().__init__(**kwargs)
             self._source_bars = bars_by_instrument
-            self._phase = len(api_instances)
+            # The owned-reduction and fee-pair OPEN probes drive one complete
+            # synthetic live engine generation (provider fills, exit-window
+            # cancellation and winddown quotes). Other scenarios use the
+            # previous-instance count as their phase marker.
+            self._phase = (
+                1
+                if (_registered_owned_reduction or _fee_pair_open_probe)
+                else len(api_instances)
+            )
             self._sent_tick_for = set()
             self._winddown_metadata = {}
             self._winddown_query_set_for = {}
             self._winddown_scheduled_instruments = set()
-            self._pending_fill_callback = None
-            self._pending_fill_instrument = None
-            self._pending_close_callback = None
-            self._pending_close_instrument = None
+            self._pending_fill_by_instrument = {}
+            self._pending_close_by_instrument = {}
             self._applied_fill_query = False
             self.native_calls = []
             self.tick_observations = []
@@ -2149,6 +2912,7 @@ def _run_alpha003_live_strategy_order_chain_fixture(
             self.winddown_poll_blockers = []
             self._required_refresh_start = None
             api_instances.append(self)
+            # Real SDK query/native leaves are installed after connect creates the client.
 
         @property
         def closed(self):
@@ -2181,11 +2945,9 @@ def _run_alpha003_live_strategy_order_chain_fixture(
             self._wait_for_refresh()
             if (
                 self._phase == 1
-                and instrument == self._pending_fill_instrument
-                and self._pending_fill_callback is not None
-                and not self._applied_fill_query
+                and instrument in self._pending_fill_by_instrument
             ):
-                order_ref = self._pending_fill_callback
+                order_ref = self._pending_fill_by_instrument.pop(instrument)
                 note_fill_event(
                     "provider_fill_scheduled_from_bar_tape",
                     order_ref=order_ref,
@@ -2208,6 +2970,246 @@ def _run_alpha003_live_strategy_order_chain_fixture(
             row["trading_day"] = row["trading_day"].replace("-", "")
             return row
 
+    def install_owned_cancel_provider_leaves(api, client):
+        """Attach fake provider query/native leaves to the exact SDK client."""
+        if type(client) is not ctp_client_module.TraderClient:
+            raise AssertionError("owned-cancel provider leaves require canonical TraderClient")
+        if getattr(api, "_synthetic_query_leaf", None) is not None:
+            raise AssertionError("owned-cancel query leaves were installed more than once")
+        query_leaf = facts_fixtures._ProviderLeaves(
+            query_rows=query_rows,
+            query_time=clock.utc_now(),
+            ticks={},
+        )
+        query_leaf.trader_client = client
+        original_query_family = query_leaf._query_family
+
+        def query_family(family, request_type, **filters):
+            started_at = clock.utc_now()
+            query_leaf.query_time = started_at + timedelta(milliseconds=2)
+            result = original_query_family(family, request_type, **filters)
+            clock.advance(timedelta(milliseconds=2))
+            source = getattr(result, "query_source", None)
+            scope = client.get_query_session_scope()
+            registered_reduction_query_identity_observations.append(
+                {
+                    "family": family,
+                    "typed_source_present": source is not None,
+                    "issuer_matches_canonical_session": (
+                        source is not None and source.issuer is scope.issuer
+                    ),
+                    "issuer_matches_sdk_evidence_issuer": (
+                        source is not None
+                        and source.issuer is client._query_evidence_issuer
+                    ),
+                    "connection_generation_matches": (
+                        source is not None
+                        and source.connection_generation == scope.connection_generation
+                    ),
+                    "account_fingerprint_matches": (
+                        source is not None
+                        and source.account_fingerprint == scope.account_fingerprint
+                    ),
+                    "trading_day_matches": (
+                        source is not None and source.trading_day == scope.trading_day
+                    ),
+                    "unfiltered_orders": (
+                        family != "orders_result"
+                        or (source is not None and source.explicit_request_filters == ())
+                    ),
+                }
+            )
+            note_fill_event(
+                "query_completed",
+                family=family,
+                request_id=getattr(result, "request_id", None),
+                query_started_at=started_at.isoformat(),
+                query_completed_at=str(getattr(result, "completed_at_utc", None)),
+                row_count=(
+                    None if getattr(result, "records", None) is None else len(result.records)
+                ),
+                query_complete=getattr(result, "complete", None),
+            )
+            return result
+
+        query_leaf._query_family = query_family
+        for method_name in (
+            "query_account_result",
+            "query_positions_result",
+            "query_orders_result",
+            "query_trades_result",
+            "query_instruments_result",
+            "query_instrument_margin_rate_result",
+            "query_instrument_commission_rate_result",
+        ):
+            setattr(client, method_name, getattr(query_leaf, method_name))
+
+        def query_account(timeout=5):
+            del timeout
+            return dict(query_rows["account_result"][0])
+
+        def query_positions(timeout=5):
+            del timeout
+            return [dict(row) for row in query_rows["positions_result"]]
+
+        def query_instrument(instrument, exchange_id="", timeout=5):
+            del timeout
+            return next(
+                (
+                    dict(row)
+                    for row in query_rows["instruments_result"]
+                    if row.get("InstrumentID") == instrument
+                    and (not exchange_id or row.get("ExchangeID") == exchange_id)
+                ),
+                None,
+            )
+
+        def query_instrument_margin_rate(instrument, exchange_id="", timeout=5):
+            del timeout
+            return next(
+                (
+                    dict(row)
+                    for row in query_rows["instrument_margin_rate_result"]
+                    if row.get("InstrumentID") == instrument
+                    and (not exchange_id or row.get("ExchangeID") == exchange_id)
+                ),
+                None,
+            )
+
+        def query_instrument_commission_rate(instrument, exchange_id="", timeout=5):
+            del timeout
+            return {
+                "InstrumentID": instrument,
+                "ExchangeID": exchange_id,
+                "OpenRatioByMoney": "0",
+                "OpenRatioByVolume": "0",
+                "CloseRatioByMoney": "0",
+                "CloseRatioByVolume": "0",
+                "CloseTodayRatioByMoney": "0",
+                "CloseTodayRatioByVolume": "0",
+            }
+
+        client.query_account = query_account
+        client.query_positions = query_positions
+        client.query_instrument = query_instrument
+        client.query_instrument_margin_rate = query_instrument_margin_rate
+        client.query_instrument_commission_rate = query_instrument_commission_rate
+        api._synthetic_query_leaf = query_leaf
+        api._synthetic_sdk_native_api = client._api
+
+        seed = registered_reduction_seed
+        if not seed:
+            raise AssertionError("owned-cancel source fixture has no exact seed order")
+        order_ref = seed["order_ref"]
+        pending = {
+            "order_ref": order_ref,
+            "order_sys_id": seed["order_sys_id"],
+            "data_name": "{}.{}".format(seed["exchange"], seed["instrument"]),
+            "instrument": seed["instrument"],
+            "exchange_id": seed["exchange"],
+            "side": "buy",
+            "offset": "open",
+            "price": 100.0,
+            "size": 2,
+            "time_in_force": "GFD",
+            "front_id": seed["front_id"],
+            "session_id": seed["session_id"],
+        }
+        api._pending_orders[order_ref] = pending
+        api._pending_orders_by_sys_id[seed["order_sys_id"]] = pending
+
+        def receive_fake_native_action(field, request_id):
+            current_rows = query_rows["orders_result"]
+            matching_rows = [
+                row for row in current_rows if str(row.get("OrderRef")) == order_ref
+            ]
+            if len(matching_rows) != 1:
+                raise AssertionError("fake native cancel lost its exact seeded order")
+            row = matching_rows[0]
+            expected_fields = {
+                "BrokerID": "fake-broker",
+                "InvestorID": "fake-investor",
+                "InstrumentID": seed["instrument"],
+                "ExchangeID": seed["exchange"],
+                "OrderRef": order_ref,
+                "OrderSysID": seed["order_sys_id"],
+                "FrontID": seed["front_id"],
+                "SessionID": seed["session_id"],
+                "ActionFlag": "0",
+                "RequestID": request_id,
+                "OrderActionRef": request_id,
+            }
+            if any(
+                getattr(field, name, None) != value for name, value in expected_fields.items()
+            ):
+                raise AssertionError("SDK native Action differs from seeded query identity")
+            if row.get("OrderStatus") not in {"1", "3", "b", "c"}:
+                raise AssertionError("fake native cancel did not begin from an active order")
+            row["OrderStatus"] = "5"
+            row["OrderSubmitStatus"] = "3"
+            row["VolumeTraded"] = "1"
+            row["VolumeTotal"] = "1"
+            api.native_calls.append(
+                (
+                    "cancel",
+                    seed["instrument"],
+                    seed["exchange"],
+                    order_ref,
+                    request_id,
+                )
+            )
+            registered_reduction_trace.append(
+                {
+                    "kind": "native_cancel",
+                    "order_ref": order_ref,
+                    "filled": 1,
+                    "remaining": 1,
+                }
+            )
+            client._spi.OnRspOrderAction(
+                field,
+                SimpleNamespace(ErrorID=0, ErrorMsg=""),
+                request_id,
+                True,
+            )
+            evidence = client.get_order_action_evidence(
+                request_id, order_action_ref=str(field.OrderActionRef)
+            )
+            registered_reduction_native_action_evidence.append(
+                {
+                    "status": getattr(evidence, "status", None),
+                    "callback_received": getattr(evidence, "callback_received", None),
+                    "evidence_received": getattr(evidence, "evidence_received", None),
+                    "error_code": getattr(evidence, "error_code", None),
+                    "reason": getattr(evidence, "reason", None),
+                }
+            )
+            local = clock.utc_now().astimezone(timezone(timedelta(hours=8)))
+            client._spi.OnRtnOrder(
+                SimpleNamespace(
+                    OrderRef=order_ref,
+                    OrderSysID=seed["order_sys_id"],
+                    InstrumentID=seed["instrument"],
+                    ExchangeID=seed["exchange"],
+                    FrontID=seed["front_id"],
+                    SessionID=seed["session_id"],
+                    OrderStatus="5",
+                    OrderSubmitStatus="3",
+                    Direction="0",
+                    CombOffsetFlag="0",
+                    VolumeTotalOriginal=2,
+                    VolumeTraded=1,
+                    VolumeTotal=1,
+                    LimitPrice=100.0,
+                    TradingDay=seed["trading_day"],
+                    InsertTime=local.strftime("%H:%M:%S"),
+                    UpdateTime=local.strftime("%H:%M:%S"),
+                )
+            )
+            api._mark_refresh_required()
+
+        api._synthetic_sdk_native_api.order_action_hook = receive_fake_native_action
+
     def client_generation(api):
         return api.md_client.connection_generation
 
@@ -2219,9 +3221,25 @@ def _run_alpha003_live_strategy_order_chain_fixture(
             allow_writes, history_limit, terminal_limit, Alpha003BarTapeMixin
         ),
     )
-    synthetic_profile = "synthetic-simnow-profile-v1"
-    synthetic_td_front = "fixture://simnow/trader"
-    synthetic_md_front = "fixture://simnow/market-data"
+    ctp_env_selector = (
+        sys.modules.get("bt_api_ctp.ctp_env_selector")
+        if _registered_owned_reduction
+        else None
+    )
+    if _registered_owned_reduction:
+        synthetic_td_front = "tcp://182.254.243.31:30002"
+        synthetic_md_front = "tcp://182.254.243.31:30012"
+        synthetic_profile = ctp_env_selector.official_simnow_profile_for_td_front(
+            synthetic_td_front
+        )
+        assert synthetic_profile
+        assert ctp_env_selector.verify_official_simnow_profile(
+            synthetic_td_front, synthetic_md_front, synthetic_profile
+        )
+    else:
+        synthetic_profile = "synthetic-simnow-profile-v1"
+        synthetic_td_front = "fixture://simnow/trader"
+        synthetic_md_front = "fixture://simnow/market-data"
 
     def synthetic_fronts(profile):
         if profile != synthetic_profile:
@@ -2232,6 +3250,10 @@ def _run_alpha003_live_strategy_order_chain_fixture(
         return synthetic_profile if td_front == synthetic_td_front else None
 
     def verify_synthetic_profile(td_front, md_front, profile):
+        if _registered_owned_reduction:
+            return ctp_env_selector.verify_official_simnow_profile(
+                td_front, md_front, profile
+            )
         return (td_front, md_front, profile) == (
             synthetic_td_front,
             synthetic_md_front,
@@ -2252,8 +3274,16 @@ def _run_alpha003_live_strategy_order_chain_fixture(
         "md_address": synthetic_md_front,
         "ctp_env_profile": synthetic_profile,
         "environment": "simnow",
-        "broker_id": "9999",
-        "investor_id": "fixture",
+        "broker_id": (
+            "fake-broker"
+            if (_registered_owned_reduction or _fee_pair_open_probe)
+            else "9999"
+        ),
+        "investor_id": (
+            "fake-investor"
+            if (_registered_owned_reduction or _fee_pair_open_probe)
+            else "fixture"
+        ),
         "password": "unused synthetic placeholder",
     }
     synthetic_api_kwargs = {}
@@ -2272,6 +3302,7 @@ def _run_alpha003_live_strategy_order_chain_fixture(
     chain_trace = []
     risk_scope_trace = []
     risk_dispatch_trace = []
+    registered_reduction_cancel_trace = []
     bar_source_trace = {
         "count": 0,
         "samples": [],
@@ -2619,6 +3650,15 @@ def _run_alpha003_live_strategy_order_chain_fixture(
             },
             "risk_scopes": tuple(risk_scope_trace[-64:]),
             "risk_dispatch": tuple(risk_dispatch_trace[-32:]),
+            "registered_reduction_cancel_trace": tuple(
+                registered_reduction_cancel_trace[-32:]
+            ),
+            "registered_reduction_admission_trace": tuple(
+                registered_reduction_admission_trace[-128:]
+            ),
+            "registered_reduction_first_admission_failure": (
+                registered_reduction_first_admission_failure
+            ),
             "reconciliation": tuple(reconciliation_observations[-32:]),
             "terminal_position_checks": tuple(
                 {
@@ -2702,12 +3742,200 @@ def _run_alpha003_live_strategy_order_chain_fixture(
     def capture_bound_strategy(loop, strategy):
         original_bind_strategy(loop, strategy)
         captured_strategies.append(strategy)
+        if _fee_pair_open_probe:
+            # The fee-pair OPEN settlement requires the SDK gate to already be
+            # managed; production arms lazily on the first outbound leg, which
+            # is after settlement. Acquire one real Store-issued grant here
+            # through the same canonical helper the production dispatch path
+            # uses (registered_sim_ensure_arm -> SDK arm_execution_for_registered_sim),
+            # so the route facts report capability_managed from a genuine
+            # admission readback rather than a fabricated projection.
+            target = plan["targets"][0]
+            product = plan["product_by_target"][target]
+            loop.store.registered_sim_ensure_arm(
+                plan["routes"][product], product.exchange_id
+            )
 
         original_next = strategy.next
         original_notify_idle = strategy.notify_idle
         original_run_live = strategy._run_live
         original_notify_trade = strategy.notify_trade
+
+        if _fee_pair_open_probe:
+            original_settlement = strategy._fee_pair_live_grid_settlement
+
+            def observe_fee_pair_settlement(
+                batch, snapshot, facts, plan, planning, target_decision,
+                loss_guard_context, loss_guard_blocker
+            ):
+                actions = tuple(
+                    {
+                        "action": getattr(action, "action", None),
+                        "target_id": getattr(action, "target_id", None),
+                        "instrument": getattr(action, "instrument", None),
+                        "position_effect": getattr(action, "position_effect", None),
+                        "reason": getattr(action, "reason", None),
+                    }
+                    for action in getattr(plan, "actions", ())
+                )
+                selected = tuple(
+                    (
+                        getattr(item, "target_id", None),
+                        getattr(item, "position", None),
+                    )
+                    for item in getattr(target_decision, "targets", ())
+                )
+                result = original_settlement(
+                    batch, snapshot, facts, plan, planning, target_decision,
+                    loss_guard_context, loss_guard_blocker
+                )
+                if len(fee_pair_settlement_probes) < 64:
+                    refresh_loop = getattr(strategy.p, "control_refresh_loop", None)
+                    refresh_receipt = getattr(refresh_loop, "last_receipt", None)
+                    query_set = getattr(refresh_receipt, "query_set", None)
+                    target_ids = tuple(
+                        getattr(item, "target_id", None)
+                        for item in getattr(target_decision, "targets", ())
+                    )
+                    facts_quotes = tuple(getattr(facts, "quotes", ()) or ())
+                    quotes_by_instrument = {
+                        getattr(quote, "instrument", None): quote for quote in facts_quotes
+                    }
+                    quote_times = {}
+                    for target_id in target_ids:
+                        if target_id not in full_plan["product_by_target"]:
+                            continue
+                        product = full_plan["product_by_target"][target_id]
+                        instrument = full_plan["routes"][product]
+                        quote = quotes_by_instrument.get(instrument)
+                        quote_times[target_id] = {
+                            "event_time": getattr(quote, "event_time", None),
+                            "available_at": getattr(quote, "available_at", None),
+                            "quality": getattr(quote, "quality", None),
+                            "blockers": tuple(
+                                blocker
+                                for blocker in (getattr(facts, "blockers", ()) or ())
+                                if isinstance(blocker, str)
+                                and blocker.endswith(":" + target_id)
+                            ),
+                        }
+                    fee_pair_settlement_probes.append(
+                        {
+                            "batch_id": getattr(batch, "batch_id", None),
+                            "readiness": getattr(snapshot, "readiness", None),
+                            "plan_status": getattr(plan, "status", None),
+                            "plan_reason": getattr(plan, "reason", None),
+                            "actions": actions,
+                            "selected": selected,
+                            "planning_present": planning is not None,
+                            "risk_candidate_present": getattr(
+                                plan, "open_risk_candidate", None
+                            ) is not None,
+                            "loss_guard_context_present": loss_guard_context is not None,
+                            "loss_guard_blocker": loss_guard_blocker,
+                            "strategy_facts_now": getattr(
+                                strategy, "_last_execution_facts_now", None
+                            ),
+                            "facts_available_at": getattr(facts, "available_at", None),
+                            "query_set_completed_at": getattr(
+                                query_set, "completed_at_utc", None
+                            ),
+                            "refresh_started_at": getattr(refresh_receipt, "started_at", None),
+                            "refresh_completed_at": getattr(refresh_receipt, "completed_at", None),
+                            "account_available_at": getattr(
+                                getattr(facts, "account", None), "available_at", None
+                            ),
+                            "quote_times": quote_times,
+                            "settlement_returned": result is not None,
+                        }
+                    )
+                return result
+
+            strategy._fee_pair_live_grid_settlement = observe_fee_pair_settlement
         strategy_index = len(captured_strategies) - 1
+
+        if _registered_owned_reduction and strategy_index == 0:
+            seed = registered_reduction_seed
+            target_id = seed["target_id"]
+            order = seed["order"]
+            data = next(item for item in strategy.datas if item._name == target_id)
+            broker = strategy.broker
+            assert data._name == target_id
+            assert order.ref not in broker.orders
+            assert order.ref not in strategy._orders_by_broker_ref
+            order.owner = strategy
+            order.data = data
+            order.addcomminfo(broker.getcommissioninfo(data))
+            order.info.update(
+                {
+                    "external_order_ref": seed["order_ref"],
+                    "external_order_id": seed["order_sys_id"],
+                    "ctp_order_ref": seed["order_ref"],
+                    "order_sys_id": seed["order_sys_id"],
+                    "registered_sim_ctp_order_sys_id": seed["order_sys_id"],
+                    "registered_sim_ctp_order_sys_id_source": "ctp_order_callback",
+                    "_registered_sim_ctp_identity_binding_captured": True,
+                    "_registered_sim_ctp_identity_binding_valid": True,
+                    "_registered_sim_ctp_submitted_order_ref": seed["order_ref"],
+                    "_registered_sim_ctp_submitted_front_id": seed["front_id"],
+                    "_registered_sim_ctp_submitted_session_id": seed["session_id"],
+                    "_registered_sim_ctp_submitted_exchange_id": seed["exchange"],
+                    "_registered_sim_ctp_route_instrument_id": seed["instrument"],
+                    "_registered_sim_ctp_route_exchange_id": seed["exchange"],
+                    "instrument_id": seed["instrument"],
+                    "exchange_id": seed["exchange"],
+                    "factor_position_effect": "OPEN",
+                    "offset": "open",
+                    "factor_strategy_scope": strategy._strategy_scope,
+                    "factor_intent_id": seed["intent_id"],
+                    "factor_session_account_fingerprint": seed["account_fingerprint"],
+                    "factor_session_connection_generation": 1,
+                    "factor_session_trading_day": seed["trading_day"],
+                    "factor_session_front_id": seed["front_id"],
+                    "factor_session_id": seed["session_id"],
+                    "front_id": seed["front_id"],
+                    "session_id": seed["session_id"],
+                    "execution_unknown": False,
+                    "cancel_requested_remote": False,
+                    "cancel_intent_active": False,
+                    "managed_execution_cancel_pending": False,
+                }
+            )
+            order.submit(broker)
+            broker.notify(order)
+            order.accept(broker)
+            broker.notify(order)
+            order.execute(
+                dt=0.0,
+                size=1,
+                price=100.0,
+                closed=0,
+                closedvalue=0.0,
+                closedcomm=0.0,
+                opened=1,
+                openedvalue=1000.0,
+                openedcomm=0.0,
+                margin=0.0,
+                pnl=0.0,
+                psize=1,
+                pprice=100.0,
+            )
+            broker.notify(order)
+            broker.orders[order.ref] = order
+            broker._remember_client_ref(order, seed["order_ref"])
+            broker._orders_by_external_id[seed["order_sys_id"]] = order
+            broker.positions[target_id].update(1, 100.0)
+            strategy._orders_by_broker_ref[order.ref] = order
+            seed.update(strategy=strategy, broker=broker, data=data)
+            registered_reduction_trace.append(
+                {
+                    "kind": "seeded_partial_open_bound",
+                    "order_ref": order.ref,
+                    "executed_size": order.executed.size,
+                    "remaining_size": order.executed.remsize,
+                    "broker_position": broker.positions[target_id].size,
+                }
+            )
 
         def observe_notify_trade(trade):
             result = original_notify_trade(trade)
@@ -2946,7 +4174,11 @@ def _run_alpha003_live_strategy_order_chain_fixture(
                     # quote receipt). Condition.wait_for releases this lock.
                     completed = refresh_condition.wait_for(
                         lambda: successful_refresh_started_after_receipt() is not None,
-                        timeout=4.0,
+                        # The fee-pair open probe uses a synchronous synthetic
+                        # provider and does not schedule a post-receipt refresh;
+                        # waiting the full causal budget on every turn would
+                        # make the probe minutes long without adding evidence.
+                        timeout=0.0 if _fee_pair_open_probe else 4.0,
                     )
                     selected_refresh = successful_refresh_started_after_receipt()
                 else:
@@ -3247,6 +4479,77 @@ def _run_alpha003_live_strategy_order_chain_fixture(
                 )
                 barrier_at = clock.utc_now()
                 now = max(now, barrier_at)
+                # The strict live quote contract requires the consumed quote to
+                # be at/after the risk snapshot the Strategy is about to
+                # project. Every regular bar tick predates the post-receipt
+                # refresh, so dispatch one current quote per member at the
+                # barrier clock: still before the settlement decision, but no
+                # longer older than the query snapshot.
+                barrier_quotes = []
+                barrier_api = api_instances[-1] if api_instances else None
+                barrier_md = getattr(barrier_api, "md_client", None)
+                if barrier_md is not None:
+                    for row in expected_rows:
+                        quote_at = clock.utc_now()
+                        try:
+                            payload = barrier_md._raw_tick(
+                                row["instrument"],
+                                row["exchange"],
+                                row["trading_day"],
+                                quote_at,
+                            )
+                            quote_generation = barrier_md._dispatch_tick(payload)
+                        except Exception as exc:
+                            barrier_quotes.append(
+                                {
+                                    "target_id": row["target"],
+                                    "bar_id": row["bar_id"],
+                                    "error": (type(exc).__name__, str(exc)[:256]),
+                                }
+                            )
+                            continue
+                        barrier_api.tick_observations.append(
+                            (
+                                row["instrument"],
+                                "barrier:" + row["bar_id"],
+                                quote_generation,
+                                row["connection_generation"],
+                            )
+                        )
+                        # Only a feed drain promotes the queued tick through the
+                        # production poll path into the Store's latest-tick
+                        # snapshot the fact projection reads.
+                        barrier_feed = getattr(strategy, "_data_by_target", {}).get(
+                            row["target"]
+                        )
+                        if barrier_feed is None:
+                            barrier_feed = next(
+                                (
+                                    data
+                                    for data in strategy.datas
+                                    if getattr(data, "_dataname", None)
+                                    in (row["target"], row["instrument"])
+                                ),
+                                None,
+                            )
+                        barrier_drain = (
+                            getattr(barrier_feed, "_drain_live_ticks", None)
+                            if barrier_feed is not None
+                            else None
+                        )
+                        barrier_drained = None
+                        if callable(barrier_drain):
+                            barrier_drained = barrier_drain(limit=4, quote_only=True)
+                        barrier_quotes.append(
+                            {
+                                "target_id": row["target"],
+                                "bar_id": row["bar_id"],
+                                "instrument": row["instrument"],
+                                "event_time": quote_at.isoformat(),
+                                "connection_generation": quote_generation,
+                                "drained": barrier_drained,
+                            }
+                        )
                 barrier_record = {
                     "batch_id": getattr(batch, "batch_id", None),
                     "slot_index": getattr(batch, "slot_index", None),
@@ -3266,6 +4569,7 @@ def _run_alpha003_live_strategy_order_chain_fixture(
                     ),
                     "barrier_released_at": barrier_at.isoformat(),
                     "risk_snapshot_evaluated_at": now.isoformat(),
+                    "barrier_quotes": tuple(barrier_quotes),
                     "post_dispatch_clock_advance": post_dispatch_clock_advances_by_close.get(
                         close_time
                     ),
@@ -3645,7 +4949,9 @@ def _run_alpha003_live_strategy_order_chain_fixture(
             missing_pair_forced = False
             stale_snapshot_forced = False
 
-            def observe_fee_pair_source_attempt(batch, snapshot, target_decision, facts):
+            def observe_fee_pair_source_attempt(
+                batch, snapshot, target_decision, facts, **kwargs
+            ):
                 nonlocal missing_pair_forced, stale_snapshot_forced
                 readiness_value = getattr(snapshot, "readiness", None)
                 readiness = getattr(readiness_value, "name", readiness_value)
@@ -3660,8 +4966,9 @@ def _run_alpha003_live_strategy_order_chain_fixture(
                     # its source projection is absent for this LIVE_READY slot.
                     target_decision = None
                     missing_pair_forced = True
+                    kwargs.pop("settlement", None)
                 recorded = original_fee_pair_record(
-                    batch, snapshot, target_decision, facts
+                    batch, snapshot, target_decision, facts, **kwargs
                 )
                 fee_pair_source_attempts.append(
                     {
@@ -3741,6 +5048,37 @@ def _run_alpha003_live_strategy_order_chain_fixture(
             result = original_dispatch_live_actions(actions, batch)
             api = api_instances[-1] if api_instances else None
             if api is not None and api._phase == 1:
+                cancel_rows = []
+                if _registered_owned_reduction:
+                    for action in actions:
+                        if getattr(action, "action", None) != "CANCEL":
+                            continue
+                        order = strategy._find_order_object(action)
+                        info = getattr(order, "info", {}) if order is not None else {}
+                        get_info = getattr(info, "get", lambda name, default=None: default)
+                        cancel_rows.append(
+                            {
+                                "order_ref": getattr(order, "ref", None),
+                                "order_alive": order.alive() if order is not None else None,
+                                "order_status": getattr(order, "status", None),
+                                "data_name": getattr(
+                                    getattr(order, "data", None), "_name", None
+                                ),
+                                "external_order_ref": get_info("external_order_ref"),
+                                "order_sys_id": get_info("order_sys_id"),
+                                "factor_intent_id": get_info("factor_intent_id"),
+                                "factor_cancel_intent_id": get_info("factor_cancel_intent_id"),
+                                "cancel_requested_remote": get_info("cancel_requested_remote"),
+                                "cancel_rejected_local": get_info("cancel_rejected_local"),
+                                "cancel_execution_unknown": get_info("cancel_execution_unknown"),
+                                "cancel_intent_active": get_info("cancel_intent_active"),
+                                "execution_unknown": get_info("execution_unknown"),
+                                "error_code": get_info("error_code"),
+                                "cancel_error_code": get_info("cancel_error_code"),
+                                "run_order_count": strategy._coordinator.run_order_count(),
+                            }
+                        )
+                    registered_reduction_cancel_trace.extend(cancel_rows)
                 risk_dispatch_trace.append(
                     {
                         "kind": "dispatch_live_actions_returned",
@@ -3767,6 +5105,7 @@ def _run_alpha003_live_strategy_order_chain_fixture(
                         )[-8:],
                         "store_writes": len(store_write_calls),
                         "native_calls": len(api.native_calls),
+                        "cancel_orders": tuple(cancel_rows),
                     }
                 )
                 if len(risk_dispatch_trace) > 32:
@@ -3927,6 +5266,52 @@ def _run_alpha003_live_strategy_order_chain_fixture(
                 query_set = getattr(receipt, "query_set", None)
                 api = api_instances[-1] if api_instances else None
                 if (
+                    _registered_owned_reduction
+                    and api is not None
+                    and api._phase == 1
+                    and query_set is not None
+                ):
+                    seed = registered_reduction_seed
+                    instrument = seed["instrument"]
+                    seed_ref = seed["order_ref"]
+                    registered_reduction_trace.append(
+                        {
+                            "kind": "query_refresh",
+                            "query_set_id": query_set.query_set_id,
+                            "orders": tuple(
+                                (
+                                    str(row.get("OrderRef")),
+                                    str(row.get("OrderStatus")),
+                                    int(row.get("VolumeTraded", 0)),
+                                    int(row.get("VolumeTotal", 0)),
+                                )
+                                for row in query_rows["orders_result"]
+                                if str(row.get("OrderRef")) == seed_ref
+                                or str(row.get("InstrumentID")) == instrument
+                            ),
+                            "positions": tuple(
+                                (
+                                    str(row.get("InstrumentID")),
+                                    str(row.get("Position")),
+                                    str(row.get("TodayPosition")),
+                                    str(row.get("YdPosition")),
+                                )
+                                for row in query_rows["positions_result"]
+                                if str(row.get("InstrumentID")) == instrument
+                            ),
+                            "trades": tuple(
+                                (
+                                    str(row.get("TradeID")),
+                                    str(row.get("OrderRef")),
+                                    str(row.get("OffsetFlag")),
+                                    str(row.get("Volume")),
+                                )
+                                for row in query_rows["trades_result"]
+                                if str(row.get("InstrumentID")) == instrument
+                            ),
+                        }
+                    )
+                if (
                     api is not None
                     and api._phase == 1
                     and query_set is not None
@@ -4008,11 +5393,46 @@ def _run_alpha003_live_strategy_order_chain_fixture(
             monotonic_ns=time.monotonic_ns,
         ),
     )
+    # The Journal's freshness proofs also read the wall clock directly through
+    # ``datetime.now``. Keep that leaf on the same virtual event clock, without
+    # changing any validation semantics (identity checks still see real
+    # ``datetime`` instances).
+    _real_datetime = journal_module.datetime
 
+    class _VirtualDateTimeMeta(type):
+        def __call__(cls, *args, **kwargs):
+            return _real_datetime(*args, **kwargs)
+
+        def __instancecheck__(cls, instance):
+            return isinstance(instance, _real_datetime)
+
+        def __subclasscheck__(cls, subclass):
+            return issubclass(subclass, _real_datetime)
+
+        def __getattr__(cls, name):
+            return getattr(_real_datetime, name)
+
+    class _VirtualDateTime(metaclass=_VirtualDateTimeMeta):
+        @classmethod
+        def now(cls, tz=None):
+            value = clock.utc_now()
+            if tz is None:
+                return value.replace(tzinfo=None)
+            return value.astimezone(tz)
+
+        @classmethod
+        def utcnow(cls):
+            return clock.utc_now().replace(tzinfo=None)
+
+    monkeypatch.setattr(journal_module, "datetime", _VirtualDateTime)
     config["live"].update(
         account_scope="alpha003-factor-chain-account",
         strategy_scope="alpha003-factor-chain",
-        logical_run_id="alpha003-factor-chain-run",
+        logical_run_id=(
+            "alpha003-factor-chain-fill-close-run"
+            if _registered_owned_reduction
+            else "alpha003-factor-chain-run"
+        ),
         journal_path=str(tmp_path / "factor-chain.sqlite"),
         ready_timeout_seconds=1.0,
         refresh_timeout_seconds=1.0,
@@ -4033,7 +5453,9 @@ def _run_alpha003_live_strategy_order_chain_fixture(
             for target in plan["authorized_targets"]
         ],
     )
-    config["risk"]["run_end_policy"] = "CLOSE_ALL"
+    config["risk"]["run_end_policy"] = (
+        "KEEP_POSITIONS" if _registered_owned_reduction else "CLOSE_ALL"
+    )
     config["cohort"].update(
         max_pending_slots=1,
         max_live_bar_age_seconds=30.0,
@@ -4041,6 +5463,159 @@ def _run_alpha003_live_strategy_order_chain_fixture(
     )
     config["output"]["decision_tape_path"] = str(tmp_path / "factor-chain-tape.jsonl")
     config["output"]["decision_tape_max_bytes"] = 50_000_000
+    if _registered_owned_reduction:
+        # The existing owner predates the irreversible fee-pair OPEN fence.
+        # Prepare its known Journal identity, then register the fence before
+        # the Strategy starts; generic OPEN decisions stay blocked. Quote
+        # freshness remains a separate requirement for any later CLOSE.
+        from backtrader.order import BuyOrder
+
+        target_id = plan["targets"][0]
+        instrument = plan["routes"][plan["product_by_target"][target_id]]
+        product = plan["product_by_target"][target_id]
+        exchange = product.exchange_id
+        order_sys_id = "seed-alpha003-partial-open-sysid"
+        seed_order = BuyOrder(
+            owner=None,
+            data=None,
+            size=2,
+            price=100.0,
+            exectype=BuyOrder.Limit,
+            simulated=True,
+        )
+        # Construct without a feed before Cerebro binds the Strategy, then
+        # model the held provider order as a live (non-simulated) notification.
+        seed_order.p.simulated = False
+        order_ref = str(seed_order.ref)
+        trading_day = start_day.strftime("%Y%m%d")
+        seed_trade_id = "seed-alpha003-partial-open-trade"
+        seed_decision_time = clock.utc_now() - timedelta(seconds=12)
+        seed_journal = journal_module.ExecutionDecisionJournal(config["live"]["journal_path"])
+        try:
+            account_scope = config["live"]["account_scope"]
+            strategy_scope = config["live"]["strategy_scope"]
+            cohort_id = "registered-owned-partial-open-seed"
+            decision = seed_journal.record_decision(
+                journal_module.ExecutionDecisionKey(
+                    account_scope=account_scope,
+                    strategy_scope=strategy_scope,
+                    logical_run_id="alpha003-factor-chain-fill-close-run",
+                    cohort_id=cohort_id,
+                    close_time=seed_decision_time.isoformat().replace("+00:00", "Z"),
+                    decision_kind="alpha003-rebalance",
+                ),
+                {"batch_id": cohort_id, "mode": "native", "seed_role": "known-partial-open"},
+                intent_keys=(
+                    journal_module.ExecutionIntentKey(
+                        action="SUBMIT",
+                        instrument=instrument,
+                        side="BUY",
+                        position_effect="OPEN",
+                        leg=0,
+                    ),
+                ),
+            )
+            intent = seed_journal.prepare_intent(
+                decision.decision_id,
+                decision.intent_keys[0],
+                {
+                    "target_id": target_id,
+                    "instrument": instrument,
+                    "exchange": exchange,
+                    "side": "BUY",
+                    "position_effect": "OPEN",
+                    "quantity": "2",
+                    "price": "100",
+                },
+                original_identity={
+                    "backtrader_order_ref": seed_order.ref,
+                    "operation": "insert",
+                    "instrument_id": instrument,
+                    "exchange_id": exchange,
+                    "order_ref": order_ref,
+                    "order_sys_id": order_sys_id,
+                    "front_id": 4,
+                    "session_id": 7,
+                    "account_fingerprint": synthetic_sdk_account_fingerprint,
+                    "connection_generation": 1,
+                    "trading_day": trading_day,
+                },
+            )
+            assert seed_journal.claim_dispatch(intent.intent_id) is not None
+            seed_journal.record_dispatch_result(
+                intent.intent_id,
+                state="KNOWN",
+                provider_identity={"order_ref": order_ref, "order_sys_id": order_sys_id},
+                outcome_code="accepted",
+            )
+            known = seed_journal.intent(intent.intent_id)
+            assert known is not None
+            assert known.state == known.dispatch_state == "KNOWN"
+            seed_journal.register_fee_pair_required_scope(account_scope, strategy_scope)
+        finally:
+            seed_journal.close()
+        # The known partial fill follows its durable owner decision in the
+        # same synthetic UTC timeline, then remains fresh for the live query.
+        filled_at = seed_decision_time + timedelta(seconds=2)
+        trade_row = facts_fixtures._query_trade_for_fill(
+            trade_id=seed_trade_id,
+            order_ref=order_ref,
+            order_sys_id=order_sys_id,
+            filled_at=filled_at,
+            quantity="1",
+            price="100",
+        )
+        trade_row.update(
+            InstrumentID=instrument,
+            ExchangeID=exchange,
+            TradingDay=trading_day,
+        )
+        query_rows["orders_result"] = [
+            {
+                "BrokerID": "fake-broker",
+                "InvestorID": "fake-investor",
+                "OrderRef": order_ref,
+                "OrderSysID": order_sys_id,
+                "InstrumentID": instrument,
+                "ExchangeID": exchange,
+                "TradingDay": trading_day,
+                "FrontID": 4,
+                "SessionID": 7,
+                "OrderStatus": "1",
+                "OrderSubmitStatus": "3",
+                "Direction": "0",
+                "CombOffsetFlag": "0",
+                "HedgeFlag": "1",
+                "VolumeTotalOriginal": "2",
+                "VolumeTraded": "1",
+                "VolumeTotal": "1",
+                "LimitPrice": "100",
+            }
+        ]
+        query_rows["trades_result"] = [trade_row]
+        position_row = facts_fixtures._dated_position_row(
+            "1",
+            position_date="TODAY",
+            side="LONG",
+            trading_day=trading_day,
+            PositionCost="1000",
+        )
+        position_row.update(InstrumentID=instrument, ExchangeID=exchange)
+        query_rows["positions_result"] = [position_row]
+        registered_reduction_seed.update(
+            target_id=target_id,
+            instrument=instrument,
+            exchange=exchange,
+            account_fingerprint=synthetic_sdk_account_fingerprint,
+            order=seed_order,
+            order_ref=order_ref,
+            order_sys_id=order_sys_id,
+            intent_id=intent.intent_id,
+            seed_trade_id=seed_trade_id,
+            trading_day=trading_day,
+            front_id=4,
+            session_id=7,
+        )
     config_path.write_text(
         runner_fixtures.yaml.safe_dump(config, sort_keys=False), encoding="utf-8"
     )
@@ -4242,7 +5817,45 @@ def _run_alpha003_live_strategy_order_chain_fixture(
             ),
         }
 
-    if _fee_pair_source_only:
+    if _fee_pair_open_probe:
+        tape = result["decision_tape"]
+        api = api_instances[-1] if api_instances else None
+        return {
+            "evidence_level": "SOURCE_FAKE_REGISTERED_SIM_FEE_PAIR_OPEN_PROBE",
+            "write_mode": result.get("write_mode"),
+            "cleanup_complete": result.get("cleanup_complete"),
+            "shutdown_status": result.get("shutdown_status"),
+            "decision_tape": {
+                "path": tape.get("path"),
+                "max_bytes": tape.get("max_bytes"),
+                "closed": tape.get("closed"),
+                "failed": tape.get("failed"),
+            },
+            "journal_path": config["live"]["journal_path"],
+            "native_calls": tuple(
+                (call[0], call[1], call[2], call[3])
+                for call in (api.native_calls if api is not None else ())
+            ),
+            "store_submit_count": sum(
+                call.get("operation") == "submit" for call in store_write_calls
+            ),
+            "store_submit_errors": tuple(
+                call.get("error_type")
+                for call in store_write_calls
+                if call.get("operation") == "submit" and call.get("error_type") is not None
+            ),
+            "commission_query_calls": tuple(
+                dict(call) for call in fee_pair_commission_query_calls
+            ),
+            "unknown_native_calls": tuple(
+                dict(call) for call in fee_pair_unknown_native_calls
+            ),
+            "settlement_probes": tuple(
+                dict(call) for call in fee_pair_settlement_probes
+            ),
+        }
+
+    if _fee_pair_source_only and not _registered_owned_reduction:
         tape = result["decision_tape"]
         assert result["write_mode"] is True
         assert result["cleanup_complete"] is True
@@ -4450,43 +6063,293 @@ def _run_alpha003_live_strategy_order_chain_fixture(
             "open_fill_close_cancel_chain": "NOT_COVERED_BY_THIS_REGISTERED_SCOPE_FIXTURE",
         }
 
-    # The legacy OPEN/fill/CLOSE/CANCEL assertions below remain available to
-    # historical callers, but current registered-scope tests return through the
-    # SOURCE_ONLY branches above. This fixture has no pre-owned position, so it
-    # does not currently cover owned-position CANCEL/CLOSE dispatch.
+    # Historical runs use the source-only priming phase. The reduction opt-in
+    # starts with a pre-existing owner and an already-registered fee-pair fence.
     assert len(api_instances) == 1
     cancel_api = api_instances[0]
     assert cancel_api.closed is True
     inserts = [call for call in cancel_api.native_calls if call[0] == "insert"]
     cancels = [call for call in cancel_api.native_calls if call[0] == "cancel"]
-    assert inserts, (
-        result,
-        tuple(store_write_calls),
-        tuple(broker_rejections),
-        tuple(refresh_receipts[-8:]),
-        tuple(
-            (
-                getattr(strategy, "last_execution_block_reason", None),
-                getattr(getattr(strategy, "last_order_plan", None), "status", None),
-                getattr(getattr(strategy, "last_order_plan", None), "reason", None),
-                getattr(strategy, "last_execution_facts", None),
-            )
-            for strategy in captured_strategies[-1:]
-        ),
-        str(diagnostic_path),
-    )
-    assert cancels, result
-    assert all(call[2] == "DCE" for call in inserts + cancels)
-    assert result["write_mode"] is True
-    assert result["shutdown_status"] == "PASS"
-    events = result["strategy_order_events"]["events"]
-    assert any(event["status"] == "ACCEPTED" for event in events), events
-    assert any(event["status"] == "CANCELED" for event in events), events
-    assert result["cleanup_complete"] is True
+    if _registered_owned_reduction:
+        assert tuple(call[0] for call in cancel_api.native_calls) == ("cancel",), (
+            cancel_api.native_calls,
+            registered_reduction_cancel_trace,
+        )
+        assert not inserts, inserts
+        assert not [call for call in store_write_calls if call["operation"] == "submit"]
+        assert result["write_mode"] is True
+        assert result["shutdown_status"] == "PASS"
+        assert result["cleanup_complete"] is True
+        first_journal = journal_module.ExecutionDecisionJournal(
+            config["live"]["journal_path"]
+        )
+        try:
+            assert first_journal.fee_pair_required_scope(
+                config["live"]["account_scope"], config["live"]["strategy_scope"]
+            ) is not None
+        finally:
+            first_journal.close()
+    else:
+        assert inserts, (
+            result,
+            tuple(store_write_calls),
+            tuple(broker_rejections),
+            tuple(refresh_receipts[-8:]),
+            tuple(
+                (
+                    getattr(strategy, "last_execution_block_reason", None),
+                    getattr(getattr(strategy, "last_order_plan", None), "status", None),
+                    getattr(getattr(strategy, "last_order_plan", None), "reason", None),
+                    getattr(strategy, "last_execution_facts", None),
+                )
+                for strategy in captured_strategies[-1:]
+            ),
+            str(diagnostic_path),
+        )
+        assert cancels, result
+        assert all(call[2] == "DCE" for call in inserts + cancels)
+        assert result["write_mode"] is True
+        assert result["shutdown_status"] == "PASS"
+        events = result["strategy_order_events"]["events"]
+        assert any(event["status"] == "ACCEPTED" for event in events), events
+        assert any(event["status"] == "CANCELED" for event in events), events
+        assert result["cleanup_complete"] is True
 
-    # Start a second source-backed run on fresh journal/query state.  Its
-    # factor OPEN receives one full CTP fill through the ordinary callback
-    # queue, and the strategy then sends its configured run-end CLOSE_ALL.
+    # The owned-reduction opt-in is a single registered-fence CANCEL-only run.
+    if _registered_owned_reduction:
+        cancel_result = result
+        cancel_api = api_instances[0]
+        persist_diagnostic("registered_reduction_cancel_run_returned", result_value=result)
+        assert cancel_api.closed is True
+        assert tuple(call[0] for call in cancel_api.native_calls) == ("cancel",), (
+            cancel_api.native_calls,
+            registered_reduction_cancel_trace,
+        )
+        assert not [call for call in store_write_calls if call["operation"] == "submit"]
+        assert registered_reduction_seed["strategy"] is captured_strategies[-1]
+        assert registered_reduction_cancel_trace
+        cancel_observation = registered_reduction_cancel_trace[-1]
+        assert cancel_observation["cancel_rejected_local"] is not True, cancel_observation
+        assert cancel_observation["cancel_requested_remote"] is True, cancel_observation
+        assert cancel_observation["cancel_execution_unknown"] is False, cancel_observation
+        assert cancel_observation["error_code"] is None, cancel_observation
+        cancel_native_call = cancel_api.native_calls[0]
+        assert cancel_native_call[1:4] == (
+            registered_reduction_seed["instrument"],
+            registered_reduction_seed["exchange"],
+            registered_reduction_seed["order_ref"],
+        ), cancel_native_call
+        assert type(cancel_native_call[4]) is int and cancel_native_call[4] > 0
+        assert cancel_observation["order_sys_id"] == registered_reduction_seed["order_sys_id"]
+        assert cancel_observation["factor_intent_id"] == registered_reduction_seed["intent_id"]
+        assert isinstance(cancel_observation["factor_cancel_intent_id"], str)
+        assert cancel_observation["factor_cancel_intent_id"]
+
+        trace = tuple(registered_reduction_trace)
+        cancel_index = next(
+            index for index, item in enumerate(trace) if item["kind"] == "native_cancel"
+        )
+        assert trace[cancel_index]["filled"] == 1
+        assert trace[cancel_index]["remaining"] == 1
+        terminal_refresh_index = next(
+            index
+            for index, item in enumerate(trace)
+            if index > cancel_index
+            and item["kind"] == "query_refresh"
+            and any(
+                order_ref == registered_reduction_seed["order_ref"]
+                and status == "5"
+                and filled == 1
+                and remaining == 1
+                for order_ref, status, filled, remaining in item["orders"]
+            )
+            and any(
+                instrument == registered_reduction_seed["instrument"]
+                and quantity == "1"
+                for instrument, quantity, _today, _yesterday in item["positions"]
+            )
+        )
+        assert cancel_index < terminal_refresh_index
+
+        events = cancel_result["strategy_order_events"]["events"]
+        seed_order_events = tuple(
+            event
+            for event in events
+            if event["ref"] == registered_reduction_seed["order"].ref
+        )
+        assert tuple(event["status"] for event in seed_order_events[:3]) == (
+            "SUBMITTED",
+            "ACCEPTED",
+            "PARTIAL",
+        ), seed_order_events
+        assert any(event["status"] == "CANCELED" for event in seed_order_events), seed_order_events
+        assert tuple(
+            event["status"] for event in registered_reduction_seed["strategy"].trade_events
+        ) == ("OPEN",), registered_reduction_seed["strategy"].trade_events
+        assert cancel_result["write_mode"] is True
+        assert cancel_result["shutdown_status"] == "PASS"
+        assert cancel_result["cleanup_complete"] is True
+        assert cancel_result["decision_tape"]["closed"] is True
+        assert cancel_result["decision_tape"]["failed"] is False
+
+        decision_rows = tuple(
+            row
+            for row in RUNNER.iter_decision_tape(
+                Path(cancel_result["decision_tape"]["path"]),
+                max_bytes=cancel_result["decision_tape"]["max_bytes"],
+            )
+            if row["record_type"] == "DECISION"
+        )
+        assert decision_rows
+        assert all(
+            not (
+                action.get("action") == "SUBMIT"
+                and action.get("position_effect") == "OPEN"
+            )
+            for row in decision_rows
+            for action in row["order_plan"].get("actions", ())
+            if isinstance(action, dict)
+        ), decision_rows
+        assert all(
+            action.get("position_effect") != "CLOSE"
+            for row in decision_rows
+            for action in row["order_plan"].get("actions", ())
+            if isinstance(action, dict)
+        ), decision_rows
+
+        final_strategy = registered_reduction_seed["strategy"]
+        final_plan = getattr(final_strategy, "last_order_plan", None)
+        final_facts = getattr(final_strategy.p.control_refresh_loop, "last_facts", None)
+        assert final_facts is not None
+        position_fact = next(
+            item
+            for item in final_facts.positions
+            if item.target_id == registered_reduction_seed["target_id"]
+        )
+        assert position_fact.quantity == Decimal(1), position_fact
+        assert position_fact.attributed_signed_quantity == Decimal(1), position_fact
+        assert len(query_rows["positions_result"]) == 1, query_rows["positions_result"]
+        assert query_rows["positions_result"][0]["Position"] == "1"
+        assert registered_reduction_seed["broker"].positions[
+            registered_reduction_seed["target_id"]
+        ].size == 1
+        assert final_plan is not None
+        assert final_plan.status == "BLOCKED", final_plan
+        assert not final_plan.actions, final_plan
+
+        sdk_identity_observations = tuple(
+            dict(item) for item in registered_reduction_sdk_identity_observations
+        )
+        assert len(sdk_identity_observations) == 1, sdk_identity_observations
+        assert all(all(item.values()) for item in sdk_identity_observations)
+        query_identity_observations = tuple(
+            dict(item) for item in registered_reduction_query_identity_observations
+        )
+        assert query_identity_observations
+        assert all(
+            item["typed_source_present"]
+            and item["issuer_matches_canonical_session"]
+            and item["issuer_matches_sdk_evidence_issuer"]
+            and item["connection_generation_matches"]
+            and item["account_fingerprint_matches"]
+            and item["trading_day_matches"]
+            for item in query_identity_observations
+        ), query_identity_observations
+        orders_query_identity_observations = tuple(
+            item
+            for item in query_identity_observations
+            if item["family"] == "orders_result"
+        )
+        assert len(orders_query_identity_observations) >= 2, query_identity_observations
+        assert all(
+            item["unfiltered_orders"] for item in orders_query_identity_observations
+        ), orders_query_identity_observations
+
+        native_action_evidence = tuple(
+            dict(item) for item in registered_reduction_native_action_evidence
+        )
+        assert len(native_action_evidence) == 1, native_action_evidence
+        assert native_action_evidence[0] == {
+            "status": "accepted",
+            "callback_received": True,
+            "evidence_received": True,
+            "error_code": 0,
+            "reason": "cancel_request_accepted",
+        }, native_action_evidence
+        lifecycle = dict(synthetic_sdk_lifecycle)
+        assert lifecycle["start_calls"] == 1, lifecycle
+        assert lifecycle["login_callbacks"] == 1, lifecycle
+        assert lifecycle["stop_calls"] >= 1, lifecycle
+        assert lifecycle["stop_and_wait_calls"] >= 1, lifecycle
+        pending_order_counts = {
+            "order_ref": len(cancel_api._pending_orders),
+            "sys_id": len(cancel_api._pending_orders_by_sys_id),
+        }
+        assert pending_order_counts == {"order_ref": 0, "sys_id": 0}, pending_order_counts
+
+        final_journal = journal_module.ExecutionDecisionJournal(
+            config["live"]["journal_path"]
+        )
+        try:
+            account_scope = config["live"]["account_scope"]
+            strategy_scope = config["live"]["strategy_scope"]
+            assert final_journal.fee_pair_required_scope(account_scope, strategy_scope) is not None
+            seed_intent = final_journal.intent(registered_reduction_seed["intent_id"])
+            assert seed_intent is not None
+            assert seed_intent.state == seed_intent.dispatch_state == "KNOWN"
+            cancel_intent_id = registered_reduction_seed["order"].info.get(
+                "factor_cancel_intent_id"
+            )
+            assert isinstance(cancel_intent_id, str) and cancel_intent_id
+            cancel_intent = final_journal.intent(cancel_intent_id)
+            assert cancel_intent is not None
+            assert cancel_intent.key.action == "CANCEL"
+            assert cancel_intent.state == cancel_intent.dispatch_state == "KNOWN"
+            cancel_reconciliations = final_journal.reconciliations(
+                seed_intent.intent_id, limit=128
+            )
+            assert any(
+                item.state == "KNOWN"
+                and item.terminal_state == "CANCELLED"
+                and item.position_flat is False
+                and item.query_id
+                for item in cancel_reconciliations
+            ), cancel_reconciliations
+            active_owner = final_journal.active_instrument_owner(
+                account_scope, registered_reduction_seed["instrument"]
+            )
+            # This Journal owner fences unresolved working orders.  A terminal
+            # CANCEL reconciliation releases that order fence even though the
+            # partially filled position remains non-flat in the Broker.
+            assert active_owner is None, active_owner
+        finally:
+            final_journal.close()
+        return {
+            "evidence_level": "SOURCE_FAKE_REGISTERED_SIM_OWNED_CANCEL_ONLY",
+            "registered_fee_pair_scope": True,
+            "seed_open_intent_id": registered_reduction_seed["intent_id"],
+            "seed_open_order_ref": registered_reduction_seed["order_ref"],
+            "seed_open_filled_quantity": 1,
+            "seed_open_remaining_quantity": 1,
+            "native_calls": tuple(call[0] for call in cancel_api.native_calls),
+            "fresh_terminal_query_after_cancel": True,
+            "position_remains_owned": True,
+            "position_remains_nonflat": True,
+            "position_quantity": str(position_fact.quantity),
+            "risk_plan_status": final_plan.status,
+            "risk_plan_actions": tuple(final_plan.actions),
+            "sdk_identity_observations": sdk_identity_observations,
+            "query_identity_observations": query_identity_observations,
+            "native_action_evidence": native_action_evidence,
+            "sdk_lifecycle": lifecycle,
+            "pending_order_counts_after_cleanup": pending_order_counts,
+            "cleanup_complete": cancel_result["cleanup_complete"],
+            "risk_reduction_trace": trace,
+            "admission_trace": tuple(registered_reduction_admission_trace[-128:]),
+            "first_admission_failure": registered_reduction_first_admission_failure,
+        }
+
+    # Start a second source-backed run for the historical OPEN/fill/CLOSE mode.
     query_rows.clear()
     query_rows.update(make_query_rows())
     bars_by_instrument.clear()
@@ -5370,10 +7233,96 @@ def test_registered_sim_fee_pair_scope_fails_closed_before_open_dispatch(
     )
 
 
+@pytest.mark.integration
+def test_registered_sim_cancels_partial_owned_open_under_registered_fence(
+    tmp_path, monkeypatch
+):
+    """Cancel an owned partial OPEN while the registered OPEN fence remains active."""
+    audit = _install_registered_sim_fake_audit_guards(monkeypatch, tmp_path)
+    outcome = _run_alpha003_live_strategy_order_chain_fixture(
+        tmp_path,
+        monkeypatch,
+        _fee_pair_source_only=False,
+        _registered_owned_reduction=True,
+        _diagnostic_path=tmp_path / "registered-owned-cancel.json",
+    )
+    assert audit == {"protected_path_attempts": [], "network_attempts": []}
+    assert outcome["evidence_level"] == "SOURCE_FAKE_REGISTERED_SIM_OWNED_CANCEL_ONLY"
+    assert outcome["registered_fee_pair_scope"] is True
+    assert outcome["seed_open_filled_quantity"] == 1
+    assert outcome["seed_open_remaining_quantity"] == 1
+    assert outcome["native_calls"] == ("cancel",)
+    assert outcome["fresh_terminal_query_after_cancel"] is True
+    assert outcome["position_remains_owned"] is True
+    assert outcome["position_remains_nonflat"] is True
+    assert Decimal(outcome["position_quantity"]) == Decimal(1)
+    assert outcome["risk_plan_status"] == "BLOCKED"
+    assert outcome["risk_plan_actions"] == ()
+    assert outcome["sdk_identity_observations"] == (
+        {
+            "canonical_module_identity": True,
+            "canonical_trader_client_type": True,
+            "query_session_getter_identity": True,
+            "session_state_getter_identity": True,
+        },
+    )
+    query_identity = outcome["query_identity_observations"]
+    assert query_identity
+    assert all(
+        item["typed_source_present"]
+        and item["issuer_matches_canonical_session"]
+        and item["issuer_matches_sdk_evidence_issuer"]
+        and item["connection_generation_matches"]
+        and item["account_fingerprint_matches"]
+        and item["trading_day_matches"]
+        for item in query_identity
+    ), query_identity
+    orders_query_identity = tuple(
+        item for item in query_identity if item["family"] == "orders_result"
+    )
+    assert len(orders_query_identity) >= 2, query_identity
+    assert all(item["unfiltered_orders"] for item in orders_query_identity)
+    assert outcome["native_action_evidence"] == (
+        {
+            "status": "accepted",
+            "callback_received": True,
+            "evidence_received": True,
+            "error_code": 0,
+            "reason": "cancel_request_accepted",
+        },
+    )
+    assert outcome["sdk_lifecycle"]["start_calls"] == 1
+    assert outcome["sdk_lifecycle"]["login_callbacks"] == 1
+    assert outcome["sdk_lifecycle"]["stop_calls"] >= 1
+    assert outcome["sdk_lifecycle"]["stop_and_wait_calls"] >= 1
+    assert outcome["pending_order_counts_after_cleanup"] == {"order_ref": 0, "sys_id": 0}
+    assert outcome["cleanup_complete"] is True
+    assert outcome["first_admission_failure"] is None
+    admission_trace = outcome["admission_trace"]
+    assert any(
+        item.get("phase") == "coordinator.begin_order"
+        and item.get("outcome") == "returned"
+        and item.get("action_cancel") is True
+        for item in admission_trace
+    ), admission_trace
+    assert any(
+        item.get("phase") == "store.order_identity_query_preflight"
+        and item.get("available") is True
+        and item.get("order_ref_match_count") == 1
+        and item.get("active_order_row") is True
+        for item in admission_trace
+    ), admission_trace
+    assert any(
+        item.get("phase") == "store.cancel_order" and item.get("outcome") == "returned"
+        for item in admission_trace
+    ), admission_trace
+
+
 @pytest.mark.skip(
     reason=(
-        "Legacy OPEN/fill/CLOSE/CANCEL chain is pending a synthetic owned-position and "
-        "working-order fixture compatible with the registered fee-pair OPEN fence."
+        "Legacy OPEN/fill/CLOSE/CANCEL chain remains unaccepted; this fixture covers "
+        "owned-order CANCEL only, while the production quote continuity/envelope gate "
+        "still blocks a synthetic CLOSE."
     )
 )
 @pytest.mark.integration

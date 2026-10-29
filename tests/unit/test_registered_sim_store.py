@@ -9,7 +9,7 @@ import subprocess
 import sys
 import threading
 import time
-from dataclasses import FrozenInstanceError
+from dataclasses import FrozenInstanceError, replace
 from datetime import datetime, timezone
 from pathlib import Path
 from types import SimpleNamespace
@@ -1238,6 +1238,105 @@ def test_unknown_retirement_append_failure_keeps_latch_and_exact_retry_queues_on
     assert store.poll_broker_update() is None
     assert store.registered_sim_retire_unknown(**retirement).status == "ALREADY_ABSENT"
     assert len(api._order_updates) == 0
+
+
+def test_unknown_insert_retirement_accepts_ctp_unobserved_front_and_session():
+    """A real CTP insert field carries no FrontID/SessionID.
+
+    ``CThostFtdcInputOrderField`` has no such properties, so an UNKNOWN insert
+    latch must record them as unobserved. Retirement still has to prove the
+    exact recorded lineage (OrderRef, route, operation) and must keep
+    rejecting a recorded session that differs from the durable identity.
+    """
+    api = FakeRegisteredSimWrapper(registered_sim_allow_writes=True)
+    api.trader_client.fail_next_insert = True
+    store = RegisteredSimStore(api=api, allow_writes=True)
+    store._connected = True
+    store.registered_sim_arm(
+        instrument="rb2510",
+        exchange="SHFE",
+        md_front="tcp://127.0.0.1:1",
+        strategy_identity_sha256=_sha("a"),
+        execution_cycle_id="cycle-rb",
+        preflight_sha256=_sha("b"),
+    )
+    order = SimpleNamespace(
+        exectype=OrderBase.Limit,
+        price=12.5,
+        pricelimit=None,
+        created=SimpleNamespace(price=12.5),
+        data=SimpleNamespace(_name="rb2510", _dataname="rb2510"),
+        info={"instrument_id": "rb2510", "exchange_id": "SHFE"},
+        ref=23,
+        isbuy=lambda: True,
+        size=2,
+        valid=None,
+        tradeid=0,
+    )
+
+    with pytest.raises(RegisteredSimExecutionUnknown) as caught:
+        store.submit_order(order)
+    evidence = caught.value.evidence
+    # The fake populates the outbound namespace, but the production CTP insert
+    # field cannot; replace the latch with the exact real-world evidence shape.
+    api._registered_sim_unknown_dispatch = replace(evidence, front_id=None, session_id=None)
+    assert api._registered_sim_unknown_dispatch.front_id is None
+    assert api._registered_sim_unknown_dispatch.session_id is None
+    assert api._registered_sim_frozen is True
+
+    original_identity = {
+        "operation": "insert",
+        "backtrader_order_ref": 23,
+        "order_ref": "native-23",
+        "instrument_id": "rb2510",
+        "exchange_id": "SHFE",
+        "account_fingerprint": "fake-account-1",
+        "connection_generation": 1,
+        "trading_day": "20261024",
+        "front_id": 4,
+        "session_id": 7,
+    }
+    terminal_event = {
+        "kind": "order",
+        "bt_order_ref": 23,
+        "order_ref": "native-23",
+        "instrument": "rb2510",
+        "exchange_id": "SHFE",
+        "front_id": 4,
+        "session_id": 7,
+        "status": "canceled",
+        "terminal_confirmed": True,
+        "execution_unknown": False,
+        "filled": 0,
+        "size": 2,
+        "remaining": 2,
+        "details": {
+            "OrderRef": "native-23",
+            "InstrumentID": "rb2510",
+            "ExchangeID": "SHFE",
+            "FrontID": 4,
+            "SessionID": 7,
+            "OrderStatus": "5",
+            "VolumeTotalOriginal": 2,
+            "VolumeTraded": 0,
+            "VolumeTotal": 2,
+        },
+    }
+    retirement = {
+        "intent_id": "intent-23",
+        "reconciliation_id": "reconciliation-23",
+        "original_identity": original_identity,
+        "expected_session": _expected_session(),
+        "terminal_event": terminal_event,
+    }
+
+    result = store.registered_sim_retire_unknown(**retirement)
+    assert result.status == "QUEUED"
+    assert result.disarmed is True
+    assert api._registered_sim_frozen is False
+    assert api.registered_sim_execution_facts()["unknown_ids"] == []
+    assert store.registered_sim_status()["frozen"] is False
+    assert len(api._order_updates) == 1
 
 
 @pytest.mark.parametrize("mismatch", ["cancel_child", "parent_intent", "order_ref", "front_id"])

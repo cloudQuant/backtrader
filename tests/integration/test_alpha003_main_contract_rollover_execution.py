@@ -9,6 +9,8 @@ paths are the production implementations.
 from __future__ import annotations
 
 from collections import defaultdict, deque
+from collections.abc import Mapping
+import dataclasses
 from dataclasses import replace
 from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal, ROUND_CEILING, ROUND_FLOOR, ROUND_HALF_UP
@@ -31,6 +33,15 @@ UTC = timezone.utc
 LOCAL = timezone(timedelta(hours=8))
 _BAR_COUNT = 50
 _QUOTE_TICK_SIZE = Decimal("0.1")
+# The synthetic SDK session (fake trader leaves) reports this exact account
+# identity in its query scope, and every durable-owner binding is joined to it.
+# The Store must carry the same BrokerID/InvestorID so the Store-issued typed
+# cancel target can be checked against the wrapper's own account identity.
+# Keep both inside the CTP field widths (BrokerID char[11], InvestorID
+# char[13]): a longer synthetic id overflows the real SDK's order struct when
+# the Store binds the outbound field.
+_SYNTHETIC_BROKER_ID = "fakebroker"
+_SYNTHETIC_INVESTOR_ID = "fakeinvestor"
 
 
 def _epoch_price_offset(epoch_id):
@@ -391,6 +402,10 @@ def _run_rollover(tmp_path, monkeypatch, *, unknown_dispatch=False):
         refresh_interval_seconds=0.25,
         quote_max_age_seconds=60.0,
         query_max_age_seconds=7200.0,
+        # The causal replay clock jumps one minute per bar while the query
+        # refresh runs on wall time, so the accepted order-chain fixture's
+        # 7200s window is the correct synthetic bound for the run-loss latch.
+        loss_guard_max_observation_age_seconds=7200,
         shutdown_grace_seconds=0.05 if unknown_dispatch else 5.0,
         allow_writes=True,
     )
@@ -426,6 +441,74 @@ def _run_rollover(tmp_path, monkeypatch, *, unknown_dispatch=False):
     if client_module is None:
         pytest.skip("CTP SDK client module is unavailable")
 
+    class _CtpNativeStopReceipt:
+        """Minimal stand-in for the SDK's generation-bound release receipt."""
+
+        def __init__(
+            self,
+            *,
+            connection_generation,
+            join_required,
+            join_completed,
+            native_released,
+            thread_alive,
+            timed_out,
+            complete,
+        ):
+            self.connection_generation = connection_generation
+            self.join_required = join_required
+            self.join_completed = join_completed
+            self.native_released = native_released
+            self.thread_alive = thread_alive
+            self.timed_out = timed_out
+            self.complete = complete
+
+    # The Store validates an exact typed receipt returned by `stop_and_wait`;
+    # an installed SDK older than that contract has no such symbol, so the
+    # fixture supplies it alongside the fake leaves.
+    monkeypatch.setattr(
+        client_module, "CtpNativeStopReceipt", _CtpNativeStopReceipt, raising=False
+    )
+
+    # A typed native cancel is admitted only when the SDK exposes its deadline
+    # contract: a deadline-expiry error under the SDK gate error plus the
+    # dispatch-outcome record. The installed SDK may predate that surface, so
+    # the fake leaf module publishes the same shape the canonical source does.
+    gate_error = getattr(client_module, "CtpExecutionGateError", None)
+    if not isinstance(gate_error, type):
+        gate_error = type(
+            "CtpExecutionGateError",
+            (Exception,),
+            {"__module__": client_module.__name__},
+        )
+        monkeypatch.setattr(client_module, "CtpExecutionGateError", gate_error, raising=False)
+
+    class _CtpNativeRequestDeadlineExpired(gate_error):
+        """Typed deadline expiry for the fake native cancel boundary."""
+
+    _CtpNativeRequestDeadlineExpired.__module__ = client_module.__name__
+    _CtpNativeRequestDeadlineExpired.__qualname__ = "_CtpNativeRequestDeadlineExpired"
+
+    @dataclasses.dataclass
+    class _CtpNativeRequestDispatchOutcome:
+        """Mirror the SDK's typed pre-dispatch outcome record."""
+
+        native_call_started: bool = False
+
+    _CtpNativeRequestDispatchOutcome.__module__ = client_module.__name__
+    monkeypatch.setattr(
+        client_module,
+        "_CtpNativeRequestDeadlineExpired",
+        _CtpNativeRequestDeadlineExpired,
+        raising=False,
+    )
+    monkeypatch.setattr(
+        client_module,
+        "_CtpNativeRequestDispatchOutcome",
+        _CtpNativeRequestDispatchOutcome,
+        raising=False,
+    )
+
     def build_context(plan, epoch_id):
         trading_day = next(iter(plan["manifest"].trading_days)).current_trading_day
         bars_by_instrument, events = _bar_rows(
@@ -434,6 +517,22 @@ def _run_rollover(tmp_path, monkeypatch, *, unknown_dispatch=False):
             clock_domain_id=config["cohort"]["clock_domain_id"],
         )
         rows = facts_fixtures._query_rows()
+        # A real CTP account row carries CurrencyID and the three PnL legs the
+        # run-loss guard qualifies; the shared default leaf omits them because
+        # it predates that policy. Keep the fake SDK leaf faithful.
+        rows["account_result"] = [
+            {
+                **rows["account_result"][0],
+                "BrokerID": _SYNTHETIC_BROKER_ID,
+                "AccountID": _SYNTHETIC_INVESTOR_ID,
+                "InvestorID": _SYNTHETIC_INVESTOR_ID,
+                "TradingDay": trading_day.strftime("%Y%m%d"),
+                "CurrencyID": "CNY",
+                "CloseProfit": "0",
+                "PositionProfit": "0",
+                "Commission": "0",
+            }
+        ]
         routes = tuple(
             (
                 target,
@@ -442,6 +541,27 @@ def _run_rollover(tmp_path, monkeypatch, *, unknown_dispatch=False):
             )
             for target in plan["targets"]
         )
+        # The fee sidecar queries one exact source-owned commission row per
+        # write route. Zero money ratios keep the synthetic bound at zero while
+        # still satisfying the complete-identity contract.
+        rows["instrument_commission_rate_result"] = [
+            {
+                "BrokerID": _SYNTHETIC_BROKER_ID,
+                "InvestorID": _SYNTHETIC_INVESTOR_ID,
+                "InstrumentID": instrument,
+                "ExchangeID": exchange,
+                "InvestUnitID": "",
+                "BizType": "1",
+                "InvestorRange": "1",
+                "OpenRatioByMoney": "0",
+                "OpenRatioByVolume": "0",
+                "CloseRatioByMoney": "0",
+                "CloseRatioByVolume": "0",
+                "CloseTodayRatioByMoney": "0",
+                "CloseTodayRatioByVolume": "0",
+            }
+            for _target, instrument, exchange in routes
+        ]
         price_offset = _epoch_price_offset(epoch_id)
         rows["instruments_result"] = [
             {
@@ -664,15 +784,49 @@ def _run_rollover(tmp_path, monkeypatch, *, unknown_dispatch=False):
                 )
             )
 
+        def stop_and_wait(self, *, timeout=2.0):
+            del timeout
+            self.stopped = True
+            return _CtpNativeStopReceipt(
+                connection_generation=self._connection_generation,
+                join_required=False,
+                join_completed=True,
+                native_released=True,
+                thread_alive=False,
+                timed_out=False,
+                complete=True,
+            )
+
     class Alpha003TraderClient(facts_fixtures._ProviderLeaves):
         def __init__(self, **_kwargs):
             context = current_context["value"]
             super().__init__(query_rows=context.rows, query_time=clock.utc_now(), ticks={})
             self._context = context
             self._api = context.api
+            # The wrapper has sealed this epoch's multi-instrument arm
+            # templates, so the SDK gate is in managed mode before any concrete
+            # OPEN arm; only `armed`/the active instrument switch per leg.
+            self.trader_client._gate_state = {
+                **self.trader_client._gate_state,
+                "managed": True,
+            }
+            # The source query scope and every durable-owner binding must carry
+            # the same account identity the Store was configured with; the
+            # shared default leaf uses an id too long for the CTP BrokerID field.
+            self.trader_client._broker_id = _SYNTHETIC_BROKER_ID
+            self.trader_client._investor_id = _SYNTHETIC_INVESTOR_ID
+            self._broker_id = _SYNTHETIC_BROKER_ID
+            self._investor_id = _SYNTHETIC_INVESTOR_ID
             self.trader_client._account_fingerprint = "alpha003-rollover-account"
+            self._account_fingerprint = "alpha003-rollover-account"
             self.trader_client._trading_day = context.trading_day.strftime("%Y%m%d")
+            self._trading_day = context.trading_day.strftime("%Y%m%d")
             self.trader_client._connection_generation = 1
+            self._connection_generation = 1
+            # The source-projection marker only accepts the canonical SDK
+            # session getters under their shared login RLock. Bind the fake
+            # leaf the same way as the accepted order-chain fixture.
+            self._query_state_lock = threading.RLock()
             self._front_id = 41 + context.epoch_id
             self._session_id = 9 + context.epoch_id
             self._next_order_ref_value = 1000 + context.epoch_id * 100
@@ -698,6 +852,19 @@ def _run_rollover(tmp_path, monkeypatch, *, unknown_dispatch=False):
             self.stopped = True
             trace.append(("trader_stop", self._context.epoch_id, self.stop_calls))
 
+        def stop_and_wait(self, *, timeout=2.0):
+            del timeout
+            self.stopped = True
+            return _CtpNativeStopReceipt(
+                connection_generation=self._connection_generation,
+                join_required=False,
+                join_completed=True,
+                native_released=True,
+                thread_alive=False,
+                timed_out=False,
+                complete=True,
+            )
+
         def next_order_ref(self):
             self._next_order_ref_value += 1
             return str(self._next_order_ref_value)
@@ -720,6 +887,24 @@ def _run_rollover(tmp_path, monkeypatch, *, unknown_dispatch=False):
 
         def arm_execution_for_registered_sim(self, **kwargs):
             capability, state = self.trader_client.arm_execution_for_registered_sim(**kwargs)
+            # The production SDK publishes canonical exchange-qualified bundle
+            # instruments in its grant; the fake leaf echoes the raw CTP
+            # InstrumentID, so mirror the canonical form the Store validates.
+            canonicalize = getattr(
+                client_module, "canonical_ctp_bundle_instrument", None
+            )
+            if callable(canonicalize):
+                try:
+                    canonical = canonicalize(
+                        kwargs.get("instrument_id"), kwargs.get("exchange_id")
+                    )
+                except Exception:
+                    canonical = None
+                if isinstance(canonical, str) and canonical:
+                    state = dict(state)
+                    state["instrument"] = canonical
+                    state["authorized_instruments"] = [canonical]
+                    self.trader_client._gate_state = dict(state)
             self._fake_active_capability = capability
             return capability, state
 
@@ -740,11 +925,14 @@ def _run_rollover(tmp_path, monkeypatch, *, unknown_dispatch=False):
 
         def _query_family(self, family, request_type, **filters):
             self.query_rows = self._context.rows
-            started = clock.utc_now()
-            self.query_time = started + timedelta(milliseconds=2)
+            # Every query issued during one bar shares the bar's causal
+            # instant. The OPEN source lease requires each instrument's
+            # sidecars (margin/commission) and the core query set to carry the
+            # same `available_at`, and a multi-pass refresh must not walk the
+            # synthetic clock ahead of the decision.
+            self.query_time = clock.utc_now()
             self._context.query_families.append(family)
             result = super()._query_family(family, request_type, **filters)
-            clock.advance(timedelta(milliseconds=2))
             return result
 
         def query_account(self, timeout=5):
@@ -845,7 +1033,25 @@ def _run_rollover(tmp_path, monkeypatch, *, unknown_dispatch=False):
             self._api._mark_refresh_required()
             return 0
 
-        def submit_order_action(self, field, request_id, *, execution_capability):
+        def submit_order_action(
+            self,
+            field,
+            request_id,
+            *,
+            execution_capability,
+            deadline_monotonic=None,
+        ):
+            # The Store's typed cancel path requires the SDK's explicit
+            # deadline contract. The fake issues its Action synchronously, so
+            # it only has to accept and honor the bound: an expiry before the
+            # call is the typed pre-dispatch deadline error.
+            if deadline_monotonic is not None:
+                if type(deadline_monotonic) is not float:
+                    raise AssertionError("cancel deadline must be float monotonic seconds")
+                if time.monotonic() >= deadline_monotonic:
+                    raise client_module._CtpNativeRequestDeadlineExpired(
+                        "fake native cancel deadline expired"
+                    )
             self._context.native_cancel_attempts += 1
             if execution_capability is not self._fake_active_capability:
                 raise AssertionError("cancel lacks the exact RegisteredSim SDK capability")
@@ -865,6 +1071,20 @@ def _run_rollover(tmp_path, monkeypatch, *, unknown_dispatch=False):
             self.on_order(self._ctp_order_event(identity, "5", 0, identity["size"]))
             self._api._mark_refresh_required()
             return 0
+
+        def get_order_action_evidence(self, request_id, *, order_action_ref=None):
+            """No Action row was entered for this request in the fake SDK."""
+
+            del request_id, order_action_ref
+            return None
+
+        def _invoke_session_native_request(
+            self, *args, deadline_monotonic=None, dispatch_outcome=None, **kwargs
+        ):
+            """The fake issues native calls directly; expose the SDK boundary."""
+
+            del args, deadline_monotonic, dispatch_outcome, kwargs
+            raise AssertionError("fake SDK does not route through the session invoke leaf")
 
         def _ctp_order_event(self, identity, status, filled, remaining):
             local = clock.utc_now().astimezone(LOCAL)
@@ -894,6 +1114,11 @@ def _run_rollover(tmp_path, monkeypatch, *, unknown_dispatch=False):
                 "OrderSysID": identity["order_sys_id"],
                 "InstrumentID": identity["instrument_id"],
                 "ExchangeID": identity["exchange_id"],
+                # The Journal's query-bound SysID join requires the full
+                # account-qualified row the SDK returns, not only the order
+                # fields.
+                "BrokerID": self.trader_client._broker_id,
+                "InvestorID": self.trader_client._investor_id,
                 "TradingDay": self._context.trading_day.strftime("%Y%m%d"),
                 "FrontID": identity["front_id"],
                 "SessionID": identity["session_id"],
@@ -979,6 +1204,7 @@ def _run_rollover(tmp_path, monkeypatch, *, unknown_dispatch=False):
                 trace.append(("close_fill", self._context.epoch_id, identity["instrument_id"]))
             self._api._mark_refresh_required()
 
+    Alpha003TraderClient.__module__ = client_module.__name__
     monkeypatch.setattr(client_module, "MdClient", Alpha003MdClient)
     monkeypatch.setattr(client_module, "TraderClient", Alpha003TraderClient)
     ctp_wrapper = btapistore_module._create_ctp_wrapper_class()
@@ -1071,19 +1297,14 @@ def _run_rollover(tmp_path, monkeypatch, *, unknown_dispatch=False):
         if override is None:
             resolved_config = {
                 **simnow_store_config,
-                "broker_id": "9999",
-                "investor_id": "fixture",
+                "broker_id": _SYNTHETIC_BROKER_ID,
+                "investor_id": _SYNTHETIC_INVESTOR_ID,
                 "password": "unused",
             }
             resolved_api_kwargs = {"ctp_join_observer": True}
         else:
             resolved_config, resolved_api_kwargs = RUNNER._validated_live_store_config(override)
             resolved_api_kwargs = dict(resolved_api_kwargs)
-        resolved_api_kwargs["live_tick_provenance"] = {
-            "clock_domain_id": config["cohort"]["clock_domain_id"],
-            "rules_hash": "a" * 64,
-            "session_segment": current_context["value"].source_events[0]["session_segment"],
-        }
         return resolved_config, resolved_api_kwargs
 
     monkeypatch.setattr(
@@ -1103,8 +1324,33 @@ def _run_rollover(tmp_path, monkeypatch, *, unknown_dispatch=False):
     monkeypatch.setattr(
         journal_module,
         "time",
-        SimpleNamespace(time_ns=clock.time_ns, monotonic=time.monotonic),
+        SimpleNamespace(
+            time_ns=clock.time_ns,
+            monotonic=time.monotonic,
+            monotonic_ns=time.monotonic_ns,
+        ),
     )
+
+    _real_datetime = datetime
+
+    class _CausalDateTimeMeta(type):
+        """Keep `isinstance(value, datetime)` true for real datetimes."""
+
+        def __instancecheck__(cls, instance):
+            return isinstance(instance, _real_datetime)
+
+        def __subclasscheck__(cls, subclass):
+            return issubclass(subclass, _real_datetime)
+
+    class _CausalDateTime(_real_datetime, metaclass=_CausalDateTimeMeta):
+        """Keep the Journal's wall-clock freshness checks on the causal clock."""
+
+        @classmethod
+        def now(cls, tz=None):
+            value = clock.utc_now()
+            return value if tz is None else value.astimezone(tz)
+
+    monkeypatch.setattr(journal_module, "datetime", _CausalDateTime)
 
     config["live"]["arm_templates"] = [
         {
@@ -1116,6 +1362,13 @@ def _run_rollover(tmp_path, monkeypatch, *, unknown_dispatch=False):
         }
         for target in first_plan["authorized_targets"]
     ]
+    # The registered CTP write route uses the empty investment-unit identity;
+    # bind each authorized target so the optional fee sidecar can qualify the
+    # round-trip budget for a new OPEN.
+    config["live"]["commission_identity_by_target"] = {
+        target: {"account_id": _SYNTHETIC_INVESTOR_ID, "invest_unit_id": ""}
+        for target in first_plan["authorized_targets"]
+    }
     config_path.write_text(
         runner_fixtures.yaml.safe_dump(config, sort_keys=False), encoding="utf-8"
     )
@@ -1210,6 +1463,141 @@ def _run_rollover(tmp_path, monkeypatch, *, unknown_dispatch=False):
         record_batch_snapshot,
     )
 
+    def _selected_pair_target_ids(strategy):
+        decision = getattr(strategy, "last_target_decision", None)
+        if getattr(decision, "status", None) != "TARGETS_READY":
+            return ()
+        return tuple(
+            item.target_id for item in tuple(getattr(decision, "targets", ()) or ())
+        )
+
+    def _commission_sidecars_are_current(strategy, now):
+        """Require the exact source fee sidecars the OPEN lease will check.
+
+        The causal replay clock jumps one minute per bar while the refresh
+        loop runs on wall time, and the Store only accepts a commission
+        sidecar within 30 causal seconds. Wait for the real refresh to publish
+        both selected legs at this bar instead of projecting a stale one.
+        """
+
+        refresh_loop = getattr(strategy.p, "control_refresh_loop", None)
+        facts = getattr(refresh_loop, "last_facts", None)
+        receipt = getattr(refresh_loop, "last_receipt", None)
+        complete = getattr(type(refresh_loop), "_receipt_complete", None)
+        if facts is None or receipt is None or not callable(complete):
+            return False
+        if complete(receipt) is not True:
+            return False
+        query_set = getattr(receipt, "query_set", None)
+        if query_set is None or getattr(facts, "query_set_id", None) != getattr(
+            query_set, "query_set_id", None
+        ):
+            return False
+        routes = getattr(strategy, "_routes", {})
+        store = getattr(getattr(strategy, "broker", None), "store", None)
+        cache = getattr(store, "_ctp_commission_query_snapshots", None)
+        if not isinstance(cache, Mapping):
+            return False
+        entries = tuple(cache.values())
+        target_ids = _selected_pair_target_ids(strategy)
+        if not target_ids:
+            return True
+        oldest = now - timedelta(seconds=29)
+        for target_id in target_ids:
+            if target_id not in routes:
+                return False
+            matches = tuple(
+                item
+                for item in tuple(getattr(facts, "query_provenance", ()))
+                if getattr(item, "family", None)
+                == "instrument_commission_rate_result"
+                and getattr(item, "target_id", None) == target_id
+            )
+            if len(matches) != 1:
+                return False
+            fact = matches[0]
+            completed_at = getattr(fact, "completed_at", None)
+            if (
+                getattr(fact, "query_complete", None) is not True
+                or getattr(fact, "source_owned", None) is not True
+                or completed_at is None
+                or completed_at < oldest
+            ):
+                return False
+            entry = next(
+                (
+                    item
+                    for item in entries
+                    if isinstance(item, Mapping)
+                    and item.get("request_id") == getattr(fact, "request_id", None)
+                    and item.get("family") == "instrument_commission_rate_result"
+                    and item.get("completed_at_utc") == completed_at
+                    and item.get("source_owned") is True
+                    and item.get("query_complete") is True
+                    and item.get("scope_complete") is False
+                ),
+                None,
+            )
+            if entry is None:
+                return False
+        return True
+
+    def wait_for_current_commission_sidecars(strategy, now, *, timeout=2.0):
+        if not _selected_pair_target_ids(strategy):
+            return
+        deadline = time.monotonic() + timeout
+        while True:
+            if _commission_sidecars_are_current(strategy, now):
+                return
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                return
+            time.sleep(min(0.01, remaining))
+
+    def dispatch_barrier_quotes(strategy, batch):
+        """Deliver one fresh quote per route at the post-refresh causal clock.
+
+        The regular bar tick is scheduled at ``available_at + 200ms`` but its
+        event time is ``available_at + 10ms``, so it predates the risk snapshot
+        queried at the same bar. The strict quote contract requires every
+        consumed quote to be at/after that snapshot; a real provider keeps
+        ticking, so model that as one barrier quote now.
+        """
+
+        context = current_context["value"]
+        close_time = getattr(batch, "close_time", None)
+        if context is None or close_time is None:
+            return
+        md_client = getattr(getattr(context, "api", None), "md_client", None)
+        if md_client is None:
+            return
+        data_by_target = getattr(strategy, "_data_by_target", None) or {}
+        for target, instrument, exchange in tuple(context.routes):
+            row = next(
+                (
+                    item
+                    for item in context.source_events
+                    if item["instrument"] == instrument
+                    and item["bucket_end"] == close_time
+                ),
+                None,
+            )
+            if row is None:
+                continue
+            quote_at = clock.utc_now()
+            payload = md_client._raw_tick(
+                instrument,
+                exchange,
+                context.trading_day,
+                quote_at,
+                row["close"],
+            )
+            md_client._dispatch_tick(payload)
+            feed = data_by_target.get(target)
+            drain = getattr(feed, "_drain_live_ticks", None)
+            if callable(drain):
+                drain(limit=4, quote_only=True)
+
     original_strategy_run_live = strategy_module.Alpha003TargetStrategy._run_live
 
     def traced_strategy_run_live(
@@ -1224,6 +1612,18 @@ def _run_rollover(tmp_path, monkeypatch, *, unknown_dispatch=False):
         is_new_batch,
         session_reason=None,
     ):
+        if batch is not None and not run_end:
+            # The decision clock is the bar's causal time. A fee-pair OPEN can
+            # only bind a commission sidecar queried at this same bar; let the
+            # real refresh loop publish it before the Strategy projects facts.
+            wait_for_current_commission_sidecars(strategy, now)
+            dispatch_barrier_quotes(strategy, batch)
+            # The query leaves advance the causal clock by milliseconds while
+            # the strategy turn is waiting. Re-sample so the projection's
+            # `now` is not older than the receipt it is about to consume.
+            barrier_at = clock.utc_now()
+            if barrier_at > now:
+                now = barrier_at
         result = original_strategy_run_live(
             strategy,
             batch,
@@ -1527,6 +1927,16 @@ def _run_rollover(tmp_path, monkeypatch, *, unknown_dispatch=False):
             trace.append(("prior_callbacks_drained", epoch_id - 1, pending_callbacks))
             if pending_callbacks:
                 raise AssertionError("old provider callbacks remain after epoch retirement")
+            # A next-day live epoch is an independent live run: the run-loss
+            # guard pins the first TradingDay of a logical run and refuses to
+            # rebase it across a CTP day change, and the previous epoch's
+            # fee-pair amount reservation is released only against a flat
+            # account projection. Each epoch therefore gets its own durable
+            # journal, exactly like the per-epoch decision tape the runner
+            # already derives, while keeping the same logical run identity.
+            epoch_config["live"]["journal_path"] = str(
+                tmp_path / "rollover-decisions-epoch-{}.sqlite".format(epoch_id)
+            )
         clock.set_epoch_events(context.source_events)
         trace.append(("epoch_run_start", epoch_id, RUNNER._route_summary(plan)))
         result = original_run_live(epoch_config, current_path, plan, *args, **kwargs)
@@ -1710,6 +2120,8 @@ def _run_rollover(tmp_path, monkeypatch, *, unknown_dispatch=False):
         return {
             "failure_type": type(error).__name__ if error is not None else None,
             "failure_code": getattr(error, "code", None) if error is not None else None,
+            "cleanup_results": getattr(error, "cleanup_results", None),
+            "live_epoch_evidence": getattr(error, "live_epoch_evidence", None),
             "next_bundle_read_count": (
                 getattr(error, "next_bundle_read_count", None)
                 if error is not None
@@ -1788,8 +2200,8 @@ def _run_rollover(tmp_path, monkeypatch, *, unknown_dispatch=False):
             _live_store_config_override={
                 "config": {
                     **simnow_store_config,
-                    "broker_id": "9999",
-                    "investor_id": "fixture",
+                    "broker_id": _SYNTHETIC_BROKER_ID,
+                    "investor_id": _SYNTHETIC_INVESTOR_ID,
                     "password": "unused",
                 },
                 "api_kwargs": {"ctp_join_observer": True},

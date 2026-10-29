@@ -775,7 +775,7 @@ def test_no_pair_strategy_keeps_risk_actions_and_blocks_open_only_plan(tmp_path,
         grid_attempts = []
         fake_strategy = SimpleNamespace(
             _last_grid_fee_pair_blocked=False,
-            _live_facts=lambda _now: SimpleNamespace(available_at=batch.available_at),
+            _live_facts=lambda _now, **_kwargs: SimpleNamespace(available_at=batch.available_at),
             _refresh_run_loss_guard=lambda *_args: (None, None),
             _last_signal_target=no_pair,
             last_target_decision=no_pair,
@@ -784,7 +784,8 @@ def test_no_pair_strategy_keeps_risk_actions_and_blocks_open_only_plan(tmp_path,
                 journal=SimpleNamespace(
                     fee_pair_required_scope=lambda *_args: SimpleNamespace(
                         state="REQUIRE_PAIR_FAIL_CLOSED"
-                    )
+                    ),
+                    run_loss_guard=lambda *_args, **_kwargs: None,
                 ),
                 run_order_count=lambda: 0,
             ),
@@ -792,6 +793,7 @@ def test_no_pair_strategy_keeps_risk_actions_and_blocks_open_only_plan(tmp_path,
             _risk_policy=object(),
             _strategy_scope=_STRATEGY_SCOPE,
             _account_scope=_ACCOUNT_SCOPE,
+            _logical_run_id="source-only-run",
             p=SimpleNamespace(
                 execution_enabled=True,
                 live_ready_callback=None,
@@ -813,6 +815,9 @@ def test_no_pair_strategy_keeps_risk_actions_and_blocks_open_only_plan(tmp_path,
             _live_grid_decision=lambda *args, **kwargs: grid_attempts.append((args, kwargs)),
             _live_risk_decision=lambda _batch, _facts, plan, **kwargs: risk_plans.append(plan),
             _shutdown_requested=SimpleNamespace(is_set=lambda: False),
+            _release_active_fee_pair_hold_if_flat=lambda *_args, **_kwargs: None,
+            _record_source_only=lambda *_args, **_kwargs: None,
+            _update_shutdown_state=lambda *_args, **_kwargs: None,
         )
 
         def run_live_once():

@@ -259,10 +259,10 @@ def test_fee_pair_priority_and_snapshot_updates_wake_real_cohort_idle_once():
         def _clock_now(self):
             return datetime.now(UTC)
 
-        def _live_facts(self, observed_at):
+        def _live_facts(self, observed_at, *, hold_projection=False):
             self.live_fact_refresh_count += 1
             self.broker = self.p.facts_broker
-            return ALPHA003._live_facts(self, observed_at)
+            return ALPHA003._live_facts(self, observed_at, hold_projection=hold_projection)
 
         def next(self):
             self.p.control_refresh_loop.publish_commission_target_decision(self.p.candidate)

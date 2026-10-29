@@ -3900,6 +3900,16 @@ def _create_ctp_wrapper_class():
                         provenance_seq,
                         allow_generation_override=not generation_was_captured,
                     )
+                elif self._ctp_factor_tick_source_enabled:
+                    # The factor-source adapter validates callback generation
+                    # and strict sequence order before this point, so each
+                    # event is one continuous provider snapshot. Stamp the
+                    # envelope the strict live quote contract requires.
+                    event.snapshot_or_delta = "snapshot"
+                    event.coalesced_count = 1
+                    event.continuity_status = "continuous"
+                    event.stale = False
+                    event.stale_reason = ""
                 self._tick_queues[alias].append(event)
             self._notify_live_bar_event()
 

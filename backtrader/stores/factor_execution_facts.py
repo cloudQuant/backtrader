@@ -126,9 +126,38 @@ class _FactorExecutionFactsSourceLease:
     def __init__(self, operation: str, check: Callable[[], bool]):
         self._operation = operation
         self._check = check
+        self._in_flight_order_refs: set = set()
 
     def is_for_operation(self, operation: str) -> bool:
         return operation == self._operation
+
+    def allow_in_flight_order_ref(self, order_ref: Any) -> None:
+        """Tolerate one native order this same decision scope just submitted.
+
+        The pre-dispatch facts projection cannot contain a working order that
+        did not exist when it was captured.  A fee-pair decision submits its
+        legs sequentially under one OPEN source lease, so after the first leg
+        the Broker projection legitimately gains that exact alive order.  Only
+        the registered native ``OrderRef`` is excused; every other extra or
+        changed order still invalidates the lease.
+        """
+
+        if self._active is not True:
+            raise FactorExecutionFactsSourceError("factor_execution_facts_source_stale")
+        if (
+            type(order_ref) is not str
+            or not order_ref
+            or order_ref != order_ref.strip()
+            or len(order_ref) > 64
+        ):
+            raise FactorExecutionFactsSourceError(
+                "factor_execution_facts_in_flight_ref_invalid"
+            )
+        if len(self._in_flight_order_refs) >= 8:
+            raise FactorExecutionFactsSourceError(
+                "factor_execution_facts_in_flight_ref_limit"
+            )
+        self._in_flight_order_refs.add(order_ref)
 
     def require_valid(self) -> None:
         """Raise unless the same source is still valid immediately before commit."""
@@ -1843,6 +1872,8 @@ def _all_broker_positions_match(
 def _all_broker_orders_match(
     facts: FactorExecutionFacts,
     marker: _FactorExecutionFactsProjectionSource,
+    *,
+    allowed_in_flight_order_refs: frozenset = frozenset(),
 ) -> bool:
     _store, broker, _api, _client = _source_objects(marker)
     method = getattr(broker, "execution_order_snapshot", None)
@@ -1852,19 +1883,40 @@ def _all_broker_orders_match(
         snapshots = method()
     except Exception:
         return False
-    if type(snapshots) is not tuple or len(snapshots) != len(facts.working_orders):
+    if type(snapshots) is not tuple:
         return False
     projected = {item.broker_order_ref: item for item in facts.working_orders}
     if (
         len(projected) != len(facts.working_orders)
-        or len(projected) != len(snapshots)
         or any(type(key) is not int or key <= 0 for key in projected)
     ):
         return False
+    allowed = (
+        allowed_in_flight_order_refs
+        if type(allowed_in_flight_order_refs) is frozenset
+        else frozenset()
+    )
+    matched = set()
+    in_flight = set()
     try:
         for snapshot in snapshots:
-            item = projected.get(_field(snapshot, "order_ref"))
-            if item is None or not (
+            broker_ref = _field(snapshot, "order_ref")
+            item = projected.get(broker_ref)
+            if item is None:
+                # A native order this decision scope just submitted is not in
+                # the pre-dispatch facts snapshot yet.  Tolerate only that
+                # exact native OrderRef; any other extra order is drift.
+                native_ref = _remote_ref(_field(snapshot, "external_order_ref"))
+                if (
+                    native_ref is None
+                    or native_ref not in allowed
+                    or broker_ref in in_flight
+                    or type(broker_ref) is not int
+                ):
+                    return False
+                in_flight.add(broker_ref)
+                continue
+            if broker_ref in matched or not (
                 _field(snapshot, "instrument_id") == item.instrument
                 and _field(snapshot, "exchange_id") == item.exchange
                 and _remote_ref(_field(snapshot, "external_order_ref")) == item.order_ref
@@ -1881,9 +1933,10 @@ def _all_broker_orders_match(
                 and _field(snapshot, "session_id") == item.session_id
             ):
                 return False
+            matched.add(broker_ref)
     except Exception:
         return False
-    return True
+    return matched == set(projected)
 
 
 def _source_sidecar_entry(
@@ -1987,6 +2040,31 @@ def _hold_fee_pair_source_locks(
         yield
 
 
+_ROUTE_MUTABLE_GRANT_FIELDS = frozenset(
+    {
+        # These fields describe the current SDK grant, not the consumed source
+        # identity. Arming a selected route between projection and commit is a
+        # normal execution step; it must not invalidate the source lease.
+        "capability_observed",
+        "capability_managed",
+        "capability_armed",
+        "capability_matches_route",
+        "reason_codes",
+        "sdk_frozen",
+    }
+)
+
+
+def _route_source_identity(route: FactorExecutionRouteFacts) -> Tuple[Any, ...]:
+    """Return only the immutable source-backed fields of a route projection."""
+
+    return tuple(
+        (name, getattr(route, name))
+        for name in route.__dataclass_fields__
+        if name not in _ROUTE_MUTABLE_GRANT_FIELDS
+    )
+
+
 def _current_route_matches(
     marker: _FactorExecutionFactsProjectionSource,
     target: FactorExecutionTarget,
@@ -2011,7 +2089,7 @@ def _current_route_matches(
         return False
     return bool(
         not blockers
-        and current == projected
+        and _route_source_identity(current) == _route_source_identity(projected)
         and current.eligible is True
         and current.allow_writes is True
         and current.frozen is False
@@ -2307,6 +2385,7 @@ def _operation_source_matches(
     quote_max_age: Optional[timedelta],
     targets: Tuple[FactorExecutionTarget, ...],
     sidecar_entries: Tuple[Tuple[str, str, Any], ...],
+    allowed_in_flight_order_refs: frozenset = frozenset(),
 ) -> bool:
     source_store, source_broker, _api, _client = _source_objects(marker)
     if source_store is None or source_broker is None:
@@ -2323,7 +2402,12 @@ def _operation_source_matches(
         )
         is not True
         or _all_broker_positions_match(facts, marker) is not True
-        or _all_broker_orders_match(facts, marker) is not True
+        or _all_broker_orders_match(
+            facts,
+            marker,
+            allowed_in_flight_order_refs=allowed_in_flight_order_refs,
+        )
+        is not True
         or _account_wide_execution_state_is_clear(marker) is not True
     ):
         return False
@@ -2495,6 +2579,8 @@ def _fee_pair_source_scope(
                     "factor_execution_facts_source_stale"
                 )
 
+        in_flight_order_refs: set = set()
+
         def check_source() -> bool:
             try:
                 require_cache_binding()
@@ -2509,6 +2595,7 @@ def _fee_pair_source_scope(
                 quote_max_age=quote_max_age,
                 targets=pair,
                 sidecar_entries=sidecar_tuple,
+                allowed_in_flight_order_refs=frozenset(in_flight_order_refs),
             ) is True
 
         if check_source() is not True:
@@ -2520,6 +2607,7 @@ def _fee_pair_source_scope(
         lease._facts = facts
         lease._marker = marker
         lease._active = True
+        lease._in_flight_order_refs = in_flight_order_refs
         try:
             yield lease
         finally:
@@ -2527,6 +2615,7 @@ def _fee_pair_source_scope(
             lease._check = lambda: False
             lease._facts = None
             lease._marker = None
+            in_flight_order_refs.clear()
 
 
 @contextmanager

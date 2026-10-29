@@ -1493,6 +1493,11 @@ class LiveBarCohort:
         self._lock = threading.RLock()
 
     @property
+    def calendar(self):
+        """The immutable cohort calendar (read-only inspection accessor)."""
+        return self._calendar
+
+    @property
     def calendar_id(self) -> str:
         return self._calendar.calendar_id
 

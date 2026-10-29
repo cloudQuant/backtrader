@@ -1487,7 +1487,7 @@ def test_real_cerebro_prenext_ready_then_later_next_slot_binds_r10_sampler(
             def _session_facts(self, _batch):
                 return None, False, None
 
-            def _live_facts(self, _now):
+            def _live_facts(self, _now, *, hold_projection=False):
                 return None
 
             def _source_receipt(self, batch, snapshot, _tape_reference):

@@ -9,10 +9,13 @@ from __future__ import annotations
 
 import math
 import hashlib
+import secrets
 import struct
+import sys
 import threading
 from collections import deque
 from collections.abc import Mapping
+from contextlib import ExitStack
 from dataclasses import dataclass, replace
 from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal, DecimalException, InvalidOperation, ROUND_CEILING, localcontext
@@ -33,6 +36,18 @@ DEFAULT_DIRECTION = 1
 DEFAULT_REBALANCE_GRIDS = 5
 DEFAULT_PREHEAT_BARS = 30
 FACTOR_FREQUENCY = "1min"
+# Target-free ``BLOCKED`` decisions the live selector can emit after the
+# preselection gate has passed.  Each one is still a real LIVE_READY grid and
+# must advance the registered source chain, even though it carries no
+# fee-pair candidate.
+TARGET_FREE_SELECTION_REASONS = frozenset(
+    {
+        "NO_VALID_SIGNAL",
+        "REBALANCE_NOT_DUE",
+        "ELIGIBLE_GRID_NOT_COUNTED",
+        "PRODUCT_KEY_UNAVAILABLE",
+    }
+)
 # The shared CTP facts projector defines this as CloseProfit + PositionProfit
 # - Commission, all in the one qualified CNY Account row.
 RUN_LOSS_PNL_BASIS = "ctp_total_net_after_fees_v1"
@@ -3544,6 +3559,23 @@ def _live_execution_evidence_payload(facts: Any) -> Mapping[str, Any]:
     )
 
 
+def _fee_pair_source_now(facts: Any, now: Any) -> Any:
+    """Use the latest of the bar clock and the facts' own projection bounds.
+
+    The refresh loop projects facts slightly after the bar clock, so the caller
+    must not claim to be older than either the evidence or the projection when
+    opening a source lease.
+    """
+
+    marker = getattr(facts, "_source_projection", None)
+    candidates = (
+        now,
+        getattr(facts, "available_at", None),
+        getattr(marker, "projected_at", None),
+    )
+    return max(value for value in candidates if isinstance(value, datetime))
+
+
 def _planned_action_payload(action: Alpha003OrderAction) -> Mapping[str, Any]:
     """Serialize a shadow/order-plan preview without declaring an intent."""
 
@@ -3798,6 +3830,12 @@ class Alpha003TargetStrategy(bt.Strategy):
             if self.p.max_query_age_seconds is None
             else _positive_decimal(self.p.max_query_age_seconds, "max_query_age_seconds")
         )
+        if (
+            self._risk_policy is not None
+            and self._max_query_age_seconds is not None
+            and self._max_query_age_seconds > self._risk_policy.max_state_age_seconds
+        ):
+            raise ValueError("max_query_age_seconds must not exceed the frozen risk_policy")
         self._strategy_scope = self.p.strategy_scope
         if not isinstance(self._strategy_scope, str) or not self._strategy_scope:
             raise ValueError("strategy_scope must be explicit")
@@ -3831,6 +3869,17 @@ class Alpha003TargetStrategy(bt.Strategy):
         self.last_execution_facts = None
         self._last_execution_facts_broker = None
         self._last_execution_facts_store = None
+        self._last_execution_targets = ()
+        self._last_execution_facts_now = None
+        self._last_execution_refresh_receipt = None
+        self._last_execution_query_max_age_seconds = None
+        self._last_execution_quote_max_age_seconds = None
+        # A live turn keeps the refresh loop's projection boundary pinned from
+        # projection through the source-bound grid/lease commit, so the query
+        # set behind `facts` cannot be replaced before it is consumed.
+        self._execution_projection_hold = None
+        self._last_fee_pair_grid_settled_batch_id = None
+        self._last_fee_pair_open_context = None
         self.last_order_plan: Optional[Alpha003OrderPlan] = None
         self.last_execution_block_reason: Optional[str] = None
         self._last_commission_idle_notice: Optional[Mapping[str, Any]] = None
@@ -3991,19 +4040,52 @@ class Alpha003TargetStrategy(bt.Strategy):
         return batch, self.live_factors.snapshot()
 
     def _cursor_ordinal(self, batch: Any, *, is_new: bool) -> int:
-        if self.p.replay_mode:
-            return self._eligible_grid_count + (1 if is_new else 0)
-        cursor = None
-        if self._coordinator is not None:
-            cursor = self._coordinator.grid_cursor(_read(self.p.cohort, "cohort_id"))
+        # The cadence counter must count every preselection-eligible grid, not
+        # only the grids that produced a fee-pair GRID settlement: source-only
+        # rows deliberately do not advance the durable Journal grid cursor.
+        # Keep the durable cursor as a monotonic floor so a restart can never
+        # reuse an ordinal that a prior GRID already consumed.
+        local = self._eligible_grid_count + (1 if is_new else 0)
+        if self.p.replay_mode or self._coordinator is None:
+            return local
+        cursor = self._coordinator.grid_cursor(_read(self.p.cohort, "cohort_id"))
         if cursor is None:
-            return self._eligible_grid_count + (1 if is_new else 0)
+            return local
         ordinal = _read(cursor, "ordinal")
         if type(ordinal) is not int or ordinal < 1:
             raise ValueError("durable cohort cursor ordinal is invalid")
         if _read(cursor, "batch_id") == _read(batch, "batch_id"):
             return ordinal
-        return ordinal + (1 if is_new else 0)
+        return max(ordinal + (1 if is_new else 0), local)
+
+    def _journal_grid_ordinal(self, batch: Any, fallback: Optional[int]) -> Optional[int]:
+        """Return the durable GRID ordinal this plan will claim.
+
+        The selection cadence counts every preselection-eligible grid, while
+        the Journal's grid cursor only advances on an actual GRID settlement
+        (SOURCE_ONLY rows deliberately do not). A fee-pair plan must therefore
+        stamp the Journal's next ordinal, not the cadence ordinal, or the
+        settlement rejects its own OPEN legs.
+        """
+
+        if (
+            batch is None
+            or getattr(self.p, "replay_mode", False)
+            or self._coordinator is None
+        ):
+            return fallback
+        grid_cursor = getattr(self._coordinator, "grid_cursor", None)
+        if not callable(grid_cursor):
+            return fallback
+        cursor = grid_cursor(_read(self.p.cohort, "cohort_id"))
+        if cursor is None:
+            return 1
+        ordinal = _read(cursor, "ordinal")
+        if type(ordinal) is not int or ordinal < 1:
+            raise ValueError("durable cohort cursor ordinal is invalid")
+        if _read(cursor, "batch_id") == _read(batch, "batch_id"):
+            return ordinal
+        return ordinal + 1
 
     def _update_target_decision(self, batch: Any, snapshot: Any, *, is_new: bool) -> Optional[int]:
         if batch is None or snapshot is None:
@@ -4021,11 +4103,7 @@ class Alpha003TargetStrategy(bt.Strategy):
             rebalance_every=self.p.rebalance_every,
         )
         preselection_reason = _preselection_block_reason(policy_input)
-        if (
-            is_new
-            and preselection_reason is None
-            and (self.p.replay_mode or self._coordinator is None)
-        ):
+        if is_new and preselection_reason is None:
             self._eligible_grid_count += 1
         decision = select_alpha003_targets(policy_input)
         self.last_target_decision = decision
@@ -4068,7 +4146,7 @@ class Alpha003TargetStrategy(bt.Strategy):
             return close_at, False, reason or "FINAL_BATCH_EVIDENCE_INVALID"
         return close_at, run_end, reason
 
-    def _live_facts(self, now: datetime):
+    def _live_facts(self, now: datetime, *, hold_projection: bool = False):
         from backtrader.stores.factor_execution_facts import (
             FactorExecutionTarget,
             project_factor_execution_facts,
@@ -4079,6 +4157,11 @@ class Alpha003TargetStrategy(bt.Strategy):
         self.last_execution_facts = None
         self._last_execution_facts_broker = None
         self._last_execution_facts_store = None
+        self._last_execution_targets = ()
+        self._last_execution_facts_now = None
+        self._last_execution_refresh_receipt = None
+        self._last_execution_query_max_age_seconds = None
+        self._last_execution_quote_max_age_seconds = None
         self.last_execution_block_reason = None
         broker = self.broker
         store = getattr(broker, "store", None)
@@ -4112,6 +4195,21 @@ class Alpha003TargetStrategy(bt.Strategy):
         except (TypeError, ValueError):
             self.last_execution_block_reason = "LIVE_FACT_AGE_BOUNDS_INVALID"
             return None
+        if self._risk_policy is not None:
+            # User/configured query limits may tighten the registered risk
+            # profile, but can never make quote or account facts older than
+            # the policy that authorizes new risk. A non-policy sentinel (for
+            # example in a read-only test double) contributes no extra bound.
+            policy_quote_age = getattr(
+                self._risk_policy, "quote_max_age_seconds", None
+            )
+            policy_query_age = getattr(
+                self._risk_policy, "max_state_age_seconds", None
+            )
+            if policy_quote_age is not None:
+                quote_max_age_seconds = min(quote_max_age_seconds, policy_quote_age)
+            if policy_query_age is not None:
+                query_max_age_seconds = min(query_max_age_seconds, policy_query_age)
         targets = tuple(
             FactorExecutionTarget(
                 target_id=target,
@@ -4169,20 +4267,57 @@ class Alpha003TargetStrategy(bt.Strategy):
 
         try:
             projection_scope = getattr(refresh_loop, "strategy_fact_projection_scope", None)
-            if callable(projection_scope):
-                with projection_scope() as acquired:
-                    if acquired is not True:
-                        self.last_execution_block_reason = "EXECUTION_FACT_REFRESH_IN_PROGRESS"
-                        return None
+            if callable(projection_scope) and getattr(
+                self, "_execution_projection_hold", None
+            ) is not None:
+                # This thread already pinned the Store/query-set boundary for
+                # the enclosing live turn, so the projection cannot be
+                # superseded underneath it.
+                facts = project_current_snapshot()
+                self._last_execution_refresh_receipt = getattr(
+                    refresh_loop, "last_receipt", None
+                )
+            elif callable(projection_scope):
+                manager = projection_scope()
+                acquired = manager.__enter__()
+                if acquired is not True:
+                    manager.__exit__(None, None, None)
+                    self.last_execution_block_reason = "EXECUTION_FACT_REFRESH_IN_PROGRESS"
+                    return None
+                try:
                     facts = project_current_snapshot()
+                    # Pin the exact receipt behind this projection. The refresh
+                    # thread clears/replaces `last_receipt` outside this scope,
+                    # so the loss guard and the fee-pair source lease must
+                    # consume the same query set the planning facts were built
+                    # from.
+                    self._last_execution_refresh_receipt = getattr(
+                        refresh_loop, "last_receipt", None
+                    )
+                except BaseException:
+                    manager.__exit__(*sys.exc_info())
+                    raise
+                if hold_projection:
+                    # Keep the boundary until the caller has consumed `facts`
+                    # for its source-bound grid/lease commit.
+                    self._execution_projection_hold = manager
+                else:
+                    manager.__exit__(None, None, None)
             else:
                 facts = project_current_snapshot()
+                self._last_execution_refresh_receipt = getattr(
+                    refresh_loop, "last_receipt", None
+                )
         except (OverflowError, TypeError, ValueError, RuntimeError):
             self.last_execution_block_reason = "EXECUTION_FACT_PROJECTION_UNAVAILABLE"
             return None
         self.last_execution_facts = facts
         self._last_execution_facts_broker = broker
         self._last_execution_facts_store = store
+        self._last_execution_targets = targets
+        self._last_execution_facts_now = now
+        self._last_execution_query_max_age_seconds = query_max_age_seconds
+        self._last_execution_quote_max_age_seconds = quote_max_age_seconds
         self.last_execution_block_reason = None
         return facts
 
@@ -4272,7 +4407,9 @@ class Alpha003TargetStrategy(bt.Strategy):
         ):
             return None, "RUN_LOSS_ACCOUNT_PNL_UNQUALIFIED"
 
-        receipt = getattr(refresh_loop, "last_receipt", None)
+        receipt = getattr(self, "_last_execution_refresh_receipt", None)
+        if receipt is None:
+            receipt = getattr(refresh_loop, "last_receipt", None)
         if type(receipt) is not FactorExecutionRefreshReceipt:
             return None, "RUN_LOSS_ACCOUNT_REFRESH_INCOMPLETE"
         if complete_check(receipt) is not True:
@@ -4315,16 +4452,20 @@ class Alpha003TargetStrategy(bt.Strategy):
         except (TypeError, ValueError):
             return None, "RUN_LOSS_ACCOUNT_ASOF_INVALID"
         max_age = timedelta(seconds=self._loss_guard_max_observation_age_seconds)
+        # The bar clock is sampled before the refresh completes, so the same
+        # query may legitimately become available a few milliseconds later.
+        # Evaluate freshness at the decision moment, not at that early sample.
+        decision_now = max(now_utc, receipt_at, query_set_at, account_at)
         if (
             receipt_started > receipt_at
             or query_set_at > receipt_at
-            or receipt_at > now_utc
-            or query_set_at > now_utc
-            or account_at > now_utc
+            or receipt_at > decision_now
+            or query_set_at > decision_now
+            or account_at > decision_now
             or account_at > query_set_at
-            or now_utc - receipt_at > max_age
-            or now_utc - query_set_at > max_age
-            or now_utc - account_at > max_age
+            or decision_now - receipt_at > max_age
+            or decision_now - query_set_at > max_age
+            or decision_now - account_at > max_age
         ):
             return None, "RUN_LOSS_OBSERVATION_STALE"
 
@@ -4335,11 +4476,12 @@ class Alpha003TargetStrategy(bt.Strategy):
                     account,
                     net_loss_threshold=self._loss_guard_net_loss_threshold,
                     max_observation_age_seconds=self._loss_guard_max_observation_age_seconds,
+                    now=now_utc,
                 )
             elif saved.latest_observation_id != account.snapshot_id:
                 # The journal accepts an exact latest-ID replay idempotently;
                 # the caller skips it and records only newly queried IDs.
-                self._coordinator.record_run_loss_observation(context, account)
+                self._coordinator.record_run_loss_observation(context, account, now=now_utc)
         except FactorExecutionError as error:
             if error.code in _RUN_LOSS_OPEN_REJECTION_CODES:
                 return None, error.code
@@ -5202,12 +5344,181 @@ class Alpha003TargetStrategy(bt.Strategy):
         self._last_decision_tape_error = None
         return True, frozen_reference, None
 
+    def _fee_pair_live_grid_settlement(
+        self,
+        batch: Any,
+        snapshot: Any,
+        facts: Any,
+        plan: Alpha003OrderPlan,
+        planning: Optional[Alpha003OrderPlanningInput],
+        target_decision: Optional[Alpha003TargetDecision],
+        loss_guard_context: Any,
+        loss_guard_blocker: Optional[str],
+    ) -> Optional[Mapping[str, Any]]:
+        """Build the exact writer settlement input for one legal two-leg OPEN.
+
+        A source-only row remains the default. This method returns a settlement
+        only when the actual Strategy planner has produced exactly the two
+        registered OPEN legs, all frozen freshness/risk gates are satisfied,
+        and the loss guard has a current durable context.
+        """
+
+        if (
+            not self.p.execution_enabled
+            or self._coordinator is None
+            or self._risk_policy is None
+            or planning is None
+            or type(plan) is not Alpha003OrderPlan
+            or plan.status != "READY"
+            or plan.reason is not None
+            or loss_guard_context is None
+            or loss_guard_blocker is not None
+            or facts is None
+        ):
+            return None
+        # Never append a second OPEN-bearing GRID while an earlier pair still
+        # owns the durable account amount head.  The live loop gets one
+        # source-bound flat-release attempt before planning a new grid; this
+        # second read closes the race with another Journal writer.
+        try:
+            active_amount_hold = self._coordinator.journal.fee_pair_active_amount_reservation(
+                self._account_scope
+            )
+        except Exception:
+            return None
+        if active_amount_hold is not None:
+            return None
+        actions = tuple(plan.actions)
+        if (
+            len(actions) != 2
+            or any(
+                action.action != "SUBMIT" or action.position_effect != "OPEN"
+                for action in actions
+            )
+            or plan.open_risk_candidate is None
+        ):
+            return None
+        target_ids = tuple(action.target_id for action in actions)
+        if len(set(target_ids)) != 2 or target_ids != tuple(sorted(target_ids)):
+            return None
+        if (
+            type(target_decision) is not Alpha003TargetDecision
+            or target_decision.status != "TARGETS_READY"
+            or target_decision.execution_mode != "LIVE"
+            or target_decision.batch_id != _read(batch, "batch_id")
+            or target_decision.cohort_id != _read(batch, "cohort_id")
+            or tuple(sorted(item.target_id for item in target_decision.targets)) != target_ids
+        ):
+            return None
+        risk_candidate = plan.open_risk_candidate
+        if (
+            risk_candidate.batch_id != _read(batch, "batch_id")
+            or risk_candidate.strategy_scope != self._strategy_scope
+            or tuple(sorted(item.target_id for item in risk_candidate.legs)) != target_ids
+        ):
+            return None
+
+        route_rows = tuple(getattr(facts, "route_eligibilities", ()))
+        routes_by_target = {route.target_id: route for route in route_rows}
+        if len(routes_by_target) != len(route_rows):
+            return None
+        selected_routes = tuple(routes_by_target.get(target_id) for target_id in target_ids)
+        if any(route is None for route in selected_routes):
+            return None
+        session_pairs = {
+            (route.current_session_front_id, route.current_session_id)
+            for route in selected_routes
+        }
+        account = getattr(facts, "account", None)
+        if (
+            len(session_pairs) != 1
+            or account is None
+            or type(account.connection_generation) is not int
+            or account.connection_generation <= 0
+        ):
+            return None
+        front_id, session_id = next(iter(session_pairs))
+        if (
+            type(front_id) is not int
+            or front_id <= 0
+            or type(session_id) is not int
+            or session_id <= 0
+        ):
+            return None
+
+        grid_plan = replace(plan, actions=actions)
+        intent_keys, intent_economics = self._order_intents(grid_plan, batch)
+        if len(intent_keys) != 2 or len(intent_economics) != 2:
+            return None
+        proposed_actions = tuple(_planned_action_payload(action) for action in actions)
+        economic_payload = {
+            "plan_id": FACTOR_NAME,
+            "factor_source_sha256": _read(
+                _read(snapshot, "factors")[FACTOR_NAME], "source_sha256"
+            ),
+            "snapshot_id": getattr(facts, "snapshot_id", None),
+            "execution_evidence": _live_execution_evidence_payload(facts),
+            "batch_id": _read(batch, "batch_id"),
+            # The Journal requires the settlement payload's epoch to be the
+            # canonical string; ``_live_grid_decision`` replays this exact
+            # projection through ``fee_pair_open_grid_admission``, so both
+            # sides must serialize it the same way.
+            "epoch_id": str(_read(batch, "epoch_id")),
+            "signal_batch_id": target_decision.batch_id,
+            "decision_tape_status": "DURABLE",
+            "decision_tape_error": None,
+            "intent_economics": intent_economics,
+            "proposed_actions": proposed_actions,
+            "dispatch_suppressed": False,
+            "plan_status": plan.status,
+            "plan_reason": plan.reason,
+            "open_risk_candidate": _open_risk_candidate_payload(risk_candidate),
+        }
+        query_age = self._last_execution_query_max_age_seconds
+        quote_age = self._last_execution_quote_max_age_seconds
+        if (
+            query_age is None
+            or quote_age is None
+            or query_age > self._risk_policy.max_state_age_seconds
+        ):
+            return None
+        exit_reserve = _future_exit_intent_reserve(
+            planning,
+            planned_actions=actions,
+            proposed_open_actions=actions,
+        )
+        return {
+            "order_plan": {
+                "status": grid_plan.status,
+                "reason": grid_plan.reason,
+                "decision_batch_id": grid_plan.decision_batch_id,
+                "decision_available_at": grid_plan.decision_available_at,
+                "actions": proposed_actions,
+            },
+            "owner_token": secrets.token_hex(32),
+            "economic_payload": economic_payload,
+            "current_account_session_id": "ctp-front-session:{}:{}".format(
+                front_id, session_id
+            ),
+            "current_account_session_generation": "ctp-connection-generation:{}".format(
+                account.connection_generation
+            ),
+            "max_query_age_seconds": float(query_age),
+            "max_quote_age_seconds": float(quote_age),
+            "max_order_intents_per_run": self._risk_policy.max_order_intents_per_run,
+            "expected_run_order_intents_used": planning.run_order_intents_used,
+            "remaining_exit_intent_reserve": exit_reserve,
+            "loss_guard_context": loss_guard_context,
+        }
+
     def _record_fee_pair_source_only_tape(
         self,
         batch: Any,
         snapshot: Any,
         target_decision: Optional[Alpha003TargetDecision],
         facts: Any,
+        *,
+        settlement: Optional[Mapping[str, Any]] = None,
     ) -> Tuple[bool, Optional[Mapping[str, Any]], Optional[str]]:
         """Append the registered fee-pair grid as an immutable no-intent row."""
 
@@ -5223,6 +5534,8 @@ class Alpha003TargetStrategy(bt.Strategy):
         # A possibly durable append must never be retried for this grid.
         self._last_decision_tape_batch_id = batch_id
         self._last_decision_tape_reference = None
+        self._last_fee_pair_grid_settled_batch_id = None
+        self._last_fee_pair_open_context = None
         self._last_decision_tape_error = "FEE_PAIR_SOURCE_ONLY_WRITE_NOT_CONFIRMED"
         sink = self.p.decision_tape
         writer = (
@@ -5235,18 +5548,90 @@ class Alpha003TargetStrategy(bt.Strategy):
             return False, None, self._last_decision_tape_error
 
         try:
-            result = writer(
-                batch,
-                snapshot,
-                target_decision,
-                facts,
-                self._coordinator.journal,
-                account_scope=self._account_scope,
-                strategy_scope=self._strategy_scope,
-                logical_run_id=self._logical_run_id,
-                source_kind=self._source_kind,
-                source_restart_marker=self._source_restart_marker,
-            )
+            writer_kwargs = {
+                "account_scope": self._account_scope,
+                "strategy_scope": self._strategy_scope,
+                "logical_run_id": self._logical_run_id,
+                "source_kind": self._source_kind,
+                "source_restart_marker": self._source_restart_marker,
+            }
+            settled_grid = settlement is not None
+            if settlement is None:
+                result = writer(
+                    batch,
+                    snapshot,
+                    target_decision,
+                    facts,
+                    self._coordinator.journal,
+                    **writer_kwargs,
+                )
+            else:
+                from backtrader.stores.factor_execution_facts import (
+                    FactorExecutionFactsSourceError,
+                    fee_pair_facts_open_source_scope,
+                )
+
+                selected_ids = tuple(
+                    sorted(item.target_id for item in target_decision.targets)
+                )
+                targets_by_id = {
+                    target.target_id: target for target in self._last_execution_targets
+                }
+                selected_targets = tuple(targets_by_id.get(target_id) for target_id in selected_ids)
+                query_age = self._last_execution_query_max_age_seconds
+                quote_age = self._last_execution_quote_max_age_seconds
+                if (
+                    len(selected_ids) != 2
+                    or any(target is None for target in selected_targets)
+                    or self._risk_policy is None
+                    or self._last_execution_facts_now is None
+                    or self._last_execution_facts_store is None
+                    or self._last_execution_facts_broker is None
+                    or query_age is None
+                    or quote_age is None
+                    or query_age > self._risk_policy.max_state_age_seconds
+                ):
+                    raise RuntimeError("FEE_PAIR_OPEN_SOURCE_BINDING_REQUIRED")
+                source_scope = fee_pair_facts_open_source_scope(
+                    self._last_execution_facts_store,
+                    self._last_execution_facts_broker,
+                    facts,
+                    now=_fee_pair_source_now(facts, self._last_execution_facts_now),
+                    targets=selected_targets,
+                    quote_max_age=timedelta(seconds=float(quote_age)),
+                    max_query_age=timedelta(seconds=float(query_age)),
+                )
+                with ExitStack() as stack:
+                    try:
+                        source_lease = stack.enter_context(source_scope)
+                    except FactorExecutionFactsSourceError:
+                        # The projection is not yet source-issued, so this grid
+                        # cannot authorize OPEN. It is still a real LIVE_READY
+                        # grid: record the ordinary SOURCE_ONLY row so the
+                        # contiguous source chain advances instead of leaving
+                        # a gap that poisons every later slot.
+                        source_lease = None
+                    if source_lease is None:
+                        settled_grid = False
+                        result = writer(
+                            batch,
+                            snapshot,
+                            target_decision,
+                            facts,
+                            self._coordinator.journal,
+                            **writer_kwargs,
+                        )
+                    else:
+                        result = writer(
+                            batch,
+                            snapshot,
+                            target_decision,
+                            facts,
+                            self._coordinator.journal,
+                            settlement=settlement,
+                            source_lease=source_lease,
+                            **writer_kwargs,
+                        )
             if not isinstance(result, Mapping):
                 raise ValueError("fee-pair source-only receipt is unavailable")
             raw_reference = result.get("tape_reference")
@@ -5270,7 +5655,30 @@ class Alpha003TargetStrategy(bt.Strategy):
             strategy_receipt = self._source_receipt(batch, snapshot, reference)
             if physical_receipt != strategy_receipt:
                 raise ValueError("fee-pair source receipt differs from Strategy projection")
-            if not self._confirm_source_anchor(strategy_receipt, anchor_kind="SOURCE_ONLY"):
+            anchor_kind = "SOURCE_ONLY"
+            if settled_grid:
+                from backtrader.stores.execution_decision_journal import (
+                    ExecutionFeePairOpenContext,
+                )
+
+                open_context = result.get("fee_pair_open_context")
+                amount_reservation = result.get("amount_reservation")
+                if (
+                    type(open_context) is not ExecutionFeePairOpenContext
+                    or result.get("open_dispatch_authorized") is not True
+                    or not isinstance(amount_reservation, Mapping)
+                    or amount_reservation.get("status") != "ACTIVE"
+                    or amount_reservation.get("candidate_id") != result.get("candidate_id")
+                    or amount_reservation.get("reservation_sha256")
+                    != open_context.reservation_sha256
+                ):
+                    raise ValueError("fee-pair open hold is not durably active")
+                self._last_fee_pair_open_context = open_context
+                self._last_fee_pair_grid_settled_batch_id = batch_id
+                anchor_kind = "GRID"
+            elif result.get("open_dispatch_authorized") is True:
+                raise ValueError("unexpected fee-pair open authorization")
+            if not self._confirm_source_anchor(strategy_receipt, anchor_kind=anchor_kind):
                 self._latch_decision_tape_failure()
                 self._last_decision_tape_error = "SOURCE_HIGHWATER_CONFIRMATION_FAILED"
                 return False, None, self._last_decision_tape_error
@@ -5322,6 +5730,93 @@ class Alpha003TargetStrategy(bt.Strategy):
         self._last_decision_tape_error = None
         return True, frozen_reference, None
 
+    def _release_active_fee_pair_hold_if_flat(self, facts: Any) -> Optional[str]:
+        """Try one source-bound, Journal-atomic flat release for the current pair.
+
+        Release is attempted only from the exact Store/Broker projection made
+        for this Strategy turn.  The Journal independently verifies terminal
+        intent resolutions and FactorPositionBook flat checkpoints; failure
+        leaves the active head in place and never authorizes an OPEN.
+        """
+
+        if self._coordinator is None:
+            return "FEE_PAIR_AMOUNT_RELEASE_FACTS_UNAVAILABLE"
+        journal = self._coordinator.journal
+        try:
+            active = journal.fee_pair_active_amount_reservation(self._account_scope)
+        except Exception as error:
+            code = getattr(error, "code", None)
+            return code if type(code) is str else "FEE_PAIR_AMOUNT_HOLD_READ_FAILED"
+        if active is None:
+            return None
+        if (
+            facts is None
+            or self._risk_policy is None
+            or self._last_execution_facts_now is None
+            or self._last_execution_facts_store is None
+            or self._last_execution_facts_broker is None
+            or self._last_execution_query_max_age_seconds is None
+        ):
+            return "FEE_PAIR_AMOUNT_RELEASE_FACTS_UNAVAILABLE"
+        candidate_id = active.get("candidate_id")
+        legs = active.get("reserved_legs")
+        if (
+            active.get("status") != "ACTIVE"
+            or type(candidate_id) is not str
+            or not isinstance(legs, (tuple, list))
+            or len(legs) != 2
+        ):
+            return "FEE_PAIR_AMOUNT_HOLD_PROJECTION_INVALID"
+        target_ids = tuple(
+            leg.get("target_id") if isinstance(leg, Mapping) else None for leg in legs
+        )
+        if (
+            any(type(target_id) is not str or not target_id for target_id in target_ids)
+            or len(set(target_ids)) != 2
+        ):
+            return "FEE_PAIR_AMOUNT_HOLD_PROJECTION_INVALID"
+        targets_by_id = {
+            target.target_id: target for target in self._last_execution_targets
+        }
+        selected_targets = tuple(targets_by_id.get(target_id) for target_id in target_ids)
+        if any(target is None for target in selected_targets):
+            return "FEE_PAIR_AMOUNT_RELEASE_TARGETS_UNAVAILABLE"
+        query_age = min(
+            self._last_execution_query_max_age_seconds,
+            self._risk_policy.max_state_age_seconds,
+        )
+        if query_age <= 0:
+            return "FEE_PAIR_AMOUNT_RELEASE_AGE_INVALID"
+        from backtrader.stores.execution_decision_journal import (
+            ExecutionDecisionJournalError,
+        )
+        from backtrader.stores.factor_execution_facts import (
+            FactorExecutionFactsSourceError,
+            fee_pair_facts_release_source_scope,
+        )
+
+        try:
+            source_scope = fee_pair_facts_release_source_scope(
+                self._last_execution_facts_store,
+                self._last_execution_facts_broker,
+                facts,
+                now=_fee_pair_source_now(facts, self._last_execution_facts_now),
+                targets=selected_targets,
+                max_query_age=timedelta(seconds=float(query_age)),
+            )
+            with source_scope as source_lease:
+                journal.release_fee_pair_grid_amount_hold_for_flat(
+                    candidate_id,
+                    facts=facts,
+                    source_lease=source_lease,
+                )
+        except (FactorExecutionFactsSourceError, ExecutionDecisionJournalError) as error:
+            code = getattr(error, "code", None)
+            return code if type(code) is str else "FEE_PAIR_AMOUNT_RELEASE_BLOCKED"
+        except Exception:
+            return "FEE_PAIR_AMOUNT_RELEASE_BLOCKED"
+        return None
+
     def _record_fee_pair_no_pair_source_only_tape(
         self,
         batch: Any,
@@ -5364,6 +5859,7 @@ class Alpha003TargetStrategy(bt.Strategy):
                 logical_run_id=self._logical_run_id,
                 source_kind=self._source_kind,
                 source_restart_marker=self._source_restart_marker,
+                eligible_grid_index=target_decision.eligible_grid_index,
             )
             if not isinstance(result, Mapping):
                 raise ValueError("no-pair source-only result is unavailable")
@@ -5693,6 +6189,7 @@ class Alpha003TargetStrategy(bt.Strategy):
         proposed_plan: Optional[Alpha003OrderPlan] = None,
         loss_guard_context: Any = None,
         loss_guard_blocker: Optional[str] = None,
+        fee_pair_open_context: Any = None,
     ) -> bool:
         self._last_grid_fee_pair_blocked = False
         if (
@@ -5735,7 +6232,10 @@ class Alpha003TargetStrategy(bt.Strategy):
             "snapshot_id": getattr(facts, "snapshot_id", None),
             "execution_evidence": _live_execution_evidence_payload(facts),
             "batch_id": _read(batch, "batch_id"),
-            "epoch_id": _read(batch, "epoch_id"),
+            # Match the canonical settlement projection: the Journal compares
+            # this payload byte-for-byte during ``fee_pair_open_grid_admission``
+            # and requires a string epoch there.
+            "epoch_id": str(_read(batch, "epoch_id")),
             "signal_batch_id": (
                 self._last_signal_target.batch_id if self._last_signal_target is not None else None
             ),
@@ -5779,6 +6279,7 @@ class Alpha003TargetStrategy(bt.Strategy):
         try:
             if (
                 self.p.execution_enabled
+                and fee_pair_open_context is None
                 and self._coordinator.journal.fee_pair_required_scope(
                     self._account_scope, self._strategy_scope
                 )
@@ -5822,6 +6323,7 @@ class Alpha003TargetStrategy(bt.Strategy):
                 ),
                 loss_guard_context=loss_guard_context,
                 source_receipt=source_receipt,
+                fee_pair_open_context=fee_pair_open_context,
             ) as scope:
                 if self.p.execution_enabled and scope.dispatch_allowed and grid_actions:
                     self._dispatch_live_actions(grid_actions, batch)
@@ -6219,8 +6721,51 @@ class Alpha003TargetStrategy(bt.Strategy):
         is_new_batch: bool,
         session_reason: Optional[str] = None,
     ) -> None:
+        try:
+            # Call the class method explicitly so lightweight Strategy doubles
+            # that only provide the public _run_live entry point still work.
+            Alpha003TargetStrategy._run_live_locked(
+                self,
+                batch,
+                snapshot,
+                now,
+                ordinal,
+                session_close,
+                run_end,
+                is_new_batch=is_new_batch,
+                session_reason=session_reason,
+            )
+        finally:
+            Alpha003TargetStrategy._release_execution_projection_hold(self)
+
+    def _release_execution_projection_hold(self) -> None:
+        """Release the Store/query-set boundary pinned for one live turn."""
+
+        manager = getattr(self, "_execution_projection_hold", None)
+        if hasattr(self, "_execution_projection_hold"):
+            self._execution_projection_hold = None
+        if manager is not None:
+            manager.__exit__(None, None, None)
+
+    def _run_live_locked(
+        self,
+        batch: Any,
+        snapshot: Any,
+        now: datetime,
+        ordinal: Optional[int],
+        session_close: Optional[datetime],
+        run_end: bool,
+        *,
+        is_new_batch: bool,
+        session_reason: Optional[str] = None,
+    ) -> None:
         self._last_grid_fee_pair_blocked = False
-        facts = self._live_facts(now)
+        facts = self._live_facts(now, hold_projection=True)
+        fee_pair_release_blocker = None
+        if is_new_batch and self.p.execution_enabled and self._coordinator is not None:
+            fee_pair_release_blocker = self._release_active_fee_pair_hold_if_flat(facts)
+            if fee_pair_release_blocker is not None:
+                self.last_execution_block_reason = fee_pair_release_blocker
         loss_guard_context = None
         loss_guard_blocker = None
         if facts is not None and self.p.execution_enabled:
@@ -6272,14 +6817,19 @@ class Alpha003TargetStrategy(bt.Strategy):
                 facts,
                 strategy_scope=self._strategy_scope,
                 evaluated_at=now,
-                risk_evidence_available_at=(
-                    _read(batch, "available_at") if batch is not None else facts.available_at
-                ),
+                # The risk evidence is the execution-facts snapshot itself: the
+                # journal settlement requires this timestamp to equal
+                # ``facts.available_at`` exactly. The batch's source-event
+                # ``available_at`` can precede the query-set completion (live
+                # query latency), so it cannot stand in for the evidence time.
+                risk_evidence_available_at=facts.available_at,
                 session_close_at=session_close,
                 run_end=run_end,
                 risk_policy=self._risk_policy,
                 target_decision=target_decision,
-                eligible_grid_ordinal=ordinal,
+                eligible_grid_ordinal=Alpha003TargetStrategy._journal_grid_ordinal(
+                    self, batch, ordinal
+                ),
                 run_order_intents_used=run_order_intents_used,
             )
             if session_reason is not None:
@@ -6311,6 +6861,7 @@ class Alpha003TargetStrategy(bt.Strategy):
         fee_pair_scope_required = False
         fee_pair_scope_unavailable = False
         fee_pair_source_only_durable = False
+        fee_pair_grid_settled_durable = False
         fee_pair_no_pair_source_only_durable = False
         if self.p.execution_enabled and self._coordinator is not None:
             try:
@@ -6339,7 +6890,7 @@ class Alpha003TargetStrategy(bt.Strategy):
                     no_pair_selection = (
                         type(no_pair_decision) is Alpha003TargetDecision
                         and no_pair_decision.status == "BLOCKED"
-                        and no_pair_decision.reason == "NO_VALID_SIGNAL"
+                        and no_pair_decision.reason in TARGET_FREE_SELECTION_REASONS
                         and no_pair_decision.execution_mode == "LIVE"
                         and no_pair_decision.batch_id == _read(batch, "batch_id")
                         and no_pair_decision.cohort_id == _read(batch, "cohort_id")
@@ -6359,21 +6910,54 @@ class Alpha003TargetStrategy(bt.Strategy):
                         )
                         fee_pair_no_pair_source_only_durable = tape_durable
                     else:
+                        settlement = self._fee_pair_live_grid_settlement(
+                            batch,
+                            snapshot,
+                            facts,
+                            proposed_plan,
+                            planning,
+                            target_decision,
+                            loss_guard_context,
+                            loss_guard_blocker,
+                        )
                         tape_durable, tape_reference, tape_error = (
                             self._record_fee_pair_source_only_tape(
                                 batch,
                                 snapshot,
                                 target_decision,
                                 facts,
+                                settlement=settlement,
                             )
                         )
-                    fee_pair_source_only_durable = tape_durable
+                        fee_pair_grid_settled_durable = bool(
+                            tape_durable
+                            and settlement is not None
+                            and self._last_fee_pair_grid_settled_batch_id
+                            == _read(batch, "batch_id")
+                        )
+                        fee_pair_source_only_durable = bool(
+                            tape_durable and not fee_pair_grid_settled_durable
+                        )
             else:
                 tape_durable, tape_reference, tape_error = self._record_decision_tape(
                     batch, snapshot, target_decision, tape_order_plan
                 )
             if not tape_durable:
                 self.last_execution_block_reason = tape_error
+                if (
+                    fee_pair_scope_required
+                    and tape_error == "FEE_PAIR_SOURCE_ONLY_WRITER_UNAVAILABLE"
+                    and any(
+                        action.action == "SUBMIT"
+                        and action.position_effect == "OPEN"
+                        for action in proposed_plan.actions
+                    )
+                ):
+                    # The registered scope fence is the authoritative reason a
+                    # new OPEN stopped; a missing writer is only the local
+                    # diagnostic that prevented an anchor. Do not let it mask
+                    # the precise fail-closed contract.
+                    self.last_execution_block_reason = "FEE_PAIR_SCOPE_FAIL_CLOSED"
             self.last_order_plan = self._gate_open_actions(proposed_plan, tape_durable=tape_durable)
         if is_new_batch and batch is not None and snapshot is not None and tape_durable:
             source_receipt = None
@@ -6395,19 +6979,117 @@ class Alpha003TargetStrategy(bt.Strategy):
                 grid_recorded = False
                 if live_good_batch:
                     if not fee_pair_no_pair_source_only_durable:
-                        grid_recorded = self._live_grid_decision(
-                            batch,
-                            snapshot,
-                            facts,
-                            self.last_order_plan,
-                            decision_tape_reference=tape_reference,
-                            tape_error=tape_error,
-                            source_receipt=source_receipt,
-                            proposed_plan=proposed_plan,
-                            planning=planning,
-                            loss_guard_context=loss_guard_context,
-                            loss_guard_blocker=loss_guard_blocker,
-                        )
+                        if fee_pair_grid_settled_durable:
+                            try:
+                                from backtrader.stores.execution_decision_journal import (
+                                    ExecutionDecisionJournalError,
+                                    ExecutionFeePairOpenContext,
+                                )
+                                from backtrader.stores.factor_execution import FactorExecutionError
+                                from backtrader.stores.factor_execution_facts import (
+                                    FactorExecutionFactsSourceError,
+                                    fee_pair_facts_open_source_scope,
+                                )
+
+                                open_context = self._last_fee_pair_open_context
+                                selected_ids = tuple(
+                                    sorted(item.target_id for item in target_decision.targets)
+                                )
+                                targets_by_id = {
+                                    target.target_id: target
+                                    for target in self._last_execution_targets
+                                }
+                                selected_targets = tuple(
+                                    targets_by_id.get(target_id) for target_id in selected_ids
+                                )
+                                query_age = self._last_execution_query_max_age_seconds
+                                quote_age = self._last_execution_quote_max_age_seconds
+                                if (
+                                    type(open_context) is not ExecutionFeePairOpenContext
+                                    or open_context.facts is not facts
+                                    or len(selected_ids) != 2
+                                    or any(target is None for target in selected_targets)
+                                    or self._last_execution_facts_now is None
+                                    or query_age is None
+                                    or quote_age is None
+                                    or query_age > self._risk_policy.max_state_age_seconds
+                                ):
+                                    raise FactorExecutionFactsSourceError(
+                                        "fee_pair_open_context_unavailable"
+                                    )
+                                source_scope = fee_pair_facts_open_source_scope(
+                                    self._last_execution_facts_store,
+                                    self._last_execution_facts_broker,
+                                    facts,
+                                    now=_fee_pair_source_now(facts, self._last_execution_facts_now),
+                                    targets=selected_targets,
+                                    quote_max_age=timedelta(
+                                        seconds=float(quote_age)
+                                    ),
+                                    max_query_age=timedelta(seconds=float(query_age)),
+                                )
+                                with source_scope as source_lease:
+                                    open_context = replace(
+                                        open_context, source_lease=source_lease
+                                    )
+                                    grid_recorded = self._live_grid_decision(
+                                        batch,
+                                        snapshot,
+                                        facts,
+                                        self.last_order_plan,
+                                        decision_tape_reference=tape_reference,
+                                        tape_error=tape_error,
+                                        source_receipt=source_receipt,
+                                        proposed_plan=proposed_plan,
+                                        planning=planning,
+                                        loss_guard_context=loss_guard_context,
+                                        loss_guard_blocker=loss_guard_blocker,
+                                        fee_pair_open_context=open_context,
+                                    )
+                            except (
+                                FactorExecutionFactsSourceError,
+                                ExecutionDecisionJournalError,
+                                FactorExecutionError,
+                            ) as error:
+                                error_code = getattr(error, "code", None)
+                                self.last_execution_block_reason = (
+                                    error_code
+                                    if type(error_code) is str
+                                    else "FEE_PAIR_OPEN_SOURCE_BINDING_REQUIRED"
+                                )
+                                retained_actions = tuple(
+                                    action
+                                    for action in proposed_plan.actions
+                                    if action.action == "CANCEL"
+                                    or action.action != "SUBMIT"
+                                    or action.position_effect != "OPEN"
+                                )
+                                self.last_order_plan = replace(
+                                    proposed_plan,
+                                    status=(
+                                        "READY"
+                                        if retained_actions
+                                        and proposed_plan.status == "READY"
+                                        else "BLOCKED"
+                                    ),
+                                    reason=self.last_execution_block_reason,
+                                    actions=retained_actions,
+                                )
+                                self._last_grid_fee_pair_blocked = True
+                        else:
+                            grid_recorded = self._live_grid_decision(
+                                batch,
+                                snapshot,
+                                facts,
+                                self.last_order_plan,
+                                decision_tape_reference=tape_reference,
+                                tape_error=tape_error,
+                                source_receipt=source_receipt,
+                                proposed_plan=proposed_plan,
+                                planning=planning,
+                                loss_guard_context=loss_guard_context,
+                                loss_guard_blocker=loss_guard_blocker,
+                            )
                     ready_callback = getattr(self.p, "live_ready_callback", None)
                     capture_ready = getattr(self, "_capture_live_ready_boundary", None)
                     if grid_recorded and callable(ready_callback) and callable(capture_ready):
@@ -6419,7 +7101,32 @@ class Alpha003TargetStrategy(bt.Strategy):
                     if grid_recorded and callable(capacity_callback) and callable(capture_capacity):
                         capture_capacity(batch, snapshot, engine_phase="grid_recorded")
                 if not grid_recorded:
-                    if fee_pair_source_only_durable:
+                    if fee_pair_no_pair_source_only_durable:
+                        # The durable NO_LEGAL_FEE_PAIR source row is the only
+                        # evidence this slot may carry. Keep OPEN filtered
+                        # while the independent risk path below still sees
+                        # CANCEL/CLOSE actions.
+                        retained_actions = tuple(
+                            action
+                            for action in proposed_plan.actions
+                            if action.action == "CANCEL"
+                            or action.action != "SUBMIT"
+                            or action.position_effect != "OPEN"
+                        )
+                        self.last_order_plan = replace(
+                            proposed_plan,
+                            status=(
+                                "READY"
+                                if retained_actions and proposed_plan.status == "READY"
+                                else "BLOCKED"
+                            ),
+                            reason="NO_LEGAL_FEE_PAIR",
+                            actions=retained_actions,
+                        )
+                        if self.last_execution_block_reason is None:
+                            self.last_execution_block_reason = "NO_LEGAL_FEE_PAIR"
+                        self._last_grid_fee_pair_blocked = True
+                    elif fee_pair_source_only_durable or fee_pair_grid_settled_durable:
                         # The SOURCE_ONLY row already advanced the durable
                         # source highwater for this slot. A later stale-snapshot
                         # or Journal rejection must not fall through to the
@@ -6447,40 +7154,30 @@ class Alpha003TargetStrategy(bt.Strategy):
                                     if retained_actions and proposed_plan.status == "READY"
                                     else "BLOCKED"
                                 ),
-                                reason="FEE_PAIR_SOURCE_ONLY_GRID_NOT_SETTLED",
+                                reason=(
+                                    "FEE_PAIR_SOURCE_ONLY_GRID_NOT_SETTLED"
+                                    if fee_pair_source_only_durable
+                                    else self.last_execution_block_reason
+                                    or "FEE_PAIR_GRID_OPEN_ADMISSION_FAILED"
+                                ),
                                 actions=retained_actions,
                             )
                         else:
                             self.last_order_plan = proposed_plan
-                        if fee_pair_no_pair_source_only_durable:
-                            retained_actions = tuple(
-                                action
-                                for action in proposed_plan.actions
-                                if action.action == "CANCEL"
-                                or action.action != "SUBMIT"
-                                or action.position_effect != "OPEN"
+                        if self.last_execution_block_reason is None:
+                            self.last_execution_block_reason = (
+                                "FEE_PAIR_SOURCE_ONLY_GRID_NOT_SETTLED"
+                                if fee_pair_source_only_durable
+                                else "FEE_PAIR_GRID_OPEN_ADMISSION_FAILED"
                             )
-                            self.last_order_plan = replace(
-                                proposed_plan,
-                                status=(
-                                    "READY"
-                                    if retained_actions and proposed_plan.status == "READY"
-                                    else "BLOCKED"
-                                ),
-                                reason="NO_LEGAL_FEE_PAIR",
-                                actions=retained_actions,
-                            )
-                            if self.last_execution_block_reason is None:
-                                self.last_execution_block_reason = "NO_LEGAL_FEE_PAIR"
-                        elif self.last_execution_block_reason is None:
-                            self.last_execution_block_reason = "FEE_PAIR_SOURCE_ONLY_GRID_NOT_SETTLED"
                         self._last_grid_fee_pair_blocked = True
                     elif not getattr(self, "_last_grid_fee_pair_blocked", False):
                         self._record_source_only(batch, snapshot, tape_reference)
         elif is_new_batch and batch is not None and snapshot is not None:
             # No tape row means there is no source identity to anchor and no
             # grid decision may advance. Fresh risk reductions still run below.
-            self.last_execution_block_reason = tape_error or "SOURCE_TAPE_UNAVAILABLE"
+            if self.last_execution_block_reason != "FEE_PAIR_SCOPE_FAIL_CLOSED":
+                self.last_execution_block_reason = tape_error or "SOURCE_TAPE_UNAVAILABLE"
         if self.p.execution_enabled and planning is not None:
             self._live_risk_decision(batch, facts, self.last_order_plan, planning=planning)
         if self._shutdown_requested.is_set():
@@ -7038,6 +7735,10 @@ class Alpha003TargetStrategy(bt.Strategy):
         """Join refresh and confirm retirement before Broker/Store teardown."""
 
         try:
+            # Never leave the Store/query-set projection boundary pinned while
+            # the refresh worker is asked to join; a leaked hold would block
+            # that worker and turn normal retirement into a join timeout.
+            Alpha003TargetStrategy._release_execution_projection_hold(self)
             self._stop_control_refresh_loop()
         except Exception:
             # Do not continue Strategy cleanup while the runner-owned refresh
@@ -7140,6 +7841,7 @@ __all__ = (
     "FACTOR_NAME",
     "FACTOR_PANEL_LINE",
     "FACTOR_FREQUENCY",
+    "TARGET_FREE_SELECTION_REASONS",
     "FactorPoint",
     "FactorSnapshotFacts",
     "make_alpha003_factor_spec",

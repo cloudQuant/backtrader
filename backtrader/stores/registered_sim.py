@@ -1934,8 +1934,13 @@ class RegisteredSimWrapper:
                     or unknown.order_ref != order_ref
                     or unknown.instrument_id != instrument
                     or unknown.exchange_id != exchange
-                    or unknown.front_id != original_front
-                    or unknown.session_id != original_session
+                    # CThostFtdcInputOrderField has no FrontID/SessionID, so an
+                    # UNKNOWN insert can only record what the SDK actually
+                    # observed. Compare only recorded fields, matching the
+                    # dispatch-lineage rule; a cancel (InputOrderActionField)
+                    # still records and must match both exactly.
+                    or (unknown.front_id is not None and unknown.front_id != original_front)
+                    or (unknown.session_id is not None and unknown.session_id != original_session)
                     or unknown.resend_permitted is not False
                 ):
                     raise BtApiStoreError("registered-sim UNKNOWN latch does not match proof")

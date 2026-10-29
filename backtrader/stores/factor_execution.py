@@ -1969,8 +1969,14 @@ class FactorExecutionCoordinator:
             or dispatch.get("instrument_id") != observation.instrument
             or dispatch.get("exchange_id") != observation.exchange
             or dispatch.get("order_ref") != observation.order_ref
-            or dispatch.get("front_id") != identity.get("front_id")
-            or dispatch.get("session_id") != identity.get("session_id")
+            or (
+                dispatch.get("front_id") is not None
+                and dispatch.get("front_id") != identity.get("front_id")
+            )
+            or (
+                dispatch.get("session_id") is not None
+                and dispatch.get("session_id") != identity.get("session_id")
+            )
             or identity.get("instrument_id") != observation.instrument
             or identity.get("exchange_id") != observation.exchange
             or identity.get("order_ref") != observation.order_ref
@@ -5502,6 +5508,20 @@ class FactorExecutionDecisionScope:
             ),
             default=0,
         )
+        if action == "SUBMIT" and key.position_effect == "OPEN":
+            # This same OPEN source lease covers every leg of the pair.  Once
+            # this leg is physically submitted, the Broker projection gains
+            # exactly this native order, which the pre-dispatch facts snapshot
+            # cannot contain.  Register it before the claim so the next leg's
+            # claim (and this leg's result) can tolerate that exact order
+            # without weakening any other source check.
+            lease = getattr(self.fee_pair_open_context, "source_lease", None)
+            register = getattr(lease, "allow_in_flight_order_ref", None)
+            if callable(register):
+                try:
+                    register(identity["order_ref"])
+                except Exception as error:
+                    raise FactorExecutionError("FEE_PAIR_SOURCE_BINDING_REQUIRED") from error
         claim = self.coordinator.journal.claim_dispatch(
             intent.intent_id,
             loss_guard_context=self.loss_guard_context,
@@ -5696,6 +5716,15 @@ class FactorExecutionDecisionScope:
             and getattr(evidence, "native_return_code", None) == 0
             and getattr(evidence, "resend_permitted", True) is False
         )
+        # This attempt was claimed by this exact scope under the dispatch
+        # serialization gate.  A determinate native outcome must be persisted
+        # even when a post-dispatch fee-pair source probe is stale because the
+        # just-submitted order is now working; otherwise a KNOWN result is
+        # turned into UNKNOWN and the gate is retained until close.
+        claimed_native_result = bool(
+            self._dispatch_gate_claimed
+            and attempt.intent.intent_id in self._attempted
+        )
         try:
             intent = self.coordinator.journal.record_dispatch_result(
                 attempt.intent.intent_id,
@@ -5703,6 +5732,7 @@ class FactorExecutionDecisionScope:
                 provider_identity=identity,
                 outcome_code="native_ack" if known else _bounded_code(error),
                 fee_pair_open_context=self.fee_pair_open_context,
+                claimed_native_result=claimed_native_result,
             )
         except Exception as persistence_error:
             order.addinfo(
