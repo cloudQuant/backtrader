@@ -94,6 +94,18 @@ def _nonempty_text(value: Any, name: str) -> str:
     return value
 
 
+def _trading_day_key(value: Any) -> Any:
+    """Canonicalize the compact and ISO-8601 TradingDay spellings.
+
+    Source receipts and saved tapes keep an ISO date while the exchange
+    calendar and CTP wire form use YYYYMMDD. Both denote the same day; compare
+    the canonical value and leave every other identity field exact.
+    """
+    if type(value) is str:
+        return value.replace("-", "")
+    return value
+
+
 def _positive_int(value: Any, name: str) -> int:
     if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
         raise LiveCohortValidationError("{} must be a positive integer".format(name))
@@ -944,7 +956,10 @@ class LiveCohortCalendar:
             expected_segment = (
                 highwater_slot.session_segment if session is None else session.session_segment
             )
-            if member.trading_day != expected_day or member.session_segment != expected_segment:
+            if (
+                _trading_day_key(member.trading_day) != _trading_day_key(expected_day)
+                or member.session_segment != expected_segment
+            ):
                 raise LiveCohortValidationError(
                     "journal high-water session identity differs from the full calendar"
                 )
@@ -1806,8 +1821,8 @@ class LiveBarCohort:
                 != _history_receipt_time(_read(event, "bucket_end", None))
                 or member_receipt.get("available_at")
                 != _history_receipt_time(_read(event, "available_at", None))
-                or member_receipt.get("trading_day")
-                != _read(event, "trading_day", None)
+                or _trading_day_key(member_receipt.get("trading_day"))
+                != _trading_day_key(_read(event, "trading_day", None))
                 or member_receipt.get("session_segment")
                 != _read(event, "session_segment", None)
                 or member_receipt.get("timezone_id") != member.timezone_id
@@ -1823,8 +1838,8 @@ class LiveBarCohort:
             if (
                 receiver_slot.bucket_start
                 != _aware_utc(_read(event, "bucket_start", None), "saved history bucket_start")
-                or receiver_slot.trading_day
-                != _read(event, "trading_day", None)
+                or _trading_day_key(receiver_slot.trading_day)
+                != _trading_day_key(_read(event, "trading_day", None))
                 or receiver_slot.session_segment
                 != _read(event, "session_segment", None)
             ):
@@ -2231,7 +2246,10 @@ class LiveBarCohort:
             if expected_session is not None
             else slot.session_segment
         )
-        if trading_day != expected_trading_day or session_segment != expected_session_segment:
+        if (
+            _trading_day_key(trading_day) != _trading_day_key(expected_trading_day)
+            or session_segment != expected_session_segment
+        ):
             raise LiveCohortValidationError(
                 "bar trading day/session does not match the planned slot"
             )
@@ -2250,7 +2268,7 @@ class LiveBarCohort:
                 or highwater.feed_sequence != sequence
                 or highwater.bar_id != bar_id
                 or highwater.close_time != close_time
-                or highwater.trading_day != trading_day
+                or _trading_day_key(highwater.trading_day) != _trading_day_key(trading_day)
                 or highwater.session_segment != session_segment
             ):
                 raise LiveCohortValidationError(

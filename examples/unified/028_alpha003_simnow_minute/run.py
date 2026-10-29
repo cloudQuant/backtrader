@@ -7020,7 +7020,20 @@ def _verify_saved_history_decision_anchors(journal, scopes, saved_history):
             if "origin_partition" in member:
                 expected_member["origin_partition"] = dict(member["origin_partition"])
             expected_members.append(expected_member)
-        if list(member_values) != expected_members:
+
+        def _comparison_member(value):
+            # Durable member receipts carry the source TradingDay in either the
+            # compact CTP form or ISO-8601. Compare the canonical value while
+            # leaving every other stored field exact.
+            if not isinstance(value, Mapping):
+                return value
+            values = dict(value)
+            day = values.get("trading_day")
+            if type(day) is str:
+                values["trading_day"] = day.replace("-", "")
+            return values
+
+        if [_comparison_member(item) for item in member_values] != expected_members:
             raise RunnerError("LIVE_HISTORY_SOURCE_RECEIPT_MISMATCH")
         if not source_only:
             expected_references = (
@@ -7031,7 +7044,9 @@ def _verify_saved_history_decision_anchors(journal, scopes, saved_history):
             )
             if (
                 payload.get("batch_id") != anchor["batch_id"]
-                or payload.get("epoch_id") != anchor["epoch_id"]
+                # Durable decision payloads store the epoch id as canonical
+                # text while saved-history anchors keep the numeric value.
+                or str(payload.get("epoch_id")) != str(anchor["epoch_id"])
                 or payload.get("decision_tape_status") != "DURABLE"
                 or any(
                     payload.get(payload_key) != anchor[reference_key]
