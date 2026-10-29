@@ -14,6 +14,7 @@ from backtrader.feeds.futures_main_contract import (
     CTP_QUERY_SNAPSHOT_EQUAL_WEIGHT_POLICY,
     ExchangeTradingCalendar,
     ExchangeTradingDay,
+    ProductKey,
     select_main_contracts,
 )
 
@@ -92,8 +93,18 @@ def _depth_row(exchange, instrument_id):
 
 
 def _normalize_instrument(row):
+    asset_type = {
+        "1": "future",
+        "2": "option",
+        "3": "combination",
+        "4": "spot",
+        "5": "efp",
+        "6": "spot_option",
+        "7": "tas",
+        "I": "mi",
+    }.get(row.get("ProductClass"), "unknown")
     return {
-        "asset_type": "future" if row.get("ProductClass") == "1" else "option",
+        "asset_type": asset_type,
         "is_trading": row.get("IsTrading") == 1,
         "product_class": row.get("ProductClass"),
     }
@@ -306,7 +317,7 @@ def test_registered_sim_store_forwards_staged_query_set_through_ctp_wrapper(monk
         300.0,
     ]
     assert [kwargs["timeout"] for _, kwargs in trader.calls] == [5.0] * 4
-    assert trader.calls[0][1]["product_class"] == "1"
+    assert trader.calls[0][1]["product_class"] == ""
     assert trader.calls[0][1]["exchange_id"] == trader.calls[0][1]["product_id"] == ""
     assert trader.calls[1][1]["product_id"] == "i"
     assert trader.calls[1][1]["exchange_id"] == "DCE"
@@ -329,9 +340,18 @@ def _select(snapshot):
     )
 
 
-def test_staged_query_set_preserves_full_product_set_native_case_and_caps(monkeypatch):
+def test_staged_query_set_classifies_all_products_and_queries_only_futures(monkeypatch):
     _install_fake_contract(monkeypatch)
+    non_future_rows = tuple(
+        _product_row("DCE", "n{:02d}".format(index), product_class=product_class)
+        for index, product_class in enumerate(("2", "3", "4", "5", "6", "7", "I"), 1)
+    )
     feed = StagedQueryFeed(
+        products=(
+            _product_row("DCE", "i"),
+            _product_row("SHFE", "rb"),
+            *non_future_rows,
+        ),
         instruments={
             ("DCE", "i"): (_instrument_row("DCE", "i", "i2611"),),
             ("SHFE", "rb"): (),
@@ -348,7 +368,7 @@ def test_staged_query_set_preserves_full_product_set_native_case_and_caps(monkey
         products_call["exchange_id"],
         products_call["product_id"],
     ) == (
-        "1",
+        "",
         "",
         "",
     )
@@ -376,7 +396,31 @@ def test_staged_query_set_preserves_full_product_set_native_case_and_caps(monkey
         ("SHFE", "rb"),
     ]
     assert [source.request_id for source in query_set.requests] == [101, 102, 103, 104]
-    assert [source.record_count for source in query_set.requests] == [2, 1, 0, 0]
+    assert [source.record_count for source in query_set.requests] == [9, 1, 0, 0]
+    assert [item.product_class for item in query_set.products] == ["1", "1"]
+    assert [item.product_class for item in query_set.excluded_products] == [
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "I",
+    ]
+    assert [item.asset_type for item in query_set.excluded_products] == [
+        "option",
+        "combination",
+        "spot",
+        "efp",
+        "spot_option",
+        "tas",
+        "mi",
+    ]
+    assert all(
+        item.exclusion_reason == "NON_FUTURE_CTP_PRODUCT_CLASS"
+        for item in query_set.excluded_products
+    )
+    assert feed.calls[0][1]["max_records"] == 256
     assert query_set.requests[1].request_filters == (
         ("ExchangeID", "DCE"),
         ("InstrumentID", ""),
@@ -384,13 +428,19 @@ def test_staged_query_set_preserves_full_product_set_native_case_and_caps(monkey
     )
     assert query_set.requests[2].request_filters[-1] == ("ProductID", "rb")
     assert len(query_set.source_sha256) == 64
+    manifest = _select(snapshot)
+    projection = manifest.to_dict()["query_snapshot"]["query_set"]
+    assert len(projection["excluded_products"]) == 7
+    assert projection["digest_schema"] == "v2"
+    assert projection["requests"][0]["record_count"] == 9
 
 
 @pytest.mark.parametrize(
     ("products", "expected_code"),
     [
         ((), "PRODUCT_QUERY_EMPTY"),
-        ((_product_row("DCE", "i", product_class="2"),), "PRODUCT_CLASS_MISMATCH"),
+        ((_product_row("DCE", "i", product_class="9"),), "PRODUCT_CLASS_UNKNOWN"),
+        (({"ExchangeID": "DCE", "ProductID": "i"},), "PRODUCT_CLASS_MISSING"),
     ],
 )
 def test_empty_or_wrong_product_universe_fails_before_instrument_queries(
@@ -404,6 +454,30 @@ def test_empty_or_wrong_product_universe_fails_before_instrument_queries(
 
     assert caught.value.code == expected_code
     assert [kind for kind, _ in feed.calls] == ["products"]
+    observation = caught.value.query_observations[0]
+    assert observation.record_count == len(products)
+    assert observation.complete is True
+    assert observation.is_last_seen is True
+    assert observation.record_limit_matches is True
+    assert observation.record_limit_exceeded is False
+    assert observation.request_filters_match is True
+    assert observation.classified_future_product_count is None
+    assert observation.classified_excluded_product_count is None
+
+
+def test_non_future_only_product_result_is_classified_but_stops_before_depth(monkeypatch):
+    _install_fake_contract(monkeypatch)
+    feed = StagedQueryFeed(products=(_product_row("DCE", "opt", product_class="2"),))
+
+    with pytest.raises(adapter.CtpFuturesSnapshotError) as caught:
+        adapter.collect_ctp_futures_snapshot(feed, query_mode="staged_product_set")
+
+    assert caught.value.code == "PRODUCT_FUTURE_SET_EMPTY"
+    assert [kind for kind, _ in feed.calls] == ["products"]
+    observation = caught.value.query_observations[0]
+    assert observation.record_count == 1
+    assert observation.classified_future_product_count == 0
+    assert observation.classified_excluded_product_count == 1
 
 
 def test_instrument_rows_must_match_exact_native_product_filter(monkeypatch):
@@ -422,9 +496,80 @@ def test_instrument_rows_must_match_exact_native_product_filter(monkeypatch):
     assert [kind for kind, _ in feed.calls] == ["products", "instruments"]
 
 
+@pytest.mark.parametrize(
+    ("instrument_class", "expected_code"),
+    [
+        ("2", "INSTRUMENT_PRODUCT_CLASS_MISMATCH"),
+        ("9", "CATALOG_PRODUCT_CLASS_UNKNOWN"),
+    ],
+)
+def test_instrument_rows_with_mixed_or_unknown_class_block_before_depth(
+    monkeypatch, instrument_class, expected_code
+):
+    _install_fake_contract(monkeypatch)
+    feed = StagedQueryFeed(
+        products=(_product_row("DCE", "i", product_class="1"),),
+        instruments={
+            ("DCE", "i"): (
+                _instrument_row("DCE", "i", "i2611", instrument_class),
+            )
+        },
+    )
+
+    with pytest.raises(adapter.CtpFuturesSnapshotError) as caught:
+        adapter.collect_ctp_futures_snapshot(feed, query_mode="staged_product_set")
+
+    assert caught.value.code == expected_code
+    assert [kind for kind, _ in feed.calls] == ["products", "instruments"]
+
+
+def test_normalizer_cannot_reclassify_raw_non_future_instrument_as_future(monkeypatch):
+    _install_fake_contract(monkeypatch)
+
+    def misclassify(row):
+        normalized = _normalize_instrument(row)
+        normalized["product_class"] = "1"
+        normalized["asset_type"] = "future"
+        return normalized
+
+    monkeypatch.setattr(adapter, "_load_sdk_contract", lambda: (FakeQueryResult, misclassify))
+    feed = StagedQueryFeed(
+        products=(_product_row("DCE", "i", product_class="1"),),
+        instruments={
+            ("DCE", "i"): (_instrument_row("DCE", "i", "i2611", "2"),)
+        },
+    )
+
+    with pytest.raises(adapter.CtpFuturesSnapshotError) as caught:
+        adapter.collect_ctp_futures_snapshot(feed, query_mode="staged_product_set")
+
+    assert caught.value.code == "CATALOG_PRODUCT_CLASS_MISMATCH"
+    assert [kind for kind, _ in feed.calls] == ["products", "instruments"]
+
+
+def test_duplicate_product_key_across_classes_blocks_before_instrument_queries(monkeypatch):
+    _install_fake_contract(monkeypatch)
+    feed = StagedQueryFeed(
+        products=(
+            _product_row("DCE", "i", product_class="1"),
+            _product_row("DCE", "i", product_class="2"),
+        )
+    )
+
+    with pytest.raises(adapter.CtpFuturesSnapshotError) as caught:
+        adapter.collect_ctp_futures_snapshot(feed, query_mode="staged_product_set")
+
+    assert caught.value.code == "PRODUCT_CLASS_CONFLICT"
+    assert [kind for kind, _ in feed.calls] == ["products"]
+
+
 def test_sdk_record_limit_overflow_stays_incomplete_and_fail_closed(monkeypatch):
     _install_fake_contract(monkeypatch)
-    feed = StagedQueryFeed(overflow_stage="products")
+    products = tuple(
+        _product_row("DCE", "p{:03d}".format(index), product_class="2")
+        for index in range(257)
+    )
+    feed = StagedQueryFeed(products=products, overflow_stage="products")
 
     with pytest.raises(adapter.CtpFuturesSnapshotError) as caught:
         adapter.collect_ctp_futures_snapshot(feed, query_mode="staged_product_set")
@@ -432,9 +577,33 @@ def test_sdk_record_limit_overflow_stays_incomplete_and_fail_closed(monkeypatch)
     assert caught.value.code == "QUERY_RECORD_LIMIT_EXCEEDED"
     assert caught.value.query_observations[0].error_category == "record_limit"
     assert caught.value.query_observations[0].requested_record_limit == 256
+    assert caught.value.query_observations[0].record_count == 257
     assert caught.value.query_observations[0].record_limit_exceeded is True
     assert caught.value.query_observations[0].completion_origin == "record_limit"
     assert [kind for kind, _ in feed.calls] == ["products"]
+
+
+def test_exact_product_row_cap_with_terminal_and_no_overflow_is_complete(monkeypatch):
+    _install_fake_contract(monkeypatch)
+    products = (
+        _product_row("DCE", "future"),
+        *(
+            _product_row("DCE", "other{:03d}".format(index), product_class="2")
+            for index in range(255)
+        ),
+    )
+    feed = StagedQueryFeed(products=products, depth=())
+
+    snapshot = adapter.collect_ctp_futures_snapshot(feed, query_mode="staged_product_set")
+
+    product_source = snapshot.query_set.requests[0]
+    assert len(snapshot.query_set.products) == 1
+    assert len(snapshot.query_set.excluded_products) == 255
+    assert product_source.record_count == product_source.record_limit == 256
+    assert product_source.complete is True
+    assert product_source.is_last_seen is True
+    assert product_source.record_limit_exceeded is False
+    assert [kind for kind, _ in feed.calls] == ["products", "instruments", "depth"]
 
 
 def test_complete_query_set_runs_through_the_existing_full_pool_selector(monkeypatch):
@@ -466,15 +635,165 @@ def test_tampered_query_set_identity_blocks_selection(monkeypatch):
     assert "QUERY_SET_SNAPSHOT_ID_MISMATCH" in manifest.blockers
 
 
+def test_excluded_product_classification_is_bound_by_query_set_digest(monkeypatch):
+    _install_fake_contract(monkeypatch)
+    snapshot = adapter.collect_ctp_futures_snapshot(
+        StagedQueryFeed(
+            products=(
+                _product_row("DCE", "i"),
+                _product_row("DCE", "opt", product_class="2"),
+            )
+        ),
+        query_mode="staged_product_set",
+    )
+    original_exclusion = snapshot.query_set.excluded_products[0]
+    tampered_exclusion = replace(
+        original_exclusion,
+        product_class="3",
+        asset_type="combination",
+    )
+    tampered_set = replace(
+        snapshot.query_set,
+        excluded_products=(tampered_exclusion,),
+    )
+
+    manifest = _select(replace(snapshot, query_set=tampered_set))
+
+    assert manifest.status == "BLOCKED"
+    assert "QUERY_SET_SOURCE_DIGEST_MISMATCH" in manifest.blockers
+
+
+def test_catalog_replacement_is_bound_to_per_product_instrument_counts(monkeypatch):
+    _install_fake_contract(monkeypatch)
+    snapshot = adapter.collect_ctp_futures_snapshot(
+        StagedQueryFeed(), query_mode="staged_product_set"
+    )
+    first, *rest = snapshot.catalog_records
+    # Keep the total catalog count unchanged while moving one row from DCE/i
+    # to SHFE/rb. Per-product request counts must detect the altered scope.
+    replaced = replace(first, product=ProductKey("SHFE", "RB"))
+
+    manifest = _select(replace(snapshot, catalog_records=(replaced, *rest)))
+
+    assert manifest.status == "BLOCKED"
+    assert "QUERY_SET_PRODUCT_INSTRUMENT_RECORD_COUNT_MISMATCH" in manifest.blockers
+
+
+def test_catalog_non_target_product_is_rejected_even_with_class_one(monkeypatch):
+    _install_fake_contract(monkeypatch)
+    snapshot = adapter.collect_ctp_futures_snapshot(
+        StagedQueryFeed(
+            products=(
+                _product_row("DCE", "i"),
+                _product_row("DCE", "opt", product_class="2"),
+            )
+        ),
+        query_mode="staged_product_set",
+    )
+    first, *rest = snapshot.catalog_records
+    replaced = replace(first, product=ProductKey("DCE", "OPT"))
+
+    manifest = _select(replace(snapshot, catalog_records=(replaced, *rest)))
+
+    assert manifest.status == "BLOCKED"
+    assert "QUERY_SET_CATALOG_PRODUCT_OUT_OF_SCOPE" in manifest.blockers
+
+
+def test_catalog_non_future_class_is_rejected_for_future_product(monkeypatch):
+    _install_fake_contract(monkeypatch)
+    snapshot = adapter.collect_ctp_futures_snapshot(
+        StagedQueryFeed(), query_mode="staged_product_set"
+    )
+    first, *rest = snapshot.catalog_records
+    replaced = replace(first, product_class="2", asset_type="option")
+
+    manifest = _select(replace(snapshot, catalog_records=(replaced, *rest)))
+
+    assert manifest.status == "BLOCKED"
+    assert "QUERY_SET_CATALOG_PRODUCT_CLASS_MISMATCH" in manifest.blockers
+
+
+def test_legacy_class_one_query_set_evidence_remains_readable(monkeypatch):
+    from backtrader.feeds.futures_main_contract import (
+        query_snapshot_set_digest,
+    )
+
+    _install_fake_contract(monkeypatch)
+    snapshot = adapter.collect_ctp_futures_snapshot(
+        StagedQueryFeed(), query_mode="staged_product_set"
+    )
+    query_set = snapshot.query_set
+    product_source = replace(
+        query_set.requests[0],
+        request_filters=(
+            ("ExchangeID", ""),
+            ("ProductClass", "1"),
+            ("ProductID", ""),
+        ),
+    )
+    requests = (product_source,) + query_set.requests[1:]
+    digest = query_snapshot_set_digest(query_set.products, requests)
+    legacy_set = replace(
+        query_set,
+        snapshot_id="ctp-visible-futures-set:7:20261023:{}".format(digest[:16]),
+        source_sha256=digest,
+        requests=requests,
+        excluded_products=(),
+    )
+
+    manifest = _select(replace(snapshot, query_set=legacy_set))
+
+    assert manifest.status == "READY"
+    assert manifest.blockers == ()
+    projection = manifest.to_dict()["query_snapshot"]["query_set"]
+    assert projection["digest_schema"] == "v1"
+    assert projection["excluded_products"] == []
+
+
+def test_malformed_product_request_filters_fail_closed_without_raising(monkeypatch):
+    from backtrader.feeds.futures_main_contract import query_snapshot_set_digest
+
+    _install_fake_contract(monkeypatch)
+    snapshot = adapter.collect_ctp_futures_snapshot(
+        StagedQueryFeed(), query_mode="staged_product_set"
+    )
+    query_set = snapshot.query_set
+    malformed_product_source = replace(
+        query_set.requests[0],
+        request_filters=(("ProductClass",),),
+    )
+    requests = (malformed_product_source,) + query_set.requests[1:]
+    digest = query_snapshot_set_digest(query_set.products, requests)
+    tampered_set = replace(
+        query_set,
+        snapshot_id="ctp-visible-futures-set:7:20261023:{}".format(digest[:16]),
+        source_sha256=digest,
+        requests=requests,
+    )
+
+    manifest = _select(replace(snapshot, query_set=tampered_set))
+
+    assert manifest.status == "BLOCKED"
+    assert "QUERY_SET_PRODUCT_FILTER_MODE_INVALID" in manifest.blockers
+
+
 def test_depth_rows_outside_the_catalog_are_retained_and_block_selection(monkeypatch):
     _install_fake_contract(monkeypatch)
-    outside_quote = _depth_row("DCE", "unknown2611")
+    outside_quote = _depth_row("DCE", "opt2611")
     snapshot = adapter.collect_ctp_futures_snapshot(
-        StagedQueryFeed(depth=(outside_quote,)), query_mode="staged_product_set"
+        StagedQueryFeed(
+            products=(
+                _product_row("DCE", "i", product_class="1"),
+                _product_row("DCE", "opt", product_class="2"),
+            ),
+            depth=(outside_quote,),
+        ),
+        query_mode="staged_product_set",
     )
 
     manifest = _select(snapshot)
 
-    assert snapshot.quote_records[0].instrument_id == "unknown2611"
+    assert snapshot.quote_records[0].instrument_id == "opt2611"
+    assert snapshot.query_set.excluded_products[0].product_class == "2"
     assert manifest.status == "BLOCKED"
     assert "QUOTE_ID_NOT_IN_CATALOG" in manifest.blockers

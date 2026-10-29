@@ -85,11 +85,15 @@ def _product_row(product_id):
     return {"ExchangeID": "DCE", "ProductID": product_id, "ProductClass": "1"}
 
 
-def _instrument_row(product_id):
+def _excluded_product_row(product_id, product_class="2"):
+    return {"ExchangeID": "DCE", "ProductID": product_id, "ProductClass": product_class}
+
+
+def _instrument_row(product_id, product_class="1"):
     return {
         "ExchangeID": "DCE",
         "ProductID": product_id,
-        "ProductClass": "1",
+        "ProductClass": product_class,
         "InstrumentID": product_id + "2611",
         "IsTrading": 1,
         "ExpireDate": "20261218",
@@ -114,12 +118,18 @@ class FakeStagedQueryFeed:
         self,
         *,
         missing_instruments=(),
+        excluded_products=(),
+        product_rows=None,
+        instrument_product_class="1",
         overflow_stage=None,
         oversized_stage=None,
         oversized_count=0,
         wrong_product_filter=False,
     ):
         self.missing_instruments = frozenset(missing_instruments)
+        self.excluded_products = tuple(excluded_products)
+        self.product_rows = None if product_rows is None else tuple(product_rows)
+        self.instrument_product_class = instrument_product_class
         self.overflow_stage = overflow_stage
         self.oversized_stage = oversized_stage
         self.oversized_count = oversized_count
@@ -161,12 +171,22 @@ class FakeStagedQueryFeed:
             ),
             ("ProductID", kwargs["product_id"]),
         )
-        return self._result("products", tuple(map(_product_row, PRODUCT_IDS)), filters, kwargs)
+        if self.product_rows is None:
+            rows = tuple(map(_product_row, PRODUCT_IDS)) + tuple(
+                _excluded_product_row(product_id) for product_id in self.excluded_products
+            )
+        else:
+            rows = self.product_rows
+        return self._result("products", rows, filters, kwargs)
 
     def query_instruments_result(self, **kwargs):
         self.calls.append(("instruments", dict(kwargs)))
         product_id = kwargs["product_id"]
-        rows = () if product_id in self.missing_instruments else (_instrument_row(product_id),)
+        rows = (
+            ()
+            if product_id in self.missing_instruments
+            else (_instrument_row(product_id, self.instrument_product_class),)
+        )
         filters = (
             ("ExchangeID", kwargs["exchange_id"]),
             ("InstrumentID", kwargs["instrument_id"]),
@@ -257,8 +277,37 @@ def test_staged_query_plan_uses_real_full_product_query_set_and_its_identity(mon
     assert len(manifest_projection["quote_records"]) == len(expected_products)
     assert query_evidence["requests"][0]["request_filters"] == [
         ["ExchangeID", ""],
-        ["ProductClass", "1"],
+        ["ProductClass", ""],
         ["ProductID", ""],
+    ]
+
+
+def test_mixed_product_query_retains_exclusions_without_querying_or_selecting_them(monkeypatch):
+    _install_query_fixture(monkeypatch)
+    feed = FakeStagedQueryFeed(excluded_products=("OPTION",))
+    store = SnapshotStore(feed)
+
+    plan = RUNNER.build_ctp_query_market_plan(store, _query_config(), clock=FixedClock())
+
+    expected_products = tuple(
+        futures_main_contract.ProductKey("DCE", item) for item in sorted(PRODUCT_IDS)
+    )
+    excluded = store.snapshot.query_set.excluded_products
+    assert tuple(item.product for item in store.snapshot.query_set.products) == expected_products
+    assert len(excluded) == 1
+    assert excluded[0].product == futures_main_contract.ProductKey("DCE", "OPTION")
+    assert excluded[0].product_class == "2"
+    assert tuple(plan["products"]) == expected_products
+    assert tuple(plan["targets"]) == tuple("DCE." + item for item in sorted(PRODUCT_IDS))
+    assert all("OPTION" not in target for target in plan["targets"])
+    assert [kwargs["product_id"] for kind, kwargs in feed.calls if kind == "instruments"] == [
+        "A",
+        "M",
+        "Y",
+    ]
+    query_evidence = plan["manifest"].to_dict()["query_snapshot"]["query_set"]
+    assert [row["product"]["product_id"] for row in query_evidence["excluded_products"]] == [
+        "OPTION"
     ]
 
 
@@ -323,6 +372,109 @@ def test_staged_query_failures_keep_bounded_limit_and_scope_diagnostics(
 
 
 @pytest.mark.parametrize(
+    ("feed_options", "expected_detail", "stage_count"),
+    [
+        (
+            {
+                "product_rows": (
+                    _product_row("M"),
+                    _excluded_product_row("M"),
+                )
+            },
+            "PRODUCT_CLASS_CONFLICT",
+            1,
+        ),
+        (
+            {"product_rows": (_excluded_product_row("PRIVATE_UNKNOWN", "Z"),)},
+            "PRODUCT_CLASS_UNKNOWN",
+            1,
+        ),
+        (
+            {"product_rows": (_excluded_product_row("OPTION"),)},
+            "PRODUCT_FUTURE_SET_EMPTY",
+            1,
+        ),
+        ({"instrument_product_class": "Z"}, "CATALOG_PRODUCT_CLASS_UNKNOWN", 2),
+        ({"instrument_product_class": "2"}, "INSTRUMENT_PRODUCT_CLASS_MISMATCH", 2),
+    ],
+)
+def test_new_staged_product_class_errors_keep_finite_error_projection(
+    monkeypatch, feed_options, expected_detail, stage_count
+):
+    _install_query_fixture(monkeypatch)
+    store = SnapshotStore(FakeStagedQueryFeed(**feed_options))
+
+    with pytest.raises(RUNNER.RunnerError) as caught:
+        RUNNER.build_ctp_query_market_plan(store, _query_config(), clock=FixedClock())
+
+    diagnostic = caught.value.query_diagnostics
+    assert caught.value.detail == expected_detail
+    assert diagnostic["schema_version"] == 2
+    assert diagnostic["status"] == "AVAILABLE"
+    assert len(diagnostic["stages"]) == stage_count
+    if expected_detail in {"PRODUCT_CLASS_UNKNOWN", "PRODUCT_CLASS_CONFLICT"}:
+        assert diagnostic["stages"][0]["classified_future_product_count"] is None
+        assert diagnostic["stages"][0]["classified_excluded_product_count"] is None
+    assert "PRIVATE_UNKNOWN" not in str(diagnostic)
+
+
+def test_instrument_normalizer_class_mismatch_keeps_finite_error_projection(monkeypatch):
+    _install_query_fixture(monkeypatch)
+
+    def mismatching_normalizer(row):
+        normalized = _normalize_instrument(row)
+        normalized["product_class"] = "2"
+        return normalized
+
+    monkeypatch.setattr(
+        snapshot_adapter,
+        "_load_sdk_contract",
+        lambda: (FakeQueryResult, mismatching_normalizer),
+    )
+    store = SnapshotStore(FakeStagedQueryFeed())
+
+    with pytest.raises(RUNNER.RunnerError) as caught:
+        RUNNER.build_ctp_query_market_plan(store, _query_config(), clock=FixedClock())
+
+    diagnostic = caught.value.query_diagnostics
+    assert caught.value.detail == "CATALOG_PRODUCT_CLASS_MISMATCH"
+    assert diagnostic["schema_version"] == 2
+    assert [stage["stage"] for stage in diagnostic["stages"]] == [
+        "products",
+        "instruments_001",
+    ]
+    assert diagnostic["stages"][0]["classified_future_product_count"] == 3
+    assert diagnostic["stages"][0]["classified_excluded_product_count"] == 0
+
+
+def test_staged_error_projection_uses_classified_future_count_for_instrument_stages(
+    monkeypatch,
+):
+    _install_query_fixture(monkeypatch)
+    store = SnapshotStore(
+        FakeStagedQueryFeed(excluded_products=("OPTION",), overflow_stage="instruments")
+    )
+
+    with pytest.raises(RUNNER.RunnerError) as caught:
+        RUNNER.build_ctp_query_market_plan(store, _query_config(), clock=FixedClock())
+
+    diagnostic = caught.value.query_diagnostics
+    assert diagnostic["status"] == "AVAILABLE"
+    assert diagnostic["schema_version"] == 2
+    assert [stage["stage"] for stage in diagnostic["stages"]] == [
+        "products",
+        "instruments_001",
+    ]
+    products, instrument = diagnostic["stages"]
+    assert products["record_count"] == 4
+    assert products["classified_future_product_count"] == 3
+    assert products["classified_excluded_product_count"] == 1
+    assert instrument["stage"] == "instruments_001"
+    assert instrument["error_category"] == "record_limit"
+    assert "OPTION" not in str(diagnostic)
+
+
+@pytest.mark.parametrize(
     ("stage_name", "row_count", "expected_count", "count_capped", "stage_count"),
     [
         ("products", 257, 257, False, 1),
@@ -358,6 +510,7 @@ def test_staged_row_overflow_diagnostics_use_observed_count_not_sdk_flag(
     # A contradictory sanitized projection must not turn an observed row or
     # diagnostic-cap overflow into an apparently successful query.
     contradictory = {
+        "schema_version": 2,
         "status": "AVAILABLE",
         "stages": [dict(item) for item in diagnostic["stages"]],
     }
@@ -365,6 +518,314 @@ def test_staged_row_overflow_diagnostics_use_observed_count_not_sdk_flag(
     contradictory_stage["record_limit_exceeded"] = False
     contradictory_stage["error_category"] = "none"
     assert RUNNER._sanitize_ctp_query_diagnostics(contradictory) == {
+        "status": "UNAVAILABLE",
+        "category": "INVALID_DIAGNOSTICS",
+    }
+
+
+def _staged_diagnostic_stage(
+    name,
+    *,
+    prior_stage_complete,
+    record_count,
+    requested_limit,
+    classified_counts=None,
+):
+    future_count, excluded_count = classified_counts or (None, None)
+    return {
+        "stage": name,
+        "entered": True,
+        "returned": True,
+        "elapsed_seconds": 0.01,
+        "prior_stage_complete": prior_stage_complete,
+        "result_type_matches": True,
+        "request_type_matches": True,
+        "generation_matches": True,
+        "request_id_positive": True,
+        "timed_out": False,
+        "complete": True,
+        "is_last_seen": True,
+        "unsupported": False,
+        "late_callbacks_reported": False,
+        "late_callback_count_valid": True,
+        "record_count": record_count,
+        "record_count_capped": False,
+        "submit_category": "accepted",
+        "error_code_present": False,
+        "error_code_valid": True,
+        "error_code_nonzero": False,
+        "error_message_present": False,
+        "error_message_valid": True,
+        "error_category": "none",
+        "first_completion_origin": "success",
+        "completion_origin": "success",
+        "requested_record_limit": requested_limit,
+        "record_limit_observed": requested_limit,
+        "record_limit_matches": True,
+        "record_limit_exceeded": False,
+        "request_filters_match": True,
+        "classified_future_product_count": future_count,
+        "classified_excluded_product_count": excluded_count,
+    }
+
+
+def _staged_diagnostic(*stages, schema_version=2):
+    output = {"status": "AVAILABLE", "stages": list(stages)}
+    if schema_version is not None:
+        output["schema_version"] = schema_version
+    return output
+
+
+def test_staged_diagnostics_use_classified_future_count_not_total_product_count():
+    products = _staged_diagnostic_stage(
+        "products",
+        prior_stage_complete=None,
+        record_count=5,
+        requested_limit=256,
+        classified_counts=(2, 3),
+    )
+    instruments = (
+        _staged_diagnostic_stage(
+            "instruments_001",
+            prior_stage_complete=True,
+            record_count=4,
+            requested_limit=20_000,
+        ),
+        _staged_diagnostic_stage(
+            "instruments_002",
+            prior_stage_complete=True,
+            record_count=2,
+            requested_limit=19_996,
+        ),
+    )
+    depth = _staged_diagnostic_stage(
+        "depth",
+        prior_stage_complete=True,
+        record_count=8,
+        requested_limit=20_000,
+    )
+    diagnostics = _staged_diagnostic(products, *instruments, depth)
+
+    assert RUNNER._sanitize_ctp_query_diagnostics(diagnostics) == diagnostics
+
+
+def test_staged_diagnostics_allow_classification_early_stop_but_not_inferred_counts():
+    products = _staged_diagnostic_stage(
+        "products",
+        prior_stage_complete=None,
+        record_count=5,
+        requested_limit=256,
+        classified_counts=None,
+    )
+    assert RUNNER._sanitize_ctp_query_diagnostics(_staged_diagnostic(products)) == {
+        "schema_version": 2,
+        "status": "AVAILABLE",
+        "stages": [products],
+    }
+
+    inferred_instrument = _staged_diagnostic_stage(
+        "instruments_001",
+        prior_stage_complete=True,
+        record_count=2,
+        requested_limit=20_000,
+    )
+    assert RUNNER._sanitize_ctp_query_diagnostics(
+        _staged_diagnostic(products, inferred_instrument)
+    ) == {"status": "UNAVAILABLE", "category": "INVALID_DIAGNOSTICS"}
+
+    no_futures = _staged_diagnostic_stage(
+        "products",
+        prior_stage_complete=None,
+        record_count=3,
+        requested_limit=256,
+        classified_counts=(0, 3),
+    )
+    assert RUNNER._sanitize_ctp_query_diagnostics(_staged_diagnostic(no_futures)) == {
+        "schema_version": 2,
+        "status": "AVAILABLE",
+        "stages": [no_futures],
+    }
+    assert RUNNER._sanitize_ctp_query_diagnostics(
+        _staged_diagnostic(no_futures, inferred_instrument)
+    ) == {"status": "UNAVAILABLE", "category": "INVALID_DIAGNOSTICS"}
+
+
+def test_staged_diagnostics_allow_partial_instrument_early_stop_and_require_depth_last():
+    products = _staged_diagnostic_stage(
+        "products",
+        prior_stage_complete=None,
+        record_count=4,
+        requested_limit=256,
+        classified_counts=(3, 1),
+    )
+    first_instrument = _staged_diagnostic_stage(
+        "instruments_001",
+        prior_stage_complete=True,
+        record_count=1,
+        requested_limit=20_000,
+    )
+    depth = _staged_diagnostic_stage(
+        "depth",
+        prior_stage_complete=True,
+        record_count=3,
+        requested_limit=20_000,
+    )
+
+    # A response may be the last observation when row validation stops the
+    # collector before the next product request or depth query.
+    assert RUNNER._sanitize_ctp_query_diagnostics(
+        _staged_diagnostic(products, first_instrument)
+    ) == _staged_diagnostic(products, first_instrument)
+    assert RUNNER._sanitize_ctp_query_diagnostics(
+        _staged_diagnostic(products, first_instrument, depth)
+    ) == {"status": "UNAVAILABLE", "category": "INVALID_DIAGNOSTICS"}
+
+    complete_instruments = tuple(
+        _staged_diagnostic_stage(
+            "instruments_{:03d}".format(index),
+            prior_stage_complete=True,
+            record_count=1,
+            requested_limit=20_000 - index + 1,
+        )
+        for index in (1, 2, 3)
+    )
+    valid_depth = _staged_diagnostic_stage(
+        "depth",
+        prior_stage_complete=True,
+        record_count=3,
+        requested_limit=20_000,
+    )
+    assert RUNNER._sanitize_ctp_query_diagnostics(
+        _staged_diagnostic(products, *complete_instruments, valid_depth)
+    ) == _staged_diagnostic(products, *complete_instruments, valid_depth)
+
+
+def test_staged_diagnostics_keep_historical_v1_count_binding_and_reject_private_fields():
+    products = _staged_diagnostic_stage(
+        "products",
+        prior_stage_complete=None,
+        record_count=2,
+        requested_limit=256,
+        classified_counts=(2, 0),
+    )
+    instrument = _staged_diagnostic_stage(
+        "instruments_001",
+        prior_stage_complete=True,
+        record_count=1,
+        requested_limit=20_000,
+    )
+    second_instrument = _staged_diagnostic_stage(
+        "instruments_002",
+        prior_stage_complete=True,
+        record_count=1,
+        requested_limit=19_999,
+    )
+    depth = _staged_diagnostic_stage(
+        "depth",
+        prior_stage_complete=True,
+        record_count=2,
+        requested_limit=20_000,
+    )
+    legacy_stages = []
+    for stage in (products, instrument, second_instrument, depth):
+        legacy_stage = dict(stage)
+        legacy_stage.pop("classified_future_product_count")
+        legacy_stage.pop("classified_excluded_product_count")
+        legacy_stages.append(legacy_stage)
+    assert RUNNER._sanitize_ctp_query_diagnostics(
+        _staged_diagnostic(*legacy_stages, schema_version=None)
+    ) == _staged_diagnostic(*legacy_stages, schema_version=None)
+    # The v2 marker makes removal of its new count fields detectable. Removing
+    # both the marker and fields is byte-for-byte indistinguishable from v1.
+    assert RUNNER._sanitize_ctp_query_diagnostics(
+        _staged_diagnostic(*legacy_stages)
+    ) == {"status": "UNAVAILABLE", "category": "INVALID_DIAGNOSTICS"}
+
+    private_payload = dict(products, private_provider_text="must-not-leak")
+    serialized = RUNNER._sanitize_ctp_query_diagnostics(
+        _staged_diagnostic(private_payload)
+    )
+    assert serialized == {"status": "UNAVAILABLE", "category": "INVALID_DIAGNOSTICS"}
+    assert "must-not-leak" not in str(serialized)
+
+
+def test_staged_diagnostics_reject_inconsistent_partition_and_stage_sequence():
+    products = _staged_diagnostic_stage(
+        "products",
+        prior_stage_complete=None,
+        record_count=5,
+        requested_limit=256,
+        classified_counts=(2, 3),
+    )
+    first_instrument = _staged_diagnostic_stage(
+        "instruments_001",
+        prior_stage_complete=True,
+        record_count=1,
+        requested_limit=20_000,
+    )
+    second_instrument = _staged_diagnostic_stage(
+        "instruments_002",
+        prior_stage_complete=True,
+        record_count=1,
+        requested_limit=19_999,
+    )
+    depth = _staged_diagnostic_stage(
+        "depth",
+        prior_stage_complete=True,
+        record_count=2,
+        requested_limit=20_000,
+    )
+
+    inconsistent_partition = dict(
+        products,
+        classified_excluded_product_count=2,
+    )
+    boolean_count = dict(
+        products,
+        classified_future_product_count=True,
+        classified_excluded_product_count=4,
+    )
+    partition_on_instrument = dict(
+        second_instrument,
+        classified_future_product_count=2,
+        classified_excluded_product_count=3,
+    )
+    for diagnostic in (
+        _staged_diagnostic(inconsistent_partition),
+        _staged_diagnostic(boolean_count),
+        _staged_diagnostic(products, first_instrument, depth),
+        _staged_diagnostic(products, first_instrument, partition_on_instrument),
+        _staged_diagnostic(products, first_instrument, second_instrument, second_instrument),
+    ):
+        assert RUNNER._sanitize_ctp_query_diagnostics(diagnostic) == {
+            "status": "UNAVAILABLE",
+            "category": "INVALID_DIAGNOSTICS",
+        }
+
+
+@pytest.mark.parametrize(
+    ("future_count", "excluded_count", "record_count"),
+    [
+        (None, 3, 5),
+        (2, None, 5),
+        (-1, 6, 5),
+        (2.5, 2.5, 5),
+        (257, 0, 257),
+        (256, 256, 512),
+    ],
+)
+def test_staged_diagnostics_reject_missing_invalid_and_oversized_counts(
+    future_count, excluded_count, record_count
+):
+    products = _staged_diagnostic_stage(
+        "products",
+        prior_stage_complete=None,
+        record_count=record_count,
+        requested_limit=256,
+        classified_counts=(future_count, excluded_count),
+    )
+
+    assert RUNNER._sanitize_ctp_query_diagnostics(_staged_diagnostic(products)) == {
         "status": "UNAVAILABLE",
         "category": "INVALID_DIAGNOSTICS",
     }

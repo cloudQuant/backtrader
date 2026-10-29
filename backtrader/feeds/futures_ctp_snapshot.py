@@ -19,7 +19,7 @@ import math
 import re
 import time
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import date, datetime, timezone
 from decimal import Decimal
 from typing import Any, Callable, Optional, Tuple
@@ -88,6 +88,8 @@ class CtpFuturesSnapshotQueryObservation:
     record_limit_matches: Optional[bool] = None
     record_limit_exceeded: Optional[bool] = None
     request_filters_match: Optional[bool] = None
+    classified_future_product_count: Optional[int] = None
+    classified_excluded_product_count: Optional[int] = None
 
 
 class CtpFuturesSnapshotError(RuntimeError):
@@ -713,9 +715,12 @@ def _catalog_records(rows: Tuple[Any, ...], normalize: Callable) -> tuple:
         )
         product_class = normalized.get("product_class")
         if product_class_value is not None:
-            product_class = normalized.get("product_class")
-            if type(product_class) is not str:
+            normalized_product_class = normalized.get("product_class")
+            if type(normalized_product_class) is not str:
                 _fail("CATALOG_PRODUCT_CLASS_INVALID")
+            if normalized_product_class != product_class_value:
+                _fail("CATALOG_PRODUCT_CLASS_MISMATCH")
+            product_class = normalized_product_class
         else:
             product_class = None
         output.append(
@@ -733,16 +738,19 @@ def _catalog_records(rows: Tuple[Any, ...], normalize: Callable) -> tuple:
 
 def _product_evidence(rows: Tuple[Any, ...]) -> tuple:
     from backtrader.feeds.futures_main_contract import (
-        MAX_VISIBLE_FUTURE_PRODUCTS,
+        MAX_VISIBLE_CTP_PRODUCTS,
+        _CTP_PRODUCT_CLASS_ASSET_TYPE,
         ProductKey,
+        QuerySnapshotExcludedProductEvidence,
         QuerySnapshotProductEvidence,
     )
 
     if not rows:
         _fail("PRODUCT_QUERY_EMPTY")
-    if len(rows) > MAX_VISIBLE_FUTURE_PRODUCTS:
+    if len(rows) > MAX_VISIBLE_CTP_PRODUCTS:
         _fail("PRODUCT_QUERY_RECORD_CAP_EXCEEDED")
-    output = []
+    futures = []
+    excluded = []
     canonical_to_native = {}
     for raw in rows:
         row = _mapping_row(raw, "PRODUCT_ROW_INVALID")
@@ -780,28 +788,41 @@ def _product_evidence(rows: Tuple[Any, ...]) -> tuple:
             ),
             "PRODUCT_CLASS_INVALID",
         )
-        if product_class != "1":
-            _fail("PRODUCT_CLASS_MISMATCH")
+        asset_type = _CTP_PRODUCT_CLASS_ASSET_TYPE.get(product_class)
+        if asset_type is None:
+            _fail("PRODUCT_CLASS_UNKNOWN")
         product = ProductKey(exchange, product_id)
         native_pair = (exchange, product_id)
         prior = canonical_to_native.get(product)
         if prior is not None:
-            _fail(
-                "PRODUCT_CANONICAL_COLLISION"
-                if prior != native_pair
-                else "PRODUCT_DUPLICATE"
+            if prior[2] != product_class:
+                _fail("PRODUCT_CLASS_CONFLICT")
+            if prior[:2] != native_pair:
+                _fail("PRODUCT_CANONICAL_COLLISION")
+            _fail("PRODUCT_DUPLICATE")
+        canonical_to_native[product] = (*native_pair, product_class)
+        if product_class == "1":
+            futures.append(
+                QuerySnapshotProductEvidence(
+                    product=product,
+                    native_exchange_id=exchange,
+                    native_product_id=product_id,
+                    product_class=product_class,
+                )
             )
-        canonical_to_native[product] = native_pair
-        output.append(
-            QuerySnapshotProductEvidence(
-                product=product,
-                native_exchange_id=exchange,
-                native_product_id=product_id,
-                product_class=product_class,
+        else:
+            excluded.append(
+                QuerySnapshotExcludedProductEvidence(
+                    product=product,
+                    native_exchange_id=exchange,
+                    native_product_id=product_id,
+                    product_class=product_class,
+                    asset_type=asset_type,
+                )
             )
-        )
-    output.sort(key=lambda item: (item.product.exchange_id, item.product.product_id))
-    return tuple(output)
+    futures.sort(key=lambda item: (item.product.exchange_id, item.product.product_id))
+    excluded.sort(key=lambda item: (item.product.exchange_id, item.product.product_id))
+    return tuple(futures), tuple(excluded)
 
 
 def _query_source_evidence(
@@ -856,17 +877,20 @@ def _collect_staged_ctp_futures_snapshot(
     source_prefix: str,
     observations: list,
 ) -> Any:
-    """Collect a bounded ProductClass=1 product/instrument/depth query set.
+    """Collect a bounded all-class product and futures-only query set.
 
     The local adapter retains only normalized rows and query receipts after
     each request. The SDK also keeps its bounded sealed-query history; the
-    product, cumulative instrument, and depth caps bound those retained rows.
+    all-class product, cumulative futures-instrument, and depth caps bound
+    those retained rows. Known non-futures product classes remain explicit in
+    the query-set evidence and do not trigger per-product instrument queries.
     """
 
     from backtrader.feeds.futures_main_contract import (
+        _CTP_PRODUCT_CLASS_ASSET_TYPE,
         MAX_PRODUCT_INSTRUMENT_ROWS,
         MAX_VISIBLE_DEPTH_ROWS,
-        MAX_VISIBLE_FUTURE_PRODUCTS,
+        MAX_VISIBLE_CTP_PRODUCTS,
         MainContractQuerySnapshot,
         QuerySnapshotSetEvidence,
         query_snapshot_set_digest,
@@ -974,7 +998,7 @@ def _collect_staged_ctp_futures_snapshot(
 
     product_filters = (
         ("ExchangeID", ""),
-        ("ProductClass", "1"),
+        ("ProductClass", ""),
         ("ProductID", ""),
     )
     first_remaining = deadline - time.monotonic()
@@ -990,17 +1014,24 @@ def _collect_staged_ctp_futures_snapshot(
         stage="products",
         method=query_products,
         kwargs={
-            "product_class": "1",
+            "product_class": "",
             "exchange_id": "",
             "product_id": "",
             "_hard_limit": product_hard_limit,
         },
         request_type="products",
         prior_complete=None,
-        max_records=MAX_VISIBLE_FUTURE_PRODUCTS,
+        max_records=MAX_VISIBLE_CTP_PRODUCTS,
         request_filters=product_filters,
     )
-    product_evidence = _product_evidence(product_result.records)
+    product_evidence, excluded_product_evidence = _product_evidence(product_result.records)
+    observations[-1] = replace(
+        observations[-1],
+        classified_future_product_count=len(product_evidence),
+        classified_excluded_product_count=len(excluded_product_evidence),
+    )
+    if not product_evidence:
+        _fail("PRODUCT_FUTURE_SET_EMPTY", tuple(observations))
     product_source = _query_source_evidence(
         source_prefix=source_prefix,
         method_name="query_products_result",
@@ -1014,7 +1045,7 @@ def _collect_staged_ctp_futures_snapshot(
         request_id=product_request_id,
         source_sha256=product_digest,
         request_filters=product_filters,
-        record_limit=MAX_VISIBLE_FUTURE_PRODUCTS,
+        record_limit=MAX_VISIBLE_CTP_PRODUCTS,
     )
     del product_result
 
@@ -1090,6 +1121,11 @@ def _collect_staged_ctp_futures_snapshot(
         rows = _catalog_records(instrument_result.records, normalize_instrument)
         if any(record.product != product.product for record in rows):
             _fail("INSTRUMENT_QUERY_ROW_SCOPE_MISMATCH", tuple(observations))
+        for record in rows:
+            if record.product_class not in _CTP_PRODUCT_CLASS_ASSET_TYPE:
+                _fail("CATALOG_PRODUCT_CLASS_UNKNOWN", tuple(observations))
+            if record.product_class != product.product_class:
+                _fail("INSTRUMENT_PRODUCT_CLASS_MISMATCH", tuple(observations))
         if len(catalog_records) + len(rows) > MAX_PRODUCT_INSTRUMENT_ROWS:
             _fail("INSTRUMENT_RECORD_CAP_EXCEEDED", tuple(observations))
         catalog_records.extend(rows)
@@ -1170,7 +1206,12 @@ def _collect_staged_ctp_futures_snapshot(
         _fail("QUERY_REQUEST_ID_COLLISION", tuple(observations))
     query_sources = tuple(request_sources)
     product_tuple = tuple(product_evidence)
-    query_set_sha256 = query_snapshot_set_digest(product_tuple, query_sources)
+    excluded_product_tuple = tuple(excluded_product_evidence)
+    query_set_sha256 = query_snapshot_set_digest(
+        product_tuple,
+        query_sources,
+        excluded_product_tuple,
+    )
     query_set = QuerySnapshotSetEvidence(
         source_id="{}.staged_futures_query_set".format(source_prefix),
         snapshot_id="ctp-visible-futures-set:{}:{}:{}".format(
@@ -1181,6 +1222,7 @@ def _collect_staged_ctp_futures_snapshot(
         source_sha256=query_set_sha256,
         products=product_tuple,
         requests=query_sources,
+        excluded_products=excluded_product_tuple,
     )
     snapshot = MainContractQuerySnapshot(
         catalog_source=None,

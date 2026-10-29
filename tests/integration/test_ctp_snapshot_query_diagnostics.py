@@ -198,20 +198,24 @@ class _StagedSyntheticRequestApi:
 
     def ReqQryProduct(self, field, request_id):
         self.request_names.append("products")
-        assert field.ProductClass == "1"
+        # CTP represents an empty scalar-char filter as a NUL character.
+        assert field.ProductClass == "\x00"
         assert field.ExchangeID == field.ProductID == ""
-        for index, product_id in enumerate(self.product_ids):
+        product_rows = tuple((product_id, "1") for product_id in self.product_ids) + (
+            ("opt", "2"),
+        )
+        for index, (product_id, product_class) in enumerate(product_rows):
             record = {
                 "ExchangeID": "DCE",
                 "ProductID": product_id,
-                "ProductClass": "1",
+                "ProductClass": product_class,
             }
             self._schedule(
                 "OnRspQryProduct",
                 record,
                 request_id,
                 0.01 * (index + 1),
-                index == len(self.product_ids) - 1,
+                index == len(product_rows) - 1,
             )
         return 0
 
@@ -249,6 +253,7 @@ class _StagedSyntheticRequestApi:
     def ReqQryDepthMarketData(self, field, request_id):
         self.request_names.append("depth")
         assert field.InstrumentID == field.ExchangeID == ""
+        assert field.ProductClass == "1"
         self._schedule("OnRspQryDepthMarketData", None, request_id, 0.01, True)
         return 0
 
@@ -769,6 +774,9 @@ def test_staged_real_sdk_budget_accepts_heterogeneous_terminal_responses(monkeyp
     query_set = snapshot.query_set
     assert query_set is not None
     assert len(query_set.products) == 4
+    assert len(query_set.excluded_products) == 1
+    assert query_set.excluded_products[0].product.product_id == "OPT"
+    assert query_set.requests[0].record_count == 5
     assert len(query_set.requests) == 6
     assert all(
         source.complete is True and source.is_last_seen is True for source in query_set.requests

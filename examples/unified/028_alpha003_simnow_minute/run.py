@@ -55,6 +55,8 @@ _FEE_PAIR_SOURCE_ONLY_MAX_RECORD_BYTES = 8 * 1024 * 1024
 _LIVE_DECISION_JOURNAL_MAX_PAYLOAD_BYTES = 131_072
 _LIVE_COMMISSION_QUERY_BUDGET_SECONDS = 3.0
 _LIVE_COMMISSION_CACHE_REFRESH_SECONDS = 30.0
+_CTP_QUERY_DIAGNOSTIC_SCHEMA_VERSION = 2
+_CTP_QUERY_DIAGNOSTIC_MAX_PRODUCTS = 256
 UTC = timezone.utc
 OHLCV_FIELDS = ("open", "high", "low", "close", "volume", "openinterest")
 RISK_FIELDS = (
@@ -95,6 +97,7 @@ _CTP_FUTURES_SNAPSHOT_ERROR_CODES = frozenset(
         "CATALOG_NORMALIZATION_FAILED",
         "CATALOG_PRODUCT_CLASS_INVALID",
         "CATALOG_PRODUCT_CLASS_MISSING",
+        "CATALOG_PRODUCT_CLASS_MISMATCH",
         "CATALOG_PRODUCT_ID_MISSING",
         "CATALOG_QUERY_CALL_FAILED",
         "CATALOG_ROW_INVALID",
@@ -138,6 +141,9 @@ _CTP_FUTURES_SNAPSHOT_ERROR_CODES = frozenset(
         "PRODUCT_QUERY_EMPTY",
         "PRODUCT_QUERY_RECORD_CAP_EXCEEDED",
         "PRODUCT_FIELD_CONFLICT",
+        "PRODUCT_CLASS_CONFLICT",
+        "PRODUCT_CLASS_UNKNOWN",
+        "PRODUCT_FUTURE_SET_EMPTY",
         "PRODUCT_CANONICAL_COLLISION",
         "PRODUCT_DUPLICATE",
         "PRODUCT_CLASS_MISMATCH",
@@ -151,6 +157,8 @@ _CTP_FUTURES_SNAPSHOT_ERROR_CODES = frozenset(
         "INSTRUMENT_RECORD_CAP_EXHAUSTED",
         "INSTRUMENT_RECORD_CAP_EXCEEDED",
         "INSTRUMENT_QUERY_ROW_SCOPE_MISMATCH",
+        "INSTRUMENT_PRODUCT_CLASS_MISMATCH",
+        "CATALOG_PRODUCT_CLASS_UNKNOWN",
         "DEPTH_QUERY_CALL_FAILED",
         "QUOTE_ACTION_DAY_INVALID",
         "QUOTE_EXCHANGE_ID_MISSING",
@@ -889,14 +897,19 @@ _CTP_QUERY_STAGE_FIELD_NAMES = (
     "first_completion_origin",
     "completion_origin",
 )
-_CTP_QUERY_STAGED_STAGE_FIELD_NAMES = _CTP_QUERY_STAGE_FIELD_NAMES + (
+_CTP_QUERY_STAGED_STAGE_FIELD_NAMES_V1 = _CTP_QUERY_STAGE_FIELD_NAMES + (
     "requested_record_limit",
     "record_limit_observed",
     "record_limit_matches",
     "record_limit_exceeded",
     "request_filters_match",
 )
+_CTP_QUERY_STAGED_STAGE_FIELD_NAMES = _CTP_QUERY_STAGED_STAGE_FIELD_NAMES_V1 + (
+    "classified_future_product_count",
+    "classified_excluded_product_count",
+)
 _CTP_QUERY_STAGE_FIELDS = frozenset(_CTP_QUERY_STAGE_FIELD_NAMES)
+_CTP_QUERY_STAGED_STAGE_FIELDS_V1 = frozenset(_CTP_QUERY_STAGED_STAGE_FIELD_NAMES_V1)
 _CTP_QUERY_STAGED_STAGE_FIELDS = frozenset(_CTP_QUERY_STAGED_STAGE_FIELD_NAMES)
 
 
@@ -914,7 +927,20 @@ def _sanitize_ctp_query_diagnostics(value):
         ):
             return dict(value)
         return unavailable
-    if set(value) != {"status", "stages"} or value.get("status") != "AVAILABLE":
+    if value.get("status") != "AVAILABLE":
+        return unavailable
+    if set(value) == {"status", "stages"}:
+        # Unversioned available payloads are the historical v1 form. If both
+        # a v2 marker and its new fields are removed, the remaining payload is
+        # indistinguishable from v1; compatibility requires accepting that form.
+        schema_version = 1
+    elif (
+        set(value) == {"schema_version", "status", "stages"}
+        and type(value.get("schema_version")) is int
+        and value["schema_version"] == _CTP_QUERY_DIAGNOSTIC_SCHEMA_VERSION
+    ):
+        schema_version = _CTP_QUERY_DIAGNOSTIC_SCHEMA_VERSION
+    else:
         return unavailable
     stages = value.get("stages")
     if type(stages) is not list or not 1 <= len(stages) <= 258:
@@ -924,34 +950,94 @@ def _sanitize_ctp_query_diagnostics(value):
     staged_query_set = stages[0]["stage"] == "products"
     if not staged_query_set and len(stages) > 2:
         return unavailable
+    staged_product_count_facts = False
+    if staged_query_set:
+        first_fields = set(stages[0])
+        if (
+            schema_version == _CTP_QUERY_DIAGNOSTIC_SCHEMA_VERSION
+            and first_fields == _CTP_QUERY_STAGED_STAGE_FIELDS
+        ):
+            staged_product_count_facts = True
+            staged_stage_fields = _CTP_QUERY_STAGED_STAGE_FIELDS
+        elif schema_version == 1 and first_fields == _CTP_QUERY_STAGED_STAGE_FIELDS_V1:
+            staged_stage_fields = _CTP_QUERY_STAGED_STAGE_FIELDS_V1
+        else:
+            return unavailable
+        if any(
+            type(stage) is not dict or set(stage) != staged_stage_fields
+            for stage in stages
+        ):
+            return unavailable
+    else:
+        staged_stage_fields = None
     product_count = stages[0].get("record_count") if staged_query_set else None
     if product_count is not None and (
         type(product_count) is not int
         or not 0 <= product_count <= _CTP_QUERY_DIAGNOSTIC_MAX_RECORDS
     ):
         return unavailable
-    if (
-        staged_query_set
-        and product_count is not None
-        and product_count > 256
-        and len(stages) > 1
-    ):
-        return unavailable
-    if staged_query_set and product_count is None and len(stages) > 1:
-        return unavailable
-    if staged_query_set and product_count == 0 and len(stages) > 1:
-        return unavailable
+    classified_future_count = None
+    classified_excluded_count = None
+    if staged_query_set and staged_product_count_facts:
+        classified_future_count = stages[0]["classified_future_product_count"]
+        classified_excluded_count = stages[0]["classified_excluded_product_count"]
+        if (classified_future_count is None) != (classified_excluded_count is None):
+            return unavailable
+        if classified_future_count is None:
+            # The collector only publishes the partition after every product
+            # row has a known class. With no partition, only the product query
+            # itself is safe to report; later request counts cannot be inferred.
+            if len(stages) > 1:
+                return unavailable
+        elif (
+            type(classified_future_count) is not int
+            or type(classified_excluded_count) is not int
+            or classified_future_count < 0
+            or classified_excluded_count < 0
+            or classified_future_count > _CTP_QUERY_DIAGNOSTIC_MAX_PRODUCTS
+            or classified_excluded_count > _CTP_QUERY_DIAGNOSTIC_MAX_PRODUCTS
+            or classified_future_count + classified_excluded_count
+            > _CTP_QUERY_DIAGNOSTIC_MAX_PRODUCTS
+            or product_count is None
+            or classified_future_count + classified_excluded_count != product_count
+        ):
+            return unavailable
+        elif classified_future_count == 0 and len(stages) > 1:
+            return unavailable
+    elif staged_query_set:
+        # Historical v1 diagnostics only queried ProductClass=1, so their
+        # product row count remains the exact number of instrument requests.
+        if (
+            product_count is not None
+            and product_count > _CTP_QUERY_DIAGNOSTIC_MAX_PRODUCTS
+            and len(stages) > 1
+        ):
+            return unavailable
+        if product_count is None and len(stages) > 1:
+            return unavailable
+        if product_count == 0 and len(stages) > 1:
+            return unavailable
 
     sanitized = []
     for index, stage in enumerate(stages):
-        stage_fields = (
-            _CTP_QUERY_STAGED_STAGE_FIELDS if staged_query_set else _CTP_QUERY_STAGE_FIELDS
-        )
+        stage_fields = staged_stage_fields if staged_query_set else _CTP_QUERY_STAGE_FIELDS
         if type(stage) is not dict or set(stage) != stage_fields:
             return unavailable
         if staged_query_set:
             if index == 0:
                 expected_name = "products"
+            elif staged_product_count_facts:
+                if classified_future_count is None:
+                    return unavailable
+                if index <= classified_future_count:
+                    expected_name = "instruments_{:03d}".format(index)
+                elif (
+                    classified_future_count > 0
+                    and index == classified_future_count + 1
+                ):
+                    expected_name = "depth"
+                else:
+                    return unavailable
             elif index <= product_count:
                 expected_name = "instruments_{:03d}".format(index)
             elif index == product_count + 1:
@@ -963,7 +1049,10 @@ def _sanitize_ctp_query_diagnostics(value):
         if staged_query_set:
             requested_limit = stage.get("requested_record_limit")
             if expected_name == "products":
-                valid_limit = type(requested_limit) is int and requested_limit == 256
+                valid_limit = (
+                    type(requested_limit) is int
+                    and requested_limit == _CTP_QUERY_DIAGNOSTIC_MAX_PRODUCTS
+                )
             elif expected_name == "depth":
                 valid_limit = type(requested_limit) is int and requested_limit == 20_000
             else:
@@ -1029,6 +1118,20 @@ def _sanitize_ctp_query_diagnostics(value):
                 "record_limit_exceeded",
                 "request_filters_match",
             )
+            if staged_product_count_facts:
+                if index == 0:
+                    if (
+                        stage["classified_future_product_count"]
+                        != classified_future_count
+                        or stage["classified_excluded_product_count"]
+                        != classified_excluded_count
+                    ):
+                        return unavailable
+                elif (
+                    stage["classified_future_product_count"] is not None
+                    or stage["classified_excluded_product_count"] is not None
+                ):
+                    return unavailable
         if any(
             stage[name] is not None and type(stage[name]) is not bool
             for name in optional_booleans
@@ -1196,6 +1299,16 @@ def _sanitize_ctp_query_diagnostics(value):
 
         sanitized.append(dict(stage))
 
+    if staged_product_count_facts and classified_future_count is not None:
+        product_stage = sanitized[0]
+        if (
+            product_count == 0
+            or product_stage["result_type_matches"] is not True
+            or product_stage["error_category"] != "none"
+            or product_stage["record_count_capped"] is not False
+        ):
+            return unavailable
+
     if len(sanitized) > 1:
         for prior_stage in sanitized[:-1]:
             if not (
@@ -1218,7 +1331,10 @@ def _sanitize_ctp_query_diagnostics(value):
                 and prior_stage["error_message_present"] is False
             ):
                 return unavailable
-    return {"status": "AVAILABLE", "stages": sanitized}
+    output = {"status": "AVAILABLE", "stages": sanitized}
+    if schema_version == _CTP_QUERY_DIAGNOSTIC_SCHEMA_VERSION:
+        output["schema_version"] = _CTP_QUERY_DIAGNOSTIC_SCHEMA_VERSION
+    return output
 
 
 def _project_ctp_snapshot_query_diagnostics(error):
@@ -1260,7 +1376,13 @@ def _project_ctp_snapshot_query_diagnostics(error):
         ]
     except Exception:
         return unavailable("INVALID_DIAGNOSTICS")
-    return _sanitize_ctp_query_diagnostics({"status": "AVAILABLE", "stages": stages})
+    return _sanitize_ctp_query_diagnostics(
+        {
+            "schema_version": _CTP_QUERY_DIAGNOSTIC_SCHEMA_VERSION,
+            "status": "AVAILABLE",
+            "stages": stages,
+        }
+    )
 
 
 def _apply_golden_target_subset(plan, requested_targets):

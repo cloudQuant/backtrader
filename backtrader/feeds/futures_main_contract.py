@@ -27,7 +27,17 @@ from typing import Any, Mapping, Optional, Sequence, Tuple, Union
 _SOURCE_SHA256 = re.compile(r"^[0-9a-f]{64}$")
 _MONTH_CONTRACT = re.compile(r"^[A-Za-z]{1,8}([0-9]{3,4})$")
 _KNOWN_NON_FUTURES = frozenset(
-    {"option", "options", "combination", "spot", "efp", "spot_option", "tas", "index"}
+    {
+        "option",
+        "options",
+        "combination",
+        "spot",
+        "efp",
+        "spot_option",
+        "tas",
+        "mi",
+        "index",
+    }
 )
 _CTP_PRODUCT_CLASS_ASSET_TYPE = {
     "1": "future",
@@ -37,6 +47,7 @@ _CTP_PRODUCT_CLASS_ASSET_TYPE = {
     "5": "efp",
     "6": "spot_option",
     "7": "tas",
+    "I": "mi",
 }
 _ASSET_TYPE_ALIASES = {"futures": "future", "options": "option"}
 LEGACY_PREVIOUS_COMPLETE_DAY_EOD_OI_V1 = "legacy_previous_complete_day_eod_oi_v1"
@@ -45,7 +56,8 @@ RANKING_MODE_LEGACY_PRIOR_DAY_OI = "legacy_previous_complete_day_eod_oi_v1"
 RANKING_MODE_CTP_QUERY_SNAPSHOT = "ctp_query_snapshot_equal_weight_v1"
 _QUERY_METRIC_MAX_DIGITS = 512
 _QUERY_METRIC_MAX_ABS_EXPONENT = 256
-MAX_VISIBLE_FUTURE_PRODUCTS = 256
+MAX_VISIBLE_CTP_PRODUCTS = 256
+MAX_VISIBLE_FUTURE_PRODUCTS = MAX_VISIBLE_CTP_PRODUCTS
 MAX_PRODUCT_INSTRUMENT_ROWS = 20_000
 MAX_VISIBLE_DEPTH_ROWS = 20_000
 MAX_STAGED_QUERY_REQUESTS = MAX_VISIBLE_FUTURE_PRODUCTS + 2
@@ -458,6 +470,37 @@ class QuerySnapshotProductEvidence:
 
 
 @dataclass(frozen=True)
+class QuerySnapshotExcludedProductEvidence:
+    """One known non-futures product from the complete visible product query."""
+
+    product: ProductKey
+    native_exchange_id: str
+    native_product_id: str
+    product_class: str
+    asset_type: str
+    exclusion_reason: str = "NON_FUTURE_CTP_PRODUCT_CLASS"
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.product, ProductKey):
+            raise ValueError("product must be a ProductKey")
+        for name in ("native_exchange_id", "native_product_id", "product_class", "asset_type"):
+            value = getattr(self, name)
+            if type(value) is not str or not value or value != value.strip():
+                raise ValueError("{} must be non-empty trimmed text".format(name))
+        if self.product.exchange_id != self.native_exchange_id.upper():
+            raise ValueError("native exchange does not match canonical product")
+        if self.product.product_id != self.native_product_id.upper():
+            raise ValueError("native product does not match canonical product")
+        expected_asset_type = _CTP_PRODUCT_CLASS_ASSET_TYPE.get(self.product_class)
+        if expected_asset_type is None or self.product_class == "1":
+            raise ValueError("excluded products must have a known non-futures CTP class")
+        if self.asset_type != expected_asset_type:
+            raise ValueError("excluded product class and asset type disagree")
+        if self.exclusion_reason != "NON_FUTURE_CTP_PRODUCT_CLASS":
+            raise ValueError("excluded product reason is invalid")
+
+
+@dataclass(frozen=True)
 class QuerySnapshotSetEvidence:
     """One typed product query, exact per-product instrument queries, and depth."""
 
@@ -466,23 +509,37 @@ class QuerySnapshotSetEvidence:
     source_sha256: Any
     products: Tuple[QuerySnapshotProductEvidence, ...]
     requests: Tuple[QuerySnapshotSourceEvidence, ...]
+    excluded_products: Tuple[QuerySnapshotExcludedProductEvidence, ...] = ()
 
     def __post_init__(self) -> None:
         products = tuple(self.products)
         requests = tuple(self.requests)
+        excluded_products = tuple(self.excluded_products)
         if not products or len(products) > MAX_VISIBLE_FUTURE_PRODUCTS:
             raise ValueError("query-set products must be non-empty and bounded")
+        if len(products) + len(excluded_products) > MAX_VISIBLE_CTP_PRODUCTS:
+            raise ValueError("query-set classified products exceed the visible product cap")
         if any(not isinstance(item, QuerySnapshotProductEvidence) for item in products):
             raise ValueError("query-set products must contain QuerySnapshotProductEvidence")
+        if any(
+            not isinstance(item, QuerySnapshotExcludedProductEvidence)
+            for item in excluded_products
+        ):
+            raise ValueError(
+                "query-set exclusions must contain QuerySnapshotExcludedProductEvidence"
+            )
         if any(not isinstance(item, QuerySnapshotSourceEvidence) for item in requests):
             raise ValueError("query-set requests must contain QuerySnapshotSourceEvidence")
         if len(requests) != len(products) + 2 or len(requests) > MAX_STAGED_QUERY_REQUESTS:
             raise ValueError("query-set request count does not match its products")
         product_keys = tuple(item.product for item in products)
-        if len(set(product_keys)) != len(product_keys):
+        excluded_keys = tuple(item.product for item in excluded_products)
+        all_product_keys = product_keys + excluded_keys
+        if len(set(all_product_keys)) != len(all_product_keys):
             raise ValueError("query-set products contain canonical collisions")
         object.__setattr__(self, "products", products)
         object.__setattr__(self, "requests", requests)
+        object.__setattr__(self, "excluded_products", excluded_products)
 
     @property
     def product_keys(self) -> Tuple[ProductKey, ...]:
@@ -492,8 +549,14 @@ class QuerySnapshotSetEvidence:
 def query_snapshot_set_digest(
     products: Sequence[QuerySnapshotProductEvidence],
     requests: Sequence[QuerySnapshotSourceEvidence],
+    excluded_products: Sequence[QuerySnapshotExcludedProductEvidence] = (),
 ) -> str:
-    """Digest ordered, value-bound request receipts without retaining raw rows."""
+    """Digest classified product rows and request receipts without retaining raw rows.
+
+    The empty-exclusion form retains the exact v1 encoding so existing class-1
+    query-set evidence remains readable.  A non-empty exclusion set is added
+    to the v2 payload and is therefore bound to the query-set digest.
+    """
 
     def time_value(value: Any) -> Optional[str]:
         if not isinstance(value, datetime) or value.tzinfo is None or value.utcoffset() is None:
@@ -519,7 +582,11 @@ def query_snapshot_set_digest(
         return [list(pair) for pair in value]
 
     payload = {
-        "schema": "backtrader.ctp_query_snapshot_set.v1",
+        "schema": (
+            "backtrader.ctp_query_snapshot_set.v2"
+            if excluded_products
+            else "backtrader.ctp_query_snapshot_set.v1"
+        ),
         "products": [
             {
                 "exchange_id": item.product.exchange_id,
@@ -552,6 +619,19 @@ def query_snapshot_set_digest(
             for item in requests
         ],
     }
+    if excluded_products:
+        payload["excluded_products"] = [
+            {
+                "exchange_id": item.product.exchange_id,
+                "product_id": item.product.product_id,
+                "native_exchange_id": item.native_exchange_id,
+                "native_product_id": item.native_product_id,
+                "product_class": item.product_class,
+                "asset_type": item.asset_type,
+                "exclusion_reason": item.exclusion_reason,
+            }
+            for item in excluded_products
+        ]
     encoded = json.dumps(
         payload,
         ensure_ascii=False,
@@ -1417,22 +1497,66 @@ def _query_set_source_blockers(
         return ("QUERY_SET_UNAVAILABLE",)
     blockers = []
     products = query_set.products
+    excluded_products = query_set.excluded_products
     requests = query_set.requests
     if snapshot.catalog_source is not None or snapshot.quote_source is not None:
         blockers.append("QUERY_SET_LEGACY_SOURCE_PAIR_MIXED")
     if not products or len(products) > MAX_VISIBLE_FUTURE_PRODUCTS:
         blockers.append("QUERY_SET_PRODUCT_COUNT_INVALID")
     product_keys = tuple(item.product for item in products)
-    if len(set(product_keys)) != len(product_keys):
+    excluded_keys = tuple(item.product for item in excluded_products)
+    all_product_keys = product_keys + excluded_keys
+    if len(products) + len(excluded_products) > MAX_VISIBLE_CTP_PRODUCTS:
+        blockers.append("QUERY_SET_VISIBLE_PRODUCT_COUNT_INVALID")
+    if len(set(all_product_keys)) != len(all_product_keys):
         blockers.append("QUERY_SET_PRODUCT_CANONICAL_COLLISION")
     if tuple(sorted(product_keys, key=_key_order)) != product_keys:
         blockers.append("QUERY_SET_PRODUCT_ORDER_INVALID")
+    if tuple(sorted(excluded_keys, key=_key_order)) != excluded_keys:
+        blockers.append("QUERY_SET_EXCLUDED_PRODUCT_ORDER_INVALID")
+    if any(item.product_class != "1" for item in products):
+        blockers.append("QUERY_SET_FUTURE_PRODUCT_CLASS_INVALID")
+    for item in excluded_products:
+        expected_asset_type = _CTP_PRODUCT_CLASS_ASSET_TYPE.get(item.product_class)
+        if (
+            expected_asset_type is None
+            or item.product_class == "1"
+            or item.asset_type != expected_asset_type
+            or item.exclusion_reason != "NON_FUTURE_CTP_PRODUCT_CLASS"
+        ):
+            blockers.append("QUERY_SET_EXCLUDED_PRODUCT_CLASS_INVALID")
     expected_keys = tuple(sorted(target_products, key=_key_order))
     if product_keys != expected_keys:
         blockers.append("QUERY_SET_PRODUCT_POOL_MISMATCH")
     if len(requests) != len(products) + 2 or len(requests) > MAX_STAGED_QUERY_REQUESTS:
         blockers.append("QUERY_SET_REQUEST_COUNT_INVALID")
         return tuple(dict.fromkeys(blockers))
+
+    # Cross-bind the retained catalog projection to the exact futures products
+    # and their per-product instrument-query receipts. The request digests are
+    # opaque summaries here; this check does not independently prove each raw
+    # callback row. It relies on the trusted collector to faithfully project
+    # those rows into catalog_records.
+    product_by_key = {item.product: item for item in products}
+    catalog_counts = {}
+    for record in snapshot.catalog_records:
+        expected_product = product_by_key.get(record.product)
+        if expected_product is None:
+            blockers.append("QUERY_SET_CATALOG_PRODUCT_OUT_OF_SCOPE")
+        elif (
+            record.product_class != expected_product.product_class
+            or record.product_class != "1"
+        ):
+            blockers.append("QUERY_SET_CATALOG_PRODUCT_CLASS_MISMATCH")
+        catalog_counts[record.product] = catalog_counts.get(record.product, 0) + 1
+    for product, source in zip(products, requests[1:-1]):
+        if (
+            type(source.record_count) is int
+            and source.record_count >= 0
+            and catalog_counts.get(product.product, 0) != source.record_count
+        ):
+            blockers.append("QUERY_SET_PRODUCT_INSTRUMENT_RECORD_COUNT_MISMATCH")
+
     if type(query_set.source_id) is not str or not query_set.source_id.strip():
         blockers.append("QUERY_SET_SOURCE_ID_MISSING")
     if type(query_set.snapshot_id) is not str or not query_set.snapshot_id.strip():
@@ -1441,7 +1565,10 @@ def _query_set_source_blockers(
         query_set.source_sha256
     ):
         blockers.append("QUERY_SET_SOURCE_DIGEST_INVALID")
-    elif query_snapshot_set_digest(products, requests) != query_set.source_sha256:
+    elif (
+        query_snapshot_set_digest(products, requests, excluded_products)
+        != query_set.source_sha256
+    ):
         blockers.append("QUERY_SET_SOURCE_DIGEST_MISMATCH")
 
     product_source_suffix = ".query_products_result"
@@ -1473,9 +1600,35 @@ def _query_set_source_blockers(
             if query_set.snapshot_id != expected_query_set_snapshot_id:
                 blockers.append("QUERY_SET_SNAPSHOT_ID_MISMATCH")
 
+    product_request_class = None
+    if requests:
+        request_filters = requests[0].request_filters
+        if type(request_filters) is tuple and all(
+            type(pair) is tuple
+            and len(pair) == 2
+            and type(pair[0]) is str
+            and type(pair[1]) is str
+            for pair in request_filters
+        ):
+            product_class_filters = tuple(
+                value
+                for name, value in request_filters
+                if name == "ProductClass"
+            )
+            if len(product_class_filters) == 1:
+                product_request_class = product_class_filters[0]
+    if product_request_class == "":
+        product_query_record_count = len(products) + len(excluded_products)
+    elif product_request_class == "1" and not excluded_products:
+        # v1 evidence queried futures only and used that row count directly.
+        product_query_record_count = len(products)
+    else:
+        product_query_record_count = None
+        blockers.append("QUERY_SET_PRODUCT_FILTER_MODE_INVALID")
+
     product_filters = (
         ("ExchangeID", ""),
-        ("ProductClass", "1"),
+        ("ProductClass", product_request_class if product_request_class is not None else ""),
         ("ProductID", ""),
     )
     instrument_filters = tuple(
@@ -1582,7 +1735,7 @@ def _query_set_source_blockers(
         if type(source.record_count) is not int or source.record_count < 0:
             blockers.append("{}_RECORD_COUNT_UNAVAILABLE".format(name))
         expected_record_limit = (
-            MAX_VISIBLE_FUTURE_PRODUCTS
+            MAX_VISIBLE_CTP_PRODUCTS
             if index == 0
             else MAX_VISIBLE_DEPTH_ROWS
             if index == len(requests) - 1
@@ -1598,7 +1751,10 @@ def _query_set_source_blockers(
             and source.record_count > source.record_limit
         ):
             blockers.append("{}_RECORD_LIMIT_EXCEEDED".format(name))
-        if index == 0 and source.record_count != len(products):
+        if index == 0 and (
+            product_query_record_count is None
+            or source.record_count != product_query_record_count
+        ):
             blockers.append("QUERY_SET_PRODUCT_RECORD_COUNT_MISMATCH")
         elif 0 < index < len(requests) - 1:
             if type(source.record_count) is int and source.record_count >= 0:
@@ -1776,6 +1932,7 @@ def _query_snapshot_dict(
             "source_id": _source_text(snapshot.query_set.source_id),
             "snapshot_id": _source_text(snapshot.query_set.snapshot_id),
             "sha256": _source_digest(snapshot.query_set.source_sha256),
+            "digest_schema": "v2" if snapshot.query_set.excluded_products else "v1",
             "products": [
                 {
                     "product": _product_dict(item.product),
@@ -1784,6 +1941,17 @@ def _query_snapshot_dict(
                     "product_class": item.product_class,
                 }
                 for item in snapshot.query_set.products
+            ],
+            "excluded_products": [
+                {
+                    "product": _product_dict(item.product),
+                    "native_exchange_id": item.native_exchange_id,
+                    "native_product_id": item.native_product_id,
+                    "product_class": item.product_class,
+                    "asset_type": item.asset_type,
+                    "exclusion_reason": item.exclusion_reason,
+                }
+                for item in snapshot.query_set.excluded_products
             ],
             "requests": [
                 _query_source_dict(source) for source in snapshot.query_set.requests
@@ -3232,6 +3400,7 @@ __all__ = [
     "ProductKey",
     "ProductRankingCoverage",
     "ProductSelection",
+    "QuerySnapshotExcludedProductEvidence",
     "QuerySnapshotProductEvidence",
     "QuerySnapshotSetEvidence",
     "QuerySnapshotSourceEvidence",

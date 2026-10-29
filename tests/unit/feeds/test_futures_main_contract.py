@@ -1026,12 +1026,40 @@ def test_query_catalog_reports_non_target_options_as_explicit_exclusions():
             product_class="2",
         ),
     )
-    manifest = _query_select(_query_snapshot(catalog, (_query_quote("M2611"),)))
+    manifest = _query_select(
+        _query_snapshot(
+            catalog,
+            (_query_quote("M2611"), _query_quote("C2611-C-3000")),
+        )
+    )
     option = next(item for item in manifest.candidates if item.instrument_id == "C2611-C-3000")
 
     assert manifest.status == "READY"
     assert option.status == "EXCLUDED"
     assert option.reason == "NOT_ORDINARY_FUTURE"
+    assert manifest.products[0].ranked_instrument_ids == ("M2611",)
+
+
+def test_query_catalog_class_i_is_a_known_non_future_exclusion():
+    market_maker_product = ProductKey("DCE", "MI")
+    catalog = (
+        _catalog("M2611"),
+        _catalog(
+            "mi2611",
+            product=market_maker_product,
+            asset_type="mi",
+            product_class="I",
+        ),
+    )
+    manifest = _query_select(
+        _query_snapshot(catalog, (_query_quote("M2611"), _query_quote("mi2611")))
+    )
+    excluded = next(item for item in manifest.candidates if item.instrument_id == "mi2611")
+
+    assert manifest.status == "READY"
+    assert excluded.status == "EXCLUDED"
+    assert excluded.reason == "NOT_ORDINARY_FUTURE"
+    assert "CATALOG_PRODUCT_CLASS_UNKNOWN" not in manifest.blockers
 
 
 def _rollover_manifests():
