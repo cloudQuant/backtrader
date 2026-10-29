@@ -39,9 +39,9 @@ from backtrader_runtime.registry import RuntimeRegistry, resolve_runtime_config
 
 
 # Local consumer identity accepted on 2026-10-29 from
-# i51-b0c1258a-ctp427d71a-sdk-exact-consumer-20261029-r2:
-# Backtrader b0c1258a042c1e96052825bb318a91691f9dabfa and CTP
-# 427d71a02ce78c79d3399623302fa81d623485a9. The older I41 tables remain
+# i51-next-installed-consumer-46aecc87-6c7d9b77-20261029-r2:
+# Backtrader 46aecc87a315ba5c7433df3e2b1af2dd9b5dc68f and CTP
+# 6c7d9b77d97d5ec19cb9c535f4d1ad16f941fae9. The older I41 tables remain
 # untouched. These pins identify artifacts; they do not authorize API writes.
 _SDK_PINS = MappingProxyType(
     {
@@ -51,15 +51,15 @@ _SDK_PINS = MappingProxyType(
             version="0.15.8",
             wheel_filename="bt_api_base-0.15.8-py3-none-any.whl",
             wheel_sha256="b579a73531281d74f6e1630d447717b9f87e38bf507d82178d9ad46745017f39",
-            record_sha256="576ad24847d5c3c9c8d6668f3f9bb030e3836d948588fc8b971c0811e64384d0",
+            record_sha256="dd08e35cabe6e5bb1be98ffb14d5a57c3b2918e9b570e7953b6b8a8d827b7c14",
         ),
         "bt_api_ctp": CtpSdkArtifactPin(
             distribution="bt_api_ctp",
             module="bt_api_ctp",
             version="2.0.4+iteration41.i9",
             wheel_filename="bt_api_ctp-2.0.4+iteration41.i9-cp311-cp311-win_amd64.whl",
-            wheel_sha256="7fa29666c945e53d26131aa4ce89f9995a05e5a13dfa7f5682f4a668bf805820",
-            record_sha256="6743c9fde5d4e59f6a200311459ba6ea4c5408439992d2ac238205b23d5818c0",
+            wheel_sha256="c48593e592cecd3721d01102d191f09c196edfd40ef02add09919b668815b7fc",
+            record_sha256="362ad9dacdae1a09f416fc400dcf2fa270c78d990c5453d6d80c6461ebc54d1a",
         ),
     }
 )
