@@ -123,9 +123,19 @@ def _submit_open_for_side(coordinator, owner, data, facts, *, side, close_time, 
     ids=("buy", "sell"),
 )
 def test_ambiguous_native_cancel_resolves_only_from_fresh_original_order_query(
-    tmp_path, side, ctp_direction
+    tmp_path, side, ctp_direction, monkeypatch
 ):
     now = datetime.now(timezone.utc)
+
+    def canonical_arm_template():
+        return {
+            "md_front": "tcp://182.254.243.31:30012",
+            "strategy_identity_sha256": "a" * 64,
+            "execution_cycle_id": "cycle-unknown-recovery",
+            "preflight_sha256": "b" * 64,
+        }
+
+    monkeypatch.setattr(recovery, "_arm_template", canonical_arm_template)
     (
         api,
         store,
@@ -136,7 +146,9 @@ def test_ambiguous_native_cancel_resolves_only_from_fresh_original_order_query(
         data,
         strategy,
         cerebro,
-    ) = recovery._durable_system(tmp_path / "cancel-unknown.sqlite3", now=now)
+    ) = recovery._durable_system(
+        tmp_path / "cancel-unknown.sqlite3", now=now, monkeypatch=monkeypatch
+    )
     try:
         initial_facts = recovery._initial_open_facts(api, store, broker, target, now=now)
         order = _submit_open_for_side(
@@ -160,6 +172,7 @@ def test_ambiguous_native_cancel_resolves_only_from_fresh_original_order_query(
             orders=(
                 {
                     "OrderRef": original_order_ref,
+                    "OrderSysID": "sys-{}".format(original_order_ref),
                     "InstrumentID": recovery._INSTRUMENT,
                     "ExchangeID": recovery._EXCHANGE,
                     "OrderStatus": "3",  # CTP no-trade-queueing / still working
@@ -206,13 +219,27 @@ def test_ambiguous_native_cancel_resolves_only_from_fresh_original_order_query(
             "reason": "AC50-21 ambiguous native cancel recovery",
         }
 
-        native_cancel = api.trader_client.submit_order_action
+        # The canonical SDK validates its Action boundary against the exact
+        # TraderClient method, so model the lost reply at class level instead of
+        # rebinding an instance method (which would fail that contract).
+        trader_type = type(api.trader_client)
+        native_cancel = trader_type.submit_order_action
 
-        def cancel_reaches_native_then_loses_reply(field, request_id, *, execution_capability):
-            native_cancel(field, request_id, execution_capability=execution_capability)
+        def cancel_reaches_native_then_loses_reply(
+            self, field, request_id, *, execution_capability, deadline_monotonic=None
+        ):
+            native_cancel(
+                self,
+                field,
+                request_id,
+                execution_capability=execution_capability,
+                deadline_monotonic=deadline_monotonic,
+            )
             raise TimeoutError("synthetic native cancel response lost")
 
-        api.trader_client.submit_order_action = cancel_reaches_native_then_loses_reply
+        monkeypatch.setattr(
+            trader_type, "submit_order_action", cancel_reaches_native_then_loses_reply
+        )
         with coordinator.risk_decision_scope(
             owner=strategy,
             key=cancel_key,
@@ -250,10 +277,11 @@ def test_ambiguous_native_cancel_resolves_only_from_fresh_original_order_query(
         assert order.alive()
         assert order.status != Order.Rejected
         assert order.info.get("cancel_rejected_local") is not True
-        assert api.native_calls == [
-            ("insert", recovery._INSTRUMENT, recovery._EXCHANGE, original_order_ref, 101),
-            ("cancel", recovery._INSTRUMENT, recovery._EXCHANGE, original_order_ref, 102),
+        assert [call[:4] for call in api.native_calls] == [
+            ("insert", recovery._INSTRUMENT, recovery._EXCHANGE, original_order_ref),
+            ("cancel", recovery._INSTRUMENT, recovery._EXCHANGE, original_order_ref),
         ]
+        assert api.native_calls[1][4] > api.native_calls[0][4]
 
         # This is a new complete typed query set. Its sole terminal row names
         # the original native OrderRef; it cannot create or imply a replacement.
@@ -462,10 +490,13 @@ def test_ambiguous_native_cancel_resolves_only_from_fresh_original_order_query(
             if event[0] == order.ref and event[1] == "Canceled"
         )
         assert canceled_notifications == ((order.ref, "Canceled", submit_intent_id),), diagnostic
-        assert api.native_calls == [
-            ("insert", recovery._INSTRUMENT, recovery._EXCHANGE, original_order_ref, 101),
-            ("cancel", recovery._INSTRUMENT, recovery._EXCHANGE, original_order_ref, 102),
-        ], "recovery must neither create a new OrderRef nor resend the native CANCEL"
+        assert [call[:4] for call in api.native_calls] == [
+            ("insert", recovery._INSTRUMENT, recovery._EXCHANGE, original_order_ref),
+            ("cancel", recovery._INSTRUMENT, recovery._EXCHANGE, original_order_ref),
+        ]
+        assert api.native_calls[1][4] > api.native_calls[0][4], (
+            "recovery must neither create a new OrderRef nor resend the native CANCEL"
+        )
         resolved_cancel_intent = journal.intent(cancel_intent_id)
         assert resolved_cancel_intent is not None
         assert resolved_cancel_intent.state != "UNKNOWN"

@@ -20,6 +20,8 @@ from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from pathlib import Path
 
+import pytest
+
 from backtrader.order import Order
 from backtrader.research.live import LiveFactorReadiness, LiveFactorSnapshot
 from backtrader.research.live_cohort import LiveCohortBatch
@@ -297,6 +299,7 @@ def _persist_unrelated_dispatching_intent(
 
 def _spawned_cancel_cas_then_local_order_conflict(journal_path, checkpoint, result_queue):
     now = datetime.now(timezone.utc)
+    monkeypatch = pytest.MonkeyPatch()
     (
         api,
         store,
@@ -307,12 +310,14 @@ def _spawned_cancel_cas_then_local_order_conflict(journal_path, checkpoint, resu
         _data,
         _strategy,
         cerebro,
-    ) = recovery._durable_system(journal_path, now=now)
+    ) = recovery._durable_system(journal_path, now=now, monkeypatch=monkeypatch)
     stage = "current_session_query"
     observed_position_projections = []
     try:
         _initialize_fake_sdk_pending_order_maps(api)
-        recovery._bind_current_session_identity(api, generation=2, front_id=5, session_id=8)
+        crash_helpers._bind_sdk_session_identity(
+            api, generation=2, front_id=5, session_id=8
+        )
         api._connected = True
         terminal_row = _fresh_terminal_row(checkpoint)
         api.query_rows["orders_result"] = [terminal_row]
@@ -593,6 +598,7 @@ def _spawned_pending_marker_blocks_then_acknowledges(
     journal_path, checkpoint, expected_cas_ids, result_queue
 ):
     now = datetime.now(timezone.utc)
+    monkeypatch = pytest.MonkeyPatch()
     (
         api,
         store,
@@ -603,11 +609,13 @@ def _spawned_pending_marker_blocks_then_acknowledges(
         data,
         strategy,
         cerebro,
-    ) = recovery._durable_system(journal_path, now=now)
+    ) = recovery._durable_system(journal_path, now=now, monkeypatch=monkeypatch)
     stage = "fresh_pid_durable_pending_marker"
     try:
         _initialize_fake_sdk_pending_order_maps(api)
-        recovery._bind_current_session_identity(api, generation=3, front_id=6, session_id=9)
+        crash_helpers._bind_sdk_session_identity(
+            api, generation=3, front_id=6, session_id=9
+        )
         api._connected = True
         api.query_rows["orders_result"] = []
         _seed_current_quote(api, store, broker, target, generation=3, sequence=31)
@@ -1580,6 +1588,12 @@ def _utc_now_not_before(target):
 
 def _spawned_partial_close_cancel_crash(journal_path, checkpoint_path):
     now = datetime.now(timezone.utc)
+    monkeypatch = pytest.MonkeyPatch()
+    monkeypatch.setattr(
+        recovery,
+        "_arm_template",
+        crash_helpers._canonical_sdk_arm_template,
+    )
     (
         api,
         store,
@@ -1590,7 +1604,7 @@ def _spawned_partial_close_cancel_crash(journal_path, checkpoint_path):
         data,
         strategy,
         cerebro,
-    ) = recovery._durable_system(journal_path, now=now, bars=3)
+    ) = recovery._durable_system(journal_path, now=now, bars=3, monkeypatch=monkeypatch)
     submitted_offsets = _capture_submitted_order_offsets(api)
     try:
         facts = recovery._initial_open_facts(api, store, broker, target, now=now)
@@ -1909,14 +1923,8 @@ def _spawned_partial_close_cancel_crash(journal_path, checkpoint_path):
             expected_run_order_intents_used=coordinator.run_order_count(),
             remaining_exit_intent_reserve=0,
         )
-        native_cancel = api.trader_client.submit_order_action
-
-        def cancel_fill_then_crash(field, request_id, *, execution_capability):
-            result = native_cancel(
-                field,
-                request_id,
-                execution_capability=execution_capability,
-            )
+        def crash_after_native_cancel(field, request_id):
+            del field, request_id
             active_owner = journal.active_instrument_owner(
                 recovery._ACCOUNT_SCOPE,
                 recovery._INSTRUMENT,
@@ -1941,7 +1949,9 @@ def _spawned_partial_close_cancel_crash(journal_path, checkpoint_path):
                     "cancel_original_identity": dict(cancel_intent.original_identity),
                     "open_trade_id": "ac50-22-open-fill",
                     "close_trade_id": "ac50-22-partial-close-fill",
-                    "native_return_code_before_crash": result,
+                    # The fake native leaf always accepts; this records the
+                    # last provider return code before the process exits.
+                    "native_return_code_before_crash": 0,
                     "native_call_count": len(api.native_calls),
                     "open_time": open_time.isoformat(),
                     "close_time": close_time.isoformat(),
@@ -1949,7 +1959,9 @@ def _spawned_partial_close_cancel_crash(journal_path, checkpoint_path):
             )
             os._exit(_EXIT_CODE)
 
-        api.trader_client.submit_order_action = cancel_fill_then_crash
+        native_api = api.trader_client._api
+        assert native_api.order_action_hook is None
+        native_api.order_action_hook = crash_after_native_cancel
         assert loop.last_facts is not None
         cancel_diagnostic = _cancel_admission_projection(
             api,
@@ -1976,6 +1988,12 @@ def _spawned_partial_close_cancel_crash(journal_path, checkpoint_path):
 
 def _spawned_recover_partial_close_and_close_remaining(journal_path, checkpoint, result_queue):
     now = datetime.now(timezone.utc)
+    monkeypatch = pytest.MonkeyPatch()
+    monkeypatch.setattr(
+        recovery,
+        "_arm_template",
+        crash_helpers._canonical_sdk_arm_template,
+    )
     (
         api,
         store,
@@ -1986,13 +2004,15 @@ def _spawned_recover_partial_close_and_close_remaining(journal_path, checkpoint,
         data,
         strategy,
         cerebro,
-    ) = recovery._durable_system(journal_path, now=now, bars=3)
+    ) = recovery._durable_system(journal_path, now=now, bars=3, monkeypatch=monkeypatch)
     submitted_offsets = _capture_submitted_order_offsets(api)
     stage = "fresh_session_terminal_query"
     absence_calls = []
     try:
         _initialize_fake_sdk_pending_order_maps(api)
-        recovery._bind_current_session_identity(api, generation=2, front_id=5, session_id=8)
+        crash_helpers._bind_sdk_session_identity(
+            api, generation=2, front_id=5, session_id=8
+        )
         api._connected = True
         api._use_observed_query_clock = True
         open_ref = checkpoint["open_order_ref"]

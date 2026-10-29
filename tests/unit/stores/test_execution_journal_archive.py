@@ -17,6 +17,9 @@ from backtrader.stores.execution_decision_journal import (
     ExecutionDecisionKey,
     ExecutionIntentKey,
 )
+from tests.test_utils.execution_journal_schema import (
+    drop_v25_fee_pair_amount_lifecycle_objects,
+)
 
 
 def _decision_key(run_id: str, *, close_time: str) -> ExecutionDecisionKey:
@@ -32,6 +35,10 @@ def _decision_key(run_id: str, *, close_time: str) -> ExecutionDecisionKey:
 
 def _drop_archive_v23_v24_objects(connection: sqlite3.Connection) -> None:
     """Restore a pre-v23 archive without silently discarding newer rows."""
+
+    # The v25 triggers reference the v24 amount table and the workflow tables,
+    # so they must go before anything older is dropped or rebuilt.
+    drop_v25_fee_pair_amount_lifecycle_objects(connection)
 
     for table in (
         "execution_fee_pair_grid_single_row_tape_intents",

@@ -79,9 +79,51 @@ def _drop_v12_durable_capacity_tables(connection: sqlite3.Connection) -> None:
     )
 
 
+def _drop_v25_fee_pair_amount_lifecycle_objects(connection: sqlite3.Connection) -> None:
+    """Remove the v25 amount-hold projection from a historical-schema fixture.
+
+    The fixtures are built by downgrading a current journal, so every object a
+    later migration would create must be removed first. Otherwise the v25
+    migration correctly refuses what looks like a partially migrated schema.
+    """
+
+    for table in (
+        "execution_fee_pair_amount_active_holds",
+        "execution_fee_pair_amount_lifecycle_events",
+        "execution_fee_pair_amount_open_reservations",
+    ):
+        if connection.execute(
+            "SELECT 1 FROM sqlite_master WHERE type='table' AND name=?", (table,)
+        ).fetchone() is not None and connection.execute(
+            "SELECT COUNT(*) FROM {}".format(table)
+        ).fetchone()[0]:
+            raise AssertionError(
+                "cannot downgrade a journal with v25 amount lifecycle rows"
+            )
+    for trigger in (
+        "execution_fee_pair_amount_open_reservation_no_update",
+        "execution_fee_pair_amount_open_reservation_no_delete",
+        "execution_fee_pair_amount_open_reservation_exclusive",
+        "execution_fee_pair_amount_reservation_exclusive",
+        "execution_fee_pair_amount_lifecycle_event_no_update",
+        "execution_fee_pair_amount_lifecycle_event_no_delete",
+        "execution_fee_pair_amount_lifecycle_event_insert",
+        "execution_fee_pair_amount_active_hold_no_update",
+        "execution_fee_pair_amount_active_hold_insert",
+        "execution_fee_pair_amount_active_hold_delete",
+    ):
+        connection.execute("DROP TRIGGER IF EXISTS {}".format(trigger))
+    connection.execute("DROP TABLE IF EXISTS execution_fee_pair_amount_active_holds")
+    connection.execute("DROP TABLE IF EXISTS execution_fee_pair_amount_lifecycle_events")
+    connection.execute("DROP TABLE IF EXISTS execution_fee_pair_amount_open_reservations")
+
+
 def _drop_v23_fee_pair_grid_single_row_objects(connection: sqlite3.Connection) -> None:
     """Restore the pre-v23 fee-pair schema before exercising older migrations."""
 
+    # The v25 triggers reference the v24 amount table, so they must go before
+    # that table is dropped and the workflow tables are renamed.
+    _drop_v25_fee_pair_amount_lifecycle_objects(connection)
     amount_table = connection.execute(
         "SELECT 1 FROM sqlite_master WHERE type='table' "
         "AND name='execution_fee_pair_amount_reservations'"

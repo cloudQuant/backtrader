@@ -82,6 +82,13 @@ _REQUIRED_TABLES_BY_MINIMUM_SCHEMA_VERSION = {
         }
     ),
     24: frozenset({"execution_fee_pair_amount_reservations"}),
+    25: frozenset(
+        {
+            "execution_fee_pair_amount_open_reservations",
+            "execution_fee_pair_amount_lifecycle_events",
+            "execution_fee_pair_amount_active_holds",
+        }
+    ),
 }
 
 
@@ -159,6 +166,17 @@ def _validate_required_schema_objects(
                 max_reservation_bytes=journal_module._MAX_FEE_PAIR_AMOUNT_RESERVATION_BYTES,
             )
             journal_module.ExecutionDecisionJournal._validate_fee_pair_amount_reservation_schema(
+                cursor
+            )
+        if schema_version >= journal_module._FEE_PAIR_AMOUNT_OPEN_LIFECYCLE_SCHEMA_VERSION:
+            _validate_fee_pair_amount_reservation_payload_bounds(
+                connection,
+                max_reservation_bytes=journal_module._MAX_FEE_PAIR_AMOUNT_RESERVATION_BYTES,
+                max_lifecycle_event_bytes=(
+                    journal_module._MAX_FEE_PAIR_AMOUNT_LIFECYCLE_EVENT_BYTES
+                ),
+            )
+            journal_module.ExecutionDecisionJournal._validate_fee_pair_amount_open_lifecycle_schema(
                 cursor
             )
     except journal_module.ExecutionDecisionJournalError as error:
@@ -310,7 +328,10 @@ def _validate_fee_pair_grid_tape_record_bounds(
 
 
 def _validate_fee_pair_amount_reservation_payload_bounds(
-    connection: sqlite3.Connection, *, max_reservation_bytes: int
+    connection: sqlite3.Connection,
+    *,
+    max_reservation_bytes: int,
+    max_lifecycle_event_bytes: Optional[int] = None,
 ) -> None:
     """Bound persisted amount proofs before archive code fetches their TEXT."""
 
@@ -329,25 +350,52 @@ def _validate_fee_pair_amount_reservation_payload_bounds(
     else:
         raise ExecutionJournalArchiveError(error_code)
     try:
-        oversized = connection.execute(
-            "SELECT 1 FROM execution_fee_pair_amount_reservations "
-            "WHERE typeof(reservation_json)!='text' "
-            "OR length(CAST(reservation_json AS BLOB))>? LIMIT 1",
-            (storage_byte_multiplier * max_reservation_bytes,),
-        ).fetchone()
-        if oversized is not None:
-            raise ExecutionJournalArchiveError(error_code)
-        payloads = connection.execute(
-            "SELECT typeof(reservation_json),reservation_json "
-            "FROM execution_fee_pair_amount_reservations"
-        )
-        for storage_type, payload in payloads:
+        payload_sources = [
+            (
+                "execution_fee_pair_amount_reservations",
+                "reservation_json",
+                max_reservation_bytes,
+            )
+        ]
+        if max_lifecycle_event_bytes is not None:
             if (
-                storage_type != "text"
-                or type(payload) is not str
-                or len(payload.encode("utf-8")) > max_reservation_bytes
+                type(max_lifecycle_event_bytes) is not int
+                or max_lifecycle_event_bytes < max_reservation_bytes
             ):
                 raise ExecutionJournalArchiveError(error_code)
+            payload_sources.extend(
+                (
+                    table,
+                    column,
+                    max_lifecycle_event_bytes if table.endswith("lifecycle_events")
+                    else max_reservation_bytes,
+                )
+                for table, column in (
+                    ("execution_fee_pair_amount_open_reservations", "reservation_json"),
+                    (
+                        "execution_fee_pair_amount_lifecycle_events",
+                        "event_payload_json",
+                    ),
+                )
+            )
+        for table, column, limit in payload_sources:
+            oversized = connection.execute(
+                "SELECT 1 FROM {} WHERE typeof({})!='text' "
+                "OR length(CAST({} AS BLOB))>? LIMIT 1".format(table, column, column),
+                (storage_byte_multiplier * limit,),
+            ).fetchone()
+            if oversized is not None:
+                raise ExecutionJournalArchiveError(error_code)
+            payloads = connection.execute(
+                "SELECT typeof({0}),{0} FROM {1}".format(column, table)
+            )
+            for storage_type, payload in payloads:
+                if (
+                    storage_type != "text"
+                    or type(payload) is not str
+                    or len(payload.encode("utf-8")) > limit
+                ):
+                    raise ExecutionJournalArchiveError(error_code)
     except ExecutionJournalArchiveError:
         raise
     except (UnicodeError, sqlite3.Error) as error:

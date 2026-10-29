@@ -46,7 +46,20 @@ _CORE_FAMILIES = (
 )
 
 
-def _durable_system(path, *, now, bars=1, bar_advance_gate=None):
+def _durable_system(path, *, now, bars=1, bar_advance_gate=None, monkeypatch=None):
+    if monkeypatch is None:
+        system = execution_helpers._system(
+            now=now,
+            bars=bars,
+            bar_advance_gate=bar_advance_gate,
+        )
+    else:
+        system = execution_helpers._source_sdk_system(
+            monkeypatch,
+            now=now,
+            bars=bars,
+            bar_advance_gate=bar_advance_gate,
+        )
     (
         api,
         store,
@@ -57,12 +70,9 @@ def _durable_system(path, *, now, bars=1, bar_advance_gate=None):
         data,
         strategy,
         cerebro,
-    ) = execution_helpers._system(
-        now=now,
-        bars=bars,
-        bar_advance_gate=bar_advance_gate,
-    )
-    _bind_current_session_identity(api, generation=1)
+    ) = system[:9]
+    if monkeypatch is None:
+        _bind_current_session_identity(api, generation=1)
     memory_journal.close()
     broker.factor_execution_coordinator = None
     journal = ExecutionDecisionJournal(path)

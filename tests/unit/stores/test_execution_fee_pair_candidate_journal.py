@@ -223,7 +223,50 @@ def _record_source_grid(journal, *, run_id="candidate-run", close_time="2026-10-
     )
 
 
+def _drop_v25_fee_pair_amount_lifecycle_objects(connection: sqlite3.Connection) -> None:
+    """Remove the v25 amount-hold projection from a historical-schema fixture.
+
+    These fixtures are produced by downgrading a current journal, so the v25
+    objects must be removed before older DDL is restored. The v25 migration
+    then sees a genuine v24 schema instead of a partial one and must refuse
+    anything less.
+    """
+
+    for table in (
+        "execution_fee_pair_amount_active_holds",
+        "execution_fee_pair_amount_lifecycle_events",
+        "execution_fee_pair_amount_open_reservations",
+    ):
+        if connection.execute(
+            "SELECT 1 FROM sqlite_master WHERE type='table' AND name=?", (table,)
+        ).fetchone() is not None and connection.execute(
+            "SELECT COUNT(*) FROM {}".format(table)
+        ).fetchone()[0]:
+            raise AssertionError(
+                "cannot downgrade a journal with v25 amount lifecycle rows"
+            )
+    for trigger in (
+        "execution_fee_pair_amount_open_reservation_no_update",
+        "execution_fee_pair_amount_open_reservation_no_delete",
+        "execution_fee_pair_amount_open_reservation_exclusive",
+        "execution_fee_pair_amount_reservation_exclusive",
+        "execution_fee_pair_amount_lifecycle_event_no_update",
+        "execution_fee_pair_amount_lifecycle_event_no_delete",
+        "execution_fee_pair_amount_lifecycle_event_insert",
+        "execution_fee_pair_amount_active_hold_no_update",
+        "execution_fee_pair_amount_active_hold_insert",
+        "execution_fee_pair_amount_active_hold_delete",
+    ):
+        connection.execute("DROP TRIGGER IF EXISTS {}".format(trigger))
+    connection.execute("DROP TABLE IF EXISTS execution_fee_pair_amount_active_holds")
+    connection.execute("DROP TABLE IF EXISTS execution_fee_pair_amount_lifecycle_events")
+    connection.execute("DROP TABLE IF EXISTS execution_fee_pair_amount_open_reservations")
+
+
 def _drop_v23_single_row_tape_schema(connection: sqlite3.Connection) -> None:
+    # The v25 triggers reference the v24 amount table, so they must go before
+    # that table is dropped and the workflow tables are renamed.
+    _drop_v25_fee_pair_amount_lifecycle_objects(connection)
     amount_schema = connection.execute(
         "SELECT COUNT(*) FROM sqlite_master WHERE type='table' "
         "AND name='execution_fee_pair_amount_reservations'"
@@ -1166,7 +1209,7 @@ def test_v15_migration_preserves_history_and_adds_empty_candidate_schema(tmp_pat
 
     migrated = ExecutionDecisionJournal(path)
     try:
-        assert migrated._connection.execute("PRAGMA user_version").fetchone()[0] == 24
+        assert migrated._connection.execute("PRAGMA user_version").fetchone()[0] == 25
         assert migrated.decision(decision.decision_id) == decision
         assert migrated.fee_pair_required_scope("pair-account", "pair-strategy") is not None
         assert (
@@ -1436,7 +1479,7 @@ def test_v18_87_member_workflow_fits_default_payload_limit_and_archives(tmp_path
         archive_receipt = journal.archive_snapshot(archive_path)
         verified = archive_module.verify_execution_journal_archive(
             archive_path,
-            expected_schema_version=24,
+            expected_schema_version=25,
             expected_sha256=archive_receipt.sha256,
         )
         assert verified == archive_receipt
@@ -1547,11 +1590,11 @@ def test_v17_small_workflow_migrates_to_v20_and_remains_readable(tmp_path):
 
     migrated = ExecutionDecisionJournal(path)
     try:
-        assert migrated._connection.execute("PRAGMA user_version").fetchone()[0] == 24
+        assert migrated._connection.execute("PRAGMA user_version").fetchone()[0] == 25
         assert migrated.fee_pair_workflow_candidate(reserved.candidate_id).state == "SOURCE_ONLY"
         assert migrated.decision(expected.decision_id) == expected
         archive_receipt = migrated.archive_snapshot(archive_path)
-        assert archive_receipt.schema_version == 24
+        assert archive_receipt.schema_version == 25
     finally:
         migrated.close()
 
@@ -2361,6 +2404,7 @@ def _fee_pair_settlement_fixture(
     *,
     target_order=("A", "B"),
     missing_template=(),
+    close_time=None,
 ):
     """Build the real Store projection used by the typed Journal settlement."""
 
@@ -2386,7 +2430,7 @@ def _fee_pair_settlement_fixture(
         "B": ExecutionFeePairTargetRoute("B", "i2510", "DCE"),
     }
     routes = tuple(route_by_id[target_id] for target_id in target_order)
-    close_time = (
+    close_time = close_time or (
         datetime.now(timezone.utc).replace(second=0, microsecond=0) - timedelta(minutes=2)
     ).isoformat(timespec="seconds").replace("+00:00", "Z")
     base = _candidate(run_id=run_id, close_time=close_time)
@@ -2587,7 +2631,7 @@ def test_v18_migration_preserves_events_and_quarantines_unresolved_receipt(tmp_p
 
     migrated = ExecutionDecisionJournal(path)
     try:
-        assert migrated._connection.execute("PRAGMA user_version").fetchone()[0] == 24
+        assert migrated._connection.execute("PRAGMA user_version").fetchone()[0] == 25
         assert migrated.fee_pair_workflow_candidate(candidate_id).state == "RECEIPT_VERIFIED"
         migrated_events = tuple(
             tuple(row)
@@ -2838,7 +2882,7 @@ def test_v19_workflow_migration_preserves_legacy_append_history(tmp_path):
 
     migrated = ExecutionDecisionJournal(path)
     try:
-        assert migrated._connection.execute("PRAGMA user_version").fetchone()[0] == 24
+        assert migrated._connection.execute("PRAGMA user_version").fetchone()[0] == 25
         assert migrated.fee_pair_workflow_candidate(candidate_id).state == "RECEIPT_VERIFIED"
         assert migrated.fee_pair_workflow_candidate(candidate_id).tape_append_state is None
         migrated_events = tuple(
@@ -2996,7 +3040,7 @@ def test_v19_typed_grid_settlement_is_atomic_replayable_and_fences_both_pair_leg
             )
         with pytest.raises(
             ExecutionDecisionJournalError,
-            match="FEE_PAIR_OPEN_RISK_RESERVATION_REQUIRED",
+            match="FEE_PAIR_AMOUNT_HOLD_CHANGED",
         ):
             journal.prepare_intent(
                 settled.decision.decision_id,
@@ -3043,7 +3087,7 @@ def test_v19_typed_grid_settlement_is_atomic_replayable_and_fences_both_pair_leg
                 )
         with pytest.raises(
             ExecutionDecisionJournalError,
-            match="FEE_PAIR_OPEN_RISK_RESERVATION_REQUIRED",
+            match="FEE_PAIR_AMOUNT_HOLD_CHANGED",
         ):
             journal.claim_dispatch(first_intent_id, fee_pair_open_context=context)
         assert journal.intent(first_intent_id).state == "PREPARED"
@@ -3114,7 +3158,7 @@ def test_v19_pair_settlement_keeps_templates_but_fences_both_active_grant_legs(
             leg_economics = payload["intent_economics"][leg]
             with pytest.raises(
                 ExecutionDecisionJournalError,
-                match="FEE_PAIR_OPEN_RISK_RESERVATION_REQUIRED",
+                match="FEE_PAIR_AMOUNT_HOLD_CHANGED",
             ):
                 journal.prepare_intent(
                     settled.decision.decision_id,
@@ -3240,7 +3284,7 @@ def test_v19_pair_open_fence_keeps_unresolved_first_leg_non_reclaimable(
         second_context = replace(context, facts=second_facts)
         with pytest.raises(
             ExecutionDecisionJournalError,
-            match="FEE_PAIR_OPEN_RISK_RESERVATION_REQUIRED",
+            match="FEE_PAIR_AMOUNT_HOLD_CHANGED",
         ):
             journal.prepare_intent(
                 settled.decision.decision_id,
@@ -3348,7 +3392,7 @@ def test_v19_known_working_first_leg_does_not_admit_second_without_risk_reservat
         )
         with pytest.raises(
             ExecutionDecisionJournalError,
-            match="FEE_PAIR_OPEN_RISK_RESERVATION_REQUIRED",
+            match="FEE_PAIR_AMOUNT_HOLD_CHANGED",
         ):
             journal.prepare_intent(
                 settled.decision.decision_id,

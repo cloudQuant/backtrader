@@ -50,6 +50,27 @@ def _digest(value: str) -> str:
     return hashlib.sha256(value.encode("utf-8")).hexdigest()
 
 
+def _drop_v25_amount_lifecycle_objects(connection: sqlite3.Connection) -> None:
+    """Restore the pre-v25 amount schema from a current journal fixture."""
+
+    for trigger in (
+        "execution_fee_pair_amount_open_reservation_no_update",
+        "execution_fee_pair_amount_open_reservation_no_delete",
+        "execution_fee_pair_amount_open_reservation_exclusive",
+        "execution_fee_pair_amount_reservation_exclusive",
+        "execution_fee_pair_amount_lifecycle_event_no_update",
+        "execution_fee_pair_amount_lifecycle_event_no_delete",
+        "execution_fee_pair_amount_lifecycle_event_insert",
+        "execution_fee_pair_amount_active_hold_no_update",
+        "execution_fee_pair_amount_active_hold_insert",
+        "execution_fee_pair_amount_active_hold_delete",
+    ):
+        connection.execute("DROP TRIGGER IF EXISTS {}".format(trigger))
+    connection.execute("DROP TABLE IF EXISTS execution_fee_pair_amount_active_holds")
+    connection.execute("DROP TABLE IF EXISTS execution_fee_pair_amount_lifecycle_events")
+    connection.execute("DROP TABLE IF EXISTS execution_fee_pair_amount_open_reservations")
+
+
 def _selection_inputs(candidate):
     if candidate.target_routes is not None:
         routes = {route.target_id: route.instrument for route in candidate.target_routes}
@@ -1022,9 +1043,24 @@ def test_v24_amount_reservation_is_atomic_retained_and_does_not_open_the_fence(
             "WHERE capacity_class='BASE'"
         ).fetchone()
     )
+    legacy_event_row = harness.journal._connection.execute(
+        "SELECT * FROM execution_fee_pair_amount_lifecycle_events "
+        "WHERE candidate_id=? AND event_sequence=1",
+        (settled["candidate_id"],),
+    ).fetchone()
+    active_hold_row = harness.journal._connection.execute(
+        "SELECT * FROM execution_fee_pair_amount_active_holds WHERE candidate_id=?",
+        (settled["candidate_id"],),
+    ).fetchone()
+    assert legacy_event_row is not None
+    assert active_hold_row is not None
     assert capacity_after == (
-        capacity_before[0] + 1,
-        capacity_before[1] + len(journal_module.canonical_sql_row_bytes(saved_row)),
+        capacity_before[0] + 3,
+        capacity_before[1]
+        + sum(
+            len(journal_module.canonical_sql_row_bytes(row))
+            for row in (saved_row, legacy_event_row, active_hold_row)
+        ),
     )
     assert harness.journal.reserve_fee_pair_grid_amounts(
         settled["candidate_id"], owner_token=harness.owner_token, facts=harness.facts
@@ -1046,9 +1082,13 @@ def test_v24_amount_reservation_is_atomic_retained_and_does_not_open_the_fence(
             "DELETE FROM execution_fee_pair_amount_reservations WHERE candidate_id=?",
             (settled["candidate_id"],),
         )
-    assert harness.journal.fee_pair_grid_amount_reservation(settled["candidate_id"]) == reservation
+    stored_reservation = harness.journal.fee_pair_grid_amount_reservation(
+        settled["candidate_id"]
+    )
+    assert all(stored_reservation[name] == value for name, value in reservation.items())
+    assert stored_reservation["lifecycle_state"] == "LEGACY_HELD"
     with pytest.raises(
-        ExecutionDecisionJournalError, match="FEE_PAIR_OPEN_RISK_RESERVATION_REQUIRED"
+        ExecutionDecisionJournalError, match="FEE_PAIR_AMOUNT_HOLD_ACTIVE"
     ):
         harness.journal.prepare_intent(
             settled["decision"].decision_id,
@@ -1065,11 +1105,94 @@ def test_v24_amount_reservation_is_atomic_retained_and_does_not_open_the_fence(
         max_payload_bytes=runner._LIVE_DECISION_JOURNAL_MAX_PAYLOAD_BYTES,
     )
     try:
-        assert reopened.fee_pair_grid_amount_reservation(settled["candidate_id"]) == reservation
+        reopened_reservation = reopened.fee_pair_grid_amount_reservation(
+            settled["candidate_id"]
+        )
+        assert all(
+            reopened_reservation[name] == value for name, value in reservation.items()
+        )
+        assert reopened_reservation["lifecycle_state"] == "LEGACY_HELD"
         assert _table_count(reopened, "execution_fee_pair_amount_reservations") == 1
         with pytest.raises(
-            ExecutionDecisionJournalError, match="FEE_PAIR_OPEN_RISK_RESERVATION_REQUIRED"
+            ExecutionDecisionJournalError, match="FEE_PAIR_AMOUNT_HOLD_ACTIVE"
         ):
+            reopened.prepare_intent(
+                settled["decision"].decision_id,
+                settled["decision"].intent_keys[0],
+                settled["decision"].economic_payload["intent_economics"][0],
+            )
+    finally:
+        reopened.close()
+        harness.writer = SimpleNamespace(close=lambda: None)
+        harness.journal = SimpleNamespace(close=lambda: None)
+
+
+def test_v24_database_reopen_migrates_legacy_reservation_to_fail_closed_hold(
+    single_row_harness,
+):
+    harness = _attach_amount_projection(single_row_harness)
+    settled = _settle_single_row(harness)
+    reservation = harness.journal.reserve_fee_pair_grid_amounts(
+        settled["candidate_id"], owner_token=harness.owner_token, facts=harness.facts
+    )
+    journal_path = harness.journal.path
+    harness.writer.close()
+    harness.journal.close()
+
+    # Reconstruct the v24 on-disk shape from a current journal: the immutable
+    # reservation row and its original capacity charge remain, while only the
+    # v25 lifecycle projection and its two capacity charges are removed.
+    with sqlite3.connect(journal_path) as connection:
+        connection.row_factory = sqlite3.Row
+        event = connection.execute(
+            "SELECT * FROM execution_fee_pair_amount_lifecycle_events "
+            "WHERE candidate_id=? AND event_sequence=1",
+            (settled["candidate_id"],),
+        ).fetchone()
+        active = connection.execute(
+            "SELECT * FROM execution_fee_pair_amount_active_holds WHERE candidate_id=?",
+            (settled["candidate_id"],),
+        ).fetchone()
+        assert event is not None
+        assert active is not None
+        removed_payload_bytes = sum(
+            len(journal_module.canonical_sql_row_bytes(row)) for row in (event, active)
+        )
+        for trigger in (
+            "execution_fee_pair_amount_open_reservation_no_update",
+            "execution_fee_pair_amount_open_reservation_no_delete",
+            "execution_fee_pair_amount_open_reservation_exclusive",
+            "execution_fee_pair_amount_reservation_exclusive",
+            "execution_fee_pair_amount_lifecycle_event_no_update",
+            "execution_fee_pair_amount_lifecycle_event_no_delete",
+            "execution_fee_pair_amount_lifecycle_event_insert",
+            "execution_fee_pair_amount_active_hold_no_update",
+            "execution_fee_pair_amount_active_hold_insert",
+            "execution_fee_pair_amount_active_hold_delete",
+        ):
+            connection.execute("DROP TRIGGER {}".format(trigger))
+        connection.execute("DROP TABLE execution_fee_pair_amount_active_holds")
+        connection.execute("DROP TABLE execution_fee_pair_amount_lifecycle_events")
+        connection.execute("DROP TABLE execution_fee_pair_amount_open_reservations")
+        connection.execute(
+            "UPDATE execution_durable_capacity_usage "
+            "SET record_count=record_count-2,payload_bytes=payload_bytes-? "
+            "WHERE capacity_class='BASE'",
+            (removed_payload_bytes,),
+        )
+        connection.execute("PRAGMA user_version=24")
+
+    reopened = ExecutionDecisionJournal(
+        journal_path,
+        max_payload_bytes=runner._LIVE_DECISION_JOURNAL_MAX_PAYLOAD_BYTES,
+    )
+    try:
+        assert reopened._connection.execute("PRAGMA user_version").fetchone()[0] == 25
+        migrated = reopened.fee_pair_grid_amount_reservation(settled["candidate_id"])
+        assert migrated["reservation_sha256"] == reservation["reservation_sha256"]
+        assert migrated["lifecycle_state"] == "LEGACY_HELD"
+        assert _table_count(reopened, "execution_fee_pair_amount_active_holds") == 1
+        with pytest.raises(ExecutionDecisionJournalError, match="FEE_PAIR_AMOUNT_HOLD_ACTIVE"):
             reopened.prepare_intent(
                 settled["decision"].decision_id,
                 settled["decision"].intent_keys[0],
@@ -1469,6 +1592,10 @@ def test_v24_migration_adds_amount_reservation_without_rewriting_v23_workflow(
     harness.journal.close()
     try:
         with sqlite3.connect(journal_path) as connection:
+            # The fixture starts at the current schema; reconstruct the v23
+            # shape, including removal of the v25 projection whose triggers
+            # reference the v24 amount table.
+            _drop_v25_amount_lifecycle_objects(connection)
             connection.execute("DROP TRIGGER execution_fee_pair_amount_reservation_no_update")
             connection.execute("DROP TRIGGER execution_fee_pair_amount_reservation_no_delete")
             connection.execute("DROP TABLE execution_fee_pair_amount_reservations")
@@ -1478,7 +1605,7 @@ def test_v24_migration_adds_amount_reservation_without_rewriting_v23_workflow(
             max_payload_bytes=runner._LIVE_DECISION_JOURNAL_MAX_PAYLOAD_BYTES,
         )
         try:
-            assert reopened._connection.execute("PRAGMA user_version").fetchone()[0] == 24
+            assert reopened._connection.execute("PRAGMA user_version").fetchone()[0] == 25
             assert reopened.fee_pair_workflow_candidate(candidate_id).state == "RECEIPT_VERIFIED"
             assert _table_count(reopened, "execution_fee_pair_amount_reservations") == 0
         finally:
@@ -1695,7 +1822,7 @@ def test_v23_archive_rejects_an_oversized_single_row_tape_intent(
     settled = _settle_single_row(harness)
     archive_path = tmp_path / "grid-writer-v23-archive.sqlite3"
     archived = harness.journal.archive_snapshot(archive_path)
-    assert archived.schema_version == 24
+    assert archived.schema_version == 25
 
     oversized = "x" * journal_module._MAX_FEE_PAIR_GRID_TAPE_RECORD_BYTES
     with sqlite3.connect(archive_path) as connection:
@@ -1713,7 +1840,7 @@ def test_v23_archive_rejects_an_oversized_single_row_tape_intent(
         match="ARCHIVE_FEE_PAIR_TAPE_RECORD_TOO_LARGE",
     ):
         archive_module.verify_execution_journal_archive(
-            archive_path, expected_schema_version=24
+            archive_path, expected_schema_version=25
         )
 
 
@@ -1734,7 +1861,7 @@ def test_v24_archive_rejects_an_oversized_amount_reservation(tmp_path, encoding)
         )
         archive_path = tmp_path / "grid-writer-v24-archive-copy.sqlite3"
         archived = harness.journal.archive_snapshot(archive_path)
-        assert archived.schema_version == 24
+        assert archived.schema_version == 25
         assert archived.table_row_counts["execution_fee_pair_amount_reservations"] == 1
 
         oversized = "x" * (journal_module._MAX_FEE_PAIR_AMOUNT_RESERVATION_BYTES + 1)
@@ -1753,7 +1880,60 @@ def test_v24_archive_rejects_an_oversized_amount_reservation(tmp_path, encoding)
             match="ARCHIVE_FEE_PAIR_AMOUNT_RESERVATION_TOO_LARGE",
         ):
             archive_module.verify_execution_journal_archive(
-                archive_path, expected_schema_version=24
+                archive_path, expected_schema_version=25
             )
     finally:
         _safe_close(harness)
+
+
+def test_single_row_grid_tape_projects_mapping_order_plan_exactly(harness):
+    """The settlement adapter accepts its explicit serialized plan mapping."""
+
+    action_fields = (
+        "action",
+        "target_id",
+        "instrument",
+        "side",
+        "position_effect",
+        "quantity",
+        "limit_price",
+        "offset",
+        "reason",
+        "planned_stop_price",
+        "exchange",
+        "decision_available_at",
+        "entry_grid_ordinal",
+    )
+    plan = harness.order_plan
+    mapped_plan = {
+        "status": plan.status,
+        "reason": plan.reason,
+        "decision_batch_id": plan.decision_batch_id,
+        "decision_available_at": plan.decision_available_at,
+        "actions": [
+            {name: getattr(action, name) for name in action_fields}
+            for action in plan.actions
+        ],
+    }
+    common = {
+        "file_id": harness.writer.file_id,
+        "index": harness.writer._record_count + 1,
+        "targets": harness.writer.targets,
+        "calendar_fingerprint": harness.writer.calendar_fingerprint,
+    }
+    object_row = runner._decision_tape_record(
+        harness.batch,
+        harness.snapshot,
+        harness.target_decision,
+        plan,
+        **common,
+    )
+    mapping_row = runner._decision_tape_record(
+        harness.batch,
+        harness.snapshot,
+        harness.target_decision,
+        mapped_plan,
+        **common,
+    )
+
+    assert mapping_row["order_plan"] == object_row["order_plan"]

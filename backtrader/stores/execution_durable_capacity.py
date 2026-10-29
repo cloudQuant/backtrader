@@ -46,6 +46,9 @@ _DURABLE_ROW_KEYS = {
     "execution_fee_pair_grid_single_row_tape_intents": ("candidate_id",),
     "execution_fee_pair_legacy_unresolved_v23": ("candidate_id",),
     "execution_fee_pair_amount_reservations": ("candidate_id",),
+    "execution_fee_pair_amount_open_reservations": ("candidate_id",),
+    "execution_fee_pair_amount_lifecycle_events": ("event_id",),
+    "execution_fee_pair_amount_active_holds": ("account_scope",),
     "execution_source_highwaters": (
         "account_scope",
         "strategy_scope",

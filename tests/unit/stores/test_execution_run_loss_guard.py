@@ -26,6 +26,9 @@ from backtrader.stores.execution_durable_capacity import (
     canonical_sql_row_bytes,
     read_durable_capacity_usage,
 )
+from tests.test_utils.execution_journal_schema import (
+    drop_empty_fee_pair_tables_from_version,
+)
 
 
 def _asof(seconds_ago=2):
@@ -586,15 +589,19 @@ def test_schema_v12_upgrade_preserves_usage_and_loss_row_is_settlement(tmp_path)
     journal.close()
 
     with sqlite3.connect(path) as connection:
-        connection.execute("DROP TABLE execution_fee_pair_scope_events")
-        connection.execute("DROP TABLE execution_fee_pair_required_scopes")
+        # A v12 journal cannot contain the v15+ fee-pair schema, including the
+        # v24 amount ledger and the v25 lifecycle projection.
+        drop_empty_fee_pair_tables_from_version(connection, first_version=15)
         connection.execute("DROP TABLE execution_run_loss_guards")
         connection.execute("DROP TABLE execution_source_highwaters")
         connection.execute("PRAGMA user_version=12")
 
     migrated = ExecutionDecisionJournal(path)
     try:
-        assert migrated._connection.execute("PRAGMA user_version").fetchone()[0] == 15
+        assert (
+            migrated._connection.execute("PRAGMA user_version").fetchone()[0]
+            == ExecutionDecisionJournal._SCHEMA_VERSION
+        )
         assert _usage(migrated) == before
         assert migrated.record_decision(base_key, {"legacy": "base"}).key == base_key
         assert migrated.record_decision(

@@ -16,6 +16,7 @@ import multiprocessing
 import os
 from collections.abc import Mapping
 from datetime import datetime, timedelta, timezone
+from types import SimpleNamespace
 
 import pytest
 
@@ -44,6 +45,7 @@ _EXIT_CODES = {
     "callback_after_broker_apply": 83,
     "callback_after_ack": 84,
     "live_dispatching_submit_crash": 85,
+    "cancel_dispatching_crash": 86,
 }
 
 _INCOMPLETE_DISPATCHING_WITHOUT_TERMINAL_PROOF = (
@@ -1961,6 +1963,198 @@ def test_spawned_live_dispatch_gate_then_fresh_process_no_fill_recovery_and_new_
             101,
         ),
     )
+
+
+def _canonical_sdk_arm_template():
+    """The real SDK admission fixture only accepts its frozen SimNow front."""
+
+    return {
+        "md_front": "tcp://182.254.243.31:30012",
+        "strategy_identity_sha256": "a" * 64,
+        "execution_cycle_id": "cycle-unknown-recovery",
+        "preflight_sha256": "b" * 64,
+    }
+
+
+def _bind_sdk_session_identity(api, *, generation, front_id, session_id):
+    """Prove a fresh current session identity for either provider fixture.
+
+    The plain fake provider accepts an overridden ``get_session_state``
+    instance method. The canonical SDK rejects instance-overridden session
+    getters, so a new generation is proved by replaying its own terminal login
+    callback rather than shadowing the getter. Every production Store/Journal
+    session validation still runs against the real getters.
+    """
+
+    trader = api.trader_client
+    if type(trader).__module__ not in ("bt_api_ctp.ctp.client", "bt_api_py.ctp.client"):
+        return recovery_helpers._bind_current_session_identity(
+            api,
+            generation=generation,
+            front_id=front_id,
+            session_id=session_id,
+        )
+    trader._connection_generation = generation
+    trader._login_request_id = generation
+    trader._login_connection_generation = generation
+    trader._login_state = "logging_in"
+    trader._connected = True
+    trader._authentication_state = "authenticated"
+    trader._api.trader_spi.OnRspUserLogin(
+        SimpleNamespace(
+            BrokerID=trader._bound_broker_id,
+            UserID=trader._bound_user_id,
+            FrontID=front_id,
+            SessionID=session_id,
+            TradingDay=trader._trading_day,
+            MaxOrderRef="7",
+        ),
+        SimpleNamespace(ErrorID=0, ErrorMsg=""),
+        generation,
+        True,
+    )
+    state = trader.get_session_state()
+    assert state["connection_generation"] == generation
+    assert state["front_id"] == front_id
+    assert state["session_id"] == session_id
+    assert state["read_only_ready"] is True
+    # The login callback intentionally leaves the session read-only. Recovery
+    # that later submits a new owned order must prove the same settlement
+    # readback the fixture established for its first session.
+    trader._settlement_state = "confirmed"
+    trader._settlement_readback_verified = True
+    trader._settlement_account_fingerprint = trader._account_fingerprint
+    trader._settlement_trading_day = trader._trading_day
+    trader._settlement_connection_generation = generation
+    trader._has_current_settlement_readback_locked = lambda: True
+    trader._ready = True
+    assert trader.get_session_state()["trading_ready"] is True
+
+
+def _spawned_cancel_dispatching_crash_worker(journal_path, checkpoint_path):
+    """Create a real known submit, then die inside its claimed native cancel."""
+
+    monkeypatch = pytest.MonkeyPatch()
+    monkeypatch.setattr(recovery_helpers, "_arm_template", _canonical_sdk_arm_template)
+    now = datetime.now(timezone.utc)
+    (
+        api,
+        store,
+        broker,
+        journal,
+        coordinator,
+        target,
+        data,
+        strategy,
+        _cerebro,
+    ) = recovery_helpers._durable_system(journal_path, now=now, monkeypatch=monkeypatch)
+    try:
+        facts = recovery_helpers._initial_open_facts(api, store, broker, target, now=now)
+        order = recovery_helpers._submit_open(
+            coordinator,
+            strategy,
+            data,
+            facts,
+            close_time=facts.available_at - timedelta(milliseconds=2),
+            batch_id="cancel-dispatching-parent-submit",
+        )
+        assert order is not None and order.status == recovery_helpers.Order.Accepted
+        submit_intent_id = order.info["factor_intent_id"]
+        order_ref = order.info["external_order_ref"]
+        # The insert response omits OrderSysID. A complete active-order query
+        # supplies it so the production Journal can persist the exact
+        # query-derived SysID binding that managed CANCEL admission requires.
+        active_row = {
+            **recovery_helpers._terminal_row(order_ref),
+            "OrderSysID": "sys-{}".format(order_ref),
+            "OrderStatus": "3",
+            "Direction": "0",
+        }
+        api.query_rows = facts_helpers._query_rows(orders=(active_row,))
+        _active_receipt, active_facts = recovery_helpers._refresh_five_family_facts(
+            api,
+            store,
+            broker,
+            target,
+            generation=1,
+            sequence=20,
+        )
+        assert active_facts.order_cancel_ready is True, active_facts.order_cancel_blockers
+
+        cancel_key = ExecutionDecisionKey(
+            account_scope=recovery_helpers._ACCOUNT_SCOPE,
+            strategy_scope=recovery_helpers._STRATEGY_SCOPE,
+            logical_run_id="run-1",
+            cohort_id="rb-cohort",
+            close_time=active_facts.available_at.isoformat().replace("+00:00", "Z"),
+            decision_kind="ALPHA003_RISK_REDUCTION",
+        )
+        cancel_intent_key = ExecutionIntentKey(
+            action="CANCEL",
+            instrument=recovery_helpers._INSTRUMENT,
+            side="BUY",
+            position_effect="OPEN",
+            leg=0,
+        )
+        cancel_economics = {
+            "instrument": recovery_helpers._INSTRUMENT,
+            "exchange": recovery_helpers._EXCHANGE,
+            "side": "BUY",
+            "position_effect": "OPEN",
+            "owner_intent_id": submit_intent_id,
+            "reason": "cancel DISPATCHING must not use submit no-fill recovery",
+        }
+        cancel_scope = coordinator.risk_decision_scope(
+            owner=strategy,
+            key=cancel_key,
+            economic_payload={"intent_economics": (cancel_economics,)},
+            intent_keys=(cancel_intent_key,),
+            batch=None,
+            execution_facts=active_facts,
+            inputs_complete=True,
+            expected_run_order_intents_used=coordinator.run_order_count(),
+            remaining_exit_intent_reserve=0,
+        )
+
+        native_api = api.trader_client._api
+
+        def crash_after_native_cancel(field, request_id):
+            del field, request_id
+            owner = journal.active_instrument_owner(
+                recovery_helpers._ACCOUNT_SCOPE,
+                recovery_helpers._INSTRUMENT,
+            )
+            assert owner is not None and owner.cancel_intent_id is not None
+            cancel_intent = journal.intent(owner.cancel_intent_id)
+            assert cancel_intent is not None and cancel_intent.key.action == "CANCEL"
+            assert cancel_intent.state == "DISPATCHING"
+            assert cancel_intent.dispatch_state is None
+            assert cancel_intent.provider_identity is None
+            _write_checkpoint(
+                checkpoint_path,
+                {
+                    "boundary": "cancel_dispatching",
+                    "pid": os.getpid(),
+                    "submit_intent_id": submit_intent_id,
+                    "cancel_intent_id": cancel_intent.intent_id,
+                    "order_ref": order_ref,
+                    "original_identity": dict(journal.intent(submit_intent_id).original_identity),
+                    "cancel_original_identity": dict(cancel_intent.original_identity),
+                    # The fake native leaf always accepts; this records the
+                    # last provider return code before the process exits.
+                    "native_return_code_before_crash": 0,
+                    "native_call_count": len(api.native_calls),
+                },
+            )
+            os._exit(_EXIT_CODES["cancel_dispatching_crash"])
+
+        assert native_api.order_action_hook is None
+        native_api.order_action_hook = crash_after_native_cancel
+        with cancel_scope:
+            strategy.cancel(order)
+        raise AssertionError("the controlled native cancel returned normally")
+    finally:
+        journal.close()
 
 
 def _spawned_cancel_without_managed_sysid_worker(journal_path, result_queue):

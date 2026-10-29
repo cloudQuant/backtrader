@@ -15,6 +15,9 @@ from backtrader.stores.execution_decision_journal import (
     ExecutionIntentKey,
     _callback_query_disposition_replay_matches,
 )
+from tests.test_utils.execution_journal_schema import (
+    drop_empty_fee_pair_tables_from_version,
+)
 
 
 def _prepared_intent(journal: ExecutionDecisionJournal) -> str:
@@ -171,8 +174,7 @@ def test_v10_migration_keeps_legacy_callbacks_pending_and_origin_unknown(tmp_pat
         connection.execute("ALTER TABLE execution_decision_callbacks DROP COLUMN delivery_pending")
         connection.execute("DROP TABLE IF EXISTS execution_durable_capacity_usage")
         connection.execute("DROP TABLE IF EXISTS execution_durable_capacity_limits")
-        connection.execute("DROP TABLE IF EXISTS execution_fee_pair_scope_events")
-        connection.execute("DROP TABLE IF EXISTS execution_fee_pair_required_scopes")
+        drop_empty_fee_pair_tables_from_version(connection, first_version=15)
         connection.execute("DROP TABLE IF EXISTS execution_source_highwaters")
         connection.execute("DROP TABLE IF EXISTS execution_run_loss_guards")
         connection.execute("PRAGMA user_version=10")
@@ -182,7 +184,10 @@ def test_v10_migration_keeps_legacy_callbacks_pending_and_origin_unknown(tmp_pat
 
     migrated = ExecutionDecisionJournal(path)
     try:
-        assert migrated._connection.execute("PRAGMA user_version").fetchone()[0] == 15
+        assert (
+            migrated._connection.execute("PRAGMA user_version").fetchone()[0]
+            == ExecutionDecisionJournal._SCHEMA_VERSION
+        )
         pending = migrated.pending_callbacks(limit=16)
         assert {item.receipt_id for item in pending} == {native.receipt_id, query.receipt_id}
         with migrated._transaction() as cursor, pytest.raises(

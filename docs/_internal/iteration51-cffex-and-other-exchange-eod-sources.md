@@ -130,3 +130,42 @@ rows. Its availability is no earlier than the latest constituent observed
 availability. It is a manifest digest, not a raw exchange body or evidence
 that any missing exchange is covered. No current all-market-ready snapshot is
 claimed.
+
+## Additional official-route check (2026-10-24)
+
+One focused official-domain search per missing exchange found current public
+field descriptions but no dated DCE, CZCE, or GFEX report bytes. The separate
+normal-browser attempt to open GFEX's public product page stopped at
+`ERR_CERT_COMMON_NAME_INVALID`; the web page fetch returned 502. No certificate
+warning or site challenge was bypassed. These observations do not establish
+that exchange reports are unavailable through other authorized interfaces.
+
+- **DCE:** the official-domain search surfaced the [DCE public portal client
+  page](https://extportal.dce.com.cn/file/pc/index.html) and monthly-report
+  PDFs, but no current dated full-contract daily file. The previous bounded
+  daily-query request remains the only report retrieval attempt (412 with a
+  cookie; its HTTPS request timed out). No new endpoint or schema is inferred.
+- **CZCE:** the current [Futures Trading Management Rules
+  (PDF)](https://www.czce.com.cn/cn/content_file/flfg/zcjywgz/ywbf/2026/5/a5ad00e02e484498abdbac8ddbfd5c35.pdf)
+  state that after-close daily information includes contract name, delivery
+  month, volume, open interest, and related quote fields. The rules also state
+  that exchange information is owned by CZCE and restrict unauthorized
+  business use or republication. Search exposed no dated public report bytes;
+  the earlier dated-file request redirected to HTTPS and timed out there.
+- **GFEX:** the official [platinum product page](https://www.gfex.com.cn/gfex/sspzb/sspz.shtml)
+  lists `日行情` and `日成交持仓排名`. [Trading Rules
+  (PDF)](https://www.gfex.com.cn/gfex/llbb/202402/e91439278d3a44b4aefe7ca126167e1a/files/%E5%B9%BF%E5%B7%9E%E6%9C%9F%E8%B4%A7%E4%BA%A4%E6%98%93%E6%89%80%E4%BA%A4%E6%98%93%E8%A7%84%E5%88%99%EF%BC%882022%E5%B9%B44%E6%9C%8829%E6%97%A5%E7%89%88%EF%BC%89.pdf)
+  list contract/month, volume, and open interest among published data. The
+  official page was not readable in the normal browser due to the certificate
+  hostname error, and the web page fetch failed; no report schema was observed.
+
+To enable an adapter, provide one small, unmodified official export for a
+specified completed TradingDay from each exchange, with its source page/URL
+and actual retrieval timestamp. The bytes must expose every ordinary futures
+contract row in the report's stated scope, the original contract identifier,
+product/delivery month, volume and open interest, plus a documented or
+explicitly unresolved unit for each ranking field. The adapter can then bind
+exact source IDs to the same-day CTP catalog, retain the raw-byte digest, and
+report missing, duplicate, and ambiguous catalog matches. Until those bytes
+are observed, DCE/CZCE/GFEX remain explicit source-coverage gaps; no adapter,
+schema, or all-market completeness is claimed.

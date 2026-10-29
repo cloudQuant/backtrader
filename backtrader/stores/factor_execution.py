@@ -370,6 +370,7 @@ class FactorExecutionCoordinator:
         *,
         net_loss_threshold: Decimal,
         max_observation_age_seconds: int,
+        now: Optional[datetime] = None,
     ) -> ExecutionRunLossGuardSnapshot:
         """Explicitly initialize a persistent policy from qualified account PnL.
 
@@ -390,6 +391,7 @@ class FactorExecutionCoordinator:
                 baseline_total_net_pnl=account.total_net_pnl,
                 net_loss_threshold=net_loss_threshold,
                 max_observation_age_seconds=max_observation_age_seconds,
+                now=now,
             )
         except ExecutionDecisionJournalError as error:
             raise FactorExecutionError(error.code) from error
@@ -398,6 +400,8 @@ class FactorExecutionCoordinator:
         self,
         context: ExecutionRunLossGuardContext,
         account_facts: Any,
+        *,
+        now: Optional[datetime] = None,
     ) -> ExecutionRunLossGuardSnapshot:
         """Persist one qualified total-net-PnL observation supplied by the caller."""
 
@@ -408,6 +412,7 @@ class FactorExecutionCoordinator:
                 observation_id=account.snapshot_id,
                 asof=asof,
                 total_net_pnl=account.total_net_pnl,
+                now=now,
             )
         except ExecutionDecisionJournalError as error:
             raise FactorExecutionError(error.code) from error
@@ -1914,9 +1919,18 @@ class FactorExecutionCoordinator:
                     "exchange_id",
                 )
             )
+            # A CTP insert response may omit OrderSysID while the managed
+            # CANCEL identity always carries the exact SysID proved by the
+            # current complete query (or its durable binding). Accept that
+            # asymmetry only when the CANCEL SysID names this observation; an
+            # original identity that does carry a SysID must still match it.
             and (
-                "order_sys_id" not in cancel_identity
-                or parent_identity.get("order_sys_id") == cancel_identity.get("order_sys_id")
+                cancel_identity.get("order_sys_id") is None
+                or (
+                    cancel_identity.get("order_sys_id") == observation.order_sys_id
+                    and parent_identity.get("order_sys_id")
+                    in (None, cancel_identity.get("order_sys_id"))
+                )
             )
         )
 
@@ -3030,9 +3044,17 @@ class FactorExecutionCoordinator:
                 identity.get("order_sys_id") is None
                 or identity.get("order_sys_id") == observation.order_sys_id
             )
+            # The managed CANCEL identity is sourced from the current complete
+            # query/binding, so it names the exact terminal SysID even when the
+            # immutable SUBMIT response and original identity omitted it. The
+            # original identity must agree whenever it does carry a SysID.
             and (
-                "order_sys_id" not in cancel_identity
-                or identity.get("order_sys_id") == cancel_identity.get("order_sys_id")
+                cancel_identity.get("order_sys_id") is None
+                or (
+                    cancel_identity.get("order_sys_id") == observation.order_sys_id
+                    and identity.get("order_sys_id")
+                    in (None, cancel_identity.get("order_sys_id"))
+                )
             )
             and submit_intent.key.instrument == observation.instrument
             and submit_intent.key.position_effect in ("OPEN", "CLOSE")
@@ -3913,6 +3935,14 @@ class FactorExecutionCoordinator:
                 {
                     "broker_working_order_not_remote_active:{}".format(observation.order_ref),
                     "working_order_execution_state_unobserved:{}".format(local_ref),
+                    # A prior retirement attempt may have durably resolved the
+                    # owning submit intent before the Store callback could be
+                    # queued. The bounded intent snapshot then no longer lists
+                    # that resolved owner, while the local Broker order stays
+                    # alive until the retried callback drains. The exact local
+                    # order above is already proven against this intent, so the
+                    # redundant bounded-snapshot join failure is benign here.
+                    "working_order_journal_owner_unjoined:{}".format(observation.order_ref),
                 }
             )
             if cancel_intent_id is not None:
@@ -4856,6 +4886,7 @@ class FactorExecutionCoordinator:
         remaining_exit_intent_reserve: int,
         loss_guard_context: Optional[ExecutionRunLossGuardContext] = None,
         source_receipt: Optional[ExecutionSourceReceipt] = None,
+        fee_pair_open_context: Any = None,
     ) -> "FactorExecutionDecisionScope":
         return FactorExecutionDecisionScope(
             self,
@@ -4872,6 +4903,7 @@ class FactorExecutionCoordinator:
             risk_only=False,
             loss_guard_context=loss_guard_context,
             source_receipt=source_receipt,
+            fee_pair_open_context=fee_pair_open_context,
         )
 
     def record_source_receipt(
@@ -5134,6 +5166,7 @@ class FactorExecutionDecisionScope:
         risk_only: bool,
         loss_guard_context: Optional[ExecutionRunLossGuardContext] = None,
         source_receipt: Optional[ExecutionSourceReceipt] = None,
+        fee_pair_open_context: Any = None,
     ) -> None:
         self.coordinator = coordinator
         self.owner = owner
@@ -5149,6 +5182,7 @@ class FactorExecutionDecisionScope:
         self.risk_only = risk_only
         self.loss_guard_context = loss_guard_context
         self.source_receipt = source_receipt
+        self.fee_pair_open_context = fee_pair_open_context
         self.decision_id: Optional[str] = None
         self.cursor = None
         self.is_new_grid = False
@@ -5183,7 +5217,16 @@ class FactorExecutionDecisionScope:
             raise FactorExecutionError("GRID_ORDER_BUDGET_EXCEEDED")
         self._validate_actions()
 
-        if self.risk_only:
+        if self.fee_pair_open_context is not None:
+            if self.risk_only or len(self.intent_keys) != 2:
+                raise FactorExecutionError("FEE_PAIR_OPEN_CONTEXT_INVALID")
+            result = coordinator.journal.fee_pair_open_grid_admission(
+                self.key,
+                self.economic_payload,
+                self.intent_keys,
+                context=self.fee_pair_open_context,
+            )
+        elif self.risk_only:
             if self.batch is not None and not self._batch_matches_key(self.batch):
                 raise FactorExecutionError("RISK_BATCH_IDENTITY_MISMATCH")
             result = coordinator.journal.record_risk_decision(
@@ -5440,6 +5483,7 @@ class FactorExecutionDecisionScope:
             original_identity=identity,
             owner_intent_id=owner_intent_id,
             loss_guard_context=self.loss_guard_context,
+            fee_pair_open_context=self.fee_pair_open_context,
         )
         self._prepared[self._next_leg] = intent.intent_id
         if intent.state != "PREPARED" or intent.dispatch_state is not None:
@@ -5461,6 +5505,7 @@ class FactorExecutionDecisionScope:
         claim = self.coordinator.journal.claim_dispatch(
             intent.intent_id,
             loss_guard_context=self.loss_guard_context,
+            fee_pair_open_context=self.fee_pair_open_context,
         )
         if claim is None:
             raise FactorExecutionError("DISPATCH_ALREADY_CLAIMED")
@@ -5657,6 +5702,7 @@ class FactorExecutionDecisionScope:
                 state="KNOWN" if known else "UNKNOWN",
                 provider_identity=identity,
                 outcome_code="native_ack" if known else _bounded_code(error),
+                fee_pair_open_context=self.fee_pair_open_context,
             )
         except Exception as persistence_error:
             order.addinfo(

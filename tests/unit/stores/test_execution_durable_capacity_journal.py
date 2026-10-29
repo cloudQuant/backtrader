@@ -26,6 +26,9 @@ from backtrader.stores.factor_position_book import (
     _record_open_intent_fill_total,
     apply_factor_execution_fill,
 )
+from tests.test_utils.execution_journal_schema import (
+    drop_empty_fee_pair_tables_from_version,
+)
 
 
 _ACCOUNT = "capacity-account"
@@ -51,6 +54,9 @@ def _restore_v11_journal_schema(connection: sqlite3.Connection) -> None:
 
     # These fixtures are built by downgrading the current schema. A real v11
     # database cannot already contain the v21 CTP identity binding objects.
+    # Drop every v15+ fee-pair object (including the v23 single-row tape, the
+    # v24 amount ledger and the v25 lifecycle projection) before rebuilding.
+    drop_empty_fee_pair_tables_from_version(connection, first_version=15)
     connection.execute(
         "DROP TRIGGER IF EXISTS execution_known_ctp_order_sysid_binding_no_update"
     )

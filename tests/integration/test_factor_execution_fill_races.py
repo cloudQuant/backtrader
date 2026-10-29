@@ -144,9 +144,12 @@ def _open_economics(instrument, exchange, quantity, *, batch_id):
     }
 
 
-def _route_template(cycle):
+_SDK_MD_FRONT = "tcp://182.254.243.31:30012"
+
+
+def _route_template(cycle, *, md_front="tcp://127.0.0.1:1"):
     return {
-        "md_front": "tcp://127.0.0.1:1",
+        "md_front": md_front,
         "strategy_identity_sha256": "a" * 64,
         "execution_cycle_id": cycle,
         "preflight_sha256": "b" * 64,
@@ -721,16 +724,24 @@ def test_actual_cerebro_cancel_terminal_waits_for_late_trade_id_once(monkeypatch
         data,
         _strategy,
         cerebro,
-    ) = execution_path._system(now=now, bars=7, bar_advance_gate=gate, exchange=exchange)
+        _trader,
+        _native,
+    ) = execution_path._source_sdk_system(
+        monkeypatch, now=now, bars=7, bar_advance_gate=gate, exchange=exchange
+    )
     api.tick.trading_day = trading_day
     initial = facts_path._refresh_all(store, target)
     store.registered_sim_configure_arm_templates(
-        {(target.instrument, exchange): _route_template("late-fill-cancel")}
+        {
+            (target.instrument, exchange): _route_template(
+                "late-fill-cancel", md_front=_SDK_MD_FRONT
+            )
+        }
     )
     store.registered_sim_arm(
         instrument=target.instrument,
         exchange=exchange,
-        **_route_template("late-fill-cancel"),
+        **_route_template("late-fill-cancel", md_front=_SDK_MD_FRONT),
     )
     assert store.poll_tick(target.instrument) is not None
     open_facts = facts_path._project(store, broker, target, now, query_set=initial.query_set)
@@ -897,6 +908,7 @@ def test_actual_cerebro_cancel_terminal_waits_for_late_trade_id_once(monkeypatch
         )
         active_order = {
             "OrderRef": "501",
+            "OrderSysID": "sys-501",
             "InstrumentID": target.instrument,
             "ExchangeID": exchange,
             "OrderStatus": "1",
@@ -947,7 +959,8 @@ def test_actual_cerebro_cancel_terminal_waits_for_late_trade_id_once(monkeypatch
 
         gate.allow_through(2)
         assert state["cancel_sent"].wait(10), state["error"]
-        assert api.native_calls[1] == ("cancel", target.instrument, exchange, "501", 102)
+        assert api.native_calls[1][:4] == ("cancel", target.instrument, exchange, "501")
+        assert api.native_calls[1][4] > api.native_calls[0][4]
         late_time = state["late_fill_time"]
         cancel_requested_at = state["cancel_requested_at"]
         assert (
@@ -1045,10 +1058,11 @@ def test_actual_cerebro_cancel_terminal_waits_for_late_trade_id_once(monkeypatch
             == 2
         )
         assert verified_receipt.query_set is not None
-        assert api.native_calls == [
-            ("insert", target.instrument, exchange, "501", 101),
-            ("cancel", target.instrument, exchange, "501", 102),
+        assert [call[:4] for call in api.native_calls] == [
+            ("insert", target.instrument, exchange, "501"),
+            ("cancel", target.instrument, exchange, "501"),
         ]
+        assert api.native_calls[1][4] > api.native_calls[0][4]
 
         gate.allow_through(6)
         assert state["bar6"].wait(10), state["error"]

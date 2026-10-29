@@ -504,8 +504,6 @@ def test_write_refresh_barrier_waits_on_the_real_query_refresh_thread(
 def test_blocked_optional_fee_query_leaves_live_core_projection_available(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from backtrader.stores.factor_execution_facts import FactorExecutionTarget
-
     runner_path = (
         _FIXTURE_PATH.parents[1]
         / "examples"
@@ -854,6 +852,189 @@ def test_commission_priority_rejects_switched_or_expired_decision_snapshot(
     # retrying the formerly selected C/D legs.
     assert loop._select_commission_target().target_id == "E"
     assert len(loop._commission_targets) == 5
+
+
+@pytest.mark.parametrize("second_leg_mode", ("available", "missing", "timeout"))
+def test_source_loaded_pair_fee_sidecar_requires_both_source_owned_target_rows(
+    monkeypatch: pytest.MonkeyPatch,
+    second_leg_mode: str,
+) -> None:
+    """Exercise sequential pair fees through the real Store and refresh loop."""
+
+    runner_path = (
+        _FIXTURE_PATH.parents[1]
+        / "examples"
+        / "unified"
+        / "028_alpha003_simnow_minute"
+        / "run.py"
+    )
+    monkeypatch.syspath_prepend(str(runner_path.parent))
+    runner_spec = importlib.util.spec_from_file_location(
+        "alpha003_simnow_pair_fee_refresh_source_test", runner_path
+    )
+    assert runner_spec is not None and runner_spec.loader is not None
+    runner = importlib.util.module_from_spec(runner_spec)
+    sys.modules[runner_spec.name] = runner
+    runner_spec.loader.exec_module(runner)
+
+    facts_fixture = _load_factor_execution_facts_test_helpers()
+    now = datetime.now(timezone.utc)
+    target_specs = (("A", "rb2510", "SHFE"), ("B", "i2510", "DCE"))
+    account_row = {
+        "Available": "100000",
+        "CurrMargin": "0",
+        "CloseProfit": "1000",
+        "PositionProfit": "0",
+        "Commission": "0",
+        "CurrencyID": "CNY",
+        "TradingDay": facts_fixture._TRADING_DAY,
+        "BrokerID": "fake-broker",
+        "AccountID": "configured-account",
+        "InvestorID": "fake-investor",
+    }
+    api, store, broker, journal, coordinator, targets, _templates = (
+        facts_fixture._multi_target_system_under_test(
+            now=now,
+            target_specs=target_specs,
+            account=account_row,
+        )
+    )
+    api._use_observed_query_clock = True
+    api.query_rows["instrument_commission_rate_result"] = [
+        facts_fixture._commission_row(instrument="rb2510", exchange="SHFE")
+    ]
+    if second_leg_mode != "missing":
+        api.query_rows["instrument_commission_rate_result"].append(
+            facts_fixture._commission_row(instrument="i2510", exchange="DCE")
+        )
+    if second_leg_mode == "timeout":
+        query_commission = api.query_instrument_commission_rate_result
+
+        def query_with_second_leg_timeout(
+            *, timeout=5.0, deadline_monotonic, instrument_id, exchange_id
+        ):
+            if instrument_id == "i2510":
+                raise TimeoutError("synthetic second-leg timeout")
+            return query_commission(
+                timeout=timeout,
+                deadline_monotonic=deadline_monotonic,
+                instrument_id=instrument_id,
+                exchange_id=exchange_id,
+            )
+
+        monkeypatch.setattr(
+            api, "query_instrument_commission_rate_result", query_with_second_leg_timeout
+        )
+    assert all(store.poll_tick(target.instrument) is not None for target in targets)
+
+    class _SystemUTCClock:
+        @staticmethod
+        def utc_now() -> datetime:
+            return datetime.now(timezone.utc)
+
+    clock = _SystemUTCClock()
+    loop = runner.QueryRefreshLoop(
+        store,
+        broker,
+        targets,
+        execution_target_ids=("A", "B"),
+        commission_identity_by_target={
+            target_id: {"account_id": "configured-account", "invest_unit_id": ""}
+            for target_id in ("A", "B")
+        },
+        commission_required_for_open=True,
+        coordinator=coordinator,
+        account_scope="acct-scope",
+        strategy_scope="alpha003",
+        clock=clock,
+        quote_max_age=timedelta(seconds=60),
+        max_query_age=timedelta(seconds=30),
+        timeout=1.0,
+        overall_timeout=4.0,
+        interval=0.01,
+        cerebro=SimpleNamespace(),
+        shutdown_grace_seconds=1.0,
+    )
+    try:
+        initial = loop.refresh_initial(wait_timeout=2.0)
+        assert initial is loop.last_receipt
+        assert initial.query_set is not None
+
+        decision_time = clock.utc_now()
+        loop.publish_commission_target_decision(
+            SimpleNamespace(
+                status="TARGETS_READY",
+                execution_mode="LIVE",
+                batch_id="pair-fee-grid-1",
+                available_at=decision_time,
+                authorized_targets=("A", "B"),
+                targets=(SimpleNamespace(target_id="A"), SimpleNamespace(target_id="B")),
+            )
+        )
+
+        # The optional sidecar is one exact target per serialized refresh pass.
+        loop.refresh_once()
+        by_target = {item.target_id: item for item in loop.last_facts.instruments}
+        assert by_target["A"].commission_fee_status == "AVAILABLE"
+        assert by_target["B"].commission_fee_status != "AVAILABLE"
+        assert loop._commission_query_is_fresh("A") is True
+        assert loop._commission_query_is_fresh("B") is False
+
+        loop.refresh_once()
+        by_target = {item.target_id: item for item in loop.last_facts.instruments}
+        assert by_target["A"].commission_fee_status == "AVAILABLE"
+        expected_second_leg_status = {
+            "available": "AVAILABLE",
+            "missing": "RATE_UNAVAILABLE",
+            "timeout": "QUERY_UNAVAILABLE",
+        }[second_leg_mode]
+        assert by_target["B"].commission_fee_status == expected_second_leg_status
+        assert loop._commission_query_is_fresh("A") is True
+        if second_leg_mode == "available":
+            assert loop._commission_query_is_fresh("B") is True
+        elif second_leg_mode == "timeout":
+            assert loop._commission_query_is_fresh("B") is False
+        else:
+            # A complete empty response is fresh evidence of no qualifying fee row.
+            assert loop._commission_query_is_fresh("B") is True
+        sidecar_rows = tuple(
+            item
+            for item in loop.last_facts.query_provenance
+            if item.family == "instrument_commission_rate_result"
+        )
+        assert {item.target_id for item in sidecar_rows} == {"A", "B"}
+        if second_leg_mode == "timeout":
+            second_leg_rows = tuple(item for item in sidecar_rows if item.target_id == "B")
+            assert len(second_leg_rows) == 1
+            assert second_leg_rows[0].query_complete is False
+        complete_rows = tuple(item for item in sidecar_rows if item.query_complete is True)
+        assert all(item.source_owned is True for item in complete_rows)
+        assert all(
+            item.connection_generation == loop.last_facts.account.connection_generation
+            for item in complete_rows
+        )
+        assert all(item.trading_day == loop.last_facts.account.trading_day for item in complete_rows)
+        assert all(
+            item.account_fingerprint == loop.last_facts.account.account_fingerprint
+            for item in complete_rows
+        )
+
+        if second_leg_mode == "available":
+            old_generation = loop.last_facts.account.connection_generation
+            api.trader_client._connection_generation = old_generation + 1
+            loop.refresh_once()
+            assert loop.last_facts.account.connection_generation == old_generation + 1
+            assert loop._commission_query_is_fresh("A") is True
+            assert loop._commission_query_is_fresh("B") is False
+            by_target = {item.target_id: item for item in loop.last_facts.instruments}
+            assert not (
+                by_target["A"].commission_fee_status == "AVAILABLE"
+                and by_target["B"].commission_fee_status == "AVAILABLE"
+                and loop._commission_query_is_fresh("A")
+                and loop._commission_query_is_fresh("B")
+            )
+    finally:
+        journal.close()
 
 
 def test_refresh_barrier_rejects_missing_or_future_query_sets_and_noquote_preclose(

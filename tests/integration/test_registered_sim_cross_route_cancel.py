@@ -61,6 +61,7 @@ class _RouteRecordingExecutionStrategy(execution_path._OrchestratedExecutionStra
 def _ctp_order(instrument, exchange, order_ref, *, status, original, filled, remaining):
     return {
         "OrderRef": str(order_ref),
+        "OrderSysID": "sys-{}".format(order_ref),
         "InstrumentID": instrument,
         "ExchangeID": exchange,
         "OrderStatus": status,
@@ -97,15 +98,17 @@ def test_actual_strategy_cancels_old_order_after_registered_sim_route_switch(mon
         first_data,
         _strategy,
         cerebro,
-    ) = execution_path._system(
+        _trader,
+        _native,
+    ) = execution_path._source_sdk_system(
+        monkeypatch,
         now=now,
         query_rows=initial_rows,
-        bars=5,
+        bars=6,
         bar_advance_gate=gate,
         exchange=exchange,
     )
     api.tick.trading_day = trading_day
-    fill_races._enable_fake_single_route_switch(api)
 
     index = pd.date_range(start=now.replace(tzinfo=None), periods=5, freq="min")
     second_frame = pd.DataFrame(
@@ -137,7 +140,8 @@ def test_actual_strategy_cancels_old_order_after_registered_sim_route_switch(mon
 
     templates = {
         (target.instrument, target.exchange): fill_races._route_template(
-            "cross-route-cancel-{}".format(target.target_id)
+            "cross-route-cancel-{}".format(target.target_id),
+            md_front=fill_races._SDK_MD_FRONT,
         )
         for target in targets
     }
@@ -348,9 +352,11 @@ def test_actual_strategy_cancels_old_order_after_registered_sim_route_switch(mon
         assert [
             (entry["instrument"], entry["exchange"]) for entry in api.registered_sim_arm_history()
         ] == [(first.instrument, exchange), (second.instrument, exchange)]
-        active_gate = api.trader_client._gate_state
+        active_gate = api.trader_client.get_execution_gate_state()
         assert active_gate["armed"] is True
-        assert active_gate["instrument"] == second.instrument
+        # The canonical SDK keys its single-contract grant by the normalized
+        # exchange.instrument pair rather than the raw Backtrader route name.
+        assert active_gate["instrument"] == "DCE.CU2612"
 
         active_first = _ctp_order(
             first.instrument,
@@ -393,11 +399,15 @@ def test_actual_strategy_cancels_old_order_after_registered_sim_route_switch(mon
 
         gate.allow_through(1)
         assert state["cancel_sent"].wait(10), state["error"]
-        assert api.native_calls == [
-            ("insert", first.instrument, exchange, "501", 101),
-            ("insert", second.instrument, exchange, "502", 102),
-            ("cancel", first.instrument, exchange, "501", 103),
+        assert [call[:4] for call in api.native_calls] == [
+            ("insert", first.instrument, exchange, "501"),
+            ("insert", second.instrument, exchange, "502"),
+            ("cancel", first.instrument, exchange, "501"),
         ]
+        assert [call[4] for call in api.native_calls] == sorted(
+            call[4] for call in api.native_calls
+        )
+        assert len({call[4] for call in api.native_calls}) == 3
         assert [
             (entry["instrument"], entry["exchange"]) for entry in api.registered_sim_arm_history()
         ] == [
@@ -542,10 +552,10 @@ def test_actual_strategy_cancels_old_order_after_registered_sim_route_switch(mon
         assert trade_notices
         assert all(item["instrument"] == first.instrument for item in trade_notices)
         assert any(item["size"] == pytest.approx(1.0) for item in trade_notices)
-        assert api.native_calls == [
-            ("insert", first.instrument, exchange, "501", 101),
-            ("insert", second.instrument, exchange, "502", 102),
-            ("cancel", first.instrument, exchange, "501", 103),
+        assert [call[:4] for call in api.native_calls] == [
+            ("insert", first.instrument, exchange, "501"),
+            ("insert", second.instrument, exchange, "502"),
+            ("cancel", first.instrument, exchange, "501"),
         ]
     finally:
         gate.allow_through(1000)

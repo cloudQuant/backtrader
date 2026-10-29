@@ -21,9 +21,13 @@ from types import MethodType, ModuleType, SimpleNamespace
 
 import pytest
 
+from backtrader.stores import execution_decision_journal as execution_decision_journal_module
 from backtrader.stores import registered_sim as registered_sim_module
 from backtrader.stores import btapistore
 from backtrader.stores.btapistore import BtApiStoreError
+from tests.test_utils.execution_journal_schema import (
+    drop_empty_fee_pair_tables_from_version,
+)
 from tests.unit.stores import test_factor_execution as factor_helpers
 from tests.unit.stores import test_factor_execution_facts as facts_helpers
 
@@ -734,6 +738,18 @@ def _downgrade_cancel_journal_to_v21(path):
     """Model a process opening a v21 journal with an unresolved cancel claim."""
 
     with sqlite3.connect(path) as connection:
+        # Remove the v23 single-row tape/quarantine objects and the v24/v25
+        # amount lifecycle projection; a genuine v21 journal cannot contain
+        # any of them.
+        drop_empty_fee_pair_tables_from_version(connection, first_version=23)
+        # v23 also replaced the workflow durable-reservation trigger, so
+        # restore the exact v20 DDL that the v21 validator requires.
+        connection.execute(
+            "DROP TRIGGER IF EXISTS execution_fee_pair_workflow_durable_reservation_state"
+        )
+        connection.execute(
+            execution_decision_journal_module._FEE_PAIR_WORKFLOW_DURABLE_RESERVATION_TRIGGER_SQL_V20
+        )
         for trigger in (
             "execution_registered_sim_cancel_dispatch_claim_no_update",
             "execution_registered_sim_cancel_dispatch_claim_no_delete",

@@ -135,6 +135,7 @@ _KNOWN_CTP_ORDER_SYSID_BINDING_SCHEMA_VERSION = 21
 _REGISTERED_SIM_CANCEL_DISPATCH_CLAIM_SCHEMA_VERSION = 22
 _FEE_PAIR_GRID_SINGLE_ROW_TAPE_SCHEMA_VERSION = 23
 _FEE_PAIR_AMOUNT_RESERVATION_SCHEMA_VERSION = 24
+_FEE_PAIR_AMOUNT_OPEN_LIFECYCLE_SCHEMA_VERSION = 25
 _FEE_PAIR_SINGLE_ROW_TAPE_MAX_HEADER_BYTES = 1024 * 1024
 _SOURCE_ORIGIN_PARTITION_SCHEMA = "backtrader.execution_source_origin_partition.v1"
 _SOURCE_ORIGIN_PARTITION_FIELDS = (
@@ -166,6 +167,7 @@ _MAX_FEE_PAIR_GRID_TAPE_RECORD_BYTES = 8 * 1024 * 1024
 _FEE_PAIR_GRID_TAPE_SCAN_CHUNK_BYTES = 64 * 1024
 _MAX_FEE_PAIR_GRID_TAPE_REPORT_BYTES = 8_192
 _MAX_FEE_PAIR_AMOUNT_RESERVATION_BYTES = 32_768
+_MAX_FEE_PAIR_AMOUNT_LIFECYCLE_EVENT_BYTES = 36_864
 _FEE_PAIR_AMOUNT_POLICY_ID = "ALPHA003_PAIR_AMOUNT_V1"
 _FEE_PAIR_AMOUNT_EVIDENCE_LEVEL = "STRUCTURE_ONLY_STORE_PROJECTION"
 _FEE_PAIR_AMOUNT_CURRENCY = "CNY"
@@ -999,6 +1001,153 @@ BEFORE DELETE ON execution_fee_pair_amount_reservations
 BEGIN
     SELECT RAISE(ABORT, 'FEE_PAIR_AMOUNT_RESERVATION_IMMUTABLE');
 END"""
+_FEE_PAIR_AMOUNT_OPEN_RESERVATION_TABLE_SQL = """CREATE TABLE
+execution_fee_pair_amount_open_reservations (
+    candidate_id TEXT PRIMARY KEY REFERENCES execution_fee_pair_workflows(candidate_id),
+    decision_id TEXT NOT NULL UNIQUE REFERENCES execution_decisions(decision_id),
+    account_scope TEXT NOT NULL CHECK(length(account_scope)>0 AND length(account_scope)<=256),
+    reservation_json TEXT NOT NULL,
+    reservation_sha256 TEXT NOT NULL CHECK(length(reservation_sha256)=64),
+    created_at_ns INTEGER NOT NULL CHECK(created_at_ns>0)
+)"""
+_FEE_PAIR_AMOUNT_OPEN_RESERVATION_NO_UPDATE_TRIGGER_SQL = """CREATE TRIGGER
+execution_fee_pair_amount_open_reservation_no_update
+BEFORE UPDATE ON execution_fee_pair_amount_open_reservations
+BEGIN
+    SELECT RAISE(ABORT, 'FEE_PAIR_AMOUNT_OPEN_RESERVATION_IMMUTABLE');
+END"""
+_FEE_PAIR_AMOUNT_OPEN_RESERVATION_NO_DELETE_TRIGGER_SQL = """CREATE TRIGGER
+execution_fee_pair_amount_open_reservation_no_delete
+BEFORE DELETE ON execution_fee_pair_amount_open_reservations
+BEGIN
+    SELECT RAISE(ABORT, 'FEE_PAIR_AMOUNT_OPEN_RESERVATION_IMMUTABLE');
+END"""
+_FEE_PAIR_AMOUNT_OPEN_RESERVATION_EXCLUSIVE_TRIGGER_SQL = """CREATE TRIGGER
+execution_fee_pair_amount_open_reservation_exclusive
+BEFORE INSERT ON execution_fee_pair_amount_open_reservations
+WHEN EXISTS (
+    SELECT 1 FROM execution_fee_pair_amount_reservations AS r
+    WHERE r.candidate_id=NEW.candidate_id
+       OR (r.account_scope=NEW.account_scope AND NOT EXISTS (
+           SELECT 1 FROM execution_fee_pair_amount_lifecycle_events AS e
+           WHERE e.candidate_id=r.candidate_id AND e.event_sequence=2
+             AND e.event_kind='RELEASED'
+       ))
+)
+BEGIN
+    SELECT RAISE(ABORT, 'FEE_PAIR_AMOUNT_RESERVATION_KIND_CONFLICT');
+END"""
+_FEE_PAIR_AMOUNT_RESERVATION_EXCLUSIVE_TRIGGER_SQL = """CREATE TRIGGER
+execution_fee_pair_amount_reservation_exclusive
+BEFORE INSERT ON execution_fee_pair_amount_reservations
+WHEN EXISTS (
+    SELECT 1 FROM execution_fee_pair_amount_open_reservations AS r
+    WHERE r.candidate_id=NEW.candidate_id
+) OR EXISTS (
+    SELECT 1 FROM execution_fee_pair_amount_active_holds AS h
+    WHERE h.account_scope=NEW.account_scope
+)
+BEGIN
+    SELECT RAISE(ABORT, 'FEE_PAIR_AMOUNT_RESERVATION_KIND_CONFLICT');
+END"""
+_FEE_PAIR_AMOUNT_LIFECYCLE_EVENT_TABLE_SQL = """CREATE TABLE
+execution_fee_pair_amount_lifecycle_events (
+    event_id TEXT PRIMARY KEY,
+    candidate_id TEXT NOT NULL REFERENCES execution_fee_pair_workflows(candidate_id),
+    event_sequence INTEGER NOT NULL CHECK(event_sequence IN (1,2)),
+    event_kind TEXT NOT NULL CHECK(event_kind IN ('RESERVED','LEGACY_HELD','RELEASED')),
+    event_payload_json TEXT NOT NULL,
+    event_sha256 TEXT NOT NULL CHECK(length(event_sha256)=64),
+    created_at_ns INTEGER NOT NULL CHECK(created_at_ns>0),
+    UNIQUE(candidate_id,event_sequence)
+)"""
+_FEE_PAIR_AMOUNT_LIFECYCLE_EVENT_NO_UPDATE_TRIGGER_SQL = """CREATE TRIGGER
+execution_fee_pair_amount_lifecycle_event_no_update
+BEFORE UPDATE ON execution_fee_pair_amount_lifecycle_events
+BEGIN
+    SELECT RAISE(ABORT, 'FEE_PAIR_AMOUNT_LIFECYCLE_EVENT_IMMUTABLE');
+END"""
+_FEE_PAIR_AMOUNT_LIFECYCLE_EVENT_NO_DELETE_TRIGGER_SQL = """CREATE TRIGGER
+execution_fee_pair_amount_lifecycle_event_no_delete
+BEFORE DELETE ON execution_fee_pair_amount_lifecycle_events
+BEGIN
+    SELECT RAISE(ABORT, 'FEE_PAIR_AMOUNT_LIFECYCLE_EVENT_IMMUTABLE');
+END"""
+_FEE_PAIR_AMOUNT_LIFECYCLE_EVENT_INSERT_TRIGGER_SQL = """CREATE TRIGGER
+execution_fee_pair_amount_lifecycle_event_insert
+BEFORE INSERT ON execution_fee_pair_amount_lifecycle_events
+WHEN NOT (
+    (NEW.event_sequence=1 AND NEW.event_kind='RESERVED' AND EXISTS (
+        SELECT 1 FROM execution_fee_pair_amount_open_reservations AS r
+        WHERE r.candidate_id=NEW.candidate_id
+    ))
+    OR (NEW.event_sequence=1 AND NEW.event_kind='LEGACY_HELD' AND EXISTS (
+        SELECT 1 FROM execution_fee_pair_amount_reservations AS r
+        WHERE r.candidate_id=NEW.candidate_id
+    ))
+    OR (NEW.event_sequence=2 AND NEW.event_kind='RELEASED' AND EXISTS (
+        SELECT 1 FROM execution_fee_pair_amount_active_holds AS h
+        WHERE h.candidate_id=NEW.candidate_id
+    ) AND EXISTS (
+        SELECT 1 FROM execution_fee_pair_amount_lifecycle_events AS e
+        WHERE e.candidate_id=NEW.candidate_id AND e.event_sequence=1
+          AND e.event_kind IN ('RESERVED','LEGACY_HELD')
+    ))
+)
+BEGIN
+    SELECT RAISE(ABORT, 'FEE_PAIR_AMOUNT_LIFECYCLE_EVENT_INSERT_INVALID');
+END"""
+_FEE_PAIR_AMOUNT_ACTIVE_HOLD_TABLE_SQL = """CREATE TABLE
+execution_fee_pair_amount_active_holds (
+    account_scope TEXT PRIMARY KEY CHECK(length(account_scope)>0 AND length(account_scope)<=256),
+    candidate_id TEXT NOT NULL UNIQUE REFERENCES execution_fee_pair_workflows(candidate_id),
+    reservation_sha256 TEXT NOT NULL CHECK(length(reservation_sha256)=64),
+    created_at_ns INTEGER NOT NULL CHECK(created_at_ns>0)
+)"""
+_FEE_PAIR_AMOUNT_ACTIVE_HOLD_NO_UPDATE_TRIGGER_SQL = """CREATE TRIGGER
+execution_fee_pair_amount_active_hold_no_update
+BEFORE UPDATE ON execution_fee_pair_amount_active_holds
+BEGIN
+    SELECT RAISE(ABORT, 'FEE_PAIR_AMOUNT_ACTIVE_HOLD_IMMUTABLE');
+END"""
+_FEE_PAIR_AMOUNT_ACTIVE_HOLD_INSERT_TRIGGER_SQL = """CREATE TRIGGER
+execution_fee_pair_amount_active_hold_insert
+BEFORE INSERT ON execution_fee_pair_amount_active_holds
+WHEN NOT EXISTS (
+    SELECT 1 FROM execution_fee_pair_amount_lifecycle_events AS e
+    WHERE e.candidate_id=NEW.candidate_id
+      AND e.event_sequence=1
+      AND e.event_kind IN ('RESERVED','LEGACY_HELD')
+      AND (
+          EXISTS (
+              SELECT 1 FROM execution_fee_pair_amount_open_reservations AS r
+              WHERE r.candidate_id=NEW.candidate_id
+                AND r.account_scope=NEW.account_scope
+                AND r.reservation_sha256=NEW.reservation_sha256
+          )
+          OR EXISTS (
+              SELECT 1 FROM execution_fee_pair_amount_reservations AS r
+              WHERE r.candidate_id=NEW.candidate_id
+                AND r.account_scope=NEW.account_scope
+                AND r.reservation_sha256=NEW.reservation_sha256
+          )
+      )
+)
+BEGIN
+    SELECT RAISE(ABORT, 'FEE_PAIR_AMOUNT_ACTIVE_HOLD_INSERT_INVALID');
+END"""
+_FEE_PAIR_AMOUNT_ACTIVE_HOLD_DELETE_TRIGGER_SQL = """CREATE TRIGGER
+execution_fee_pair_amount_active_hold_delete
+BEFORE DELETE ON execution_fee_pair_amount_active_holds
+WHEN NOT EXISTS (
+    SELECT 1 FROM execution_fee_pair_amount_lifecycle_events AS e
+    WHERE e.candidate_id=OLD.candidate_id
+      AND e.event_sequence=2
+      AND e.event_kind='RELEASED'
+)
+BEGIN
+    SELECT RAISE(ABORT, 'FEE_PAIR_AMOUNT_ACTIVE_HOLD_RELEASE_REQUIRED');
+END"""
 _FEE_PAIR_WORKFLOW_SCHEMA_V18_SQL = (
     _FEE_PAIR_WORKFLOW_TABLE_SQL_V18,
     _FEE_PAIR_WORKFLOW_ACTIVE_INDEX_SQL_V18,
@@ -1369,12 +1518,24 @@ class _FeePairSettlementAdmission:
 
 
 @dataclass(frozen=True)
-class ExecutionFeePairOpenContext:
-    """Store facts retained for a future risk-reserved pair OPEN path.
+class _FeePairAmountOpenAdmission:
+    """Private result of revalidating one exact active pair hold in a txn."""
 
-    A registered fee-pair scope currently cannot prepare or claim either OPEN
-    leg: the Journal has no durable numeric exposure reservation to protect a
-    partially executed pair. Supplying this context does not grant admission.
+    candidate_id: str
+    reservation_sha256: str
+    decision_id: str
+    intent_id: str
+    leg_index: int
+
+
+@dataclass(frozen=True)
+class ExecutionFeePairOpenContext:
+    """Caller projection bound to one durable, intent-specific pair hold.
+
+    The context is a bearer input, not an authorization by itself.  Both
+    ``prepare_intent`` and ``claim_dispatch`` reload the immutable v25 claim,
+    validate its reservation hash and owner token, and recheck the exact
+    settlement snapshot before accepting either declared leg.
     """
 
     facts: Any
@@ -1383,6 +1544,12 @@ class ExecutionFeePairOpenContext:
     owner_token: str
     max_query_age_seconds: float
     max_quote_age_seconds: float
+    candidate_id: Optional[str] = None
+    reservation_sha256: Optional[str] = None
+    # Private, operation-scoped Store source lease.  The Journal validates its
+    # issuing type and exact facts identity at every OPEN transaction boundary;
+    # caller-constructed contexts without this lease never authorize a pair.
+    source_lease: Any = None
 
 
 @dataclass(frozen=True)
@@ -1632,6 +1799,7 @@ class ExecutionGridDecision:
     eligible: bool
     is_new_grid: bool
     source_anchor: Optional[ExecutionDecisionRecord] = None
+    amount_reservation: Optional[Mapping[str, Any]] = None
 
 
 @dataclass(frozen=True)
@@ -2239,7 +2407,7 @@ class ExecutionDecisionJournal:
     and checks fresh matching context at each OPEN decision, prepare, and claim.
     """
 
-    _SCHEMA_VERSION = _FEE_PAIR_AMOUNT_RESERVATION_SCHEMA_VERSION
+    _SCHEMA_VERSION = _FEE_PAIR_AMOUNT_OPEN_LIFECYCLE_SCHEMA_VERSION
     _NATIVE_IDENTITY_SCHEMA_VERSION = 8
     _DECISION_CAPACITY_SCHEMA_VERSION = 9
     _DURABLE_CAPACITY_SCHEMA_VERSION = 12
@@ -2937,6 +3105,7 @@ class ExecutionDecisionJournal:
         baseline_total_net_pnl: Decimal,
         net_loss_threshold: Decimal,
         max_observation_age_seconds: int,
+        now: Optional[datetime] = None,
     ) -> ExecutionRunLossGuardSnapshot:
         """Persist an immutable run policy and its fresh starting P&L observation.
 
@@ -2958,6 +3127,7 @@ class ExecutionDecisionJournal:
         if Decimal(threshold_text) <= 0:
             raise ExecutionDecisionJournalError("INVALID_RUN_LOSS_THRESHOLD")
         ttl = _validate_run_loss_ttl(max_observation_age_seconds)
+        evaluation_now = _run_loss_evaluation_now(now)
         identity = (context.account_scope, context.strategy_scope, context.logical_run_id)
         now_ns = time.time_ns()
 
@@ -2994,11 +3164,11 @@ class ExecutionDecisionJournal:
                 if actual != expected:
                     raise ExecutionDecisionJournalError("RUN_LOSS_GUARD_POLICY_CONFLICT")
                 snapshot = _run_loss_guard_snapshot(row)
-                _require_fresh_run_loss_asof(snapshot.latest_asof, ttl, datetime.now(timezone.utc))
+                _require_fresh_run_loss_asof(snapshot.latest_asof, ttl, evaluation_now)
                 return snapshot
 
             _require_fresh_run_loss_asof(
-                baseline_asof_value, ttl, datetime.now(timezone.utc)
+                baseline_asof_value, ttl, evaluation_now
             )
             self._reject_late_run_loss_guard_enable(cursor, identity)
             with track_durable_row_change(
@@ -3097,6 +3267,7 @@ class ExecutionDecisionJournal:
         observation_id: str,
         asof: str,
         total_net_pnl: Decimal,
+        now: Optional[datetime] = None,
     ) -> ExecutionRunLossGuardSnapshot:
         """Persist the latest caller-validated total-net-P&L value atomically.
 
@@ -3110,6 +3281,7 @@ class ExecutionDecisionJournal:
         _require_identifier(observation_id, "INVALID_RUN_LOSS_OBSERVATION_ID")
         asof_value = _normalize_run_loss_asof(asof)
         pnl_text = _run_loss_decimal_text(total_net_pnl, "INVALID_RUN_LOSS_PNL")
+        evaluation_now = _run_loss_evaluation_now(now)
         identity = (context.account_scope, context.strategy_scope, context.logical_run_id)
 
         with self._transaction() as cursor:
@@ -3130,7 +3302,7 @@ class ExecutionDecisionJournal:
                 _require_fresh_run_loss_asof(
                     asof_value,
                     snapshot.max_observation_age_seconds,
-                    datetime.now(timezone.utc),
+                    evaluation_now,
                 )
                 return snapshot
 
@@ -3141,7 +3313,7 @@ class ExecutionDecisionJournal:
             _require_fresh_run_loss_asof(
                 asof_value,
                 snapshot.max_observation_age_seconds,
-                datetime.now(timezone.utc),
+                evaluation_now,
             )
 
             baseline = snapshot.baseline_total_net_pnl
@@ -3455,6 +3627,7 @@ class ExecutionDecisionJournal:
         business_key_json: str,
         loss_guard_context: Optional[ExecutionRunLossGuardContext],
         fee_pair_settlement_admission: Optional[_FeePairSettlementAdmission] = None,
+        fee_pair_amount_open_admission: Optional[_FeePairAmountOpenAdmission] = None,
     ) -> None:
         """Require room in both cumulative classes before admitting new OPEN risk."""
 
@@ -3473,12 +3646,49 @@ class ExecutionDecisionJournal:
                 payload_json=None,
                 admission=fee_pair_settlement_admission,
             )
+        elif fee_pair_amount_open_admission is not None:
+            if (
+                type(fee_pair_amount_open_admission) is not _FeePairAmountOpenAdmission
+                or not _source_sha256(fee_pair_amount_open_admission.candidate_id)
+                or not _source_sha256(fee_pair_amount_open_admission.reservation_sha256)
+                or not _source_sha256(fee_pair_amount_open_admission.decision_id)
+                or not _source_sha256(fee_pair_amount_open_admission.intent_id)
+                or type(fee_pair_amount_open_admission.leg_index) is not int
+                or fee_pair_amount_open_admission.leg_index not in (0, 1)
+            ):
+                # The full leg/decision proof was checked when this private
+                # capability was produced. Here require its identity and
+                # active account head to still match inside this transaction.
+                raise ExecutionDecisionJournalError("FEE_PAIR_OPEN_ADMISSION_INVALID")
+            active = cursor.execute(
+                "SELECT candidate_id,reservation_sha256 FROM "
+                "execution_fee_pair_amount_active_holds WHERE account_scope=?",
+                (account_scope,),
+            ).fetchone()
+            if (
+                active is None
+                or active["candidate_id"] != fee_pair_amount_open_admission.candidate_id
+                or active["reservation_sha256"]
+                != fee_pair_amount_open_admission.reservation_sha256
+            ):
+                raise ExecutionDecisionJournalError("FEE_PAIR_AMOUNT_HOLD_CHANGED")
         else:
             self._raise_if_fee_pair_scope_requires_pending(
                 cursor,
                 account_scope=account_scope,
                 strategy_scope=strategy_scope,
             )
+
+        active_hold = cursor.execute(
+            "SELECT candidate_id FROM execution_fee_pair_amount_active_holds "
+            "WHERE account_scope=?",
+            (account_scope,),
+        ).fetchone()
+        if active_hold is not None and (
+            fee_pair_amount_open_admission is None
+            or active_hold["candidate_id"] != fee_pair_amount_open_admission.candidate_id
+        ):
+            raise ExecutionDecisionJournalError("FEE_PAIR_ACCOUNT_AMOUNT_HOLD_ACTIVE")
 
         self._ensure_run_loss_guard_allows_open(
             cursor,
@@ -4833,6 +5043,8 @@ class ExecutionDecisionJournal:
         *,
         owner_token: str,
         ttl_seconds: float,
+        facts: Any = None,
+        source_lease: Any = None,
     ) -> ExecutionFeePairWorkflowRecord:
         """Reserve a workflow candidate plus BASE capacity for its future SOURCE_ONLY.
 
@@ -4874,7 +5086,14 @@ class ExecutionDecisionJournal:
         owner_instance_id = _current_process_instance_id()
         key = candidate.key
 
-        with self._transaction() as cursor:
+        source_guard = (
+            None
+            if source_lease is None
+            else _fee_pair_facts_source_before_commit(
+                facts, source_lease, operation="OPEN"
+            )
+        )
+        with self._transaction(before_commit=source_guard) as cursor:
             registration = self._fee_pair_scope_registration_in_transaction(
                 cursor,
                 account_scope=key.account_scope,
@@ -5560,7 +5779,7 @@ class ExecutionDecisionJournal:
         }
 
     def fee_pair_grid_amount_reservation(self, candidate_id: str) -> Optional[Mapping[str, Any]]:
-        """Read one retained ACTIVE amount reservation without releasing it."""
+        """Read one immutable amount record plus its current lifecycle projection."""
 
         if not _source_sha256(candidate_id):
             raise ExecutionDecisionJournalError("INVALID_FEE_PAIR_CANDIDATE_ID")
@@ -5568,16 +5787,35 @@ class ExecutionDecisionJournal:
             cursor = self._connection.cursor()
             try:
                 cursor.execute("BEGIN")
-                row = cursor.execute(
+                open_row = cursor.execute(
+                    "SELECT * FROM execution_fee_pair_amount_open_reservations WHERE candidate_id=?",
+                    (candidate_id,),
+                ).fetchone()
+                legacy_row = cursor.execute(
                     "SELECT * FROM execution_fee_pair_amount_reservations WHERE candidate_id=?",
                     (candidate_id,),
                 ).fetchone()
-                if row is None:
+                if open_row is None and legacy_row is None:
                     cursor.execute("COMMIT")
                     return None
-                result = self._fee_pair_amount_reservation_record_in_transaction(cursor, row)
+                if open_row is not None and legacy_row is not None:
+                    raise ExecutionDecisionJournalError("FEE_PAIR_AMOUNT_LIFECYCLE_CORRUPT")
+                row = open_row if open_row is not None else legacy_row
+                result = dict(
+                    self._fee_pair_amount_reservation_record_in_transaction(
+                        cursor, row, open_claim=open_row is not None
+                    )
+                )
+                lifecycle = self._fee_pair_amount_lifecycle_projection_in_transaction(
+                    cursor,
+                    candidate_id=candidate_id,
+                    source_row=row,
+                    open_claim=open_row is not None,
+                )
+                if lifecycle is not None:
+                    result.update(lifecycle)
                 cursor.execute("COMMIT")
-                return result
+                return MappingProxyType(result)
             except BaseException:
                 if self._connection.in_transaction:
                     try:
@@ -5588,14 +5826,1098 @@ class ExecutionDecisionJournal:
             finally:
                 cursor.close()
 
+    def fee_pair_active_amount_reservation(
+        self, account_scope: str
+    ) -> Optional[Mapping[str, Any]]:
+        """Read the one current account hold without mutating legacy rows."""
+
+        _require_identifier(account_scope, "INVALID_ACCOUNT_SCOPE")
+        with self._read_lock():
+            cursor = self._connection.cursor()
+            try:
+                cursor.execute("BEGIN")
+                active = cursor.execute(
+                    "SELECT * FROM execution_fee_pair_amount_active_holds "
+                    "WHERE account_scope=?",
+                    (account_scope,),
+                ).fetchone()
+                if active is None:
+                    cursor.execute("COMMIT")
+                    return None
+                candidate_id = active["candidate_id"]
+                open_row = cursor.execute(
+                    "SELECT * FROM execution_fee_pair_amount_open_reservations "
+                    "WHERE candidate_id=?",
+                    (candidate_id,),
+                ).fetchone()
+                legacy_row = cursor.execute(
+                    "SELECT * FROM execution_fee_pair_amount_reservations "
+                    "WHERE candidate_id=?",
+                    (candidate_id,),
+                ).fetchone()
+                if (open_row is None) == (legacy_row is None):
+                    raise ExecutionDecisionJournalError(
+                        "FEE_PAIR_AMOUNT_LIFECYCLE_CORRUPT"
+                    )
+                row = open_row if open_row is not None else legacy_row
+                if (
+                    row["account_scope"] != account_scope
+                    or row["reservation_sha256"] != active["reservation_sha256"]
+                ):
+                    raise ExecutionDecisionJournalError(
+                        "FEE_PAIR_AMOUNT_LIFECYCLE_CORRUPT"
+                    )
+                result = dict(
+                    self._fee_pair_amount_reservation_record_in_transaction(
+                        cursor, row, open_claim=open_row is not None
+                    )
+                )
+                lifecycle = self._fee_pair_amount_lifecycle_projection_in_transaction(
+                    cursor,
+                    candidate_id=candidate_id,
+                    source_row=row,
+                    open_claim=open_row is not None,
+                )
+                if lifecycle is None or lifecycle.get("status") != "ACTIVE":
+                    raise ExecutionDecisionJournalError(
+                        "FEE_PAIR_AMOUNT_LIFECYCLE_CORRUPT"
+                    )
+                result.update(lifecycle)
+                cursor.execute("COMMIT")
+                return MappingProxyType(result)
+            except BaseException:
+                if self._connection.in_transaction:
+                    try:
+                        cursor.execute("ROLLBACK")
+                    except sqlite3.Error:
+                        self._failed_closed = True
+                raise
+            finally:
+                cursor.close()
+
+    @staticmethod
+    def _fee_pair_flat_release_evidence_in_transaction(
+        cursor: sqlite3.Cursor,
+        *,
+        candidate_id: str,
+        source_row: sqlite3.Row,
+        reservation: Mapping[str, Any],
+        facts: Any,
+    ) -> Mapping[str, Any]:
+        """Build release proof only from live source facts and durable flat rows.
+
+        Caller-provided hashes, snapshot IDs, and ``position_flat`` booleans
+        are deliberately not accepted. The source scope authenticates the
+        current complete Store/Broker projection through COMMIT; this helper
+        binds that projection to the immutable pair intents and the Journal's
+        terminal reconciliation/flat-checkpoint rows.
+        """
+
+        error_code = "FEE_PAIR_AMOUNT_RELEASE_NOT_RECONCILED"
+        try:
+            if (
+                facts.account_scope != source_row["account_scope"]
+                or facts.snapshot_id is None
+                or facts.query_set_id is None
+                or facts.available_at is None
+                or facts.read_only_reconciliation_ready is not True
+                or facts.working_orders
+                or type(facts.execution_intents) is not tuple
+                or len(facts.execution_intents) > 512
+            ):
+                raise ValueError("current source facts are not a complete flat projection")
+            account = facts.account
+            if (
+                account is None
+                or account.account_scope != source_row["account_scope"]
+                or account.snapshot_id != facts.snapshot_id
+                or account.currency != _FEE_PAIR_AMOUNT_CURRENCY
+                or account.used_margin != 0
+                or account.current_notional != 0
+                or account.current_worst_case_loss != 0
+            ):
+                raise ValueError("current account exposure is not flat")
+
+            reservation_json = source_row["reservation_json"]
+            payload = json.loads(reservation_json)
+            legs = payload.get("reserved_legs")
+            bindings = payload.get("intent_bindings")
+            if (
+                type(legs) is not list
+                or len(legs) != 2
+                or type(bindings) is not list
+                or len(bindings) != 2
+            ):
+                raise ValueError("pair reservation is not exact")
+
+            all_positions = tuple(facts.positions)
+            if not all_positions:
+                raise ValueError("current account positions are unavailable")
+            for position in all_positions:
+                if (
+                    position.quantity != 0
+                    or position.long_quantity != 0
+                    or position.short_quantity != 0
+                    or position.broker_quantity != 0
+                    or position.attributed_signed_quantity != 0
+                ):
+                    raise ValueError("account still has position exposure")
+
+            query_by_family = {
+                fact.family: fact
+                for fact in facts.query_provenance
+                if fact.family
+                in (
+                    "account_result",
+                    "orders_result",
+                    "trades_result",
+                    "instruments_result",
+                    "positions_result",
+                )
+            }
+            family_order = (
+                "account_result",
+                "orders_result",
+                "trades_result",
+                "instruments_result",
+                "positions_result",
+            )
+            if set(query_by_family) != set(family_order):
+                raise ValueError("complete account query set is unavailable")
+            query_facts = []
+            for family in family_order:
+                item = query_by_family[family]
+                if (
+                    type(item.request_id) is not int
+                    or item.request_id <= 0
+                    or type(item.connection_generation) is not int
+                    or item.connection_generation <= 0
+                    or not item.source_owned
+                    or not item.query_complete
+                    or item.scope_complete is not True
+                    or item.completed_at is None
+                ):
+                    raise ValueError("account query is incomplete")
+                query_facts.append(
+                    {
+                        "family": family,
+                        "request_id": item.request_id,
+                        "connection_generation": item.connection_generation,
+                        "account_fingerprint": item.account_fingerprint,
+                        "trading_day": item.trading_day,
+                        "started_at": _fee_pair_release_timestamp(item.started_at),
+                        "completed_at": _fee_pair_release_timestamp(item.completed_at),
+                        "row_count": item.row_count,
+                    }
+                )
+            if len({item["request_id"] for item in query_facts}) != len(family_order):
+                raise ValueError("account query IDs are ambiguous")
+
+            descendant_ids_by_leg = []
+            resolution_evidence = []
+            flat_evidence = []
+            all_descendant_ids = set()
+            position_by_target = {
+                item.target_id: item
+                for item in all_positions
+                if item.target_id is not None
+            }
+            for leg_index, (leg, binding) in enumerate(zip(legs, bindings)):
+                if not isinstance(leg, Mapping) or not isinstance(binding, Mapping):
+                    raise ValueError("pair leg binding is malformed")
+                target_id = leg.get("target_id")
+                instrument = leg.get("instrument")
+                exchange = leg.get("exchange")
+                root_intent_id = binding.get("intent_id")
+                root = cursor.execute(
+                    "SELECT * FROM execution_decision_intents WHERE intent_id=?",
+                    (root_intent_id,),
+                ).fetchone()
+                if (
+                    root is None
+                    or root["decision_id"] != source_row["decision_id"]
+                    or root["intent_id"] != root_intent_id
+                    or root["intent_key_json"] != _canonical_json(binding["intent_key"])
+                ):
+                    raise ValueError("pair root intent is missing")
+                root_key = ExecutionIntentKey(**json.loads(root["intent_key_json"]))
+                root_economics = json.loads(root["economic_payload_json"])
+                if (
+                    root_key.action != "SUBMIT"
+                    or root_key.position_effect != "OPEN"
+                    or root_key.leg != leg_index
+                    or root_key.instrument != instrument
+                    or not isinstance(root_economics, Mapping)
+                    or root_economics.get("target_id") != target_id
+                    or root_economics.get("instrument") != instrument
+                    or root_economics.get("exchange") != exchange
+                ):
+                    raise ValueError("pair root intent differs from its reserved leg")
+
+                tree = {root_intent_id}
+                frontier = [root_intent_id]
+                while frontier:
+                    parent_id = frontier.pop()
+                    children = cursor.execute(
+                        "SELECT intent_id FROM execution_decision_intents "
+                        "WHERE owner_intent_id=? ORDER BY intent_id",
+                        (parent_id,),
+                    ).fetchall()
+                    for child in children:
+                        child_id = child["intent_id"]
+                        if child_id in tree:
+                            raise ValueError("pair intent ownership cycle")
+                        tree.add(child_id)
+                        frontier.append(child_id)
+                        if len(tree) > 128:
+                            raise ValueError("pair lifecycle exceeds bounded evidence")
+                if all_descendant_ids.intersection(tree):
+                    raise ValueError("pair legs share an owned intent")
+                all_descendant_ids.update(tree)
+                descendant_ids_by_leg.append(tree)
+
+                for intent_id in sorted(tree):
+                    intent = cursor.execute(
+                        "SELECT * FROM execution_decision_intents WHERE intent_id=?",
+                        (intent_id,),
+                    ).fetchone()
+                    if (
+                        intent is None
+                        or intent["state"] != "KNOWN"
+                        or intent["outcome_code"] is not None
+                    ):
+                        raise ValueError("pair intent is unresolved")
+                    intent_key = ExecutionIntentKey(**json.loads(intent["intent_key_json"]))
+                    if intent_key.action == "SUBMIT":
+                        if intent["dispatch_state"] not in ("KNOWN", "UNKNOWN"):
+                            raise ValueError("pair submit dispatch is unresolved")
+                        resolution = cursor.execute(
+                            "SELECT * FROM execution_intent_resolutions WHERE intent_id=?",
+                            (intent_id,),
+                        ).fetchone()
+                        if resolution is None:
+                            raise ValueError("pair submit has no terminal resolution")
+                        reconciliation = cursor.execute(
+                            "SELECT * FROM execution_intent_reconciliations "
+                            "WHERE reconciliation_id=? AND intent_id=?",
+                            (resolution["reconciliation_id"], intent_id),
+                        ).fetchone()
+                        if (
+                            resolution["account_scope"] != source_row["account_scope"]
+                            or resolution["instrument"] != intent_key.instrument
+                            or resolution["terminal_state"]
+                            not in ("FILLED", "CANCELLED", "REJECTED")
+                            or reconciliation is None
+                            or reconciliation["state"] != "KNOWN"
+                            or reconciliation["terminal_state"]
+                            != resolution["terminal_state"]
+                            or reconciliation["terminal_event_id"]
+                            != resolution["terminal_event_id"]
+                            or reconciliation["position_snapshot_id"]
+                            != resolution["position_snapshot_id"]
+                            or reconciliation["position_flat"]
+                            != int(resolution["position_flat"])
+                        ):
+                            raise ValueError("pair submit terminal evidence is inconsistent")
+                        resolution_evidence.append(
+                            {
+                                "leg_index": leg_index,
+                                "intent_id": intent_id,
+                                "terminal_state": resolution["terminal_state"],
+                                "reconciliation_id": resolution["reconciliation_id"],
+                                "terminal_event_id": resolution["terminal_event_id"],
+                                "position_snapshot_id": resolution["position_snapshot_id"],
+                                "position_flat": bool(resolution["position_flat"]),
+                            }
+                        )
+                    elif intent_key.action == "CANCEL":
+                        if intent["dispatch_state"] != "KNOWN":
+                            raise ValueError("pair cancel dispatch is unresolved")
+                    else:
+                        raise ValueError("unsupported pair lifecycle action")
+
+                position = position_by_target.get(target_id)
+                if (
+                    position is None
+                    or position.instrument != instrument
+                    or position.exchange != exchange
+                    or position.position_book_status != "FLAT"
+                    or position.position_book_blocker_code is not None
+                    or position.owner_intent_id is not None
+                    or position.owner_strategy_scope is not None
+                ):
+                    raise ValueError("pair target is not durably flat")
+                current = cursor.execute(
+                    "SELECT * FROM factor_position_current "
+                    "WHERE account_scope=? AND instrument=? AND exchange=?",
+                    (source_row["account_scope"], instrument, exchange),
+                ).fetchone()
+                if (
+                    current is None
+                    or current["state"] != "FLAT"
+                    or current["blocker_code"] is not None
+                    or current["owner_intent_id"] is not None
+                    or current["flat_reconciliation_id"] is None
+                    or current["flat_checkpoint_ns"] is None
+                    or current["last_callback_at_ns"] is not None
+                    or current["open_quantity"] != "0"
+                    or current["close_quantity"] != "0"
+                    or current["open_notional"] != "0"
+                    or int(current["opening_fee_unknown_count"]) != 0
+                    or int(current["fill_time_unknown_count"]) != 0
+                ):
+                    raise ValueError("pair target has no current durable flat checkpoint")
+                flat_resolution = cursor.execute(
+                    """SELECT r.*,q.state AS reconciliation_state,
+                              q.terminal_state AS reconciliation_terminal_state,
+                              q.position_flat AS reconciliation_position_flat
+                       FROM execution_intent_resolutions AS r
+                       JOIN execution_intent_reconciliations AS q
+                         ON q.intent_id=r.intent_id AND q.reconciliation_id=r.reconciliation_id
+                       WHERE r.reconciliation_id=? AND r.account_scope=? AND r.instrument=?""",
+                    (
+                        current["flat_reconciliation_id"],
+                        source_row["account_scope"],
+                        instrument,
+                    ),
+                ).fetchone()
+                if (
+                    flat_resolution is None
+                    or flat_resolution["intent_id"] not in tree
+                    or flat_resolution["position_flat"] != 1
+                    or flat_resolution["reconciliation_position_flat"] != 1
+                    or flat_resolution["reconciliation_state"] != "KNOWN"
+                    or flat_resolution["terminal_state"]
+                    not in ("FILLED", "CANCELLED", "REJECTED")
+                    or flat_resolution["terminal_state"]
+                    != flat_resolution["reconciliation_terminal_state"]
+                ):
+                    raise ValueError("flat checkpoint is not bound to the pair lifecycle")
+                flat_evidence.append(
+                    {
+                        "leg_index": leg_index,
+                        "target_id": target_id,
+                        "instrument": instrument,
+                        "exchange": exchange,
+                        "flat_intent_id": flat_resolution["intent_id"],
+                        "flat_reconciliation_id": current["flat_reconciliation_id"],
+                        "flat_checkpoint_ns": int(current["flat_checkpoint_ns"]),
+                        "position_snapshot_id": flat_resolution["position_snapshot_id"],
+                    }
+                )
+
+            if len(resolution_evidence) < 2:
+                raise ValueError("both pair OPEN intents lack terminal evidence")
+            if len({item["leg_index"] for item in resolution_evidence if item["intent_id"] in {
+                binding["intent_id"] for binding in bindings
+            }}) != 2:
+                raise ValueError("both pair OPEN intents are not terminal")
+            if len(all_descendant_ids) > 256:
+                raise ValueError("pair descendant set exceeds evidence cap")
+
+            return MappingProxyType(
+                {
+                    "schema": "backtrader.execution_fee_pair_flat_release_evidence.v1",
+                    "candidate_id": candidate_id,
+                    "reservation_sha256": source_row["reservation_sha256"],
+                    "account_scope": source_row["account_scope"],
+                    "snapshot_id": facts.snapshot_id,
+                    "query_set_id": facts.query_set_id,
+                    "available_at": _fee_pair_release_timestamp(facts.available_at),
+                    "query_facts": query_facts,
+                    "account_exposure": {
+                        "currency": account.currency,
+                        "used_margin": str(account.used_margin),
+                        "current_notional": str(account.current_notional),
+                        "current_worst_case_loss": str(account.current_worst_case_loss),
+                    },
+                    "working_order_count": 0,
+                    "unresolved_intent_count": 0,
+                    "intent_ids": sorted(all_descendant_ids),
+                    "terminal_resolutions": sorted(
+                        resolution_evidence,
+                        key=lambda item: (item["leg_index"], item["intent_id"]),
+                    ),
+                    "flat_checkpoints": flat_evidence,
+                }
+            )
+        except ExecutionDecisionJournalError:
+            raise
+        except (AttributeError, KeyError, TypeError, ValueError, sqlite3.Error) as error:
+            raise ExecutionDecisionJournalError(error_code) from error
+
+    @staticmethod
+    def _validate_fee_pair_flat_release_evidence_in_transaction(
+        cursor: sqlite3.Cursor,
+        *,
+        candidate_id: str,
+        source_row: sqlite3.Row,
+        open_claim: bool,
+        evidence: Any,
+        evidence_sha256: Any,
+    ) -> None:
+        """Check an immutable RELEASED event against its durable intent tree."""
+
+        try:
+            if not open_claim or not isinstance(evidence, Mapping):
+                raise ValueError("legacy reservation cannot be released")
+            encoded = _canonical_json(evidence)
+            if (
+                set(evidence)
+                != {
+                    "schema",
+                    "candidate_id",
+                    "reservation_sha256",
+                    "account_scope",
+                    "snapshot_id",
+                    "query_set_id",
+                    "available_at",
+                    "query_facts",
+                    "account_exposure",
+                    "working_order_count",
+                    "unresolved_intent_count",
+                    "intent_ids",
+                    "terminal_resolutions",
+                    "flat_checkpoints",
+                }
+                or
+                len(encoded.encode("utf-8")) > _MAX_FEE_PAIR_AMOUNT_RESERVATION_BYTES
+                or hashlib.sha256(encoded.encode("utf-8")).hexdigest() != evidence_sha256
+                or evidence.get("schema")
+                != "backtrader.execution_fee_pair_flat_release_evidence.v1"
+                or evidence.get("candidate_id") != candidate_id
+                or evidence.get("reservation_sha256") != source_row["reservation_sha256"]
+                or evidence.get("account_scope") != source_row["account_scope"]
+                or not _identifier(evidence.get("snapshot_id"))
+                or not _identifier(evidence.get("query_set_id"))
+                or _fee_pair_release_timestamp_parse(evidence.get("available_at")) is None
+                or evidence.get("working_order_count") != 0
+                or evidence.get("unresolved_intent_count") != 0
+                or evidence.get("account_exposure")
+                != {
+                    "currency": _FEE_PAIR_AMOUNT_CURRENCY,
+                    "used_margin": "0",
+                    "current_notional": "0",
+                    "current_worst_case_loss": "0",
+                }
+            ):
+                raise ValueError("release evidence identity is invalid")
+            query_facts = evidence.get("query_facts")
+            if (
+                type(query_facts) is not list
+                or any(type(item) is not dict for item in query_facts)
+                or [item.get("family") for item in query_facts if isinstance(item, Mapping)]
+                != [
+                    "account_result",
+                    "orders_result",
+                    "trades_result",
+                    "instruments_result",
+                    "positions_result",
+                ]
+                or len(query_facts) != 5
+                or any(
+                    set(item)
+                    != {
+                        "family",
+                        "request_id",
+                        "connection_generation",
+                        "account_fingerprint",
+                        "trading_day",
+                        "started_at",
+                        "completed_at",
+                        "row_count",
+                    }
+                    or _fee_pair_release_timestamp_parse(item.get("started_at")) is None
+                    or type(item.get("request_id")) is not int
+                    or item["request_id"] <= 0
+                    or type(item.get("connection_generation")) is not int
+                    or item["connection_generation"] <= 0
+                    or not _identifier(item.get("account_fingerprint"))
+                    or not _identifier(item.get("trading_day"))
+                    or _fee_pair_release_timestamp_parse(item.get("completed_at")) is None
+                    or type(item.get("row_count")) is not int
+                    or item["row_count"] < 0
+                    for item in query_facts
+                )
+                or len({item["request_id"] for item in query_facts}) != 5
+                or len({item["connection_generation"] for item in query_facts}) != 1
+                or len({item["account_fingerprint"] for item in query_facts}) != 1
+                or len({item["trading_day"] for item in query_facts}) != 1
+            ):
+                raise ValueError("release query bindings are invalid")
+
+            query_started = tuple(
+                _fee_pair_release_timestamp_parse(item["started_at"]) for item in query_facts
+            )
+            query_completed = tuple(
+                _fee_pair_release_timestamp_parse(item["completed_at"]) for item in query_facts
+            )
+            if any(value is None for value in query_started + query_completed):
+                raise ValueError("release query timestamps are invalid")
+            from .factor_execution_facts import _query_set_identifier
+
+            query_ids = tuple((item["family"], item["request_id"]) for item in query_facts)
+            if (
+                _fee_pair_release_timestamp_parse(evidence["available_at"])
+                != max(query_completed)
+                or evidence["query_set_id"]
+                != _query_set_identifier(
+                    query_facts[0]["account_fingerprint"],
+                    query_facts[0]["connection_generation"],
+                    query_facts[0]["trading_day"],
+                    min(query_started),
+                    max(query_completed),
+                    query_ids,
+                )
+            ):
+                raise ValueError("release query-set binding is invalid")
+
+            reservation_json = source_row["reservation_json"]
+            reservation = json.loads(reservation_json)
+            bindings = reservation.get("intent_bindings")
+            legs = reservation.get("reserved_legs")
+            intent_ids = evidence.get("intent_ids")
+            resolutions = evidence.get("terminal_resolutions")
+            flats = evidence.get("flat_checkpoints")
+            if (
+                type(bindings) is not list
+                or len(bindings) != 2
+                or type(legs) is not list
+                or len(legs) != 2
+                or type(intent_ids) is not list
+                or not intent_ids
+                or len(intent_ids) > 256
+                or intent_ids != sorted(set(intent_ids))
+                or type(resolutions) is not list
+                or len(resolutions) < 2
+                or type(flats) is not list
+                or len(flats) != 2
+            ):
+                raise ValueError("release pair lifecycle rows are invalid")
+            tree_by_leg = []
+            expected_roots = {item["intent_id"] for item in bindings}
+            for binding in bindings:
+                root_id = binding["intent_id"]
+                tree = {root_id}
+                frontier = [root_id]
+                while frontier:
+                    children = cursor.execute(
+                        "SELECT intent_id FROM execution_decision_intents "
+                        "WHERE owner_intent_id=? ORDER BY intent_id",
+                        (frontier.pop(),),
+                    ).fetchall()
+                    for child in children:
+                        if child["intent_id"] in tree:
+                            raise ValueError("pair lifecycle ownership cycle")
+                        tree.add(child["intent_id"])
+                        frontier.append(child["intent_id"])
+                        if len(tree) > 128:
+                            raise ValueError("pair lifecycle exceeds evidence bound")
+                tree_by_leg.append(tree)
+            computed_tree = set().union(*tree_by_leg)
+            if computed_tree != set(intent_ids) or tree_by_leg[0].intersection(tree_by_leg[1]):
+                raise ValueError("release intent tree changed")
+
+            # Durable terminal rows are immutable reconciliation receipts.
+            # The mutable current-position projection is intentionally not
+            # consulted here: a later pair may have opened after this release.
+            terminal_by_id = {}
+            for intent_id in intent_ids:
+                intent = cursor.execute(
+                    "SELECT * FROM execution_decision_intents WHERE intent_id=?",
+                    (intent_id,),
+                ).fetchone()
+                if (
+                    intent is None
+                    or intent["state"] != "KNOWN"
+                    or intent["outcome_code"] is not None
+                ):
+                    raise ValueError("released pair contains unresolved intent")
+                intent_key = ExecutionIntentKey(**json.loads(intent["intent_key_json"]))
+                if intent_key.action == "SUBMIT":
+                    if intent["dispatch_state"] not in ("KNOWN", "UNKNOWN"):
+                        raise ValueError("released submit dispatch is unresolved")
+                    resolution = cursor.execute(
+                        "SELECT * FROM execution_intent_resolutions WHERE intent_id=?",
+                        (intent_id,),
+                    ).fetchone()
+                    if resolution is None:
+                        raise ValueError("released submit lacks terminal resolution")
+                    reconciliation = cursor.execute(
+                        "SELECT * FROM execution_intent_reconciliations "
+                        "WHERE reconciliation_id=? AND intent_id=?",
+                        (resolution["reconciliation_id"], intent_id),
+                    ).fetchone()
+                    if (
+                        reconciliation is None
+                        or reconciliation["state"] != "KNOWN"
+                        or resolution["terminal_state"]
+                        not in ("FILLED", "CANCELLED", "REJECTED")
+                        or reconciliation["terminal_state"] != resolution["terminal_state"]
+                        or reconciliation["terminal_event_id"] != resolution["terminal_event_id"]
+                        or reconciliation["position_flat"] != int(resolution["position_flat"])
+                    ):
+                        raise ValueError("released submit terminal proof changed")
+                    terminal_by_id[intent_id] = resolution
+                elif intent_key.action == "CANCEL":
+                    if intent["dispatch_state"] != "KNOWN":
+                        raise ValueError("released cancel dispatch is unresolved")
+                else:
+                    raise ValueError("released pair contains unsupported intent")
+
+            if any(root_id not in terminal_by_id for root_id in expected_roots):
+                raise ValueError("both pair opens need terminal resolution")
+            if {
+                item.get("intent_id") for item in resolutions if isinstance(item, Mapping)
+            } != set(terminal_by_id):
+                raise ValueError("release terminal evidence set differs from journal")
+            for item in resolutions:
+                if not isinstance(item, Mapping) or set(item) != {
+                    "leg_index",
+                    "intent_id",
+                    "terminal_state",
+                    "reconciliation_id",
+                    "terminal_event_id",
+                    "position_snapshot_id",
+                    "position_flat",
+                }:
+                    raise ValueError("release terminal evidence is malformed")
+                actual = terminal_by_id[item["intent_id"]]
+                if (
+                    item["terminal_state"] != actual["terminal_state"]
+                    or item["reconciliation_id"] != actual["reconciliation_id"]
+                    or item["terminal_event_id"] != actual["terminal_event_id"]
+                    or item["position_snapshot_id"] != actual["position_snapshot_id"]
+                    or item["position_flat"] is not bool(actual["position_flat"])
+                ):
+                    raise ValueError("release terminal evidence differs from journal")
+
+            for index, item in enumerate(flats):
+                if not isinstance(item, Mapping) or set(item) != {
+                    "leg_index",
+                    "target_id",
+                    "instrument",
+                    "exchange",
+                    "flat_intent_id",
+                    "flat_reconciliation_id",
+                    "flat_checkpoint_ns",
+                    "position_snapshot_id",
+                }:
+                    raise ValueError("release flat checkpoint evidence is malformed")
+                leg = legs[index]
+                if (
+                    item["leg_index"] != index
+                    or item["target_id"] != leg["target_id"]
+                    or item["instrument"] != leg["instrument"]
+                    or item["exchange"] != leg["exchange"]
+                    or item["flat_intent_id"] not in tree_by_leg[index]
+                    or item["flat_intent_id"] not in terminal_by_id
+                    or type(item["flat_checkpoint_ns"]) is not int
+                    or item["flat_checkpoint_ns"] <= 0
+                ):
+                    raise ValueError("flat checkpoint is not bound to its pair leg")
+                resolution = terminal_by_id[item["flat_intent_id"]]
+                if (
+                    resolution["reconciliation_id"] != item["flat_reconciliation_id"]
+                    or int(resolution["position_flat"]) != 1
+                    or resolution["position_snapshot_id"] != item["position_snapshot_id"]
+                ):
+                    raise ValueError("flat checkpoint is not proved by a durable resolution")
+            if len({item.get("leg_index") for item in flats}) != 2:
+                raise ValueError("release evidence must cover both legs")
+        except ExecutionDecisionJournalError:
+            raise
+        except (KeyError, TypeError, ValueError, sqlite3.Error) as error:
+            raise ExecutionDecisionJournalError("FEE_PAIR_AMOUNT_LIFECYCLE_CORRUPT") from error
+
+    def release_fee_pair_grid_amount_hold_for_flat(
+        self,
+        candidate_id: str,
+        *,
+        facts: Any,
+        source_lease: Any,
+    ) -> Mapping[str, Any]:
+        """Release one v25 hold after current complete source + durable flat proof.
+
+        The source lease must be active for ``RELEASE`` and be held by the
+        caller across this transaction. The Journal derives evidence itself;
+        no caller-supplied hash, snapshot ID, or flat boolean can unlock a hold.
+        Immutable v24 reservations remain held because they have no bound pair
+        intent or terminal/position lifecycle.
+        """
+
+        if not _source_sha256(candidate_id):
+            raise ExecutionDecisionJournalError("INVALID_FEE_PAIR_CANDIDATE_ID")
+        before_commit = _fee_pair_facts_source_before_commit(
+            facts, source_lease, operation="RELEASE"
+        )
+        now_ns = time.time_ns()
+        with self._transaction(before_commit=before_commit) as cursor:
+            active = cursor.execute(
+                "SELECT * FROM execution_fee_pair_amount_active_holds WHERE candidate_id=?",
+                (candidate_id,),
+            ).fetchone()
+            source_row = cursor.execute(
+                "SELECT * FROM execution_fee_pair_amount_open_reservations WHERE candidate_id=?",
+                (candidate_id,),
+            ).fetchone()
+            legacy = cursor.execute(
+                "SELECT 1 FROM execution_fee_pair_amount_reservations WHERE candidate_id=?",
+                (candidate_id,),
+            ).fetchone()
+            if active is None or source_row is None:
+                if legacy is not None:
+                    raise ExecutionDecisionJournalError(
+                        "FEE_PAIR_LEGACY_AMOUNT_HOLD_NOT_RELEASE_AUTHORIZED"
+                    )
+                raise ExecutionDecisionJournalError("FEE_PAIR_AMOUNT_HOLD_NOT_ACTIVE")
+            if legacy is not None:
+                raise ExecutionDecisionJournalError("FEE_PAIR_AMOUNT_LIFECYCLE_CORRUPT")
+            reservation = self._fee_pair_amount_reservation_record_in_transaction(
+                cursor, source_row, open_claim=True
+            )
+            lifecycle = self._fee_pair_amount_lifecycle_projection_in_transaction(
+                cursor,
+                candidate_id=candidate_id,
+                source_row=source_row,
+                open_claim=True,
+            )
+            if (
+                active["account_scope"] != source_row["account_scope"]
+                or active["reservation_sha256"] != source_row["reservation_sha256"]
+                or lifecycle is None
+                or lifecycle.get("status") != "ACTIVE"
+            ):
+                raise ExecutionDecisionJournalError("FEE_PAIR_AMOUNT_LIFECYCLE_CORRUPT")
+            evidence = self._fee_pair_flat_release_evidence_in_transaction(
+                cursor,
+                candidate_id=candidate_id,
+                source_row=source_row,
+                reservation=reservation,
+                facts=facts,
+            )
+            evidence_json = _canonical_json(evidence)
+            evidence_sha256 = hashlib.sha256(evidence_json.encode("utf-8")).hexdigest()
+            if len(evidence_json.encode("utf-8")) > _MAX_FEE_PAIR_AMOUNT_RESERVATION_BYTES:
+                raise ExecutionDecisionJournalError("FEE_PAIR_AMOUNT_RELEASE_EVIDENCE_TOO_LARGE")
+            self._validate_fee_pair_flat_release_evidence_in_transaction(
+                cursor,
+                candidate_id=candidate_id,
+                source_row=source_row,
+                open_claim=True,
+                evidence=evidence,
+                evidence_sha256=evidence_sha256,
+            )
+            event_payload = {
+                "schema": "backtrader.execution_fee_pair_amount_lifecycle_event.v1",
+                "candidate_id": candidate_id,
+                "reservation_sha256": source_row["reservation_sha256"],
+                "state": "RELEASED",
+                "release_evidence": dict(evidence),
+                "release_evidence_sha256": evidence_sha256,
+                "snapshot_id": evidence["snapshot_id"],
+            }
+            event_json = _canonical_json(event_payload)
+            if (
+                len(event_json.encode("utf-8"))
+                > _MAX_FEE_PAIR_AMOUNT_LIFECYCLE_EVENT_BYTES
+            ):
+                raise ExecutionDecisionJournalError(
+                    "FEE_PAIR_AMOUNT_RELEASE_EVIDENCE_TOO_LARGE"
+                )
+            event_id = _stable_id("fee-pair-amount-event", candidate_id + ":2")
+            with track_durable_row_change(
+                cursor, "execution_fee_pair_amount_lifecycle_events", (event_id,), "SETTLEMENT"
+            ):
+                cursor.execute(
+                    """INSERT INTO execution_fee_pair_amount_lifecycle_events
+                       (event_id,candidate_id,event_sequence,event_kind,event_payload_json,
+                        event_sha256,created_at_ns) VALUES(?,?,2,'RELEASED',?,?,?)""",
+                    (
+                        event_id,
+                        candidate_id,
+                        event_json,
+                        hashlib.sha256(event_json.encode("utf-8")).hexdigest(),
+                        now_ns,
+                    ),
+                )
+            with track_durable_row_change(
+                cursor,
+                "execution_fee_pair_amount_active_holds",
+                (active["account_scope"],),
+                "SETTLEMENT",
+            ):
+                deleted = cursor.execute(
+                    "DELETE FROM execution_fee_pair_amount_active_holds "
+                    "WHERE account_scope=? AND candidate_id=? AND reservation_sha256=?",
+                    (
+                        active["account_scope"],
+                        candidate_id,
+                        source_row["reservation_sha256"],
+                    ),
+                )
+            if deleted.rowcount != 1:
+                raise ExecutionDecisionJournalError("FEE_PAIR_AMOUNT_HOLD_RELEASE_CONFLICT")
+            return MappingProxyType(
+                {
+                    "candidate_id": candidate_id,
+                    "account_scope": active["account_scope"],
+                    "state": "RELEASED",
+                    "reservation_sha256": source_row["reservation_sha256"],
+                    "release_evidence_sha256": evidence_sha256,
+                    "snapshot_id": evidence["snapshot_id"],
+                    "event_id": event_id,
+                }
+            )
+
+    @staticmethod
+    def _fee_pair_amount_lifecycle_projection_in_transaction(
+        cursor: sqlite3.Cursor,
+        *,
+        candidate_id: str,
+        source_row: sqlite3.Row,
+        open_claim: bool,
+    ) -> Optional[Mapping[str, Any]]:
+        """Validate and project one pair hold, preserving pre-v25 v24 reads."""
+
+        oversized_event = cursor.execute(
+            "SELECT 1 FROM execution_fee_pair_amount_lifecycle_events "
+            "WHERE candidate_id=? AND (typeof(event_payload_json)!='text' "
+            "OR length(CAST(event_payload_json AS BLOB))>?) LIMIT 1",
+            (candidate_id, 2 * _MAX_FEE_PAIR_AMOUNT_LIFECYCLE_EVENT_BYTES),
+        ).fetchone()
+        if oversized_event is not None:
+            raise ExecutionDecisionJournalError("FEE_PAIR_AMOUNT_LIFECYCLE_CORRUPT")
+        events = cursor.execute(
+            "SELECT * FROM execution_fee_pair_amount_lifecycle_events "
+            "WHERE candidate_id=? ORDER BY event_sequence",
+            (candidate_id,),
+        ).fetchall()
+        # ``reserve_fee_pair_grid_amounts`` remains the historical structure-
+        # only API.  A v24 row written after migration has no open lifecycle and
+        # must retain its old read shape; it is never an OPEN authorization.
+        if not events and not open_claim:
+            orphan = cursor.execute(
+                "SELECT 1 FROM execution_fee_pair_amount_active_holds WHERE candidate_id=?",
+                (candidate_id,),
+            ).fetchone()
+            if orphan is not None:
+                raise ExecutionDecisionJournalError("FEE_PAIR_AMOUNT_LIFECYCLE_CORRUPT")
+            return None
+        if not events or len(events) not in (1, 2):
+            raise ExecutionDecisionJournalError("FEE_PAIR_AMOUNT_LIFECYCLE_CORRUPT")
+        for event in events:
+            if (
+                type(event["event_payload_json"]) is not str
+                or len(event["event_payload_json"].encode("utf-8"))
+                > _MAX_FEE_PAIR_AMOUNT_LIFECYCLE_EVENT_BYTES
+            ):
+                raise ExecutionDecisionJournalError("FEE_PAIR_AMOUNT_LIFECYCLE_CORRUPT")
+        expected_first_kind = "RESERVED" if open_claim else "LEGACY_HELD"
+        first = events[0]
+        expected_id = _stable_id("fee-pair-amount-event", candidate_id + ":1")
+        try:
+            first_payload = json.loads(first["event_payload_json"])
+        except (TypeError, ValueError) as error:
+            raise ExecutionDecisionJournalError("FEE_PAIR_AMOUNT_LIFECYCLE_CORRUPT") from error
+        expected_first_payload = {
+            "schema": "backtrader.execution_fee_pair_amount_lifecycle_event.v1",
+            "candidate_id": candidate_id,
+            "reservation_sha256": source_row["reservation_sha256"],
+            "state": expected_first_kind,
+        }
+        if not open_claim:
+            expected_first_payload["reason"] = "V24_IMMUTABLE_RESERVATION"
+        if (
+            first["event_sequence"] != 1
+            or first["event_kind"] != expected_first_kind
+            or first["event_id"] != expected_id
+            or first_payload != expected_first_payload
+            or _canonical_json(first_payload) != first["event_payload_json"]
+            or hashlib.sha256(first["event_payload_json"].encode("utf-8")).hexdigest()
+            != first["event_sha256"]
+        ):
+            raise ExecutionDecisionJournalError("FEE_PAIR_AMOUNT_LIFECYCLE_CORRUPT")
+        active = cursor.execute(
+            "SELECT * FROM execution_fee_pair_amount_active_holds WHERE candidate_id=?",
+            (candidate_id,),
+        ).fetchone()
+        if len(events) == 1:
+            if (
+                active is None
+                or active["account_scope"] != source_row["account_scope"]
+                or active["reservation_sha256"] != source_row["reservation_sha256"]
+                or active["created_at_ns"] != first["created_at_ns"]
+            ):
+                raise ExecutionDecisionJournalError("FEE_PAIR_AMOUNT_LIFECYCLE_CORRUPT")
+            # The event kind stays "RESERVED" for schema/trigger binding, but
+            # the public lifecycle state of a v25 open hold is ACTIVE; only the
+            # pre-v25 compatibility row is LEGACY_HELD.
+            state = "ACTIVE" if open_claim else expected_first_kind
+            last_event = first
+        else:
+            second = events[1]
+            try:
+                release_payload = json.loads(second["event_payload_json"])
+            except (TypeError, ValueError) as error:
+                raise ExecutionDecisionJournalError(
+                    "FEE_PAIR_AMOUNT_LIFECYCLE_CORRUPT"
+                ) from error
+            if (
+                active is not None
+                or second["event_sequence"] != 2
+                or second["event_kind"] != "RELEASED"
+                or second["event_id"]
+                != _stable_id("fee-pair-amount-event", candidate_id + ":2")
+                or set(release_payload)
+                != {
+                    "schema",
+                    "candidate_id",
+                    "reservation_sha256",
+                    "state",
+                    "release_evidence",
+                    "release_evidence_sha256",
+                    "snapshot_id",
+                }
+                or release_payload.get("schema")
+                != "backtrader.execution_fee_pair_amount_lifecycle_event.v1"
+                or release_payload.get("candidate_id") != candidate_id
+                or release_payload.get("reservation_sha256")
+                != source_row["reservation_sha256"]
+                or release_payload.get("state") != "RELEASED"
+                or not _source_sha256(release_payload.get("release_evidence_sha256"))
+                or not _identifier(release_payload.get("snapshot_id"))
+                or not isinstance(release_payload.get("release_evidence"), Mapping)
+                or release_payload.get("snapshot_id")
+                != release_payload.get("release_evidence", {}).get("snapshot_id")
+                or open_claim is not True
+                or _canonical_json(release_payload) != second["event_payload_json"]
+                or hashlib.sha256(second["event_payload_json"].encode("utf-8")).hexdigest()
+                != second["event_sha256"]
+            ):
+                raise ExecutionDecisionJournalError("FEE_PAIR_AMOUNT_LIFECYCLE_CORRUPT")
+            ExecutionDecisionJournal._validate_fee_pair_flat_release_evidence_in_transaction(
+                cursor,
+                candidate_id=candidate_id,
+                source_row=source_row,
+                open_claim=open_claim,
+                evidence=release_payload.get("release_evidence"),
+                evidence_sha256=release_payload.get("release_evidence_sha256"),
+            )
+            state = "RELEASED"
+            last_event = second
+        return MappingProxyType(
+            {
+                "status": "ACTIVE" if state != "RELEASED" else "RELEASED",
+                "lifecycle_state": state,
+                "lifecycle_event_sha256": last_event["event_sha256"],
+            }
+        )
+
+    @staticmethod
+    def _ensure_fee_pair_legacy_amount_hold_in_transaction(
+        cursor: sqlite3.Cursor, row: sqlite3.Row
+    ) -> None:
+        """Materialize v25 holds for immutable legacy amount rows on demand."""
+
+        version = cursor.execute("PRAGMA user_version").fetchone()
+        if version is None or type(version[0]) is not int or version[0] < 25:
+            return
+        candidate_id = row["candidate_id"]
+        events = cursor.execute(
+            "SELECT * FROM execution_fee_pair_amount_lifecycle_events "
+            "WHERE candidate_id=? ORDER BY event_sequence",
+            (candidate_id,),
+        ).fetchall()
+        active = cursor.execute(
+            "SELECT * FROM execution_fee_pair_amount_active_holds WHERE candidate_id=?",
+            (candidate_id,),
+        ).fetchone()
+        if events:
+            state = ExecutionDecisionJournal._fee_pair_amount_lifecycle_projection_in_transaction(
+                cursor,
+                candidate_id=candidate_id,
+                source_row=row,
+                open_claim=False,
+            )
+            if state is None:
+                raise ExecutionDecisionJournalError("FEE_PAIR_AMOUNT_LIFECYCLE_CORRUPT")
+            if state["lifecycle_state"] == "RELEASED":
+                if active is not None:
+                    raise ExecutionDecisionJournalError("FEE_PAIR_AMOUNT_LIFECYCLE_CORRUPT")
+                return
+            if (
+                active is None
+                or active["account_scope"] != row["account_scope"]
+                or active["reservation_sha256"] != row["reservation_sha256"]
+            ):
+                raise ExecutionDecisionJournalError("FEE_PAIR_AMOUNT_LIFECYCLE_CORRUPT")
+            return
+        if active is not None:
+            raise ExecutionDecisionJournalError("FEE_PAIR_AMOUNT_LIFECYCLE_CORRUPT")
+        occupied = cursor.execute(
+            "SELECT candidate_id FROM execution_fee_pair_amount_active_holds "
+            "WHERE account_scope=?",
+            (row["account_scope"],),
+        ).fetchone()
+        if occupied is not None:
+            raise ExecutionDecisionJournalError("FEE_PAIR_AMOUNT_RESERVATION_ALREADY_ACTIVE")
+
+        event_id = _stable_id("fee-pair-amount-event", candidate_id + ":1")
+        event_payload = {
+            "schema": "backtrader.execution_fee_pair_amount_lifecycle_event.v1",
+            "candidate_id": candidate_id,
+            "reservation_sha256": row["reservation_sha256"],
+            "state": "LEGACY_HELD",
+            "reason": "V24_IMMUTABLE_RESERVATION",
+        }
+        event_json = _canonical_json(event_payload)
+        event = {
+            "event_id": event_id,
+            "candidate_id": candidate_id,
+            "event_sequence": 1,
+            "event_kind": "LEGACY_HELD",
+            "event_payload_json": event_json,
+            "event_sha256": hashlib.sha256(event_json.encode("utf-8")).hexdigest(),
+            "created_at_ns": row["created_at_ns"],
+        }
+        with track_durable_row_change(
+            cursor, "execution_fee_pair_amount_lifecycle_events", (event_id,), "BASE"
+        ):
+            cursor.execute(
+                """INSERT INTO execution_fee_pair_amount_lifecycle_events
+                   (event_id,candidate_id,event_sequence,event_kind,event_payload_json,
+                    event_sha256,created_at_ns) VALUES(?,?,?,?,?,?,?)""",
+                tuple(event.values()),
+            )
+        active_values = {
+            "account_scope": row["account_scope"],
+            "candidate_id": candidate_id,
+            "reservation_sha256": row["reservation_sha256"],
+            "created_at_ns": row["created_at_ns"],
+        }
+        with track_durable_row_change(
+            cursor,
+            "execution_fee_pair_amount_active_holds",
+            (row["account_scope"],),
+            "BASE",
+        ):
+            cursor.execute(
+                """INSERT INTO execution_fee_pair_amount_active_holds
+                   (account_scope,candidate_id,reservation_sha256,created_at_ns)
+                   VALUES(?,?,?,?)""",
+                tuple(active_values.values()),
+            )
+
     def reserve_fee_pair_grid_amounts(
         self, candidate_id: str, *, owner_token: str, facts: Any
     ) -> Mapping[str, Any]:
         """Persist one capped, immutable two-leg amount reservation.
 
         This records a structure-only projection and grants no order
-        authorization. The existing OPEN reservation fence remains in force;
-        this first round intentionally has no release transition.
+        authorization. On a v25 journal the legacy amount row also receives an
+        account-exclusive LEGACY_HELD lifecycle entry; it remains blocked from
+        OPEN until a source-verified release transition is recorded.
         """
 
         if not _source_sha256(candidate_id):
@@ -5613,11 +6935,21 @@ class ExecutionDecisionJournal:
                 raise ExecutionDecisionJournalError("FEE_PAIR_WORKFLOW_NOT_FOUND")
             self._fee_pair_workflow_record_in_transaction(cursor, workflow)
             self._require_fee_pair_workflow_owner(workflow, token_sha256)
+            open_claim = cursor.execute(
+                "SELECT 1 FROM execution_fee_pair_amount_open_reservations "
+                "WHERE candidate_id=?",
+                (candidate_id,),
+            ).fetchone()
+            if open_claim is not None:
+                raise ExecutionDecisionJournalError(
+                    "FEE_PAIR_AMOUNT_RESERVATION_KIND_CONFLICT"
+                )
             existing = cursor.execute(
                 "SELECT * FROM execution_fee_pair_amount_reservations WHERE candidate_id=?",
                 (candidate_id,),
             ).fetchone()
             if existing is not None:
+                self._ensure_fee_pair_legacy_amount_hold_in_transaction(cursor, existing)
                 return self._fee_pair_amount_reservation_record_in_transaction(cursor, existing)
             if workflow["state"] != "RECEIPT_VERIFIED" or workflow["grid_decision_id"] is None:
                 raise ExecutionDecisionJournalError("FEE_PAIR_GRID_SETTLEMENT_REQUIRED")
@@ -5698,6 +7030,13 @@ class ExecutionDecisionJournal:
             account = facts.account
             if account is None or account.currency != _FEE_PAIR_AMOUNT_CURRENCY:
                 raise ExecutionDecisionJournalError("FEE_PAIR_AMOUNT_CURRENCY_UNAVAILABLE")
+            open_hold = cursor.execute(
+                "SELECT candidate_id FROM execution_fee_pair_amount_active_holds "
+                "WHERE account_scope=? LIMIT 1",
+                (candidate.key.account_scope,),
+            ).fetchone()
+            if open_hold is not None:
+                raise ExecutionDecisionJournalError("FEE_PAIR_AMOUNT_RESERVATION_ALREADY_ACTIVE")
             occupied = cursor.execute(
                 "SELECT candidate_id FROM execution_fee_pair_amount_reservations "
                 "WHERE account_scope=? LIMIT 1",
@@ -5777,7 +7116,306 @@ class ExecutionDecisionJournal:
                 "SELECT * FROM execution_fee_pair_amount_reservations WHERE candidate_id=?",
                 (candidate_id,),
             ).fetchone()
+            self._ensure_fee_pair_legacy_amount_hold_in_transaction(cursor, saved)
             return self._fee_pair_amount_reservation_record_in_transaction(cursor, saved)
+
+    def _reserve_fee_pair_grid_open_in_transaction(
+        self,
+        cursor: sqlite3.Cursor,
+        candidate_id: str,
+        *,
+        owner_token_sha256: str,
+        facts: Any,
+        current_account_session_id: str,
+        current_account_session_generation: str,
+        max_query_age_seconds: float,
+        max_quote_age_seconds: float,
+    ) -> Mapping[str, Any]:
+        """Create one active, intent-bound hold inside the GRID transaction."""
+
+        version = cursor.execute("PRAGMA user_version").fetchone()
+        if version is None or type(version[0]) is not int or version[0] < 25:
+            raise ExecutionDecisionJournalError("FEE_PAIR_AMOUNT_LIFECYCLE_SCHEMA_REQUIRED")
+        workflow = cursor.execute(
+            "SELECT * FROM execution_fee_pair_workflows WHERE candidate_id=?",
+            (candidate_id,),
+        ).fetchone()
+        if workflow is None:
+            raise ExecutionDecisionJournalError("FEE_PAIR_WORKFLOW_NOT_FOUND")
+        self._fee_pair_workflow_record_in_transaction(cursor, workflow)
+        self._require_fee_pair_workflow_owner(workflow, owner_token_sha256)
+
+        existing = cursor.execute(
+            "SELECT * FROM execution_fee_pair_amount_open_reservations WHERE candidate_id=?",
+            (candidate_id,),
+        ).fetchone()
+        if existing is not None:
+            legacy = cursor.execute(
+                "SELECT 1 FROM execution_fee_pair_amount_reservations WHERE candidate_id=?",
+                (candidate_id,),
+            ).fetchone()
+            if legacy is not None:
+                raise ExecutionDecisionJournalError("FEE_PAIR_AMOUNT_LIFECYCLE_CORRUPT")
+            record = self._fee_pair_amount_reservation_record_in_transaction(
+                cursor, existing, open_claim=True
+            )
+            active = cursor.execute(
+                "SELECT 1 FROM execution_fee_pair_amount_active_holds WHERE candidate_id=?",
+                (candidate_id,),
+            ).fetchone()
+            if active is None:
+                raise ExecutionDecisionJournalError("FEE_PAIR_AMOUNT_HOLD_ALREADY_RELEASED")
+            return record
+        legacy = cursor.execute(
+            "SELECT 1 FROM execution_fee_pair_amount_reservations WHERE candidate_id=?",
+            (candidate_id,),
+        ).fetchone()
+        if legacy is not None:
+            raise ExecutionDecisionJournalError("FEE_PAIR_LEGACY_AMOUNT_HOLD_NOT_OPEN_AUTHORIZED")
+        if workflow["state"] != "RECEIPT_VERIFIED" or workflow["grid_decision_id"] is None:
+            raise ExecutionDecisionJournalError("FEE_PAIR_GRID_SETTLEMENT_REQUIRED")
+        candidate = _fee_pair_candidate_from_values(
+            json.loads(workflow["candidate_payload_json"])
+        )
+        if candidate.target_routes is None or candidate.account_fingerprint is None:
+            raise ExecutionDecisionJournalError("FEE_PAIR_CANDIDATE_ROUTE_BINDING_REQUIRED")
+        single_row_intent = self._fee_pair_grid_single_row_tape_intent_in_transaction(
+            cursor, workflow, candidate
+        )
+        if single_row_intent is None:
+            raise ExecutionDecisionJournalError("FEE_PAIR_SINGLE_ROW_TAPE_READBACK_REQUIRED")
+        settlement = self._fee_pair_grid_settlement_in_transaction(cursor, workflow)
+        decision = cursor.execute(
+            "SELECT * FROM execution_decisions WHERE decision_id=?",
+            (workflow["grid_decision_id"],),
+        ).fetchone()
+        if decision is None:
+            raise ExecutionDecisionJournalError("FEE_PAIR_GRID_SETTLEMENT_CORRUPT")
+        try:
+            settlement_proof = json.loads(settlement["settlement_payload_json"])
+            decision_payload = json.loads(decision["economic_payload_json"])
+            decision_plan = settlement_proof["decision_plan"]
+        except (KeyError, TypeError, ValueError) as error:
+            raise ExecutionDecisionJournalError("FEE_PAIR_GRID_SETTLEMENT_CORRUPT") from error
+        if not all(
+            isinstance(value, Mapping)
+            for value in (settlement_proof, decision_payload, decision_plan)
+        ):
+            raise ExecutionDecisionJournalError("FEE_PAIR_GRID_SETTLEMENT_CORRUPT")
+
+        original_payload = dict(decision_payload)
+        for reserved_field in (
+            _SOURCE_RECEIPT_PAYLOAD_FIELD,
+            _FEE_PAIR_NO_PAIR_SOURCE_ONLY_FIELD,
+            _FEE_PAIR_WORKFLOW_PAYLOAD_FIELD,
+            _FEE_PAIR_SETTLEMENT_PAYLOAD_FIELD,
+            _RUN_ORDER_RESERVATION_FIELD,
+        ):
+            original_payload.pop(reserved_field, None)
+        economic_payload_sha256 = hashlib.sha256(
+            _canonical_json(original_payload).encode("utf-8")
+        ).hexdigest()
+        if economic_payload_sha256 != decision_plan.get("economic_payload_sha256"):
+            raise ExecutionDecisionJournalError("FEE_PAIR_GRID_SETTLEMENT_CORRUPT")
+        query_age = _fee_pair_age_seconds(
+            max_query_age_seconds, "FEE_PAIR_QUERY_AGE_INVALID"
+        )
+        quote_age = _fee_pair_age_seconds(
+            max_quote_age_seconds, "FEE_PAIR_QUOTE_AGE_INVALID"
+        )
+        proof_facts = self._fee_pair_grid_facts_proof(
+            candidate,
+            facts,
+            current_account_session_id=current_account_session_id,
+            current_account_session_generation=current_account_session_generation,
+            max_query_age_seconds=query_age,
+            max_quote_age_seconds=quote_age,
+            now=datetime.now(timezone.utc),
+            require_fresh=True,
+            required_active_target_ids=frozenset(),
+        )
+        if _canonical_json(proof_facts) != _canonical_json(
+            settlement_proof.get("store_projection")
+        ):
+            raise ExecutionDecisionJournalError("FEE_PAIR_FACTS_SNAPSHOT_MISMATCH")
+        projection = self._fee_pair_amount_reservation_projection(
+            candidate=candidate,
+            facts=facts,
+            original_payload=original_payload,
+            settlement_proof=settlement_proof,
+        )
+        account = facts.account
+        if account is None or account.currency != _FEE_PAIR_AMOUNT_CURRENCY:
+            raise ExecutionDecisionJournalError("FEE_PAIR_AMOUNT_CURRENCY_UNAVAILABLE")
+        occupied = cursor.execute(
+            "SELECT candidate_id FROM execution_fee_pair_amount_active_holds "
+            "WHERE account_scope=? LIMIT 1",
+            (candidate.key.account_scope,),
+        ).fetchone()
+        if occupied is not None:
+            raise ExecutionDecisionJournalError("FEE_PAIR_AMOUNT_RESERVATION_ALREADY_ACTIVE")
+        legacy_account = cursor.execute(
+            "SELECT candidate_id FROM execution_fee_pair_amount_reservations "
+            "WHERE account_scope=? LIMIT 1",
+            (candidate.key.account_scope,),
+        ).fetchone()
+        if legacy_account is not None:
+            released = cursor.execute(
+                """SELECT 1 FROM execution_fee_pair_amount_lifecycle_events
+                   WHERE candidate_id=? AND event_sequence=2 AND event_kind='RELEASED'""",
+                (legacy_account["candidate_id"],),
+            ).fetchone()
+            if legacy_account["candidate_id"] == candidate_id or released is None:
+                raise ExecutionDecisionJournalError(
+                    "FEE_PAIR_LEGACY_AMOUNT_HOLD_ACTIVE"
+                )
+
+        try:
+            intent_keys = json.loads(decision["intent_keys_json"])
+            economics_rows = original_payload["intent_economics"]
+        except (KeyError, TypeError, ValueError) as error:
+            raise ExecutionDecisionJournalError("FEE_PAIR_GRID_SETTLEMENT_CORRUPT") from error
+        if (
+            type(intent_keys) is not list
+            or len(intent_keys) != 2
+            or type(economics_rows) is not list
+            or len(economics_rows) != 2
+        ):
+            raise ExecutionDecisionJournalError("FEE_PAIR_GRID_SETTLEMENT_CORRUPT")
+        intent_bindings = []
+        for leg, key_values in enumerate(intent_keys):
+            if not isinstance(key_values, Mapping):
+                raise ExecutionDecisionJournalError("FEE_PAIR_GRID_SETTLEMENT_CORRUPT")
+            key_json = _canonical_json(key_values)
+            intent_bindings.append(
+                {
+                    "leg_index": leg,
+                    "intent_id": _stable_id("intent", decision["decision_id"] + ":" + key_json),
+                    "intent_key": dict(key_values),
+                    "intent_key_sha256": hashlib.sha256(key_json.encode("utf-8")).hexdigest(),
+                    "economic_payload_sha256": hashlib.sha256(
+                        _canonical_json(economics_rows[leg]).encode("utf-8")
+                    ).hexdigest(),
+                }
+            )
+
+        now_ns = time.time_ns()
+        risk_candidate_sha256 = hashlib.sha256(
+            _canonical_json(projection["risk_candidate"]).encode("utf-8")
+        ).hexdigest()
+        reservation = {
+            "schema": "backtrader.execution_fee_pair_amount_reservation.v1",
+            "status": "ACTIVE",
+            "evidence_level": _FEE_PAIR_AMOUNT_EVIDENCE_LEVEL,
+            "policy_id": _FEE_PAIR_AMOUNT_POLICY_ID,
+            "currency": _FEE_PAIR_AMOUNT_CURRENCY,
+            "candidate_id": candidate_id,
+            "candidate_sha256": workflow["candidate_sha256"],
+            "decision_id": workflow["grid_decision_id"],
+            "settlement_sha256": settlement["settlement_sha256"],
+            "economic_payload_sha256": economic_payload_sha256,
+            "risk_candidate_sha256": risk_candidate_sha256,
+            "account_scope": candidate.key.account_scope,
+            "strategy_scope": candidate.key.strategy_scope,
+            "logical_run_id": candidate.key.logical_run_id,
+            "cohort_id": candidate.key.cohort_id,
+            "close_time": candidate.key.close_time,
+            "batch_id": candidate.batch_id,
+            "epoch_id": str(candidate.epoch_id),
+            "account_session_id": candidate.account_session_id,
+            "account_session_generation": candidate.account_session_generation,
+            "account_fingerprint": candidate.account_fingerprint,
+            "connection_generation": candidate.connection_generation,
+            "trading_day": candidate.trading_day,
+            "account_snapshot_id": account.snapshot_id,
+            "risk_policy_id": projection["risk_candidate"]["risk_policy_id"],
+            "risk_candidate": projection["risk_candidate"],
+            "reserved_legs": projection["reserved_legs"],
+            "reserved_notional": projection["reserved_notional"],
+            "reserved_margin": projection["reserved_margin"],
+            "reserved_stop_loss_and_fees": projection["reserved_stop_loss_and_fees"],
+            "available_margin_at_decision": projection["available_margin_at_decision"],
+            "used_margin_at_decision": projection["used_margin_at_decision"],
+            "current_notional_at_decision": projection["current_notional_at_decision"],
+            "current_worst_case_loss_at_decision": projection[
+                "current_worst_case_loss_at_decision"
+            ],
+            "held_fee_reserve_at_decision": projection["held_fee_reserve_at_decision"],
+            "intent_bindings": intent_bindings,
+            "created_at_ns": now_ns,
+        }
+        reservation_json = _canonical_json(reservation)
+        if len(reservation_json.encode("utf-8")) > _MAX_FEE_PAIR_AMOUNT_RESERVATION_BYTES:
+            raise ExecutionDecisionJournalError("FEE_PAIR_AMOUNT_RESERVATION_TOO_LARGE")
+        reservation_sha256 = hashlib.sha256(reservation_json.encode("utf-8")).hexdigest()
+        claim_row = {
+            "candidate_id": candidate_id,
+            "decision_id": workflow["grid_decision_id"],
+            "account_scope": candidate.key.account_scope,
+            "reservation_json": reservation_json,
+            "reservation_sha256": reservation_sha256,
+            "created_at_ns": now_ns,
+        }
+        with track_durable_row_change(
+            cursor, "execution_fee_pair_amount_open_reservations", (candidate_id,), "BASE"
+        ):
+            cursor.execute(
+                """INSERT INTO execution_fee_pair_amount_open_reservations
+                   (candidate_id,decision_id,account_scope,reservation_json,
+                    reservation_sha256,created_at_ns) VALUES(?,?,?,?,?,?)""",
+                tuple(claim_row.values()),
+            )
+        event_id = _stable_id("fee-pair-amount-event", candidate_id + ":1")
+        event_payload = {
+            "schema": "backtrader.execution_fee_pair_amount_lifecycle_event.v1",
+            "candidate_id": candidate_id,
+            "reservation_sha256": reservation_sha256,
+            "state": "RESERVED",
+        }
+        event_json = _canonical_json(event_payload)
+        event = {
+            "event_id": event_id,
+            "candidate_id": candidate_id,
+            "event_sequence": 1,
+            "event_kind": "RESERVED",
+            "event_payload_json": event_json,
+            "event_sha256": hashlib.sha256(event_json.encode("utf-8")).hexdigest(),
+            "created_at_ns": now_ns,
+        }
+        with track_durable_row_change(
+            cursor, "execution_fee_pair_amount_lifecycle_events", (event_id,), "BASE"
+        ):
+            cursor.execute(
+                """INSERT INTO execution_fee_pair_amount_lifecycle_events
+                   (event_id,candidate_id,event_sequence,event_kind,event_payload_json,
+                    event_sha256,created_at_ns) VALUES(?,?,?,?,?,?,?)""",
+                tuple(event.values()),
+            )
+        active = {
+            "account_scope": candidate.key.account_scope,
+            "candidate_id": candidate_id,
+            "reservation_sha256": reservation_sha256,
+            "created_at_ns": now_ns,
+        }
+        with track_durable_row_change(
+            cursor,
+            "execution_fee_pair_amount_active_holds",
+            (candidate.key.account_scope,),
+            "BASE",
+        ):
+            cursor.execute(
+                """INSERT INTO execution_fee_pair_amount_active_holds
+                   (account_scope,candidate_id,reservation_sha256,created_at_ns)
+                   VALUES(?,?,?,?)""",
+                tuple(active.values()),
+            )
+        saved = cursor.execute(
+            "SELECT * FROM execution_fee_pair_amount_open_reservations WHERE candidate_id=?",
+            (candidate_id,),
+        ).fetchone()
+        return self._fee_pair_amount_reservation_record_in_transaction(
+            cursor, saved, open_claim=True
+        )
 
     def record_fee_pair_workflow_append_claim(
         self, candidate_id: str, *, owner_token: str
@@ -5821,6 +7459,8 @@ class ExecutionDecisionJournal:
         record_index: int,
         prefix_sha256: str,
         record_json: str,
+        facts: Any = None,
+        source_lease: Any = None,
     ) -> ExecutionFeePairWorkflowRecord:
         """Claim the v23 single-row route and reserve its intent row atomically.
 
@@ -5843,7 +7483,14 @@ class ExecutionDecisionJournal:
                 record_json=record_json,
             )
         )
-        with self._transaction() as cursor:
+        source_guard = (
+            None
+            if source_lease is None
+            else _fee_pair_facts_source_before_commit(
+                facts, source_lease, operation="OPEN"
+            )
+        )
+        with self._transaction(before_commit=source_guard) as cursor:
             version = cursor.execute("PRAGMA user_version").fetchone()
             if version is None or type(version[0]) is not int or version[0] < 23:
                 raise ExecutionDecisionJournalError("FEE_PAIR_SINGLE_ROW_TAPE_SCHEMA_REQUIRED")
@@ -5981,6 +7628,8 @@ class ExecutionDecisionJournal:
         record_index: int,
         prefix_sha256: str,
         record_json: str,
+        facts: Any = None,
+        source_lease: Any = None,
     ) -> Mapping[str, Any]:
         """Persist one immutable, bounded row intent before its physical append.
 
@@ -6006,7 +7655,14 @@ class ExecutionDecisionJournal:
         record_id = intent_values["record_id"]
         record_sha256 = intent_values["record_sha256"]
 
-        with self._transaction() as cursor:
+        source_guard = (
+            None
+            if source_lease is None
+            else _fee_pair_facts_source_before_commit(
+                facts, source_lease, operation="OPEN"
+            )
+        )
+        with self._transaction(before_commit=source_guard) as cursor:
             version = cursor.execute("PRAGMA user_version").fetchone()
             if version is None or type(version[0]) is not int or version[0] < 23:
                 raise ExecutionDecisionJournalError("FEE_PAIR_SINGLE_ROW_TAPE_SCHEMA_REQUIRED")
@@ -6726,6 +8382,8 @@ class ExecutionDecisionJournal:
         remaining_exit_intent_reserve: int,
         loss_guard_context: Optional[ExecutionRunLossGuardContext] = None,
         verified_tape_readback: Any = None,
+        reserve_for_open: bool = False,
+        source_lease: Any = None,
     ) -> ExecutionGridDecision:
         """Atomically settle one attached pair as a GRID and reserve exactly two OPEN slots.
 
@@ -6744,6 +8402,10 @@ class ExecutionDecisionJournal:
         again at each OPEN claim. The two native submissions are not atomic.
         """
 
+        if type(reserve_for_open) is not bool:
+            raise ExecutionDecisionJournalError("FEE_PAIR_OPEN_RESERVATION_FLAG_INVALID")
+        if reserve_for_open and source_lease is None:
+            raise ExecutionDecisionJournalError("FEE_PAIR_SOURCE_BINDING_REQUIRED")
         if not _source_sha256(candidate_id):
             raise ExecutionDecisionJournalError("INVALID_FEE_PAIR_CANDIDATE_ID")
         token_sha256 = _fee_pair_candidate_owner_token_hash(owner_token)
@@ -6773,7 +8435,14 @@ class ExecutionDecisionJournal:
         if protected.intersection(economic_payload):
             raise ExecutionDecisionJournalError("FEE_PAIR_GRID_EVIDENCE_RESERVED")
 
-        with self._transaction() as cursor:
+        source_guard = (
+            None
+            if not reserve_for_open
+            else _fee_pair_facts_source_before_commit(
+                facts, source_lease, operation="OPEN"
+            )
+        )
+        with self._transaction(before_commit=source_guard) as cursor:
             row = cursor.execute(
                 "SELECT * FROM execution_fee_pair_workflows WHERE candidate_id=?",
                 (candidate_id,),
@@ -6979,6 +8648,27 @@ class ExecutionDecisionJournal:
                     or decision_row["intent_keys_json"] != keys_json
                 ):
                     raise ExecutionDecisionJournalError("FEE_PAIR_GRID_SETTLEMENT_CONFLICT")
+                amount_reservation = None
+                if reserve_for_open:
+                    open_row = cursor.execute(
+                        "SELECT * FROM execution_fee_pair_amount_open_reservations "
+                        "WHERE candidate_id=?",
+                        (candidate_id,),
+                    ).fetchone()
+                    if open_row is None:
+                        raise ExecutionDecisionJournalError(
+                            "FEE_PAIR_OPEN_RISK_RESERVATION_REQUIRED"
+                        )
+                    amount_reservation = self._fee_pair_amount_reservation_record_in_transaction(
+                        cursor, open_row, open_claim=True
+                    )
+                    active = cursor.execute(
+                        "SELECT 1 FROM execution_fee_pair_amount_active_holds "
+                        "WHERE candidate_id=?",
+                        (candidate_id,),
+                    ).fetchone()
+                    if active is None:
+                        raise ExecutionDecisionJournalError("FEE_PAIR_AMOUNT_HOLD_ALREADY_RELEASED")
                 decision = _decision_record(decision_row)
                 current = cursor.execute(
                     """SELECT * FROM execution_grid_cursors
@@ -6992,6 +8682,7 @@ class ExecutionDecisionJournal:
                     eligible=True,
                     is_new_grid=False,
                     source_anchor=decision,
+                    amount_reservation=amount_reservation,
                 )
 
             if row["state"] != "RECEIPT_VERIFIED":
@@ -7249,6 +8940,20 @@ class ExecutionDecisionJournal:
                         now_ns,
                     ),
                 )
+            # The open hold binds the fully settled ledger row, so it is
+            # admitted only after the terminal GRID_SETTLED event exists.
+            amount_reservation = None
+            if reserve_for_open:
+                amount_reservation = self._reserve_fee_pair_grid_open_in_transaction(
+                    cursor,
+                    candidate_id,
+                    owner_token_sha256=token_sha256,
+                    facts=facts,
+                    current_account_session_id=current_account_session_id,
+                    current_account_session_generation=current_account_session_generation,
+                    max_query_age_seconds=query_age,
+                    max_quote_age_seconds=quote_age,
+                )
             settled_row = cursor.execute(
                 "SELECT * FROM execution_fee_pair_workflows WHERE candidate_id=?",
                 (candidate_id,),
@@ -7260,6 +8965,134 @@ class ExecutionDecisionJournal:
                 eligible=True,
                 is_new_grid=True,
                 source_anchor=decision,
+                amount_reservation=amount_reservation,
+            )
+
+    def fee_pair_open_grid_admission(
+        self,
+        key: ExecutionDecisionKey,
+        economic_payload: Mapping[str, Any],
+        intent_keys: Sequence[ExecutionIntentKey],
+        *,
+        context: ExecutionFeePairOpenContext,
+    ) -> ExecutionGridDecision:
+        """Reopen one just-settled GRID scope using its active durable hold.
+
+        This does not create or replay a decision. It proves the caller's
+        immutable projection is the already-settled pair and leaves each
+        actual leg to the normal prepare/claim Journal CAS with the same
+        context.
+        """
+
+        if (
+            type(key) is not ExecutionDecisionKey
+            or not isinstance(economic_payload, Mapping)
+            or type(intent_keys) not in (tuple, list)
+            or len(intent_keys) != 2
+            or type(context) is not ExecutionFeePairOpenContext
+            or any(not isinstance(item, ExecutionIntentKey) for item in intent_keys)
+        ):
+            raise ExecutionDecisionJournalError("FEE_PAIR_OPEN_CONTEXT_INVALID")
+        if any(not _is_open_submit_intent(item) for item in intent_keys):
+            raise ExecutionDecisionJournalError("FEE_PAIR_OPEN_CONTEXT_INVALID")
+        source_guard = (
+            None
+            if context.source_lease is None
+            else _fee_pair_facts_source_before_commit(
+                context.facts, context.source_lease, operation="OPEN"
+            )
+        )
+        with self._transaction(before_commit=source_guard) as cursor:
+            key_json = _canonical_json(_decision_key_values(key))
+            decision_row = cursor.execute(
+                "SELECT * FROM execution_decisions WHERE business_key_json=?",
+                (key_json,),
+            ).fetchone()
+            if decision_row is None:
+                raise ExecutionDecisionJournalError("FEE_PAIR_GRID_SETTLEMENT_REQUIRED")
+            decision_id = decision_row["decision_id"]
+            decision = _decision_record(decision_row)
+            expected_keys = tuple(
+                ExecutionIntentKey(**values)
+                for values in json.loads(decision_row["intent_keys_json"])
+            )
+            if expected_keys != tuple(intent_keys):
+                raise ExecutionDecisionJournalError("FEE_PAIR_OPEN_CONTEXT_MISMATCH")
+            saved_payload = json.loads(decision_row["economic_payload_json"])
+            base_payload = dict(saved_payload)
+            for reserved_field in (
+                _SOURCE_RECEIPT_PAYLOAD_FIELD,
+                _FEE_PAIR_WORKFLOW_PAYLOAD_FIELD,
+                _FEE_PAIR_SETTLEMENT_PAYLOAD_FIELD,
+                _RUN_ORDER_RESERVATION_FIELD,
+            ):
+                base_payload.pop(reserved_field, None)
+            if _canonical_json(base_payload) != _canonical_json(economic_payload):
+                raise ExecutionDecisionJournalError("FEE_PAIR_OPEN_CONTEXT_MISMATCH")
+            settlement = cursor.execute(
+                "SELECT * FROM execution_fee_pair_workflow_grid_settlements "
+                "WHERE decision_id=?",
+                (decision_id,),
+            ).fetchone()
+            if settlement is None:
+                raise ExecutionDecisionJournalError("FEE_PAIR_GRID_SETTLEMENT_REQUIRED")
+            workflow = cursor.execute(
+                "SELECT * FROM execution_fee_pair_workflows WHERE candidate_id=?",
+                (settlement["candidate_id"],),
+            ).fetchone()
+            if workflow is None:
+                raise ExecutionDecisionJournalError("FEE_PAIR_GRID_SETTLEMENT_CORRUPT")
+            self._fee_pair_workflow_record_in_transaction(cursor, workflow)
+            self._fee_pair_grid_settlement_in_transaction(cursor, workflow)
+            source_highwater = self._source_highwater_in_transaction(
+                cursor,
+                account_scope=key.account_scope,
+                strategy_scope=key.strategy_scope,
+                logical_run_id=key.logical_run_id,
+                source_kind=key.decision_kind,
+            )
+            if (
+                source_highwater is None
+                or source_highwater.anchor_kind != "GRID"
+                or source_highwater.decision_id != decision_id
+            ):
+                raise ExecutionDecisionJournalError("FEE_PAIR_SOURCE_HIGHWATER_MISMATCH")
+            decision_economics = saved_payload.get("intent_economics")
+            if type(decision_economics) is not list or len(decision_economics) != 2:
+                raise ExecutionDecisionJournalError("FEE_PAIR_GRID_SETTLEMENT_CORRUPT")
+            for leg, (intent_key, leg_economics) in enumerate(
+                zip(intent_keys, decision_economics)
+            ):
+                if intent_key.leg != leg or not isinstance(leg_economics, Mapping):
+                    raise ExecutionDecisionJournalError("FEE_PAIR_OPEN_CONTEXT_MISMATCH")
+                self._reject_unreserved_fee_pair_open_in_transaction(
+                    cursor,
+                    decision_id=decision_id,
+                    intent_key=intent_key,
+                    economic_payload=leg_economics,
+                    context=context,
+                )
+            cursor_key = (key.account_scope, key.strategy_scope, key.cohort_id)
+            cursor_row = cursor.execute(
+                """SELECT * FROM execution_grid_cursors
+                   WHERE account_scope=? AND strategy_scope=? AND cohort_id=?""",
+                cursor_key,
+            ).fetchone()
+            reservation_row = cursor.execute(
+                "SELECT * FROM execution_fee_pair_amount_open_reservations "
+                "WHERE candidate_id=?",
+                (context.candidate_id,),
+            ).fetchone()
+            amount_reservation = self._fee_pair_amount_reservation_record_in_transaction(
+                cursor, reservation_row, open_claim=True
+            )
+            return ExecutionGridDecision(
+                decision=decision,
+                cursor=None if cursor_row is None else _grid_cursor_record(cursor_row),
+                eligible=True,
+                is_new_grid=True,
+                source_anchor=decision,
+                amount_reservation=amount_reservation,
             )
 
     @staticmethod
@@ -11052,19 +12885,21 @@ class ExecutionDecisionJournal:
         *,
         decision_id: str,
         intent_key: ExecutionIntentKey,
-    ) -> None:
-        """Fence every registered-scope OPEN until pair risk is durably reserved.
+        economic_payload: Mapping[str, Any],
+        context: Optional[ExecutionFeePairOpenContext],
+    ) -> Optional[_FeePairAmountOpenAdmission]:
+        """Authorize only the exact leg of a live, durable fee-pair hold.
 
-        Settlement persists fee/source evidence and two OPEN slots, but it does
-        not reserve worst-case monetary exposure across a partial or completed
-        first leg. Consequently no pair OPEN may be prepared or claimed yet.
-        This guard runs inside the same write transaction at both boundaries.
+        This lookup and the caller's prepare/claim mutation share one Journal
+        transaction. The public context is not authority: candidate, owner,
+        settlement, amount proof, account head, exact leg slot and fresh typed
+        Store facts are all reloaded and compared here.
         """
 
         if not _is_open_submit_intent(intent_key):
-            return
+            return None
         decision_row = cursor.execute(
-            "SELECT business_key_json FROM execution_decisions WHERE decision_id=?",
+            "SELECT * FROM execution_decisions WHERE decision_id=?",
             (decision_id,),
         ).fetchone()
         if decision_row is None:
@@ -11077,10 +12912,138 @@ class ExecutionDecisionJournal:
             strategy_scope = key_values["strategy_scope"]
         except (KeyError, TypeError, ValueError) as error:
             raise ExecutionDecisionJournalError("INVALID_DECISION_KEY") from error
-        if self._fee_pair_scope_registration_in_transaction(
+        active = cursor.execute(
+            "SELECT * FROM execution_fee_pair_amount_active_holds WHERE account_scope=?",
+            (account_scope,),
+        ).fetchone()
+        registration = self._fee_pair_scope_registration_in_transaction(
             cursor, account_scope=account_scope, strategy_scope=strategy_scope
-        ) is not None:
-            raise ExecutionDecisionJournalError("FEE_PAIR_OPEN_RISK_RESERVATION_REQUIRED")
+        )
+        if active is None:
+            if context is not None:
+                raise ExecutionDecisionJournalError("FEE_PAIR_AMOUNT_HOLD_CHANGED")
+            if registration is not None:
+                raise ExecutionDecisionJournalError("FEE_PAIR_OPEN_RISK_RESERVATION_REQUIRED")
+            return None
+        if context is None or type(context) is not ExecutionFeePairOpenContext:
+            raise ExecutionDecisionJournalError("FEE_PAIR_AMOUNT_HOLD_ACTIVE")
+        if (
+            type(context.candidate_id) is not str
+            or not _source_sha256(context.candidate_id)
+            or type(context.reservation_sha256) is not str
+            or not _source_sha256(context.reservation_sha256)
+            or active["candidate_id"] != context.candidate_id
+        ):
+            raise ExecutionDecisionJournalError("FEE_PAIR_OPEN_CONTEXT_MISMATCH")
+        claim = cursor.execute(
+            "SELECT * FROM execution_fee_pair_amount_open_reservations "
+            "WHERE candidate_id=?",
+            (context.candidate_id,),
+        ).fetchone()
+        if (
+            claim is None
+            or claim["account_scope"] != account_scope
+            or claim["decision_id"] != decision_id
+            or claim["reservation_sha256"] != context.reservation_sha256
+            or active["reservation_sha256"] != context.reservation_sha256
+        ):
+            raise ExecutionDecisionJournalError("FEE_PAIR_OPEN_CONTEXT_MISMATCH")
+        self._fee_pair_amount_reservation_record_in_transaction(
+            cursor, claim, open_claim=True
+        )
+        try:
+            reservation = json.loads(claim["reservation_json"])
+            workflow = cursor.execute(
+                "SELECT * FROM execution_fee_pair_workflows WHERE candidate_id=?",
+                (context.candidate_id,),
+            ).fetchone()
+            settlement = cursor.execute(
+                "SELECT * FROM execution_fee_pair_workflow_grid_settlements "
+                "WHERE candidate_id=?",
+                (context.candidate_id,),
+            ).fetchone()
+            settlement_payload = json.loads(settlement["settlement_payload_json"])
+            decision_payload = json.loads(decision_row["economic_payload_json"])
+            intent_economics = decision_payload["intent_economics"]
+            bindings = reservation["intent_bindings"]
+            decision_keys = json.loads(decision_row["intent_keys_json"])
+            leg = intent_key.leg
+            binding = bindings[leg]
+            intent_key_json = _canonical_json(_intent_key_values(intent_key))
+            supplied_payload_json = self._payload_json(economic_payload)
+        except (IndexError, KeyError, TypeError, ValueError, sqlite3.Error) as error:
+            raise ExecutionDecisionJournalError("FEE_PAIR_OPEN_CONTEXT_INVALID") from error
+        if workflow is None or settlement is None:
+            raise ExecutionDecisionJournalError("FEE_PAIR_OPEN_CONTEXT_INVALID")
+        self._fee_pair_workflow_record_in_transaction(cursor, workflow)
+        self._require_fee_pair_workflow_owner(
+            workflow, _fee_pair_candidate_owner_token_hash(context.owner_token)
+        )
+        if (
+            binding.get("leg_index") != leg
+            or binding.get("intent_id")
+            != _stable_id("intent", decision_id + ":" + intent_key_json)
+            or binding.get("intent_key") != _intent_key_values(intent_key)
+            or decision_keys[leg] != _intent_key_values(intent_key)
+            or binding.get("economic_payload_sha256")
+            != hashlib.sha256(supplied_payload_json.encode("utf-8")).hexdigest()
+            or intent_economics[leg] != json.loads(supplied_payload_json)
+            or decision_row["decision_id"] != reservation["decision_id"]
+            or reservation["account_scope"] != account_scope
+            or workflow["candidate_sha256"] != reservation["candidate_sha256"]
+            or settlement["settlement_sha256"] != reservation["settlement_sha256"]
+        ):
+            raise ExecutionDecisionJournalError("FEE_PAIR_OPEN_CONTEXT_MISMATCH")
+        max_query_age = _fee_pair_age_seconds(
+            context.max_query_age_seconds, "FEE_PAIR_QUERY_AGE_INVALID"
+        )
+        max_quote_age = _fee_pair_age_seconds(
+            context.max_quote_age_seconds, "FEE_PAIR_QUOTE_AGE_INVALID"
+        )
+        try:
+            proof = json.loads(settlement["settlement_payload_json"])
+            plan = proof["decision_plan"]
+        except (KeyError, TypeError, ValueError) as error:
+            raise ExecutionDecisionJournalError("FEE_PAIR_GRID_SETTLEMENT_CORRUPT") from error
+        if (
+            not isinstance(plan, Mapping)
+            or plan.get("max_query_age_seconds") != max_query_age
+            or plan.get("max_quote_age_seconds") != max_quote_age
+            or context.account_session_id != reservation["account_session_id"]
+            or context.account_session_generation
+            != reservation["account_session_generation"]
+        ):
+            raise ExecutionDecisionJournalError("FEE_PAIR_OPEN_CONTEXT_MISMATCH")
+        candidate = _fee_pair_candidate_from_values(
+            json.loads(workflow["candidate_payload_json"])
+        )
+        current_facts_proof = self._fee_pair_grid_facts_proof(
+            candidate,
+            context.facts,
+            current_account_session_id=context.account_session_id,
+            current_account_session_generation=context.account_session_generation,
+            max_query_age_seconds=max_query_age,
+            max_quote_age_seconds=max_quote_age,
+            now=datetime.now(timezone.utc),
+            require_fresh=True,
+            required_active_target_ids=frozenset(),
+        )
+        if _canonical_json(current_facts_proof) != _canonical_json(
+            proof.get("store_projection")
+        ):
+            raise ExecutionDecisionJournalError("FEE_PAIR_FACTS_SNAPSHOT_MISMATCH")
+        if context.source_lease is None:
+            raise ExecutionDecisionJournalError("FEE_PAIR_SOURCE_BINDING_REQUIRED")
+        _fee_pair_facts_source_before_commit(
+            context.facts, context.source_lease, operation="OPEN"
+        )()
+        return _FeePairAmountOpenAdmission(
+            candidate_id=context.candidate_id,
+            reservation_sha256=context.reservation_sha256,
+            decision_id=decision_id,
+            intent_id=binding["intent_id"],
+            leg_index=leg,
+        )
 
     def _validate_ctp_cancel_owner_binding_in_transaction(
         self,
@@ -11291,7 +13254,17 @@ class ExecutionDecisionJournal:
         intent_id = _stable_id("intent", decision_id + ":" + intent_key_json)
         now_ns = time.time_ns()
 
-        with self._transaction() as cursor:
+        source_guard = (
+            _fee_pair_facts_source_before_commit(
+                fee_pair_open_context.facts,
+                fee_pair_open_context.source_lease,
+                operation="OPEN",
+            )
+            if type(fee_pair_open_context) is ExecutionFeePairOpenContext
+            and fee_pair_open_context.source_lease is not None
+            else None
+        )
+        with self._transaction(before_commit=source_guard) as cursor:
             decision_row = cursor.execute(
                 "SELECT * FROM execution_decisions WHERE decision_id = ?",
                 (decision_id,),
@@ -11301,10 +13274,12 @@ class ExecutionDecisionJournal:
             ).fetchone()
             if decision_row is None or slot is None or slot["decision_id"] != decision_id:
                 raise ExecutionDecisionJournalError("INTENT_NOT_DECLARED")
-            self._reject_unreserved_fee_pair_open_in_transaction(
+            fee_pair_open_admission = self._reject_unreserved_fee_pair_open_in_transaction(
                 cursor,
                 decision_id=decision_id,
                 intent_key=intent_key,
+                economic_payload=economic_payload,
+                context=fee_pair_open_context,
             )
             try:
                 decision_key = ExecutionDecisionKey(
@@ -11382,6 +13357,7 @@ class ExecutionDecisionJournal:
                         cursor,
                         business_key_json=decision_row["business_key_json"],
                         loss_guard_context=loss_guard_context,
+                        fee_pair_amount_open_admission=fee_pair_open_admission,
                     )
                 elif intent_key.position_effect == "CLOSE":
                     if factor_owned_close and owner_intent_id is None:
@@ -13233,7 +15209,17 @@ class ExecutionDecisionJournal:
         """
 
         _require_identifier(intent_id, "INVALID_INTENT_ID")
-        with self._transaction() as cursor:
+        source_guard = (
+            _fee_pair_facts_source_before_commit(
+                fee_pair_open_context.facts,
+                fee_pair_open_context.source_lease,
+                operation="OPEN",
+            )
+            if type(fee_pair_open_context) is ExecutionFeePairOpenContext
+            and fee_pair_open_context.source_lease is not None
+            else None
+        )
+        with self._transaction(before_commit=source_guard) as cursor:
             row = cursor.execute(
                 "SELECT * FROM execution_decision_intents WHERE intent_id = ?", (intent_id,)
             ).fetchone()
@@ -13251,10 +15237,12 @@ class ExecutionDecisionJournal:
             ):
                 raise ExecutionDecisionJournalError("INTENT_ABANDONED")
             intent_key = ExecutionIntentKey(**json.loads(row["intent_key_json"]))
-            self._reject_unreserved_fee_pair_open_in_transaction(
+            fee_pair_open_admission = self._reject_unreserved_fee_pair_open_in_transaction(
                 cursor,
                 decision_id=row["decision_id"],
                 intent_key=intent_key,
+                economic_payload=json.loads(row["economic_payload_json"]),
+                context=fee_pair_open_context,
             )
             if intent_key.action == "CANCEL":
                 decision_row = cursor.execute(
@@ -13324,6 +15312,7 @@ class ExecutionDecisionJournal:
                     cursor,
                     business_key_json=decision_row["business_key_json"],
                     loss_guard_context=loss_guard_context,
+                    fee_pair_amount_open_admission=fee_pair_open_admission,
                 )
             now_ns = time.time_ns()
             with track_durable_row_change(
@@ -13349,6 +15338,7 @@ class ExecutionDecisionJournal:
         state: str,
         provider_identity: Optional[Mapping[str, Any]] = None,
         outcome_code: Optional[str] = None,
+        fee_pair_open_context: Optional[ExecutionFeePairOpenContext] = None,
     ) -> ExecutionIntentRecord:
         """Record a known or unknown result for the already claimed dispatch."""
 
@@ -13362,12 +15352,31 @@ class ExecutionDecisionJournal:
             {"provider_identity": json.loads(identity_json), "outcome_code": outcome_code}
         )
         now_ns = time.time_ns()
-        with self._transaction() as cursor:
+        source_guard = (
+            _fee_pair_facts_source_before_commit(
+                fee_pair_open_context.facts,
+                fee_pair_open_context.source_lease,
+                operation="OPEN",
+            )
+            if type(fee_pair_open_context) is ExecutionFeePairOpenContext
+            and fee_pair_open_context.source_lease is not None
+            else None
+        )
+        with self._transaction(before_commit=source_guard) as cursor:
             row = cursor.execute(
                 "SELECT * FROM execution_decision_intents WHERE intent_id = ?", (intent_id,)
             ).fetchone()
             if row is None:
                 raise ExecutionDecisionJournalError("INTENT_NOT_PREPARED")
+            result_key = ExecutionIntentKey(**json.loads(row["intent_key_json"]))
+            if _is_open_submit_intent(result_key):
+                self._reject_unreserved_fee_pair_open_in_transaction(
+                    cursor,
+                    decision_id=row["decision_id"],
+                    intent_key=result_key,
+                    economic_payload=json.loads(row["economic_payload_json"]),
+                    context=fee_pair_open_context,
+                )
             if row["dispatch_state"] in ("KNOWN", "UNKNOWN"):
                 if (
                     row["dispatch_state"] == state
@@ -16396,14 +18405,137 @@ class ExecutionDecisionJournal:
                 "FEE_PAIR_AMOUNT_RESERVATION_SCHEMA_MIGRATION_FAILED"
             ) from error
 
+    def _migrate_fee_pair_amount_open_lifecycle_v25(self, cursor: sqlite3.Cursor) -> None:
+        """Add renewable active holds while preserving every v24 row as held.
+
+        The v24 ledger cannot be rewritten or deleted. Its existing rows are
+        therefore copied into the new active-head/event projection as legacy
+        holds; they remain blocking until an independently verified recovery
+        proves the exact pair flat. New open-authorized claims use the v25
+        ledger, so a verified release permits a later candidate for the same
+        account without editing historical evidence.
+        """
+
+        names = (
+            "execution_fee_pair_amount_open_reservations",
+            "execution_fee_pair_amount_open_reservation_no_update",
+            "execution_fee_pair_amount_open_reservation_no_delete",
+            "execution_fee_pair_amount_open_reservation_exclusive",
+            "execution_fee_pair_amount_reservation_exclusive",
+            "execution_fee_pair_amount_lifecycle_events",
+            "execution_fee_pair_amount_lifecycle_event_no_update",
+            "execution_fee_pair_amount_lifecycle_event_no_delete",
+            "execution_fee_pair_amount_lifecycle_event_insert",
+            "execution_fee_pair_amount_active_holds",
+            "execution_fee_pair_amount_active_hold_no_update",
+            "execution_fee_pair_amount_active_hold_insert",
+            "execution_fee_pair_amount_active_hold_delete",
+        )
+        existing = cursor.execute(
+            "SELECT name FROM sqlite_master WHERE name IN ({})".format(
+                ",".join("?" for _ in names)
+            ),
+            names,
+        ).fetchall()
+        if existing:
+            raise ExecutionDecisionJournalError("FEE_PAIR_AMOUNT_LIFECYCLE_SCHEMA_CORRUPT")
+        try:
+            cursor.execute(_FEE_PAIR_AMOUNT_OPEN_RESERVATION_TABLE_SQL)
+            cursor.execute(_FEE_PAIR_AMOUNT_LIFECYCLE_EVENT_TABLE_SQL)
+            cursor.execute(_FEE_PAIR_AMOUNT_ACTIVE_HOLD_TABLE_SQL)
+            for statement in (
+                _FEE_PAIR_AMOUNT_OPEN_RESERVATION_NO_UPDATE_TRIGGER_SQL,
+                _FEE_PAIR_AMOUNT_OPEN_RESERVATION_NO_DELETE_TRIGGER_SQL,
+                _FEE_PAIR_AMOUNT_OPEN_RESERVATION_EXCLUSIVE_TRIGGER_SQL,
+                _FEE_PAIR_AMOUNT_LIFECYCLE_EVENT_NO_UPDATE_TRIGGER_SQL,
+                _FEE_PAIR_AMOUNT_LIFECYCLE_EVENT_NO_DELETE_TRIGGER_SQL,
+                _FEE_PAIR_AMOUNT_LIFECYCLE_EVENT_INSERT_TRIGGER_SQL,
+                _FEE_PAIR_AMOUNT_ACTIVE_HOLD_NO_UPDATE_TRIGGER_SQL,
+                _FEE_PAIR_AMOUNT_ACTIVE_HOLD_INSERT_TRIGGER_SQL,
+                _FEE_PAIR_AMOUNT_ACTIVE_HOLD_DELETE_TRIGGER_SQL,
+                _FEE_PAIR_AMOUNT_RESERVATION_EXCLUSIVE_TRIGGER_SQL,
+            ):
+                cursor.execute(statement)
+        except sqlite3.Error as error:
+            raise ExecutionDecisionJournalError(
+                "FEE_PAIR_AMOUNT_LIFECYCLE_SCHEMA_MIGRATION_FAILED"
+            ) from error
+
+        added_records = 0
+        added_bytes = 0
+        legacy_rows = cursor.execute(
+            "SELECT * FROM execution_fee_pair_amount_reservations ORDER BY account_scope,candidate_id"
+        ).fetchall()
+        for row in legacy_rows:
+            reservation = self._fee_pair_amount_reservation_record_in_transaction(cursor, row)
+            event_id = _stable_id("fee-pair-amount-event", row["candidate_id"] + ":1")
+            event_payload = {
+                "schema": "backtrader.execution_fee_pair_amount_lifecycle_event.v1",
+                "candidate_id": row["candidate_id"],
+                "reservation_sha256": row["reservation_sha256"],
+                "state": "LEGACY_HELD",
+                "reason": "V24_IMMUTABLE_RESERVATION",
+            }
+            event_json = _canonical_json(event_payload)
+            event = {
+                "event_id": event_id,
+                "candidate_id": row["candidate_id"],
+                "event_sequence": 1,
+                "event_kind": "LEGACY_HELD",
+                "event_payload_json": event_json,
+                "event_sha256": hashlib.sha256(event_json.encode("utf-8")).hexdigest(),
+                "created_at_ns": row["created_at_ns"],
+            }
+            cursor.execute(
+                """INSERT INTO execution_fee_pair_amount_lifecycle_events
+                   (event_id,candidate_id,event_sequence,event_kind,event_payload_json,
+                    event_sha256,created_at_ns) VALUES(?,?,?,?,?,?,?)""",
+                tuple(event.values()),
+            )
+            active = {
+                "account_scope": row["account_scope"],
+                "candidate_id": row["candidate_id"],
+                "reservation_sha256": row["reservation_sha256"],
+                "created_at_ns": row["created_at_ns"],
+            }
+            cursor.execute(
+                """INSERT INTO execution_fee_pair_amount_active_holds
+                   (account_scope,candidate_id,reservation_sha256,created_at_ns)
+                   VALUES(?,?,?,?)""",
+                tuple(active.values()),
+            )
+            added_records += 2
+            added_bytes += len(canonical_sql_row_bytes(event))
+            added_bytes += len(canonical_sql_row_bytes(active))
+        if added_records:
+            charge_durable_capacity(
+                cursor,
+                self.durable_capacity_limits,
+                DurableCapacityCharge(base_records=added_records, base_bytes=added_bytes),
+            )
+
     @staticmethod
     def _fee_pair_amount_reservation_record_in_transaction(
-        cursor: sqlite3.Cursor, row: sqlite3.Row
+        cursor: sqlite3.Cursor, row: sqlite3.Row, *, open_claim: bool = False
     ) -> Mapping[str, Any]:
-        """Verify one immutable reservation against its decision and settlement."""
+        """Verify one immutable amount claim against its decision and settlement."""
 
         error_code = "FEE_PAIR_AMOUNT_RESERVATION_INVALID"
         try:
+            version = cursor.execute("PRAGMA user_version").fetchone()
+            if version is not None and type(version[0]) is int and version[0] >= 25:
+                other_table = (
+                    "execution_fee_pair_amount_reservations"
+                    if open_claim
+                    else "execution_fee_pair_amount_open_reservations"
+                )
+                if cursor.execute(
+                    "SELECT 1 FROM {} WHERE candidate_id=?".format(other_table),
+                    (row["candidate_id"],),
+                ).fetchone() is not None:
+                    raise ExecutionDecisionJournalError(
+                        "FEE_PAIR_AMOUNT_LIFECYCLE_CORRUPT"
+                    )
             reservation_json = row["reservation_json"]
             if (
                 type(reservation_json) is not str
@@ -16453,9 +18585,11 @@ class ExecutionDecisionJournal:
                 "held_fee_reserve_at_decision",
                 "created_at_ns",
             }
+            payload_keys = set(payload) if isinstance(payload, Mapping) else set()
+            required_keys = required | ({"intent_bindings"} if open_claim else set())
             if (
                 not isinstance(payload, Mapping)
-                or set(payload) != required
+                or payload_keys != required_keys
                 or payload["schema"] != "backtrader.execution_fee_pair_amount_reservation.v1"
                 or payload["status"] != "ACTIVE"
                 or payload["evidence_level"] != _FEE_PAIR_AMOUNT_EVIDENCE_LEVEL
@@ -16597,6 +18731,55 @@ class ExecutionDecisionJournal:
                 or risk_policy.get("risk_policy_id") != payload["risk_policy_id"]
             ):
                 raise ValueError("settled risk policy is not bound to both legs")
+
+            if open_claim:
+                bindings = payload.get("intent_bindings")
+                try:
+                    decision_keys = json.loads(decision["intent_keys_json"])
+                except (TypeError, ValueError) as error:
+                    raise ValueError("settled decision intent slots are invalid") from error
+                if (
+                    type(bindings) is not list
+                    or len(bindings) != 2
+                    or type(decision_keys) is not list
+                    or len(decision_keys) != 2
+                    or candidate.target_routes is None
+                ):
+                    raise ValueError("amount claim has no exact two-leg bindings")
+                for leg, binding in enumerate(bindings):
+                    if not isinstance(binding, Mapping) or set(binding) != {
+                        "leg_index",
+                        "intent_id",
+                        "intent_key",
+                        "intent_key_sha256",
+                        "economic_payload_sha256",
+                    }:
+                        raise ValueError("amount claim leg binding is malformed")
+                    expected_key = decision_keys[leg]
+                    if not isinstance(expected_key, Mapping):
+                        raise ValueError("settled intent key is malformed")
+                    key_json = _canonical_json(expected_key)
+                    intent_id = _stable_id("intent", row["decision_id"] + ":" + key_json)
+                    route = candidate.target_routes[leg]
+                    side = "BUY" if candidate.directions[leg] > 0 else "SELL"
+                    if (
+                        binding.get("leg_index") != leg
+                        or type(binding.get("leg_index")) is not int
+                        or binding.get("intent_id") != intent_id
+                        or binding.get("intent_key") != dict(expected_key)
+                        or binding.get("intent_key_sha256")
+                        != hashlib.sha256(key_json.encode("utf-8")).hexdigest()
+                        or binding.get("economic_payload_sha256")
+                        != hashlib.sha256(
+                            _canonical_json(economics_rows[leg]).encode("utf-8")
+                        ).hexdigest()
+                        or expected_key.get("action") != "SUBMIT"
+                        or expected_key.get("instrument") != route.instrument
+                        or expected_key.get("side") != side
+                        or expected_key.get("position_effect") != "OPEN"
+                        or expected_key.get("leg") != leg
+                    ):
+                        raise ValueError("amount claim leg binding differs from GRID slot")
 
             amount_baselines = (
                 ("available_margin_at_decision", "available_margin"),
@@ -16789,7 +18972,14 @@ class ExecutionDecisionJournal:
                 > min(policy_total_caps["loss"], _FEE_PAIR_AMOUNT_MAX_TOTAL_LOSS)
             ):
                 raise ValueError("reservation projection exceeds available funds or fixed caps")
-            return _deep_freeze(dict(payload))
+            # Expose the row digest as an explicit binding for the caller's
+            # typed admission context. It is derived from the immutable SQL
+            # row, not copied into the self-hashed JSON payload.
+            public_record = dict(payload)
+            public_record["reservation_sha256"] = row["reservation_sha256"]
+            if open_claim:
+                public_record["lifecycle_state"] = "ACTIVE"
+            return _deep_freeze(public_record)
         except ExecutionDecisionJournalError:
             raise
         except (KeyError, TypeError, ValueError, InvalidOperation, sqlite3.Error) as error:
@@ -16870,10 +19060,14 @@ class ExecutionDecisionJournal:
                     "AND name NOT LIKE 'sqlite_autoindex%'"
                 ).fetchall()
             }
-            if triggers != {
+            base_triggers = {
                 "execution_fee_pair_amount_reservation_no_update",
                 "execution_fee_pair_amount_reservation_no_delete",
-            } or indexes:
+            }
+            if triggers not in (
+                base_triggers,
+                base_triggers | {"execution_fee_pair_amount_reservation_exclusive"},
+            ) or indexes:
                 raise ExecutionDecisionJournalError(
                     "FEE_PAIR_AMOUNT_RESERVATION_SCHEMA_CORRUPT"
                 )
@@ -16908,6 +19102,371 @@ class ExecutionDecisionJournal:
             raise ExecutionDecisionJournalError(
                 "FEE_PAIR_AMOUNT_RESERVATION_SCHEMA_CORRUPT"
             ) from error
+
+    @staticmethod
+    def _validate_fee_pair_amount_open_lifecycle_schema(cursor: sqlite3.Cursor) -> None:
+        """Validate the v25 claim, append-only lifecycle, and active-head projection."""
+
+        expected = {
+            "execution_fee_pair_amount_open_reservations": (
+                "table",
+                "execution_fee_pair_amount_open_reservations",
+                _FEE_PAIR_AMOUNT_OPEN_RESERVATION_TABLE_SQL,
+            ),
+            "execution_fee_pair_amount_open_reservation_no_update": (
+                "trigger",
+                "execution_fee_pair_amount_open_reservations",
+                _FEE_PAIR_AMOUNT_OPEN_RESERVATION_NO_UPDATE_TRIGGER_SQL,
+            ),
+            "execution_fee_pair_amount_open_reservation_no_delete": (
+                "trigger",
+                "execution_fee_pair_amount_open_reservations",
+                _FEE_PAIR_AMOUNT_OPEN_RESERVATION_NO_DELETE_TRIGGER_SQL,
+            ),
+            "execution_fee_pair_amount_open_reservation_exclusive": (
+                "trigger",
+                "execution_fee_pair_amount_open_reservations",
+                _FEE_PAIR_AMOUNT_OPEN_RESERVATION_EXCLUSIVE_TRIGGER_SQL,
+            ),
+            "execution_fee_pair_amount_reservation_exclusive": (
+                "trigger",
+                "execution_fee_pair_amount_reservations",
+                _FEE_PAIR_AMOUNT_RESERVATION_EXCLUSIVE_TRIGGER_SQL,
+            ),
+            "execution_fee_pair_amount_lifecycle_events": (
+                "table",
+                "execution_fee_pair_amount_lifecycle_events",
+                _FEE_PAIR_AMOUNT_LIFECYCLE_EVENT_TABLE_SQL,
+            ),
+            "execution_fee_pair_amount_lifecycle_event_no_update": (
+                "trigger",
+                "execution_fee_pair_amount_lifecycle_events",
+                _FEE_PAIR_AMOUNT_LIFECYCLE_EVENT_NO_UPDATE_TRIGGER_SQL,
+            ),
+            "execution_fee_pair_amount_lifecycle_event_no_delete": (
+                "trigger",
+                "execution_fee_pair_amount_lifecycle_events",
+                _FEE_PAIR_AMOUNT_LIFECYCLE_EVENT_NO_DELETE_TRIGGER_SQL,
+            ),
+            "execution_fee_pair_amount_lifecycle_event_insert": (
+                "trigger",
+                "execution_fee_pair_amount_lifecycle_events",
+                _FEE_PAIR_AMOUNT_LIFECYCLE_EVENT_INSERT_TRIGGER_SQL,
+            ),
+            "execution_fee_pair_amount_active_holds": (
+                "table",
+                "execution_fee_pair_amount_active_holds",
+                _FEE_PAIR_AMOUNT_ACTIVE_HOLD_TABLE_SQL,
+            ),
+            "execution_fee_pair_amount_active_hold_no_update": (
+                "trigger",
+                "execution_fee_pair_amount_active_holds",
+                _FEE_PAIR_AMOUNT_ACTIVE_HOLD_NO_UPDATE_TRIGGER_SQL,
+            ),
+            "execution_fee_pair_amount_active_hold_insert": (
+                "trigger",
+                "execution_fee_pair_amount_active_holds",
+                _FEE_PAIR_AMOUNT_ACTIVE_HOLD_INSERT_TRIGGER_SQL,
+            ),
+            "execution_fee_pair_amount_active_hold_delete": (
+                "trigger",
+                "execution_fee_pair_amount_active_holds",
+                _FEE_PAIR_AMOUNT_ACTIVE_HOLD_DELETE_TRIGGER_SQL,
+            ),
+        }
+        try:
+            rows = cursor.execute(
+                "SELECT type,name,tbl_name,sql FROM sqlite_master WHERE name IN ({})".format(
+                    ",".join("?" for _ in expected)
+                ),
+                tuple(expected),
+            ).fetchall()
+            actual = {row["name"]: row for row in rows}
+            if set(actual) != set(expected):
+                raise ExecutionDecisionJournalError("FEE_PAIR_AMOUNT_LIFECYCLE_SCHEMA_CORRUPT")
+            for name, (kind, table, ddl) in expected.items():
+                row = actual[name]
+                if (
+                    row["type"] != kind
+                    or row["tbl_name"] != table
+                    or _normalize_schema_sql(row["sql"]) != _normalize_schema_sql(ddl)
+                ):
+                    raise ExecutionDecisionJournalError("FEE_PAIR_AMOUNT_LIFECYCLE_SCHEMA_CORRUPT")
+            column_expectations = {
+                "execution_fee_pair_amount_open_reservations": (
+                    ("candidate_id", "TEXT", 0, 1),
+                    ("decision_id", "TEXT", 1, 0),
+                    ("account_scope", "TEXT", 1, 0),
+                    ("reservation_json", "TEXT", 1, 0),
+                    ("reservation_sha256", "TEXT", 1, 0),
+                    ("created_at_ns", "INTEGER", 1, 0),
+                ),
+                "execution_fee_pair_amount_lifecycle_events": (
+                    ("event_id", "TEXT", 0, 1),
+                    ("candidate_id", "TEXT", 1, 0),
+                    ("event_sequence", "INTEGER", 1, 0),
+                    ("event_kind", "TEXT", 1, 0),
+                    ("event_payload_json", "TEXT", 1, 0),
+                    ("event_sha256", "TEXT", 1, 0),
+                    ("created_at_ns", "INTEGER", 1, 0),
+                ),
+                "execution_fee_pair_amount_active_holds": (
+                    ("account_scope", "TEXT", 0, 1),
+                    ("candidate_id", "TEXT", 1, 0),
+                    ("reservation_sha256", "TEXT", 1, 0),
+                    ("created_at_ns", "INTEGER", 1, 0),
+                ),
+            }
+            for table, expected_columns in column_expectations.items():
+                columns = tuple(
+                    (row["name"], row["type"].upper(), int(row["notnull"]), int(row["pk"]))
+                    for row in cursor.execute("PRAGMA table_info({})".format(table)).fetchall()
+                )
+                if columns != expected_columns:
+                    raise ExecutionDecisionJournalError("FEE_PAIR_AMOUNT_LIFECYCLE_SCHEMA_CORRUPT")
+            expected_triggers = {
+                "execution_fee_pair_amount_open_reservations": {
+                    "execution_fee_pair_amount_open_reservation_no_update",
+                    "execution_fee_pair_amount_open_reservation_no_delete",
+                    "execution_fee_pair_amount_open_reservation_exclusive",
+                },
+                "execution_fee_pair_amount_reservations": {
+                    "execution_fee_pair_amount_reservation_no_update",
+                    "execution_fee_pair_amount_reservation_no_delete",
+                    "execution_fee_pair_amount_reservation_exclusive",
+                },
+                "execution_fee_pair_amount_lifecycle_events": {
+                    "execution_fee_pair_amount_lifecycle_event_no_update",
+                    "execution_fee_pair_amount_lifecycle_event_no_delete",
+                    "execution_fee_pair_amount_lifecycle_event_insert",
+                },
+                "execution_fee_pair_amount_active_holds": {
+                    "execution_fee_pair_amount_active_hold_no_update",
+                    "execution_fee_pair_amount_active_hold_insert",
+                    "execution_fee_pair_amount_active_hold_delete",
+                },
+            }
+            for table, names in expected_triggers.items():
+                actual_names = {
+                    row["name"]
+                    for row in cursor.execute(
+                        "SELECT name FROM sqlite_master WHERE type='trigger' AND tbl_name=?",
+                        (table,),
+                    ).fetchall()
+                }
+                if actual_names != names:
+                    raise ExecutionDecisionJournalError(
+                        "FEE_PAIR_AMOUNT_LIFECYCLE_SCHEMA_CORRUPT"
+                    )
+
+            oversized_open_claim = cursor.execute(
+                "SELECT 1 FROM execution_fee_pair_amount_open_reservations "
+                "WHERE typeof(reservation_json)!='text' "
+                "OR length(CAST(reservation_json AS BLOB))>? LIMIT 1",
+                (2 * _MAX_FEE_PAIR_AMOUNT_RESERVATION_BYTES,),
+            ).fetchone()
+            oversized_lifecycle_event = cursor.execute(
+                "SELECT 1 FROM execution_fee_pair_amount_lifecycle_events "
+                "WHERE typeof(event_payload_json)!='text' "
+                "OR length(CAST(event_payload_json AS BLOB))>? LIMIT 1",
+                (2 * _MAX_FEE_PAIR_AMOUNT_LIFECYCLE_EVENT_BYTES,),
+            ).fetchone()
+            if oversized_open_claim is not None:
+                raise ExecutionDecisionJournalError(
+                    "FEE_PAIR_AMOUNT_RESERVATION_INVALID"
+                )
+            if oversized_lifecycle_event is not None:
+                raise ExecutionDecisionJournalError(
+                    "FEE_PAIR_AMOUNT_LIFECYCLE_CORRUPT"
+                )
+
+            claims = cursor.execute(
+                "SELECT * FROM execution_fee_pair_amount_open_reservations ORDER BY candidate_id"
+            ).fetchall()
+            claim_by_id = {}
+            for claim in claims:
+                if claim["candidate_id"] in claim_by_id:
+                    raise ExecutionDecisionJournalError("FEE_PAIR_AMOUNT_LIFECYCLE_CORRUPT")
+                reservation = ExecutionDecisionJournal._fee_pair_amount_reservation_record_in_transaction(
+                    cursor, claim, open_claim=True
+                )
+                claim_by_id[claim["candidate_id"]] = reservation
+
+            legacy_rows = cursor.execute(
+                "SELECT * FROM execution_fee_pair_amount_reservations ORDER BY candidate_id"
+            ).fetchall()
+            legacy_by_id = {row["candidate_id"]: row for row in legacy_rows}
+            if len(legacy_by_id) != len(legacy_rows):
+                raise ExecutionDecisionJournalError("FEE_PAIR_AMOUNT_LIFECYCLE_CORRUPT")
+            if set(claim_by_id).intersection(legacy_by_id):
+                raise ExecutionDecisionJournalError("FEE_PAIR_AMOUNT_LIFECYCLE_CORRUPT")
+            unreleased_legacy_conflict = cursor.execute(
+                """SELECT 1
+                   FROM execution_fee_pair_amount_open_reservations AS o
+                   JOIN execution_fee_pair_amount_reservations AS r
+                     ON r.account_scope=o.account_scope
+                   WHERE NOT EXISTS (
+                       SELECT 1 FROM execution_fee_pair_amount_lifecycle_events AS e
+                       WHERE e.candidate_id=r.candidate_id
+                         AND e.event_sequence=2 AND e.event_kind='RELEASED'
+                   ) LIMIT 1"""
+            ).fetchone()
+            if unreleased_legacy_conflict is not None:
+                raise ExecutionDecisionJournalError("FEE_PAIR_AMOUNT_LIFECYCLE_CORRUPT")
+
+            event_by_candidate = {}
+            events = cursor.execute(
+                "SELECT * FROM execution_fee_pair_amount_lifecycle_events "
+                "ORDER BY candidate_id,event_sequence"
+            ).fetchall()
+            for event in events:
+                candidate_id = event["candidate_id"]
+                if candidate_id not in claim_by_id and candidate_id not in legacy_by_id:
+                    raise ExecutionDecisionJournalError("FEE_PAIR_AMOUNT_LIFECYCLE_CORRUPT")
+                if (
+                    type(event["event_payload_json"]) is not str
+                    or len(event["event_payload_json"].encode("utf-8"))
+                    > _MAX_FEE_PAIR_AMOUNT_LIFECYCLE_EVENT_BYTES
+                ):
+                    raise ExecutionDecisionJournalError(
+                        "FEE_PAIR_AMOUNT_LIFECYCLE_CORRUPT"
+                    )
+                try:
+                    payload = json.loads(event["event_payload_json"])
+                except (TypeError, ValueError) as error:
+                    raise ExecutionDecisionJournalError(
+                        "FEE_PAIR_AMOUNT_LIFECYCLE_CORRUPT"
+                    ) from error
+                if (
+                    type(payload) is not dict
+                    or _canonical_json(payload) != event["event_payload_json"]
+                    or hashlib.sha256(event["event_payload_json"].encode("utf-8")).hexdigest()
+                    != event["event_sha256"]
+                    or event["event_id"]
+                    != _stable_id(
+                        "fee-pair-amount-event",
+                        candidate_id + ":" + str(event["event_sequence"]),
+                    )
+                    or type(event["created_at_ns"]) is not int
+                    or event["created_at_ns"] <= 0
+                ):
+                    raise ExecutionDecisionJournalError("FEE_PAIR_AMOUNT_LIFECYCLE_CORRUPT")
+                bucket = event_by_candidate.setdefault(candidate_id, [])
+                bucket.append(event)
+
+            for candidate_id in set(claim_by_id) | set(legacy_by_id):
+                candidate_events = event_by_candidate.get(candidate_id, [])
+                claim = cursor.execute(
+                    "SELECT * FROM execution_fee_pair_amount_open_reservations WHERE candidate_id=?",
+                    (candidate_id,),
+                ).fetchone()
+                legacy = legacy_by_id.get(candidate_id)
+                if not candidate_events:
+                    # The legacy public v24 API can still record a structure-
+                    # only row on a v25 journal.  Such a row never grants OPEN
+                    # and intentionally has no active hold or lifecycle event.
+                    if claim is not None or cursor.execute(
+                        "SELECT 1 FROM execution_fee_pair_amount_active_holds "
+                        "WHERE candidate_id=?",
+                        (candidate_id,),
+                    ).fetchone() is not None:
+                        raise ExecutionDecisionJournalError(
+                            "FEE_PAIR_AMOUNT_LIFECYCLE_CORRUPT"
+                        )
+                    continue
+                if len(candidate_events) > 2:
+                    raise ExecutionDecisionJournalError("FEE_PAIR_AMOUNT_LIFECYCLE_CORRUPT")
+                first = candidate_events[0]
+                if (
+                    first["event_sequence"] != 1
+                    or first["event_kind"]
+                    != ("RESERVED" if claim is not None else "LEGACY_HELD")
+                ):
+                    raise ExecutionDecisionJournalError("FEE_PAIR_AMOUNT_LIFECYCLE_CORRUPT")
+                source = claim if claim is not None else legacy
+                try:
+                    first_payload = json.loads(first["event_payload_json"])
+                except (TypeError, ValueError) as error:
+                    raise ExecutionDecisionJournalError(
+                        "FEE_PAIR_AMOUNT_LIFECYCLE_CORRUPT"
+                    ) from error
+                expected_first_payload = {
+                    "schema": "backtrader.execution_fee_pair_amount_lifecycle_event.v1",
+                    "candidate_id": candidate_id,
+                    "reservation_sha256": source["reservation_sha256"],
+                    "state": first["event_kind"],
+                }
+                if first["event_kind"] == "LEGACY_HELD":
+                    expected_first_payload["reason"] = "V24_IMMUTABLE_RESERVATION"
+                if first_payload != expected_first_payload:
+                    raise ExecutionDecisionJournalError("FEE_PAIR_AMOUNT_LIFECYCLE_CORRUPT")
+                active = cursor.execute(
+                    "SELECT * FROM execution_fee_pair_amount_active_holds WHERE candidate_id=?",
+                    (candidate_id,),
+                ).fetchone()
+                released = len(candidate_events) == 2
+                if released:
+                    second = candidate_events[1]
+                    try:
+                        release_payload = json.loads(second["event_payload_json"])
+                    except (TypeError, ValueError) as error:
+                        raise ExecutionDecisionJournalError(
+                            "FEE_PAIR_AMOUNT_LIFECYCLE_CORRUPT"
+                        ) from error
+                    if (
+                        second["event_sequence"] != 2
+                        or second["event_kind"] != "RELEASED"
+                        or active is not None
+                        or set(release_payload)
+                        != {
+                            "schema",
+                            "candidate_id",
+                            "reservation_sha256",
+                            "state",
+                            "release_evidence",
+                            "release_evidence_sha256",
+                            "snapshot_id",
+                        }
+                        or release_payload.get("schema")
+                        != "backtrader.execution_fee_pair_amount_lifecycle_event.v1"
+                        or release_payload.get("candidate_id") != candidate_id
+                        or release_payload.get("reservation_sha256")
+                        != source["reservation_sha256"]
+                        or release_payload.get("state") != "RELEASED"
+                        or not _source_sha256(release_payload.get("release_evidence_sha256"))
+                        or not _identifier(release_payload.get("snapshot_id"))
+                        or not isinstance(release_payload.get("release_evidence"), Mapping)
+                        or release_payload.get("snapshot_id")
+                        != release_payload.get("release_evidence", {}).get("snapshot_id")
+                        or claim is None
+                    ):
+                        raise ExecutionDecisionJournalError("FEE_PAIR_AMOUNT_LIFECYCLE_CORRUPT")
+                    ExecutionDecisionJournal._validate_fee_pair_flat_release_evidence_in_transaction(
+                        cursor,
+                        candidate_id=candidate_id,
+                        source_row=source,
+                        open_claim=claim is not None,
+                        evidence=release_payload.get("release_evidence"),
+                        evidence_sha256=release_payload.get("release_evidence_sha256"),
+                    )
+                elif (
+                    active is None
+                    or active["account_scope"] != source["account_scope"]
+                    or active["reservation_sha256"] != source["reservation_sha256"]
+                    or active["created_at_ns"] != first["created_at_ns"]
+                ):
+                    raise ExecutionDecisionJournalError("FEE_PAIR_AMOUNT_LIFECYCLE_CORRUPT")
+
+            active_rows = cursor.execute(
+                "SELECT * FROM execution_fee_pair_amount_active_holds ORDER BY account_scope"
+            ).fetchall()
+            for active in active_rows:
+                if active["candidate_id"] not in event_by_candidate:
+                    raise ExecutionDecisionJournalError("FEE_PAIR_AMOUNT_LIFECYCLE_CORRUPT")
+        except ExecutionDecisionJournalError:
+            raise
+        except (KeyError, TypeError, ValueError, sqlite3.Error) as error:
+            raise ExecutionDecisionJournalError("FEE_PAIR_AMOUNT_LIFECYCLE_SCHEMA_CORRUPT") from error
 
     @staticmethod
     def _validate_registered_sim_cancel_dispatch_claim_schema(
@@ -17079,6 +19638,7 @@ class ExecutionDecisionJournal:
             _REGISTERED_SIM_CANCEL_DISPATCH_CLAIM_SCHEMA_VERSION,
             _FEE_PAIR_GRID_SINGLE_ROW_TAPE_SCHEMA_VERSION,
             _FEE_PAIR_AMOUNT_RESERVATION_SCHEMA_VERSION,
+            _FEE_PAIR_AMOUNT_OPEN_LIFECYCLE_SCHEMA_VERSION,
         ):
             raise ExecutionDecisionJournalError("FEE_PAIR_WORKFLOW_SCHEMA_VERSION_INVALID")
         is_v19 = schema_version >= _FEE_PAIR_GRID_SETTLEMENT_SCHEMA_VERSION
@@ -17809,6 +20369,24 @@ class ExecutionDecisionJournal:
                 "execution_fee_pair_amount_reservations",
                 lambda _row: "BASE",
             )
+        for table in (
+            "execution_fee_pair_amount_open_reservations",
+            "execution_fee_pair_amount_lifecycle_events",
+        ):
+            exists = cursor.execute(
+                "SELECT 1 FROM sqlite_master WHERE type='table' AND name=?", (table,)
+            ).fetchone()
+            if exists is not None:
+                account_rows(table, lambda _row: "BASE")
+        active_hold_table = cursor.execute(
+            "SELECT 1 FROM sqlite_master WHERE type='table' "
+            "AND name='execution_fee_pair_amount_active_holds'"
+        ).fetchone()
+        if active_hold_table is not None:
+            account_rows(
+                "execution_fee_pair_amount_active_holds",
+                lambda _row: "BASE",
+            )
 
         for capacity_class in ("BASE", "SETTLEMENT"):
             changed = cursor.execute(
@@ -17900,6 +20478,7 @@ class ExecutionDecisionJournal:
                 _KNOWN_CTP_ORDER_SYSID_BINDING_SCHEMA_VERSION,
                 _REGISTERED_SIM_CANCEL_DISPATCH_CLAIM_SCHEMA_VERSION,
                 _FEE_PAIR_GRID_SINGLE_ROW_TAPE_SCHEMA_VERSION,
+                _FEE_PAIR_AMOUNT_RESERVATION_SCHEMA_VERSION,
                 self._SCHEMA_VERSION,
             ):
                 raise ExecutionDecisionJournalError("UNSUPPORTED_SCHEMA_VERSION")
@@ -18001,6 +20580,12 @@ class ExecutionDecisionJournal:
                 cursor = self._connection.cursor()
                 try:
                     self._validate_fee_pair_amount_reservation_schema(cursor)
+                finally:
+                    cursor.close()
+            if version >= _FEE_PAIR_AMOUNT_OPEN_LIFECYCLE_SCHEMA_VERSION:
+                cursor = self._connection.cursor()
+                try:
+                    self._validate_fee_pair_amount_open_lifecycle_schema(cursor)
                 finally:
                     cursor.close()
             try:
@@ -18282,6 +20867,7 @@ class ExecutionDecisionJournal:
                     _KNOWN_CTP_ORDER_SYSID_BINDING_SCHEMA_VERSION,
                     _REGISTERED_SIM_CANCEL_DISPATCH_CLAIM_SCHEMA_VERSION,
                     _FEE_PAIR_GRID_SINGLE_ROW_TAPE_SCHEMA_VERSION,
+                    _FEE_PAIR_AMOUNT_RESERVATION_SCHEMA_VERSION,
                     self._SCHEMA_VERSION,
                 ):
                     raise ExecutionDecisionJournalError("UNSUPPORTED_SCHEMA_VERSION")
@@ -18523,6 +21109,8 @@ class ExecutionDecisionJournal:
                                 if locked_version == _REGISTERED_SIM_CANCEL_DISPATCH_CLAIM_SCHEMA_VERSION
                                 else _FEE_PAIR_GRID_SINGLE_ROW_TAPE_SCHEMA_VERSION
                                 if locked_version == _FEE_PAIR_GRID_SINGLE_ROW_TAPE_SCHEMA_VERSION
+                                else _FEE_PAIR_AMOUNT_RESERVATION_SCHEMA_VERSION
+                                if locked_version == _FEE_PAIR_AMOUNT_RESERVATION_SCHEMA_VERSION
                                 else self._SCHEMA_VERSION
                             ),
                         )
@@ -18546,11 +21134,15 @@ class ExecutionDecisionJournal:
                         self._migrate_fee_pair_grid_single_row_tape_v23(cursor)
                     if locked_version < _FEE_PAIR_AMOUNT_RESERVATION_SCHEMA_VERSION:
                         self._migrate_fee_pair_amount_reservation_v24(cursor)
+                    self._validate_fee_pair_amount_reservation_schema(cursor)
+                    if locked_version < _FEE_PAIR_AMOUNT_OPEN_LIFECYCLE_SCHEMA_VERSION:
+                        self._migrate_fee_pair_amount_open_lifecycle_v25(cursor)
                     self._validate_fee_pair_workflow_schema(cursor)
                     self._validate_known_ctp_order_sysid_binding_schema(cursor)
                     self._validate_registered_sim_cancel_dispatch_claim_schema(cursor)
                     self._validate_fee_pair_grid_single_row_tape_schema(cursor)
                     self._validate_fee_pair_amount_reservation_schema(cursor)
+                    self._validate_fee_pair_amount_open_lifecycle_schema(cursor)
                     self._validate_fee_pair_workflow_capacity(cursor)
                 finally:
                     cursor.close()
@@ -18576,6 +21168,10 @@ class ExecutionDecisionJournal:
                 # into v17 receipt/terminal authority. V18 raises only the workflow
                 # candidate JSON bound to the existing source-receipt limit; v16
                 # candidate rows retain their original 16 KiB bound.
+            except DurableCapacityError as error:
+                if self._connection.in_transaction:
+                    self._connection.execute("ROLLBACK")
+                raise ExecutionDecisionJournalError(error.code) from error
             except ExecutionDecisionJournalError:
                 if self._connection.in_transaction:
                     self._connection.execute("ROLLBACK")
@@ -18587,14 +21183,27 @@ class ExecutionDecisionJournal:
             self._validate_callback_delivery_state_on_open()
 
     @contextmanager
-    def _transaction(self) -> Iterator[sqlite3.Cursor]:
+    def _transaction(
+        self, *, before_commit: Optional[Callable[[], None]] = None
+    ) -> Iterator[sqlite3.Cursor]:
         with self._lock:
             self._ensure_writable()
             cursor = self._connection.cursor()
             try:
                 cursor.execute("BEGIN IMMEDIATE")
+                # A source-scoped fee-pair transaction may wait for SQLite's
+                # writer lock. Revalidate as soon as that wait ends, then once
+                # more after the mutation body and immediately before commit.
+                if before_commit is not None:
+                    before_commit()
                 with durable_capacity_transaction(cursor, self.durable_capacity_limits):
                     yield cursor
+                # Some narrowly scoped callers hold an external source lease
+                # across this transaction. Recheck it after SQLite has
+                # acquired its write lock and after the transaction body, but
+                # before COMMIT makes any journal row durable.
+                if before_commit is not None:
+                    before_commit()
                 cursor.execute("COMMIT")
             except DurableCapacityError as error:
                 try:
@@ -18964,6 +21573,24 @@ def _identifier(value: Any) -> bool:
         and value == value.strip()
         and all(character.isascii() and character.isprintable() for character in value)
     )
+
+
+def _fee_pair_release_timestamp(value: Any) -> str:
+    if not isinstance(value, datetime) or value.tzinfo is None or value.utcoffset() is None:
+        raise ValueError("release timestamp must be timezone aware")
+    return value.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
+
+
+def _fee_pair_release_timestamp_parse(value: Any) -> Optional[datetime]:
+    if type(value) is not str or not value.endswith("Z"):
+        return None
+    try:
+        parsed = datetime.fromisoformat(value[:-1] + "+00:00")
+    except ValueError:
+        return None
+    if parsed.tzinfo is None or parsed.utcoffset() is None:
+        return None
+    return parsed.astimezone(timezone.utc)
 
 
 def _source_text(value: Any, limit: int, code: str) -> str:
@@ -19360,6 +21987,16 @@ def _stored_run_loss_decimal(value: Any) -> Decimal:
     return number
 
 
+def _run_loss_evaluation_now(value: Optional[datetime]) -> datetime:
+    """Resolve the caller's freshness clock; wall time is only the default."""
+
+    if value is None:
+        return datetime.now(timezone.utc)
+    if not isinstance(value, datetime) or value.tzinfo is None or value.utcoffset() is None:
+        raise ExecutionDecisionJournalError("RUN_LOSS_GUARD_CLOCK_INVALID")
+    return value.astimezone(timezone.utc)
+
+
 def _require_fresh_run_loss_asof(asof: str, ttl_seconds: int, now: datetime) -> None:
     try:
         observed = _parse_normalized_close_time(asof)
@@ -19714,6 +22351,49 @@ def _fee_pair_candidate_owner_token_hash(owner_token: Any) -> str:
     ):
         raise ExecutionDecisionJournalError("INVALID_FEE_PAIR_CANDIDATE_OWNER_TOKEN")
     return hashlib.sha256(owner_token.encode("utf-8")).hexdigest()
+
+
+def _fee_pair_facts_source_before_commit(
+    facts: Any, source_lease: Any, *, operation: str
+) -> Callable[[], None]:
+    """Return a guard for one exact Store-issued fee-pair source lease.
+
+    The lease object is not an authorization merely because it has a
+    ``require_valid`` method.  The facts module owns the private issuer and
+    checks the exact projection identity plus the operation-specific source
+    dependencies.  The returned callback is installed on the Journal
+    transaction so it runs after BEGIN IMMEDIATE and again immediately before
+    COMMIT while the source scope still holds its locks.
+    """
+
+    if operation not in ("OPEN", "RELEASE") or facts is None or source_lease is None:
+        raise ExecutionDecisionJournalError("FEE_PAIR_SOURCE_BINDING_REQUIRED")
+    try:
+        from .factor_execution_facts import validate_fee_pair_facts_source_lease
+
+        if validate_fee_pair_facts_source_lease(
+            source_lease, facts, operation=operation
+        ) is not True:
+            raise ExecutionDecisionJournalError("FEE_PAIR_SOURCE_BINDING_REQUIRED")
+        source_lease.require_valid()
+    except ExecutionDecisionJournalError:
+        raise
+    except Exception as error:
+        raise ExecutionDecisionJournalError("FEE_PAIR_SOURCE_BINDING_REQUIRED") from error
+
+    def require_current_source() -> None:
+        try:
+            if validate_fee_pair_facts_source_lease(
+                source_lease, facts, operation=operation
+            ) is not True:
+                raise ExecutionDecisionJournalError("FEE_PAIR_SOURCE_BINDING_REQUIRED")
+            source_lease.require_valid()
+        except ExecutionDecisionJournalError:
+            raise
+        except Exception as error:
+            raise ExecutionDecisionJournalError("FEE_PAIR_SOURCE_BINDING_REQUIRED") from error
+
+    return require_current_source
 
 
 def _fee_pair_age_seconds(value: Any, error_code: str) -> float:

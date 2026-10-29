@@ -27,6 +27,9 @@ from backtrader.stores.execution_decision_journal import (
     _source_receipt_sha256,
     _source_receipt_values,
 )
+from tests.test_utils.execution_journal_schema import (
+    drop_empty_fee_pair_tables_from_version,
+)
 
 
 _ACCOUNT = "source-account"
@@ -38,75 +41,7 @@ _SOURCE_REF = "ctp-live"
 _BASE = datetime(2026, 10, 26, 9, 0, tzinfo=timezone.utc)
 
 
-def _drop_empty_fee_pair_tables_from_version(
-    connection: sqlite3.Connection, first_version: int
-) -> None:
-    """Drop only empty fee-pair tables added at or after ``first_version``."""
-
-    versioned_tables = (
-        (24, ("execution_fee_pair_amount_reservations",)),
-        (
-            23,
-            (
-                "execution_fee_pair_legacy_unresolved_v23",
-                "execution_fee_pair_grid_single_row_tape_intents",
-            ),
-        ),
-        (
-            22,
-            (
-                "execution_registered_sim_cancel_dispatch_tombstones",
-                "execution_registered_sim_cancel_dispatch_claims",
-            ),
-        ),
-        (21, ("execution_known_ctp_order_sysid_bindings",)),
-        (19, ("execution_fee_pair_workflow_grid_settlements",)),
-        (
-            17,
-            (
-                "execution_fee_pair_workflow_decision_reservations",
-                "execution_fee_pair_workflow_durable_reservations",
-                "execution_fee_pair_workflow_events",
-                "execution_fee_pair_workflows",
-            ),
-        ),
-        (
-            16,
-            (
-                "execution_fee_pair_candidate_capacity_reservations",
-                "execution_fee_pair_candidate_events",
-                "execution_fee_pair_candidates",
-            ),
-        ),
-        (
-            15,
-            (
-                "execution_fee_pair_scope_events",
-                "execution_fee_pair_required_scopes",
-            ),
-        ),
-    )
-    tables = tuple(
-        table
-        for version, names in versioned_tables
-        if version >= first_version
-        for table in names
-    )
-    existing = {
-        row[0]
-        for row in connection.execute(
-            "SELECT name FROM sqlite_master WHERE type='table'"
-        ).fetchall()
-    }
-    present = tuple(name for name in tables if name in existing)
-    for name in present:
-        if not name.isidentifier():
-            raise AssertionError("unexpected schema table name")
-        count = connection.execute('SELECT COUNT(*) FROM "{}"'.format(name)).fetchone()[0]
-        if type(count) is not int or count != 0:
-            raise AssertionError("cannot downgrade nonempty schema table: {}".format(name))
-    for name in present:
-        connection.execute('DROP TABLE "{}"'.format(name))
+_drop_empty_fee_pair_tables_from_version = drop_empty_fee_pair_tables_from_version
 
 
 def _time(value: datetime) -> str:

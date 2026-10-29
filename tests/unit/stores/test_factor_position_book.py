@@ -33,6 +33,9 @@ from backtrader.stores.factor_position_book import (
     _derive_dated_owner_lots,
     validate_factor_position_close_owner,
 )
+from tests.test_utils.execution_journal_schema import (
+    drop_empty_fee_pair_tables_from_version,
+)
 
 
 _ACCOUNT = "sim-account"
@@ -845,9 +848,8 @@ def test_v4_upgrade_preserves_fills_and_leaves_epoch_unproven(tmp_path):
     # A v4 position-book schema can only coexist with a pre-v12 journal.
     # Model that supported upgrade sequence instead of retaining a v12 ledger
     # beside an impossible old book schema.
+    drop_empty_fee_pair_tables_from_version(connection, first_version=15)
     for table in (
-        "execution_fee_pair_scope_events",
-        "execution_fee_pair_required_scopes",
         "execution_source_highwaters",
         "execution_run_loss_guards",
         "execution_durable_capacity_usage",

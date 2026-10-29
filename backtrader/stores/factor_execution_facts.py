@@ -19,9 +19,11 @@ import json
 import struct
 import threading
 import time
+import weakref
 from collections import defaultdict
 from collections.abc import Mapping
-from dataclasses import dataclass, replace
+from contextlib import ExitStack, contextmanager
+from dataclasses import dataclass, field, replace
 from datetime import datetime, timedelta, timezone
 from decimal import (
     Context,
@@ -36,7 +38,13 @@ from decimal import (
 from typing import Any, Callable, List, Optional, Tuple
 from types import MappingProxyType
 
-from .registered_sim import RegisteredSimStore
+from .registered_sim import (
+    RegisteredSimStore,
+    _canonical_sdk_session_getters,
+    _query_snapshot_key,
+    _session_scope_state_snapshot,
+)
+from .btapistore import _contract_metadata_aliases
 
 _BASE_FAMILIES = (
     "account_result",
@@ -74,6 +82,59 @@ _ACCOUNT_PNL_MAX_COEFFICIENT_DIGITS = 64
 _ACCOUNT_PNL_MAX_ABSOLUTE_EXPONENT = 1024
 _ACCOUNT_PNL_MAX_PRECISION = 1024
 _THREADING_EVENT_TYPE = type(threading.Event())
+_SOURCE_TICK_UNSET = object()
+_SOURCE_STREAM_STATE_UNSET = object()
+
+class FactorExecutionFactsSourceError(RuntimeError):
+    """A projected facts object is not current under its issuing Store."""
+
+
+@dataclass(frozen=True)
+class _FactorExecutionFactsProjectionSource:
+    """Small, per-projection identity stamp; it never retains cache rows."""
+
+    facts_ref: Any
+    store_ref: Any
+    broker_ref: Any
+    api_ref: Any
+    client_ref: Any
+    query_lock: Any
+    store_gate_lock: Any
+    wrapper_lock: Any
+    latest_tick_lock: Any
+    session_lock: Any
+    issuer: Any
+    connection_generation: int
+    account_fingerprint: str
+    trading_day: str
+    broker_id: str
+    investor_id: str
+    front_id: int
+    session_id: int
+    projected_at: datetime
+    captured_monotonic: float
+    max_query_age: timedelta
+    quote_max_age: timedelta
+    thread_id: int
+    targets: Tuple[Tuple[str, str, str, Any], ...]
+    core_entries: Tuple[Tuple[str, Any, int], ...]
+
+
+class _FactorExecutionFactsSourceLease:
+    """Commit-time recheck callable yielded by one explicit operation scope."""
+
+    def __init__(self, operation: str, check: Callable[[], bool]):
+        self._operation = operation
+        self._check = check
+
+    def is_for_operation(self, operation: str) -> bool:
+        return operation == self._operation
+
+    def require_valid(self) -> None:
+        """Raise unless the same source is still valid immediately before commit."""
+
+        if self._check() is not True:
+            raise FactorExecutionFactsSourceError("factor_execution_facts_source_stale")
 
 
 def _freeze_json_payload(value: Any) -> Any:
@@ -644,6 +705,10 @@ class FactorExecutionFacts:
     execution_target_ids: Optional[Tuple[str, ...]] = None
     commission_required_for_open: bool = False
     execution_intents: Tuple[FactorExecutionIntentFacts, ...] = ()
+    # The private source stamp is installed only by the live projection path.
+    # ``init=False`` deliberately makes dataclasses.replace()/constructors
+    # lose authority instead of copying a valid source binding.
+    _source_projection: Any = field(default=None, init=False, repr=False, compare=False)
 
     def __post_init__(self) -> None:
         execution_intents = self.execution_intents
@@ -1241,6 +1306,1276 @@ class FactorExecutionFacts:
             and len(self.route_eligibilities) == len(self.positions)
         )
 
+
+def _factor_facts_source_marker(facts: Any) -> Optional[_FactorExecutionFactsProjectionSource]:
+    if type(facts) is not FactorExecutionFacts:
+        return None
+    marker = getattr(facts, "_source_projection", None)
+    if (
+        type(marker) is not _FactorExecutionFactsProjectionSource
+        or _source_deref(marker.facts_ref) is not facts
+    ):
+        return None
+    return marker
+
+
+def _current_source_context(client: Any):
+    try:
+        return _session_scope_state_snapshot(client)
+    except Exception:
+        return None
+
+
+def _source_session_identity(client: Any):
+    context = _current_source_context(client)
+    if context is None:
+        return None
+    scope, state = context
+    values = (
+        scope.get("issuer"),
+        scope.get("connection_generation"),
+        scope.get("account_fingerprint"),
+        scope.get("trading_day"),
+        scope.get("broker_id"),
+        scope.get("investor_id"),
+        state.get("front_id"),
+        state.get("session_id"),
+    )
+    issuer, generation, account, day, broker_id, investor_id, front_id, session_id = values
+    if not (
+        scope.get("read_only_ready") is True
+        and issuer is not None
+        and type(generation) is int
+        and generation > 0
+        and type(account) is str
+        and account
+        and account == account.strip()
+        and type(day) is str
+        and len(day) == 8
+        and day.isdigit()
+        and type(broker_id) is str
+        and broker_id
+        and broker_id == broker_id.strip()
+        and type(investor_id) is str
+        and investor_id
+        and investor_id == investor_id.strip()
+        and type(front_id) is int
+        and front_id > 0
+        and type(session_id) is int
+        and session_id > 0
+    ):
+        return None
+    return values
+
+
+def _source_lock_is(lock: Any, *, reentrant: bool = True) -> bool:
+    expected = type(threading.RLock()) if reentrant else type(threading.Lock())
+    return type(lock) is expected and callable(getattr(lock, "acquire", None))
+
+
+def _source_ref(value: Any):
+    try:
+        return weakref.ref(value)
+    except TypeError:
+        return None
+
+
+def _source_deref(reference: Any):
+    try:
+        return reference() if callable(reference) else None
+    except Exception:
+        return None
+
+
+def _source_objects(marker: _FactorExecutionFactsProjectionSource):
+    return tuple(
+        _source_deref(reference)
+        for reference in (
+            marker.store_ref,
+            marker.broker_ref,
+            marker.api_ref,
+            marker.client_ref,
+        )
+    )
+
+
+def _base_query_facts_by_family(facts: FactorExecutionFacts):
+    result = {
+        item.family: item
+        for item in facts.query_provenance
+        if item.family in _BASE_FAMILIES and item.target_id is None
+    }
+    if len(result) != len(_BASE_FAMILIES) or set(result) != set(_BASE_FAMILIES):
+        return None
+    for family, item in result.items():
+        if not (
+            item.request_type == _REQUEST_TYPES[family]
+            and type(item.request_id) is int
+            and item.request_id > 0
+            and item.source_owned is True
+            and item.query_complete is True
+            and item.scope_complete is True
+            and type(item.row_count) is int
+            and item.row_count >= 0
+            and _aware_utc(item.started_at) is not None
+            and _aware_utc(item.completed_at) is not None
+            and item.started_at <= item.completed_at
+        ):
+            return None
+    return result
+
+
+def _query_set_id_from_facts(facts: FactorExecutionFacts) -> Optional[str]:
+    by_family = _base_query_facts_by_family(facts)
+    if by_family is None:
+        return None
+    ordered = tuple(by_family[family] for family in _BASE_FAMILIES)
+    generations = {item.connection_generation for item in ordered}
+    accounts = {item.account_fingerprint for item in ordered}
+    days = {item.trading_day for item in ordered}
+    request_ids = {item.request_id for item in ordered}
+    if len(generations) != 1 or len(accounts) != 1 or len(days) != 1 or len(request_ids) != 5:
+        return None
+    generation, account, day = next(iter(generations)), next(iter(accounts)), next(iter(days))
+    if (
+        type(generation) is not int
+        or generation <= 0
+        or type(account) is not str
+        or not account
+        or type(day) is not str
+        or len(day) != 8
+        or not day.isdigit()
+    ):
+        return None
+    started = min(item.started_at for item in ordered)
+    completed = max(item.completed_at for item in ordered)
+    ids = tuple((family, by_family[family].request_id) for family in _BASE_FAMILIES)
+    return _query_set_identifier(account, generation, day, started, completed, ids)
+
+
+def _source_entry_matches(
+    entry: Any,
+    family: str,
+    fact: FactorExecutionQueryFact,
+    *,
+    issuer: Any,
+    generation: int,
+    account: str,
+    trading_day: str,
+    broker_id: str,
+    investor_id: str,
+    unfiltered: bool,
+    max_age: timedelta,
+    now: datetime,
+    elapsed: float,
+) -> bool:
+    if not isinstance(entry, Mapping):
+        return False
+    expiry = entry.get("source_expires_monotonic")
+    rows = entry.get("rows")
+    completed = _aware_utc(fact.completed_at)
+    age = now - completed + timedelta(seconds=elapsed) if completed is not None else None
+    return bool(
+        entry.get("family") == family
+        and entry.get("request_type") == _REQUEST_TYPES.get(family)
+        and entry.get("expected_request_type") == _REQUEST_TYPES.get(family)
+        and entry.get("query_complete") is True
+        and entry.get("scope_complete") is unfiltered
+        and entry.get("source_owned") is True
+        and entry.get("source_session_identity_valid") is True
+        and entry.get("_source_issuer") is issuer
+        and entry.get("_source_broker_id") == broker_id
+        and entry.get("_source_investor_id") == investor_id
+        and entry.get("request_id") == fact.request_id
+        and entry.get("connection_generation") == generation
+        and entry.get("account_fingerprint") == account
+        and entry.get("trading_day") == trading_day
+        and _aware_utc(entry.get("started_at_utc")) == _aware_utc(fact.started_at)
+        and _aware_utc(entry.get("completed_at_utc")) == completed
+        and type(expiry) in (int, float)
+        and math.isfinite(expiry)
+        and time.monotonic() < expiry
+        and type(rows) is list
+        and len(rows) == fact.row_count
+        and (not unfiltered or entry.get("source_explicit_request_filters") == ())
+        and age is not None
+        and timedelta(0) <= age <= max_age
+    )
+
+
+def _source_stamp_projection(
+    facts: FactorExecutionFacts,
+    store: RegisteredSimStore,
+    broker: Any,
+    *,
+    now: datetime,
+    quote_max_age: timedelta,
+    max_query_age: timedelta,
+    targets: Tuple[FactorExecutionTarget, ...],
+) -> None:
+    """Stamp five source request IDs without retaining rows or global records."""
+    if (
+        type(facts) is not FactorExecutionFacts
+        or not isinstance(store, RegisteredSimStore)
+        or getattr(broker, "store", None) is not store
+        or facts.snapshot_id is None
+        or facts.account is None
+        or facts.available_at is None
+        or _query_set_id_from_facts(facts) != facts.query_set_id
+    ):
+        return
+    api = getattr(store, "_api", None)
+    client = getattr(api, "trader_client", None) if api is not None else None
+    query_lock = getattr(store, "_ctp_query_result_lock", None)
+    store_gate_lock = getattr(store, "_registered_sim_gate_lock", None)
+    wrapper_lock = getattr(api, "_registered_sim_lock", None)
+    latest_tick_lock = getattr(store, "_latest_tick_lock", None)
+    query_cache = getattr(store, "_ctp_query_snapshots", None)
+    query_results = getattr(store, "_ctp_query_results", None)
+    commission_cache = getattr(store, "_ctp_commission_query_snapshots", None)
+    if not (
+        client is not None
+        and _source_lock_is(query_lock)
+        and _source_lock_is(store_gate_lock)
+        and _source_lock_is(wrapper_lock)
+        and _source_lock_is(latest_tick_lock, reentrant=False)
+        and isinstance(query_cache, Mapping)
+        and isinstance(query_results, Mapping)
+        and isinstance(commission_cache, Mapping)
+    ):
+        return
+    exact = _canonical_sdk_session_getters(client)
+    session_lock = exact[2] if exact is not None else None
+    if session_lock is None or not _source_lock_is(session_lock):
+        return
+    query_fact_map = _base_query_facts_by_family(facts)
+    if query_fact_map is None:
+        return
+
+    def capture(identity):
+        if (
+            getattr(store, "_api", None) is not api
+            or getattr(api, "trader_client", None) is not client
+            or getattr(store, "_ctp_query_result_lock", None) is not query_lock
+            or getattr(store, "_ctp_query_snapshots", None) is not query_cache
+            or getattr(store, "_ctp_query_results", None) is not query_results
+            or getattr(store, "_ctp_commission_query_snapshots", None) is not commission_cache
+        ):
+            return None
+        if identity is None:
+            return None
+        issuer, generation, account, day, broker_id, investor_id, front_id, session_id = identity
+        if not (
+            facts.account.account_fingerprint == account
+            and facts.account.connection_generation == generation
+            and facts.account.trading_day == day
+        ):
+            return None
+        entries = []
+        for family in _BASE_FAMILIES:
+            fact = query_fact_map[family]
+            key = _query_snapshot_key(family, {})
+            entry = query_cache.get(key)
+            if (
+                not _source_entry_matches(
+                    entry,
+                    family,
+                    fact,
+                    issuer=issuer,
+                    generation=generation,
+                    account=account,
+                    trading_day=day,
+                    broker_id=broker_id,
+                    investor_id=investor_id,
+                    unfiltered=True,
+                    max_age=max_query_age,
+                    now=now,
+                    elapsed=0.0,
+                )
+                or query_results.get(family) is not entry
+            ):
+                return None
+            entries.append((family, key, fact.request_id))
+        store_ref = _source_ref(store)
+        broker_ref = _source_ref(broker)
+        api_ref = _source_ref(api)
+        client_ref = _source_ref(client)
+        if any(value is None for value in (store_ref, broker_ref, api_ref, client_ref)):
+            return None
+        facts_ref = _source_ref(facts)
+        target_refs = tuple(
+            (
+                target.target_id,
+                target.instrument,
+                target.exchange,
+                _source_ref(target),
+            )
+            for target in targets
+        )
+        if facts_ref is None or any(
+            target_ref is None
+            for _target_id, _instrument, _exchange, target_ref in target_refs
+        ):
+            return None
+        return _FactorExecutionFactsProjectionSource(
+            facts_ref=facts_ref,
+            store_ref=store_ref,
+            broker_ref=broker_ref,
+            api_ref=api_ref,
+            client_ref=client_ref,
+            query_lock=query_lock,
+            store_gate_lock=store_gate_lock,
+            wrapper_lock=wrapper_lock,
+            latest_tick_lock=latest_tick_lock,
+            session_lock=session_lock,
+            issuer=issuer,
+            connection_generation=generation,
+            account_fingerprint=account,
+            trading_day=day,
+            broker_id=broker_id,
+            investor_id=investor_id,
+            front_id=front_id,
+            session_id=session_id,
+            projected_at=_aware_utc(now),
+            captured_monotonic=time.monotonic(),
+            max_query_age=max_query_age,
+            quote_max_age=quote_max_age,
+            thread_id=threading.get_ident(),
+            targets=target_refs,
+            core_entries=tuple(entries),
+        )
+
+    try:
+        # Do not nest these locks in the generic per-projection path. The
+        # Store has a query->session receipt path as well as a gated
+        # session->query dispatch path; the sparse operation scope serializes
+        # those with the Store gate before it takes either lock.
+        with session_lock:
+            identity = _source_session_identity(client)
+        with query_lock:
+            marker = capture(identity)
+    except Exception:
+        marker = None
+    if marker is not None:
+        object.__setattr__(facts, "_source_projection", marker)
+
+
+def _projection_source_is_current(
+    facts: Any,
+    store: Any,
+    broker: Any,
+    *,
+    now: Any,
+    marker: _FactorExecutionFactsProjectionSource,
+    max_query_age: timedelta,
+    require_canonical: bool,
+) -> bool:
+    now_utc = _aware_utc(now)
+    source_store, source_broker, source_api, source_client = _source_objects(marker)
+    if any(value is None for value in (source_store, source_broker, source_api, source_client)):
+        return False
+    query_cache = getattr(source_store, "_ctp_query_snapshots", None)
+    query_results = getattr(source_store, "_ctp_query_results", None)
+    commission_cache = getattr(source_store, "_ctp_commission_query_snapshots", None)
+    if (
+        now_utc is None
+        or now_utc < marker.projected_at
+        or threading.get_ident() != marker.thread_id
+        or source_store is not store
+        or source_broker is not broker
+        or getattr(broker, "store", None) is not store
+        or getattr(store, "_api", None) is not source_api
+        or getattr(source_api, "trader_client", None) is not source_client
+        or getattr(store, "_registered_sim_gate_lock", None) is not marker.store_gate_lock
+        or getattr(source_api, "_registered_sim_lock", None) is not marker.wrapper_lock
+        or getattr(store, "_latest_tick_lock", None) is not marker.latest_tick_lock
+        or getattr(store, "_ctp_query_result_lock", None) is not marker.query_lock
+        or not isinstance(query_cache, Mapping)
+        or not isinstance(query_results, Mapping)
+        or not isinstance(commission_cache, Mapping)
+        or max_query_age <= timedelta(0)
+        or max_query_age > marker.max_query_age
+        or facts.snapshot_id is None
+        or facts.account is None
+        or facts.available_at is None
+        or facts.account.snapshot_id != facts.snapshot_id
+        or _aware_utc(facts.account.available_at) != _aware_utc(facts.available_at)
+        or _query_set_id_from_facts(facts) != facts.query_set_id
+    ):
+        return False
+    exact = _canonical_sdk_session_getters(source_client)
+    session_lock = exact[2] if exact is not None else None
+    if require_canonical and (session_lock is None or session_lock is not marker.session_lock):
+        return False
+    if marker.session_lock is not None and session_lock is not marker.session_lock:
+        return False
+    identity = _source_session_identity(source_client)
+    if identity != (
+        marker.issuer,
+        marker.connection_generation,
+        marker.account_fingerprint,
+        marker.trading_day,
+        marker.broker_id,
+        marker.investor_id,
+        marker.front_id,
+        marker.session_id,
+    ):
+        return False
+    account = facts.account
+    if not (
+        account.account_fingerprint == marker.account_fingerprint
+        and account.connection_generation == marker.connection_generation
+        and account.trading_day == marker.trading_day
+        and facts.available_at <= now_utc
+    ):
+        return False
+    by_family = _base_query_facts_by_family(facts)
+    if by_family is None or len(marker.core_entries) != len(_BASE_FAMILIES):
+        return False
+    elapsed = time.monotonic() - marker.captured_monotonic
+    if not math.isfinite(elapsed) or elapsed < 0:
+        return False
+    source_entries = {family: (key, request_id) for family, key, request_id in marker.core_entries}
+    for family in _BASE_FAMILIES:
+        pair = source_entries.get(family)
+        if pair is None:
+            return False
+        key, request_id = pair
+        fact = by_family[family]
+        entry = query_cache.get(key)
+        if (
+            key != _query_snapshot_key(family, {})
+            or request_id != fact.request_id
+            or query_results.get(family) is not entry
+            or not _source_entry_matches(
+                entry,
+                family,
+                fact,
+                issuer=marker.issuer,
+                generation=marker.connection_generation,
+                account=marker.account_fingerprint,
+                trading_day=marker.trading_day,
+                broker_id=marker.broker_id,
+                investor_id=marker.investor_id,
+                unfiltered=True,
+                max_age=max_query_age,
+                now=now_utc,
+                elapsed=elapsed,
+            )
+        ):
+            return False
+    return True
+
+
+def _selected_pair_targets(
+    marker: _FactorExecutionFactsProjectionSource,
+    facts: FactorExecutionFacts,
+    targets: Any,
+) -> Optional[Tuple[FactorExecutionTarget, FactorExecutionTarget]]:
+    if type(targets) is not tuple or len(targets) != 2:
+        return None
+    if any(type(target) is not FactorExecutionTarget for target in targets):
+        return None
+    source_by_id = {record[0]: record for record in marker.targets}
+    ids = tuple(target.target_id for target in targets)
+    if (
+        len(set(ids)) != 2
+        or len({target.instrument for target in targets}) != 2
+        or any(
+            (record := source_by_id.get(target.target_id)) is None
+            or record[1] != target.instrument
+            or record[2] != target.exchange
+            or _source_deref(record[3]) is not target
+            for target in targets
+        )
+        or facts.target_ids != tuple(record[0] for record in marker.targets)
+        or facts.execution_target_ids is None
+        or not set(ids).issubset(set(facts.execution_target_ids))
+    ):
+        return None
+    return targets
+
+
+def _all_broker_positions_match(
+    facts: FactorExecutionFacts,
+    marker: _FactorExecutionFactsProjectionSource,
+) -> bool:
+    _store, broker, _api, _client = _source_objects(marker)
+    method = getattr(broker, "execution_position_snapshot", None)
+    if not callable(method):
+        return False
+    positions = {item.target_id: item for item in facts.positions if item.target_id is not None}
+    if len(positions) != len(marker.targets):
+        return False
+    try:
+        for record in marker.targets:
+            target = _source_deref(record[3])
+            if target is None:
+                return False
+            projected = positions.get(target.target_id)
+            if projected is None:
+                return False
+            snapshot = method(target.data)
+            quantity = _decimal(_field(snapshot, "quantity"))
+            long_quantity = _decimal(_field(snapshot, "long_quantity"), nonnegative=True)
+            short_quantity = _decimal(_field(snapshot, "short_quantity"), nonnegative=True)
+            if not (
+                snapshot is not None
+                and _field(snapshot, "instrument_id") == target.instrument
+                and _field(snapshot, "exchange_id") == target.exchange
+                and _field(snapshot, "data_name") == broker._position_key(target.data)
+                and quantity is not None
+                and long_quantity is not None
+                and short_quantity is not None
+                and projected.quantity == quantity
+                and projected.broker_quantity == quantity
+                and projected.long_quantity == long_quantity
+                and projected.short_quantity == short_quantity
+                and projected.snapshot_id == facts.snapshot_id
+                and _aware_utc(projected.available_at) == _aware_utc(facts.available_at)
+            ):
+                return False
+    except Exception:
+        return False
+    return True
+
+
+def _all_broker_orders_match(
+    facts: FactorExecutionFacts,
+    marker: _FactorExecutionFactsProjectionSource,
+) -> bool:
+    _store, broker, _api, _client = _source_objects(marker)
+    method = getattr(broker, "execution_order_snapshot", None)
+    if not callable(method):
+        return False
+    try:
+        snapshots = method()
+    except Exception:
+        return False
+    if type(snapshots) is not tuple or len(snapshots) != len(facts.working_orders):
+        return False
+    projected = {item.broker_order_ref: item for item in facts.working_orders}
+    if (
+        len(projected) != len(facts.working_orders)
+        or len(projected) != len(snapshots)
+        or any(type(key) is not int or key <= 0 for key in projected)
+    ):
+        return False
+    try:
+        for snapshot in snapshots:
+            item = projected.get(_field(snapshot, "order_ref"))
+            if item is None or not (
+                _field(snapshot, "instrument_id") == item.instrument
+                and _field(snapshot, "exchange_id") == item.exchange
+                and _remote_ref(_field(snapshot, "external_order_ref")) == item.order_ref
+                and _field(snapshot, "order_sys_id") == item.order_sys_id
+                and _field(snapshot, "side") == item.side
+                and _field(snapshot, "position_effect") == item.position_effect
+                and _decimal(_field(snapshot, "remaining_quantity"), nonnegative=True)
+                == item.remaining_quantity
+                and _field(snapshot, "owner_strategy_scope") == item.owner_strategy_scope
+                and _field(snapshot, "owner_intent_id") == item.owner_intent_id
+                and _field(snapshot, "execution_unknown") == item.execution_unknown
+                and _field(snapshot, "cancel_pending") == item.cancel_pending
+                and _field(snapshot, "front_id") == item.front_id
+                and _field(snapshot, "session_id") == item.session_id
+            ):
+                return False
+    except Exception:
+        return False
+    return True
+
+
+def _source_sidecar_entry(
+    facts: FactorExecutionFacts,
+    marker: _FactorExecutionFactsProjectionSource,
+    target: FactorExecutionTarget,
+    family: str,
+    *,
+    now: datetime,
+    max_query_age: timedelta,
+):
+    query_fact = next(
+        (
+            item
+            for item in facts.query_provenance
+            if item.family == family and item.target_id == target.target_id
+        ),
+        None,
+    )
+    if query_fact is None:
+        return None
+    if family == "instrument_margin_rate_result":
+        filters = {
+            "instrument_id": target.instrument,
+            "exchange_id": target.exchange,
+            "hedge_flag": "1",
+        }
+        store, _broker, _api, _client = _source_objects(marker)
+        cache = getattr(store, "_ctp_query_snapshots", None)
+        max_age = max_query_age
+    elif family == "instrument_commission_rate_result":
+        filters = {"instrument_id": target.instrument, "exchange_id": target.exchange}
+        store, _broker, _api, _client = _source_objects(marker)
+        cache = getattr(store, "_ctp_commission_query_snapshots", None)
+        max_age = min(max_query_age, timedelta(seconds=30))
+    else:
+        return None
+    entry = cache.get(_query_snapshot_key(family, filters))
+    elapsed = time.monotonic() - marker.captured_monotonic
+    if not math.isfinite(elapsed) or elapsed < 0:
+        return None
+    if not _source_entry_matches(
+        entry,
+        family,
+        query_fact,
+        issuer=marker.issuer,
+        generation=marker.connection_generation,
+        account=marker.account_fingerprint,
+        trading_day=marker.trading_day,
+        broker_id=marker.broker_id,
+        investor_id=marker.investor_id,
+        unfiltered=False,
+        max_age=max_age,
+        now=now,
+        elapsed=elapsed,
+    ):
+        return None
+    return entry, query_fact
+
+
+def _source_scope_lock_order(
+    marker: _FactorExecutionFactsProjectionSource, operation: str
+):
+    if operation == "RELEASE":
+        return (
+            (marker.store_gate_lock, True),
+            (marker.wrapper_lock, True),
+            (marker.query_lock, True),
+            (marker.session_lock, True),
+        )
+    if operation == "OPEN":
+        return (
+            (marker.store_gate_lock, True),
+            (marker.wrapper_lock, True),
+            (marker.query_lock, True),
+            (marker.session_lock, True),
+            (marker.latest_tick_lock, False),
+        )
+    raise FactorExecutionFactsSourceError("factor_execution_facts_source_operation_invalid")
+
+
+@contextmanager
+def _hold_fee_pair_source_locks(
+    marker: _FactorExecutionFactsProjectionSource, operation: str
+):
+    if threading.get_ident() != marker.thread_id:
+        raise FactorExecutionFactsSourceError("factor_execution_facts_source_thread_changed")
+    with ExitStack() as stack:
+        seen = set()
+        for lock, reentrant in _source_scope_lock_order(marker, operation):
+            if lock is None or id(lock) in seen or not _source_lock_is(lock, reentrant=reentrant):
+                raise FactorExecutionFactsSourceError("factor_execution_facts_source_lock_unavailable")
+            seen.add(id(lock))
+            try:
+                acquired = lock.acquire(timeout=0.25)
+            except Exception:
+                acquired = False
+            if not acquired:
+                raise FactorExecutionFactsSourceError("factor_execution_facts_source_lock_busy")
+            stack.callback(lock.release)
+        yield
+
+
+def _current_route_matches(
+    marker: _FactorExecutionFactsProjectionSource,
+    target: FactorExecutionTarget,
+    projected: FactorExecutionRouteFacts,
+) -> bool:
+    """Rebuild the small route projection while its Store/SDK locks are held."""
+
+    blockers: List[str] = []
+    store, _broker, _api, _client = _source_objects(marker)
+    try:
+        current = _route_fact(
+            store,
+            target,
+            query_identity=(
+                marker.connection_generation,
+                marker.trading_day,
+                marker.account_fingerprint,
+            ),
+            blockers=blockers,
+        )
+    except Exception:
+        return False
+    return bool(
+        not blockers
+        and current == projected
+        and current.eligible is True
+        and current.allow_writes is True
+        and current.frozen is False
+        and current.sdk_frozen is False
+        and current.instrument_query_complete is True
+        and current.instrument_eligible is True
+        and current.unknown_order_count == 0
+        and current.dispatching_order_count == 0
+        and current.connection_generation == marker.connection_generation
+        and current.trading_day == marker.trading_day
+        and current.current_session_account_fingerprint == marker.account_fingerprint
+        and current.current_session_connection_generation == marker.connection_generation
+        and current.current_session_trading_day == marker.trading_day
+        and current.current_session_trading_ready is True
+        and current.current_session_front_id == marker.front_id
+        and current.current_session_id == marker.session_id
+    )
+
+
+def _account_wide_execution_state_is_clear(
+    marker: _FactorExecutionFactsProjectionSource,
+) -> bool:
+    store, _broker, api, _client = _source_objects(marker)
+    method = getattr(api, "registered_sim_execution_facts", None)
+    if not callable(method):
+        return False
+    try:
+        state = method()
+    except Exception:
+        return False
+    return bool(
+        isinstance(state, Mapping)
+        and state.get("observed") is True
+        and state.get("frozen") is False
+        and type(state.get("unknown_ids")) is list
+        and not state.get("unknown_ids")
+        and type(state.get("dispatching_order_ids")) is list
+        and not state.get("dispatching_order_ids")
+        and getattr(store, "_api", None) is api
+    )
+
+
+def _latest_tick_snapshot_while_locked(store: RegisteredSimStore, instrument: str):
+    """Return one copied/stamped tick while the caller holds the Store tick lock."""
+
+    rows = getattr(store, "_latest_ticks", None)
+    if not isinstance(rows, Mapping):
+        return None
+    aliases = _contract_metadata_aliases(instrument)
+    for alias in aliases:
+        if alias in rows:
+            return store._stamp_registered_sim_tick_source(rows[alias])
+    alias_set = set(aliases)
+    for key, tick in rows.items():
+        try:
+            if alias_set.intersection(_contract_metadata_aliases(key)):
+                return store._stamp_registered_sim_tick_source(tick)
+        except Exception:
+            continue
+    return None
+
+
+def _margin_source_matches_projection(
+    target: FactorExecutionTarget,
+    instrument: FactorExecutionInstrumentFacts,
+    quote: FactorExecutionQuoteFacts,
+    margin_entry: Mapping,
+) -> bool:
+    blockers: List[str] = []
+    rates = _margin_rates(
+        margin_entry.get("rows"), target.instrument, target.exchange, blockers
+    )
+    multiplier = instrument.risk_multiplier_upper
+    if multiplier is None and instrument.multiplier is not None:
+        multiplier = _risk_fact_float_envelope(instrument.multiplier, upward=True)
+    prices = tuple(
+        value
+        for value in (quote.risk_bid_upper, quote.risk_ask_upper)
+        if value is not None
+    )
+    mark = max(prices) if len(prices) == 2 else None
+    if rates is None or multiplier is None or mark is None or blockers:
+        return False
+    long_money, long_volume, short_money, short_volume = rates
+    long_notional = _risk_fact_product_upper(mark, multiplier, long_money)
+    short_notional = _risk_fact_product_upper(mark, multiplier, short_money)
+    long_margin = (
+        _risk_fact_sum_upper(long_notional, long_volume)
+        if long_notional is not None
+        else None
+    )
+    short_margin = (
+        _risk_fact_sum_upper(short_notional, short_volume)
+        if short_notional is not None
+        else None
+    )
+    return bool(
+        long_margin is not None
+        and short_margin is not None
+        and long_margin > 0
+        and short_margin > 0
+        and instrument.long_margin_per_hand == long_margin
+        and instrument.short_margin_per_hand == short_margin
+    )
+
+
+def _open_source_matches(
+    facts: FactorExecutionFacts,
+    marker: _FactorExecutionFactsProjectionSource,
+    targets: Tuple[FactorExecutionTarget, ...],
+    *,
+    now: datetime,
+    max_query_age: timedelta,
+    quote_max_age: timedelta,
+    sidecar_entries: Tuple[Tuple[str, str, Any], ...],
+) -> bool:
+    store, _broker, _api, _client = _source_objects(marker)
+    instruments = {item.target_id: item for item in facts.instruments}
+    routes = {item.target_id: item for item in facts.route_eligibilities}
+    quotes = {item.instrument: item for item in facts.quotes}
+    selected_ids = {target.target_id for target in targets}
+    current_sidecars = {}
+    for target in targets:
+        for family in (
+            "instrument_margin_rate_result",
+            "instrument_commission_rate_result",
+        ):
+            current = _source_sidecar_entry(
+                facts,
+                marker,
+                target,
+                family,
+                now=now,
+                max_query_age=max_query_age,
+            )
+            if current is None:
+                return False
+            current_sidecars[(family, target.target_id)] = current[0]
+    expected_sidecars = {
+        (family, target_id): entry for family, target_id, entry in sidecar_entries
+    }
+    if (
+        set(expected_sidecars) != {
+            (family, target_id)
+            for target_id in selected_ids
+            for family in (
+                "instrument_margin_rate_result",
+                "instrument_commission_rate_result",
+            )
+        }
+        or any(current_sidecars[key] is not entry for key, entry in expected_sidecars.items())
+    ):
+        return False
+
+    query_cache = getattr(store, "_ctp_query_snapshots", None)
+    if not isinstance(query_cache, Mapping):
+        return False
+    core_by_family = {
+        family: query_cache.get(key) for family, key, _request_id in marker.core_entries
+    }
+    account_entry = core_by_family.get("account_result")
+    if not isinstance(account_entry, Mapping):
+        return False
+    account_rows = account_entry.get("rows")
+    if not isinstance(account_rows, list):
+        return False
+    account_ids = tuple(
+        row.get("AccountID") for row in account_rows if isinstance(row, Mapping)
+    )
+    if not (
+        account_ids
+        and len(account_ids) == len(account_rows)
+        and all(type(value) is str and value and value == value.strip() for value in account_ids)
+        and len(set(account_ids)) == 1
+        and account_entry.get("source_account_rows_identity_valid") is True
+        and account_entry.get("source_account_investor_mapping_valid") is True
+    ):
+        return False
+
+    for target in targets:
+        instrument = instruments.get(target.target_id)
+        route = routes.get(target.target_id)
+        quote = quotes.get(target.instrument)
+        if not (
+            instrument is not None
+            and instrument.snapshot_id == facts.snapshot_id
+            and _aware_utc(instrument.available_at) == _aware_utc(facts.available_at)
+            and instrument.long_margin_per_hand is not None
+            and instrument.short_margin_per_hand is not None
+            and instrument.long_margin_per_hand > 0
+            and instrument.short_margin_per_hand > 0
+            and instrument.commission_fee_required is True
+            and instrument.commission_fee_status == "AVAILABLE"
+            and instrument.round_trip_fee_upper_bound_per_contract is not None
+            and route is not None
+            and quote is not None
+            and quote.quality == "GOOD"
+            and _current_route_matches(marker, target, route)
+        ):
+            return False
+        try:
+            blockers: List[str] = []
+            tick_snapshot = _latest_tick_snapshot_while_locked(
+                store, target.instrument
+            )
+            stream_ready = store.is_stream_ready(target.instrument)
+            current_quote = _quote_fact(
+                store,
+                target,
+                instrument_fact=instrument,
+                snapshot_id=facts.snapshot_id,
+                generation=marker.connection_generation,
+                trading_day=marker.trading_day,
+                available_at=facts.available_at,
+                now=now,
+                max_age=quote_max_age,
+                blockers=blockers,
+                tick_snapshot=tick_snapshot,
+                stream_ready=stream_ready,
+            )
+        except Exception:
+            return False
+        if current_quote != quote or current_quote.quality != "GOOD" or blockers:
+            return False
+        elapsed = time.monotonic() - marker.captured_monotonic
+        event_age = now - quote.event_time if quote.event_time is not None else None
+        received_age = now - quote.available_at if quote.available_at is not None else None
+        if not (
+            math.isfinite(elapsed)
+            and elapsed >= 0
+            and event_age is not None
+            and received_age is not None
+            and event_age >= timedelta(0)
+            and received_age >= timedelta(0)
+            and event_age + timedelta(seconds=elapsed) <= quote_max_age
+            and received_age + timedelta(seconds=elapsed) <= quote_max_age
+        ):
+            return False
+
+        commission_entry = current_sidecars[
+            ("instrument_commission_rate_result", target.target_id)
+        ]
+        margin_entry = current_sidecars[("instrument_margin_rate_result", target.target_id)]
+        if not (
+            margin_entry.get("query_complete") is True
+            and margin_entry.get("source_owned") is True
+            and margin_entry.get("source_session_identity_valid") is True
+            and commission_entry.get("query_complete") is True
+            and commission_entry.get("source_owned") is True
+            and commission_entry.get("source_session_identity_valid") is True
+            and commission_entry.get("source_request_filters_valid") is True
+            and commission_entry.get("source_commission_rows_identity_valid") is True
+            and _margin_source_matches_projection(
+                target, instrument, quote, margin_entry
+            )
+        ):
+            return False
+        unit_getter = getattr(store, "registered_sim_write_route_invest_unit_id", None)
+        try:
+            invest_unit_id = (
+                unit_getter(target.instrument, target.exchange) if callable(unit_getter) else None
+            )
+        except Exception:
+            return False
+        if type(invest_unit_id) is not str or invest_unit_id != invest_unit_id.strip():
+            return False
+        try:
+            fee, reason = _commission_fee_upper_bound(
+                commission_entry,
+                account_entry,
+                {"account_id": account_ids[0], "invest_unit_id": invest_unit_id},
+                target,
+                account_row_identity_valid=True,
+            )
+        except Exception:
+            return False
+        if (
+            fee is None
+            or reason is not None
+            or fee != instrument.round_trip_fee_upper_bound_per_contract
+        ):
+            return False
+    return True
+
+
+def _operation_source_matches(
+    facts: FactorExecutionFacts,
+    marker: _FactorExecutionFactsProjectionSource,
+    *,
+    operation: str,
+    now: datetime,
+    max_query_age: timedelta,
+    quote_max_age: Optional[timedelta],
+    targets: Tuple[FactorExecutionTarget, ...],
+    sidecar_entries: Tuple[Tuple[str, str, Any], ...],
+) -> bool:
+    source_store, source_broker, _api, _client = _source_objects(marker)
+    if source_store is None or source_broker is None:
+        return False
+    if (
+        _projection_source_is_current(
+            facts,
+            source_store,
+            source_broker,
+            now=now,
+            marker=marker,
+            max_query_age=max_query_age,
+            require_canonical=True,
+        )
+        is not True
+        or _all_broker_positions_match(facts, marker) is not True
+        or _all_broker_orders_match(facts, marker) is not True
+        or _account_wide_execution_state_is_clear(marker) is not True
+    ):
+        return False
+    if operation == "RELEASE":
+        return True
+    if operation == "OPEN" and quote_max_age == marker.quote_max_age:
+        return _open_source_matches(
+            facts,
+            marker,
+            targets,
+            now=now,
+            max_query_age=max_query_age,
+            quote_max_age=quote_max_age,
+            sidecar_entries=sidecar_entries,
+        )
+    return False
+
+
+def validate_factor_execution_facts_source(
+    facts: Any, store: Any, broker: Any, *, now: Any
+) -> bool:
+    """Check an exact projected object against its current Store source.
+
+    This is a same-process identity binding, not cryptographic isolation and
+    not protection from arbitrary private-object mutation in the process.
+    Durable OPEN/RELEASE operations must use their operation-specific scope.
+    """
+    marker = _factor_facts_source_marker(facts)
+    if marker is None:
+        return False
+
+    def current() -> bool:
+        return bool(
+            _projection_source_is_current(
+                facts,
+                store,
+                broker,
+                now=now,
+                marker=marker,
+                max_query_age=marker.max_query_age,
+                require_canonical=False,
+            )
+            and _all_broker_positions_match(facts, marker)
+            and _all_broker_orders_match(facts, marker)
+        )
+
+    try:
+        with _hold_fee_pair_source_locks(marker, "RELEASE"):
+            return current()
+    except Exception:
+        return False
+
+
+def validate_fee_pair_facts_source_lease(
+    lease: Any, facts: Any, *, operation: str
+) -> bool:
+    marker = _factor_facts_source_marker(facts)
+    return bool(
+        type(lease) is _FactorExecutionFactsSourceLease
+        and marker is not None
+        and getattr(lease, "_active", False) is True
+        and getattr(lease, "_facts", None) is facts
+        and getattr(lease, "_marker", None) is marker
+        and lease.is_for_operation(operation)
+    )
+
+
+@contextmanager
+def _fee_pair_source_scope(
+    operation: str,
+    store: Any,
+    broker: Any,
+    facts: Any,
+    *,
+    now: Any,
+    targets: Any,
+    max_query_age: Any,
+    quote_max_age: Optional[Any],
+):
+    marker = _factor_facts_source_marker(facts)
+    now_utc = _aware_utc(now)
+    if (
+        marker is None
+        or now_utc is None
+        or now_utc < marker.projected_at
+        or type(max_query_age) is not timedelta
+        or max_query_age <= timedelta(0)
+        or max_query_age > marker.max_query_age
+    ):
+        raise FactorExecutionFactsSourceError("factor_execution_facts_source_unissued")
+    pair = _selected_pair_targets(marker, facts, targets)
+    if pair is None:
+        raise FactorExecutionFactsSourceError("factor_execution_facts_source_targets_invalid")
+    if operation == "OPEN":
+        if type(quote_max_age) is not timedelta or quote_max_age != marker.quote_max_age:
+            raise FactorExecutionFactsSourceError("factor_execution_facts_quote_age_invalid")
+    elif operation == "RELEASE" and quote_max_age is not None:
+        raise FactorExecutionFactsSourceError("factor_execution_facts_source_operation_invalid")
+    sidecars = []
+    with _hold_fee_pair_source_locks(marker, operation):
+        source_store, source_broker, _api, _client = _source_objects(marker)
+        if source_store is not store or source_broker is not broker:
+            raise FactorExecutionFactsSourceError("factor_execution_facts_source_unissued")
+        query_cache = getattr(store, "_ctp_query_snapshots", None)
+        query_results = getattr(store, "_ctp_query_results", None)
+        commission_cache = getattr(store, "_ctp_commission_query_snapshots", None)
+        if not all(
+            isinstance(value, Mapping)
+            for value in (query_cache, query_results, commission_cache)
+        ):
+            raise FactorExecutionFactsSourceError("factor_execution_facts_source_incomplete")
+        if _projection_source_is_current(
+            facts,
+            store,
+            broker,
+            now=now_utc,
+            marker=marker,
+            max_query_age=max_query_age,
+            require_canonical=True,
+        ) is not True:
+            raise FactorExecutionFactsSourceError("factor_execution_facts_source_stale")
+        if operation == "OPEN":
+            for target in pair:
+                for family in (
+                    "instrument_margin_rate_result",
+                    "instrument_commission_rate_result",
+                ):
+                    current = _source_sidecar_entry(
+                        facts,
+                        marker,
+                        target,
+                        family,
+                        now=now_utc,
+                        max_query_age=max_query_age,
+                    )
+                    if current is None:
+                        raise FactorExecutionFactsSourceError(
+                            "factor_execution_facts_source_incomplete"
+                        )
+                    sidecars.append((family, target.target_id, current[0]))
+        sidecar_tuple = tuple(sidecars)
+        core_entry_bindings = tuple(
+            (
+                family,
+                key,
+                query_cache.get(key),
+            )
+            for family, key, _request_id in marker.core_entries
+        )
+        cache_binding = (
+            query_cache,
+            query_results,
+            commission_cache,
+        )
+
+        def require_cache_binding() -> None:
+            if not (
+                getattr(store, "_ctp_query_snapshots", None) is cache_binding[0]
+                and getattr(store, "_ctp_query_results", None) is cache_binding[1]
+                and getattr(store, "_ctp_commission_query_snapshots", None)
+                is cache_binding[2]
+                and all(
+                    query_cache.get(key) is entry
+                    and query_results.get(family) is entry
+                    for family, key, entry in core_entry_bindings
+                )
+            ):
+                raise FactorExecutionFactsSourceError(
+                    "factor_execution_facts_source_stale"
+                )
+
+        def check_source() -> bool:
+            try:
+                require_cache_binding()
+            except FactorExecutionFactsSourceError:
+                return False
+            return _operation_source_matches(
+                facts,
+                marker,
+                operation=operation,
+                now=now_utc,
+                max_query_age=max_query_age,
+                quote_max_age=quote_max_age,
+                targets=pair,
+                sidecar_entries=sidecar_tuple,
+            ) is True
+
+        if check_source() is not True:
+            raise FactorExecutionFactsSourceError("factor_execution_facts_source_incomplete")
+        lease = _FactorExecutionFactsSourceLease(
+            operation,
+            check_source,
+        )
+        lease._facts = facts
+        lease._marker = marker
+        lease._active = True
+        try:
+            yield lease
+        finally:
+            lease._active = False
+            lease._check = lambda: False
+            lease._facts = None
+            lease._marker = None
+
+
+@contextmanager
+def fee_pair_facts_open_source_scope(
+    store: Any,
+    broker: Any,
+    facts: Any,
+    *,
+    now: Any,
+    targets: Any,
+    quote_max_age: Any,
+    max_query_age: Any,
+):
+    """Hold core, quote, route, margin, fee and Broker inputs through COMMIT."""
+    with _fee_pair_source_scope(
+        "OPEN",
+        store,
+        broker,
+        facts,
+        now=now,
+        targets=targets,
+        quote_max_age=quote_max_age,
+        max_query_age=max_query_age,
+    ) as lease:
+        yield lease
+
+
+@contextmanager
+def fee_pair_facts_release_source_scope(
+    store: Any,
+    broker: Any,
+    facts: Any,
+    *,
+    now: Any,
+    targets: Any,
+    max_query_age: Any,
+):
+    """Hold current terminal/order/trade/position sources through COMMIT."""
+    with _fee_pair_source_scope(
+        "RELEASE",
+        store,
+        broker,
+        facts,
+        now=now,
+        targets=targets,
+        quote_max_age=None,
+        max_query_age=max_query_age,
+    ) as lease:
+        yield lease
 
 def _read_only_reconciliation_blockers(
     facts: FactorExecutionFacts, *, allow_unowned_state: bool = False
@@ -3623,24 +4958,30 @@ def _quote_fact(
     now: datetime,
     max_age: timedelta,
     blockers: List[str],
+    tick_snapshot: Any = _SOURCE_TICK_UNSET,
+    stream_ready: Any = _SOURCE_STREAM_STATE_UNSET,
 ) -> FactorExecutionQuoteFacts:
     quality = "GOOD"
-    try:
-        tick = store.get_latest_tick_snapshot(target.instrument)
-    except Exception as exc:
-        tick = None
-        quality = "READ_FAILED"
-        blockers.append(
-            "consumed_tick_read_failed:{}:{}".format(target.target_id, type(exc).__name__)
-        )
+    if tick_snapshot is _SOURCE_TICK_UNSET:
+        try:
+            tick = store.get_latest_tick_snapshot(target.instrument)
+        except Exception as exc:
+            tick = None
+            quality = "READ_FAILED"
+            blockers.append(
+                "consumed_tick_read_failed:{}:{}".format(target.target_id, type(exc).__name__)
+            )
+    else:
+        tick = tick_snapshot
 
-    try:
-        stream_ready = store.is_stream_ready(target.instrument)
-    except Exception as exc:
-        stream_ready = None
-        blockers.append(
-            "consumed_stream_state_read_failed:{}:{}".format(target.target_id, type(exc).__name__)
-        )
+    if stream_ready is _SOURCE_STREAM_STATE_UNSET:
+        try:
+            stream_ready = store.is_stream_ready(target.instrument)
+        except Exception as exc:
+            stream_ready = None
+            blockers.append(
+                "consumed_stream_state_read_failed:{}:{}".format(target.target_id, type(exc).__name__)
+            )
 
     source = _exact_text(_field(tick, "source"))
     source_ref = _exact_text(_field(tick, "event_id"))
@@ -5040,7 +6381,14 @@ def _orders_facts(
                 and binding.get("query_request_id") is not None
                 and binding.get("query_rows_sha256") is not None
                 and binding.get("matched_row_sha256") is not None
-                and current_remote_sys_id == binding_sys_id
+                # A locally working order that is already terminal remotely has
+                # no active row to re-read. The immutable durable binding still
+                # proves ownership; the missing active row is separately a
+                # ``broker_working_order_not_remote_active`` cancel blocker.
+                and (
+                    current_remote_row is None
+                    or current_remote_sys_id == binding_sys_id
+                )
                 and (order.order_sys_id is None or order.order_sys_id == binding_sys_id)
             )
             # Some CTP submits return OrderSysID on the original KNOWN
@@ -5052,7 +6400,7 @@ def _orders_facts(
             provider_callback_sysid_matches = bool(
                 binding is None
                 and provider_sys_id is not None
-                and provider_sys_id == current_remote_sys_id
+                and (current_remote_row is None or provider_sys_id == current_remote_sys_id)
                 and (order.order_sys_id is None or order.order_sys_id == provider_sys_id)
             )
             validated_order_sys_id = (
@@ -5104,12 +6452,10 @@ def _orders_facts(
                 and route.current_session_connection_generation == connection_generation
                 and route.current_session_trading_day == trading_day
             )
-            exact_owner = bool(
+            owner_identity_matches = bool(
                 intent.account_scope == account_scope
                 and intent.strategy_scope == strategy_scope
                 and intent.action == "SUBMIT"
-                and intent.state == "KNOWN"
-                and intent.dispatch_state == "KNOWN"
                 and intent.target_id == order.target_id
                 and intent.instrument == order.instrument
                 and intent.exchange == order.exchange
@@ -5134,20 +6480,38 @@ def _orders_facts(
                 and original_trading_day is not None
                 and original_trading_day == trading_day
                 and provider_order_ref == order.order_ref
+                and (provider_instrument is None or provider_instrument == order.instrument)
+                and (provider_exchange is None or provider_exchange == order.exchange)
+                and order.owner_strategy_scope == strategy_scope
+            )
+            exact_owner = bool(
+                owner_identity_matches
+                and intent.state == "KNOWN"
+                and intent.dispatch_state == "KNOWN"
                 and (binding_identity_matches or provider_callback_sysid_matches)
                 and (
                     provider_callback_sysid_matches
                     or provider_sys_id in (None, binding_sys_id)
                 )
-                and (provider_instrument is None or provider_instrument == order.instrument)
-                and (provider_exchange is None or provider_exchange == order.exchange)
-                and order.owner_strategy_scope == strategy_scope
             )
-            if not exact_owner:
-                blockers.append(
-                    "working_order_journal_owner_mismatch:{}".format(order.order_ref)
+            # An ambiguous native submit owns its local order by construction,
+            # but its dispatch never became KNOWN and therefore cannot carry a
+            # durable SysID binding. Treat that exact identity as owned for the
+            # recovery projection; cancel readiness still fails closed because
+            # the working order itself is ``execution_unknown``.
+            unresolved_unknown_owner = bool(
+                owner_identity_matches
+                and order.execution_unknown is True
+                and intent.state == "UNKNOWN"
+                and intent.dispatch_state == "UNKNOWN"
+                and binding is None
+                and (
+                    provider_sys_id is None
+                    or current_remote_sys_id is None
+                    or provider_sys_id == current_remote_sys_id
                 )
-            else:
+            )
+            if exact_owner:
                 for index, item in enumerate(projected):
                     if (
                         item.order_ref == order.order_ref
@@ -5157,6 +6521,10 @@ def _orders_facts(
                     ):
                         projected[index] = replace(item, order_sys_id=validated_order_sys_id)
                         break
+            elif not unresolved_unknown_owner:
+                blockers.append(
+                    "working_order_journal_owner_mismatch:{}".format(order.order_ref)
+                )
         for intent_id, owned_orders in local_orders_by_owner.items():
             if len(owned_orders) != 1:
                 blockers.extend(
@@ -6483,6 +7851,15 @@ def project_factor_execution_facts(
             facts,
             account=replace(facts.account, route_permitted=scoped_route_permitted),
         )
+    _source_stamp_projection(
+        facts,
+        store,
+        broker,
+        now=now_utc,
+        quote_max_age=quote_max_age,
+        max_query_age=max_query_age,
+        targets=bound_targets,
+    )
     return facts
 
 
@@ -6492,6 +7869,7 @@ __all__ = [
     "FactorExecutionDatedCloseLotFacts",
     "FactorExecutionDatedInventoryRow",
     "FactorExecutionFacts",
+    "FactorExecutionFactsSourceError",
     "FactorExecutionIntentFacts",
     "FactorExecutionInstrumentFacts",
     "FactorExecutionPositionFacts",
@@ -6504,6 +7882,10 @@ __all__ = [
     "FactorExecutionTerminalOrderFacts",
     "FactorExecutionTradeObservationFacts",
     "FactorExecutionWorkingOrderFacts",
+    "fee_pair_facts_open_source_scope",
+    "fee_pair_facts_release_source_scope",
     "project_factor_execution_facts",
     "refresh_factor_execution_queries",
+    "validate_factor_execution_facts_source",
+    "validate_fee_pair_facts_source_lease",
 ]

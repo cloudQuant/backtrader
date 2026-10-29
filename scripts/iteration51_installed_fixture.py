@@ -3871,10 +3871,16 @@ def _synthetic_order_sys_id_provenance_is_valid(child: Mapping[str, Any]) -> boo
         return False
     order_targets = {}
     insert_refs = []
+    arm_actions = 0
+    disarm_actions = 0
     for action in synthetic_actions:
         if isinstance(action, Mapping) and action.get("action") in {
             "arm", "disarm", "sdk_stop_revoke"
         }:
+            if action.get("action") == "arm":
+                arm_actions += 1
+            elif action.get("action") == "disarm":
+                disarm_actions += 1
             continue
         if (
             not isinstance(action, Mapping)
@@ -3897,6 +3903,16 @@ def _synthetic_order_sys_id_provenance_is_valid(child: Mapping[str, Any]) -> boo
             insert_refs.append(order_ref)
         elif order_targets.get(order_ref) != (action["exchange"], instrument):
             return False
+
+    arm_observations = child.get("arm_scope_observations")
+    disarm_observations = child.get("disarm_scope_observations")
+    if (
+        not isinstance(arm_observations, list)
+        or not isinstance(disarm_observations, list)
+        or arm_actions != len(arm_observations)
+        or disarm_actions != len(disarm_observations)
+    ):
+        return False
 
     if not insert_refs:
         return (
