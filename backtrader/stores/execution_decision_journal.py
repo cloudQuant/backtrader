@@ -2533,7 +2533,13 @@ class ExecutionDecisionJournal:
         self.close()
 
     def close(self) -> None:
-        with self._lock:
+        # close() is the sole owner-side release for a retained dispatch gate,
+        # so it must re-enter the RLock normally on that owner thread.  Any
+        # other thread cannot acquire an RLock owned by the retained gate and
+        # must not wait for the lifetime of the process: fail closed instead.
+        if not self._acquire_in_process_lock():
+            raise ExecutionDecisionJournalError("JOURNAL_CLOSE_BUSY")
+        try:
             if not self._closed:
                 retained_gate = self._retained_dispatch_gate_context
                 self._retained_dispatch_gate_context = None
@@ -2541,6 +2547,8 @@ class ExecutionDecisionJournal:
                     retained_gate.__exit__(None, None, None)
                 self._connection.close()
                 self._closed = True
+        finally:
+            self._lock.release()
 
     def _retain_dispatch_serialization_gate(self, gate_context: Any) -> None:
         """Keep an unresolved same-process claim fenced until journal close.
@@ -21295,35 +21303,44 @@ class ExecutionDecisionJournal:
             finally:
                 cursor.close()
 
+    def _acquire_in_process_lock(self) -> bool:
+        """Acquire ``_lock`` without waiting forever on a retained gate.
+
+        A retained dispatch gate deliberately keeps ``_lock`` (and
+        ``_dispatch_lock``) held until close to fence same-process recovery
+        after an unpersisted claim.  That hold must never wedge an unrelated
+        reader -- notably the runner's query-refresh worker -- for the life of
+        the journal: retirement joins that worker before close, so an
+        unbounded wait would deadlock the join.
+
+        The retained flag is published by the dispatch thread while it owns
+        ``_lock``, so a reader that sampled it before publication can already
+        be blocked in ``acquire``.  Every acquisition is therefore bounded and
+        re-checks the flag on each timeout: once a gate is retained the caller
+        fails closed within one bounded interval.  While no gate is retained
+        the wait stays unbounded, preserving ordinary writer/reader
+        serialization.  The owning thread still re-enters its own RLock
+        immediately.
+        """
+
+        while True:
+            if self._lock.acquire(timeout=_RETAINED_GATE_READ_TIMEOUT_SECONDS):
+                return True
+            if self._retained_dispatch_gate_context is not None:
+                return False
+
     @contextmanager
     def _read_lock(self) -> Iterator[None]:
-        # A retained dispatch gate deliberately keeps this lock (and the
-        # dispatch lock) held until close to fence same-process recovery after
-        # an unpersisted claim.  That hold must never wedge an unrelated
-        # reader -- notably the runner's query-refresh worker -- for the life
-        # of the journal: retirement joins that worker before close, so an
-        # unbounded wait would deadlock the join.  Readers therefore wait only
-        # a bounded interval while a gate is retained and then fail closed.
-        # The owning thread still re-enters its own RLock immediately.
-        retained_gate = self._retained_dispatch_gate_context is not None
-        if retained_gate:
-            if not self._lock.acquire(timeout=_RETAINED_GATE_READ_TIMEOUT_SECONDS):
-                raise ExecutionDecisionJournalError("JOURNAL_READ_BUSY")
-            try:
-                self._ensure_open()
-                try:
-                    yield
-                except sqlite3.Error as error:
-                    raise ExecutionDecisionJournalError("JOURNAL_READ_FAILED") from error
-            finally:
-                self._lock.release()
-            return
-        with self._lock:
+        if not self._acquire_in_process_lock():
+            raise ExecutionDecisionJournalError("JOURNAL_READ_BUSY")
+        try:
             self._ensure_open()
             try:
                 yield
             except sqlite3.Error as error:
                 raise ExecutionDecisionJournalError("JOURNAL_READ_FAILED") from error
+        finally:
+            self._lock.release()
 
     def _ensure_open(self) -> None:
         if self._closed:

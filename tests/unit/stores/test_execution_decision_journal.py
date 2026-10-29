@@ -4425,3 +4425,107 @@ def test_run_order_budget_sql_failure_rolls_back_decision_cursor_and_usage(tmp_p
         recovered._connection.execute("SELECT COUNT(*) FROM execution_decisions").fetchone()[0] == 1
     )
     recovered.close()
+
+
+def test_retained_dispatch_gate_bounds_concurrent_reader_and_close(tmp_path):
+    """A retained gate must never wedge a reader or a foreign-thread close.
+
+    The dispatch thread retains the suspended gate without releasing ``_lock``
+    (the real ``_finish_dispatch_gate`` path).  A reader that started waiting
+    before the gate was retained must still fail closed within the bounded
+    interval, and ``close()`` from a non-owner thread must not wait forever.
+    """
+
+    journal = ExecutionDecisionJournal(tmp_path / "retained-gate-reader.sqlite3")
+    gate_entered = Event()
+    retain_gate = Event()
+    gate_retained = Event()
+    release_gate = Event()
+
+    def gate_worker():
+        gate = journal.dispatch_serialization_gate()
+        gate.__enter__()
+        try:
+            gate_entered.set()
+            assert retain_gate.wait(10)
+            journal._retain_dispatch_serialization_gate(gate)
+            gate_retained.set()
+            assert release_gate.wait(10)
+        finally:
+            gate.__exit__(None, None, None)
+
+    with ThreadPoolExecutor(max_workers=4) as pool:
+        gate_future = pool.submit(gate_worker)
+        assert gate_entered.wait(5)
+
+        # The reader starts while the gate is live but not yet retained, which
+        # is exactly the window the old flag sample-then-wait raced against.
+        reader_started = Event()
+
+        def read_once():
+            reader_started.set()
+            with journal._read_lock():
+                return "read"
+
+        reader_future = pool.submit(read_once)
+        assert reader_started.wait(5)
+        time.sleep(0.2)
+
+        retain_gate.set()
+        assert gate_retained.wait(5)
+        bounded_start = time.monotonic()
+        with pytest.raises(ExecutionDecisionJournalError, match="JOURNAL_READ_BUSY"):
+            reader_future.result(timeout=5)
+        assert time.monotonic() - bounded_start < 5.0
+
+        close_future = pool.submit(journal.close)
+        close_start = time.monotonic()
+        with pytest.raises(ExecutionDecisionJournalError, match="JOURNAL_CLOSE_BUSY"):
+            close_future.result(timeout=5)
+        assert time.monotonic() - close_start < 5.0
+
+        # The journal is still open after the bounded close refusal.
+        assert journal._closed is False
+        release_gate.set()
+        gate_future.result(timeout=10)
+
+    journal.close()
+    assert journal._closed is True
+
+
+def test_active_non_retained_dispatch_gate_still_serializes_readers(tmp_path):
+    """A live but non-retained gate keeps ordinary unbounded reader waits."""
+
+    journal = ExecutionDecisionJournal(tmp_path / "active-gate-reader.sqlite3")
+    gate_entered = Event()
+    release_gate = Event()
+
+    def gate_worker():
+        gate = journal.dispatch_serialization_gate()
+        gate.__enter__()
+        try:
+            gate_entered.set()
+            assert release_gate.wait(10)
+        finally:
+            gate.__exit__(None, None, None)
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        gate_future = pool.submit(gate_worker)
+        assert gate_entered.wait(5)
+        read_done = Event()
+
+        def read_once():
+            with journal._read_lock():
+                read_done.set()
+            return "read"
+
+        reader_future = pool.submit(read_once)
+        # Longer than the retained-gate bound: an ordinary active gate must not
+        # turn this into a spurious JOURNAL_READ_BUSY.
+        time.sleep(1.5)
+        assert read_done.is_set() is False
+        release_gate.set()
+        assert reader_future.result(timeout=5) == "read"
+        gate_future.result(timeout=5)
+
+    journal.close()
