@@ -162,6 +162,8 @@ either of the other two. Install, test, release, and contribute to each product
 in its own repository — the Backtrader core repository neither vendors nor
 initializes those products.
 
+Backtrader's scope is the strategy and backtesting runtime plus its Backtrader-side integration code. The other products in this table, along with `bt_api_py`, venue adapters, and server-side services, are maintained and delivered separately. This repository does not bundle or start them; the ecosystem list describes project boundaries and optional integrations, not a turnkey deployment or live-trading acceptance.
+
 ---
 
 ## ✨ Key Features
@@ -641,6 +643,12 @@ The live-trading stack starts with Backtrader's `BtApiFeed`, `BtApiStore`, and
 `BtApiBroker`. The bracketed packages below are optional deployment choices;
 the diagram shows their roles in the overall architecture rather than a fixed
 call sequence for every market-data update or order.
+
+Backtrader owns the strategy engine and its Feed/Store/Broker interfaces. Its live-connectivity adapters are `BtApiFeed`, `BtApiStore`, and `BtApiBroker`; the exchange SDK, venue adapters, and Gateway/Execution/Risk/Monitor service hosts are separate packages or deployments.
+
+Two explicit service bridges are also present: `ServiceReadProxy` is read-only, while `ServiceExecutionSession` is opt-in and currently limited to ordinary bar-mode runs. They require compatible SDKs and deployment configuration; Backtrader does not embed or start the external service hosts. See the [read-proxy guide](docs/source/developer-guide/optional-service-read-proxy.md) and [execution-session guide](docs/source/developer-guide/optional-service-execution-session.md).
+
+The bracketed packages below are optional deployment choices. Treat the arrows as an ownership/integration sketch, not a required runtime path or proof that a route is deployed. The [Trading System Architecture](docs/TRADING_SYSTEM_ARCHITECTURE.md) document separates current capabilities from planned directions; planned items are not implemented or enabled features.
 
 ```text
 Backtrader (BtApiFeed / BtApiStore / BtApiBroker)
@@ -1155,6 +1163,8 @@ CloudQuant Backtrader 生态由核心引擎与五个配套项目组成——AI �
 路径。请在各自仓库中安装、测试、发布和贡献；本 Backtrader 核心仓库既不内嵌也不
 初始化这些产品。
 
+Backtrader 本仓主要负责策略与回测运行时，以及 Backtrader 侧的集成代码。表中其他产品，以及下文提到的 `bt_api_py`、交易所适配包和服务端服务，都由独立仓库或分发包维护；本仓不打包它们，也不负责启动这些项目。生态列表说明项目边界与可选集成，不代表安装 Backtrader 即可获得完整部署或实盘验收。
+
 ---
 
 ## ✨ 核心特性
@@ -1306,6 +1316,17 @@ bt.flush_notifications(timeout=10.0)
 实盘链路从 Backtrader 的 `BtApiFeed`、`BtApiStore` 和 `BtApiBroker` 开始。
 方括号中的组件可按部署需要选择；下图表达整体职责，并不表示每条行情或订单消息
 都必须依次经过所有组件。
+
+Backtrader 本仓负责策略引擎及 Feed/Store/Broker 接口；`BtApiFeed`、`BtApiStore` 和 `BtApiBroker` 是本仓的实盘连接适配器。交易所 SDK、交易所适配包及 Gateway/Execution/Risk/Monitor 服务宿主属于独立软件包或部署。
+
+本仓还提供两个明确的服务接入：`ServiceReadProxy` 仅允许读取；
+`ServiceExecutionSession` 需要显式选用，目前只支持普通 bar 模式。两者依赖兼容的
+SDK 与部署配置；Backtrader 不会内嵌或启动外部服务宿主。详见
+[只读代理指南](docs/source/developer-guide/optional-service-read-proxy.md)和
+[执行会话指南](docs/source/developer-guide/optional-service-execution-session.md)。
+
+[交易系统架构](docs/TRADING_SYSTEM_ARCHITECTURE.md)文档区分当前能力与规划方向；
+规划项目不等于已实现或已启用功能。
 
 ```text
 Backtrader (BtApiFeed / BtApiStore / BtApiBroker)
