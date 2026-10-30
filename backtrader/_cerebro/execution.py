@@ -15,6 +15,7 @@ from ..metabase import OwnerContext
 from ..utils import OrderedDict, tzparse
 from ..utils.log_message import _is_output_enabled_for, get_logger
 from ..utils.py3 import integer_types
+from .lifecycle import _capture_startup_observer_stop_errors
 
 # Keep the historical logger name (D28-04.6): routing/filters must not change.
 logger = get_logger("backtrader.cerebro")
@@ -99,7 +100,7 @@ class ExecutionMixin:
             )
             cleanup_errors.append((phase, type(component).__name__, type(exc).__name__, locations))
 
-        def stop_many(phase, components, method, incomplete_reason=None):
+        def stop_many(phase, components, method, incomplete_reason=None, invoke=None):
             failed = set()
             for index, component in enumerate(components):
                 key = (id(component), method)
@@ -107,7 +108,10 @@ class ExecutionMixin:
                     continue
                 stopped.add(key)
                 try:
-                    getattr(component, method)()
+                    if invoke is None:
+                        getattr(component, method)()
+                    else:
+                        invoke(component, method)
                 except BaseException as exc:
                     failed.add(id(component))
                     location = "%s[%d].%s" % (phase, index, method)
@@ -118,13 +122,31 @@ class ExecutionMixin:
 
         # Match the ordinary teardown order, excluding final writer reporting
         # because startup did not reach the point where reports are complete.
+        observer_stop_errors = {}
+
+        def stop_strategy(strategy, method):
+            with _capture_startup_observer_stop_errors(strategy) as captured:
+                observer_stop_errors[id(strategy)] = captured
+                getattr(strategy, method)()
+
         strategy_stop_failed = stop_many(
             "strategy",
             startup_attempts["started_strategies"],
             "_stop",
             "_stop raised; analyzer/observer teardown completion is unknown",
+            invoke=stop_strategy,
         )
         for index, strategy in enumerate(startup_attempts["started_strategies"]):
+            for observer_index, observer, exc in observer_stop_errors.get(id(strategy), ()):
+                location = "strategy[%d]._stop.observer[%d].stop" % (index, observer_index)
+                record_cleanup_error(location, observer, exc)
+                incomplete.append(
+                    (
+                        location,
+                        type(observer).__name__,
+                        "observer.stop raised and was suppressed; observer state is unknown",
+                    )
+                )
             if id(strategy) in strategy_stop_failed:
                 continue
             try:

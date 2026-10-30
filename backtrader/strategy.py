@@ -46,6 +46,10 @@ from collections.abc import Mapping
 from decimal import Decimal
 from typing import Optional
 
+from ._cerebro.lifecycle import (
+    _record_startup_observer_stop_error,
+    _startup_observer_stop_capture_active,
+)
 from .lineiterator import LineIterator, StrategyBase
 from .lineroot import LineRoot, LineSingle
 from .lineseries import Lines, LineSeriesStub
@@ -2093,16 +2097,20 @@ class Strategy(StrategyBase):
             analyzer._stop()
 
         # Stop observers (flush logs, etc.)
-        for observer in self._get_all_observers():
+        for observer_index, observer in enumerate(self._get_all_observers()):
             try:
                 if hasattr(observer, "stop"):
                     observer.stop()
-            except Exception:
-                logger.warning(
-                    "Observer %s.stop() raised an exception",
-                    type(observer).__name__,
-                    exc_info=True,
-                )
+            except Exception as exc:
+                _record_startup_observer_stop_error(self, observer_index, observer, exc)
+                if _startup_observer_stop_capture_active():
+                    logger.warning("Observer %s.stop() raised an exception", type(observer).__name__)
+                else:
+                    logger.warning(
+                        "Observer %s.stop() raised an exception",
+                        type(observer).__name__,
+                        exc_info=True,
+                    )
 
         # Change operators back to stage 1 - allows reuse of datas
         self._stage1()

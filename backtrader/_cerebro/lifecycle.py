@@ -8,10 +8,48 @@ external channel scope retention and runstop publication.
 # Mixin state (``_run_scope_token`` etc.) is created by ``Cerebro.__init__``
 # on the assembled class; it cannot be seen from this partial class alone.
 import threading
+from contextlib import contextmanager
+from contextvars import ContextVar
 
 from ..utils.log_message import get_logger
 
 logger = get_logger(__name__)
+
+_STARTUP_OBSERVER_STOP_CAPTURE = ContextVar(
+    "backtrader_startup_observer_stop_capture", default=None
+)
+
+
+@contextmanager
+def _capture_startup_observer_stop_errors(strategy):
+    """Capture suppressed observer-stop exceptions for one startup cleanup call.
+
+    The capture is scoped to a single Strategy identity so a nested Cerebro run
+    cannot add its observer diagnostics to the outer startup failure.
+    """
+    state = {"strategy": strategy, "errors": []}
+    token = _STARTUP_OBSERVER_STOP_CAPTURE.set(state)
+    try:
+        yield state["errors"]
+    finally:
+        _STARTUP_OBSERVER_STOP_CAPTURE.reset(token)
+
+
+def _startup_observer_stop_capture_active():
+    """Return whether observer teardown runs inside any startup cleanup capture."""
+    return _STARTUP_OBSERVER_STOP_CAPTURE.get() is not None
+
+
+def _record_startup_observer_stop_error(strategy, observer_index, observer, exc):
+    """Report an observer stop error only to its active startup-cleanup caller."""
+    state = _STARTUP_OBSERVER_STOP_CAPTURE.get()
+    if state is None or state["strategy"] is not strategy:
+        return
+    try:
+        state["errors"].append((observer_index, observer, exc))
+    except BaseException:
+        # Diagnostics must not change Strategy._stop's historical suppression.
+        pass
 
 
 class RunLifecycleMixin:

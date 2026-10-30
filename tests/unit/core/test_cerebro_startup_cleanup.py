@@ -1,9 +1,10 @@
 """Focused ordinary runstrategies startup-failure cleanup coverage."""
 
+import logging
+import traceback
+
 from datetime import time
 from types import SimpleNamespace
-
-import traceback
 import backtrader as bt
 import pytest
 from backtrader.feed import DataBase, FeedBase
@@ -23,6 +24,12 @@ class _LifecycleControl:
             raise self.primary
         if name in self.fail_stop:
             raise RuntimeError("cleanup secondary marker")
+
+
+def _capture_strategy_logs(caplog, request):
+    strategy_logger = logging.getLogger("backtrader.strategy")
+    strategy_logger.addHandler(caplog.handler)
+    request.addfinalizer(lambda: strategy_logger.removeHandler(caplog.handler))
 
 
 class _LifecycleData(DataBase):
@@ -332,19 +339,22 @@ def test_strategy_stop_failure_marks_child_teardown_unknown(monkeypatch):
     ) in caught.value._backtrader_startup_cleanup_incomplete
 
 
-def test_swallowed_observer_stop_error_is_reported_as_unobservable(monkeypatch):
+def test_swallowed_observer_stop_error_is_reported_without_logging_message(monkeypatch, caplog, request):
     control = _LifecycleControl(fail_at="writer.start")
     cerebro, _data = _make_cerebro(control, with_writer=True)
     cerebro.addstrategy(bt.Strategy)
     cerebro.addobserver(bt.observers.Broker)
     monkeypatch.setattr(bt.Strategy, "start", lambda _self: control.events.append("strategy.start"))
     monkeypatch.setattr(bt.Strategy, "stop", lambda _self: control.events.append("strategy.stop"))
+    caplog.set_level(logging.WARNING, logger="backtrader.strategy")
+    _capture_strategy_logs(caplog, request)
 
     observer_stop_calls = []
+    observer_sentinel = "PRIVATE_OBSERVER_STOP_SENTINEL"
 
     def fail_observer_stop(_observer):
         observer_stop_calls.append("attempted")
-        raise RuntimeError("observer cleanup marker")
+        raise RuntimeError(observer_sentinel)
 
     monkeypatch.setattr(bt.observers.Broker, "stop", fail_observer_stop)
 
@@ -353,11 +363,103 @@ def test_swallowed_observer_stop_error_is_reported_as_unobservable(monkeypatch):
 
     assert caught.value is control.primary
     assert observer_stop_calls == ["attempted"]
+    observer_failures = caught.value._backtrader_startup_cleanup_errors
+    assert [
+        (phase, component, exception_type)
+        for phase, component, exception_type, _locations in observer_failures
+    ] == [
+        ("strategy[0]._stop.observer[0].stop", "Broker", "RuntimeError"),
+    ]
+    assert observer_failures[0][3]
+    assert observer_sentinel not in caplog.text
     assert (
         "strategy[0]._stop.observers",
         "Strategy",
         "Strategy._stop suppresses observer.stop exceptions; outcome is unobservable",
     ) in caught.value._backtrader_startup_cleanup_incomplete
+
+
+def test_normal_run_keeps_legacy_observer_stop_exception_suppression(monkeypatch, caplog, request):
+    control = _LifecycleControl()
+    cerebro, _data = _make_cerebro(control)
+    cerebro.addstrategy(bt.Strategy)
+    cerebro.addobserver(bt.observers.Broker)
+    caplog.set_level(logging.WARNING, logger="backtrader.strategy")
+    _capture_strategy_logs(caplog, request)
+    observer_stop_calls = []
+    observer_sentinel = "NORMAL_OBSERVER_STOP_SENTINEL"
+
+    def fail_observer_stop(_observer):
+        observer_stop_calls.append("attempted")
+        raise RuntimeError(observer_sentinel)
+
+    monkeypatch.setattr(bt.observers.Broker, "stop", fail_observer_stop)
+
+    result = cerebro.run()
+
+    assert len(result) == 1
+    assert observer_stop_calls == ["attempted"]
+    assert observer_sentinel in caplog.text
+
+
+def test_nested_observer_stop_failure_does_not_pollute_outer_cleanup(monkeypatch, caplog, request):
+    outer_control = _LifecycleControl(fail_at="writer.start")
+    outer_cerebro, _outer_data = _make_cerebro(outer_control, with_writer=True)
+    outer_cerebro.addstrategy(bt.Strategy)
+    outer_cerebro.addobserver(bt.observers.Broker)
+
+    inner_control = _LifecycleControl()
+    inner_cerebro, _inner_data = _make_cerebro(inner_control)
+
+    class _NestedObserver(bt.Observer):
+        lines = ("value",)
+
+    inner_cerebro.addstrategy(bt.Strategy)
+    inner_cerebro.addobserver(_NestedObserver)
+    caplog.set_level(logging.WARNING, logger="backtrader.strategy")
+    _capture_strategy_logs(caplog, request)
+
+    observer_stop_calls = []
+    inner_results = []
+    inner_sentinel = "NESTED_OBSERVER_STOP_SENTINEL"
+    outer_sentinel = "OUTER_OBSERVER_STOP_SENTINEL"
+
+    def fail_inner_observer_stop(_observer):
+        observer_stop_calls.append("inner")
+        inner_control.events.append("nested.observer.stop")
+        raise RuntimeError(inner_sentinel)
+
+    def fail_outer_observer_stop(_observer):
+        observer_stop_calls.append("outer")
+        outer_control.events.append("outer.observer.stop")
+        inner_results.append(inner_cerebro.run())
+        raise RuntimeError(outer_sentinel)
+
+    monkeypatch.setattr(_NestedObserver, "stop", fail_inner_observer_stop)
+    monkeypatch.setattr(bt.observers.Broker, "stop", fail_outer_observer_stop)
+
+    with pytest.raises(RuntimeError) as caught:
+        outer_cerebro.run()
+
+    assert caught.value is outer_control.primary
+    assert [len(result) for result in inner_results] == [1]
+    assert observer_stop_calls == ["outer", "inner"]
+    observer_failures = caught.value._backtrader_startup_cleanup_errors
+    assert [
+        (phase, component, exception_type)
+        for phase, component, exception_type, _locations in observer_failures
+    ] == [
+        ("strategy[0]._stop.observer[0].stop", "Broker", "RuntimeError"),
+    ]
+    assert inner_sentinel not in caplog.text
+    assert outer_sentinel not in caplog.text
+    assert [event for event in outer_control.events if event.endswith(".stop")] == [
+        "outer.observer.stop",
+        "writer.stop",
+        "broker.stop",
+        "data.stop",
+        "store.stop",
+    ]
 
 
 def test_unknown_feed_owner_skips_direct_data_stop_and_marks_cleanup_incomplete():
@@ -415,8 +517,15 @@ def test_successful_run_preserves_existing_start_and_stop_order(monkeypatch):
     feed = _LifecycleFeed(control, data)
     cerebro.feeds.append(feed)
     cerebro.addstrategy(bt.Strategy)
+    cerebro.addobserver(bt.observers.Broker)
     monkeypatch.setattr(bt.Strategy, "start", lambda _self: control.events.append("strategy.start"))
     monkeypatch.setattr(bt.Strategy, "stop", lambda _self: control.events.append("strategy.stop"))
+    monkeypatch.setattr(
+        bt.observers.Broker, "start", lambda _self: control.events.append("observer.start")
+    )
+    monkeypatch.setattr(
+        bt.observers.Broker, "stop", lambda _self: control.events.append("observer.stop")
+    )
 
     result = cerebro.run()
 
@@ -428,9 +537,11 @@ def test_successful_run_preserves_existing_start_and_stop_order(monkeypatch):
         "data.start",
         "data._start",
         "data.start",
+        "observer.start",
         "strategy.start",
         "writer.start",
         "strategy.stop",
+        "observer.stop",
         "writer.report",
         "writer.stop",
         "broker.stop",
