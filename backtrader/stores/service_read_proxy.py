@@ -384,6 +384,33 @@ class ServiceReadProxy:
         """Tell BtApiFeed that this explicitly bound facade has a live poll."""
         return type(dataname) is str and dataname in self._feeds
 
+    def supports_bar_history(
+        self,
+        dataname: str,
+        *,
+        timeframe: Any,
+        compression: int = 1,
+    ) -> bool:
+        """Report whether a bound bar feed supports this fixed interval.
+
+        This is an owner-thread, in-memory capability check. It is safe to call
+        before ``connect`` and never starts a facade or reads provider state.
+        """
+
+        self._assert_owner()
+        if self._closed or self._closing:
+            return False
+        if type(dataname) is not str or type(timeframe) is not int:
+            return False
+        binding = self._feeds.get(dataname)
+        if type(binding) is not ServiceFeedBinding:
+            return False
+        try:
+            requested_timeframe = _backtrader_timeframe(timeframe, compression)
+            return _timeframe_seconds(requested_timeframe) == _timeframe_seconds(binding.timeframe)
+        except (ServiceReadProxyError, TypeError, ValueError):
+            return False
+
     def get_balance(self) -> dict[str, float]:
         observation = self._current_observation()
         valuation = observation.valuation

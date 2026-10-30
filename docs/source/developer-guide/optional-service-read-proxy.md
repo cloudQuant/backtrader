@@ -56,6 +56,12 @@ finally:
 
 - Broker 必须处于 `market_data_only=True`。Store 的提交、撤单及入队入口均拒绝
   写操作；此代理不能用于实盘执行。
+- `supports_bar_history(dataname, *, timeframe, compression=1)` 可在 `connect()` 前
+  由代理所属线程调用，用于预先检查固定周期的 bar 历史能力。它只检查显式
+  `ServiceFeedBinding` 和周期秒数，不调用账户或行情 facade；例如绑定 `60s` 与
+  Backtrader 的 1 分钟周期等价。未知 feed、tick/订单簿绑定、无效周期，以及代理
+  正在关闭或已关闭时均返回 `False`。该结果只说明配置的周期匹配，不保证服务端
+  历史查询一定成功。
 - 未成交订单未知和完整空集合有不同含义。订单事实缺失、不完整、单位错误或
   合约未映射时拒绝读取；启动后账户失去有效基线时也会传播错误，不返回旧缓存。
 - bar Feed 先建立实时订阅，再分页读取历史。历史和实时重叠的相同闭合 K 线只输出

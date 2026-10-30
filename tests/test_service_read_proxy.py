@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import threading
 import unittest
 from collections import deque
 from dataclasses import replace
@@ -40,7 +41,9 @@ from backtrader.dataseries import TimeFrame
 from backtrader.brokers.btapibroker import BtApiBroker
 from backtrader.stores.btapistore import BtApiStore, BtApiStoreError
 from backtrader.stores.service_read_proxy import (
+    ServiceCtpTickBinding,
     ServiceFeedBinding,
+    ServiceOrderBookBinding,
     ServiceReadProxy,
     ServiceReadProxyError,
     _bar_identity,
@@ -296,6 +299,109 @@ def _proxy(
 
 
 class ServiceReadProxyTests(unittest.TestCase):
+    def test_bar_history_capability_is_in_memory_and_accepts_interval_aliases(self):
+        proxy, account, market = _proxy()
+
+        # The capability query is usable before connect and must not touch either
+        # injected facade.
+        self.assertTrue(
+            proxy.supports_bar_history("BTC-USD", timeframe=TimeFrame.Seconds, compression=60)
+        )
+        self.assertTrue(
+            proxy.supports_bar_history("BTC-USD", timeframe=TimeFrame.Minutes, compression=1)
+        )
+        self.assertEqual(account.refresh_count, 0)
+        self.assertEqual(market.calls, [])
+
+        # The configured wire interval may use a different fixed-unit spelling.
+        alias_market = _MarketClient()
+        alias_market.key = MarketSubscriptionKey(
+            "source", "entitlement", INSTRUMENT, "bar", timeframe="60s"
+        )
+        alias_binding = ServiceFeedBinding(alias_market, RESOURCE, "contracts", "60s")
+        alias_proxy = ServiceReadProxy(
+            _AccountClient(_observation()),
+            {"BTC-USD": alias_binding},
+            valuation_currency="USD",
+            position_mode="net",
+        )
+        self.assertTrue(
+            alias_proxy.supports_bar_history("BTC-USD", timeframe=TimeFrame.Minutes, compression=1)
+        )
+        self.assertEqual(alias_market.calls, [])
+
+    def test_bar_history_capability_fails_closed_for_unsupported_bindings_and_inputs(self):
+        proxy, _, _ = _proxy()
+
+        unsupported = (
+            ("missing", TimeFrame.Minutes, 1),
+            ("BTC-USD", TimeFrame.Seconds, 59),
+            ("BTC-USD", TimeFrame.Weeks, 1),
+            ("BTC-USD", TimeFrame.Minutes, 0),
+            ("BTC-USD", TimeFrame.Minutes, True),
+            ("BTC-USD", [], 1),
+            (None, TimeFrame.Minutes, 1),
+        )
+        for dataname, timeframe, compression in unsupported:
+            with self.subTest(dataname=dataname, timeframe=timeframe, compression=compression):
+                self.assertFalse(
+                    proxy.supports_bar_history(
+                        dataname, timeframe=timeframe, compression=compression
+                    )
+                )
+
+        tick_market = _MarketClient()
+        tick_market.key = MarketSubscriptionKey("source", "entitlement", INSTRUMENT, "ctp.quote.v2")
+        tick_binding = ServiceCtpTickBinding(tick_market, RESOURCE, "contracts", "session-1")
+        orderbook_market = _MarketClient()
+        orderbook_market.key = MarketSubscriptionKey(
+            "source", "entitlement", INSTRUMENT, "orderbook", depth=5
+        )
+        orderbook_binding = ServiceOrderBookBinding(orderbook_market, RESOURCE, "contracts")
+        for binding in (tick_binding, orderbook_binding):
+            with self.subTest(binding=type(binding).__name__):
+                non_bar_proxy = ServiceReadProxy(
+                    _AccountClient(_observation()),
+                    {"BTC-USD": binding},
+                    valuation_currency="USD",
+                    position_mode="net",
+                )
+                self.assertFalse(
+                    non_bar_proxy.supports_bar_history(
+                        "BTC-USD", timeframe=TimeFrame.Minutes, compression=1
+                    )
+                )
+                self.assertEqual(binding.market_client.calls, [])
+
+    def test_bar_history_capability_enforces_owner_thread_and_closed_state(self):
+        proxy, _, _ = _proxy()
+        result = []
+
+        def query_from_other_thread():
+            try:
+                result.append(
+                    proxy.supports_bar_history(
+                        "BTC-USD", timeframe=TimeFrame.Minutes, compression=1
+                    )
+                )
+            except ServiceReadProxyError as exc:
+                result.append(exc.code)
+
+        worker = threading.Thread(target=query_from_other_thread)
+        worker.start()
+        worker.join()
+        self.assertEqual(result, ["WRONG_OWNER_THREAD"])
+
+        proxy._closing = True
+        self.assertFalse(
+            proxy.supports_bar_history("BTC-USD", timeframe=TimeFrame.Minutes, compression=1)
+        )
+        proxy._closing = False
+        proxy.disconnect()
+        self.assertFalse(
+            proxy.supports_bar_history("BTC-USD", timeframe=TimeFrame.Minutes, compression=1)
+        )
+
     def test_account_valuation_and_net_quantity_use_explicit_units(self):
         proxy, _, _ = _proxy(_observation(positions=(_position(),)))
         proxy.connect()
