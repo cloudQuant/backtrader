@@ -227,6 +227,7 @@ Backtrader 是 CloudQuant 量化研究生态的一部分：
    advanced/profiling_zh
    advanced/data-acquisition_zh
    advanced/architecture/overview_zh
+   advanced/architecture/trading-modes_zh
    advanced/architecture/line-system_zh
    advanced/architecture/phase-system_zh
    user-guide/data-feeds/live/ctp-live-trading_zh

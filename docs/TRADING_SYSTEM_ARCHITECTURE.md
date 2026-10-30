@@ -91,7 +91,9 @@ SDK 是集成框架，不是 Backtrader 的第二套策略引擎。插件加载�
 
 ## 7. 当前迁移边界
 
-Backtrader 当前仍随包提供 `backtrader_runtime`；新 `bt_api_runtime` 并未替代它。计划按职责迁移旧 runtime 全部功能：通用控制与编排归新 runtime；Backtrader 对象桥接和框架投影归 Backtrader；CTP 协议归 CTP 项目；共享合同和服务分别归对应 SDK 子项目；认证专用证据与 fixture 留在认证/测试工具。所有功能和调用方完成替代验证后取消旧 runtime 和旧门面，不保留旧 API shim。
+各项目统一采用四种交易模式：`replay`、`shadow`、`paper`（外部模拟账户）和 `live`（生产账户）。定义、权限边界及迭代 52 范围见[交易运行模式标准](source/advanced/architecture/trading-modes_zh.md)；模式名称本身不授予账户写权限。
+
+Backtrader 当前仍随包提供 `backtrader_runtime`；新 `bt_api_runtime` 并未替代它。计划按职责梳理旧 runtime 的全部功能：通用控制与编排归新 runtime；Backtrader 对象桥接和框架投影归 Backtrader；CTP 协议归 CTP 项目；共享合同和服务分别归对应 SDK 子项目；认证专用证据与 fixture 留在认证/测试工具。迭代 52 实现和验收模拟账户 `paper` 与生产账户 `live`；`replay`、`shadow` 和本地模拟先盘点并研究归属，不在本轮使用或验收。延后能力须保留来源及处置记录；本轮范围内的替代功能和活跃调用方切换完成后，才能取消旧 runtime 和旧门面，不保留旧 API shim。删除前必须处理未迁移能力的活跃依赖，不能声称延后功能已完成迁移。
 
 Backtrader `examples/live` 和 `examples/unified` 中涉及模拟和实盘交易的示例都在重构范围，旧示例行为不作为兼容目标。各组件的生产功能、现存证据及未完成验收必须分别保留，历史记录不因重构改写；迁移方案本身不授权新的账户写入。实现、安装、真实行情和真实账户接受需要各自证据。
 

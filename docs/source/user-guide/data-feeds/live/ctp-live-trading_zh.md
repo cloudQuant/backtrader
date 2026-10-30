@@ -9,6 +9,8 @@ description: 使用 CTP 接口进行中国期货实盘和模拟交易
 
 CTP (Comprehensive Transaction Platform) 是中国期货市场最广泛使用的交易接口。本指南介绍如何使用 backtrader 的 CTP 模块进行实盘和模拟交易。
 
+**模式说明（统一目标术语）：**SimNow 属于外部模拟账户，按[交易运行模式标准](../../../advanced/architecture/trading-modes_zh.md)归为目标 `paper`。本指南标题和旧示例中的“实盘/live”描述 CTP 实时连接与交易接口形式，不等于目标 `live`（生产账户）模式。现有示例保持原样；它们本身不标识或认证所连接的账户环境。
+
 ## CTP 介绍
 
 CTP 是上海期货信息技术有限公司开发的综合交易平台，为期货公司提供标准化的交易和行情接口。

@@ -9,6 +9,15 @@ ordinary `Alpha003TargetStrategy` and Cerebro-owned `BtApiFeed` cohort path.
 Replay uses `CausalReplayBroker`, a local `BackBroker` subclass, and never
 creates a provider Store. Live uses `BtApiBroker` and `RegisteredSimStore`.
 
+**Trading-mode status (legacy interface):** This example's `--mode live` and
+`entry.tier: live` selectors connect to the SimNow simulated environment. Under
+the shared [trading-mode standard](../../../docs/source/advanced/architecture/trading-modes_zh.md),
+an external simulated account is `paper`, while `live` means a production
+account. These old selectors are not the Iteration 52 mode API and do not map
+automatically to the new modes; this note does not claim that API is implemented.
+Iteration 52 covers `paper/live` use and acceptance; `replay/shadow` are being
+inventoried for later ownership decisions.
+
 The public [`config.yaml`](config.yaml) starts in `dry` with `entry.tier: dry`,
 no write grant, and every monetary, freshness, holding, and order budget set to
 `null`. Null budgets block order planning; they are not replaced by permissive
