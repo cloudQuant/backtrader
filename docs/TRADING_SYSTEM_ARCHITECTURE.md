@@ -1,6 +1,6 @@
 ﻿# 交易系统架构与项目职责
 
-本文记录 Backtrader、`bt_api_py` 及其子项目的职责建议和当前实现边界，供用户选择部署方式和项目维护者整理代码时参考。调研基线为 2026-10-30 的 Backtrader `dev` `64f3d5f0` 与 `bt_api_py` `dev` `fa8af9b5`。**目标架构是设计方向，不代表所有链路已经实现、部署或通过真实账户验收。**
+本文记录 Backtrader、`bt_api_py` 及其子项目的职责建议和当前实现边界，供用户选择部署方式和项目维护者整理代码时参考。调研基线为 2026-10-30 的 Backtrader `dev` `64f3d5f0` 与 `bt_api_py` `dev` `fa8af9b5`；子项目的基线版本由后者记录的 21 个 gitlink 指定，本轮各子项目后续提交仅修改 README。Gateway 工作区另有原有未提交的源码和测试修改，未纳入本轮提交，不能将其未提交状态当作已验收基线。**目标架构是设计方向，不代表所有链路已经实现、部署或通过真实账户验收。**
 
 行业并不存在唯一的交易系统分层标准。本文参考 [NautilusTrader 的运行与执行架构](https://nautilustrader.io/docs/latest/concepts/architecture/)、[CCXT 的统一 API 与场所差异](https://github.com/ccxt/ccxt/wiki/Manual)、[QuantConnect 的实盘部署与恢复说明](https://www.quantconnect.com/docs/v2/cloud-platform/live-trading/deployment)和 [FIA 自动交易风控实践](https://www.fia.org/sites/default/files/2024-07/FIA_WP_AUTOMATED%20TRADING%20RISK%20CONTROLS_FINAL_0.pdf)，再结合本项目代码确定职责；这些资料不意味着具体市场的法律适用性或本项目已达其全部实践要求。
 
