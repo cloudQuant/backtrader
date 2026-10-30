@@ -66,6 +66,13 @@ _REQUEST_TYPES = {
 }
 _MARGIN_FILTERS = ("HedgeFlag",)
 _COMMISSION_FILTERS = frozenset({"InstrumentID", "ExchangeID"})
+# A live instruments family is queried once per target product because a
+# single unfiltered ReqQryInstrument can exceed the per-query cap on a wide
+# CTP venue while the same filters are fast and complete.  The native filters
+# are always exactly (ExchangeID, InstrumentID="", ProductID).
+_INSTRUMENT_QUERY_MIN_PACING_SECONDS = 1.0
+_INSTRUMENT_QUERY_RETRY_LIMIT = 1
+_DIGITS = "0123456789"
 _CAPITAL_BLOCKERS = frozenset(
     {
         "available_margin_unobserved",
@@ -118,6 +125,7 @@ class _FactorExecutionFactsProjectionSource:
     thread_id: int
     targets: Tuple[Tuple[str, str, str, Any], ...]
     core_entries: Tuple[Tuple[str, Any, int], ...]
+    instrument_source_entries: Tuple[Tuple[Any, int, int], ...] = ()
 
 
 class _FactorExecutionFactsSourceLease:
@@ -204,8 +212,37 @@ class FactorExecutionTarget:
 
 
 @dataclass(frozen=True)
+class FactorExecutionQuerySource:
+    """One product-scoped native instrument query behind a family fact.
+
+    A live ``instruments_result`` family is the bounded union of one query per
+    target product.  The aggregate family fact keeps the sealing request id,
+    while this tuple preserves the exact per-product request identity, times,
+    row count and record digest so no row is attributed to a query that did
+    not return it.
+    """
+
+    exchange_id: str
+    product_id: str
+    request_id: int
+    connection_generation: int
+    account_fingerprint: str
+    trading_day: str
+    started_at: datetime
+    completed_at: datetime
+    row_count: int
+    source_digest: Optional[str] = None
+    request_filters: Tuple[Tuple[str, str], ...] = ()
+
+
+@dataclass(frozen=True)
 class FactorExecutionQueryFact:
-    """Copied public provenance for one actual SDK QueryResult projection."""
+    """Copied public provenance for one actual SDK QueryResult projection.
+
+    ``sources`` is empty for an unfiltered single-query family.  It is a
+    non-empty bounded tuple only for the live per-product ``instruments_result``
+    aggregate.
+    """
 
     family: str
     request_type: Optional[str]
@@ -220,6 +257,7 @@ class FactorExecutionQueryFact:
     scope_complete: Optional[bool]
     row_count: Optional[int]
     target_id: Optional[str] = None
+    sources: Tuple[FactorExecutionQuerySource, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -734,6 +772,10 @@ class FactorExecutionFacts:
     execution_target_ids: Optional[Tuple[str, ...]] = None
     commission_required_for_open: bool = False
     execution_intents: Tuple[FactorExecutionIntentFacts, ...] = ()
+    # Exact native (exchange, product) instrument-query coverage required by
+    # this projection.  It is empty only for callers that construct a legacy
+    # unfiltered fact set directly.
+    instrument_products: Tuple[Tuple[str, str], ...] = ()
     # The private source stamp is installed only by the live projection path.
     # ``init=False`` deliberately makes dataclasses.replace()/constructors
     # lose authority instead of copying a valid source binding.
@@ -776,6 +818,18 @@ class FactorExecutionFacts:
                 raise ValueError("execution_target_ids must be a non-empty immutable target subset")
         if type(self.commission_required_for_open) is not bool:
             raise TypeError("commission_required_for_open must be bool")
+        if type(self.instrument_products) is not tuple or any(
+            type(item) is not tuple
+            or len(item) != 2
+            or type(item[0]) is not str
+            or not item[0]
+            or type(item[1]) is not str
+            or not item[1]
+            for item in self.instrument_products
+        ):
+            raise TypeError("instrument_products must be an immutable (exchange, product) tuple")
+        if len(set(self.instrument_products)) != len(self.instrument_products):
+            raise ValueError("instrument_products must not contain duplicate products")
 
     @property
     def _full_target_ids(self) -> Tuple[str, ...]:
@@ -855,7 +909,9 @@ class FactorExecutionFacts:
             or instrument.lower_limit is None
             or instrument.upper_limit is None
             or len(instrument_queries) != 1
-            or not _base_query_provenance_complete(self.query_provenance, self.available_at)
+            or not _base_query_provenance_complete(
+                self.query_provenance, self.available_at, self.instrument_products
+            )
         ):
             return None
         if (
@@ -882,7 +938,9 @@ class FactorExecutionFacts:
             or account.account_fingerprint is None
             or account.connection_generation is None
             or account.trading_day is None
-            or not _base_query_provenance_complete(self.query_provenance, self.available_at)
+            or not _base_query_provenance_complete(
+                self.query_provenance, self.available_at, self.instrument_products
+            )
             or self._passive_observation_flat_state(target_id) is not True
         ):
             return False
@@ -1127,7 +1185,9 @@ class FactorExecutionFacts:
             and self.account is not None
             and self.account.route_permitted is True
             and self._scoped_route_permitted() is True
-            and _base_query_provenance_complete(self.query_provenance, self.available_at)
+            and _base_query_provenance_complete(
+                self.query_provenance, self.available_at, self.instrument_products
+            )
             and not self.risk_reduction_blockers
             and self.positions
             and all(item.quantity is not None for item in self.positions)
@@ -1298,7 +1358,9 @@ class FactorExecutionFacts:
             and self.account is not None
             and self.account.route_permitted is True
             and self._scoped_route_permitted() is True
-            and _base_query_provenance_complete(self.query_provenance, self.available_at)
+            and _base_query_provenance_complete(
+                self.query_provenance, self.available_at, self.instrument_products
+            )
             and not self.order_cancel_blockers
             and self.working_orders
             and all(
@@ -1601,8 +1663,51 @@ def _source_stamp_projection(
         ):
             return None
         entries = []
+        instrument_source_entries = []
         for family in _BASE_FAMILIES:
             fact = query_fact_map[family]
+            if family == "instruments_result" and fact.sources:
+                # Recheck every product-scoped cache entry, then bind the family
+                # seal to the last (highest request id) product query, which is
+                # the Store's current family result.
+                for source in fact.sources:
+                    filters = _instrument_query_filters(
+                        source.exchange_id, source.product_id
+                    )
+                    source_key = _query_snapshot_key(family, filters)
+                    source_entry = query_cache.get(source_key)
+                    if not _source_entry_matches(
+                        source_entry,
+                        family,
+                        source,
+                        issuer=issuer,
+                        generation=generation,
+                        account=account,
+                        trading_day=day,
+                        broker_id=broker_id,
+                        investor_id=investor_id,
+                        unfiltered=False,
+                        max_age=max_query_age,
+                        now=now,
+                        elapsed=0.0,
+                    ):
+                        return None
+                    instrument_source_entries.append(
+                        (source_key, source.request_id, source.row_count)
+                    )
+                seal = max(
+                    fact.sources, key=lambda item: (item.request_id, item.completed_at)
+                )
+                seal_key = _query_snapshot_key(
+                    family, _instrument_query_filters(seal.exchange_id, seal.product_id)
+                )
+                if (
+                    seal.request_id != fact.request_id
+                    or query_results.get(family) is not query_cache.get(seal_key)
+                ):
+                    return None
+                entries.append((family, seal_key, fact.request_id))
+                continue
             key = _query_snapshot_key(family, {})
             entry = query_cache.get(key)
             if (
@@ -1672,6 +1777,7 @@ def _source_stamp_projection(
             thread_id=threading.get_ident(),
             targets=target_refs,
             core_entries=tuple(entries),
+            instrument_source_entries=tuple(instrument_source_entries),
         )
 
     try:
@@ -1772,6 +1878,63 @@ def _projection_source_is_current(
         key, request_id = pair
         fact = by_family[family]
         entry = query_cache.get(key)
+        if family == "instruments_result" and fact.sources:
+            seal = max(fact.sources, key=lambda item: (item.request_id, item.completed_at))
+            seal_key = _query_snapshot_key(
+                family, _instrument_query_filters(seal.exchange_id, seal.product_id)
+            )
+            if (
+                key != seal_key
+                or request_id != fact.request_id
+                or request_id != seal.request_id
+                or query_results.get(family) is not entry
+                or not _source_entry_matches(
+                    entry,
+                    family,
+                    seal,
+                    issuer=marker.issuer,
+                    generation=marker.connection_generation,
+                    account=marker.account_fingerprint,
+                    trading_day=marker.trading_day,
+                    broker_id=marker.broker_id,
+                    investor_id=marker.investor_id,
+                    unfiltered=False,
+                    max_age=max_query_age,
+                    now=now_utc,
+                    elapsed=elapsed,
+                )
+            ):
+                return False
+            marker_sources = {
+                source_key: (source_request_id, source_row_count)
+                for source_key, source_request_id, source_row_count in marker.instrument_source_entries
+            }
+            if len(marker_sources) != len(fact.sources):
+                return False
+            for source in fact.sources:
+                source_key = _query_snapshot_key(
+                    family, _instrument_query_filters(source.exchange_id, source.product_id)
+                )
+                marker_source = marker_sources.get(source_key)
+                if marker_source != (source.request_id, source.row_count):
+                    return False
+                if not _source_entry_matches(
+                    query_cache.get(source_key),
+                    family,
+                    source,
+                    issuer=marker.issuer,
+                    generation=marker.connection_generation,
+                    account=marker.account_fingerprint,
+                    trading_day=marker.trading_day,
+                    broker_id=marker.broker_id,
+                    investor_id=marker.investor_id,
+                    unfiltered=False,
+                    max_age=max_query_age,
+                    now=now_utc,
+                    elapsed=elapsed,
+                ):
+                    return False
+            continue
         if (
             key != _query_snapshot_key(family, {})
             or request_id != fact.request_id
@@ -2707,7 +2870,9 @@ def _read_only_reconciliation_blockers(
 
     provenance = tuple(facts.query_provenance)
     available_at = _aware_utc(facts.available_at)
-    if available_at is None or not _base_query_provenance_complete(provenance, available_at):
+    if available_at is None or not _base_query_provenance_complete(
+        provenance, available_at, facts.instrument_products
+    ):
         block("read_only_core_query_provenance_incomplete")
     else:
         base = tuple(fact for fact in provenance if fact.family in _BASE_FAMILIES)
@@ -3307,7 +3472,9 @@ def _exact_owned_cancel_join_covers_book_blocker(facts: FactorExecutionFacts) ->
         or facts.account.account_scope != facts.account_scope
         or facts.account.snapshot_id != facts.snapshot_id
         or _aware_utc(facts.account.available_at) != facts.available_at
-        or not _base_query_provenance_complete(facts.query_provenance, facts.available_at)
+        or not _base_query_provenance_complete(
+            facts.query_provenance, facts.available_at, facts.instrument_products
+        )
     ):
         return False
     affected = tuple(
@@ -3446,9 +3613,67 @@ def _unmatched_trade_diagnostic(
     return ()
 
 
+def _provenance_instruments_complete(
+    fact: FactorExecutionQueryFact,
+    expected_products: Tuple[Tuple[str, str], ...],
+) -> bool:
+    """Validate the per-product source coverage carried by the family fact."""
+
+    sources = fact.sources
+    if not sources:
+        # Legacy unfiltered instrument queries carry no product sources.  They
+        # are acceptable only when the caller declares no product coverage.
+        return not expected_products
+    if type(sources) is not tuple or any(
+        type(item) is not FactorExecutionQuerySource for item in sources
+    ):
+        return False
+    if any(
+        fact.request_type != "instruments"
+        or fact.scope_complete is not True
+        or fact.started_at is None
+        or fact.completed_at is None
+        or source.request_id is None
+        or source.connection_generation is None
+        or source.account_fingerprint is None
+        or source.trading_day is None
+        or source.started_at is None
+        or source.completed_at is None
+        or source.started_at > source.completed_at
+        or source.started_at < fact.started_at
+        or source.completed_at > fact.completed_at
+        or source.request_filters
+        != _instrument_native_filter_pairs(source.exchange_id, source.product_id)
+        or (
+            source.connection_generation,
+            source.account_fingerprint,
+            source.trading_day,
+        )
+        != (
+            fact.connection_generation,
+            fact.account_fingerprint,
+            fact.trading_day,
+        )
+        for source in sources
+    ):
+        return False
+    if len({source.request_id for source in sources}) != len(sources):
+        return False
+    if fact.request_id not in {source.request_id for source in sources}:
+        return False
+    if sum(source.row_count for source in sources) != fact.row_count:
+        return False
+    if expected_products:
+        expected = set(expected_products)
+        if {(source.exchange_id, source.product_id) for source in sources} != expected:
+            return False
+    return True
+
+
 def _base_query_provenance_complete(
     provenance: Tuple[FactorExecutionQueryFact, ...],
     available_at: datetime,
+    instrument_products: Tuple[Tuple[str, str], ...] = (),
 ) -> bool:
     base = [fact for fact in provenance if fact.family in _BASE_FAMILIES]
     if len(base) != len(_BASE_FAMILIES) or {fact.family for fact in base} != set(_BASE_FAMILIES):
@@ -3467,6 +3692,11 @@ def _base_query_provenance_complete(
         or not fact.query_complete
         or fact.scope_complete is not True
         for fact in base
+    ):
+        return False
+    instruments = [fact for fact in base if fact.family == "instruments_result"]
+    if len(instruments) != 1 or not _provenance_instruments_complete(
+        instruments[0], instrument_products
     ):
         return False
     return (
@@ -3720,6 +3950,13 @@ def _query_fact(
     request_id = _field(result, "request_id")
     generation = _field(result, "connection_generation")
     scope_complete = _field(result, "scope_complete")
+    raw_sources = _field(result, "sources", ())
+    sources = (
+        tuple(raw_sources)
+        if isinstance(raw_sources, (tuple, list))
+        and all(isinstance(item, FactorExecutionQuerySource) for item in raw_sources)
+        else ()
+    )
     return FactorExecutionQueryFact(
         family=family,
         request_type=_exact_text(_field(result, "request_type")),
@@ -3734,6 +3971,7 @@ def _query_fact(
         scope_complete=scope_complete if type(scope_complete) is bool else None,
         row_count=row_count,
         target_id=target_id,
+        sources=sources,
     )
 
 
@@ -3755,6 +3993,131 @@ def _missing_query_fact(family: str, target_id: Optional[str] = None) -> FactorE
     )
 
 
+def _instrument_query_filters(exchange_id: str, product_id: str) -> dict:
+    return {"instrument_id": "", "exchange_id": exchange_id, "product_id": product_id}
+
+
+def _instrument_native_filter_pairs(
+    exchange_id: str, product_id: str
+) -> Tuple[Tuple[str, str], ...]:
+    return (
+        ("ExchangeID", exchange_id),
+        ("InstrumentID", ""),
+        ("ProductID", product_id),
+    )
+
+
+def _instrument_result_contains(
+    result: Any, product_scope: Tuple[str, str], instrument: str
+) -> bool:
+    """Return whether one product-scoped result returned the exact instrument."""
+
+    rows = _field(result, "rows")
+    if type(rows) is not list:
+        return False
+    exchange_id, product_id = product_scope
+    matches = [
+        row
+        for row in rows
+        if isinstance(row, Mapping)
+        and _exact_text(row.get("InstrumentID", row.get("instrument_id"))) == instrument
+        and _exact_text(row.get("ExchangeID", row.get("exchange_id"))) == exchange_id
+        and _same_instrument_product(_instrument_row_product(row), product_id)
+    ]
+    return len(matches) == 1
+
+
+def _same_instrument_product(left: Optional[str], right: Optional[str]) -> bool:
+    """Compare a native or derived ProductID without case-only false negatives.
+
+    The exact spelling used for the native request is preserved in provenance;
+    this comparison only decides whether a returned row belongs to the queried
+    product.  A genuinely different product still fails closed.
+    """
+
+    return (
+        type(left) is str
+        and type(right) is str
+        and bool(left)
+        and bool(right)
+        and left.upper() == right.upper()
+    )
+
+
+def _instrument_row_product(row: Mapping) -> Optional[str]:
+    product = row.get("ProductID", row.get("product_id"))
+    if type(product) is str and product:
+        return product
+    instrument = row.get("InstrumentID", row.get("instrument_id"))
+    if type(instrument) is str and instrument:
+        return _instrument_product_id(instrument)
+    return None
+
+
+def _instrument_query_sources_valid(
+    result: Any,
+    fact: FactorExecutionQueryFact,
+    rows: Any,
+) -> bool:
+    """Validate the bounded per-product provenance behind one family fact."""
+
+    sources = fact.sources
+    if type(sources) is not tuple or not sources:
+        return False
+    if _field(result, "query_coverage_complete") is not True:
+        return False
+    identity = (
+        fact.connection_generation,
+        fact.account_fingerprint,
+        fact.trading_day,
+    )
+    if None in identity:
+        return False
+    if len({(item.exchange_id, item.product_id) for item in sources}) != len(sources):
+        return False
+    started = _aware_utc(fact.started_at)
+    completed = _aware_utc(fact.completed_at)
+    if started is None or completed is None or started > completed:
+        return False
+    row_total = 0
+    for source in sources:
+        if type(source) is not FactorExecutionQuerySource:
+            return False
+        if (
+            type(source.exchange_id) is not str
+            or not source.exchange_id
+            or source.exchange_id != source.exchange_id.strip()
+            or type(source.product_id) is not str
+            or not source.product_id
+            or source.product_id != source.product_id.strip()
+            or type(source.request_id) is not int
+            or source.request_id <= 0
+            or (
+                source.connection_generation,
+                source.account_fingerprint,
+                source.trading_day,
+            )
+            != identity
+            or not isinstance(source.started_at, datetime)
+            or not isinstance(source.completed_at, datetime)
+            or source.started_at > source.completed_at
+            or source.started_at < started
+            or source.completed_at > completed
+            or type(source.row_count) is not int
+            or source.row_count < 0
+            or not isinstance(source.request_filters, tuple)
+            or source.request_filters
+            != _instrument_native_filter_pairs(source.exchange_id, source.product_id)
+        ):
+            return False
+        row_total += source.row_count
+    if type(rows) is not list or row_total != len(rows):
+        return False
+    if len({source.request_id for source in sources}) != len(sources):
+        return False
+    return fact.request_id in {source.request_id for source in sources}
+
+
 def _query_valid(
     family: str,
     result: Any,
@@ -3772,6 +4135,11 @@ def _query_valid(
     filters = _field(result, "query_filters")
     if require_full_scope:
         source_filters_valid = source_filters == ()
+    elif family == "instruments_result":
+        # Product-scoped instrument queries declare their exact native filters
+        # through query_filters; the SDK source itself still reports no
+        # optional explicit filters.
+        source_filters_valid = bool(source_filters == () and expected_filters is not None)
     elif family == "instrument_margin_rate_result":
         source_filters_valid = source_filters == _MARGIN_FILTERS
     elif family == "instrument_commission_rate_result":
@@ -3821,6 +4189,11 @@ def _query_valid(
         and (fact.scope_complete is True if require_full_scope else fact.scope_complete is False)
         and (
             dict(filters) == dict(expected_filters or {}) if expected_filters is not None else True
+        )
+        and (
+            family != "instruments_result"
+            or not fact.sources
+            or _instrument_query_sources_valid(result, fact, rows)
         )
     )
 
@@ -3886,6 +4259,8 @@ def _completed_query_set(
         or fact.scope_complete is not True
         for family, fact in zip(_BASE_FAMILIES, facts)
     ):
+        return None
+    if not _provenance_instruments_complete(facts_by_family["instruments_result"], ()):
         return None
     if (
         len({fact.request_id for fact in facts}) != len(_BASE_FAMILIES)
@@ -4630,6 +5005,345 @@ def _valid_targets(targets: Tuple[FactorExecutionTarget, ...]) -> Tuple[FactorEx
     return items
 
 
+def _instrument_product_id(instrument: str) -> str:
+    """Return the native CTP ProductID for a futures instrument.
+
+    CTP futures instrument ids are ``<ProductID><contract>`` (for example
+    ``rb2701`` -> ``rb`` and ``MA701`` -> ``MA``).  Product ids are case
+    sensitive natively, so the caller must preserve this spelling.  Any
+    instrument without a digit suffix is returned unchanged and is rejected by
+    the exact coverage check when it cannot be tied to a query.
+    """
+
+    text = instrument.rstrip(_DIGITS)
+    return text if text else instrument
+
+
+def _target_instrument_products(
+    targets: Tuple[FactorExecutionTarget, ...],
+) -> Tuple[Tuple[str, str], ...]:
+    """Derive the exact native (exchange, product) set from target routes."""
+
+    products = {
+        (target.exchange, _instrument_product_id(target.instrument)) for target in targets
+    }
+    return tuple(sorted(products))
+
+
+def _normalize_instrument_products(
+    instrument_products: Optional[Tuple[Tuple[str, str], ...]],
+    targets: Tuple[FactorExecutionTarget, ...],
+) -> Tuple[Tuple[str, str], ...]:
+    """Validate caller-declared products against the exact target routes.
+
+    Duplicate, malformed, missing, or out-of-scope product coverage raises a
+    caller error instead of silently querying an unrelated or incomplete set.
+    """
+
+    expected = _target_instrument_products(targets)
+    if instrument_products is None:
+        return expected
+    if type(instrument_products) is not tuple or not instrument_products:
+        raise ValueError("instrument_products must be a non-empty immutable tuple")
+    normalized = []
+    for item in instrument_products:
+        if type(item) is not tuple or len(item) != 2:
+            raise ValueError("instrument_products entries must be (exchange, product) pairs")
+        exchange, product = item
+        if (
+            type(exchange) is not str
+            or not exchange
+            or exchange != exchange.strip()
+            or type(product) is not str
+            or not product
+            or product != product.strip()
+        ):
+            raise ValueError("instrument product filters must be exact non-empty text")
+        normalized.append((exchange, product))
+    if len(set(normalized)) != len(normalized):
+        raise ValueError("instrument_products must not contain duplicate products")
+    declared = set(normalized)
+    if declared != set(expected):
+        raise ValueError("instrument_products must exactly cover the target product set")
+    return tuple(sorted(declared))
+
+
+def _instrument_query_aggregate(
+    products: Tuple[Tuple[str, str], ...],
+    results: Mapping,
+    *,
+    now: datetime,
+    max_age: timedelta,
+    blockers: List[str],
+) -> Optional[dict]:
+    """Build one honest ``instruments_result`` aggregate from product queries.
+
+    The aggregate's request id is the sealing (highest) per-product request;
+    every returned row remains attributable through the bounded ``sources``
+    tuple.  Any missing product, invalid/stale product query, out-of-scope row,
+    cross-product duplicate, or identity disagreement fails the whole family
+    closed instead of returning a partial union.
+    """
+
+    sources: List[FactorExecutionQuerySource] = []
+    rows: List[Any] = []
+    seen_routes = set()
+    identity = None
+    valid = True
+    for exchange_id, product_id in products:
+        label = "{}.{}".format(exchange_id, product_id)
+        result = results.get((exchange_id, product_id))
+        if result is None:
+            blockers.append("instrument_query_unavailable:{}".format(label))
+            valid = False
+            continue
+        expected_filters = _instrument_query_filters(exchange_id, product_id)
+        if not _query_valid(
+            "instruments_result",
+            result,
+            now=now,
+            max_age=max_age,
+            require_full_scope=False,
+            expected_filters=expected_filters,
+        ):
+            blockers.append("instrument_query_invalid_or_stale:{}".format(label))
+            valid = False
+            continue
+        product_rows = _field(result, "rows")
+        scope_ok = True
+        for row in product_rows:
+            row_exchange = _exact_text(row.get("ExchangeID", row.get("exchange_id")))
+            row_product = _instrument_row_product(row)
+            instrument = _exact_text(row.get("InstrumentID", row.get("instrument_id")))
+            if (
+                row_exchange != exchange_id
+                or not _same_instrument_product(row_product, product_id)
+                or instrument is None
+            ):
+                blockers.append("instrument_query_row_scope_mismatch:{}".format(label))
+                valid = False
+                scope_ok = False
+                break
+            route = (row_exchange, instrument)
+            if route in seen_routes:
+                blockers.append(
+                    "instrument_query_duplicate_row:{}:{}".format(row_exchange, instrument)
+                )
+                valid = False
+                scope_ok = False
+                break
+            seen_routes.add(route)
+        if not scope_ok:
+            continue
+        fact = _query_fact("instruments_result", result)
+        source = FactorExecutionQuerySource(
+            exchange_id=exchange_id,
+            product_id=product_id,
+            request_id=fact.request_id,
+            connection_generation=fact.connection_generation,
+            account_fingerprint=fact.account_fingerprint,
+            trading_day=fact.trading_day,
+            started_at=fact.started_at,
+            completed_at=fact.completed_at,
+            row_count=fact.row_count,
+            source_digest=_exact_text(_field(result, "source_records_sha256")),
+            request_filters=_instrument_native_filter_pairs(exchange_id, product_id),
+        )
+        if (
+            source.request_id is None
+            or source.connection_generation is None
+            or source.account_fingerprint is None
+            or source.trading_day is None
+            or source.started_at is None
+            or source.completed_at is None
+            or source.row_count is None
+        ):
+            blockers.append("instrument_query_invalid_or_stale:{}".format(label))
+            valid = False
+            continue
+        source_identity = (
+            source.connection_generation,
+            source.account_fingerprint,
+            source.trading_day,
+        )
+        if identity is None:
+            identity = source_identity
+        elif identity != source_identity:
+            blockers.append("instrument_query_identity_mismatch:{}".format(label))
+            valid = False
+        sources.append(source)
+        rows.extend(product_rows)
+    if len(sources) != len(products):
+        valid = False
+    if not valid or identity is None:
+        blockers.append("instrument_query_coverage_incomplete:instruments_result")
+        return None
+    ordered_sources = tuple(sorted(sources, key=lambda item: (item.exchange_id, item.product_id)))
+    seal = max(ordered_sources, key=lambda item: (item.request_id, item.completed_at))
+    aggregate = {
+        "family": "instruments_result",
+        "request_type": "instruments",
+        "expected_request_type": "instruments",
+        "request_id": seal.request_id,
+        "connection_generation": identity[0],
+        "account_fingerprint": identity[1],
+        "trading_day": identity[2],
+        "started_at_utc": min(source.started_at for source in ordered_sources),
+        "completed_at_utc": max(source.completed_at for source in ordered_sources),
+        "complete": True,
+        "is_last_seen": True,
+        "timed_out": False,
+        "error_code": None,
+        "error_code_observed": True,
+        "error_message": "",
+        "unsupported": False,
+        "late_callback_count": 0,
+        "submit_code": 0,
+        "submit_code_observed": True,
+        "rows": rows,
+        "source_owned": True,
+        "query_complete": True,
+        "scope_complete": True,
+        "source_explicit_request_filters": (),
+        "query_filters": {},
+        "source_records_sha256": seal.source_digest,
+        "sources": ordered_sources,
+        "query_coverage_complete": True,
+    }
+    if not _query_valid(
+        "instruments_result",
+        aggregate,
+        now=now,
+        max_age=max_age,
+        require_full_scope=True,
+    ):
+        blockers.append("instrument_query_coverage_invalid:instruments_result")
+        return None
+    return aggregate
+
+
+def _store_query_in_flight(store: RegisteredSimStore) -> bool:
+    """Return whether the current Store SDK still has a query callback in flight."""
+
+    try:
+        state = store.registered_sim_query_in_flight()
+    except Exception:
+        return False
+    return state is True
+
+
+def _pace_instrument_queries(
+    store: RegisteredSimStore,
+    *,
+    last_submitted_monotonic: Optional[float],
+    deadline: float,
+    cancel_event: Optional[threading.Event],
+) -> bool:
+    """Wait for the >=1 s native pacing bound and the caller's deadline.
+
+    The real SDK already sleeps for its own serialized ``_query_interval``
+    (>=1.05 s) before each native submission, so a visible native interval at
+    or above the bound satisfies the pacing contract without a redundant
+    second sleep.  A test double with no native pacing gets the explicit bound
+    here.  Returns ``False`` when the deadline or cancellation stops the batch.
+    """
+
+    try:
+        native_interval = store.registered_sim_query_interval_seconds()
+    except Exception:
+        native_interval = None
+    if (
+        type(native_interval) in (int, float)
+        and native_interval >= _INSTRUMENT_QUERY_MIN_PACING_SECONDS
+    ):
+        return time.monotonic() < deadline
+    target = (
+        time.monotonic()
+        if last_submitted_monotonic is None
+        else last_submitted_monotonic + _INSTRUMENT_QUERY_MIN_PACING_SECONDS
+    )
+    while True:
+        now = time.monotonic()
+        remaining = min(target - now, deadline - now)
+        if remaining <= 0:
+            return now < deadline
+        if cancel_event is not None and cancel_event.is_set():
+            return False
+        time.sleep(min(0.05, remaining))
+
+
+def _wait_query_idle(
+    store: RegisteredSimStore,
+    *,
+    deadline: float,
+    cancel_event: Optional[threading.Event],
+) -> bool:
+    """Wait until the previous native query is no longer in flight."""
+
+    while _store_query_in_flight(store):
+        now = time.monotonic()
+        if now >= deadline:
+            return False
+        if cancel_event is not None and cancel_event.is_set():
+            return False
+        time.sleep(min(0.05, max(deadline - now, 0.0)))
+    return True
+
+
+def _query_instrument_product(
+    store: RegisteredSimStore,
+    exchange_id: str,
+    product_id: str,
+    *,
+    timeout: float,
+    deadline: float,
+    cancel_event: Optional[threading.Event],
+    last_submitted_monotonic: Optional[float],
+) -> Tuple[Optional[Any], Optional[str], Optional[float]]:
+    """Issue one bounded product instrument query with one idle retry.
+
+    The previous request is always drained and the >=1 s pacing bound is
+    honored before a retry.  The caller owns the fixed error label recording.
+    """
+
+    filters = _instrument_query_filters(exchange_id, product_id)
+    last = last_submitted_monotonic
+    last_error = None
+    for attempt in range(_INSTRUMENT_QUERY_RETRY_LIMIT + 1):
+        if attempt:
+            if not _wait_query_idle(store, deadline=deadline, cancel_event=cancel_event):
+                return None, "query_in_flight", last
+        if not _pace_instrument_queries(
+            store,
+            last_submitted_monotonic=last,
+            deadline=deadline,
+            cancel_event=cancel_event,
+        ):
+            return None, "deadline_or_cancelled", last
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            return None, "deadline", last
+        try:
+            result = store.registered_sim_query(
+                "instruments_result",
+                timeout=min(float(timeout), remaining),
+                attempts=1,
+                **filters,
+            )
+        except Exception as exc:
+            last_error = type(exc).__name__
+            last = time.monotonic()
+            continue
+        last = time.monotonic()
+        if not isinstance(result, Mapping):
+            last_error = "untyped_result"
+            continue
+        detached = dict(result)
+        detached["query_filters"] = dict(filters)
+        return detached, None, last
+    return None, last_error or "unobserved", last
+
+
 def refresh_factor_execution_queries(
     store: RegisteredSimStore,
     *,
@@ -4641,6 +5355,7 @@ def refresh_factor_execution_queries(
     max_queries: Optional[int] = None,
     cancel_event: Optional[threading.Event] = None,
     utc_now: Optional[Callable[[], datetime]] = None,
+    instrument_products: Optional[Tuple[Tuple[str, str], ...]] = None,
 ) -> FactorExecutionRefreshReceipt:
     """Refresh typed CTP query evidence from a runner-owned control path.
 
@@ -4675,6 +5390,7 @@ def refresh_factor_execution_queries(
         raise TypeError("cancel_event must be a threading.Event")
     if utc_now is not None and not callable(utc_now):
         raise TypeError("utc_now must be callable")
+    instrument_products = _normalize_instrument_products(instrument_products, bound_targets)
     targets_by_id = {target.target_id: target for target in bound_targets}
     selected_margin_ids = (
         tuple(targets_by_id) if margin_target_ids is None else tuple(margin_target_ids)
@@ -4753,6 +5469,62 @@ def refresh_factor_execution_queries(
             )
             break
         attempted.append(label)
+        if family == "instruments_result" and include_core and not filters:
+            # One native query per declared product, paced and retried
+            # independently.  A single global ReqQryInstrument can exceed the
+            # 8 s per-query cap while the product-scoped queries complete.
+            product_results = {}
+            last_submitted = None
+            for exchange_id, product_id in instrument_products:
+                if cancel_event is not None and cancel_event.is_set():
+                    cancelled = True
+                    blockers.append(
+                        "query_refresh_cancelled_before:instruments_result:{}.{}".format(
+                            exchange_id, product_id
+                        )
+                    )
+                    break
+                if deadline - time.monotonic() <= 0:
+                    blockers.append(
+                        "query_refresh_deadline_before:instruments_result:{}.{}".format(
+                            exchange_id, product_id
+                        )
+                    )
+                    break
+                result, error, last_submitted = _query_instrument_product(
+                    store,
+                    exchange_id,
+                    product_id,
+                    timeout=float(timeout),
+                    deadline=deadline,
+                    cancel_event=cancel_event,
+                    last_submitted_monotonic=last_submitted,
+                )
+                if result is None:
+                    blockers.append(
+                        "query_refresh_failed:instruments_result:{}.{}:{}".format(
+                            exchange_id,
+                            product_id,
+                            error or "unobserved",
+                        )
+                    )
+                    continue
+                product_results[(exchange_id, product_id)] = result
+            # Validate structure against the refresh envelope without issuing
+            # an extra clock sample; the projection applies the real freshness
+            # bound at decision time.
+            aggregate = _instrument_query_aggregate(
+                instrument_products,
+                product_results,
+                now=started_at + timedelta(days=1),
+                max_age=timedelta(days=2),
+                blockers=blockers,
+            )
+            if aggregate is None:
+                provenance.append(_missing_query_fact("instruments_result"))
+            else:
+                provenance.append(_query_fact("instruments_result", aggregate))
+            continue
         try:
             result = store.registered_sim_query(
                 family, timeout=min(float(timeout), remaining), attempts=1, **filters
@@ -6669,6 +7441,10 @@ def _snapshot_identifier(
         ("query_set", query_set_id),
         *((family, query_facts[family].request_id) for family in _BASE_FAMILIES),
     ]
+    for source in query_facts["instruments_result"].sources:
+        bindings.append(
+            ("instruments", source.exchange_id, source.product_id, source.request_id)
+        )
     for target in targets:
         if target.target_id in valid_margin_target_ids:
             fact = query_facts["margin:{}".format(target.target_id)]
@@ -7130,6 +7906,7 @@ def project_factor_execution_facts(
     execution_target_ids: Optional[Tuple[str, ...]] = None,
     commission_identity_by_target: Optional[Mapping[str, Mapping[str, str]]] = None,
     commission_required_for_open: Optional[bool] = None,
+    instrument_products: Optional[Tuple[Tuple[str, str], ...]] = None,
 ) -> FactorExecutionFacts:
     """Project cached live facts without running any SDK query.
 
@@ -7161,6 +7938,7 @@ def project_factor_execution_facts(
         if not isinstance(value, timedelta) or value <= timedelta(0):
             raise ValueError("{} must be a positive timedelta".format(name))
     bound_targets = _valid_targets(tuple(targets))
+    instrument_products = _normalize_instrument_products(instrument_products, bound_targets)
     full_target_ids = tuple(target.target_id for target in bound_targets)
     if execution_target_ids is None:
         bound_execution_target_ids = full_target_ids
@@ -7197,12 +7975,43 @@ def project_factor_execution_facts(
     query_getter = getattr(store, "get_registered_sim_query_snapshot", None)
     if not callable(query_getter):
         blockers.append("query_snapshot_getter_unavailable")
+    instrument_product_results = {}
     for family in _BASE_FAMILIES:
-        try:
-            result = query_getter(family) if callable(query_getter) else None
-        except Exception as exc:
-            result = None
-            blockers.append("query_snapshot_read_failed:{}:{}".format(family, type(exc).__name__))
+        if family == "instruments_result":
+            # The instruments family is the union of exact per-product cached
+            # queries.  Never fall back to one unscoped snapshot in a live
+            # projection.
+            product_results = instrument_product_results
+            for exchange_id, product_id in instrument_products:
+                filters = _instrument_query_filters(exchange_id, product_id)
+                try:
+                    product_results[(exchange_id, product_id)] = (
+                        query_getter("instruments_result", **filters)
+                        if callable(query_getter)
+                        else None
+                    )
+                except Exception as exc:
+                    product_results[(exchange_id, product_id)] = None
+                    blockers.append(
+                        "query_snapshot_read_failed:instruments_result:{}.{}:{}".format(
+                            exchange_id, product_id, type(exc).__name__
+                        )
+                    )
+            result = _instrument_query_aggregate(
+                instrument_products,
+                product_results,
+                now=now_utc,
+                max_age=max_query_age,
+                blockers=blockers,
+            )
+        else:
+            try:
+                result = query_getter(family) if callable(query_getter) else None
+            except Exception as exc:
+                result = None
+                blockers.append(
+                    "query_snapshot_read_failed:{}:{}".format(family, type(exc).__name__)
+                )
         query_results[family] = result
         fact = _query_fact(family, result) if result is not None else _missing_query_fact(family)
         query_facts[family] = fact
@@ -7366,6 +8175,7 @@ def project_factor_execution_facts(
             blockers=tuple(sorted(set(blockers))),
             target_ids=full_target_ids,
             execution_target_ids=bound_execution_target_ids,
+            instrument_products=instrument_products,
         )
 
     assert query_set is not None
@@ -7396,6 +8206,7 @@ def project_factor_execution_facts(
             blockers=tuple(sorted(set(blockers))),
             target_ids=full_target_ids,
             execution_target_ids=bound_execution_target_ids,
+            instrument_products=instrument_products,
         )
 
     # Commission is an independently refreshed optional sidecar.  It is read
@@ -7603,6 +8414,17 @@ def project_factor_execution_facts(
             target.exchange,
             blockers,
         )
+        product_scope = (target.exchange, _instrument_product_id(target.instrument))
+        product_result = instrument_product_results.get(product_scope)
+        if query_results["instruments_result"] is not None and (
+            product_result is None
+            or not _instrument_result_contains(
+                product_result, product_scope, target.instrument
+            )
+        ):
+            blockers.append(
+                "instrument_query_target_row_unobserved:{}".format(target.target_id)
+            )
         margin_result = valid_margin_results[target.target_id]
         multiplier = risk_multiplier_upper = _tick_size = risk_tick_size_upper = None
         _lower = _upper = None
@@ -7918,6 +8740,7 @@ def project_factor_execution_facts(
         execution_target_ids=bound_execution_target_ids,
         commission_required_for_open=commission_required_for_open,
         execution_intents=execution_intents,
+        instrument_products=instrument_products,
     )
     trade_blockers = _trade_reconciliation_blockers(coordinator, facts)
     terminal_blockers = _terminal_order_reconciliation_blockers(coordinator, facts)

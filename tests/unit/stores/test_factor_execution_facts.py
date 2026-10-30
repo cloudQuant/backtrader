@@ -111,6 +111,9 @@ class _QueryClient:
         self._investor_id = "fake-investor"
         self.is_ready = True
         self.is_trading_ready = True
+        # Match the real SDK's serialized native query spacing so the runner
+        # does not add a redundant wall-clock delay in virtual-clock tests.
+        self._query_interval = 1.05
         self._gate_state = {
             "managed": False,
             "armed": False,
@@ -188,6 +191,12 @@ class _ProviderLeaves:
         self.ticks = dict(ticks or {})
         self.query_calls = []
         self.commission_deadlines = []
+        # Per-product failure injection for the paced instrument refresh.  A
+        # positive count raises before returning; it decrements per call.
+        self.instrument_failures = {}
+        # Extra rows appended after product filtering, used to prove the facts
+        # layer rejects an SDK that ignores ProductID/ExchangeID filters.
+        self.instrument_extra_rows = {}
         # Keep the fake query sequence separate from the production CTP
         # wrapper's `_next_request_id()` method, which the native-action
         # fixture exposes after its first cancel dispatch.
@@ -269,7 +278,29 @@ class _ProviderLeaves:
 
     def _query_family(self, family, request_type, **filters):
         self.query_calls.append((family, dict(filters)))
-        rows = self.query_rows.get(family, [])
+        rows = list(self.query_rows.get(family, []))
+        if family == "instruments_result":
+            exchange = filters.get("exchange_id")
+            product = filters.get("product_id")
+            if exchange or product:
+                # Product-scoped queries return only their own rows.  Product
+                # identity is the instrument prefix when a fixture omits the
+                # native ProductID field.
+                rows = [
+                    row
+                    for row in rows
+                    if isinstance(row, dict)
+                    and (not exchange or row.get("ExchangeID") == exchange)
+                    and (
+                        not product
+                        or (
+                            row.get("ProductID")
+                            or str(row.get("InstrumentID", "")).rstrip("0123456789")
+                        ).upper()
+                        == product.upper()
+                    )
+                ]
+            rows.extend(self.instrument_extra_rows.get((exchange, product), ()))
         source_filters = ("HedgeFlag",) if family == "instrument_margin_rate_result" else ()
         return self._query(request_type, rows, filters=source_filters)
 
@@ -291,6 +322,12 @@ class _ProviderLeaves:
 
     def query_instruments_result(self, *, timeout=5.0, **filters):
         del timeout
+        scope = (filters.get("exchange_id"), filters.get("product_id"))
+        remaining = self.instrument_failures.get(scope, 0)
+        if remaining > 0:
+            self.instrument_failures[scope] = remaining - 1
+            self.query_calls.append(("instruments_result", dict(filters)))
+            raise BtApiStoreError("ctp query error -2")
         return self._query_family("instruments_result", "instruments", **filters)
 
     def query_instrument_margin_rate_result(self, *, timeout=5.0, **filters):
@@ -2093,6 +2130,16 @@ def _multi_target_commission_projection_case(
         == ("" if (target.instrument, target.exchange) in templates else None)
         for target in targets
     )
+    # Product-scoped instrument queries are paced by >=1 s each, so refresh a
+    # static fixture's quotes before the projection clock is read.
+    fresh_quote_at = datetime.now(timezone.utc) - timedelta(milliseconds=200)
+    for index, (_target_id, instrument, exchange) in enumerate(target_specs):
+        api.ticks[instrument] = _quote(
+            event_time=fresh_quote_at,
+            symbol=instrument,
+            exchange=exchange,
+            sequence=index + 1,
+        )
     assert all(store.poll_tick(target.instrument) is not None for target in targets)
 
     targets_by_id = {target.target_id: target for target in targets}
@@ -6396,3 +6443,198 @@ def test_fact_records_are_immutable():
 
     with pytest.raises((AttributeError, TypeError)):
         facts.available_at = now + timedelta(seconds=1)
+
+
+_PER_PRODUCT_SPECS = (
+    ("A", "rb2510", "SHFE"),
+    ("B", "i2510", "DCE"),
+    ("C", "j2510", "DCE"),
+)
+_PER_PRODUCT_SET = (("DCE", "i"), ("DCE", "j"), ("SHFE", "rb"))
+
+
+def _per_product_system(now):
+    return _multi_target_system_under_test(now=now, target_specs=_PER_PRODUCT_SPECS)
+
+
+def _per_product_projection(now, store, broker, targets, receipt, *, products=None):
+    for target in targets:
+        assert store.poll_tick(target.instrument) is not None
+    kwargs = {} if products is None else {"instrument_products": products}
+    return project_factor_execution_facts(
+        store,
+        broker,
+        targets=targets,
+        account_scope="acct-scope",
+        strategy_scope="alpha003",
+        now=now,
+        quote_max_age=timedelta(seconds=2),
+        max_query_age=timedelta(seconds=10),
+        query_set=receipt.query_set,
+        **kwargs,
+    )
+
+
+def test_per_product_instrument_queries_seal_complete_source_provenance():
+    now = datetime.now(timezone.utc)
+    api, store, broker, _journal, _coordinator, targets, _templates = _per_product_system(now)
+
+    receipt = refresh_factor_execution_queries(store, targets=targets, overall_timeout=8.0)
+
+    assert receipt.blockers == ()
+    assert receipt.pending_families == ()
+    instrument_facts = [
+        fact for fact in receipt.query_provenance if fact.family == "instruments_result"
+    ]
+    assert len(instrument_facts) == 1
+    aggregate = instrument_facts[0]
+    assert aggregate.scope_complete is True
+    assert aggregate.query_complete is True
+    assert aggregate.row_count == 3
+    assert len(aggregate.sources) == 3
+    assert {(source.exchange_id, source.product_id) for source in aggregate.sources} == set(
+        _PER_PRODUCT_SET
+    )
+    assert sum(source.row_count for source in aggregate.sources) == aggregate.row_count
+    assert len({source.request_id for source in aggregate.sources}) == 3
+    assert aggregate.request_id == max(source.request_id for source in aggregate.sources)
+    assert all(
+        type(source.source_digest) is str and len(source.source_digest) == 64
+        for source in aggregate.sources
+    )
+    assert all(
+        source.request_filters
+        == (
+            ("ExchangeID", source.exchange_id),
+            ("InstrumentID", ""),
+            ("ProductID", source.product_id),
+        )
+        for source in aggregate.sources
+    )
+    product_queries = [
+        call
+        for call in api.query_calls
+        if call[0] == "instruments_result" and call[1]
+    ]
+    assert [call[1] for call in product_queries] == [
+        {"instrument_id": "", "exchange_id": exchange, "product_id": product}
+        for exchange, product in sorted(_PER_PRODUCT_SET)
+    ]
+
+    facts = _per_product_projection(now, store, broker, targets, receipt)
+
+    assert facts.blockers == (), facts.blockers
+    assert facts.instrument_products == _PER_PRODUCT_SET
+    assert [item.instrument for item in facts.instruments] == ["rb2510", "i2510", "j2510"]
+    assert all(item.multiplier is not None for item in facts.instruments)
+
+
+def test_instrument_query_minus_two_is_retried_after_pacing_then_succeeds():
+    now = datetime.now(timezone.utc)
+    api, store, _broker, _journal, _coordinator, targets, _templates = _per_product_system(now)
+    api.instrument_failures[("DCE", "j")] = 1
+
+    receipt = refresh_factor_execution_queries(store, targets=targets, overall_timeout=10.0)
+
+    assert receipt.blockers == ()
+    j_calls = [
+        call
+        for call in api.query_calls
+        if call[0] == "instruments_result" and call[1].get("product_id") == "j"
+    ]
+    assert len(j_calls) == 2
+    aggregate = next(
+        fact for fact in receipt.query_provenance if fact.family == "instruments_result"
+    )
+    assert {(source.exchange_id, source.product_id) for source in aggregate.sources} == set(
+        _PER_PRODUCT_SET
+    )
+
+
+def test_instrument_query_persistent_minus_two_fails_closed_without_partial_rows():
+    now = datetime.now(timezone.utc)
+    api, store, broker, _journal, _coordinator, targets, _templates = _per_product_system(now)
+    api.instrument_failures[("DCE", "j")] = 2
+
+    receipt = refresh_factor_execution_queries(store, targets=targets, overall_timeout=10.0)
+
+    assert (
+        "query_refresh_failed:instruments_result:DCE.j:BtApiStoreError"
+        in receipt.blockers
+    )
+    assert "instrument_query_coverage_incomplete:instruments_result" in receipt.blockers
+    assert receipt.query_set is None
+    aggregate = next(
+        fact for fact in receipt.query_provenance if fact.family == "instruments_result"
+    )
+    assert aggregate.request_id is None
+    assert aggregate.sources == ()
+    assert aggregate.row_count is None
+
+    facts = _per_product_projection(now, store, broker, targets, receipt)
+    assert facts.snapshot_id is None
+    assert "query_snapshot_unavailable:instruments_result" in facts.blockers
+    assert facts.instruments == ()
+
+
+def test_instrument_query_out_of_scope_rows_fail_closed():
+    now = datetime.now(timezone.utc)
+    api, store, _broker, _journal, _coordinator, targets, _templates = _per_product_system(now)
+    api.instrument_extra_rows[("SHFE", "rb")] = [
+        {
+            "InstrumentID": "i2510",
+            "ExchangeID": "DCE",
+            "IsTrading": 1,
+            "VolumeMultiple": 10,
+            "PriceTick": 1,
+            "LowerLimitPrice": 1,
+            "UpperLimitPrice": 1000,
+        }
+    ]
+
+    receipt = refresh_factor_execution_queries(store, targets=targets, overall_timeout=8.0)
+
+    assert "instrument_query_row_scope_mismatch:SHFE.rb" in receipt.blockers
+    assert "instrument_query_coverage_incomplete:instruments_result" in receipt.blockers
+    assert receipt.query_set is None
+
+
+def test_instrument_query_duplicate_rows_fail_closed():
+    now = datetime.now(timezone.utc)
+    api, store, _broker, _journal, _coordinator, targets, _templates = _per_product_system(now)
+    duplicate = next(
+        row
+        for row in api.query_rows["instruments_result"]
+        if row["InstrumentID"] == "rb2510"
+    )
+    api.instrument_extra_rows[("SHFE", "rb")] = [dict(duplicate)]
+
+    receipt = refresh_factor_execution_queries(store, targets=targets, overall_timeout=8.0)
+
+    assert "instrument_query_duplicate_row:SHFE:rb2510" in receipt.blockers
+    assert "instrument_query_coverage_incomplete:instruments_result" in receipt.blockers
+    assert receipt.query_set is None
+
+
+def test_declared_instrument_products_must_exactly_cover_targets():
+    now = datetime.now(timezone.utc)
+    _api, store, _broker, _journal, _coordinator, targets, _templates = _per_product_system(now)
+
+    with pytest.raises(ValueError):
+        refresh_factor_execution_queries(
+            store,
+            targets=targets,
+            instrument_products=(("SHFE", "rb"), ("DCE", "i")),
+        )
+    with pytest.raises(ValueError):
+        refresh_factor_execution_queries(
+            store,
+            targets=targets,
+            instrument_products=(("SHFE", "rb"), ("DCE", "i"), ("DCE", "i")),
+        )
+    with pytest.raises(ValueError):
+        refresh_factor_execution_queries(
+            store,
+            targets=targets,
+            instrument_products=(("SHFE", "rb"), ("DCE", "i"), ("CZCE", "MA")),
+        )

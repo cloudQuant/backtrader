@@ -1218,6 +1218,7 @@ def _query_result_facts(
     facts["source_owned"] = source_owned
     facts["trading_day"] = source_trading_day if source_owned else None
     facts["source_explicit_request_filters"] = source_filters if source_owned else None
+    facts["source_records_sha256"] = source_digest if source_owned else None
     facts["source_expires_monotonic"] = source_expiry if source_owned else None
     facts["source_started_monotonic"] = source_started_monotonic if source_owned else None
     facts["source_completed_monotonic"] = source_completed_monotonic if source_owned else None
@@ -2646,6 +2647,13 @@ class RegisteredSimStore(BtApiStore):
         # so a wide target pool cannot evict one of the five core seal rows.
         self._ctp_commission_query_snapshots = collections.OrderedDict()
         self._ctp_query_instrument_rows: Dict[Tuple[str, str], Dict[str, Any]] = {}
+        # Live instrument queries are product-scoped.  Keep the latest facts
+        # and contributed row keys per exact native (exchange, product) scope
+        # so one product's refresh cannot erase another's observed metadata.
+        self._ctp_query_instrument_scopes: Dict[Tuple[str, str], Mapping[str, Any]] = {}
+        self._ctp_query_instrument_scope_rows: Dict[
+            Tuple[str, str], Tuple[Tuple[str, str], ...]
+        ] = {}
 
     @staticmethod
     def _project_trade_driven_order(update: Any, *, order_row: bool = False) -> Any:
@@ -3676,10 +3684,11 @@ class RegisteredSimStore(BtApiStore):
         instrument_query_complete = self.supports_complete_ctp_queries(include_reference_data=True)
         with self._ctp_query_result_lock:
             instrument_facts = self._ctp_query_results.get("instruments_result")
+        instrument_rows = self.registered_sim_instrument_rows()
         instrument_eligible = None
-        if instrument_query_complete:
+        if instrument_query_complete and instrument_rows:
             instrument_eligible = _instrument_eligibility_from_rows(
-                instrument_facts.get("rows") if isinstance(instrument_facts, Mapping) else None,
+                list(instrument_rows),
                 instrument,
                 exchange,
             )
@@ -4482,30 +4491,157 @@ class RegisteredSimStore(BtApiStore):
             and current.source_expires_monotonic == receipt.source_expires_monotonic
         )
 
-    def _record_instrument_rows(self, facts: Mapping, filters: Mapping) -> None:
+    @staticmethod
+    def _instrument_scope(filters: Mapping) -> Tuple[str, str]:
+        exchange = filters.get("exchange_id")
+        product = filters.get("product_id")
+        return (
+            exchange if type(exchange) is str else "",
+            product if type(product) is str else "",
+        )
+
+    def _replace_instrument_scope_rows(
+        self, scope: Tuple[str, str], facts: Mapping, filters: Mapping
+    ) -> None:
+        """Replace exactly one product scope's merged instrument rows."""
+
         requested_instrument = filters.get("instrument_id")
         requested_exchange = filters.get("exchange_id")
-        for row in facts.get("rows") or ():
-            if not isinstance(row, Mapping):
-                continue
-            instrument = row.get("InstrumentID", row.get("instrument_id"))
-            exchange = row.get("ExchangeID", row.get("exchange_id"))
-            if not isinstance(instrument, str) or not instrument:
-                continue
-            if not isinstance(exchange, str) or not exchange:
-                continue
-            if requested_instrument and instrument != requested_instrument:
-                continue
-            if requested_exchange and exchange != requested_exchange:
-                continue
-            is_trading = _instrument_is_trading(row)
-            if is_trading is None:
-                continue
-            self._ctp_query_instrument_rows[(exchange, instrument)] = {
-                "instrument_id": instrument,
-                "exchange_id": exchange,
-                "is_trading": is_trading,
-            }
+        with self._ctp_query_result_lock:
+            previous = self._ctp_query_instrument_scope_rows.pop(scope, ())
+            for key in previous:
+                self._ctp_query_instrument_rows.pop(key, None)
+            keys = []
+            for row in facts.get("rows") or ():
+                if not isinstance(row, Mapping):
+                    continue
+                instrument = row.get("InstrumentID", row.get("instrument_id"))
+                exchange = row.get("ExchangeID", row.get("exchange_id"))
+                if not isinstance(instrument, str) or not instrument:
+                    continue
+                if not isinstance(exchange, str) or not exchange:
+                    continue
+                if requested_instrument and instrument != requested_instrument:
+                    continue
+                if requested_exchange and exchange != requested_exchange:
+                    continue
+                is_trading = _instrument_is_trading(row)
+                if is_trading is None:
+                    continue
+                key = (exchange, instrument)
+                self._ctp_query_instrument_rows[key] = {
+                    "instrument_id": instrument,
+                    "exchange_id": exchange,
+                    "is_trading": is_trading,
+                }
+                keys.append(key)
+            self._ctp_query_instrument_scope_rows[scope] = tuple(keys)
+            self._ctp_query_instrument_scopes[scope] = facts
+
+    def _drop_instrument_scope(self, scope: Tuple[str, str]) -> None:
+        """Forget one product scope after an incomplete or failed query."""
+
+        with self._ctp_query_result_lock:
+            previous = self._ctp_query_instrument_scope_rows.pop(scope, ())
+            for key in previous:
+                self._ctp_query_instrument_rows.pop(key, None)
+            self._ctp_query_instrument_scopes.pop(scope, None)
+
+    def _record_instrument_rows(self, facts: Mapping, filters: Mapping) -> None:
+        self._replace_instrument_scope_rows(self._instrument_scope(filters), facts, filters)
+
+    def registered_sim_query_interval_seconds(self) -> Optional[float]:
+        """Return the SDK's enforced native query spacing, if it is visible.
+
+        The real CTP client serializes native query submissions and sleeps for
+        its own ``_query_interval`` (1.05 s by default).  The runner uses this
+        value to avoid adding a second redundant wall-clock delay while still
+        enforcing the >=1 s bound itself when a test double exposes no native
+        pacing.
+        """
+
+        api = self._api
+        client = getattr(api, "trader_client", None) if api is not None else None
+        value = getattr(client, "_query_interval", None)
+        if type(value) not in (int, float):
+            return None
+        number = float(value)
+        if not math.isfinite(number) or number < 0:
+            return None
+        return number
+
+    def registered_sim_query_in_flight(self) -> bool:
+        """Return whether the SDK still tracks a native query callback.
+
+        Provider callbacks can outlive a caller-visible timeout.  Retry logic
+        must wait until both native submission and callback references drain.
+        A missing probe attribute is treated as idle so test doubles and older
+        SDKs remain usable; the retry is still bounded.
+        """
+
+        api = self._api
+        client = getattr(api, "trader_client", None) if api is not None else None
+        if client is None:
+            return False
+        for name in ("_native_request_inflight_refs", "_callback_inflight_refs"):
+            value = getattr(client, name, 0)
+            if type(value) is int and value > 0:
+                return True
+        return False
+
+    def registered_sim_instrument_rows(self) -> Tuple[Mapping[str, Any], ...]:
+        """Return current rows across all complete product-scoped queries.
+
+        Each scope is revalidated against the live query-session identity and
+        its source expiry without issuing provider I/O.  Rows from a failed or
+        stale product query are absent, so route eligibility fails closed.
+        """
+
+        api = self._api
+        client = getattr(api, "trader_client", None) if api is not None else None
+        scope_getter = getattr(client, "get_query_session_scope", None)
+        if not callable(scope_getter):
+            return ()
+        try:
+            current_scope = scope_getter()
+        except Exception:
+            return ()
+        now = time.monotonic()
+        rows = []
+        with self._ctp_query_result_lock:
+            scopes = tuple(self._ctp_query_instrument_scopes)
+            cache = self._ctp_query_snapshots
+            for scope in scopes:
+                facts = cache.get(
+                    _query_snapshot_key(
+                        "instruments_result",
+                        {
+                            "instrument_id": "",
+                            "exchange_id": scope[0],
+                            "product_id": scope[1],
+                        },
+                    )
+                )
+                if not isinstance(facts, Mapping):
+                    continue
+                expiry = facts.get("source_expires_monotonic")
+                if not (
+                    facts.get("query_complete") is True
+                    and facts.get("source_owned") is True
+                    and _read_fact(current_scope, "read_only_ready") is True
+                    and _read_fact(current_scope, "issuer") is facts.get("_source_issuer")
+                    and _read_fact(current_scope, "connection_generation")
+                    == facts.get("connection_generation")
+                    and _read_fact(current_scope, "account_fingerprint")
+                    == facts.get("account_fingerprint")
+                    and _read_fact(current_scope, "trading_day") == facts.get("trading_day")
+                    and type(expiry) in (int, float)
+                    and math.isfinite(expiry)
+                    and now < expiry
+                ):
+                    continue
+                rows.extend(facts.get("rows") or ())
+        return tuple(rows)
 
     def registered_sim_query(
         self,
@@ -4568,9 +4704,6 @@ class RegisteredSimStore(BtApiStore):
                 raise BtApiStoreError("CTP commission query deadline is unavailable")
         effective_timeout = timeout_value
         facts: Dict[str, Any] = {"family": family, "query_complete": False, "rows": None}
-        if family == "instruments_result":
-            with self._ctp_query_result_lock:
-                self._ctp_query_instrument_rows.clear()
         for attempt in range(1, attempts + 1):
             if commission_deadline is not None:
                 remaining = commission_deadline - time.monotonic()
@@ -4643,6 +4776,10 @@ class RegisteredSimStore(BtApiStore):
                     with self._ctp_query_result_lock:
                         self._record_instrument_rows(facts, filters)
                 return _public_query_snapshot(facts)
+            if family == "instruments_result":
+                # A failed/partial product query invalidates that product's
+                # previously observed rows; other product scopes are untouched.
+                self._drop_instrument_scope(self._instrument_scope(filters))
             if attempt < attempts:
                 retry_sleep = min(1.5 * attempt, 3.0)
                 if commission_deadline is not None:
@@ -4662,7 +4799,12 @@ class RegisteredSimStore(BtApiStore):
             if not all(
                 isinstance(self._ctp_query_results.get(family), Mapping)
                 and self._ctp_query_results[family].get("query_complete") is True
-                and self._ctp_query_results[family].get("scope_complete") is True
+                and (
+                    self._ctp_query_results[family].get("scope_complete") is True
+                    # Live instrument families are product-scoped, so their
+                    # declared coverage (not an unfiltered scope) is complete.
+                    or family == "instruments_result"
+                )
                 for family in required
             ):
                 return False
@@ -4684,7 +4826,14 @@ class RegisteredSimStore(BtApiStore):
         current_trading_day = _read_fact(current_scope, "trading_day")
         current_issuer = _read_fact(current_scope, "issuer")
         current_expiry = time.monotonic()
-        required_scope = all(item.get("scope_complete") is True for item in facts)
+        required_scope = all(
+            item.get("scope_complete") is True
+            or (
+                item.get("family") == "instruments_result"
+                and item.get("query_complete") is True
+            )
+            for item in facts
+        )
         return bool(
             _read_fact(current_scope, "read_only_ready") is True
             and len(generations) == 1
@@ -4717,11 +4866,10 @@ class RegisteredSimStore(BtApiStore):
         with self._ctp_query_result_lock:
             trade_facts = self._ctp_query_results.get("trades_result")
             order_query_facts = self._ctp_query_results.get("orders_result")
-            instrument_facts = (
-                list(self._ctp_query_instrument_rows.values())
-                if self._query_result_is_current("instruments_result")
-                else None
-            )
+        current_instrument_rows = self.registered_sim_instrument_rows()
+        instrument_facts = (
+            list(current_instrument_rows) if complete and current_instrument_rows else None
+        )
         unmatched_trade_count = None
         if (
             complete

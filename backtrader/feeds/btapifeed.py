@@ -958,6 +958,19 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
         slot_index = self._cohort_event_slot_index(event)
         if slot_index is not None and slot_index > max_slot:
             return False
+        if (
+            source_role == "live"
+            and slot_index == 0
+            and _tick_value(event, "complete", default=None) is not True
+        ):
+            # A cold start observed only the tail of its first planned bucket.
+            # Reject that one bucket explicitly and continue with the next
+            # complete bucket; never promote the partial bar.
+            close = _tick_value(event, "bucket_end", default=None)
+            if isinstance(close, _dt.datetime) and self._live_bar_cohort.note_cold_start_skipped_slot(
+                close
+            ):
+                return False
         self._live_bar_cohort.capture_bar(
             self,
             event,
@@ -2168,6 +2181,17 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
             if bucket_start == self._ctp_first_bucket_start:
                 # The first cumulative observation is a baseline, so the rest
                 # of its partially observed minute cannot form a complete bar.
+                # When that exact bucket is the cohort's first planned slot,
+                # record it as a bounded cold-start skip so the run continues
+                # with the next complete bucket instead of waiting for a bar
+                # this feed deliberately never builds.
+                cohort = self._live_bar_cohort
+                if cohort is not None:
+                    bucket_end = self._get_bucket_end(bucket_start)
+                    if isinstance(bucket_end, _dt.datetime):
+                        cohort.note_cold_start_skipped_slot(
+                            bucket_end.replace(tzinfo=_UTC)
+                        )
                 return
 
         price = _finite_market_number(

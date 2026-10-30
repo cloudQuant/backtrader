@@ -7648,6 +7648,17 @@ class QueryRefreshLoop:
         self.max_query_age = max_query_age
         self.timeout = timeout
         self.overall_timeout = overall_timeout
+        from backtrader.stores.factor_execution_facts import _target_instrument_products
+
+        # Exact native product coverage for the per-product instrument query
+        # refresh.  Deriving from the bound target routes keeps it identical to
+        # the projection's coverage check without a second product registry.
+        # Lightweight fixture targets without full route fields defer the
+        # derivation to the real refresh/projection boundary.
+        try:
+            self.instrument_products = _target_instrument_products(self.targets)
+        except (AttributeError, TypeError, ValueError):
+            self.instrument_products = None
         self.interval = interval
         self.cerebro = cerebro
         self.shutdown_grace_seconds = shutdown_grace_seconds
@@ -8471,6 +8482,7 @@ class QueryRefreshLoop:
                 max_queries=6,
                 cancel_event=self._interrupt_refresh,
                 utc_now=self.clock.utc_now,
+                instrument_products=self.instrument_products,
             )
             if not self._receipt_complete(receipt):
                 self.last_error_code = "LIVE_QUERY_REFRESH_INCOMPLETE"
@@ -8493,6 +8505,7 @@ class QueryRefreshLoop:
                 execution_target_ids=self.execution_target_ids,
                 commission_identity_by_target=self.commission_identity_by_target,
                 commission_required_for_open=self.commission_required_for_open,
+                instrument_products=self.instrument_products,
             )
             return receipt, query_set, facts
 
@@ -8546,6 +8559,7 @@ class QueryRefreshLoop:
                 execution_target_ids=self.execution_target_ids,
                 commission_identity_by_target=self.commission_identity_by_target,
                 commission_required_for_open=self.commission_required_for_open,
+                instrument_products=self.instrument_products,
             )
             self._reconcile_all(
                 self.coordinator.trade_reconciliation_snapshot,
@@ -8592,6 +8606,7 @@ class QueryRefreshLoop:
                     execution_target_ids=self.execution_target_ids,
                     commission_identity_by_target=self.commission_identity_by_target,
                     commission_required_for_open=self.commission_required_for_open,
+                    instrument_products=self.instrument_products,
                 )
             except Exception:
                 # A malformed/expired optional row cannot revoke the core seal.

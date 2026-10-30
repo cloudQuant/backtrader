@@ -16,6 +16,7 @@ from backtrader.research.live_cohort import (
     LiveCohortError,
     LiveCohortFrozenError,
     LiveCohortValidationError,
+    LiveFirstBucketIncomplete,
     LiveInputBinding,
     _SAVED_HISTORY_ANCHOR_EVENT_KEY,
     _SAVED_HISTORY_RECORD_SOURCE_ROLE_EVENT_KEY,
@@ -1443,3 +1444,53 @@ def test_naive_source_times_and_missing_raw_fields_are_rejected():
     del event2["close"]
     with pytest.raises(LiveCohortValidationError):
         cohort2.capture_bar(feeds2["asset-0"], event2, source_role="live")
+
+
+def test_first_incomplete_live_bucket_is_rejected_with_fixed_code():
+    cohort, feeds = make_cohort(member_count=1, count=2)
+    event = make_event("asset-0", 0)
+    event["complete"] = False
+    with pytest.raises(LiveFirstBucketIncomplete) as excinfo:
+        cohort.capture_bar(feeds["asset-0"], event, source_role="live")
+    assert excinfo.value.code == "LIVE_FIRST_BUCKET_INCOMPLETE"
+    assert cohort.frozen is True
+
+
+def test_cold_start_partial_bucket_is_skipped_as_bounded_gap_and_run_continues():
+    cohort, feeds = make_cohort(member_count=2, count=3)
+
+    assert (
+        cohort.note_cold_start_skipped_slot(BASE + dt.timedelta(minutes=1)) is True
+    )
+    # The next complete planned bucket is captured normally.
+    capture_slot(cohort, feeds, 1)
+
+    skipped = cohort.prepare_round(20_000, source_time_utc=BASE + dt.timedelta(minutes=2))
+    assert skipped.status == "WAITING"
+    assert skipped.reason == "first_partial_bucket_skipped"
+    assert len(cohort.gaps) == 1
+    gap = cohort.gaps[0]
+    assert gap.reason == "first_partial_bucket_skipped"
+    assert gap.slot_index == 0
+    assert gap.slot_id == "slot-0"
+    assert gap.missing_member_ids == ("asset-0", "asset-1")
+
+    ready = cohort.prepare_round(20_001, source_time_utc=BASE + dt.timedelta(minutes=3))
+    assert ready.status == "READY"
+    assert ready.prepared.slot_index == 1
+    assert set(ready.prepared.envelopes) == {"asset-0", "asset-1"}
+
+
+def test_cold_start_notice_is_bounded_to_the_first_planned_slot():
+    cohort, feeds = make_cohort(member_count=1, count=3)
+    assert cohort.note_cold_start_skipped_slot(BASE + dt.timedelta(minutes=2)) is False
+    assert cohort.gaps == ()
+    # A later incomplete bucket keeps the ordinary validation error.
+    capture_slot(cohort, feeds, 0)
+    deliver_prepared(cohort, feeds, 20_000)
+    event = make_event("asset-0", 1)
+    event["complete"] = False
+    with pytest.raises(LiveCohortValidationError) as excinfo:
+        cohort.capture_bar(feeds["asset-0"], event, source_role="live")
+    assert not isinstance(excinfo.value, LiveFirstBucketIncomplete)
+    assert str(excinfo.value) == "bar must explicitly declare complete=True"

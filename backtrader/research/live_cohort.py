@@ -88,6 +88,17 @@ class LiveCohortCapacityError(LiveCohortError):
     """A bounded source or preparation limit would be exceeded."""
 
 
+class LiveFirstBucketIncomplete(LiveCohortValidationError):
+    """A cold start observed only the tail of its first planned live bucket.
+
+    The bar is never promoted to ``complete=True``.  A feed that can safely
+    reject only this first partial bucket records it as a bounded planned gap
+    and continues; an unmediated caller receives this fixed code.
+    """
+
+    code = "LIVE_FIRST_BUCKET_INCOMPLETE"
+
+
 def _nonempty_text(value: Any, name: str) -> str:
     if not isinstance(value, str) or not value or value.strip() != value:
         raise LiveCohortValidationError("{} must be a non-empty exact string".format(name))
@@ -1495,6 +1506,10 @@ class LiveBarCohort:
         self._wait_missing_member_ids: Tuple[str, ...] = ()
         self._last_prepare_ns: Optional[int] = None
         self._gaps: Deque[LiveCohortGap] = deque(maxlen=64)
+        # Bounded evidence for the one cold-start bucket that a live feed
+        # observed only partially.  It is never accepted as a bar; the first
+        # planned slot is skipped as an explicit planned gap.
+        self._cold_start_skipped_closes: set = set()
         self._recent_signatures: Dict[Tuple[int, str], _BarSignature] = {}
         self._recent_signature_order: Deque[Tuple[int, str]] = deque()
         self._window_receipts: Dict[str, Deque[LiveDeliveryReceipt]] = {}
@@ -1568,6 +1583,28 @@ class LiveBarCohort:
     @property
     def gaps(self) -> Tuple[LiveCohortGap, ...]:
         return tuple(self._gaps)
+
+    def note_cold_start_skipped_slot(self, close_time: Any) -> bool:
+        """Record one first-planed-slot cold-start rejection, bounded and typed.
+
+        The feed calls this only for the partial bucket observed at process
+        startup.  The cohort then skips exactly the first planned slot, records
+        a ``first_partial_bucket_skipped`` gap, and continues with the next
+        complete bucket.  It never marks the partial bucket complete.
+        """
+
+        with self._lock:
+            self._require_open()
+            close = _aware_utc(close_time, "close_time")
+            if self._next_slot_index != 0 or self._delivered or self._prepared is not None:
+                return False
+            slot_index = self._slot_index(close)
+            if slot_index is None or slot_index != 0:
+                return False
+            if len(self._cold_start_skipped_closes) >= self._max_pending_slots + 1:
+                return False
+            self._cold_start_skipped_closes.add(close)
+            return True
 
     @property
     def member_ids(self) -> Tuple[str, ...]:
@@ -2290,6 +2327,15 @@ class LiveBarCohort:
         complete = _read(event, "complete", None)
         quality = _read(event, "quality", None)
         if complete is not True:
+            if (
+                source_role == "live"
+                and slot_index == 0
+                and self._next_slot_index == 0
+                and not self._delivered
+            ):
+                raise LiveFirstBucketIncomplete(
+                    "first live bucket is incomplete; reject the cold start"
+                )
             raise LiveCohortValidationError("bar must explicitly declare complete=True")
 
         missing_fields = _read(event, "missing_fields", ())
@@ -2748,6 +2794,37 @@ class LiveBarCohort:
             slot = self._calendar.slots[slot_index]
             if source_now < slot.close_time and self._wait_started_ns is None:
                 return PrepareResult("NOT_DUE", reason="planned_slot_not_closed")
+            if (
+                slot_index == 0
+                and slot.close_time in self._cold_start_skipped_closes
+                and self._prepared is None
+            ):
+                # Bounded cold-start rejection: the first planned slot was
+                # observed only partially.  Drop any rows captured for it,
+                # record explicit gap evidence, and continue with the next
+                # complete bucket.  A partial bar is never marked complete.
+                rows = self._pending.pop(slot_index, {})
+                self._gaps.append(
+                    LiveCohortGap(
+                        cohort_id=self.cohort_id,
+                        calendar_id=self.calendar_id,
+                        epoch_id=self.epoch_id,
+                        slot_index=slot_index,
+                        slot_id=slot.slot_id,
+                        close_time=slot.close_time,
+                        missing_member_ids=tuple(sorted(self._members)),
+                        first_wait_monotonic_ns=now,
+                        deadline_monotonic_ns=now,
+                        reason="first_partial_bucket_skipped",
+                    )
+                )
+                self._next_slot_index += 1
+                self._wait_started_ns = None
+                self._wait_missing_member_ids = ()
+                self._delivered.clear()
+                return PrepareResult(
+                    "WAITING", reason="first_partial_bucket_skipped"
+                )
             rows = self._pending.get(slot_index, {})
             missing = tuple(member_id for member_id in self._members if member_id not in rows)
             latest_available_at = (

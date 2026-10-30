@@ -1427,7 +1427,11 @@ def test_registered_sim_sdk_subclass_override_fails_closed_before_sdk_or_native(
         )
         assert receipt.blockers
         assert len(receipt.attempted_families) == 6
-        assert all(blocker.startswith("query_refresh_failed:") for blocker in receipt.blockers)
+        assert all(
+            blocker.startswith(("query_refresh_", "instrument_query_"))
+            for blocker in receipt.blockers
+        )
+        assert "instrument_query_coverage_incomplete:instruments_result" in receipt.blockers
 
         assert override_entries == []
         assert [call for call in native.calls if call[0] == "cancel"] == []

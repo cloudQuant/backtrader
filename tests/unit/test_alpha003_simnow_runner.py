@@ -620,6 +620,7 @@ def test_refresh_loop_rotates_margin_queries_only_over_execution_targets(monkeyp
         max_queries,
         cancel_event,
         utc_now,
+        instrument_products=None,
     ):
         assert callable(utc_now)
         target_ids = tuple(target.target_id for target in targets)
@@ -1281,7 +1282,8 @@ def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bun
         strategy_scope="alpha003-two-epoch-shadow",
         logical_run_id="alpha003-two-epoch-shadow-run",
         journal_path=str(tmp_path / "live-decisions.sqlite"),
-        ready_timeout_seconds=1.0,
+        # Three product-scoped instrument queries are paced by >=1 s each.
+        ready_timeout_seconds=10.0,
         refresh_timeout_seconds=1.0,
         refresh_overall_timeout_seconds=10.0,
         # One complete query refresh runs at startup and when finite EOF
@@ -6622,6 +6624,7 @@ def test_real_cerebro_live_strategy_winddown_is_ready_or_times_out(tmp_path, mon
         max_queries,
         cancel_event,
         utc_now,
+        instrument_products=None,
     ):
         del timeout, overall_timeout, include_core, max_queries, cancel_event
         from backtrader.stores.factor_execution_facts import (
