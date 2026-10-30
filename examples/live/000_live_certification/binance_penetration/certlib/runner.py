@@ -22,6 +22,41 @@ from . import BackendNotImplemented, context, envfile, make_client
 
 RISK_LEVEL = {"READ": 0, "WRITE": 1, "DANGEROUS": 2}
 EXIT_CODES = {"PASS": 0, "FAIL": 1, "BLOCKED": 2, "UNKNOWN": 3}
+_RISK_MISSING = object()
+
+
+class _RiskMetadataError(ValueError):
+    def __init__(self, reason: str) -> None:
+        self.reason = reason
+        super().__init__(reason)
+
+
+def _resolve_case_risk(strategy, module) -> str:
+    strategy_risk = getattr(strategy, "RISK", _RISK_MISSING)
+    module_risk = getattr(module, "RISK", _RISK_MISSING)
+
+    for risk in (strategy_risk, module_risk):
+        if risk is not _RISK_MISSING and (type(risk) is not str or risk not in RISK_LEVEL):
+            raise _RiskMetadataError("case_risk_invalid")
+
+    if strategy_risk is not _RISK_MISSING and module_risk is not _RISK_MISSING:
+        if strategy_risk != module_risk:
+            raise _RiskMetadataError("case_risk_conflict")
+        return strategy_risk
+    if strategy_risk is not _RISK_MISSING:
+        return strategy_risk
+    if module_risk is not _RISK_MISSING:
+        return module_risk
+    raise _RiskMetadataError("case_risk_missing")
+
+
+def _risk_grant_block(risk: str, allow_write: bool, allow_dangerous: bool) -> str | None:
+    level = RISK_LEVEL[risk]
+    if level >= 1 and not allow_write:
+        return "write_grant_required"
+    if level >= 2 and not allow_dangerous:
+        return "dangerous_grant_required"
+    return None
 
 
 def _parse_args(argv):
@@ -58,8 +93,7 @@ def _load_strategy(case_dir: Path, case_id: str):
     if strategy_cls is None:
         raise SystemExit(f"module {path.name} does not define class {case_id}Strategy")
     strategy = strategy_cls()
-    risk = getattr(strategy, "RISK", None) or getattr(module, "RISK", None) or "READ"
-    return strategy, str(risk)
+    return strategy, _resolve_case_risk(strategy, module)
 
 
 def _env_names(config: dict, topology: dict | None = None) -> list:
@@ -216,7 +250,20 @@ def main_case(argv=None):
         )
         return EXIT_CODES["BLOCKED"]
 
-    strategy, risk = _load_strategy(case_dir, case_id)
+    try:
+        strategy, risk = _load_strategy(case_dir, case_id)
+    except _RiskMetadataError as exc:
+        print(
+            json.dumps(
+                {
+                    "case": case_id,
+                    "venue": venue,
+                    "status": "BLOCKED",
+                    "reason": exc.reason,
+                }
+            )
+        )
+        return EXIT_CODES["BLOCKED"]
     env_names = _env_names(config, topology)
     optional_names = [
         n for n in _optional_env_names(config, topology) if n not in env_names
@@ -244,12 +291,10 @@ def main_case(argv=None):
     if required_missing:
         print(json.dumps({**plan, "status": "BLOCKED", "reason": "credential_env_missing"}))
         return 2
-    if RISK_LEVEL.get(risk, 0) >= 1 and not args.allow_write:
-        print(json.dumps({**plan, "status": "BLOCKED", "reason": "write_grant_required"}))
-        return 2
-    if RISK_LEVEL.get(risk, 0) >= 2 and not args.allow_dangerous:
-        print(json.dumps({**plan, "status": "BLOCKED", "reason": "dangerous_grant_required"}))
-        return 2
+    grant_block = _risk_grant_block(risk, args.allow_write, args.allow_dangerous)
+    if grant_block:
+        print(json.dumps({**plan, "status": "BLOCKED", "reason": grant_block}))
+        return EXIT_CODES["BLOCKED"]
 
     client = None
     result = None
