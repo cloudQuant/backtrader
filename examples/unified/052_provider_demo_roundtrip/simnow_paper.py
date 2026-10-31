@@ -371,6 +371,38 @@ def _order_is_active(row: Any) -> bool:
     return bool(status)
 
 
+def _raw_native_text(value: Any) -> Optional[str]:
+    """Return exact native text for an identity field, or ``None`` when blank."""
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, str):
+        return value if value.strip() else None
+    if isinstance(value, int):
+        return str(value)
+    return None
+
+
+def _positive_index(value: Any) -> Optional[int]:
+    """Return a positive native integer (FrontID/SessionID style), else ``None``."""
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, int):
+        return value if value > 0 else None
+    if isinstance(value, str) and value.strip().isdigit():
+        number = int(value.strip())
+        return number if number > 0 else None
+    return None
+
+
+def _new_native_order_action_field() -> Any:
+    """Create one native CTP order-action field (SDK import stays deferred)."""
+    try:
+        from bt_api_ctp.ctp.ctp_structs_order import CThostFtdcInputOrderActionField
+    except ImportError:
+        from bt_api_py.ctp.ctp_structs_order import CThostFtdcInputOrderActionField
+    return CThostFtdcInputOrderActionField()
+
+
 class SimNowPaperStoreMixin:
     """Typed paper surface over the 013_3 ``RegisteredSimStore`` bridge."""
 
@@ -391,6 +423,7 @@ class SimNowPaperStoreMixin:
             "account": [], "positions": [], "orders": [], "instruments": []
         }
         self._simnow_stop_facts: Dict[str, Any] = {"action": "not_stopped", "reason": ""}
+        self._simnow_cancels: List[Dict[str, Any]] = []
         super().__init__(**kwargs)
 
     def __repr__(self) -> str:
@@ -694,6 +727,213 @@ class SimNowPaperStoreMixin:
                 {"instrument": self._simnow_plan.instrument},
             )
 
+    # -------------------------------------------------------- verified cancel
+    def cancel_order(self, order: Any) -> Dict[str, Any]:
+        """Cancel only the provider-verified identity of one paper order.
+
+        The inherited legacy route derives the native action from the local
+        pending map, so a missing/stale entry degrades into a blind OrderRef
+        action that the venue may ignore while the Broker marks the order
+        Canceled locally.  This override instead joins the framework order to
+        exactly one *active* provider order row and sends the action with that
+        verified OrderRef/OrderSysID/FrontID/SessionID.
+        """
+        info = getattr(order, "info", {})
+        get = getattr(info, "get", None)
+        refs: List[Any] = []
+        if callable(get):
+            for name in ("external_order_id", "ctp_order_ref", "order_ref"):
+                refs.append(get(name))
+        refs.append(getattr(order, "ref", None))
+        return self._simnow_cancel_verified(refs, self._simnow_order_dataname(order))
+
+    def cancel_order_ref(self, order_ref: Any, dataname: Optional[str] = None) -> Dict[str, Any]:
+        """Cancel a paper order by its provider-visible reference, verified first."""
+        return self._simnow_cancel_verified([order_ref], dataname)
+
+    def _simnow_order_dataname(self, order: Any) -> str:
+        data = getattr(order, "data", None)
+        for name in ("_name", "_dataname"):
+            value = getattr(data, name, None)
+            if isinstance(value, str) and value.strip():
+                return value.strip()
+        return self._simnow_plan.instrument
+
+    def _simnow_cancel_instrument(self, dataname: Any) -> str:
+        plan = self._simnow_plan
+        text = str(dataname or "").strip().upper()
+        tokens = [part for part in text.replace("_", ".").split(".") if part]
+        tokens = [part for part in tokens if part != plan.exchange]
+        if tokens and tokens != [plan.instrument]:
+            raise SimNowPaperError(
+                "simnow_paper_cancel_scope_mismatch", {"instrument": plan.instrument}
+            )
+        return plan.instrument
+
+    def _simnow_require_cancel_gate(self) -> None:
+        gate = self._gate_state()
+        if (
+            not self._simnow_prepared
+            or self._simnow_arm_count != 1
+            or not self._simnow_arm_facts.get("armed")
+            or gate.get("armed") is not True
+            or gate.get("frozen") is True
+        ):
+            raise SimNowPaperError(
+                "simnow_paper_cancel_gate_closed",
+                {
+                    "prepared": bool(self._simnow_prepared),
+                    "armed": bool(gate.get("armed")),
+                    "frozen": bool(gate.get("frozen")),
+                    "arm_count": int(self._simnow_arm_count),
+                },
+            )
+
+    def _simnow_match_active_order(
+        self, order_refs: Sequence[Any], instrument: str
+    ) -> Dict[str, Any]:
+        """Join the local references to exactly one active provider order row."""
+        plan = self._simnow_plan
+        known = {
+            str(value).strip()
+            for value in order_refs
+            if value is not None and str(value).strip()
+        }
+        rows = self._query_rows(
+            "orders_result",
+            attempts=2,
+            instrument_id=plan.instrument,
+            exchange_id=plan.exchange,
+        )
+        matched: Dict[Tuple[str, str, int, int], Any] = {}
+        for row in rows:
+            row_instrument = _raw_native_text(row_value(row, "InstrumentID", "instrument_id"))
+            if row_instrument is None or row_instrument.strip().upper() != instrument:
+                continue
+            row_exchange = _raw_native_text(row_value(row, "ExchangeID", "exchange_id"))
+            if row_exchange is not None and row_exchange.strip().upper() != plan.exchange:
+                continue
+            if not _order_is_active(row):
+                continue
+            row_ref = _raw_native_text(row_value(row, "OrderRef", "order_ref"))
+            row_sys = _raw_native_text(row_value(row, "OrderSysID", "order_sys_id"))
+            by_ref = row_ref is not None and row_ref.strip() in known
+            by_sys = row_sys is not None and row_sys.strip() in known
+            if not by_ref and not by_sys:
+                continue
+            key = (
+                row_ref.strip() if row_ref else "",
+                row_sys.strip() if row_sys else "",
+                _positive_index(row_value(row, "FrontID", "front_id")) or 0,
+                _positive_index(row_value(row, "SessionID", "session_id")) or 0,
+            )
+            matched.setdefault(key, row)
+        if not matched:
+            raise SimNowPaperError(
+                "simnow_paper_cancel_order_not_found",
+                {"instrument": plan.instrument, "order_rows": len(rows)},
+            )
+        if len(matched) > 1:
+            raise SimNowPaperError(
+                "simnow_paper_cancel_order_ambiguous",
+                {"instrument": plan.instrument, "matched_rows": len(matched)},
+            )
+        row = next(iter(matched.values()))
+        identity = {
+            "order_ref": _raw_native_text(row_value(row, "OrderRef", "order_ref")),
+            "order_sys_id": _raw_native_text(row_value(row, "OrderSysID", "order_sys_id")),
+            "front_id": _positive_index(row_value(row, "FrontID", "front_id")),
+            "session_id": _positive_index(row_value(row, "SessionID", "session_id")),
+            "instrument_id": row_instrument,
+            "exchange_id": row_exchange or plan.exchange,
+        }
+        missing = [name for name, value in identity.items() if value in (None, "")]
+        if missing:
+            raise SimNowPaperError(
+                "simnow_paper_cancel_identity_incomplete", {"fields": sorted(missing)}
+            )
+        if identity["exchange_id"].strip().upper() != plan.exchange:
+            raise SimNowPaperError(
+                "simnow_paper_cancel_scope_mismatch", {"instrument": plan.instrument}
+            )
+        return identity
+
+    def _simnow_cancel_verified(
+        self, order_refs: Sequence[Any], dataname: Any
+    ) -> Dict[str, Any]:
+        plan = self._simnow_plan
+        self._simnow_require_cancel_gate()
+        instrument = self._simnow_cancel_instrument(dataname)
+        api = getattr(self, "_api", None)
+        identity = self._simnow_match_active_order(order_refs, instrument)
+        login = self.registered_sim_login_facts() or {}
+        front_id = _positive_index(login.get("front_id"))
+        session_id = _positive_index(login.get("session_id"))
+        if front_id is None or session_id is None:
+            raise SimNowPaperError("simnow_paper_cancel_session_unavailable")
+        if identity["front_id"] != front_id or identity["session_id"] != session_id:
+            # A cross-session OrderRef is exactly the identity ambiguity this
+            # route must never convert into a blind native action.
+            raise SimNowPaperError(
+                "simnow_paper_cancel_session_mismatch",
+                {"order_sys_id": identity["order_sys_id"]},
+            )
+        next_request_id = getattr(api, "_next_request_id", None)
+        send_action = getattr(api, "_send_native_order_action", None)
+        if not callable(next_request_id) or not callable(send_action):
+            raise SimNowPaperError("simnow_paper_cancel_api_unavailable")
+        self._simnow_require_cancel_gate()
+        field = _new_native_order_action_field()
+        field.BrokerID = plan.broker_id
+        field.InvestorID = plan.user_id
+        field.UserID = plan.user_id
+        field.InstrumentID = identity["instrument_id"]
+        field.ExchangeID = identity["exchange_id"]
+        field.OrderRef = identity["order_ref"]
+        field.OrderSysID = identity["order_sys_id"]
+        field.FrontID = int(identity["front_id"])
+        field.SessionID = int(identity["session_id"])
+        field.ActionFlag = "0"
+        request_id = next_request_id()
+        if isinstance(request_id, bool) or not isinstance(request_id, int) or request_id <= 0:
+            raise SimNowPaperError("simnow_paper_cancel_request_id_invalid")
+        # Same convention as insert: the field carries the exact request id
+        # passed to the dispatch call, and this fresh one-shot id is the
+        # action reference (never a reused or inferred value).
+        field.RequestID = int(request_id)
+        field.OrderActionRef = int(request_id)
+        try:
+            submit_code = send_action(field, request_id)
+        except SimNowPaperError:
+            raise
+        except Exception as exc:  # noqa: BLE001 - finite code only
+            raise SimNowPaperError(
+                "simnow_paper_cancel_send_failed", {"error_type": type(exc).__name__}
+            ) from None
+        if isinstance(submit_code, bool) or submit_code != 0:
+            raise SimNowPaperError(
+                "simnow_paper_cancel_send_failed",
+                {"submit_code": submit_code if isinstance(submit_code, int) else None},
+            )
+        receipt = {
+            "schema_version": 1,
+            "order_ref": identity["order_ref"],
+            "order_sys_id": identity["order_sys_id"],
+            "front_id": int(identity["front_id"]),
+            "session_id": int(identity["session_id"]),
+            "instrument_id": identity["instrument_id"],
+            "exchange_id": identity["exchange_id"],
+            "action_flag": "0",
+            "request_id": int(request_id),
+            "order_action_ref": int(request_id),
+            "submit_code": int(submit_code),
+            "status": "accepted",
+            "source": "simnow_paper_verified_cancel_v1",
+        }
+        if len(self._simnow_cancels) < 8:
+            self._simnow_cancels.append(dict(receipt))
+        return receipt
+
     def _position_mode(self) -> str:
         directions = {
             str(row_value(row, "PosiDirection", "posi_direction", default="") or "")
@@ -856,4 +1096,8 @@ class SimNowPaperStoreMixin:
                 "preflight_sha256": self._simnow_arm_facts.get("preflight_sha256"),
             },
             "stop": dict(self._simnow_stop_facts),
+            "cancel": {
+                "count": len(self._simnow_cancels),
+                "last": dict(self._simnow_cancels[-1]) if self._simnow_cancels else None,
+            },
         }

@@ -61,6 +61,8 @@ class FakeRegisteredSimStore:
             "connection_generation": 1,
             "read_only_ready": True,
             "trading_ready": True,
+            "front_id": 10,
+            "session_id": 20,
         }
         self.rows = {
             "account_result": [{"Balance": 1000000.0, "Available": 1000000.0}],
@@ -125,6 +127,60 @@ class FakeRegisteredSimStore:
 
     def get_execution_summary(self):
         return dict(self.execution_summary)
+
+
+class FakeNativeActionField:
+    """Record every field the verified cancel path writes."""
+
+    def __init__(self):
+        self.written = {}
+
+    def __setattr__(self, name, value):
+        if name != "written":
+            self.__dict__.setdefault("written", {})[name] = value
+        object.__setattr__(self, name, value)
+
+
+class FakeCancelApi:
+    """Stand-in for the registered-sim wrapper's native action dispatch."""
+
+    def __init__(self, submit_code=0, next_request_id=41):
+        self.submit_code = submit_code
+        self.request_id = next_request_id
+        self.requests = 0
+        self.actions = []
+
+    def _next_request_id(self):
+        self.requests += 1
+        return self.request_id + self.requests - 1
+
+    def _send_native_order_action(self, field, req_id):
+        self.actions.append((field, req_id))
+        return self.submit_code
+
+
+def _active_order_row(**overrides):
+    row = {
+        "InstrumentID": "SA605",
+        "ExchangeID": "CZCE",
+        "OrderRef": "1",
+        "OrderSysID": "21766",
+        "FrontID": 10,
+        "SessionID": 20,
+        "OrderStatus": "3",
+        "VolumeTotal": 1,
+        "VolumeTraded": 0,
+    }
+    row.update(overrides)
+    return row
+
+
+def _paper_order(ref=1, **info):
+    payload = {"ctp_order_ref": str(ref)}
+    payload.update(info)
+    return SimpleNamespace(
+        ref=ref, info=payload, data=SimpleNamespace(_name="SA605", _dataname="SA605")
+    )
 
 
 def _plan(paper, **overrides):
@@ -391,6 +447,147 @@ def test_store_factory_does_not_retain_session_config(paper):
     store = factory(config=config, profile=object())
     assert session_secret not in repr(store)
     assert session_secret not in str(store.init_kwargs)
+
+
+# ------------------------------------------------------------------ verified cancel
+def _armed_cancel_store(paper, monkeypatch, rows):
+    store = _store(paper)
+    store.start()
+    store.rows["orders_result"] = list(rows)
+    api = FakeCancelApi()
+    store._api = api
+    fields = []
+
+    def factory():
+        field = FakeNativeActionField()
+        fields.append(field)
+        return field
+
+    monkeypatch.setattr(paper, "_new_native_order_action_field", factory)
+    return store, api, fields
+
+
+def test_verified_active_order_sends_one_native_action(paper, monkeypatch):
+    store, api, fields = _armed_cancel_store(paper, monkeypatch, [_active_order_row()])
+
+    # The Broker calls ``store.cancel_order(order)``; the paper override must
+    # win over the base registered-sim Store method in the MRO.
+    assert type(store).cancel_order is paper.SimNowPaperStoreMixin.cancel_order
+
+    receipt = store.cancel_order(_paper_order())
+
+    assert len(api.actions) == 1
+    assert len(fields) == 1
+    field, request_id = api.actions[0]
+    assert request_id == 41
+    assert field.written == {
+        "BrokerID": "9999",
+        "InvestorID": SECRET_USER,
+        "UserID": SECRET_USER,
+        "InstrumentID": "SA605",
+        "ExchangeID": "CZCE",
+        "OrderRef": "1",
+        "OrderSysID": "21766",
+        "FrontID": 10,
+        "SessionID": 20,
+        "ActionFlag": "0",
+        "RequestID": 41,
+        "OrderActionRef": 41,
+    }
+    assert receipt["order_ref"] == "1"
+    assert receipt["order_sys_id"] == "21766"
+    assert receipt["request_id"] == 41
+    assert receipt["order_action_ref"] == 41
+    assert receipt["submit_code"] == 0
+    assert receipt["status"] == "accepted"
+    assert store.simnow_paper_facts()["cancel"]["count"] == 1
+
+
+def test_unknown_or_terminal_order_fails_closed(paper, monkeypatch):
+    store, api, fields = _armed_cancel_store(
+        paper, monkeypatch, [_active_order_row(OrderStatus="5")]
+    )
+
+    error = _reason(lambda: store.cancel_order(_paper_order()))
+    assert isinstance(error, paper.SimNowPaperError)
+    assert error.reason == "simnow_paper_cancel_order_not_found"
+
+    store.rows["orders_result"] = []
+    error = _reason(lambda: store.cancel_order_ref("1", dataname="CZCE.SA605"))
+    assert error.reason == "simnow_paper_cancel_order_not_found"
+    assert api.actions == []
+    assert fields == []
+
+
+def test_ambiguous_active_orders_fail_closed(paper, monkeypatch):
+    store, api, fields = _armed_cancel_store(
+        paper,
+        monkeypatch,
+        [
+            _active_order_row(OrderSysID="21766"),
+            _active_order_row(OrderSysID="21767"),
+        ],
+    )
+
+    error = _reason(lambda: store.cancel_order(_paper_order()))
+
+    assert error.reason == "simnow_paper_cancel_order_ambiguous"
+    assert error.details["matched_rows"] == 2
+    assert api.actions == []
+    assert fields == []
+
+
+def test_cancel_requires_the_armed_gate(paper, monkeypatch):
+    store, api, fields = _armed_cancel_store(paper, monkeypatch, [_active_order_row()])
+    store.registered_sim_freeze("prior_unknown")
+
+    error = _reason(lambda: store.cancel_order(_paper_order()))
+    assert error.reason == "simnow_paper_cancel_gate_closed"
+    assert api.actions == []
+    assert fields == []
+
+    disarmed, api2, fields2 = _armed_cancel_store(
+        paper, monkeypatch, [_active_order_row()]
+    )
+    disarmed.registered_sim_disarm("operator_disarm")
+    error = _reason(lambda: disarmed.cancel_order(_paper_order()))
+    assert error.reason == "simnow_paper_cancel_gate_closed"
+    assert api2.actions == []
+    assert fields2 == []
+
+    never_started, api3, fields3 = _armed_cancel_store(
+        paper, monkeypatch, [_active_order_row()]
+    )
+    never_started._simnow_prepared = False
+    error = _reason(lambda: never_started.cancel_order(_paper_order()))
+    assert error.reason == "simnow_paper_cancel_gate_closed"
+    assert api3.actions == []
+    assert fields3 == []
+
+
+def test_cross_session_active_order_fails_closed(paper, monkeypatch):
+    store, api, fields = _armed_cancel_store(paper, monkeypatch, [_active_order_row()])
+    store.login["session_id"] = 99
+
+    error = _reason(lambda: store.cancel_order(_paper_order()))
+
+    assert error.reason == "simnow_paper_cancel_session_mismatch"
+    assert api.actions == []
+    assert fields == []
+
+
+def test_scope_mismatch_and_send_failure_fail_closed(paper, monkeypatch):
+    store, api, fields = _armed_cancel_store(paper, monkeypatch, [_active_order_row()])
+
+    error = _reason(lambda: store.cancel_order_ref("1", dataname="RB605"))
+    assert error.reason == "simnow_paper_cancel_scope_mismatch"
+    assert api.actions == []
+
+    api.submit_code = 3
+    error = _reason(lambda: store.cancel_order(_paper_order()))
+    assert error.reason == "simnow_paper_cancel_send_failed"
+    assert error.details["submit_code"] == 3
+    assert store.simnow_paper_facts()["cancel"]["count"] == 0
 
 
 # --------------------------------------------------------------- strategy adapter
