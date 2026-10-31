@@ -234,6 +234,7 @@ _FILL_PRICE_KEYS = (
     "lastPx",
     "px",
 )
+_CONFIRMED_TERMINAL_STATUSES = frozenset({"completed", "canceled", "rejected", "expired"})
 
 
 class BtApiBroker(BrokerBase):
@@ -2951,6 +2952,18 @@ class BtApiBroker(BrokerBase):
             resolved["bt_order_ref"] = ref
             resolved["terminal_confirmed"] = True
             self._apply_order_update(resolved, from_query=True)
+        # The barrier above only scans live orders; one that already terminated
+        # locally keeps its flag until the same terminal row resolves it.
+        for order in self.orders.values():
+            if order.alive() or not self._order_is_uncertain(order):
+                continue
+            terminal = self._ctp_terminal_query_row(order, rows)
+            if terminal is not None:
+                self.apply_confirmed_terminal_observation(
+                    order,
+                    {**terminal, "terminal_confirmed": True},
+                    source="ctp_reconciliation_terminal_query",
+                )
         if (
             any(order.alive() for order in self.orders.values())
             or not self._ctp_local_positions_flat()
@@ -4000,7 +4013,12 @@ class BtApiBroker(BrokerBase):
             raise
 
     def refresh_managed_orders(self, *, limit: int = 32):
-        """Apply current durable service records to live managed orders.
+        """Apply current durable service records to managed orders.
+
+        Live managed orders go through the ordinary update path.  A managed order
+        that already terminated locally is read too, but only while it still
+        carries an uncertainty marker, and its record is projected through
+        :meth:`apply_confirmed_terminal_observation`.
 
         The caller owns the schedule; this method performs one bounded pass and
         returns the framework order refs whose state was applied.  ``limit``
@@ -4024,7 +4042,9 @@ class BtApiBroker(BrokerBase):
         eligible_orders = []
         eligible_order_ids = set()
         for order in list(self.orders.values()):
-            if not order.alive() or not self._order_info_get(order, "managed_intent_id"):
+            if not self._order_info_get(order, "managed_intent_id"):
+                continue
+            if not order.alive() and not self._order_is_uncertain(order):
                 continue
             order_id = id(order)
             if order_id not in eligible_order_ids:
@@ -4058,8 +4078,11 @@ class BtApiBroker(BrokerBase):
             visits_remaining -= 1
 
             # An update earlier in this pass, or another caller, may have made
-            # this candidate terminal before its turn arrives.
-            if not order.alive() or not self._order_info_get(order, "managed_intent_id"):
+            # this candidate terminal before its turn arrives; a terminal order
+            # stays eligible only while its own fate remains unresolved.
+            if not self._order_info_get(order, "managed_intent_id"):
+                continue
+            if not order.alive() and not self._order_is_uncertain(order):
                 continue
 
             # Rotate before entering Store/adapter code. If refresh raises, the
@@ -4075,6 +4098,14 @@ class BtApiBroker(BrokerBase):
                     service_read_unavailable=True,
                 )
                 raise
+            if not order.alive():
+                # The strategy already saw this order terminate, so re-entering
+                # the update path here would notify the same state a second time.
+                if self.apply_confirmed_terminal_observation(
+                    order, projection, source="managed_service_projection"
+                ):
+                    applied.append(getattr(order, "ref", None))
+                continue
             if not isinstance(projection, dict):
                 continue
 
@@ -9794,12 +9825,59 @@ class BtApiBroker(BrokerBase):
             or response.get("execution_unknown") is True
         ):
             return False
-        return cls._normalize_remote_order_status(response.get("status")) in {
-            "completed",
-            "canceled",
-            "expired",
-            "rejected",
-        }
+        return (
+            cls._normalize_remote_order_status(response.get("status"))
+            in _CONFIRMED_TERMINAL_STATUSES
+        )
+
+    def _order_is_uncertain(self, order):
+        """Return whether a local order still carries an unresolved execution fate."""
+        return bool(
+            self._order_info_get(order, "execution_unknown", False)
+            or self._order_info_get(order, "cancel_execution_unknown", False)
+        )
+
+    def _confirmed_terminal_status(self, observation):
+        """Return the terminal status only when incoming evidence proves it."""
+        if not isinstance(observation, dict):
+            return None
+        if observation.get("execution_unknown") is True:
+            return None
+        if observation.get("terminal_confirmed") is not True:
+            service_state = observation.get("service_execution_state")
+            if service_state in (None, "UNKNOWN"):
+                return None
+        status = self._normalize_remote_order_status(observation.get("status"))
+        if status not in _CONFIRMED_TERMINAL_STATUSES:
+            return None
+        return status
+
+    def apply_confirmed_terminal_observation(self, order, observation, *, source=None):
+        """Resolve uncertainty markers from a late provider-confirmed terminal fact.
+
+        The ordinary update path only projects orders the Broker still treats as
+        live, so a confirmation that arrives after the framework order reached its
+        local terminal state used to be dropped and left ``execution_unknown``
+        stale on ``order.info``.  This projection is deliberately narrower: it
+        writes the two uncertainty markers and the confirming origin, never a
+        status transition, a fill or a second strategy notification.
+        """
+        if order is None:
+            return False
+        if not self._order_is_uncertain(order):
+            return False
+        if bool(self._order_info_get(order, "ledger_mismatch", False)):
+            return False
+        status = self._confirmed_terminal_status(observation)
+        if status is None:
+            return False
+        order.addinfo(
+            execution_unknown=False,
+            cancel_execution_unknown=False,
+            confirmation_source=str(source or "provider_terminal_observation"),
+            confirmed_terminal_status=status,
+        )
+        return True
 
     def _pending_trade_update_limit(self):
         try:
