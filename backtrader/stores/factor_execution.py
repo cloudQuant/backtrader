@@ -276,17 +276,25 @@ def execution_order_snapshot(broker: Any) -> Tuple[ExecutionOrderSnapshot, ...]:
     return tuple(result)
 
 
-def _configure_journal_contracts(journal: Any) -> None:
-    """Inject the Backtrader strategy adapters the journal may call."""
-    from bt_api_execution.journal import configure_backtrader_contracts
+def _bind_journal_ports(journal: Any) -> Any:
+    """Give one journal this package's typed cross-domain port set.
 
-    from . import factor_execution_facts, factor_position_book, registered_sim
+    Replaces the retired whole-module ``configure_backtrader_contracts``
+    injection.  Constructor injection is preferred, so a journal built through
+    ``backtrader.stores._journal_ports.new_execution_journal`` already carries
+    the set; a journal opened earlier is bound explicitly here.  Nothing falls
+    back silently: if a port cannot be built or the journal exposes no port slot,
+    this raises and the coordinator refuses to bind.
+    """
 
-    configure_backtrader_contracts(
-        factor_position_book=factor_position_book,
-        factor_execution_facts=factor_execution_facts,
-        registered_sim=registered_sim,
-    )
+    from ._journal_ports import BacktraderJournalPortError, bind_backtrader_journal_ports
+
+    try:
+        return bind_backtrader_journal_ports(journal)
+    except ExecutionDecisionJournalError as error:
+        raise FactorExecutionError(error.code) from error
+    except BacktraderJournalPortError as error:
+        raise FactorExecutionError(str(error)) from error
 
 
 class FactorExecutionCoordinator:
@@ -329,7 +337,7 @@ class FactorExecutionCoordinator:
         self.broker = broker
         self.store = store
         self.journal = journal
-        _configure_journal_contracts(journal)
+        self.journal_ports = _bind_journal_ports(journal)
         self.position_book = FactorPositionBook(journal)
         self.account_scope = account_scope
         self.strategy_scope = strategy_scope

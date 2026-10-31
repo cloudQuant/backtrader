@@ -4198,7 +4198,7 @@ def _query_valid(
     )
 
 
-def _query_set_identifier(
+def fee_pair_query_set_identifier(
     account_fingerprint: str,
     generation: int,
     trading_day: str,
@@ -4206,6 +4206,14 @@ def _query_set_identifier(
     completed_at: datetime,
     query_ids: Tuple[Tuple[str, int], ...],
 ) -> str:
+    """Public deterministic identifier for one complete query group.
+
+    This is the module's own public name for the digest an external consumer
+    (the execution journal through its typed fee-pair port) must be able to
+    re-derive bit for bit.  The algorithm and output are unchanged by the
+    rename; only the visibility is.
+    """
+
     payload = json.dumps(
         (
             "factor-execution-query-set-v1",
@@ -4220,6 +4228,12 @@ def _query_set_identifier(
         separators=(",", ":"),
     ).encode("ascii")
     return "ctp.query-set:" + hashlib.sha256(payload).hexdigest()
+
+
+#: Thin private alias kept so this module's internal call sites stay unchanged.
+#: External consumers resolve the public name above; the SDK never reads a
+#: leading-underscore symbol of this package.
+_query_set_identifier = fee_pair_query_set_identifier
 
 
 def _completed_query_set(
@@ -8796,6 +8810,7 @@ __all__ = [
     "FactorExecutionWorkingOrderFacts",
     "fee_pair_facts_open_source_scope",
     "fee_pair_facts_release_source_scope",
+    "fee_pair_query_set_identifier",
     "project_factor_execution_facts",
     "refresh_factor_execution_queries",
     "validate_factor_execution_facts_source",

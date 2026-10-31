@@ -33,12 +33,24 @@ import sys
 import threading
 import time
 from collections.abc import Mapping
-from dataclasses import dataclass
 from datetime import datetime, timezone
 from types import MappingProxyType
-from typing import Any, Dict, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Dict, Optional, Tuple
 
 from .btapistore import BtApiStore, BtApiStoreError, _ctp_order_route_invest_unit_id
+
+if TYPE_CHECKING:  # pragma: no cover - typing only, never imported at runtime
+    # The registered-sim receipt records are provider-owned
+    # (``bt_api_ctp.receipts``) and are resolved lazily by this module's
+    # ``__getattr__`` at runtime.  They are listed here only so annotations and
+    # the type gate can name them without importing the provider package.
+    from bt_api_ctp.receipts import (
+        RegisteredSimCancelTarget,
+        RegisteredSimDispatchEvidence,
+        RegisteredSimOrderIdentityQueryReceipt,
+        RegisteredSimRouteEligibility,
+        RegisteredSimUnknownRetirement,
+    )
 
 _HASH_RE = re.compile(r"^[0-9a-f]{64}$")
 _REGISTERED_SIM_TICK_SOURCE = "ctp-native-live"
@@ -63,19 +75,13 @@ _QUERY_REQUEST_TYPES = {
 _REQUIRED_QUERY_FAMILIES = frozenset(
     {"account_result", "positions_result", "orders_result", "trades_result"}
 )
-_TERMINAL_ORDER_STATUSES = frozenset({"0", "4", "5", "a"})
+# ``_TERMINAL_ORDER_STATUSES`` and ``_COMMISSION_REQUEST_FILTER_FIELDS`` are the
+# CTP provider's own truth and are resolved lazily from ``bt_api_ctp.status`` by
+# ``_ctp_status_tables()``; this module keeps no second copy of them.
 _UNOBSERVED = object()
 _QUERY_SNAPSHOT_LIMIT = 512
 _COMMISSION_QUERY_SNAPSHOT_LIMIT = 256
 _REGISTERED_SIM_CAPACITY_ORDER_STATE_LIMIT = 100_000
-_COMMISSION_REQUEST_FILTER_FIELDS = {
-    "instrument_id": "InstrumentID",
-    "exchange_id": "ExchangeID",
-    "InstrumentID": "InstrumentID",
-    "ExchangeID": "ExchangeID",
-    "BrokerID": "BrokerID",
-    "InvestorID": "InvestorID",
-}
 
 
 class RegisteredSimExecutionUnknown(BtApiStoreError):
@@ -92,181 +98,88 @@ class RegisteredSimExecutionUnknown(BtApiStoreError):
         )
 
 
-@dataclass(frozen=True)
-class RegisteredSimDispatchEvidence:
-    """One native dispatch result; diagnostic only and never a retry command.
+_CTP_RECEIPTS_MODULES: Any = None
 
-    ``status`` is ``KNOWN`` only when the SDK method returned its documented
-    integer success code (zero). Any exception or other return is ``UNKNOWN``.
-    The Store never automatically resends a native method, including when the
-    outcome is UNKNOWN. UNKNOWN evidence is retained until the process ends.
+#: Names this module no longer defines: the registered-sim receipt records are
+#: owned by ``bt_api_ctp.receipts`` and the CTP status/filter tables by
+#: ``bt_api_ctp.status``.  They stay reachable through this module's historical
+#: names (``from .registered_sim import RegisteredSimCancelTarget`` style) so
+#: existing Backtrader callers and the journal's port keep resolving, but each
+#: is resolved lazily: importing this module must not import the provider SDK.
+#: The key is the name this module exposes; the value is
+#: ``(provider module, the provider's own attribute name)``.
+_LAZY_PROVIDER_NAMES = {
+    "RegisteredSimDispatchEvidence": ("receipts", "RegisteredSimDispatchEvidence"),
+    "RegisteredSimOrderIdentityQueryReceipt": (
+        "receipts",
+        "RegisteredSimOrderIdentityQueryReceipt",
+    ),
+    "RegisteredSimCancelTarget": ("receipts", "RegisteredSimCancelTarget"),
+    "RegisteredSimUnknownRetirement": ("receipts", "RegisteredSimUnknownRetirement"),
+    "RegisteredSimRouteEligibility": ("receipts", "RegisteredSimRouteEligibility"),
+    "_TERMINAL_ORDER_STATUSES": ("status", "TERMINAL_ORDER_STATUSES"),
+    "_COMMISSION_REQUEST_FILTER_FIELDS": ("status", "COMMISSION_REQUEST_FILTER_FIELDS"),
+}
+
+
+def _ctp_provider_tables():
+    """Load the source-owned CTP receipt records and status tables lazily.
+
+    Follows the ``_ctp_native_fields()`` pattern in :mod:`backtrader.stores
+    .btapistore`: nothing is imported until a route actually needs a record, so
+    ``import backtrader.stores.registered_sim`` keeps the provider package (and
+    its native extension) out of ``sys.modules``.
     """
 
-    sequence: int
-    operation: str
-    status: str
-    request_id: int
-    instrument_id: str
-    exchange_id: str
-    order_ref: Optional[str]
-    order_sys_id: Optional[str]
-    front_id: Optional[int]
-    session_id: Optional[int]
-    broker_id: Optional[str]
-    investor_id: Optional[str]
-    user_id: Optional[str]
-    native_return_code: Optional[int]
-    error_type: Optional[str]
-    observed_at_utc: str
-
-    @property
-    def resend_permitted(self) -> bool:
-        """Native requests are never automatically safe to replay."""
-        return False
+    global _CTP_RECEIPTS_MODULES
+    if _CTP_RECEIPTS_MODULES is None:
+        try:
+            from bt_api_ctp import receipts as ctp_receipts
+            from bt_api_ctp import status as ctp_status
+        except ImportError as error:
+            raise BtApiStoreError(
+                "bt_api_ctp with the registered-sim receipt records (receipts and "
+                "status modules) is required for the registered-sim route"
+            ) from error
+        _CTP_RECEIPTS_MODULES = (ctp_receipts, ctp_status)
+    return _CTP_RECEIPTS_MODULES
 
 
-@dataclass(frozen=True)
-class RegisteredSimOrderIdentityQueryReceipt:
-    """Current Store-owned complete orders query used for durable identity binding.
+def _ctp_receipt_records():
+    """Return the ``bt_api_ctp.receipts`` record namespace."""
 
-    This in-process receipt records a query that the Store revalidated against
-    its live SDK session. It does not claim that the Journal independently
-    authenticates a provider or the physical query source.
+    return _ctp_provider_tables()[0]
+
+
+def _ctp_status_tables():
+    """Return the ``bt_api_ctp.status`` table namespace."""
+
+    return _ctp_provider_tables()[1]
+
+
+def __getattr__(name: str) -> Any:
+    """Resolve one provider-owned name on first attribute access.
+
+    Module-level ``__getattr__`` (PEP 562) is what keeps the deleted local
+    definitions importable by name without importing the provider SDK here.
+    Any other unknown attribute still raises the ordinary ``AttributeError``.
     """
 
-    request_id: int
-    connection_generation: int
-    account_fingerprint: str
-    trading_day: str
-    started_at_utc: datetime
-    completed_at_utc: datetime
-    front_id: int
-    session_id: int
-    broker_id: str
-    investor_id: str
-    rows_sha256: str
-    rows: Tuple[Mapping, ...]
-    source_expires_monotonic: float
-    _store: Any
-    _issuer: Any
-
-
-@dataclass(frozen=True)
-class RegisteredSimCancelTarget:
-    """Exact one-shot CTP target issued by a Journal-validated Store path."""
-
-    order_ref: str
-    order_sys_id: str
-    instrument_id: str
-    exchange_id: str
-    broker_id: str
-    investor_id: str
-    front_id: int
-    session_id: int
-    account_fingerprint: str
-    connection_generation: int
-    trading_day: str
-    query_request_id: int
-    query_rows_sha256: str
-    matched_row_sha256: str
-    source_expires_monotonic: float
-    _issuer: Any
-    _seal: Any
-
-    def __post_init__(self) -> None:
-        for name in (
-            "order_ref",
-            "order_sys_id",
-            "instrument_id",
-            "exchange_id",
-            "broker_id",
-            "investor_id",
-            "account_fingerprint",
-            "query_rows_sha256",
-            "matched_row_sha256",
-        ):
-            _exact_text(getattr(self, name), name)
-        for name in (
-            "front_id",
-            "session_id",
-            "connection_generation",
-            "query_request_id",
-        ):
-            if not _positive_int(getattr(self, name)):
-                raise ValueError("{} must be a positive int".format(name))
-        if (
-            type(self.trading_day) is not str
-            or len(self.trading_day) != 8
-            or not self.trading_day.isdigit()
-        ):
-            raise ValueError("trading_day must be an exact YYYYMMDD")
-        if any(
-            _HASH_RE.fullmatch(getattr(self, name)) is None
-            for name in ("query_rows_sha256", "matched_row_sha256")
-        ):
-            raise ValueError("cancel target query digests must be lowercase SHA-256")
-        if (
-            type(self.source_expires_monotonic) not in (int, float)
-            or not math.isfinite(self.source_expires_monotonic)
-            or self.source_expires_monotonic <= 0
-        ):
-            raise ValueError("source_expires_monotonic must be a finite positive deadline")
-        if self._issuer is None or self._seal is None:
-            raise ValueError("cancel target requires its validated Store issuer")
-
-
-@dataclass(frozen=True)
-class RegisteredSimUnknownRetirement:
-    """Result of retiring one exact, durably reconciled UNKNOWN insert."""
-
-    status: str
-    intent_id: str
-    reconciliation_id: str
-    disarmed: bool
-
-
-@dataclass(frozen=True)
-class RegisteredSimRouteEligibility:
-    """Read-only route facts; these fields do not grant native permission.
-
-    Unknown order IDs describe only this wrapper's observed in-process
-    dispatches. They do not claim a complete account reconciliation; callers
-    must separately require the source-owned full-scope query facts.
-    """
-
-    route_name: str
-    instrument_id: str
-    exchange_id: str
-    account_fingerprint: Optional[str]
-    connection_generation: Optional[int]
-    trading_day: Optional[str]
-    allow_writes: bool
-    frozen: bool
-    sdk_frozen: Optional[bool]
-    unknown_order_ids: Optional[Tuple[str, ...]]
-    unknown_order_count: Optional[int]
-    dispatching_order_ids: Optional[Tuple[str, ...]]
-    capability_observed: bool
-    sdk_capability_managed: Optional[bool]
-    sdk_capability_armed: Optional[bool]
-    sdk_capability_instrument: Optional[str]
-    sdk_authorized_instruments: Optional[Tuple[str, ...]]
-    capability_matches_route: Optional[bool]
-    instrument_query_complete: bool
-    instrument_eligible: Optional[bool]
-    reason_codes: Tuple[str, ...]
-    arm_template_configured: Optional[bool] = None
-    arm_templates_configured: Optional[bool] = None
-    arm_api_available: Optional[bool] = None
-    current_session_account_fingerprint: Optional[str] = None
-    current_session_connection_generation: Optional[int] = None
-    current_session_trading_day: Optional[str] = None
-    current_session_trading_ready: Optional[bool] = None
-    current_session_front_id: Optional[int] = None
-    current_session_id: Optional[int] = None
-    current_session_read_only_ready: Optional[bool] = None
-    native_admission_required: bool = True
-    arm_template_membership: Optional[bool] = None
+    resolved = _LAZY_PROVIDER_NAMES.get(name)
+    if resolved is None:
+        raise AttributeError("module {!r} has no attribute {!r}".format(__name__, name))
+    module_name, provider_name = resolved
+    namespace = _ctp_receipt_records() if module_name == "receipts" else _ctp_status_tables()
+    try:
+        value = getattr(namespace, provider_name)
+    except AttributeError as error:
+        raise AttributeError(
+            "bt_api_ctp.{} does not provide registered-sim name {!r}".format(
+                module_name, provider_name
+            )
+        ) from error
+    globals()[name] = value
+    return value
 
 
 def _exact_text(value: Any, field: str) -> str:
@@ -950,7 +863,7 @@ def _request_filter_map(value: Any) -> Optional[Dict[str, str]]:
             or type(pair[1]) is not str
         ):
             return None
-        name = _COMMISSION_REQUEST_FILTER_FIELDS.get(pair[0])
+        name = _ctp_status_tables().COMMISSION_REQUEST_FILTER_FIELDS.get(pair[0])
         if name is None or name in result:
             return None
         result[name] = pair[1]
@@ -1906,7 +1819,7 @@ class RegisteredSimWrapper:
                     or (event is not None and local_order_state not in (None, "terminal"))
                 ):
                     raise BtApiStoreError("registered-sim recovery cannot clear another freeze")
-                return RegisteredSimUnknownRetirement(
+                return _ctp_receipt_records().RegisteredSimUnknownRetirement(
                     "ALREADY_ABSENT", intent_id, reconciliation_id, True
                 )
 
@@ -1986,7 +1899,9 @@ class RegisteredSimWrapper:
                     # The exact terminal event remains in the normal poll
                     # queue; a wake failure cannot make it safe to enqueue twice.
                     pass
-            return RegisteredSimUnknownRetirement(status, intent_id, reconciliation_id, True)
+            return _ctp_receipt_records().RegisteredSimUnknownRetirement(
+                status, intent_id, reconciliation_id, True
+            )
 
     def reserve_registered_sim_order_ref(self) -> str:
         """Reserve one SDK-monotonic OrderRef without making a provider call."""
@@ -2122,7 +2037,7 @@ class RegisteredSimWrapper:
         error_type: Optional[str] = None,
     ) -> RegisteredSimDispatchEvidence:
         self._registered_sim_dispatch_sequence += 1
-        return RegisteredSimDispatchEvidence(
+        return _ctp_receipt_records().RegisteredSimDispatchEvidence(
             sequence=self._registered_sim_dispatch_sequence,
             operation=operation,
             status=status,
@@ -2158,7 +2073,7 @@ class RegisteredSimWrapper:
     def _discard_registered_sim_cancel_target(self, target: Any) -> None:
         with self._registered_sim_lock:
             if (
-                type(target) is RegisteredSimCancelTarget
+                type(target) is _ctp_receipt_records().RegisteredSimCancelTarget
                 and self._registered_sim_cancel_targets.get(id(target)) is target
             ):
                 self._registered_sim_cancel_targets.pop(id(target), None)
@@ -2174,9 +2089,10 @@ class RegisteredSimWrapper:
         if registered_sim_cancel_target is None:
             return super().cancel_order(order_ref, dataname=dataname)
         target = registered_sim_cancel_target
+        cancel_target_class = _ctp_receipt_records().RegisteredSimCancelTarget
         with self._registered_sim_lock:
             if (
-                type(target) is not RegisteredSimCancelTarget
+                type(target) is not cancel_target_class
                 or type(target._issuer) is not RegisteredSimStore
                 or target._issuer._api is not self
                 or target._seal is not target._issuer._registered_sim_cancel_target_seal
@@ -2230,7 +2146,7 @@ class RegisteredSimWrapper:
                 raise BtApiStoreError("native request identity does not match outbound field")
             target = self._registered_sim_active_cancel_target
             if operation == "cancel" and target is not None and not (
-                type(target) is RegisteredSimCancelTarget
+                type(target) is _ctp_receipt_records().RegisteredSimCancelTarget
                 and type(target._issuer) is RegisteredSimStore
                 and target._issuer._api is self
                 and target._seal is target._issuer._registered_sim_cancel_target_seal
@@ -2378,7 +2294,8 @@ class RegisteredSimWrapper:
                 order_ref = str(getattr(payload, "OrderRef", "") or "").strip()
                 status = str(getattr(payload, "OrderStatus", "") or "").strip()
             if order_ref and status:
-                next_state = "terminal" if status in _TERMINAL_ORDER_STATUSES else "active"
+                terminal_statuses = _ctp_status_tables().TERMINAL_ORDER_STATUSES
+                next_state = "terminal" if status in terminal_statuses else "active"
                 with self._registered_sim_lock:
                     self._remember_order_state_locked(order_ref, next_state)
 
@@ -3091,7 +3008,7 @@ class RegisteredSimStore(BtApiStore):
             raise BtApiStoreError("registered-sim current order-query source is untrusted")
         receipt = receipt_factory()
         if (
-            type(receipt) is not RegisteredSimOrderIdentityQueryReceipt
+            type(receipt) is not _ctp_receipt_records().RegisteredSimOrderIdentityQueryReceipt
             or receipt._store is not self
             or validator(receipt) is not True
             or receipt.account_fingerprint != expected_session.get("account_fingerprint")
@@ -3808,7 +3725,7 @@ class RegisteredSimStore(BtApiStore):
             reason_codes.append("session_not_trading_ready")
         if arm_templates_configured is True and arm_template_configured is not True:
             reason_codes.append("arm_template_missing")
-        return RegisteredSimRouteEligibility(
+        return _ctp_receipt_records().RegisteredSimRouteEligibility(
             route_name="ctp/direct/registered-sim",
             instrument_id=instrument,
             exchange_id=exchange,
@@ -3892,7 +3809,7 @@ class RegisteredSimStore(BtApiStore):
                 expected_session=expected,
                 terminal_event=terminal_event,
             )
-            if not isinstance(result, RegisteredSimUnknownRetirement):
+            if not isinstance(result, _ctp_receipt_records().RegisteredSimUnknownRetirement):
                 raise BtApiStoreError("registered-sim recovery result is invalid")
             if result.status not in ("QUEUED", "ALREADY_ABSENT") or result.disarmed is not True:
                 raise BtApiStoreError("registered-sim recovery result is not terminal")
@@ -4447,7 +4364,7 @@ class RegisteredSimStore(BtApiStore):
             frozen_rows = tuple(MappingProxyType(copy.deepcopy(dict(row))) for row in rows)
         except (TypeError, ValueError, OverflowError):
             return None
-        return RegisteredSimOrderIdentityQueryReceipt(
+        return _ctp_receipt_records().RegisteredSimOrderIdentityQueryReceipt(
             request_id=request_id,
             connection_generation=generation,
             account_fingerprint=account,
@@ -4468,7 +4385,7 @@ class RegisteredSimStore(BtApiStore):
     def registered_sim_validate_order_identity_query_receipt(self, receipt: Any) -> bool:
         """Recheck a Store-minted receipt against the still-current query/session."""
         if (
-            type(receipt) is not RegisteredSimOrderIdentityQueryReceipt
+            type(receipt) is not _ctp_receipt_records().RegisteredSimOrderIdentityQueryReceipt
             or receipt._store is not self
         ):
             return False
@@ -5066,7 +4983,7 @@ class RegisteredSimStore(BtApiStore):
                                         "registered-sim typed native cancel is unavailable"
                                     )
                                 try:
-                                    target = RegisteredSimCancelTarget(
+                                    target = _ctp_receipt_records().RegisteredSimCancelTarget(
                                         _issuer=self,
                                         _seal=self._registered_sim_cancel_target_seal,
                                         **identity,

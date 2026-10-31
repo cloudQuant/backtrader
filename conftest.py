@@ -247,20 +247,28 @@ def pytest_configure(config):
 
 
 @pytest.fixture(autouse=True)
-def _configure_execution_journal_contracts():
-    """Inject Backtrader strategy adapters into the optional execution journal."""
+def _configure_execution_journal_ports():
+    """Register Backtrader's typed journal ports for journals built inside a test.
+
+    ``bt_api_execution.journal`` now takes typed, versioned port instances
+    instead of whole modules, and a journal captures the process-registered set
+    at construction time, so the registration must exist before the test opens
+    one.  The same port instances are re-registered every test (the SDK treats a
+    repeated identical instance as a no-op) and the slot is cleared again on the
+    way out so no suite leaks its registration into the next one.
+    """
     try:
-        from bt_api_execution.journal import configure_backtrader_contracts
-        from backtrader.stores import factor_execution_facts, factor_position_book, registered_sim
+        from bt_api_execution.journal import reset_journal_ports
+
+        from backtrader.stores._journal_ports import install_backtrader_journal_ports
     except ImportError:
         yield
         return
-    configure_backtrader_contracts(
-        factor_position_book=factor_position_book,
-        factor_execution_facts=factor_execution_facts,
-        registered_sim=registered_sim,
-    )
-    yield
+    install_backtrader_journal_ports()
+    try:
+        yield
+    finally:
+        reset_journal_ports()
 
 
 def pytest_report_header(config):
