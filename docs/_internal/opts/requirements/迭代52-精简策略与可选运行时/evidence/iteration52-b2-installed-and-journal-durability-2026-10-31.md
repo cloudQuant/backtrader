@@ -70,8 +70,27 @@
 - 运行后新进程只读 preflight：`preflight_ok`、reconcile 无 positions/open orders/unknown/active，确认 journal 终态**跨进程持久**。
 - 注意：该笔 close 的 broker `order.info.execution_unknown` 仍为 true（broker 本地通知对象未回写晚到确认）；但 SDK journal、store summary 与新进程 preflight 均为 clean。该投影滞后是后续 UI/状态回写细节，不是 journal 缺口。
 
+
+## 3.4 执行维护入口与晚到确认回写
+
+在 journal 持久化修复之后，补充 live feed 阻塞时可独立驱动的执行维护路径：
+
+- SDK `BtApi.poll_execution_maintenance(exchange_name)`：驱动到点订单查询、返回 pending 的规范化订单更新，不消费行情、不提交/重试/撤单。
+- Store `BtApiStore.poll_execution_maintenance()`：与 `_drain_sdk_events` 共用 `_sdk_event_drain_lock`，把到点查询更新送入 broker 更新队列；`_drain_sdk_events` 本身拆为持锁包装与 `_drain_sdk_events_locked`。
+- runtime `_IdlePump` 的 `on_idle` 改为 `_pump_maintenance`：先驱动 Store 维护，再执行 provider-confirmed 恢复。
+
+验证：
+
+- SDK `test_poll_execution_maintenance_delivers_and_persists_terminal_query`：到点查询更新返回 terminal、journal 重启后 unknown 为空。
+- SDK execution-session 全套：**183 passed, 2 skipped, 1 failed**（失败项 `...mt5_generic_close...` 在未改源码上同样失败）。
+- Backtrader `tests/integration/test_btapi_execution_session.py`：**2 passed**。
+- runtime：**159 passed**。
+- 真实 OKX 重跑：run id `i52-okx-demo-20261031T014230Z-ec45db47`，证据 `20261031T014257Z_052_okx_demo_roundtrip_PASS.json`（SHA-256 `4764439c60619b4228b41c75d0574eff200c5775323d641c10bc9ee2d9bf8598`）；submit 2、unknown []、store summary evidence_complete true、shutdown PASS。
+
+**残余缺口**：该笔 close 的 broker `order.info.execution_unknown` 仍为 true。原因是 broker 只在 `next()` 消费更新队列时回写 order.info，而策略在停机前未再驱动 `broker.next()`；SDK journal、Store summary 与新进程 preflight 均为 clean。此为客户/UI 投影滞后，已记录为 F09 未完成项，不以假值清除。
+
 ## 4. 当前状态与下一步
 
 - F20 仍为 Binance + OKX 两个真实场所；SimNow 未执行，保持 PARTIAL 2/3。
-- 下一优先：把 due-query 维护入口接到 live feed 阻塞时的运行泵（或确认现有 provider 恢复已足够）；补 Broker 本地 order.info 的晚到确认回写。
+- due-query 维护入口已接到运行泵；下一优先是补 Broker 本地 order.info 的晚到确认回写（需要在停机前有界驱动一次 broker.next 或等价投影），并确认不引入并发消费。
 - 随后：SimNow registered-sim 适配、028 迁移、完整 dependency-closed wheelhouse、A0 未闭合项与 R10。
