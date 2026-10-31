@@ -38,6 +38,13 @@
 - 独立 000 SimNow certlib 只读查询确认 OrderStatus 3；随后 certlib `arm + cancel_order`（request_id 5，submit_code 0）将订单变为 **OrderStatus 5（Canceled）**，VolumeTraded 0，positions []。
 - 根因：SDK `TraderClient.next_order_ref()` 为**会话内**递增（新会话从 1 开始），交易所保留跨会话订单历史；legacy Store cancel 仅按 OrderRef、不带 typed OrderSysID/Front/Session。typed cancel 路径要求 managed decision journal，当前 direct paper 会话未提供。适配器的 freeze 是正确行为。
 
+### 2.2b 第二次 GTC 撤单尝试与唯一 OrderRef 试验（仍 BLOCKED）
+
+- run `i52-simnow-paper-20261031T030449Z-676392da`，订单 OrderRef `1` / OrderSysID `24667` / OrderStatus 3；策略本地 Canceled，适配器 stop 再次 freeze。
+- 尝试在适配器启动后把 wrapper client 的 `_max_order_ref` 播种为 12 位时间戳基数；但 broker `order.info` 仍报告 `ctp_order_ref: "1"` 且无 `external_order_id`，说明 registered-sim Broker 的 OrderRef 投影并未使用该 client 计数器；该未验证试验已回退，不提交。
+- 独立 certlib 以 OrderSysID `24667` 撤单成功（OrderStatus 5）。最终账户查询：6 笔订单全部终态（`21766`/`24667` Canceled；`24596`/`24597`、`24215`/`24218` Filled），positions []，无活动委托。
+- 结论：需修复 Broker/Store 的 registered-sim OrderRef/OrderSysID 投影或接入 typed cancel target/journal；仅修改 client 计数器不足。
+
 ### 2.3 最终接受运行（PASS：marketable 开仓 + reduce-only 平仓）
 
 - **最终源码**（helper 拆分后）run `i52-simnow-paper-20261031T025819Z-cd4fd242`，证据
