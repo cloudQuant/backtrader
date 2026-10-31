@@ -2,6 +2,8 @@
 
 日期：2026-10-31
 
+> **2026-10-31 R3 核对注记**：本文的 `bt_api_runtime 7b05ffc6`、README 0.1.4 与 55 项 source/fake 结果均为写作时快照。当前 runtime 为 **0.1.15**（`220a24f`，contract 0.1.5），包根新增 `DirectBacktraderSession`/`DirectProviderProfile`/`DirectCredentials`/`DirectWriteGrant`/`DirectSessionReport`（`direct_backtrader.py`）与离线 `validate/doctor` CLI。本文所述 `RunSession` 的缺口仍基本成立：`assembly.py:662` 明确不包装 Strategy 构造/`start()`，无 observer 通知；`sdk_readonly.py:1070/1116` 已实现 owner-thread 校验与 unregister/cleanup 计数器（失败保留整个资源组），但没有 positive remote deregistration receipt DTO。A0-OPEN-19 仍为 `STILL_OPEN`。版本/证据级别以 R3 为准。
+
 ## 范围与快照
 
 本清点仅核对以下公开输入：SDK runtime 的 runtime/src/bt_api_runtime/__init__.py、assembly.py、sdk_readonly.py、runtime/README.md；Backtrader 已提交的 A1-统一配置与适配器合同.md；SDK parent 的 docs/ITERATION52_A1_SDK_READONLY_OWNER_ROUND_20261031.md。没有读取配置、环境变量、私密文件或历史 evidence；没有执行运行时或测试。

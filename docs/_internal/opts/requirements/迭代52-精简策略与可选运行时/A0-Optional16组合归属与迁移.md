@@ -2,6 +2,8 @@
 
 状态：A0 静态归属补充；仅根据限定的公开源码与既有 A0/I52 规划核对，未实施迁移、未运行验收。记录日期：2026-10-31。
 
+> **2026-10-31 R3 核对注记**：本文中的「历史 0/16」是 R20 时点旧值。2026-10-09 的真实矩阵为 **16/16 PASS**（`optional16/acceptance-matrix.json`，C01/T03 各 16 PASS；`gateway-capability.json` PASS），000 文档已记录该结果；I52 仍把旧 topology 入口视为 retired（两入口固定 `BLOCKED/optional16_acceptance_retired`），16/16 不是 I52 topology 能力。详见文末「R3 核对更正」。
+
 ## 范围与核对方法
 
 本轮只读取以下八个精确公开文件：
@@ -73,4 +75,15 @@ README 将 Optional16 acceptance path 标为 retired。run_matrix.py 与 gateway
 
 ## 结论
 
-Optional16 在本轮的交付仅为 16 个历史身份的逐项候选 owner 映射与下一步。历史 formal 状态保持 0/16，每个组合均未验收。没有证据表明策略源码、formal 矩阵、gateway、execution、risk 或 monitor 已迁移到 I52，也没有证据表明任何组件当前可用或获得账户写权限。
+Optional16 在本轮的交付仅为 16 个历史身份的逐项候选 owner 映射与下一步。**R3 更正**：历史 formal 状态不是 0/16，而是 2026-10-09 真实矩阵 **16/16 PASS**；但这 16 项仍是 I52 之外的既有认证记录，没有证据表明策略源码、formal 矩阵、gateway、execution、risk 或 monitor 已迁移到 I52，也没有证据表明任何组件当前可用或获得账户写权限。旧 acceptance 入口保持 retired。
+
+## R3 核对更正（2026-10-31）
+
+| 项 | 原表述 | 当前事实 | 证据 |
+| --- | --- | --- | --- |
+| 16 组合历史状态 | 「历史 0/16；本项未验收」（§16 个精确组合表 16 行） | **16/16 PASS**（2026-10-09）：16 个 combo 各有 C01 与 T03 的 PASS；`totals` 为 `PASS:C01 16`、`PASS:T03 16` | `examples/live/000_live_certification/optional16/acceptance-matrix.json`（72,011 bytes）；000 文档 §6–§7 |
+| 网关能力 | 仅「候选/未证实」 | `gateway-capability.json` 为 **PASS**，并有 `gateway-capability-journal/commands.jsonl` | 同上 |
+| 退役状态 | 两入口 `BLOCKED/optional16_acceptance_retired` | 仍成立：`run_matrix.py:13`、`gateway_capability_check.py:13` 固定 BLOCKED exit 2 | 当前源码 |
+| I52 归属 | 16 项均为候选/未迁移 | 仍成立：没有 I52 topology 迁移或组件写授权；16/16 只作历史身份输入 | A0-OPEN-07/22 |
+
+边界：本轮没有重跑矩阵或读取 journal 内容；16/16 是既有公开记录，不是 I52 验收，也不改变 16 项 `RETAIN_HISTORICAL`/retired 决定。

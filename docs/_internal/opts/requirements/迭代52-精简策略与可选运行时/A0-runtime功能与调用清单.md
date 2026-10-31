@@ -154,7 +154,7 @@
 3. CTP config、credential resolver、SDK probes、read-only admission/queries 属于 sandbox/read-only，不可当作 live trade adapter；若本轮选择 CTP paper/live，需新合同及独立验收，否则移入明确 non-runtime 保留位置。
 4. replay/shadow/local simulation fixtures、注册、测试输入与证据须明确从未来可安装 paper/live runtime 分离的位置和稳定来源；本轮禁止执行/本地行为验收。setup.py 当前仍随包发布这些 fixtures，属于后续迁移事项。
 5. 外仓调用方、wheel/install consumers、插件反射/entrypoint imports、现场活跃 process、实际配置文件、账号与凭据来源未确认；本次调查没有读取 private inputs，也没有进行实际账户或网络验证。
-6. 此清单不重新 adjudicate 12 PASS / 3 BLOCKED / 84 NOT_RUN 或 Optional16 0/16；历史正式 tracker/case 不在本子范围，任何源码与 fake 测试计数不得转换为正式通过数。
+6. 此清单不重新 adjudicate 99 案或 Optional16；历史正式 tracker/case 不在本子范围，任何源码与 fake 测试计数不得转换为正式通过数。**R3 更正**：本文写作时引用的 `12 PASS / 3 BLOCKED / 84 NOT_RUN` 与 Optional16 `0/16` 已过期；2026-10-09 权威记录为 **98 PASS / 1 BLOCKED / 0 FAIL / 0 NOT_RUN** 与 Optional16 历史真实矩阵 **16/16**（000 三件套文档 §7）。A0 R3 只转述，不重跑、不新增 PASS。
 
 ## 可自动复核的只读检查建议
 
