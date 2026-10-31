@@ -37,7 +37,14 @@ from datetime import datetime, timezone
 from types import MappingProxyType
 from typing import TYPE_CHECKING, Any, Dict, Optional, Tuple
 
-from .btapistore import BtApiStore, BtApiStoreError, _ctp_order_route_invest_unit_id
+from .btapistore import (
+    BtApiStore,
+    BtApiStoreError,
+    _coerce_int,
+    _ctp_extract_fields,
+    _ctp_native_fields,
+    _ctp_order_route_invest_unit_id,
+)
 
 if TYPE_CHECKING:  # pragma: no cover - typing only, never imported at runtime
     # The registered-sim receipt records are provider-owned
@@ -82,6 +89,7 @@ _UNOBSERVED = object()
 _QUERY_SNAPSHOT_LIMIT = 512
 _COMMISSION_QUERY_SNAPSHOT_LIMIT = 256
 _REGISTERED_SIM_CAPACITY_ORDER_STATE_LIMIT = 100_000
+_REGISTERED_SIM_CALLBACK_UNKNOWN_LIMIT = 1_024
 
 
 class RegisteredSimExecutionUnknown(BtApiStoreError):
@@ -1216,6 +1224,24 @@ class RegisteredSimWrapper:
         self._registered_sim_arm_history = collections.deque(maxlen=history_limit)
         self._registered_sim_dispatch_history = collections.deque(maxlen=history_limit)
         self._registered_sim_unknown_dispatch: Optional[RegisteredSimDispatchEvidence] = None
+        # A provider OrderStatus='a' callback is CTP's Unknown status, not a
+        # known active or terminal order state. Keep it separate from native
+        # dispatch UNKNOWN, whose retirement has a stronger durable proof path.
+        # Entries are sticky for this wrapper lifetime; no later callback or
+        # empty projection can resolve them.
+        self._registered_sim_callback_unknown_orders = collections.OrderedDict()
+        self._registered_sim_callback_unknown_overflow = False
+        self._registered_sim_callback_unknown_identity_incomplete = False
+        self._registered_sim_callback_unknown_missing_order_ref = False
+        self._registered_sim_callback_unknown_projection = MappingProxyType(
+            {
+                "order_ids": (),
+                "order_count": 0,
+                "unresolved": False,
+                "identity_incomplete": False,
+                "overflow": False,
+            }
+        )
         # Targets are issued only by the Store after durable owner and current
         # complete-query checks.  Keep object identity, not dataclass equality,
         # as the one-shot authority so callers cannot reconstruct a target.
@@ -1377,6 +1403,8 @@ class RegisteredSimWrapper:
             raise BtApiStoreError("registered-sim writes are disabled in shadow mode")
         if self._registered_sim_frozen:
             raise BtApiStoreError("registered-sim native gate is frozen")
+        if self._callback_unknown_unresolved():
+            raise BtApiStoreError("registered-sim provider callback UNKNOWN is unresolved")
 
     def _freeze_after_admission_interruption_locked(self, reason: str) -> None:
         if not self._registered_sim_frozen or not self._registered_sim_freeze_reason:
@@ -2014,6 +2042,86 @@ class RegisteredSimWrapper:
             evict = terminal.pop(0)
             self._order_state.pop(evict, None)
 
+    def _record_callback_unknown(
+        self, order_ref: str, *, identity_incomplete: bool = False
+    ) -> None:
+        """Latch an in-scope provider UNKNOWN without changing native state."""
+        key = order_ref or None
+        with self._registered_sim_observation_lock:
+            changed = False
+            if (
+                (key is None or identity_incomplete)
+                and not self._registered_sim_callback_unknown_identity_incomplete
+            ):
+                self._registered_sim_callback_unknown_identity_incomplete = True
+                changed = True
+            if key is None and not self._registered_sim_callback_unknown_missing_order_ref:
+                self._registered_sim_callback_unknown_missing_order_ref = True
+                changed = True
+            if (
+                key not in self._registered_sim_callback_unknown_orders
+                and not self._registered_sim_callback_unknown_overflow
+            ):
+                if (
+                    len(self._registered_sim_callback_unknown_orders)
+                    >= _REGISTERED_SIM_CALLBACK_UNKNOWN_LIMIT
+                ):
+                    # Never evict unresolved identities. Once the bounded ledger
+                    # is full, retain a sticky overflow bit and fail closed.
+                    self._registered_sim_callback_unknown_overflow = True
+                    changed = True
+                else:
+                    self._registered_sim_callback_unknown_orders[key] = None
+                    changed = True
+            if not changed:
+                return
+
+            entries = self._registered_sim_callback_unknown_orders
+            overflow = self._registered_sim_callback_unknown_overflow
+            identity_incomplete = self._registered_sim_callback_unknown_identity_incomplete
+            missing_order_ref = self._registered_sim_callback_unknown_missing_order_ref
+            ids_complete = not overflow and not missing_order_ref
+            projection = MappingProxyType(
+                {
+                    "order_ids": tuple(key for key in entries if isinstance(key, str))
+                    if ids_complete
+                    else None,
+                    "order_count": len(entries) if ids_complete else None,
+                    "unresolved": bool(entries) or overflow,
+                    "identity_incomplete": identity_incomplete,
+                    "overflow": overflow,
+                }
+            )
+            self._registered_sim_callback_unknown_projection = projection
+
+    def _callback_unknown_unresolved(self) -> bool:
+        with self._registered_sim_observation_lock:
+            return (
+                self._registered_sim_callback_unknown_projection.get("unresolved") is True
+            )
+
+    def registered_sim_callback_unknown_facts(self) -> Dict[str, Any]:
+        """Return the separate, sticky provider-callback UNKNOWN projection."""
+        with self._registered_sim_observation_lock:
+            projection = self._registered_sim_callback_unknown_projection
+        return {
+            "observed": True,
+            **self._callback_unknown_public_fields(projection),
+        }
+
+    @staticmethod
+    def _callback_unknown_public_fields(projection: Mapping) -> Dict[str, Any]:
+        order_ids = projection.get("order_ids")
+        return {
+            "callback_unknown_order_ids": list(order_ids) if order_ids is not None else None,
+            "callback_unknown_order_count": projection.get("order_count"),
+            "callback_unknown_unresolved": projection.get("unresolved") is True,
+            "callback_unknown_identity_incomplete": (
+                projection.get("identity_incomplete") is True
+            ),
+            "callback_unknown_overflow": projection.get("overflow") is True,
+        }
+
     @staticmethod
     def _optional_exact_field(field: Any, name: str) -> Optional[str]:
         value = getattr(field, name, None)
@@ -2132,6 +2240,10 @@ class RegisteredSimWrapper:
 
     def _send_registered_sim_native(self, operation: str, field: Any, req_id: int) -> Any:
         with self._registered_sim_lock:
+            if self._callback_unknown_unresolved():
+                raise BtApiStoreError(
+                    "registered-sim provider callback UNKNOWN is unresolved"
+                )
             raw_order_ref = getattr(field, "OrderRef", None)
             order_ref = raw_order_ref if isinstance(raw_order_ref, str) else ""
             if order_ref and order_ref != order_ref.strip():
@@ -2184,6 +2296,17 @@ class RegisteredSimWrapper:
             if not self._current_grant_matches_locked(key, self._registered_sim_expected_session):
                 raise BtApiStoreError("registered-sim grant changed before native dispatch")
             with self._registered_sim_observation_lock:
+                # Recheck after query/session/grant validation. This is the
+                # native-boundary admission point shared with callback latch
+                # publication; a later callback is concurrent with this
+                # already-claimed dispatch and remains sticky for the next one.
+                if (
+                    self._registered_sim_callback_unknown_projection.get("unresolved")
+                    is True
+                ):
+                    raise BtApiStoreError(
+                        "registered-sim provider callback UNKNOWN is unresolved"
+                    )
                 self._dispatching_order_ids.add(state_ref)
             try:
                 if (
@@ -2283,16 +2406,92 @@ class RegisteredSimWrapper:
     def _send_native_order_action(self, field: Any, req_id: int) -> Any:
         return self._send_registered_sim_native("cancel", field, req_id)
 
-    def _handle_order(self, payload: Any) -> Any:
+    def _order_callback_session_disposition(
+        self, payload: Any, order_ref: str
+    ) -> Tuple[bool, bool]:
+        """Apply the base pending/session filter, failing closed on unreadable IDs.
+
+        Exceptions are left to the caller, which records an incomplete latch:
+        only a successfully evaluated, explicit identity mismatch is evidence
+        that this callback belongs to another session.
+        """
+        details = _ctp_extract_fields(payload, _ctp_native_fields().ORDER_FIELDS)
+        pending = self._pending_orders.get(order_ref, {})
+        if pending:
+            return True, not bool(order_ref)
+        my_front = int(getattr(self.trader_client, "_front_id", 0) or 0)
+        my_session = int(getattr(self.trader_client, "_session_id", 0) or 0)
+        if not (my_front and my_session):
+            # The base handler accepts events when it cannot filter. Preserve
+            # that behavior while declaring the callback identity incomplete.
+            return True, True
+        order_front = _coerce_int(details.get("FrontID"), 0)
+        order_session = _coerce_int(details.get("SessionID"), 0)
+        if not (_positive_int(order_front) and _positive_int(order_session)):
+            # Missing/invalid callback IDs cannot prove foreign ownership.
+            return True, True
+        return (
+            order_front == my_front and order_session == my_session,
+            not bool(order_ref),
+        )
+
+    def _latch_callback_unknown_unless_foreign(
+        self, payload: Any, order_ref: str, *, identity_incomplete: bool = False
+    ) -> None:
         try:
-            return super()._handle_order(payload)
-        finally:
+            callback_in_scope, scope_incomplete = self._order_callback_session_disposition(
+                payload, order_ref
+            )
+        except Exception:
+            # A failed identity read cannot be treated as a safe foreign-event
+            # filter result. Retain an unattributed/global unresolved latch.
+            callback_in_scope, scope_incomplete = True, True
+        if callback_in_scope:
+            self._record_callback_unknown(
+                order_ref,
+                identity_incomplete=identity_incomplete or scope_incomplete,
+            )
+
+    def _handle_order(self, payload: Any) -> Any:
+        order_ref = ""
+        try:
             if isinstance(payload, Mapping):
                 order_ref = str(payload.get("OrderRef") or "").strip()
                 status = str(payload.get("OrderStatus") or "").strip()
             else:
                 order_ref = str(getattr(payload, "OrderRef", "") or "").strip()
                 status = str(getattr(payload, "OrderStatus", "") or "").strip()
+        except Exception:
+            # Do not let a descriptor/mapping/stringification failure erase a
+            # provider callback. Skip only if the exact session filter can
+            # positively identify it as foreign; otherwise latch incomplete.
+            self._latch_callback_unknown_unless_foreign(
+                payload, order_ref, identity_incomplete=True
+            )
+            return super()._handle_order(payload)
+        status_code = status.lower()
+        try:
+            unresolved_status = (
+                status_code == "a"
+                or status_code not in _ctp_native_fields().ORDER_STATUS_MAP
+            )
+        except Exception:
+            unresolved_status = True
+            status_identity_incomplete = True
+        else:
+            status_identity_incomplete = False
+        if unresolved_status:
+            # Publish before base normalization/wakeup so Store and dispatch
+                # checks see unknown/missing status as early as possible. A
+                # failed filter read becomes an incomplete latch, not a skip.
+            self._latch_callback_unknown_unless_foreign(
+                payload, order_ref, identity_incomplete=status_identity_incomplete
+            )
+            return super()._handle_order(payload)
+
+        try:
+            return super()._handle_order(payload)
+        finally:
             if order_ref and status:
                 terminal_statuses = _ctp_status_tables().TERMINAL_ORDER_STATUSES
                 next_state = "terminal" if status in terminal_statuses else "active"
@@ -2305,6 +2504,9 @@ class RegisteredSimWrapper:
         with self._registered_sim_observation_lock:
             templates_configured, template_keys = self._registered_sim_arm_templates_projection
             dispatching = sorted(self._dispatching_order_ids)
+            callback_unknown_fields = self._callback_unknown_public_fields(
+                self._registered_sim_callback_unknown_projection
+            )
         if dispatching:
             # Do not wait behind the in-flight native call just to observe it.
             # Other execution facts are explicitly unknown in this projection.
@@ -2320,6 +2522,7 @@ class RegisteredSimWrapper:
                 "sdk_gate_projection": None,
                 "arm_templates_configured": templates_configured,
                 "arm_template_keys": template_keys,
+                **callback_unknown_fields,
             }
 
         # Recheck after acquiring the main state lock. A dispatch may start
@@ -2329,6 +2532,9 @@ class RegisteredSimWrapper:
             with self._registered_sim_observation_lock:
                 templates_configured, template_keys = self._registered_sim_arm_templates_projection
                 dispatching = sorted(self._dispatching_order_ids)
+                callback_unknown_fields = self._callback_unknown_public_fields(
+                    self._registered_sim_callback_unknown_projection
+                )
             if dispatching:
                 return {
                     "observed": True,
@@ -2342,6 +2548,7 @@ class RegisteredSimWrapper:
                     "sdk_gate_projection": None,
                     "arm_templates_configured": templates_configured,
                     "arm_template_keys": template_keys,
+                    **callback_unknown_fields,
                 }
             unknown_ids = [
                 order_ref for order_ref, state in self._order_state.items() if state == "unknown"
@@ -2373,6 +2580,7 @@ class RegisteredSimWrapper:
                 "sdk_gate_projection": _public_gate_projection(sdk_gate_state),
                 "arm_templates_configured": templates_configured,
                 "arm_template_keys": template_keys,
+                **callback_unknown_fields,
             }
 
     def registered_sim_order_capacity_facts(self) -> Dict[str, Any]:
@@ -3475,6 +3683,18 @@ class RegisteredSimStore(BtApiStore):
         with self._registered_sim_gate_lock:
             if self._registered_sim_gate.get("frozen") is True:
                 raise BtApiStoreError("registered-sim Store gate is frozen")
+            api = self._api
+            if isinstance(api, RegisteredSimWrapper):
+                facts_method = getattr(api, "registered_sim_callback_unknown_facts", None)
+                facts = facts_method() if callable(facts_method) else None
+                if (
+                    not isinstance(facts, Mapping)
+                    or facts.get("observed") is not True
+                    or facts.get("callback_unknown_unresolved") is not False
+                ):
+                    raise BtApiStoreError(
+                        "registered-sim provider callback UNKNOWN is unresolved or unobserved"
+                    )
 
     def _order_expected_session_scope(self, order: Any):
         expected = _order_expected_session(order)
@@ -3536,6 +3756,12 @@ class RegisteredSimStore(BtApiStore):
             tuple(unknown_ids_value)
             if isinstance(unknown_ids_value, list)
             and all(isinstance(value, str) for value in unknown_ids_value)
+            else None
+        )
+        callback_unknown_value = (
+            wrapper_facts.get("callback_unknown_unresolved")
+            if wrapper_observed
+            and type(wrapper_facts.get("callback_unknown_unresolved")) is bool
             else None
         )
         dispatching_ids = (
@@ -3705,6 +3931,10 @@ class RegisteredSimStore(BtApiStore):
             reason_codes.append("unknown_orders_unobserved")
         elif unknown_order_count:
             reason_codes.append("unknown_orders_present")
+        if callback_unknown_value is None:
+            reason_codes.append("callback_unknown_orders_unobserved")
+        elif callback_unknown_value:
+            reason_codes.append("callback_unknown_orders_present")
         if dispatching_ids is None:
             reason_codes.append("dispatch_state_unobserved")
         elif dispatching_ids:
@@ -3878,6 +4108,11 @@ class RegisteredSimStore(BtApiStore):
             unknown_order_count = None
             unknown_ids = None
             dispatching_ids = None
+            callback_unknown_order_ids = None
+            callback_unknown_order_count = None
+            callback_unknown_unresolved = None
+            callback_unknown_identity_incomplete = None
+            callback_unknown_overflow = None
         else:
             active_ids = facts.get("active_order_ids")
             unknown_ids = facts.get("unknown_ids")
@@ -3890,6 +4125,23 @@ class RegisteredSimStore(BtApiStore):
                 and not dispatching_ids
                 else None
             )
+            callback_unknown_order_ids = facts.get("callback_unknown_order_ids")
+            if not isinstance(callback_unknown_order_ids, list):
+                callback_unknown_order_ids = None
+            callback_unknown_order_count = facts.get("callback_unknown_order_count")
+            if type(callback_unknown_order_count) is not int:
+                callback_unknown_order_count = None
+            callback_unknown_unresolved = facts.get("callback_unknown_unresolved")
+            if type(callback_unknown_unresolved) is not bool:
+                callback_unknown_unresolved = None
+            callback_unknown_identity_incomplete = facts.get(
+                "callback_unknown_identity_incomplete"
+            )
+            if type(callback_unknown_identity_incomplete) is not bool:
+                callback_unknown_identity_incomplete = None
+            callback_unknown_overflow = facts.get("callback_unknown_overflow")
+            if type(callback_unknown_overflow) is not bool:
+                callback_unknown_overflow = None
         return {
             "armed": gate["armed"],
             "frozen": gate["frozen"],
@@ -3900,6 +4152,15 @@ class RegisteredSimStore(BtApiStore):
             "dispatching_order_ids": (
                 list(dispatching_ids) if isinstance(dispatching_ids, list) else None
             ),
+            "callback_unknown_order_ids": (
+                list(callback_unknown_order_ids)
+                if isinstance(callback_unknown_order_ids, list)
+                else None
+            ),
+            "callback_unknown_order_count": callback_unknown_order_count,
+            "callback_unknown_unresolved": callback_unknown_unresolved,
+            "callback_unknown_identity_incomplete": callback_unknown_identity_incomplete,
+            "callback_unknown_overflow": callback_unknown_overflow,
         }
 
     def get_execution_summary(self) -> Dict[str, Any]:
@@ -3907,6 +4168,7 @@ class RegisteredSimStore(BtApiStore):
         query_health = self.get_ctp_query_health()
         unknown_ids = health["unknown_ids"]
         active_orders = health["active_orders"]
+        callback_unknown_unresolved = health.get("callback_unknown_unresolved")
         unmatched = query_health.get("unmatched_trade_count")
         facts_observed = (
             type(health.get("unknown_order_count")) is int
@@ -3915,6 +4177,7 @@ class RegisteredSimStore(BtApiStore):
         )
         complete = bool(
             facts_observed
+            and callback_unknown_unresolved is False
             and query_health.get("evidence_complete") is True
             and type(unmatched) is int
         )
@@ -3929,16 +4192,26 @@ class RegisteredSimStore(BtApiStore):
                 or not self._registered_sim_allow_writes
                 or not complete
                 or bool(unknown_ids)
+                or callback_unknown_unresolved is not False
                 or unmatched != 0
             ),
             "unknown_ids": list(unknown_ids) if isinstance(unknown_ids, list) else None,
+            "callback_unknown_order_ids": health.get("callback_unknown_order_ids"),
+            "callback_unknown_order_count": health.get("callback_unknown_order_count"),
+            "callback_unknown_unresolved": callback_unknown_unresolved,
             "unknown_intent_count": query_health.get("unknown_intent_count"),
             "unmatched_trade_count": unmatched,
             "active_orders": active_orders,
             "evidence_complete": complete,
-            "evidence_errors": []
-            if complete
-            else ["registered_sim_query_or_execution_facts_unobserved"],
+            "evidence_errors": (
+                []
+                if complete
+                else [
+                    "registered_sim_callback_unknown_present_or_unobserved"
+                    if callback_unknown_unresolved is not False
+                    else "registered_sim_query_or_execution_facts_unobserved"
+                ]
+            ),
             "source": "backtrader.registered_sim_execution_summary.v1",
         }
 
@@ -4826,18 +5099,31 @@ class RegisteredSimStore(BtApiStore):
                 and type(unknown_count) is int
                 and type(unmatched_trade_count) is int
                 and dispatching_ids == []
+                and execution.get("callback_unknown_unresolved") is False
             ),
             "supported": complete,
             "evidence_errors": (
                 []
-                if complete and type(unknown_count) is int and type(unmatched_trade_count) is int
-                else ["registered_sim_query_or_execution_facts_unobserved"]
+                if (
+                    complete
+                    and type(unknown_count) is int
+                    and type(unmatched_trade_count) is int
+                    and execution.get("callback_unknown_unresolved") is False
+                )
+                else [
+                    "registered_sim_callback_unknown_present_or_unobserved"
+                    if execution.get("callback_unknown_unresolved") is not False
+                    else "registered_sim_query_or_execution_facts_unobserved"
+                ]
             ),
             "instruments": (
                 copy.deepcopy(instrument_facts) if instrument_facts is not None else None
             ),
             "unknown_intent_count": unknown_count,
             "unmatched_trade_count": unmatched_trade_count,
+            "callback_unknown_order_ids": execution.get("callback_unknown_order_ids"),
+            "callback_unknown_order_count": execution.get("callback_unknown_order_count"),
+            "callback_unknown_unresolved": execution.get("callback_unknown_unresolved"),
         }
 
     def _require_registered_sim_write_armed(self, action: str) -> None:
