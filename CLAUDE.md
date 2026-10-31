@@ -2,6 +2,8 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+Before every change, read the [repository responsibilities guide](docs/source/developer-guide/repository-responsibilities_zh.md) and follow its ownership and placement rules.
+
 ## Project Overview
 
 Backtrader is a Python algorithmic-trading framework for low/mid/high-frequency

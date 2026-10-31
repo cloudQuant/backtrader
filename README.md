@@ -829,6 +829,9 @@ regression suite (XAUUSD, XAGUSD, IVV, IEF, GLD, IWM, etc.).
 
 ## Repository Maintenance Notes
 
+- Contributors and AI assistants should read the [repository responsibilities
+  guide](docs/source/developer-guide/repository-responsibilities_zh.md) before
+  changing files; it defines ownership boundaries and records known mismatches.
 - The canonical changelog is [`CHANGELOG.md`](CHANGELOG.md). Historical
   `ChangeLog.md` and version-specific root changelog files were consolidated.
 - Generated reports such as `mypy-report.txt` are ignored and should not be

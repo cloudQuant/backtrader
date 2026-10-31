@@ -1,5 +1,9 @@
 # AGENTS.md
 
+## Required repository responsibility guide
+
+Before every change, read [Repository responsibilities](docs/source/developer-guide/repository-responsibilities_zh.md). Choose the narrowest appropriate owner and check existing callers, packaging, and compatibility before adding or moving files. When responsibilities or structure change, update that guide and the relevant facts in this file. The guide identifies in-progress migrations and does not authorize account operations or changes to frozen evidence.
+
 ## 用户长期开发原则（2026-10-08）
 
 - Backtrader、实际使用的 `D:\bt_api_py` 及其相关子包，直接在各自现有的 `dev` 工作区修改；用户未要求时，不另建开发 worktree。

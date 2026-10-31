@@ -9,6 +9,8 @@ description: 贡献者指南
 
 ## 快速链接
 
+[仓库目录与文件职责](repository-responsibilities_zh.md) — 修改仓库前必读。
+
 | 主题 | 链接 |
 
 |-------|------|
