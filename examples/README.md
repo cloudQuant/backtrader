@@ -34,7 +34,7 @@
 | `014_2_ctp_options_midfreq` | 同上 | ✅ | ✅ live 层按契约只观察，`--allow-write` 首条语句即拒 | 无（本目录策略无下单路径） | ✅ |
 | `015_ctp_options_highfreq` | 同上 | ✅ | ✅ 同上 | 无（`write_tier_not_implemented_for_decision_only_strategy`） | ✅ |
 | `007_ctp` | 无 `run.py`：CTP 认证套件根 + 注册 runtime | n/a | n/a | 注册表零写 sandbox / 只读 preflight，`preflight` 仍 fail-closed | n/a |
-| `052_provider_demo_roundtrip` | `run.py` / `run.py --config config.okx.yaml`（离线 schema 校验） | 未声明（CLI `--live` 选层） | `BLOCKED / write_not_authorized`（不读凭据） | `--live --allow-write` + 有界 `DirectWriteGrant`（Binance USD-M / OKX SWAP Demo 单笔 LIMIT 往返，同一策略源码） | ✅（需外部 runtime/contract/SDK 源码或安装） |
+| `052_provider_demo_roundtrip` | `run.py` / `--config config.okx.yaml` / `--config config.simnow.yaml`（离线 schema 校验） | 未声明（CLI `--live` 选层） | `BLOCKED / write_not_authorized`（不读凭据） | `--live --allow-write` + 有界 `DirectWriteGrant`（Binance USD-M 挂/撤、OKX SWAP IOC 开/平、SimNow registered-sim 1 手开/平，同一策略源码） | ⚠️ crypto 配置可复制；SimNow 需本仓 013_3 helper 与私有 runtime 配置（checkout-bound） |
 
 选层真值表、`backtest` 别名、`entry_tier` 与既有 `tier`（结果层级标签）之别，见各目录 README 的
 「运行层选择（迭代 43）」小节；判定器权威实现是 `examples/_support/entry_tier.py`，

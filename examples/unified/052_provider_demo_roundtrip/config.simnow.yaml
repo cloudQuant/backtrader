@@ -1,0 +1,69 @@
+# Iteration 52 SimNow registered-sim paper template (zero secrets).
+#
+# 复用同一份 ProviderDemoRoundTripStrategy：本文件只声明场所、合约语义与有界
+# 参数；运行时的账户/合约/前端从 --private-config 指向的 013_3 私有 runtime
+# 配置的 ctp: 块读取，凭据只按下面的 env 名从 --env-file（默认 checkout 根
+# .env）读取。私有配置与 .env 都不会在 dry/--replay 中打开。
+#
+#   python run.py --config config.simnow.yaml                 # 离线校验
+#   python run.py --config config.simnow.yaml --live --allow-write
+#
+# 参考公开配置：examples/unified/013_3_sa_midfreq_simnow/config.yaml
+# （product: SA / exchange: CZCE / price_tick: 1 / VolumeMultiple: 20）。
+schema_version: 2
+mode: paper
+environment: paper
+references:
+  strategy: strategy/simnow_paper_roundtrip
+  provider: provider/simnow_registered_sim
+  endpoint: endpoint/simnow_front_pair
+  account: account/simnow_simulation
+  credential: credential/simnow_private_env
+  scope: scope/simnow_paper
+  product: product/czce_sa
+  data_source: data_source/simnow_ctp
+  clock: clock/simnow_trading_day
+plugins:
+  runtime: false
+  gateway: false
+  risk: false
+  execution: false
+  monitor: false
+strategy_parameters:
+  venue: SIMNOW
+  # 占位默认值；--live 时以私有 ctp: 块的 instrument_id / exchange_id 为准。
+  symbol: SA605
+  exchange: CZCE
+  product: SA
+  # 合约语义与 013_3 公开 metadata_expectation 一致；实测查询不一致即 BLOCKED。
+  contract_value: 20.0
+  tick_size: 1.0
+  step_size: 1.0
+  quantity_unit: contracts
+  min_quantity: 1.0
+  max_quantity: 1.0
+  # 一手 SA 约 4 万 CNY 名义；数量按 notional / (price * contract_value) 换算。
+  notional_usdt: 25000.0
+  max_notional_usdt: 30000.0
+  offset_bps: -50.0
+  time_in_force: GFD
+  cancel_after_seconds: 4.0
+  close_delay_seconds: 2.0
+  recovery_grace_seconds: 3.0
+  hard_timeout_seconds: 180.0
+  max_orders: 2
+  login_seconds: 30.0
+  query_seconds: 8.0
+  stop_seconds: 12.0
+  allow_zero_login_response: true
+  # 仅变量名；值只从 --env-file 或私有 ctp: 块读取，从不写入证据。
+  credential_env_names:
+    app_id: CTP_APP_ID
+    auth_code: CTP_AUTH_CODE
+    broker_id: CTP_BROKER_ID
+    password: CTP_PASSWORD
+    user_id: CTP_USER_ID
+requested_capabilities:
+  - account.read
+  - market.read
+  - orders.paper.write

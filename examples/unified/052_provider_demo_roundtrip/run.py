@@ -12,15 +12,25 @@ import json
 import os
 import sys
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from pathlib import Path
+
+import paper_common
 
 HERE = Path(__file__).resolve().parent
 REPO_ROOT = HERE.parents[2]
 DEFAULT_ENV_FILE = REPO_ROOT / ".env"
+# ``--private-config`` default; only the SIMNOW live branch consumes it.
+DEFAULT_PRIVATE_CONFIG = (
+    HERE.parent / "013_3_sa_midfreq_simnow" / "runtime-ctp-private" / "config.yaml"
+)
 DEFAULT_RUNTIME_SRC = Path(os.environ.get("BT_API_RUNTIME_SRC", "D:/bt_api_py/bt_api/bt_api_runtime/runtime/src"))
 DEFAULT_CONTRACT_SRC = Path(os.environ.get("BT_API_CONTRACT_SRC", "D:/bt_api_py/bt_api/bt_api_runtime/contracts/src"))
 DEFAULT_SDK_SRC = Path(os.environ.get("BT_API_PY_SRC", "D:/bt_api_py"))
+if str(HERE) not in sys.path:
+    # simnow_paper / provider_demo_roundtrip_strategy are folder-local modules.
+    sys.path.insert(0, str(HERE))
+
 
 _VENUES = {
     "BINANCE": {
@@ -66,28 +76,10 @@ def _load_yaml_text(path: Path) -> dict:
     return raw
 
 
-def _load_credentials(path: Path, names: tuple[str, ...]) -> dict[str, str]:
-    values: dict[str, str] = {}
-    if path.is_file():
-        for line in path.read_text(encoding="utf-8").splitlines():
-            stripped = line.strip()
-            if not stripped or stripped.startswith("#") or "=" not in stripped:
-                continue
-            key, _, value = stripped.partition("=")
-            key = key.strip()
-            if key in names:
-                values[key] = value.strip().strip("'\"")
-    for name in names:
-        if not values.get(name):
-            values[name] = os.environ.get(name, "")
-    missing = [name for name in names if not values.get(name)]
-    if missing:
-        raise RuntimeError("missing credential variables: " + ", ".join(missing))
-    return {name: values[name] for name in names}
-
-
 def _venue(params: dict) -> str:
     venue = str(params.get("venue", "BINANCE")).upper()
+    if venue == "SIMNOW":
+        return "SIMNOW"
     if venue not in _VENUES:
         raise RuntimeError("unsupported_venue")
     return venue
@@ -152,63 +144,6 @@ def _with_ledger_venues(profile, credentials: dict, venues: tuple[str, ...]):
     return dataclasses.replace(profile, extra_store_config=extra)
 
 
-def _grant(plan, profile, params: dict, run_id: str, seconds: int):
-    from bt_api_runtime.direct_backtrader import DirectWriteGrant
-
-    expires = datetime.now(timezone.utc) + timedelta(seconds=seconds)
-    return DirectWriteGrant(
-        run_id=run_id,
-        mode=plan.mode.value,
-        provider_ref=profile.provider_ref,
-        environment=profile.environment,
-        symbols=profile.symbols,
-        expires_at_utc=expires.strftime("%Y-%m-%dT%H:%M:%SZ"),
-        max_order_count=int(params["max_orders"]),
-        max_order_notional=float(params["max_notional_usdt"]),
-        allow_live_write=False,
-    )
-
-
-def _strategy_params(params: dict) -> dict:
-    return {
-        "notional_usdt": float(params["notional_usdt"]),
-        "step_size": float(params["step_size"]),
-        "tick_size": float(params["tick_size"]),
-        "contract_value": float(params["contract_value"]),
-        "quantity_unit": str(params["quantity_unit"]),
-        "offset_bps": float(params["offset_bps"]),
-        "time_in_force": str(params.get("time_in_force", "GTC")),
-        "cancel_after_seconds": float(params["cancel_after_seconds"]),
-        "hard_timeout_seconds": float(params["hard_timeout_seconds"]),
-    }
-
-
-def _write_evidence(payload: dict) -> Path:
-    evidence_dir = HERE / "evidence"
-    evidence_dir.mkdir(parents=True, exist_ok=True)
-    stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
-    venue = str((payload.get("venue") or "BINANCE")).lower()
-    path = evidence_dir / f"{stamp}_052_{venue}_demo_roundtrip_{payload['status']}.json"
-    path.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
-    return path
-
-
-def _summary(payload: dict) -> dict:
-    report = payload.get("report") or {}
-    facts = report.get("strategy_facts") or {}
-    return {
-        "status": payload["status"],
-        "reason": payload.get("reason"),
-        "venue": payload.get("venue"),
-        "phase": facts.get("phase"),
-        "open_status": (facts.get("open_order") or {}).get("status"),
-        "close_status": (facts.get("close_order") or {}).get("status"),
-        "cancel_requested": facts.get("cancel_requested"),
-        "run_id": report.get("run_id"),
-        "evidence": payload.get("evidence_path"),
-    }
-
-
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--config", default=str(HERE / "config.yaml"))
@@ -216,6 +151,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--live", action="store_true", help="select the live channel")
     parser.add_argument("--allow-write", action="store_true", help="explicit write grant")
     parser.add_argument("--env-file", default=str(DEFAULT_ENV_FILE))
+    parser.add_argument(
+        "--private-config",
+        default=str(DEFAULT_PRIVATE_CONFIG),
+        help="sealed CTP ctp: block used only by the SIMNOW live tier",
+    )
     parser.add_argument(
         "--order-journal",
         default=None,
@@ -244,7 +184,7 @@ def main(argv: list[str] | None = None) -> int:
     tier_evidence = decision.as_evidence()
     if invalid(decision) or conflict(decision):
         payload = {"status": "BLOCKED", "reason": "config_tier_invalid_or_conflict", "entry_tier": tier_evidence}
-        print(json.dumps(_summary(payload), sort_keys=True))
+        print(json.dumps(paper_common.summarize(payload), sort_keys=True))
         return 2
 
     from bt_api_run_contract import ValidatedRunConfigV2, parse_config
@@ -257,12 +197,12 @@ def main(argv: list[str] | None = None) -> int:
             "reason": "config_invalid:" + type(exc).__name__,
             "entry_tier": tier_evidence,
         }
-        _write_evidence(payload)
-        print(json.dumps(_summary(payload), sort_keys=True))
+        paper_common.write_evidence(payload)
+        print(json.dumps(paper_common.summarize(payload), sort_keys=True))
         return 2
     if not isinstance(plan, ValidatedRunConfigV2):
         payload = {"status": "BLOCKED", "reason": "schema_v2_required", "entry_tier": tier_evidence}
-        print(json.dumps(_summary(payload), sort_keys=True))
+        print(json.dumps(paper_common.summarize(payload), sort_keys=True))
         return 2
 
     params = plan.strategy_parameters_dict()
@@ -277,16 +217,20 @@ def main(argv: list[str] | None = None) -> int:
                 "capabilities": list(plan.requested_capabilities),
             },
         }
-        print(json.dumps(_summary(payload), sort_keys=True))
+        print(json.dumps(paper_common.summarize(payload), sort_keys=True))
         return 0
 
     if not args.allow_write:
         payload = {"status": "BLOCKED", "reason": "write_not_authorized", "entry_tier": tier_evidence}
-        _write_evidence(payload)
-        print(json.dumps(_summary(payload), sort_keys=True))
+        paper_common.write_evidence(payload)
+        print(json.dumps(paper_common.summarize(payload), sort_keys=True))
         return 2
 
     venue = _venue(params)
+    if venue == "SIMNOW":
+        import simnow_runner
+
+        return simnow_runner.run_simnow(plan, params, args, tier_evidence)
     profile = _profile(plan, params, args.order_journal)
     if args.ledger_venues is None:
         ledger_venues = tuple(_VENUES[venue]["ledger_venues"])
@@ -302,7 +246,7 @@ def main(argv: list[str] | None = None) -> int:
         )
     )
     try:
-        credentials = _load_credentials(Path(args.env_file), credential_names)
+        credentials = paper_common.load_credentials(Path(args.env_file), credential_names)
     except Exception as exc:  # noqa: BLE001
         payload = {
             "status": "BLOCKED",
@@ -310,8 +254,8 @@ def main(argv: list[str] | None = None) -> int:
             "entry_tier": tier_evidence,
             "venue": venue,
         }
-        _write_evidence(payload)
-        print(json.dumps(_summary(payload), sort_keys=True))
+        paper_common.write_evidence(payload)
+        print(json.dumps(paper_common.summarize(payload), sort_keys=True))
         return 2
     profile = _with_ledger_venues(profile, credentials, ledger_venues)
 
@@ -329,7 +273,7 @@ def main(argv: list[str] | None = None) -> int:
         + "-"
         + uuid.uuid4().hex[:8]
     )
-    grant = _grant(plan, profile, params, run_id, args.grant_seconds)
+    grant = paper_common.build_grant(plan, profile, params, run_id, args.grant_seconds)
     session = DirectBacktraderSession(
         plan=plan,
         profile=profile,
@@ -375,9 +319,9 @@ def main(argv: list[str] | None = None) -> int:
             }
         finally:
             session.close()
-        evidence = _write_evidence(payload)
+        evidence = paper_common.write_evidence(payload)
         payload["evidence_path"] = str(evidence.relative_to(REPO_ROOT))
-        print(json.dumps(_summary(payload), sort_keys=True))
+        print(json.dumps(paper_common.summarize(payload), sort_keys=True))
         return 0 if payload["status"] == "COMPLETED" else 2
 
     from provider_demo_roundtrip_strategy import ProviderDemoRoundTripStrategy
@@ -397,7 +341,7 @@ def main(argv: list[str] | None = None) -> int:
     try:
         report = session.run(
             ProviderDemoRoundTripStrategy,
-            strategy_params=_strategy_params(params),
+            strategy_params=paper_common.strategy_params(params),
             seconds=args.session_seconds,
             initialize_risk_baseline=bool(args.initialize_risk_baseline),
         )
@@ -433,9 +377,9 @@ def main(argv: list[str] | None = None) -> int:
         "credential_env_names": list(credential_names),
         "report": report.to_json(),
     }
-    evidence = _write_evidence(payload)
+    evidence = paper_common.write_evidence(payload)
     payload["evidence_path"] = str(evidence.relative_to(REPO_ROOT))
-    print(json.dumps(_summary(payload), sort_keys=True))
+    print(json.dumps(paper_common.summarize(payload), sort_keys=True))
     return {"PASS": 0, "FAILED": 1, "BLOCKED": 2, "UNKNOWN": 3}[status]
 
 

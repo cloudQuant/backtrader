@@ -24,7 +24,15 @@ python run.py --config config.okx.yaml          # 离线校验（OKX 模板）
 python run.py --live                            # BLOCKED / write_not_authorized
 python run.py --live --allow-write              # Binance Demo 有界往返
 python run.py --config config.okx.yaml --live --allow-write   # OKX Demo 有界往返
+python run.py --config config.simnow.yaml --live --allow-write \
+  --private-config ../013_3_sa_midfreq_simnow/runtime-ctp-private/config.yaml  # SimNow registered-sim
 ```
+
+SimNow 分支是 **checkout-bound** 的：它按路径复用 `013_3/simnow_direct.py`，需要
+CPython 3.11、dev SDK 源码、私有 `ctp:` 配置（1–8 组完整 MD/TD pair）和 `.env` 中的
+`CTP_*` 凭据；dry/离线不会读取这些私有输入。接受运行使用 1 手 SA701 可成交 GFD 开仓 +
+reduce-only GFD 平仓；registered-sim 的**撤单**路径受跨会话 OrderRef/typed cancel 限制，
+尚未作为本轮 PASS 依据；CTP fee 尚未投影。详见 `docs/_internal/.../evidence/iteration52-c2-simnow-paper-2026-10-31.md`。
 
 - 退出码：`0 PASS / 1 FAIL / 2 BLOCKED / 3 UNKNOWN`。
 - 证据写入本目录 `evidence/`（git-ignored）；含 `entry_tier`、venue、strategy facts、
