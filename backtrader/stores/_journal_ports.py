@@ -41,6 +41,7 @@ from __future__ import annotations
 
 import math
 import time
+from threading import Lock
 from typing import Any, Optional, Tuple
 
 from bt_api_execution.journal import (
@@ -323,6 +324,7 @@ class BacktraderRegisteredSimAttestationJournalPort(JournalRegisteredSimAttestat
 
 
 _PORTS: Optional[JournalPorts] = None
+_PORTS_LOCK = Lock()
 
 
 def build_backtrader_journal_ports() -> JournalPorts:
@@ -333,14 +335,23 @@ def build_backtrader_journal_ports() -> JournalPorts:
     """
 
     global _PORTS
-    if _PORTS is None:
-        ports = JournalPorts(
-            position_attribution=BacktraderPositionAttributionJournalPort(),
-            fee_pair_facts=BacktraderFeePairFactsJournalPort(),
-            registered_sim_attestation=BacktraderRegisteredSimAttestationJournalPort(),
-        )
-        _PORTS = ports
-    return _PORTS
+    ports = _PORTS
+    if ports is not None:
+        return ports
+
+    # The cache is process-wide because the SDK refuses to replace a different
+    # instance after registration.  Serialize the first construction so two
+    # importing threads cannot create competing, equally valid port sets.
+    with _PORTS_LOCK:
+        ports = _PORTS
+        if ports is None:
+            ports = JournalPorts(
+                position_attribution=BacktraderPositionAttributionJournalPort(),
+                fee_pair_facts=BacktraderFeePairFactsJournalPort(),
+                registered_sim_attestation=BacktraderRegisteredSimAttestationJournalPort(),
+            )
+            _PORTS = ports
+        return ports
 
 
 def install_backtrader_journal_ports() -> JournalPorts:
