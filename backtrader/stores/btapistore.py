@@ -424,6 +424,42 @@ class _CtpNativeResultTypeUnknown(BtApiStoreError):
         )
 
 
+class _CtpNativeDispatchExceptionUnknown(BtApiStoreError):
+    """A typed CTP write raised without verifiable pre-dispatch evidence."""
+
+    execution_unknown = True
+
+    def __init__(self, operation: str) -> None:
+        if operation not in {"submit", "cancel"}:
+            raise ValueError("unsupported CTP native operation")
+        self.code = "ctp_native_{}_dispatch_exception_unknown".format(operation)
+        super().__init__(
+            "CTP native typed {} call raised without verified pre-dispatch evidence; "
+            "dispatch outcome is unconfirmed".format(operation)
+        )
+
+
+def _invoke_ctp_native_write(typed: Callable[..., Any], operation: str, *args, **kwargs) -> Any:
+    """Call a typed CTP write and preserve uncertainty without leaking its error text.
+
+    Capability and method-availability checks happen before this boundary. Once
+    the typed SDK method has been entered, this Store has not bound per-request
+    evidence sufficient to prove a pre-dispatch rejection. Unmarked exceptions
+    are therefore conservatively projected as UNKNOWN. Explicit UNKNOWN
+    exceptions keep their original identity and metadata.
+    """
+    try:
+        return typed(*args, **kwargs)
+    except Exception as exc:
+        try:
+            already_unknown = bool(getattr(exc, "execution_unknown", False))
+        except Exception:
+            already_unknown = False
+        if already_unknown:
+            raise
+        raise _CtpNativeDispatchExceptionUnknown(operation) from None
+
+
 class LegacyGatewayMigrationRequiredError(BtApiStoreError):
     """An old Store gateway/forwarding entry point requires offline migration."""
 
@@ -1742,7 +1778,13 @@ def _create_ctp_wrapper_class():
             typed = getattr(self.trader_client, "submit_order_insert", None)
             if not callable(typed):
                 raise BtApiStoreError("CTP SDK does not expose typed order insertion")
-            return typed(field, req_id, execution_capability=capability)
+            return _invoke_ctp_native_write(
+                typed,
+                "submit",
+                field,
+                req_id,
+                execution_capability=capability,
+            )
 
         def _send_native_order_action(self, field, req_id):
             """Route one order action (cancel) through the typed gate."""
@@ -1752,7 +1794,13 @@ def _create_ctp_wrapper_class():
             typed = getattr(self.trader_client, "submit_order_action", None)
             if not callable(typed):
                 raise BtApiStoreError("CTP SDK does not expose typed order cancellation")
-            return typed(field, req_id, execution_capability=capability)
+            return _invoke_ctp_native_write(
+                typed,
+                "cancel",
+                field,
+                req_id,
+                execution_capability=capability,
+            )
 
         def _record_ctp_tick_drops_locked(self, dropped, reason):
             """Record bounded diagnostics for discarded source-generation ticks."""
