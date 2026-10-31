@@ -408,6 +408,22 @@ class BtApiStoreError(Exception):
     """Base error for btapi store failures."""
 
 
+class _CtpNativeResultTypeUnknown(BtApiStoreError):
+    """A native CTP write returned outside its exact integer result contract."""
+
+    execution_unknown = True
+
+    def __init__(self, operation: str) -> None:
+        if operation not in {"submit", "cancel"}:
+            raise ValueError("unsupported CTP native operation")
+        self.code = "ctp_native_{}_result_type_unknown".format(operation)
+        super().__init__(
+            "CTP native {} returned a non-integer result; dispatch outcome is unconfirmed".format(
+                operation
+            )
+        )
+
+
 class LegacyGatewayMigrationRequiredError(BtApiStoreError):
     """An old Store gateway/forwarding entry point requires offline migration."""
 
@@ -3034,6 +3050,8 @@ def _create_ctp_wrapper_class():
             field.LimitPrice = price
 
             ret = self._send_native_order_insert(field, req_id)
+            if type(ret) is not int:
+                raise _CtpNativeResultTypeUnknown("submit")
             if ret != 0:
                 raise BtApiStoreError(f"CTP order send failed: ret={ret}")
 
@@ -3161,6 +3179,8 @@ def _create_ctp_wrapper_class():
                 # inferred from the submitted order or pending cache.
                 field.OrderActionRef = int(req_id)
             ret = self._send_native_order_action(field, req_id)
+            if type(ret) is not int:
+                raise _CtpNativeResultTypeUnknown("cancel")
             if ret != 0:
                 raise BtApiStoreError(f"CTP cancel send failed: ret={ret}")
 
