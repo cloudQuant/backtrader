@@ -27,6 +27,7 @@ import sys
 import threading
 import time
 import uuid
+import weakref
 from collections.abc import Mapping, Sequence
 from copy import deepcopy
 from dataclasses import asdict, is_dataclass
@@ -359,6 +360,25 @@ _CZCE_PRODUCT_PREFIXES = frozenset(
 _CTP_TZ = _dt.timezone(_dt.timedelta(hours=8))
 _UTC = _dt.timezone.utc
 _CTP_NATIVE_FIELDS = None
+_CTP_STOCK_WRAPPER_CLASS_REFS: List[Any] = []
+_CTP_STOCK_WRAPPER_CLASSES_LOCK = threading.Lock()
+_WRITE_ROUTE_API_UNSET = object()
+
+
+def _register_ctp_stock_wrapper_class(wrapper_cls: type) -> None:
+    """Track exact generated wrapper classes without invoking user hashing."""
+    with _CTP_STOCK_WRAPPER_CLASSES_LOCK:
+        _CTP_STOCK_WRAPPER_CLASS_REFS[:] = [
+            ref for ref in _CTP_STOCK_WRAPPER_CLASS_REFS if ref() is not None
+        ]
+        _CTP_STOCK_WRAPPER_CLASS_REFS.append(weakref.ref(wrapper_cls))
+
+
+def _is_ctp_stock_wrapper_class(candidate: Any) -> bool:
+    """Check generated-wrapper class identity without invoking custom equality."""
+    with _CTP_STOCK_WRAPPER_CLASSES_LOCK:
+        references = tuple(_CTP_STOCK_WRAPPER_CLASS_REFS)
+    return any(reference() is candidate for reference in references)
 
 
 def _ctp_native_fields():
@@ -3691,6 +3711,7 @@ def _create_ctp_wrapper_class():
             self.trader_client._req_id += 1
             return self.trader_client._req_id
 
+    _register_ctp_stock_wrapper_class(CtpClientWrapper)
     return CtpClientWrapper
 
 
@@ -3849,6 +3870,42 @@ class BtApiStore(LiveStoreBase):
         self._sdk_identity_fence_history: Dict[str, Tuple[int, int]] = {}
         self._sdk_identity_lock = threading.Lock()
         self._sdk_owned_api = api is None
+        # Only the built-in lazy CTP factory has a fixed route without an
+        # ``exchange_kwargs`` snapshot.  Keep the exact object created by this
+        # Store so an injected/replaced API cannot inherit that exemption.
+        self._ctp_default_api_factory_eligible = (
+            self.provider == "ctp"
+            and self.backend == "direct"
+            and api is None
+            and api_cls is None
+        )
+        self._ctp_default_api_instance = None
+        # Exact instances of the stock direct CTP wrapper have a fixed CTP
+        # route even though that legacy wrapper exposes no exchange_kwargs.
+        # Bind injected compatibility exceptions to these exact objects.
+        self._ctp_injected_stock_api_instance = (
+            api
+            if self.provider == "ctp"
+            and self.backend == "direct"
+            and self._ctp_wrapper_route_kind(api) == "stock"
+            else None
+        )
+        self._ctp_explicit_stock_api_cls = (
+            api_cls
+            if self.provider == "ctp"
+            and self.backend == "direct"
+            and self._is_stock_ctp_wrapper_class(api_cls)
+            else None
+        )
+        self._ctp_explicit_stock_api_instance = None
+        self._ctp_injected_registered_sim_api_instance = (
+            api
+            if self.provider == "ctp"
+            and self.backend == "direct"
+            and self._is_registered_sim_store_type(self)
+            and self._ctp_wrapper_route_kind(api) == "registered_sim"
+            else None
+        )
         self._sdk_configured = False
         self._last_execution_summary = None
         self._last_account_risk_snapshot: Optional[Dict[str, Any]] = None
@@ -9104,7 +9161,10 @@ class BtApiStore(LiveStoreBase):
         )
 
         try:
-            self._assert_write_route_identity(require_live_route=api_was_missing)
+            self._assert_write_route_identity(
+                require_live_route=api_was_missing,
+                expected_api=api,
+            )
             if hasattr(api, "submit_order"):
                 response = api.submit_order(payload)
             elif hasattr(api, "create_order"):
@@ -9459,7 +9519,10 @@ class BtApiStore(LiveStoreBase):
         )
 
         try:
-            self._assert_write_route_identity(require_live_route=api_was_missing)
+            self._assert_write_route_identity(
+                require_live_route=api_was_missing,
+                expected_api=api,
+            )
             if hasattr(api, "cancel_order"):
                 if registered_sim_cancel_target is None:
                     response = api.cancel_order(order_ref, dataname=dataname)
@@ -9657,24 +9720,109 @@ class BtApiStore(LiveStoreBase):
             return self._write_route_names(sdk_exchanges) | self._write_route_names(symbol_routes)
         return self._write_route_names((provider,))
 
-    def _assert_write_route_identity(self, *, require_live_route: bool = False) -> None:
+    @staticmethod
+    def _is_stock_ctp_wrapper_class(api_cls: Any) -> bool:
+        """Return whether api_cls is an exact class created by the stock factory."""
+        return _is_ctp_stock_wrapper_class(api_cls)
+
+    @staticmethod
+    def _ctp_wrapper_route_kind(api: Any) -> Optional[str]:
+        """Identify exact wrapper classes created by the stock CTP factory."""
+        if api is None:
+            return None
+        try:
+            mro = type.__getattribute__(type(api), "__mro__")
+        except Exception:
+            return None
+        if not mro:
+            return None
+        if _is_ctp_stock_wrapper_class(mro[0]):
+            return "stock"
+        stock_base = len(mro) > 2 and _is_ctp_stock_wrapper_class(mro[2])
+        if not stock_base:
+            return None
+        # RegisteredSimStore composes its exact framework mixin with the
+        # stock wrapper as the immediate next base. Names alone are not proof.
+        registered_sim_module = sys.modules.get("backtrader.stores.registered_sim")
+        registered_sim_wrapper = getattr(registered_sim_module, "RegisteredSimWrapper", None)
+        if registered_sim_wrapper is not None and mro[1] is registered_sim_wrapper:
+            return "registered_sim"
+        return None
+
+    @staticmethod
+    def _is_registered_sim_store_type(store: Any) -> bool:
+        """Return whether this is the exact framework RegisteredSimStore type."""
+        registered_sim_module = sys.modules.get("backtrader.stores.registered_sim")
+        registered_sim_store = getattr(registered_sim_module, "RegisteredSimStore", None)
+        return registered_sim_store is not None and type(store) is registered_sim_store
+
+    def _assert_write_route_identity(
+        self,
+        *,
+        require_live_route: bool = False,
+        expected_api: Any = _WRITE_ROUTE_API_UNSET,
+    ) -> None:
         """Reject a Store/API route mismatch before any provider write handoff.
 
         The live check reads only a plain mapping found by static attribute
         lookup. It does not invoke API properties or treat route metadata as
-        authority.
+        endpoint, account, session, or write-capability authority. When a
+        dispatch supplies ``expected_api``, this samples Store/API object
+        identity immediately before handoff; mutable API state is not locked
+        atomically against changes after the check.
         """
-        # The legacy direct CTP wrapper is CTP-only by construction: it exposes
-        # no exchange route snapshot, and ``provider == "ctp"`` already is its
-        # route identity.  Treating the missing snapshot as a changed route
-        # would disable every plain direct CTP write; forwarding/plugin routes
-        # are still rejected by their own entry checks.
-        if (
+        # A direct CTP wrapper with no route map is accepted only when its
+        # exact stock class and exact Store-bound instance establish the
+        # wrapper's fixed exchange route. All other injected APIs need live
+        # route metadata; route names/keys do not prove account or capability.
+        is_direct_ctp = (
             str(getattr(self, "provider", "") or "").strip().lower() == "ctp"
             and str(getattr(self, "backend", "") or "").strip().lower() == "direct"
             and not bool(getattr(self, "_sdk_mode", False))
-        ):
-            return
+        )
+        api = getattr(self, "_api", None)
+        if expected_api is not _WRITE_ROUTE_API_UNSET and api is not expected_api:
+            raise BtApiStoreError(
+                "Store/API instance changed before write dispatch; write dispatch is disabled"
+            )
+        route_kind = self._ctp_wrapper_route_kind(api)
+        is_store_created_default_ctp_api = (
+            is_direct_ctp
+            and bool(getattr(self, "_ctp_default_api_factory_eligible", False))
+            and api is not None
+            and api is getattr(self, "_ctp_default_api_instance", None)
+            and route_kind in ("stock", "registered_sim")
+        )
+        is_bound_injected_stock_ctp_api = (
+            is_direct_ctp
+            and api is not None
+            and api is getattr(self, "_ctp_injected_stock_api_instance", None)
+            and route_kind == "stock"
+        )
+        is_bound_explicit_stock_ctp_api = (
+            is_direct_ctp
+            and api is not None
+            and api is getattr(self, "_ctp_explicit_stock_api_instance", None)
+            and type(api) is getattr(self, "_ctp_explicit_stock_api_cls", None)
+            and route_kind == "stock"
+        )
+        is_bound_registered_sim_injected_api = (
+            is_direct_ctp
+            and self._is_registered_sim_store_type(self)
+            and api is not None
+            and api is getattr(self, "_ctp_injected_registered_sim_api_instance", None)
+            and route_kind == "registered_sim"
+        )
+        has_fixed_stock_ctp_route = (
+            is_store_created_default_ctp_api
+            or is_bound_injected_stock_ctp_api
+            or is_bound_explicit_stock_ctp_api
+            or is_bound_registered_sim_injected_api
+        )
+        # Ordinary injected api/api_cls routes are supported only when their
+        # current API exposes a nonempty static exchange mapping. A config
+        # snapshot alone cannot establish which route the API will dispatch.
+        require_live_route = require_live_route or (is_direct_ctp and not has_fixed_stock_ctp_route)
         expected = self._expected_write_route_names()
         sdk_exchanges = getattr(self, "_sdk_exchanges", {})
         if not isinstance(sdk_exchanges, Mapping):
@@ -9683,7 +9831,6 @@ class BtApiStore(LiveStoreBase):
             )
         snapshot = self._write_route_names(sdk_exchanges)
         snapshot_keys = self._write_route_keys(sdk_exchanges)
-        api = getattr(self, "_api", None)
         live_routes = None
         live_keys = None
         if api is not None:
@@ -9731,11 +9878,21 @@ class BtApiStore(LiveStoreBase):
                     )
                 live_routes = self._write_route_names(static_routes)
                 live_keys = self._write_route_keys(static_routes)
-        if require_live_route and api is not None and not snapshot and not live_routes:
+        if has_fixed_stock_ctp_route and not live_routes:
+            # The exact stock wrapper establishes the fixed CTP root only.
+            # If a Store snapshot has suffixed keys, they cannot be cross-
+            # checked against the wrapper's dispatch keys because it exposes
+            # no live map; the root check below does not prove key equality.
+            require_live_route = False
+        if require_live_route and api is not None and not live_routes:
             raise BtApiStoreError(
                 "Store/API route identity is unavailable; write dispatch is disabled"
             )
         if live_routes is not None:
+            if snapshot and snapshot != live_routes:
+                raise BtApiStoreError(
+                    "Store/API route identity changed; write dispatch is disabled"
+                )
             if (snapshot_keys or live_keys) and snapshot_keys != live_keys:
                 raise BtApiStoreError(
                     "Store/API route identity changed; write dispatch is disabled"
@@ -9744,7 +9901,7 @@ class BtApiStore(LiveStoreBase):
                 raise BtApiStoreError(
                     "Store/API route identity mismatch; write dispatch is disabled"
                 )
-        elif require_live_route and api is not None and not snapshot:
+        elif require_live_route and api is not None:
             raise BtApiStoreError(
                 "Store/API route identity is unavailable; write dispatch is disabled"
             )
@@ -18239,10 +18396,34 @@ class BtApiStore(LiveStoreBase):
             if self.backend == "forwarding":
                 self._api = self._create_forwarding_client()
             else:
+                create_default_ctp_wrapper = (
+                    bool(getattr(self, "_ctp_default_api_factory_eligible", False))
+                    and self.provider == "ctp"
+                    and self.backend == "direct"
+                )
                 api_cls = self._api_cls or _resolve_bt_api_client(self.provider)
                 kwargs = dict(self._config)
                 kwargs.update(self._api_kwargs)
                 self._api = api_cls(**kwargs)
+                if (
+                    self._ctp_explicit_stock_api_cls is not None
+                    and type(self._api) is self._ctp_explicit_stock_api_cls
+                    and self._ctp_wrapper_route_kind(self._api) == "stock"
+                ):
+                    self._ctp_explicit_stock_api_instance = self._api
+                if (
+                    create_default_ctp_wrapper
+                    and self._ctp_wrapper_route_kind(self._api)
+                    in ("stock", "registered_sim")
+                ):
+                    self._ctp_default_api_instance = self._api
+
+        if self.provider == "ctp" and self.backend == "direct":
+            # A lazy api_cls cannot be route-checked before it exists. Check
+            # immediately after construction and before connect/login/account
+            # readiness so a missing or conflicting injected route never
+            # reaches provider I/O.
+            self._assert_write_route_identity(require_live_route=True)
 
         if (
             type(getattr(self._api, "service_read_only", None)) is bool
