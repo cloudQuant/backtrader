@@ -12,18 +12,18 @@ STRATEGY_PATH = (
     ROOT
     / "examples"
     / "unified"
-    / "052_binance_demo_roundtrip"
-    / "binance_demo_roundtrip_strategy.py"
+    / "052_provider_demo_roundtrip"
+    / "provider_demo_roundtrip_strategy.py"
 )
 
 
 def _load_strategy_class():
-    spec = importlib.util.spec_from_file_location("i52_binance_demo_strategy", STRATEGY_PATH)
+    spec = importlib.util.spec_from_file_location("i52_provider_demo_strategy", STRATEGY_PATH)
     module = importlib.util.module_from_spec(spec)
     assert spec.loader is not None
     sys.modules[spec.name] = module
     spec.loader.exec_module(module)
-    return module.BinanceDemoRoundTripStrategy
+    return module.ProviderDemoRoundTripStrategy
 
 
 class _Executed:
@@ -58,11 +58,19 @@ def _strategy():
         step_size=0.001,
         tick_size=0.10,
         offset_bps=200.0,
+        time_in_force="GTC",
+        close_delay_seconds=0.0,
+        recovery_grace_seconds=0.0,
+        contract_value=1.0,
+        quantity_unit="base",
     )
     strategy._phase = "waiting"
     strategy._open_order = None
     strategy._close_order = None
     strategy._cancel_at = None
+    strategy._close_at = None
+    strategy._stop_at = None
+    strategy._pending_close_size = 0.0
     strategy._hard_deadline = 10**12
     strategy._cancel_requested = False
     strategy._events = []
@@ -72,6 +80,7 @@ def _strategy():
     strategy._maintenance_state = None
     strategy._stop_calls = []
     strategy.env = SimpleNamespace(runstop=lambda: strategy._stop_calls.append(1))
+    strategy.data = SimpleNamespace(close=[100.0])
     return strategy
 
 
@@ -105,6 +114,7 @@ def test_partial_fill_then_cancel_flattens_reduce_only():
     created = []
     strategy.sell = lambda **kwargs: created.append(kwargs) or _Order(2, "Submitted")
     strategy.notify_order(_Order(1, "Canceled", _Executed(size=0.002)))
+    strategy._maintenance()
     assert strategy._phase == "flattening"
     assert created[0]["reduce_only"] is True
     assert created[0]["offset"] == "close"

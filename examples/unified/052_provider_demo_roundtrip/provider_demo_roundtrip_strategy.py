@@ -8,18 +8,24 @@ cancel it after a short window, and flatten any partial fill reduce-only.
 
 from __future__ import annotations
 
+import math
 import time
 
 import backtrader as bt
 
 
-class BinanceDemoRoundTripStrategy(bt.Strategy):
+class ProviderDemoRoundTripStrategy(bt.Strategy):
     params = (
         ("notional_usdt", 150.0),
         ("step_size", 0.001),
         ("tick_size", 0.10),
+        ("contract_value", 1.0),
+        ("quantity_unit", "base"),
         ("offset_bps", 200.0),
+        ("time_in_force", "GTC"),
         ("cancel_after_seconds", 6.0),
+        ("close_delay_seconds", 2.0),
+        ("recovery_grace_seconds", 3.0),
         ("hard_timeout_seconds", 45.0),
     )
 
@@ -28,6 +34,9 @@ class BinanceDemoRoundTripStrategy(bt.Strategy):
         self._open_order = None
         self._close_order = None
         self._cancel_at = None
+        self._close_at = None
+        self._stop_at = None
+        self._pending_close_size = 0.0
         self._hard_deadline = time.monotonic() + float(self.p.hard_timeout_seconds)
         self._cancel_requested = False
         self._events = []
@@ -63,6 +72,17 @@ class BinanceDemoRoundTripStrategy(bt.Strategy):
             self.env.runstop()
             return
         if (
+            self._phase == "awaiting_close"
+            and self._close_at is not None
+            and now >= self._close_at
+        ):
+            self._submit_close()
+            return
+        if self._phase == "closed" and self._stop_at is not None and now >= self._stop_at:
+            self._phase = "closed_verified"
+            self.env.runstop()
+            return
+        if (
             self._phase == "resting"
             and self._cancel_at is not None
             and now >= self._cancel_at
@@ -88,7 +108,11 @@ class BinanceDemoRoundTripStrategy(bt.Strategy):
             return
         step = float(self.p.step_size)
         tick = float(self.p.tick_size)
-        quantity = max(step, round((float(self.p.notional_usdt) / market_price) / step) * step)
+        contract_value = max(float(self.p.contract_value), 1e-12)
+        quantity = max(
+            step,
+            round((float(self.p.notional_usdt) / (market_price * contract_value)) / step) * step,
+        )
         offset = float(self.p.offset_bps) / 10000.0
         limit = round((market_price * (1.0 - offset)) / tick) * tick
         if limit <= 0:
@@ -97,7 +121,7 @@ class BinanceDemoRoundTripStrategy(bt.Strategy):
             size=quantity,
             price=round(limit, 2),
             exectype=bt.Order.Limit,
-            time_in_force="GTC",
+            time_in_force=str(self.p.time_in_force),
             position_side="long",
             offset="open",
         )
@@ -111,11 +135,26 @@ class BinanceDemoRoundTripStrategy(bt.Strategy):
             self._phase = "filled_without_size"
             self.env.runstop()
             return
+        self._pending_close_size = filled
+        self._phase = "awaiting_close"
+        self._close_at = time.monotonic() + float(self.p.close_delay_seconds)
+        self._record("close_scheduled", order)
+
+    def _submit_close(self):
+        filled = self._pending_close_size
         self._phase = "flattening"
+        tick = float(self.p.tick_size)
+        decimals = max(0, -int(math.floor(math.log10(tick)))) if tick > 0 else 2
+        try:
+            market_price = float(self.data.close[0])
+        except (IndexError, TypeError, ValueError):
+            market_price = 0.0
+        price = round(((market_price * 0.998) / tick) * tick, decimals) if market_price > 0 else None
         self._close_order = self.sell(
             size=filled,
-            price=None,
-            exectype=bt.Order.Market,
+            price=price,
+            exectype=bt.Order.Limit if price is not None else bt.Order.Market,
+            time_in_force="IOC" if price is not None else None,
             reduce_only=True,
             position_side="long",
             offset="close",
@@ -161,16 +200,23 @@ class BinanceDemoRoundTripStrategy(bt.Strategy):
             "Expired",
         ):
             self._close_order = order
-            self._phase = "closed" if status == "Completed" else "close_failed"
-            self.env.runstop()
+            if status == "Completed":
+                self._phase = "closed"
+                self._stop_at = time.monotonic() + float(self.p.recovery_grace_seconds)
+            else:
+                self._phase = "close_failed"
+                self.env.runstop()
 
     def session_facts(self):
         return {
             "phase": self._phase,
+            "quantity_unit": self.p.quantity_unit,
             "cancel_requested": self._cancel_requested,
             "idle_calls": self._idle_calls,
             "maintenance_calls": self._maintenance_calls,
             "maintenance_state": self._maintenance_state,
+            "close_at": self._close_at,
+            "stop_at": self._stop_at,
             "cancel_error": self._cancel_error,
             "open_order": self._order_fact(self._open_order),
             "close_order": self._order_fact(self._close_order),

@@ -1,4 +1,4 @@
-﻿# Iteration 52 direct paper entry for Binance USD-M Demo.
+﻿# Iteration 52 direct paper entry: Binance USD-M Demo template.
 # Public template: references are symbolic; credential values never appear here.
 schema_version: 2
 mode: paper
@@ -20,7 +20,10 @@ plugins:
   execution: false
   monitor: false
 strategy_parameters:
+  venue: BINANCE
   symbol: BTCUSDT
+  contract_value: 1.0
+  quantity_unit: base
   notional_usdt: 150.0
   step_size: 0.001
   tick_size: 0.10

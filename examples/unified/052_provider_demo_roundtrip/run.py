@@ -1,4 +1,4 @@
-"""Iteration 52 direct paper entry: one bounded Binance Demo round trip.
+"""Iteration 52 direct paper entry: one bounded provider Demo round trip.
 
 ``--dry`` validates the unified configuration without credentials, network or
 provider imports.  ``--live`` selects the configured live channel and still
@@ -21,6 +21,34 @@ DEFAULT_ENV_FILE = REPO_ROOT / ".env"
 DEFAULT_RUNTIME_SRC = Path(os.environ.get("BT_API_RUNTIME_SRC", "D:/bt_api_py/bt_api/bt_api_runtime/runtime/src"))
 DEFAULT_CONTRACT_SRC = Path(os.environ.get("BT_API_CONTRACT_SRC", "D:/bt_api_py/bt_api/bt_api_runtime/contracts/src"))
 DEFAULT_SDK_SRC = Path(os.environ.get("BT_API_PY_SRC", "D:/bt_api_py"))
+
+_VENUES = {
+    "BINANCE": {
+        "sdk_route_key": "BINANCE___SWAP",
+        "account_currency": "USDT",
+        "credential_fields": (
+            ("public_key", "BINANCE_DEMO_API_KEY"),
+            ("private_key", "BINANCE_DEMO_SECRET"),
+        ),
+        "api_region": None,
+        "ledger_venues": ("BINANCE", "OKX"),
+    },
+    "OKX": {
+        "sdk_route_key": "OKX___SWAP",
+        "account_currency": "USDT",
+        "credential_fields": (
+            ("public_key", "OKX_DEMO_API_KEY"),
+            ("private_key", "OKX_DEMO_SECRET"),
+            ("passphrase", "OKX_DEMO_PASSPHRASE"),
+        ),
+        "api_region": "global",
+        "ledger_venues": ("BINANCE", "OKX"),
+    },
+}
+_CREDENTIAL_NAMES = {
+    "BINANCE": ("BINANCE_DEMO_API_KEY", "BINANCE_DEMO_SECRET"),
+    "OKX": ("OKX_DEMO_API_KEY", "OKX_DEMO_SECRET", "OKX_DEMO_PASSPHRASE"),
+}
 
 
 def _prepend_sources() -> None:
@@ -58,9 +86,18 @@ def _load_credentials(path: Path, names: tuple[str, ...]) -> dict[str, str]:
     return {name: values[name] for name in names}
 
 
+def _venue(params: dict) -> str:
+    venue = str(params.get("venue", "BINANCE")).upper()
+    if venue not in _VENUES:
+        raise RuntimeError("unsupported_venue")
+    return venue
+
+
 def _profile(plan, params: dict, order_journal: str | None = None):
     from bt_api_runtime.direct_backtrader import DirectProviderProfile
 
+    venue = _venue(params)
+    spec = _VENUES[venue]
     symbol = str(params["symbol"])
     extra_store = (("order_journal", order_journal),) if order_journal else ()
     return DirectProviderProfile(
@@ -69,19 +106,16 @@ def _profile(plan, params: dict, order_journal: str | None = None):
         account_ref=plan.references.account,
         credential_ref=plan.references.credential,
         scope_ref=plan.references.scope,
-        sdk_route_key="BINANCE___SWAP",
+        sdk_route_key=spec["sdk_route_key"],
         environment="demo",
-        account_currency="USDT",
+        account_currency=spec["account_currency"],
         symbols=(symbol,),
-        credential_fields=(
-            ("public_key", str(params["credential_public_key_env"])),
-            ("private_key", str(params["credential_private_key_env"])),
-        ),
-        api_region=None,
+        credential_fields=spec["credential_fields"],
+        api_region=spec["api_region"],
         position_mode="dual_side",
         require_account_risk=True,
         account_maximum_loss_bps="50",
-        account_risk_max_age_seconds="30",
+        account_risk_max_age_seconds="60",
         supports_write=True,
         data_timeframe="ticks",
         readiness_quantity=1.0,
@@ -94,15 +128,23 @@ def _with_ledger_venues(profile, credentials: dict, venues: tuple[str, ...]):
 
     exchange = profile.exchange_kwargs(credentials)
     required = {profile.sdk_route_key: profile.environment}
-    if "OKX" in venues:
-        exchange["OKX___SWAP"] = {
-            "environment": "demo",
-            "api_region": "global",
-            "public_key": credentials["OKX_DEMO_API_KEY"],
-            "private_key": credentials["OKX_DEMO_SECRET"],
-            "passphrase": credentials["OKX_DEMO_PASSPHRASE"],
-        }
-        required["OKX___SWAP"] = "demo"
+    for venue in venues:
+        if venue == "BINANCE" and profile.sdk_route_key != "BINANCE___SWAP":
+            exchange["BINANCE___SWAP"] = {
+                "environment": "demo",
+                "public_key": credentials["BINANCE_DEMO_API_KEY"],
+                "private_key": credentials["BINANCE_DEMO_SECRET"],
+            }
+            required["BINANCE___SWAP"] = "demo"
+        elif venue == "OKX" and profile.sdk_route_key != "OKX___SWAP":
+            exchange["OKX___SWAP"] = {
+                "environment": "demo",
+                "api_region": "global",
+                "public_key": credentials["OKX_DEMO_API_KEY"],
+                "private_key": credentials["OKX_DEMO_SECRET"],
+                "passphrase": credentials["OKX_DEMO_PASSPHRASE"],
+            }
+            required["OKX___SWAP"] = "demo"
     extra = profile.extra_store_config + (
         ("exchange_kwargs", exchange),
         ("required_environments", required),
@@ -132,7 +174,10 @@ def _strategy_params(params: dict) -> dict:
         "notional_usdt": float(params["notional_usdt"]),
         "step_size": float(params["step_size"]),
         "tick_size": float(params["tick_size"]),
+        "contract_value": float(params["contract_value"]),
+        "quantity_unit": str(params["quantity_unit"]),
         "offset_bps": float(params["offset_bps"]),
+        "time_in_force": str(params.get("time_in_force", "GTC")),
         "cancel_after_seconds": float(params["cancel_after_seconds"]),
         "hard_timeout_seconds": float(params["hard_timeout_seconds"]),
     }
@@ -142,7 +187,8 @@ def _write_evidence(payload: dict) -> Path:
     evidence_dir = HERE / "evidence"
     evidence_dir.mkdir(parents=True, exist_ok=True)
     stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
-    path = evidence_dir / f"{stamp}_052_binance_demo_roundtrip_{payload['status']}.json"
+    venue = str((payload.get("venue") or "BINANCE")).lower()
+    path = evidence_dir / f"{stamp}_052_{venue}_demo_roundtrip_{payload['status']}.json"
     path.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
     return path
 
@@ -153,6 +199,7 @@ def _summary(payload: dict) -> dict:
     return {
         "status": payload["status"],
         "reason": payload.get("reason"),
+        "venue": payload.get("venue"),
         "phase": facts.get("phase"),
         "open_status": (facts.get("open_order") or {}).get("status"),
         "close_status": (facts.get("close_order") or {}).get("status"),
@@ -177,7 +224,7 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument(
         "--ledger-venues",
-        default="BINANCE",
+        default=None,
         help="comma-separated venues that share the account execution ledger",
     )
     parser.add_argument("--preflight-only", action="store_true", help="account/readiness only; no order")
@@ -239,22 +286,34 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps(_summary(payload), sort_keys=True))
         return 2
 
+    venue = _venue(params)
     profile = _profile(plan, params, args.order_journal)
-    ledger_venues = tuple(
-        item.strip().upper() for item in str(args.ledger_venues).split(",") if item.strip()
+    if args.ledger_venues is None:
+        ledger_venues = tuple(_VENUES[venue]["ledger_venues"])
+    else:
+        ledger_venues = tuple(
+            item.strip().upper() for item in str(args.ledger_venues).split(",") if item.strip()
+        )
+    credential_names = tuple(
+        dict.fromkeys(
+            name
+            for item in set(ledger_venues) | {venue}
+            for name in _CREDENTIAL_NAMES[item]
+        )
     )
-    credential_names = tuple(name for _, name in profile.credential_fields)
-    if "OKX" in ledger_venues:
-        credential_names += ("OKX_DEMO_API_KEY", "OKX_DEMO_SECRET", "OKX_DEMO_PASSPHRASE")
     try:
         credentials = _load_credentials(Path(args.env_file), credential_names)
     except Exception as exc:  # noqa: BLE001
-        payload = {"status": "BLOCKED", "reason": "credentials_unavailable", "entry_tier": tier_evidence}
+        payload = {
+            "status": "BLOCKED",
+            "reason": "credentials_unavailable",
+            "entry_tier": tier_evidence,
+            "venue": venue,
+        }
         _write_evidence(payload)
         print(json.dumps(_summary(payload), sort_keys=True))
         return 2
-    if ledger_venues != ("BINANCE",):
-        profile = _with_ledger_venues(profile, credentials, ledger_venues)
+    profile = _with_ledger_venues(profile, credentials, ledger_venues)
 
     from bt_api_runtime.direct_backtrader import (
         DirectBacktraderSession,
@@ -262,14 +321,21 @@ def main(argv: list[str] | None = None) -> int:
         DirectSessionError,
     )
 
-    run_id = "i52-binance-demo-" + datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ") + "-" + uuid.uuid4().hex[:8]
+    run_id = (
+        "i52-"
+        + venue.lower()
+        + "-demo-"
+        + datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+        + "-"
+        + uuid.uuid4().hex[:8]
+    )
     grant = _grant(plan, profile, params, run_id, args.grant_seconds)
     session = DirectBacktraderSession(
         plan=plan,
         profile=profile,
         run_id=run_id,
         credentials=DirectCredentials(credentials),
-        strategy_id="iteration52-binance-demo-roundtrip",
+        strategy_id="iteration52-" + venue.lower() + "-demo-roundtrip",
         grant=grant,
     )
     if args.preflight_only:
@@ -279,6 +345,7 @@ def main(argv: list[str] | None = None) -> int:
                 "status": "COMPLETED",
                 "reason": "preflight_ok",
                 "entry_tier": tier_evidence,
+                "venue": venue,
                 "credential_env_names": list(credential_names),
                 "readiness": readiness,
                 "config_sha256": session.config_sha256(),
@@ -288,6 +355,7 @@ def main(argv: list[str] | None = None) -> int:
                 "status": "BLOCKED",
                 "reason": exc.code,
                 "entry_tier": tier_evidence,
+                "venue": venue,
                 "credential_env_names": list(credential_names),
             }
         except Exception as exc:  # noqa: BLE001 - bounded failure codes only
@@ -302,6 +370,7 @@ def main(argv: list[str] | None = None) -> int:
                 "status": "BLOCKED",
                 "reason": reason,
                 "entry_tier": tier_evidence,
+                "venue": venue,
                 "credential_env_names": list(credential_names),
             }
         finally:
@@ -311,16 +380,35 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps(_summary(payload), sort_keys=True))
         return 0 if payload["status"] == "COMPLETED" else 2
 
-    from binance_demo_roundtrip_strategy import BinanceDemoRoundTripStrategy
+    from provider_demo_roundtrip_strategy import ProviderDemoRoundTripStrategy
 
-    report = session.run(
-        BinanceDemoRoundTripStrategy,
-        strategy_params=_strategy_params(params),
-        seconds=args.session_seconds,
-        initialize_risk_baseline=bool(args.initialize_risk_baseline),
-    )
+    query_kwargs = dict(profile.extra_store_config).get("exchange_kwargs") or {}
+    query_api = None
+    if query_kwargs:
+        try:
+            from bt_api_py import BtApi
+
+            query_api = BtApi(exchange_kwargs=query_kwargs, debug=False)
+            session.set_provider_query(
+                lambda venue, request: query_api.query_order(venue, request, normalized=True)
+            )
+        except Exception:  # noqa: BLE001 - recovery is optional, fail closed
+            query_api = None
+    try:
+        report = session.run(
+            ProviderDemoRoundTripStrategy,
+            strategy_params=_strategy_params(params),
+            seconds=args.session_seconds,
+            initialize_risk_baseline=bool(args.initialize_risk_baseline),
+        )
+    finally:
+        if query_api is not None:
+            try:
+                query_api.close()
+            except Exception:
+                pass
     phase = (report.strategy_facts or {}).get("phase")
-    if report.status == "COMPLETED" and phase in ("canceled", "closed"):
+    if report.status == "COMPLETED" and phase in ("canceled", "closed", "closed_verified"):
         status = "PASS"
         reason = "round_trip_" + str(phase)
     elif report.status == "COMPLETED" and phase in (
@@ -329,6 +417,7 @@ def main(argv: list[str] | None = None) -> int:
         "resting",
         "partially_filled",
         "filled",
+        "awaiting_close",
         "flattening",
     ):
         status = "UNKNOWN"
@@ -340,6 +429,7 @@ def main(argv: list[str] | None = None) -> int:
         "status": status,
         "reason": reason,
         "entry_tier": tier_evidence,
+        "venue": venue,
         "credential_env_names": list(credential_names),
         "report": report.to_json(),
     }

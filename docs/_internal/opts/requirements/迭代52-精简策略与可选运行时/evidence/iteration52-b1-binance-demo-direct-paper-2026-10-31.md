@@ -23,7 +23,7 @@
 
 ### 1.2 Backtrader 示例（迭代 52 首个竖切）
 
-`examples/unified/052_binance_demo_roundtrip/`：
+`examples/unified/052_provider_demo_roundtrip/`（当时为 052_binance_demo_roundtrip）：
 
 | 文件 | 职责 |
 | --- | --- |
@@ -69,7 +69,7 @@ python run.py --live --allow-write \
 
 - 结果：`PASS / round_trip_canceled`，exit 0，25.2 秒。
 - run id：`i52-binance-demo-20261031T010054Z-828f269a`。
-- 证据：`examples/unified/052_binance_demo_roundtrip/evidence/20261031T010119Z_052_binance_demo_roundtrip_PASS.json`
+- 证据：`examples/unified/052_provider_demo_roundtrip/evidence/20261031T010119Z_052_binance_demo_roundtrip_PASS.json`
   （SHA-256 `62e674acfa20383c0dee3cdee7af122ed66315e266c7ab7943773ffd57c7fdd4`，已随本轮提交）。
 - 订单事实：事件 `open_submitted → order_submitted ×2 → order_accepted → cancel_requested → order_accepted → order_canceled`；
   open order `Canceled`，`remote_terminal_status=canceled`，`cancel_command_completed=true`，
