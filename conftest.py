@@ -33,6 +33,8 @@ from __future__ import annotations
 
 import glob
 import os
+
+import pytest
 import shutil
 import stat
 import sys
@@ -242,6 +244,23 @@ def pytest_configure(config):
                     shutil.rmtree(path, onerror=remove_readonly)
             except Exception:
                 pass
+
+
+@pytest.fixture(autouse=True)
+def _configure_execution_journal_contracts():
+    """Inject Backtrader strategy adapters into the optional execution journal."""
+    try:
+        from bt_api_execution.journal import configure_backtrader_contracts
+        from backtrader.stores import factor_execution_facts, factor_position_book, registered_sim
+    except ImportError:
+        yield
+        return
+    configure_backtrader_contracts(
+        factor_position_book=factor_position_book,
+        factor_execution_facts=factor_execution_facts,
+        registered_sim=registered_sim,
+    )
+    yield
 
 
 def pytest_report_header(config):

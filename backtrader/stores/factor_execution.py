@@ -22,7 +22,7 @@ from threading import get_ident
 from types import MappingProxyType
 from typing import Any, Dict, Iterator, Optional, Tuple
 
-from .execution_decision_journal import (
+from bt_api_execution.journal import (
     ExecutionDecisionJournal,
     ExecutionDecisionJournalError,
     ExecutionDecisionKey,
@@ -276,6 +276,19 @@ def execution_order_snapshot(broker: Any) -> Tuple[ExecutionOrderSnapshot, ...]:
     return tuple(result)
 
 
+def _configure_journal_contracts(journal: Any) -> None:
+    """Inject the Backtrader strategy adapters the journal may call."""
+    from bt_api_execution.journal import configure_backtrader_contracts
+
+    from . import factor_execution_facts, factor_position_book, registered_sim
+
+    configure_backtrader_contracts(
+        factor_position_book=factor_position_book,
+        factor_execution_facts=factor_execution_facts,
+        registered_sim=registered_sim,
+    )
+
+
 class FactorExecutionCoordinator:
     """Bind one exact Broker, registered Store and durable journal."""
 
@@ -316,6 +329,7 @@ class FactorExecutionCoordinator:
         self.broker = broker
         self.store = store
         self.journal = journal
+        _configure_journal_contracts(journal)
         self.position_book = FactorPositionBook(journal)
         self.account_scope = account_scope
         self.strategy_scope = strategy_scope
@@ -4961,7 +4975,7 @@ class FactorExecutionCoordinator:
     ) -> Any:
         """Persist verified WARMUP/CATCHING_UP evidence without opening dispatch."""
 
-        from . import execution_decision_journal as journal_api
+        from bt_api_execution import journal as journal_api
 
         if not isinstance(key, ExecutionDecisionKey):
             raise FactorExecutionError("INVALID_DECISION_KEY")
