@@ -70,6 +70,22 @@ unbounded read of a private input.
 
 ## Implementation status / reality checks
 
+- Iteration 53 removed the Backtrader-owned `backtrader_runtime` package and
+  `backtrader.runtime` facade from the source tree and distribution. The
+  `bt-runtime` console command is not available from the current install.
+  The `backtrader/` core has no imports from that package. Former package,
+  and facade are preserved under `archive/iteration53/`; some prior tests
+  were deleted. Packaging and pytest exclude that archive, which is not a
+  supported import fallback.
+- The framework-owned managed CTP order/receipt contract needed by the Store
+  projection bridge lives in `backtrader/stores/ctp_managed_order_contract.py`.
+  Do not infer that all former runtime capabilities moved with it; consult the
+  Iteration 53 migration record for each disposition. `bt_api_runtime` is a
+  separate optional SDK project.
+- Several example and operator-script files still reference the retired
+  package or commands. Treat those entrypoints as unavailable until migrated
+  or explicitly retired; do not restore a compatibility shim.
+
 These correct common stale assumptions — verify before relying on docs:
 
 - Optional managed execution can use the explicit one-shot
@@ -283,12 +299,11 @@ make quality-check  # all of the above (no tests)
 bash scripts/optimize_code.sh   # pyupgrade + isort + black + ruff + tests
 ```
 
-The `mypy backtrader` gate checks the core package. Its `pyproject.toml`
-override keeps type information from the separate `backtrader_runtime` package
-but silences that package's diagnostics; runtime is not yet covered by a
-dedicated mypy gate.
-The release wheel consumer verifies every packaged Python source file in both
-`backtrader/` and `backtrader_runtime/` against the source and isolated install.
+The `mypy backtrader` gate checks the core `backtrader` package. The retired
+`backtrader_runtime` package has no current mypy override or diagnostics.
+The release-wheel verifier checks packaged Python sources under `backtrader/`
+against the checkout and isolated install; the retired runtime is not in the
+distribution.
 
 ### Docs & utilities
 
@@ -705,10 +720,9 @@ backtrader/            core library
   research/           native factors, ordinary feed inputs/operators, panel/sinks, fincore adapter
   notifications/  alert delivery: dingtalk/wecom/feishu/telegram/email/slack/
                   discord/ntfy/gotify/bark/webhook/wechat_clawbot/qq_bot
-backtrader_runtime/    Iteration 41 config-first CLI, sealed preset policy and
-                       reviewed runtime registry (`bt-runtime` entry point)
-  _local_fake_account_actor_candidate/ isolated local fake-only protocol
-                       snapshot; unregistered and absent from the default runtime
+archive/iteration53/   Read-only archive of the retired Backtrader-owned runtime
+                       package/facade/tests; excluded from install and pytest.
+                       Historical source only, not a current import fallback.
 AI strategy products are maintained outside this repository:
   cloudQuant/backtrader-skills   standalone author/review/test skills product
   cloudQuant/backtrader-mcp      standalone local-stdio MCP product
@@ -732,7 +746,12 @@ examples/data/               shared read-only CSV fixtures
 Makefile pyproject.toml setup.py pytest.ini requirements.txt conftest.py
 ```
 
-### Iteration 41 runtime configuration
+### Iteration 41 runtime configuration (historical; retired in Iteration 53)
+
+> The package APIs and `bt-runtime` commands in this subsection describe
+> historical checkpoints only. Iteration 53 removed those import paths and
+> the console command from the current checkout and distribution; these
+> examples are not runnable operator instructions.
 
 #### Acceptance snapshot (2026-09-27; historical)
 
@@ -1535,6 +1554,13 @@ CRITICAL: 当你遇到文件引用时（例如 @rules/general.md），使用你�
 
 后端开发规范：@.joyincode/rules/backend.md
 前端开发规范：@.joyincode/rules/frontend.md
+
+> **Historical runtime notes:** The chronological Iteration 41–43 notes below
+> preserve the source and command state recorded at each checkpoint.
+> References there to `backtrader_runtime`, `backtrader.runtime`, or
+> `bt-runtime` are historical, not statements of current availability.
+> Iteration 53 retired those paths; keep the historical evidence and dates
+> unchanged.
 
 I9 source commit `157d0c0cffa4c8a86e196159cdf227e9014e9118` and its
 reproduced wheel identity are retained in `ctp_artifact_provenance.py` as
