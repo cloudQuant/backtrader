@@ -4334,6 +4334,7 @@ class BtApiStore(LiveStoreBase):
         update_queue_size = max(int(sdk_options.get("broker_update_queue_size", 2048)), 1)
         self._sdk_updates: Deque[Any] = collections.deque(maxlen=update_queue_size)
         self._sdk_update_lock = threading.Lock()
+        self._sdk_event_drain_lock = threading.Lock()
         self._live_bar_event_condition = threading.Condition(threading.RLock())
         self._live_bar_event_generation = 0
         self._live_bar_event_wakers = {}
@@ -7518,6 +7519,24 @@ class BtApiStore(LiveStoreBase):
             return dataname in live_orderbooks
 
         return False
+
+    def poll_execution_maintenance(self):
+        """Drive due SDK order reconciliation without consuming market data.
+
+        The method is safe to call from a bounded runtime maintenance thread:
+        it shares the SDK event-drain lock with :meth:`_drain_sdk_events` and
+        only delivers normalized order updates produced by a due provider
+        query.  It never places, retries or cancels an order.
+        """
+        if not self._sdk_mode or self._api is None:
+            return
+        poll = getattr(self._api, "poll_execution_maintenance", None)
+        if not callable(poll):
+            return
+        with self._sdk_event_drain_lock:
+            for venue in self._sdk_exchanges:
+                for event in poll(venue):
+                    self._append_sdk_update(self._sdk_broker_event(venue, event))
 
     def poll_broker_update(self):
         """Poll a normalized broker-side order/trade/error update from the API."""
@@ -18325,6 +18344,10 @@ class BtApiStore(LiveStoreBase):
             )
 
     def _drain_sdk_events(self):
+        with self._sdk_event_drain_lock:
+            self._drain_sdk_events_locked()
+
+    def _drain_sdk_events_locked(self):
         """Convert standard SDK events to native objects on the Cerebro thread."""
         for venue in self._sdk_exchanges:
             poll_events = getattr(self._api, "poll_events", None)
