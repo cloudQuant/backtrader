@@ -4,13 +4,10 @@ Provides the abstract interfaces and base implementations used for live
 trading.
 """
 
-import logging
 from abc import ABC, abstractmethod
 from datetime import datetime
 from enum import Enum
-from typing import Any, Callable, Dict, List, Optional, cast
-
-logger = logging.getLogger(__name__)
+from typing import Any, Callable, Dict, List, Optional, Type
 
 
 class LiveOrderType(str, Enum):
@@ -413,13 +410,14 @@ class LiveBroker(ABC):
 
 
 class LiveBrokerFactory:
-    """Live-broker factory."""
+    """Factory for explicitly registered implementations of ``LiveBroker``.
 
-    _brokers = {
-        "ccxt": "backtrader.live_trading.ccxt_broker.CCXTBroker",
-        "ctp": "backtrader.live_trading.ctp_broker.CTPBroker",
-        # More broker types can be registered here.
-    }
+    No venue adapters are bundled by this interface.  Applications may
+    register their own generic broker implementation or a wrapper that uses
+    the unified ``bt_api_py`` facade.
+    """
+
+    _brokers: Dict[str, Type[LiveBroker]] = {}
 
     @classmethod
     def create_broker(cls, broker_type: str, config: Dict[str, Any]) -> LiveBroker:
@@ -435,27 +433,31 @@ class LiveBrokerFactory:
         Raises:
             ValueError: If ``broker_type`` has not been registered.
         """
-        broker_class_path = cls._brokers.get(broker_type.lower())
-        if not broker_class_path:
+        if not isinstance(broker_type, str) or not broker_type.strip():
             raise ValueError(f"Unsupported broker type: {broker_type}")
-
-        # Import the broker class dynamically.
-        parts = broker_class_path.split(".")
-        module_path = ".".join(parts[:-1])
-        class_name = parts[-1]
-
-        module = __import__(module_path, fromlist=[class_name])
-        broker_class = getattr(module, class_name)
-
-        # Create the instance.
-        return cast(LiveBroker, broker_class(config))
+        broker_class = cls._brokers.get(broker_type.strip().lower())
+        if broker_class is None:
+            raise ValueError(f"Unsupported broker type: {broker_type}")
+        return broker_class(config)
 
     @classmethod
-    def register_broker(cls, broker_type: str, broker_class_path: str):
+    def register_broker(cls, broker_type: str, broker_class: Type[LiveBroker]) -> None:
         """Register a broker type.
 
         Args:
             broker_type: Broker type key.
-            broker_class_path: Fully qualified path of the broker class.
+            broker_class: Concrete ``LiveBroker`` implementation class.
+
+        Raises:
+            TypeError: If ``broker_class`` is not a concrete ``LiveBroker``.
+            ValueError: If ``broker_type`` is empty or invalid.
         """
-        cls._brokers[broker_type.lower()] = broker_class_path
+        if not isinstance(broker_type, str) or not broker_type.strip():
+            raise ValueError("broker_type must be non-empty text")
+        if (
+            not isinstance(broker_class, type)
+            or not issubclass(broker_class, LiveBroker)
+            or getattr(broker_class, "__abstractmethods__", None)
+        ):
+            raise TypeError("broker_class must be a concrete LiveBroker implementation")
+        cls._brokers[broker_type.strip().lower()] = broker_class
