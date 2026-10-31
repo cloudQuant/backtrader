@@ -1,0 +1,37 @@
+﻿# Iteration 52 direct paper entry for Binance USD-M Demo.
+# Public template: references are symbolic; credential values never appear here.
+schema_version: 2
+mode: paper
+environment: paper
+references:
+  strategy: strategy/binance_demo_roundtrip
+  provider: provider/binance_demo
+  endpoint: endpoint/binance_demo
+  account: account/binance_demo
+  credential: credential/binance_demo
+  scope: scope/binance_demo
+  product: product/binance_usdm
+  data_source: data_source/binance_demo
+  clock: clock/exchange_utc
+plugins:
+  runtime: false
+  gateway: false
+  risk: false
+  execution: false
+  monitor: false
+strategy_parameters:
+  symbol: BTCUSDT
+  notional_usdt: 150.0
+  step_size: 0.001
+  tick_size: 0.10
+  offset_bps: 200.0
+  cancel_after_seconds: 6.0
+  hard_timeout_seconds: 45.0
+  max_orders: 2
+  max_notional_usdt: 150.0
+  credential_public_key_env: BINANCE_DEMO_API_KEY
+  credential_private_key_env: BINANCE_DEMO_SECRET
+requested_capabilities:
+  - account.read
+  - market.read
+  - orders.paper.write
