@@ -85,12 +85,32 @@ def _venue(params: dict) -> str:
     return venue
 
 
+def _credential_fields(spec: dict, params: dict) -> tuple:
+    """Credential references for this run; defaults keep the demo names.
+
+    A config may name different environment variables (for example a
+    production-bound template).  Values are still resolved only by name.
+    """
+    fields = list(spec["credential_fields"])
+    overrides = {
+        "public_key": params.get("credential_public_key_env"),
+        "private_key": params.get("credential_private_key_env"),
+        "passphrase": params.get("credential_passphrase_env"),
+    }
+    resolved = []
+    for role, default_name in fields:
+        override = overrides.get(role)
+        resolved.append((role, str(override or default_name)))
+    return tuple(resolved)
+
+
 def _profile(plan, params: dict, order_journal: str | None = None):
     from bt_api_runtime.direct_backtrader import DirectProviderProfile
 
     venue = _venue(params)
     spec = _VENUES[venue]
     symbol = str(params["symbol"])
+    live = plan.mode.value == "live"
     extra_store = (("order_journal", order_journal),) if order_journal else ()
     return DirectProviderProfile(
         provider_ref=plan.references.provider,
@@ -99,10 +119,10 @@ def _profile(plan, params: dict, order_journal: str | None = None):
         credential_ref=plan.references.credential,
         scope_ref=plan.references.scope,
         sdk_route_key=spec["sdk_route_key"],
-        environment="demo",
+        environment="production" if live else "demo",
         account_currency=spec["account_currency"],
         symbols=(symbol,),
-        credential_fields=spec["credential_fields"],
+        credential_fields=_credential_fields(spec, params),
         api_region=spec["api_region"],
         position_mode="dual_side",
         require_account_risk=True,
@@ -232,19 +252,26 @@ def main(argv: list[str] | None = None) -> int:
 
         return simnow_runner.run_simnow(plan, params, args, tier_evidence)
     profile = _profile(plan, params, args.order_journal)
-    if args.ledger_venues is None:
-        ledger_venues = tuple(_VENUES[venue]["ledger_venues"])
+    live = plan.mode.value == "live"
+    if live:
+        # A production-bound run has one account scope and no shared demo
+        # ledger; credential references come from this config only.
+        ledger_venues: tuple = ()
+        credential_names = tuple(name for _, name in profile.credential_fields)
     else:
-        ledger_venues = tuple(
-            item.strip().upper() for item in str(args.ledger_venues).split(",") if item.strip()
+        if args.ledger_venues is None:
+            ledger_venues = tuple(_VENUES[venue]["ledger_venues"])
+        else:
+            ledger_venues = tuple(
+                item.strip().upper() for item in str(args.ledger_venues).split(",") if item.strip()
+            )
+        credential_names = tuple(
+            dict.fromkeys(
+                name
+                for item in set(ledger_venues) | {venue}
+                for name in _CREDENTIAL_NAMES[item]
+            )
         )
-    credential_names = tuple(
-        dict.fromkeys(
-            name
-            for item in set(ledger_venues) | {venue}
-            for name in _CREDENTIAL_NAMES[item]
-        )
-    )
     try:
         credentials = paper_common.load_credentials(Path(args.env_file), credential_names)
     except Exception as exc:  # noqa: BLE001
@@ -257,7 +284,8 @@ def main(argv: list[str] | None = None) -> int:
         paper_common.write_evidence(payload)
         print(json.dumps(paper_common.summarize(payload), sort_keys=True))
         return 2
-    profile = _with_ledger_venues(profile, credentials, ledger_venues)
+    if not live:
+        profile = _with_ledger_venues(profile, credentials, ledger_venues)
 
     from bt_api_runtime.direct_backtrader import (
         DirectBacktraderSession,

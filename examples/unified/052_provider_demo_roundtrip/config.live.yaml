@@ -1,0 +1,48 @@
+# Iteration 52 production-bound LIVE BOUNDARY template (zero secrets).
+#
+# 这是**未授权生产写入**的边界样例，不是可用的生产运行配置：
+#   - 引用、账户、endpoint、凭据名与 config.yaml 的 Demo 完全隔离；
+#   - grant 的 allow_live_write 在本示例中固定为 false，运行时会拒绝；
+#   - 只用于证明 live 配置被解析但不会触达 provider 传输。
+# 不提供任何生产凭据；缺少 BINANCE_PROD_* 时在读取凭据阶段即 BLOCKED。
+#
+#   python run.py --config config.live.yaml --live                 # write_not_authorized
+#   python run.py --config config.live.yaml --live --allow-write   # live_write_not_authorized
+schema_version: 2
+mode: live
+environment: live
+references:
+  strategy: strategy/binance_live_boundary
+  provider: provider/binance_usdm_prod
+  endpoint: endpoint/binance_prod
+  account: account/binance_prod
+  credential: credential/binance_prod
+  scope: scope/binance_prod
+  product: product/binance_usdm_prod
+  data_source: data_source/binance_prod
+  clock: clock/exchange_utc
+plugins:
+  runtime: false
+  gateway: false
+  risk: false
+  execution: false
+  monitor: false
+strategy_parameters:
+  venue: BINANCE
+  symbol: BTCUSDT
+  contract_value: 1.0
+  quantity_unit: base
+  notional_usdt: 150.0
+  step_size: 0.001
+  tick_size: 0.10
+  offset_bps: 200.0
+  cancel_after_seconds: 6.0
+  hard_timeout_seconds: 45.0
+  max_orders: 1
+  max_notional_usdt: 150.0
+  credential_public_key_env: BINANCE_PROD_API_KEY
+  credential_private_key_env: BINANCE_PROD_SECRET
+requested_capabilities:
+  - account.read
+  - market.read
+  - orders.live.write
