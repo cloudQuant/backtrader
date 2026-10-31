@@ -1,10 +1,12 @@
-"""Contract tests for the explicit CPython 3.8 core-runtime CI harness."""
+"""Contract tests for the CPython 3.8 core compatibility CI harness."""
 
 from __future__ import annotations
 
 import importlib.util
 import json
 from pathlib import Path
+
+import pytest
 
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -21,20 +23,91 @@ def _load_harness():
     return module
 
 
-def test_cpython38_harness_has_a_fixed_no_sdk_core_runtime_scope() -> None:
+def test_cpython38_harness_targets_current_core_contracts_only() -> None:
     harness = _load_harness()
 
     command = harness.build_pytest_command("python3.8")
 
     assert command[:6] == ["python3.8", "-m", "pytest", "-q", "-p", "no:asyncio"]
-    assert command[6:] == list(harness.CORE_RUNTIME_TEST_TARGETS)
-    assert all("managed_execution" not in target for target in harness.CORE_RUNTIME_TEST_TARGETS)
-    assert all("bt_api" not in target for target in harness.CORE_RUNTIME_TEST_TARGETS)
+    assert command[6:] == [
+        "tests/unit/core/test_errors.py",
+        "tests/unit/stores/test_ctp_managed_order_contract.py",
+        "tests/unit/scripts/test_run_iteration41_cpython38_core_runtime.py",
+    ]
+    assert all((ROOT / target).is_file() for target in command[6:])
+    assert all("tests/unit/runtime/" not in target for target in command[6:])
+    assert all("bt_api" not in target for target in command[6:])
 
 
-def test_print_command_never_claims_that_cpython38_tests_were_executed(tmp_path: Path) -> None:
+def test_retired_runtime_is_absent_from_active_source_but_kept_in_archive() -> None:
     harness = _load_harness()
-    output = tmp_path / "cpython38-core-runtime.json"
+
+    assert harness._retired_runtime_paths_present() == []
+    assert not (ROOT / "backtrader_runtime").exists()
+    assert not (ROOT / "backtrader" / "runtime").exists()
+    assert (ROOT / "archive" / "iteration53" / "backtrader_runtime").is_dir()
+
+
+@pytest.mark.parametrize(
+    "relative_path",
+    (
+        "backtrader_runtime",
+        "backtrader_runtime.py",
+        "backtrader/runtime",
+        "backtrader/runtime.py",
+    ),
+)
+def test_retired_runtime_guard_detects_real_temporary_source_paths(
+    tmp_path: Path, relative_path: str
+) -> None:
+    harness = _load_harness()
+    retired_path = tmp_path / relative_path
+    if relative_path.endswith(".py"):
+        retired_path.parent.mkdir(parents=True, exist_ok=True)
+        retired_path.write_text("# retired import path\n", encoding="utf-8")
+    else:
+        retired_path.mkdir(parents=True)
+
+    assert harness._retired_runtime_paths_present(tmp_path) == [relative_path]
+
+
+def test_retired_runtime_reappearance_stops_before_pytest(tmp_path: Path, monkeypatch) -> None:
+    harness = _load_harness()
+    output = tmp_path / "cpython38-core-compatibility.json"
+    monkeypatch.setattr(harness, "_is_cpython38", lambda: True)
+    monkeypatch.setattr(
+        harness, "_retired_runtime_paths_present", lambda: ["backtrader_runtime"]
+    )
+    monkeypatch.setattr(
+        harness,
+        "_interpreter_metadata",
+        lambda: {
+            "implementation": "CPython",
+            "version": "3.8.0",
+            "executable": "python",
+            "platform": "test-platform",
+        },
+    )
+
+    def unexpected_pytest(*args, **kwargs):
+        raise AssertionError("pytest must not run while the retired source path is present")
+
+    monkeypatch.setattr(harness.subprocess, "run", unexpected_pytest)
+
+    status = harness.main(["--output", str(output)])
+
+    assert status == 1
+    payload = json.loads(output.read_text(encoding="utf-8"))
+    assert payload["status"] == "FAILED_RETIRED_RUNTIME_SOURCE_PRESENT"
+    assert payload["execution_performed"] is False
+    assert payload["retired_runtime_source_paths_present"] == ["backtrader_runtime"]
+
+
+def test_print_command_never_claims_that_cpython38_tests_were_executed(
+    tmp_path: Path,
+) -> None:
+    harness = _load_harness()
+    output = tmp_path / "cpython38-core-compatibility.json"
 
     status = harness.main(["--print-command", "--output", str(output)])
 
@@ -43,13 +116,14 @@ def test_print_command_never_claims_that_cpython38_tests_were_executed(tmp_path:
     assert payload["status"] == "COMMAND_READY"
     assert payload["execution_performed"] is False
     assert payload["required_interpreter"] == "CPython 3.8"
-    assert payload["scope"] == "iteration41_core_config_operator_no_sdk"
+    assert payload["scope"] == "cpython38_backtrader_core_compatibility_runtime_removal_no_sdk"
+    assert payload["retired_runtime_source_paths_present"] == []
     assert payload["managed_sdk_exclusions"]
 
 
 def test_wrong_interpreter_is_recorded_as_not_executed(tmp_path: Path, monkeypatch) -> None:
     harness = _load_harness()
-    output = tmp_path / "cpython38-core-runtime.json"
+    output = tmp_path / "cpython38-core-compatibility.json"
     monkeypatch.setattr(harness, "_is_cpython38", lambda: False)
 
     status = harness.main(["--output", str(output)])
@@ -60,104 +134,35 @@ def test_wrong_interpreter_is_recorded_as_not_executed(tmp_path: Path, monkeypat
     assert payload["execution_performed"] is False
 
 
-def test_ci_workflow_requires_the_scope_labelled_cpython38_contract() -> None:
+def test_ci_workflow_requires_core_compatibility_and_release_wheel_jobs() -> None:
     workflow = (ROOT / ".github" / "workflows" / "test.yml").read_text(encoding="utf-8")
-    job_start = workflow.index("  iteration41-cpython38-core-runtime:")
-    job_end = workflow.index("\n  iteration41-posix-runtime-directory:", job_start)
-    job = workflow[job_start:job_end]
-
-    assert "iteration41-cpython38-core-runtime:" in workflow
-    assert "name: Iteration 41 Core Runtime CPython 3.8" in workflow
-    assert "runs-on: ubuntu-22.04" in workflow
-    assert "python-version: '3.8'" in workflow
-    assert "run_iteration41_cpython38_core_runtime.py" in workflow
-    assert (
-        "needs: [test, iteration41-cpython38-core-runtime, iteration41-posix-runtime-directory, iteration41-ctp-private-windows-smoke, sdk, performance, wheel-consumer]"
-        in workflow
-    )
-    assert "needs['iteration41-cpython38-core-runtime'].result" in workflow
-    assert "if: always()" in job
-    assert "path: ${{ runner.temp }}/iteration41-cpython38-core-runtime.json" in job
-    assert "if-no-files-found: error" in job
-
-
-def test_ci_workflow_runs_and_requires_posix_filesystem_evidence() -> None:
-    workflow = (ROOT / ".github" / "workflows" / "test.yml").read_text(encoding="utf-8")
-    job_start = workflow.index("  iteration41-posix-runtime-directory:")
-    job_end = workflow.index("\n  iteration41-ctp-private-windows-smoke:", job_start)
-    job = workflow[job_start:job_end]
-
-    assert "name: Iteration 41 POSIX Runtime Directory Filesystem" in job
-    assert "runs-on: ubuntu-22.04" in job
-    assert "python-version: '3.11'" in job
-    assert 'platform.system() == "Linux"' in job
-    assert "test_posix_runner_capability_keeps_local_output_off_a_replacement_path" in job
-    assert "test_posix_runner_capability_rejects_a_symlinked_child_component" in job
-    assert (
-        'python -m pytest -q -p no:asyncio --junitxml="$junit" "${targets[@]}" 2>&1 | tee "$log"'
-        in job
-    )
-    assert 'result = "skipped"' in job
-    assert 'all(item["result"] == "passed" for item in results)' in job
-    assert "sorted(names) == sorted(expected)" in job
-    assert "name: iteration41-posix-runtime-directory-ubuntu-22.04" in job
-    assert "if-no-files-found: error" in job
-    assert "iteration41-posix-runtime-directory-junit.xml" in job
-    assert "iteration41-posix-runtime-directory.log" in job
-    assert "iteration41-posix-runtime-directory.json" in job
-    assert job.count("if: always()") == 2
-    assert 'test -s "$RUNNER_TEMP/iteration41-posix-runtime-directory.log"' in job
-    assert 'test -s "$RUNNER_TEMP/iteration41-posix-runtime-directory-junit.xml"' in job
-    assert 'test -s "$RUNNER_TEMP/iteration41-posix-runtime-directory.json"' in job
-    assert '"pytest_command": [' in job
-    assert '"status": "PASSED" if valid else "FAILED"' in job
-    assert (
-        "needs: [test, iteration41-cpython38-core-runtime, iteration41-posix-runtime-directory, iteration41-ctp-private-windows-smoke, sdk, performance, wheel-consumer]"
-        in workflow
-    )
-    assert "needs['iteration41-posix-runtime-directory'].result" in workflow
-
-
-def test_windows_ctp_smoke_has_fixed_synthetic_fail_closed_scope() -> None:
-    specification = importlib.util.spec_from_file_location(
-        "iteration41_ctp_private_windows_smoke", WINDOWS_SMOKE_SCRIPT
-    )
-    assert specification is not None
-    assert specification.loader is not None
-    harness = importlib.util.module_from_spec(specification)
-    specification.loader.exec_module(harness)
-
-    command = harness.build_pytest_command(Path("evidence"), "python")
-
-    assert command[:6] == ["python", "-m", "pytest", "-q", "-p", "no:asyncio"]
-    assert command[-1] == (
-        "tests/unit/runtime/test_ctp_simnow_operator_route.py::"
-        "test_shared_private_runtime_parses_live_config_but_default_cli_stops_before_dispatch"
-    )
-    assert harness._REQUIRED_PLATFORM == "Windows"
-    assert harness._REQUIRED_PYTHON == (3, 11)
-
-
-def test_ci_workflow_requires_synthetic_windows_ctp_smoke_and_artifact() -> None:
-    workflow = (ROOT / ".github" / "workflows" / "test.yml").read_text(encoding="utf-8")
-    job_start = workflow.index("  iteration41-ctp-private-windows-smoke:")
+    job_start = workflow.index("  cpython38-core-compatibility:")
     job_end = workflow.index("\n  sdk:", job_start)
     job = workflow[job_start:job_end]
 
-    assert "name: Iteration 41 CTP Private Synthetic Windows Smoke" in job
-    assert "runs-on: windows-2022" in job
-    assert "python-version: '3.11'" in job
-    assert '"pytest>=8.2,<9" "pytest-asyncio>=0.24,<1"' in job
-    assert "run_iteration41_ctp_private_windows_smoke.py" in job
-    assert "PYTEST_DISABLE_PLUGIN_AUTOLOAD: '1'" in job
-    assert "iteration41-ctp-private-windows-smoke.junit.xml" in job
-    assert "iteration41-ctp-private-windows-smoke.log" in job
-    assert "iteration41-ctp-private-windows-smoke.json" in job
-    assert "name: iteration41-ctp-private-windows-smoke-windows-2022" in job
-    assert "if-no-files-found: error" in job
-    assert job.count("if: always()") == 2
+    assert "name: Backtrader Core Compatibility CPython 3.8" in job
+    assert "runs-on: ubuntu-22.04" in job
+    assert "python-version: '3.8'" in job
+    assert "run_iteration41_cpython38_core_runtime.py" in job
+    assert "python -m pip install -e ." in job
+    assert "cpython38-core-compatibility.json" in job
     assert (
-        "needs: [test, iteration41-cpython38-core-runtime, iteration41-posix-runtime-directory, iteration41-ctp-private-windows-smoke, sdk, performance, wheel-consumer]"
+        "needs: [test, cpython38-core-compatibility, sdk, performance, wheel-consumer]"
         in workflow
     )
-    assert "needs['iteration41-ctp-private-windows-smoke'].result" in workflow
+    assert "needs['cpython38-core-compatibility'].result" in workflow
+    assert "needs['wheel-consumer'].result" in workflow
+    assert "verify_release_wheel.py" in workflow
+
+
+def test_ci_workflow_has_no_archived_runtime_collectors() -> None:
+    workflow = (ROOT / ".github" / "workflows" / "test.yml").read_text(encoding="utf-8")
+    harness = _load_harness()
+
+    assert "tests/unit/runtime/" not in workflow
+    assert "iteration41-posix-runtime-directory:" not in workflow
+    assert "iteration41-ctp-private-windows-smoke:" not in workflow
+    assert "run_iteration41_ctp_private_windows_smoke.py" not in workflow
+    assert WINDOWS_SMOKE_SCRIPT.is_file()
+    assert "retained Iteration 41 Windows smoke helper is historical" in harness.__doc__
+    assert "is not invoked by the active CI workflow" in harness.__doc__
