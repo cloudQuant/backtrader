@@ -189,9 +189,9 @@ class CtpManagedExecutionProjectionAdapter:
         return getter(name) if callable(getter) else None
 
     def _identity(self, order: Any, *, cancel: bool = False) -> Any:
-        # Import runtime validation lazily: merely importing the Store bridge
-        # must not load any provider, SDK, or execution capability.
-        from backtrader_runtime.managed_execution import (
+        # Import the framework-owned validation lazily: merely importing the
+        # Store bridge must not load any provider, SDK, or execution capability.
+        from .ctp_managed_order_contract import (
             _managed_runtime_order_id,
             strict_limit_intent_from_order,
         )
@@ -296,7 +296,7 @@ class CtpManagedExecutionProjectionAdapter:
         *,
         order: Any,
     ) -> CtpManagedExecutionProjection:
-        from backtrader_runtime.managed_execution import classify_ctp_queue_receipt
+        from .ctp_managed_order_contract import classify_ctp_queue_receipt
 
         command_id = _stable_command_id(operation, identity)
         queue_receipt: Optional[Mapping[str, Any]] = None

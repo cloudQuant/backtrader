@@ -4923,8 +4923,16 @@ class RegisteredSimStore(BtApiStore):
             "unmatched_trade_count": unmatched_trade_count,
         }
 
+    def _require_registered_sim_write_armed(self, action: str) -> None:
+        """Keep shadow/unarmed registered-sim writes closed at the Store edge."""
+        if self._is_ctp_write_provider():
+            raise BtApiStoreError(
+                "registered-sim {} requires an armed allow_writes scope".format(action)
+            )
+
     def submit_order(self, order):
         self._require_registered_sim_not_frozen()
+        self._require_registered_sim_write_armed("submit")
         try:
             session_scope = self._order_expected_session_scope(order)
             if session_scope is None:
@@ -4950,6 +4958,7 @@ class RegisteredSimStore(BtApiStore):
 
     def cancel_order(self, order):
         self._require_registered_sim_not_frozen()
+        self._require_registered_sim_write_armed("cancel")
         try:
             session_scope = self._order_expected_session_scope(order)
             route = self._order_route_from_info(order)
@@ -5122,6 +5131,7 @@ class RegisteredSimStore(BtApiStore):
 
     def cancel_order_ref(self, order_ref, dataname: Optional[str] = None):
         self._require_registered_sim_not_frozen()
+        self._require_registered_sim_write_armed("cancel")
         try:
             self._reject_legacy_cancel_for_durable_owner(order_ref)
             return super().cancel_order_ref(order_ref, dataname=dataname)

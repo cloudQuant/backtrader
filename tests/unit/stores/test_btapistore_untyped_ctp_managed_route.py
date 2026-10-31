@@ -6,7 +6,11 @@ from types import SimpleNamespace
 
 import pytest
 
-from backtrader.stores.btapistore import BtApiStore, BtApiStoreError
+from backtrader.stores.btapistore import (
+    BtApiStore,
+    BtApiStoreError,
+    LegacyGatewayMigrationRequiredError,
+)
 
 
 class _SelfDispatchingAdapter:
@@ -107,7 +111,9 @@ def test_untyped_ctp_managed_alias_rejects_before_adapter_dispatch(
         else None,
     )
 
-    with pytest.raises(BtApiStoreError, match="generic managed execution adapter"):
+    # The legacy forwarding/gateway backends are retired before any managed
+    # adapter can be dispatched.  The adapter must still never be called.
+    with pytest.raises(LegacyGatewayMigrationRequiredError):
         if operation == "submit":
             store.submit_order(SimpleNamespace(ref=1, info={}))
         else:
@@ -116,38 +122,32 @@ def test_untyped_ctp_managed_alias_rejects_before_adapter_dispatch(
     assert adapter.calls == []
 
 
-def test_non_ctp_forwarding_managed_adapter_remains_available():
+def test_retired_forwarding_backend_cannot_construct_a_managed_store():
     adapter = _SelfDispatchingAdapter()
-    store = _store(
-        provider="btapi",
-        backend="forwarding",
-        config={"exchange": "BINANCE"},
-        api_kwargs={"exchange_type": "BINANCE"},
-        adapter=adapter,
-    )
 
-    assert store.submit_order(SimpleNamespace(ref=2, info={})) == {"status": "projected"}
-    assert store.cancel_order(
-        SimpleNamespace(ref=2, info={}, data=SimpleNamespace(_name="BTC-USDT"))
-    ) == {"status": "projected"}
-    assert adapter.calls == ["submit", "cancel"]
+    with pytest.raises(LegacyGatewayMigrationRequiredError):
+        BtApiStore(
+            provider="btapi",
+            backend="forwarding",
+            config={"exchange": "BINANCE"},
+            api_kwargs={"exchange_type": "BINANCE"},
+            managed_execution_adapter=adapter,
+        )
+
+    assert adapter.calls == []
 
 
 @pytest.mark.parametrize("operation", ("submit", "cancel"))
 def test_normal_forwarding_store_construction_cannot_dispatch_ctp_signal(operation):
     adapter = _SelfDispatchingAdapter()
-    store = BtApiStore(
-        provider="btapi",
-        backend="forwarding",
-        config={"exchange": "CTP"},
-        api_kwargs={"exchange_type": "BINANCE"},
-        managed_execution_adapter=adapter,
-    )
 
-    with pytest.raises(BtApiStoreError, match="generic managed execution adapter"):
-        if operation == "submit":
-            store.submit_order(SimpleNamespace(ref=3, info={}))
-        else:
-            store.cancel_order(SimpleNamespace(ref=3, info={}, data=None))
+    with pytest.raises(LegacyGatewayMigrationRequiredError):
+        BtApiStore(
+            provider="btapi",
+            backend="forwarding",
+            config={"exchange": "CTP"},
+            api_kwargs={"exchange_type": "BINANCE"},
+            managed_execution_adapter=adapter,
+        )
 
     assert adapter.calls == []

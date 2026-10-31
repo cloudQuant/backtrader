@@ -1719,15 +1719,20 @@ class ServiceExecutionRecoveryJournal:
             event = json.loads(str(row["event_json"]))
             submit = json.loads(str(row["payload_json"]))
             binding_raw = row["binding_json"]
-            if binding_raw is None:
-                raise ServiceExecutionRecoveryError("RECOVERY_TRADE_BINDING_MISSING")
-            binding = json.loads(str(binding_raw))
             filled = _decimal_value(event["details"]["filled_quantity"], nonnegative=True)
             previous = cumulative.get(intent_id, Decimal(0))
             if filled < previous:
                 raise ServiceExecutionRecoveryError("RECOVERY_FILL_CURSOR_REGRESSION")
             delta = filled - previous
             cumulative[intent_id] = filled
+            if binding_raw is None:
+                # Version-1 journals predate the mandatory broker binding;
+                # their fills remain part of the cumulative cursor but have
+                # no broker identity to attribute.  Version 2 must fail closed.
+                if self.event_version(namespace) == 2:
+                    raise ServiceExecutionRecoveryError("RECOVERY_TRADE_BINDING_MISSING")
+                continue
+            binding = json.loads(str(binding_raw))
             if delta:
                 key = (binding["data_name"], binding["tradeid"])
                 self._apply_trade_delta(
@@ -2786,16 +2791,22 @@ class ServiceExecutionRecoveryJournal:
                     ),
                 ).fetchone()
                 if binding_row is None:
-                    raise ServiceExecutionRecoveryError("RECOVERY_TRADE_BINDING_MISSING")
-                binding = json.loads(str(binding_row["binding_json"]))
-                submit = json.loads(str(manifest["payload_json"]))
-                self._apply_trade_delta(
-                    positions,
-                    (binding["data_name"], binding["tradeid"]),
-                    submit["side"],
-                    submit["position_effect"],
-                    delta,
-                )
+                    # The version-2 recovery contract makes a broker binding
+                    # mandatory.  Version-1 journals predate that contract:
+                    # they still record the event projection, but they have
+                    # no broker identity to attribute the fill to.
+                    if self.event_version(namespace) == 2:
+                        raise ServiceExecutionRecoveryError("RECOVERY_TRADE_BINDING_MISSING")
+                else:
+                    binding = json.loads(str(binding_row["binding_json"]))
+                    submit = json.loads(str(manifest["payload_json"]))
+                    self._apply_trade_delta(
+                        positions,
+                        (binding["data_name"], binding["tradeid"]),
+                        submit["side"],
+                        submit["position_effect"],
+                        delta,
+                    )
         cursor.execute(
             """INSERT INTO service_recovery_event_receipts(
                    account_ref, strategy_ref, logical_run_id, scope_key,

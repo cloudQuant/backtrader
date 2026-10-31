@@ -134,6 +134,8 @@ def make_store(*, provider="btapi", api=None, snapshot=None, backend="direct", a
     store._sdk_mode = True
     store._sdk_execution_config = {"market_data_only": False}
     store._connected = True
+    store._service_read_only = False
+    store._sdk_identity_bindings = {}
     return store
 
 
@@ -398,15 +400,21 @@ def test_unconvertible_sdk_route_fails_closed_with_store_error():
     assert api.lookups == []
 
 
-def test_matching_ctp_route_still_rejects_normal_direct_store_enqueue():
+def test_matching_ctp_route_allows_normal_direct_store_enqueue():
     api = FakeApi({"CTP___SIM": {}})
     store = make_store(provider="ctp", api=api, snapshot=api.exchange_kwargs)
     queue_calls = []
-    store._enqueue_order_command = lambda order: queue_calls.append(order)
 
-    with pytest.raises(BtApiStoreError, match="direct CTP SDK order enqueue is disabled"):
-        store.enqueue_order(SimpleNamespace(ref=7, info={}))
+    def enqueue(order):
+        queue_calls.append(order)
+        return {"queued": True, "receipt_id": "r" * 32}
 
-    assert queue_calls == []
+    store._enqueue_order_command = enqueue
+    order = SimpleNamespace(ref=7, info={})
+
+    receipt = store.enqueue_order(order)
+
+    assert queue_calls == [order]
+    assert receipt["queued"] is True
     assert api.calls == []
     assert api.lookups == []

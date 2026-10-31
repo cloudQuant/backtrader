@@ -43,14 +43,14 @@ from .execution_journal_archive import (
     create_verified_execution_journal_archive,
     validate_archive_timeout,
 )
-from .execution_dispatch_gate import (
+from bt_api_execution.dispatch_gate import (
     ExecutionDispatchGateError,
     ExecutionDispatchGateLease,
     acquire_dispatch_gate,
     dispatch_gate_path,
     validate_dispatch_gate_timeout,
 )
-from .execution_durable_capacity import (
+from bt_api_execution.durable_capacity import (
     DEFAULT_MAX_DURABLE_BASE_BYTES,
     DEFAULT_MAX_DURABLE_BASE_RECORDS,
     DEFAULT_MAX_DURABLE_SETTLEMENT_BYTES,

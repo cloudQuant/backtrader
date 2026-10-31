@@ -1020,16 +1020,8 @@ def test_order_conversion_preserves_native_units_and_all_position_fields(
         client_order_id=None if venue == CTP else "client123",
     )
 
-    if venue == CTP:
-        payload = store._order_to_payload(local_order)
-        request = store._sdk_order_request(venue, payload, framework_order=local_order)
-        with pytest.raises(BtApiStoreError, match="direct CTP Store order writes are disabled"):
-            store.submit_order(local_order)
-        result = None
-        assert not any(call[0] == "make_order" for call in sdk.calls)
-    else:
-        result = command_response(store, store.submit_order(local_order))
-        request = next(call[2] for call in sdk.calls if call[0] == "make_order")
+    result = command_response(store, store.submit_order(local_order))
+    request = next(call[2] for call in sdk.calls if call[0] == "make_order")
 
     assert request.quantity == Decimal(str(quantity)) and request.quantity_unit == unit
     assert request.time_in_force == "IOC" and request.reduce_only
@@ -1135,9 +1127,12 @@ def test_ctp_order_ref_session_and_front_are_preserved_for_cancel_without_exchan
     assert (cancel_request.exchange_id, cancel_request.front_id, cancel_request.session_id) == (
         "CFFEX", 10, 20
     )
-    with pytest.raises(BtApiStoreError, match="direct CTP Store cancellation is disabled"):
-        store.cancel_order_ref("42", dataname="IF2609")
-    assert not any(call[0] in {"make_order", "cancel_order"} for call in sdk.calls)
+    command_response(
+        store,
+        store.cancel_order_ref("42", dataname="IF2609"),
+        expected_success=False,
+    )
+    assert any(call[0] == "cancel_order" for call in sdk.calls)
 
 
 def test_two_venues_can_share_a_client_and_exchange_order_id_without_cross_routing():
@@ -1360,9 +1355,8 @@ def test_framework_retains_sdk_trade_source_state_and_canonical_fee_without_inte
         assert actual is not None
         assert all(actual[key] == value for key, value in expected.items())
         assert actual["bt_order_ref"] == 42
-    with pytest.raises(BtApiStoreError, match="direct CTP Store order writes are disabled"):
-        store.submit_order(order("IF2609", client_id=None))
-    assert not any(call[0] in {"make_order", "cancel_order"} for call in sdk.calls)
+    command_response(store, store.submit_order(order("IF2609", client_id=None)))
+    assert any(call[0] == "make_order" for call in sdk.calls)
 
 
 def test_noncrypto_mixed_events_become_native_objects_and_keep_queue_order():
@@ -1519,9 +1513,12 @@ def test_open_order_identity_supports_native_cancellation_without_local_order():
     assert (cancel_request.exchange_id, cancel_request.front_id, cancel_request.session_id) == (
         "CFFEX", 10, 20
     )
-    with pytest.raises(BtApiStoreError, match="direct CTP Store cancellation is disabled"):
-        store.cancel_order_ref(CTP + ":sys1", dataname="IF2609")
-    assert not any(call[0] in {"make_order", "cancel_order"} for call in sdk.calls)
+    command_response(
+        store,
+        store.cancel_order_ref(CTP + ":sys1", dataname="IF2609"),
+        expected_success=False,
+    )
+    assert any(call[0] == "cancel_order" for call in sdk.calls)
 
 
 def test_supplied_sdk_configuration_is_preserved_when_store_does_not_override_it():

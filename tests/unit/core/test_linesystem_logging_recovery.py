@@ -156,6 +156,10 @@ class _NextProbe:
     def prenext(self):
         self.phase = "prenext"
 
+    @staticmethod
+    def _factor_run_callback(callback, _name):
+        callback()
+
 
 class _LineWithoutLengthCount:
     array = [0.0]

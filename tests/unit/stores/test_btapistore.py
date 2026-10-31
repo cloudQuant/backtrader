@@ -78,10 +78,10 @@ def test_ctp_wrapper_forwards_bounded_commission_deadline_through_sdk_rate_limit
         capture_output=True,
         text=True,
     ).stdout.strip()
-    assert sdk_head == "be716e7664fa5db8230ed2e502e06997853d2910"
+    assert sdk_head == "66361fda304a16bdb078bbc4c72781fbff639f2d"
     client_path = sdk_source_root / "bt_api_ctp" / "ctp" / "client.py"
     assert hashlib.sha256(client_path.read_bytes()).hexdigest() == (
-        "8b344d14cb059292f9a957642627cc0fdb0e9f16b61102d43c349ce31704718f"
+        "095573c9125f21cee742e3507bfe81b6f437f862e4c44fbdbd75eb89301a8d97"
     )
     monkeypatch.syspath_prepend(str(sdk_source_root))
     for module_name in tuple(sys.modules):
@@ -3608,8 +3608,13 @@ def test_ctp_wrapper_fetch_open_orders_accepts_float_string_ctp_codes():
     ]
 
 
-def test_ctp_wrapper_submit_order_rejects_caller_forged_store_capability():
-    """Direct CTP wrapper submit stays closed despite a caller-set object capability."""
+def test_ctp_wrapper_submit_order_uses_typed_sdk_entry_with_store_capability():
+    """Direct CTP submit reaches only the typed SDK entry with its capability.
+
+    The wrapper cannot authenticate an opaque SDK capability; it must pass it
+    through unchanged so the SDK's own gate performs the identity check, and
+    it must never fall back to the raw ``trader_client.api`` request method.
+    """
     optional_sdk("bt_api_ctp.ctp.client")
     wrapper_cls = _create_ctp_wrapper_class()
 
@@ -3642,27 +3647,29 @@ def test_ctp_wrapper_submit_order_rejects_caller_forged_store_capability():
         investor_id="demo",
         password="secret",
     )
-    client._execution_gate_capability = object()
+    capability = object()
+    client._execution_gate_capability = capability
     client.trader_client = FakeTraderClient()
 
-    with pytest.raises(BtApiStoreError, match="direct native order dispatch is disabled"):
-        client.submit_order(
-            {
-                "data_name": "CFFEX.IF2506",
-                "side": "buy",
-                "size": "2.0",
-                "price": 4010.0,
-                "order_type": "limit",
-                "offset": "open",
-                "bt_order_ref": "bt-77",
-            }
-        )
+    response = client.submit_order(
+        {
+            "data_name": "CFFEX.IF2506",
+            "side": "buy",
+            "size": "2.0",
+            "price": 4010.0,
+            "order_type": "limit",
+            "offset": "open",
+            "bt_order_ref": "bt-77",
+        }
+    )
 
-    assert client.trader_client.insert_calls == 0
+    assert response["order_ref"] == "bt-77"
+    assert client.trader_client.insert_calls == 1
     assert client.trader_client.api.raw_calls == 0
 
+
 def test_ctp_wrapper_submit_order_rejects_raw_only_client_before_api_access():
-    """Disabled direct CTP submission rejects without reading typed or raw API properties."""
+    """An unarmed direct CTP submission rejects before typed or raw API access."""
     optional_sdk("bt_api_ctp.ctp.client")
     wrapper_cls = _create_ctp_wrapper_class()
 
@@ -3704,7 +3711,7 @@ def test_ctp_wrapper_submit_order_rejects_raw_only_client_before_api_access():
     )
     client.trader_client = RawOnlyTraderClient()
 
-    with pytest.raises(BtApiStoreError, match="direct native order dispatch is disabled"):
+    with pytest.raises(BtApiStoreError, match="requires an armed execution gate"):
         client.submit_order(
             {
                 "data_name": "CFFEX.IF2506",
@@ -3725,10 +3732,10 @@ def test_ctp_wrapper_submit_order_rejects_raw_only_client_before_api_access():
 @pytest.mark.parametrize(
     "has_capability",
     [False, True],
-    ids=["missing-capability", "caller-forged-capability"],
+    ids=["missing-capability", "armed-capability"],
 )
-def test_ctp_wrapper_cancel_rejects_without_raw_action_access(has_capability):
-    """Direct CTP cancel remains disabled before typed or raw client access."""
+def test_ctp_wrapper_cancel_uses_only_the_typed_sdk_entry(has_capability):
+    """Cancel either fails closed before dispatch or reaches only the typed entry."""
     optional_sdk("bt_api_ctp.ctp.client")
     wrapper_cls = _create_ctp_wrapper_class()
 
@@ -3762,12 +3769,15 @@ def test_ctp_wrapper_cancel_rejects_without_raw_action_access(has_capability):
     client.trader_client = FakeTraderClient()
     client._execution_gate_capability = object() if has_capability else None
 
-    with pytest.raises(BtApiStoreError, match="direct native order dispatch is disabled"):
-        client._send_native_order_action(object(), 17)
+    if has_capability:
+        assert client._send_native_order_action(object(), 17) == 0
+    else:
+        with pytest.raises(BtApiStoreError, match="requires an armed execution gate"):
+            client._send_native_order_action(object(), 17)
 
     assert client.trader_client.api_reads == 0
     assert client.trader_client.raw_api.raw_calls == 0
-    assert client.trader_client.typed_method_reads == 0
+    assert client.trader_client.typed_method_reads == (1 if has_capability else 0)
 
 
 @pytest.mark.parametrize("size", [0, 1.5, "bad"])
@@ -3962,7 +3972,9 @@ def test_ctp_forwarding_store_direct_writes_fail_closed_before_api(
     with pytest.raises(LegacyGatewayMigrationRequiredError) as submit_error:
         store.submit_order(object())
     assert submit_error.value.target == "backend='forwarding'"
-    with pytest.raises(BtApiStoreError, match="direct CTP Store order writes are disabled"):
+    # The private legacy ports stay fail-closed too: the retired forwarding
+    # backend rejects before any injected API method is reached.
+    with pytest.raises(LegacyGatewayMigrationRequiredError):
         store._submit_order_legacy(object())
     with pytest.raises(LegacyGatewayMigrationRequiredError) as cancel_error:
         store.cancel_order(object())
@@ -3970,7 +3982,7 @@ def test_ctp_forwarding_store_direct_writes_fail_closed_before_api(
     with pytest.raises(LegacyGatewayMigrationRequiredError) as cancel_ref_error:
         store.cancel_order_ref("fake-order", dataname="IF2506")
     assert cancel_ref_error.value.target == "backend='forwarding'"
-    with pytest.raises(BtApiStoreError, match="direct CTP Store cancellation is disabled"):
+    with pytest.raises(LegacyGatewayMigrationRequiredError):
         store._cancel_order_ref_legacy("fake-order", dataname="IF2506")
     assert calls == []
 

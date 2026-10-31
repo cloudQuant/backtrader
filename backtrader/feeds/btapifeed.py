@@ -18,7 +18,8 @@ from ..channel import Event, EventPriority
 from ..dataseries import TimeFrame
 from ..events import BarEvent
 from ..feed import DataBase
-from ..stores.btapistore import _build_ctp_tick_datetime, _normalize_bar, _redact_diagnostic
+from ..stores.btapistore import _build_ctp_tick_datetime, _normalize_bar
+from ..utils.redaction import redact_diagnostic as _redact_diagnostic
 from ..utils import date2num
 from ..utils.log_message import get_logger
 from .barrier import BarEvidence

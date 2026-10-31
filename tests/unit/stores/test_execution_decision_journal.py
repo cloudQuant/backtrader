@@ -26,7 +26,7 @@ from backtrader.stores.execution_decision_journal import (
     ExecutionSourceHighWaterRef,
     ExecutionSourceMemberReceipt,
 )
-from backtrader.stores.execution_durable_capacity import (
+from bt_api_execution.durable_capacity import (
     read_durable_capacity_usage,
     track_durable_row_change,
 )

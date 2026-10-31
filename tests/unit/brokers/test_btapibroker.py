@@ -127,7 +127,7 @@ def test_ctp_net_sell_against_long_infers_close_offset(monkeypatch):
         positions=[{"instrument": symbol, "direction": "long", "volume": 1, "price": 4000.0}],
         history={symbol: [make_bar(0, 4000.0, 4010.0, 3990.0, 4005.0)]},
     )
-    store = make_store(api=client, provider="ctp_gateway")
+    store = make_store(api=client, provider="ctp")
     projected_orders = _install_offline_submit_projection(monkeypatch, store)
     data = store.getdata(dataname=symbol)
     broker = store.getbroker(account_refresh_interval=60.0, positions_refresh_interval=60.0)
@@ -152,14 +152,14 @@ def test_ctp_net_sell_against_long_infers_close_offset(monkeypatch):
         broker.stop()
 
 
-def test_ctp_broker_submit_and_store_cancel_remain_fail_closed():
-    """Broker/Store entry points must reject before the fake client's write sinks."""
+def test_ctp_broker_submit_and_store_cancel_reach_the_direct_client():
+    """A CTP direct Store forwards broker submits and store cancels to the client."""
     symbol = "IF2506"
     client = FakeBtApiClient(
         positions=[{"instrument": symbol, "direction": "long", "volume": 1, "price": 4000.0}],
         history={symbol: [make_bar(0, 4000.0, 4010.0, 3990.0, 4005.0)]},
     )
-    store = make_store(api=client, provider="ctp_gateway")
+    store = make_store(api=client, provider="ctp")
     data = store.getdata(dataname=symbol)
     broker = store.getbroker(account_refresh_interval=60.0, positions_refresh_interval=60.0)
 
@@ -167,19 +167,23 @@ def test_ctp_broker_submit_and_store_cancel_remain_fail_closed():
     assert data.load() is True
     broker.start()
     try:
-        with pytest.raises(BtApiStoreError, match="direct CTP Store order writes are disabled"):
-            broker.sell(
-                owner=None,
-                data=data,
-                size=1,
-                price=4010.0,
-                exectype=bt.Order.Limit,
-            )
-        with pytest.raises(BtApiStoreError, match="direct CTP Store cancellation is disabled"):
-            store.cancel_order_ref("offline-order", dataname=symbol)
+        order = broker.sell(
+            owner=None,
+            data=data,
+            size=1,
+            price=4010.0,
+            exectype=bt.Order.Limit,
+        )
 
-        assert client.submitted_orders == []
-        assert client.cancelled_orders == []
+        assert order.status == bt.Order.Accepted
+        assert len(client.submitted_orders) == 1
+        assert client.submitted_orders[0]["side"] == "sell"
+
+        store.cancel_order_ref("offline-order", dataname=symbol)
+
+        assert client.cancelled_orders == [
+            {"order_ref": "offline-order", "dataname": symbol}
+        ]
     finally:
         broker.stop()
 
@@ -191,7 +195,7 @@ def test_ctp_net_reversal_without_explicit_split_is_rejected():
         positions=[{"instrument": symbol, "direction": "long", "volume": 1, "price": 4000.0}],
         history={symbol: [make_bar(0, 4000.0, 4010.0, 3990.0, 4005.0)]},
     )
-    store = make_store(api=client, provider="ctp_gateway")
+    store = make_store(api=client, provider="ctp")
     data = store.getdata(dataname=symbol)
     broker = store.getbroker(account_refresh_interval=60.0, positions_refresh_interval=60.0)
 
@@ -1310,7 +1314,7 @@ def test_sync_positions_accepts_float_string_ctp_position_direction_codes():
         ],
         history={symbol: [make_bar(0, 4000.0, 4010.0, 3990.0, 4005.0)]},
     )
-    store = make_store(api=client, provider="ctp_gateway")
+    store = make_store(api=client, provider="ctp")
     data = store.getdata(dataname=symbol)
     broker = store.getbroker(account_refresh_interval=60.0, positions_refresh_interval=60.0)
 
@@ -3099,7 +3103,7 @@ def test_local_validation_rejects_opening_order_when_margin_exceeds_cash():
     )
     store = make_store(
         api=client,
-        provider="ctp_gateway",
+        provider="ctp",
         contract_metadata={
             symbol: {
                 "multiplier": 300,
@@ -3150,7 +3154,7 @@ def test_opening_order_rejects_when_pretrade_account_refresh_fails():
     client = FailingBalanceClient()
     store = make_store(
         api=client,
-        provider="ctp_gateway",
+        provider="ctp",
         contract_metadata={
             symbol: {
                 "multiplier": 300,
@@ -3196,7 +3200,7 @@ def test_opening_order_cash_validation_uses_margin_adjusted_account_cash():
     )
     store = make_store(
         api=client,
-        provider="ctp_gateway",
+        provider="ctp",
         contract_metadata={
             symbol: {
                 "multiplier": 300,
@@ -3328,7 +3332,7 @@ def test_ctp_offset_inference_rejects_when_pretrade_position_refresh_fails():
             return super().get_positions()
 
     client = FailingPositionsClient()
-    store = make_store(api=client, provider="ctp_gateway")
+    store = make_store(api=client, provider="ctp")
     data = store.getdata(dataname=symbol)
     broker = store.getbroker(account_refresh_interval=60.0, positions_refresh_interval=60.0)
 
@@ -3363,7 +3367,7 @@ def test_local_cash_validation_allows_flattening_existing_position(monkeypatch):
     )
     store = make_store(
         api=client,
-        provider="ctp_gateway",
+        provider="ctp",
         contract_metadata={
             symbol: {
                 "multiplier": 300,
@@ -3405,7 +3409,7 @@ def test_local_cash_validation_rejects_opening_order_without_risk_price():
     )
     store = make_store(
         api=client,
-        provider="ctp_gateway",
+        provider="ctp",
         contract_metadata={
             symbol: {
                 "multiplier": 300,
@@ -3443,7 +3447,7 @@ def test_ctp_explicit_close_order_rejects_when_size_exceeds_position():
         positions=[{"instrument": symbol, "direction": "long", "volume": 1, "price": 4000.0}],
         history={symbol: [make_bar(0, 4000.0, 4010.0, 3990.0, 4005.0)]},
     )
-    store = make_store(api=client, provider="ctp_gateway")
+    store = make_store(api=client, provider="ctp")
     data = store.getdata(dataname=symbol)
     broker = store.getbroker(account_refresh_interval=60.0, positions_refresh_interval=60.0)
 
@@ -3474,7 +3478,7 @@ def test_ctp_live_broker_rejects_unsupported_order_type_locally():
         balance={"cash": 1_000_000.0, "value": 1_000_000.0},
         history={symbol: [make_bar(0, 4000.0, 4010.0, 3990.0, 4005.0)]},
     )
-    store = make_store(api=client, provider="ctp_gateway")
+    store = make_store(api=client, provider="ctp")
     data = store.getdata(dataname=symbol)
     broker = store.getbroker(account_refresh_interval=60.0, positions_refresh_interval=60.0)
 
@@ -4938,7 +4942,7 @@ def test_remote_trade_update_uses_close_today_commission_rate(monkeypatch):
     )
     store = make_store(
         api=client,
-        provider="ctp_gateway",
+        provider="ctp",
         contract_metadata={
             symbol: {
                 "multiplier": 300,
@@ -5006,7 +5010,7 @@ def test_remote_trade_update_uses_close_yesterday_commission_rate(monkeypatch):
     )
     store = make_store(
         api=client,
-        provider="ctp_gateway",
+        provider="ctp",
         contract_metadata={
             symbol: {
                 "multiplier": 300,
@@ -5076,7 +5080,7 @@ def test_remote_trade_update_uses_mixed_close_today_commission_when_missing_remo
     )
     store = make_store(
         api=client,
-        provider="ctp_gateway",
+        provider="ctp",
         contract_metadata={
             symbol: {
                 "multiplier": 300,

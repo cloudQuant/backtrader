@@ -16,7 +16,7 @@ from backtrader.stores.execution_decision_journal import (
     ExecutionDecisionKey,
     ExecutionIntentKey,
 )
-from backtrader.stores.execution_durable_capacity import (
+from bt_api_execution.durable_capacity import (
     canonical_sql_row_bytes,
     read_durable_capacity_usage,
 )

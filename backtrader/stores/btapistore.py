@@ -27,7 +27,6 @@ import sys
 import threading
 import time
 import uuid
-import warnings
 from collections.abc import Mapping, Sequence
 from copy import deepcopy
 from dataclasses import asdict, is_dataclass
@@ -36,7 +35,16 @@ from types import MappingProxyType
 from typing import Any, Callable, Deque, Dict, Iterable, List, Optional, Tuple, cast
 
 from ..events import OrderBookSnapshot, TickEvent
+from ..utils.coercion import coerce_float as _coerce_float
+from ..utils.coercion import coerce_int as _coerce_int
+from ..utils.coercion import coerce_text as _coerce_text
+from ..utils.coercion import first_float as _first_float
 from ..utils.log_message import get_logger
+from ..utils.redaction import is_sensitive_key as _is_sensitive_key_impl
+from ..utils.redaction import masked_copy as _masked_copy_impl
+from ..utils.redaction import redact_diagnostic as _redact_diagnostic
+from ._bt_projection import normalize_bar as _normalize_bar
+from ._bt_projection import normalize_datetime as _normalize_datetime
 from .livestore import LiveStoreBase
 from .managed_execution import (
     CtpManagedDispatchBinding,
@@ -71,53 +79,6 @@ async def _run_in_thread(func: Callable[..., Any], /, *args: Any, **kwargs: Any)
     context = contextvars.copy_context()
     call = functools.partial(context.run, func, *args, **kwargs)
     return await loop.run_in_executor(None, call)
-
-
-_SENSITIVE_TEXT_RE = re.compile(
-    r"(?i)\b(api[_-]?key|api[_-]?secret|auth[_-]?code|credential(?:s)?|"
-    r"authorization|listen[_-]?key|passphrase|passwd|password|private[_-]?key|"
-    r"secret(?:[_-]?key)?|signature|(?:access|session)[_-]?token|token)\b"
-    r"(\s*[\"']?\s*[:=]\s*[\"']?)([^,;\s\"'}]+)"
-)
-_AUTHORIZATION_TEXT_RE = re.compile(r"(?i)\b(bearer|basic)\s+[^,;\s]+")
-_SENSITIVE_QUERY_RE = re.compile(
-    r"(?i)([?&](?:api[_-]?key|authorization|listen[_-]?key|signature|"
-    r"(?:access|session)[_-]?token|token)=)[^&#\s]*"
-)
-
-
-def _redact_diagnostic(value: Any) -> Any:
-    """Recursively remove credential material from diagnostic values."""
-    if isinstance(value, BaseException):
-        return type(value).__name__
-    if isinstance(value, Mapping):
-        return {
-            key: "***" if BtApiStore._is_sensitive_key(key) else _redact_diagnostic(item)
-            for key, item in value.items()
-        }
-    if isinstance(value, list):
-        return [_redact_diagnostic(item) for item in value]
-    if isinstance(value, tuple):
-        return tuple(_redact_diagnostic(item) for item in value)
-    if isinstance(value, set):
-        # A member may normalize to a mapping, which is intentionally
-        # unhashable. Diagnostics do not need to preserve set identity.
-        return [_redact_diagnostic(item) for item in value]
-    if isinstance(value, frozenset):
-        return tuple(_redact_diagnostic(item) for item in value)
-    if isinstance(value, str):
-        value = _AUTHORIZATION_TEXT_RE.sub(r"\1 ***", value)
-        value = _SENSITIVE_TEXT_RE.sub(r"\1\2***", value)
-        return _SENSITIVE_QUERY_RE.sub(r"\1***", value)
-    if value is None or isinstance(value, (bool, int, float, Decimal)):
-        return value
-    # Diagnostics must never rely on an arbitrary object's repr: vendor
-    # exceptions and transport objects commonly include credentials there.
-    try:
-        return BtApiStore._masked_copy(value)
-    except Exception:
-        # Redaction must not invoke a sink while handling an unsafe object.
-        return type(value).__name__
 
 
 def _safe_log(level: str, message: str, *args: Any) -> None:
@@ -397,34 +358,21 @@ _CZCE_PRODUCT_PREFIXES = frozenset(
 )
 _CTP_TZ = _dt.timezone(_dt.timedelta(hours=8))
 _UTC = _dt.timezone.utc
-_CTP_OFFSET_FLAG = {
-    "open": "0",
-    "close": "1",
-    "force_close": "2",
-    "close_today": "3",
-    "close_yesterday": "4",
-    "force_close_yesterday": "5",
-    "local_force_close": "6",
-}
-_CTP_OFFSET_MAP = {value: key for key, value in _CTP_OFFSET_FLAG.items()}
-_CTP_DIRECTION_FLAG = {"buy": "0", "sell": "1"}
-_CTP_DIRECTION_MAP = {value: key for key, value in _CTP_DIRECTION_FLAG.items()}
-_CTP_ORDER_STATUS_MAP = {
-    "0": "completed",
-    "1": "partial",
-    "2": "canceled",
-    "3": "accepted",
-    "4": "canceled",
-    "5": "canceled",
-    "a": "submitted",
-    "b": "submitted",
-    "c": "submitted",
-}
-_CTP_ORDER_SUBMIT_STATUS_MAP = {
-    "4": "rejected",
-    "5": "cancel_rejected",
-    "6": "rejected",
-}
+_CTP_NATIVE_FIELDS = None
+
+
+def _ctp_native_fields():
+    """Load the CTP field contract lazily so direct imports stay SDK-free."""
+    global _CTP_NATIVE_FIELDS
+    if _CTP_NATIVE_FIELDS is None:
+        try:
+            from bt_api_ctp import fields as ctp_fields
+        except ImportError as error:
+            raise BtApiStoreError(
+                "bt_api_ctp with the CTP field contract (fields module) is required"
+            ) from error
+        _CTP_NATIVE_FIELDS = ctp_fields
+    return _CTP_NATIVE_FIELDS
 
 
 def _normalize_ctp_order_status(
@@ -433,208 +381,7 @@ def _normalize_ctp_order_status(
     default: str = "submitted",
 ) -> str:
     """Normalize CTP order status, letting explicit submit rejections win."""
-    status = _CTP_ORDER_STATUS_MAP.get(_ctp_code(order_status, "a"), default)
-    submit_override = _CTP_ORDER_SUBMIT_STATUS_MAP.get(_ctp_code(submit_status, ""))
-    return submit_override or status
-
-
-_CTP_LOGIN_FIELDS = (
-    "FrontID",
-    "SessionID",
-    "TradingDay",
-    "LoginTime",
-    "BrokerID",
-    "UserID",
-    "SystemName",
-)
-_CTP_RSPINFO_FIELDS = (
-    "ErrorID",
-    "ErrorMsg",
-)
-_CTP_ORDER_FIELDS = (
-    "AccountID",
-    "ActiveTime",
-    "ActiveTraderID",
-    "ActiveUserID",
-    "BranchID",
-    "BrokerID",
-    "BrokerOrderSeq",
-    "BusinessUnit",
-    "CancelTime",
-    "ClearingPartID",
-    "ClientID",
-    "CombHedgeFlag",
-    "CombOffsetFlag",
-    "ContingentCondition",
-    "CurrencyID",
-    "Direction",
-    "ExchangeID",
-    "ExchangeInstID",
-    "ForceCloseReason",
-    "FrontID",
-    "GTDDate",
-    "IPAddress",
-    "InsertDate",
-    "InsertTime",
-    "InstallID",
-    "InstrumentID",
-    "InvestUnitID",
-    "InvestorID",
-    "IsAutoSuspend",
-    "IsSwapOrder",
-    "LimitPrice",
-    "MacAddress",
-    "MinVolume",
-    "NotifySequence",
-    "OrderLocalID",
-    "OrderMemo",
-    "OrderPriceType",
-    "OrderRef",
-    "OrderSource",
-    "OrderStatus",
-    "OrderSubmitStatus",
-    "OrderSysID",
-    "OrderType",
-    "ParticipantID",
-    "RelativeOrderSysID",
-    "RequestID",
-    "SequenceNo",
-    "SessionID",
-    "SessionReqSeq",
-    "SettlementID",
-    "StatusMsg",
-    "StopPrice",
-    "SuspendTime",
-    "TimeCondition",
-    "TraderID",
-    "TradingDay",
-    "UpdateTime",
-    "UserForceClose",
-    "UserID",
-    "UserProductInfo",
-    "VolumeCondition",
-    "VolumeTotal",
-    "VolumeTotalOriginal",
-    "VolumeTraded",
-    "ZCETotalTradedVolume",
-    "reserve1",
-    "reserve2",
-    "reserve3",
-)
-_CTP_TRADE_FIELDS = (
-    "BrokerID",
-    "BrokerOrderSeq",
-    "BusinessUnit",
-    "ClearingPartID",
-    "ClientID",
-    "Direction",
-    "ExchangeID",
-    "ExchangeInstID",
-    "HedgeFlag",
-    "InstrumentID",
-    "InvestUnitID",
-    "InvestorID",
-    "OffsetFlag",
-    "OrderLocalID",
-    "OrderRef",
-    "OrderSysID",
-    "ParticipantID",
-    "Price",
-    "PriceSource",
-    "SequenceNo",
-    "SettlementID",
-    "TradeDate",
-    "TradeID",
-    "TradeSource",
-    "TradeTime",
-    "TradeType",
-    "TraderID",
-    "TradingDay",
-    "TradingRole",
-    "UserID",
-    "Volume",
-    "reserve1",
-    "reserve2",
-)
-_CTP_QUERY_RECORD_FIELDS = tuple(
-    dict.fromkeys(
-        _CTP_ORDER_FIELDS
-        + _CTP_TRADE_FIELDS
-        + (
-            "AccountID",
-            "Available",
-            "Balance",
-            "CloseProfit",
-            "Commission",
-            "CloseRatioByMoney",
-            "CloseRatioByVolume",
-            "CloseTodayRatioByMoney",
-            "CloseTodayRatioByVolume",
-            "CombinationType",
-            "CurrMargin",
-            "CreateDate",
-            "DeliveryMonth",
-            "DeliveryYear",
-            "EndDelivDate",
-            "ExchangeID",
-            "ExchangeInstID",
-            "ExchFixedMargin",
-            "ExchMiniMargin",
-            "ExpireDate",
-            "FixedMargin",
-            "HedgeFlag",
-            "InstrumentID",
-            "InstLifePhase",
-            "IsTrading",
-            "InvestUnitID",
-            "InvestorID",
-            "LongFrozen",
-            "LongMarginRatio",
-            "LongMarginRatioByMoney",
-            "LongMarginRatioByVolume",
-            "LowerLimitPrice",
-            "MaxMarginSideAlgorithm",
-            "MaxLimitOrderVolume",
-            "MaxMarketOrderVolume",
-            "MinLimitOrderVolume",
-            "MinMarketOrderVolume",
-            "MiniMargin",
-            "OpenDate",
-            "OpenInterest",
-            "OpenRatioByMoney",
-            "OpenRatioByVolume",
-            "OptionsType",
-            "PosiDirection",
-            "Position",
-            "PositionCost",
-            "PositionProfit",
-            "PositionDateType",
-            "PositionType",
-            "PriceTick",
-            "ProductID",
-            "ProductClass",
-            "Royalty",
-            "ShortFrozen",
-            "ShortMarginRatio",
-            "ShortMarginRatioByMoney",
-            "ShortMarginRatioByVolume",
-            "StartDelivDate",
-            "StrikePrice",
-            "StrikeRatioByMoney",
-            "StrikeRatioByVolume",
-            "TodayPosition",
-            "TradingDay",
-            "UnderlyingInstrID",
-            "UnderlyingMultiple",
-            "UpperLimitPrice",
-            "Volume",
-            "VolumeMultiple",
-            "YdPosition",
-            "ranking_trading_day",
-            "trading_days_to_expiry",
-        )
-    )
-)
+    return _ctp_native_fields().normalize_order_status(order_status, submit_status, default)
 
 
 class BtApiStoreError(Exception):
@@ -695,44 +442,12 @@ class BtApiProviderNotImplementedError(NotImplementedError, BtApiStoreError):
     """Raised when a provider is intentionally left as a placeholder."""
 
 
-def _coerce_float(value: Any, default: float = 0.0) -> float:
-    """Convert a value to float with a stable fallback."""
-    if value is None:
-        return default
-    if isinstance(value, dict):
-        for key in ("amount", "value", "balance", "total"):
-            if key in value and value[key] not in (None, ""):
-                return _coerce_float(value[key], default)
-        return default
-    if isinstance(value, str):
-        value = value.strip().replace(",", "")
-
-    try:
-        number = float(value)
-    except (TypeError, ValueError):
-        return default
-    if not math.isfinite(number):
-        return default
-    return number
-
-
 def _normalise_ctp_commission_rate(value: Any, default: float = 0.0) -> float:
     """Normalize CTP by-money commission to a decimal rate."""
     rate = _coerce_float(value, default)
     if rate > 0.01:
         return rate / 10000.0
     return max(rate, 0.0)
-
-
-def _first_float(mapping: Dict[str, Any], keys: tuple[str, ...]) -> Optional[float]:
-    """Return the first finite numeric value from a mapping."""
-    for key in keys:
-        if key not in mapping:
-            continue
-        number = _coerce_float(mapping[key], None)
-        if number is not None:
-            return number
-    return None
 
 
 _ACCOUNT_CASH_KEYS = (
@@ -927,138 +642,34 @@ def _normalise_account_balance_payload(raw: Any) -> Optional[Tuple[float | None,
     return None
 
 
-def _coerce_int(value: Any, default: int = 0) -> int:
-    """Convert a value to int with a stable fallback."""
-    if value is None:
-        return default
-
-    if isinstance(value, str):
-        text = value.strip().replace(",", "")
-        try:
-            number = Decimal(text)
-        except (InvalidOperation, ValueError):
-            return default
-        if not number.is_finite() or number != number.to_integral_value():
-            return default
-        return int(number)
-
-    try:
-        return int(value)
-    except (TypeError, ValueError, OverflowError):
-        return default
-
-
-def _coerce_text(value: Any, default: str = "") -> str:
-    """Convert vendor field values to text while suppressing noisy decode warnings."""
-    if value is None:
-        return default
-
-    if isinstance(value, bytes):
-        for encoding in ("utf-8", "gbk", "latin1"):
-            try:
-                return value.decode(encoding).strip()
-            except UnicodeDecodeError:
-                _safe_log("debug", "btapistore:887 ignored UnicodeDecodeError")
-                continue
-        return value.decode("utf-8", errors="ignore").strip()
-
-    with warnings.catch_warnings():
-        warnings.filterwarnings(
-            "ignore",
-            message=r"Failed to convert '.*' from GBK to UTF-8\.",
-            category=UnicodeWarning,
-        )
-        try:
-            return str(value).strip()
-        except Exception as e:
-            _safe_log("warning", "btapistore:900 fallback on Exception")
-            _safe_log("debug", "Failed to coerce value to text: %s", e)
-            return default
-
-
 def _ctp_code(value: Any, default: str = "") -> str:
     """Normalize CTP enum-like fields that may arrive as numeric strings."""
-    if value is None:
-        return default
-    text = _coerce_text(value, default="")
-    if text == "":
-        return default
-    text = text.replace(",", "")
-    try:
-        number = Decimal(text)
-    except (InvalidOperation, ValueError):
-        return text
-    if not number.is_finite():
-        return default
-    if number == number.to_integral_value():
-        return str(int(number))
-    return text
+    return _ctp_native_fields().ctp_code(value, default)
 
 
 def _ctp_direction(value: Any, default: str = "buy") -> str:
     """Normalize CTP buy/sell direction flags."""
-    code = _ctp_code(value, "")
-    direction = _CTP_DIRECTION_MAP.get(code)
-    if direction is not None:
-        return direction
-    text = code.lower().replace("-", "_")
-    if text in {"buy", "long", "b"}:
-        return "buy"
-    if text in {"sell", "short", "s"}:
-        return "sell"
-    return default
+    return _ctp_native_fields().ctp_direction(value, default)
 
 
 def _ctp_offset(value: Any, default: str = "open") -> str:
     """Normalize CTP offset flags."""
-    code = _ctp_code(value, "")
-    offset = _CTP_OFFSET_MAP.get(code) or _CTP_OFFSET_MAP.get(code[:1])
-    if offset is not None:
-        return offset
-    text = code.lower().replace("-", "_")
-    if text in _CTP_OFFSET_FLAG:
-        return text
-    return default
+    return _ctp_native_fields().ctp_offset(value, default)
 
 
 def _ctp_position_direction(value: Any, default: str = "long") -> str:
     """Normalize CTP position direction flags."""
-    code = _ctp_code(value, "")
-    text = code.lower().replace("-", "_")
-    if text in {"3", "short", "sell", "s"}:
-        return "short"
-    if text in {"2", "long", "buy", "b"}:
-        return "long"
-    return default
+    return _ctp_native_fields().ctp_position_direction(value, default)
 
 
 def _safe_field_attr(obj: Any, attr: str, default: Any = None) -> Any:
     """Read an attribute from a SWIG field or a pre-snapshotted dict."""
-    if isinstance(obj, dict):
-        return obj.get(attr, default)
-
-    try:
-        return getattr(obj, attr, default)
-    except Exception as e:
-        _safe_log("warning", "btapistore:968 fallback on Exception")
-        _safe_log("debug", "Failed to get attr %s from %s: %s", attr, type(obj).__name__, e)
-        return default
+    return _ctp_native_fields().safe_field_attr(obj, attr, default)
 
 
 def _safe_text_attr(obj: Any, *attrs: str, default: str = "") -> str:
     """Return the first non-empty text attribute from a vendor object safely."""
-    with warnings.catch_warnings():
-        warnings.filterwarnings(
-            "ignore",
-            message=r"Failed to convert '.*' from GBK to UTF-8\.",
-            category=UnicodeWarning,
-        )
-        for attr in attrs:
-            value = _safe_field_attr(obj, attr)
-            text = _coerce_text(value, "")
-            if text:
-                return text
-    return default
+    return _ctp_native_fields().safe_text_attr(obj, *attrs, default=default)
 
 
 def _split_ctp_symbol(symbol: Any) -> tuple[str, str]:
@@ -1803,102 +1414,12 @@ def _build_ctp_tick_datetime(payload: Any) -> Optional[_dt.datetime]:
 
 def _ctp_field_to_dict(field: Any) -> Dict[str, Any]:
     """Convert a SWIG-generated CTP struct instance into a plain dict."""
-    if field is None:
-        return {}
-
-    result = {}
-    for attr in dir(field):
-        if attr.startswith("_") or attr in {"this", "thisown"}:
-            continue
-        try:
-            value = getattr(field, attr)
-        except Exception as e:
-            _safe_log("warning", "btapistore:1616 fallback on Exception")
-            _safe_log("debug", "Failed to read CTP field attr %s: %s", attr, e)
-            continue
-        if callable(value):
-            continue
-        result[attr] = value
-    return result
+    return _ctp_native_fields().field_to_dict(field)
 
 
 def _ctp_extract_fields(field: Any, attrs: Iterable[str]) -> Dict[str, Any]:
     """Read only a whitelisted subset of SWIG CTP struct attributes safely."""
-    if field is None:
-        return {}
-
-    result: Dict[str, Any] = {}
-    for attr in attrs:
-        try:
-            value = getattr(field, attr)
-        except Exception as e:
-            _safe_log("warning", "btapistore:1634 fallback on Exception")
-            _safe_log("debug", "Failed to read CTP field attr %s: %s", attr, e)
-            continue
-        if callable(value):
-            continue
-        result[attr] = value
-    return result
-
-
-def _normalize_bar(bar: Any) -> Dict[str, Any]:
-    """Normalize historical/live bar payloads into a common dict."""
-    if isinstance(bar, dict):
-        dt_value = bar.get("timestamp")
-        if dt_value in (None, ""):
-            dt_value = bar.get("datetime") or bar.get("dt") or bar.get("time")
-        return {
-            "datetime": _normalize_datetime(dt_value),
-            "open": _coerce_float(bar.get("open")),
-            "high": _coerce_float(bar.get("high")),
-            "low": _coerce_float(bar.get("low")),
-            "close": _coerce_float(bar.get("close")),
-            "volume": _coerce_float(bar.get("volume")),
-            "openinterest": _coerce_float(bar.get("openinterest"), 0.0),
-        }
-
-    if isinstance(bar, (list, tuple)) and len(bar) >= 6:
-        return {
-            "datetime": _normalize_datetime(bar[0]),
-            "open": _coerce_float(bar[1]),
-            "high": _coerce_float(bar[2]),
-            "low": _coerce_float(bar[3]),
-            "close": _coerce_float(bar[4]),
-            "volume": _coerce_float(bar[5]),
-            "openinterest": _coerce_float(bar[6], 0.0) if len(bar) > 6 else 0.0,
-        }
-
-    raise ValueError(f"Unsupported bar payload: {bar!r}")
-
-
-def _datetime_to_utc_naive(value: _dt.datetime) -> _dt.datetime:
-    if value.tzinfo is not None and value.utcoffset() is not None:
-        return value.astimezone(_UTC).replace(tzinfo=None)
-    return value.replace(tzinfo=None)
-
-
-def _normalize_datetime(value: Any) -> _dt.datetime:
-    """Normalize timestamps to naive UTC datetimes."""
-    if isinstance(value, _dt.datetime):
-        return _datetime_to_utc_naive(value)
-
-    if isinstance(value, _dt.date):
-        return _dt.datetime.combine(value, _dt.time.min)
-
-    if isinstance(value, (int, float)):
-        ts = float(value)
-        if ts > 10_000_000_000:
-            ts /= 1000.0
-        return _dt.datetime.fromtimestamp(ts, _UTC).replace(tzinfo=None)
-
-    if isinstance(value, str):
-        try:
-            return _datetime_to_utc_naive(_dt.datetime.fromisoformat(value.replace("Z", "+00:00")))
-        except ValueError as exc:
-            _safe_log("error", "btapistore:1690 re-raising ValueError")
-            raise ValueError(f"Unsupported datetime string: {value!r}") from exc
-
-    raise ValueError(f"Unsupported datetime value: {value!r}")
+    return _ctp_native_fields().extract_fields(field, attrs)
 
 
 def _resolve_bt_api_client(provider: str = "btapi"):
@@ -2129,16 +1650,73 @@ def _create_ctp_wrapper_class():
             execution_cycle_id,
             preflight_sha256,
         ):
-            """Reject legacy direct admission without touching the SDK."""
-            raise BtApiStoreError("CTP direct registered-sim execution admission is disabled")
+            """Arm typed native writes on a registered broker simulation front.
+
+            Delegates to the SDK's ``arm_execution_for_registered_sim`` typed
+            admission entry, which only arms when the session's TD front
+            matches a frozen registered simulation endpoint pair.
+            """
+            entry = getattr(self.trader_client, "arm_execution_for_registered_sim", None)
+            if not callable(entry):
+                raise BtApiStoreError(
+                    "SDK does not expose registered-sim execution admission"
+                )
+            capability, state = entry(
+                instrument_id=instrument_id,
+                exchange_id=exchange_id,
+                md_front=md_front,
+                strategy_identity_sha256=strategy_identity_sha256,
+                execution_cycle_id=execution_cycle_id,
+                preflight_sha256=preflight_sha256,
+            )
+            self._execution_gate_capability = capability
+            instrument, _ = _split_ctp_symbol(str(instrument_id))
+            if instrument and exchange_id:
+                # The execution gate binds writes to EXCHANGE.INSTRUMENT, so
+                # remember the resolved exchange for the order fields.
+                self._execution_instrument_exchanges[instrument.upper()] = str(exchange_id)
+            return state
+
+        def disarm_registered_sim_execution(self, reason="registered_sim_disarmed"):
+            """Revoke the native write gate through the SDK's own entry."""
+            capability = self._execution_gate_capability
+            client = self.trader_client
+            self._execution_gate_capability = None
+            disarm = getattr(client, "disarm_execution_gate", None)
+            if client is None or capability is None or not callable(disarm):
+                return {"disarmed": True, "reason": str(reason), "native": False}
+            return {
+                "disarmed": True,
+                "reason": str(reason),
+                "native": True,
+                "state": disarm(capability, str(reason)),
+            }
 
         def _send_native_order_insert(self, field, req_id):
-            """Keep direct wrapper order submission disabled in this build."""
-            raise BtApiStoreError("CTP direct native order dispatch is disabled")
+            """Route one order insert through the typed execution gate.
+
+            An unarmed wrapper and a client without the typed SDK entry fail
+            closed before touching ``trader_client.api``.  There is no raw
+            ``ReqOrderInsert`` fallback: a caller cannot turn a missing
+            admission into a native write.
+            """
+            capability = self._execution_gate_capability
+            if capability is None:
+                raise BtApiStoreError("CTP direct order dispatch requires an armed execution gate")
+            typed = getattr(self.trader_client, "submit_order_insert", None)
+            if not callable(typed):
+                raise BtApiStoreError("CTP SDK does not expose typed order insertion")
+            return typed(field, req_id, execution_capability=capability)
 
         def _send_native_order_action(self, field, req_id):
-            """Keep direct wrapper cancellation disabled in this build."""
-            raise BtApiStoreError("CTP direct native order dispatch is disabled")
+            """Route one order action (cancel) through the typed gate."""
+            capability = self._execution_gate_capability
+            if capability is None:
+                raise BtApiStoreError("CTP direct cancellation requires an armed execution gate")
+            typed = getattr(self.trader_client, "submit_order_action", None)
+            if not callable(typed):
+                raise BtApiStoreError("CTP SDK does not expose typed order cancellation")
+            return typed(field, req_id, execution_capability=capability)
 
         def _record_ctp_tick_drops_locked(self, dropped, reason):
             """Record bounded diagnostics for discarded source-generation ticks."""
@@ -3384,12 +2962,12 @@ def _create_ctp_wrapper_class():
                 )
 
             side = str(payload.get("side") or "buy").lower()
-            direction = _CTP_DIRECTION_FLAG.get(side)
+            direction = _ctp_native_fields().DIRECTION_FLAG.get(side)
             if direction is None:
                 raise BtApiStoreError(f"Unsupported CTP side: {side}")
 
             offset = str(payload.get("offset") or "open").lower()
-            offset_flag = _CTP_OFFSET_FLAG.get(offset)
+            offset_flag = _ctp_native_fields().OFFSET_FLAG.get(offset)
             if offset_flag is None:
                 raise BtApiStoreError(f"Unsupported CTP offset flag: {offset}")
 
@@ -3654,7 +3232,7 @@ def _create_ctp_wrapper_class():
                     "status": normalized_status,
                 }
 
-            details = _ctp_extract_fields(row, _CTP_ORDER_FIELDS)
+            details = _ctp_extract_fields(row, _ctp_native_fields().ORDER_FIELDS)
             instrument = _coerce_text(
                 details.get("InstrumentID") or details.get("ExchangeInstID") or ""
             )
@@ -3954,7 +3532,7 @@ def _create_ctp_wrapper_class():
 
         def _handle_md_error(self, payload):
             """Capture market-data-side runtime errors."""
-            details = _ctp_extract_fields(payload, _CTP_RSPINFO_FIELDS)
+            details = _ctp_extract_fields(payload, _ctp_native_fields().RSPINFO_FIELDS)
             self._order_updates.append(
                 {
                     "kind": "error",
@@ -3968,7 +3546,7 @@ def _create_ctp_wrapper_class():
 
         def _handle_trader_login(self, payload):
             """Capture trader-login metadata for later cancel requests."""
-            details = _ctp_extract_fields(payload, _CTP_LOGIN_FIELDS)
+            details = _ctp_extract_fields(payload, _ctp_native_fields().LOGIN_FIELDS)
             front_id = _coerce_int(details.get("FrontID"), 0)
             session_id = _coerce_int(details.get("SessionID"), 0)
             for pending in self._pending_orders.values():
@@ -3979,7 +3557,7 @@ def _create_ctp_wrapper_class():
 
         def _handle_trader_error(self, payload):
             """Capture trader-side runtime errors."""
-            details = _ctp_extract_fields(payload, _CTP_RSPINFO_FIELDS)
+            details = _ctp_extract_fields(payload, _ctp_native_fields().RSPINFO_FIELDS)
             self._order_updates.append(
                 {
                     "kind": "error",
@@ -3993,7 +3571,7 @@ def _create_ctp_wrapper_class():
 
         def _handle_order(self, payload):
             """Normalize order status callbacks into broker updates."""
-            details = _ctp_extract_fields(payload, _CTP_ORDER_FIELDS)
+            details = _ctp_extract_fields(payload, _ctp_native_fields().ORDER_FIELDS)
             order_ref = str(details.get("OrderRef") or "").strip()
             order_sys_id = str(details.get("OrderSysID") or "").strip()
             pending = self._pending_orders.get(order_ref, {})
@@ -4065,7 +3643,7 @@ def _create_ctp_wrapper_class():
 
         def _handle_trade(self, payload):
             """Normalize trade callbacks into broker updates."""
-            details = _ctp_extract_fields(payload, _CTP_TRADE_FIELDS)
+            details = _ctp_extract_fields(payload, _ctp_native_fields().TRADE_FIELDS)
             order_ref = str(details.get("OrderRef") or "").strip()
             order_sys_id = str(details.get("OrderSysID") or "").strip()
             pending = self._pending_orders.get(order_ref) or self._pending_orders_by_sys_id.get(
@@ -5269,31 +4847,6 @@ class BtApiStore(LiveStoreBase):
             )
 
     # Credential keys that must never appear in repr/str/logs in cleartext.
-    _SENSITIVE_KEYS = frozenset(
-        {
-            "api_key",
-            "api_secret",
-            "access_token",
-            "auth_code",
-            "authorization",
-            "credential",
-            "credentials",
-            "listen_key",
-            "listenkey",
-            "passphrase",
-            "passwd",
-            "password",
-            "private_key",
-            "public_key",
-            "secret",
-            "secret_key",
-            "session_token",
-            "signature",
-            "token",
-        }
-    )
-    _SENSITIVE_KEY_COMPACT = frozenset(key.replace("_", "") for key in _SENSITIVE_KEYS)
-
     def __repr__(self) -> str:
         """Return a repr with credential fields masked.
 
@@ -5314,56 +4867,12 @@ class BtApiStore(LiveStoreBase):
     @classmethod
     def _is_sensitive_key(cls, key: Any) -> bool:
         """Return whether ``key`` conventionally names a credential value."""
-        normalized = re.sub(r"[^a-z0-9]+", "_", str(key).strip().lower()).strip("_")
-        compact = normalized.replace("_", "")
-        if normalized in cls._SENSITIVE_KEYS or compact in cls._SENSITIVE_KEY_COMPACT:
-            return True
-
-        return any(
-            normalized.endswith(f"_{sensitive_key}") for sensitive_key in cls._SENSITIVE_KEYS
-        )
+        return _is_sensitive_key_impl(key)
 
     @classmethod
     def _masked_copy(cls, value: Any, _active: Optional[set[int]] = None) -> Any:
         """Build a cycle-safe diagnostic copy without invoking arbitrary repr methods."""
-        if isinstance(value, BaseException):
-            return type(value).__name__
-        if isinstance(value, str):
-            return _redact_diagnostic(value)
-        if value is None or isinstance(value, (bool, int, float, Decimal)):
-            return value
-
-        active = set() if _active is None else _active
-        identity = id(value)
-        if identity in active:
-            return "<recursive>"
-        active.add(identity)
-        try:
-            if isinstance(value, Mapping):
-                return {
-                    key: "***" if cls._is_sensitive_key(key) else cls._masked_copy(item, active)
-                    for key, item in value.items()
-                }
-            if isinstance(value, list):
-                return [cls._masked_copy(item, active) for item in value]
-            if isinstance(value, tuple):
-                return tuple(cls._masked_copy(item, active) for item in value)
-            if isinstance(value, set):
-                return [cls._masked_copy(item, active) for item in value]
-            if isinstance(value, frozenset):
-                return tuple(cls._masked_copy(item, active) for item in value)
-            if is_dataclass(value) and not isinstance(value, type):
-                return cls._masked_copy(asdict(value), active)
-            try:
-                attributes = vars(value)
-            except (TypeError, AttributeError):
-                return type(value).__name__
-            return {
-                key: "***" if cls._is_sensitive_key(key) else cls._masked_copy(item, active)
-                for key, item in attributes.items()
-            }
-        finally:
-            active.discard(identity)
+        return _masked_copy_impl(value, _active)
 
     @classmethod
     def _credential_values(
@@ -8155,8 +7664,6 @@ class BtApiStore(LiveStoreBase):
     async def _invoke_sdk_command(self, operation: str, command: Dict[str, Any]):
         if operation in {"submit", "cancel"}:
             self._assert_write_route_identity()
-        if operation in {"submit", "cancel"} and self._is_ctp_write_provider():
-            raise BtApiStoreError("direct CTP SDK command dispatch is disabled")
         if operation in {"submit", "cancel"}:
             # A typed request was bound to an SDK identity before it entered
             # this worker. Re-read that identity at the last write handoff;
@@ -8747,11 +8254,6 @@ class BtApiStore(LiveStoreBase):
                 bt_order_ref=getattr(order, "ref", None),
             )
 
-        if is_ctp_write:
-            if recovery_exit:
-                self.abort_execution_recovery("execution_recovery_dispatch_failed")
-            raise BtApiStoreError("direct CTP SDK order enqueue is disabled")
-
         try:
             receipt = self._enqueue_order_command(order)
         except Exception:
@@ -8908,8 +8410,6 @@ class BtApiStore(LiveStoreBase):
                 "cancel",
                 bt_order_ref=order_ref,
             )
-        if self._is_ctp_write_provider():
-            raise BtApiStoreError("direct CTP SDK cancel enqueue is disabled")
         self._ensure_api_ready()
         self._require_async_sdk_commands()
         self._start_command_worker()
@@ -9335,8 +8835,6 @@ class BtApiStore(LiveStoreBase):
         self._assert_write_route_identity()
         adapter = self._managed_execution_adapter
         if adapter is None:
-            if self._is_ctp_write_provider():
-                raise BtApiStoreError("direct CTP Store order writes are disabled")
             return self._submit_order_legacy(order)
         self._require_typed_ctp_managed_route(operation="order")
         if self._is_ctp_session_provider():
@@ -9586,8 +9084,6 @@ class BtApiStore(LiveStoreBase):
             raise BtApiStoreError("read-only service proxy cannot submit orders")
         api_was_missing = getattr(self, "_api", None) is None
         self._assert_write_route_identity()
-        if self._is_ctp_write_provider():
-            raise BtApiStoreError("direct CTP Store order writes are disabled")
         if self._sdk_mode:
             if self._is_sdk_market_data_only():
                 return self._reject_market_data_only_command(
@@ -9693,8 +9189,6 @@ class BtApiStore(LiveStoreBase):
             raise LegacyGatewayMigrationRequiredError(legacy_entrypoint)
         if self._service_read_only:
             raise BtApiStoreError("read-only service proxy cannot cancel orders")
-        if self._managed_execution_adapter is None and self._is_ctp_write_provider():
-            raise BtApiStoreError("direct CTP Store cancellation is disabled")
         info = getattr(order, "info", None)
         info_get = getattr(info, "get", None)
         if callable(info_get):
@@ -9722,8 +9216,43 @@ class BtApiStore(LiveStoreBase):
         execution_cycle_id: str,
         preflight_sha256: str,
     ) -> Dict[str, Any]:
-        """Reject direct Store callers before API readiness or SDK access."""
-        raise BtApiStoreError("CTP direct registered-sim execution admission is disabled")
+        """Arm typed CTP order writes on a registered broker simulation front.
+
+        Only the legacy direct CTP adapter exposes this entry, and the SDK
+        arms only when the session's TD front matches a frozen registered
+        simulation endpoint pair (see ``bt_api_ctp.ctp_env_selector``).
+
+        The execution gate binds writes to exchange-qualified instrument
+        identities, so a bare symbol such as ``rb2701`` is resolved to its
+        exchange here (the adapter then reuses it for order fields).
+        """
+        api = self._ensure_api_ready()
+        arm = getattr(api, "arm_registered_sim_execution", None)
+        if not callable(arm):
+            raise BtApiStoreError(
+                "CTP adapter does not support registered-sim execution admission"
+            )
+        if not exchange_id:
+            _, exchange_id = _split_ctp_symbol(str(instrument_id))
+        if not exchange_id:
+            getter = getattr(self, "get_symbol_info", None)
+            info: Dict[str, Any] = {}
+            if callable(getter):
+                try:
+                    info = getter(instrument_id) or {}
+                except Exception as exc:
+                    _safe_log("warning", "btapistore:arm_registered_sim_exchange_lookup")
+                    _safe_log("debug", "symbol exchange lookup failed: %s", exc)
+                    info = {}
+            exchange_id = str(info.get("exchange_id") or info.get("exchange") or "")
+        return arm(
+            instrument_id,
+            exchange_id,
+            md_front=getattr(api, "md_front", "") or "",
+            strategy_identity_sha256=strategy_identity_sha256,
+            execution_cycle_id=execution_cycle_id,
+            preflight_sha256=preflight_sha256,
+        )
 
     def cancel_order_ref(self, order_ref, dataname: Optional[str] = None):
         """Cancel through managed execution or, when absent, the legacy Store path."""
@@ -9909,8 +9438,6 @@ class BtApiStore(LiveStoreBase):
             raise BtApiStoreError("read-only service proxy cannot cancel orders")
         api_was_missing = getattr(self, "_api", None) is None
         self._assert_write_route_identity()
-        if self._is_ctp_write_provider():
-            raise BtApiStoreError("direct CTP Store cancellation is disabled")
         if self._sdk_mode:
             if self._is_sdk_market_data_only():
                 return self._reject_market_data_only_command(
@@ -10137,6 +9664,17 @@ class BtApiStore(LiveStoreBase):
         lookup. It does not invoke API properties or treat route metadata as
         authority.
         """
+        # The legacy direct CTP wrapper is CTP-only by construction: it exposes
+        # no exchange route snapshot, and ``provider == "ctp"`` already is its
+        # route identity.  Treating the missing snapshot as a changed route
+        # would disable every plain direct CTP write; forwarding/plugin routes
+        # are still rejected by their own entry checks.
+        if (
+            str(getattr(self, "provider", "") or "").strip().lower() == "ctp"
+            and str(getattr(self, "backend", "") or "").strip().lower() == "direct"
+            and not bool(getattr(self, "_sdk_mode", False))
+        ):
+            return
         expected = self._expected_write_route_names()
         sdk_exchanges = getattr(self, "_sdk_exchanges", {})
         if not isinstance(sdk_exchanges, Mapping):
@@ -10487,7 +10025,7 @@ class BtApiStore(LiveStoreBase):
         record: Any, *, include_commission_fields: bool = False
     ) -> Dict[str, Any]:
         """Convert a typed/CTP record to a stable, credential-safe mapping."""
-        query_fields = _CTP_QUERY_RECORD_FIELDS
+        query_fields = _ctp_native_fields().QUERY_RECORD_FIELDS
         if include_commission_fields:
             query_fields = tuple(dict.fromkeys((*query_fields, "InvestorRange", "BizType")))
         if isinstance(record, Mapping):

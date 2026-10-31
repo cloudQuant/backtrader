@@ -8,12 +8,11 @@ import pytest
 from backtrader.brokers.btapibroker import BtApiBroker
 from backtrader.sizers import NotionalAllocationSizer
 from backtrader.stores.btapistore import BtApiStore
-from backtrader_runtime.managed_execution import ManagedExecutionBridge
 
 
 @pytest.fixture
 def sizing_path(tmp_path):
-    pytest.importorskip("bt_api_risk.allocation_sizing", exc_type=ImportError)
+    pytest.importorskip("bt_api_risk.allocation_sizing")
     from bt_api_risk import AccountScope, DurableRiskGate, RiskPolicy
     from bt_api_risk.core.instrument import InstrumentRiskMetadata, InstrumentRiskRegistry
 
@@ -41,9 +40,15 @@ def sizing_path(tmp_path):
             )
         ]
     )
-    bridge = object.__new__(ManagedExecutionBridge)
-    bridge.runtime = SimpleNamespace(
-        scope=SimpleNamespace(strategy_id="strategy-a"), risk_scope=scope, risk_gate=gate
+    # The sizer only reads ``adapter.runtime``; a plain carrier keeps this core
+    # sizing test independent of the retired managed-execution runtime package.
+    bridge = SimpleNamespace(
+        runtime=SimpleNamespace(
+            scope=SimpleNamespace(strategy_id="strategy-a"), risk_scope=scope, risk_gate=gate
+        )
+    )
+    bridge.get_strategy_allocation = lambda strategy_id: gate.get_strategy_allocation(
+        scope, strategy_id
     )
     store = object.__new__(BtApiStore)
     store._managed_execution_adapter = bridge

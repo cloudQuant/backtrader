@@ -33,7 +33,7 @@ from ..position_modes import (
     normalize_position_side,
     signed_position_size,
 )
-from ..stores.btapistore import _redact_diagnostic
+from ..utils.redaction import redact_diagnostic as _redact_diagnostic
 from ..stores.managed_execution import (
     CtpManagedProjectionState,
     ManagedExecutionAdapterError,

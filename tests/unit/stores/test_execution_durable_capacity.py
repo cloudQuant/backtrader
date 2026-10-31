@@ -5,7 +5,7 @@ from contextvars import copy_context
 
 import pytest
 
-from backtrader.stores.execution_durable_capacity import (
+from bt_api_execution.durable_capacity import (
     DEFAULT_MAX_DURABLE_BASE_BYTES,
     DEFAULT_MAX_DURABLE_BASE_RECORDS,
     DEFAULT_MAX_DURABLE_SETTLEMENT_BYTES,

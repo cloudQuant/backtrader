@@ -196,7 +196,7 @@ def _started_typed_ctp_stack(*, require_complete_ctp_evidence=False):
     client = TypedQueryClient()
     store = make_store(
         api=client,
-        provider="ctp_gateway",
+        provider="ctp",
         auto_settlement_confirm=False,
         contract_metadata={
             SYMBOL: {
@@ -232,7 +232,7 @@ def _started_ctp_stack(*, positions=None, require_complete_ctp_evidence=False):
     )
     store = make_store(
         api=client,
-        provider="ctp_gateway",
+        provider="ctp",
         contract_metadata={
             SYMBOL: {
                 "price_tick": 1.0,

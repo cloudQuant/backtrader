@@ -21,7 +21,7 @@ from decimal import Decimal, InvalidOperation, localcontext
 from types import MappingProxyType
 from typing import Any, Mapping, Optional, Sequence, Tuple
 
-from .execution_durable_capacity import track_durable_row_change
+from bt_api_execution.durable_capacity import track_durable_row_change
 
 
 _IDENTIFIER = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.:/@+-]{0,255}$")
