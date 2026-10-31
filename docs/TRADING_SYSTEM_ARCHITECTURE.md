@@ -16,7 +16,7 @@ bt_api_py：统一 SDK、交易所插件加载、服务客户端和服务组合
                    +-- bt_api_runtime   可选预检和生命周期编排（规划）
                    +-- bt_api_gateway   可选账户/行情会话与读取
                    +-- bt_api_risk      可选风控许可和预留
-                   +-- bt_api_execution 可选订单意图、派发与对账
+                   +-- bt_api_execution 可选信号聚合、拆单、算法执行与对账（目标）
                    +-- bt_api_monitor   可选监控、事件和告警
                    +-- venue adapters   CTP / Binance / OKX 等
 
@@ -44,14 +44,14 @@ SDK 是集成框架，不是 Backtrader 的第二套策略引擎。插件加载�
 | 项目 | 主要职责 | 边界 |
 |---|---|---|
 | [`bt_api_base`](https://github.com/cloudQuant/bt_api_base) | 共享接口、DTO、插件基础与服务协议 | 合同不提供账户身份、风险许可或交易所结果的权威；Base 的实际依赖和 Python 版本需按发行物核查 |
-| [`bt_api_runtime`](https://github.com/cloudQuant/bt_api_runtime) | 拟承担配置校验、预检、组件装配、启动/停止、恢复协调与诊断 | **当前是占位仓库**，没有 runtime 或预检实现；不拥有第二套订单/风险状态，不调度 Backtrader 指标 |
+| [`bt_api_runtime`](https://github.com/cloudQuant/bt_api_runtime) | 配置校验、预检、组件装配、启动/停止、恢复协调与诊断 | 已有受限源码候选，具体写入与插件能力仍须按版本和证据核对；不拥有第二套订单/风险状态，不调度 Backtrader 指标 |
 | [`bt_api_gateway`](https://github.com/cloudQuant/bt_api_gateway) | 账户和行情服务、会话/订阅协调及本地读模型与受控路由 | provider 事实来自可信外部来源；本地 journal 或 lease 不证明全局 provider 状态或其他进程被约束 |
 | [`bt_api_risk`](https://github.com/cloudQuant/bt_api_risk) | 风险政策、下单许可、预留、冻结及相关风险事实 | 需要可信账户/持仓/价格及策略事实；许可本身不等于交易所接受订单 |
-| [`bt_api_execution`](https://github.com/cloudQuant/bt_api_execution) | 订单意图、派发记录、回报、未决状态、恢复及对账合同 | 不替代 provider、Risk 或 Monitor；派发结果未知时保留 UNKNOWN 并对账，不盲目重复提交 |
+| [`bt_api_execution`](https://github.com/cloudQuant/bt_api_execution) | **目标**：已注册策略的信号/订单意图聚合、冲突处理、父子单和大单拆分、算法执行、成交与费用分配、可靠派发、恢复及对账 | 策略产生信号；Execution 只协调经授权输入，不替代 provider、Risk 或 Monitor。当前已有可靠单单执行、有限多腿协调和部分合同类型，完整多策略聚合、拆单及算法调度仍待实现/验收；UNKNOWN 不盲目重发 |
 | [`bt_api_monitor`](https://github.com/cloudQuant/bt_api_monitor) | 遥测、指标、事件读取、健康观察和受控运维入口 | 监控事件不构成订单、账户完整性或风控许可的权威；启用的控制能力须有可信验证 |
 | [`bt_api_transport_zmq`](https://github.com/cloudQuant/bt_api_transport_zmq) | 可选的 ZeroMQ 消息、身份认证、ACL 和传输 | 不拥有订单账本、provider 或风险策略；传输超时不证明订单未被接受 |
 
-组件按配置选择不意味着安全检查可以无声消失。对于显式选用的交易路径，缺少其必需插件、授权或有效风险事实时，应明确拒绝或报告不可用；无关的只读、回测或监控功能可以依据各自合同运行。具体插件依赖和故障策略由部署合同决定，不把拟议行为当作当前实现。
+基础 direct 路径不要求安装或启用可选 Risk 插件或其业务风控策略，但仍需 SDK 和交易所所要求的认证、账户身份、品种与订单校验、撤单关联及未知状态处理。显式选择的插件或策略缺失、初始化失败，或缺少其必需授权和事实时，应明确拒绝或报告不可用，不得回退绕过。无关只读、回测或监控功能按各自合同运行；具体能力以实际实现和验证为准。
 
 ## 5. 交易所与券商适配子项目
 
@@ -85,15 +85,17 @@ SDK 是集成框架，不是 Backtrader 的第二套策略引擎。插件加载�
 | 风险许可、预留与冻结 | `bt_api_risk` | 执行路径按合同验证许可；从可信来源获得账户、持仓及行情事实 |
 | 账户/行情共享读模型 | `bt_api_gateway` 的本地状态，来源绑定 provider | 它不自动代表交易所原子快照或完整账户 |
 | Backtrader Order/Position/Observer 投影 | Backtrader | 框架 session projection journal 记录该运行实例如何消费事实，与 Execution 的订单日志不同 |
-| 运行健康和观测事件 | `bt_api_monitor` 和拟议 runtime 分别输出 | 新 runtime 当前尚无实现；心跳不证明订单完成、账户齐全或可交易 |
+| 运行健康和观测事件 | `bt_api_monitor` 和拟议 runtime 分别输出 | runtime 已有受限候选实现；心跳不证明订单完成、账户齐全或可交易 |
 
 一个事实可以有多份用途不同的记录，但必须标明来源和权威。重启应分别处理策略预热、执行 journal 与 provider 对账；不能仅重跑策略或将 transport timeout 当作订单未发送。风险、监控和执行服务的可信组合需要逐路径验证，不假定跨进程、跨数据库的操作天然原子。
 
 ## 7. 当前迁移边界
 
+按用户最新要求，先实施[迭代 53：实盘直连与 Store 职责重构](_internal/opts/requirements/迭代53-实盘直连与Store职责重构/迭代计划.md)，再继续迭代 52。目标是：只安装并选择 Backtrader、bt_api_py 与所需交易所适配时，可走受支持的 direct 下单/撤单路径；Gateway、Risk、Execution、Monitor 和 Runtime 是显式选用的增强组件。所选插件失败时不得静默退回 direct。当前 CTP 普通 Store 仍有直接写入拒绝分支，因此该目标尚未由现有源码证明。
+
 各项目统一采用四种交易模式：`replay`、`shadow`、`paper`（外部模拟账户）和 `live`（生产账户）。定义、权限边界及迭代 52 范围见[交易运行模式标准](source/advanced/architecture/trading-modes_zh.md)；模式名称本身不授予账户写权限。
 
-Backtrader 当前仍随包提供 `backtrader_runtime`；新 `bt_api_runtime` 并未替代它。计划按职责梳理旧 runtime 的全部功能：通用控制与编排归新 runtime；Backtrader 对象桥接和框架投影归 Backtrader；CTP 协议归 CTP 项目；共享合同和服务分别归对应 SDK 子项目；认证专用证据与 fixture 留在认证/测试工具。迭代 52 实现和验收模拟账户 `paper` 与生产账户 `live`；`replay`、`shadow` 和本地模拟先盘点并研究归属，不在本轮使用或验收。延后能力须保留来源及处置记录；本轮范围内的替代功能和活跃调用方切换完成后，才能取消旧 runtime 和旧门面，不保留旧 API shim。删除前必须处理未迁移能力的活跃依赖，不能声称延后功能已完成迁移。
+Backtrader 当前仍随包提供 `backtrader_runtime`；新 `bt_api_runtime` 并未替代它。计划按职责梳理旧 runtime 的全部功能：通用控制与编排归新 runtime；Backtrader 对象桥接和框架投影归 Backtrader；CTP 协议归 CTP 项目；共享合同和服务分别归对应 SDK 子项目；认证专用证据与 fixture 留在认证/测试工具。迭代 52 实现和验收模拟账户 `paper` 与生产账户 `live`；`replay`、`shadow` 和本地模拟先盘点并研究归属，不在本轮使用或验收。延后能力须保留来源及处置记录；迭代 53 内先完成所需能力承接、活跃调用方切换及验证，再删除旧 runtime 和旧门面，不保留旧 API shim；迭代 52 随后基于新边界继续。删除前必须处理未迁移能力的活跃依赖，不能声称延后功能已完成迁移。
 
 Backtrader `examples/live` 和 `examples/unified` 中涉及模拟和实盘交易的示例都在重构范围，旧示例行为不作为兼容目标。各组件的生产功能、现存证据及未完成验收必须分别保留，历史记录不因重构改写；迁移方案本身不授权新的账户写入。实现、安装、真实行情和真实账户接受需要各自证据。
 
