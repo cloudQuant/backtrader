@@ -276,22 +276,6 @@ _CTP_EXECUTION_RECOVERY_COMPLETE_FIELDS = frozenset(
     }
 )
 
-_DEFINITE_READINESS_REASONS = frozenset(
-    {
-        "account_level_has_no_derivatives",
-        "instrument_not_live",
-        "invalid_expected_position_mode",
-        "invalid_quantity_native",
-        "max_buy_insufficient",
-        "max_sell_insufficient",
-        "position_mode_mismatch",
-        "quantity_below_minimum",
-        "quantity_below_min_size",
-        "quantity_not_multiple_of_lot_size",
-        "quantity_not_on_step",
-        "trading_permission_denied",
-    }
-)
 
 
 def _contract_mapping(value: Any, contract_name: str) -> Dict[str, Any]:
@@ -16184,10 +16168,8 @@ class BtApiStore(LiveStoreBase):
             snapshot["ready"] = bool(getattr(contract, "ready", snapshot.get("ready", False)))
             reasons = snapshot.get("blocked_reasons", snapshot.get("reasons", ()))
             snapshot["reasons"] = list(reasons or ())
-            snapshot.setdefault(
-                "definite_failure",
-                bool(_DEFINITE_READINESS_REASONS.intersection(snapshot["reasons"])),
-            )
+            if type(snapshot.get("definite_failure")) is not bool:
+                raise BtApiStoreError("SDK readiness failure classification is unavailable")
             return snapshot
         if self._sdk_mode:
             snapshot = _contract_mapping(
