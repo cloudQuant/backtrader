@@ -1,4 +1,4 @@
-# Alpha003 SimNow minute example
+﻿# Alpha003 SimNow minute example
 
 `run.py` is the single entry for dry validation, offline research, causal local
 replay, and SimNow live shadow/write modes. It binds the registered
@@ -7,7 +7,13 @@ second Alpha003 formula or scheduler. Research uses `ResearchSpec`,
 `align_to_grid`, `FactorStrategy`, and ordinary Cerebro. Replay and live use the
 ordinary `Alpha003TargetStrategy` and Cerebro-owned `BtApiFeed` cohort path.
 Replay uses `CausalReplayBroker`, a local `BackBroker` subclass, and never
-creates a provider Store. Live uses `BtApiBroker` and `RegisteredSimStore`.
+creates a provider Store. The live source constructs `BtApiStore` and
+`BtApiBroker` through the unified SDK integration.
+
+**Iteration 53 source migration:** the example and its cross-package dependencies
+are still being refactored. Live, replay, account and provider behavior have not
+been accepted on the current source. The descriptions below document the
+intended contracts and do not establish that the paths are runnable.
 
 **Trading-mode status (legacy interface):** This example's `--mode live` and
 `entry.tier: live` selectors connect to the SimNow simulated environment. Under
@@ -30,8 +36,6 @@ python run.py
 python run.py --mode dry --config config.yaml
 python run.py --mode research --config config.yaml
 python run.py --mode replay --config config.yaml
-python run.py --mode live --config config.yaml
-python run.py --mode live --allow-write --config config.yaml
 ```
 
 `--mode` can keep or lower the configured `entry.tier`; it cannot raise it.
@@ -52,30 +56,15 @@ authorized set is every product in the selected pool. An explicit
 `authorized_products` list narrows who may receive targets, while the complete
 pool remains present for cross-sectional ranking.
 
-The public template defaults to `selection.source: ctp_query` for live mode.
-After the single `RegisteredSimStore` is connected and read-only ready, the
-runner calls its `registered_sim_collect_futures_snapshot()` bridge on that
-same client. The collector issues empty-filter full catalog and current-depth
-queries, preserving all CTP-visible contract rows and requiring complete
-depth coverage. This describes the connected CTP session's visible catalog;
-it does not claim exchange-wide universe coverage. Unknown contract
-classification or a missing eligible quote blocks selection; non-futures and
-known ineligible contracts remain explicit selector exclusions. The
-`ctp_query_snapshot_equal_weight_v1` policy selects
-the maximum exact `0.5 * open_interest + 0.5 * current_day_volume` score for
-each product, with deterministic tie-breaking. No EOD snapshot fallback is
-used. Catalog/depth collection and freshness are checked when an epoch is
-admitted; its selected mapping stays frozen for that epoch. A later query
-epoch gets a fresh Store only after the old Strategy, engine, refresh loop,
-Broker and Store have completed their shutdown checks.
-
-Query selection is a live-only path. Research and replay require
-`selection.source: bundle` and an explicit saved bundle; a query source never
-falls back to one. Query mode uses `selection.max_epochs` as its finite live
-epoch count and does not accept `selection.daily_bundles`. Its session grid is
-created by the local `expected_rule_derived` daytime calendar profile, which
-retains the rule-manifest digest and source references and is not presented as
-a newly fetched exchange calendar.
+For query selection, the current source requires `selection.source: ctp_query`
+and `selection.query_mode: futures_market_snapshot`. It obtains a selected
+SDK query facade and expected-calendar port through `BtApiStore`, then asks
+for a leased futures snapshot with open-interest and volume coverage. The
+`futures_market_snapshot_equal_weight_v1` selection and planned minute grid
+use that snapshot and the selected calendar contract. Missing capabilities
+are reported as unavailable; this source path does not establish complete
+exchange coverage or verified calendar behavior. Research and replay use
+an explicitly supplied selection bundle rather than the live query source.
 
 The saved minute source is a JSON object with schema
 `backtrader.alpha003.minute_tape.v1`, a non-empty `snapshot_id`, explicit
@@ -127,8 +116,8 @@ same schema, injection, and profile validation as the environment value; when
 no override is supplied, the existing environment-variable fallback remains
 the default. This hook does not modify the process environment or grant write
 authorization, and it is not a CLI or public-config option.
-Shadow mode keeps `RegisteredSimStore(allow_writes=False)` and the ordinary
-`BtApiBroker` chain. Shadow mode still opens the same durable
+The source selects the unified Store/Broker path for its legacy shadow mode;
+that wiring does not establish a supported or accepted shadow deployment. Shadow mode still opens the same durable
 `ExecutionDecisionJournal` used by the live coordinator and records each
 eligible grid decision, including empty-intent NOOPs and the batch/snapshot,
 target-plan outcome, and source provenance. It does not arm instruments or
@@ -298,15 +287,14 @@ or arm-template setup failures. They do not establish live market, account,
 provider, or native-write acceptance.
 
 
-### 受保护配置的进程内移交（2026-10-27）
+### 受保护配置的进程内移交
 
-`protected_simnow.protected_simnow_store_config(selected_config_index=...)` 供主调用方读取现有 013_3 注册的受保护配置，索引从零开始且必须显式指定。它只将现有零写入策略的目录定位到此示例的 013_3 相邻目录；不修改 I41 注册或 artifact pin 表。必须先通过有界读取、配置/路由/凭据密封及本次固定安装 SDK 校验，再验证官方 SimNow TD/MD 配对。它不探测网络、不创建客户端或 Store，也不授予交易权限。
-
-在上下文内调用 `handoff.for_runner()` 可得到用于 `run(..., _live_store_config_override=...)` 的只读映射。每次取得映射都复核凭据密封；句柄和映射的 repr 隐去内容，退出后共享映射清空且句柄不可复用。调用方必须在上下文结束前正常关闭使用它的全部 Store，单独保持 shadow 配置及已有写入许可门槛。禁止把映射转换为日志、文件、环境变量、子进程参数或验收回执；只允许向本进程 Store 移交。安装来源不符合固定 pin 时直接拒绝，不回退到其他 SDK。
-
-本地最终 13 项合成配置测试及独立静态审阅通过；真实隔离消费者的公开 SDK artifact 校验通过。该组件本轮未执行新 helper 的真实受保护凭据移交、provider 或账户验收。
+`protected_simnow.protected_simnow_store_config` 当前明确返回
+`SDK_PROTECTED_SIMNOW_ADMISSION_CAPABILITY_UNAVAILABLE`，不会读取配置或凭据。
+原先依赖已退役的 Backtrader runtime 和 CTP 专用注册表的移交流程不可用；
+后续需由 SDK 提供相应中立能力并单独验收。
 
 
 ### 只读发现连接的正常关闭
 
-`discovery_lifecycle.close_discovery_store(store, timeout=...)` 只用于尚未启动 Feed/Broker/Cerebro 的零写入 `RegisteredSimStore` 发现连接。它核对 Store 静默状态及同一 MD/trader 客户端的 SDK 回执；成功才可结束受保护配置上下文。关闭未确认时抛出脱敏 `DiscoveryStoreCloseError`，其 custody 保留原对象，禁止把异常对象或 custody 序列化。不得重复 stop、手动 Release 或以退出进程替代关闭证明。MD generation 0 普通回执不足以证明启动资源处置，保持未完成。该组件的本地测试不构成实际账户或原生关闭验收。
+`discovery_lifecycle.close_discovery_store(store, timeout=...)` 调用所选 Store 的公开停止接口，并根据 Store 返回的生命周期健康信息判断关闭结果。当前中立合同没有独立的 provider 关闭回执，结果的 `provider_close_receipt_present` 为 `None`，不能据此证明原生资源已释放。关闭未确认时抛出脱敏 `DiscoveryStoreCloseError` 并保留原 Store 引用。此源码未完成当前迭代的运行或账户验收。
