@@ -25,10 +25,7 @@
 
 - **Backtrader**：策略与 Cerebro 生命周期、Store/Feed/Broker 框架接口、BT Order/Position/Trade、bar 聚合与数据线、回调和通知，以及中立数据到框架对象的投影。
 - **bt_api_py**：统一 BtApi facade、provider 发现与选择、跨包组合、route 与会话调用及中立 SDK 工作流。Backtrader 经此接口集成，不按交易所建立专属 BT adapter。
-- **启动 journal 恢复**：`bt_api_py.startup_recovery` 负责 SDK 恢复 hook 的次序和结果合同；Store 保留触发时机及失败转译。缺失 hook 为 unsupported，并不证明订单状态干净；当前跨仓接线仅为源码 WIP。
-- **审批 lease 字段检查**：`bt_api_py.approval_lease` 校验传入字段，Store 做 BT command 映射与拒绝转译；它不签发授权或证明来源。当前跨仓接线仅为源码 WIP。
-- **readiness 结果分类**：SDK mode 由 SDK 提供 `definite_failure`，Store 不维护 provider reason 分类表；该字段不明确时显式拒绝。当前仅源码级，未行为验收。
-- **funding 读取**：SDK mode 使用 SDK 统一 `get_funding_snapshot`，不在 BT 选择旧 SDK API 形状；此结构变更未行为验收。
+- SDK 拥有启动恢复、审批字段、readiness、funding、capacity 及中立命令结果的统一合同；Store 保留路由、触发时机、生命周期和 BT 错误投影。缺失合同不应推断权限或恢复成功，具体源码状态与未提交项见职责规范和迭代计划。
 - **bt_api_base**：共享中立 DTO、协议、接口和基础组件；合同本身不证明账户、provider 或授权事实。
 - **bt_api_ctp / bt_api_okx / bt_api_binance 等 provider**：各自交易所的 native/session、鉴权、字段、请求、查询、回报、原生规则及向中立合同的转换。
 - **bt_api_execution**：显式启用的可靠执行、journal、派发、对账与恢复；聚合、拆单和算法调度是目标能力，不能假称已实现。
@@ -42,8 +39,11 @@
 
 - `store.py` / `stores/`：Store 公共接口、实例级生命周期、route 和 Feed/Broker 协调；不拥有 provider 原生协议真值。当前 Store 非强制单例，行为以源码和验收为准。
 - `brokers/`、`broker.py`、`order.py`、`position.py`、`trade.py`、`commissions/`：BT 订单、成交、持仓、费用投影与通知；provider 原始账户/订单事实经 SDK 提供。
+- 中立对账、费用和状态合同与 SDK 调用归 base/SDK；BT 保留本地订单关联、状态投影、通知及费用分配。metadata 探测与 funding 刷新的通用工作流归 SDK，BT 保留 Store 回调和结果投影；合同和 DTO 不证明 provider 事实。
 - `feeds/`、`feed.py`、`filters/`、`resamplerfilter.py`：Feed 生命周期、BT 数据线、数据时钟、过滤与 bar 聚合；不伪造来源时钟或交易授权。
+- SDK 拥有中立行情 clock/freshness、质量与 stream 合同；BT 保留字段映射、token、路由、本地序列、价格网格及 bar 时钟。现有跨仓行情迁移仍是未行为验收的 WIP。
 - `execution/`、`factor_execution/`、`service/`：当前迭代的 BT 执行适配、策略/因子事实和框架生命周期桥接候选；durable journal、provider authority 与通用服务能力归相应 SDK owner，逐函数确认，当前工作树仍有未验收迁移。
+- 因子本地归属账本的 SQLite schema、核验、幂等写入和容量记账/读取位于 `bt_api_execution.factor_position_attribution`，经 `bt_api_py.factor_position_attribution` 提供；BT 保留 Broker 持仓比较。它不证明 provider 事实，当前为未提交、未行为验收的 WIP。
 - `cerebro.py` / `_cerebro/`、`strategy.py`、`line*.py`：引擎唯一调度、策略回调、线运算与多数据时钟；不新增第二套策略调度器。
 - `research/`、`indicators/`、`observers/`、`analyzers/`、`sizers/`：各自的研究、指标、观察、分析和仓位计算；不私自创建账户事实或绕过执行/风控边界。
 - `tests/` 是验证，`examples/` 展示使用，`scripts/` / `tools/` 为任务入口，`docs/` 解释和记录；产品代码不依赖这些目录作为运行时实现。
