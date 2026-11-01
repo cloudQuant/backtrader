@@ -276,6 +276,7 @@ Backtrader 是 CloudQuant 量化研究生态的一部分：
 
    developer-guide/index_zh
    developer-guide/repository-responsibilities_zh
+   developer-guide/职责边界审查与重构建议-2026-11-01
    developer-guide/setup_zh
    developer-guide/testing_zh
    developer-guide/style_zh
