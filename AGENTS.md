@@ -28,6 +28,7 @@
 - **启动 journal 恢复**：`bt_api_py.startup_recovery` 负责 SDK 恢复 hook 的次序和结果合同；Store 保留触发时机及失败转译。缺失 hook 为 unsupported，并不证明订单状态干净；当前跨仓接线仅为源码 WIP。
 - **审批 lease 字段检查**：`bt_api_py.approval_lease` 校验传入字段，Store 做 BT command 映射与拒绝转译；它不签发授权或证明来源。当前跨仓接线仅为源码 WIP。
 - **readiness 结果分类**：SDK mode 由 SDK 提供 `definite_failure`，Store 不维护 provider reason 分类表；该字段不明确时显式拒绝。当前仅源码级，未行为验收。
+- **funding 读取**：SDK mode 使用 SDK 统一 `get_funding_snapshot`，不在 BT 选择旧 SDK API 形状；此结构变更未行为验收。
 - **bt_api_base**：共享中立 DTO、协议、接口和基础组件；合同本身不证明账户、provider 或授权事实。
 - **bt_api_ctp / bt_api_okx / bt_api_binance 等 provider**：各自交易所的 native/session、鉴权、字段、请求、查询、回报、原生规则及向中立合同的转换。
 - **bt_api_execution**：显式启用的可靠执行、journal、派发、对账与恢复；聚合、拆单和算法调度是目标能力，不能假称已实现。

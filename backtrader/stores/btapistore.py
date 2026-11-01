@@ -15528,15 +15528,12 @@ class BtApiStore(LiveStoreBase):
 
     def _read_funding_snapshot_from_api(self, api: Any, dataname: str) -> Dict[str, Any]:
         """Perform exactly one SDK/provider funding read without cache policy."""
-        if self._sdk_mode and callable(getattr(api, "get_funding_snapshot", None)):
+        if self._sdk_mode:
+            if not callable(getattr(api, "get_funding_snapshot", None)):
+                raise BtApiStoreError("The SDK does not expose typed funding snapshots")
             return _contract_mapping(
                 api.get_funding_snapshot(self._sdk_exchange(dataname), dataname),
                 "FundingSnapshot",
-            )
-        if self._sdk_mode and callable(getattr(api, "get_funding_rate", None)):
-            return _contract_mapping(
-                api.get_funding_rate(self._sdk_exchange(dataname), dataname, normalized=True),
-                "funding snapshot",
             )
         if callable(getattr(api, "get_funding_snapshot", None)):
             return _contract_mapping(api.get_funding_snapshot(dataname), "FundingSnapshot")
