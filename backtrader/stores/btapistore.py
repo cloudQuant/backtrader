@@ -7841,45 +7841,22 @@ class BtApiStore(LiveStoreBase):
 
     @staticmethod
     def _validate_approval_lease_command(command: Mapping[str, Any]) -> None:
-        """Recheck an attached demo approval immediately before the SDK write."""
-        fields = {
-            "expires_at": command.get("approval_expires_at_utc"),
-            "operation_count": command.get("approval_operation_count"),
-            "maximum_count": command.get("approval_max_order_count"),
-            "risk_reducing": command.get("approval_risk_reducing"),
-        }
-        if all(value is None for value in fields.values()):
-            return
-        if any(value is None for value in fields.values()):
-            raise _ApprovalLeaseRejected("demo_approval_lease_incomplete")
-        expires_at = fields["expires_at"]
-        if not isinstance(expires_at, str) or not expires_at.endswith("Z"):
-            raise _ApprovalLeaseRejected("demo_approval_expiry_invalid")
+        """Map BT command fields to the SDK's pre-dispatch lease check."""
         try:
-            parsed_expiry = _dt.datetime.fromisoformat(expires_at[:-1] + "+00:00")
-        except ValueError:
-            _safe_log("error", "btapistore:6153 re-raising ValueError")
-            raise _ApprovalLeaseRejected("demo_approval_expiry_invalid") from None
-        operation_count = fields["operation_count"]
-        maximum_count = fields["maximum_count"]
-        risk_reducing = fields["risk_reducing"]
-        if (
-            parsed_expiry.utcoffset() != _dt.timedelta(0)
-            or isinstance(operation_count, bool)
-            or not isinstance(operation_count, int)
-            or operation_count <= 0
-            or isinstance(maximum_count, bool)
-            or not isinstance(maximum_count, int)
-            or maximum_count <= 0
-            or not isinstance(risk_reducing, bool)
-        ):
-            raise _ApprovalLeaseRejected("demo_approval_lease_invalid")
-        if risk_reducing:
-            return
-        if operation_count > maximum_count:
-            raise _ApprovalLeaseRejected("demo_approval_order_limit")
-        if _dt.datetime.now(_dt.timezone.utc) >= parsed_expiry:
-            raise _ApprovalLeaseRejected("demo_approval_expired")
+            from bt_api_py.approval_lease import ApprovalLeaseRejected, validate_approval_lease
+        except ImportError as exc:
+            raise BtApiMissingDependencyError(
+                "bt_api_py approval lease contract is required"
+            ) from exc
+        try:
+            validate_approval_lease(
+                expires_at=command.get("approval_expires_at_utc"),
+                operation_count=command.get("approval_operation_count"),
+                maximum_count=command.get("approval_max_order_count"),
+                risk_reducing=command.get("approval_risk_reducing"),
+            )
+        except ApprovalLeaseRejected as exc:
+            raise _ApprovalLeaseRejected(exc.code) from None
 
     @staticmethod
     def _public_sdk_venue(venue: Any) -> str:
@@ -18368,44 +18345,23 @@ class BtApiStore(LiveStoreBase):
         ]:
             self._historical_query_cache.pop(key, None)
 
-    def _recover_reservation_only_cancel_unknowns(self) -> None:
-        """Run the SDK's local journal recovery hook before Store transport startup."""
-        recover = getattr(self._api, "recover_reservation_only_cancel_unknowns", None)
-        if not callable(recover):
-            return
+    def _recover_sdk_startup_journal(self) -> None:
+        """Ask the SDK to recover its local journal before transport startup."""
         try:
-            result = recover()
-        except Exception as exc:
-            _safe_log("warning", "btapistore:reservation_cancel_recovery_failed")
-            self.sanitize_exception(exc)
-            raise BtApiStoreError("SDK local reservation-cancel journal recovery failed") from None
-        if (
-            not isinstance(result, Mapping)
-            or result.get("completed") is not True
-            or not isinstance(result.get("recovered_client_order_ids"), list)
-        ):
-            raise BtApiStoreError("SDK local reservation-cancel journal recovery is unproven")
+            from bt_api_py.startup_recovery import (
+                StartupRecoveryError,
+                recover_local_startup_journal,
+            )
+        except ImportError as exc:
+            raise BtApiMissingDependencyError(
+                "bt_api_py startup journal recovery is required"
+            ) from exc
+        try:
+            recover_local_startup_journal(self._api)
+        except StartupRecoveryError:
+            _safe_log("warning", "btapistore:sdk_startup_recovery_failed")
+            raise BtApiStoreError("SDK local journal recovery is unproven") from None
 
-    def _recover_historical_documented_definite_rejections(self) -> None:
-        """Run the SDK's proven local rejection recovery before transport startup."""
-        recover = getattr(self._api, "recover_historical_documented_definite_rejections", None)
-        if not callable(recover):
-            # This hook is optional for older SDKs. Without it, unresolved
-            # journal entries remain unresolved and normal reconciliation
-            # gates continue to fail closed.
-            return
-        try:
-            result = recover()
-        except Exception as exc:
-            _safe_log("warning", "btapistore:documented_rejection_recovery_failed")
-            self.sanitize_exception(exc)
-            raise BtApiStoreError("SDK local documented-rejection recovery failed") from None
-        if (
-            not isinstance(result, Mapping)
-            or result.get("completed") is not True
-            or not isinstance(result.get("recovered_client_order_ids"), list)
-        ):
-            raise BtApiStoreError("SDK local documented-rejection recovery is unproven")
 
     def _ensure_api_ready(self):
         """Instantiate and connect the underlying bt_api_py client on demand."""
@@ -18519,8 +18475,7 @@ class BtApiStore(LiveStoreBase):
             # The SDK hook only inspects its durable local journal and can
             # append a terminal event for the exact reservation-only pattern.
             # Run it before connecting providers or starting the command worker.
-            self._recover_reservation_only_cancel_unknowns()
-            self._recover_historical_documented_definite_rejections()
+            self._recover_sdk_startup_journal()
 
         ctp_session_provider = self._is_ctp_session_provider()
         self.emit_runtime_event("store_connecting", status="connecting")
