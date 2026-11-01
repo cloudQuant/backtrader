@@ -1158,3 +1158,4 @@ docs/_internal/opts/requirements/迭代50-因子实盘运行与交易接入/evid
 "docs/_internal/opts/requirements/迭代51-因子流批一体与Alpha003-SimNow实盘示例/evidence/capacity87-corrected-rss-20261027/build/completion.json" -text
 "docs/_internal/opts/requirements/迭代51-因子流批一体与Alpha003-SimNow实盘示例/evidence/capacity87-corrected-rss-20261027/record.json" -text
 "docs/_internal/opts/历史指引快照/AGENTS-历史快照-2026-11-01.md" -text
+/archive/iteration53/ci/smoke_iteration41_registered_offline.py -text
